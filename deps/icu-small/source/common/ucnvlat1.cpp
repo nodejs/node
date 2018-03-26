@@ -340,7 +340,11 @@ ucnv_Latin1FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     targetCapacity=(int32_t)(pFromUArgs->targetLimit-pFromUArgs->target);
 
     /* get the converter state from the UTF-8 UConverter */
-    c=(UChar32)utf8->toUnicodeStatus;
+    if (utf8->toULength > 0) {
+        c=(UChar32)utf8->toUnicodeStatus;
+    } else {
+        c = 0;
+    }
     if(c!=0 && source<sourceLimit) {
         if(targetCapacity==0) {
             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
@@ -620,7 +624,7 @@ ucnv_ASCIIFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
 
     uint8_t c;
 
-    if(pToUArgs->converter->toUnicodeStatus!=0) {
+    if(pToUArgs->converter->toULength > 0) {
         /* no handling of partial UTF-8 characters here, fall back to pivoting */
         *pErrorCode=U_USING_DEFAULT_WARNING;
         return;

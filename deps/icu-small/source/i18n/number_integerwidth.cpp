@@ -13,25 +13,28 @@ using namespace icu;
 using namespace icu::number;
 using namespace icu::number::impl;
 
-IntegerWidth::IntegerWidth(int8_t minInt, int8_t maxInt) {
+IntegerWidth::IntegerWidth(digits_t minInt, digits_t maxInt) {
     fUnion.minMaxInt.fMinInt = minInt;
     fUnion.minMaxInt.fMaxInt = maxInt;
 }
 
 IntegerWidth IntegerWidth::zeroFillTo(int32_t minInt) {
     if (minInt >= 0 && minInt <= kMaxIntFracSig) {
-        return {static_cast<int8_t>(minInt), -1};
+        return {static_cast<digits_t>(minInt), -1};
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
 IntegerWidth IntegerWidth::truncateAt(int32_t maxInt) {
     if (fHasError) { return *this; }  // No-op on error
-    if (maxInt >= 0 && maxInt <= kMaxIntFracSig) {
-        return {fUnion.minMaxInt.fMinInt, static_cast<int8_t>(maxInt)};
+    digits_t minInt = fUnion.minMaxInt.fMinInt;
+    if (maxInt >= 0 && maxInt <= kMaxIntFracSig && minInt <= maxInt) {
+        return {minInt, static_cast<digits_t>(maxInt)};
+    } else if (maxInt == -1) {
+        return {minInt, -1};
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 

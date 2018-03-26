@@ -38,7 +38,7 @@
 
 /**
  * Platform utilities isolates the platform dependencies of the
- * libarary.  For each platform which this code is ported to, these
+ * library.  For each platform which this code is ported to, these
  * functions may have to be re-implemented.
  */
 
@@ -53,7 +53,7 @@
  * The data directory is determined as follows:
  *    If u_setDataDirectory() has been called, that is it, otherwise
  *    if the ICU_DATA environment variable is set, use that, otherwise
- *    If a data directory was specifed at ICU build time
+ *    If a data directory was specified at ICU build time
  *      <code>
  * \code
  *        #define ICU_DATA_DIR "path"
@@ -93,7 +93,7 @@ U_STABLE void U_EXPORT2 u_setDataDirectory(const char *directory);
 #ifndef U_HIDE_INTERNAL_API
 /**
   * Return the time zone files override directory, or an empty string if
-  * no directory was specified. Certain time zone resources will be preferrentially
+  * no directory was specified. Certain time zone resources will be preferentially
   * loaded from individual files in this directory.
   *
   * @return the time zone data override directory.

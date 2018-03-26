@@ -5469,7 +5469,7 @@ GC_Done:
                 if (lbStartIdx < 0) {
                     // First time through loop.
                     lbStartIdx = fp->fInputIdx - minML;
-                    if (lbStartIdx > 0) {
+                    if (lbStartIdx > 0 && lbStartIdx < fInputLength) {
                         U16_SET_CP_START(inputBuf, 0, lbStartIdx);
                     }
                 } else {
@@ -5546,7 +5546,7 @@ GC_Done:
                 if (lbStartIdx < 0) {
                     // First time through loop.
                     lbStartIdx = fp->fInputIdx - minML;
-                    if (lbStartIdx > 0) {
+                    if (lbStartIdx > 0 && lbStartIdx < fInputLength) {
                         U16_SET_CP_START(inputBuf, 0, lbStartIdx);
                     }
                 } else {

@@ -190,7 +190,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    UnifiedCache(UErrorCode &status);
 
    /**
-    * Returns the cache instance.
+    * Return a pointer to the global cache instance.
     */
    static UnifiedCache *getInstance(UErrorCode &status);
 
@@ -294,7 +294,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
 
    /**
     * Configures at what point evcition of unused entries will begin.
-    * Eviction is triggered whenever the number of unused entries exeeds
+    * Eviction is triggered whenever the number of evictable keys exeeds
     * BOTH count AND (number of in-use items) * (percentageOfInUseItems / 100).
     * Once the number of unused entries drops below one of these,
     * eviction ceases. Because eviction happens incrementally,
@@ -341,60 +341,214 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
     */
    int32_t unusedCount() const;
 
-   virtual void incrementItemsInUse() const;
-   virtual void decrementItemsInUseWithLockingAndEviction() const;
-   virtual void decrementItemsInUse() const;
+   virtual void handleUnreferencedObject() const;
    virtual ~UnifiedCache();
+
  private:
    UHashtable *fHashtable;
    mutable int32_t fEvictPos;
-   mutable int32_t fItemsInUseCount;
+   mutable int32_t fNumValuesTotal;
+   mutable int32_t fNumValuesInUse;
    int32_t fMaxUnused;
    int32_t fMaxPercentageOfInUse;
    mutable int64_t fAutoEvictedCount;
+   SharedObject *fNoValue;
+
    UnifiedCache(const UnifiedCache &other);
    UnifiedCache &operator=(const UnifiedCache &other);
+
+   /**
+    * Flushes the contents of the cache. If cache values hold references to other
+    * cache values then _flush should be called in a loop until it returns FALSE.
+    *
+    * On entry, gCacheMutex must be held.
+    * On exit, those values with are evictable are flushed.
+    *
+    *  @param all if false flush evictable items only, which are those with no external
+    *                    references, plus those that can be safely recreated.<br>
+    *            if true, flush all elements. Any values (sharedObjects) with remaining
+    *                     hard (external) references are not deleted, but are detached from
+    *                     the cache, so that a subsequent removeRefs can delete them.
+    *                     _flush is not thread safe when all is true.
+    *   @return TRUE if any value in cache was flushed or FALSE otherwise.
+    */
    UBool _flush(UBool all) const;
+
+   /**
+    * Gets value out of cache.
+    * On entry. gCacheMutex must not be held. value must be NULL. status
+    * must be U_ZERO_ERROR.
+    * On exit. value and status set to what is in cache at key or on cache
+    * miss the key's createObject() is called and value and status are set to
+    * the result of that. In this latter case, best effort is made to add the
+    * value and status to the cache. If createObject() fails to create a value,
+    * fNoValue is stored in cache, and value is set to NULL. Caller must call
+    * removeRef on value if non NULL.
+    */
    void _get(
            const CacheKeyBase &key,
            const SharedObject *&value,
            const void *creationContext,
            UErrorCode &status) const;
-   UBool _poll(
-           const CacheKeyBase &key,
-           const SharedObject *&value,
-           UErrorCode &status) const;
-   void _putNew(
-           const CacheKeyBase &key,
-           const SharedObject *value,
-           const UErrorCode creationStatus,
-           UErrorCode &status) const;
+
+    /**
+     * Attempts to fetch value and status for key from cache.
+     * On entry, gCacheMutex must not be held value must be NULL and status must
+     * be U_ZERO_ERROR.
+     * On exit, either returns FALSE (In this
+     * case caller should try to create the object) or returns TRUE with value
+     * pointing to the fetched value and status set to fetched status. When
+     * FALSE is returned status may be set to failure if an in progress hash
+     * entry could not be made but value will remain unchanged. When TRUE is
+     * returned, caller must call removeRef() on value.
+     */
+    UBool _poll(
+            const CacheKeyBase &key,
+            const SharedObject *&value,
+            UErrorCode &status) const;
+
+    /**
+     * Places a new value and creationStatus in the cache for the given key.
+     * On entry, gCacheMutex must be held. key must not exist in the cache.
+     * On exit, value and creation status placed under key. Soft reference added
+     * to value on successful add. On error sets status.
+     */
+    void _putNew(
+        const CacheKeyBase &key,
+        const SharedObject *value,
+        const UErrorCode creationStatus,
+        UErrorCode &status) const;
+
+    /**
+     * Places value and status at key if there is no value at key or if cache
+     * entry for key is in progress. Otherwise, it leaves the current value and
+     * status there.
+     *
+     * On entry. gCacheMutex must not be held. Value must be
+     * included in the reference count of the object to which it points.
+     *
+     * On exit, value and status are changed to what was already in the cache if
+     * something was there and not in progress. Otherwise, value and status are left
+     * unchanged in which case they are placed in the cache on a best-effort basis.
+     * Caller must call removeRef() on value.
+     */
    void _putIfAbsentAndGet(
            const CacheKeyBase &key,
            const SharedObject *&value,
            UErrorCode &status) const;
-   const UHashElement *_nextElement() const;
+
+    /**
+     * Returns the next element in the cache round robin style.
+     * Returns nullptr if the cache is empty.
+     * On entry, gCacheMutex must be held.
+     */
+    const UHashElement *_nextElement() const;
+
+   /**
+    * Return the number of cache items that would need to be evicted
+    * to bring usage into conformance with eviction policy.
+    *
+    * An item corresponds to an entry in the hash table, a hash table element.
+    *
+    * On entry, gCacheMutex must be held.
+    */
    int32_t _computeCountOfItemsToEvict() const;
+
+   /**
+    * Run an eviction slice.
+    * On entry, gCacheMutex must be held.
+    * _runEvictionSlice runs a slice of the evict pipeline by examining the next
+    * 10 entries in the cache round robin style evicting them if they are eligible.
+    */
    void _runEvictionSlice() const;
-   void _registerMaster(
-        const CacheKeyBase *theKey, const SharedObject *value) const;
+
+   /**
+    * Register a master cache entry. A master key is the first key to create
+    * a given  SharedObject value. Subsequent keys whose create function
+    * produce referneces to an already existing SharedObject are not masters -
+    * they can be evicted and subsequently recreated.
+    *
+    * On entry, gCacheMutex must be held.
+    * On exit, items in use count incremented, entry is marked as a master
+    * entry, and value registered with cache so that subsequent calls to
+    * addRef() and removeRef() on it correctly interact with the cache.
+    */
+   void _registerMaster(const CacheKeyBase *theKey, const SharedObject *value) const;
+
+   /**
+    * Store a value and creation error status in given hash entry.
+    * On entry, gCacheMutex must be held. Hash entry element must be in progress.
+    * value must be non NULL.
+    * On Exit, soft reference added to value. value and status stored in hash
+    * entry. Soft reference removed from previous stored value. Waiting
+    * threads notified.
+    */
    void _put(
            const UHashElement *element,
            const SharedObject *value,
            const UErrorCode status) const;
+    /**
+     * Remove a soft reference, and delete the SharedObject if no references remain.
+     * To be used from within the UnifiedCache implementation only.
+     * gCacheMutex must be held by caller.
+     * @param value the SharedObject to be acted on.
+     */
+   void removeSoftRef(const SharedObject *value) const;
+
+   /**
+    * Increment the hard reference count of the given SharedObject.
+    * gCacheMutex must be held by the caller.
+    * Update numValuesEvictable on transitions between zero and one reference.
+    *
+    * @param value The SharedObject to be referenced.
+    * @return the hard reference count after the addition.
+    */
+   int32_t addHardRef(const SharedObject *value) const;
+
+  /**
+    * Decrement the hard reference count of the given SharedObject.
+    * gCacheMutex must be held by the caller.
+    * Update numValuesEvictable on transitions between one and zero reference.
+    *
+    * @param value The SharedObject to be referenced.
+    * @return the hard reference count after the removal.
+    */
+   int32_t removeHardRef(const SharedObject *value) const;
+
+
 #ifdef UNIFIED_CACHE_DEBUG
    void _dumpContents() const;
 #endif
-   static void copyPtr(const SharedObject *src, const SharedObject *&dest);
-   static void clearPtr(const SharedObject *&ptr);
-   static void _fetch(
-           const UHashElement *element,
-           const SharedObject *&value,
-           UErrorCode &status);
-   static UBool _inProgress(const UHashElement *element);
-   static UBool _inProgress(
-           const SharedObject *theValue, UErrorCode creationStatus);
-   static UBool _isEvictable(const UHashElement *element);
+
+   /**
+    *  Fetch value and error code from a particular hash entry.
+    *  On entry, gCacheMutex must be held. value must be either NULL or must be
+    *  included in the ref count of the object to which it points.
+    *  On exit, value and status set to what is in the hash entry. Caller must
+    *  eventually call removeRef on value.
+    *  If hash entry is in progress, value will be set to gNoValue and status will
+    *  be set to U_ZERO_ERROR.
+    */
+   void _fetch(const UHashElement *element, const SharedObject *&value,
+                       UErrorCode &status) const;
+
+    /**
+     * Determine if given hash entry is in progress.
+     * On entry, gCacheMutex must be held.
+     */
+   UBool _inProgress(const UHashElement *element) const;
+
+   /**
+    * Determine if given hash entry is in progress.
+    * On entry, gCacheMutex must be held.
+    */
+   UBool _inProgress(const SharedObject *theValue, UErrorCode creationStatus) const;
+
+   /**
+    * Determine if given hash entry is eligible for eviction.
+    * On entry, gCacheMutex must be held.
+    */
+   UBool _isEvictable(const UHashElement *element) const;
 };
 
 U_NAMESPACE_END

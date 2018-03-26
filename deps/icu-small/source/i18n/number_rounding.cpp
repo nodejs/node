@@ -58,7 +58,7 @@ FractionRounder Rounder::fixedFraction(int32_t minMaxFractionPlaces) {
     if (minMaxFractionPlaces >= 0 && minMaxFractionPlaces <= kMaxIntFracSig) {
         return constructFraction(minMaxFractionPlaces, minMaxFractionPlaces);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
@@ -66,7 +66,7 @@ FractionRounder Rounder::minFraction(int32_t minFractionPlaces) {
     if (minFractionPlaces >= 0 && minFractionPlaces <= kMaxIntFracSig) {
         return constructFraction(minFractionPlaces, -1);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
@@ -74,7 +74,7 @@ FractionRounder Rounder::maxFraction(int32_t maxFractionPlaces) {
     if (maxFractionPlaces >= 0 && maxFractionPlaces <= kMaxIntFracSig) {
         return constructFraction(0, maxFractionPlaces);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
@@ -83,40 +83,40 @@ FractionRounder Rounder::minMaxFraction(int32_t minFractionPlaces, int32_t maxFr
         minFractionPlaces <= maxFractionPlaces) {
         return constructFraction(minFractionPlaces, maxFractionPlaces);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
 Rounder Rounder::fixedDigits(int32_t minMaxSignificantDigits) {
-    if (minMaxSignificantDigits >= 0 && minMaxSignificantDigits <= kMaxIntFracSig) {
+    if (minMaxSignificantDigits >= 1 && minMaxSignificantDigits <= kMaxIntFracSig) {
         return constructSignificant(minMaxSignificantDigits, minMaxSignificantDigits);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
 Rounder Rounder::minDigits(int32_t minSignificantDigits) {
-    if (minSignificantDigits >= 0 && minSignificantDigits <= kMaxIntFracSig) {
+    if (minSignificantDigits >= 1 && minSignificantDigits <= kMaxIntFracSig) {
         return constructSignificant(minSignificantDigits, -1);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
 Rounder Rounder::maxDigits(int32_t maxSignificantDigits) {
-    if (maxSignificantDigits >= 0 && maxSignificantDigits <= kMaxIntFracSig) {
-        return constructSignificant(0, maxSignificantDigits);
+    if (maxSignificantDigits >= 1 && maxSignificantDigits <= kMaxIntFracSig) {
+        return constructSignificant(1, maxSignificantDigits);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
 Rounder Rounder::minMaxDigits(int32_t minSignificantDigits, int32_t maxSignificantDigits) {
-    if (minSignificantDigits >= 0 && maxSignificantDigits <= kMaxIntFracSig &&
+    if (minSignificantDigits >= 1 && maxSignificantDigits <= kMaxIntFracSig &&
         minSignificantDigits <= maxSignificantDigits) {
         return constructSignificant(minSignificantDigits, maxSignificantDigits);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
@@ -124,7 +124,7 @@ IncrementRounder Rounder::increment(double roundingIncrement) {
     if (roundingIncrement > 0.0) {
         return constructIncrement(roundingIncrement, 0);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
@@ -139,19 +139,19 @@ Rounder Rounder::withMode(RoundingMode roundingMode) const {
 
 Rounder FractionRounder::withMinDigits(int32_t minSignificantDigits) const {
     if (fType == RND_ERROR) { return *this; } // no-op in error state
-    if (minSignificantDigits >= 0 && minSignificantDigits <= kMaxIntFracSig) {
+    if (minSignificantDigits >= 1 && minSignificantDigits <= kMaxIntFracSig) {
         return constructFractionSignificant(*this, minSignificantDigits, -1);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
 Rounder FractionRounder::withMaxDigits(int32_t maxSignificantDigits) const {
     if (fType == RND_ERROR) { return *this; } // no-op in error state
-    if (maxSignificantDigits >= 0 && maxSignificantDigits <= kMaxIntFracSig) {
+    if (maxSignificantDigits >= 1 && maxSignificantDigits <= kMaxIntFracSig) {
         return constructFractionSignificant(*this, -1, maxSignificantDigits);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
@@ -185,14 +185,14 @@ Rounder IncrementRounder::withMinFraction(int32_t minFrac) const {
     if (minFrac >= 0 && minFrac <= kMaxIntFracSig) {
         return constructIncrement(fUnion.increment.fIncrement, minFrac);
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 
 FractionRounder Rounder::constructFraction(int32_t minFrac, int32_t maxFrac) {
     FractionSignificantSettings settings;
-    settings.fMinFrac = static_cast<int8_t> (minFrac);
-    settings.fMaxFrac = static_cast<int8_t> (maxFrac);
+    settings.fMinFrac = static_cast<digits_t>(minFrac);
+    settings.fMaxFrac = static_cast<digits_t>(maxFrac);
     settings.fMinSig = -1;
     settings.fMaxSig = -1;
     RounderUnion union_;
@@ -204,8 +204,8 @@ Rounder Rounder::constructSignificant(int32_t minSig, int32_t maxSig) {
     FractionSignificantSettings settings;
     settings.fMinFrac = -1;
     settings.fMaxFrac = -1;
-    settings.fMinSig = static_cast<int8_t>(minSig);
-    settings.fMaxSig = static_cast<int8_t>(maxSig);
+    settings.fMinSig = static_cast<digits_t>(minSig);
+    settings.fMaxSig = static_cast<digits_t>(maxSig);
     RounderUnion union_;
     union_.fracSig = settings;
     return {RND_SIGNIFICANT, union_, kDefaultMode};
@@ -214,8 +214,8 @@ Rounder Rounder::constructSignificant(int32_t minSig, int32_t maxSig) {
 Rounder
 Rounder::constructFractionSignificant(const FractionRounder &base, int32_t minSig, int32_t maxSig) {
     FractionSignificantSettings settings = base.fUnion.fracSig;
-    settings.fMinSig = static_cast<int8_t>(minSig);
-    settings.fMaxSig = static_cast<int8_t>(maxSig);
+    settings.fMinSig = static_cast<digits_t>(minSig);
+    settings.fMaxSig = static_cast<digits_t>(maxSig);
     RounderUnion union_;
     union_.fracSig = settings;
     return {RND_FRACTION_SIGNIFICANT, union_, kDefaultMode};
@@ -224,7 +224,7 @@ Rounder::constructFractionSignificant(const FractionRounder &base, int32_t minSi
 IncrementRounder Rounder::constructIncrement(double increment, int32_t minFrac) {
     IncrementSettings settings;
     settings.fIncrement = increment;
-    settings.fMinFrac = minFrac;
+    settings.fMinFrac = static_cast<digits_t>(minFrac);
     RounderUnion union_;
     union_.increment = settings;
     return {RND_INCREMENT, union_, kDefaultMode};
@@ -251,28 +251,39 @@ void Rounder::setLocaleData(const CurrencyUnit &currency, UErrorCode &status) {
 int32_t
 Rounder::chooseMultiplierAndApply(impl::DecimalQuantity &input, const impl::MultiplierProducer &producer,
                                   UErrorCode &status) {
-    // TODO: Make a better and more efficient implementation.
-    // TODO: Avoid the object creation here.
-    DecimalQuantity copy(input);
-
+    // Do not call this method with zero.
     U_ASSERT(!input.isZero());
-    int32_t magnitude = input.getMagnitude();
-    int32_t multiplier = producer.getMultiplier(magnitude);
+
+    // Perform the first attempt at rounding.
+    int magnitude = input.getMagnitude();
+    int multiplier = producer.getMultiplier(magnitude);
     input.adjustMagnitude(multiplier);
     apply(input, status);
 
-    // If the number turned to zero when rounding, do not re-attempt the rounding.
-    if (!input.isZero() && input.getMagnitude() == magnitude + multiplier + 1) {
-        magnitude += 1;
-        input = copy;
-        multiplier = producer.getMultiplier(magnitude);
-        input.adjustMagnitude(multiplier);
-        U_ASSERT(input.getMagnitude() == magnitude + multiplier - 1);
-        apply(input, status);
-        U_ASSERT(input.getMagnitude() == magnitude + multiplier);
+    // If the number rounded to zero, exit.
+    if (input.isZero() || U_FAILURE(status)) {
+        return multiplier;
     }
 
-    return multiplier;
+    // If the new magnitude after rounding is the same as it was before rounding, then we are done.
+    // This case applies to most numbers.
+    if (input.getMagnitude() == magnitude + multiplier) {
+        return multiplier;
+    }
+
+    // If the above case DIDN'T apply, then we have a case like 99.9 -> 100 or 999.9 -> 1000:
+    // The number rounded up to the next magnitude. Check if the multiplier changes; if it doesn't,
+    // we do not need to make any more adjustments.
+    int _multiplier = producer.getMultiplier(magnitude + 1);
+    if (multiplier == _multiplier) {
+        return multiplier;
+    }
+
+    // We have a case like 999.9 -> 1000, where the correct output is "1K", not "1000".
+    // Fix the magnitude and re-apply the rounding strategy.
+    input.adjustMagnitude(_multiplier - multiplier);
+    apply(input, status);
+    return _multiplier;
 }
 
 /** This is the method that contains the actual rounding logic. */
@@ -331,6 +342,7 @@ void Rounder::apply(impl::DecimalQuantity &value, UErrorCode& status) const {
         case RND_CURRENCY:
             // Call .withCurrency() before .apply()!
             U_ASSERT(false);
+            break;
 
         case RND_PASS_THROUGH:
             break;

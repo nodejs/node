@@ -31,7 +31,7 @@ typedef UNumberFormatPadPosition PadPosition;
 typedef UNumberCompactStyle CompactStyle;
 
 // ICU4J Equivalent: RoundingUtils.MAX_INT_FRAC_SIG
-static constexpr int32_t kMaxIntFracSig = 100;
+static constexpr int32_t kMaxIntFracSig = 999;
 
 // ICU4J Equivalent: RoundingUtils.DEFAULT_ROUNDING_MODE
 static constexpr RoundingMode kDefaultMode = RoundingMode::UNUM_FOUND_HALFEVEN;
@@ -41,10 +41,6 @@ static constexpr char16_t kFallbackPaddingString[] = u" ";
 
 // ICU4J Equivalent: NumberFormatterImpl.DEFAULT_CURRENCY
 static constexpr char16_t kDefaultCurrency[] = u"XXX";
-
-// FIXME: New error codes:
-static constexpr UErrorCode U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR = U_ILLEGAL_ARGUMENT_ERROR;
-static constexpr UErrorCode U_NUMBER_PADDING_WIDTH_OUTOFBOUNDS_ERROR = U_ILLEGAL_ARGUMENT_ERROR;
 
 // Forward declarations:
 
@@ -142,6 +138,13 @@ class U_I18N_API AffixPatternProvider {
     virtual bool negativeHasMinusSign() const = 0;
 
     virtual bool containsSymbolType(AffixPatternType, UErrorCode &) const = 0;
+
+    /**
+     * True if the pattern has a number placeholder like "0" or "#,##0.00"; false if the pattern does not
+     * have one. This is used in cases like compact notation, where the pattern replaces the entire
+     * number instead of rendering the number.
+     */
+    virtual bool hasBody() const = 0;
 };
 
 /**
@@ -230,10 +233,21 @@ class U_I18N_API MicroPropsGenerator {
     virtual void processQuantity(DecimalQuantity& quantity, MicroProps& micros, UErrorCode& status) const = 0;
 };
 
+/**
+ * An interface used by compact notation and scientific notation to choose a multiplier while rounding.
+ */
 class MultiplierProducer {
   public:
     virtual ~MultiplierProducer() = default;
 
+    /**
+     * Maps a magnitude to a multiplier in powers of ten. For example, in compact notation in English, a magnitude of 5
+     * (e.g., 100,000) should return a multiplier of -3, since the number is displayed in thousands.
+     *
+     * @param magnitude
+     *            The power of ten of the input number.
+     * @return The shift in powers of ten.
+     */
     virtual int32_t getMultiplier(int32_t magnitude) const = 0;
 };
 

@@ -694,6 +694,11 @@ FilteredBreakIteratorBuilder::createInstance(const Locale& where, UErrorCode& st
 }
 
 FilteredBreakIteratorBuilder *
+FilteredBreakIteratorBuilder::createInstance(UErrorCode &status) {
+  return createEmptyInstance(status);
+}
+
+FilteredBreakIteratorBuilder *
 FilteredBreakIteratorBuilder::createEmptyInstance(UErrorCode& status) {
   if(U_FAILURE(status)) return NULL;
   LocalPointer<FilteredBreakIteratorBuilder> ret(new SimpleFilteredBreakIteratorBuilder(status), status);

@@ -116,9 +116,10 @@ struct  RBBIStateTableRow {
                                     /*     StatusTable of the set of matching             */
                                     /*     tags (rule status values)                      */
     int16_t          fReserved;
-    uint16_t         fNextState[2]; /*  Next State, indexed by char category.             */
-                                    /*  This array does not have two elements             */
-                                    /*    Array Size is actually fData->fHeader->fCatCount         */
+    uint16_t         fNextState[1]; /*  Next State, indexed by char category.             */
+                                    /*    Variable-length array declared with length 1    */
+                                    /*    to disable bounds checkers.                     */
+                                    /*    Array Size is actually fData->fHeader->fCatCount*/
                                     /*    CAUTION:  see RBBITableBuilder::getTableSize()  */
                                     /*              before changing anything here.        */
 };
@@ -129,7 +130,9 @@ struct RBBIStateTable {
     uint32_t         fRowLen;       /*  Length of a state table row, in bytes.            */
     uint32_t         fFlags;        /*  Option Flags for this state table                 */
     uint32_t         fReserved;     /*  reserved                                          */
-    char             fTableData[4]; /*  First RBBIStateTableRow begins here.              */
+    char             fTableData[1]; /*  First RBBIStateTableRow begins here.              */
+                                    /*    Variable-length array declared with length 1    */
+                                    /*    to disable bounds checkers.                     */
                                     /*    (making it char[] simplifies ugly address       */
                                     /*     arithmetic for indexing variable length rows.) */
 };
@@ -162,13 +165,8 @@ public:
     UBool                 operator ==(const RBBIDataWrapper &other) const;
     int32_t               hashCode();
     const UnicodeString  &getRuleSourceString() const;
-#ifdef RBBI_DEBUG
     void                  printData();
     void                  printTable(const char *heading, const RBBIStateTable *table);
-#else
-    #define printData()
-    #define printTable(heading, table)
-#endif
 
     /*                                     */
     /*   Pointers to items within the data */
