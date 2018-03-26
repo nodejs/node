@@ -29,8 +29,8 @@ const deps = [
 ];
 
 common.expectWarning('DeprecationWarning', deprecatedModules.map((m) => {
-  return `Requiring Node.js-bundled '${m}' module is deprecated. ` +
-         'Please install the necessary module locally.';
+  return [`Requiring Node.js-bundled '${m}' module is deprecated. ` +
+         'Please install the necessary module locally.', 'DEP0084'];
 }));
 
 for (const m of deprecatedModules) {

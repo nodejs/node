@@ -11,7 +11,8 @@ const util = require('util');
   // `common.expectWarning` will expect the warning exactly one time only
   common.expectWarning(
     'DeprecationWarning',
-    'Custom inspection function on Objects via .inspect() is deprecated'
+    'Custom inspection function on Objects via .inspect() is deprecated',
+    'DEP0079'
   );
   util.inspect(target);  // should emit deprecation warning
   util.inspect(target);  // should not emit deprecation warning
