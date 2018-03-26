@@ -1,7 +1,7 @@
 'use strict';
-const nodeDocUrl = '';
+
 const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
-const jsDocUrl = `${jsDocPrefix}Reference/Global_Objects/`;
+
 const jsPrimitiveUrl = `${jsDocPrefix}Data_structures`;
 const jsPrimitives = {
   'boolean': 'Boolean',
@@ -12,6 +12,8 @@ const jsPrimitives = {
   'symbol': 'Symbol',
   'undefined': 'Undefined'
 };
+
+const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
   'Array', 'ArrayBuffer', 'AsyncFunction', 'DataView', 'Date', 'Error',
   'EvalError', 'Float32Array', 'Float64Array', 'Function', 'Generator',
@@ -21,7 +23,8 @@ const jsGlobalTypes = [
   'Uint16Array', 'Uint32Array', 'Uint8Array', 'Uint8ClampedArray', 'WeakMap',
   'WeakSet'
 ];
-const typeMap = {
+
+const customTypesMap = {
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
   'Iterator':
@@ -96,41 +99,43 @@ const typeMap = {
 
 const arrayPart = /(?:\[])+$/;
 
-module.exports = {
-  toLink: function(typeInput) {
-    const typeLinks = [];
-    typeInput = typeInput.replace('{', '').replace('}', '');
-    const typeTexts = typeInput.split('|');
+function toLink(typeInput) {
+  const typeLinks = [];
+  typeInput = typeInput.replace('{', '').replace('}', '');
+  const typeTexts = typeInput.split('|');
 
-    typeTexts.forEach(function(typeText) {
-      typeText = typeText.trim();
-      if (typeText) {
-        let typeUrl = null;
+  typeTexts.forEach((typeText) => {
+    typeText = typeText.trim();
+    if (typeText) {
+      let typeUrl = null;
 
-        // To support type[], type[][] etc., we store the full string
-        // and use the bracket-less version to lookup the type URL
-        const typeTextFull = typeText;
-        typeText = typeText.replace(arrayPart, '');
+      // To support type[], type[][] etc., we store the full string
+      // and use the bracket-less version to lookup the type URL
+      const typeTextFull = typeText;
+      typeText = typeText.replace(arrayPart, '');
 
-        const primitive = jsPrimitives[typeText.toLowerCase()];
+      const primitive = jsPrimitives[typeText.toLowerCase()];
 
-        if (primitive !== undefined) {
-          typeUrl = `${jsPrimitiveUrl}#${primitive}_type`;
-        } else if (jsGlobalTypes.indexOf(typeText) !== -1) {
-          typeUrl = jsDocUrl + typeText;
-        } else if (typeMap[typeText]) {
-          typeUrl = nodeDocUrl + typeMap[typeText];
-        }
-
-        if (typeUrl) {
-          typeLinks.push(`
-            <a href="${typeUrl}" class="type">&lt;${typeTextFull}&gt;</a>`);
-        } else {
-          typeLinks.push(`<span class="type">&lt;${typeTextFull}&gt;</span>`);
-        }
+      if (primitive !== undefined) {
+        typeUrl = `${jsPrimitiveUrl}#${primitive}_type`;
+      } else if (jsGlobalTypes.includes(typeText)) {
+        typeUrl = `${jsGlobalObjectsUrl}${typeText}`;
+      } else if (customTypesMap[typeText]) {
+        typeUrl = customTypesMap[typeText];
       }
-    });
 
-    return typeLinks.length ? typeLinks.join(' | ') : typeInput;
-  }
-};
+      if (typeUrl) {
+        typeLinks.push(
+          `<a href="${typeUrl}" class="type">&lt;${typeTextFull}&gt;</a>`);
+      } else {
+        typeLinks.push(`<span class="type">&lt;${typeTextFull}&gt;</span>`);
+      }
+    } else {
+      throw new Error(`Empty type slot: ${typeInput}`);
+    }
+  });
+
+  return typeLinks.length ? typeLinks.join(' | ') : typeInput;
+}
+
+module.exports = { toLink };
