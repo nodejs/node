@@ -2995,10 +2995,6 @@ public:
    */
   UNISTR_FROM_STRING_EXPLICIT UnicodeString(const char16_t *text);
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
 #if !U_CHAR16_IS_TYPEDEF
   /**
    * uint16_t * constructor.
@@ -3008,16 +3004,12 @@ public:
    * <code>-DUNISTR_FROM_STRING_EXPLICIT=explicit</code>
    * on the compiler command line or similar.
    * @param text NUL-terminated UTF-16 string
-   * @draft ICU 59
+   * @stable ICU 59
    */
   UNISTR_FROM_STRING_EXPLICIT UnicodeString(const uint16_t *text) :
       UnicodeString(ConstChar16Ptr(text)) {}
 #endif
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
 #if U_SIZEOF_WCHAR_T==2 || defined(U_IN_DOXYGEN)
   /**
    * wchar_t * constructor.
@@ -3028,16 +3020,12 @@ public:
    * <code>-DUNISTR_FROM_STRING_EXPLICIT=explicit</code>
    * on the compiler command line or similar.
    * @param text NUL-terminated UTF-16 string
-   * @draft ICU 59
+   * @stable ICU 59
    */
   UNISTR_FROM_STRING_EXPLICIT UnicodeString(const wchar_t *text) :
       UnicodeString(ConstChar16Ptr(text)) {}
 #endif
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
   /**
    * nullptr_t constructor.
    * Effectively the same as the default constructor, makes an empty string object.
@@ -3046,7 +3034,7 @@ public:
    * <code>-DUNISTR_FROM_STRING_EXPLICIT=explicit</code>
    * on the compiler command line or similar.
    * @param text nullptr
-   * @draft ICU 59
+   * @stable ICU 59
    */
   UNISTR_FROM_STRING_EXPLICIT inline UnicodeString(const std::nullptr_t text);
 
@@ -3060,26 +3048,18 @@ public:
   UnicodeString(const char16_t *text,
         int32_t textLength);
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
 #if !U_CHAR16_IS_TYPEDEF
   /**
    * uint16_t * constructor.
    * Delegates to UnicodeString(const char16_t *, int32_t).
    * @param text UTF-16 string
    * @param length string length
-   * @draft ICU 59
+   * @stable ICU 59
    */
   UnicodeString(const uint16_t *text, int32_t length) :
       UnicodeString(ConstChar16Ptr(text), length) {}
 #endif
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
 #if U_SIZEOF_WCHAR_T==2 || defined(U_IN_DOXYGEN)
   /**
    * wchar_t * constructor.
@@ -3087,22 +3067,18 @@ public:
    * Delegates to UnicodeString(const char16_t *, int32_t).
    * @param text NUL-terminated UTF-16 string
    * @param length string length
-   * @draft ICU 59
+   * @stable ICU 59
    */
   UnicodeString(const wchar_t *text, int32_t length) :
       UnicodeString(ConstChar16Ptr(text), length) {}
 #endif
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
   /**
    * nullptr_t constructor.
    * Effectively the same as the default constructor, makes an empty string object.
    * @param text nullptr
    * @param length ignored
-   * @draft ICU 59
+   * @stable ICU 59
    */
   inline UnicodeString(const std::nullptr_t text, int32_t length);
 
@@ -3152,10 +3128,6 @@ public:
    */
   UnicodeString(char16_t *buffer, int32_t buffLength, int32_t buffCapacity);
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
 #if !U_CHAR16_IS_TYPEDEF
   /**
    * Writable-aliasing uint16_t * constructor.
@@ -3163,16 +3135,12 @@ public:
    * @param buffer writable buffer of/for UTF-16 text
    * @param buffLength length of the current buffer contents
    * @param buffCapacity buffer capacity
-   * @draft ICU 59
+   * @stable ICU 59
    */
   UnicodeString(uint16_t *buffer, int32_t buffLength, int32_t buffCapacity) :
       UnicodeString(Char16Ptr(buffer), buffLength, buffCapacity) {}
 #endif
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
 #if U_SIZEOF_WCHAR_T==2 || defined(U_IN_DOXYGEN)
   /**
    * Writable-aliasing wchar_t * constructor.
@@ -3181,23 +3149,19 @@ public:
    * @param buffer writable buffer of/for UTF-16 text
    * @param buffLength length of the current buffer contents
    * @param buffCapacity buffer capacity
-   * @draft ICU 59
+   * @stable ICU 59
    */
   UnicodeString(wchar_t *buffer, int32_t buffLength, int32_t buffCapacity) :
       UnicodeString(Char16Ptr(buffer), buffLength, buffCapacity) {}
 #endif
 
-  /*
-   * Do not use #ifndef U_HIDE_DRAFT_API for the following constructor,
-   * it should always be available regardless of U_HIDE_DRAFT_API status
-   */
   /**
    * Writable-aliasing nullptr_t constructor.
    * Effectively the same as the default constructor, makes an empty string object.
    * @param buffer nullptr
    * @param buffLength ignored
    * @param buffCapacity ignored
-   * @draft ICU 59
+   * @stable ICU 59
    */
   inline UnicodeString(std::nullptr_t buffer, int32_t buffLength, int32_t buffCapacity);
 

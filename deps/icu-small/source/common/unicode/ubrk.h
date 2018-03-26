@@ -268,7 +268,6 @@ ubrk_openRules(const UChar     *rules,
                UParseError     *parseErr,
                UErrorCode      *status);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Open a new UBreakIterator for locating text boundaries using precompiled binary rules.
  * Opening a UBreakIterator this way is substantially faster than using ubrk_openRules.
@@ -287,14 +286,12 @@ ubrk_openRules(const UChar     *rules,
  * @param status      Pointer to UErrorCode to receive any errors.
  * @return            UBreakIterator for the specified rules.
  * @see ubrk_getBinaryRules
- * @draft ICU 59
+ * @stable ICU 59
  */
-U_DRAFT UBreakIterator* U_EXPORT2
+U_STABLE UBreakIterator* U_EXPORT2
 ubrk_openBinaryRules(const uint8_t *binaryRules, int32_t rulesLength,
                      const UChar *  text, int32_t textLength,
                      UErrorCode *   status);
-
-#endif  /* U_HIDE_DRAFT_API */
 
 /**
  * Thread safe cloning operation
@@ -510,7 +507,7 @@ ubrk_countAvailable(void);
 
 
 /**
-* Returns true if the specfied position is a boundary position.  As a side
+* Returns true if the specified position is a boundary position.  As a side
 * effect, leaves the iterator pointing to the first boundary position at
 * or after "offset".
 * @param bi The break iterator to use.
@@ -544,7 +541,7 @@ ubrk_getRuleStatus(UBreakIterator *bi);
  * @param fillInVec an array to be filled in with the status values.
  * @param capacity  the length of the supplied vector.  A length of zero causes
  *                  the function to return the number of status values, in the
- *                  normal way, without attemtping to store any values.
+ *                  normal way, without attempting to store any values.
  * @param status    receives error codes.
  * @return          The number of rule status values from rules that determined
  *                  the most recent boundary returned by the break iterator.
@@ -596,7 +593,6 @@ ubrk_refreshUText(UBreakIterator *bi,
                        UErrorCode     *status);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Get a compiled binary version of the rules specifying the behavior of a UBreakIterator.
  * The binary rules may be used with ubrk_openBinaryRules to open a new UBreakIterator
@@ -620,14 +616,12 @@ ubrk_refreshUText(UBreakIterator *bi,
  *                      otherwise 0. If not preflighting and this is larger than
  *                      rulesCapacity, *status will be set to an error.
  * @see ubrk_openBinaryRules
- * @draft ICU 59
+ * @stable ICU 59
  */
-U_DRAFT int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2
 ubrk_getBinaryRules(UBreakIterator *bi,
                     uint8_t *       binaryRules, int32_t rulesCapacity,
                     UErrorCode *    status);
-
-#endif  /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_BREAK_ITERATION */
 

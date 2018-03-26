@@ -19,8 +19,8 @@ U_NAMESPACE_BEGIN
 
 // Export an explicit template instantiation of the LocalPointer that is used as a
 // data member of CurrencyPluralInfoWrapper.
-// (MSVC requires this, even though it should not be necessary.)
-#if defined (_MSC_VER)
+// (When building DLLs for Windows this is required.)
+#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
 // Ignore warning 4661 as LocalPointerBase does not use operator== or operator!=
 #pragma warning(suppress: 4661)
 template class U_I18N_API LocalPointerBase<CurrencyPluralInfo>;

@@ -33,6 +33,9 @@
  *
  * <h2> Number Format C API </h2>
  *
+ * <p><strong>IMPORTANT:</strong> New users with C++ capabilities are
+ * strongly encouraged to see if numberformatter.h fits their use case.
+ *
  * Number Format C API  Provides functions for
  * formatting and parsing a number.  Also provides methods for
  * determining which locales have number formats, and what their names
@@ -559,7 +562,6 @@ unum_formatDouble(    const    UNumberFormat*  fmt,
             UFieldPosition  *pos, /* 0 if ignore */
             UErrorCode*     status);
 
-#ifndef U_HIDE_DRAFT_API
 /**
 * Format a double using a UNumberFormat according to the UNumberFormat's locale,
 * and initialize a UFieldPositionIterator that enumerates the subcomponents of
@@ -600,9 +602,9 @@ unum_formatDouble(    const    UNumberFormat*  fmt,
 * @see unum_parseDouble
 * @see UFieldPositionIterator
 * @see UNumberFormatFields
-* @draft ICU 59
+* @stable ICU 59
 */
-U_DRAFT int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2
 unum_formatDoubleForFields(const UNumberFormat* format,
                            double number,
                            UChar* result,
@@ -610,7 +612,6 @@ unum_formatDoubleForFields(const UNumberFormat* format,
                            UFieldPositionIterator* fpositer,
                            UErrorCode* status);
 
-#endif  /* U_HIDE_DRAFT_API */
 
 /**
 * Format a decimal number using a UNumberFormat.

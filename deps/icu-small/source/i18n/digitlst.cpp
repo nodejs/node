@@ -44,11 +44,14 @@
 #include "digitinterval.h"
 #include "ucln_in.h"
 #include "umutex.h"
+#include "double-conversion.h"
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
 #include <stdio.h>
 #include <limits>
+
+using icu::double_conversion::DoubleToStringConverter;
 
 #if !defined(U_USE_STRTOD_L)
 # if U_PLATFORM_USES_ONLY_WIN32_API
@@ -850,8 +853,53 @@ DigitList::set(double source)
         } else {
             uprv_strcpy(rep,"inf");
         }
+    } else if (uprv_isNaN(source)) {
+        uprv_strcpy(rep, "NaN");
     } else {
-        sprintf(rep, "%+1.*e", MAX_DBL_DIGITS - 1, source);
+        bool sign;
+        int32_t length;
+        int32_t point;
+        DoubleToStringConverter::DoubleToAscii(
+            source,
+            DoubleToStringConverter::DtoaMode::SHORTEST,
+            0,
+            rep + 1,
+            sizeof(rep),
+            &sign,
+            &length,
+            &point
+        );
+
+        // Convert the raw buffer into a string for decNumber
+        int32_t power = point - length;
+        if (sign) {
+            rep[0] = '-';
+        } else {
+            rep[0] = '0';
+        }
+        length++;
+        rep[length++] = 'E';
+        if (power < 0) {
+            rep[length++] = '-';
+            power = -power;
+        } else {
+            rep[length++] = '+';
+        }
+        if (power < 10) {
+            rep[length++] = power + '0';
+        } else if (power < 100) {
+            rep[length++] = (power / 10) + '0';
+            rep[length++] = (power % 10) + '0';
+        } else {
+            U_ASSERT(power < 1000);
+            rep[length + 2] = (power % 10) + '0';
+            power /= 10;
+            rep[length + 1] = (power % 10) + '0';
+            power /= 10;
+            rep[length] = power + '0';
+            length += 3;
+        }
+        rep[length++] = 0;
     }
     U_ASSERT(uprv_strlen(rep) < sizeof(rep));
 

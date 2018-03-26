@@ -56,7 +56,7 @@ class RuleBasedBreakIterator::DictionaryCache: public UMemory {
 
     RuleBasedBreakIterator *fBI;
 
-    UVector32          *fBreaks;                // A vector containing the boundaries.
+    UVector32           fBreaks;                // A vector containing the boundaries.
     int32_t             fPositionInCache;       // Index in fBreaks of last boundary returned by following()
                                                 //    or preceding(). Optimizes sequential access.
     int32_t             fStart;                 // Text position of first boundary in cache.

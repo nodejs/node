@@ -41,12 +41,12 @@ U_NAMESPACE_BEGIN
 class ReplaceableGlue : public Replaceable {
 
     UReplaceable *rep;
-    UReplaceableCallbacks *func;
+    const UReplaceableCallbacks *func;
 
 public:
 
     ReplaceableGlue(UReplaceable *replaceable,
-                    UReplaceableCallbacks *funcCallback);
+                    const UReplaceableCallbacks *funcCallback);
 
     virtual ~ReplaceableGlue();
 
@@ -88,7 +88,7 @@ protected:
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(ReplaceableGlue)
 
 ReplaceableGlue::ReplaceableGlue(UReplaceable *replaceable,
-                                 UReplaceableCallbacks *funcCallback)
+                                 const UReplaceableCallbacks *funcCallback)
   : Replaceable()
 {
     this->rep = replaceable;
@@ -398,7 +398,7 @@ utrans_openIDs(UErrorCode *pErrorCode) {
 U_CAPI void U_EXPORT2
 utrans_trans(const UTransliterator* trans,
              UReplaceable* rep,
-             UReplaceableCallbacks* repFunc,
+             const UReplaceableCallbacks* repFunc,
              int32_t start,
              int32_t* limit,
              UErrorCode* status) {
@@ -418,7 +418,7 @@ utrans_trans(const UTransliterator* trans,
 U_CAPI void U_EXPORT2
 utrans_transIncremental(const UTransliterator* trans,
                         UReplaceable* rep,
-                        UReplaceableCallbacks* repFunc,
+                        const UReplaceableCallbacks* repFunc,
                         UTransPosition* pos,
                         UErrorCode* status) {
 

@@ -238,33 +238,45 @@ utf8_prevCharSafeBody(const uint8_t *s, int32_t start, int32_t *pi, UChar32 c, U
     int32_t i=*pi;
     if(U8_IS_TRAIL(c) && i>start) {
         uint8_t b1=s[--i];
-        if(0xc2<=b1 && b1<0xe0) {
-            *pi=i;
-            return ((b1-0xc0)<<6)|(c&0x3f);
+        if(U8_IS_LEAD(b1)) {
+            if(b1<0xe0) {
+                *pi=i;
+                return ((b1-0xc0)<<6)|(c&0x3f);
+            } else if(b1<0xf0 ? U8_IS_VALID_LEAD3_AND_T1(b1, c) : U8_IS_VALID_LEAD4_AND_T1(b1, c)) {
+                // Truncated 3- or 4-byte sequence.
+                *pi=i;
+                return errorValue(1, strict);
+            }
         } else if(U8_IS_TRAIL(b1) && i>start) {
             // Extract the value bits from the last trail byte.
             c&=0x3f;
             uint8_t b2=s[--i];
-            if(0xe0<=b2 && b2<0xf0) {
-                b2&=0xf;
-                if(strict!=-2) {
-                    if(U8_IS_VALID_LEAD3_AND_T1(b2, b1)) {
-                        *pi=i;
-                        c=(b2<<12)|((b1&0x3f)<<6)|c;
-                        if(strict<=0 || !U_IS_UNICODE_NONCHAR(c)) {
-                            return c;
-                        } else {
-                            // strict: forbid non-characters like U+fffe
-                            return errorValue(2, strict);
+            if(0xe0<=b2 && b2<=0xf4) {
+                if(b2<0xf0) {
+                    b2&=0xf;
+                    if(strict!=-2) {
+                        if(U8_IS_VALID_LEAD3_AND_T1(b2, b1)) {
+                            *pi=i;
+                            c=(b2<<12)|((b1&0x3f)<<6)|c;
+                            if(strict<=0 || !U_IS_UNICODE_NONCHAR(c)) {
+                                return c;
+                            } else {
+                                // strict: forbid non-characters like U+fffe
+                                return errorValue(2, strict);
+                            }
+                        }
+                    } else {
+                        // strict=-2 -> lenient: allow surrogates
+                        b1-=0x80;
+                        if((b2>0 || b1>=0x20)) {
+                            *pi=i;
+                            return (b2<<12)|(b1<<6)|c;
                         }
                     }
-                } else {
-                    // strict=-2 -> lenient: allow surrogates
-                    b1-=0x80;
-                    if((b2>0 || b1>=0x20)) {
-                        *pi=i;
-                        return (b2<<12)|(b1<<6)|c;
-                    }
+                } else if(U8_IS_VALID_LEAD4_AND_T1(b2, b1)) {
+                    // Truncated 4-byte sequence.
+                    *pi=i;
+                    return errorValue(2, strict);
                 }
             } else if(U8_IS_TRAIL(b2) && i>start) {
                 uint8_t b3=s[--i];
@@ -281,16 +293,7 @@ utf8_prevCharSafeBody(const uint8_t *s, int32_t start, int32_t *pi, UChar32 c, U
                         }
                     }
                 }
-            } else if(0xf0<=b2 && b2<=0xf4 && U8_IS_VALID_LEAD4_AND_T1(b2, b1)) {
-                // Truncated 4-byte sequence.
-                *pi=i;
-                return errorValue(2, strict);
             }
-        } else if((0xe0<=b1 && b1<0xf0 && U8_IS_VALID_LEAD3_AND_T1(b1, c)) ||
-                (0xf0<=b1 && b1<=0xf4 && U8_IS_VALID_LEAD4_AND_T1(b1, c))) {
-            // Truncated 3- or 4-byte sequence.
-            *pi=i;
-            return errorValue(1, strict);
         }
     }
     return errorValue(0, strict);
@@ -303,29 +306,23 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i) {
     uint8_t c=s[i];
     if(U8_IS_TRAIL(c) && i>start) {
         uint8_t b1=s[--i];
-        if(0xc2<=b1 && b1<0xe0) {
-            return i;
+        if(U8_IS_LEAD(b1)) {
+            if(b1<0xe0 ||
+                    (b1<0xf0 ? U8_IS_VALID_LEAD3_AND_T1(b1, c) : U8_IS_VALID_LEAD4_AND_T1(b1, c))) {
+                return i;
+            }
         } else if(U8_IS_TRAIL(b1) && i>start) {
             uint8_t b2=s[--i];
-            if(0xe0<=b2 && b2<0xf0) {
-                if(U8_IS_VALID_LEAD3_AND_T1(b2, b1)) {
+            if(0xe0<=b2 && b2<=0xf4) {
+                if(b2<0xf0 ? U8_IS_VALID_LEAD3_AND_T1(b2, b1) : U8_IS_VALID_LEAD4_AND_T1(b2, b1)) {
                     return i;
                 }
             } else if(U8_IS_TRAIL(b2) && i>start) {
                 uint8_t b3=s[--i];
-                if(0xf0<=b3 && b3<=0xf4) {
-                    if(U8_IS_VALID_LEAD4_AND_T1(b3, b2)) {
-                        return i;
-                    }
+                if(0xf0<=b3 && b3<=0xf4 && U8_IS_VALID_LEAD4_AND_T1(b3, b2)) {
+                    return i;
                 }
-            } else if(0xf0<=b2 && b2<=0xf4 && U8_IS_VALID_LEAD4_AND_T1(b2, b1)) {
-                // Truncated 4-byte sequence.
-                return i;
             }
-        } else if((0xe0<=b1 && b1<0xf0 && U8_IS_VALID_LEAD3_AND_T1(b1, c)) ||
-                (0xf0<=b1 && b1<=0xf4 && U8_IS_VALID_LEAD4_AND_T1(b1, c))) {
-            // Truncated 3- or 4-byte sequence.
-            return i;
         }
     }
     return orig_i;

@@ -80,10 +80,6 @@ U_NAMESPACE_BEGIN
  * If you supply a pattern with multiple grouping characters, the interval
  * between the last one and the end of the integer is the one that is
  * used. So "#,##,###,####" == "######,####" == "##,####,####".
- * <P>
- * This class only handles localized digits where the 10 digits are
- * contiguous in Unicode, from 0 to 9. Other digits sets (such as
- * superscripts) would need a different subclass.
  */
 class U_I18N_API DecimalFormatSymbols : public UObject {
 public:
@@ -396,6 +392,13 @@ public:
     inline UBool isCustomIntlCurrencySymbol() const {
         return fIsCustomIntlCurrencySymbol;
     }
+
+    /**
+     * @internal For ICU use only
+     */
+    inline UChar32 getCodePointZero() const {
+        return fCodePointZero;
+    }
 #endif  /* U_HIDE_INTERNAL_API */
 
     /**
@@ -410,9 +413,22 @@ public:
      * @return the format symbol by the param 'symbol'
      * @internal
      */
-    inline const UnicodeString &getConstSymbol(ENumberFormatSymbol symbol) const;
+    inline const UnicodeString& getConstSymbol(ENumberFormatSymbol symbol) const;
 
 #ifndef U_HIDE_INTERNAL_API
+    /**
+     * Returns the const UnicodeString reference, like getConstSymbol,
+     * corresponding to the digit with the given value.  This is equivalent
+     * to accessing the symbol from getConstSymbol with the corresponding
+     * key, such as kZeroDigitSymbol or kOneDigitSymbol.
+     *
+     * @param digit The digit, an integer between 0 and 9 inclusive.
+     *              If outside the range 0 to 9, the zero digit is returned.
+     * @return the format symbol for the given digit.
+     * @internal This API is currently for ICU use only.
+     */
+    inline const UnicodeString& getConstDigitSymbol(int32_t digit) const;
+
     /**
      * Returns that pattern stored in currecy info. Internal API for use by NumberFormat API.
      * @internal
@@ -444,6 +460,22 @@ private:
      */
     UnicodeString fNoSymbol;
 
+    /**
+     * Dealing with code points is faster than dealing with strings when formatting. Because of
+     * this, we maintain a value containing the zero code point that is used whenever digitStrings
+     * represents a sequence of ten code points in order.
+     *
+     * <p>If the value stored here is positive, it means that the code point stored in this value
+     * corresponds to the digitStrings array, and codePointZero can be used instead of the
+     * digitStrings array for the purposes of efficient formatting; if -1, then digitStrings does
+     * *not* contain a sequence of code points, and it must be used directly.
+     *
+     * <p>It is assumed that codePointZero always shadows the value in digitStrings. codePointZero
+     * should never be set directly; rather, it should be updated only when digitStrings mutates.
+     * That is, the flow of information is digitStrings -> codePointZero, not the other way.
+     */
+    UChar32 fCodePointZero;
+
     Locale locale;
 
     char actualLocale[ULOC_FULLNAME_CAPACITY];
@@ -469,7 +501,7 @@ DecimalFormatSymbols::getSymbol(ENumberFormatSymbol symbol) const {
     return *strPtr;
 }
 
-// See comments above for this function. Not hidden with #ifndef U_HIDE_INTERNAL_API
+// See comments above for this function. Not hidden with #ifdef U_HIDE_INTERNAL_API
 inline const UnicodeString &
 DecimalFormatSymbols::getConstSymbol(ENumberFormatSymbol symbol) const {
     const UnicodeString *strPtr;
@@ -480,6 +512,19 @@ DecimalFormatSymbols::getConstSymbol(ENumberFormatSymbol symbol) const {
     }
     return *strPtr;
 }
+
+#ifndef U_HIDE_INTERNAL_API
+inline const UnicodeString& DecimalFormatSymbols::getConstDigitSymbol(int32_t digit) const {
+    if (digit < 0 || digit > 9) {
+        digit = 0;
+    }
+    if (digit == 0) {
+        return fSymbols[kZeroDigitSymbol];
+    }
+    ENumberFormatSymbol key = static_cast<ENumberFormatSymbol>(kOneDigitSymbol + digit - 1);
+    return fSymbols[key];
+}
+#endif
 
 // -------------------------------------
 
@@ -497,14 +542,20 @@ DecimalFormatSymbols::setSymbol(ENumberFormatSymbol symbol, const UnicodeString 
 
     // If the zero digit is being set to a known zero digit according to Unicode,
     // then we automatically set the corresponding 1-9 digits
-    if ( propogateDigits && symbol == kZeroDigitSymbol && value.countChar32() == 1 ) {
+    // Also record updates to fCodePointZero. Be conservative if in doubt.
+    if (symbol == kZeroDigitSymbol) {
         UChar32 sym = value.char32At(0);
-        if ( u_charDigitValue(sym) == 0 ) {
+        if ( propogateDigits && u_charDigitValue(sym) == 0 && value.countChar32() == 1 ) {
+            fCodePointZero = sym;
             for ( int8_t i = 1 ; i<= 9 ; i++ ) {
                 sym++;
                 fSymbols[(int)kOneDigitSymbol+i-1] = UnicodeString(sym);
             }
+        } else {
+            fCodePointZero = -1;
         }
+    } else if (symbol >= kOneDigitSymbol && symbol <= kNineDigitSymbol) {
+        fCodePointZero = -1;
     }
 }
 

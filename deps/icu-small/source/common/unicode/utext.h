@@ -655,10 +655,10 @@ utext_getPreviousNativeIndex(UText *ut);
  * @param  ut    the UText from which to extract data.
  * @param  nativeStart the native index of the first character to extract.\
  *               If the specified index is out of range,
- *               it will be pinned to to be within 0 <= index <= textLength
+ *               it will be pinned to be within 0 <= index <= textLength
  * @param  nativeLimit the native string index of the position following the last
  *               character to extract.  If the specified index is out of range,
- *               it will be pinned to to be within 0 <= index <= textLength.
+ *               it will be pinned to be within 0 <= index <= textLength.
  *               nativeLimit must be >= nativeStart.
  * @param  dest  the UChar (UTF-16) buffer into which the extracted text is placed
  * @param  destCapacity  The size, in UChars, of the destination buffer.  May be zero
@@ -906,7 +906,7 @@ utext_copy(UText *ut,
   *  Caution:  freezing a UText will disable changes made via the specific
   *   frozen UText wrapper only; it will not have any effect on the ability to
   *   directly modify the text by bypassing the UText.  Any such backdoor modifications
-  *   are always an error while UText access is occuring because the underlying
+  *   are always an error while UText access is occurring because the underlying
   *   text can get out of sync with UText's buffering.
   *  </p>
   *
@@ -1452,7 +1452,7 @@ struct UText {
     void          *pExtra;
 
     /**
-     * (protected) Pointer to string or text-containin object or similar.
+     * (protected) Pointer to string or text-containing object or similar.
      * This is the source of the text that this UText is wrapping, in a format
      *  that is known to the text provider functions.
      * @stable ICU 3.4

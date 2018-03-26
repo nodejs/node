@@ -191,6 +191,30 @@ NumberStringBuilder::insert(int32_t index, const UnicodeString &unistr, int32_t 
     return count;
 }
 
+int32_t
+NumberStringBuilder::splice(int32_t startThis, int32_t endThis,  const UnicodeString &unistr,
+                            int32_t startOther, int32_t endOther, Field field, UErrorCode& status) {
+    int32_t thisLength = endThis - startThis;
+    int32_t otherLength = endOther - startOther;
+    int32_t count = otherLength - thisLength;
+    int32_t position;
+    if (count > 0) {
+        // Overall, chars need to be added.
+        position = prepareForInsert(startThis, count, status);
+    } else {
+        // Overall, chars need to be removed or kept the same.
+        position = remove(startThis, -count);
+    }
+    if (U_FAILURE(status)) {
+        return count;
+    }
+    for (int32_t i = 0; i < otherLength; i++) {
+        getCharPtr()[position + i] = unistr.charAt(startOther + i);
+        getFieldPtr()[position + i] = field;
+    }
+    return count;
+}
+
 int32_t NumberStringBuilder::append(const NumberStringBuilder &other, UErrorCode &status) {
     return insert(fLength, other, status);
 }
@@ -294,6 +318,19 @@ int32_t NumberStringBuilder::prepareForInsertHelper(int32_t index, int32_t count
         fLength += count;
     }
     return fZero + index;
+}
+
+int32_t NumberStringBuilder::remove(int32_t index, int32_t count) {
+    // TODO: Reset the heap here?  (If the string after removal can fit on stack?)
+    int32_t position = index + fZero;
+    uprv_memmove2(getCharPtr() + position,
+            getCharPtr() + position + count,
+            sizeof(char16_t) * (fLength - index - count));
+    uprv_memmove2(getFieldPtr() + position,
+            getFieldPtr() + position + count,
+            sizeof(Field) * (fLength - index - count));
+    fLength -= count;
+    return position;
 }
 
 UnicodeString NumberStringBuilder::toUnicodeString() const {

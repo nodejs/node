@@ -476,7 +476,7 @@ typedef enum UScriptCode {
  * @param nameOrAbbrOrLocale name of the script, as given in
  * PropertyValueAliases.txt, or ISO 15924 code or locale
  * @param fillIn the UScriptCode buffer to fill in the script code
- * @param capacity the capacity (size) fo UScriptCode buffer passed in.
+ * @param capacity the capacity (size) of UScriptCode buffer passed in.
  * @param err the error status code.
  * @return The number of script codes filled in the buffer passed in
  * @stable ICU 2.4

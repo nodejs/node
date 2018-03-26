@@ -59,57 +59,46 @@ LanguageBreakFactory::~LanguageBreakFactory() {
  ******************************************************************
  */
 
-UnhandledEngine::UnhandledEngine(UErrorCode &/*status*/) {
-    for (int32_t i = 0; i < UPRV_LENGTHOF(fHandled); ++i) {
-        fHandled[i] = 0;
-    }
+UnhandledEngine::UnhandledEngine(UErrorCode &status) : fHandled(nullptr) {
+    (void)status;
 }
 
 UnhandledEngine::~UnhandledEngine() {
-    for (int32_t i = 0; i < UPRV_LENGTHOF(fHandled); ++i) {
-        if (fHandled[i] != 0) {
-            delete fHandled[i];
-        }
-    }
+    delete fHandled;
+    fHandled = nullptr;
 }
 
 UBool
-UnhandledEngine::handles(UChar32 c, int32_t breakType) const {
-    return (breakType >= 0 && breakType < UPRV_LENGTHOF(fHandled)
-        && fHandled[breakType] != 0 && fHandled[breakType]->contains(c));
+UnhandledEngine::handles(UChar32 c) const {
+    return fHandled && fHandled->contains(c);
 }
 
 int32_t
 UnhandledEngine::findBreaks( UText *text,
                              int32_t /* startPos */,
                              int32_t endPos,
-                             int32_t breakType,
                              UVector32 &/*foundBreaks*/ ) const {
-    if (breakType >= 0 && breakType < UPRV_LENGTHOF(fHandled)) {
-        UChar32 c = utext_current32(text);
-        while((int32_t)utext_getNativeIndex(text) < endPos && fHandled[breakType]->contains(c)) {
-            utext_next32(text);            // TODO:  recast loop to work with post-increment operations.
-            c = utext_current32(text);
-        }
+    UChar32 c = utext_current32(text);
+    while((int32_t)utext_getNativeIndex(text) < endPos && fHandled->contains(c)) {
+        utext_next32(text);            // TODO:  recast loop to work with post-increment operations.
+        c = utext_current32(text);
     }
     return 0;
 }
 
 void
-UnhandledEngine::handleCharacter(UChar32 c, int32_t breakType) {
-    if (breakType >= 0 && breakType < UPRV_LENGTHOF(fHandled)) {
-        if (fHandled[breakType] == 0) {
-            fHandled[breakType] = new UnicodeSet();
-            if (fHandled[breakType] == 0) {
-                return;
-            }
+UnhandledEngine::handleCharacter(UChar32 c) {
+    if (fHandled == nullptr) {
+        fHandled = new UnicodeSet();
+        if (fHandled == nullptr) {
+            return;
         }
-        if (!fHandled[breakType]->contains(c)) {
-            UErrorCode status = U_ZERO_ERROR;
-            // Apply the entire script of the character.
-            int32_t script = u_getIntPropertyValue(c, UCHAR_SCRIPT);
-            fHandled[breakType]->applyIntPropertyValue(UCHAR_SCRIPT, script, status);
-        }
+    }
+    if (!fHandled->contains(c)) {
+        UErrorCode status = U_ZERO_ERROR;
+        // Apply the entire script of the character.
+        int32_t script = u_getIntPropertyValue(c, UCHAR_SCRIPT);
+        fHandled->applyIntPropertyValue(UCHAR_SCRIPT, script, status);
     }
 }
 
@@ -138,7 +127,7 @@ U_NAMESPACE_BEGIN
 static UMutex gBreakEngineMutex = U_MUTEX_INITIALIZER;
 
 const LanguageBreakEngine *
-ICULanguageBreakFactory::getEngineFor(UChar32 c, int32_t breakType) {
+ICULanguageBreakFactory::getEngineFor(UChar32 c) {
     const LanguageBreakEngine *lbe = NULL;
     UErrorCode  status = U_ZERO_ERROR;
 
@@ -156,14 +145,14 @@ ICULanguageBreakFactory::getEngineFor(UChar32 c, int32_t breakType) {
         int32_t i = fEngines->size();
         while (--i >= 0) {
             lbe = (const LanguageBreakEngine *)(fEngines->elementAt(i));
-            if (lbe != NULL && lbe->handles(c, breakType)) {
+            if (lbe != NULL && lbe->handles(c)) {
                 return lbe;
             }
         }
     }
 
     // We didn't find an engine. Create one.
-    lbe = loadEngineFor(c, breakType);
+    lbe = loadEngineFor(c);
     if (lbe != NULL) {
         fEngines->push((void *)lbe, status);
     }
@@ -171,11 +160,11 @@ ICULanguageBreakFactory::getEngineFor(UChar32 c, int32_t breakType) {
 }
 
 const LanguageBreakEngine *
-ICULanguageBreakFactory::loadEngineFor(UChar32 c, int32_t breakType) {
+ICULanguageBreakFactory::loadEngineFor(UChar32 c) {
     UErrorCode status = U_ZERO_ERROR;
     UScriptCode code = uscript_getScript(c, &status);
     if (U_SUCCESS(status)) {
-        DictionaryMatcher *m = loadDictionaryMatcherFor(code, breakType);
+        DictionaryMatcher *m = loadDictionaryMatcherFor(code);
         if (m != NULL) {
             const LanguageBreakEngine *engine = NULL;
             switch(code) {
@@ -236,7 +225,7 @@ ICULanguageBreakFactory::loadEngineFor(UChar32 c, int32_t breakType) {
 }
 
 DictionaryMatcher *
-ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script, int32_t /* brkType */) {
+ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script) {
     UErrorCode status = U_ZERO_ERROR;
     // open root from brkitr tree.
     UResourceBundle *b = ures_open(U_ICUDATA_BRKITR, "", &status);
