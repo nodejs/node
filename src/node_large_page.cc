@@ -10,6 +10,9 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include <string>
+#include <fstream>
+#include <iostream>
  
 /*
 The functions in this file map the text segment of node into 2M pages.
@@ -104,9 +107,9 @@ namespace node {
 	//  00400000-020c7000 r-xp 00000000 08:01 538609  /home/ssuresh/node/out/Release/node
 
 	// Need to align the from and to to the 2M Boundary 
-	fprintf(stderr,"exe start %p exe end %p \n", &__executable_start, &__etext);
+	//	fprintf(stderr,"exe start %p exe end %p \n", &__executable_start, &__etext);
     
-	fprintf(stderr, "find_node_text_region %lx-%lx %s\n", start, end, name);
+	//	fprintf(stderr, "find_node_text_region %lx-%lx %s\n", start, end, name);
 	//    start = (unsigned int long) &__executable_start;
 	// end = (unsigned int long) &__etext;
 	//    start = 0x0842700;
@@ -115,7 +118,7 @@ namespace node {
 	end = (unsigned int long) &__etext;
 	char *from = (char *)PAGE_ALIGN_UP(start, hugePageSize);
 	char *to = (char *)PAGE_ALIGN_DOWN(end, hugePageSize);
-	fprintf(stderr, "find_node_text_region %lx-%lx %s\n", from, to, name);
+	//	fprintf(stderr, "find_node_text_region %lx-%lx %s\n", from, to, name);
 	nregion.from = from;
 	nregion.to = to;
 	nregion.offset = offset;
@@ -158,9 +161,9 @@ namespace node {
       const size_t hugePageSize = 2L * 1024 * 1024;
       const size_t fourkPageSize = 4L * 1024;
 
-      fprintf(stderr,"exe start %p exe end %p %p \n", &__executable_start, &__etext, &move_text_region_to_large_pages);
+      //      fprintf(stderr,"exe start %p exe end %p %p \n", &__executable_start, &__etext, &move_text_region_to_large_pages);
 
-      fprintf(stderr, "move_text_region_to_large_pages %p %p %d %d\n", start, r.to, size/hugePageSize, size/fourkPageSize);
+      //      fprintf(stderr, "move_text_region_to_large_pages %p %p %d %d\n", start, r.to, size/hugePageSize, size/fourkPageSize);
       //  nmem = malloc(size);
       nmem = mmap(NULL, size,PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,-1, 0);
       memcpy(nmem, r.from, size);
@@ -170,9 +173,14 @@ namespace node {
       //  }
       //  memcpy(nmem, r.from, size);
       // fprintf(stderr, "move_text_region_to_large_pages %p %lx %p\n", start, size, nmem);
-  
+
+#if 0 // use for explicit huge pages
       mmap(start, size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_HUGETLB, -1 , 0);
-      // madvise(start, size, MADV_HUGEPAGE);
+#endif
+#if 1 // use for transparent huge pages
+      mmap(start, size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
+      madvise(start, size, MADV_HUGEPAGE);
+#endif
       memcpy(start, nmem, size);
       mprotect(start, size, PROT_READ | PROT_EXEC);
       munmap(nmem, size);
@@ -181,7 +189,6 @@ namespace node {
     }
     bool transHugePagesPresent=false;
     bool explicitHugePagesPresent = false;
-
     /*
 
       You’ll see a list of all possible options ( always, madvise, never ), with 
@@ -194,24 +201,68 @@ namespace node {
       madvise(MADV_HUGEPAGE) on their critical mmapped regions.
      */
     static bool isTransparentHugePagesEnabled() {
-      return true;
+
+       std::ifstream ifs;
+       ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
+       std::string always, madvise, never;
+        if (ifs.is_open()) {
+	  while(ifs >> always >> madvise >> never) ;
+	    //	    std::cout << always << madvise << never;
+        }
+       if (always.compare("[always]") == 0)
+	 return true;
+       if (madvise.compare("[madvise]") == 0)
+	 return true;
+
+       return false;
     }
     static bool isExplicitHugePagesEnabled() {
-      return true;
+     std::string kw;
+     std::ifstream file("/proc/meminfo");
+     while(file >> kw) {
+        if(kw == "HugePages_Total:") {
+            unsigned long hp_tot;
+	    file >> hp_tot;
+	    if (hp_tot > 0)
+	      return true;
+	    else
+	      return false;
+        }
+     }
+     return false; // HugePages not found
+    }
+
+    static int howManyExplicitHugePagesFree() {
+     std::string kw;
+     std::ifstream file("/proc/meminfo");
+     while(file >> kw) {
+       if(kw == "HugePages_Free:") {
+            unsigned long hp_free;
+	    file >> hp_free;
+	    return hp_free;
+        }
+     }
+     return 0; // HugePages not found
+      
     }
     
     /* This is the primary interface that is exposed */
 
     bool isLargePagesEnabled() {
+      bool trans = isTransparentHugePagesEnabled();
+      //      fprintf(stderr, "Transparent Huge Pages = %s\n", trans ? "enabled" : "disabled");
+      bool explict = isExplicitHugePagesEnabled();
+      //      fprintf(stderr, "Explicit Huge Pages = %s\n", explict ? "enabled" : "disabled");
+      
       return isExplicitHugePagesEnabled() || isTransparentHugePagesEnabled();
     }
 
     void map_static_code_to_large_pages() {
       struct TextRegion n;
-      fprintf(stderr, "mapping static code to large pages\n");
+      //      fprintf(stderr, "mapping static code to large pages\n");
       // starting and ending address of the region in the node process
       n = find_node_text_region();
-      fprintf(stderr, "n.from=%p n.to=%p n.name = %s map_static_code_to_large_pages = %p\n", n.from, n.to, n.name, &move_text_region_to_large_pages);
+      //      fprintf(stderr, "n.from=%p n.to=%p n.name = %s map_static_code_to_large_pages = %p\n", n.from, n.to, n.name, &move_text_region_to_large_pages);
       if (n.to <= (void *) & move_text_region_to_large_pages)
 	move_text_region_to_large_pages(n);
   
