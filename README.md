@@ -314,6 +314,8 @@ For more information about the governance of the Node.js project, see
 **Bryan English** &lt;bryan@bryanenglish.com&gt; (he/him)
 * [benjamingr](https://github.com/benjamingr) -
 **Benjamin Gruenbaum** &lt;benjamingr@gmail.com&gt;
+* [BethGriggs](https://github.com/BethGriggs) -
+**Beth Griggs** &lt;Bethany.Griggs@uk.ibm.com&gt; (she/her)
 * [bmeck](https://github.com/bmeck) -
 **Bradley Farias** &lt;bradley.meck@gmail.com&gt;
 * [bmeurer](https://github.com/bmeurer) -
