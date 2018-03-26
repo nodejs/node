@@ -319,7 +319,7 @@ the error is emitted as an `'error'` event on the `socket` object.
 Offset and length are optional but both *must* be set if either are used.
 They are supported only when the first argument is a `Buffer` or `Uint8Array`.
 
-Example of sending a UDP packet to a random port on `localhost`;
+Example of sending a UDP packet to a port on `localhost`;
 
 ```js
 const dgram = require('dgram');
@@ -330,8 +330,8 @@ client.send(message, 41234, 'localhost', (err) => {
 });
 ```
 
-Example of sending a UDP packet composed of multiple buffers to a random port
-on `127.0.0.1`;
+Example of sending a UDP packet composed of multiple buffers to a port on
+`127.0.0.1`;
 
 ```js
 const dgram = require('dgram');
