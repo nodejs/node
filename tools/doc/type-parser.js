@@ -55,8 +55,8 @@ const typeMap = {
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
 
   'ClientHttp2Stream': 'http2.html#http2_class_clienthttp2stream',
-  'HTTP2 Headers Object': 'http2.html#http2_headers_object',
-  'HTTP2 Settings Object': 'http2.html#http2_settings_object',
+  'HTTP/2 Headers Object': 'http2.html#http2_headers_object',
+  'HTTP/2 Settings Object': 'http2.html#http2_settings_object',
   'http2.Http2ServerRequest': 'http2.html#http2_class_http2_http2serverrequest',
   'http2.Http2ServerResponse':
     'http2.html#http2_class_http2_http2serverresponse',
