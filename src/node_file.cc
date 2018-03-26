@@ -676,16 +676,16 @@ void AfterScanDir(uv_fs_t* req) {
 }
 
 
-// This struct is only used on sync fs calls.
+// This class is only used on sync fs calls.
 // For async calls FSReqWrap is used.
-class fs_req_wrap {
+class FSReqWrapSync {
  public:
-  fs_req_wrap() {}
-  ~fs_req_wrap() { uv_fs_req_cleanup(&req); }
+  FSReqWrapSync() {}
+  ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
   uv_fs_t req;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(fs_req_wrap);
+  DISALLOW_COPY_AND_ASSIGN(FSReqWrapSync);
 };
 
 // Returns nullptr if the operation fails from the start.
@@ -729,7 +729,7 @@ inline FSReqBase* AsyncCall(Environment* env,
 // creating an error in the C++ land.
 // ctx must be checked using value->IsObject() before being passed.
 template <typename Func, typename... Args>
-inline int SyncCall(Environment* env, Local<Value> ctx, fs_req_wrap* req_wrap,
+inline int SyncCall(Environment* env, Local<Value> ctx, FSReqWrapSync* req_wrap,
     const char* syscall, Func fn, Args... args) {
   env->PrintSyncTrace();
   int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
@@ -775,7 +775,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
               uv_fs_access, *path, mode);
   } else {  // access(path, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[3], &req_wrap, "access", uv_fs_access, *path, mode);
   }
 }
@@ -796,7 +796,7 @@ void Close(const FunctionCallbackInfo<Value>& args) {
               uv_fs_close, fd);
   } else {  // close(fd, undefined, ctx)
     CHECK_EQ(argc, 3);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[2], &req_wrap, "close", uv_fs_close, fd);
   }
 }
@@ -904,7 +904,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
               uv_fs_stat, *path);
   } else {  // stat(path, undefined, ctx)
     CHECK_EQ(argc, 3);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int err = SyncCall(env, args[2], &req_wrap, "stat", uv_fs_stat, *path);
     if (err == 0) {
       FillStatsArray(env->fs_stats_field_array(),
@@ -928,7 +928,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
               uv_fs_lstat, *path);
   } else {  // lstat(path, undefined, ctx)
     CHECK_EQ(argc, 3);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int err = SyncCall(env, args[2], &req_wrap, "lstat", uv_fs_lstat, *path);
     if (err == 0) {
       FillStatsArray(env->fs_stats_field_array(),
@@ -952,7 +952,7 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
               uv_fs_fstat, fd);
   } else {  // fstat(fd, undefined, ctx)
     CHECK_EQ(argc, 3);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int err = SyncCall(env, args[2], &req_wrap, "fstat", uv_fs_fstat, fd);
     if (err == 0) {
       FillStatsArray(env->fs_stats_field_array(),
@@ -981,7 +981,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
                   AfterNoArgs, uv_fs_symlink, *target, *path, flags);
   } else {  // symlink(target, path, flags, undefinec, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     SyncCall(env, args[4], &req, "symlink",
              uv_fs_symlink, *target, *path, flags);
   }
@@ -1005,7 +1005,7 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
                   AfterNoArgs, uv_fs_link, *src, *dest);
   } else {  // link(src, dest)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     SyncCall(env, args[3], &req, "link",
              uv_fs_link, *src, *dest);
   }
@@ -1028,7 +1028,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
               uv_fs_readlink, *path);
   } else {
     CHECK_EQ(argc, 4);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     int err = SyncCall(env, args[3], &req, "readlink",
                        uv_fs_readlink, *path);
     if (err < 0) {
@@ -1068,7 +1068,7 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
                   UTF8, AfterNoArgs, uv_fs_rename, *old_path, *new_path);
   } else {
     CHECK_EQ(argc, 4);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     SyncCall(env, args[3], &req, "rename", uv_fs_rename, *old_path, *new_path);
   }
 }
@@ -1091,7 +1091,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
               uv_fs_ftruncate, fd, len);
   } else {
     CHECK_EQ(argc, 4);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     SyncCall(env, args[3], &req, "ftruncate", uv_fs_ftruncate, fd, len);
   }
 }
@@ -1111,7 +1111,7 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
               uv_fs_fdatasync, fd);
   } else {
     CHECK_EQ(argc, 3);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     SyncCall(env, args[2], &req, "fdatasync", uv_fs_fdatasync, fd);
   }
 }
@@ -1131,7 +1131,7 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
               uv_fs_fsync, fd);
   } else {
     CHECK_EQ(argc, 3);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     SyncCall(env, args[2], &req, "fsync", uv_fs_fsync, fd);
   }
 }
@@ -1151,7 +1151,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
               uv_fs_unlink, *path);
   } else {
     CHECK_EQ(argc, 3);
-    fs_req_wrap req;
+    FSReqWrapSync req;
     SyncCall(env, args[2], &req, "unlink", uv_fs_unlink, *path);
   }
 }
@@ -1171,7 +1171,7 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
               uv_fs_rmdir, *path);
   } else {  // rmdir(path, undefined, ctx)
     CHECK_EQ(argc, 3);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[2], &req_wrap, "rmdir",
              uv_fs_rmdir, *path);
   }
@@ -1195,7 +1195,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
               uv_fs_mkdir, *path, mode);
   } else {  // mkdir(path, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[3], &req_wrap, "mkdir",
              uv_fs_mkdir, *path, mode);
   }
@@ -1218,7 +1218,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
               uv_fs_realpath, *path);
   } else {  // realpath(path, encoding, undefined, ctx)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int err = SyncCall(env, args[3], &req_wrap, "realpath",
                        uv_fs_realpath, *path);
     if (err < 0) {
@@ -1259,7 +1259,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
               uv_fs_scandir, *path, 0 /*flags*/);
   } else {  // readdir(path, encoding, undefined, ctx)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int err = SyncCall(env, args[3], &req_wrap, "scandir",
                        uv_fs_scandir, *path, 0 /*flags*/);
     if (err < 0) {
@@ -1343,7 +1343,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
               uv_fs_open, *path, flags, mode);
   } else {  // open(path, flags, mode, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int result = SyncCall(env, args[4], &req_wrap, "open",
                           uv_fs_open, *path, flags, mode);
     args.GetReturnValue().Set(result);
@@ -1371,7 +1371,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
               uv_fs_open, *path, flags, mode);
   } else {  // openFileHandle(path, flags, mode, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int result = SyncCall(env, args[4], &req_wrap, "open",
                           uv_fs_open, *path, flags, mode);
     if (result < 0) {
@@ -1405,7 +1405,7 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
                   uv_fs_copyfile, *src, *dest, flags);
   } else {  // copyFile(src, dest, flags, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[4], &req_wrap, "copyfile",
              uv_fs_copyfile, *src, *dest, flags);
   }
@@ -1456,7 +1456,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
               uv_fs_write, fd, &uvbuf, 1, pos);
   } else {  // write(fd, buffer, off, len, pos, undefined, ctx)
     CHECK_EQ(argc, 7);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int bytesWritten = SyncCall(env, args[6], &req_wrap, "write",
                                 uv_fs_write, fd, &uvbuf, 1, pos);
     args.GetReturnValue().Set(bytesWritten);
@@ -1499,7 +1499,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
               uv_fs_write, fd, *iovs, iovs.length(), pos);
   } else {  // writeBuffers(fd, chunks, pos, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     int bytesWritten = SyncCall(env, args[4], &req_wrap, "write",
                                 uv_fs_write, fd, *iovs, iovs.length(), pos);
     args.GetReturnValue().Set(bytesWritten);
@@ -1578,7 +1578,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     }
   } else {  // write(fd, string, pos, enc, undefined, ctx)
     CHECK_EQ(argc, 6);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     FSReqBase::FSReqBuffer stack_buffer;
     if (buf == nullptr) {
       len = StringBytes::StorageSize(env->isolate(), value, enc);
@@ -1643,7 +1643,7 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
               uv_fs_read, fd, &uvbuf, 1, pos);
   } else {  // read(fd, buffer, offset, len, pos, undefined, ctx)
     CHECK_EQ(argc, 7);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     const int bytesRead = SyncCall(env, args[6], &req_wrap, "read",
                                    uv_fs_read, fd, &uvbuf, 1, pos);
     args.GetReturnValue().Set(bytesRead);
@@ -1672,7 +1672,7 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
               uv_fs_chmod, *path, mode);
   } else {  // chmod(path, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[3], &req_wrap, "chmod",
              uv_fs_chmod, *path, mode);
   }
@@ -1700,7 +1700,7 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
               uv_fs_fchmod, fd, mode);
   } else {  // fchmod(fd, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[3], &req_wrap, "fchmod",
              uv_fs_fchmod, fd, mode);
   }
@@ -1731,7 +1731,7 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
               uv_fs_chown, *path, uid, gid);
   } else {  // chown(path, uid, gid, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[4], &req_wrap, "chown",
              uv_fs_chown, *path, uid, gid);
   }
@@ -1762,7 +1762,7 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
               uv_fs_fchown, fd, uid, gid);
   } else {  // fchown(fd, uid, gid, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[4], &req_wrap, "fchown",
              uv_fs_fchown, fd, uid, gid);
   }
@@ -1790,7 +1790,7 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
               uv_fs_utime, *path, atime, mtime);
   } else {  // utimes(path, atime, mtime, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[4], &req_wrap, "utime",
              uv_fs_utime, *path, atime, mtime);
   }
@@ -1817,7 +1817,7 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
               uv_fs_futime, fd, atime, mtime);
   } else {  // futimes(fd, atime, mtime, undefined, ctx)
     CHECK_EQ(argc, 5);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[4], &req_wrap, "futime",
              uv_fs_futime, fd, atime, mtime);
   }
@@ -1840,7 +1840,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
               uv_fs_mkdtemp, *tmpl);
   } else {  // mkdtemp(tmpl, encoding, undefined, ctx)
     CHECK_EQ(argc, 4);
-    fs_req_wrap req_wrap;
+    FSReqWrapSync req_wrap;
     SyncCall(env, args[3], &req_wrap, "mkdtemp",
              uv_fs_mkdtemp, *tmpl);
     const char* path = static_cast<const char*>(req_wrap.req.path);
