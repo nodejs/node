@@ -3,11 +3,13 @@
 
 namespace node {
 
+using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 // The tracing APIs require category groups to be pointers to long-lived
@@ -132,6 +134,62 @@ static void CategoryGroupEnabled(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(*category_group_enabled > 0);
 }
 
+static void EnableTracingCategories(const FunctionCallbackInfo<Value>& args) {
+#if NODE_USE_V8_PLATFORM
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsArray());
+  Local<Array> categories = args[0].As<Array>();
+  size_t length = categories->Length();
+  if (length == 0)
+    return;
+  std::vector<std::string> cats;
+  for (size_t n = 0; n < length; n++) {
+    Utf8Value val(env->isolate(),
+                  categories->Get(env->context(), n).ToLocalChecked());
+    cats.push_back(*val);
+  }
+  EnableTracingCategories(cats);
+#else
+  UNREACHABLE();
+#endif
+}
+
+static void DisableTracingCategories(const FunctionCallbackInfo<Value>& args) {
+#if NODE_USE_V8_PLATFORM
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsArray());
+  Local<Array> categories = args[0].As<Array>();
+  size_t length = categories->Length();
+  if (length == 0)
+    return;
+  std::vector<std::string> cats;
+  for (size_t n = 0; n < length; n++) {
+    Utf8Value val(env->isolate(),
+                  categories->Get(env->context(), n).ToLocalChecked());
+    cats.push_back(*val);
+  }
+  DisableTracingCategories(cats);
+#else
+  UNREACHABLE();
+#endif
+}
+
+static void GetTracingCategories(const FunctionCallbackInfo<Value>& args) {
+#if NODE_USE_V8_PLATFORM
+  Environment* env = Environment::GetCurrent(args);
+  const auto& categories = GetEnabledTracingCategories();
+  Local<Array> ret = Array::New(env->isolate(), categories.size());
+  size_t n = 0;
+  for (const std::string& category : categories) {
+    ret->Set(env->context(), n++,
+             String::NewFromUtf8(env->isolate(), category.c_str(),
+                         v8::NewStringType::kNormal).ToLocalChecked())
+                             .FromJust();
+  }
+  args.GetReturnValue().Set(ret);
+#endif
+}
+
 void InitializeTraceEvents(Local<Object> target,
                            Local<Value> unused,
                            Local<Context> context,
@@ -140,6 +198,10 @@ void InitializeTraceEvents(Local<Object> target,
 
   env->SetMethod(target, "emit", Emit);
   env->SetMethod(target, "categoryGroupEnabled", CategoryGroupEnabled);
+
+  env->SetMethod(target, "enableTracingCategories", EnableTracingCategories);
+  env->SetMethod(target, "disableTracingCategories", DisableTracingCategories);
+  env->SetMethod(target, "getTracingCategories", GetTracingCategories);
 }
 
 }  // namespace node

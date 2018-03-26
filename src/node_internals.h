@@ -38,6 +38,7 @@
 #include <stdlib.h>
 
 #include <string>
+#include <unordered_set>
 
 // Custom constants used by both node_constants.cc and node_zlib.cc
 #define Z_MIN_WINDOWBITS 8
@@ -790,6 +791,11 @@ static inline const char *errno_string(int errorno) {
     TRACING_CATEGORY_NODE ","                                                 \
     TRACING_CATEGORY_NODE "." #one ","                                        \
     TRACING_CATEGORY_NODE "." #one "." #two
+
+void EnableTracingCategories(const std::vector<std::string>& categories);
+void DisableTracingCategories(const std::vector<std::string>& categories);
+const std::unordered_set<std::string>& GetEnabledTracingCategories();
+void StopTracing();
 
 }  // namespace node
 

@@ -1516,6 +1516,14 @@ socket, which is only valid from a client.
 
 An attempt was made to renegotiate TLS on a socket instance with TLS disabled.
 
+<a id="ERR_TRACE_EVENTS_UNAVAILABLE"></a>
+### ERR_TRACE_EVENTS_UNAVAILABLE
+
+The trace events mechanism is not available for use in the Node.js binary.
+
+This is the case when Node.js was compiled with the `--without-v8-platform`
+flag.
+
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 ### ERR_TRANSFORM_ALREADY_TRANSFORMING
 
