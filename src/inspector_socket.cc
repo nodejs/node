@@ -389,7 +389,6 @@ static void generate_accept_string(const std::string& client_key,
 }
 
 static int header_value_cb(http_parser* parser, const char* at, size_t length) {
-  static const char SEC_WEBSOCKET_KEY_HEADER[] = "Sec-WebSocket-Key";
   auto inspector = static_cast<InspectorSocket*>(parser->data);
   auto state = inspector->http_parsing_state;
   state->parsing_value = true;
@@ -515,7 +514,7 @@ static bool IsAllowedHost(const std::string& host_with_port) {
 static int message_complete_cb(http_parser* parser) {
   InspectorSocket* inspector = static_cast<InspectorSocket*>(parser->data);
   struct http_parsing_state_s* state = inspector->http_parsing_state;
-  state->ws_key = HeaderValue(state, "Sec-WebSocket-Key");
+  std::string ws_key = HeaderValue(state, "Sec-WebSocket-Key");
 
   if (!IsAllowedHost(HeaderValue(state, "Host")) ||
       parser->method != HTTP_GET) {
@@ -526,12 +525,12 @@ static int message_complete_cb(http_parser* parser) {
     } else {
       handshake_failed(inspector);
     }
-  } else if (state->ws_key.empty()) {
+  } else if (ws_key.empty()) {
     handshake_failed(inspector);
   } else if (state->callback(inspector, kInspectorHandshakeUpgrading,
                              state->path)) {
     char accept_string[ACCEPT_KEY_LENGTH];
-    generate_accept_string(state->ws_key, &accept_string);
+    generate_accept_string(ws_key, &accept_string);
     const char accept_ws_prefix[] = "HTTP/1.1 101 Switching Protocols\r\n"
                                     "Upgrade: websocket\r\n"
                                     "Connection: Upgrade\r\n"
@@ -585,7 +584,7 @@ static void init_handshake(InspectorSocket* inspector) {
   http_parsing_state_s* state = inspector->http_parsing_state;
   CHECK_NE(state, nullptr);
   state->current_header.clear();
-  state->ws_key.clear();
+  state->headers.clear();
   state->path.clear();
   state->done = false;
   http_parser_init(&state->parser, HTTP_REQUEST);

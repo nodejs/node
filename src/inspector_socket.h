@@ -35,7 +35,6 @@ struct http_parsing_state_s {
   handshake_cb callback;
   bool done;
   bool parsing_value;
-  std::string ws_key;
   std::string path;
   std::string current_header;
   std::map<std::string, std::string> headers;
