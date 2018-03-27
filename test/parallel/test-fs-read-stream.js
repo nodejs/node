@@ -34,7 +34,7 @@ const rangeFile = fixtures.path('x.txt');
   let paused = false;
   let bytesRead = 0;
 
-  const file = fs.ReadStream(fn);
+  const file = fs.createReadStream(fn);
   const fileSize = fs.statSync(fn).size;
 
   assert.strictEqual(file.bytesRead, 0);
