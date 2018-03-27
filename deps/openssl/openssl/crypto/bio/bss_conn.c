@@ -481,7 +481,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
                 char buf[16];
                 unsigned char *p = ptr;
 
-                BIO_snprintf(buf, sizeof buf, "%d.%d.%d.%d",
+                BIO_snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
                              p[0], p[1], p[2], p[3]);
                 if (data->param_hostname != NULL)
                     OPENSSL_free(data->param_hostname);
@@ -490,7 +490,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
             } else if (num == 3) {
                 char buf[DECIMAL_SIZE(int) + 1];
 
-                BIO_snprintf(buf, sizeof buf, "%d", *(int *)ptr);
+                BIO_snprintf(buf, sizeof(buf), "%d", *(int *)ptr);
                 if (data->param_port != NULL)
                     OPENSSL_free(data->param_port);
                 data->param_port = BUF_strdup(buf);

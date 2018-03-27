@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
     CRYPTO_dbg_set_options(V_CRYPTO_MDEBUG_ALL);
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
 
-    RAND_seed(rnd_seed, sizeof rnd_seed); /* or OAEP may fail */
+    RAND_seed(rnd_seed, sizeof(rnd_seed)); /* or OAEP may fail */
 
     plen = sizeof(ptext_ex) - 1;
 

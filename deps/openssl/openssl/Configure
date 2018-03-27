@@ -354,7 +354,7 @@ my %table=(
 "hpux-gcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::(unknown)::-Wl,+s -ldld:DES_PTR DES_UNROLL DES_RISC1:${no_asm}:dl:hpux-shared:-fPIC:-shared:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 #### HP MPE/iX http://jazz.external.hp.com/src/openssl/
-"MPE/iX-gcc",	"gcc:-D_ENDIAN -DBN_DIV2W -O3 -D_POSIX_SOURCE -D_SOCKET_SOURCE -I/SYSLOG/PUB::(unknown):MPE:-L/SYSLOG/PUB -lsyslog -lsocket -lcurses:BN_LLONG DES_PTR DES_UNROLL DES_RISC1:::",
+"MPE/iX-gcc",	"gcc:-DBN_DIV2W -O3 -D_POSIX_SOURCE -D_SOCKET_SOURCE -I/SYSLOG/PUB::(unknown):MPE:-L/SYSLOG/PUB -lsyslog -lsocket -lcurses:BN_LLONG DES_PTR DES_UNROLL DES_RISC1:::",
 
 # DEC Alpha OSF/1/Tru64 targets.
 #
@@ -1269,7 +1269,7 @@ my ($prelflags,$postlflags)=split('%',$lflags);
 if (defined($postlflags))	{ $lflags=$postlflags;	}
 else				{ $lflags=$prelflags; undef $prelflags;	}
 
-if ($target =~ /^mingw/ && `$cc --target-help 2>&1` !~ m/\-mno\-cygwin/m)
+if ($target =~ /^mingw/ && `$cross_compile_prefix$cc --target-help 2>&1` !~ m/\-mno\-cygwin/m)
 	{
 	$cflags =~ s/\-mno\-cygwin\s*//;
 	$shared_ldflag =~ s/\-mno\-cygwin\s*//;
@@ -1661,18 +1661,25 @@ if ($shlib_version_number =~ /(^[0-9]*)\.([0-9\.]*)/)
 	$shlib_minor=$2;
 	}
 
-my $ecc = $cc;
-$ecc = "clang" if `$cc --version 2>&1` =~ /clang/;
+my %predefined;
+
+# collect compiler pre-defines from gcc or gcc-alike...
+open(PIPE, "$cross_compile_prefix$cc -dM -E -x c /dev/null 2>&1 |");
+while (<PIPE>) {
+  m/^#define\s+(\w+(?:\(\w+\))?)(?:\s+(.+))?/ or last;
+  $predefined{$1} = defined($2) ? $2 : "";
+}
+close(PIPE);
 
 if ($strict_warnings)
 	{
 	my $wopt;
-	die "ERROR --strict-warnings requires gcc or clang" unless ($ecc =~ /gcc$/ or $ecc =~ /clang$/);
+	die "ERROR --strict-warnings requires gcc or clang" unless defined($predefined{__GNUC__});
 	foreach $wopt (split /\s+/, $gcc_devteam_warn)
 		{
 		$cflags .= " $wopt" unless ($cflags =~ /(^|\s)$wopt(\s|$)/)
 		}
-	if ($ecc eq "clang")
+	if (defined($predefined{__clang__}))
 		{
 		foreach $wopt (split /\s+/, $clang_devteam_warn)
 			{
@@ -1723,15 +1730,14 @@ while (<IN>)
 		s/^NM=\s*/NM= \$\(CROSS_COMPILE\)/;
 		s/^RANLIB=\s*/RANLIB= \$\(CROSS_COMPILE\)/;
 		s/^RC=\s*/RC= \$\(CROSS_COMPILE\)/;
-		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= \$\(CROSS_COMPILE\)$cc/ if $cc eq "gcc";
+		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= \$\(CROSS_COMPILE\)$cc/ if $predefined{__GNUC__} >= 3;
 		}
 	else	{
 		s/^CC=.*$/CC= $cc/;
 		s/^AR=\s*ar/AR= $ar/;
 		s/^RANLIB=.*/RANLIB= $ranlib/;
 		s/^RC=.*/RC= $windres/;
-		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $cc eq "gcc";
-		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $ecc eq "gcc" || $ecc eq "clang";
+		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $predefined{__GNUC__} >= 3;
 		}
 	s/^CFLAG=.*$/CFLAG= $cflags/;
 	s/^DEPFLAG=.*$/DEPFLAG=$depflags/;

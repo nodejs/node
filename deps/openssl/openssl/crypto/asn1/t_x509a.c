@@ -81,7 +81,7 @@ int X509_CERT_AUX_print(BIO *out, X509_CERT_AUX *aux, int indent)
                 BIO_puts(out, ", ");
             else
                 first = 0;
-            OBJ_obj2txt(oidstr, sizeof oidstr,
+            OBJ_obj2txt(oidstr, sizeof(oidstr),
                         sk_ASN1_OBJECT_value(aux->trust, i), 0);
             BIO_puts(out, oidstr);
         }
@@ -96,7 +96,7 @@ int X509_CERT_AUX_print(BIO *out, X509_CERT_AUX *aux, int indent)
                 BIO_puts(out, ", ");
             else
                 first = 0;
-            OBJ_obj2txt(oidstr, sizeof oidstr,
+            OBJ_obj2txt(oidstr, sizeof(oidstr),
                         sk_ASN1_OBJECT_value(aux->reject, i), 0);
             BIO_puts(out, oidstr);
         }

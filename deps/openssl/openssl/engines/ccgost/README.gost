@@ -193,7 +193,7 @@ Russian clients and RSA/DSA ciphersuites for foreign clients.
 
  openssl dgst -mac gost-mac -macopt key:<32 bytes of key> datafile
 
- Note absense of an option that specifies digest algorithm. gost-mac
+ Note absence of an option that specifies digest algorithm. gost-mac
  algorithm supports only one digest (which is actually part of
  implementation of this mac) and OpenSSL is clever enough to find out
  this.
@@ -216,8 +216,8 @@ openssl pksc12 -export -inkey gost.pem -in gost_cert.pem -keypbe gost89\
 7. Testing speed of symmetric ciphers.
    
 To test performance of GOST symmetric ciphers you should use -evp switch
-of the openssl speed command. Engine-provided ciphers couldn't be
-accessed by cipher-specific functions, only via generic evp interface
+of the openssl speed command. Engine-provided ciphers can be accessed only via
+generic evp interface and not by cipher-specific functions.
 
  openssl speed -evp gost89
  openssl speed -evp gost89-cnt
@@ -225,7 +225,7 @@ accessed by cipher-specific functions, only via generic evp interface
 
 PROGRAMMING INTERFACES DETAILS
 
-Applications never should access engine directly. They only use provided
+Applications should never access engine directly. They should only use provided
 EVP_PKEY API. But there are some details, which should be taken into
 account.
 
@@ -281,12 +281,11 @@ If UKM is not set by this control command, encrypt operation would
 generate random UKM.
 
 
-This sources include implementation of GOST 28147-89 and GOST R 34.11-94
-which are completely indepentent from OpenSSL and can be used separately
-(files gost89.c, gost89.h, gosthash.c, gosthash.h) Utility gostsum (file
-gostsum.c) is provided as example of such separate usage. This is
-program, simular to md5sum and sha1sum utilities, but calculates GOST R
-34.11-94 hash.
+These sources include implementation of GOST 28147-89 and GOST R 34.11-94
+which are completely independent from OpenSSL and can be used separately
+(files gost89.c, gost89.h, gosthash.c, gosthash.h). Utility gostsum (file
+gostsum.c) is provided as an example of such separate usage. This program is
+similar to md5sum and sha1sum utilities, but calculates GOST R 34.11-94 hash.
 
 Makefile doesn't include rule for compiling gostsum.
 Use command

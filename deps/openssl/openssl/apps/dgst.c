@@ -145,7 +145,7 @@ int MAIN(int argc, char **argv)
         goto end;
 
     /* first check the program name */
-    program_name(argv[0], pname, sizeof pname);
+    program_name(argv[0], pname, sizeof(pname));
 
     md = EVP_get_digestbyname(pname);
 

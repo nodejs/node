@@ -3018,9 +3018,9 @@ int ssl3_new(SSL *s)
 {
     SSL3_STATE *s3;
 
-    if ((s3 = OPENSSL_malloc(sizeof *s3)) == NULL)
+    if ((s3 = OPENSSL_malloc(sizeof(*s3))) == NULL)
         goto err;
-    memset(s3, 0, sizeof *s3);
+    memset(s3, 0, sizeof(*s3));
     memset(s3->rrec.seq_num, 0, sizeof(s3->rrec.seq_num));
     memset(s3->wrec.seq_num, 0, sizeof(s3->wrec.seq_num));
 
@@ -3078,7 +3078,7 @@ void ssl3_free(SSL *s)
 #ifndef OPENSSL_NO_SRP
     SSL_SRP_CTX_free(s);
 #endif
-    OPENSSL_cleanse(s->s3, sizeof *s->s3);
+    OPENSSL_cleanse(s->s3, sizeof(*s->s3));
     OPENSSL_free(s->s3);
     s->s3 = NULL;
 }
@@ -3142,7 +3142,7 @@ void ssl3_clear(SSL *s)
         s->s3->alpn_selected = NULL;
     }
 #endif
-    memset(s->s3, 0, sizeof *s->s3);
+    memset(s->s3, 0, sizeof(*s->s3));
     s->s3->rbuf.buf = rp;
     s->s3->wbuf.buf = wp;
     s->s3->rbuf.len = rlen;

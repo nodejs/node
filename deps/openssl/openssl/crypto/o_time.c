@@ -8,7 +8,7 @@
  * 2008.
  */
 /* ====================================================================
- * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2001-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -105,7 +105,7 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
 {
     struct tm *ts = NULL;
 
-#if defined(OPENSSL_THREADS) && !defined(OPENSSL_SYS_WIN32) && !defined(OPENSSL_SYS_OS2) && (!defined(OPENSSL_SYS_VMS) || defined(gmtime_r)) && !defined(OPENSSL_SYS_MACOSX) && !defined(OPENSSL_SYS_SUNOS)
+#if defined(OPENSSL_THREADS) && !defined(OPENSSL_SYS_WIN32) && !defined(OPENSSL_SYS_OS2) && (!defined(OPENSSL_SYS_VMS) || defined(gmtime_r)) && !defined(OPENSSL_SYS_SUNOS)
     if (gmtime_r(timer, result) == NULL)
         return NULL;
     ts = result;
@@ -141,14 +141,14 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
         pitem->ileb_64$w_mbo = 1;
         pitem->ileb_64$w_code = LNM$_STRING;
         pitem->ileb_64$l_mbmo = -1;
-        pitem->ileb_64$q_length = sizeof (logvalue);
+        pitem->ileb_64$q_length = sizeof(logvalue);
         pitem->ileb_64$pq_bufaddr = logvalue;
         pitem->ileb_64$pq_retlen_addr = (unsigned __int64 *) &reslen;
         pitem++;
         /* Last item of the item list is null terminated */
         pitem->ileb_64$q_length = pitem->ileb_64$w_code = 0;
 # else
-        pitem->ile3$w_length = sizeof (logvalue);
+        pitem->ile3$w_length = sizeof(logvalue);
         pitem->ile3$w_code = LNM$_STRING;
         pitem->ile3$ps_bufaddr = logvalue;
         pitem->ile3$ps_retlen_addr = (unsigned short int *) &reslen;

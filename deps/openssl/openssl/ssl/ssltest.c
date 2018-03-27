@@ -1102,7 +1102,7 @@ int main(int argc, char *argv[])
     }
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
 
-    RAND_seed(rnd_seed, sizeof rnd_seed);
+    RAND_seed(rnd_seed, sizeof(rnd_seed));
 
     bio_stdout = BIO_new_fp(stdout, BIO_NOCLOSE | BIO_FP_TEXT);
 
@@ -1673,9 +1673,9 @@ int main(int argc, char *argv[])
     {
         int session_id_context = 0;
         SSL_CTX_set_session_id_context(s_ctx, (void *)&session_id_context,
-                                       sizeof session_id_context);
+                                       sizeof(session_id_context));
         SSL_CTX_set_session_id_context(s_ctx2, (void *)&session_id_context,
-                                       sizeof session_id_context);
+                                       sizeof(session_id_context));
     }
 
     /* Use PSK only if PSK key is given */
@@ -1861,9 +1861,9 @@ int main(int argc, char *argv[])
     if (c_ssl && c_ssl->kssl_ctx) {
         char localhost[MAXHOSTNAMELEN + 2];
 
-        if (gethostname(localhost, sizeof localhost - 1) == 0) {
-            localhost[sizeof localhost - 1] = '\0';
-            if (strlen(localhost) == sizeof localhost - 1) {
+        if (gethostname(localhost, sizeof(localhost) - 1) == 0) {
+            localhost[sizeof(localhost) - 1] = '\0';
+            if (strlen(localhost) == sizeof(localhost) - 1) {
                 BIO_printf(bio_err, "localhost name too long\n");
                 goto end;
             }
@@ -2041,8 +2041,8 @@ int doit_biopair(SSL *s_ssl, SSL *c_ssl, long count,
             if (cw_num > 0) {
                 /* Write to server. */
 
-                if (cw_num > (long)sizeof cbuf)
-                    i = sizeof cbuf;
+                if (cw_num > (long)sizeof(cbuf))
+                    i = sizeof(cbuf);
                 else
                     i = (int)cw_num;
                 r = BIO_write(c_ssl_bio, cbuf, i);
@@ -2118,8 +2118,8 @@ int doit_biopair(SSL *s_ssl, SSL *c_ssl, long count,
             if (sw_num > 0) {
                 /* Write to client. */
 
-                if (sw_num > (long)sizeof sbuf)
-                    i = sizeof sbuf;
+                if (sw_num > (long)sizeof(sbuf))
+                    i = sizeof(sbuf);
                 else
                     i = (int)sw_num;
                 r = BIO_write(s_ssl_bio, sbuf, i);
@@ -2630,7 +2630,7 @@ static int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx)
     char *s, buf[256];
 
     s = X509_NAME_oneline(X509_get_subject_name(ctx->current_cert), buf,
-                          sizeof buf);
+                          sizeof(buf));
     if (s != NULL) {
         if (ok)
             fprintf(stderr, "depth=%d %s\n", ctx->error_depth, buf);

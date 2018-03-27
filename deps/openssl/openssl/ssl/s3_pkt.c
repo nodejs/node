@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1096,10 +1096,9 @@ int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
     int i;
     SSL3_BUFFER *wb = &(s->s3->wbuf);
 
-/* XXXX */
     if ((s->s3->wpend_tot > (int)len)
-        || ((s->s3->wpend_buf != buf) &&
-            !(s->mode & SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER))
+        || (!(s->mode & SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER)
+            && (s->s3->wpend_buf != buf))
         || (s->s3->wpend_type != type)) {
         SSLerr(SSL_F_SSL3_WRITE_PENDING, SSL_R_BAD_WRITE_RETRY);
         return (-1);
@@ -1314,11 +1313,11 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
         unsigned int *dest_len = NULL;
 
         if (rr->type == SSL3_RT_HANDSHAKE) {
-            dest_maxlen = sizeof s->s3->handshake_fragment;
+            dest_maxlen = sizeof(s->s3->handshake_fragment);
             dest = s->s3->handshake_fragment;
             dest_len = &s->s3->handshake_fragment_len;
         } else if (rr->type == SSL3_RT_ALERT) {
-            dest_maxlen = sizeof s->s3->alert_fragment;
+            dest_maxlen = sizeof(s->s3->alert_fragment);
             dest = s->s3->alert_fragment;
             dest_len = &s->s3->alert_fragment_len;
         }
@@ -1421,26 +1420,25 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
          */
         goto start;
     }
+
     /*
      * If we are a server and get a client hello when renegotiation isn't
-     * allowed send back a no renegotiation alert and carry on. WARNING:
-     * experimental code, needs reviewing (steve)
+     * allowed send back a no renegotiation alert and carry on.
      */
-    if (s->server &&
-        SSL_is_init_finished(s) &&
-        !s->s3->send_connection_binding &&
-        (s->version > SSL3_VERSION) &&
-        (s->s3->handshake_fragment_len >= 4) &&
-        (s->s3->handshake_fragment[0] == SSL3_MT_CLIENT_HELLO) &&
-        (s->session != NULL) && (s->session->cipher != NULL) &&
-        !(s->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION)) {
-        /*
-         * s->s3->handshake_fragment_len = 0;
-         */
+    if (s->server
+            && SSL_is_init_finished(s)
+            && !s->s3->send_connection_binding
+            && s->version > SSL3_VERSION
+            && s->s3->handshake_fragment_len >= SSL3_HM_HEADER_LENGTH
+            && s->s3->handshake_fragment[0] == SSL3_MT_CLIENT_HELLO
+            && s->s3->previous_client_finished_len != 0
+            && (s->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION) == 0) {
+        s->s3->handshake_fragment_len = 0;
         rr->length = 0;
         ssl3_send_alert(s, SSL3_AL_WARNING, SSL_AD_NO_RENEGOTIATION);
         goto start;
     }
+
     if (s->s3->alert_fragment_len >= 2) {
         int alert_level = s->s3->alert_fragment[0];
         int alert_descr = s->s3->alert_fragment[1];
@@ -1498,7 +1496,7 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
             s->rwstate = SSL_NOTHING;
             s->s3->fatal_alert = alert_descr;
             SSLerr(SSL_F_SSL3_READ_BYTES, SSL_AD_REASON_OFFSET + alert_descr);
-            BIO_snprintf(tmp, sizeof tmp, "%d", alert_descr);
+            BIO_snprintf(tmp, sizeof(tmp), "%d", alert_descr);
             ERR_add_error_data(2, "SSL alert number ", tmp);
             s->shutdown |= SSL_RECEIVED_SHUTDOWN;
             SSL_CTX_remove_session(s->session_ctx, s->session);

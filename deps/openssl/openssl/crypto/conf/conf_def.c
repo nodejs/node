@@ -423,7 +423,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
         OPENSSL_free(section);
     if (line != NULL)
         *line = eline;
-    BIO_snprintf(btmp, sizeof btmp, "%ld", eline);
+    BIO_snprintf(btmp, sizeof(btmp), "%ld", eline);
     ERR_add_error_data(2, "line ", btmp);
     if ((h != conf->data) && (conf->data != NULL)) {
         CONF_free(conf->data);

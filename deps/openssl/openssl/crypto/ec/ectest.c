@@ -469,7 +469,7 @@ static void prime_field_tests(void)
 
     len =
         EC_POINT_point2oct(group, Q, POINT_CONVERSION_COMPRESSED, buf,
-                           sizeof buf, ctx);
+                           sizeof(buf), ctx);
     if (len == 0)
         ABORT;
     if (!EC_POINT_oct2point(group, P, buf, len, ctx))
@@ -482,7 +482,7 @@ static void prime_field_tests(void)
 
     len =
         EC_POINT_point2oct(group, Q, POINT_CONVERSION_UNCOMPRESSED, buf,
-                           sizeof buf, ctx);
+                           sizeof(buf), ctx);
     if (len == 0)
         ABORT;
     if (!EC_POINT_oct2point(group, P, buf, len, ctx))
@@ -494,7 +494,7 @@ static void prime_field_tests(void)
         fprintf(stdout, "%02X", buf[i]);
 
     len =
-        EC_POINT_point2oct(group, Q, POINT_CONVERSION_HYBRID, buf, sizeof buf,
+        EC_POINT_point2oct(group, Q, POINT_CONVERSION_HYBRID, buf, sizeof(buf),
                            ctx);
     if (len == 0)
         ABORT;
@@ -1206,7 +1206,7 @@ static void char2_field_tests(void)
 #  ifdef OPENSSL_EC_BIN_PT_COMP
     len =
         EC_POINT_point2oct(group, Q, POINT_CONVERSION_COMPRESSED, buf,
-                           sizeof buf, ctx);
+                           sizeof(buf), ctx);
     if (len == 0)
         ABORT;
     if (!EC_POINT_oct2point(group, P, buf, len, ctx))
@@ -1220,7 +1220,7 @@ static void char2_field_tests(void)
 
     len =
         EC_POINT_point2oct(group, Q, POINT_CONVERSION_UNCOMPRESSED, buf,
-                           sizeof buf, ctx);
+                           sizeof(buf), ctx);
     if (len == 0)
         ABORT;
     if (!EC_POINT_oct2point(group, P, buf, len, ctx))
@@ -1234,7 +1234,7 @@ static void char2_field_tests(void)
 /* Change test based on whether binary point compression is enabled or not. */
 #  ifdef OPENSSL_EC_BIN_PT_COMP
     len =
-        EC_POINT_point2oct(group, Q, POINT_CONVERSION_HYBRID, buf, sizeof buf,
+        EC_POINT_point2oct(group, Q, POINT_CONVERSION_HYBRID, buf, sizeof(buf),
                            ctx);
     if (len == 0)
         ABORT;
@@ -1844,7 +1844,7 @@ int main(int argc, char *argv[])
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
     ERR_load_crypto_strings();
 
-    RAND_seed(rnd_seed, sizeof rnd_seed); /* or BN_generate_prime may fail */
+    RAND_seed(rnd_seed, sizeof(rnd_seed)); /* or BN_generate_prime may fail */
 
     prime_field_tests();
     puts("");
