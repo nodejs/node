@@ -292,24 +292,25 @@ struct PackageConfig {
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
   V(as_external, v8::External)                                                \
+  V(async_hooks_after_function, v8::Function)                                 \
+  V(async_hooks_before_function, v8::Function)                                \
+  V(async_hooks_binding, v8::Object)                                          \
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_before_function, v8::Function)                                \
-  V(async_hooks_after_function, v8::Function)                                 \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
-  V(async_hooks_binding, v8::Object)                                          \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
+  V(fdclose_constructor_template, v8::ObjectTemplate)                         \
   V(fd_constructor_template, v8::ObjectTemplate)                              \
   V(filehandlereadwrap_template, v8::ObjectTemplate)                          \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
-  V(fdclose_constructor_template, v8::ObjectTemplate)                         \
+  V(fs_use_promises_symbol, v8::Symbol)                                       \
   V(host_import_module_dynamically_callback, v8::Function)                    \
   V(host_initialize_import_meta_object_callback, v8::Function)                \
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
-  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(http2settings_constructor_template, v8::ObjectTemplate)                   \
+  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
@@ -334,8 +335,7 @@ struct PackageConfig {
   V(udp_constructor_function, v8::Function)                                   \
   V(vm_parsing_context_symbol, v8::Symbol)                                    \
   V(url_constructor_function, v8::Function)                                   \
-  V(write_wrap_template, v8::ObjectTemplate)                                  \
-  V(fs_use_promises_symbol, v8::Symbol)
+  V(write_wrap_template, v8::ObjectTemplate)
 
 class Environment;
 
