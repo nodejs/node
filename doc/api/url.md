@@ -313,8 +313,9 @@ myURL.port = 1234.5678;
 console.log(myURL.port);
 // Prints 1234
 
-// Out-of-range numbers are ignored
-myURL.port = 1e10;
+// Out-of-range numbers which are not represented in scientific notation
+// will be ignored.
+myURL.port = 1e10; // 10000000000, will be range-checked as described below
 console.log(myURL.port);
 // Prints 1234
 ```
@@ -324,9 +325,25 @@ in the range `0` to `65535` (inclusive). Setting the value to the default port
 of the `URL` objects given `protocol` will result in the `port` value becoming
 the empty string (`''`).
 
-If an invalid string is assigned to the `port` property, but it begins with a
-number, the leading number is assigned to `port`. Otherwise, or if the number
-lies outside the range denoted above, it is ignored.
+Upon assigning a value to the port, the value will first be converted to a
+string using `.toString()`.
+
+If that string is invalid but it begins with a number, the leading number is
+assigned to `port`.
+Otherwise, or if the number lies outside the range denoted above,
+it is ignored.
+
+Note that numbers which contain a decimal point,
+such as floating-point numbers or numbers in scientific notation,
+are not an exception to this rule.
+Leading numbers up to the decimal point will be set as the URL's port,
+assuming they are valid:
+
+```js
+myURL.port = 4.567e21;
+console.log(myURL.port);
+// Prints 4 (because it is the leading number in the string '4.567e21')
+```
 
 #### url.protocol
 
