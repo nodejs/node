@@ -55,6 +55,9 @@ typedef struct tm TIME_TYPE;
 #endif
 #define UNKNOWN_NODEVERSION_STRING "Unable to determine Node.js version\n"
 
+void InitializeNodeReport(void);
+void SetEvents(Isolate* isolate, const char* args); 
+
 // Function declarations - functions in src/node_report.cc
 void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error);
 void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out);

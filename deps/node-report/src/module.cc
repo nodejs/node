@@ -103,8 +103,11 @@ NAN_METHOD(GetReport) {
 NAN_METHOD(SetEvents) {
   Nan::Utf8String parameter(info[0]);
   v8::Isolate* isolate = info.GetIsolate();
+  SetEvents(isolate, *parameter);
+}
+void SetEvents(v8::Isolate* isolate, const char* args) {
   unsigned int previous_events = nodereport_events; // save previous settings
-  nodereport_events = ProcessNodeReportEvents(*parameter);
+  nodereport_events = ProcessNodeReportEvents(args);
 
   // If report newly requested for fatalerror, set up the V8 callback
   if ((nodereport_events & NR_FATALERROR) && (error_hook_initialised == false)) {
@@ -371,7 +374,7 @@ static void SetupSignalHandler() {
  * Native module initializer function, called when the module is require'd
  *
  ******************************************************************************/
-void Initialize(v8::Local<v8::Object> exports) {
+void InitializeNodeReport(void) {
   v8::Isolate* isolate = Isolate::GetCurrent();
   node_isolate = isolate;
 
@@ -385,7 +388,8 @@ void Initialize(v8::Local<v8::Object> exports) {
   }
   const char* trigger_events = secure_getenv("NODEREPORT_EVENTS");
   if (trigger_events != nullptr) {
-    nodereport_events = ProcessNodeReportEvents(trigger_events);
+    // nodereport_events = ProcessNodeReportEvents(trigger_events);
+    SetEvents(isolate, trigger_events);
   }
   const char* trigger_signal = secure_getenv("NODEREPORT_SIGNAL");
   if (trigger_signal != nullptr) {
@@ -399,29 +403,10 @@ void Initialize(v8::Local<v8::Object> exports) {
   if (directory_name != nullptr) {
     ProcessNodeReportDirectory(directory_name);
   }
+}
 
-  // If report requested for fatalerror, set up the V8 callback
-  if (nodereport_events & NR_FATALERROR) {
-    isolate->SetFatalErrorHandler(OnFatalError);
-    error_hook_initialised = true;
-  }
-
-  // If report requested for exceptions, tell V8 to capture stack trace and set up the callback
-  if (nodereport_events & NR_EXCEPTION) {
-    isolate->SetCaptureStackTraceForUncaughtExceptions(true, 32, v8::StackTrace::kDetailed);
-    // The hook for uncaught exception won't get called unless the --abort_on_uncaught_exception option is set
-    v8::V8::SetFlagsFromString("--abort_on_uncaught_exception", sizeof("--abort_on_uncaught_exception")-1);
-    isolate->SetAbortOnUncaughtExceptionCallback(OnUncaughtException);
-    exception_hook_initialised = true;
-  }
-
-#ifndef _WIN32
-  // If report requested on external user signal set up watchdog thread and callbacks
-  if (nodereport_events & NR_SIGNAL) {
-    SetupSignalHandler();
-  }
-#endif
-
+void Initialize(v8::Local<v8::Object> exports) {
+  InitializeNodeReport();
   exports->Set(Nan::New("triggerReport").ToLocalChecked(),
                Nan::New<v8::FunctionTemplate>(TriggerReport)->GetFunction());
   exports->Set(Nan::New("getReport").ToLocalChecked(),
