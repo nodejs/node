@@ -4168,6 +4168,27 @@ main (void)
   test_invalid_header_field_token_error(HTTP_RESPONSE);
   test_invalid_header_field_content_error(HTTP_RESPONSE);
 
+  test_simple_type(
+      "POST / HTTP/1.1\r\n"
+      "Content-Length:  42 \r\n"  // Note the surrounding whitespace.
+      "\r\n",
+      HPE_OK,
+      HTTP_REQUEST);
+
+  test_simple_type(
+      "POST / HTTP/1.1\r\n"
+      "Content-Length: 4 2\r\n"
+      "\r\n",
+      HPE_INVALID_CONTENT_LENGTH,
+      HTTP_REQUEST);
+
+  test_simple_type(
+      "POST / HTTP/1.1\r\n"
+      "Content-Length: 13 37\r\n"
+      "\r\n",
+      HPE_INVALID_CONTENT_LENGTH,
+      HTTP_REQUEST);
+
   //// RESPONSES
 
   test_simple_type("HTP/1.1 200 OK\r\n\r\n", HPE_INVALID_VERSION, HTTP_RESPONSE);
