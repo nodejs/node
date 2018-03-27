@@ -66,8 +66,8 @@ utility functions should be used instead.
 In general it cannot be assumed that the data returned by ASN1_STRING_data()
 is null terminated or does not contain embedded nulls. The actual format
 of the data will depend on the actual string type itself: for example
-for and IA5String the data will be ASCII, for a BMPString two bytes per
-character in big endian format, UTF8String will be in UTF8 format.
+for an IA5String the data will be ASCII, for a BMPString two bytes per
+character in big endian format, and for an UTF8String it will be in UTF8 format.
 
 Similar care should be take to ensure the data is in the correct format
 when calling ASN1_STRING_set().

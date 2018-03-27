@@ -51,7 +51,6 @@ typedef __int128_t int128_t;
 typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
-typedef int64_t s64;
 
 /*
  * The underlying field. P256 operates over GF(2^256-2^224+2^192+2^96-1). We
@@ -161,9 +160,9 @@ static int BN_to_felem(felem out, const BIGNUM *bn)
     unsigned num_bytes;
 
     /* BN_bn2bin eats leading zeroes */
-    memset(b_out, 0, sizeof b_out);
+    memset(b_out, 0, sizeof(b_out));
     num_bytes = BN_num_bytes(bn);
-    if (num_bytes > sizeof b_out) {
+    if (num_bytes > sizeof(b_out)) {
         ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
         return 0;
     }
@@ -182,8 +181,8 @@ static BIGNUM *smallfelem_to_BN(BIGNUM *out, const smallfelem in)
 {
     felem_bytearray b_in, b_out;
     smallfelem_to_bin32(b_in, in);
-    flip_endian(b_out, b_in, sizeof b_out);
-    return BN_bin2bn(b_out, sizeof b_out, out);
+    flip_endian(b_out, b_in, sizeof(b_out));
+    return BN_bin2bn(b_out, sizeof(b_out), out);
 }
 
 /*-
@@ -392,7 +391,7 @@ static void felem_shrink(smallfelem out, const felem in)
 {
     felem tmp;
     u64 a, b, mask;
-    s64 high, low;
+    u64 high, low;
     static const u64 kPrime3Test = 0x7fffffff00000001ul; /* 2^63 - 2^32 + 1 */
 
     /* Carry 2->3 */
@@ -433,29 +432,31 @@ static void felem_shrink(smallfelem out, const felem in)
      * In order to make space in tmp[3] for the carry from 2 -> 3, we
      * conditionally subtract kPrime if tmp[3] is large enough.
      */
-    high = tmp[3] >> 64;
+    high = (u64)(tmp[3] >> 64);
     /* As tmp[3] < 2^65, high is either 1 or 0 */
-    high <<= 63;
-    high >>= 63;
+    high = 0 - high;
     /*-
      * high is:
      *   all ones   if the high word of tmp[3] is 1
-     *   all zeros  if the high word of tmp[3] if 0 */
-    low = tmp[3];
-    mask = low >> 63;
+     *   all zeros  if the high word of tmp[3] if 0
+     */
+    low = (u64)tmp[3];
+    mask = 0 - (low >> 63);
     /*-
      * mask is:
      *   all ones   if the MSB of low is 1
-     *   all zeros  if the MSB of low if 0 */
+     *   all zeros  if the MSB of low if 0
+     */
     low &= bottom63bits;
     low -= kPrime3Test;
     /* if low was greater than kPrime3Test then the MSB is zero */
     low = ~low;
-    low >>= 63;
+    low = 0 - (low >> 63);
     /*-
      * low is:
      *   all ones   if low was > kPrime3Test
-     *   all zeros  if low was <= kPrime3Test */
+     *   all zeros  if low was <= kPrime3Test
+     */
     mask = (mask & low) | high;
     tmp[0] -= mask & kPrime[0];
     tmp[1] -= mask & kPrime[1];
@@ -889,7 +890,7 @@ static void felem_contract(smallfelem out, const felem in)
         equal &= equal << 4;
         equal &= equal << 2;
         equal &= equal << 1;
-        equal = ((s64) equal) >> 63;
+        equal = 0 - (equal >> 63);
 
         all_equal_so_far &= equal;
     }
@@ -956,7 +957,7 @@ static limb smallfelem_is_zero(const smallfelem small)
     is_zero &= is_zero << 4;
     is_zero &= is_zero << 2;
     is_zero &= is_zero << 1;
-    is_zero = ((s64) is_zero) >> 63;
+    is_zero = 0 - (is_zero >> 63);
 
     is_p = (small[0] ^ kPrime[0]) |
         (small[1] ^ kPrime[1]) |
@@ -968,7 +969,7 @@ static limb smallfelem_is_zero(const smallfelem small)
     is_p &= is_p << 4;
     is_p &= is_p << 2;
     is_p &= is_p << 1;
-    is_p = ((s64) is_p) >> 63;
+    is_p = 0 - (is_p >> 63);
 
     is_zero |= is_p;
 
@@ -1820,7 +1821,7 @@ const EC_METHOD *EC_GFp_nistp256_method(void)
 static NISTP256_PRE_COMP *nistp256_pre_comp_new()
 {
     NISTP256_PRE_COMP *ret = NULL;
-    ret = (NISTP256_PRE_COMP *) OPENSSL_malloc(sizeof *ret);
+    ret = (NISTP256_PRE_COMP *) OPENSSL_malloc(sizeof(*ret));
     if (!ret) {
         ECerr(EC_F_NISTP256_PRE_COMP_NEW, ERR_R_MALLOC_FAILURE);
         return ret;
@@ -1867,7 +1868,7 @@ static void nistp256_pre_comp_clear_free(void *pre_)
     if (i > 0)
         return;
 
-    OPENSSL_cleanse(pre, sizeof *pre);
+    OPENSSL_cleanse(pre, sizeof(*pre));
     OPENSSL_free(pre);
 }
 

@@ -87,7 +87,7 @@ void main ()
   sa_serv.sin_port        = htons (1111);          /* Server Port number */
   
   err = bind(listen_sd, (struct sockaddr*) &sa_serv,
-	     sizeof (sa_serv));                   CHK_ERR(err, "bind");
+	     sizeof(sa_serv));                    CHK_ERR(err, "bind");
 	     
   /* Receive a TCP connection. */
 	     

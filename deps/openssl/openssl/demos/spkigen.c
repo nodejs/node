@@ -73,7 +73,7 @@ char *argv[];
     fprintf(stderr, "please enter challenge string:");
     fflush(stderr);
     buf[0] = '\0';
-    fgets(buf, sizeof buf, stdin);
+    fgets(buf, sizeof(buf), stdin);
     i = strlen(buf);
     if (i > 0)
         buf[--i] = '\0';

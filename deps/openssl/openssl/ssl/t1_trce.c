@@ -1247,13 +1247,15 @@ void SSL_trace(int write_p, int version, int content_type,
         break;
 
     case SSL3_RT_ALERT:
-        if (msglen != 2)
+        if (msglen != 2) {
             BIO_puts(bio, "    Illegal Alert Length\n");
-        else {
+        } else {
             BIO_printf(bio, "    Level=%s(%d), description=%s(%d)\n",
                        SSL_alert_type_string_long(msg[0] << 8),
                        msg[0], SSL_alert_desc_string_long(msg[1]), msg[1]);
         }
+        break;
+
     case TLS1_RT_HEARTBEAT:
         ssl_print_heartbeat(bio, 4, msg, msglen);
         break;

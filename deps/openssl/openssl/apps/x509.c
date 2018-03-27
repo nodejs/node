@@ -817,10 +817,10 @@ int MAIN(int argc, char **argv)
                 char *m;
                 int y, z;
 
-                X509_NAME_oneline(X509_get_subject_name(x), buf, sizeof buf);
+                X509_NAME_oneline(X509_get_subject_name(x), buf, sizeof(buf));
                 BIO_printf(STDout, "/* subject:%s */\n", buf);
                 m = X509_NAME_oneline(X509_get_issuer_name(x), buf,
-                                      sizeof buf);
+                                      sizeof(buf));
                 BIO_printf(STDout, "/* issuer :%s */\n", buf);
 
                 z = i2d_X509(x, NULL);

@@ -494,7 +494,7 @@ static int atalla_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
         goto err;
     }
     /* Prepare the key-data */
-    memset(&keydata, 0, sizeof keydata);
+    memset(&keydata, 0, sizeof(keydata));
     numbytes = BN_num_bytes(m);
     memset(exponent->d, 0, numbytes);
     memset(modulus->d, 0, numbytes);

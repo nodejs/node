@@ -86,7 +86,7 @@ int i2d_ASN1_TIME(ASN1_TIME *a, unsigned char **pp)
         tmpstr = *(ASN1_STRING *)a;
         len = tmpstr.length;
         ebcdic2ascii(tmp, tmpstr.data,
-                     (len >= sizeof tmp) ? sizeof tmp : len);
+                     (len >= sizeof(tmp)) ? sizeof(tmp) : len);
         tmpstr.data = tmp;
         a = (ASN1_GENERALIZEDTIME *)&tmpstr;
     }

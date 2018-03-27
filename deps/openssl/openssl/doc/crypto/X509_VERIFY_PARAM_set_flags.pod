@@ -203,6 +203,27 @@ chain found is not trusted, then OpenSSL will continue to check to see if an
 alternative chain can be found that is trusted. With this flag set the behaviour
 will match that of OpenSSL versions prior to 1.0.2b.
 
+The B<X509_V_FLAG_TRUSTED_FIRST> flag causes chain construction to look for
+issuers in the trust store before looking at the untrusted certificates
+provided as part of the the peer chain.
+Though it is not on by default in OpenSSL 1.0.2, applications should generally
+set this flag.
+Local issuer certificates are often more likely to satisfy local security
+requirements and lead to a locally trusted root.
+This is especially important When some certificates in the trust store have
+explicit trust settings (see "TRUST SETTINGS" in L<x509(1)>).
+
+The B<X509_V_FLAG_PARTIAL_CHAIN> flag causes intermediate certificates in the
+trust store to be treated as trust-anchors, in the same way as the self-signed
+root CA certificates.
+This makes it possible to trust certificates issued by an intermediate CA
+without having to trust its ancestor root CA.
+With OpenSSL 1.0.2, chain construction continues as long as there are
+additional trusted issuers in the trust store, and the last trusted issuer
+becomes the trust-anchor.
+Thus, even when an intermediate certificate is found in the trust store, the
+verified chain passed to callbacks may still be anchored by a root CA.
+
 =head1 NOTES
 
 The above functions should be used to manipulate verification parameters
@@ -235,7 +256,8 @@ connections associated with an B<SSL_CTX> structure B<ctx>:
 L<X509_verify_cert(3)|X509_verify_cert(3)>,
 L<X509_check_host(3)|X509_check_host(3)>,
 L<X509_check_email(3)|X509_check_email(3)>,
-L<X509_check_ip(3)|X509_check_ip(3)>
+L<X509_check_ip(3)|X509_check_ip(3)>,
+L<x509(1)|x509(1)>
 
 =head1 HISTORY
 

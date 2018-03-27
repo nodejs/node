@@ -1738,9 +1738,9 @@ int save_serial(char *serialfile, char *suffix, BIGNUM *serial,
         BUF_strlcpy(buf[0], serialfile, BSIZE);
     else {
 #ifndef OPENSSL_SYS_VMS
-        j = BIO_snprintf(buf[0], sizeof buf[0], "%s.%s", serialfile, suffix);
+        j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s.%s", serialfile, suffix);
 #else
-        j = BIO_snprintf(buf[0], sizeof buf[0], "%s-%s", serialfile, suffix);
+        j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s-%s", serialfile, suffix);
 #endif
     }
 #ifdef RL_DEBUG
@@ -1789,14 +1789,14 @@ int rotate_serial(char *serialfile, char *new_suffix, char *old_suffix)
         goto err;
     }
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[0], sizeof buf[0], "%s.%s", serialfile, new_suffix);
+    j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s.%s", serialfile, new_suffix);
 #else
-    j = BIO_snprintf(buf[0], sizeof buf[0], "%s-%s", serialfile, new_suffix);
+    j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s-%s", serialfile, new_suffix);
 #endif
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[1], sizeof buf[1], "%s.%s", serialfile, old_suffix);
+    j = BIO_snprintf(buf[1], sizeof(buf[1]), "%s.%s", serialfile, old_suffix);
 #else
-    j = BIO_snprintf(buf[1], sizeof buf[1], "%s-%s", serialfile, old_suffix);
+    j = BIO_snprintf(buf[1], sizeof(buf[1]), "%s-%s", serialfile, old_suffix);
 #endif
 #ifdef RL_DEBUG
     BIO_printf(bio_err, "DEBUG: renaming \"%s\" to \"%s\"\n",
@@ -1877,9 +1877,9 @@ CA_DB *load_index(char *dbfile, DB_ATTR *db_attr)
         goto err;
 
 #ifndef OPENSSL_SYS_VMS
-    BIO_snprintf(buf[0], sizeof buf[0], "%s.attr", dbfile);
+    BIO_snprintf(buf[0], sizeof(buf[0]), "%s.attr", dbfile);
 #else
-    BIO_snprintf(buf[0], sizeof buf[0], "%s-attr", dbfile);
+    BIO_snprintf(buf[0], sizeof(buf[0]), "%s-attr", dbfile);
 #endif
     dbattr_conf = NCONF_new(NULL);
     if (NCONF_load(dbattr_conf, buf[0], &errorline) <= 0) {
@@ -1967,19 +1967,19 @@ int save_index(const char *dbfile, const char *suffix, CA_DB *db)
         goto err;
     }
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[2], sizeof buf[2], "%s.attr", dbfile);
+    j = BIO_snprintf(buf[2], sizeof(buf[2]), "%s.attr", dbfile);
 #else
-    j = BIO_snprintf(buf[2], sizeof buf[2], "%s-attr", dbfile);
+    j = BIO_snprintf(buf[2], sizeof(buf[2]), "%s-attr", dbfile);
 #endif
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[1], sizeof buf[1], "%s.attr.%s", dbfile, suffix);
+    j = BIO_snprintf(buf[1], sizeof(buf[1]), "%s.attr.%s", dbfile, suffix);
 #else
-    j = BIO_snprintf(buf[1], sizeof buf[1], "%s-attr-%s", dbfile, suffix);
+    j = BIO_snprintf(buf[1], sizeof(buf[1]), "%s-attr-%s", dbfile, suffix);
 #endif
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[0], sizeof buf[0], "%s.%s", dbfile, suffix);
+    j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s.%s", dbfile, suffix);
 #else
-    j = BIO_snprintf(buf[0], sizeof buf[0], "%s-%s", dbfile, suffix);
+    j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s-%s", dbfile, suffix);
 #endif
 #ifdef RL_DEBUG
     BIO_printf(bio_err, "DEBUG: writing \"%s\"\n", buf[0]);
@@ -2028,29 +2028,29 @@ int rotate_index(const char *dbfile, const char *new_suffix,
         goto err;
     }
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[4], sizeof buf[4], "%s.attr", dbfile);
+    j = BIO_snprintf(buf[4], sizeof(buf[4]), "%s.attr", dbfile);
 #else
-    j = BIO_snprintf(buf[4], sizeof buf[4], "%s-attr", dbfile);
+    j = BIO_snprintf(buf[4], sizeof(buf[4]), "%s-attr", dbfile);
 #endif
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[2], sizeof buf[2], "%s.attr.%s", dbfile, new_suffix);
+    j = BIO_snprintf(buf[2], sizeof(buf[2]), "%s.attr.%s", dbfile, new_suffix);
 #else
-    j = BIO_snprintf(buf[2], sizeof buf[2], "%s-attr-%s", dbfile, new_suffix);
+    j = BIO_snprintf(buf[2], sizeof(buf[2]), "%s-attr-%s", dbfile, new_suffix);
 #endif
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[0], sizeof buf[0], "%s.%s", dbfile, new_suffix);
+    j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s.%s", dbfile, new_suffix);
 #else
-    j = BIO_snprintf(buf[0], sizeof buf[0], "%s-%s", dbfile, new_suffix);
+    j = BIO_snprintf(buf[0], sizeof(buf[0]), "%s-%s", dbfile, new_suffix);
 #endif
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[1], sizeof buf[1], "%s.%s", dbfile, old_suffix);
+    j = BIO_snprintf(buf[1], sizeof(buf[1]), "%s.%s", dbfile, old_suffix);
 #else
-    j = BIO_snprintf(buf[1], sizeof buf[1], "%s-%s", dbfile, old_suffix);
+    j = BIO_snprintf(buf[1], sizeof(buf[1]), "%s-%s", dbfile, old_suffix);
 #endif
 #ifndef OPENSSL_SYS_VMS
-    j = BIO_snprintf(buf[3], sizeof buf[3], "%s.attr.%s", dbfile, old_suffix);
+    j = BIO_snprintf(buf[3], sizeof(buf[3]), "%s.attr.%s", dbfile, old_suffix);
 #else
-    j = BIO_snprintf(buf[3], sizeof buf[3], "%s-attr-%s", dbfile, old_suffix);
+    j = BIO_snprintf(buf[3], sizeof(buf[3]), "%s-attr-%s", dbfile, old_suffix);
 #endif
 #ifdef RL_DEBUG
     BIO_printf(bio_err, "DEBUG: renaming \"%s\" to \"%s\"\n", dbfile, buf[1]);
@@ -2604,7 +2604,7 @@ static void jpake_send_step3a(BIO *bconn, JPAKE_CTX *ctx)
 
     JPAKE_STEP3A_init(&s3a);
     JPAKE_STEP3A_generate(&s3a, ctx);
-    BIO_write(bconn, s3a.hhk, sizeof s3a.hhk);
+    BIO_write(bconn, s3a.hhk, sizeof(s3a.hhk));
     (void)BIO_flush(bconn);
     JPAKE_STEP3A_release(&s3a);
 }
@@ -2615,7 +2615,7 @@ static void jpake_send_step3b(BIO *bconn, JPAKE_CTX *ctx)
 
     JPAKE_STEP3B_init(&s3b);
     JPAKE_STEP3B_generate(&s3b, ctx);
-    BIO_write(bconn, s3b.hk, sizeof s3b.hk);
+    BIO_write(bconn, s3b.hk, sizeof(s3b.hk));
     (void)BIO_flush(bconn);
     JPAKE_STEP3B_release(&s3b);
 }
@@ -2625,7 +2625,7 @@ static void readbn(BIGNUM **bn, BIO *bconn)
     char buf[10240];
     int l;
 
-    l = BIO_gets(bconn, buf, sizeof buf);
+    l = BIO_gets(bconn, buf, sizeof(buf));
     assert(l > 0);
     assert(buf[l - 1] == '\n');
     buf[l - 1] = '\0';
@@ -2672,8 +2672,8 @@ static void jpake_receive_step3a(JPAKE_CTX *ctx, BIO *bconn)
     int l;
 
     JPAKE_STEP3A_init(&s3a);
-    l = BIO_read(bconn, s3a.hhk, sizeof s3a.hhk);
-    assert(l == sizeof s3a.hhk);
+    l = BIO_read(bconn, s3a.hhk, sizeof(s3a.hhk));
+    assert(l == sizeof(s3a.hhk));
     if (!JPAKE_STEP3A_process(ctx, &s3a)) {
         ERR_print_errors(bio_err);
         exit(1);
@@ -2687,8 +2687,8 @@ static void jpake_receive_step3b(JPAKE_CTX *ctx, BIO *bconn)
     int l;
 
     JPAKE_STEP3B_init(&s3b);
-    l = BIO_read(bconn, s3b.hk, sizeof s3b.hk);
-    assert(l == sizeof s3b.hk);
+    l = BIO_read(bconn, s3b.hk, sizeof(s3b.hk));
+    assert(l == sizeof(s3b.hk));
     if (!JPAKE_STEP3B_process(ctx, &s3b)) {
         ERR_print_errors(bio_err);
         exit(1);

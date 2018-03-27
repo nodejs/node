@@ -144,74 +144,47 @@ const BIGNUM *BN_value_one(void)
 
 int BN_num_bits_word(BN_ULONG l)
 {
-    static const unsigned char bits[256] = {
-        0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4,
-        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-    };
+    BN_ULONG x, mask;
+    int bits = (l != 0);
 
-#if defined(SIXTY_FOUR_BIT_LONG)
-    if (l & 0xffffffff00000000L) {
-        if (l & 0xffff000000000000L) {
-            if (l & 0xff00000000000000L) {
-                return (bits[(int)(l >> 56)] + 56);
-            } else
-                return (bits[(int)(l >> 48)] + 48);
-        } else {
-            if (l & 0x0000ff0000000000L) {
-                return (bits[(int)(l >> 40)] + 40);
-            } else
-                return (bits[(int)(l >> 32)] + 32);
-        }
-    } else
-#else
-# ifdef SIXTY_FOUR_BIT
-    if (l & 0xffffffff00000000LL) {
-        if (l & 0xffff000000000000LL) {
-            if (l & 0xff00000000000000LL) {
-                return (bits[(int)(l >> 56)] + 56);
-            } else
-                return (bits[(int)(l >> 48)] + 48);
-        } else {
-            if (l & 0x0000ff0000000000LL) {
-                return (bits[(int)(l >> 40)] + 40);
-            } else
-                return (bits[(int)(l >> 32)] + 32);
-        }
-    } else
-# endif
+#if BN_BITS2 > 32
+    x = l >> 32;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 32 & mask;
+    l ^= (x ^ l) & mask;
 #endif
-    {
-#if defined(THIRTY_TWO_BIT) || defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG)
-        if (l & 0xffff0000L) {
-            if (l & 0xff000000L)
-                return (bits[(int)(l >> 24L)] + 24);
-            else
-                return (bits[(int)(l >> 16L)] + 16);
-        } else
-#endif
-        {
-#if defined(THIRTY_TWO_BIT) || defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG)
-            if (l & 0xff00L)
-                return (bits[(int)(l >> 8)] + 8);
-            else
-#endif
-                return (bits[(int)(l)]);
-        }
-    }
+
+    x = l >> 16;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 16 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 8;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 8 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 4;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 4 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 2;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 2 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 1;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 1 & mask;
+
+    return bits;
 }
 
 int BN_num_bits(const BIGNUM *a)
@@ -523,9 +496,6 @@ BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b)
 #else
     memcpy(a->d, b->d, sizeof(b->d[0]) * b->top);
 #endif
-
-    if (BN_get_flags(b, BN_FLG_CONSTTIME) != 0)
-        BN_set_flags(a, BN_FLG_CONSTTIME);
 
     a->top = b->top;
     a->neg = b->neg;

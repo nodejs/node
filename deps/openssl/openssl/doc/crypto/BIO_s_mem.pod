@@ -50,14 +50,14 @@ zero then it will return B<v> when it is empty and it will set the read retry
 flag (that is BIO_read_retry(b) is true). To avoid ambiguity with a normal
 positive return value B<v> should be set to a negative value, typically -1.
 
-BIO_get_mem_data() sets B<pp> to a pointer to the start of the memory BIOs data
+BIO_get_mem_data() sets *B<pp> to a pointer to the start of the memory BIOs data
 and returns the total amount of data available. It is implemented as a macro.
 
 BIO_set_mem_buf() sets the internal BUF_MEM structure to B<bm> and sets the
 close flag to B<c>, that is B<c> should be either BIO_CLOSE or BIO_NOCLOSE.
 It is a macro.
 
-BIO_get_mem_ptr() places the underlying BUF_MEM structure in B<pp>. It is
+BIO_get_mem_ptr() places the underlying BUF_MEM structure in *B<pp>. It is
 a macro.
 
 BIO_new_mem_buf() creates a memory BIO using B<len> bytes of data at B<buf>,

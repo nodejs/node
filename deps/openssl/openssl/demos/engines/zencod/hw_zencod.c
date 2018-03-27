@@ -1289,10 +1289,10 @@ static const EVP_MD engine_sha1_md = {
     engine_md_cleanup,          /* dev_crypto_sha_cleanup */
     EVP_PKEY_RSA_method,
     SHA_CBLOCK,
-    /* sizeof ( EVP_MD * ) + sizeof ( SHA_CTX ) */
+    /* sizeof(EVP_MD *) + sizeof(SHA_CTX) */
     sizeof(ZEN_MD_DATA)
         /*
-         * sizeof ( MD_CTX_DATA ) The message digest data structure ...
+         * sizeof(MD_CTX_DATA) The message digest data structure ...
          */
 };
 
@@ -1315,10 +1315,10 @@ static const EVP_MD engine_md5_md = {
     engine_md_cleanup,          /* dev_crypto_md5_cleanup */
     EVP_PKEY_RSA_method,
     MD5_CBLOCK,
-    /* sizeof ( EVP_MD * ) + sizeof ( MD5_CTX ) */
+    /* sizeof(EVP_MD *) + sizeof(MD5_CTX) */
     sizeof(ZEN_MD_DATA)
         /*
-         * sizeof ( MD_CTX_DATA ) The message digest data structure ...
+         * sizeof(MD_CTX_DATA) The message digest data structure ...
          */
 };
 

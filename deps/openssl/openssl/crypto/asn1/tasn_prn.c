@@ -463,7 +463,7 @@ static int asn1_print_oid_ctx(BIO *out, const ASN1_OBJECT *oid,
     ln = OBJ_nid2ln(OBJ_obj2nid(oid));
     if (!ln)
         ln = "";
-    OBJ_obj2txt(objbuf, sizeof objbuf, oid, 1);
+    OBJ_obj2txt(objbuf, sizeof(objbuf), oid, 1);
     if (BIO_printf(out, "%s (%s)", ln, objbuf) <= 0)
         return 0;
     return 1;

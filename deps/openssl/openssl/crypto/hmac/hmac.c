@@ -234,7 +234,7 @@ void HMAC_CTX_cleanup(HMAC_CTX *ctx)
     EVP_MD_CTX_cleanup(&ctx->i_ctx);
     EVP_MD_CTX_cleanup(&ctx->o_ctx);
     EVP_MD_CTX_cleanup(&ctx->md_ctx);
-    OPENSSL_cleanse(ctx, sizeof *ctx);
+    OPENSSL_cleanse(ctx, sizeof(*ctx));
 }
 
 unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,

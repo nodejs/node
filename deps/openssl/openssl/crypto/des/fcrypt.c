@@ -80,10 +80,10 @@ char *DES_crypt(const char *buf, const char *salt)
     e_salt[sizeof(e_salt) - 1] = e_buf[sizeof(e_buf) - 1] = '\0';
 
     /* Convert the e_salt to ASCII, as that's what DES_fcrypt works on */
-    ebcdic2ascii(e_salt, e_salt, sizeof e_salt);
+    ebcdic2ascii(e_salt, e_salt, sizeof(e_salt));
 
     /* Convert the cleartext password to ASCII */
-    ebcdic2ascii(e_buf, e_buf, sizeof e_buf);
+    ebcdic2ascii(e_buf, e_buf, sizeof(e_buf));
 
     /* Encrypt it (from/to ASCII) */
     ret = DES_fcrypt(e_buf, e_salt, buff);
