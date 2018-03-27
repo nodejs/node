@@ -69,7 +69,7 @@ const TEST_CASES = [
     tag: 'd2a35e5c611e5e3d2258360241c5b045', tampered: false },
 
   // Following test cases are from "The Galois/Counter Mode of Operation (GCM)"
-  // by D. McGrew and J. Viega, published by the Natl. Inst. Stand. Technol.
+  // by D. McGrew and J. Viega, published by NIST.
 
   // Test case 1
   { algo: 'aes-128-gcm',
