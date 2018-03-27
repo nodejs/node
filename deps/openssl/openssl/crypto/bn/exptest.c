@@ -183,9 +183,11 @@ int main(int argc, char *argv[])
     unsigned char c;
     BIGNUM *r_mont, *r_mont_const, *r_recp, *r_simple, *a, *b, *m;
 
-    RAND_seed(rnd_seed, sizeof rnd_seed); /* or BN_rand may fail, and we
-                                           * don't even check its return
-                                           * value (which we should) */
+    /*
+     * Seed or BN_rand may fail, and we don't even check its return
+     * value (which we should)
+     */
+    RAND_seed(rnd_seed, sizeof(rnd_seed));
 
     ERR_load_BN_strings();
 

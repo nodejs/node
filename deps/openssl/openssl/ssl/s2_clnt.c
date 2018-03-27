@@ -523,7 +523,7 @@ static int get_server_hello(SSL *s)
     }
 
     s->s2->conn_id_length = s->s2->tmp.conn_id_length;
-    if (s->s2->conn_id_length > sizeof s->s2->conn_id) {
+    if (s->s2->conn_id_length > sizeof(s->s2->conn_id)) {
         ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
         SSLerr(SSL_F_GET_SERVER_HELLO, SSL_R_SSL2_CONNECTION_ID_TOO_LONG);
         return -1;
@@ -708,7 +708,7 @@ static int client_finished(SSL *s)
     if (s->state == SSL2_ST_SEND_CLIENT_FINISHED_A) {
         p = (unsigned char *)s->init_buf->data;
         *(p++) = SSL2_MT_CLIENT_FINISHED;
-        if (s->s2->conn_id_length > sizeof s->s2->conn_id) {
+        if (s->s2->conn_id_length > sizeof(s->s2->conn_id)) {
             SSLerr(SSL_F_CLIENT_FINISHED, ERR_R_INTERNAL_ERROR);
             return -1;
         }
@@ -981,7 +981,7 @@ static int get_server_finished(SSL *s)
     } else {
         if (!(s->options & SSL_OP_MICROSOFT_SESS_ID_BUG)) {
             if ((s->session->session_id_length >
-                 sizeof s->session->session_id)
+                 sizeof(s->session->session_id))
                 || (0 !=
                     memcmp(buf + 1, s->session->session_id,
                            (unsigned int)s->session->session_id_length))) {

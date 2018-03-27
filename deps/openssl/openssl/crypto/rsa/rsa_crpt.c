@@ -219,7 +219,7 @@ BN_BLINDING *RSA_setup_blinding(RSA *rsa, BN_CTX *in_ctx)
          * if PRNG is not properly seeded, resort to secret exponent as
          * unpredictable seed
          */
-        RAND_add(rsa->d->d, rsa->d->dmax * sizeof rsa->d->d[0], 0.0);
+        RAND_add(rsa->d->d, rsa->d->dmax * sizeof(rsa->d->d[0]), 0.0);
     }
 
     if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME)) {

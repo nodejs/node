@@ -14,10 +14,13 @@ operations
 
  const BIGNUM *BN_value_one(void);
 
- int BN_set_word(BIGNUM *a, unsigned long w);
- unsigned long BN_get_word(BIGNUM *a);
+ int BN_set_word(BIGNUM *a, BN_ULONG w);
+ BN_ULONG BN_get_word(BIGNUM *a);
 
 =head1 DESCRIPTION
+
+B<BN_ULONG> is a macro that will be an unsigned integral type optimied
+for the most efficient implementation on the local platform.
 
 BN_zero(), BN_one() and BN_set_word() set B<a> to the values 0, 1 and
 B<w> respectively.  BN_zero() and BN_one() are macros.
@@ -25,23 +28,23 @@ B<w> respectively.  BN_zero() and BN_one() are macros.
 BN_value_one() returns a B<BIGNUM> constant of value 1. This constant
 is useful for use in comparisons and assignment.
 
-BN_get_word() returns B<a>, if it can be represented as an unsigned
-long.
+BN_get_word() returns B<a>, if it can be represented as a B<BN_ULONG>.
 
 =head1 RETURN VALUES
 
-BN_get_word() returns the value B<a>, and 0xffffffffL if B<a> cannot
-be represented as an unsigned long.
+BN_get_word() returns the value B<a>, or all-bits-set if B<a> cannot
+be represented as a B<BN_ULONG>.
 
 BN_zero(), BN_one() and BN_set_word() return 1 on success, 0 otherwise.
 BN_value_one() returns the constant.
 
 =head1 BUGS
 
-Someone might change the constant.
+If a B<BIGNUM> is equal to the value of all-bits-set, it will collide
+with the error condition returned by BN_get_word() which uses that
+as an error value.
 
-If a B<BIGNUM> is equal to 0xffffffffL it can be represented as an
-unsigned long but this value is also returned on error.
+B<BN_ULONG> should probably be a typedef.
 
 =head1 SEE ALSO
 

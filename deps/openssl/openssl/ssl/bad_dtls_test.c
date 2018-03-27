@@ -19,7 +19,7 @@
  * Note that unlike other SSL tests, we don't test against our own SSL
  * server method. Firstly because we don't have one; we *only* support
  * DTLS1_BAD_VER as a client. And secondly because even if that were
- * fixed up it's the wrong thing to test against — because if changes
+ * fixed up it's the wrong thing to test against - because if changes
  * are made in generic DTLS code which don't take DTLS1_BAD_VER into
  * account, there's plenty of scope for making those changes such that
  * they break *both* the client and the server in the same way.

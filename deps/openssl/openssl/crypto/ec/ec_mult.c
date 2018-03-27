@@ -169,11 +169,11 @@ static void ec_pre_comp_clear_free(void *pre_)
 
         for (p = pre->points; *p != NULL; p++) {
             EC_POINT_clear_free(*p);
-            OPENSSL_cleanse(p, sizeof *p);
+            OPENSSL_cleanse(p, sizeof(*p));
         }
         OPENSSL_free(pre->points);
     }
-    OPENSSL_cleanse(pre, sizeof *pre);
+    OPENSSL_cleanse(pre, sizeof(*pre));
     OPENSSL_free(pre);
 }
 
@@ -430,11 +430,11 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 
     totalnum = num + numblocks;
 
-    wsize = OPENSSL_malloc(totalnum * sizeof wsize[0]);
-    wNAF_len = OPENSSL_malloc(totalnum * sizeof wNAF_len[0]);
-    wNAF = OPENSSL_malloc((totalnum + 1) * sizeof wNAF[0]); /* includes space
-                                                             * for pivot */
-    val_sub = OPENSSL_malloc(totalnum * sizeof val_sub[0]);
+    wsize = OPENSSL_malloc(totalnum * sizeof(wsize[0]));
+    wNAF_len = OPENSSL_malloc(totalnum * sizeof(wNAF_len[0]));
+    /* include space for pivot */
+    wNAF = OPENSSL_malloc((totalnum + 1) * sizeof(wNAF[0]));
+    val_sub = OPENSSL_malloc(totalnum * sizeof(val_sub[0]));
 
     /* Ensure wNAF is initialised in case we end up going to err */
     if (wNAF)
@@ -580,7 +580,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
      * 'val_sub[i]' is a pointer to the subarray for the i-th point, or to a
      * subarray of 'pre_comp->points' if we already have precomputation.
      */
-    val = OPENSSL_malloc((num_val + 1) * sizeof val[0]);
+    val = OPENSSL_malloc((num_val + 1) * sizeof(val[0]));
     if (val == NULL) {
         ECerr(EC_F_EC_WNAF_MUL, ERR_R_MALLOC_FAILURE);
         goto err;

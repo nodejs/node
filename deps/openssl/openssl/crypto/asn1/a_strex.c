@@ -130,13 +130,13 @@ static int do_esc_char(unsigned long c, unsigned char flags, char *do_quotes,
     if (c > 0xffffffffL)
         return -1;
     if (c > 0xffff) {
-        BIO_snprintf(tmphex, sizeof tmphex, "\\W%08lX", c);
+        BIO_snprintf(tmphex, sizeof(tmphex), "\\W%08lX", c);
         if (!io_ch(arg, tmphex, 10))
             return -1;
         return 10;
     }
     if (c > 0xff) {
-        BIO_snprintf(tmphex, sizeof tmphex, "\\U%04lX", c);
+        BIO_snprintf(tmphex, sizeof(tmphex), "\\U%04lX", c);
         if (!io_ch(arg, tmphex, 6))
             return -1;
         return 6;
@@ -236,7 +236,7 @@ static int do_buf(unsigned char *buf, int buflen,
         if (type & BUF_TYPE_CONVUTF8) {
             unsigned char utfbuf[6];
             int utflen;
-            utflen = UTF8_putc(utfbuf, sizeof utfbuf, c);
+            utflen = UTF8_putc(utfbuf, sizeof(utfbuf), c);
             for (i = 0; i < utflen; i++) {
                 /*
                  * We don't need to worry about setting orflags correctly
@@ -533,7 +533,7 @@ static int do_name_ex(char_io *io_ch, void *arg, X509_NAME *n,
         if (fn_opt != XN_FLAG_FN_NONE) {
             int objlen, fld_len;
             if ((fn_opt == XN_FLAG_FN_OID) || (fn_nid == NID_undef)) {
-                OBJ_obj2txt(objtmp, sizeof objtmp, fn, 1);
+                OBJ_obj2txt(objtmp, sizeof(objtmp), fn, 1);
                 fld_len = 0;    /* XXX: what should this be? */
                 objbuf = objtmp;
             } else {

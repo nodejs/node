@@ -266,7 +266,7 @@ void CRandomizer::AddCurrentMouse (void)
 	
 	if (labs (mLastMouse.h - mouseLoc.h) > kMouseResolution/2 &&
 	    labs (mLastMouse.v - mouseLoc.v) > kMouseResolution/2)
-		AddBytes (&mouseLoc, sizeof (mouseLoc),
+		AddBytes (&mouseLoc, sizeof(mouseLoc),
 				kMousePositionEntropy);
 	
 	if (mLastMouse.h == mouseLoc.h && mLastMouse.v == mouseLoc.v)
@@ -286,7 +286,7 @@ void CRandomizer::AddCurrentMouse (void)
 			(kTypicalMouseIdleTicks/(double)lastCheck);
 		if (entropy < 0.0)
 			entropy = 0.0;
-		AddBytes (&mMouseStill, sizeof (mMouseStill), entropy);
+		AddBytes (&mMouseStill, sizeof(mMouseStill), entropy);
 		mMouseStill = 0;
 	}
 	mLastMouse = mouseLoc;
@@ -299,7 +299,7 @@ void CRandomizer::AddAbsoluteSystemStartupTime (void)
 	GetDateTime (&now);
 	now -= TickCount() / 60;	// Time in ticks since machine
 					// startup
-	AddBytes (&now, sizeof (now), kSysStartupEntropy);
+	AddBytes (&now, sizeof(now), kSysStartupEntropy);
 }
 
 void CRandomizer::AddTimeSinceMachineStartup (void)
@@ -314,7 +314,7 @@ void CRandomizer::AddAppRunningTime (void)
 	ProcessSerialNumber PSN;
 	ProcessInfoRec		ProcessInfo;
 	
-	ProcessInfo.processInfoLength = sizeof (ProcessInfoRec);
+	ProcessInfo.processInfoLength = sizeof(ProcessInfoRec);
 	ProcessInfo.processName = nil;
 	ProcessInfo.processAppSpec = nil;
 	
@@ -324,7 +324,7 @@ void CRandomizer::AddAppRunningTime (void)
 	// Now add the amount of time in ticks that the current process
 	// has been active
 
-	AddBytes (&ProcessInfo, sizeof (ProcessInfoRec),
+	AddBytes (&ProcessInfo, sizeof(ProcessInfoRec),
 			kApplicationUpTimeEntropy);
 }
 
@@ -353,7 +353,7 @@ void CRandomizer::AddStartupVolumeInfo (void)
 	// unpredictable, so might as well toss the whole block in. See
 	// comments for entropy estimate justifications.
 
-	AddBytes (&pb, sizeof (pb),
+	AddBytes (&pb, sizeof(pb),
 		kVolumeBytesEntropy +
 		log2l (((pb.ioVTotalBytes.hi - pb.ioVFreeBytes.hi)
 				* 4294967296.0D +
@@ -419,7 +419,7 @@ void CRandomizer::AddBytes (void *data, long size, double entropy)
 void CRandomizer::AddNow (double millisecondUncertainty)
 {
 	long time = SysTimer();
-	AddBytes (&time, sizeof (time), log2l (millisecondUncertainty *
+	AddBytes (&time, sizeof(time), log2l (millisecondUncertainty *
 			mTimebaseTicksPerMillisec));
 }
 

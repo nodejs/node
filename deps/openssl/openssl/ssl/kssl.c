@@ -4,7 +4,7 @@
  * 2000.
  */
 /* ====================================================================
- * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2000-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -78,6 +78,7 @@
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/krb5_asn.h>
+#include "o_time.h"
 #include "kssl_lcl.h"
 
 #ifndef OPENSSL_NO_KRB5
@@ -2026,6 +2027,8 @@ krb5_error_code kssl_check_authent(
     int outl, unencbufsize;
     struct tm tm_time, *tm_l, *tm_g;
     time_t now, tl, tg, tr, tz_offset;
+    struct tm gmt_result = {0};
+    struct tm lt_result = {0};
 
     EVP_CIPHER_CTX_init(&ciph_ctx);
     *atimep = 0;
@@ -2082,7 +2085,7 @@ krb5_error_code kssl_check_authent(
     }
 # endif
     enc = kssl_map_enc(enctype);
-    memset(iv, 0, sizeof iv);   /* per RFC 1510 */
+    memset(iv, 0, sizeof(iv));   /* per RFC 1510 */
 
     if (enc == NULL) {
         /*
@@ -2140,9 +2143,17 @@ krb5_error_code kssl_check_authent(
     if (k_gmtime(auth->ctime, &tm_time) &&
         ((tr = mktime(&tm_time)) != (time_t)(-1))) {
         now = time(&now);
+        tm_g = OPENSSL_gmtime(&now, &gmt_result);
+
+# if defined(OPENSSL_THREADS) && !defined(OPENSSL_SYS_WIN32) && \
+            !defined(OPENSSL_SYS_OS2) && !defined(OPENSSL_SYS_SUNOS) && \
+            (!defined(OPENSSL_SYS_VMS) || defined(localtime_r))
+        tm_l = localtime_r(&now, &lt_result);
+# else
         tm_l = localtime(&now);
+# endif
+
         tl = mktime(tm_l);
-        tm_g = gmtime(&now);
         tg = mktime(tm_g);
         tz_offset = tg - tl;
 

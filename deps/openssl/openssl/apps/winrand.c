@@ -77,7 +77,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     char buffer[200];
 
     if (cmdline[0] == '\0')
-        filename = RAND_file_name(buffer, sizeof buffer);
+        filename = RAND_file_name(buffer, sizeof(buffer));
     else
         filename = cmdline;
 

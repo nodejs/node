@@ -382,6 +382,9 @@ int MAIN(int argc, char **argv)
         printf("\treturn(dsa);\n\t}\n");
     }
 
+    if (outformat == FORMAT_ASN1 && genkey)
+        noout = 1;
+
     if (!noout) {
         if (outformat == FORMAT_ASN1)
             i = i2d_DSAparams_bio(out, dsa);

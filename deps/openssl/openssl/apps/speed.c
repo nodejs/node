@@ -2091,7 +2091,7 @@ int MAIN(int argc, char **argv)
     RAND_pseudo_bytes(buf, 20);
 # ifndef OPENSSL_NO_DSA
     if (RAND_status() != 1) {
-        RAND_seed(rnd_seed, sizeof rnd_seed);
+        RAND_seed(rnd_seed, sizeof(rnd_seed));
         rnd_fake = 1;
     }
     for (j = 0; j < DSA_NUM; j++) {
@@ -2170,7 +2170,7 @@ int MAIN(int argc, char **argv)
 
 # ifndef OPENSSL_NO_ECDSA
     if (RAND_status() != 1) {
-        RAND_seed(rnd_seed, sizeof rnd_seed);
+        RAND_seed(rnd_seed, sizeof(rnd_seed));
         rnd_fake = 1;
     }
     for (j = 0; j < EC_NUM; j++) {
@@ -2265,7 +2265,7 @@ int MAIN(int argc, char **argv)
 
 # ifndef OPENSSL_NO_ECDH
     if (RAND_status() != 1) {
-        RAND_seed(rnd_seed, sizeof rnd_seed);
+        RAND_seed(rnd_seed, sizeof(rnd_seed));
         rnd_fake = 1;
     }
     for (j = 0; j < EC_NUM; j++) {
@@ -2588,7 +2588,7 @@ static char *sstrsep(char **string, const char *delim)
     if (**string == 0)
         return NULL;
 
-    memset(isdelim, 0, sizeof isdelim);
+    memset(isdelim, 0, sizeof(isdelim));
     isdelim[0] = 1;
 
     while (*delim) {
@@ -2615,7 +2615,7 @@ static int do_multi(int multi)
     int *fds;
     static char sep[] = ":";
 
-    fds = malloc(multi * sizeof *fds);
+    fds = malloc(multi * sizeof(*fds));
     if (fds == NULL) {
         fprintf(stderr, "Out of memory in speed (do_multi)\n");
         exit(1);
@@ -2653,7 +2653,7 @@ static int do_multi(int multi)
         char *p;
 
         f = fdopen(fds[n], "r");
-        while (fgets(buf, sizeof buf, f)) {
+        while (fgets(buf, sizeof(buf), f)) {
             p = strchr(buf, '\n');
             if (p)
                 *p = '\0';
