@@ -317,6 +317,15 @@ console.log(myURL.port);
 myURL.port = 1e10;
 console.log(myURL.port);
 // Prints 1234
+
+// Out-of-range numbers, which are converted to exponential 
+// notation via .toString(), will behave as strings with leading zeroes.
+// This means that the port will be assigned the integer part of the coefficient,
+// assuming the number is normalized (for example, 0.9e10 => 9e9).
+// See https://www.ecma-international.org/ecma-262/6.0/#sec-tostring-applied-to-the-number-type for more information
+myURL.port = 4.567e21;
+console.log(myURL.port);
+// Prints 4 (because the coefficient is 4.567)
 ```
 
 The port value may be set as either a number or as a String containing a number
