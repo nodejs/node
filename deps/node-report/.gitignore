@@ -1,0 +1,45 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.node
+
+# Project files
+*.project
+*.cproject
+
+# Build directories
+/build/
+/node_modules/
+
+# Package files
+NodeReport*.txt
+node-report*.txt
+npm-debug.log
+nodereport-*.tgz
+nodereport_test.log
