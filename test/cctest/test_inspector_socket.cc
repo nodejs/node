@@ -906,4 +906,35 @@ TEST_F(InspectorSocketTest, ErrorCleansUpTheSocket) {
   EXPECT_EQ(UV_EPROTO, err);
 }
 
+static void HostCheckedForGet_handshake(enum inspector_handshake_event state,
+                                       const std::string& path, bool* cont) {
+  EXPECT_EQ(kInspectorHandshakeFailed, state);
+  EXPECT_TRUE(path.empty());
+  *cont = false;
+}
+
+TEST_F(InspectorSocketTest, HostCheckedForGet) {
+  handshake_delegate = HostCheckedForGet_handshake;
+  const char WRITE_REQUEST[] = "GET /respond/withtext HTTP/1.1\r\n"
+                               "Host: notlocalhost:9222\r\n\r\n";
+  send_in_chunks(WRITE_REQUEST, sizeof(WRITE_REQUEST) - 1);
+
+  expect_handshake_failure();
+  assert_both_sockets_closed();
+}
+
+TEST_F(InspectorSocketTest, HostCheckedForUpgrade) {
+  handshake_delegate = HostCheckedForGet_handshake;
+  const char UPGRADE_REQUEST[] = "GET /ws/path HTTP/1.1\r\n"
+                                 "Host: nonlocalhost:9229\r\n"
+                                 "Upgrade: websocket\r\n"
+                                 "Connection: Upgrade\r\n"
+                                 "Sec-WebSocket-Key: aaa==\r\n"
+                                 "Sec-WebSocket-Version: 13\r\n\r\n";
+  send_in_chunks(UPGRADE_REQUEST, sizeof(UPGRADE_REQUEST) - 1);
+
+  expect_handshake_failure();
+  assert_both_sockets_closed();
+}
+
 }  // anonymous namespace

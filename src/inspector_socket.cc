@@ -393,12 +393,7 @@ static int header_value_cb(http_parser* parser, const char* at, size_t length) {
   auto inspector = static_cast<InspectorSocket*>(parser->data);
   auto state = inspector->http_parsing_state;
   state->parsing_value = true;
-  if (state->current_header.size() == sizeof(SEC_WEBSOCKET_KEY_HEADER) - 1 &&
-      node::StringEqualNoCaseN(state->current_header.data(),
-                               SEC_WEBSOCKET_KEY_HEADER,
-                               sizeof(SEC_WEBSOCKET_KEY_HEADER) - 1)) {
-    state->ws_key.append(at, length);
-  }
+  state->headers[state->current_header].append(at, length);
   return 0;
 }
 
@@ -471,10 +466,59 @@ static void handshake_failed(InspectorSocket* inspector) {
 // init_handshake references message_complete_cb
 static void init_handshake(InspectorSocket* inspector);
 
+static std::string TrimPort(const std::string& host) {
+  size_t last_colon_pos = host.rfind(":");
+  if (last_colon_pos == std::string::npos)
+    return host;
+  size_t bracket = host.rfind("]");
+  if (bracket == std::string::npos || last_colon_pos > bracket)
+    return host.substr(0, last_colon_pos);
+  return host;
+}
+
+static bool IsIPAddress(const std::string& host) {
+  if (host.length() >= 4 && host[0] == '[' && host[host.size() - 1] == ']')
+    return true;
+  int quads = 0;
+  for (char c : host) {
+    if (c == '.')
+      quads++;
+    else if (!isdigit(c))
+      return false;
+  }
+  return quads == 3;
+}
+
+static std::string HeaderValue(const struct http_parsing_state_s* state,
+                               const std::string& header) {
+  bool header_found = false;
+  std::string value;
+  for (const auto& header_value : state->headers) {
+    if (node::StringEqualNoCaseN(header_value.first.data(), header.data(),
+                                 header.length())) {
+      if (header_found)
+        return "";
+      value = header_value.second;
+      header_found = true;
+    }
+  }
+  return value;
+}
+
+static bool IsAllowedHost(const std::string& host_with_port) {
+  std::string host = TrimPort(host_with_port);
+  return host.empty() || IsIPAddress(host)
+         || node::StringEqualNoCase(host.data(), "localhost")
+         || node::StringEqualNoCase(host.data(), "localhost6");
+}
+
 static int message_complete_cb(http_parser* parser) {
   InspectorSocket* inspector = static_cast<InspectorSocket*>(parser->data);
   struct http_parsing_state_s* state = inspector->http_parsing_state;
-  if (parser->method != HTTP_GET) {
+  state->ws_key = HeaderValue(state, "Sec-WebSocket-Key");
+
+  if (!IsAllowedHost(HeaderValue(state, "Host")) ||
+      parser->method != HTTP_GET) {
     handshake_failed(inspector);
   } else if (!parser->upgrade) {
     if (state->callback(inspector, kInspectorHandshakeHttpGet, state->path)) {
