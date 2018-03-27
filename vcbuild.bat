@@ -75,6 +75,8 @@ if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %common_test_suites%&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&goto arg-ok
+if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
+if /i "%1"=="build-addons-napi"   set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons-napi"   set test_args=%test_args% addons-napi&set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
