@@ -39,7 +39,8 @@ const methods = [
   'PURGE',
   'MKCALENDAR',
   'LINK',
-  'UNLINK'
+  'UNLINK',
+  'SOURCE',
 ];
 
 assert.deepStrictEqual(http.METHODS, methods.sort());
