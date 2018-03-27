@@ -2181,10 +2181,10 @@ static void print_stuff(BIO *bio, SSL *s, int full)
             BIO_printf(bio, "---\nCertificate chain\n");
             for (i = 0; i < sk_X509_num(sk); i++) {
                 X509_NAME_oneline(X509_get_subject_name(sk_X509_value(sk, i)),
-                                  buf, sizeof buf);
+                                  buf, sizeof(buf));
                 BIO_printf(bio, "%2d s:%s\n", i, buf);
                 X509_NAME_oneline(X509_get_issuer_name(sk_X509_value(sk, i)),
-                                  buf, sizeof buf);
+                                  buf, sizeof(buf));
                 BIO_printf(bio, "   i:%s\n", buf);
                 if (c_showcerts)
                     PEM_write_bio_X509(bio, sk_X509_value(sk, i));
@@ -2199,9 +2199,9 @@ static void print_stuff(BIO *bio, SSL *s, int full)
             /* Redundant if we showed the whole chain */
             if (!(c_showcerts && got_a_chain))
                 PEM_write_bio_X509(bio, peer);
-            X509_NAME_oneline(X509_get_subject_name(peer), buf, sizeof buf);
+            X509_NAME_oneline(X509_get_subject_name(peer), buf, sizeof(buf));
             BIO_printf(bio, "subject=%s\n", buf);
-            X509_NAME_oneline(X509_get_issuer_name(peer), buf, sizeof buf);
+            X509_NAME_oneline(X509_get_issuer_name(peer), buf, sizeof(buf));
             BIO_printf(bio, "issuer=%s\n", buf);
         } else
             BIO_printf(bio, "no peer certificate available\n");
@@ -2218,7 +2218,7 @@ static void print_stuff(BIO *bio, SSL *s, int full)
         } else {
             BIO_printf(bio, "---\nNo client certificate CA names sent\n");
         }
-        p = SSL_get_shared_ciphers(s, buf, sizeof buf);
+        p = SSL_get_shared_ciphers(s, buf, sizeof(buf));
         if (p != NULL) {
             /*
              * This works only for SSL 2.  In later protocol versions, the

@@ -375,16 +375,18 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
     }
 
     if (bio == NULL) {
-        if (PKCS7_is_detached(p7))
+        if (PKCS7_is_detached(p7)) {
             bio = BIO_new(BIO_s_null());
-        else if (os && os->length > 0)
+        } else if (os && os->length > 0) {
             bio = BIO_new_mem_buf(os->data, os->length);
-        if (bio == NULL) {
+        } else {
             bio = BIO_new(BIO_s_mem());
             if (bio == NULL)
                 goto err;
             BIO_set_mem_eof_return(bio, 0);
         }
+        if (bio == NULL)
+            goto err;
     }
     if (out)
         BIO_push(out, bio);

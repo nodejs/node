@@ -198,7 +198,7 @@ static int mul_c[NUM_SIZES] =
  * static int sizes[NUM_SIZES]={59,179,299,419,539};
  */
 
-#define RAND_SEED(string) { const char str[] = string; RAND_seed(string, sizeof str); }
+#define RAND_SEED(string) { const char str[] = string; RAND_seed(string, sizeof(str)); }
 
 void do_mul_exp(BIGNUM *r, BIGNUM *a, BIGNUM *b, BIGNUM *c, BN_CTX *ctx);
 

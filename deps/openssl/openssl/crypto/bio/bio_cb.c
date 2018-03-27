@@ -76,7 +76,7 @@ long MS_CALLBACK BIO_debug_callback(BIO *bio, int cmd, const char *argp,
     if (BIO_CB_RETURN & cmd)
         r = ret;
 
-    len = BIO_snprintf(buf,sizeof buf,"BIO[%p]: ",(void *)bio);
+    len = BIO_snprintf(buf,sizeof(buf),"BIO[%p]: ",(void *)bio);
 
     /* Ignore errors and continue printing the other information. */
     if (len < 0)

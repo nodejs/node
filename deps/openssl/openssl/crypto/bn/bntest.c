@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 
     results = 0;
 
-    RAND_seed(rnd_seed, sizeof rnd_seed); /* or BN_generate_prime may fail */
+    RAND_seed(rnd_seed, sizeof(rnd_seed)); /* or BN_generate_prime may fail */
 
     argc--;
     argv++;

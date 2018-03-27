@@ -4,7 +4,7 @@
  * 2002.
  */
 /* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2006-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,6 +58,7 @@
  */
 
 #include "cryptlib.h"
+#include "o_time.h"
 
 #if defined(OPENSSL_SYS_UNIX)
 # include <sys/time.h>
@@ -948,6 +949,7 @@ static ASN1_GENERALIZEDTIME
 {
     time_t time_sec = (time_t)sec;
     struct tm *tm = NULL;
+    struct tm result = {0};
     char genTime_str[17 + TS_MAX_CLOCK_PRECISION_DIGITS];
     char *p = genTime_str;
     char *p_end = genTime_str + sizeof(genTime_str);
@@ -955,7 +957,7 @@ static ASN1_GENERALIZEDTIME
     if (precision > TS_MAX_CLOCK_PRECISION_DIGITS)
         goto err;
 
-    if (!(tm = gmtime(&time_sec)))
+    if (!(tm = OPENSSL_gmtime(&time_sec, &result)))
         goto err;
 
     /*

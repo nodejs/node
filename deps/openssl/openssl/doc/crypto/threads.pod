@@ -63,9 +63,13 @@ CRYPTO_destroy_dynlockid, CRYPTO_lock - OpenSSL thread support
 
 =head1 DESCRIPTION
 
-OpenSSL can safely be used in multi-threaded applications provided
-that at least two callback functions are set, locking_function and
+OpenSSL can generally be used safely in multi-threaded applications provided
+that at least two callback functions are set, the locking_function and
 threadid_func.
+Note that OpenSSL is not completely thread-safe, and unfortunately not all
+global resources have the necessary locks.
+Further, the thread-safety does not extend to things like multiple threads
+using the same B<SSL> object at the same time.
 
 locking_function(int mode, int n, const char *file, int line) is
 needed to perform locking on shared data structures. 

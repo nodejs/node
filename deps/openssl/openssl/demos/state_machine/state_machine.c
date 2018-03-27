@@ -106,7 +106,7 @@ void SSLStateMachine_print_error(SSLStateMachine * pMachine,
     while ((l = ERR_get_error())) {
         char buf[1024];
 
-        ERR_error_string_n(l, buf, sizeof buf);
+        ERR_error_string_n(l, buf, sizeof(buf));
         fprintf(stderr, "Error %lx: %s\n", l, buf);
     }
 }
@@ -114,7 +114,7 @@ void SSLStateMachine_print_error(SSLStateMachine * pMachine,
 SSLStateMachine *SSLStateMachine_new(const char *szCertificateFile,
                                      const char *szKeyFile)
 {
-    SSLStateMachine *pMachine = malloc(sizeof *pMachine);
+    SSLStateMachine *pMachine = malloc(sizeof(*pMachine));
     int n;
 
     die_unless(pMachine);
@@ -252,15 +252,15 @@ int OpenSocket(int nPort)
     }
 
     if (setsockopt
-        (nSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof one) < 0) {
+        (nSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(one)) < 0) {
         perror("setsockopt");
         exit(2);
     }
 
-    memset(&saServer, 0, sizeof saServer);
+    memset(&saServer, 0, sizeof(saServer));
     saServer.sin_family = AF_INET;
     saServer.sin_port = htons(nPort);
-    nSize = sizeof saServer;
+    nSize = sizeof(saServer);
     if (bind(nSocket, (struct sockaddr *)&saServer, nSize) < 0) {
         perror("bind");
         exit(3);
@@ -271,7 +271,7 @@ int OpenSocket(int nPort)
         exit(4);
     }
 
-    nLen = sizeof saClient;
+    nLen = sizeof(saClient);
     nFD = accept(nSocket, (struct sockaddr *)&saClient, &nLen);
     if (nFD < 0) {
         perror("accept");
@@ -343,7 +343,7 @@ int main(int argc, char **argv)
 
         /* Socket is ready for input */
         if (FD_ISSET(nFD, &rfds)) {
-            n = read(nFD, buf, sizeof buf);
+            n = read(nFD, buf, sizeof(buf));
             if (n == 0) {
                 fprintf(stderr, "Got EOF on socket\n");
                 exit(0);
@@ -360,7 +360,7 @@ int main(int argc, char **argv)
             nrbuf = 0;
 
             n = SSLStateMachine_read_extract(pMachine, buf + 1,
-                                             sizeof buf - 1);
+                                             sizeof(buf) - 1);
             if (n < 0) {
                 SSLStateMachine_print_error(pMachine, "read extract failed");
                 break;
@@ -382,7 +382,7 @@ int main(int argc, char **argv)
         if (FD_ISSET(nFD, &wfds)) {
             int w;
 
-            n = SSLStateMachine_write_extract(pMachine, buf, sizeof buf);
+            n = SSLStateMachine_write_extract(pMachine, buf, sizeof(buf));
             assert(n > 0);
 
             w = write(nFD, buf, n);
@@ -392,7 +392,7 @@ int main(int argc, char **argv)
 
         /* Stdin is ready for input */
         if (FD_ISSET(0, &rfds)) {
-            n = read(0, buf, sizeof buf);
+            n = read(0, buf, sizeof(buf));
             if (n == 0) {
                 fprintf(stderr, "Got EOF on stdin\n");
                 exit(0);

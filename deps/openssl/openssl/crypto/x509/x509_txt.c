@@ -212,7 +212,7 @@ const char *X509_verify_cert_error_string(long n)
         return ("proxy subject name violation");
 
     default:
-        BIO_snprintf(buf, sizeof buf, "error number %ld", n);
+        BIO_snprintf(buf, sizeof(buf), "error number %ld", n);
         return (buf);
     }
 }
