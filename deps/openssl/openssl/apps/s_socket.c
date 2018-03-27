@@ -235,7 +235,7 @@ int init_client(int *sock, char *host, int port, int type)
 {
     unsigned char ip[4];
 
-    memset(ip, '\0', sizeof ip);
+    memset(ip, '\0', sizeof(ip));
     if (!host_ip(host, &(ip[0])))
         return 0;
     return init_client_ip(sock, ip, port, type);
@@ -360,7 +360,7 @@ static int init_server_long(int *sock, int port, char *ip, int type)
 # if defined SOL_SOCKET && defined SO_REUSEADDR
     {
         int j = 1;
-        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&j, sizeof j);
+        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&j, sizeof(j));
     }
 # endif
     if (bind(s, (struct sockaddr *)&server, sizeof(server)) == -1) {
@@ -595,7 +595,7 @@ static struct hostent *GetHostByName(char *name)
         if (ret == NULL)
             return (NULL);
         /* else add to cache */
-        if (strlen(name) < sizeof ghbn_cache[0].name) {
+        if (strlen(name) < sizeof(ghbn_cache[0].name)) {
             strcpy(ghbn_cache[lowi].name, name);
             memcpy((char *)&(ghbn_cache[lowi].ent), ret,
                    sizeof(struct hostent));

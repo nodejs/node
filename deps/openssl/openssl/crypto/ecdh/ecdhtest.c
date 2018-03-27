@@ -490,7 +490,7 @@ int main(int argc, char *argv[])
     CRYPTO_malloc_init();
 # endif
 
-    RAND_seed(rnd_seed, sizeof rnd_seed);
+    RAND_seed(rnd_seed, sizeof(rnd_seed));
 
     out = BIO_new(BIO_s_file());
     if (out == NULL)

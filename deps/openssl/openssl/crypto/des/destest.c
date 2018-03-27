@@ -398,7 +398,7 @@ int main(int argc, char *argv[])
     i = strlen((char *)cbc_data) + 1;
     /* i=((i+7)/8)*8; */
     memcpy(iv3, cbc_iv, sizeof(cbc_iv));
-    memset(iv2, '\0', sizeof iv2);
+    memset(iv2, '\0', sizeof(iv2));
 
     DES_ede3_cbcm_encrypt(cbc_data, cbc_out, 16L, &ks, &ks2, &ks3, &iv3, &iv2,
                           DES_ENCRYPT);
@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
         }
 */
     memcpy(iv3, cbc_iv, sizeof(cbc_iv));
-    memset(iv2, '\0', sizeof iv2);
+    memset(iv2, '\0', sizeof(iv2));
     DES_ede3_cbcm_encrypt(cbc_out, cbc_in, i, &ks, &ks2, &ks3, &iv3, &iv2,
                           DES_DECRYPT);
     if (memcmp(cbc_in, cbc_data, strlen((char *)cbc_data) + 1) != 0) {

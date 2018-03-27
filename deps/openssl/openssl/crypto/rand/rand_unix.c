@@ -181,15 +181,15 @@ int RAND_poll(void)
      */
 
     curr_gid = getgid();
-    RAND_add(&curr_gid, sizeof curr_gid, 1);
+    RAND_add(&curr_gid, sizeof(curr_gid), 1);
     curr_gid = 0;
 
     curr_pid = getpid();
-    RAND_add(&curr_pid, sizeof curr_pid, 1);
+    RAND_add(&curr_pid, sizeof(curr_pid), 1);
     curr_pid = 0;
 
     curr_uid = getuid();
-    RAND_add(&curr_uid, sizeof curr_uid, 1);
+    RAND_add(&curr_uid, sizeof(curr_uid), 1);
     curr_uid = 0;
 
     for (i = 0; i < (ENTROPY_NEEDED * 4); i++) {
@@ -217,7 +217,7 @@ int RAND_poll(void)
 
         /* take 8 bits */
         v = (unsigned char)(ts.tv_nsec % 256);
-        RAND_add(&v, sizeof v, 1);
+        RAND_add(&v, sizeof(v), 1);
         v = 0;
     }
     return 1;
@@ -402,7 +402,7 @@ int RAND_poll(void)
 
 #  if defined(DEVRANDOM) || defined(DEVRANDOM_EGD)
     if (n > 0) {
-        RAND_add(tmpbuf, sizeof tmpbuf, (double)n);
+        RAND_add(tmpbuf, sizeof(tmpbuf), (double)n);
         OPENSSL_cleanse(tmpbuf, n);
     }
 #  endif

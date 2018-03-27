@@ -109,6 +109,7 @@ static int rsa_builtin_keygen(RSA *rsa, int bits, BIGNUM *e_value,
     BIGNUM *pr0, *d, *p;
     int bitsp, bitsq, ok = -1, n = 0;
     BN_CTX *ctx = NULL;
+    unsigned long error = 0;
 
     /*
      * When generating ridiculously small keys, we can get stuck
@@ -155,16 +156,26 @@ static int rsa_builtin_keygen(RSA *rsa, int bits, BIGNUM *e_value,
     if (BN_copy(rsa->e, e_value) == NULL)
         goto err;
 
+    BN_set_flags(r2, BN_FLG_CONSTTIME);
     /* generate p and q */
     for (;;) {
         if (!BN_generate_prime_ex(rsa->p, bitsp, 0, NULL, NULL, cb))
             goto err;
         if (!BN_sub(r2, rsa->p, BN_value_one()))
             goto err;
-        if (!BN_gcd(r1, r2, rsa->e, ctx))
-            goto err;
-        if (BN_is_one(r1))
+        ERR_set_mark();
+        if (BN_mod_inverse(r1, r2, rsa->e, ctx) != NULL) {
+            /* GCD == 1 since inverse exists */
             break;
+        }
+        error = ERR_peek_last_error();
+        if (ERR_GET_LIB(error) == ERR_LIB_BN
+            && ERR_GET_REASON(error) == BN_R_NO_INVERSE) {
+            /* GCD != 1 */
+            ERR_pop_to_mark();
+        } else {
+            goto err;
+        }
         if (!BN_GENCB_call(cb, 2, n++))
             goto err;
     }
@@ -177,10 +188,19 @@ static int rsa_builtin_keygen(RSA *rsa, int bits, BIGNUM *e_value,
         } while (BN_cmp(rsa->p, rsa->q) == 0);
         if (!BN_sub(r2, rsa->q, BN_value_one()))
             goto err;
-        if (!BN_gcd(r1, r2, rsa->e, ctx))
-            goto err;
-        if (BN_is_one(r1))
+        ERR_set_mark();
+        if (BN_mod_inverse(r1, r2, rsa->e, ctx) != NULL) {
+            /* GCD == 1 since inverse exists */
             break;
+        }
+        error = ERR_peek_last_error();
+        if (ERR_GET_LIB(error) == ERR_LIB_BN
+            && ERR_GET_REASON(error) == BN_R_NO_INVERSE) {
+            /* GCD != 1 */
+            ERR_pop_to_mark();
+        } else {
+            goto err;
+        }
         if (!BN_GENCB_call(cb, 2, n++))
             goto err;
     }

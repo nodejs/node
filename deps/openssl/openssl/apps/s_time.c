@@ -422,7 +422,7 @@ int MAIN(int argc, char **argv)
             goto end;
 
         if (s_www_path != NULL) {
-            BIO_snprintf(buf, sizeof buf, "GET %s HTTP/1.0\r\n\r\n",
+            BIO_snprintf(buf, sizeof(buf), "GET %s HTTP/1.0\r\n\r\n",
                          s_www_path);
             SSL_write(scon, buf, strlen(buf));
             while ((i = SSL_read(scon, buf, sizeof(buf))) > 0)
@@ -481,7 +481,7 @@ int MAIN(int argc, char **argv)
     }
 
     if (s_www_path != NULL) {
-        BIO_snprintf(buf, sizeof buf, "GET %s HTTP/1.0\r\n\r\n", s_www_path);
+        BIO_snprintf(buf, sizeof(buf), "GET %s HTTP/1.0\r\n\r\n", s_www_path);
         SSL_write(scon, buf, strlen(buf));
         while (SSL_read(scon, buf, sizeof(buf)) > 0) ;
     }
@@ -517,7 +517,7 @@ int MAIN(int argc, char **argv)
             goto end;
 
         if (s_www_path) {
-            BIO_snprintf(buf, sizeof buf, "GET %s HTTP/1.0\r\n\r\n",
+            BIO_snprintf(buf, sizeof(buf), "GET %s HTTP/1.0\r\n\r\n",
                          s_www_path);
             SSL_write(scon, buf, strlen(buf));
             while ((i = SSL_read(scon, buf, sizeof(buf))) > 0)

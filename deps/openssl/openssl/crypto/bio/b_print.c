@@ -663,7 +663,7 @@ fmtfp(char **sbuffer,
         iconvert[iplace++] = "0123456789"[intpart % 10];
         intpart = (intpart / 10);
     } while (intpart && (iplace < (int)sizeof(iconvert)));
-    if (iplace == sizeof iconvert)
+    if (iplace == sizeof(iconvert))
         iplace--;
     iconvert[iplace] = 0;
 
@@ -672,7 +672,7 @@ fmtfp(char **sbuffer,
         fconvert[fplace++] = "0123456789"[fracpart % 10];
         fracpart = (fracpart / 10);
     } while (fplace < max);
-    if (fplace == sizeof fconvert)
+    if (fplace == sizeof(fconvert))
         fplace--;
     fconvert[fplace] = 0;
 
