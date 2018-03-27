@@ -157,7 +157,7 @@ int main(int argc, char **argv)
     CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
 
     ERR_load_crypto_strings();
-    RAND_seed(rnd_seed, sizeof rnd_seed);
+    RAND_seed(rnd_seed, sizeof(rnd_seed));
 
     BIO_printf(bio_err, "test generation of DSA parameters\n");
 

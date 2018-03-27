@@ -86,8 +86,8 @@ currently implemented EC parameters names and exit.
 =item B<-conv_form>
 
 This specifies how the points on the elliptic curve are converted
-into octet strings. Possible values are: B<compressed> (the default
-value), B<uncompressed> and B<hybrid>. For more information regarding
+into octet strings. Possible values are: B<compressed>, B<uncompressed> (the
+default value) and B<hybrid>. For more information regarding
 the point conversion forms please read the X9.62 standard.
 B<Note> Due to patent issues the B<compressed> option is disabled
 by default for binary curves and can be enabled by defining

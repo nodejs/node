@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 
     if (client_p) {
         struct sockaddr_in addr;
-        size_t addr_len = sizeof addr;
+        size_t addr_len = sizeof(addr);
 
         addr.sin_family = AF_INET;
         assert(argc > 1);
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
         {
             int i = 1;
 
-            r = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&i, sizeof i);
+            r = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&i, sizeof(i));
             if (r == -1) {
                 perror("setsockopt");
                 exit(1);
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 
         {
             struct sockaddr_in addr;
-            size_t addr_len = sizeof addr;
+            size_t addr_len = sizeof(addr);
 
             if (argc > 1)
                 sscanf(argv[1], "%d", &port);
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
     setvbuf(conn_in, NULL, _IOLBF, 256);
     setvbuf(conn_out, NULL, _IOLBF, 256);
 
-    while (fgets(buf, sizeof buf, stdin) != NULL) {
+    while (fgets(buf, sizeof(buf), stdin) != NULL) {
         if (buf[0] == 'W') {
             fprintf(conn_out, "%.*s\r\n", (int)(strlen(buf + 1) - 1),
                     buf + 1);
@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 
             sscanf(buf + 1, "%d", &lines);
             do {
-                if (fgets(buf, sizeof buf, conn_in) == NULL) {
+                if (fgets(buf, sizeof(buf), conn_in) == NULL) {
                     if (ferror(conn_in)) {
                         fprintf(stderr, "ERROR\n");
                         exit(1);
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            r = read(infofd, infobuf, sizeof infobuf - 1);
+            r = read(infofd, infobuf, sizeof(infobuf) - 1);
             if (r > 0) {
                 const char *info = infobuf;
                 const char *eol;

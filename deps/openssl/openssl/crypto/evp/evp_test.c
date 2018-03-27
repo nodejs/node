@@ -506,7 +506,7 @@ int main(int argc, char **argv)
         int an = 0;
         int tn = 0;
 
-        if (!fgets((char *)line, sizeof line, f))
+        if (!fgets((char *)line, sizeof(line), f))
             break;
         if (line[0] == '#' || line[0] == '\n')
             continue;

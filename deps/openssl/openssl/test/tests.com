@@ -57,7 +57,8 @@ $	    tests := -
 	test_gen,test_req,test_pkcs7,test_verify,test_dh,test_dsa,-
 	test_ss,test_ca,test_engine,test_evp,test_evp_extra,test_ssl,test_tsa,test_ige,-
 	test_jpake,test_srp,test_cms,test_ocsp,test_v3name,test_heartbeat,-
-	test_constant_time,test_verify_extra,test_clienthello,test_sslv2conftest,test_dtls
+	test_constant_time,test_verify_extra,test_clienthello,test_sslv2conftest,-
+	test_dtls,test_bad_dtls,test_fatalerr
 $	endif
 $	tests = f$edit(tests,"COLLAPSE")
 $
@@ -102,8 +103,10 @@ $	HEARTBEATTEST :=	heartbeat_test
 $	CONSTTIMETEST :=	constant_time_test
 $	VERIFYEXTRATEST :=	verify_extra_test
 $	CLIENTHELLOTEST :=	clienthellotest
+$	BADDTLSTEST :=	bad_dtls_test
 $	SSLV2CONFTEST := 	sslv2conftest
 $	DTLSTEST :=	dtlstest
+$	FATALERRTEST :=	fatalerrtest
 $!
 $	tests_i = 0
 $ loop_tests:
@@ -402,6 +405,16 @@ $ test_clienthello:
 $	write sys$output "''START' test_clienthello"
 $	mcr 'texe_dir''clienthellotest'
 $       return
+$ test_bad_dtls:
+$	write sys$output "''START' test_bad_dtls"
+$	mcr 'texe_dir''baddtlstest'
+$	return
+$
+$ test_fatalerr:
+$	write sys$output "''START' test_fatalerrtest"
+$	mcr 'texe_dir''fatalerrtest' 'ROOT'.APPS]server.pem 'ROOT'.APPS]server.pem
+$	return
+$
 $ test_sslv2conftest:
 $	write sys$output "''START' test_sslv2conftest"
 $	mcr 'texe_dir''sslv2conftest'

@@ -85,7 +85,7 @@ void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *ctx)
 
 EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void)
 {
-    EVP_CIPHER_CTX *ctx = OPENSSL_malloc(sizeof *ctx);
+    EVP_CIPHER_CTX *ctx = OPENSSL_malloc(sizeof(*ctx));
     if (ctx)
         EVP_CIPHER_CTX_init(ctx);
     return ctx;
@@ -402,7 +402,7 @@ int EVP_EncryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
     }
 
     b = ctx->cipher->block_size;
-    OPENSSL_assert(b <= sizeof ctx->buf);
+    OPENSSL_assert(b <= sizeof(ctx->buf));
     if (b == 1) {
         *outl = 0;
         return 1;
@@ -454,7 +454,7 @@ int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
         return EVP_EncryptUpdate(ctx, out, outl, in, inl);
 
     b = ctx->cipher->block_size;
-    OPENSSL_assert(b <= sizeof ctx->final);
+    OPENSSL_assert(b <= sizeof(ctx->final));
 
     if (ctx->final_used) {
         memcpy(out, ctx->final, b);
@@ -520,7 +520,7 @@ int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
             EVPerr(EVP_F_EVP_DECRYPTFINAL_EX, EVP_R_WRONG_FINAL_BLOCK_LENGTH);
             return (0);
         }
-        OPENSSL_assert(b <= sizeof ctx->final);
+        OPENSSL_assert(b <= sizeof(ctx->final));
 
         /*
          * The following assumes that the ciphertext has been authenticated.
@@ -651,7 +651,7 @@ int EVP_CIPHER_CTX_copy(EVP_CIPHER_CTX *out, const EVP_CIPHER_CTX *in)
 #endif
 
     EVP_CIPHER_CTX_cleanup(out);
-    memcpy(out, in, sizeof *out);
+    memcpy(out, in, sizeof(*out));
 
     if (in->cipher_data && in->cipher->ctx_size) {
         out->cipher_data = OPENSSL_malloc(in->cipher->ctx_size);

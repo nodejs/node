@@ -4,7 +4,7 @@
  * 1999.
  */
 /* ====================================================================
- * Copyright (c) 1999-2002 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -340,8 +340,12 @@ int X509V3_EXT_add_nconf_sk(CONF *conf, X509V3_CTX *ctx, char *section,
         val = sk_CONF_VALUE_value(nval, i);
         if (!(ext = X509V3_EXT_nconf(conf, ctx, val->name, val->value)))
             return 0;
-        if (sk)
-            X509v3_add_ext(sk, ext, -1);
+        if (sk != NULL) {
+            if (X509v3_add_ext(sk, ext, -1) == NULL) {
+                X509_EXTENSION_free(ext);
+                return 0;
+            }
+        }
         X509_EXTENSION_free(ext);
     }
     return 1;

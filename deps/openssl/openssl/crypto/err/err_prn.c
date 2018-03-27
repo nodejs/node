@@ -77,7 +77,7 @@ void ERR_print_errors_cb(int (*cb) (const char *str, size_t len, void *u),
     CRYPTO_THREADID_current(&cur);
     es = CRYPTO_THREADID_hash(&cur);
     while ((l = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
-        ERR_error_string_n(l, buf, sizeof buf);
+        ERR_error_string_n(l, buf, sizeof(buf));
         BIO_snprintf(buf2, sizeof(buf2), "%lu:%s:%s:%d:%s\n", es, buf,
                      file, line, (flags & ERR_TXT_STRING) ? data : "");
         if (cb(buf2, strlen(buf2), u) <= 0)

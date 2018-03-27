@@ -481,7 +481,7 @@ int MAIN(int argc, char **argv)
         CRYPTO_push_info("read MAC password");
 # endif
         if (EVP_read_pw_string
-            (macpass, sizeof macpass, "Enter MAC Password:", export_cert)) {
+            (macpass, sizeof(macpass), "Enter MAC Password:", export_cert)) {
             BIO_printf(bio_err, "Can't read Password\n");
             goto end;
         }
@@ -629,13 +629,13 @@ int MAIN(int argc, char **argv)
 # endif
 
         if (!noprompt &&
-            EVP_read_pw_string(pass, sizeof pass, "Enter Export Password:",
+            EVP_read_pw_string(pass, sizeof(pass), "Enter Export Password:",
                                1)) {
             BIO_printf(bio_err, "Can't read Password\n");
             goto export_end;
         }
         if (!twopass)
-            BUF_strlcpy(macpass, pass, sizeof macpass);
+            BUF_strlcpy(macpass, pass, sizeof(macpass));
 
 # ifdef CRYPTO_MDEBUG
         CRYPTO_pop_info();
@@ -698,7 +698,7 @@ int MAIN(int argc, char **argv)
     CRYPTO_push_info("read import password");
 # endif
     if (!noprompt
-        && EVP_read_pw_string(pass, sizeof pass, "Enter Import Password:",
+        && EVP_read_pw_string(pass, sizeof(pass), "Enter Import Password:",
                               0)) {
         BIO_printf(bio_err, "Can't read Password\n");
         goto end;
@@ -708,7 +708,7 @@ int MAIN(int argc, char **argv)
 # endif
 
     if (!twopass)
-        BUF_strlcpy(macpass, pass, sizeof macpass);
+        BUF_strlcpy(macpass, pass, sizeof(macpass));
 
     if ((options & INFO) && p12->mac)
         BIO_printf(bio_err, "MAC Iteration %ld\n",

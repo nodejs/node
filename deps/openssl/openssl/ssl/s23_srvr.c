@@ -268,8 +268,8 @@ int ssl23_get_client_hello(SSL *s)
         if (!ssl3_setup_buffers(s))
             goto err;
 
-        n = ssl23_read_bytes(s, sizeof buf_space);
-        if (n != sizeof buf_space)
+        n = ssl23_read_bytes(s, sizeof(buf_space));
+        if (n != sizeof(buf_space))
             return (n);         /* n == -1 || n == 0 */
 
         p = s->packet;
