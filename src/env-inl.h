@@ -531,7 +531,8 @@ inline performance::performance_state* Environment::performance_state() {
   return performance_state_.get();
 }
 
-inline std::map<std::string, uint64_t>* Environment::performance_marks() {
+inline std::unordered_map<std::string, uint64_t>*
+    Environment::performance_marks() {
   return &performance_marks_;
 }
 
