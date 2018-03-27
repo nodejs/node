@@ -25,7 +25,7 @@ const testCases = [
       port: undefined,
       rejectUnauthorized: true
     },
-    errorCode: 'CERT_OK'
+    errorCode: 'CERT_REVOKED'
   },
   { // agent9 is signed by fake-startcom-root with notBefore of
     // Oct 21 00:00:01 2016 GMT. It fails StartCom/WoSign check.
@@ -69,7 +69,7 @@ function runTest(tindex) {
     client.on('secureConnect', function() {
       // agent8 can pass StartCom/WoSign check so that the secureConnect
       // is established.
-      assert.strictEqual(tcase.errorCode, 'CERT_OK');
+      assert.strictEqual(tcase.errorCode, 'CERT_REVOKED');
       client.end();
       runNextTest(server, tindex);
     });
