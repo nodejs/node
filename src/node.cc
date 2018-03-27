@@ -91,6 +91,10 @@
 #include <unicode/uvernum.h>
 #endif
 
+#if defined(NODE_REPORT)
+#include "../deps/node-report/src/node_report.h"
+#endif
+
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
 #endif
@@ -2002,6 +2006,13 @@ static Local<Object> GetFeatures(Environment* env) {
   // TODO(bnoordhuis) ping libuv
   obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"), True(env->isolate()));
 
+#if defined(NODE_REPORT)
+  Local<Value> node_report = True(env->isolate());
+#else
+  Local<Value> node_report = False(env->isolate());
+#endif
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "node_report"), node_report);
+
 #ifdef HAVE_OPENSSL
   Local<Boolean> have_openssl = True(env->isolate());
 #else
@@ -3679,6 +3690,11 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(trace_sync_io);
+
+#if defined(NODE_REPORT)
+  nodereport::InitializeNodeReport();
+  nodereport::SetEvents(isolate, "fatalerror+signal");
+#endif
 
   {
     SealHandleScope seal(isolate);
