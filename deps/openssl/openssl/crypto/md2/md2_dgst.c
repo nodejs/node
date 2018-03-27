@@ -122,9 +122,9 @@ const char *MD2_options(void)
 fips_md_init(MD2)
 {
     c->num = 0;
-    memset(c->state, 0, sizeof c->state);
-    memset(c->cksm, 0, sizeof c->cksm);
-    memset(c->data, 0, sizeof c->data);
+    memset(c->state, 0, sizeof(c->state));
+    memset(c->cksm, 0, sizeof(c->cksm));
+    memset(c->data, 0, sizeof(c->data));
     return 1;
 }
 

@@ -1195,7 +1195,7 @@ static int do_responder(OCSP_REQUEST **preq, BIO **pcbio, BIO *acbio,
     *pcbio = cbio;
 
     for (;;) {
-        len = BIO_gets(cbio, inbuf, sizeof inbuf);
+        len = BIO_gets(cbio, inbuf, sizeof(inbuf));
         if (len <= 0)
             return 1;
         /* Look for "POST" signalling start of query */

@@ -38,38 +38,38 @@ EVP_aes_128_cbc_hmac_sha256, EVP_aes_256_cbc_hmac_sha256
  void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *a);
 
  int EVP_EncryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-	 ENGINE *impl, unsigned char *key, unsigned char *iv);
+         ENGINE *impl, const unsigned char *key, const unsigned char *iv);
  int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
          int *outl, const unsigned char *in, int inl);
  int EVP_EncryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out,
          int *outl);
 
  int EVP_DecryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-	 ENGINE *impl, unsigned char *key, unsigned char *iv);
+         ENGINE *impl, const unsigned char *key, const unsigned char *iv);
  int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
          int *outl, const unsigned char *in, int inl);
  int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *outm,
          int *outl);
 
  int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-         ENGINE *impl, unsigned char *key, unsigned char *iv, int enc);
+         ENGINE *impl, const unsigned char *key, const unsigned char *iv, int enc);
  int EVP_CipherUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
-         int *outl, unsigned char *in, int inl);
+         int *outl, const unsigned char *in, int inl);
  int EVP_CipherFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *outm,
          int *outl);
 
  int EVP_EncryptInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-         unsigned char *key, unsigned char *iv);
+         const unsigned char *key, const unsigned char *iv);
  int EVP_EncryptFinal(EVP_CIPHER_CTX *ctx, unsigned char *out,
          int *outl);
 
  int EVP_DecryptInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-         unsigned char *key, unsigned char *iv);
+         const unsigned char *key, const unsigned char *iv);
  int EVP_DecryptFinal(EVP_CIPHER_CTX *ctx, unsigned char *outm,
          int *outl);
 
  int EVP_CipherInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
-         unsigned char *key, unsigned char *iv, int enc);
+         const unsigned char *key, const unsigned char *iv, int enc);
  int EVP_CipherFinal(EVP_CIPHER_CTX *ctx, unsigned char *outm,
          int *outl);
 

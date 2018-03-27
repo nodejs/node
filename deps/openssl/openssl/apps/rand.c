@@ -198,7 +198,7 @@ int MAIN(int argc, char **argv)
 
         chunk = num;
         if (chunk > (int)sizeof(buf))
-            chunk = sizeof buf;
+            chunk = sizeof(buf);
         r = RAND_bytes(buf, chunk);
         if (r <= 0)
             goto err;

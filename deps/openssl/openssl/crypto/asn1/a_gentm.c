@@ -78,7 +78,7 @@ int i2d_ASN1_GENERALIZEDTIME(ASN1_GENERALIZEDTIME *a, unsigned char **pp)
     ASN1_STRING tmpstr = *(ASN1_STRING *)a;
 
     len = tmpstr.length;
-    ebcdic2ascii(tmp, tmpstr.data, (len >= sizeof tmp) ? sizeof tmp : len);
+    ebcdic2ascii(tmp, tmpstr.data, (len >= sizeof(tmp)) ? sizeof(tmp) : len);
     tmpstr.data = tmp;
 
     a = (ASN1_GENERALIZEDTIME *)&tmpstr;

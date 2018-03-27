@@ -111,7 +111,7 @@ static int dev_crypto_init(session_op *ses)
         close(cryptodev_fd);
     }
     assert(ses);
-    memset(ses, '\0', sizeof *ses);
+    memset(ses, '\0', sizeof(*ses));
 
     return 1;
 }
@@ -164,7 +164,7 @@ static int dev_crypto_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     assert(CDATA(ctx));
     assert(!dev_failed);
 
-    memset(&cryp, '\0', sizeof cryp);
+    memset(&cryp, '\0', sizeof(cryp));
     cryp.ses = CDATA(ctx)->ses;
     cryp.op = ctx->encrypt ? COP_ENCRYPT : COP_DECRYPT;
     cryp.flags = 0;
@@ -329,7 +329,7 @@ static int do_digest(int ses, unsigned char *md, const void *data, int len)
         return 1;
     }
 
-    memset(&cryp, '\0', sizeof cryp);
+    memset(&cryp, '\0', sizeof(cryp));
     cryp.ses = ses;
     cryp.op = COP_ENCRYPT;      /* required to do the MAC rather than check
                                  * it */

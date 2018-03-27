@@ -2510,7 +2510,7 @@ int ssl3_get_client_key_exchange(SSL *s)
         /*
          * Note that the length is checked again below, ** after decryption
          */
-        if (enc_pms.length > sizeof pms) {
+        if (enc_pms.length > sizeof(pms)) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
                    SSL_R_DATA_LENGTH_TOO_LONG);
             goto err;
@@ -2563,7 +2563,7 @@ int ssl3_get_client_key_exchange(SSL *s)
         if (enc == NULL)
             goto err;
 
-        memset(iv, 0, sizeof iv); /* per RFC 1510 */
+        memset(iv, 0, sizeof(iv)); /* per RFC 1510 */
 
         if (!EVP_DecryptInit_ex(&ciph_ctx, enc, NULL, kssl_ctx->key, iv)) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,

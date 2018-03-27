@@ -126,7 +126,7 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_INFO_ACCESS(
             goto err;
         tret = tmp;
         vtmp = sk_CONF_VALUE_value(tret, i);
-        i2t_ASN1_OBJECT(objtmp, sizeof objtmp, desc->method);
+        i2t_ASN1_OBJECT(objtmp, sizeof(objtmp), desc->method);
         nlen = strlen(objtmp) + strlen(vtmp->name) + 5;
         ntmp = OPENSSL_malloc(nlen);
         if (ntmp == NULL)

@@ -1270,7 +1270,7 @@ int ec_GFp_simple_points_make_affine(const EC_GROUP *group, size_t num,
     if (tmp == NULL || tmp_Z == NULL)
         goto err;
 
-    prod_Z = OPENSSL_malloc(num * sizeof prod_Z[0]);
+    prod_Z = OPENSSL_malloc(num * sizeof(prod_Z[0]));
     if (prod_Z == NULL)
         goto err;
     for (i = 0; i < num; i++) {

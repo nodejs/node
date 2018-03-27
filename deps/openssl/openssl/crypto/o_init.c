@@ -58,6 +58,11 @@
 #ifdef OPENSSL_FIPS
 # include <openssl/fips.h>
 # include <openssl/rand.h>
+
+# ifndef OPENSSL_NO_DEPRECATED
+/* the prototype is missing in <openssl/fips.h> */
+void FIPS_crypto_set_id_callback(unsigned long (*func)(void));
+# endif
 #endif
 
 /*

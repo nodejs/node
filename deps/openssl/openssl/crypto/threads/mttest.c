@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
     char *ccert = TEST_CLIENT_CERT;
     const SSL_METHOD *ssl_method = SSLv23_method();
 
-    RAND_seed(rnd_seed, sizeof rnd_seed);
+    RAND_seed(rnd_seed, sizeof(rnd_seed));
 
     if (bio_err == NULL)
         bio_err = BIO_new_fd(2, BIO_NOCLOSE);

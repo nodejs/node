@@ -225,8 +225,11 @@ non-zero if yes it will expire or zero if not.
 
 =item B<-fingerprint>
 
-prints out the digest of the DER encoded version of the whole certificate
-(see digest options).
+Calculates and outputs the digest of the DER encoded version of the entire
+certificate (see digest options).
+This is commonly called a "fingerprint". Because of the nature of message
+digests, the fingerprint of a certificate is unique to that certificate and
+two certificates with the same fingerprint can be considered to be the same.
 
 =item B<-C>
 
@@ -674,10 +677,6 @@ supporting UTF8:
 
  openssl x509 -in cert.pem -noout -subject -nameopt oneline,-esc_msb
 
-Display the certificate MD5 fingerprint:
-
- openssl x509 -in cert.pem -noout -fingerprint
-
 Display the certificate SHA1 fingerprint:
 
  openssl x509 -sha1 -in cert.pem -noout -fingerprint
@@ -730,13 +729,6 @@ The conversion to UTF8 format used with the name options assumes that
 T61Strings use the ISO8859-1 character set. This is wrong but Netscape
 and MSIE do this as do many certificates. So although this is incorrect
 it is more likely to display the majority of certificates correctly.
-
-The B<-fingerprint> option takes the digest of the DER encoded certificate.
-This is commonly called a "fingerprint". Because of the nature of message
-digests the fingerprint of a certificate is unique to that certificate and
-two certificates with the same fingerprint can be considered to be the same.
-
-The Netscape fingerprint uses MD5 whereas MSIE uses SHA1.
 
 The B<-email> option searches the subject name and the subject alternative
 name extension. Only unique email addresses will be printed out: it will

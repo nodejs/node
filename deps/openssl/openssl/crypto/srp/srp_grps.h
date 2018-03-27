@@ -21,8 +21,8 @@ static BN_ULONG bn_group_1024_value[] = {
 
 static BIGNUM bn_group_1024 = {
     bn_group_1024_value,
-    (sizeof bn_group_1024_value) / sizeof(BN_ULONG),
-    (sizeof bn_group_1024_value) / sizeof(BN_ULONG),
+    (sizeof(bn_group_1024_value)) / sizeof(BN_ULONG),
+    (sizeof(bn_group_1024_value)) / sizeof(BN_ULONG),
     0,
     BN_FLG_STATIC_DATA
 };
@@ -56,8 +56,8 @@ static BN_ULONG bn_group_1536_value[] = {
 
 static BIGNUM bn_group_1536 = {
     bn_group_1536_value,
-    (sizeof bn_group_1536_value) / sizeof(BN_ULONG),
-    (sizeof bn_group_1536_value) / sizeof(BN_ULONG),
+    (sizeof(bn_group_1536_value)) / sizeof(BN_ULONG),
+    (sizeof(bn_group_1536_value)) / sizeof(BN_ULONG),
     0,
     BN_FLG_STATIC_DATA
 };
@@ -99,8 +99,8 @@ static BN_ULONG bn_group_2048_value[] = {
 
 static BIGNUM bn_group_2048 = {
     bn_group_2048_value,
-    (sizeof bn_group_2048_value) / sizeof(BN_ULONG),
-    (sizeof bn_group_2048_value) / sizeof(BN_ULONG),
+    (sizeof(bn_group_2048_value)) / sizeof(BN_ULONG),
+    (sizeof(bn_group_2048_value)) / sizeof(BN_ULONG),
     0,
     BN_FLG_STATIC_DATA
 };
@@ -158,8 +158,8 @@ static BN_ULONG bn_group_3072_value[] = {
 
 static BIGNUM bn_group_3072 = {
     bn_group_3072_value,
-    (sizeof bn_group_3072_value) / sizeof(BN_ULONG),
-    (sizeof bn_group_3072_value) / sizeof(BN_ULONG),
+    (sizeof(bn_group_3072_value)) / sizeof(BN_ULONG),
+    (sizeof(bn_group_3072_value)) / sizeof(BN_ULONG),
     0,
     BN_FLG_STATIC_DATA
 };
@@ -233,8 +233,8 @@ static BN_ULONG bn_group_4096_value[] = {
 
 static BIGNUM bn_group_4096 = {
     bn_group_4096_value,
-    (sizeof bn_group_4096_value) / sizeof(BN_ULONG),
-    (sizeof bn_group_4096_value) / sizeof(BN_ULONG),
+    (sizeof(bn_group_4096_value)) / sizeof(BN_ULONG),
+    (sizeof(bn_group_4096_value)) / sizeof(BN_ULONG),
     0,
     BN_FLG_STATIC_DATA
 };
@@ -340,8 +340,8 @@ static BN_ULONG bn_group_6144_value[] = {
 
 static BIGNUM bn_group_6144 = {
     bn_group_6144_value,
-    (sizeof bn_group_6144_value) / sizeof(BN_ULONG),
-    (sizeof bn_group_6144_value) / sizeof(BN_ULONG),
+    (sizeof(bn_group_6144_value)) / sizeof(BN_ULONG),
+    (sizeof(bn_group_6144_value)) / sizeof(BN_ULONG),
     0,
     BN_FLG_STATIC_DATA
 };
@@ -479,8 +479,8 @@ static BN_ULONG bn_group_8192_value[] = {
 
 static BIGNUM bn_group_8192 = {
     bn_group_8192_value,
-    (sizeof bn_group_8192_value) / sizeof(BN_ULONG),
-    (sizeof bn_group_8192_value) / sizeof(BN_ULONG),
+    (sizeof(bn_group_8192_value)) / sizeof(BN_ULONG),
+    (sizeof(bn_group_8192_value)) / sizeof(BN_ULONG),
     0,
     BN_FLG_STATIC_DATA
 };
