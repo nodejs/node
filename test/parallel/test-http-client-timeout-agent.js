@@ -92,5 +92,10 @@ server.listen(0, options.host, function() {
 process.on('exit', function() {
   console.error(`done=${requests_done} sent=${requests_sent}`);
   assert.strictEqual(requests_done, requests_sent,
-                     'timeout on http request called too much');
+                      `
+                        timeout on http request called too much.
+                        requests_done: ${requests_done},
+                        requests_sent: ${requests_sent}
+                      `
+                    );
 });
