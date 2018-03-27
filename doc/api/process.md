@@ -207,7 +207,7 @@ changes:
     description: Not handling Promise rejections has been deprecated.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8223
-    description: Unhandled Promise rejections have been will now emit
+    description: Unhandled Promise rejections will now emit
                  a process warning.
 -->
 
