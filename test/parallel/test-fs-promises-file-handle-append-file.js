@@ -12,39 +12,35 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateAppendBuffer({ filePath,
-                                      fileHandle,
-                                      bufferToAppend }) {
-  await fileHandle.appendFile(bufferToAppend);
-  const appendedFileData = fs.readFileSync(filePath);
-  assert.deepStrictEqual(appendedFileData, bufferToAppend);
-}
-
-async function validateAppendString({ filePath,
-                                      fileHandle,
-                                      stringToAppend,
-                                      bufferToAppend }) {
-  await fileHandle.appendFile(stringToAppend);
-  const stringAsBuffer = Buffer.from(stringToAppend, 'utf8');
-  const appendedFileData = fs.readFileSync(filePath);
-  const combinedBuffer = Buffer.concat([bufferToAppend, stringAsBuffer]);
-  assert.deepStrictEqual(appendedFileData, combinedBuffer);
-}
-
-async function executeTests() {
+async function validateAppendBuffer() {
   tmpdir.refresh();
   common.crashOnUnhandledRejection();
 
-  const filePath = path.resolve(tmpDir, 'tmp-append-file.txt');
-  const appendFileDetails = {
-    filePath,
-    fileHandle: await open(filePath, 'a'),
-    bufferToAppend: Buffer.from('a&Dp'.repeat(100), 'utf8'),
-    stringToAppend: 'x~yz'.repeat(100)
-  };
+  const filePath = path.resolve(tmpDir, 'tmp-append-file-buffer.txt');
+  const fileHandle = await open(filePath, 'a');
+  const buffer = Buffer.from('a&Dp'.repeat(100), 'utf8');
 
-  await validateAppendBuffer(appendFileDetails);
-  await validateAppendString(appendFileDetails);
+  await fileHandle.appendFile(buffer);
+  const appendedFileData = fs.readFileSync(filePath);
+  assert.deepStrictEqual(appendedFileData, buffer);
 }
 
-executeTests().then(common.mustCall());
+async function validateAppendString() {
+  //don't refresh the directory
+  common.crashOnUnhandledRejection();
+
+  const filePath = path.resolve(tmpDir, 'tmp-append-file-buffer.txt');
+  const fileHandle = await open(filePath, 'a');
+  const buffer = Buffer.from('a&Dp'.repeat(100), 'utf8');
+  const string = 'x~yz'.repeat(100);
+
+  await fileHandle.appendFile(string);
+  const stringAsBuffer = Buffer.from(string, 'utf8');
+  const appendedFileData = fs.readFileSync(filePath);
+  const combinedBuffer = Buffer.concat([buffer, stringAsBuffer]);
+  assert.deepStrictEqual(appendedFileData, combinedBuffer);
+}
+
+validateAppendBuffer()
+  .then(validateAppendString)
+  .then(common.mustCall());

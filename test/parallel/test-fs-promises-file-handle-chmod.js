@@ -12,32 +12,19 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateFilePermission({ filePath, fileHandle }) {
-  //file created with r/w, should not have execute
-  fs.access(filePath, fs.constants.X_OK, common.mustCall(async (err) => {
-    //err should an instance of Error
-    assert.deepStrictEqual(err instanceof Error, true);
-    //add execute permissions
-    await fileHandle.chmod(0o765);
-
-    fs.access(filePath, fs.constants.X_OK, common.mustCall((err) => {
-      //err should be undefined or null
-      assert.deepStrictEqual(!err, true);
-    }));
-  }));
-}
-
-async function executeTests() {
+async function validateFilePermission() {
   tmpdir.refresh();
   common.crashOnUnhandledRejection();
 
   const filePath = path.resolve(tmpDir, 'tmp-chmod.txt');
-  const chmodFileDetails = {
-    filePath,
-    fileHandle: await open(filePath, 'w+', 0o666)
-  };
-
-  await validateFilePermission(chmodFileDetails);
+  const fileHandle = await open(filePath, 'w+', 0o644);
+  //file created with r/w 644
+  const statsBeforeMod = fs.statSync(filePath);
+  assert.deepStrictEqual(statsBeforeMod.mode & 0o644, 0o644);
+  //change the permissions to 765
+  await fileHandle.chmod(0o765);
+  const statsAfterMod = fs.statSync(filePath);
+  assert.deepStrictEqual(statsAfterMod.mode & 0o765, 0o765);
 }
 
-executeTests().then(common.mustCall());
+validateFilePermission().then(common.mustCall());
