@@ -46,7 +46,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V9.md#9.0.0">9.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V8.md#8.10.0">8.10.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V8.md#8.11.0">8.11.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V8.md#8.10.0">8.10.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.9.4">8.9.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.9.3">8.9.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.9.2">8.9.2</a><br/>
