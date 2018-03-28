@@ -13,7 +13,7 @@ common.crashOnUnhandledRejection();
 
 (async () => {
   await assert.rejects(
-    () => assert.fail(),
+    async () => assert.fail(),
     common.expectsError({
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
@@ -56,5 +56,18 @@ common.crashOnUnhandledRejection();
         return true;
       }
     );
+  }
+
+  {
+    const THROWN_ERROR = new Error();
+
+    await assert.rejects(() => {
+      throw THROWN_ERROR;
+    }).then(common.mustNotCall())
+      .catch(
+        common.mustCall((err) => {
+          assert.strictEqual(err, THROWN_ERROR);
+        })
+      );
   }
 })().then(common.mustCall());
