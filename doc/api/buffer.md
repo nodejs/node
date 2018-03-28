@@ -149,10 +149,8 @@ changes:
     description: Removed the deprecated `raw` and `raws` encodings.
 -->
 
-`Buffer` instances are commonly used to represent sequences of encoded characters
-such as UTF-8, UCS2, Base64, or even Hex-encoded data. It is possible to
-convert back and forth between `Buffer` instances and ordinary JavaScript strings
-by using an explicit character encoding.
+A character encoding may be specified when converting between a string and a
+`Buffer`.
 
 ```js
 const buf = Buffer.from('hello world', 'ascii');
