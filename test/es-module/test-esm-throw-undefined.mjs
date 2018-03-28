@@ -12,4 +12,5 @@ async function doTest() {
   );
 }
 
-doTest().then(common.mustCall());
+common.crashOnUnhandledRejection();
+doTest();
