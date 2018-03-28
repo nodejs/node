@@ -2,7 +2,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const BufferList = require('internal/streams/BufferList');
+const BufferList = require('internal/streams/buffer_list');
 const util = require('util');
 
 // Test empty buffer list.

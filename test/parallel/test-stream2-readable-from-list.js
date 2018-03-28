@@ -24,7 +24,7 @@
 require('../common');
 const assert = require('assert');
 const fromList = require('_stream_readable')._fromList;
-const BufferList = require('internal/streams/BufferList');
+const BufferList = require('internal/streams/buffer_list');
 
 function bufferListFromArray(arr) {
   const bl = new BufferList();
