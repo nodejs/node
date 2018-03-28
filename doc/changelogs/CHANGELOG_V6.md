@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.14.0">6.14.0</a><br/>
 <a href="#6.13.1">6.13.1</a><br/>
 <a href="#6.13.0">6.13.0</a><br/>
 <a href="#6.12.3">6.12.3</a><br/>
@@ -59,6 +60,41 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.14.0"></a>
+## 2018-03-28, Version 6.14.0 'Boron' (LTS), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/march-2018-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2018-7158
+* CVE-2018-7159
+* CVE-2018-7160
+
+### Notable Changes
+
+* **Upgrade to OpenSSL 1.0.2o**: Does not contain any security fixes that are known to impact Node.js.
+* **Fix for inspector DNS rebinding vulnerability (CVE-2018-7160)**: A malicious website could use a DNS rebinding attack to trick a web browser to bypass same-origin-policy checks and allow HTTP connections to localhost or to hosts on the local network, potentially to an open inspector port as a debugger, therefore gaining full code execution access. The inspector now only allows connections that have a browser `Host` value of `localhost` or `localhost6`.
+* **Fix for `'path'` module regular expression denial of service (CVE-2018-7158)**: A regular expression used for parsing POSIX paths could be used to cause a denial of service if an attacker were able to have a specially crafted path string passed through one of the impacted `'path'` module functions.
+* **Reject spaces in HTTP `Content-Length` header values (CVE-2018-7159)**: The Node.js HTTP parser allowed for spaces inside `Content-Length` header values. Such values now lead to rejected connections in the same way as non-numeric values.
+* **Update root certificates**: 5 additional root certificates have been added to the Node.js binary and 30 have been removed.
+
+### Commits
+
+* [[`ac21bdc149`](https://github.com/nodejs/node/commit/ac21bdc149)] - **crypto**: update root certificates (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`3c99e41427`](https://github.com/nodejs/node/commit/3c99e41427)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`d775057090`](https://github.com/nodejs/node/commit/d775057090)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`982012b96d`](https://github.com/nodejs/node/commit/982012b96d)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`1aa83f7707`](https://github.com/nodejs/node/commit/1aa83f7707)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`05de6f4af7`](https://github.com/nodejs/node/commit/05de6f4af7)] - **deps**: upgrade openssl sources to 1.0.2o (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`ed64cc2be7`](https://github.com/nodejs/node/commit/ed64cc2be7)] - **deps**: reject interior blanks in Content-Length (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`d786d21f92`](https://github.com/nodejs/node/commit/d786d21f92)] - **deps**: upgrade http-parser to v2.8.0 (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`4947b0e26e`](https://github.com/nodejs/node/commit/4947b0e26e)] - **inspector**: minor adjustments (Eugene Ostroukhov)
+* [[`e3950d1a40`](https://github.com/nodejs/node/commit/e3950d1a40)] - **inspector**: check Host header (Ali Ijaz Sheikh)
+* [[`ef32e06a6e`](https://github.com/nodejs/node/commit/ef32e06a6e)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`1dba2f4950`](https://github.com/nodejs/node/commit/1dba2f4950)] - **src**: drop CNNIC+StartCom certificate whitelisting (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`bdfeb1c739`](https://github.com/nodejs/node/commit/bdfeb1c739)] - **tools**: update certdata.txt (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
 
 <a id="6.13.1"></a>
 ## 2018-03-06, Version 6.13.1 'Boron' (LTS), @MylesBorins

@@ -26,7 +26,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V6.md#6.13.1">6.13.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V6.md#6.14.0">6.14.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.13.1">6.13.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.13.0">6.13.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.12.3">6.12.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.12.2">6.12.2</a><br/>
