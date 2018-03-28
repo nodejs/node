@@ -313,19 +313,21 @@ myURL.port = 1234.5678;
 console.log(myURL.port);
 // Prints 1234
 
-// Out-of-range numbers are ignored
+// Numbers which are represented in scientific notation in a String,
+// or as very large / small numbers in a Number,
+// will be assigned the first digit of the coefficient,
+// assuming the number is normalized (for example, 0.9e30 => 9e29).
+
+myURL.port = 4.567e21;
+console.log(myURL.port);
+// Prints 4 (because the coefficient is 4.567)
+
+// Out-of-range numbers, which are not represented in scientific noation,
+// will be ignored.
 myURL.port = 1e10;
 console.log(myURL.port);
 // Prints 1234
 
-// Out-of-range numbers, which are converted to exponential 
-// notation via .toString(), will behave as strings with leading zeroes.
-// This means that the port will be assigned the integer part of the coefficient,
-// assuming the number is normalized (for example, 0.9e10 => 9e9).
-// See https://www.ecma-international.org/ecma-262/6.0/#sec-tostring-applied-to-the-number-type for more information
-myURL.port = 4.567e21;
-console.log(myURL.port);
-// Prints 4 (because the coefficient is 4.567)
 ```
 
 The port value may be set as either a number or as a String containing a number
