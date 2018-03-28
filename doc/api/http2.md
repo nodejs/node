@@ -2065,8 +2065,8 @@ properties.
 * `maxConcurrentStreams` {number} Specifies the maximum number of concurrent
   streams permitted on an `Http2Session`. There is no default value which
   implies, at least theoretically, 2<sup>31</sup>-1 streams may be open
-  concurrently at any given time in an `Http2Session`. The minimum value is
-  0. The maximum allowed value is 2<sup>31</sup>-1.
+  concurrently at any given time in an `Http2Session`. The minimum value
+  is 0. The maximum allowed value is 2<sup>31</sup>-1.
 * `maxHeaderListSize` {number} Specifies the maximum size (uncompressed octets)
   of header list that will be accepted. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** 65535.
