@@ -1,5 +1,37 @@
 # Node.js ChangeLog
 
+## 2018-03-28, Version 4.9.0 'Argon' (Maintenance), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/march-2018-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2018-7158
+* CVE-2018-7159
+
+### Notable Changes
+
+* **Upgrade to OpenSSL 1.0.2o**: Does not contain any security fixes that are known to impact Node.js.
+* **Fix for `'path'` module regular expression denial of service (CVE-2018-7158)**: A regular expression used for parsing POSIX an Windows paths could be used to cause a denial of service if an attacker were able to have a specially crafted path string passed through one of the impacted `'path'` module functions.
+* **Reject spaces in HTTP `Content-Length` header values (CVE-2018-7159)**: The Node.js HTTP parser allowed for spaces inside `Content-Length` header values. Such values now lead to rejected connections in the same way as non-numeric values.
+* **Update root certificates**: 5 additional root certificates have been added to the Node.js binary and 30 have been removed.
+
+### Commits
+
+* [[`497ff3cd4f`](https://github.com/nodejs/node/commit/497ff3cd4f)] - **crypto**: update root certificates (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`514709e41f`](https://github.com/nodejs/node/commit/514709e41f)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`5108108606`](https://github.com/nodejs/node/commit/5108108606)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`d67d0a63d9`](https://github.com/nodejs/node/commit/d67d0a63d9)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`6af057ecc8`](https://github.com/nodejs/node/commit/6af057ecc8)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`b50cd3359d`](https://github.com/nodejs/node/commit/b50cd3359d)] - **deps**: upgrade openssl sources to 1.0.2o (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`da6e24c8d6`](https://github.com/nodejs/node/commit/da6e24c8d6)] - **deps**: reject interior blanks in Content-Length (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`7ebc9981e0`](https://github.com/nodejs/node/commit/7ebc9981e0)] - **deps**: upgrade http-parser to v2.8.0 (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`6fd2cc93a6`](https://github.com/nodejs/node/commit/6fd2cc93a6)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`bf00665af6`](https://github.com/nodejs/node/commit/bf00665af6)] - **path**: unwind regular expressions in Windows (Myles Borins)
+* [[`4196fcf23e`](https://github.com/nodejs/node/commit/4196fcf23e)] - **path**: unwind regular expressions in POSIX (Myles Borins)
+* [[`625986b699`](https://github.com/nodejs/node/commit/625986b699)] - **src**: drop CNNIC+StartCom certificate whitelisting (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`ebc46448a4`](https://github.com/nodejs/node/commit/ebc46448a4)] - **tools**: update certdata.txt (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+
 ## 2017-12-08, Version 4.8.7 'Argon' (Maintenance), @MylesBorins
 
 This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/ for details on patched vulnerabilities.
