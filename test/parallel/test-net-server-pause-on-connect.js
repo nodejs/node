@@ -34,7 +34,7 @@ const server1ConnHandler = (socket) => {
       assert.fail('data event should not have happened yet');
     }
 
-    assert.strictEqual(data.toString(), msg, 'invalid data received');
+    assert.strictEqual(data.toString(), msg);
     socket.end();
     server1.close();
   });
@@ -46,12 +46,11 @@ const server1 = net.createServer({ pauseOnConnect: true }, server1ConnHandler);
 
 const server2ConnHandler = (socket) => {
   socket.on('data', function(data) {
-    assert.strictEqual(data.toString(), msg, 'invalid data received');
+    assert.strictEqual(data.toString(), msg);
     socket.end();
     server2.close();
 
-    assert.strictEqual(server1Sock.bytesRead, 0,
-                       'no data should have been read yet');
+    assert.strictEqual(server1Sock.bytesRead, 0);
     server1Sock.resume();
     stopped = false;
   });
