@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.9.1">4.9.1</a><br/>
 <a href="#4.9.0">4.9.0</a><br/>
 <a href="#4.8.7">4.8.7</a><br/>
 <a href="#4.8.6">4.8.6</a><br/>
@@ -70,6 +71,18 @@
 *Note*: Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.9.1"></a>
+## 2018-03-29, Version 4.9.1 'Argon' (Maintenance), @MylesBorins
+
+### Notable Changes
+
+No additional commits.
+
+Due to incorrect staging of the upgrade to the GCC 4.9.X compiler, the latest releases for PPC little
+endian were built using GCC 4.9.X instead of GCC 4.8.X. This caused an ABI breakage on PPCLE based
+environments. This has been fixed in our infrastructure and we are doing this release to ensure that
+the hosted binaries are adhering to our platform support contract.
 
 <a id="4.9.0"></a>
 ## 2018-03-28, Version 4.9.0 'Argon' (Maintenance), @MylesBorins
