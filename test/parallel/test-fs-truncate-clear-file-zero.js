@@ -21,10 +21,14 @@
 
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+
+// This test ensures that `fs.truncate` opens the file with `r+` and not `w`,
+// which had earlier resulted in the target file's content getting zeroed out.
+// https://github.com/nodejs/node-v0.x-archive/issues/6233
+
 const assert = require('assert');
 const fs = require('fs');
-
-const tmpdir = require('../common/tmpdir');
 
 const filename = `${tmpdir.path}/truncate-file.txt`;
 
@@ -42,8 +46,12 @@ tmpdir.refresh();
 {
   fs.writeFileSync(filename, '0123456789');
   assert.strictEqual(fs.readFileSync(filename).toString(), '0123456789');
-  fs.truncate(filename, 5, common.mustCall(function(err) {
-    assert.ifError(err);
-    assert.strictEqual(fs.readFileSync(filename).toString(), '01234');
-  }));
+  fs.truncate(
+    filename,
+    5,
+    common.mustCall(function(err) {
+      assert.ifError(err);
+      assert.strictEqual(fs.readFileSync(filename).toString(), '01234');
+    })
+  );
 }
