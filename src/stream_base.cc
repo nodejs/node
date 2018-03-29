@@ -374,8 +374,9 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   }
 
   CHECK_LE(static_cast<size_t>(nread), buf.len);
+  char* base = Realloc(buf.base, nread);
 
-  Local<Object> obj = Buffer::New(env, buf.base, nread).ToLocalChecked();
+  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
   stream->CallJSOnreadMethod(nread, obj);
 }
 
