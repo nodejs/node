@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.14.1">6.14.1</a><br/>
 <a href="#6.14.0">6.14.0</a><br/>
 <a href="#6.13.1">6.13.1</a><br/>
 <a href="#6.13.0">6.13.0</a><br/>
@@ -60,6 +61,18 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.14.1"></a>
+## 2018-03-29, Version 6.14.1 'Boron' (LTS), @MylesBorins
+
+### Notable Changes
+
+No additional commits.
+
+Due to incorrect staging of the upgrade to the GCC 4.9.X compiler, the latest releases for PPC little
+endian were built using GCC 4.9.X instead of GCC 4.8.X. This caused an ABI breakage on PPCLE based
+environments. This has been fixed in our infrastructure and we are doing this release to ensure that
+the hosted binaries are adhering to our platform support contract.
 
 <a id="6.14.0"></a>
 ## 2018-03-28, Version 6.14.0 'Boron' (LTS), @MylesBorins
