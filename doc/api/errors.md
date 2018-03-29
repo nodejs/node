@@ -798,7 +798,7 @@ An attempt was made to add more headers after the headers had already been sent.
 ### ERR_HTTP_INCOMING_SOCKET_ENCODING
 
 An attempt was made to manipulate the encoding of an incoming request packet.
-This is forbidden by [RFC7230 Section 3](https://tools.ietf.org/html/rfc7230#section-3)
+This is forbidden by [RFC7230 Section 3][rfc7230-3]
 
 <a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP_INVALID_HEADER_VALUE
@@ -1702,3 +1702,5 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [vm]: vm.html
 [WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
 [`zlib`]: zlib.html
+
+[rfc7230-3]: https://tools.ietf.org/html/rfc7230#section-3
