@@ -438,9 +438,17 @@ class ZCtx : public AsyncWrap {
     ZCtx* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
+    // windowBits is special. On the compression side, 0 is an invalid value.
+    // But on the decompression side, a value of 0 for windowBits tells zlib
+    // to use the window size in the zlib header of the compressed stream.
     int windowBits = args[0]->Uint32Value();
-    CHECK((windowBits >= Z_MIN_WINDOWBITS && windowBits <= Z_MAX_WINDOWBITS) &&
-      "invalid windowBits");
+    if (!((windowBits == 0) &&
+          (ctx->mode_ == INFLATE ||
+           ctx->mode_ == GUNZIP ||
+           ctx->mode_ == UNZIP))) {
+      CHECK((windowBits >= Z_MIN_WINDOWBITS &&
+             windowBits <= Z_MAX_WINDOWBITS) && "invalid windowBits");
+    }
 
     int level = args[1]->Int32Value();
     CHECK((level >= Z_MIN_LEVEL && level <= Z_MAX_LEVEL) &&
