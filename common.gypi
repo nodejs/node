@@ -94,8 +94,17 @@
             'msvs_configuration_platform': 'x64',
           }],
           ['OS=="aix"', {
+            'variables': {'real_os_name': '<!(uname -s)',},
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
+            'conditions': [
+              ['"<(real_os_name)"=="OS400"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+                  '-Wl,-brtl',
+                ],
+              }],
+            ],
           }],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
@@ -345,6 +354,7 @@
             'ldflags!': [ '-pthread' ],
           }],
           [ 'OS=="aix"', {
+            'variables': {'real_os_name': '<!(uname -s)',},
             'conditions': [
               [ 'target_arch=="ppc"', {
                 'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
@@ -352,6 +362,12 @@
               [ 'target_arch=="ppc64"', {
                 'cflags': [ '-maix64' ],
                 'ldflags': [ '-maix64' ],
+              }],
+              ['"<(real_os_name)"=="OS400"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+                  '-Wl,-brtl',
+                ],
               }],
             ],
             'ldflags': [ '-Wl,-bbigtoc' ],
