@@ -1,61 +1,16 @@
-/* crypto/cms/cms_asn1.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project.
- */
-/* ====================================================================
- * Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+ * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/asn1t.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
-#include "cms.h"
+#include <openssl/cms.h>
 #include "cms_lcl.h"
 
 
@@ -67,7 +22,7 @@ ASN1_SEQUENCE(CMS_IssuerAndSerialNumber) = {
 ASN1_SEQUENCE(CMS_OtherCertificateFormat) = {
         ASN1_SIMPLE(CMS_OtherCertificateFormat, otherCertFormat, ASN1_OBJECT),
         ASN1_OPT(CMS_OtherCertificateFormat, otherCert, ASN1_ANY)
-} ASN1_SEQUENCE_END(CMS_OtherCertificateFormat)
+} static_ASN1_SEQUENCE_END(CMS_OtherCertificateFormat)
 
 ASN1_CHOICE(CMS_CertificateChoices) = {
         ASN1_SIMPLE(CMS_CertificateChoices, d.certificate, X509),
@@ -80,12 +35,12 @@ ASN1_CHOICE(CMS_CertificateChoices) = {
 ASN1_CHOICE(CMS_SignerIdentifier) = {
         ASN1_SIMPLE(CMS_SignerIdentifier, d.issuerAndSerialNumber, CMS_IssuerAndSerialNumber),
         ASN1_IMP(CMS_SignerIdentifier, d.subjectKeyIdentifier, ASN1_OCTET_STRING, 0)
-} ASN1_CHOICE_END(CMS_SignerIdentifier)
+} static_ASN1_CHOICE_END(CMS_SignerIdentifier)
 
 ASN1_NDEF_SEQUENCE(CMS_EncapsulatedContentInfo) = {
         ASN1_SIMPLE(CMS_EncapsulatedContentInfo, eContentType, ASN1_OBJECT),
         ASN1_NDEF_EXP_OPT(CMS_EncapsulatedContentInfo, eContent, ASN1_OCTET_STRING_NDEF, 0)
-} ASN1_NDEF_SEQUENCE_END(CMS_EncapsulatedContentInfo)
+} static_ASN1_NDEF_SEQUENCE_END(CMS_EncapsulatedContentInfo)
 
 /* Minor tweak to operation: free up signer key, cert */
 static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
@@ -93,12 +48,9 @@ static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 {
     if (operation == ASN1_OP_FREE_POST) {
         CMS_SignerInfo *si = (CMS_SignerInfo *)*pval;
-        if (si->pkey)
-            EVP_PKEY_free(si->pkey);
-        if (si->signer)
-            X509_free(si->signer);
-        if (si->pctx)
-            EVP_MD_CTX_cleanup(&si->mctx);
+        EVP_PKEY_free(si->pkey);
+        X509_free(si->signer);
+        EVP_MD_CTX_free(si->mctx);
     }
     return 1;
 }
@@ -116,7 +68,7 @@ ASN1_SEQUENCE_cb(CMS_SignerInfo, cms_si_cb) = {
 ASN1_SEQUENCE(CMS_OtherRevocationInfoFormat) = {
         ASN1_SIMPLE(CMS_OtherRevocationInfoFormat, otherRevInfoFormat, ASN1_OBJECT),
         ASN1_OPT(CMS_OtherRevocationInfoFormat, otherRevInfo, ASN1_ANY)
-} ASN1_SEQUENCE_END(CMS_OtherRevocationInfoFormat)
+} static_ASN1_SEQUENCE_END(CMS_OtherRevocationInfoFormat)
 
 ASN1_CHOICE(CMS_RevocationInfoChoice) = {
         ASN1_SIMPLE(CMS_RevocationInfoChoice, d.crl, X509_CRL),
@@ -135,13 +87,13 @@ ASN1_NDEF_SEQUENCE(CMS_SignedData) = {
 ASN1_SEQUENCE(CMS_OriginatorInfo) = {
         ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, certificates, CMS_CertificateChoices, 0),
         ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, crls, CMS_RevocationInfoChoice, 1)
-} ASN1_SEQUENCE_END(CMS_OriginatorInfo)
+} static_ASN1_SEQUENCE_END(CMS_OriginatorInfo)
 
 ASN1_NDEF_SEQUENCE(CMS_EncryptedContentInfo) = {
         ASN1_SIMPLE(CMS_EncryptedContentInfo, contentType, ASN1_OBJECT),
         ASN1_SIMPLE(CMS_EncryptedContentInfo, contentEncryptionAlgorithm, X509_ALGOR),
         ASN1_IMP_OPT(CMS_EncryptedContentInfo, encryptedContent, ASN1_OCTET_STRING_NDEF, 0)
-} ASN1_NDEF_SEQUENCE_END(CMS_EncryptedContentInfo)
+} static_ASN1_NDEF_SEQUENCE_END(CMS_EncryptedContentInfo)
 
 ASN1_SEQUENCE(CMS_KeyTransRecipientInfo) = {
         ASN1_SIMPLE(CMS_KeyTransRecipientInfo, version, LONG),
@@ -164,15 +116,14 @@ ASN1_SEQUENCE(CMS_RecipientKeyIdentifier) = {
 ASN1_CHOICE(CMS_KeyAgreeRecipientIdentifier) = {
   ASN1_SIMPLE(CMS_KeyAgreeRecipientIdentifier, d.issuerAndSerialNumber, CMS_IssuerAndSerialNumber),
   ASN1_IMP(CMS_KeyAgreeRecipientIdentifier, d.rKeyId, CMS_RecipientKeyIdentifier, 0)
-} ASN1_CHOICE_END(CMS_KeyAgreeRecipientIdentifier)
+} static_ASN1_CHOICE_END(CMS_KeyAgreeRecipientIdentifier)
 
 static int cms_rek_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                       void *exarg)
 {
     CMS_RecipientEncryptedKey *rek = (CMS_RecipientEncryptedKey *)*pval;
     if (operation == ASN1_OP_FREE_POST) {
-        if (rek->pkey)
-            EVP_PKEY_free(rek->pkey);
+        EVP_PKEY_free(rek->pkey);
     }
     return 1;
 }
@@ -191,20 +142,21 @@ ASN1_CHOICE(CMS_OriginatorIdentifierOrKey) = {
   ASN1_SIMPLE(CMS_OriginatorIdentifierOrKey, d.issuerAndSerialNumber, CMS_IssuerAndSerialNumber),
   ASN1_IMP(CMS_OriginatorIdentifierOrKey, d.subjectKeyIdentifier, ASN1_OCTET_STRING, 0),
   ASN1_IMP(CMS_OriginatorIdentifierOrKey, d.originatorKey, CMS_OriginatorPublicKey, 1)
-} ASN1_CHOICE_END(CMS_OriginatorIdentifierOrKey)
+} static_ASN1_CHOICE_END(CMS_OriginatorIdentifierOrKey)
 
 static int cms_kari_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                        void *exarg)
 {
     CMS_KeyAgreeRecipientInfo *kari = (CMS_KeyAgreeRecipientInfo *)*pval;
     if (operation == ASN1_OP_NEW_POST) {
-        EVP_CIPHER_CTX_init(&kari->ctx);
-        EVP_CIPHER_CTX_set_flags(&kari->ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+        kari->ctx = EVP_CIPHER_CTX_new();
+        if (kari->ctx == NULL)
+            return 0;
+        EVP_CIPHER_CTX_set_flags(kari->ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
         kari->pctx = NULL;
     } else if (operation == ASN1_OP_FREE_POST) {
-        if (kari->pctx)
-            EVP_PKEY_CTX_free(kari->pctx);
-        EVP_CIPHER_CTX_cleanup(&kari->ctx);
+        EVP_PKEY_CTX_free(kari->pctx);
+        EVP_CIPHER_CTX_free(kari->ctx);
     }
     return 1;
 }
@@ -221,7 +173,7 @@ ASN1_SEQUENCE(CMS_KEKIdentifier) = {
         ASN1_SIMPLE(CMS_KEKIdentifier, keyIdentifier, ASN1_OCTET_STRING),
         ASN1_OPT(CMS_KEKIdentifier, date, ASN1_GENERALIZEDTIME),
         ASN1_OPT(CMS_KEKIdentifier, other, CMS_OtherKeyAttribute)
-} ASN1_SEQUENCE_END(CMS_KEKIdentifier)
+} static_ASN1_SEQUENCE_END(CMS_KEKIdentifier)
 
 ASN1_SEQUENCE(CMS_KEKRecipientInfo) = {
         ASN1_SIMPLE(CMS_KEKRecipientInfo, version, LONG),
@@ -240,7 +192,7 @@ ASN1_SEQUENCE(CMS_PasswordRecipientInfo) = {
 ASN1_SEQUENCE(CMS_OtherRecipientInfo) = {
   ASN1_SIMPLE(CMS_OtherRecipientInfo, oriType, ASN1_OBJECT),
   ASN1_OPT(CMS_OtherRecipientInfo, oriValue, ASN1_ANY)
-} ASN1_SEQUENCE_END(CMS_OtherRecipientInfo)
+} static_ASN1_SEQUENCE_END(CMS_OtherRecipientInfo)
 
 /* Free up RecipientInfo additional data */
 static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
@@ -250,24 +202,15 @@ static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         CMS_RecipientInfo *ri = (CMS_RecipientInfo *)*pval;
         if (ri->type == CMS_RECIPINFO_TRANS) {
             CMS_KeyTransRecipientInfo *ktri = ri->d.ktri;
-            if (ktri->pkey)
-                EVP_PKEY_free(ktri->pkey);
-            if (ktri->recip)
-                X509_free(ktri->recip);
-            if (ktri->pctx)
-                EVP_PKEY_CTX_free(ktri->pctx);
+            EVP_PKEY_free(ktri->pkey);
+            X509_free(ktri->recip);
+            EVP_PKEY_CTX_free(ktri->pctx);
         } else if (ri->type == CMS_RECIPINFO_KEK) {
             CMS_KEKRecipientInfo *kekri = ri->d.kekri;
-            if (kekri->key) {
-                OPENSSL_cleanse(kekri->key, kekri->keylen);
-                OPENSSL_free(kekri->key);
-            }
+            OPENSSL_clear_free(kekri->key, kekri->keylen);
         } else if (ri->type == CMS_RECIPINFO_PASS) {
             CMS_PasswordRecipientInfo *pwri = ri->d.pwri;
-            if (pwri->pass) {
-                OPENSSL_cleanse(pwri->pass, pwri->passlen);
-                OPENSSL_free(pwri->pass);
-            }
+            OPENSSL_clear_free(pwri->pass, pwri->passlen);
         }
     }
     return 1;
@@ -312,7 +255,7 @@ ASN1_NDEF_SEQUENCE(CMS_AuthenticatedData) = {
         ASN1_IMP_SET_OF_OPT(CMS_AuthenticatedData, authAttrs, X509_ALGOR, 2),
         ASN1_SIMPLE(CMS_AuthenticatedData, mac, ASN1_OCTET_STRING),
         ASN1_IMP_SET_OF_OPT(CMS_AuthenticatedData, unauthAttrs, X509_ALGOR, 3)
-} ASN1_NDEF_SEQUENCE_END(CMS_AuthenticatedData)
+} static_ASN1_NDEF_SEQUENCE_END(CMS_AuthenticatedData)
 
 ASN1_NDEF_SEQUENCE(CMS_CompressedData) = {
         ASN1_SIMPLE(CMS_CompressedData, version, LONG),
@@ -349,6 +292,7 @@ static int cms_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     case ASN1_OP_STREAM_PRE:
         if (CMS_stream(&sarg->boundary, cms) <= 0)
             return 0;
+        /* fall thru */
     case ASN1_OP_DETACHED_PRE:
         sarg->ndef_bio = CMS_dataInit(cms, sarg->out);
         if (!sarg->ndef_bio)
@@ -396,7 +340,7 @@ ASN1_ITEM_TEMPLATE_END(CMS_Attributes_Verify)
 ASN1_CHOICE(CMS_ReceiptsFrom) = {
   ASN1_IMP(CMS_ReceiptsFrom, d.allOrFirstTier, LONG, 0),
   ASN1_IMP_SEQUENCE_OF(CMS_ReceiptsFrom, d.receiptList, GENERAL_NAMES, 1)
-} ASN1_CHOICE_END(CMS_ReceiptsFrom)
+} static_ASN1_CHOICE_END(CMS_ReceiptsFrom)
 
 ASN1_SEQUENCE(CMS_ReceiptRequest) = {
   ASN1_SIMPLE(CMS_ReceiptRequest, signedContentIdentifier, ASN1_OCTET_STRING),
@@ -426,7 +370,7 @@ ASN1_SEQUENCE(CMS_SharedInfo) = {
   ASN1_SIMPLE(CMS_SharedInfo, keyInfo, X509_ALGOR),
   ASN1_EXP_OPT(CMS_SharedInfo, entityUInfo, ASN1_OCTET_STRING, 0),
   ASN1_EXP_OPT(CMS_SharedInfo, suppPubInfo, ASN1_OCTET_STRING, 2),
-} ASN1_SEQUENCE_END(CMS_SharedInfo)
+} static_ASN1_SEQUENCE_END(CMS_SharedInfo)
 
 int CMS_SharedInfo_encode(unsigned char **pder, X509_ALGOR *kekalg,
                           ASN1_OCTET_STRING *ukm, int keylen)

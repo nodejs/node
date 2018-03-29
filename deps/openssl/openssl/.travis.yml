@@ -1,0 +1,204 @@
+dist: trusty
+sudo: required
+
+language: c
+cache: ccache
+
+before_install:
+    - if [ -n "$COVERALLS" ]; then
+          pip install --user cpp-coveralls;
+      fi;
+
+addons:
+    apt:
+        packages:
+            - ccache
+
+os:
+    - linux
+
+compiler:
+    - clang
+    - gcc
+
+env:
+    - CONFIG_OPTS="" DESTDIR="_install"
+    - CONFIG_OPTS="--debug no-shared enable-crypto-mdebug enable-rc5 enable-md2"
+    - CONFIG_OPTS="no-pic --strict-warnings" BUILDONLY="yes"
+    - CONFIG_OPTS="no-engine no-shared --strict-warnings" BUILDONLY="yes"
+    - CONFIG_OPTS="no-stdio --strict-warnings" BUILDONLY="yes"
+    - CONFIG_OPTS="no-ec" BUILDONLY="yes"
+    - CONFIG_OPTS="no-asm --strict-warnings" BUILDONLY="yes" CHECKDOCS="yes"
+
+matrix:
+    include:
+        - os: linux
+          compiler: clang-3.9
+          env: CONFIG_OPTS="--strict-warnings no-deprecated" BUILDONLY="yes"
+        - os: linux
+          compiler: gcc
+          env: CONFIG_OPTS="--debug --coverage no-asm enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers" COVERALLS="yes"
+        - os: linux
+          compiler: clang-3.9
+          env: CONFIG_OPTS="enable-asan"
+        - os: linux
+          compiler: clang-3.9
+          env: CONFIG_OPTS="enable-msan"
+        - os: linux
+          compiler: clang-3.9
+          env: CONFIG_OPTS="no-asm enable-ubsan enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method -fno-sanitize=alignment"
+        - os: linux
+          compiler: clang-3.9
+          env: CONFIG_OPTS="no-asm enable-asan enable-rc5 enable-md2"
+        - os: linux
+          compiler: clang-3.9
+          env: CONFIG_OPTS="no-stdio"
+        - os: linux
+          addons:
+              apt:
+                  packages:
+                      - gcc-5
+                  sources:
+                      - ubuntu-toolchain-r-test
+          compiler: gcc-5
+          env: CONFIG_OPTS="no-asm enable-ubsan enable-rc5 enable-md2 -DPEDANTIC"
+        - os: linux
+          addons:
+              apt:
+                  packages:
+                      - binutils-mingw-w64
+                      - gcc-mingw-w64
+          compiler: i686-w64-mingw32-gcc
+          env: CONFIG_OPTS="no-pic" TESTS="-test_fuzz"
+        - os: linux
+          addons:
+              apt:
+                  packages:
+                      - binutils-mingw-w64
+                      - gcc-mingw-w64
+          compiler: i686-w64-mingw32-gcc
+          env: CONFIG_OPTS="no-stdio" BUILDONLY="yes"
+        - os: linux
+          addons:
+              apt:
+                  packages:
+                      - binutils-mingw-w64
+                      - gcc-mingw-w64
+          compiler: x86_64-w64-mingw32-gcc
+          env: CONFIG_OPTS="no-pic" TESTS="-test_fuzz"
+        - os: linux
+          addons:
+              apt:
+                  packages:
+                      - binutils-mingw-w64
+                      - gcc-mingw-w64
+          compiler: x86_64-w64-mingw32-gcc
+          env: CONFIG_OPTS="no-stdio" BUILDONLY="yes"
+    exclude:
+        - os: linux
+          compiler: clang
+        - os: osx
+          compiler: gcc
+
+before_script:
+    - if [ -n "$DESTDIR" ]; then
+          sh .travis-create-release.sh $TRAVIS_OS_NAME;
+          tar -xvzf _srcdist.tar.gz;
+          mkdir _build;
+          cd _build;
+          srcdir=../_srcdist;
+          top=..;
+      else
+          srcdir=.;
+          top=.;
+      fi
+    - if [ "$CC" == i686-w64-mingw32-gcc ]; then
+          export CROSS_COMPILE=${CC%%gcc}; unset CC;
+          $srcdir/Configure mingw $CONFIG_OPTS -Wno-pedantic-ms-format;
+      elif [ "$CC" == x86_64-w64-mingw32-gcc ]; then
+          export CROSS_COMPILE=${CC%%gcc}; unset CC;
+          $srcdir/Configure mingw64 $CONFIG_OPTS -Wno-pedantic-ms-format;
+      else
+          if [ "$CC" == clang-3.9 ]; then
+              sudo cp .travis-apt-pin.preferences /etc/apt/preferences.d/no-ubuntu-clang;
+              curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
+              echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+              sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
+              sudo -E apt-get -yq update;
+              sudo -E apt-get -yq --no-install-suggests --no-install-recommends --force-yes install clang-3.9;
+          elif which ccache >/dev/null; then
+              CC="ccache $CC";
+          fi;
+          $srcdir/config -v $CONFIG_OPTS;
+      fi
+    - if [ -z "$BUILDONLY" ]; then
+          if [ -n "$CROSS_COMPILE" ]; then
+              if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+                  sudo dpkg --add-architecture i386;
+                  sudo apt-get update;
+              fi;
+          fi;
+      fi
+    - cd $top
+
+script:
+    - if [ -z "$BUILDONLY" ]; then
+          make="make -s";
+      else
+          make="make";
+      fi
+    - if [ -n "$DESTDIR" ]; then
+          cd _build;
+          top=..;
+      else
+          top=.;
+      fi
+    - if $make update; then
+          echo -e '+\057 MAKE UPDATE OK';
+      else
+          echo -e '+\057 MAKE UPDATE FAILED'; false;
+      fi;
+      git diff --exit-code
+    - if [ -n "$CHECKDOCS" ]; then
+          if $make doc-nits; then
+              echo -e '+\057\057 MAKE DOC-NITS OK';
+          else
+              echo -e '+\057\057 MAKE DOC-NITS FAILED'; false;
+          fi;
+      fi
+    - if $make ; then
+          echo -e '+\057\057\057 MAKE OK';
+      else
+          echo -e '+\057\057\057 MAKE FAILED'; false;
+      fi;
+    - if [ -z "$BUILDONLY" ]; then
+          if [ -n "$CROSS_COMPILE" ]; then
+              sudo apt-get -yq install wine;
+              export EXE_SHELL="wine" WINEPREFIX=`pwd`;
+          fi;
+          HARNESS_VERBOSE=yes make test;
+      else
+          if $make build_tests; then
+              echo -e '+\057\057\075 MAKE BUILD_TESTS OK';
+          else
+              echo -e '+\057\057\075 MAKE BUILD_TESTS FAILEd'; false;
+          fi;
+      fi
+    - if [ -n "$DESTDIR" ]; then
+          mkdir "../$DESTDIR";
+          if $make install install_docs DESTDIR="../$DESTDIR"; then
+              echo -e '+\057\057\057\057\057 MAKE INSTALL_DOCS OK';
+          else
+              echo -e '+\057\057\057\057\057 MAKE INSTALL_DOCS FAILED'; false;
+          fi;
+      fi
+    - cd $top
+
+after_success:
+    - if [ -n "$COVERALLS" ]; then
+          coveralls -b . --gcov-options '\-lp';
+      fi;
+
+notifications:
+    email:
+        secure: "xeGNgWO7aoaDgRvcZubposqMsj36aU8c6F0oHfw+rUqltCQ14IgYCUwzocmR2O+Pa7B3Cx5VjMfBFHbQaajZsfod8vu7g+aGq/zkjwbhsr/SR4dljJjFJXLGZjIalm9KgP6KInmVDuINfCqP+MHIY5lZkNI7DMcyHDhVc5nSKvCXV7xTDNgmstvh8rB/z51WfHDqGqfBtiuK5FDNxmvYK8OFJ5W94Lu9LDlizcxwK3GAj7arOui7Z5w8bQ6p4seUE3IvJL1Zbj0pZHxvNb6Zeb2Pn8QF1qLlN8YmBktD4aiw0ce4wYRiL87uLgcOxZY7SVXtv2XYFIYWapU/FKjCqa6vK93V/H9eZWEIYNMKnN3wXm2beqVdnKek3OeGJ8v0y7MbSfuLfRtBqbTSNYnpU1Zuo4MQAvHvEPuwCAYkYQajOSRplMH5sULFKptuVqNtOMfjL8jHb8AEoL1acYIk43ydxeYrzzas4fqgCDJ52573/u0RNdF1lkQBLkuM365OB8VRqtpnoxcdEIY/qBc/8TzZ24fxyrs5qdHFcxGSgpN2EP6cJMqpvkemnCNSdhxUqfzm22N7a3O8+4LFSBGOnHto/PwdsvF/01yGYL0LoZTnoO1i6x7AMJPBh+eyDU0ZjGhj/msjmqeb9C8vRqQ+1WjHrIS1iqCD0Czib8tUPD4="

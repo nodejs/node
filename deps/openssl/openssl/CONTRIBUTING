@@ -39,7 +39,7 @@ acceptance and review process faster:
 
     4.  Patches should follow our coding style (see
     https://www.openssl.org/policies/codingstyle.html) and compile without
-    warnings. Where gcc or clang is availble you should use the
+    warnings. Where gcc or clang is available you should use the
     --strict-warnings Configure option.  OpenSSL compiles on many varied
     platforms: try to ensure you only use portable features.
     Clean builds via Travis and AppVeyor are expected, and done whenever

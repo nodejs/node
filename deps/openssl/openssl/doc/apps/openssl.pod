@@ -1,4 +1,3 @@
-
 =pod
 
 =head1 NAME
@@ -12,7 +11,7 @@ I<command>
 [ I<command_opts> ]
 [ I<command_args> ]
 
-B<openssl> [ B<list-standard-commands> | B<list-message-digest-commands> | B<list-cipher-commands> | B<list-cipher-algorithms> | B<list-message-digest-algorithms> | B<list-public-key-algorithms>]
+B<openssl> B<list> [ B<standard-commands> | B<digest-commands> | B<cipher-commands> | B<cipher-algorithms> | B<digest-algorithms> | B<public-key-algorithms>]
 
 B<openssl> B<no->I<XXX> [ I<arbitrary options> ]
 
@@ -23,12 +22,12 @@ v2/v3) and Transport Layer Security (TLS v1) network protocols and related
 cryptography standards required by them.
 
 The B<openssl> program is a command line tool for using the various
-cryptography functions of OpenSSL's B<crypto> library from the shell. 
-It can be used for 
+cryptography functions of OpenSSL's B<crypto> library from the shell.
+It can be used for
 
  o  Creation and management of private keys, public keys and parameters
  o  Public key cryptographic operations
- o  Creation of X.509 certificates, CSRs and CRLs 
+ o  Creation of X.509 certificates, CSRs and CRLs
  o  Calculation of Message Digests
  o  Encryption and Decryption with Ciphers
  o  SSL/TLS Client and Server Tests
@@ -41,20 +40,29 @@ The B<openssl> program provides a rich variety of commands (I<command> in the
 SYNOPSIS above), each of which often has a wealth of options and arguments
 (I<command_opts> and I<command_args> in the SYNOPSIS).
 
-The pseudo-commands B<list-standard-commands>, B<list-message-digest-commands>,
-and B<list-cipher-commands> output a list (one entry per line) of the names
+Many commands use an external configuration file for some or all of their
+arguments and have a B<-config> option to specify that file.
+The environment variable B<OPENSSL_CONF> can be used to specify
+the location of the file.
+If the environment variable is not specified, then the file is named
+B<openssl.cnf> in the default certificate storage area, whose value
+depends on the configuration flags specified when the OpenSSL
+was built.
+
+The list parameters B<standard-commands>, B<digest-commands>,
+and B<cipher-commands> output a list (one entry per line) of the names
 of all standard commands, message digest commands, or cipher commands,
 respectively, that are available in the present B<openssl> utility.
 
-The pseudo-commands B<list-cipher-algorithms> and
-B<list-message-digest-algorithms> list all cipher and message digest names, one entry per line. Aliases are listed as:
+The list parameters B<cipher-algorithms> and
+B<digest-algorithms> list all cipher and message digest names, one entry per line. Aliases are listed as:
 
  from => to
 
-The pseudo-command B<list-public-key-algorithms> lists all supported public
+The list parameter B<public-key-algorithms> lists all supported public
 key algorithms.
 
-The pseudo-command B<no->I<XXX> tests whether a command of the
+The command B<no->I<XXX> tests whether a command of the
 specified name is available.  If no command named I<XXX> exists, it
 returns 0 (success) and prints B<no->I<XXX>; otherwise it returns 1
 and prints I<XXX>.  In both cases, the output goes to B<stdout> and
@@ -63,11 +71,11 @@ are always ignored.  Since for each cipher there is a command of the
 same name, this provides an easy way for shell scripts to test for the
 availability of ciphers in the B<openssl> program.  (B<no->I<XXX> is
 not able to detect pseudo-commands such as B<quit>,
-B<list->I<...>B<-commands>, or B<no->I<XXX> itself.)
+B<list>, or B<no->I<XXX> itself.)
 
-=head2 STANDARD COMMANDS
+=head2 Standard Commands
 
-=over 10
+=over 4
 
 =item L<B<asn1parse>|asn1parse(1)>
 
@@ -75,7 +83,7 @@ Parse an ASN.1 sequence.
 
 =item L<B<ca>|ca(1)>
 
-Certificate Authority (CA) Management.  
+Certificate Authority (CA) Management.
 
 =item L<B<ciphers>|ciphers(1)>
 
@@ -83,7 +91,7 @@ Cipher Suite Description Determination.
 
 =item L<B<cms>|cms(1)>
 
-CMS (Cryptographic Message Syntax) utility
+CMS (Cryptographic Message Syntax) utility.
 
 =item L<B<crl>|crl(1)>
 
@@ -104,9 +112,8 @@ Obsoleted by L<B<dhparam>|dhparam(1)>.
 
 =item L<B<dhparam>|dhparam(1)>
 
-Generation and Management of Diffie-Hellman Parameters. Superseded by 
-L<B<genpkey>|genpkey(1)> and L<B<pkeyparam>|pkeyparam(1)>
-
+Generation and Management of Diffie-Hellman Parameters. Superseded by
+L<B<genpkey>|genpkey(1)> and L<B<pkeyparam>|pkeyparam(1)>.
 
 =item L<B<dsa>|dsa(1)>
 
@@ -114,16 +121,16 @@ DSA Data Management.
 
 =item L<B<dsaparam>|dsaparam(1)>
 
-DSA Parameter Generation and Management. Superseded by 
-L<B<genpkey>|genpkey(1)> and L<B<pkeyparam>|pkeyparam(1)>
+DSA Parameter Generation and Management. Superseded by
+L<B<genpkey>|genpkey(1)> and L<B<pkeyparam>|pkeyparam(1)>.
 
 =item L<B<ec>|ec(1)>
 
-EC (Elliptic curve) key processing
+EC (Elliptic curve) key processing.
 
 =item L<B<ecparam>|ecparam(1)>
 
-EC parameter manipulation and generation
+EC parameter manipulation and generation.
 
 =item L<B<enc>|enc(1)>
 
@@ -131,7 +138,7 @@ Encoding with Ciphers.
 
 =item L<B<engine>|engine(1)>
 
-Engine (loadble module) information and manipulation.
+Engine (loadable module) information and manipulation.
 
 =item L<B<errstr>|errstr(1)>
 
@@ -144,8 +151,8 @@ Obsoleted by L<B<dhparam>|dhparam(1)>.
 
 =item L<B<gendsa>|gendsa(1)>
 
-Generation of DSA Private Key from Parameters. Superseded by 
-L<B<genpkey>|genpkey(1)> and L<B<pkey>|pkey(1)>
+Generation of DSA Private Key from Parameters. Superseded by
+L<B<genpkey>|genpkey(1)> and L<B<pkey>|pkey(1)>.
 
 =item L<B<genpkey>|genpkey(1)>
 
@@ -153,11 +160,11 @@ Generation of Private Key or Parameters.
 
 =item L<B<genrsa>|genrsa(1)>
 
-Generation of RSA Private Key. Superceded by L<B<genpkey>|genpkey(1)>.
+Generation of RSA Private Key. Superseded by L<B<genpkey>|genpkey(1)>.
 
 =item L<B<nseq>|nseq(1)>
 
-Create or examine a netscape certificate sequence
+Create or examine a Netscape certificate sequence.
 
 =item L<B<ocsp>|ocsp(1)>
 
@@ -175,6 +182,10 @@ PKCS#12 Data Management.
 
 PKCS#7 Data Management.
 
+=item L<B<pkcs8>|pkcs8(1)>
+
+PKCS#8 format private key conversion tool.
+
 =item L<B<pkey>|pkey(1)>
 
 Public and private key management.
@@ -191,6 +202,10 @@ Public key algorithm cryptographic operation utility.
 
 Generate pseudo-random bytes.
 
+=item L<B<rehash>|rehash(1)>
+
+Create symbolic links to certificate and CRL files named by the hash values.
+
 =item L<B<req>|req(1)>
 
 PKCS#10 X.509 Certificate Signing Request (CSR) Management.
@@ -203,7 +218,7 @@ RSA key management.
 =item L<B<rsautl>|rsautl(1)>
 
 RSA utility for signing, verification, encryption, and decryption. Superseded
-by  L<B<pkeyutl>|pkeyutl(1)>
+by  L<B<pkeyutl>|pkeyutl(1)>.
 
 =item L<B<s_client>|s_client(1)>
 
@@ -239,11 +254,11 @@ Algorithm Speed Measurement.
 
 =item L<B<spkac>|spkac(1)>
 
-SPKAC printing and generating utility
+SPKAC printing and generating utility.
 
 =item L<B<ts>|ts(1)>
 
-Time Stamping Authority tool (client/server)
+Time Stamping Authority tool (client/server).
 
 =item L<B<verify>|verify(1)>
 
@@ -259,9 +274,9 @@ X.509 Certificate Data Management.
 
 =back
 
-=head2 MESSAGE DIGEST COMMANDS
+=head2 Message Digest Commands
 
-=over 10
+=over 4
 
 =item B<md2>
 
@@ -279,11 +294,11 @@ MDC2 Digest
 
 RMD-160 Digest
 
-=item B<sha>            
+=item B<sha>
 
 SHA Digest
 
-=item B<sha1>           
+=item B<sha1>
 
 SHA-1 Digest
 
@@ -305,9 +320,9 @@ SHA-512 Digest
 
 =back
 
-=head2 ENCODING AND CIPHER COMMANDS
+=head2 Encoding and Cipher Commands
 
-=over 10
+=over 4
 
 =item B<base64>
 
@@ -351,7 +366,22 @@ RC5 Cipher
 
 =back
 
-=head1 PASS PHRASE ARGUMENTS
+=head1 OPTIONS
+
+Details of which options are available depend on the specific command.
+This section describes some common options with common behavior.
+
+=head2 Common Options
+
+=over 4
+
+=item B<-help>
+
+Provides a terse summary of all options.
+
+=back
+
+=head2 Pass Phrase Options
 
 Several commands accept password arguments, typically using B<-passin>
 and B<-passout> for input and output passwords respectively. These allow
@@ -361,23 +391,23 @@ password argument is given and a password is required then the user is
 prompted to enter one: this will typically be read from the current
 terminal with echoing turned off.
 
-=over 10
+=over 4
 
 =item B<pass:password>
 
-the actual password is B<password>. Since the password is visible
+The actual password is B<password>. Since the password is visible
 to utilities (like 'ps' under Unix) this form should only be used
 where security is not important.
 
 =item B<env:var>
 
-obtain the password from the environment variable B<var>. Since
+Obtain the password from the environment variable B<var>. Since
 the environment of other processes is visible on certain platforms
 (e.g. ps under certain Unix OSes) this option should be used with caution.
 
 =item B<file:pathname>
 
-the first line of B<pathname> is the password. If the same B<pathname>
+The first line of B<pathname> is the password. If the same B<pathname>
 argument is supplied to B<-passin> and B<-passout> arguments then the first
 line will be used for the input password and the next line for the output
 password. B<pathname> need not refer to a regular file: it could for example
@@ -385,38 +415,47 @@ refer to a device or named pipe.
 
 =item B<fd:number>
 
-read the password from the file descriptor B<number>. This can be used to
+Read the password from the file descriptor B<number>. This can be used to
 send the data via a pipe for example.
 
 =item B<stdin>
 
-read the password from standard input.
+Read the password from standard input.
 
 =back
 
 =head1 SEE ALSO
 
-L<asn1parse(1)|asn1parse(1)>, L<ca(1)|ca(1)>, L<config(5)|config(5)>,
-L<crl(1)|crl(1)>, L<crl2pkcs7(1)|crl2pkcs7(1)>, L<dgst(1)|dgst(1)>,
-L<dhparam(1)|dhparam(1)>, L<dsa(1)|dsa(1)>, L<dsaparam(1)|dsaparam(1)>,
-L<enc(1)|enc(1)>, L<gendsa(1)|gendsa(1)>, L<genpkey(1)|genpkey(1)>,
-L<genrsa(1)|genrsa(1)>, L<nseq(1)|nseq(1)>, L<openssl(1)|openssl(1)>,
-L<passwd(1)|passwd(1)>,
-L<pkcs12(1)|pkcs12(1)>, L<pkcs7(1)|pkcs7(1)>, L<pkcs8(1)|pkcs8(1)>,
-L<rand(1)|rand(1)>, L<req(1)|req(1)>, L<rsa(1)|rsa(1)>,
-L<rsautl(1)|rsautl(1)>, L<s_client(1)|s_client(1)>,
-L<s_server(1)|s_server(1)>, L<s_time(1)|s_time(1)>,
-L<smime(1)|smime(1)>, L<spkac(1)|spkac(1)>,
-L<verify(1)|verify(1)>, L<version(1)|version(1)>, L<x509(1)|x509(1)>,
-L<crypto(3)|crypto(3)>, L<ssl(3)|ssl(3)>, L<x509v3_config(5)|x509v3_config(5)> 
+L<asn1parse(1)>, L<ca(1)>, L<ciphers(1)>, L<cms(1)>, L<config(5)>,
+L<crl(1)>, L<crl2pkcs7(1)>, L<dgst(1)>,
+L<dhparam(1)>, L<dsa(1)>, L<dsaparam(1)>,
+L<ec(1)>, L<ecparam(1)>,
+L<enc(1)>, L<engine(1)>, L<errstr(1)>, L<gendsa(1)>, L<genpkey(1)>,
+L<genrsa(1)>, L<nseq(1)>, L<ocsp(1)>,
+L<passwd(1)>,
+L<pkcs12(1)>, L<pkcs7(1)>, L<pkcs8(1)>,
+L<pkey(1)>, L<pkeyparam(1)>, L<pkeyutl(1)>,
+L<rand(1)>, L<rehash(1)>, L<req(1)>, L<rsa(1)>,
+L<rsautl(1)>, L<s_client(1)>,
+L<s_server(1)>, L<s_time(1)>, L<sess_id(1)>,
+L<smime(1)>, L<speed(1)>, L<spkac(1)>,
+L<ts(1)>,
+L<verify(1)>, L<version(1)>, L<x509(1)>,
+L<crypto(7)>, L<ssl(7)>, L<x509v3_config(5)>
 
 =head1 HISTORY
 
-The openssl(1) document appeared in OpenSSL 0.9.2.
-The B<list->I<XXX>B<-commands> pseudo-commands were added in OpenSSL 0.9.3;
 The B<list->I<XXX>B<-algorithms> pseudo-commands were added in OpenSSL 1.0.0;
-the B<no->I<XXX> pseudo-commands were added in OpenSSL 0.9.5a.
 For notes on the availability of other commands, see their individual
 manual pages.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

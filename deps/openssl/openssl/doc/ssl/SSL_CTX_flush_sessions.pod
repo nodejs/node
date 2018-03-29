@@ -25,8 +25,8 @@ up to the specified maximum number (see SSL_CTX_sess_set_cache_size()).
 As sessions will not be reused ones they are expired, they should be
 removed from the cache to save resources. This can either be done
  automatically whenever 255 new sessions were established (see
-L<SSL_CTX_set_session_cache_mode(3)|SSL_CTX_set_session_cache_mode(3)>)
-or manually by calling SSL_CTX_flush_sessions(). 
+L<SSL_CTX_set_session_cache_mode(3)>)
+or manually by calling SSL_CTX_flush_sessions().
 
 The parameter B<tm> specifies the time which should be used for the
 expiration test, in most cases the actual time given by time(0)
@@ -35,15 +35,22 @@ will be used.
 SSL_CTX_flush_sessions() will only check sessions stored in the internal
 cache. When a session is found and removed, the remove_session_cb is however
 called to synchronize with the external cache (see
-L<SSL_CTX_sess_set_get_cb(3)|SSL_CTX_sess_set_get_cb(3)>).
-
-=head1 RETURN VALUES
+L<SSL_CTX_sess_set_get_cb(3)>).
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>,
-L<SSL_CTX_set_session_cache_mode(3)|SSL_CTX_set_session_cache_mode(3)>,
-L<SSL_CTX_set_timeout(3)|SSL_CTX_set_timeout(3)>,
-L<SSL_CTX_sess_set_get_cb(3)|SSL_CTX_sess_set_get_cb(3)>
+L<ssl(3)>,
+L<SSL_CTX_set_session_cache_mode(3)>,
+L<SSL_CTX_set_timeout(3)>,
+L<SSL_CTX_sess_set_get_cb(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

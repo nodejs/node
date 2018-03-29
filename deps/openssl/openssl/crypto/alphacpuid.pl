@@ -1,4 +1,15 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2010-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+
+$output = pop;
+open STDOUT,">$output";
+
 print <<'___';
 .text
 
@@ -123,4 +134,124 @@ OPENSSL_cleanse:
 	bne	$17,.Little
 .Ldone: ret	($26)
 .end	OPENSSL_cleanse
+
+.globl	CRYPTO_memcmp
+.ent	CRYPTO_memcmp
+CRYPTO_memcmp:
+	.frame	$30,0,$26
+	.prologue 0
+	xor	$0,$0,$0
+	beq	$18,.Lno_data
+
+	xor	$1,$1,$1
+	nop
+.Loop_cmp:
+	ldq_u	$2,0($16)
+	subq	$18,1,$18
+	ldq_u	$3,0($17)
+	extbl	$2,$16,$2
+	lda	$16,1($16)
+	extbl	$3,$17,$3
+	lda	$17,1($17)
+	xor	$3,$2,$2
+	or	$2,$0,$0
+	bne	$18,.Loop_cmp
+
+	subq	$31,$0,$0
+	srl	$0,63,$0
+.Lno_data:
+	ret	($26)
+.end	CRYPTO_memcmp
 ___
+{
+my ($out,$cnt,$max)=("\$16","\$17","\$18");
+my ($tick,$lasttick)=("\$19","\$20");
+my ($diff,$lastdiff)=("\$21","\$22");
+my ($v0,$ra,$sp,$zero)=("\$0","\$26","\$30","\$31");
+
+print <<___;
+.globl	OPENSSL_instrument_bus
+.ent	OPENSSL_instrument_bus
+OPENSSL_instrument_bus:
+	.frame	$sp,0,$ra
+	.prologue 0
+	mov	$cnt,$v0
+
+	rpcc	$lasttick
+	mov	0,$diff
+
+	ecb	($out)
+	ldl_l	$tick,0($out)
+	addl	$diff,$tick,$tick
+	mov	$tick,$diff
+	stl_c	$tick,0($out)
+	stl	$diff,0($out)
+
+.Loop:	rpcc	$tick
+	subq	$tick,$lasttick,$diff
+	mov	$tick,$lasttick
+
+	ecb	($out)
+	ldl_l	$tick,0($out)
+	addl	$diff,$tick,$tick
+	mov	$tick,$diff
+	stl_c	$tick,0($out)
+	stl	$diff,0($out)
+
+	subl	$cnt,1,$cnt
+	lda	$out,4($out)
+	bne	$cnt,.Loop
+
+	ret	($ra)
+.end	OPENSSL_instrument_bus
+
+.globl	OPENSSL_instrument_bus2
+.ent	OPENSSL_instrument_bus2
+OPENSSL_instrument_bus2:
+	.frame	$sp,0,$ra
+	.prologue 0
+	mov	$cnt,$v0
+
+	rpcc	$lasttick
+	mov	0,$diff
+
+	ecb	($out)
+	ldl_l	$tick,0($out)
+	addl	$diff,$tick,$tick
+	mov	$tick,$diff
+	stl_c	$tick,0($out)
+	stl	$diff,0($out)
+
+	rpcc	$tick
+	subq	$tick,$lasttick,$diff
+	mov	$tick,$lasttick
+	mov	$diff,$lastdiff
+.Loop2:
+	ecb	($out)
+	ldl_l	$tick,0($out)
+	addl	$diff,$tick,$tick
+	mov	$tick,$diff
+	stl_c	$tick,0($out)
+	stl	$diff,0($out)
+
+	subl	$max,1,$max
+	beq	$max,.Ldone2
+
+	rpcc	$tick
+	subq	$tick,$lasttick,$diff
+	mov	$tick,$lasttick
+	subq	$lastdiff,$diff,$tick
+	mov	$diff,$lastdiff
+	cmovne	$tick,1,$tick
+	subl	$cnt,$tick,$cnt
+	s4addq	$tick,$out,$out
+	bne	$cnt,.Loop2
+
+.Ldone2:
+	subl	$v0,$cnt,$v0
+	ret	($ra)
+.end	OPENSSL_instrument_bus2
+___
+}
+
+close STDOUT;

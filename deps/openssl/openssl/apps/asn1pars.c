@@ -1,59 +1,10 @@
-/* apps/asn1pars.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 /*
@@ -70,226 +21,192 @@
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 
-/*-
- * -inform arg  - input format - default PEM (DER or PEM)
- * -in arg      - input file - default stdin
- * -i           - indent the details by depth
- * -offset      - where in the file to start
- * -length      - how many bytes to use
- * -oid file    - extra oid description file
- */
+typedef enum OPTION_choice {
+    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
+    OPT_INFORM, OPT_IN, OPT_OUT, OPT_INDENT, OPT_NOOUT,
+    OPT_OID, OPT_OFFSET, OPT_LENGTH, OPT_DUMP, OPT_DLIMIT,
+    OPT_STRPARSE, OPT_GENSTR, OPT_GENCONF, OPT_STRICTPEM
+} OPTION_CHOICE;
 
-#undef PROG
-#define PROG    asn1parse_main
+OPTIONS asn1parse_options[] = {
+    {"help", OPT_HELP, '-', "Display this summary"},
+    {"inform", OPT_INFORM, 'F', "input format - one of DER PEM"},
+    {"in", OPT_IN, '<', "input file"},
+    {"out", OPT_OUT, '>', "output file (output format is always DER)"},
+    {"i", OPT_INDENT, 0, "indents the output"},
+    {"noout", OPT_NOOUT, 0, "do not produce any output"},
+    {"offset", OPT_OFFSET, 'p', "offset into file"},
+    {"length", OPT_LENGTH, 'p', "length of section in file"},
+    {"oid", OPT_OID, '<', "file of extra oid definitions"},
+    {"dump", OPT_DUMP, 0, "unknown data in hex form"},
+    {"dlimit", OPT_DLIMIT, 'p',
+     "dump the first arg bytes of unknown data in hex form"},
+    {"strparse", OPT_STRPARSE, 's',
+     "offset; a series of these can be used to 'dig'"},
+    {OPT_MORE_STR, 0, 0, "into multiple ASN1 blob wrappings"},
+    {"genstr", OPT_GENSTR, 's', "string to generate ASN1 structure from"},
+    {"genconf", OPT_GENCONF, 's', "file to generate ASN1 structure from"},
+    {OPT_MORE_STR, 0, 0, "(-inform  will be ignored)"},
+    {"strictpem", OPT_STRICTPEM, 0,
+     "do not attempt base64 decode outside PEM markers"},
+    {NULL}
+};
 
-int MAIN(int, char **);
+static int do_generate(char *genstr, const char *genconf, BUF_MEM *buf);
 
-static int do_generate(BIO *bio, char *genstr, char *genconf, BUF_MEM *buf);
-
-int MAIN(int argc, char **argv)
+int asn1parse_main(int argc, char **argv)
 {
-    int i, badops = 0, offset = 0, ret = 1, j;
-    unsigned int length = 0;
-    long num, tmplen;
-    BIO *in = NULL, *out = NULL, *b64 = NULL, *derout = NULL;
-    int informat, indent = 0, noout = 0, dump = 0;
-    char *infile = NULL, *str = NULL, *prog, *oidfile = NULL, *derfile = NULL;
-    char *genstr = NULL, *genconf = NULL;
-    unsigned char *tmpbuf;
-    const unsigned char *ctmpbuf;
+    ASN1_TYPE *at = NULL;
+    BIO *in = NULL, *b64 = NULL, *derout = NULL;
     BUF_MEM *buf = NULL;
     STACK_OF(OPENSSL_STRING) *osk = NULL;
-    ASN1_TYPE *at = NULL;
+    char *genstr = NULL, *genconf = NULL;
+    char *infile = NULL, *oidfile = NULL, *derfile = NULL;
+    unsigned char *str = NULL;
+    char *name = NULL, *header = NULL, *prog;
+    const unsigned char *ctmpbuf;
+    int indent = 0, noout = 0, dump = 0, strictpem = 0, informat = FORMAT_PEM;
+    int offset = 0, ret = 1, i, j;
+    long num, tmplen;
+    unsigned char *tmpbuf;
+    unsigned int length = 0;
+    OPTION_CHOICE o;
 
-    informat = FORMAT_PEM;
+    prog = opt_init(argc, argv, asn1parse_options);
 
-    apps_startup();
-
-    if (bio_err == NULL)
-        if ((bio_err = BIO_new(BIO_s_file())) != NULL)
-            BIO_set_fp(bio_err, stderr, BIO_NOCLOSE | BIO_FP_TEXT);
-
-    if (!load_config(bio_err, NULL))
-        goto end;
-
-    prog = argv[0];
-    argc--;
-    argv++;
     if ((osk = sk_OPENSSL_STRING_new_null()) == NULL) {
-        BIO_printf(bio_err, "Memory allocation failure\n");
+        BIO_printf(bio_err, "%s: Memory allocation failure\n", prog);
         goto end;
     }
-    while (argc >= 1) {
-        if (strcmp(*argv, "-inform") == 0) {
-            if (--argc < 1)
-                goto bad;
-            informat = str2fmt(*(++argv));
-        } else if (strcmp(*argv, "-in") == 0) {
-            if (--argc < 1)
-                goto bad;
-            infile = *(++argv);
-        } else if (strcmp(*argv, "-out") == 0) {
-            if (--argc < 1)
-                goto bad;
-            derfile = *(++argv);
-        } else if (strcmp(*argv, "-i") == 0) {
+
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_EOF:
+        case OPT_ERR:
+ opthelp:
+            BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
+            goto end;
+        case OPT_HELP:
+            opt_help(asn1parse_options);
+            ret = 0;
+            goto end;
+        case OPT_INFORM:
+            if (!opt_format(opt_arg(), OPT_FMT_PEMDER, &informat))
+                goto opthelp;
+            break;
+        case OPT_IN:
+            infile = opt_arg();
+            break;
+        case OPT_OUT:
+            derfile = opt_arg();
+            break;
+        case OPT_INDENT:
             indent = 1;
-        } else if (strcmp(*argv, "-noout") == 0)
+            break;
+        case OPT_NOOUT:
             noout = 1;
-        else if (strcmp(*argv, "-oid") == 0) {
-            if (--argc < 1)
-                goto bad;
-            oidfile = *(++argv);
-        } else if (strcmp(*argv, "-offset") == 0) {
-            if (--argc < 1)
-                goto bad;
-            offset = atoi(*(++argv));
-        } else if (strcmp(*argv, "-length") == 0) {
-            if (--argc < 1)
-                goto bad;
-            length = atoi(*(++argv));
-            if (length == 0)
-                goto bad;
-        } else if (strcmp(*argv, "-dump") == 0) {
+            break;
+        case OPT_OID:
+            oidfile = opt_arg();
+            break;
+        case OPT_OFFSET:
+            offset = strtol(opt_arg(), NULL, 0);
+            break;
+        case OPT_LENGTH:
+            length = atoi(opt_arg());
+            break;
+        case OPT_DUMP:
             dump = -1;
-        } else if (strcmp(*argv, "-dlimit") == 0) {
-            if (--argc < 1)
-                goto bad;
-            dump = atoi(*(++argv));
-            if (dump <= 0)
-                goto bad;
-        } else if (strcmp(*argv, "-strparse") == 0) {
-            if (--argc < 1)
-                goto bad;
-            sk_OPENSSL_STRING_push(osk, *(++argv));
-        } else if (strcmp(*argv, "-genstr") == 0) {
-            if (--argc < 1)
-                goto bad;
-            genstr = *(++argv);
-        } else if (strcmp(*argv, "-genconf") == 0) {
-            if (--argc < 1)
-                goto bad;
-            genconf = *(++argv);
-        } else {
-            BIO_printf(bio_err, "unknown option %s\n", *argv);
-            badops = 1;
+            break;
+        case OPT_DLIMIT:
+            dump = atoi(opt_arg());
+            break;
+        case OPT_STRPARSE:
+            sk_OPENSSL_STRING_push(osk, opt_arg());
+            break;
+        case OPT_GENSTR:
+            genstr = opt_arg();
+            break;
+        case OPT_GENCONF:
+            genconf = opt_arg();
+            break;
+        case OPT_STRICTPEM:
+            strictpem = 1;
+            informat = FORMAT_PEM;
             break;
         }
-        argc--;
-        argv++;
     }
-
-    if (badops) {
- bad:
-        BIO_printf(bio_err, "%s [options] <infile\n", prog);
-        BIO_printf(bio_err, "where options are\n");
-        BIO_printf(bio_err, " -inform arg   input format - one of DER PEM\n");
-        BIO_printf(bio_err, " -in arg       input file\n");
-        BIO_printf(bio_err,
-                   " -out arg      output file (output format is always DER\n");
-        BIO_printf(bio_err, " -noout arg    don't produce any output\n");
-        BIO_printf(bio_err, " -offset arg   offset into file\n");
-        BIO_printf(bio_err, " -length arg   length of section in file\n");
-        BIO_printf(bio_err, " -i            indent entries\n");
-        BIO_printf(bio_err, " -dump         dump unknown data in hex form\n");
-        BIO_printf(bio_err,
-                   " -dlimit arg   dump the first arg bytes of unknown data in hex form\n");
-        BIO_printf(bio_err, " -oid file     file of extra oid definitions\n");
-        BIO_printf(bio_err, " -strparse offset\n");
-        BIO_printf(bio_err,
-                   "               a series of these can be used to 'dig' into multiple\n");
-        BIO_printf(bio_err, "               ASN1 blob wrappings\n");
-        BIO_printf(bio_err,
-                   " -genstr str   string to generate ASN1 structure from\n");
-        BIO_printf(bio_err,
-                   " -genconf file file to generate ASN1 structure from\n");
-        goto end;
-    }
-
-    ERR_load_crypto_strings();
-
-    in = BIO_new(BIO_s_file());
-    out = BIO_new(BIO_s_file());
-    if ((in == NULL) || (out == NULL)) {
-        ERR_print_errors(bio_err);
-        goto end;
-    }
-    BIO_set_fp(out, stdout, BIO_NOCLOSE | BIO_FP_TEXT);
-#ifdef OPENSSL_SYS_VMS
-    {
-        BIO *tmpbio = BIO_new(BIO_f_linebuffer());
-        out = BIO_push(tmpbio, out);
-    }
-#endif
+    argc = opt_num_rest();
+    if (argc != 0)
+        goto opthelp;
 
     if (oidfile != NULL) {
-        if (BIO_read_filename(in, oidfile) <= 0) {
-            BIO_printf(bio_err, "problems opening %s\n", oidfile);
-            ERR_print_errors(bio_err);
+        in = bio_open_default(oidfile, 'r', FORMAT_TEXT);
+        if (in == NULL)
             goto end;
-        }
         OBJ_create_objects(in);
+        BIO_free(in);
     }
 
-    if (infile == NULL)
-        BIO_set_fp(in, stdin, BIO_NOCLOSE);
-    else {
-        if (BIO_read_filename(in, infile) <= 0) {
-            perror(infile);
-            goto end;
-        }
-    }
-
-    if (derfile) {
-        if (!(derout = BIO_new_file(derfile, "wb"))) {
-            BIO_printf(bio_err, "problems opening %s\n", derfile);
-            ERR_print_errors(bio_err);
-            goto end;
-        }
-    }
-
-    if ((buf = BUF_MEM_new()) == NULL)
+    if ((in = bio_open_default(infile, 'r', informat)) == NULL)
         goto end;
-    if (!BUF_MEM_grow(buf, BUFSIZ * 8))
-        goto end;               /* Pre-allocate :-) */
 
-    if (genstr || genconf) {
-        num = do_generate(bio_err, genstr, genconf, buf);
-        if (num < 0) {
+    if (derfile && (derout = bio_open_default(derfile, 'w', FORMAT_ASN1)) == NULL)
+        goto end;
+
+    if (strictpem) {
+        if (PEM_read_bio(in, &name, &header, &str, &num) !=
+            1) {
+            BIO_printf(bio_err, "Error reading PEM file\n");
             ERR_print_errors(bio_err);
             goto end;
         }
-    }
+    } else {
 
-    else {
+        if ((buf = BUF_MEM_new()) == NULL)
+            goto end;
+        if (!BUF_MEM_grow(buf, BUFSIZ * 8))
+            goto end;           /* Pre-allocate :-) */
 
-        if (informat == FORMAT_PEM) {
-            BIO *tmp;
-
-            if ((b64 = BIO_new(BIO_f_base64())) == NULL)
+        if (genstr || genconf) {
+            num = do_generate(genstr, genconf, buf);
+            if (num < 0) {
+                ERR_print_errors(bio_err);
                 goto end;
-            BIO_push(b64, in);
-            tmp = in;
-            in = b64;
-            b64 = tmp;
+            }
         }
 
-        num = 0;
-        for (;;) {
-            if (!BUF_MEM_grow(buf, (int)num + BUFSIZ))
-                goto end;
-            i = BIO_read(in, &(buf->data[num]), BUFSIZ);
-            if (i <= 0)
-                break;
-            num += i;
+        else {
+
+            if (informat == FORMAT_PEM) {
+                BIO *tmp;
+
+                if ((b64 = BIO_new(BIO_f_base64())) == NULL)
+                    goto end;
+                BIO_push(b64, in);
+                tmp = in;
+                in = b64;
+                b64 = tmp;
+            }
+
+            num = 0;
+            for (;;) {
+                if (!BUF_MEM_grow(buf, (int)num + BUFSIZ))
+                    goto end;
+                i = BIO_read(in, &(buf->data[num]), BUFSIZ);
+                if (i <= 0)
+                    break;
+                num += i;
+            }
         }
+        str = (unsigned char *)buf->data;
+
     }
-    str = buf->data;
 
     /* If any structs to parse go through in sequence */
 
     if (sk_OPENSSL_STRING_num(osk)) {
-        tmpbuf = (unsigned char *)str;
+        tmpbuf = str;
         tmplen = num;
         for (i = 0; i < sk_OPENSSL_STRING_num(osk); i++) {
             ASN1_TYPE *atmp;
@@ -323,7 +240,7 @@ int MAIN(int argc, char **argv)
             tmpbuf = at->value.asn1_string->data;
             tmplen = at->value.asn1_string->length;
         }
-        str = (char *)tmpbuf;
+        str = tmpbuf;
         num = tmplen;
     }
 
@@ -344,7 +261,7 @@ int MAIN(int argc, char **argv)
         }
     }
     if (!noout &&
-        !ASN1_parse_dump(out, (unsigned char *)&(str[offset]), length,
+        !ASN1_parse_dump(bio_out, &(str[offset]), length,
                          indent, dump)) {
         ERR_print_errors(bio_err);
         goto end;
@@ -352,41 +269,34 @@ int MAIN(int argc, char **argv)
     ret = 0;
  end:
     BIO_free(derout);
-    if (in != NULL)
-        BIO_free(in);
-    if (out != NULL)
-        BIO_free_all(out);
-    if (b64 != NULL)
-        BIO_free(b64);
+    BIO_free(in);
+    BIO_free(b64);
     if (ret != 0)
         ERR_print_errors(bio_err);
-    if (buf != NULL)
-        BUF_MEM_free(buf);
-    if (at != NULL)
-        ASN1_TYPE_free(at);
-    if (osk != NULL)
-        sk_OPENSSL_STRING_free(osk);
-    OBJ_cleanup();
-    apps_shutdown();
-    OPENSSL_EXIT(ret);
+    BUF_MEM_free(buf);
+    OPENSSL_free(name);
+    OPENSSL_free(header);
+    if (strictpem)
+        OPENSSL_free(str);
+    ASN1_TYPE_free(at);
+    sk_OPENSSL_STRING_free(osk);
+    return (ret);
 }
 
-static int do_generate(BIO *bio, char *genstr, char *genconf, BUF_MEM *buf)
+static int do_generate(char *genstr, const char *genconf, BUF_MEM *buf)
 {
     CONF *cnf = NULL;
     int len;
-    long errline = 0;
     unsigned char *p;
     ASN1_TYPE *atyp = NULL;
 
     if (genconf) {
-        cnf = NCONF_new(NULL);
-        if (!NCONF_load(cnf, genconf, &errline))
-            goto conferr;
+        if ((cnf = app_load_config(genconf)) == NULL)
+            goto err;
         if (!genstr)
             genstr = NCONF_get_string(cnf, "default", "asn1");
         if (!genstr) {
-            BIO_printf(bio, "Can't find 'asn1' in '%s'\n", genconf);
+            BIO_printf(bio_err, "Can't find 'asn1' in '%s'\n", genconf);
             goto err;
         }
     }
@@ -413,18 +323,8 @@ static int do_generate(BIO *bio, char *genstr, char *genconf, BUF_MEM *buf)
     ASN1_TYPE_free(atyp);
     return len;
 
- conferr:
-
-    if (errline > 0)
-        BIO_printf(bio, "Error on line %ld of config file '%s'\n",
-                   errline, genconf);
-    else
-        BIO_printf(bio, "Error loading config file '%s'\n", genconf);
-
  err:
     NCONF_free(cnf);
     ASN1_TYPE_free(atyp);
-
     return -1;
-
 }

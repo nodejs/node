@@ -49,10 +49,11 @@ BN_add() adds I<a> and I<b> and places the result in I<r> (C<r=a+b>).
 I<r> may be the same B<BIGNUM> as I<a> or I<b>.
 
 BN_sub() subtracts I<b> from I<a> and places the result in I<r> (C<r=a-b>).
+I<r> may be the same B<BIGNUM> as I<a> or I<b>.
 
 BN_mul() multiplies I<a> and I<b> and places the result in I<r> (C<r=a*b>).
 I<r> may be the same B<BIGNUM> as I<a> or I<b>.
-For multiplication by powers of 2, use L<BN_lshift(3)|BN_lshift(3)>.
+For multiplication by powers of 2, use L<BN_lshift(3)>.
 
 BN_sqr() takes the square of I<a> and places the result in I<r>
 (C<r=a^2>). I<r> and I<a> may be the same B<BIGNUM>.
@@ -80,8 +81,8 @@ BN_mod_mul() multiplies I<a> by I<b> and finds the non-negative
 remainder respective to modulus I<m> (C<r=(a*b) mod m>). I<r> may be
 the same B<BIGNUM> as I<a> or I<b>. For more efficient algorithms for
 repeated computations using the same modulus, see
-L<BN_mod_mul_montgomery(3)|BN_mod_mul_montgomery(3)> and
-L<BN_mod_mul_reciprocal(3)|BN_mod_mul_reciprocal(3)>.
+L<BN_mod_mul_montgomery(3)> and
+L<BN_mod_mul_reciprocal(3)>.
 
 BN_mod_sqr() takes the square of I<a> modulo B<m> and places the
 result in I<r>.
@@ -98,7 +99,7 @@ places the result in I<r>. I<r> may be the same B<BIGNUM> as I<a> or
 I<b>.
 
 For all functions, I<ctx> is a previously allocated B<BN_CTX> used for
-temporary variables; see L<BN_CTX_new(3)|BN_CTX_new(3)>.
+temporary variables; see L<BN_CTX_new(3)>.
 
 Unless noted otherwise, the result B<BIGNUM> must be different from
 the arguments.
@@ -107,20 +108,20 @@ the arguments.
 
 For all functions, 1 is returned for success, 0 on error. The return
 value should always be checked (e.g., C<if (!BN_add(r,a,b)) goto err;>).
-The error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+The error codes can be obtained by L<ERR_get_error(3)>.
 
 =head1 SEE ALSO
 
-L<bn(3)|bn(3)>, L<ERR_get_error(3)|ERR_get_error(3)>, L<BN_CTX_new(3)|BN_CTX_new(3)>,
-L<BN_add_word(3)|BN_add_word(3)>, L<BN_set_bit(3)|BN_set_bit(3)>
+L<ERR_get_error(3)>, L<BN_CTX_new(3)>,
+L<BN_add_word(3)>, L<BN_set_bit(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-BN_add(), BN_sub(), BN_sqr(), BN_div(), BN_mod(), BN_mod_mul(),
-BN_mod_exp() and BN_gcd() are available in all versions of SSLeay and
-OpenSSL. The I<ctx> argument to BN_mul() was added in SSLeay
-0.9.1b. BN_exp() appeared in SSLeay 0.9.0.
-BN_nnmod(), BN_mod_add(), BN_mod_sub(), and BN_mod_sqr() were added in
-OpenSSL 0.9.7.
+Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

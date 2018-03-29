@@ -1,129 +1,25 @@
-/* crypto/asn1/a_sign.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
- */
-/* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
 #include <time.h>
+#include <sys/types.h>
 
-#include "cryptlib.h"
-
-#ifndef NO_SYS_TYPES_H
-# include <sys/types.h>
-#endif
+#include "internal/cryptlib.h"
 
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/objects.h>
 #include <openssl/buffer.h>
-#include "asn1_locl.h"
+#include "internal/asn1_int.h"
+#include "internal/evp_int.h"
 
 #ifndef NO_ASN1_OLD
 
@@ -131,12 +27,15 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
               ASN1_BIT_STRING *signature, char *data, EVP_PKEY *pkey,
               const EVP_MD *type)
 {
-    EVP_MD_CTX ctx;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     unsigned char *p, *buf_in = NULL, *buf_out = NULL;
     int i, inl = 0, outl = 0, outll = 0;
     X509_ALGOR *a;
 
-    EVP_MD_CTX_init(&ctx);
+    if (ctx == NULL) {
+        ASN1err(ASN1_F_ASN1_SIGN, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
     for (i = 0; i < 2; i++) {
         if (i == 0)
             a = algor1;
@@ -171,9 +70,9 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
         }
     }
     inl = i2d(data, NULL);
-    buf_in = (unsigned char *)OPENSSL_malloc((unsigned int)inl);
+    buf_in = OPENSSL_malloc((unsigned int)inl);
     outll = outl = EVP_PKEY_size(pkey);
-    buf_out = (unsigned char *)OPENSSL_malloc((unsigned int)outl);
+    buf_out = OPENSSL_malloc((unsigned int)outl);
     if ((buf_in == NULL) || (buf_out == NULL)) {
         outl = 0;
         ASN1err(ASN1_F_ASN1_SIGN, ERR_R_MALLOC_FAILURE);
@@ -182,16 +81,15 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
     p = buf_in;
 
     i2d(data, &p);
-    if (!EVP_SignInit_ex(&ctx, type, NULL)
-        || !EVP_SignUpdate(&ctx, (unsigned char *)buf_in, inl)
-        || !EVP_SignFinal(&ctx, (unsigned char *)buf_out,
+    if (!EVP_SignInit_ex(ctx, type, NULL)
+        || !EVP_SignUpdate(ctx, (unsigned char *)buf_in, inl)
+        || !EVP_SignFinal(ctx, (unsigned char *)buf_out,
                           (unsigned int *)&outl, pkey)) {
         outl = 0;
         ASN1err(ASN1_F_ASN1_SIGN, ERR_R_EVP_LIB);
         goto err;
     }
-    if (signature->data != NULL)
-        OPENSSL_free(signature->data);
+    OPENSSL_free(signature->data);
     signature->data = buf_out;
     buf_out = NULL;
     signature->length = outl;
@@ -202,15 +100,9 @@ int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
     signature->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
     signature->flags |= ASN1_STRING_FLAG_BITS_LEFT;
  err:
-    EVP_MD_CTX_cleanup(&ctx);
-    if (buf_in != NULL) {
-        OPENSSL_cleanse((char *)buf_in, (unsigned int)inl);
-        OPENSSL_free(buf_in);
-    }
-    if (buf_out != NULL) {
-        OPENSSL_cleanse((char *)buf_out, outll);
-        OPENSSL_free(buf_out);
-    }
+    EVP_MD_CTX_free(ctx);
+    OPENSSL_clear_free((char *)buf_in, (unsigned int)inl);
+    OPENSSL_clear_free((char *)buf_out, outll);
     return (outl);
 }
 
@@ -220,13 +112,22 @@ int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1,
                    X509_ALGOR *algor2, ASN1_BIT_STRING *signature, void *asn,
                    EVP_PKEY *pkey, const EVP_MD *type)
 {
-    EVP_MD_CTX ctx;
-    EVP_MD_CTX_init(&ctx);
-    if (!EVP_DigestSignInit(&ctx, NULL, type, NULL, pkey)) {
-        EVP_MD_CTX_cleanup(&ctx);
+    int rv;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+
+    if (ctx == NULL) {
+        ASN1err(ASN1_F_ASN1_ITEM_SIGN, ERR_R_MALLOC_FAILURE);
         return 0;
     }
-    return ASN1_item_sign_ctx(it, algor1, algor2, signature, asn, &ctx);
+    if (!EVP_DigestSignInit(ctx, NULL, type, NULL, pkey)) {
+        EVP_MD_CTX_free(ctx);
+        return 0;
+    }
+
+    rv = ASN1_item_sign_ctx(it, algor1, algor2, signature, asn, ctx);
+
+    EVP_MD_CTX_free(ctx);
+    return rv;
 }
 
 int ASN1_item_sign_ctx(const ASN1_ITEM *it,
@@ -241,11 +142,16 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
     int rv;
 
     type = EVP_MD_CTX_md(ctx);
-    pkey = EVP_PKEY_CTX_get0_pkey(ctx->pctx);
+    pkey = EVP_PKEY_CTX_get0_pkey(EVP_MD_CTX_pkey_ctx(ctx));
 
-    if (!type || !pkey) {
+    if (type == NULL || pkey == NULL) {
         ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ASN1_R_CONTEXT_NOT_INITIALISED);
-        return 0;
+        goto err;
+    }
+
+    if (pkey->ameth == NULL) {
+        ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
+        goto err;
     }
 
     if (pkey->ameth->item_sign) {
@@ -267,17 +173,13 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
         rv = 2;
 
     if (rv == 2) {
-        if (type->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE) {
-            if (!pkey->ameth ||
-                !OBJ_find_sigid_by_algs(&signid,
-                                        EVP_MD_nid(type),
-                                        pkey->ameth->pkey_id)) {
-                ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX,
-                        ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
-                return 0;
-            }
-        } else
-            signid = type->pkey_type;
+        if (!OBJ_find_sigid_by_algs(&signid,
+                                    EVP_MD_nid(type),
+                                    pkey->ameth->pkey_id)) {
+            ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX,
+                    ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
+            goto err;
+        }
 
         if (pkey->ameth->pkey_flags & ASN1_PKEY_SIGPARAM_NULL)
             paramtype = V_ASN1_NULL;
@@ -306,8 +208,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
         ASN1err(ASN1_F_ASN1_ITEM_SIGN_CTX, ERR_R_EVP_LIB);
         goto err;
     }
-    if (signature->data != NULL)
-        OPENSSL_free(signature->data);
+    OPENSSL_free(signature->data);
     signature->data = buf_out;
     buf_out = NULL;
     signature->length = outl;
@@ -318,14 +219,7 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
     signature->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
     signature->flags |= ASN1_STRING_FLAG_BITS_LEFT;
  err:
-    EVP_MD_CTX_cleanup(ctx);
-    if (buf_in != NULL) {
-        OPENSSL_cleanse((char *)buf_in, (unsigned int)inl);
-        OPENSSL_free(buf_in);
-    }
-    if (buf_out != NULL) {
-        OPENSSL_cleanse((char *)buf_out, outll);
-        OPENSSL_free(buf_out);
-    }
+    OPENSSL_clear_free((char *)buf_in, (unsigned int)inl);
+    OPENSSL_clear_free((char *)buf_out, outll);
     return (outl);
 }

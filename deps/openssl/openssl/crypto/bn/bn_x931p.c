@@ -1,64 +1,15 @@
-/* bn_x931p.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2005.
- */
-/* ====================================================================
- * Copyright (c) 2005 The OpenSSL Project.  All rights reserved.
+ * Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
 #include <openssl/bn.h>
+#include "bn_lcl.h"
 
 /* X9.31 routines for prime derivation */
 
@@ -70,7 +21,7 @@
 static int bn_x931_derive_pi(BIGNUM *pi, const BIGNUM *Xpi, BN_CTX *ctx,
                              BN_GENCB *cb)
 {
-    int i = 0;
+    int i = 0, is_prime;
     if (!BN_copy(pi, Xpi))
         return 0;
     if (!BN_is_odd(pi) && !BN_add_word(pi, 1))
@@ -78,8 +29,11 @@ static int bn_x931_derive_pi(BIGNUM *pi, const BIGNUM *Xpi, BN_CTX *ctx,
     for (;;) {
         i++;
         BN_GENCB_call(cb, 0, i);
-        /* NB 27 MR is specificed in X9.31 */
-        if (BN_is_prime_fasttest_ex(pi, 27, ctx, 1, cb))
+        /* NB 27 MR is specified in X9.31 */
+        is_prime = BN_is_prime_fasttest_ex(pi, 27, ctx, 1, cb);
+        if (is_prime < 0)
+            return 0;
+        if (is_prime)
             break;
         if (!BN_add_word(pi, 2))
             return 0;
@@ -119,6 +73,9 @@ int BN_X931_derive_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
     p1p2 = BN_CTX_get(ctx);
 
     pm1 = BN_CTX_get(ctx);
+
+    if (pm1 == NULL)
+        goto err;
 
     if (!bn_x931_derive_pi(p1, Xp1, ctx, cb))
         goto err;
@@ -168,14 +125,18 @@ int BN_X931_derive_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
             goto err;
         if (!BN_gcd(t, pm1, e, ctx))
             goto err;
-        if (BN_is_one(t)
+        if (BN_is_one(t)) {
             /*
              * X9.31 specifies 8 MR and 1 Lucas test or any prime test
              * offering similar or better guarantees 50 MR is considerably
              * better.
              */
-            && BN_is_prime_fasttest_ex(p, 50, ctx, 1, cb))
-            break;
+            int r = BN_is_prime_fasttest_ex(p, 50, ctx, 1, cb);
+            if (r < 0)
+                goto err;
+            if (r)
+                break;
+        }
         if (!BN_add(p, p, p1p2))
             goto err;
     }
@@ -192,8 +153,8 @@ int BN_X931_derive_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
 }
 
 /*
- * Generate pair of paramters Xp, Xq for X9.31 prime generation. Note: nbits
- * paramter is sum of number of bits in both.
+ * Generate pair of parameters Xp, Xq for X9.31 prime generation. Note: nbits
+ * parameter is sum of number of bits in both.
  */
 
 int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx)
@@ -212,7 +173,7 @@ int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx)
      * - 1. By setting the top two bits we ensure that the lower bound is
      * exceeded.
      */
-    if (!BN_rand(Xp, nbits, 1, 0))
+    if (!BN_rand(Xp, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY))
         goto err;
 
     BN_CTX_start(ctx);
@@ -221,7 +182,7 @@ int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx)
         goto err;
 
     for (i = 0; i < 1000; i++) {
-        if (!BN_rand(Xq, nbits, 1, 0))
+        if (!BN_rand(Xq, nbits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ANY))
             goto err;
         /* Check that |Xp - Xq| > 2^(nbits - 100) */
         BN_sub(t, Xp, Xq);
@@ -264,9 +225,9 @@ int BN_X931_generate_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
     if (Xp1 == NULL || Xp2 == NULL)
         goto error;
 
-    if (!BN_rand(Xp1, 101, 0, 0))
+    if (!BN_rand(Xp1, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
         goto error;
-    if (!BN_rand(Xp2, 101, 0, 0))
+    if (!BN_rand(Xp2, 101, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
         goto error;
     if (!BN_X931_derive_prime_ex(p, p1, p2, Xp, Xp1, Xp2, e, ctx, cb))
         goto error;

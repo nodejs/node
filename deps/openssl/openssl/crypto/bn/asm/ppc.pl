@@ -1,5 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 # Implemented as a Perl wrapper as we want to support several different
 # architectures with single file. We pick up the target based on the
 # file name we are asked to generate.
@@ -419,7 +425,7 @@ $data=<<EOF;
 # r9,r10, r11 are the equivalents of c1,c2, c3.
 #
 # Possible optimization of loading all 8 longs of a into registers
-# doesnt provide any speedup
+# doesn't provide any speedup
 # 
 
 	xor		r0,r0,r0		#set r0 = 0.Used in addze
@@ -1009,7 +1015,7 @@ $data=<<EOF;
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r11,r11,r8
-	addze	r12,r9			# since we didnt set r12 to zero before.
+	addze	r12,r9			# since we didn't set r12 to zero before.
 	addze	r10,r0
 					#mul_add_c(a[1],b[0],c2,c3,c1);
 	$LD	r6,`1*$BNSZ`(r4)

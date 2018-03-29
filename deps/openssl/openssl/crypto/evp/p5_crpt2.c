@@ -1,74 +1,24 @@
-/* p5_crpt2.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
+ * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include "cryptlib.h"
-#if !defined(OPENSSL_NO_HMAC) && !defined(OPENSSL_NO_SHA)
+#include "internal/cryptlib.h"
 # include <openssl/x509.h>
 # include <openssl/evp.h>
 # include <openssl/hmac.h>
 # include "evp_locl.h"
 
 /* set this to print out info about the keygen algorithm */
-/* #define DEBUG_PKCS5V2 */
+/* #define OPENSSL_DEBUG_PKCS5V2 */
 
-# ifdef DEBUG_PKCS5V2
+# ifdef OPENSSL_DEBUG_PKCS5V2
 static void h__dump(const unsigned char *p, int len);
 # endif
 
@@ -83,24 +33,34 @@ int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                       const unsigned char *salt, int saltlen, int iter,
                       const EVP_MD *digest, int keylen, unsigned char *out)
 {
+    const char *empty = "";
     unsigned char digtmp[EVP_MAX_MD_SIZE], *p, itmp[4];
     int cplen, j, k, tkeylen, mdlen;
     unsigned long i = 1;
-    HMAC_CTX hctx_tpl, hctx;
+    HMAC_CTX *hctx_tpl = NULL, *hctx = NULL;
 
     mdlen = EVP_MD_size(digest);
     if (mdlen < 0)
         return 0;
 
-    HMAC_CTX_init(&hctx_tpl);
+    hctx_tpl = HMAC_CTX_new();
+    if (hctx_tpl == NULL)
+        return 0;
     p = out;
     tkeylen = keylen;
-    if (!pass)
+    if (pass == NULL) {
+        pass = empty;
         passlen = 0;
-    else if (passlen == -1)
+    } else if (passlen == -1) {
         passlen = strlen(pass);
-    if (!HMAC_Init_ex(&hctx_tpl, pass, passlen, digest, NULL)) {
-        HMAC_CTX_cleanup(&hctx_tpl);
+    }
+    if (!HMAC_Init_ex(hctx_tpl, pass, passlen, digest, NULL)) {
+        HMAC_CTX_free(hctx_tpl);
+        return 0;
+    }
+    hctx = HMAC_CTX_new();
+    if (hctx == NULL) {
+        HMAC_CTX_free(hctx_tpl);
         return 0;
     }
     while (tkeylen) {
@@ -116,31 +76,33 @@ int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
         itmp[1] = (unsigned char)((i >> 16) & 0xff);
         itmp[2] = (unsigned char)((i >> 8) & 0xff);
         itmp[3] = (unsigned char)(i & 0xff);
-        if (!HMAC_CTX_copy(&hctx, &hctx_tpl)) {
-            HMAC_CTX_cleanup(&hctx_tpl);
+        if (!HMAC_CTX_copy(hctx, hctx_tpl)) {
+            HMAC_CTX_free(hctx);
+            HMAC_CTX_free(hctx_tpl);
             return 0;
         }
-        if (!HMAC_Update(&hctx, salt, saltlen)
-            || !HMAC_Update(&hctx, itmp, 4)
-            || !HMAC_Final(&hctx, digtmp, NULL)) {
-            HMAC_CTX_cleanup(&hctx_tpl);
-            HMAC_CTX_cleanup(&hctx);
+        if (!HMAC_Update(hctx, salt, saltlen)
+            || !HMAC_Update(hctx, itmp, 4)
+            || !HMAC_Final(hctx, digtmp, NULL)) {
+            HMAC_CTX_free(hctx);
+            HMAC_CTX_free(hctx_tpl);
             return 0;
         }
-        HMAC_CTX_cleanup(&hctx);
+        HMAC_CTX_reset(hctx);
         memcpy(p, digtmp, cplen);
         for (j = 1; j < iter; j++) {
-            if (!HMAC_CTX_copy(&hctx, &hctx_tpl)) {
-                HMAC_CTX_cleanup(&hctx_tpl);
+            if (!HMAC_CTX_copy(hctx, hctx_tpl)) {
+                HMAC_CTX_free(hctx);
+                HMAC_CTX_free(hctx_tpl);
                 return 0;
             }
-            if (!HMAC_Update(&hctx, digtmp, mdlen)
-                || !HMAC_Final(&hctx, digtmp, NULL)) {
-                HMAC_CTX_cleanup(&hctx_tpl);
-                HMAC_CTX_cleanup(&hctx);
+            if (!HMAC_Update(hctx, digtmp, mdlen)
+                || !HMAC_Final(hctx, digtmp, NULL)) {
+                HMAC_CTX_free(hctx);
+                HMAC_CTX_free(hctx_tpl);
                 return 0;
             }
-            HMAC_CTX_cleanup(&hctx);
+            HMAC_CTX_reset(hctx);
             for (k = 0; k < cplen; k++)
                 p[k] ^= digtmp[k];
         }
@@ -148,8 +110,9 @@ int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
         i++;
         p += cplen;
     }
-    HMAC_CTX_cleanup(&hctx_tpl);
-# ifdef DEBUG_PKCS5V2
+    HMAC_CTX_free(hctx);
+    HMAC_CTX_free(hctx_tpl);
+# ifdef OPENSSL_DEBUG_PKCS5V2
     fprintf(stderr, "Password:\n");
     h__dump(pass, passlen);
     fprintf(stderr, "Salt:\n");
@@ -191,29 +154,21 @@ int PKCS5_v2_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
                           ASN1_TYPE *param, const EVP_CIPHER *c,
                           const EVP_MD *md, int en_de)
 {
-    const unsigned char *pbuf;
-    int plen;
     PBE2PARAM *pbe2 = NULL;
     const EVP_CIPHER *cipher;
+    EVP_PBE_KEYGEN *kdf;
 
     int rv = 0;
 
-    if (param == NULL || param->type != V_ASN1_SEQUENCE ||
-        param->value.sequence == NULL) {
-        EVPerr(EVP_F_PKCS5_V2_PBE_KEYIVGEN, EVP_R_DECODE_ERROR);
-        goto err;
-    }
-
-    pbuf = param->value.sequence->data;
-    plen = param->value.sequence->length;
-    if (!(pbe2 = d2i_PBE2PARAM(NULL, &pbuf, plen))) {
+    pbe2 = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBE2PARAM), param);
+    if (pbe2 == NULL) {
         EVPerr(EVP_F_PKCS5_V2_PBE_KEYIVGEN, EVP_R_DECODE_ERROR);
         goto err;
     }
 
     /* See if we recognise the key derivation function */
-
-    if (OBJ_obj2nid(pbe2->keyfunc->algorithm) != NID_id_pbkdf2) {
+    if (!EVP_PBE_find(EVP_PBE_TYPE_KDF, OBJ_obj2nid(pbe2->keyfunc->algorithm),
+                        NULL, NULL, &kdf)) {
         EVPerr(EVP_F_PKCS5_V2_PBE_KEYIVGEN,
                EVP_R_UNSUPPORTED_KEY_DERIVATION_FUNCTION);
         goto err;
@@ -237,8 +192,7 @@ int PKCS5_v2_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
         EVPerr(EVP_F_PKCS5_V2_PBE_KEYIVGEN, EVP_R_CIPHER_PARAMETER_ERROR);
         goto err;
     }
-    rv = PKCS5_v2_PBKDF2_keyivgen(ctx, pass, passlen,
-                                  pbe2->keyfunc->parameter, c, md, en_de);
+    rv = kdf(ctx, pass, passlen, pbe2->keyfunc->parameter, NULL, NULL, en_de);
  err:
     PBE2PARAM_free(pbe2);
     return rv;
@@ -249,8 +203,7 @@ int PKCS5_v2_PBKDF2_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
                              const EVP_CIPHER *c, const EVP_MD *md, int en_de)
 {
     unsigned char *salt, key[EVP_MAX_KEY_LENGTH];
-    const unsigned char *pbuf;
-    int saltlen, iter, plen;
+    int saltlen, iter;
     int rv = 0;
     unsigned int keylen = 0;
     int prf_nid, hmac_md_nid;
@@ -266,15 +219,9 @@ int PKCS5_v2_PBKDF2_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
 
     /* Decode parameter */
 
-    if (!param || (param->type != V_ASN1_SEQUENCE)) {
-        EVPerr(EVP_F_PKCS5_V2_PBKDF2_KEYIVGEN, EVP_R_DECODE_ERROR);
-        goto err;
-    }
+    kdf = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBKDF2PARAM), param);
 
-    pbuf = param->value.sequence->data;
-    plen = param->value.sequence->length;
-
-    if (!(kdf = d2i_PBKDF2PARAM(NULL, &pbuf, plen))) {
+    if (kdf == NULL) {
         EVPerr(EVP_F_PKCS5_V2_PBKDF2_KEYIVGEN, EVP_R_DECODE_ERROR);
         goto err;
     }
@@ -323,7 +270,7 @@ int PKCS5_v2_PBKDF2_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass,
     return rv;
 }
 
-# ifdef DEBUG_PKCS5V2
+# ifdef OPENSSL_DEBUG_PKCS5V2
 static void h__dump(const unsigned char *p, int len)
 {
     for (; len--; p++)
@@ -331,4 +278,3 @@ static void h__dump(const unsigned char *p, int len)
     fprintf(stderr, "\n");
 }
 # endif
-#endif

@@ -1,63 +1,27 @@
-                              Fingerprints
+Fingerprints for Signing Releases
 
-OpenSSL releases are signed with PGP/GnuPG keys.  You can find the
-signatures in separate files in the same location you find the
-distributions themselves.  The normal file name is the same as the
-distribution file, with '.asc' added.  For example, the signature for
-the distribution of OpenSSL 1.0.1h, openssl-1.0.1h.tar.gz, is found in
-the file openssl-1.0.1h.tar.gz.asc.
+OpenSSL releases are signed with PGP/GnuPG keys.  This file contains
+the fingerprints of team members who are "authorized" to sign the
+next release.
+
+The signature is a detached cleartxt signature, with the same name
+as the release but with ".asc" appended.  For example, release
+1.0.1h can be found in openssl-1.0.1h.tar.gz with the signature
+in the file named openssl-1.0.1h.tar.gz.asc.
 
 The following is the list of fingerprints for the keys that are
 currently in use to sign OpenSSL distributions:
 
-pub   1024D/F709453B 2003-10-20
-      Key fingerprint = C4CA B749 C34F 7F4C C04F  DAC9 A7AF 9E78 F709 453B
-uid                  Richard Levitte <richard@levitte.org>
+pub   4096R/7DF9EE8C 2014-10-04
+      Key fingerprint = 7953 AC1F BC3D C8B3 B292  393E D5E9 E43F 7DF9 EE8C
+uid                  Richard Levitte <richard@opensslfoundation.com>
 uid                  Richard Levitte <levitte@openssl.org>
-uid                  Richard Levitte <levitte@lp.se>
-
-pub   2048R/F295C759 1998-12-13
-      Key fingerprint = D0 5D 8C 61 6E 27 E6 60  41 EC B1 B8 D5 7E E5 97
-uid                  Dr S N Henson <shenson@drh-consultancy.demon.co.uk>
+uid                  Richard Levitte <richard@openssl.com>
 
 pub   4096R/FA40E9E2 2005-03-19
       Key fingerprint = 6260 5AA4 334A F9F0 DDE5  D349 D357 7507 FA40 E9E2
-uid                  Dr Stephen Henson <shenson@opensslfoundation.com>
-uid                  Dr Stephen Henson <shenson@drh-consultancy.co.uk>
 uid                  Dr Stephen N Henson <steve@openssl.org>
-sub   4096R/8811F530 2005-03-19
-
-pub   1024R/49A563D9 1997-02-24
-      Key fingerprint = 7B 79 19 FA 71 6B 87 25  0E 77 21 E5 52 D9 83 BF
-uid                  Mark Cox <mjc@redhat.com>
-uid                  Mark Cox <mark@awe.com>
-uid                  Mark Cox <mjc@apache.org>
-
-pub   1024R/9C58A66D 1997-04-03
-      Key fingerprint = 13 D0 B8 9D 37 30 C3 ED  AC 9C 24 7D 45 8C 17 67
-uid                  jaenicke@openssl.org
-uid                  Lutz Jaenicke <Lutz.Jaenicke@aet.TU-Cottbus.DE>
-
-pub   1024D/2118CF83 1998-07-13
-      Key fingerprint = 7656 55DE 62E3 96FF 2587  EB6C 4F6D E156 2118 CF83
-uid                  Ben Laurie <ben@thebunker.net>
-uid                  Ben Laurie <ben@cryptix.org>
-uid                  Ben Laurie <ben@algroup.co.uk>
-sub   4096g/1F5143E7 1998-07-13
-
-pub   1024R/5A6A9B85 1994-03-22
-      Key fingerprint = C7 AC 7E AD 56 6A 65 EC  F6 16 66 83 7E 86 68 28
-uid                  Bodo Moeller <2005@bmoeller.de>
-uid                  Bodo Moeller <2003@bmoeller.de>
-uid                  Bodo Moeller <2004@bmoeller.de>
-uid                  Bodo Moeller <bmoeller@acm.org>
-uid                  Bodo Moeller <bodo@openssl.org>
-uid                  Bodo Moeller <bm@ulf.mali.sub.org>
-uid                  Bodo Moeller <3moeller@informatik.uni-hamburg.de>
-uid                  Bodo Moeller <Bodo_Moeller@public.uni-hamburg.de>
-uid                  Bodo Moeller <3moeller@rzdspc5.informatik.uni-hamburg.de>
 
 pub   2048R/0E604491 2013-04-30            
       Key fingerprint = 8657 ABB2 60F0 56B1 E519 0839 D9C4 D26D 0E60 4491
 uid                  Matt Caswell <frodo@baggins.org>
-

@@ -1,9 +1,18 @@
+/*
+ * Copyright 2011-2017 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <crypto.h>
+#include <openssl/crypto.h>
 
 #include "arm_arch.h"
 
@@ -46,19 +55,21 @@ unsigned long OPENSSL_rdtsc(void)
         return 0;
 }
 
+# if defined(__GNUC__) && __GNUC__>=2
+void OPENSSL_cpuid_setup(void) __attribute__ ((constructor));
+# endif
 /*
  * Use a weak reference to getauxval() so we can use it if it is available but
  * don't break the build if it is not.
  */
-# if defined(__GNUC__) && __GNUC__>=2
-void OPENSSL_cpuid_setup(void) __attribute__ ((constructor));
+# if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__)
 extern unsigned long getauxval(unsigned long type) __attribute__ ((weak));
 # else
 static unsigned long (*getauxval) (unsigned long) = NULL;
 # endif
 
 /*
- * ARM puts the the feature bits for Crypto Extensions in AT_HWCAP2, whereas
+ * ARM puts the feature bits for Crypto Extensions in AT_HWCAP2, whereas
  * AArch64 used AT_HWCAP.
  */
 # if defined(__arm__) || defined (__arm)
@@ -99,6 +110,24 @@ void OPENSSL_cpuid_setup(void)
         OPENSSL_armcap_P = (unsigned int)strtoul(e, NULL, 0);
         return;
     }
+
+# if defined(__APPLE__) && !defined(__aarch64__)
+    /*
+     * Capability probing by catching SIGILL appears to be problematic
+     * on iOS. But since Apple universe is "monocultural", it's actually
+     * possible to simply set pre-defined processor capability mask.
+     */
+    if (1) {
+        OPENSSL_armcap_P = ARMV7_NEON;
+        return;
+    }
+    /*
+     * One could do same even for __aarch64__ iOS builds. It's not done
+     * exclusively for reasons of keeping code unified across platforms.
+     * Unified code works because it never triggers SIGILL on Apple
+     * devices...
+     */
+# endif
 
     sigfillset(&all_masked);
     sigdelset(&all_masked, SIGILL);

@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-SSL_CTX_set_max_cert_list, SSL_CTX_get_max_cert_list, SSL_set_max_cert_list, SSL_get_max_cert_list, - manipulate allowed for the peer's certificate chain
+SSL_CTX_set_max_cert_list, SSL_CTX_get_max_cert_list, SSL_set_max_cert_list, SSL_get_max_cert_list - manipulate allowed size for the peer's certificate chain
 
 =head1 SYNOPSIS
 
@@ -19,7 +19,7 @@ SSL_CTX_set_max_cert_list, SSL_CTX_get_max_cert_list, SSL_set_max_cert_list, SSL
 SSL_CTX_set_max_cert_list() sets the maximum size allowed for the peer's
 certificate chain for all SSL objects created from B<ctx> to be <size> bytes.
 The SSL objects inherit the setting valid for B<ctx> at the time
-L<SSL_new(3)|SSL_new(3)> is being called.
+L<SSL_new(3)> is being called.
 
 SSL_CTX_get_max_cert_list() returns the currently set maximum size for B<ctx>.
 
@@ -41,7 +41,7 @@ chain is set.
 The default value for the maximum certificate chain size is 100kB (30kB
 on the 16bit DOS platform). This should be sufficient for usual certificate
 chains (OpenSSL's default maximum chain length is 10, see
-L<SSL_CTX_set_verify(3)|SSL_CTX_set_verify(3)>, and certificates
+L<SSL_CTX_set_verify(3)>, and certificates
 without special extensions have a typical size of 1-2kB).
 
 For special applications it can be necessary to extend the maximum certificate
@@ -67,11 +67,16 @@ set value.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<SSL_new(3)|SSL_new(3)>,
-L<SSL_CTX_set_verify(3)|SSL_CTX_set_verify(3)>
+L<ssl(3)>, L<SSL_new(3)>,
+L<SSL_CTX_set_verify(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-SSL*_set/get_max_cert_list() have been introduced in OpenSSL 0.9.7.
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut
