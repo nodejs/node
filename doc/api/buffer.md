@@ -6,8 +6,9 @@
 
 Prior to the introduction of [`TypedArray`], the JavaScript language had no
 mechanism for reading or manipulating streams of binary data. The `Buffer` class
-was introduced as part of the Node.js API to enable interaction with octet
-streams in TCP streams, file system operations, and other contexts.
+was introduced as part of the Node.js API to make it possible to interact with
+octet streams in the context of things like TCP streams and file system
+operations.
 
 With [`TypedArray`] now available, the `Buffer` class implements the
 [`Uint8Array`] API in a manner that is more optimized and suitable for Node.js.
