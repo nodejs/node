@@ -778,8 +778,8 @@ Decompress a chunk of data with [Unzip][].
 [InflateRaw]: #zlib_class_zlib_inflateraw
 [Inflate]: #zlib_class_zlib_inflate
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
+[options]: #zlib_class_options
 [Unzip]: #zlib_class_zlib_unzip
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
-[options]: #zlib_class_options
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [zlib documentation]: https://zlib.net/manual.html#Constants
