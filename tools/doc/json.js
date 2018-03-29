@@ -31,49 +31,47 @@ const marked = require('marked');
 
 // Customized heading without id attribute.
 const renderer = new marked.Renderer();
-renderer.heading = function(text, level) {
-  return `<h${level}>${text}</h${level}>\n`;
-};
-marked.setOptions({
-  renderer: renderer
-});
+renderer.heading = (text, level) => `<h${level}>${text}</h${level}>\n`;
+marked.setOptions({ renderer });
+
 
 function doJSON(input, filename, cb) {
   const root = { source: filename };
   const stack = [root];
-  var depth = 0;
-  var current = root;
-  var state = null;
-  const lexed = marked.lexer(input);
-  lexed.forEach(function(tok) {
-    const type = tok.type;
-    var text = tok.text;
+  let depth = 0;
+  let current = root;
+  let state = null;
 
-    // <!-- type = module -->
+  const exampleHeading = /^example/i;
+  const metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
+  const stabilityExpr = /^Stability: ([0-5])(?:\s*-\s*)?(.*)$/;
+
+  const lexed = marked.lexer(input);
+  lexed.forEach((tok) => {
+    const { type } = tok;
+    let { text } = tok;
+
+    // <!-- name=module -->
     // This is for cases where the markdown semantic structure is lacking.
     if (type === 'paragraph' || type === 'html') {
-      var metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
-      text = text.replace(metaExpr, function(_0, k, v) {
-        current[k.trim()] = v.trim();
+      text = text.replace(metaExpr, (_0, key, value) => {
+        current[key.trim()] = value.trim();
         return '';
       });
       text = text.trim();
       if (!text) return;
     }
 
-    if (type === 'heading' &&
-        !text.trim().match(/^example/i)) {
+    if (type === 'heading' && !exampleHeading.test(text.trim())) {
       if (tok.depth - depth > 1) {
-        return cb(new Error('Inappropriate heading level\n' +
-                            JSON.stringify(tok)));
+        return cb(
+          new Error(`Inappropriate heading level\n${JSON.stringify(tok)}`));
       }
 
       // Sometimes we have two headings with a single blob of description.
       // Treat as a clone.
-      if (current &&
-          state === 'AFTERHEADING' &&
-          depth === tok.depth) {
-        var clone = current;
+      if (state === 'AFTERHEADING' && depth === tok.depth) {
+        const clone = current;
         current = newSection(tok);
         current.clone = clone;
         // Don't keep it around on the stack.
@@ -86,15 +84,15 @@ function doJSON(input, filename, cb) {
         // root is always considered the level=0 section,
         // and the lowest heading is 1, so this should always
         // result in having a valid parent node.
-        var d = tok.depth;
-        while (d <= depth) {
+        let closingDepth = tok.depth;
+        while (closingDepth <= depth) {
           finishSection(stack.pop(), stack[stack.length - 1]);
-          d++;
+          closingDepth++;
         }
         current = newSection(tok);
       }
 
-      depth = tok.depth;
+      ({ depth } = tok);
       stack.push(current);
       state = 'AFTERHEADING';
       return;
@@ -109,9 +107,13 @@ function doJSON(input, filename, cb) {
     // A list: starting with list_start, ending with list_end,
     // maybe containing other nested lists in each item.
     //
+    // A metadata:
+    // <!-- YAML
+    // added: v1.0.0
+    // -->
+    //
     // If one of these isn't found, then anything that comes
     // between here and the next heading should be parsed as the desc.
-    var stability;
     if (state === 'AFTERHEADING') {
       if (type === 'blockquote_start') {
         state = 'AFTERHEADING_BLOCKQUOTE';
@@ -156,8 +158,8 @@ function doJSON(input, filename, cb) {
         return;
       }
 
-      if (type === 'paragraph' &&
-          (stability = text.match(/^Stability: ([0-5])(?:\s*-\s*)?(.*)$/))) {
+      let stability;
+      if (type === 'paragraph' && (stability = text.match(stabilityExpr))) {
         current.stability = parseInt(stability[1], 10);
         current.stabilityText = stability[2].trim();
         return;
@@ -167,7 +169,6 @@ function doJSON(input, filename, cb) {
     current.desc = current.desc || [];
     current.desc.links = lexed.links;
     current.desc.push(tok);
-
   });
 
   // Finish any sections left open.
@@ -181,69 +182,67 @@ function doJSON(input, filename, cb) {
 
 // Go from something like this:
 //
-// [ { type: 'list_item_start' },
-//   { type: 'text',
-//     text: '`settings` Object, Optional' },
-//   { type: 'list_start', ordered: false },
-//   { type: 'list_item_start' },
-//   { type: 'text',
-//     text: 'exec: String, file path to worker file. Default: `__filename`' },
-//   { type: 'list_item_end' },
-//   { type: 'list_item_start' },
-//   { type: 'text',
-//     text: 'args: Array, string arguments passed to worker.' },
-//   { type: 'text',
-//     text: 'Default: `process.argv.slice(2)`' },
-//   { type: 'list_item_end' },
-//   { type: 'list_item_start' },
-//   { type: 'text',
-//     text: 'silent: Boolean, whether to send output to parent\'s stdio.' },
-//   { type: 'text', text: 'Default: `false`' },
-//   { type: 'space' },
-//   { type: 'list_item_end' },
-//   { type: 'list_end' },
-//   { type: 'list_item_end' },
-//   { type: 'list_end' } ]
+// [ { type: "list_item_start" },
+//   { type: "text",
+//     text: "`options` {Object|string}" },
+//   { type: "list_start",
+//     ordered: false },
+//   { type: "list_item_start" },
+//   { type: "text",
+//     text: "`encoding` {string|null} **Default:** `'utf8'`" },
+//   { type: "list_item_end" },
+//   { type: "list_item_start" },
+//   { type: "text",
+//     text: "`mode` {integer} **Default:** `0o666`" },
+//   { type: "list_item_end" },
+//   { type: "list_item_start" },
+//   { type: "text",
+//     text: "`flag` {string} **Default:** `'a'`" },
+//   { type: "space" },
+//   { type: "list_item_end" },
+//   { type: "list_end" },
+//   { type: "list_item_end" } ]
 //
 // to something like:
 //
-// [ { name: 'settings',
-//     type: 'object',
-//     optional: true,
-//     settings:
-//      [ { name: 'exec',
-//          type: 'string',
-//          desc: 'file path to worker file',
-//          default: '__filename' },
-//        { name: 'args',
-//          type: 'array',
-//          default: 'process.argv.slice(2)',
-//          desc: 'string arguments passed to worker.' },
-//        { name: 'silent',
-//          type: 'boolean',
-//          desc: 'whether to send output to parent\'s stdio.',
-//          default: 'false' } ] } ]
+// [ { textRaw: "`options` {Object|string} ",
+//     options: [
+//       { textRaw: "`encoding` {string|null} **Default:** `'utf8'` ",
+//         name: "encoding",
+//         type: "string|null",
+//         default: "`'utf8'`" },
+//       { textRaw: "`mode` {integer} **Default:** `0o666` ",
+//         name: "mode",
+//         type: "integer",
+//         default: "`0o666`" },
+//       { textRaw: "`flag` {string} **Default:** `'a'` ",
+//         name: "flag",
+//         type: "string",
+//         default: "`'a'`" } ],
+//     name: "options",
+//     type: "Object|string",
+//     optional: true } ]
 
 function processList(section) {
-  const list = section.list;
+  const { list } = section;
   const values = [];
-  var current;
   const stack = [];
+  let current;
 
   // For now, *just* build the hierarchical list.
-  list.forEach(function(tok) {
-    const type = tok.type;
+  list.forEach((tok) => {
+    const { type } = tok;
     if (type === 'space') return;
     if (type === 'list_item_start' || type === 'loose_item_start') {
-      var n = {};
+      const item = {};
       if (!current) {
-        values.push(n);
-        current = n;
+        values.push(item);
+        current = item;
       } else {
         current.options = current.options || [];
         stack.push(current);
-        current.options.push(n);
-        current = n;
+        current.options.push(item);
+        current = item;
       }
     } else if (type === 'list_item_end') {
       if (!current) {
@@ -277,33 +276,35 @@ function processList(section) {
   switch (section.type) {
     case 'ctor':
     case 'classMethod':
-    case 'method':
+    case 'method': {
       // Each item is an argument, unless the name is 'return',
       // in which case it's the return value.
       section.signatures = section.signatures || [];
-      var sig = {};
+      const sig = {};
       section.signatures.push(sig);
-      sig.params = values.filter(function(v) {
-        if (v.name === 'return') {
-          sig.return = v;
+      sig.params = values.filter((value) => {
+        if (value.name === 'return') {
+          sig.return = value;
           return false;
         }
         return true;
       });
       parseSignature(section.textRaw, sig);
       break;
+    }
 
-    case 'property':
+    case 'property': {
       // There should be only one item, which is the value.
       // Copy the data up to the section.
-      var value = values[0] || {};
+      const value = values[0] || {};
       delete value.name;
       section.typeof = value.type || section.typeof;
       delete value.type;
-      Object.keys(value).forEach(function(k) {
-        section[k] = value[k];
+      Object.keys(value).forEach((key) => {
+        section[key] = value[key];
       });
       break;
+    }
 
     case 'event':
       // Event: each item is an argument.
@@ -313,117 +314,111 @@ function processList(section) {
     default:
       if (section.list.length > 0) {
         section.desc = section.desc || [];
-        for (var i = 0; i < section.list.length; i++) {
-          section.desc.push(section.list[i]);
-        }
+        section.desc.push(...section.list);
       }
   }
 
-  // section.listParsed = values;
   delete section.list;
 }
 
-const paramExpr = /\((.*)\);?$/;
 
-// textRaw = "someobject.someMethod(a[, b=100][, c])"
+const paramExpr = /\((.+)\);?$/;
+
+// text: "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
-  var params = text.match(paramExpr);
-  if (!params) return;
-  params = params[1];
-  params = params.split(/,/);
-  var optionalLevel = 0;
+  let [, sigParams] = text.match(paramExpr) || [];
+  if (!sigParams) return;
+  sigParams = sigParams.split(',');
+  let optionalLevel = 0;
   const optionalCharDict = { '[': 1, ' ': 0, ']': -1 };
-  params.forEach(function(p, i) {
-    p = p.trim();
-    if (!p) return;
-    var param = sig.params[i];
-    var optional = false;
-    var def;
+  sigParams.forEach((sigParam, i) => {
+    sigParam = sigParam.trim();
+    if (!sigParam) {
+      throw new Error(`Empty parameter slot: ${text}`);
+    }
+    let listParam = sig.params[i];
+    let optional = false;
+    let defaultValue;
 
     // For grouped optional params such as someMethod(a[, b[, c]]).
-    var pos;
-    for (pos = 0; pos < p.length; pos++) {
-      if (optionalCharDict[p[pos]] === undefined) { break; }
-      optionalLevel += optionalCharDict[p[pos]];
+    let pos;
+    for (pos = 0; pos < sigParam.length; pos++) {
+      const levelChange = optionalCharDict[sigParam[pos]];
+      if (levelChange === undefined) break;
+      optionalLevel += levelChange;
     }
-    p = p.substring(pos);
+    sigParam = sigParam.substring(pos);
     optional = (optionalLevel > 0);
-    for (pos = p.length - 1; pos >= 0; pos--) {
-      if (optionalCharDict[p[pos]] === undefined) { break; }
-      optionalLevel += optionalCharDict[p[pos]];
+    for (pos = sigParam.length - 1; pos >= 0; pos--) {
+      const levelChange = optionalCharDict[sigParam[pos]];
+      if (levelChange === undefined) break;
+      optionalLevel += levelChange;
     }
-    p = p.substring(0, pos + 1);
+    sigParam = sigParam.substring(0, pos + 1);
 
-    const eq = p.indexOf('=');
+    const eq = sigParam.indexOf('=');
     if (eq !== -1) {
-      def = p.substr(eq + 1);
-      p = p.substr(0, eq);
+      defaultValue = sigParam.substr(eq + 1);
+      sigParam = sigParam.substr(0, eq);
     }
-    if (!param) {
-      param = sig.params[i] = { name: p };
+    if (!listParam) {
+      listParam = sig.params[i] = { name: sigParam };
     }
     // At this point, the name should match.
-    if (p !== param.name) {
-      console.error('Warning: invalid param "%s"', p);
-      console.error(` > ${JSON.stringify(param)}`);
-      console.error(` > ${text}`);
+    if (sigParam !== listParam.name) {
+      throw new Error(
+        `Warning: invalid param "${sigParam}"\n` +
+        ` > ${JSON.stringify(listParam)}\n` +
+        ` > ${text}`
+      );
     }
-    if (optional) param.optional = true;
-    if (def !== undefined) param.default = def;
+    if (optional) listParam.optional = true;
+    if (defaultValue !== undefined) listParam.default = defaultValue.trim();
   });
 }
 
 
+const returnExpr = /^returns?\s*:?\s*/i;
+const nameExpr = /^['`"]?([^'`": {]+)['`"]?\s*:?\s*/;
+const typeExpr = /^\{([^}]+)\}\s*/;
+const leadingHyphen = /^-\s*/;
+const defaultExpr = /\s*\*\*Default:\*\*\s*([^]+)$/i;
+
 function parseListItem(item) {
   if (item.options) item.options.forEach(parseListItem);
-  if (!item.textRaw) return;
+  if (!item.textRaw) {
+    throw new Error(`Empty list item: ${JSON.stringify(item)}`);
+  }
 
   // The goal here is to find the name, type, default, and optional.
   // Anything left over is 'desc'.
-  var text = item.textRaw.trim();
-  // text = text.replace(/^(Argument|Param)s?\s*:?\s*/i, '');
+  let text = item.textRaw.trim();
 
-  text = text.replace(/^, /, '').trim();
-  const retExpr = /^returns?\s*:?\s*/i;
-  const ret = text.match(retExpr);
-  if (ret) {
+  if (returnExpr.test(text)) {
     item.name = 'return';
-    text = text.replace(retExpr, '');
+    text = text.replace(returnExpr, '');
   } else {
-    var nameExpr = /^['`"]?([^'`": {]+)['`"]?\s*:?\s*/;
-    var name = text.match(nameExpr);
+    const [, name] = text.match(nameExpr) || [];
     if (name) {
-      item.name = name[1];
+      item.name = name;
       text = text.replace(nameExpr, '');
     }
   }
 
-  text = text.trim();
-  const defaultExpr = /\s*\*\*Default:\*\*\s*([^]+)$/i;
-  const def = text.match(defaultExpr);
-  if (def) {
-    item.default = def[1].replace(/\.$/, '');
-    text = text.replace(defaultExpr, '');
-  }
-
-  text = text.trim();
-  const typeExpr = /^\{([^}]+)\}/;
-  const type = text.match(typeExpr);
+  const [, type] = text.match(typeExpr) || [];
   if (type) {
-    item.type = type[1];
+    item.type = type;
     text = text.replace(typeExpr, '');
   }
 
-  text = text.trim();
-  const optExpr = /^Optional\.|(?:, )?Optional$/;
-  const optional = text.match(optExpr);
-  if (optional) {
-    item.optional = true;
-    text = text.replace(optExpr, '');
+  text = text.replace(leadingHyphen, '');
+
+  const [, defaultValue] = text.match(defaultExpr) || [];
+  if (defaultValue) {
+    item.default = defaultValue.replace(/\.$/, '');
+    text = text.replace(defaultExpr, '');
   }
 
-  text = text.replace(/^\s*-\s*/, '');
-  text = text.trim();
   if (text) item.desc = text;
 }
 
@@ -437,7 +432,7 @@ function finishSection(section, parent) {
 
   if (!section.type) {
     section.type = 'module';
-    if (parent && (parent.type === 'misc')) {
+    if (parent.type === 'misc') {
       section.type = 'misc';
     }
     section.displayName = section.name;
@@ -458,13 +453,13 @@ function finishSection(section, parent) {
   // Merge them into the parent.
   if (section.type === 'class' && section.ctors) {
     section.signatures = section.signatures || [];
-    var sigs = section.signatures;
-    section.ctors.forEach(function(ctor) {
+    const sigs = section.signatures;
+    section.ctors.forEach((ctor) => {
       ctor.signatures = ctor.signatures || [{}];
-      ctor.signatures.forEach(function(sig) {
+      ctor.signatures.forEach((sig) => {
         sig.desc = ctor.desc;
       });
-      sigs.push.apply(sigs, ctor.signatures);
+      sigs.push(...ctor.signatures);
     });
     delete section.ctors;
   }
@@ -472,23 +467,26 @@ function finishSection(section, parent) {
   // Properties are a bit special.
   // Their "type" is the type of object, not "property".
   if (section.properties) {
-    section.properties.forEach(function(p) {
-      if (p.typeof) p.type = p.typeof;
-      else delete p.type;
-      delete p.typeof;
+    section.properties.forEach((prop) => {
+      if (prop.typeof) {
+        prop.type = prop.typeof;
+        delete prop.typeof;
+      } else {
+        delete prop.type;
+      }
     });
   }
 
   // Handle clones.
   if (section.clone) {
-    var clone = section.clone;
+    const { clone } = section;
     delete section.clone;
     delete clone.clone;
     deepCopy(section, clone);
     finishSection(clone, parent);
   }
 
-  var plur;
+  let plur;
   if (section.type.slice(-1) === 's') {
     plur = `${section.type}es`;
   } else if (section.type.slice(-1) === 'y') {
@@ -501,8 +499,8 @@ function finishSection(section, parent) {
   // collection of stuff, like the "globals" section.
   // Make the children top-level items.
   if (section.type === 'misc') {
-    Object.keys(section).forEach(function(k) {
-      switch (k) {
+    Object.keys(section).forEach((key) => {
+      switch (key) {
         case 'textRaw':
         case 'name':
         case 'type':
@@ -513,10 +511,10 @@ function finishSection(section, parent) {
           if (parent.type === 'misc') {
             return;
           }
-          if (Array.isArray(k) && parent[k]) {
-            parent[k] = parent[k].concat(section[k]);
-          } else if (!parent[k]) {
-            parent[k] = section[k];
+          if (parent[key] && Array.isArray(parent[key])) {
+            parent[key] = parent[key].concat(section[key]);
+          } else if (!parent[key]) {
+            parent[key] = section[key];
           }
       }
     });
@@ -530,28 +528,26 @@ function finishSection(section, parent) {
 // Not a general purpose deep copy.
 // But sufficient for these basic things.
 function deepCopy(src, dest) {
-  Object.keys(src).filter(function(k) {
-    return !dest.hasOwnProperty(k);
-  }).forEach(function(k) {
-    dest[k] = deepCopy_(src[k]);
-  });
+  Object.keys(src)
+    .filter((key) => !dest.hasOwnProperty(key))
+    .forEach((key) => { dest[key] = cloneValue(src[key]); });
 }
 
-function deepCopy_(src) {
+function cloneValue(src) {
   if (!src) return src;
   if (Array.isArray(src)) {
-    const c = new Array(src.length);
-    src.forEach(function(v, i) {
-      c[i] = deepCopy_(v);
+    const clone = new Array(src.length);
+    src.forEach((value, i) => {
+      clone[i] = cloneValue(value);
     });
-    return c;
+    return clone;
   }
   if (typeof src === 'object') {
-    const c = {};
-    Object.keys(src).forEach(function(k) {
-      c[k] = deepCopy_(src[k]);
+    const clone = {};
+    Object.keys(src).forEach((key) => {
+      clone[key] = cloneValue(src[key]);
     });
-    return c;
+    return clone;
   }
   return src;
 }
