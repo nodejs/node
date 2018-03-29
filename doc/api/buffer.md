@@ -273,7 +273,7 @@ function:
 * [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
 * [`Buffer.from(string[, encoding])`][`Buffer.from(string)`]
 
-## Buffers and ES6 iteration
+## Buffers and iteration
 
 `Buffer` instances can be iterated over using `for..of` syntax:
 
