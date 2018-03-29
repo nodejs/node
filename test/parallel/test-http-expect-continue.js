@@ -39,7 +39,7 @@ const handler = common.mustCall((req, res) => {
   res.end(test_res_body);
 });
 
-const server = http.createServer();
+const server = http.createServer(common.mustNotCall());
 server.on('checkContinue', common.mustCall((req, res) => {
   console.error('Server got Expect: 100-continue...');
   res.writeContinue();
