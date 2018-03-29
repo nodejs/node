@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#9.10.1">9.10.1</a><br/>
 <a href="#9.10.0">9.10.0</a><br/>
 <a href="#9.9.0">9.9.0</a><br/>
 <a href="#9.8.0">9.8.0</a><br/>
@@ -37,6 +38,23 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="9.10.1"></a>
+## 2018-03-29, Version 9.10.1 (Current), @MylesBorins
+
+### Notable Changes
+
+No additional commits.
+
+Due to incorrect staging of the upgrade to the GCC 4.9.X compiler, the latest releases for PPC little
+endian were built using GCC 4.9.X instead of GCC 4.8.X. This caused an ABI breakage on PPCLE based
+environments. This has been fixed in our infrastructure and we are doing this release to ensure that
+the hosted binaries are adhering to our platform support contract.
+
+Note that Node.js versions 10.X and later will be built with version 4.9.X or later of the GCC compiler,
+and it is possible that Node.js version 9.X may be built on the 4.9.X compiler at a later
+time as the stated [minimum compiler requirement](https://github.com/nodejs/node/blob/v8.x/BUILDING.md)
+for Node.js version 9.X is 4.9.4.
 
 <a id="9.10.0"></a>
 ## 2018-03-28, Version 9.10.0 (Current), @MylesBorins prepared by @targos
