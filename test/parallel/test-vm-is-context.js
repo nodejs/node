@@ -38,7 +38,7 @@ for (const valToTest of [
 common.expectsError(() => {
   vm.isContext();
 }, {
-  code: 'ERR_MISSING_ARGS',
+  code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError
 });
 
