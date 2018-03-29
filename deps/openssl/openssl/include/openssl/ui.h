@@ -1,78 +1,28 @@
-/* crypto/ui/ui.h */
 /*
- * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
- * 2001.
- */
-/* ====================================================================
- * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+ * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #ifndef HEADER_UI_H
 # define HEADER_UI_H
 
-# ifndef OPENSSL_NO_DEPRECATED
-#  include <openssl/crypto.h>
-# endif
-# include <openssl/safestack.h>
-# include <openssl/ossl_typ.h>
+# include <openssl/opensslconf.h>
+
+# ifndef OPENSSL_NO_UI
+
+#  if OPENSSL_API_COMPAT < 0x10100000L
+#   include <openssl/crypto.h>
+#  endif
+#  include <openssl/safestack.h>
+#  include <openssl/ossl_typ.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-/* Declared already in ossl_typ.h */
-/* typedef struct ui_st UI; */
-/* typedef struct ui_method_st UI_METHOD; */
 
 /*
  * All the following functions return -1 or NULL on error and in some cases
@@ -128,7 +78,7 @@ void UI_free(UI *ui);
    added, so the result is *not* a string.
 
    On success, the all return an index of the added information.  That index
-   is usefull when retrieving results with UI_get0_result(). */
+   is useful when retrieving results with UI_get0_result(). */
 int UI_add_input_string(UI *ui, const char *prompt, int flags,
                         char *result_buf, int minsize, int maxsize);
 int UI_dup_input_string(UI *ui, const char *prompt, int flags,
@@ -160,7 +110,7 @@ int UI_dup_error_string(UI *ui, const char *text);
  * each UI being marked with this flag, or the application might get
  * confused.
  */
-# define UI_INPUT_FLAG_DEFAULT_PWD       0x02
+#  define UI_INPUT_FLAG_DEFAULT_PWD       0x02
 
 /*-
  * The user of these routines may want to define flags of their own.  The core
@@ -172,7 +122,7 @@ int UI_dup_error_string(UI *ui, const char *text);
  *    #define MY_UI_FLAG1       (0x01 << UI_INPUT_FLAG_USER_BASE)
  *
 */
-# define UI_INPUT_FLAG_USER_BASE 16
+#  define UI_INPUT_FLAG_USER_BASE 16
 
 /*-
  * The following function helps construct a prompt.  object_desc is a
@@ -229,7 +179,7 @@ int UI_ctrl(UI *ui, int cmd, long i, void *p, void (*f) (void));
  * OpenSSL error stack before printing any info or added error messages and
  * before any prompting.
  */
-# define UI_CTRL_PRINT_ERRORS            1
+#  define UI_CTRL_PRINT_ERRORS            1
 /*
  * Check if a UI_process() is possible to do again with the same instance of
  * a user interface.  This makes UI_ctrl() return 1 if it is redoable, and 0
@@ -240,8 +190,9 @@ int UI_ctrl(UI *ui, int cmd, long i, void *p, void (*f) (void));
 /* Some methods may use extra data */
 # define UI_set_app_data(s,arg)         UI_set_ex_data(s,0,arg)
 # define UI_get_app_data(s)             UI_get_ex_data(s,0)
-int UI_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
-                        CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+
+#define UI_get_ex_new_index(l, p, newf, dupf, freef) \
+    CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_UI, l, p, newf, dupf, freef)
 int UI_set_ex_data(UI *r, int idx, void *arg);
 void *UI_get_ex_data(UI *r, int idx);
 
@@ -269,7 +220,7 @@ UI_METHOD *UI_OpenSSL(void);
                         display a dialog box after it has been built.
         a reader        This function is called to read a given prompt,
                         maybe from the tty, maybe from a field in a
-                        window.  Note that it's called wth all string
+                        window.  Note that it's called with all string
                         structures, not only the prompt ones, so it must
                         check such things itself.
         a closer        This function closes the session, maybe by closing
@@ -302,7 +253,7 @@ UI_METHOD *UI_OpenSSL(void);
  * about a string or a prompt, including test data for a verification prompt.
  */
 typedef struct ui_string_st UI_STRING;
-DECLARE_STACK_OF(UI_STRING)
+DEFINE_STACK_OF(UI_STRING)
 
 /*
  * The different types of strings that are currently supported. This is only
@@ -318,7 +269,7 @@ enum UI_string_types {
 };
 
 /* Create and manipulate methods */
-UI_METHOD *UI_create_method(char *name);
+UI_METHOD *UI_create_method(const char *name);
 void UI_destroy_method(UI_METHOD *ui_method);
 int UI_method_set_opener(UI_METHOD *method, int (*opener) (UI *ui));
 int UI_method_set_writer(UI_METHOD *method,
@@ -354,7 +305,7 @@ int UI_get_input_flags(UI_STRING *uis);
 /* Return the actual string to output (the prompt, info or error) */
 const char *UI_get0_output_string(UI_STRING *uis);
 /*
- * Return the optional action string to output (the boolean promtp
+ * Return the optional action string to output (the boolean prompt
  * instruction)
  */
 const char *UI_get0_action_string(UI_STRING *uis);
@@ -382,14 +333,19 @@ int UI_UTIL_read_pw(char *buf, char *buff, int size, const char *prompt,
  * The following lines are auto generated by the script mkerr.pl. Any changes
  * made after this point may be overwritten when the script is next run.
  */
-void ERR_load_UI_strings(void);
+
+int ERR_load_UI_strings(void);
 
 /* Error codes for the UI functions. */
 
 /* Function codes. */
+# define UI_F_CLOSE_CONSOLE                               115
+# define UI_F_ECHO_CONSOLE                                116
 # define UI_F_GENERAL_ALLOCATE_BOOLEAN                    108
 # define UI_F_GENERAL_ALLOCATE_PROMPT                     109
-# define UI_F_GENERAL_ALLOCATE_STRING                     100
+# define UI_F_NOECHO_CONSOLE                              117
+# define UI_F_OPEN_CONSOLE                                114
+# define UI_F_UI_CREATE_METHOD                            112
 # define UI_F_UI_CTRL                                     111
 # define UI_F_UI_DUP_ERROR_STRING                         101
 # define UI_F_UI_DUP_INFO_STRING                          102
@@ -398,6 +354,7 @@ void ERR_load_UI_strings(void);
 # define UI_F_UI_DUP_VERIFY_STRING                        106
 # define UI_F_UI_GET0_RESULT                              107
 # define UI_F_UI_NEW_METHOD                               104
+# define UI_F_UI_PROCESS                                  113
 # define UI_F_UI_SET_RESULT                               105
 
 /* Reason codes. */
@@ -405,11 +362,17 @@ void ERR_load_UI_strings(void);
 # define UI_R_INDEX_TOO_LARGE                             102
 # define UI_R_INDEX_TOO_SMALL                             103
 # define UI_R_NO_RESULT_BUFFER                            105
+# define UI_R_PROCESSING_ERROR                            107
 # define UI_R_RESULT_TOO_LARGE                            100
 # define UI_R_RESULT_TOO_SMALL                            101
+# define UI_R_SYSASSIGN_ERROR                             109
+# define UI_R_SYSDASSGN_ERROR                             110
+# define UI_R_SYSQIOW_ERROR                               111
 # define UI_R_UNKNOWN_CONTROL_COMMAND                     106
+# define UI_R_UNKNOWN_TTYGET_ERRNO_VALUE                  108
 
-#ifdef  __cplusplus
+#  ifdef  __cplusplus
 }
-#endif
+#  endif
+# endif
 #endif

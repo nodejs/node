@@ -1,0 +1,621 @@
+##
+## Makefile for OpenSSL
+##
+## {- join("\n## ", @autowarntext) -}
+{-
+ our $objext = $target{obj_extension} || ".obj";
+ our $depext = $target{dep_extension} || ".d";
+ our $exeext = $target{exe_extension} || ".exe";
+ our $libext = $target{lib_extension} || ".lib";
+ our $shlibext = $target{shared_extension} || ".dll";
+ our $shlibextimport = $target{shared_import_extension} || ".lib";
+ our $dsoext = $target{dso_extension} || ".dll";
+
+ our $sover = $config{shlib_major}."_".$config{shlib_minor};
+
+ my $win_installenv =
+     $target{build_scheme}->[2] eq "VC-W32" ?
+     "ProgramFiles(x86)" : "ProgramW6432";
+ my $win_commonenv =
+     $target{build_scheme}->[2] eq "VC-W32"
+     ? "CommonProgramFiles(x86)" : "CommonProgramW6432";
+ our $win_installroot =
+     defined($ENV{$win_installenv})
+     ? $win_installenv : 'ProgramFiles';
+ our $win_commonroot =
+     defined($ENV{$win_commonenv})
+     ? $win_commonenv : 'CommonProgramFiles';
+
+ # expand variables early
+ $win_installroot = $ENV{$win_installroot};
+ $win_commonroot = $ENV{$win_commonroot};
+
+ sub shlib {
+     return () if $disabled{shared};
+     my $lib = shift;
+     return $unified_info{sharednames}->{$lib} . $shlibext;
+ }
+
+ sub shlib_import {
+     return () if $disabled{shared};
+     my $lib = shift;
+     return $lib . $shlibextimport;
+ }
+
+ sub dso {
+     my $dso = shift;
+
+     return $dso . $dsoext;
+ }
+ # This makes sure things get built in the order they need
+ # to. You're welcome.
+ sub dependmagic {
+     my $target = shift;
+
+     return "$target: build_generated\n\t\$(MAKE) depend && \$(MAKE) _$target\n_$target";
+ }
+ '';
+-}
+
+PLATFORM={- $config{target} -}
+SRCDIR={- $config{sourcedir} -}
+BLDDIR={- $config{builddir} -}
+
+VERSION={- $config{version} -}
+MAJOR={- $config{major} -}
+MINOR={- $config{minor} -}
+
+SHLIB_VERSION_NUMBER={- $config{shlib_version_number} -}
+
+LIBS={- join(" ", map { $_.$libext } @{$unified_info{libraries}}) -}
+SHLIBS={- join(" ", map { shlib($_) } @{$unified_info{libraries}}) -}
+SHLIBPDBS={- join(" ", map { local $shlibext = ".pdb"; shlib($_) } @{$unified_info{libraries}}) -}
+ENGINES={- join(" ", map { dso($_) } @{$unified_info{engines}}) -}
+ENGINEPDBS={- join(" ", map { local $dsoext = ".pdb"; dso($_) } @{$unified_info{engines}}) -}
+PROGRAMS={- our @PROGRAMS = map { $_.$exeext } @{$unified_info{programs}}; join(" ", @PROGRAMS) -}
+PROGRAMPDBS={- join(" ", map { $_.".pdb" } @{$unified_info{programs}}) -}
+SCRIPTS={- join(" ", @{$unified_info{scripts}}) -}
+{- output_off() if $disabled{makedepend}; "" -}
+DEPS={- join(" ", map { (my $x = $_) =~ s|\.o$|$depext|; $x; }
+                  grep { $unified_info{sources}->{$_}->[0] =~ /\.c$/ }
+                  keys %{$unified_info{sources}}); -}
+{- output_on() if $disabled{makedepend}; "" -}
+GENERATED_MANDATORY={- join(" ", @{$unified_info{depends}->{""}} ) -}
+GENERATED={- join(" ",
+                  ( map { (my $x = $_) =~ s|\.[sS]$|\.asm|; $x }
+                    grep { defined $unified_info{generate}->{$_} }
+                    map { @{$unified_info{sources}->{$_}} }
+                    grep { /\.o$/ } keys %{$unified_info{sources}} ),
+                  ( grep { /\.h$/ } keys %{$unified_info{generate}} )) -}
+
+INSTALL_LIBS={- join(" ", map { $_.$libext } @{$unified_info{install}->{libraries}}) -}
+INSTALL_SHLIBS={- join(" ", map { shlib($_) } @{$unified_info{install}->{libraries}}) -}
+INSTALL_SHLIBPDBS={- join(" ", map { local $shlibext = ".pdb"; shlib($_) } @{$unified_info{install}->{libraries}}) -}
+INSTALL_ENGINES={- join(" ", map { dso($_) } @{$unified_info{install}->{engines}}) -}
+INSTALL_ENGINEPDBS={- join(" ", map { local $dsoext = ".pdb"; dso($_) } @{$unified_info{install}->{engines}}) -}
+INSTALL_PROGRAMS={- join(" ", map { $_.$exeext } grep { !m|^test\\| } @{$unified_info{install}->{programs}}) -}
+INSTALL_PROGRAMPDBS={- join(" ", map { $_.".pdb" } grep { !m|^test\\| } @{$unified_info{install}->{programs}}) -}
+{- output_off() if $disabled{apps}; "" -}
+BIN_SCRIPTS=$(BLDDIR)\tools\c_rehash.pl
+MISC_SCRIPTS=$(BLDDIR)\apps\CA.pl $(BLDDIR)\apps\tsget.pl
+{- output_on() if $disabled{apps}; "" -}
+
+APPS_OPENSSL={- use File::Spec::Functions;
+                catfile("apps","openssl") -}
+
+# Do not edit these manually. Use Configure with --prefix or --openssldir
+# to change this!  Short explanation in the top comment in Configure
+INSTALLTOP_dev={- # $prefix is used in the OPENSSLDIR perl snippet
+                  #
+                  use File::Spec::Functions qw(:DEFAULT splitpath);
+                  our $prefix = canonpath($config{prefix}
+                                          || "$win_installroot\\OpenSSL");
+                  our ($prefix_dev, $prefix_dir, $prefix_file) =
+                      splitpath($prefix, 1);
+                  $prefix_dev -}
+INSTALLTOP_dir={- canonpath($prefix_dir) -}
+OPENSSLDIR_dev={- #
+                  # The logic here is that if no --openssldir was given,
+                  # OPENSSLDIR will get the value from $prefix plus "/ssl".
+                  # If --openssldir was given and the value is an absolute
+                  # path, OPENSSLDIR will get its value without change.
+                  # If the value from --openssldir is a relative path,
+                  # OPENSSLDIR will get $prefix with the --openssldir
+                  # value appended as a subdirectory.
+                  #
+                  use File::Spec::Functions qw(:DEFAULT splitpath);
+                  our $openssldir =
+                      $config{openssldir} ?
+                          (file_name_is_absolute($config{openssldir}) ?
+                               canonpath($config{openssldir})
+                               : catdir($prefix, $config{openssldir}))
+                          : canonpath("$win_commonroot\\SSL");
+                  our ($openssldir_dev, $openssldir_dir, $openssldir_file) =
+                      splitpath($openssldir, 1);
+                  $openssldir_dev -}
+OPENSSLDIR_dir={- canonpath($openssldir_dir) -}
+LIBDIR={- our $libdir = $config{libdir} || "lib";
+          $libdir -}
+ENGINESDIR_dev={- use File::Spec::Functions qw(:DEFAULT splitpath);
+                  our $enginesdir = catdir($prefix,$libdir,"engines-$sover");
+                  our ($enginesdir_dev, $enginesdir_dir, $enginesdir_file) =
+                      splitpath($enginesdir, 1);
+                  $enginesdir_dev -}
+ENGINESDIR_dir={- canonpath($enginesdir_dir) -}
+!IF "$(DESTDIR)" != ""
+INSTALLTOP=$(DESTDIR)$(INSTALLTOP_dir)
+OPENSSLDIR=$(DESTDIR)$(OPENSSLDIR_dir)
+ENGINESDIR=$(DESTDIR)$(ENGINESDIR_dir)
+!ELSE
+INSTALLTOP=$(INSTALLTOP_dev)$(INSTALLTOP_dir)
+OPENSSLDIR=$(OPENSSLDIR_dev)$(OPENSSLDIR_dir)
+ENGINESDIR=$(ENGINESDIR_dev)$(ENGINESDIR_dir)
+!ENDIF
+
+CC={- $target{cc} -}
+CFLAGS={- join(" ",(map { "-D".$_} @{$target{defines}}, @{$config{defines}})) -} {- join(" ", quotify_l("-DENGINESDIR=\"$enginesdir\"", "-DOPENSSLDIR=\"$openssldir\"")) -} {- $target{cflags} -} {- $config{cflags} -}
+COUTFLAG={- $target{coutflag} || "/Fo" -}$(OSSL_EMPTY)
+RC={- $target{rc} || "rc" -}
+RCOUTFLAG={- $target{rcoutflag} || "/fo" -}$(OSSL_EMPTY)
+LD={- $target{ld} || "link" -}
+LDFLAGS={- $target{lflags} -}
+LDOUTFLAG={- $target{loutflag} || "/out:" -}$(OSSL_EMPTY)
+EX_LIBS={- $target{ex_libs} -}
+LIB_CFLAGS={- join(" ", $target{lib_cflags}, $target{shared_cflag}) || "" -}
+LIB_LDFLAGS={- $target{shared_ldflag} || "" -}
+DSO_CFLAGS={- join(" ", $target{dso_cflags}, $target{shared_cflag}) || "" -}
+DSO_LDFLAGS={- join(" ", $target{dso_lflags}, $target{shared_ldflag}) || "" -}
+BIN_CFLAGS={- $target{bin_cflags} -}
+BIN_LDFLAGS={- $target{bin_lflags} -}
+
+PERL={- $config{perl} -}
+
+AR={- $target{ar} -}
+ARFLAGS= {- $target{arflags} -}
+AROUTFLAG={- $target{aroutflag} || "/out:" -}$(OSSL_EMPTY)
+
+MT={- $target{mt} -}
+MTFLAGS= {- $target{mtflags} -}
+MTINFLAG={- $target{mtinflag} || "-manifest " -}$(OSSL_EMPTY)
+MTOUTFLAG={- $target{mtoutflag} || "-outputresource:" -}$(OSSL_EMPTY)
+
+AS={- $target{as} -}
+ASFLAGS={- $target{asflags} -}
+ASOUTFLAG={- $target{asoutflag} -}$(OSSL_EMPTY)
+PERLASM_SCHEME= {- $target{perlasm_scheme} -}
+
+PROCESSOR= {- $config{processor} -}
+
+# The main targets ###################################################
+
+{- dependmagic('all'); -}: build_libs_nodep build_engines_nodep build_programs_nodep
+{- dependmagic('build_libs'); -}: build_libs_nodep
+{- dependmagic('build_engines'); -}: build_engines_nodep
+{- dependmagic('build_programs'); -}: build_programs_nodep
+
+build_generated: $(GENERATED_MANDATORY)
+build_libs_nodep: $(LIBS) {- join(" ",map { shlib_import($_) } @{$unified_info{libraries}}) -}
+build_engines_nodep: $(ENGINES)
+build_programs_nodep: $(PROGRAMS) $(SCRIPTS)
+
+# Kept around for backward compatibility
+build_apps build_tests: build_programs
+
+# Convenience target to prebuild all generated files, not just the mandatory
+# ones
+build_all_generated: $(GENERATED_MANDATORY) $(GENERATED)
+
+test: tests
+{- dependmagic('tests'); -}: build_programs_nodep build_engines_nodep
+	@rem {- output_off() if $disabled{tests}; "" -}
+	-mkdir $(BLDDIR)\test\test-runs
+	set SRCTOP=$(SRCDIR)
+	set BLDTOP=$(BLDDIR)
+	set RESULT_D=$(BLDDIR)\test\test-runs
+	set PERL=$(PERL)
+	set OPENSSL_ENGINES=$(MAKEDIR)\engines
+	set OPENSSL_DEBUG_MEMORY=on
+	"$(PERL)" "$(SRCDIR)\test\run_tests.pl" $(TESTS)
+	@rem {- if ($disabled{tests}) { output_on(); } else { output_off(); } "" -}
+	@echo "Tests are not supported with your chosen Configure options"
+	@rem {- output_on() if !$disabled{tests}; "" -}
+
+list-tests:
+	@rem {- output_off() if $disabled{tests}; "" -}
+	@set SRCTOP=$(SRCDIR)
+	@"$(PERL)" "$(SRCDIR)\test\run_tests.pl" list
+	@rem {- if ($disabled{tests}) { output_on(); } else { output_off(); } "" -}
+	@echo "Tests are not supported with your chosen Configure options"
+	@rem {- output_on() if !$disabled{tests}; "" -}
+
+install: install_sw install_ssldirs install_docs
+
+uninstall: uninstall_docs uninstall_sw
+
+libclean:
+	"$(PERL)" -e "map { m/(.*)\.dll$$/; unlink glob """$$1.*"""; } @ARGV" $(SHLIBS)
+	"$(PERL)" -e "map { m/(.*)\.dll$$/; unlink glob """apps/$$1.*"""; } @ARGV" $(SHLIBS)
+	"$(PERL)" -e "map { m/(.*)\.dll$$/; unlink glob """test/$$1.*"""; } @ARGV" $(SHLIBS)
+	"$(PERL)" -e "map { m/(.*)\.dll$$/; unlink glob """fuzz/$$1.*"""; } @ARGV" $(SHLIBS)
+	-del /Q /F $(LIBS)
+	-del /Q ossl_static.pdb
+
+clean: libclean
+	{- join("\n\t", map { "-del /Q /F $_" } @PROGRAMS) -}
+	-del /Q /F $(ENGINES)
+	-del /Q /F $(SCRIPTS)
+	-del /Q /F $(GENERATED)
+	-del /Q /S /F *.d
+	-del /Q /S /F *.obj
+	-del /Q /S /F *.pdb
+	-del /Q /S /F *.exp
+	-del /Q /S /F engines\*.ilk
+	-del /Q /S /F engines\*.lib
+	-del /Q /S /F apps\*.lib
+	-del /Q /S /F engines\*.manifest
+	-del /Q /S /F apps\*.manifest
+	-del /Q /S /F test\*.manifest
+
+distclean: clean
+	-del /Q /F configdata.pm
+	-del /Q /F makefile
+
+depend:
+
+# Install helper targets #############################################
+
+install_sw: all install_dev install_engines install_runtime
+
+uninstall_sw: uninstall_runtime uninstall_engines uninstall_dev
+
+install_docs: install_html_docs
+
+uninstall_docs: uninstall_html_docs
+
+install_ssldirs:
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(OPENSSLDIR)\certs"
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(OPENSSLDIR)\private"
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(OPENSSLDIR)\misc"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" "$(SRCDIR)\apps\openssl.cnf" \
+                                        "$(OPENSSLDIR)\openssl.cnf.dist"
+	@IF NOT EXIST "$(OPENSSLDIR)\openssl.cnf" \
+         "$(PERL)" "$(SRCDIR)\util\copy.pl" "$(SRCDIR)\apps\openssl.cnf" \
+                                        "$(OPENSSLDIR)\openssl.cnf"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(MISC_SCRIPTS) \
+                                        "$(OPENSSLDIR)\misc"
+
+install_dev:
+	@if "$(INSTALLTOP)"=="" ( echo INSTALLTOP should not be empty & exit 1 )
+	@echo *** Installing development files
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(INSTALLTOP)\include\openssl"
+	@rem {- output_off() unless grep { $_ eq "OPENSSL_USE_APPLINK" } @{$target{defines}}; "" -}
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" "$(SRCDIR)\ms\applink.c" \
+				       "$(INSTALLTOP)\include\openssl"
+	@rem {- output_on() unless grep { $_ eq "OPENSSL_USE_APPLINK" } @{$target{defines}}; "" -}
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" "$(SRCDIR)\include\openssl\*.h" \
+				       "$(INSTALLTOP)\include\openssl"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(BLDDIR)\include\openssl\*.h \
+				       "$(INSTALLTOP)\include\openssl"
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(INSTALLTOP)\$(LIBDIR)"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_LIBS) \
+				       "$(INSTALLTOP)\$(LIBDIR)"
+	@if "$(SHLIBS)"=="" \
+	 "$(PERL)" "$(SRCDIR)\util\copy.pl" ossl_static.pdb \
+                                       "$(INSTALLTOP)\$(LIBDIR)"
+
+uninstall_dev:
+
+install_engines:
+	@if "$(INSTALLTOP)"=="" ( echo INSTALLTOP should not be empty & exit 1 )
+	@echo *** Installing engines
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(ENGINESDIR)"
+	@if not "$(ENGINES)"=="" \
+	 "$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_ENGINES) "$(ENGINESDIR)"
+	@if not "$(ENGINES)"=="" \
+	 "$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_ENGINEPDBS) "$(ENGINESDIR)"
+
+uninstall_engines:
+
+install_runtime:
+	@if "$(INSTALLTOP)"=="" ( echo INSTALLTOP should not be empty & exit 1 )
+	@echo *** Installing runtime files
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(INSTALLTOP)\bin"
+	@if not "$(SHLIBS)"=="" \
+	 "$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_SHLIBS) "$(INSTALLTOP)\bin"
+	@if not "$(SHLIBS)"=="" \
+	 "$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_SHLIBPDBS) \
+                                        "$(INSTALLTOP)\bin"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_PROGRAMS) \
+                                        "$(INSTALLTOP)\bin"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_PROGRAMPDBS) \
+                                        "$(INSTALLTOP)\bin"
+	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(BIN_SCRIPTS) \
+                                        "$(INSTALLTOP)\bin"
+
+uninstall_runtime:
+
+install_html_docs:
+        "$(PERL)" "$(SRCDIR)\util\process_docs.pl" \
+                "--destdir=$(INSTALLTOP)\html" --type=html
+
+uninstall_html_docs:
+
+# Building targets ###################################################
+
+configdata.pm: "$(SRCDIR)\Configure" {- join(" ", map { '"'.$_.'"' } @{$config{build_file_templates}}, @{$config{build_infos}}, @{$config{conf_files}}) -}
+	@echo "Detected changed: $?"
+	@echo "Reconfiguring..."
+	"$(PERL)" "$(SRCDIR)\Configure" reconf
+	@echo "**************************************************"
+	@echo "***                                            ***"
+	@echo "***   Please run the same make command again   ***"
+	@echo "***                                            ***"
+	@echo "**************************************************"
+	@exit 1
+
+{-
+ use File::Basename;
+ use File::Spec::Functions qw/:DEFAULT abs2rel rel2abs/;
+
+ # Helper function to figure out dependencies on libraries
+ # It takes a list of library names and outputs a list of dependencies
+ sub compute_lib_depends {
+     if ($disabled{shared}) {
+	 return map { $_.$libext } @_;
+     }
+     return map { shlib_import($_) } @_;
+ }
+
+  sub generatesrc {
+      my %args = @_;
+      (my $target = $args{src}) =~ s/\.[sS]$/.asm/;
+      my ($gen0, @gens) = @{$args{generator}};
+      my $generator = '"'.$gen0.'"'.join('', map { " $_" } @gens);
+      my $generator_incs = join("", map { " -I \"$_\"" } @{$args{generator_incs}});
+      my $incs = join("", map { " /I \"$_\"" } @{$args{incs}});
+      my $deps = @{$args{deps}} ?
+          '"'.join('" "', @{$args{generator_deps}}, @{$args{deps}}).'"' : '';
+
+      if ($target !~ /\.asm$/) {
+          if ($args{generator}->[0] =~ m|^.*\.in$|) {
+              my $dofile = abs2rel(rel2abs(catfile($config{sourcedir},
+                                                   "util", "dofile.pl")),
+                                   rel2abs($config{builddir}));
+              return <<"EOF";
+$target: "$args{generator}->[0]" $deps
+	"\$(PERL)" "-I\$(BLDDIR)" -Mconfigdata "$dofile" \\
+	    "-o$target{build_file}" $generator > \$@
+EOF
+	  } else {
+              return <<"EOF";
+$target: "$args{generator}->[0]" $deps
+	"\$(PERL)"$generator_incs $generator > \$@
+EOF
+	  }
+      } else {
+          if ($args{generator}->[0] =~ /\.pl$/) {
+              $generator = '"$(PERL)"'.$generator_incs.' '.$generator;
+          } elsif ($args{generator}->[0] =~ /\.S$/) {
+              $generator = undef;
+          } else {
+              die "Generator type for $src unknown: $generator\n";
+          }
+
+          if (defined($generator)) {
+              # If the target is named foo.S in build.info, we want to
+              # end up generating foo.s in two steps.
+              if ($args{src} =~ /\.S$/) {
+                   return <<"EOF";
+$target: "$args{generator}->[0]" $deps
+	set ASM=\$(AS)
+	$generator \$@.S
+	\$(CC) $incs \$(CFLAGS) /EP /C \$@.S > \$@.i && move /Y \$@.i \$@
+        del /Q \$@.S
+EOF
+              }
+              # Otherwise....
+              return <<"EOF";
+$target: "$args{generator}->[0]" $deps
+	set ASM=\$(AS)
+	$generator \$@
+EOF
+          }
+          return <<"EOF";
+$target: "$args{generator}->[0]" $deps
+	\$(CC) $incs \$(CFLAGS) /EP /C "$args{generator}->[0]" > \$@.i && move /Y \$@.i \$@
+EOF
+      }
+  }
+
+ sub src2obj {
+     my %args = @_;
+     my $obj = $args{obj};
+     my @srcs = map { (my $x = $_) =~ s/\.s$/.asm/; $x
+                    } ( @{$args{srcs}} );
+     my $srcs = '"'.join('" "',  @srcs).'"';
+     my $deps = '"'.join('" "', @srcs, @{$args{deps}}).'"';
+     my $incs = join("", map { ' /I "'.$_.'"' } @{$args{incs}});
+     unless ($disabled{zlib}) {
+         if ($withargs{zlib_include}) {
+             $incs .= ' /I "'.$withargs{zlib_include}.'"';
+         }
+     }
+     my $ecflags = { lib => '$(LIB_CFLAGS)',
+		     dso => '$(DSO_CFLAGS)',
+		     bin => '$(BIN_CFLAGS)' } -> {$args{intent}};
+     my $makedepprog = $config{makedepprog};
+     if ($srcs[0] =~ /\.asm$/) {
+         return <<"EOF";
+$obj$objext: $deps
+	\$(AS) \$(ASFLAGS) \$(ASOUTFLAG)\$\@ $srcs
+EOF
+     }
+     return <<"EOF"	if (!$disabled{makedepend});
+$obj$depext: $deps
+	\$(CC) \$(CFLAGS) $ecflags$inc /Zs /showIncludes $srcs 2>&1 | \\
+	    "\$(PERL)" -n << > $obj$depext
+chomp;
+s/^Note: including file: *//;
+\$\$collect{\$\$_} = 1;
+END { print '$obj$objext: ',join(" ", sort keys \%collect),"\\n" }
+<<
+$obj$objext: $obj$depext
+	\$(CC) $incs \$(CFLAGS) $ecflags -c \$(COUTFLAG)\$\@ $srcs
+EOF
+    return <<"EOF"	if ($disabled{makedepend});
+$obj$objext: $deps
+	\$(CC) $incs \$(CFLAGS) $ecflags -c \$(COUTFLAG)\$\@ $srcs
+EOF
+ }
+
+ # On Unix, we build shlibs from static libs, so we're ignoring the
+ # object file array.  We *know* this routine is only called when we've
+ # configure 'shared'.
+ sub libobj2shlib {
+     my %args = @_;
+     my $lib = $args{lib};
+     my $shlib = $args{shlib};
+     (my $mkdef_key = $lib) =~ s/^lib//i;
+     my $objs = join("\n", map { $_.$objext } @{$args{objs}});
+     my $linklibs = join("",
+			 map { "\n$_" } compute_lib_depends(@{$args{deps}}));
+     my $deps = join(" ",
+		     (map { $_.$objext } @{$args{objs}}),
+		     compute_lib_depends(@{$args{deps}}));
+     my $ordinalsfile = defined($args{ordinals}) ? $args{ordinals}->[1] : "";
+     my $mkdef_pl = abs2rel(rel2abs(catfile($config{sourcedir},
+					    "util", "mkdef.pl")),
+			    rel2abs($config{builddir}));
+     my $mkrc_pl = abs2rel(rel2abs(catfile($config{sourcedir},
+					   "util", "mkrc.pl")),
+			   rel2abs($config{builddir}));
+     my $target = shlib_import($lib);
+     return <<"EOF"
+$target: $deps "$ordinalsfile" "$mkdef_pl"
+	"\$(PERL)" "$mkdef_pl" "$mkdef_key" 32 > $shlib.def
+	"\$(PERL)" -i.tmp -pe "s|^LIBRARY\\s+${mkdef_key}32|LIBRARY $shlib|;" $shlib.def
+	DEL $shlib.def.tmp
+	"\$(PERL)" "$mkrc_pl" $shlib$shlibext > $shlib.rc
+	\$(RC) \$(RCOUTFLAG)$shlib.res $shlib.rc
+	IF EXIST $shlib$shlibext.manifest DEL /F /Q $shlib$shlibext.manifest
+	\$(LD) \$(LDFLAGS) \$(LIB_LDFLAGS) \\
+		/implib:\$@ \$(LDOUTFLAG)$shlib$shlibext /def:$shlib.def @<< || (DEL /Q \$(\@B).* $shlib.* && EXIT 1)
+$objs $shlib.res$linklibs \$(EX_LIBS)
+<<
+	IF EXIST $shlib$shlibext.manifest \\
+	   \$(MT) \$(MTFLAGS) \$(MTINFLAG)$shlib$shlibext.manifest \$(MTOUTFLAG)$shlib$shlibext
+	IF EXIST apps\\$shlib$shlibext DEL /Q /F apps\\$shlib$shlibext
+	IF EXIST test\\$shlib$shlibext DEL /Q /F test\\$shlib$shlibext
+	IF EXIST fuzz\\$shlib$shlibext DEL /Q /F fuzz\\$shlib$shlibext
+	COPY $shlib$shlibext apps
+	COPY $shlib$shlibext test
+	COPY $shlib$shlibext fuzz
+EOF
+ }
+ sub obj2dso {
+     my %args = @_;
+     my $dso = $args{lib};
+     my $dso_n = basename($dso);
+     my $objs = join("\n", map { $_.$objext } @{$args{objs}});
+     my $linklibs = join("",
+			 map { "\n$_" } compute_lib_depends(@{$args{deps}}));
+     my $deps = join(" ",
+		     (map { $_.$objext } @{$args{objs}}),
+		     compute_lib_depends(@{$args{deps}}));
+     return <<"EOF";
+$dso$dsoext: $deps
+	IF EXIST $dso$dsoext.manifest DEL /F /Q $dso$dsoext.manifest
+	\$(LD) \$(LDFLAGS) \$(DSO_LDFLAGS) \$(LDOUTFLAG)$dso$dsoext /def:<< @<<
+LIBRARY         $dso_n
+EXPORTS
+    bind_engine		@1
+    v_check		@2
+<<
+$objs$linklibs \$(EX_LIBS)
+<<
+	IF EXIST $dso$dsoext.manifest \\
+	   \$(MT) \$(MTFLAGS) \$(MTINFLAG)$dso$dsoext.manifest \$(MTOUTFLAG)$dso$dsoext
+EOF
+ }
+ sub obj2lib {
+     # Because static libs and import libs are both named the same in native
+     # Windows, we can't have both.  We skip the static lib in that case,
+     # as the shared libs are what we use anyway.
+     return "" unless $disabled{"shared"};
+
+     my %args = @_;
+     my $lib = $args{lib};
+     my $objs = join("\n", map { $_.$objext } @{$args{objs}});
+     my $deps = join(" ", map { $_.$objext } @{$args{objs}});
+     return <<"EOF";
+$lib$libext: $deps
+	\$(AR) \$(ARFLAGS) \$(AROUTFLAG)$lib$libext @<<
+\$**
+<<
+EOF
+ }
+ sub obj2bin {
+     my %args = @_;
+     my $bin = $args{bin};
+     my $objs = join("\n", map { $_.$objext } @{$args{objs}});
+     my $linklibs = join("",
+			 map { "\n$_" } compute_lib_depends(@{$args{deps}}));
+     my $deps = join(" ",
+		     (map { $_.$objext } @{$args{objs}}),
+		     compute_lib_depends(@{$args{deps}}));
+     return <<"EOF";
+$bin$exeext: $deps
+	IF EXIST $bin$exeext.manifest DEL /F /Q $bin$exeext.manifest
+	\$(LD) \$(LDFLAGS) \$(BIN_LDFLAGS) \$(LDOUTFLAG)$bin$exeext @<<
+$objs setargv.obj$linklibs \$(EX_LIBS)
+<<
+	IF EXIST $bin$exeext.manifest \\
+	   \$(MT) \$(MTFLAGS) \$(MTINFLAG)$bin$exeext.manifest \$(MTOUTFLAG)$bin$exeext
+EOF
+  }
+  sub in2script {
+      my %args = @_;
+      my $script = $args{script};
+      my $sources = '"'.join('" "', @{$args{sources}}).'"';
+      my $dofile = abs2rel(rel2abs(catfile($config{sourcedir},
+                                           "util", "dofile.pl")),
+                           rel2abs($config{builddir}));
+      return <<"EOF";
+$script: $sources
+	"\$(PERL)" "-I\$(BLDDIR)" -Mconfigdata "$dofile" \\
+	    "-o$target{build_file}" $sources > "$script"
+EOF
+  }
+  sub generatedir {
+      my %args = @_;
+      my $dir = $args{dir};
+      my @deps = map { s|\.o$|$objext|; $_ } @{$args{deps}};
+      my @actions = ();
+      my %extinfo = ( dso => $dsoext,
+                      lib => $libext,
+                      bin => $exeext );
+
+      foreach my $type (("dso", "lib", "bin", "script")) {
+          next unless defined($unified_info{dirinfo}->{$dir}->{products}->{$type});
+          # For lib object files, we could update the library.  However,
+          # LIB on Windows doesn't work that way, so we won't create any
+          # actions for it, and the dependencies are already taken care of.
+          if ($type ne "lib") {
+              foreach my $prod (@{$unified_info{dirinfo}->{$dir}->{products}->{$type}}) {
+                  if (dirname($prod) eq $dir) {
+                      push @deps, $prod.$extinfo{$type};
+                  } else {
+                      push @actions, "\t@rem No support to produce $type ".join(", ", @{$unified_info{dirinfo}->{$dir}->{products}->{$type}});
+                  }
+              }
+          }
+      }
+
+      my $deps = join(" ", @deps);
+      my $actions = join("\n", "", @actions);
+      return <<"EOF";
+$args{dir} $args{dir}\\ : $deps$actions
+EOF
+  }
+  ""    # Important!  This becomes part of the template result.
+-}

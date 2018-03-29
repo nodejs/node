@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 $flavour = shift;
 
@@ -23,6 +30,14 @@ $code=<<___;
 .machine	"any"
 .text
 
+.globl	.OPENSSL_fpu_probe
+.align	4
+.OPENSSL_fpu_probe:
+	fmr	f0,f0
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,0,0
+.size	.OPENSSL_fpu_probe,.-.OPENSSL_fpu_probe
 .globl	.OPENSSL_ppc64_probe
 .align	4
 .OPENSSL_ppc64_probe:
@@ -51,6 +66,16 @@ $code=<<___;
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
 .size	.OPENSSL_crypto207_probe,.-.OPENSSL_crypto207_probe
+
+.globl	.OPENSSL_madd300_probe
+.align	4
+.OPENSSL_madd300_probe:
+	xor	r0,r0,r0
+	maddld	r3,r0,r0,r0
+	maddhdu	r3,r0,r0,r0
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,0,0
 
 .globl	.OPENSSL_wipe_cpu
 .align	4
@@ -102,8 +127,19 @@ Ladd:	lwarx	r5,0,r3
 .globl	.OPENSSL_rdtsc
 .align	4
 .OPENSSL_rdtsc:
+___
+$code.=<<___	if ($flavour =~ /64/);
+	mftb	r3
+___
+$code.=<<___	if ($flavour !~ /64/);
+Loop_rdtsc:
+	mftbu	r5
 	mftb	r3
 	mftbu	r4
+	cmplw	r4,r5
+	bne	Loop_rdtsc
+___
+$code.=<<___;
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
@@ -141,7 +177,124 @@ Laligned:
 	.byte	0,12,0x14,0,0,0,2,0
 	.long	0
 .size	.OPENSSL_cleanse,.-.OPENSSL_cleanse
+
+globl	.CRYPTO_memcmp
+.align	4
+.CRYPTO_memcmp:
+	$CMPLI	r5,0
+	li	r0,0
+	beq	Lno_data
+	mtctr	r5
+Loop_cmp:
+	lbz	r6,0(r3)
+	addi	r3,r3,1
+	lbz	r7,0(r4)
+	addi	r4,r4,1
+	xor	r6,r6,r7
+	or	r0,r0,r6
+	bdnz	Loop_cmp
+
+Lno_data:
+	li	r3,0
+	sub	r3,r3,r0
+	extrwi	r3,r3,1,0
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,3,0
+	.long	0
+.size	.CRYPTO_memcmp,.-.CRYPTO_memcmp
 ___
+{
+my ($out,$cnt,$max)=("r3","r4","r5");
+my ($tick,$lasttick)=("r6","r7");
+my ($diff,$lastdiff)=("r8","r9");
+
+$code.=<<___;
+.globl	.OPENSSL_instrument_bus
+.align	4
+.OPENSSL_instrument_bus:
+	mtctr	$cnt
+
+	mftb	$lasttick		# collect 1st tick
+	li	$diff,0
+
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+
+Loop:	mftb	$tick
+	sub	$diff,$tick,$lasttick
+	mr	$lasttick,$tick
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+	addi	$out,$out,4		# ++$out
+	bdnz	Loop
+
+	mr	r3,$cnt
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,2,0
+	.long	0
+.size	.OPENSSL_instrument_bus,.-.OPENSSL_instrument_bus
+
+.globl	.OPENSSL_instrument_bus2
+.align	4
+.OPENSSL_instrument_bus2:
+	mr	r0,$cnt
+	slwi	$cnt,$cnt,2
+
+	mftb	$lasttick		# collect 1st tick
+	li	$diff,0
+
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+
+	mftb	$tick			# collect 1st diff
+	sub	$diff,$tick,$lasttick
+	mr	$lasttick,$tick
+	mr	$lastdiff,$diff
+Loop2:
+	dcbf	0,$out			# flush cache line
+	lwarx	$tick,0,$out		# load and lock
+	add	$tick,$tick,$diff
+	stwcx.	$tick,0,$out
+	stwx	$tick,0,$out
+
+	addic.	$max,$max,-1
+	beq	Ldone2
+
+	mftb	$tick
+	sub	$diff,$tick,$lasttick
+	mr	$lasttick,$tick
+	cmplw	7,$diff,$lastdiff
+	mr	$lastdiff,$diff
+
+	mfcr	$tick			# pull cr
+	not	$tick,$tick		# flip bits
+	rlwinm	$tick,$tick,1,29,29	# isolate flipped eq bit and scale
+
+	sub.	$cnt,$cnt,$tick		# conditional --$cnt
+	add	$out,$out,$tick		# conditional ++$out
+	bne	Loop2
+
+Ldone2:
+	srwi	$cnt,$cnt,2
+	sub	r3,r0,$cnt
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,3,0
+	.long	0
+.size	.OPENSSL_instrument_bus2,.-.OPENSSL_instrument_bus2
+___
+}
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
 print $code;

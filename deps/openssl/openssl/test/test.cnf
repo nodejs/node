@@ -56,7 +56,7 @@ emailAddress		= optional
 
 ####################################################################
 [ req ]
-default_bits		= 1024
+default_bits		= 2048
 default_keyfile 	= testkey.pem
 distinguished_name	= req_distinguished_name
 encrypt_rsa_key		= no

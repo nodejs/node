@@ -27,12 +27,13 @@ ERR_set_mark() returns 0 if the error stack is empty, otherwise 1.
 ERR_pop_to_mark() returns 0 if there was no mark in the error stack, which
 implies that the stack became empty, otherwise 1.
 
-=head1 SEE ALSO
+=head1 COPYRIGHT
 
-L<err(3)|err(3)>
+Copyright 2003-2017 The OpenSSL Project Authors. All Rights Reserved.
 
-=head1 HISTORY
-
-ERR_set_mark() and ERR_pop_to_mark() were added in OpenSSL 0.9.8.
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

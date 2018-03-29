@@ -1,5 +1,13 @@
 #!/bin/sh
 #
+# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+#
 # openssl-format-source 
 # - format source tree according to OpenSSL coding style using indent
 #
@@ -21,6 +29,9 @@ HERE="`dirname $0`"
 
 set -e
 
+INDENT=indent
+uname -s | grep BSD > /dev/null && type gindent > /dev/null 2>&1 && INDENT=gindent
+
 if [ $# -eq 0 ]; then
   echo "usage: $0 [-v] [-n] [-c] [sourcefile|sourcedir] ..." >&2
   exit 1
@@ -30,6 +41,7 @@ VERBOSE=false
 DONT=false
 STOPARGS=false
 COMMENTS=false
+CHANGED=false
 DEBUG=""
 
 # for this exercise, we want to force the openssl style, so we roll
@@ -82,10 +94,6 @@ do
       fi
     fi
 
-    if [ "$VERBOSE" = "true" ]; then
-      echo "$j"
-    fi
-
     if [ "$DONT" = "false" ]; then
       tmp=$(mktemp /tmp/indent.XXXXXX)
       trap 'rm -f "$tmp"' HUP INT TERM EXIT
@@ -114,20 +122,20 @@ do
 	      -e 's/(STACK_OF|LHASH_OF)\(([^ \t,\)]+)\)( |\n)/$1_$2_$3/g;' \
 	      | \
 	    perl -np \
-	      -e 's/^([ \t]*)\/\*([ \t]+.*)\*\/[ \t]*$/if (length("$1$2")<75) {$c="-"}else{$c=""}; "$1\/*$c$2*\/"/e;' \
+	      -e 's/^([ \t]*)\/\*([ \t]+.*)\*\/[ \t]*$/my ($x1,$x2) = ($1, $2); if (length("$x1$x2")<75 && $x2 !~ m#^\s*\*INDENT-(ON|OFF)\*\s*$#) {$c="-"}else{$c=""}; "$x1\/*$c$x2*\/"/e;' \
 	      -e 's/^\/\* ((Copyright|=|----).*)$/\/*-$1/;' \
-	      -e 's/^((DECLARE|IMPLEMENT)_(EXTERN_ASN1|ASN1|ADB|STACK_OF|PKCS12_STACK_OF).*)$/\/**INDENT-OFF**\/\n$1\n\/**INDENT-ON**\//;' \
+	      -e 's/^((DECLARE|IMPLEMENT)_.*)$/\/**INDENT-OFF**\/\n$1\n\/**INDENT-ON**\//;' \
 	      -e 's/^([ \t]*(make_dh|make_dh_bn|make_rfc5114_td)\(.*\)[ \t,]*)$/\/**INDENT-OFF**\/\n$1\n\/**INDENT-ON**\//;' \
 	      -e 's/^(ASN1_ADB_TEMPLATE\(.*)$/\/**INDENT-OFF**\/\n$1\n\/**INDENT-ON**\//;' \
 	      -e 's/^((ASN1|ADB)_.*_(end|END)\(.*[\){=,;]+[ \t]*)$/$1\n\/**INDENT-ON**\//;' \
 	      -e '/ASN1_(ITEM_ref|ITEM_ptr|ITEM_rptr|PCTX)/ || s/^((ASN1|ADB)_[^\*]*[){=,]+[ \t]*)$/\/**INDENT-OFF**\/\n$1/;' \
 	      -e 's/^(} (ASN1|ADB)_[^\*]*[\){=,;]+)$/$1\n\/**INDENT-ON**\//;' \
 	      | \
-	      $DEBUG indent $INDENT_ARGS | \
+	      $DEBUG $INDENT $INDENT_ARGS | \
 	      perl -np \
 		-e 's/^([ \t]*)\/\*-(.*)\*\/[ \t]*$/$1\/*$2*\//;' \
 		-e 's/^\/\*-((Copyright|=|----).*)$/\/* $1/;' \
-	      | indent | \
+	      | $INDENT | \
 	      perl -0 -np \
 		-e 's/\/\*\*INDENT-(ON|OFF)\*\*\/\n//g;' \
 	      | perl -np \
@@ -136,9 +144,20 @@ do
 	      | perl "$HERE"/su-filter.pl \
 	      > "$tmp"
 	  else
-	    expand "$j" | indent $INDENT_ARGS > "$tmp"
+	    expand "$j" | $INDENT $INDENT_ARGS > "$tmp"
 	  fi;
-	  mv "$tmp" "$j"
+	  if cmp -s "$tmp" "$j"; then
+	    if [ "$VERBOSE" = "true" ]; then
+	      echo "$j unchanged"
+	    fi
+	    rm "$tmp"
+	  else
+	    if [ "$VERBOSE" = "true" ]; then
+	      echo "$j changed"
+	    fi
+	    CHANGED=true
+	    mv "$tmp" "$j"
+	  fi
 	  ;;
       esac
     fi
@@ -146,3 +165,11 @@ do
 done
 
 
+if [ "$VERBOSE" = "true" ]; then
+  echo
+  if [ "$CHANGED" = "true" ]; then
+    echo "SOURCE WAS MODIFIED"
+  else
+    echo "SOURCE WAS NOT MODIFIED"
+  fi
+fi

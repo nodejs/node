@@ -1,5 +1,11 @@
-#!/usr/local/bin/perl
+#! /usr/bin/env perl
+# Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 # This is just a quick script to scan for cases where the 'error'
 # function name in a XXXerr() macro is wrong.
 # 
@@ -21,7 +27,7 @@ foreach $file (@ARGV)
 	$func="";
 	while (<IN>)
 		{
-		if (!/;$/ && /^\**([a-zA-Z].*[\s*])?([A-Za-z_0-9]+)\(.*([),]|$)/)
+		if (!/;$/ && /^\**([a-zA-Z_].*[\s*])?([A-Za-z_0-9]+)\(.*([),]|$)/)
 			{
 			/^([^()]*(\([^()]*\)[^()]*)*)\(/;
 			$1 =~ /([A-Za-z_0-9]*)$/;

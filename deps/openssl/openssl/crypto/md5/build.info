@@ -1,0 +1,22 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        md5_dgst.c md5_one.c {- $target{md5_asm_src} -}
+
+GENERATE[md5-586.s]=asm/md5-586.pl $(PERLASM_SCHEME) $(CFLAGS) $(LIB_CFLAGS)
+
+GENERATE[md5-x86_64.s]=asm/md5-x86_64.pl $(PERLASM_SCHEME)
+
+GENERATE[md5-sparcv9.S]=asm/md5-sparcv9.pl $(PERLASM_SCHEME)
+INCLUDE[md5-sparcv9.o]=..
+
+BEGINRAW[makefile(windows)]
+{- $builddir -}\md5-ia64.asm: {- $sourcedir -}\asm\md5-ia64.S
+	$(CC) $(CFLAGS) -EP {- $sourcedir -}\asm\md5-ia64.S > $@.i && move /Y $@.i $@
+ENDRAW[makefile(windows)]
+
+BEGINRAW[Makefile]
+{- $builddir -}/md5-ia64.s: {- $sourcedir -}/asm/md5-ia64.S
+	$(CC) $(CFLAGS) -E {- $sourcedir -}/asm/md5-ia64.S | \
+	$(PERL) -ne 's/;\s+/;\n/g; print;' > $@
+
+ENDRAW[Makefile]

@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -92,7 +99,7 @@ if ($flavour =~ /3[12]/) {
 	$g="g";
 }
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
+while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 $softonly=0;	# allow hardware support
@@ -779,10 +786,10 @@ ___
 $code.=<<___;
 # void AES_set_encrypt_key(const unsigned char *in, int bits,
 # 		 AES_KEY *key) {
-.globl	private_AES_set_encrypt_key
-.type	private_AES_set_encrypt_key,\@function
+.globl	AES_set_encrypt_key
+.type	AES_set_encrypt_key,\@function
 .align	16
-private_AES_set_encrypt_key:
+AES_set_encrypt_key:
 _s390x_AES_set_encrypt_key:
 	lghi	$t0,0
 	cl${g}r	$inp,$t0
@@ -806,7 +813,7 @@ _s390x_AES_set_encrypt_key:
 .Lproceed:
 ___
 $code.=<<___ if (!$softonly);
-	# convert bits to km code, [128,192,256]->[18,19,20]
+	# convert bits to km(c) code, [128,192,256]->[18,19,20]
 	lhi	%r5,-128
 	lhi	%r0,18
 	ar	%r5,$bits
@@ -814,13 +821,10 @@ $code.=<<___ if (!$softonly);
 	ar	%r5,%r0
 
 	larl	%r1,OPENSSL_s390xcap_P
-	lg	%r0,0(%r1)
-	tmhl	%r0,0x4000	# check for message-security assist
-	jz	.Lekey_internal
-
 	llihh	%r0,0x8000
 	srlg	%r0,%r0,0(%r5)
-	ng	%r0,48(%r1)	# check kmc capability vector
+	ng	%r0,32(%r1)	# check availability of both km...
+	ng	%r0,48(%r1)	# ...and kmc support for given key length
 	jz	.Lekey_internal
 
 	lmg	%r0,%r1,0($inp)	# just copy 128 bits...
@@ -835,7 +839,7 @@ $code.=<<___ if (!$softonly);
 	stg	%r1,24($key)
 1:	st	$bits,236($key)	# save bits [for debugging purposes]
 	lgr	$t0,%r5
-	st	%r5,240($key)	# save km code
+	st	%r5,240($key)	# save km(c) code
 	lghi	%r2,0
 	br	%r14
 ___
@@ -1059,14 +1063,14 @@ $code.=<<___;
 .Lminus1:
 	lghi	%r2,-1
 	br	$ra
-.size	private_AES_set_encrypt_key,.-private_AES_set_encrypt_key
+.size	AES_set_encrypt_key,.-AES_set_encrypt_key
 
 # void AES_set_decrypt_key(const unsigned char *in, int bits,
 # 		 AES_KEY *key) {
-.globl	private_AES_set_decrypt_key
-.type	private_AES_set_decrypt_key,\@function
+.globl	AES_set_decrypt_key
+.type	AES_set_decrypt_key,\@function
 .align	16
-private_AES_set_decrypt_key:
+AES_set_decrypt_key:
 	#st${g}	$key,4*$SIZE_T($sp)	# I rely on AES_set_encrypt_key to
 	st${g}	$ra,14*$SIZE_T($sp)	# save non-volatile registers and $key!
 	bras	$ra,_s390x_AES_set_encrypt_key
@@ -1166,7 +1170,7 @@ $code.=<<___;
 	lm${g}	%r6,%r13,6*$SIZE_T($sp)# as was saved by AES_set_encrypt_key!
 	lghi	%r2,0
 	br	$ra
-.size	private_AES_set_decrypt_key,.-private_AES_set_decrypt_key
+.size	AES_set_decrypt_key,.-AES_set_decrypt_key
 ___
 
 ########################################################################
@@ -1432,12 +1436,7 @@ $code.=<<___ if (!$softonly);
 
 .Lctr32_hw_switch:
 ___
-$code.=<<___ if (0);	######### kmctr code was measured to be ~12% slower
-	larl	$s0,OPENSSL_s390xcap_P
-	lg	$s0,8($s0)
-	tmhh	$s0,0x0004	# check for message_security-assist-4
-	jz	.Lctr32_km_loop
-
+$code.=<<___ if (!$softonly && 0);# kmctr code was measured to be ~12% slower
 	llgfr	$s0,%r0
 	lgr	$s1,%r1
 	larl	%r1,OPENSSL_s390xcap_P
@@ -1481,7 +1480,7 @@ $code.=<<___ if (0);	######### kmctr code was measured to be ~12% slower
 	br	$ra
 .align	16
 ___
-$code.=<<___;
+$code.=<<___ if (!$softonly);
 .Lctr32_km_loop:
 	la	$s2,16($sp)
 	lgr	$s3,$fp
@@ -1568,8 +1567,8 @@ ___
 }
 
 ########################################################################
-# void AES_xts_encrypt(const unsigned char *inp, unsigned char *out,
-#	size_t len, const AES_KEY *key1, const AES_KEY *key2,
+# void AES_xts_encrypt(const char *inp,char *out,size_t len,
+#	const AES_KEY *key1, const AES_KEY *key2,
 #	const unsigned char iv[16]);
 #
 {
@@ -1937,8 +1936,8 @@ $code.=<<___;
 	br	$ra
 .size	AES_xts_encrypt,.-AES_xts_encrypt
 ___
-# void AES_xts_decrypt(const unsigned char *inp, unsigned char *out,
-#	size_t len, const AES_KEY *key1, const AES_KEY *key2,
+# void AES_xts_decrypt(const char *inp,char *out,size_t len,
+#	const AES_KEY *key1, const AES_KEY *key2,
 #	const unsigned char iv[16]);
 #
 $code.=<<___;
@@ -2220,7 +2219,6 @@ ___
 }
 $code.=<<___;
 .string	"AES for s390x, CRYPTOGAMS by <appro\@openssl.org>"
-.comm	OPENSSL_s390xcap_P,80,8
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

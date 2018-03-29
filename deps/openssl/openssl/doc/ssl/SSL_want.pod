@@ -2,7 +2,9 @@
 
 =head1 NAME
 
-SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write, SSL_want_x509_lookup - obtain state information TLS/SSL I/O operation
+SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write, SSL_want_x509_lookup,
+SSL_want_async, SSL_want_async_job - obtain state information TLS/SSL I/O
+operation
 
 =head1 SYNOPSIS
 
@@ -13,6 +15,8 @@ SSL_want, SSL_want_nothing, SSL_want_read, SSL_want_write, SSL_want_x509_lookup 
  int SSL_want_read(const SSL *ssl);
  int SSL_want_write(const SSL *ssl);
  int SSL_want_x509_lookup(const SSL *ssl);
+ int SSL_want_async(const SSL *ssl);
+ int SSL_want_async_job(const SSL *ssl);
 
 =head1 DESCRIPTION
 
@@ -24,15 +28,15 @@ by SSL_want().
 =head1 NOTES
 
 SSL_want() examines the internal state information of the SSL object. Its
-return values are similar to that of L<SSL_get_error(3)|SSL_get_error(3)>.
-Unlike L<SSL_get_error(3)|SSL_get_error(3)>, which also evaluates the
+return values are similar to that of L<SSL_get_error(3)>.
+Unlike L<SSL_get_error(3)>, which also evaluates the
 error queue, the results are obtained by examining an internal state flag
 only. The information must therefore only be used for normal operation under
 non-blocking I/O. Error conditions are not handled and must be treated
-using L<SSL_get_error(3)|SSL_get_error(3)>.
+using L<SSL_get_error(3)>.
 
 The result returned by SSL_want() should always be consistent with
-the result of L<SSL_get_error(3)|SSL_get_error(3)>.
+the result of L<SSL_get_error(3)>.
 
 =head1 RETURN VALUES
 
@@ -48,30 +52,52 @@ There is no data to be written or to be read.
 
 There are data in the SSL buffer that must be written to the underlying
 B<BIO> layer in order to complete the actual SSL_*() operation.
-A call to L<SSL_get_error(3)|SSL_get_error(3)> should return
+A call to L<SSL_get_error(3)> should return
 SSL_ERROR_WANT_WRITE.
 
 =item SSL_READING
 
 More data must be read from the underlying B<BIO> layer in order to
 complete the actual SSL_*() operation.
-A call to L<SSL_get_error(3)|SSL_get_error(3)> should return
+A call to L<SSL_get_error(3)> should return
 SSL_ERROR_WANT_READ.
 
 =item SSL_X509_LOOKUP
 
 The operation did not complete because an application callback set by
 SSL_CTX_set_client_cert_cb() has asked to be called again.
-A call to L<SSL_get_error(3)|SSL_get_error(3)> should return
+A call to L<SSL_get_error(3)> should return
 SSL_ERROR_WANT_X509_LOOKUP.
+
+=item SSL_ASYNC_PAUSED
+
+An asynchronous operation partially completed and was then paused. See
+L<SSL_get_all_async_fds(3)>. A call to L<SSL_get_error(3)> should return
+SSL_ERROR_WANT_ASYNC.
+
+=item SSL_ASYNC_NO_JOBS
+
+The asynchronous job could not be started because there were no async jobs
+available in the pool (see ASYNC_init_thread(3)). A call to L<SSL_get_error(3)>
+should return SSL_ERROR_WANT_ASYNC_JOB.
 
 =back
 
-SSL_want_nothing(), SSL_want_read(), SSL_want_write(), SSL_want_x509_lookup()
-return 1, when the corresponding condition is true or 0 otherwise.
+SSL_want_nothing(), SSL_want_read(), SSL_want_write(), SSL_want_x509_lookup(),
+SSL_want_async() and SSL_want_async_job() return 1, when the corresponding
+condition is true or 0 otherwise.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<err(3)|err(3)>, L<SSL_get_error(3)|SSL_get_error(3)>
+L<ssl(3)>, L<err(3)>, L<SSL_get_error(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

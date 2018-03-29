@@ -1,0 +1,30 @@
+${-
+  use File::Spec::Functions qw(rel2abs);
+
+  my $bldtop = rel2abs($config{builddir});
+  our %names = ( map { $_ => $bldtop.$_.".EXE" }
+                 map { $unified_info{sharednames}->{$_} || () }
+                 @{$unified_info{libraries}} );
+  "" -}
+$       ! Create a local environment with the shared library logical names
+$       ! properly set.  Undo this with unlocal_shlib.com
+$
+$       OPENSSL_NAMES := OPENSSL_NAMES_'F$GETJPI("","PID")'
+$       CREATE/NAME_TABLE/PARENT_TABLE=LNM$PROCESS_DIRECTORY 'OPENSSL_NAMES'
+$       DEFINE/TABLE='OPENSSL_NAMES' OSSL_FLAG YES
+$
+$       NAMES := {- join(",", keys %names); -}
+{-
+  join("\n", map { "\$       __$_ = \"".$names{$_}."\"" } keys %names);
+-}      
+$       I = 0
+$       LOOP:
+$           E = F$ELEMENT(I,",",NAMES)
+$           I = I + 1
+$           IF E .EQS. "," THEN GOTO ENDLOOP
+$           EV = __'E'
+$           OLDV = F$TRNLNM(E,"LNM$PROCESS")
+$           IF OLDV .NES. "" THEN DEFINE/TABLE='OPENSSL_NAMES' 'E' 'OLDV'
+$           DEFINE 'E' 'EV'
+$           GOTO LOOP
+$       ENDLOOP:

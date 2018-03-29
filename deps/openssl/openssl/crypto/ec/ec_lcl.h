@@ -1,60 +1,12 @@
-/* crypto/ec/ec_lcl.h */
 /*
- * Originally written by Bodo Moeller for the OpenSSL project.
+ * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 1998-2010 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  *
@@ -75,6 +27,8 @@
 #include <openssl/ec.h>
 #include <openssl/bn.h>
 
+#include "e_os.h"
+
 #if defined(__SUNPRO_C)
 # if __SUNPRO_C >= 0x520
 #  pragma error_messages (off,E_ARRAY_OF_INCOMPLETE_NONAME,E_ARRAY_OF_INCOMPLETE)
@@ -83,6 +37,12 @@
 
 /* Use default functions for poin2oct, oct2point and compressed coordinates */
 #define EC_FLAGS_DEFAULT_OCT    0x1
+
+/* Use custom formats for EC_GROUP, EC_POINT and EC_KEY */
+#define EC_FLAGS_CUSTOM_CURVE   0x2
+
+/* Curve does not support signing operations */
+#define EC_FLAGS_NO_SIGN        0x4
 
 /*
  * Structure details are not part of the exported interface, so all this may
@@ -110,6 +70,7 @@ struct ec_method_st {
                             BN_CTX *);
     /* used by EC_GROUP_get_degree: */
     int (*group_get_degree) (const EC_GROUP *);
+    int (*group_order_bits) (const EC_GROUP *);
     /* used by EC_GROUP_check: */
     int (*group_check_discriminant) (const EC_GROUP *, BN_CTX *);
     /*
@@ -196,34 +157,39 @@ struct ec_method_st {
     int (*field_decode) (const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                          BN_CTX *);
     int (*field_set_to_one) (const EC_GROUP *, BIGNUM *r, BN_CTX *);
-} /* EC_METHOD */ ;
+    /* private key operations */
+    size_t (*priv2oct)(const EC_KEY *eckey, unsigned char *buf, size_t len);
+    int (*oct2priv)(EC_KEY *eckey, const unsigned char *buf, size_t len);
+    int (*set_private)(EC_KEY *eckey, const BIGNUM *priv_key);
+    int (*keygen)(EC_KEY *eckey);
+    int (*keycheck)(const EC_KEY *eckey);
+    int (*keygenpub)(EC_KEY *eckey);
+    int (*keycopy)(EC_KEY *dst, const EC_KEY *src);
+    void (*keyfinish)(EC_KEY *eckey);
+    /* custom ECDH operation */
+    int (*ecdh_compute_key)(unsigned char **pout, size_t *poutlen,
+                            const EC_POINT *pub_key, const EC_KEY *ecdh);
+};
 
-typedef struct ec_extra_data_st {
-    struct ec_extra_data_st *next;
-    void *data;
-    void *(*dup_func) (void *);
-    void (*free_func) (void *);
-    void (*clear_free_func) (void *);
-} EC_EXTRA_DATA;                /* used in EC_GROUP */
+/*
+ * Types and functions to manipulate pre-computed values.
+ */
+typedef struct nistp224_pre_comp_st NISTP224_PRE_COMP;
+typedef struct nistp256_pre_comp_st NISTP256_PRE_COMP;
+typedef struct nistp521_pre_comp_st NISTP521_PRE_COMP;
+typedef struct nistz256_pre_comp_st NISTZ256_PRE_COMP;
+typedef struct ec_pre_comp_st EC_PRE_COMP;
 
 struct ec_group_st {
     const EC_METHOD *meth;
     EC_POINT *generator;        /* optional */
-    BIGNUM order, cofactor;
+    BIGNUM *order, *cofactor;
     int curve_name;             /* optional NID for named curve */
     int asn1_flag;              /* flag to control the asn1 encoding */
-    /*
-     * Kludge: upper bit of ans1_flag is used to denote structure
-     * version. Is set, then last field is present. This is done
-     * for interoperation with FIPS code.
-     */
-#define EC_GROUP_ASN1_FLAG_MASK 0x7fffffff
-#define EC_GROUP_VERSION(p) (p->asn1_flag&~EC_GROUP_ASN1_FLAG_MASK)
     point_conversion_form_t asn1_form;
     unsigned char *seed;        /* optional seed for parameters (appears in
                                  * ASN1) */
     size_t seed_len;
-    EC_EXTRA_DATA *extra_data;  /* linked list */
     /*
      * The following members are handled by the method functions, even if
      * they appear generic
@@ -233,7 +199,7 @@ struct ec_group_st {
      * curves over GF(2^m), this is the irreducible polynomial defining the
      * field.
      */
-    BIGNUM field;
+    BIGNUM *field;
     /*
      * Field specification for curves over GF(2^m). The irreducible f(t) is
      * then of the form: t^poly[0] + t^poly[1] + ... + t^poly[k] where m =
@@ -249,7 +215,7 @@ struct ec_group_st {
      * x^3 + a*x + b. For characteristic 2, the curve is defined by an
      * equation of the form y^2 + x*y = x^3 + a*x^2 + b.
      */
-    BIGNUM a, b;
+    BIGNUM *a, *b;
     /* enable optimized point arithmetics for special case */
     int a_is_minus3;
     /* method-specific (e.g., Montgomery structure) */
@@ -259,10 +225,36 @@ struct ec_group_st {
     /* method-specific */
     int (*field_mod_func) (BIGNUM *, const BIGNUM *, const BIGNUM *,
                            BN_CTX *);
-    BN_MONT_CTX *mont_data;     /* data for ECDSA inverse */
-} /* EC_GROUP */ ;
+    /* data for ECDSA inverse */
+    BN_MONT_CTX *mont_data;
+
+    /*
+     * Precomputed values for speed. The PCT_xxx names match the
+     * pre_comp.xxx union names; see the SETPRECOMP and HAVEPRECOMP
+     * macros, below.
+     */
+    enum {
+        PCT_none,
+        PCT_nistp224, PCT_nistp256, PCT_nistp521, PCT_nistz256,
+        PCT_ec
+    } pre_comp_type;
+    union {
+        NISTP224_PRE_COMP *nistp224;
+        NISTP256_PRE_COMP *nistp256;
+        NISTP521_PRE_COMP *nistp521;
+        NISTZ256_PRE_COMP *nistz256;
+        EC_PRE_COMP *ec;
+    } pre_comp;
+};
+
+#define SETPRECOMP(g, type, pre) \
+    g->pre_comp_type = PCT_##type, g->pre_comp.type = pre
+#define HAVEPRECOMP(g, type) \
+    g->pre_comp_type == PCT_##type && g->pre_comp.type != NULL
 
 struct ec_key_st {
+    const EC_KEY_METHOD *meth;
+    ENGINE *engine;
     int version;
     EC_GROUP *group;
     EC_POINT *pub_key;
@@ -271,30 +263,9 @@ struct ec_key_st {
     point_conversion_form_t conv_form;
     int references;
     int flags;
-    EC_EXTRA_DATA *method_data;
-} /* EC_KEY */ ;
-
-/*
- * Basically a 'mixin' for extra data, but available for EC_GROUPs/EC_KEYs
- * only (with visibility limited to 'package' level for now). We use the
- * function pointers as index for retrieval; this obviates global
- * ex_data-style index tables.
- */
-int EC_EX_DATA_set_data(EC_EXTRA_DATA **, void *data,
-                        void *(*dup_func) (void *),
-                        void (*free_func) (void *),
-                        void (*clear_free_func) (void *));
-void *EC_EX_DATA_get_data(const EC_EXTRA_DATA *, void *(*dup_func) (void *),
-                          void (*free_func) (void *),
-                          void (*clear_free_func) (void *));
-void EC_EX_DATA_free_data(EC_EXTRA_DATA **, void *(*dup_func) (void *),
-                          void (*free_func) (void *),
-                          void (*clear_free_func) (void *));
-void EC_EX_DATA_clear_free_data(EC_EXTRA_DATA **, void *(*dup_func) (void *),
-                                void (*free_func) (void *),
-                                void (*clear_free_func) (void *));
-void EC_EX_DATA_free_all_data(EC_EXTRA_DATA **);
-void EC_EX_DATA_clear_free_all_data(EC_EXTRA_DATA **);
+    CRYPTO_EX_DATA ex_data;
+    CRYPTO_RWLOCK *lock;
+};
 
 struct ec_point_st {
     const EC_METHOD *meth;
@@ -302,13 +273,27 @@ struct ec_point_st {
      * All members except 'meth' are handled by the method functions, even if
      * they appear generic
      */
-    BIGNUM X;
-    BIGNUM Y;
-    BIGNUM Z;                   /* Jacobian projective coordinates: (X, Y, Z)
-                                 * represents (X/Z^2, Y/Z^3) if Z != 0 */
+    BIGNUM *X;
+    BIGNUM *Y;
+    BIGNUM *Z;                  /* Jacobian projective coordinates: * (X, Y,
+                                 * Z) represents (X/Z^2, Y/Z^3) if Z != 0 */
     int Z_is_one;               /* enable optimized point arithmetics for
                                  * special case */
-} /* EC_POINT */ ;
+};
+
+NISTP224_PRE_COMP *EC_nistp224_pre_comp_dup(NISTP224_PRE_COMP *);
+NISTP256_PRE_COMP *EC_nistp256_pre_comp_dup(NISTP256_PRE_COMP *);
+NISTP521_PRE_COMP *EC_nistp521_pre_comp_dup(NISTP521_PRE_COMP *);
+NISTZ256_PRE_COMP *EC_nistz256_pre_comp_dup(NISTZ256_PRE_COMP *);
+NISTP256_PRE_COMP *EC_nistp256_pre_comp_dup(NISTP256_PRE_COMP *);
+EC_PRE_COMP *EC_ec_pre_comp_dup(EC_PRE_COMP *);
+
+void EC_pre_comp_free(EC_GROUP *group);
+void EC_nistp224_pre_comp_free(NISTP224_PRE_COMP *);
+void EC_nistp256_pre_comp_free(NISTP256_PRE_COMP *);
+void EC_nistp521_pre_comp_free(NISTP521_PRE_COMP *);
+void EC_nistz256_pre_comp_free(NISTZ256_PRE_COMP *);
+void EC_ec_pre_comp_free(EC_PRE_COMP *);
 
 /*
  * method functions in ec_mult.c (ec_lib.c uses these as defaults if
@@ -550,6 +535,7 @@ void ec_GFp_nistp_recode_scalar_bits(unsigned char *sign,
                                      unsigned char *digit, unsigned char in);
 #endif
 int ec_precompute_mont_data(EC_GROUP *);
+int ec_group_simple_order_bits(const EC_GROUP *group);
 
 #ifdef ECP_NISTZ256_ASM
 /** Returns GFp methods using montgomery multiplication, with x86-64 optimized
@@ -559,10 +545,69 @@ int ec_precompute_mont_data(EC_GROUP *);
 const EC_METHOD *EC_GFp_nistz256_method(void);
 #endif
 
-#ifdef OPENSSL_FIPS
-EC_GROUP *FIPS_ec_group_new_curve_gfp(const BIGNUM *p, const BIGNUM *a,
-                                      const BIGNUM *b, BN_CTX *ctx);
-EC_GROUP *FIPS_ec_group_new_curve_gf2m(const BIGNUM *p, const BIGNUM *a,
-                                       const BIGNUM *b, BN_CTX *ctx);
-EC_GROUP *FIPS_ec_group_new_by_curve_name(int nid);
-#endif
+size_t ec_key_simple_priv2oct(const EC_KEY *eckey,
+                              unsigned char *buf, size_t len);
+int ec_key_simple_oct2priv(EC_KEY *eckey, const unsigned char *buf, size_t len);
+int ec_key_simple_generate_key(EC_KEY *eckey);
+int ec_key_simple_generate_public_key(EC_KEY *eckey);
+int ec_key_simple_check_key(const EC_KEY *eckey);
+
+/* EC_METHOD definitions */
+
+struct ec_key_method_st {
+    const char *name;
+    int32_t flags;
+    int (*init)(EC_KEY *key);
+    void (*finish)(EC_KEY *key);
+    int (*copy)(EC_KEY *dest, const EC_KEY *src);
+    int (*set_group)(EC_KEY *key, const EC_GROUP *grp);
+    int (*set_private)(EC_KEY *key, const BIGNUM *priv_key);
+    int (*set_public)(EC_KEY *key, const EC_POINT *pub_key);
+    int (*keygen)(EC_KEY *key);
+    int (*compute_key)(unsigned char **pout, size_t *poutlen,
+                       const EC_POINT *pub_key, const EC_KEY *ecdh);
+    int (*sign)(int type, const unsigned char *dgst, int dlen, unsigned char
+                *sig, unsigned int *siglen, const BIGNUM *kinv,
+                const BIGNUM *r, EC_KEY *eckey);
+    int (*sign_setup)(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
+                      BIGNUM **rp);
+    ECDSA_SIG *(*sign_sig)(const unsigned char *dgst, int dgst_len,
+                           const BIGNUM *in_kinv, const BIGNUM *in_r,
+                           EC_KEY *eckey);
+
+    int (*verify)(int type, const unsigned char *dgst, int dgst_len,
+                  const unsigned char *sigbuf, int sig_len, EC_KEY *eckey);
+    int (*verify_sig)(const unsigned char *dgst, int dgst_len,
+                      const ECDSA_SIG *sig, EC_KEY *eckey);
+};
+
+#define EC_KEY_METHOD_DYNAMIC   1
+
+int ossl_ec_key_gen(EC_KEY *eckey);
+int ossl_ecdh_compute_key(unsigned char **pout, size_t *poutlen,
+                          const EC_POINT *pub_key, const EC_KEY *ecdh);
+int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
+                            const EC_POINT *pub_key, const EC_KEY *ecdh);
+
+struct ECDSA_SIG_st {
+    BIGNUM *r;
+    BIGNUM *s;
+};
+
+int ossl_ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
+                          BIGNUM **rp);
+int ossl_ecdsa_sign(int type, const unsigned char *dgst, int dlen,
+                    unsigned char *sig, unsigned int *siglen,
+                    const BIGNUM *kinv, const BIGNUM *r, EC_KEY *eckey);
+ECDSA_SIG *ossl_ecdsa_sign_sig(const unsigned char *dgst, int dgst_len,
+                               const BIGNUM *in_kinv, const BIGNUM *in_r,
+                               EC_KEY *eckey);
+int ossl_ecdsa_verify(int type, const unsigned char *dgst, int dgst_len,
+                      const unsigned char *sigbuf, int sig_len, EC_KEY *eckey);
+int ossl_ecdsa_verify_sig(const unsigned char *dgst, int dgst_len,
+                          const ECDSA_SIG *sig, EC_KEY *eckey);
+
+int X25519(uint8_t out_shared_key[32], const uint8_t private_key[32],
+           const uint8_t peer_public_value[32]);
+void X25519_public_from_private(uint8_t out_public_value[32],
+                                const uint8_t private_key[32]);

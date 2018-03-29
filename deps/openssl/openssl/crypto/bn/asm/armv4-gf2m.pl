@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -32,14 +39,31 @@
 # 
 # http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
+$flavour = shift;
+if ($flavour=~/\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
+else { while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {} }
+
+if ($flavour && $flavour ne "void") {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+    die "can't locate arm-xlate.pl";
+
+    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+} else {
+    open STDOUT,">$output";
+}
 
 $code=<<___;
 #include "arm_arch.h"
 
 .text
+#if defined(__thumb2__)
+.syntax	unified
+.thumb
+#else
 .code	32
+#endif
 ___
 ################
 # private interface to mul_1x1_ialu
@@ -120,11 +144,17 @@ mul_1x1_ialu:
 	eor	$hi,$hi,$t0,lsr#8
 	ldr	$t0,[sp,$i0]		@ tab[b >> 30      ]
 
+#ifdef	__thumb2__
+	itt	ne
+#endif
 	eorne	$lo,$lo,$b,lsl#30
 	eorne	$hi,$hi,$b,lsr#2
 	tst	$a,#1<<31
 	eor	$lo,$lo,$t1,lsl#27
 	eor	$hi,$hi,$t1,lsr#5
+#ifdef	__thumb2__
+	itt	ne
+#endif
 	eorne	$lo,$lo,$b,lsl#31
 	eorne	$hi,$hi,$b,lsr#1
 	eor	$lo,$lo,$t0,lsl#30
@@ -144,20 +174,33 @@ $code.=<<___;
 .align	5
 bn_GF2m_mul_2x2:
 #if __ARM_MAX_ARCH__>=7
+	stmdb	sp!,{r10,lr}
 	ldr	r12,.LOPENSSL_armcap
-.Lpic:	ldr	r12,[pc,r12]
-	tst	r12,#1
+	adr	r10,.LOPENSSL_armcap
+	ldr	r12,[r12,r10]
+#ifdef	__APPLE__
+	ldr	r12,[r12]
+#endif
+	tst	r12,#ARMV7_NEON
+	itt	ne
+	ldrne	r10,[sp],#8
 	bne	.LNEON
+	stmdb	sp!,{r4-r9}
+#else
+	stmdb	sp!,{r4-r10,lr}
 #endif
 ___
 $ret="r10";	# reassigned 1st argument
 $code.=<<___;
-	stmdb	sp!,{r4-r10,lr}
 	mov	$ret,r0			@ reassign 1st argument
 	mov	$b,r3			@ $b=b1
+	sub	r7,sp,#36
+	mov	r8,sp
+	and	r7,r7,#-32
 	ldr	r3,[sp,#32]		@ load b0
 	mov	$mask,#7<<2
-	sub	sp,sp,#32		@ allocate tab[8]
+	mov	sp,r7			@ allocate tab[8]
+	str	r8,[r7,#32]
 
 	bl	mul_1x1_ialu		@ a1·b1
 	str	$lo,[$ret,#8]
@@ -181,6 +224,7 @@ ___
 $code.=<<___;
 	ldmia	$ret,{@r[0]-@r[3]}
 	eor	$lo,$lo,$hi
+	ldr	sp,[sp,#32]		@ destroy tab[8]
 	eor	$hi,$hi,@r[1]
 	eor	$lo,$lo,@r[0]
 	eor	$hi,$hi,@r[2]
@@ -188,7 +232,6 @@ $code.=<<___;
 	eor	$hi,$hi,@r[3]
 	str	$hi,[$ret,#8]
 	eor	$lo,$lo,$hi
-	add	sp,sp,#32		@ destroy tab[8]
 	str	$lo,[$ret,#4]
 
 #if __ARM_ARCH__>=5
@@ -213,8 +256,8 @@ $code.=<<___;
 .align	5
 .LNEON:
 	ldr		r12, [sp]		@ 5th argument
-	vmov.32		$a, r2, r1
-	vmov.32		$b, r12, r3
+	vmov		$a, r2, r1
+	vmov		$b, r12, r3
 	vmov.i64	$k48, #0x0000ffffffffffff
 	vmov.i64	$k32, #0x00000000ffffffff
 	vmov.i64	$k16, #0x000000000000ffff
@@ -267,7 +310,7 @@ $code.=<<___;
 #if __ARM_MAX_ARCH__>=7
 .align	5
 .LOPENSSL_armcap:
-.word	OPENSSL_armcap_P-(.Lpic+8)
+.word	OPENSSL_armcap_P-.
 #endif
 .asciz	"GF(2^m) Multiplication for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
 .align	5

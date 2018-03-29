@@ -1,67 +1,18 @@
-/* m_sigver.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2006.
- */
-/* ====================================================================
- * Copyright (c) 2006,2007 The OpenSSL Project.  All rights reserved.
+ * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
+#include "internal/evp_int.h"
 #include "evp_locl.h"
 
 static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
@@ -128,17 +79,20 @@ int EVP_DigestVerifyInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
 int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
                         size_t *siglen)
 {
-    int sctx, r = 0;
+    int sctx = 0, r = 0;
     EVP_PKEY_CTX *pctx = ctx->pctx;
     if (pctx->pmeth->flags & EVP_PKEY_FLAG_SIGCTX_CUSTOM) {
-        EVP_PKEY_CTX *dctx;
         if (!sigret)
             return pctx->pmeth->signctx(pctx, sigret, siglen, ctx);
-        dctx = EVP_PKEY_CTX_dup(ctx->pctx);
-        if (!dctx)
-            return 0;
-        r = dctx->pmeth->signctx(dctx, sigret, siglen, ctx);
-        EVP_PKEY_CTX_free(dctx);
+        if (ctx->flags & EVP_MD_CTX_FLAG_FINALISE)
+            r = pctx->pmeth->signctx(pctx, sigret, siglen, ctx);
+        else {
+            EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_dup(ctx->pctx);
+            if (!dctx)
+                return 0;
+            r = dctx->pmeth->signctx(dctx, sigret, siglen, ctx);
+            EVP_PKEY_CTX_free(dctx);
+        }
         return r;
     }
     if (pctx->pmeth->signctx)
@@ -146,18 +100,28 @@ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
     else
         sctx = 0;
     if (sigret) {
-        EVP_MD_CTX tmp_ctx;
         unsigned char md[EVP_MAX_MD_SIZE];
-        unsigned int mdlen;
-        EVP_MD_CTX_init(&tmp_ctx);
-        if (!EVP_MD_CTX_copy_ex(&tmp_ctx, ctx))
-            return 0;
-        if (sctx)
-            r = tmp_ctx.pctx->pmeth->signctx(tmp_ctx.pctx,
-                                             sigret, siglen, &tmp_ctx);
-        else
-            r = EVP_DigestFinal_ex(&tmp_ctx, md, &mdlen);
-        EVP_MD_CTX_cleanup(&tmp_ctx);
+        unsigned int mdlen = 0;
+        if (ctx->flags & EVP_MD_CTX_FLAG_FINALISE) {
+            if (sctx)
+                r = ctx->pctx->pmeth->signctx(ctx->pctx, sigret, siglen, ctx);
+            else
+                r = EVP_DigestFinal_ex(ctx, md, &mdlen);
+        } else {
+            EVP_MD_CTX *tmp_ctx = EVP_MD_CTX_new();
+            if (tmp_ctx == NULL)
+                return 0;
+            if (!EVP_MD_CTX_copy_ex(tmp_ctx, ctx)) {
+                EVP_MD_CTX_free(tmp_ctx);
+                return 0;
+            }
+            if (sctx)
+                r = tmp_ctx->pctx->pmeth->signctx(tmp_ctx->pctx,
+                                                  sigret, siglen, tmp_ctx);
+            else
+                r = EVP_DigestFinal_ex(tmp_ctx, md, &mdlen);
+            EVP_MD_CTX_free(tmp_ctx);
+        }
         if (sctx || !r)
             return r;
         if (EVP_PKEY_sign(ctx->pctx, sigret, siglen, md, mdlen) <= 0)
@@ -178,25 +142,35 @@ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
 int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig,
                           size_t siglen)
 {
-    EVP_MD_CTX tmp_ctx;
     unsigned char md[EVP_MAX_MD_SIZE];
-    int r;
-    unsigned int mdlen;
-    int vctx;
+    int r = 0;
+    unsigned int mdlen = 0;
+    int vctx = 0;
 
     if (ctx->pctx->pmeth->verifyctx)
         vctx = 1;
     else
         vctx = 0;
-    EVP_MD_CTX_init(&tmp_ctx);
-    if (!EVP_MD_CTX_copy_ex(&tmp_ctx, ctx))
-        return -1;
-    if (vctx) {
-        r = tmp_ctx.pctx->pmeth->verifyctx(tmp_ctx.pctx,
-                                           sig, siglen, &tmp_ctx);
-    } else
-        r = EVP_DigestFinal_ex(&tmp_ctx, md, &mdlen);
-    EVP_MD_CTX_cleanup(&tmp_ctx);
+    if (ctx->flags & EVP_MD_CTX_FLAG_FINALISE) {
+        if (vctx) {
+            r = ctx->pctx->pmeth->verifyctx(ctx->pctx, sig, siglen, ctx);
+        } else
+            r = EVP_DigestFinal_ex(ctx, md, &mdlen);
+    } else {
+        EVP_MD_CTX *tmp_ctx = EVP_MD_CTX_new();
+        if (tmp_ctx == NULL)
+            return -1;
+        if (!EVP_MD_CTX_copy_ex(tmp_ctx, ctx)) {
+            EVP_MD_CTX_free(tmp_ctx);
+            return -1;
+        }
+        if (vctx) {
+            r = tmp_ctx->pctx->pmeth->verifyctx(tmp_ctx->pctx,
+                                                sig, siglen, tmp_ctx);
+        } else
+            r = EVP_DigestFinal_ex(tmp_ctx, md, &mdlen);
+        EVP_MD_CTX_free(tmp_ctx);
+    }
     if (vctx || !r)
         return r;
     return EVP_PKEY_verify(ctx->pctx, sig, siglen, md, mdlen);

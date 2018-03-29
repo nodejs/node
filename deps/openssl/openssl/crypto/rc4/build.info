@@ -1,0 +1,33 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=\
+        {- $target{rc4_asm_src} -}
+
+GENERATE[rc4-586.s]=asm/rc4-586.pl $(PERLASM_SCHEME) $(CFLAGS) $(LIB_CFLAGS) $(PROCESSOR)
+DEPEND[rc4-586.s]=../perlasm/x86asm.pl
+
+GENERATE[rc4-x86_64.s]=asm/rc4-x86_64.pl $(PERLASM_SCHEME)
+GENERATE[rc4-md5-x86_64.s]=asm/rc4-md5-x86_64.pl $(PERLASM_SCHEME)
+
+GENERATE[rc4-parisc.s]=asm/rc4-parisc.pl $(PERLASM_SCHEME)
+
+BEGINRAW[makefile(windows)]
+{- $builddir -}\rc4-ia64.asm: {- $sourcedir -}\asm\rc4-ia64.pl
+	$(PERL) {- $sourcedir -}\asm\rc4-ia64.pl $@.S
+	$(CC) -DSZ=4 -EP $@.S > $@.i && move /Y $@.i $@
+	del /Q $@.S
+ENDRAW[makefile(windows)]
+
+BEGINRAW[Makefile]
+{- $builddir -}/rc4-ia64.s: {- $sourcedir -}/asm/rc4-ia64.pl
+	@(trap "rm $@.*" INT 0; \
+	  $(PERL) {- $sourcedir -}/asm/rc4-ia64.pl $(CFLAGS) $(LIB_CFLAGS) $@.S; \
+	  case `awk '/^#define RC4_INT/{print$$NF}' $(BLDDIR)/include/openssl/opensslconf.h` in \
+	  int)	set -x; $(CC) $(CFLAGS) $(LIB_CFLAGS) -DSZ=4 -E $@.S > $@.i && mv -f $@.i $@;; \
+	  char)	set -x; $(CC) $(CFLAGS) $(LIB_CFLAGS) -DSZ=1 -E $@.S > $@.i && mv -f $@.i $@;; \
+	  *)	exit 1 ;; \
+	  esac )
+
+# GNU make "catch all"
+{- $builddir -}/rc4-%.s:	{- $sourcedir -}/asm/rc4-%.pl
+	CC="$(CC)" $(PERL) $< $(PERLASM_SCHEME) $@
+ENDRAW[Makefile]
