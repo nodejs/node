@@ -4,8 +4,7 @@ const BUFFER_REQUIRE = 'const { Buffer } = require(\'buffer\');\n';
 module.exports = function(context) {
 
   function flagIt(reference) {
-    const msg = 'Use const Buffer = require(\'buffer\').Buffer; ' +
-                'at the beginning of this file';
+    const msg = `Use ${BUFFER_REQUIRE} at the beginning of this file`;
 
     context.report({
       node: reference.identifier,
