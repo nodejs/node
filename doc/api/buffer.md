@@ -161,7 +161,7 @@ console.log(buf.toString('base64'));
 
 console.log(Buffer.from('fhqwhgads', 'ascii'));
 // Prints: <Buffer 66 68 71 77 68 67 61 64 73>
-console.log(Buffer.from('fhqwhgads', 'ucs2'));
+console.log(Buffer.from('fhqwhgads', 'utf16le'));
 // Prints: <Buffer 66 00 68 00 71 00 77 00 68 00 67 00 61 00 64 00 73 00>
 ```
 
@@ -1268,11 +1268,11 @@ console.log(buf.indexOf(Buffer.from('a buffer example')));
 console.log(buf.indexOf(Buffer.from('a buffer example').slice(0, 8)));
 // Prints: 8
 
-const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
+const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'utf16le');
 
-console.log(utf16Buffer.indexOf('\u03a3', 0, 'ucs2'));
+console.log(utf16Buffer.indexOf('\u03a3', 0, 'utf16le'));
 // Prints: 4
-console.log(utf16Buffer.indexOf('\u03a3', -4, 'ucs2'));
+console.log(utf16Buffer.indexOf('\u03a3', -4, 'utf16le'));
 // Prints: 6
 ```
 
@@ -1366,11 +1366,11 @@ console.log(buf.lastIndexOf('buffer', 5));
 console.log(buf.lastIndexOf('buffer', 4));
 // Prints: -1
 
-const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
+const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'utf16le');
 
-console.log(utf16Buffer.lastIndexOf('\u03a3', undefined, 'ucs2'));
+console.log(utf16Buffer.lastIndexOf('\u03a3', undefined, 'utf16le'));
 // Prints: 6
-console.log(utf16Buffer.lastIndexOf('\u03a3', -5, 'ucs2'));
+console.log(utf16Buffer.lastIndexOf('\u03a3', -5, 'utf16le'));
 // Prints: 4
 ```
 
