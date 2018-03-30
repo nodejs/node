@@ -34,6 +34,10 @@ if (common.isWindows) {
 }
 
 assert.throws(() => {
+  process.setuid({});
+}, /^TypeError: setuid argument must be a number or a string$/);
+
+assert.throws(() => {
   process.setuid('fhqwhgadshgnsdhjsdbkhsdabkfabkveybvf');
 }, /^Error: setuid user id does not exist$/);
 
