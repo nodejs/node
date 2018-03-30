@@ -483,8 +483,8 @@ changes:
 * `string` {string} String to encode.
 * `encoding` {string} The encoding of `string`. **Default:** `'utf8'`.
 
-Creates a new `Buffer` containing `string`. If provided, the `encoding`
-parameter identifies the character encoding of `string`.
+Creates a new `Buffer` containing `string`. The `encoding` parameter identifies
+the character encoding of `string`.
 
 Examples:
 
@@ -891,8 +891,8 @@ added: v5.10.0
 * `string` {string} A string to encode.
 * `encoding` {string} The encoding of `string`. **Default:** `'utf8'`.
 
-Creates a new `Buffer` containing `string`. If provided, the `encoding`
-parameter identifies the character encoding of `string`.
+Creates a new `Buffer` containing `string`. The `encoding` parameter identifies
+the character encoding of `string`.
 
 Examples:
 
