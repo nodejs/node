@@ -323,6 +323,8 @@ function processList(section) {
   delete section.list;
 }
 
+const paramExpr = /\((.*)\);?$/;
+
 // textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
   var params = text.match(paramExpr);
@@ -556,42 +558,23 @@ function deepCopy_(src) {
 
 
 // These parse out the contents of an H# tag.
-const eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
-const classExpr = /^Class:\s*([^ ]+).*$/i;
-const propExpr = /^[^.]+\.([^ .()]+)\s*$/;
-const braceExpr = /^[^.[]+(\[[^\]]+\])\s*$/;
-const classMethExpr = /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i;
-const methExpr = /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/;
-const newExpr = /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/;
-var paramExpr = /\((.*)\);?$/;
+const headingExpressions = [
+  { type: 'event', re: /^Event(?::|\s)+['"]?([^"']+).*$/i },
+  { type: 'class', re: /^Class:\s*([^ ]+).*$/i },
+  { type: 'property', re: /^[^.[]+(\[[^\]]+\])\s*$/ },
+  { type: 'property', re: /^[^.]+\.([^ .()]+)\s*$/ },
+  { type: 'classMethod', re: /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i },
+  { type: 'method', re: /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/ },
+  { type: 'ctor', re: /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/ },
+];
 
-function newSection(tok) {
-  const section = {};
+function newSection({ text }) {
   // Infer the type from the text.
-  const text = section.textRaw = tok.text;
-  if (text.match(eventExpr)) {
-    section.type = 'event';
-    section.name = text.replace(eventExpr, '$1');
-  } else if (text.match(classExpr)) {
-    section.type = 'class';
-    section.name = text.replace(classExpr, '$1');
-  } else if (text.match(braceExpr)) {
-    section.type = 'property';
-    section.name = text.replace(braceExpr, '$1');
-  } else if (text.match(propExpr)) {
-    section.type = 'property';
-    section.name = text.replace(propExpr, '$1');
-  } else if (text.match(classMethExpr)) {
-    section.type = 'classMethod';
-    section.name = text.replace(classMethExpr, '$1');
-  } else if (text.match(methExpr)) {
-    section.type = 'method';
-    section.name = text.replace(methExpr, '$1');
-  } else if (text.match(newExpr)) {
-    section.type = 'ctor';
-    section.name = text.replace(newExpr, '$1');
-  } else {
-    section.name = text;
+  for (const { type, re } of headingExpressions) {
+    const [, name] = text.match(re) || [];
+    if (name) {
+      return { textRaw: text, type, name };
+    }
   }
-  return section;
+  return { textRaw: text, name: text };
 }
