@@ -61,10 +61,9 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
     return buffer_;
   }
 
-  virtual void FillStatsArray(const uv_stat_t* stat) = 0;
   virtual void Reject(Local<Value> reject) = 0;
   virtual void Resolve(Local<Value> value) = 0;
-  virtual void ResolveStat() = 0;
+  virtual void ResolveStat(const uv_stat_t* stat) = 0;
   virtual void SetReturnValue(const FunctionCallbackInfo<Value>& args) = 0;
 
   const char* syscall() const { return syscall_; }
@@ -90,31 +89,72 @@ class FSReqWrap : public FSReqBase {
   FSReqWrap(Environment* env, Local<Object> req)
       : FSReqBase(env, req, AsyncWrap::PROVIDER_FSREQWRAP) { }
 
-  void FillStatsArray(const uv_stat_t* stat) override;
   void Reject(Local<Value> reject) override;
   void Resolve(Local<Value> value) override;
-  void ResolveStat() override;
+  void ResolveStat(const uv_stat_t* stat) override;
   void SetReturnValue(const FunctionCallbackInfo<Value>& args) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
 };
 
+template <typename NativeT = double, typename V8T = v8::Float64Array>
 class FSReqPromise : public FSReqBase {
  public:
-  explicit FSReqPromise(Environment* env);
+  explicit FSReqPromise(Environment* env)
+      : FSReqBase(env,
+                  env->fsreqpromise_constructor_template()
+                      ->NewInstance(env->context()).ToLocalChecked(),
+                  AsyncWrap::PROVIDER_FSREQPROMISE),
+        stats_field_array_(env->isolate(), env->kFsStatsFieldsLength) {
+    auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
+    object()->Set(env->context(), env->promise_string(),
+                  resolver).FromJust();
+  }
 
-  ~FSReqPromise() override;
+  ~FSReqPromise() override {
+    // Validate that the promise was explicitly resolved or rejected.
+    CHECK(finished_);
+  }
 
-  void FillStatsArray(const uv_stat_t* stat) override;
-  void Reject(Local<Value> reject) override;
-  void Resolve(Local<Value> value) override;
-  void ResolveStat() override;
-  void SetReturnValue(const FunctionCallbackInfo<Value>& args) override;
+  void Reject(Local<Value> reject) override {
+    finished_ = true;
+    HandleScope scope(env()->isolate());
+    InternalCallbackScope callback_scope(this);
+    Local<Value> value =
+        object()->Get(env()->context(),
+                      env()->promise_string()).ToLocalChecked();
+    Local<Promise::Resolver> resolver = value.As<Promise::Resolver>();
+    resolver->Reject(env()->context(), reject).FromJust();
+  }
+
+  void Resolve(Local<Value> value) override {
+    finished_ = true;
+    HandleScope scope(env()->isolate());
+    InternalCallbackScope callback_scope(this);
+    Local<Value> val =
+        object()->Get(env()->context(),
+                      env()->promise_string()).ToLocalChecked();
+    Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
+    resolver->Resolve(env()->context(), value).FromJust();
+  }
+
+  void ResolveStat(const uv_stat_t* stat) override {
+    node::FillStatsArray(&stats_field_array_, stat);
+    Resolve(stats_field_array_.GetJSArray());
+  }
+
+  void SetReturnValue(const FunctionCallbackInfo<Value>& args) override {
+    Local<Value> val =
+        object()->Get(env()->context(),
+                      env()->promise_string()).ToLocalChecked();
+    Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
+    args.GetReturnValue().Set(resolver->GetPromise());
+  }
 
  private:
   bool finished_ = false;
-  AliasedBuffer<double, v8::Float64Array> stats_field_array_;
+  AliasedBuffer<NativeT, V8T> stats_field_array_;
   DISALLOW_COPY_AND_ASSIGN(FSReqPromise);
 };
 
