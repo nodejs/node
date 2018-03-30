@@ -5,7 +5,7 @@ const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
 const jsPrimitiveUrl = `${jsDocPrefix}Data_structures`;
 const jsPrimitives = {
   'boolean': 'Boolean',
-  'integer': 'Number', // not a primitive, used for clarification
+  'integer': 'Number', // Not a primitive, used for clarification.
   'null': 'Null',
   'number': 'Number',
   'string': 'String',
@@ -109,7 +109,7 @@ function toLink(typeInput) {
       let typeUrl = null;
 
       // To support type[], type[][] etc., we store the full string
-      // and use the bracket-less version to lookup the type URL
+      // and use the bracket-less version to lookup the type URL.
       const typeTextFull = typeText;
       typeText = typeText.replace(arrayPart, '');
 

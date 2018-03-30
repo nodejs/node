@@ -24,8 +24,8 @@
 const processIncludes = require('./preprocess.js');
 const fs = require('fs');
 
-// parse the args.
-// Don't use nopt or whatever for this.  It's simple enough.
+// Parse the args.
+// Don't use nopt or whatever for this. It's simple enough.
 
 const args = process.argv.slice(2);
 let format = 'json';
@@ -56,7 +56,7 @@ if (!filename) {
 
 fs.readFile(filename, 'utf8', (er, input) => {
   if (er) throw er;
-  // process the input for @include lines
+  // Process the input for @include lines.
   processIncludes(filename, input, next);
 });
 

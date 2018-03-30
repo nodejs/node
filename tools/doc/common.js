@@ -15,7 +15,7 @@ function extractAndParseYAML(text) {
              .replace(/^<!-- YAML/, '')
              .replace(/-->$/, '');
 
-  // js-yaml.safeLoad() throws on error
+  // js-yaml.safeLoad() throws on error.
   const meta = yaml.safeLoad(text);
 
   if (meta.added) {
