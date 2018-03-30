@@ -627,8 +627,7 @@ RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
   icu::UnicodeString result = plural_rules->select(rounded);
   return *isolate->factory()
               ->NewStringFromTwoByte(Vector<const uint16_t>(
-                  reinterpret_cast<const uint16_t*>(
-                      icu::toUCharPtr(result.getBuffer())),
+                  reinterpret_cast<const uint16_t*>(result.getBuffer()),
                   result.length()))
               .ToHandleChecked();
 }
