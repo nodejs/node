@@ -63,3 +63,4 @@ function readEmail (msg, email, opts, isRetry) {
   return read({prompt: msg, default: email || ''})
     .then((username) => readEmail(msg, username, opts, true))
 }
+

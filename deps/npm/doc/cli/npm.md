@@ -93,7 +93,7 @@ npm is extremely configurable.  It reads its configuration options from
 * Command line switches:  
   Set a config with `--key val`.  All keys take a value, even if they
   are booleans (the config parser doesn't know what the options are at
-  the time of parsing.)  If no value is provided, then the option is set
+  the time of parsing).  If no value is provided, then the option is set
   to boolean `true`.
 * Environment Variables:  
   Set any config by prefixing the name in an environment variable with

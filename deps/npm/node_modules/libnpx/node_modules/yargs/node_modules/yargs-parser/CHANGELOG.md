@@ -2,6 +2,83 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="9.0.2"></a>
+## [9.0.2](https://github.com/yargs/yargs-parser/compare/v9.0.1...v9.0.2) (2018-01-20)
+
+
+### Bug Fixes
+
+* nargs was still aggressively consuming too many arguments ([9b28aad](https://github.com/yargs/yargs-parser/commit/9b28aad))
+
+
+
+<a name="9.0.1"></a>
+## [9.0.1](https://github.com/yargs/yargs-parser/compare/v9.0.0...v9.0.1) (2018-01-20)
+
+
+### Bug Fixes
+
+* nargs was consuming too many arguments ([4fef206](https://github.com/yargs/yargs-parser/commit/4fef206))
+
+
+
+<a name="9.0.0"></a>
+# [9.0.0](https://github.com/yargs/yargs-parser/compare/v8.1.0...v9.0.0) (2018-01-20)
+
+
+### Features
+
+* narg arguments no longer consume flag arguments ([#114](https://github.com/yargs/yargs-parser/issues/114)) ([60bb9b3](https://github.com/yargs/yargs-parser/commit/60bb9b3))
+
+
+### BREAKING CHANGES
+
+* arguments of form --foo, -abc, will no longer be consumed by nargs
+
+
+
+<a name="8.1.0"></a>
+# [8.1.0](https://github.com/yargs/yargs-parser/compare/v8.0.0...v8.1.0) (2017-12-20)
+
+
+### Bug Fixes
+
+* allow null config values ([#108](https://github.com/yargs/yargs-parser/issues/108)) ([d8b14f9](https://github.com/yargs/yargs-parser/commit/d8b14f9))
+* ensure consistent parsing of dot-notation arguments ([#102](https://github.com/yargs/yargs-parser/issues/102)) ([c9bd79c](https://github.com/yargs/yargs-parser/commit/c9bd79c))
+* implement [@antoniom](https://github.com/antoniom)'s fix for camel-case expansion ([3087e1d](https://github.com/yargs/yargs-parser/commit/3087e1d))
+* only run coercion functions once, despite aliases. ([#76](https://github.com/yargs/yargs-parser/issues/76)) ([#103](https://github.com/yargs/yargs-parser/issues/103)) ([507aaef](https://github.com/yargs/yargs-parser/commit/507aaef))
+* scientific notation circumvented bounds check ([#110](https://github.com/yargs/yargs-parser/issues/110)) ([3571f57](https://github.com/yargs/yargs-parser/commit/3571f57))
+* tokenizer should ignore spaces at the beginning of the argString ([#106](https://github.com/yargs/yargs-parser/issues/106)) ([f34ead9](https://github.com/yargs/yargs-parser/commit/f34ead9))
+
+
+### Features
+
+* make combining arrays a configurable option ([#111](https://github.com/yargs/yargs-parser/issues/111)) ([c8bf536](https://github.com/yargs/yargs-parser/commit/c8bf536))
+* merge array from arguments with array from config ([#83](https://github.com/yargs/yargs-parser/issues/83)) ([806ddd6](https://github.com/yargs/yargs-parser/commit/806ddd6))
+
+
+
+<a name="8.0.0"></a>
+# [8.0.0](https://github.com/yargs/yargs-parser/compare/v7.0.0...v8.0.0) (2017-10-05)
+
+
+### Bug Fixes
+
+* Ignore multiple spaces between arguments. ([#100](https://github.com/yargs/yargs-parser/issues/100)) ([d137227](https://github.com/yargs/yargs-parser/commit/d137227))
+
+
+### Features
+
+* allow configuration of prefix for boolean negation ([#94](https://github.com/yargs/yargs-parser/issues/94)) ([00bde7d](https://github.com/yargs/yargs-parser/commit/00bde7d))
+* reworking how numbers are parsed ([#104](https://github.com/yargs/yargs-parser/issues/104)) ([fba00eb](https://github.com/yargs/yargs-parser/commit/fba00eb))
+
+
+### BREAKING CHANGES
+
+* strings that fail `Number.isSafeInteger()` are no longer coerced into numbers. 
+
+
+
 <a name="7.0.0"></a>
 # [7.0.0](https://github.com/yargs/yargs-parser/compare/v6.0.1...v7.0.0) (2017-05-02)
 

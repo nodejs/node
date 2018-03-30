@@ -26,6 +26,10 @@ As of `npm@2.6.1`, the `npm update` will only inspect top-level packages.
 Prior versions of `npm` would also recursively inspect all dependencies.
 To get the old behavior, use `npm --depth 9999 update`.
 
+As of `npm@5.0.0`, the `npm update` will change `package.json` to save the 
+new version as the minimum required dependency. To get the old behavior, 
+use `npm update --no-save`.
+
 ## EXAMPLES
 
 IMPORTANT VERSION NOTE: these examples assume `npm@2.6.1` or later.  For
@@ -104,30 +108,6 @@ If the dependence were on `^0.4.0`:
 Then `npm update` will install `dep1@0.4.1`, because that is the highest-sorting
 version that satisfies `^0.4.0` (`>= 0.4.0 <0.5.0`)
 
-### Recording Updates with `--save`
-
-When you want to update a package and save the new version as
-the minimum required dependency in `package.json`, you can use
-`npm update -S` or `npm update --save`.  For example if
-`package.json` contains:
-
-```
-"dependencies": {
-  "dep1": "^1.1.1"
-}
-```
-
-Then `npm update --save` will install `dep1@1.2.2` (i.e., `latest`),
-and `package.json` will be modified:
-
-```
-"dependencies": {
-  "dep1": "^1.2.2"
-}
-```
-
-Note that `npm` will only write an updated version to `package.json`
-if it installs a new package.
 
 ### Updating Globally-Installed Packages
 

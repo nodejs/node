@@ -1,4 +1,4 @@
-.TH "NPM\-FOLDERS" "5" "December 2017" "" ""
+.TH "NPM\-FOLDERS" "5" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-folders\fR \- Folder Structures Used by npm
 .SH DESCRIPTION
@@ -69,7 +69,7 @@ Man pages are not installed on Windows systems\.
 .SS Cache
 .P
 See npm help \fBnpm\-cache\fP\|\.  Cache files are stored in \fB~/\.npm\fP on Posix, or
-\fB~/npm\-cache\fP on Windows\.
+\fB%AppData%/npm\-cache\fP on Windows\.
 .P
 This is controlled by the \fBcache\fP configuration param\.
 .SS Temp Files
@@ -173,17 +173,17 @@ foo
 .fi
 .RE
 .P
-Since foo depends directly on \fBbar@1\.2\.3\fP and \fBbaz@1\.2\.3\fP, those are
-installed in foo's \fBnode_modules\fP folder\.
+Since foo depends directly on \fBand\fP\fB, those are
+installed in foo's\fPnode_modules` folder\.
 .P
 Even though the latest copy of blerg is 1\.3\.7, foo has a specific
 dependency on version 1\.2\.5\.  So, that gets installed at [A]\.  Since the
-parent installation of blerg satisfies bar's dependency on \fBblerg@1\.x\fP,
+parent installation of blerg satisfies bar's dependency on `,
 it does not install another copy under [B]\.
 .P
 Bar [B] also has dependencies on baz and asdf, so those are installed in
-bar's \fBnode_modules\fP folder\.  Because it depends on \fBbaz@2\.x\fP, it cannot
-re\-use the \fBbaz@1\.2\.3\fP installed in the parent \fBnode_modules\fP folder [D],
+bar's \fBnode_modules\fP folder\.  Because it depends on \fB, it cannot
+re\-use the\fP\fBinstalled in the parent\fPnode_modules` folder [D],
 and must install its own copy [C]\.
 .P
 Underneath bar, the \fBbaz \-> quux \-> bar\fP dependency creates a cycle\.

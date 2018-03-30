@@ -204,7 +204,7 @@ HttpsProxyAgent.prototype.callback = function connect(req, opts, fn) {
   var headers = Object.assign({}, proxy.headers);
   if (proxy.auth) {
     headers['Proxy-Authorization'] =
-      'Basic ' + new Buffer(proxy.auth).toString('base64');
+      'Basic ' + Buffer.from(proxy.auth).toString('base64');
   }
 
   // the Host header should only include the port
