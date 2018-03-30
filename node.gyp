@@ -248,6 +248,7 @@
         'src/node_file.cc',
         'src/node_http_parser.cc',
         'src/node_os.cc',
+        'src/node_postmortem_metadata.cc',
         'src/node_revert.cc',
         'src/node_url.cc',
         'src/node_util.cc',
@@ -872,6 +873,7 @@
       'libraries': [
         '<(OBJ_GEN_PATH)/node_javascript.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/async-wrap.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)/handle_wrap.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/env.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/node.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/node_buffer.<(OBJ_SUFFIX)',
@@ -898,7 +900,9 @@
       ],
 
       'sources': [
+        'test/cctest/node_test_fixture.cc',
         'test/cctest/test_base64.cc',
+        'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc'
       ],
