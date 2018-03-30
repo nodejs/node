@@ -1,3 +1,27 @@
+/*
+Copyright (C) 2018 Intel Corporation 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom
+the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
+OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+SPDX-License-Identifier: MIT
+*/
+
 #include <errno.h>
 #include <fcntl.h>  // _O_RDWR
 #include <limits.h>  // PATH_MAX
@@ -17,7 +41,7 @@
 /*
 The functions in this file map the text segment of node into 2M pages.
 The algorithm is quite simple
-   1. Find the text region of node in memory 
+   1. Find the text region of node binary in memory 
    2. Move the text region to large pages
 */
 
@@ -114,8 +138,9 @@ namespace node {
 	// end = (unsigned int long) &__etext;
 	//    start = 0x0842700;
 	//    end =   0x1679e19;
+	//	fprintf(stderr, "find_node_text_region start-end: %lx-%lx nodestart-nodeend %lx-%lx\n", start, end, (unsigned int long)&__nodetext, (unsigned int long) &__etext);
 	start = (unsigned int long) &__nodetext;
-	end = (unsigned int long) &__etext;
+//	end = (unsigned int long) &__etext;
 	char *from = (char *)PAGE_ALIGN_UP(start, hugePageSize);
 	char *to = (char *)PAGE_ALIGN_DOWN(end, hugePageSize);
 	//	fprintf(stderr, "find_node_text_region %lx-%lx %s\n", from, to, name);
