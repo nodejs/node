@@ -16,39 +16,26 @@ async function validateWrite() {
   tmpdir.refresh();
   common.crashOnUnhandledRejection();
 
-  const filePathForSync = path.resolve(tmpDir, 'tmp-write-file1.txt');
-  const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file2.txt');
+  const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
   const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');
 
-  const fd = fs.openSync(filePathForSync, 'w+');
-  fs.writeSync(fd, buffer, 0, buffer.length);
-  fs.closeSync(fd);
-
-  const bytesRead = fs.readFileSync(filePathForSync);
   await fileHandle.write(buffer, 0, buffer.length);
-  const bytesReadHandle = fs.readFileSync(filePathForHandle);
-  assert.deepStrictEqual(bytesRead, bytesReadHandle);
+  const readFileData = fs.readFileSync(filePathForHandle);
+  assert.deepStrictEqual(buffer, readFileData);
 }
 
 async function validateEmptyWrite() {
   tmpdir.refresh();
   common.crashOnUnhandledRejection();
 
-  const filePathForSync = path.resolve(tmpDir, 'tmp-write-file1.txt');
-  const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file2.txt');
+  const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
-  //empty buffer
-  const buffer = Buffer.from('');
+  const buffer = Buffer.from(''); //empty buffer
 
-  const fd = fs.openSync(filePathForSync, 'w+');
-  fs.writeSync(fd, buffer, 0, buffer.length);
-  fs.closeSync(fd);
-
-  const bytesRead = fs.readFileSync(filePathForSync);
   await fileHandle.write(buffer, 0, buffer.length);
-  const bytesReadHandle = fs.readFileSync(filePathForHandle);
-  assert.deepStrictEqual(bytesRead, bytesReadHandle);
+  const readFileData = fs.readFileSync(filePathForHandle);
+  assert.deepStrictEqual(buffer, readFileData);
 }
 
 validateWrite()

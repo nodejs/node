@@ -22,18 +22,10 @@ async function validateRead() {
 
   const fd = fs.openSync(filePath, 'w+');
   fs.writeSync(fd, buffer, 0, buffer.length);
-  //use async read to get the buffer that was read into
-  const cb = common.mustCall(async (err, bytesRead, readBuffer) => {
-    assert.ifError(err);
-    fs.closeSync(fd);
-
-    const readAsyncHandle = await fileHandle.read(Buffer.alloc(11), 0, 11, 0);
-    assert.deepStrictEqual(bytesRead,
-                           readAsyncHandle.bytesRead);
-    assert.deepStrictEqual(readBuffer.toString('utf8'),
-                           readAsyncHandle.buffer.toString('utf8'));
-  });
-  fs.read(fd, Buffer.alloc(11), 0, 11, 0, cb);
+  fs.closeSync(fd);
+  const readAsyncHandle = await fileHandle.read(Buffer.alloc(11), 0, 11, 0);
+  assert.deepStrictEqual(buffer.length, readAsyncHandle.bytesRead);
+  assert.deepStrictEqual(buffer, readAsyncHandle.buffer);
 }
 
 async function validateEmptyRead() {
@@ -47,9 +39,8 @@ async function validateEmptyRead() {
   const fd = fs.openSync(filePath, 'w+');
   fs.writeSync(fd, buffer, 0, buffer.length);
   fs.closeSync(fd);
-  const bytesRead = fs.readFileSync(filePath, 'utf8');
   const readAsyncHandle = await fileHandle.read(Buffer.alloc(11), 0, 11, 0);
-  assert.deepStrictEqual(bytesRead.length, readAsyncHandle.bytesRead);
+  assert.deepStrictEqual(buffer.length, readAsyncHandle.bytesRead);
 }
 
 validateRead()

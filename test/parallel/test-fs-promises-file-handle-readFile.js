@@ -22,11 +22,10 @@ async function validateReadFile() {
 
   const fd = fs.openSync(filePath, 'w+');
   fs.writeSync(fd, buffer, 0, buffer.length);
-  const readSyncData = fs.readFileSync(filePath);
   fs.closeSync(fd);
 
-  const readAsyncData = await fileHandle.readFile();
-  assert.deepStrictEqual(readSyncData, readAsyncData);
+  const readFileData = await fileHandle.readFile();
+  assert.deepStrictEqual(buffer, readFileData);
 }
 
 validateReadFile()
