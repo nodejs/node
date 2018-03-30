@@ -1,11 +1,10 @@
 'use strict';
-const BUFFER_REQUIRE = 'const { Buffer } = require(\'buffer\');\n';
+const BUFFER_REQUIRE = 'const { Buffer } = require(\'buffer\');';
 
 module.exports = function(context) {
 
   function flagIt(reference) {
-    const msg = 'Use const Buffer = require(\'buffer\').Buffer; ' +
-                'at the beginning of this file';
+    const msg = `Use ${BUFFER_REQUIRE} at the beginning of this file`;
 
     context.report({
       node: reference.identifier,
@@ -18,7 +17,8 @@ module.exports = function(context) {
         const firstLOC = sourceCode.ast.range[0];
         const rangeNeedle = hasUseStrict ? useStrict.lastIndex : firstLOC;
 
-        return fixer.insertTextBeforeRange([rangeNeedle], BUFFER_REQUIRE);
+        return fixer.insertTextBeforeRange([rangeNeedle],
+                                           `${BUFFER_REQUIRE}\n`);
       }
     });
   }
