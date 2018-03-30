@@ -366,7 +366,7 @@ process.on('SIGTERM', handle);
 ```
 
 * `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
-  install a listener but doing so will _not_ stop the debugger from starting.
+  install a listener but doing so might interfere with the debugger.
 * `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
   reset the terminal mode before exiting with code `128 + signal number`. If one
   of these signals has a listener installed, its default behavior will be
