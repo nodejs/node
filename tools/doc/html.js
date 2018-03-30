@@ -408,7 +408,7 @@ function parseYAML(text) {
   return html.join('\n');
 }
 
-// Syscalls which appear in the docs, but which only exist in BSD / OSX.
+// Syscalls which appear in the docs, but which only exist in BSD / macOS.
 const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 
 // Handle references to man pages, eg "open(2)" or "lchmod(2)".
