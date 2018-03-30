@@ -446,7 +446,7 @@ function linkJsTypeDocs(text) {
     }
   }
 
-  // XXX Maybe put more stuff here?
+  // TODO: maybe put more stuff here?
   return parts.join('`');
 }
 
