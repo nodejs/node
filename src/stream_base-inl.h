@@ -193,10 +193,16 @@ inline StreamWriteResult StreamBase::Write(
     v8::Local<v8::Object> req_wrap_obj) {
   Environment* env = stream_env();
   int err;
+
+  size_t total_bytes = 0;
+  for (size_t i = 0; i < count; ++i)
+    total_bytes += bufs[i].len;
+  bytes_written_ += total_bytes;
+
   if (send_handle == nullptr) {
     err = DoTryWrite(&bufs, &count);
     if (err != 0 || count == 0) {
-      return StreamWriteResult { false, err, nullptr };
+      return StreamWriteResult { false, err, nullptr, total_bytes };
     }
   }
 
@@ -226,7 +232,7 @@ inline StreamWriteResult StreamBase::Write(
     ClearError();
   }
 
-  return StreamWriteResult { async, err, req_wrap };
+  return StreamWriteResult { async, err, req_wrap, total_bytes };
 }
 
 template <typename OtherBase>
@@ -301,6 +307,12 @@ void StreamBase::AddMethods(Environment* env,
                             env->as_external(),
                             signature);
 
+  Local<FunctionTemplate> get_bytes_written_templ =
+      FunctionTemplate::New(env->isolate(),
+                            GetBytesWritten<Base>,
+                            env->as_external(),
+                            signature);
+
   t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
                                               get_fd_templ,
                                               Local<FunctionTemplate>(),
@@ -313,6 +325,11 @@ void StreamBase::AddMethods(Environment* env,
 
   t->PrototypeTemplate()->SetAccessorProperty(env->bytes_read_string(),
                                               get_bytes_read_templ,
+                                              Local<FunctionTemplate>(),
+                                              attributes);
+
+  t->PrototypeTemplate()->SetAccessorProperty(env->bytes_written_string(),
+                                              get_bytes_written_templ,
                                               Local<FunctionTemplate>(),
                                               attributes);
 
@@ -357,7 +374,6 @@ void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
 
 template <class Base>
 void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
-  // The handle instance hasn't been set. So no bytes could have been read.
   Base* handle;
   ASSIGN_OR_RETURN_UNWRAP(&handle,
                           args.This(),
@@ -366,6 +382,18 @@ void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
   StreamBase* wrap = static_cast<StreamBase*>(handle);
   // uint64_t -> double. 53bits is enough for all real cases.
   args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
+}
+
+template <class Base>
+void StreamBase::GetBytesWritten(const FunctionCallbackInfo<Value>& args) {
+  Base* handle;
+  ASSIGN_OR_RETURN_UNWRAP(&handle,
+                          args.This(),
+                          args.GetReturnValue().Set(0));
+
+  StreamBase* wrap = static_cast<StreamBase*>(handle);
+  // uint64_t -> double. 53bits is enough for all real cases.
+  args.GetReturnValue().Set(static_cast<double>(wrap->bytes_written_));
 }
 
 template <class Base>
