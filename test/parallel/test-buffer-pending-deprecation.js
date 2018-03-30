@@ -5,7 +5,7 @@ const common = require('../common');
 
 const bufferWarning = 'The Buffer() and new Buffer() constructors are not ' +
                       'recommended for use due to security and usability ' +
-                      'concerns. Please use the new Buffer.alloc(), ' +
+                      'concerns. Please use the Buffer.alloc(), ' +
                       'Buffer.allocUnsafe(), or Buffer.from() construction ' +
                       'methods instead.';
 
