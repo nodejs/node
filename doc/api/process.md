@@ -211,7 +211,7 @@ changes:
                  a process warning.
 -->
 
-The `'unhandledRejection`' event is emitted whenever a `Promise` is rejected and
+The `'unhandledRejection'` event is emitted whenever a `Promise` is rejected and
 no error handler is attached to the promise within a turn of the event loop.
 When programming with Promises, exceptions are encapsulated as "rejected
 promises". Rejections can be caught and handled using [`promise.catch()`][] and
