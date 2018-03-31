@@ -82,6 +82,7 @@
 #include <sys/types.h>
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -186,7 +187,7 @@ static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
-static node_module* modpending;
+static std::unordered_map<std::string, node_module*> mods;
 static node_module* modlist_builtin;
 static node_module* modlist_internal;
 static node_module* modlist_linked;
@@ -2118,8 +2119,8 @@ extern "C" void node_module_register(void* m) {
     mp->nm_flags = NM_F_LINKED;
     mp->nm_link = modlist_linked;
     modlist_linked = mp;
-  } else {
-    modpending = mp;
+  } else if (mods.count(mp->nm_modname) == 0) {
+    mods[mp->nm_modname] = mp;
   }
 }
 
@@ -2227,15 +2228,9 @@ inline InitializerCallback GetInitializerCallback(DLib* dlib) {
 
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
-//
-// FIXME(bnoordhuis) Not multi-context ready. TBD how to resolve the conflict
-// when two contexts try to load the same shared object. Maybe have a shadow
-// cache that's a plain C list or hash table that's shared across contexts?
 static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto context = env->context();
-
-  CHECK_EQ(modpending, nullptr);
 
   if (args.Length() < 2) {
     env->ThrowError("process.dlopen needs at least 2 arguments.");
@@ -2260,12 +2255,6 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   DLib dlib(*filename, flags);
   bool is_opened = dlib.Open();
 
-  // Objects containing v14 or later modules will have registered themselves
-  // on the pending list.  Activate all of them now.  At present, only one
-  // module per object is supported.
-  node_module* const mp = modpending;
-  modpending = nullptr;
-
   if (!is_opened) {
     Local<String> errmsg = OneByteString(env->isolate(), dlib.errmsg_.c_str());
     dlib.Close();
@@ -2278,12 +2267,37 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  size_t lastdot = dlib.filename_.find_last_of('.');
+  CHECK_NE(lastdot, std::string::npos);
+  CHECK_EQ(lastdot, dlib.filename_.find(".node", lastdot));
+
+#ifdef _WIN32
+  size_t lastslash = dlib.filename_.find_last_of('\\');
+#else
+  size_t lastslash = dlib.filename_.find_last_of('/');
+#endif
+  size_t basenameloc = 0;
+  if (lastslash == std::string::npos) {
+    // No separators in the path
+    basenameloc = 0;
+  } else {
+    // At least one separator in the path
+    basenameloc = lastslash + 1;
+  }
+
+  std::string name = dlib.filename_.substr(basenameloc, lastdot - basenameloc);
+  node_module* mp = nullptr;
+  if (mods.find(name) != mods.end()) {
+    mp = mods[name];
+  }
+
   if (mp == nullptr) {
     if (auto callback = GetInitializerCallback(&dlib)) {
       callback(exports, module, context);
     } else {
       dlib.Close();
-      env->ThrowError("Module did not self-register.");
+      env->ThrowError("Module did not self-register or module required and "
+                      "registered with different names.");
     }
     return;
   }
