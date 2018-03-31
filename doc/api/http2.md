@@ -439,7 +439,7 @@ payload.
 session.ping(Buffer.from('abcdefgh'), (err, duration, payload) => {
   if (!err) {
     console.log(`Ping acknowledged in ${duration} milliseconds`);
-    console.log(`With payload '${payload.toString()}`);
+    console.log(`With payload '${payload.toString()}'`);
   }
 });
 ```
