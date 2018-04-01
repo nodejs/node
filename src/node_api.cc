@@ -481,9 +481,10 @@ class Reference : private Finalizer {
     // Check before calling the finalize callback, because the callback might
     // delete it.
     bool delete_self = reference->_delete_self;
+    napi_env env = reference->_env;
 
     if (reference->_finalize_callback != nullptr) {
-      NAPI_CALL_INTO_MODULE_THROW(reference->_env,
+      NAPI_CALL_INTO_MODULE_THROW(env,
         reference->_finalize_callback(
             reference->_env,
             reference->_finalize_data,
