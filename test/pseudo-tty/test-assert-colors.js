@@ -1,6 +1,8 @@
 'use strict';
+// Flags: --expose-internals
 require('../common');
 const assert = require('assert').strict;
+const util = require('internal/util');
 
 try {
   // Activate colors even if the tty does not support colors.
@@ -15,4 +17,6 @@ try {
     '    2\n' +
     '  ]';
   assert.strictEqual(err.message, expected);
+  assert.strictEqual(err.rawMessage, util.removeColors(expected));
+  assert.notStrictEqual(err.message, err.rawMessage);
 }
