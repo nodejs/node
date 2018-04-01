@@ -79,7 +79,7 @@ if (!common.isWindows) {
       fail('uid', 3.1, invalidArgTypeError);
       fail('uid', -3.1, invalidArgTypeError);
     } else {
-      //Decrement invalidArgTypeErrorCount if validation isn't possible
+      // Decrement invalidArgTypeErrorCount if validation isn't possible
       invalidArgTypeErrorCount -= 10;
     }
   }
@@ -101,7 +101,7 @@ if (!common.isWindows) {
       fail('gid', 3.1, invalidArgTypeError);
       fail('gid', -3.1, invalidArgTypeError);
     } else {
-      //Decrement invalidArgTypeErrorCount if validation isn't possible
+      // Decrement invalidArgTypeErrorCount if validation isn't possible
       invalidArgTypeErrorCount -= 10;
     }
   }
