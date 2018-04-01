@@ -364,13 +364,8 @@ detailed [here](#errors_system_errors).
 
 ## Class: AssertionError
 
-A subclass of `Error` that indicates the failure of an assertion. Such errors
-commonly indicate inequality of actual and expected value.
-
-```js
-assert.strictEqual(1, 2);
-// AssertionError [ERR_ASSERTION]: 1 === 2
-```
+A subclass of `Error` that indicates the failure of an assertion. For further
+details check asserts [`Class: AssertionError`][].
 
 ## Class: RangeError
 
@@ -1680,6 +1675,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
 [`server.listen()`]: net.html#net_server_listen
+[`Class: AssertionError`]: assert.html#class_assertionerror
 [ES6 module]: esm.html
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
