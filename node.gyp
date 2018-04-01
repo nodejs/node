@@ -132,6 +132,7 @@
       'lib/internal/timers.js',
       'lib/internal/tls.js',
       'lib/internal/trace_events_async_hooks.js',
+      'lib/internal/tty.js',
       'lib/internal/url.js',
       'lib/internal/util.js',
       'lib/internal/util/comparisons.js',
