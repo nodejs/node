@@ -1,6 +1,6 @@
 # Assert
 
-<!--introduced_in=v0.10.0-->
+<!--introduced_in=v0.1.21-->
 
 > Stability: 2 - Stable
 
