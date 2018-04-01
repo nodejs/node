@@ -44,7 +44,7 @@ const result = {
 result;
 `, ctx);
 
-//eslint-disable-next-line no-restricted-properties
+// eslint-disable-next-line no-restricted-properties
 assert.deepEqual(result, {
   a: { value: 'a', writable: true, enumerable: true, configurable: true },
   b: { value: 'b', writable: false, enumerable: false, configurable: false },

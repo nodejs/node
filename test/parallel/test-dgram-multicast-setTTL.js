@@ -30,7 +30,7 @@ socket.on('listening', common.mustCall(() => {
   const result = socket.setMulticastTTL(16);
   assert.strictEqual(result, 16);
 
-  //Try to set an invalid TTL (valid ttl is > 0 and < 256)
+  // Try to set an invalid TTL (valid ttl is > 0 and < 256)
   assert.throws(() => {
     socket.setMulticastTTL(1000);
   }, /^Error: setMulticastTTL EINVAL$/);
@@ -43,6 +43,6 @@ socket.on('listening', common.mustCall(() => {
     message: 'The "ttl" argument must be of type number. Received type string'
   });
 
-  //close the socket
+  // Close the socket
   socket.close();
 }));

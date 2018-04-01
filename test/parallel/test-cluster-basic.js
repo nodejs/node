@@ -78,45 +78,45 @@ if (cluster.isWorker) {
 
   const stateNames = Object.keys(checks.worker.states);
 
-  //Check events, states, and emit arguments
+  // Check events, states, and emit arguments
   forEach(checks.cluster.events, (bool, name, index) => {
 
-    //Listen on event
+    // Listen on event
     cluster.on(name, common.mustCall(function(/* worker */) {
 
-      //Set event
+      // Set event
       checks.cluster.events[name] = true;
 
-      //Check argument
+      // Check argument
       checks.cluster.equal[name] = worker === arguments[0];
 
-      //Check state
+      // Check state
       const state = stateNames[index];
       checks.worker.states[state] = (state === worker.state);
     }));
   });
 
-  //Kill worker when listening
+  // Kill worker when listening
   cluster.on('listening', common.mustCall(() => {
     worker.kill();
   }));
 
-  //Kill process when worker is killed
+  // Kill process when worker is killed
   cluster.on('exit', common.mustCall());
 
-  //Create worker
+  // Create worker
   const worker = cluster.fork();
   assert.strictEqual(worker.id, 1);
   assert(worker instanceof cluster.Worker,
          'the worker is not a instance of the Worker constructor');
 
-  //Check event
+  // Check event
   forEach(checks.worker.events, function(bool, name, index) {
     worker.on(name, common.mustCall(function() {
-      //Set event
+      // Set event
       checks.worker.events[name] = true;
 
-      //Check argument
+      // Check argument
       checks.worker.equal[name] = (worker === this);
 
       switch (name) {
@@ -146,33 +146,33 @@ if (cluster.isWorker) {
     }));
   });
 
-  //Check all values
+  // Check all values
   process.once('exit', () => {
-    //Check cluster events
+    // Check cluster events
     forEach(checks.cluster.events, (check, name) => {
       assert(check,
              `The cluster event "${name}" on the cluster object did not fire`);
     });
 
-    //Check cluster event arguments
+    // Check cluster event arguments
     forEach(checks.cluster.equal, (check, name) => {
       assert(check,
              `The cluster event "${name}" did not emit with correct argument`);
     });
 
-    //Check worker states
+    // Check worker states
     forEach(checks.worker.states, (check, name) => {
       assert(check,
              `The worker state "${name}" was not set to true`);
     });
 
-    //Check worker events
+    // Check worker events
     forEach(checks.worker.events, (check, name) => {
       assert(check,
              `The worker event "${name}" on the worker object did not fire`);
     });
 
-    //Check worker event arguments
+    // Check worker event arguments
     forEach(checks.worker.equal, (check, name) => {
       assert(check,
              `The worker event "${name}" did not emit with correct argument`);

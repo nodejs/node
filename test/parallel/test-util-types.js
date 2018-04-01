@@ -1,4 +1,4 @@
-/*global SharedArrayBuffer*/
+/* global SharedArrayBuffer */
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');

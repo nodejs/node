@@ -166,11 +166,11 @@ directly by the shell and special characters (vary based on
 need to be dealt with accordingly:
 ```js
 exec('"/path/to/test file/test.sh" arg1 arg2');
-//Double quotes are used so that the space in the path is not interpreted as
-//multiple arguments
+// Double quotes are used so that the space in the path is not interpreted as
+// multiple arguments
 
 exec('echo "The \\$HOME variable is $HOME"');
-//The $HOME variable is escaped in the first instance, but not in the second
+// The $HOME variable is escaped in the first instance, but not in the second
 ```
 
 **Never pass unsanitized user input to this function. Any input containing shell
