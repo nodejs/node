@@ -890,7 +890,7 @@ associating it with the `sandbox` object is what this document refers to as
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
-[`url.origin`]: https://nodejs.org/api/url.html#url_url_origin
+[`url.origin`]: url.html#url_url_origin
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
@@ -899,9 +899,9 @@ associating it with the `sandbox` object is what this document refers to as
 [Evaluate() concrete method]: https://tc39.github.io/ecma262/#sec-moduleevaluation
 [HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
 [Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation
+[Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
-[Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records
