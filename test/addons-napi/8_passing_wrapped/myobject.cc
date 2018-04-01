@@ -1,9 +1,14 @@
 #include "myobject.h"
 #include "../common.h"
 
+size_t finalize_count = 0;
+
 MyObject::MyObject() : env_(nullptr), wrapper_(nullptr) {}
 
-MyObject::~MyObject() { napi_delete_reference(env_, wrapper_); }
+MyObject::~MyObject() {
+  finalize_count++;
+  napi_delete_reference(env_, wrapper_);
+}
 
 void MyObject::Destructor(
   napi_env env, void* nativeObject, void* /*finalize_hint*/) {
@@ -45,6 +50,11 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   }
 
   obj->env_ = env;
+
+  // It is important that the below call to napi_wrap() be such that we request
+  // a reference to the wrapped object via the out-parameter, because this
+  // ensures that we test the code path that deals with a reference that is
+  // destroyed from its own finalizer.
   NAPI_CALL(env, napi_wrap(env,
                           _this,
                           obj,

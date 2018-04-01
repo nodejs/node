@@ -1,7 +1,9 @@
 #include "myobject.h"
 #include "../common.h"
 
-napi_value CreateObject(napi_env env, napi_callback_info info) {
+extern size_t finalize_count;
+
+static napi_value CreateObject(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
@@ -12,7 +14,7 @@ napi_value CreateObject(napi_env env, napi_callback_info info) {
   return instance;
 }
 
-napi_value Add(napi_env env, napi_callback_info info) {
+static napi_value Add(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
@@ -29,12 +31,19 @@ napi_value Add(napi_env env, napi_callback_info info) {
   return sum;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value FinalizeCount(napi_env env, napi_callback_info info) {
+  napi_value return_value;
+  NAPI_CALL(env, napi_create_uint32(env, finalize_count, &return_value));
+  return return_value;
+}
+
+static napi_value Init(napi_env env, napi_value exports) {
   MyObject::Init(env);
 
   napi_property_descriptor desc[] = {
     DECLARE_NAPI_PROPERTY("createObject", CreateObject),
     DECLARE_NAPI_PROPERTY("add", Add),
+    DECLARE_NAPI_PROPERTY("finalizeCount", FinalizeCount),
   };
 
   NAPI_CALL(env,
