@@ -13,13 +13,12 @@ A `strict` and a `legacy` mode exist, while it is recommended to only use
 For more information about the used equality comparisons see
 [MDN's guide on equality comparisons and sameness][mdn-equality-guide].
 
-## Class: AssertionError
+## Class: assert.AssertionError
 
-A subclass of `Error` that indicates the failure of an assertion.
-All errors thrown by the assert module will be instance of the `AssertionError`
-class.
+A subclass of `Error` that indicates the failure of an assertion. All errors
+thrown by the `assert` module will be instances of the `AssertionError` class.
 
-### new AssertionError(options)
+### new assert.AssertionError(options)
 <!-- YAML
 added: v0.1.21
 -->
@@ -40,14 +39,14 @@ added: v0.1.21
 
 A subclass of `Error` that indicates the failure of an assertion.
 
-All instances contain the built-in Error properties (i.e., `message` and `name`)
-plus the following:
+All instances contain the built-in `Error` properties (`message` and `name`)
+and:
 
 * `actual` {any} Set to the actual value in case e.g.,
   [`assert.strictEqual()`] is used.
 * `expected` {any} Set to the expected value in case e.g.,
   [`assert.strictEqual()`] is used.
-* `generatedMessage` {boolean} Indicates if the message was auto generated
+* `generatedMessage` {boolean} Indicates if the message was auto-generated
   (`true`) or not.
 * `code` {string} This is always set to the string `ERR_ASSERTION` to indicate
   that the error is actually a assertion error.
@@ -56,25 +55,25 @@ plus the following:
 ```js
 const assert = require('assert');
 
-// Generate a AssertionError to compare the error message later:.
+// Generate an AssertionError to compare the error message later:
 const { message } = new assert.AssertionError({
   actual: 1,
   expected: 2,
-  operator: '=='
+  operator: 'strictEqual'
 });
 
 // Verify error output:
 try {
-  assert.equal(1, 2);
+  assert.strictEqual(1, 2);
 } catch (err) {
   assert(err instanceof assert.AssertionError);
-  assert.equal(err.message, message);
-  assert.equal(err.name, 'AssertionError [ERR_ASSERTION]');
-  assert.equal(err.actual, 1);
-  assert.equal(err.expected, 2);
-  assert.equal(err.code, 'ERR_ASSERTION');
-  assert.equal(err.operator, '==');
-  assert.equal(err.generatedMessage, true);
+  assert.strictEqual(err.message, message);
+  assert.strictEqual(err.name, 'AssertionError [ERR_ASSERTION]');
+  assert.strictEqual(err.actual, 1);
+  assert.strictEqual(err.expected, 2);
+  assert.strictEqual(err.code, 'ERR_ASSERTION');
+  assert.strictEqual(err.operator, 'strictEqual');
+  assert.strictEqual(err.generatedMessage, true);
 }
 ```
 
