@@ -691,7 +691,6 @@ exports.expectsError = function expectsError(fn, settings, exact) {
     fn = undefined;
   }
   function innerFn(error) {
-    assert.strictEqual(error.code, settings.code);
     if ('type' in settings) {
       const type = settings.type;
       if (type !== Error && !Error.isPrototypeOf(type)) {
@@ -714,18 +713,16 @@ exports.expectsError = function expectsError(fn, settings, exact) {
                `${error.message} does not match ${message}`);
       }
     }
-    if ('name' in settings) {
-      assert.strictEqual(error.name, settings.name);
-    }
-    if (error.constructor.name === 'AssertionError') {
-      ['generatedMessage', 'actual', 'expected', 'operator'].forEach((key) => {
-        if (key in settings) {
-          const actual = error[key];
-          const expected = settings[key];
-          assert.strictEqual(actual, expected,
-                             `${key}: expected ${expected}, not ${actual}`);
-        }
-      });
+
+    // Check all error properties.
+    const keys = Object.keys(settings);
+    for (const key of keys) {
+      if (key === 'message' || key === 'type')
+        continue;
+      const actual = error[key];
+      const expected = settings[key];
+      assert.strictEqual(actual, expected,
+                         `${key}: expected ${expected}, not ${actual}`);
     }
     return true;
   }
