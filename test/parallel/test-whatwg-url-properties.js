@@ -143,6 +143,9 @@ assert.strictEqual(url.searchParams, oldParams);
   assert.strictEqual(opts.pathname, '/aaa/zzz');
   assert.strictEqual(opts.search, '?l=24');
   assert.strictEqual(opts.hash, '#test');
+
+  const { hostname } = urlToOptions(new URL('http://[::1]:21'));
+  assert.strictEqual(hostname, '::1');
 }
 
 // Test special origins
