@@ -6,7 +6,6 @@ if (!common.enoughTestMem)
   common.skip(skipMessage);
 
 const binding = require(`./build/${common.buildType}/binding`);
-const assert = require('assert');
 
 // v8 fails silently if string length > v8::String::kMaxLength
 // v8::String::kMaxLength defined in v8.h
@@ -25,6 +24,11 @@ try {
 if (!binding.ensureAllocation(2 * kStringMaxLength))
   common.skip(skipMessage);
 
-assert.throws(function() {
+const stringLengthHex = kStringMaxLength.toString(16);
+common.expectsError(function() {
   buf.toString('base64');
-}, /"toString\(\)" failed/);
+}, {
+  message: `Cannot create a string larger than 0x${stringLengthHex} bytes`,
+  code: 'ERR_STRING_TOO_LARGE',
+  type: Error
+});

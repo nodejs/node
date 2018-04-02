@@ -25,10 +25,27 @@ try {
 if (!binding.ensureAllocation(2 * kStringMaxLength))
   common.skip(skipMessage);
 
-assert.throws(function() {
-  buf.toString();
-}, /"toString\(\)" failed|Array buffer allocation failed/);
+const stringLengthHex = kStringMaxLength.toString(16);
 
 assert.throws(function() {
+  buf.toString();
+}, function(e) {
+  if (e.message !== 'Array buffer allocation failed') {
+    common.expectsError({
+      message: `Cannot create a string larger than 0x${stringLengthHex} bytes`,
+      code: 'ERR_STRING_TOO_LARGE',
+      type: Error
+    })(e);
+    return true;
+  } else {
+    return true;
+  }
+});
+
+common.expectsError(function() {
   buf.toString('utf8');
-}, /"toString\(\)" failed/);
+}, {
+  message: `Cannot create a string larger than 0x${stringLengthHex} bytes`,
+  code: 'ERR_STRING_TOO_LARGE',
+  type: Error
+});
