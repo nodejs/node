@@ -140,7 +140,8 @@ added: v0.1.90
      command line parsing should be compatible with `cmd.exe`.
   * `timeout` {number} **Default:** `0`
   * [`maxBuffer`][] {number} Largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed. **Default:** `200*1024`
+    stdout or stderr - if exceeded child process is killed.
+    **Default:** `200 * 1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -218,7 +219,7 @@ added: v0.1.91
   * `timeout` {number} **Default:** `0`
   * [`maxBuffer`][] {number} Largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed.
-    **Default:**: `200*1024`
+    **Default:** `200 * 1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).

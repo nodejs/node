@@ -157,7 +157,7 @@ The memory requirements for deflate are (in bytes):
 (1 << (windowBits + 2)) + (1 << (memLevel + 9));
 ```
 
-That is: 128K for windowBits=15  +  128K for memLevel = 8
+That is: 128K for windowBits = 15  +  128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
 
 For example, to reduce the default memory requirements from 256K to 128K, the
@@ -175,7 +175,7 @@ The memory requirements for inflate are (in bytes)
 1 << windowBits;
 ```
 
-That is, 32K for windowBits=15 (default value) plus a few kilobytes
+That is, 32K for windowBits = 15 (default value) plus a few kilobytes
 for small objects.
 
 This is in addition to a single internal output slab buffer of size
@@ -295,7 +295,7 @@ ignored by the decompression classes.
 
 * `flush` (default: `zlib.Z_NO_FLUSH`)
 * `finishFlush` (default: `zlib.Z_FINISH`)
-* `chunkSize` (default: 16*1024)
+* `chunkSize` (default: `16 * 1024`)
 * `windowBits`
 * `level` (compression only)
 * `memLevel` (compression only)

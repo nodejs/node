@@ -273,7 +273,7 @@ console.log('b done');
 console.log('main starting');
 const a = require('./a.js');
 const b = require('./b.js');
-console.log('in main, a.done=%j, b.done=%j', a.done, b.done);
+console.log('in main, a.done = %j, b.done = %j', a.done, b.done);
 ```
 
 When `main.js` loads `a.js`, then `a.js` in turn loads `b.js`.  At that
@@ -294,7 +294,7 @@ in b, a.done = false
 b done
 in a, b.done = true
 a done
-in main, a.done=true, b.done=true
+in main, a.done = true, b.done = true
 ```
 
 If you have cyclic module dependencies in your program, make sure to
