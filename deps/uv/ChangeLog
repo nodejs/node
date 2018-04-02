@@ -1,3 +1,53 @@
+2018.04.03, Version 1.20.0 (Stable), 0012178ee2b04d9e4a2c66c27cf8891ad8325ceb
+
+Changes since version 1.19.2:
+
+* unix,spawn: respect user stdio flags for new pipe (Jameson Nash)
+
+* Revert "Revert "unix,tcp: avoid marking server sockets connected"" (Jameson
+  Nash)
+
+* req: revisions to uv_req_t handling (Jameson Nash)
+
+* win: remove unnecessary initialization (cjihrig)
+
+* win: update uv_os_homedir() to use uv_os_getenv() (cjihrig)
+
+* test: fix tcp_oob test flakiness (Santiago Gimeno)
+
+* posix: fix uv__pollfds_del() for invalidated fd's (Jesse Gorzinski)
+
+* doc: README: add note on installing gyp (Jamie Davis)
+
+* unix: refactor uv_os_homedir to use uv_os_getenv (Santiago Gimeno)
+
+* unix: fix several instances of lost errno (Michael Kilburn)
+
+* win,tty: update several TODO comments (Ruslan Bekenev)
+
+* unix: add UV_FS_COPYFILE_FICLONE support (cjihrig)
+
+* test: fix connect_unspecified (Santiago Gimeno)
+
+* unix,win: add UV_FS_COPYFILE_FICLONE_FORCE support (cjihrig)
+
+* win: use long directory name for handle->dirw (Nicholas Vavilov)
+
+* build: build with -D_FILE_OFFSET_BITS=64 again (Ben Noordhuis)
+
+* win, fs: fix uv_fs_unlink for +R -A files (Bartosz Sosnowski)
+
+* win, fs: use FILE_WRITE_ATTRIBUTES when opening files (Bartosz Sosnowski)
+
+* unix: use __PASE__ on IBM i platforms (Jesse Gorzinski)
+
+* test,freebsd: fix flaky poll tests (Santiago Gimeno)
+
+* test: increase connection timeout to 1 second (jBarz)
+
+* win,tcp: handle canceled connect with ECANCELED (Jameson Nash)
+
+
 2018.02.22, Version 1.19.2 (Stable), c5afc37e2a8a70d8ab0da8dac10b77ba78c0488c
 
 Changes since version 1.19.1:

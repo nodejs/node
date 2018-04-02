@@ -107,7 +107,7 @@ static void uv__pollfds_add(uv_loop_t* loop, uv__io_t* w) {
 static void uv__pollfds_del(uv_loop_t* loop, int fd) {
   size_t i;
   assert(!loop->poll_fds_iterating);
-  for (i = 0; i < loop->poll_fds_used; ++i) {
+  for (i = 0; i < loop->poll_fds_used;) {
     if (loop->poll_fds[i].fd == fd) {
       /* swap to last position and remove */
       --loop->poll_fds_used;
@@ -115,7 +115,17 @@ static void uv__pollfds_del(uv_loop_t* loop, int fd) {
       loop->poll_fds[loop->poll_fds_used].fd = -1;
       loop->poll_fds[loop->poll_fds_used].events = 0;
       loop->poll_fds[loop->poll_fds_used].revents = 0;
-      return;
+      /* This method is called with an fd of -1 to purge the invalidated fds,
+       * so we may possibly have multiples to remove.
+       */
+      if (-1 != fd)
+        return;
+    } else {
+      /* We must only increment the loop counter when the fds do not match.
+       * Otherwise, when we are purging an invalidated fd, the value just
+       * swapped here from the previous end of the array will be skipped.
+       */
+       ++i;
     }
   }
 }

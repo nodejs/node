@@ -1148,53 +1148,17 @@ int uv_getrusage(uv_rusage_t *uv_rusage) {
 
 int uv_os_homedir(char* buffer, size_t* size) {
   uv_passwd_t pwd;
-  wchar_t path[MAX_PATH];
-  DWORD bufsize;
   size_t len;
   int r;
 
-  if (buffer == NULL || size == NULL || *size == 0)
-    return UV_EINVAL;
+  /* Check if the USERPROFILE environment variable is set first. The task of
+     performing input validation on buffer and size is taken care of by
+     uv_os_getenv(). */
+  r = uv_os_getenv("USERPROFILE", buffer, size);
 
-  /* Check if the USERPROFILE environment variable is set first */
-  len = GetEnvironmentVariableW(L"USERPROFILE", path, MAX_PATH);
-
-  if (len == 0) {
-    r = GetLastError();
-
-    /* Don't return an error if USERPROFILE was not found */
-    if (r != ERROR_ENVVAR_NOT_FOUND)
-      return uv_translate_sys_error(r);
-  } else if (len > MAX_PATH) {
-    /* This should not be possible */
-    return UV_EIO;
-  } else {
-    /* Check how much space we need */
-    bufsize = WideCharToMultiByte(CP_UTF8, 0, path, -1, NULL, 0, NULL, NULL);
-
-    if (bufsize == 0) {
-      return uv_translate_sys_error(GetLastError());
-    } else if (bufsize > *size) {
-      *size = bufsize;
-      return UV_ENOBUFS;
-    }
-
-    /* Convert to UTF-8 */
-    bufsize = WideCharToMultiByte(CP_UTF8,
-                                  0,
-                                  path,
-                                  -1,
-                                  buffer,
-                                  *size,
-                                  NULL,
-                                  NULL);
-
-    if (bufsize == 0)
-      return uv_translate_sys_error(GetLastError());
-
-    *size = bufsize - 1;
-    return 0;
-  }
+  /* Don't return an error if USERPROFILE was not found. */
+  if (r != UV_ENOENT)
+    return r;
 
   /* USERPROFILE is not set, so call uv__getpwuid_r() */
   r = uv__getpwuid_r(&pwd);

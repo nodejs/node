@@ -133,18 +133,18 @@ int uv__socket_sockopt(uv_handle_t* handle, int optname, int* value);
 void uv__fs_scandir_cleanup(uv_fs_t* req);
 
 #define uv__has_active_reqs(loop)                                             \
-  (QUEUE_EMPTY(&(loop)->active_reqs) == 0)
+  ((loop)->active_reqs.count > 0)
 
 #define uv__req_register(loop, req)                                           \
   do {                                                                        \
-    QUEUE_INSERT_TAIL(&(loop)->active_reqs, &(req)->active_queue);            \
+    (loop)->active_reqs.count++;                                              \
   }                                                                           \
   while (0)
 
 #define uv__req_unregister(loop, req)                                         \
   do {                                                                        \
     assert(uv__has_active_reqs(loop));                                        \
-    QUEUE_REMOVE(&(req)->active_queue);                                       \
+    (loop)->active_reqs.count--;                                              \
   }                                                                           \
   while (0)
 
