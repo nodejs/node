@@ -821,7 +821,7 @@ added: v0.1.90
 -->
 
 Sends data on the socket. The second parameter specifies the encoding in the
-case of a string--it defaults to UTF8 encoding.
+case of a string — it defaults to UTF8 encoding.
 
 Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.

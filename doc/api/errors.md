@@ -566,14 +566,14 @@ found [here][online].
   `ulimit -n 2048` in the same shell that will run the Node.js process.
 
 - `ENOENT` (No such file or directory): Commonly raised by [`fs`][] operations
-  to indicate that a component of the specified pathname does not exist -- no
+  to indicate that a component of the specified pathname does not exist — no
   entity (file or directory) could be found by the given path.
 
 - `ENOTDIR` (Not a directory): A component of the given pathname existed, but
   was not a directory as expected. Commonly raised by [`fs.readdir`][].
 
 - `ENOTEMPTY` (Directory not empty): A directory with entries was the target
-  of an operation that requires an empty directory -- usually [`fs.unlink`][].
+  of an operation that requires an empty directory — usually [`fs.unlink`][].
 
 - `EPERM` (Operation not permitted): An attempt was made to perform an
   operation that requires elevated privileges.
@@ -585,7 +585,7 @@ found [here][online].
 
 - `ETIMEDOUT` (Operation timed out): A connect or send request failed because
   the connected party did not properly respond after a period of time. Usually
-  encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
+  encountered by [`http`][] or [`net`][] — often a sign that a `socket.end()`
   was not properly called.
 
 <a id="nodejs-error-codes"></a>

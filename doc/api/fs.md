@@ -75,7 +75,7 @@ fs.rename('/tmp/hello', '/tmp/world', (err) => {
 
 In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
-the entire process until they complete--halting all connections.
+the entire process until they complete — halting all connections.
 
 While it is not recommended, most fs functions allow the callback argument to
 be omitted, in which case a default callback is used that rethrows errors. To
@@ -3442,7 +3442,7 @@ Instances of the `FileHandle` object are created internally by the
 `fsPromises.open()` method.
 
 Unlike callback-based such as `fs.fstat()`, `fs.fchown()`, `fs.fchmod()`,
-`fs.ftruncate()`, `fs.read()`, and `fs.write()`, operations -- all of which
+`fs.ftruncate()`, `fs.read()`, and `fs.write()`, operations — all of which
 use a simple numeric file descriptor, all `fsPromises.*` variations use the
 `FileHandle` class in order to help protect against accidental leaking of
 unclosed file descriptors after a `Promise` is resolved or rejected.
