@@ -49,7 +49,7 @@ and:
 * `generatedMessage` {boolean} Indicates if the message was auto-generated
   (`true`) or not.
 * `code` {string} This is always set to the string `ERR_ASSERTION` to indicate
-  that the error is actually a assertion error.
+  that the error is actually an assertion error.
 * `operator` {string} Set to the passed in operator value.
 
 ```js
