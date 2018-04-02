@@ -4060,7 +4060,7 @@ added: REPLACEME
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
 * `mode` {integer} **Default:** `0o666` (readable and writable)
-* Return: {Promise}
+* Returns: {Promise}
 
 Asynchronous file open that returns a `Promise` that, when resolved, yields a
 `FileHandle` object. See open(2).

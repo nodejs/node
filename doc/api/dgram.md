@@ -231,14 +231,14 @@ drop membership on all valid interfaces.
 added: v8.7.0
 -->
 
-* Returns {number} the `SO_RCVBUF` socket receive buffer size in bytes.
+* Returns: {number} the `SO_RCVBUF` socket receive buffer size in bytes.
 
 ### socket.getSendBufferSize()
 <!-- YAML
 added: v8.7.0
 -->
 
-* Returns {number} the `SO_SNDBUF` socket send buffer size in bytes.
+* Returns: {number} the `SO_SNDBUF` socket send buffer size in bytes.
 
 ### socket.ref()
 <!-- YAML
