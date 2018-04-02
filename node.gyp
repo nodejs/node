@@ -316,6 +316,7 @@
         'src/node_contextify.cc',
         'src/node_debug_options.cc',
         'src/node_domain.cc',
+        'src/node_errors.h',
         'src/node_file.cc',
         'src/node_http2.cc',
         'src/node_http_parser.cc',
