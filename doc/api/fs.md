@@ -68,7 +68,7 @@ fs.rename('/tmp/hello', '/tmp/world', (err) => {
 
 In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
-the entire process until they complete--halting all connections.
+the entire process until they complete — halting all connections.
 
 The relative path to a filename can be used. Remember, however, that this path
 will be relative to `process.cwd()`.
