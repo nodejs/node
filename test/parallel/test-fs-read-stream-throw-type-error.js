@@ -14,23 +14,23 @@ fs.createReadStream(example, null);
 fs.createReadStream(example, 'utf8');
 fs.createReadStream(example, { encoding: 'utf8' });
 
-const createReadStreamErr = (path, opt) => {
+const createReadStreamErr = (path, opt, errorCode) => {
   common.expectsError(
     () => {
       fs.createReadStream(path, opt);
     },
     {
-      code: 'ERR_INVALID_ARG_TYPE',
+      code: errorCode,
       type: TypeError
     });
 };
 
-createReadStreamErr(example, 123);
-createReadStreamErr(example, 0);
-createReadStreamErr(example, true);
-createReadStreamErr(example, false);
+createReadStreamErr(example, 123, 'ERR_INVALID_ARG_TYPE');
+createReadStreamErr(example, 0, 'ERR_INVALID_ARG_TYPE');
+createReadStreamErr(example, true, 'ERR_INVALID_ARG_TYPE');
+createReadStreamErr(example, false, 'ERR_INVALID_ARG_TYPE');
 
 // Should also throw on NaN (for https://github.com/nodejs/node/pull/19732)
-createReadStreamErr(example, { start: NaN });
-createReadStreamErr(example, { end: NaN });
-createReadStreamErr(example, { start: NaN, end: NaN });
+createReadStreamErr(example, { start: NaN }, 'ERR_OUT_OF_RANGE');
+createReadStreamErr(example, { end: NaN }, 'ERR_OUT_OF_RANGE');
+createReadStreamErr(example, { start: NaN, end: NaN }, 'ERR_OUT_OF_RANGE');
