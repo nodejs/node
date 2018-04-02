@@ -14,7 +14,12 @@ const assert = require('assert');
 { // OOB
   const data = Buffer.alloc(8);
   ['UInt8', 'UInt16BE', 'UInt16LE', 'UInt32BE', 'UInt32LE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+
+    // Verify that default offset works fine.
+    data[`write${fn}`](23, undefined);
+    data[`write${fn}`](23);
+
+    ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
       assert.throws(
         () => data[`write${fn}`](23, o),
         { code: 'ERR_INVALID_ARG_TYPE' });
@@ -112,9 +117,15 @@ const assert = require('assert');
 
   // Check byteLength.
   ['writeUIntBE', 'writeUIntLE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+
+    // Verify that default offset & byteLength works fine.
+    data[fn](undefined, undefined);
+    data[fn](undefined);
+    data[fn]();
+
+    ['', '0', null, {}, [], () => {}, true, false].forEach((bl) => {
       assert.throws(
-        () => data[fn](23, 0, o),
+        () => data[fn](23, 0, bl),
         { code: 'ERR_INVALID_ARG_TYPE' });
     });
 
@@ -153,7 +164,7 @@ const assert = require('assert');
                  `It must be >= 0 and <= ${val - 1}. Received ${val}`
       });
 
-      ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+      ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
         assert.throws(
           () => data[fn](23, o, i),
           {
