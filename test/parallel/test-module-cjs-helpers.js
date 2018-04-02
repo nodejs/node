@@ -3,7 +3,7 @@
 
 require('../common');
 const assert = require('assert');
-const { builtinLibs } = require('internal/module');
+const { builtinLibs } = require('internal/modules/cjs/helpers');
 
 const hasInspector = process.config.variables.v8_enable_inspector === 1;
 

@@ -1,9 +1,11 @@
 // Flags: --expose_internals
 'use strict';
 const assert = require('assert');
-const internalModule = require('internal/module');
+const {
+  requireDepth
+} = require('internal/modules/cjs/helpers');
 
-exports.requireDepth = internalModule.requireDepth;
-assert.strictEqual(internalModule.requireDepth, 2);
+exports.requireDepth = requireDepth;
+assert.strictEqual(requireDepth, 2);
 assert.deepStrictEqual(require('./one'), { requireDepth: 1 });
-assert.strictEqual(internalModule.requireDepth, 2);
+assert.strictEqual(requireDepth, 2);

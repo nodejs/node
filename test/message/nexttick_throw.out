@@ -5,6 +5,6 @@
 ReferenceError: undefined_reference_error_maker is not defined
     at *test*message*nexttick_throw.js:*:*
     at process._tickCallback (internal/process/next_tick.js:*:*)
-    at Function.Module.runMain (module.js:*:*)
-    at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
+    at startup (internal/bootstrap/node.js:*:*)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)

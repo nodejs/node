@@ -2,7 +2,8 @@
 'use strict';
 
 // This test ensures that overwriting a process configuration
-// value does not affect code in bootstrap_node.js. Specifically this tests
+// value does not affect code in lib/internal/bootstrap/node.js.
+// Specifically this tests
 // that the inspector console functions are bound even though
 // overwrite-config-preload-module.js overwrote the process.config variable.
 

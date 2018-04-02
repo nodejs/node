@@ -2311,7 +2311,7 @@ const Local<Value> URL::ToObject(Environment* env) const {
     // The SetURLConstructor method must have been called already to
     // set the constructor function used below. SetURLConstructor is
     // called automatically when the internal/url.js module is loaded
-    // during the internal/bootstrap_node.js processing.
+    // during the internal/bootstrap/node.js processing.
     ret = env->url_constructor_function()
         ->Call(env->context(), undef, arraysize(argv), argv);
   }
