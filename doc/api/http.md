@@ -116,16 +116,16 @@ added: v0.3.4
   Can have the following fields:
   * `keepAlive` {boolean} Keep sockets around even when there are no
     outstanding requests, so they can be used for future requests without
-    having to reestablish a TCP connection. Defaults to `false`
+    having to reestablish a TCP connection. **Default:** `false`.
   * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
     the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
-    `keepAlive` option is `false` or `undefined`. Defaults to `1000`.
+    `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per
-    host.  Defaults to `Infinity`.
+    host. **Default:** `Infinity`.
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state.  Only relevant if `keepAlive` is set to `true`.
-    Defaults to `256`.
+    **Default:** `256`.
 
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
 of these values set to their respective defaults.
@@ -917,17 +917,16 @@ connections.
 added: v0.7.0
 -->
 
-* {number} Defaults to 2000.
+* {number} **Default:** `2000`
 
-Limits maximum incoming headers count, equal to 2000 by default. If set to 0 -
-no limit will be applied.
+Limits maximum incoming headers count. If set to 0 - no limit will be applied.
 
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msecs` {number} Defaults to 120000 (2 minutes).
+* `msecs` {number} **Default:** `120000` (2 minutes)
 * `callback` {Function}
 
 Sets the timeout value for sockets, and emits a `'timeout'` event on
@@ -948,7 +947,7 @@ Returns `server`.
 added: v0.9.12
 -->
 
-* {number} Timeout in milliseconds. Defaults to 120000 (2 minutes).
+* {number} Timeout in milliseconds. **Default:** `120000` (2 minutes).
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -963,7 +962,7 @@ value only affects new connections to the server, not any existing connections.
 added: v8.0.0
 -->
 
-* {number} Timeout in milliseconds. Defaults to 5000 (5 seconds).
+* {number} Timeout in milliseconds. **Default:** `5000` (5 seconds).
 
 The number of milliseconds of inactivity a server needs to wait for additional
 incoming data, after it has finished writing the last response, before a socket
@@ -1332,7 +1331,7 @@ added: v0.1.29
 -->
 
 * `chunk` {string|Buffer}
-* `encoding` {string}
+* `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
 * Returns: {boolean}
 
@@ -1348,8 +1347,7 @@ _must not_ include a message body.
 
 `chunk` can be a string or a buffer. If `chunk` is a string,
 the second parameter specifies how to encode it into a byte stream.
-By default the `encoding` is `'utf8'`. `callback` will be called when this chunk
-of data is flushed.
+`callback` will be called when this chunk of data is flushed.
 
 This is the raw HTTP body and has nothing to do with higher-level multi-part
 body encodings that may be used.
@@ -1729,11 +1727,11 @@ changes:
 -->
 - `options` {Object}
   * `IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage class
-    to be used. Useful for extending the original `IncomingMessage`. Defaults
-    to: `IncomingMessage`
+    to be used. Useful for extending the original `IncomingMessage`.
+    **Default:** `IncomingMessage`.
   * `ServerResponse` {http.ServerResponse} Specifies the ServerResponse class to
-    be used. Useful for extending the original `ServerResponse`. Defaults to:
-    `ServerResponse`
+    be used. Useful for extending the original `ServerResponse`. **Default:**
+    `ServerResponse`.
 - `requestListener` {Function}
 
 * Returns: {http.Server}
@@ -1825,24 +1823,24 @@ changes:
 -->
 
 * `options` {Object | string | URL}
-  * `protocol` {string} Protocol to use. Defaults to `http:`.
+  * `protocol` {string} Protocol to use. **Default:** `http:`.
   * `host` {string} A domain name or IP address of the server to issue the
-    request to. Defaults to `localhost`.
+    request to. **Default:** `localhost`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` is preferred over `host`.
   * `family` {number} IP address family to use when resolving `host` and
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `port` {number} Port of remote server. Defaults to 80.
+  * `port` {number} Port of remote server. **Default:** `80`.
   * `localAddress` {string} Local interface to bind for network connections.
   * `socketPath` {string} Unix Domain Socket (use one of host:port or
     socketPath).
-  * `method` {string} A string specifying the HTTP request method. Defaults to
+  * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
-  * `path` {string} Request path. Defaults to `'/'`. Should include query
-    string if any. E.G. `'/index.html?page=12'`. An exception is thrown when
-    the request path contains illegal characters. Currently, only spaces are
-    rejected but that may change in the future.
+  * `path` {string} Request path. Should include query string if any.
+    E.G. `'/index.html?page=12'`. An exception is thrown when the request path
+    contains illegal characters. Currently, only spaces are rejected but that
+    may change in the future. **Default:** `'/'`.
   * `headers` {Object} An object containing request headers.
   * `auth` {string} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.

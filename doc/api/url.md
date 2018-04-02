@@ -793,14 +793,14 @@ added: v7.6.0
 * `URL` {URL} A [WHATWG URL][] object
 * `options` {Object}
   * `auth` {boolean} `true` if the serialized URL string should include the
-    username and password, `false` otherwise. Defaults to `true`.
+    username and password, `false` otherwise. **Default:** `true`.
   * `fragment` {boolean} `true` if the serialized URL string should include the
-    fragment, `false` otherwise. Defaults to `true`.
+    fragment, `false` otherwise. **Default:** `true`.
   * `search` {boolean} `true` if the serialized URL string should include the
-    search query, `false` otherwise. Defaults to `true`.
+    search query, `false` otherwise. **Default:** `true`.
   * `unicode` {boolean} `true` if Unicode characters appearing in the host
     component of the URL string should be encoded directly as opposed to being
-    Punycode encoded. Defaults to `false`.
+    Punycode encoded. **Default:** `false`.
 
 Returns a customizable serialization of a URL String representation of a
 [WHATWG URL][] object.
@@ -1032,12 +1032,12 @@ changes:
 * `parseQueryString` {boolean} If `true`, the `query` property will always
   be set to an object returned by the [`querystring`][] module's `parse()`
   method. If `false`, the `query` property on the returned URL object will be an
-  unparsed, undecoded string. Defaults to `false`.
+  unparsed, undecoded string. **Default:** `false`.
 * `slashesDenoteHost` {boolean} If `true`, the first token after the literal
   string `//` and preceding the next `/` will be interpreted as the `host`.
   For instance, given `//foo/bar`, the result would be
   `{host: 'foo', pathname: '/bar'}` rather than `{pathname: '//foo/bar'}`.
-  Defaults to `false`.
+  **Default:** `false`.
 
 The `url.parse()` method takes a URL string, parses it, and returns a URL
 object.
