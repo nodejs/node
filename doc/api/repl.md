@@ -456,7 +456,7 @@ environment variables:
 
  - `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
    will be saved to the specified file rather than `.node_repl_history` in the
-   user's home directory. Setting this value to `""` will disable persistent
+   user's home directory. Setting this value to `''` will disable persistent
    REPL history. Whitespace will be trimmed from the value.
  - `NODE_REPL_HISTORY_SIZE` - Defaults to `1000`. Controls how many lines of
    history will be persisted if history is available. Must be a positive number.
@@ -469,7 +469,7 @@ environment variables:
 By default, the Node.js REPL will persist history between `node` REPL sessions
 by saving inputs to a `.node_repl_history` file located in the user's home
 directory. This can be disabled by setting the environment variable
-`NODE_REPL_HISTORY=""`.
+`NODE_REPL_HISTORY=''`.
 
 #### NODE_REPL_HISTORY_FILE
 <!-- YAML

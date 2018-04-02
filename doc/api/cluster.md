@@ -582,7 +582,7 @@ The `addressType` is one of:
 * `4` (TCPv4)
 * `6` (TCPv6)
 * `-1` (unix domain socket)
-* `"udp4"` or `"udp6"` (UDP v4 or v6)
+* `'udp4'` or `'udp6'` (UDP v4 or v6)
 
 ## Event: 'message'
 
@@ -709,7 +709,7 @@ distribute IOCP handles without incurring a large performance hit.
 
 `cluster.schedulingPolicy` can also be set through the
 `NODE_CLUSTER_SCHED_POLICY` environment variable. Valid
-values are `"rr"` and `"none"`.
+values are `'rr'` and `'none'`.
 
 ## cluster.settings
 <!-- YAML
