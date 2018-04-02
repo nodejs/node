@@ -147,7 +147,7 @@ already been bound to a port or domain socket.
 
 Listening on a file descriptor is not supported on Windows.
 
-This function is asynchronous.  When the server has been bound,
+This function is asynchronous. When the server has been bound,
 [`'listening'`][] event will be emitted.
 The last parameter `callback` will be added as a listener for the
 [`'listening'`][] event.
@@ -203,8 +203,8 @@ added: v0.1.90
 
 Start a local socket server listening for connections on the given `path`.
 
-This function is asynchronous.  When the server has been bound,
-[`'listening'`][] event will be emitted.  The last parameter `callback`
+This function is asynchronous. When the server has been bound,
+[`'listening'`][] event will be emitted. The last parameter `callback`
 will be added as a listener for the [`'listening'`][] event.
 
 On UNIX, the local domain is usually known as the UNIX domain. The path is a
@@ -218,7 +218,7 @@ unlinked*.
 On Windows, the local domain is implemented using a named pipe. The path *must*
 refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
 but the latter may do some processing of pipe names, such as resolving `..`
-sequences. Despite appearances, the pipe name space is flat.  Pipes will *not
+sequences. Despite appearances, the pipe name space is flat. Pipes will *not
 persist*, they are removed when the last reference to them is closed. Do not
 forget JavaScript string escaping requires paths to be specified with
 double-backslashes, such as:
@@ -252,8 +252,8 @@ The actual length will be determined by the OS through sysctl settings such as
 `tcp_max_syn_backlog` and `somaxconn` on Linux. The default value of this
 parameter is 511 (not 512).
 
-This function is asynchronous.  When the server has been bound,
-[`'listening'`][] event will be emitted.  The last parameter `callback`
+This function is asynchronous. When the server has been bound,
+[`'listening'`][] event will be emitted. The last parameter `callback`
 will be added as a listener for the [`'listening'`][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
@@ -323,8 +323,8 @@ active server in the event system. If the server is already `unref`d calling
 added: v0.3.4
 -->
 
-This object is an abstraction of a TCP or local socket.  `net.Socket`
-instances implement a duplex Stream interface.  They can be created by the
+This object is an abstraction of a TCP or local socket. `net.Socket`
+instances implement a duplex Stream interface. They can be created by the
 user and used as a client (with [`connect()`][]) or they can be created by Node.js
 and passed to the user through the `'connection'` event of a server.
 
@@ -379,8 +379,8 @@ added: v0.1.90
 
 * {Buffer}
 
-Emitted when data is received.  The argument `data` will be a `Buffer` or
-`String`.  Encoding of data is set by `socket.setEncoding()`.
+Emitted when data is received. The argument `data` will be a `Buffer` or
+`String`. Encoding of data is set by `socket.setEncoding()`.
 (See the [Readable Stream][] section for more information.)
 
 Note that the **data will be lost** if there is no listener when a `Socket`
@@ -403,7 +403,7 @@ added: v0.1.90
 Emitted when the other end of the socket sends a FIN packet.
 
 By default (`allowHalfOpen == false`) the socket will destroy its file
-descriptor  once it has written out its pending write queue.  However, by
+descriptor once it has written out its pending write queue. However, by
 setting `allowHalfOpen == true` the socket will not automatically `end()`
 its side allowing the user to write arbitrary amounts of data, with the
 caveat that the user is required to `end()` their side now.
@@ -415,7 +415,7 @@ added: v0.1.90
 
 * {Error}
 
-Emitted when an error occurs.  The `'close'` event will be called directly
+Emitted when an error occurs. The `'close'` event will be called directly
 following this event.
 
 ### Event: 'lookup'
@@ -426,9 +426,9 @@ added: v0.11.3
 Emitted after resolving the hostname but before connecting.
 Not applicable to UNIX sockets.
 
-* `err` {Error|null} The error object.  See [`dns.lookup()`][].
+* `err` {Error|null} The error object. See [`dns.lookup()`][].
 * `address` {string} The IP address.
-* `family` {string|null} The address type.  See [`dns.lookup()`][].
+* `family` {string|null} The address type. See [`dns.lookup()`][].
 * `host` {string} The hostname.
 
 ### Event: 'timeout'
