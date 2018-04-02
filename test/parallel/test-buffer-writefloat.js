@@ -61,6 +61,11 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
   const small = Buffer.allocUnsafe(1);
 
   ['writeFloatLE', 'writeFloatBE'].forEach((fn) => {
+
+    // Verify that default offset works fine.
+    buffer[fn](23, undefined);
+    buffer[fn](23);
+
     assert.throws(
       () => small[fn](11.11, 0),
       {
@@ -69,7 +74,7 @@ assert.ok(Number.isNaN(buffer.readFloatLE(4)));
         message: 'Attempt to write outside buffer bounds'
       });
 
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((off) => {
+    ['', '0', null, {}, [], () => {}, true, false].forEach((off) => {
       assert.throws(
         () => small[fn](23, off),
         { code: 'ERR_INVALID_ARG_TYPE' }

@@ -8,7 +8,12 @@ const assert = require('assert');
   const buffer = Buffer.alloc(4);
 
   ['Int8', 'Int16BE', 'Int16LE', 'Int32BE', 'Int32LE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+
+    // Verify that default offset works fine.
+    buffer[`read${fn}`](undefined);
+    buffer[`read${fn}`]();
+
+    ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
       assert.throws(
         () => buffer[`read${fn}`](o),
         {
@@ -129,7 +134,13 @@ const assert = require('assert');
 
   // Check byteLength.
   ['readIntBE', 'readIntLE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((len) => {
+
+    // Verify that default offset & byteLength works fine.
+    buffer[fn](undefined, undefined);
+    buffer[fn](undefined);
+    buffer[fn]();
+
+    ['', '0', null, {}, [], () => {}, true, false].forEach((len) => {
       assert.throws(
         () => buffer[fn](0, len),
         { code: 'ERR_INVALID_ARG_TYPE' });
@@ -160,7 +171,7 @@ const assert = require('assert');
   // Test 1 to 6 bytes.
   for (let i = 1; i < 6; i++) {
     ['readIntBE', 'readIntLE'].forEach((fn) => {
-      ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+      ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
         assert.throws(
           () => buffer[fn](o, i),
           {
