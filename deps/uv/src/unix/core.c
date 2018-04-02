@@ -536,7 +536,7 @@ int uv__close_nocheckstdio(int fd) {
 int uv__close(int fd) {
   assert(fd > STDERR_FILENO);  /* Catch stdio close bugs. */
 #if defined(__MVS__)
-  epoll_file_close(fd);
+  SAVE_ERRNO(epoll_file_close(fd));
 #endif
   return uv__close_nocheckstdio(fd);
 }
@@ -1048,29 +1048,16 @@ int uv__dup2_cloexec(int oldfd, int newfd) {
 
 int uv_os_homedir(char* buffer, size_t* size) {
   uv_passwd_t pwd;
-  char* buf;
   size_t len;
   int r;
 
-  if (buffer == NULL || size == NULL || *size == 0)
-    return UV_EINVAL;
+  /* Check if the HOME environment variable is set first. The task of
+     performing input validation on buffer and size is taken care of by
+     uv_os_getenv(). */
+  r = uv_os_getenv("HOME", buffer, size);
 
-  /* Check if the HOME environment variable is set first */
-  buf = getenv("HOME");
-
-  if (buf != NULL) {
-    len = strlen(buf);
-
-    if (len >= *size) {
-      *size = len + 1;
-      return UV_ENOBUFS;
-    }
-
-    memcpy(buffer, buf, len + 1);
-    *size = len;
-
-    return 0;
-  }
+  if (r != UV_ENOENT)
+    return r;
 
   /* HOME is not set, so call uv__getpwuid_r() */
   r = uv__getpwuid_r(&pwd);

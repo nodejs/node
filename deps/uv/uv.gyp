@@ -2,12 +2,12 @@
   'variables': {
     'conditions': [
       ['OS=="win"', {
+        'shared_unix_defines': [ ],
+      }, {
         'shared_unix_defines': [
           '_LARGEFILE_SOURCE',
           '_FILE_OFFSET_BITS=64',
         ],
-      }, {
-        'shared_unix_defines': [ ],
       }],
       ['OS in "mac ios"', {
         'shared_mac_defines': [ '_DARWIN_USE_64_BIT_INODE=1' ],
@@ -299,9 +299,6 @@
                 'src/unix/posix-poll.c',
                 'src/unix/no-fsevents.c',
                 'src/unix/no-proctitle.c',
-              ],
-              'defines': [
-                '_PASE=1'
               ],
             }, {
               'sources': [

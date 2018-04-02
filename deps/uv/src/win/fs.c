@@ -245,7 +245,6 @@ INLINE static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req,
   req->ptr = NULL;
   req->path = NULL;
   req->cb = cb;
-  req->fs.info.bufs = NULL;
   memset(&req->fs, 0, sizeof(req->fs));
 }
 
@@ -434,6 +433,8 @@ void fs__open(uv_fs_t* req) {
     access &= ~FILE_WRITE_DATA;
     access |= FILE_APPEND_DATA;
   }
+
+  access |= FILE_WRITE_ATTRIBUTES;
 
   /*
    * Here is where we deviate significantly from what CRT's _open()
@@ -784,7 +785,9 @@ void fs__unlink(uv_fs_t* req) {
     /* Remove read-only attribute */
     FILE_BASIC_INFORMATION basic = { 0 };
 
-    basic.FileAttributes = info.dwFileAttributes & ~(FILE_ATTRIBUTE_READONLY);
+    basic.FileAttributes = info.dwFileAttributes
+                           & ~(FILE_ATTRIBUTE_READONLY)
+                           | FILE_ATTRIBUTE_ARCHIVE;
 
     status = pNtSetInformationFile(handle,
                                    &iosb,
@@ -1391,6 +1394,12 @@ static void fs__copyfile(uv_fs_t* req) {
   int overwrite;
 
   flags = req->fs.info.file_flags;
+
+  if (flags & UV_FS_COPYFILE_FICLONE_FORCE) {
+    SET_REQ_UV_ERROR(req, UV_ENOSYS, ERROR_NOT_SUPPORTED);
+    return;
+  }
+
   overwrite = flags & UV_FS_COPYFILE_EXCL;
 
   if (CopyFileW(req->file.pathw, req->fs.info.new_pathw, overwrite) == 0) {
@@ -2335,8 +2344,11 @@ int uv_fs_copyfile(uv_loop_t* loop,
 
   INIT(UV_FS_COPYFILE);
 
-  if (flags & ~UV_FS_COPYFILE_EXCL)
+  if (flags & ~(UV_FS_COPYFILE_EXCL |
+                UV_FS_COPYFILE_FICLONE |
+                UV_FS_COPYFILE_FICLONE_FORCE)) {
     return UV_EINVAL;
+  }
 
   err = fs__capture_path(req, path, new_path, cb != NULL);
 

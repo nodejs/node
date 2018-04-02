@@ -95,6 +95,7 @@ TEST_DECLARE   (tcp_bind_error_fault)
 TEST_DECLARE   (tcp_bind_error_inval)
 TEST_DECLARE   (tcp_bind_localhost_ok)
 TEST_DECLARE   (tcp_bind_invalid_flags)
+TEST_DECLARE   (tcp_bind_writable_flags)
 TEST_DECLARE   (tcp_listen_without_bind)
 TEST_DECLARE   (tcp_connect_error_fault)
 TEST_DECLARE   (tcp_connect_timeout)
@@ -283,6 +284,9 @@ TEST_DECLARE   (fs_access)
 TEST_DECLARE   (fs_chmod)
 TEST_DECLARE   (fs_copyfile)
 TEST_DECLARE   (fs_unlink_readonly)
+#ifdef _WIN32
+TEST_DECLARE   (fs_unlink_archive_readonly)
+#endif
 TEST_DECLARE   (fs_chown)
 TEST_DECLARE   (fs_link)
 TEST_DECLARE   (fs_readlink)
@@ -300,6 +304,9 @@ TEST_DECLARE   (fs_stat_missing_path)
 TEST_DECLARE   (fs_read_file_eof)
 TEST_DECLARE   (fs_event_watch_dir)
 TEST_DECLARE   (fs_event_watch_dir_recursive)
+#ifdef _WIN32
+TEST_DECLARE   (fs_event_watch_dir_short_path)
+#endif
 TEST_DECLARE   (fs_event_watch_file)
 TEST_DECLARE   (fs_event_watch_file_exact_path)
 TEST_DECLARE   (fs_event_watch_file_twice)
@@ -535,6 +542,7 @@ TASK_LIST_START
   TEST_ENTRY  (tcp_bind_error_inval)
   TEST_ENTRY  (tcp_bind_localhost_ok)
   TEST_ENTRY  (tcp_bind_invalid_flags)
+  TEST_ENTRY  (tcp_bind_writable_flags)
   TEST_ENTRY  (tcp_listen_without_bind)
   TEST_ENTRY  (tcp_connect_error_fault)
   TEST_ENTRY  (tcp_connect_timeout)
@@ -810,6 +818,9 @@ TASK_LIST_START
   TEST_ENTRY  (fs_chmod)
   TEST_ENTRY  (fs_copyfile)
   TEST_ENTRY  (fs_unlink_readonly)
+#ifdef _WIN32
+  TEST_ENTRY  (fs_unlink_archive_readonly)
+#endif
   TEST_ENTRY  (fs_chown)
   TEST_ENTRY  (fs_utime)
   TEST_ENTRY  (fs_futime)
@@ -826,6 +837,9 @@ TASK_LIST_START
   TEST_ENTRY  (fs_file_open_append)
   TEST_ENTRY  (fs_event_watch_dir)
   TEST_ENTRY  (fs_event_watch_dir_recursive)
+#ifdef _WIN32
+  TEST_ENTRY  (fs_event_watch_dir_short_path)
+#endif
   TEST_ENTRY  (fs_event_watch_file)
   TEST_ENTRY  (fs_event_watch_file_exact_path)
   TEST_ENTRY  (fs_event_watch_file_twice)

@@ -1367,6 +1367,28 @@ TEST_IMPL(fs_chmod) {
 
   check_permission("test_file", 0600);
 
+#ifdef _WIN32
+  /* Test clearing read-only flag from files with Archive flag cleared */
+  /* Make the file read-only and clear archive flag */
+  r = SetFileAttributes("test_file", FILE_ATTRIBUTE_READONLY);
+  ASSERT(r != 0);
+  check_permission("test_file", 0400);
+
+  r = uv_fs_open(NULL, &req, "test_file", 0, 0, NULL);
+  ASSERT(r >= 0);
+  ASSERT(req.result >= 0);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_fchmod(NULL, &req, file, 0600, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  check_permission("test_file", 0600);
+  /* Restore Archive flag for rest of the tests */
+  r = SetFileAttributes("test_file", FILE_ATTRIBUTE_ARCHIVE);
+  ASSERT(r != 0);
+#endif
 #ifndef _WIN32
   /* async chmod */
   {
@@ -1474,6 +1496,64 @@ TEST_IMPL(fs_unlink_readonly) {
   return 0;
 }
 
+#ifdef _WIN32
+TEST_IMPL(fs_unlink_archive_readonly) {
+  int r;
+  uv_fs_t req;
+  uv_file file;
+
+  /* Setup. */
+  unlink("test_file");
+
+  loop = uv_default_loop();
+
+  r = uv_fs_open(NULL,
+                 &req,
+                 "test_file",
+                 O_RDWR | O_CREAT,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
+  ASSERT(r >= 0);
+  ASSERT(req.result >= 0);
+  file = req.result;
+  uv_fs_req_cleanup(&req);
+
+  iov = uv_buf_init(test_buf, sizeof(test_buf));
+  r = uv_fs_write(NULL, &req, file, &iov, 1, -1, NULL);
+  ASSERT(r == sizeof(test_buf));
+  ASSERT(req.result == sizeof(test_buf));
+  uv_fs_req_cleanup(&req);
+
+  close(file);
+
+  /* Make the file read-only and clear archive flag */
+  r = SetFileAttributes("test_file", FILE_ATTRIBUTE_READONLY);
+  ASSERT(r != 0);
+  uv_fs_req_cleanup(&req);
+
+  check_permission("test_file", 0400);
+
+  /* Try to unlink the file */
+  r = uv_fs_unlink(NULL, &req, "test_file", NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  /*
+  * Run the loop just to check we don't have make any extraneous uv_ref()
+  * calls. This should drop out immediately.
+  */
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  /* Cleanup. */
+  uv_fs_chmod(NULL, &req, "test_file", 0600, NULL);
+  uv_fs_req_cleanup(&req);
+  unlink("test_file");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
 
 TEST_IMPL(fs_chown) {
   int r;

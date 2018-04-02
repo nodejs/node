@@ -69,6 +69,7 @@ static void uv_relative_path(const WCHAR* filename,
   size_t relpathlen;
   size_t filenamelen = wcslen(filename);
   size_t dirlen = wcslen(dir);
+  assert(!_wcsnicmp(filename, dir, dirlen));
   if (dirlen > 0 && dir[dirlen - 1] == '\\')
     dirlen--;
   relpathlen = filenamelen - dirlen - 1;
@@ -151,11 +152,11 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       uv_fs_event_cb cb,
                       const char* path,
                       unsigned int flags) {
-  int name_size, is_path_dir;
+  int name_size, is_path_dir, size;
   DWORD attr, last_error;
   WCHAR* dir = NULL, *dir_to_watch, *pathw = NULL;
   WCHAR short_path_buffer[MAX_PATH];
-  WCHAR* short_path;
+  WCHAR* short_path, *long_path;
 
   if (uv__is_active(handle))
     return UV_EINVAL;
@@ -197,6 +198,30 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   if (is_path_dir) {
      /* path is a directory, so that's the directory that we will watch. */
+
+    /* Convert to long path. */
+    size = GetLongPathNameW(pathw, NULL, 0);
+
+    if (size) {
+      long_path = (WCHAR*)uv__malloc(size * sizeof(WCHAR));
+      if (!long_path) {
+        uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
+      }
+
+      size = GetLongPathNameW(pathw, long_path, size);
+      if (size) {
+        long_path[size] = '\0';
+      } else {
+        uv__free(long_path);
+        long_path = NULL;
+      }
+    }
+
+    if (long_path) {
+      uv__free(pathw);
+      pathw = long_path;
+    }
+
     dir_to_watch = pathw;
   } else {
     /*
