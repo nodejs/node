@@ -61,7 +61,15 @@ if (process.getuid() !== 0) {
 
 // If we are running as super user...
 const oldgid = process.getgid();
-process.setgid('nobody');
+try {
+  process.setgid('nobody');
+} catch (err) {
+  if (err.message !== 'setgid group id does not exist') {
+    throw err;
+  } else {
+    process.setgid('nogroup');
+  }
+}
 const newgid = process.getgid();
 assert.notStrictEqual(newgid, oldgid);
 
