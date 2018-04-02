@@ -68,7 +68,7 @@ debug> repl
 Press Ctrl + C to leave debug repl
 > x
 5
-> 2+2
+> 2 + 2
 4
 debug> next
 break in /home/indutny/Code/git/indutny/myscript.js:5

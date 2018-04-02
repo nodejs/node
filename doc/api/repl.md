@@ -96,7 +96,7 @@ declared either implicitly or using the `var` keyword are declared at the
 
 The default evaluator provides access to any variables that exist in the global
 scope. It is possible to expose a variable to the REPL explicitly by assigning
-it to the `context` object associated with each `REPLServer`.  For example:
+it to the `context` object associated with each `REPLServer`. For example:
 
 ```js
 const repl = require('repl');
@@ -391,7 +391,7 @@ added: v0.1.91
     stream upon instantiation.
   * `eval` {Function} The function to be used when evaluating each given line
     of input. Defaults to an async wrapper for the JavaScript `eval()`
-    function.  An `eval` function can error with `repl.Recoverable` to indicate
+    function. An `eval` function can error with `repl.Recoverable` to indicate
     the input was incomplete and prompt for additional lines.
   * `useColors` {boolean} If `true`, specifies that the default `writer`
     function should include ANSI color styling to REPL output. If a custom
@@ -414,7 +414,7 @@ added: v0.1.91
     * `repl.REPL_MODE_STRICT` - evaluates expressions in strict mode. This is
       equivalent to prefacing every repl statement with `'use strict'`.
     * `repl.REPL_MODE_MAGIC` - attempt to evaluates expressions in default
-      mode.  If expressions fail to parse, re-try in strict mode.
+      mode. If expressions fail to parse, re-try in strict mode.
   * `breakEvalOnSigint` - Stop evaluating the current piece of code when
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
     with a custom `eval` function. Defaults to `false`.
@@ -456,7 +456,7 @@ environment variables:
 
  - `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
    will be saved to the specified file rather than `.node_repl_history` in the
-   user's home directory. Setting this value to `""` will disable persistent
+   user's home directory. Setting this value to `''` will disable persistent
    REPL history. Whitespace will be trimmed from the value.
  - `NODE_REPL_HISTORY_SIZE` - Defaults to `1000`. Controls how many lines of
    history will be persisted if history is available. Must be a positive number.
@@ -469,7 +469,7 @@ environment variables:
 By default, the Node.js REPL will persist history between `node` REPL sessions
 by saving inputs to a `.node_repl_history` file located in the user's home
 directory. This can be disabled by setting the environment variable
-`NODE_REPL_HISTORY=""`.
+`NODE_REPL_HISTORY=''`.
 
 #### NODE_REPL_HISTORY_FILE
 <!-- YAML

@@ -854,7 +854,7 @@ added: v0.9.4
 -->
 
 * `size` {number} Optional argument to specify how much data to read.
-* Return {string|Buffer|null}
+* Returns: {string|Buffer|null}
 
 The `readable.read()` method pulls some data out of the internal buffer and
 returns it. If no data available to be read, `null` is returned. By default,
@@ -1364,7 +1364,7 @@ It is recommended that errors occurring during the processing of the
 the callback and passing the error as the first argument. This will cause an
 `'error'` event to be emitted by the Writable. Throwing an Error from within
 `writable._write()` can result in unexpected and inconsistent behavior depending
-on how the stream is being used.  Using the callback ensures consistent and
+on how the stream is being used. Using the callback ensures consistent and
 predictable handling of errors.
 
 ```js
@@ -1543,7 +1543,7 @@ user programs.
 #### readable.push(chunk[, encoding])
 
 * `chunk` {Buffer|null|string} Chunk of data to push into the read queue
-* `encoding` {string} Encoding of String chunks.  Must be a valid
+* `encoding` {string} Encoding of String chunks. Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * Returns: {boolean} `true` if additional chunks of data may continued to be
   pushed; `false` otherwise.
@@ -1963,7 +1963,7 @@ The `transform._transform()` method is prefixed with an underscore because it
 is internal to the class that defines it, and should never be called directly by
 user programs.
 
-`transform._transform()` is never called in  parallel; streams implement a
+`transform._transform()` is never called in parallel; streams implement a
 queue mechanism, and to receive the next chunk, `callback` must be
 called, either synchronously or asynchronously.
 
