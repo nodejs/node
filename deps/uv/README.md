@@ -169,6 +169,12 @@ $ make check
 $ make install
 ```
 
+To build with GYP, first run:
+
+```bash
+$ git clone https://chromium.googlesource.com/external/gyp build/gyp
+```
+
 ### Windows
 
 Prerequisites:

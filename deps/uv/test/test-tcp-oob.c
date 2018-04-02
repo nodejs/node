@@ -61,7 +61,7 @@ static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
 #endif
   uv_os_fd_t fd;
 
-  ASSERT(nread > 0);
+  ASSERT(nread >= 0);
   ASSERT(0 == uv_fileno((uv_handle_t*)handle, &fd));
   ASSERT(0 == uv_idle_start(&idle, idle_cb));
 

@@ -62,6 +62,9 @@
 
 #if defined(__APPLE__)
 # include <copyfile.h>
+#elif defined(__linux__) && !defined(FICLONE)
+# include <sys/ioctl.h>
+# define FICLONE _IOW(0x94, 9, int)
 #endif
 
 #define INIT(subtype)                                                         \
@@ -790,6 +793,19 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   if (req->flags & UV_FS_COPYFILE_EXCL)
     flags |= COPYFILE_EXCL;
 
+#ifdef COPYFILE_CLONE
+  if (req->flags & UV_FS_COPYFILE_FICLONE)
+    flags |= COPYFILE_CLONE;
+#endif
+
+  if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
+#ifdef COPYFILE_CLONE_FORCE
+    flags |= COPYFILE_CLONE_FORCE;
+#else
+    return UV_ENOSYS;
+#endif
+  }
+
   return copyfile(req->path, req->new_path, NULL, flags);
 #else
   uv_fs_t fs_req;
@@ -841,6 +857,29 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     err = UV__ERR(errno);
     goto out;
   }
+
+#ifdef FICLONE
+  if (req->flags & UV_FS_COPYFILE_FICLONE ||
+      req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
+    if (ioctl(dstfd, FICLONE, srcfd) == -1) {
+      /* If an error occurred that the sendfile fallback also won't handle, or
+         this is a force clone then exit. Otherwise, fall through to try using
+         sendfile(). */
+      if ((errno != ENOTTY && errno != EOPNOTSUPP && errno != EXDEV) ||
+          req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
+        err = -errno;
+        goto out;
+      }
+    } else {
+      goto out;
+    }
+  }
+#else
+  if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
+    err = UV_ENOSYS;
+    goto out;
+  }
+#endif
 
   bytes_to_send = statsbuf.st_size;
   in_offset = 0;
@@ -1504,8 +1543,11 @@ int uv_fs_copyfile(uv_loop_t* loop,
                    uv_fs_cb cb) {
   INIT(COPYFILE);
 
-  if (flags & ~UV_FS_COPYFILE_EXCL)
+  if (flags & ~(UV_FS_COPYFILE_EXCL |
+                UV_FS_COPYFILE_FICLONE |
+                UV_FS_COPYFILE_FICLONE_FORCE)) {
     return UV_EINVAL;
+  }
 
   PATH2;
   req->flags = flags;
