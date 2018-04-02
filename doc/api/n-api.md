@@ -14,7 +14,7 @@ compiled for one version to run on later versions of Node.js without
 recompilation.
 
 Addons are built/packaged with the same approach/tools
-outlined in the section titled  [C++ Addons](addons.html).
+outlined in the section titled [C++ Addons](addons.html).
 The only difference is the set of APIs that are used by the native code.
 Instead of using the V8 or [Native Abstractions for Node.js][] APIs,
 the functions available in the N-API are used.
@@ -308,7 +308,7 @@ where the native code can catch the exception, take the appropriate action,
 and then continue. This is only recommended in specific cases
 where it is known that the exception can be safely handled. In these
 cases [`napi_get_and_clear_last_exception`][] can be used to get and
-clear the exception.  On success, result will contain the handle to
+clear the exception. On success, result will contain the handle to
 the last JavaScript Object thrown. If it is determined, after
 retrieving the exception, the exception cannot be handled after all
 it can be re-thrown it with [`napi_throw`][] where error is the
@@ -316,7 +316,7 @@ JavaScript Error object to be thrown.
 
 The following utility functions are also available in case native code
 needs to throw an exception or determine if a `napi_value` is an instance
-of a JavaScript `Error` object:  [`napi_throw_error`][],
+of a JavaScript `Error` object: [`napi_throw_error`][],
 [`napi_throw_type_error`][], [`napi_throw_range_error`][] and
 [`napi_is_error`][].
 
@@ -327,7 +327,7 @@ where result is the napi_value that refers to the newly created
 JavaScript Error object.
 
 The Node.js project is adding error codes to all of the errors
-generated internally.  The goal is for applications to use these
+generated internally. The goal is for applications to use these
 error codes for all error checking. The associated error messages
 will remain, but will only be meant to be used for logging and
 display with the expectation that the message can change without
@@ -335,7 +335,7 @@ SemVer applying. In order to support this model with N-API, both
 in internal functionality and for module specific functionality
 (as its good practice), the `throw_` and `create_` functions
 take an optional code parameter which is the string for the code
-to be added to the error object.  If the optional parameter is NULL
+to be added to the error object. If the optional parameter is NULL
 then no code will be associated with the error. If a code is provided,
 the name associated with the error is also updated to be:
 
@@ -344,7 +344,7 @@ originalName [code]
 ```
 
 where originalName is the original name associated with the error
-and code is the code that was provided.  For example if the code
+and code is the code that was provided. For example if the code
 is 'ERR_ERROR_1' and a TypeError is being created the name will be:
 
 ```text
@@ -2398,7 +2398,7 @@ They can be one or more of the following bitflags:
 - `napi_default` - Used to indicate that no explicit attributes are set on the
 given property. By default, a property is read only, not enumerable and not
 configurable.
-- `napi_writable`  - Used to indicate that a given property is writable.
+- `napi_writable` - Used to indicate that a given property is writable.
 - `napi_enumerable` - Used to indicate that a given property is enumerable.
 - `napi_configurable` - Used to indicate that a given property is
 configurable, as defined in
@@ -2430,7 +2430,7 @@ typedef struct {
 encoded as UTF8. One of `utf8name` or `name` must be provided for the
 property.
 - `name`: Optional napi_value that points to a JavaScript string or symbol
-to be used as the key for the property.  One of `utf8name` or `name` must
+to be used as the key for the property. One of `utf8name` or `name` must
 be provided for the property.
 - `value`: The value that's retrieved by a get access of the property if the
  property is a data property. If this is passed in, set `getter`, `setter`,
@@ -2883,7 +2883,7 @@ napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
 
   napi_value fn;
-  status =  napi_create_function(env, nullptr, 0, SayHello, nullptr, &fn);
+  status = napi_create_function(env, nullptr, 0, SayHello, nullptr, &fn);
   if (status != napi_ok) return nullptr;
 
   status = napi_set_named_property(env, exports, "sayHello", fn);
@@ -3254,7 +3254,7 @@ napi_status napi_queue_async_work(napi_env env,
                                   napi_async_work work);
 ```
 
-[`napi_cancel_async_work`][] can be used if  the work needs
+[`napi_cancel_async_work`][] can be used if the work needs
 to be cancelled before the work has started execution.
 
 After calling [`napi_cancel_async_work`][], the `complete` callback
@@ -3356,7 +3356,7 @@ napi_status napi_cancel_async_work(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API cancels queued work if it has not yet
-been started.  If it has already started executing, it cannot be
+been started. If it has already started executing, it cannot be
 cancelled and `napi_generic_failure` will be returned. If successful,
 the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
@@ -3494,7 +3494,7 @@ napi_status napi_get_version(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API returns the highest N-API version supported by the
-Node.js runtime.  N-API is planned to be additive such that
+Node.js runtime. N-API is planned to be additive such that
 newer releases of Node.js may support additional API functions.
 In order to allow an addon to use a newer function when running with
 versions of Node.js that support it, while providing

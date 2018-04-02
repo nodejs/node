@@ -12,7 +12,7 @@ The module exports two specific components:
 * A `Console` class with methods such as `console.log()`, `console.error()` and
   `console.warn()` that can be used to write to any Node.js stream.
 * A global `console` instance configured to write to [`process.stdout`][] and
-  [`process.stderr`][].  The global `console` can be used without calling
+  [`process.stderr`][]. The global `console` can be used without calling
   `require('console')`.
 
 ***Warning***: The global console object's methods are neither consistently

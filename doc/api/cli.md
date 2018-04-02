@@ -454,7 +454,7 @@ added: v8.0.0
 
 A space-separated list of command line options. `options...` are interpreted as
 if they had been specified on the command line before the actual command line
-(so they can be overridden).  Node will exit with an error if an option that is
+(so they can be overridden). Node will exit with an error if an option that is
 not allowed in the environment is used, such as `-p` or a script file.
 
 Node options that are allowed are:
@@ -601,7 +601,7 @@ reason any of these APIs takes a long time, other (seemingly unrelated) APIs
 that run in libuv's threadpool will experience degraded performance. In order to
 mitigate this issue, one potential solution is to increase the size of libuv's
 threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
-greater than `4` (its current default value).  For more information, see the
+greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
 
 [`--openssl-config`]: #cli_openssl_config_file

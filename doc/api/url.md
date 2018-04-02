@@ -556,7 +556,7 @@ Instantiate a new `URLSearchParams` object with an iterable map in a way that
 is similar to [`Map`][]'s constructor. `iterable` can be an Array or any
 iterable object. That means `iterable` can be another `URLSearchParams`, in
 which case the constructor will simply create a clone of the provided
-`URLSearchParams`.  Elements of `iterable` are key-value pairs, and can
+`URLSearchParams`. Elements of `iterable` are key-value pairs, and can
 themselves be any iterable object.
 
 Duplicate keys are allowed.

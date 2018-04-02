@@ -449,7 +449,7 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -535,7 +535,7 @@ const buf = Buffer.alloc(5);
 console.log(buf);
 ```
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -580,7 +580,7 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -626,7 +626,7 @@ added: v5.12.0
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -2660,7 +2660,7 @@ deprecated: v6.0.0
 
 * `size` {integer} The desired length of the new `SlowBuffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 

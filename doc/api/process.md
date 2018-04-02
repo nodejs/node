@@ -359,7 +359,7 @@ For example:
 process.stdin.resume();
 
 process.on('SIGINT', () => {
-  console.log('Received SIGINT.  Press Control-D to exit.');
+  console.log('Received SIGINT. Press Control-D to exit.');
 });
 ```
 
@@ -436,7 +436,7 @@ added: v0.1.27
 The `process.argv` property returns an array containing the command line
 arguments passed when the Node.js process was launched. The first element will
 be [`process.execPath`]. See `process.argv0` if access to the original value of
-`argv[0]` is needed.  The second element will be the path to the JavaScript
+`argv[0]` is needed. The second element will be the path to the JavaScript
 file being executed. The remaining elements will be any additional command line
 arguments.
 
@@ -920,7 +920,7 @@ added: v0.1.13
 The `process.exit()` method instructs Node.js to terminate the process
 synchronously with an exit status of `code`. If `code` is omitted, exit uses
 either the 'success' code `0` or the value of `process.exitCode` if it has been
-set.  Node.js will not terminate until all the [`'exit'`] event listeners are
+set. Node.js will not terminate until all the [`'exit'`] event listeners are
 called.
 
 To exit with a 'failure' code:
@@ -1163,7 +1163,7 @@ Windows platforms will throw an error if the `pid` is used to kill a process
 group.
 
 *Note*: Even though the name of this function is `process.kill()`, it is
-really just a signal sender, like the `kill` system call.  The signal sent may
+really just a signal sender, like the `kill` system call. The signal sent may
 do something other than kill the target process.
 
 For example:
@@ -1261,7 +1261,7 @@ Once the current turn of the event loop turn runs to completion, all callbacks
 currently in the next tick queue will be called.
 
 This is *not* a simple alias to [`setTimeout(fn, 0)`][]. It is much more
-efficient.  It runs before any additional I/O events (including
+efficient. It runs before any additional I/O events (including
 timers) fire in subsequent ticks of the event loop.
 
 ```js
@@ -1296,7 +1296,7 @@ thing.getReadyForStuff();
 ```
 
 It is very important for APIs to be either 100% synchronous or 100%
-asynchronous.  Consider this example:
+asynchronous. Consider this example:
 
 ```js
 // WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!
@@ -1338,7 +1338,7 @@ function definitelyAsync(arg, cb) {
 ```
 
 *Note*: The next tick queue is completely drained on each pass of the
-event loop **before** additional I/O is processed.  As a result,
+event loop **before** additional I/O is processed. As a result,
 recursively setting nextTick callbacks will block any I/O from
 happening, just like a `while(true);` loop.
 
@@ -1438,7 +1438,7 @@ tarball.
   builds of Node.js and will be missing on all other platforms._
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
-  release types, including _Current_ releases.  Currently the valid values are:
+  release types, including _Current_ releases. Currently the valid values are:
   - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
@@ -1518,7 +1518,7 @@ added: v2.0.0
 
 The `process.seteuid()` method sets the effective user identity of the process.
 (See seteuid(2).) The `id` can be passed as either a numeric ID or a username
-string.  If a username is specified, the method blocks while resolving the
+string. If a username is specified, the method blocks while resolving the
 associated numeric ID.
 
 ```js
@@ -1544,7 +1544,7 @@ added: v0.1.31
 * `id` {string|number} The group name or ID
 
 The `process.setgid()` method sets the group identity of the process. (See
-setgid(2).)  The `id` can be passed as either a numeric ID or a group name
+setgid(2).) The `id` can be passed as either a numeric ID or a group name
 string. If a group name is specified, this method blocks while resolving the
 associated numeric ID.
 
@@ -1585,7 +1585,7 @@ added: v0.1.28
 -->
 
 The `process.setuid(id)` method sets the user identity of the process. (See
-setuid(2).)  The `id` can be passed as either a numeric ID or a username string.
+setuid(2).) The `id` can be passed as either a numeric ID or a username string.
 If a username is specified, the method blocks while resolving the associated
 numeric ID.
 
@@ -1747,7 +1747,7 @@ different maximum length restrictions on the title. Usually such restrictions
 are quite limited. For instance, on Linux and macOS, `process.title` is limited
 to the size of the binary name plus the length of the command line arguments
 because setting the `process.title` overwrites the `argv` memory of the
-process.  Node.js v0.8 allowed for longer process title strings by also
+process. Node.js v0.8 allowed for longer process title strings by also
 overwriting the `environ` memory but that was potentially insecure and
 confusing in some (rather obscure) cases.
 
@@ -1854,7 +1854,7 @@ Will generate an object similar to:
 ## Exit Codes
 
 Node.js will normally exit with a `0` status code when no more async
-operations are pending.  The following status codes are used in other
+operations are pending. The following status codes are used in other
 cases:
 
 * `1` **Uncaught Fatal Exception** - There was an uncaught exception,
@@ -1862,12 +1862,12 @@ cases:
   handler.
 * `2` - Unused (reserved by Bash for builtin misuse)
 * `3` **Internal JavaScript Parse Error** - The JavaScript source code
-  internal in Node.js's bootstrapping process caused a parse error.  This
+  internal in Node.js's bootstrapping process caused a parse error. This
   is extremely rare, and generally can only happen during development
   of Node.js itself.
 * `4` **Internal JavaScript Evaluation Failure** - The JavaScript
   source code internal in Node.js's bootstrapping process failed to
-  return a function value when evaluated.  This is extremely rare, and
+  return a function value when evaluated. This is extremely rare, and
   generally can only happen during development of Node.js itself.
 * `5` **Fatal Error** - There was a fatal unrecoverable error in V8.
   Typically a message will be printed to stderr with the prefix `FATAL
@@ -1877,22 +1877,22 @@ cases:
   function was somehow set to a non-function, and could not be called.
 * `7` **Internal Exception Handler Run-Time Failure** - There was an
   uncaught exception, and the internal fatal exception handler
-  function itself threw an error while attempting to handle it.  This
+  function itself threw an error while attempting to handle it. This
   can happen, for example, if a [`'uncaughtException'`][] or
   `domain.on('error')` handler throws an error.
-* `8` - Unused.  In previous versions of Node.js, exit code 8 sometimes
+* `8` - Unused. In previous versions of Node.js, exit code 8 sometimes
   indicated an uncaught exception.
 * `9` - **Invalid Argument** - Either an unknown option was specified,
   or an option requiring a value was provided without a value.
 * `10` **Internal JavaScript Run-Time Failure** - The JavaScript
   source code internal in Node.js's bootstrapping process threw an error
-  when the bootstrapping function was called.  This is extremely rare,
+  when the bootstrapping function was called. This is extremely rare,
   and generally can only happen during development of Node.js itself.
 * `12` **Invalid Debug Argument** - The `--inspect` and/or `--inspect-brk`
   options were set, but the port number chosen was invalid or unavailable.
 * `>128` **Signal Exits** - If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
-  value of the signal code.  This is a standard POSIX practice, since
+  value of the signal code. This is a standard POSIX practice, since
   exit codes are defined to be 7-bit integers, and signal exits set
   the high-order bit, and then contain the value of the signal code.
 
