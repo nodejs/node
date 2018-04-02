@@ -352,7 +352,7 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of Node.js's awareness of package.json files.
 
-*Note*: If the file specified by the `"main"` entry of `package.json` is
+*Note*: If the file specified by the `'main'` entry of `package.json` is
 missing and can not be resolved, Node.js will report the entire module as
 missing with the default error:
 
