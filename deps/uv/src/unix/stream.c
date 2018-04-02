@@ -1417,6 +1417,9 @@ int uv_write2(uv_write_t* req,
   if (uv__stream_fd(stream) < 0)
     return UV_EBADF;
 
+  if (!(stream->flags & UV_STREAM_WRITABLE))
+    return -EPIPE;
+
   if (send_handle) {
     if (stream->type != UV_NAMED_PIPE || !((uv_pipe_t*)stream)->ipc)
       return UV_EINVAL;
@@ -1567,6 +1570,9 @@ int uv_read_start(uv_stream_t* stream,
 
   if (stream->flags & UV_CLOSING)
     return UV_EINVAL;
+
+  if (!(stream->flags & UV_STREAM_READABLE))
+    return -ENOTCONN;
 
   /* The UV_STREAM_READING flag is irrelevant of the state of the tcp - it just
    * expresses the desired state of the user.

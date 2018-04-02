@@ -847,6 +847,7 @@ static void uv_pipe_queue_accept(uv_loop_t* loop, uv_pipe_t* handle,
     return;
   }
 
+  /* Wait for completion via IOCP */
   handle->reqs_pending++;
 }
 

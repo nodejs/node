@@ -223,8 +223,7 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
 
 
 static int uv__process_open_stream(uv_stdio_container_t* container,
-                                   int pipefds[2],
-                                   int writable) {
+                                   int pipefds[2]) {
   int flags;
   int err;
 
@@ -238,13 +237,11 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
   pipefds[1] = -1;
   uv__nonblock(pipefds[0], 1);
 
-  if (container->data.stream->type == UV_NAMED_PIPE &&
-      ((uv_pipe_t*)container->data.stream)->ipc)
-    flags = UV_STREAM_READABLE | UV_STREAM_WRITABLE;
-  else if (writable)
-    flags = UV_STREAM_WRITABLE;
-  else
-    flags = UV_STREAM_READABLE;
+  flags = 0;
+  if (container->flags & UV_WRITABLE_PIPE)
+    flags |= UV_STREAM_READABLE;
+  if (container->flags & UV_READABLE_PIPE)
+    flags |= UV_STREAM_WRITABLE;
 
   return uv__stream_open(container->data.stream, pipefds[0], flags);
 }
@@ -533,7 +530,7 @@ int uv_spawn(uv_loop_t* loop,
   uv__close_nocheckstdio(signal_pipe[0]);
 
   for (i = 0; i < options->stdio_count; i++) {
-    err = uv__process_open_stream(options->stdio + i, pipes[i], i == 0);
+    err = uv__process_open_stream(options->stdio + i, pipes[i]);
     if (err == 0)
       continue;
 

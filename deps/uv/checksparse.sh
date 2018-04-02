@@ -184,7 +184,7 @@ AIX)
            src/unix/aix.c"
   ;;
 OS400)
-  SPARSE_FLAGS="$SPARSE_FLAGS -D_PASE=1"
+  SPARSE_FLAGS="$SPARSE_FLAGS -D__PASE__=1"
   SOURCES="$SOURCES
            src/unix/aix-common.c
            src/unix/ibmi.c

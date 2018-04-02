@@ -627,7 +627,7 @@ int uv_loop_close(uv_loop_t* loop) {
   void* saved_data;
 #endif
 
-  if (!QUEUE_EMPTY(&(loop)->active_reqs))
+  if (uv__has_active_reqs(loop))
     return UV_EBUSY;
 
   QUEUE_FOREACH(q, &loop->handle_queue) {

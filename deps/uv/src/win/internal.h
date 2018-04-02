@@ -221,10 +221,16 @@ void uv_process_tty_read_req(uv_loop_t* loop, uv_tty_t* handle,
     uv_req_t* req);
 void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
     uv_write_t* req);
-/* TODO: remove me */
+/*
+ * uv_process_tty_accept_req() is a stub to keep DELEGATE_STREAM_REQ working
+ * TODO: find a way to remove it
+ */
 void uv_process_tty_accept_req(uv_loop_t* loop, uv_tty_t* handle,
     uv_req_t* raw_req);
-/* TODO: remove me */
+/*
+ * uv_process_tty_connect_req() is a stub to keep DELEGATE_STREAM_REQ working
+ * TODO: find a way to remove it
+ */
 void uv_process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
     uv_connect_t* req);
 

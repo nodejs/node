@@ -90,7 +90,7 @@ static void connection_cb(uv_stream_t* tcp, int status) {
   ASSERT(0 == uv_accept(tcp, (uv_stream_t*) &incoming));
 
   ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
-  ASSERT(0 == uv_timer_start(&timer, timer_cb, 1, 0));
+  ASSERT(0 == uv_timer_start(&timer, timer_cb, 1000, 0));
 
   connection_cb_called++;
 }

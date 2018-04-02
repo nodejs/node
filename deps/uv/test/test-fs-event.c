@@ -129,7 +129,7 @@ static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   ++fs_event_cb_called;
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
-  ASSERT(events == UV_RENAME);
+  ASSERT(events == UV_CHANGE);
   #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
   ASSERT(strcmp(filename, "file1") == 0);
   #else
@@ -476,6 +476,42 @@ TEST_IMPL(fs_event_watch_dir_recursive) {
   RETURN_SKIP("Recursive directory watching not supported on this platform.");
 #endif
 }
+
+#ifdef _WIN32
+TEST_IMPL(fs_event_watch_dir_short_path) {
+  uv_loop_t* loop;
+  int r;
+
+  /* Setup */
+  loop = uv_default_loop();
+  remove("watch_dir/file1");
+  remove("watch_dir/");
+  create_dir("watch_dir");
+  create_file("watch_dir/file1");
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_cb_dir, "watch_~1", 0);
+  ASSERT(r == 0);
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
+  r = uv_timer_start(&timer, timer_cb_file, 100, 0);
+  ASSERT(r == 0);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT(fs_event_cb_called == 1);
+  ASSERT(timer_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  /* Cleanup */
+  remove("watch_dir/file1");
+  remove("watch_dir/");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
 
 
 TEST_IMPL(fs_event_watch_file) {
