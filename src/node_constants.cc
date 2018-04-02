@@ -1317,6 +1317,8 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   // Define libuv constants.
   NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
   NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_EXCL);
+  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_FICLONE);
+  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_FICLONE_FORCE);
 
   os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
   os_constants->Set(OneByteString(isolate, "errno"), err_constants);
