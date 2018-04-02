@@ -315,7 +315,7 @@ console.log(myURL.port);
 
 // Out-of-range numbers, which are not represented in scientific noation,
 // will be ignored.
-myURL.port = 1e10; // 10000000000, will be range-checked
+myURL.port = 1e10; // 10000000000, will be range-checked as described below
 console.log(myURL.port);
 // Prints 1234
 
