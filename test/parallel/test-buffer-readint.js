@@ -8,7 +8,12 @@ const assert = require('assert');
   const buffer = Buffer.alloc(4);
 
   ['Int8', 'Int16BE', 'Int16LE', 'Int32BE', 'Int32LE'].forEach((fn) => {
-    ['', '0', null, undefined, {}, [], () => {}, true, false].forEach((o) => {
+
+    // Verify that default offset works fine.
+    buffer[`read${fn}`](undefined);
+    buffer[`read${fn}`]();
+
+    ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
       assert.throws(
         () => buffer[`read${fn}`](o),
         {
