@@ -558,7 +558,7 @@ added: v8.4.0
 -->
 
 * `settings` {[Settings Object][]}
-* Returns {undefined}
+* Returns: {undefined}
 
 Updates the current local settings for this `Http2Session` and sends a new
 `SETTINGS` frame to the connected HTTP/2 peer.
@@ -1282,7 +1282,7 @@ added: v8.4.0
 * Extends: {net.Server}
 
 In `Http2Server`, there is no `'clientError'` event as there is in
-HTTP1. However, there are `'socketError'`, `'sessionError'`,  and
+HTTP1. However, there are `'socketError'`, `'sessionError'`, and
 `'streamError'`, for error happened on the socket, session, or stream
 respectively.
 
@@ -1609,7 +1609,7 @@ changes:
   * ...: Any [`tls.createServer()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `onRequestHandler` {Function} See [Compatibility API][]
-* Returns {Http2SecureServer}
+* Returns: {Http2SecureServer}
 
 Returns a `tls.Server` instance that creates and manages `Http2Session`
 instances.
@@ -1691,7 +1691,7 @@ changes:
     [`Duplex`][] stream that is to be used as the connection for this session.
   * ...: Any [`net.connect()`][] or [`tls.connect()`][] options can be provided.
 * `listener` {Function}
-* Returns {Http2Session}
+* Returns: {Http2Session}
 
 Returns a HTTP/2 client `Http2Session` instance.
 
@@ -2191,8 +2191,8 @@ added: v8.4.0
 
 The raw request/response headers list exactly as they were received.
 
-Note that the keys and values are in the same list.  It is *not* a
-list of tuples.  So, the even-numbered offsets are key values, and the
+Note that the keys and values are in the same list. It is *not* a
+list of tuples. So, the even-numbered offsets are key values, and the
 odd-numbered offsets are the associated values.
 
 Header names are not lowercased, and duplicates are not merged.
@@ -2219,7 +2219,7 @@ added: v8.4.0
 * {Array}
 
 The raw request/response trailer keys and values exactly as they were
-received.  Only populated at the `'end'` event.
+received. Only populated at the `'end'` event.
 
 #### request.setTimeout(msecs, callback)
 <!-- YAML
@@ -2229,7 +2229,7 @@ added: v8.4.0
 * `msecs` {number}
 * `callback` {Function}
 
-Sets the [`Http2Stream`]()'s timeout value to `msecs`.  If a callback is
+Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
@@ -2308,7 +2308,7 @@ Then `request.url` will be:
 ```
 
 To parse the url into its parts `require('url').parse(request.url)`
-can be used.  Example:
+can be used. Example:
 
 ```txt
 $ node
@@ -2356,7 +2356,7 @@ Url {
 added: v8.4.0
 -->
 
-This object is created internally by an HTTP server--not by the user. It is
+This object is created internally by an HTTP server — not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
 
 The response implements, but does not inherit from, the [Writable Stream][]
@@ -2560,8 +2560,8 @@ added: v8.4.0
 * `name` {string}
 * `value` {string|string[]}
 
-Sets a single header value for implicit headers.  If this header already exists
-in the to-be-sent headers, its value will be replaced.  Use an array of strings
+Sets a single header value for implicit headers. If this header already exists
+in the to-be-sent headers, its value will be replaced. Use an array of strings
 here to send multiple headers with the same name.
 
 Example:
@@ -2601,7 +2601,7 @@ added: v8.4.0
 * `msecs` {number}
 * `callback` {Function}
 
-Sets the [`Http2Stream`]()'s timeout value to `msecs`.  If a callback is
+Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
@@ -2760,7 +2760,7 @@ response.writeHead(200, {
 ```
 
 Note that Content-Length is given in bytes not characters. The
-`Buffer.byteLength()` API  may be used to determine the number of bytes in a
+`Buffer.byteLength()` API may be used to determine the number of bytes in a
 given encoding. On outbound messages, Node.js does not check if Content-Length
 and the length of the body being transmitted are equal or not. However, when
 receiving messages, Node.js will automatically reject messages when the
