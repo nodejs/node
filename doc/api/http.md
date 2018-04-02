@@ -116,13 +116,13 @@ added: v0.3.4
   Can have the following fields:
   * `keepAlive` {boolean} Keep sockets around even when there are no
     outstanding requests, so they can be used for future requests without
-    having to reestablish a TCP connection. Defaults to `false`
+    having to reestablish a TCP connection. **Default:** `false`.
   * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
     the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
-    `keepAlive` option is `false` or `undefined`. Defaults to `1000`.
+    `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per
-    host.  Defaults to `Infinity`.
+    host. **Default:** `Infinity`.
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
@@ -225,7 +225,7 @@ added: v0.11.4
 -->
 
 * `options` {Object} A set of options providing information for name generation
-  * `host` {string} A domain name or IP address of the server to issue the 
+  * `host` {string} A domain name or IP address of the server to issue the
     request to
   * `port` {number} Port of remote server
   * `localAddress` {string} Local interface to bind for network connections
@@ -331,8 +331,8 @@ added: v0.7.0
 * `socket` {net.Socket}
 * `head` {Buffer}
 
-Emitted each time a server responds to a request with a `CONNECT` method. If 
-this event is not being listened for, clients receiving a `CONNECT` method will 
+Emitted each time a server responds to a request with a `CONNECT` method. If
+this event is not being listened for, clients receiving a `CONNECT` method will
 have their connections closed.
 
 A client and server pair demonstrating how to listen for the `'connect'` event:
@@ -624,7 +624,7 @@ added: v0.5.9
 -->
 
 * `timeout` {number} Milliseconds before a request times out.
-* `callback` {Function} Optional function to be called when a timeout occurs. 
+* `callback` {Function} Optional function to be called when a timeout occurs.
   Same as binding to the `timeout` event.
 
 Once a socket is assigned to this request and is connected
@@ -692,7 +692,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 added: v0.1.17
 -->
 
-This class inherits from [`net.Server`][] and has the following additional 
+This class inherits from [`net.Server`][] and has the following additional
 events:
 
 ### Event: 'checkContinue'
@@ -707,9 +707,9 @@ Emitted each time a request with an HTTP `Expect: 100-continue` is received.
 If this event is not listened for, the server will automatically respond
 with a `100 Continue` as appropriate.
 
-Handling this event involves calling [`response.writeContinue()`][] if the 
-client should continue to send the request body, or generating an appropriate 
-HTTP response (e.g. 400 Bad Request) if the client should not continue to send 
+Handling this event involves calling [`response.writeContinue()`][] if the
+client should continue to send the request body, or generating an appropriate
+HTTP response (e.g. 400 Bad Request) if the client should not continue to send
 the request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
@@ -881,17 +881,16 @@ connections.
 added: v0.7.0
 -->
 
-* {number} Defaults to 2000.
+* {number} **Default:** `2000`
 
-Limits maximum incoming headers count, equal to 2000 by default. If set to 0 -
-no limit will be applied.
+Limits maximum incoming headers count. If set to 0 - no limit will be applied.
 
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msecs` {number} Defaults to 120000 (2 minutes).
+* `msecs` {number} **Default:** `120000` (2 minutes)
 * `callback` {Function}
 
 Sets the timeout value for sockets, and emits a `'timeout'` event on
@@ -912,7 +911,7 @@ Returns `server`.
 added: v0.9.12
 -->
 
-* {number} Timeout in milliseconds. Defaults to 120000 (2 minutes).
+* {number} Timeout in milliseconds. **Default:** `120000` (2 minutes).
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -927,7 +926,7 @@ value only affects new connections to the server, not any existing connections.
 added: v8.0.0
 -->
 
-* {number} Timeout in milliseconds. Defaults to 5000 (5 seconds).
+* {number} Timeout in milliseconds. **Default:** `5000` (5 seconds).
 
 The number of milliseconds of inactivity a server needs to wait for additional
 incoming data, after it has finished writing the last response, before a socket
@@ -935,9 +934,9 @@ will be destroyed. If the server receives new data before the keep-alive
 timeout has fired, it will reset the regular inactivity timeout, i.e.,
 [`server.timeout`][].
 
-A value of `0` will disable the keep-alive timeout behavior on incoming 
+A value of `0` will disable the keep-alive timeout behavior on incoming
 connections.
-A value of `0` makes the http server behave similarly to Node.js versions prior 
+A value of `0` makes the http server behave similarly to Node.js versions prior
 to 8.0.0, which did not have a keep-alive timeout.
 
 The socket timeout logic is set up on connection, so changing this value only
@@ -1187,8 +1186,8 @@ response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-When headers have been set with [`response.setHeader()`][], they will be merged 
-with any headers passed to [`response.writeHead()`][], with the headers passed 
+When headers have been set with [`response.setHeader()`][], they will be merged
+with any headers passed to [`response.writeHead()`][], with the headers passed
 to [`response.writeHead()`][] given precedence.
 
 ```js
@@ -1272,8 +1271,8 @@ added: v0.11.8
 * {string}
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
-this property controls the status message that will be sent to the client when 
-the headers get flushed. If this is left as `undefined` then the standard 
+this property controls the status message that will be sent to the client when
+the headers get flushed. If this is left as `undefined` then the standard
 message for the status code will be used.
 
 Example:
@@ -1291,7 +1290,7 @@ added: v0.1.29
 -->
 
 * `chunk` {string|Buffer}
-* `encoding` {string}
+* `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
 * Returns: {boolean}
 
@@ -1307,8 +1306,7 @@ _must not_ include a message body.
 
 `chunk` can be a string or a buffer. If `chunk` is a string,
 the second parameter specifies how to encode it into a byte stream.
-By default the `encoding` is `'utf8'`. `callback` will be called when this chunk
-of data is flushed.
+`callback` will be called when this chunk of data is flushed.
 
 This is the raw HTTP body and has nothing to do with higher-level multi-part
 body encodings that may be used.
@@ -1329,7 +1327,7 @@ added: v0.3.0
 -->
 
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
-the request body should be sent. See the [`'checkContinue'`][] event on 
+the request body should be sent. See the [`'checkContinue'`][] event on
 `Server`.
 
 ### response.writeHead(statusCode[, statusMessage][, headers])
@@ -1366,8 +1364,8 @@ be called before [`response.end()`][] is called.
 If [`response.write()`][] or [`response.end()`][] are called before calling
 this, the implicit/mutable headers will be calculated and call this function.
 
-When headers have been set with [`response.setHeader()`][], they will be merged 
-with any headers passed to [`response.writeHead()`][], with the headers passed 
+When headers have been set with [`response.setHeader()`][], they will be merged
+with any headers passed to [`response.writeHead()`][], with the headers passed
 to [`response.writeHead()`][] given precedence.
 
 ```js
@@ -1397,7 +1395,7 @@ added: v0.1.17
 
 An `IncomingMessage` object is created by [`http.Server`][] or
 [`http.ClientRequest`][] and passed as the first argument to the [`'request'`][]
-and [`'response'`][] event respectively. It may be used to access response 
+and [`'response'`][] event respectively. It may be used to access response
 status, headers and data.
 
 It implements the [Readable Stream][] interface, as well as the
@@ -1569,7 +1567,7 @@ added: v0.11.10
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
-The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server 
+The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server
 Error`.
 
 ### message.trailers
@@ -1680,11 +1678,11 @@ changes:
 -->
 - `options` {Object}
   * `IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage class
-    to be used. Useful for extending the original `IncomingMessage`. Defaults
-    to: `IncomingMessage`
+    to be used. Useful for extending the original `IncomingMessage`.
+    **Default:** `IncomingMessage`.
   * `ServerResponse` {http.ServerResponse} Specifies the ServerResponse class to
-    be used. Useful for extending the original `ServerResponse`. Defaults to:
-    `ServerResponse`
+    be used. Useful for extending the original `ServerResponse`. **Default:**
+    `ServerResponse`.
 - `requestListener` {Function}
 
 * Returns: {http.Server}
@@ -1776,28 +1774,28 @@ changes:
 -->
 
 * `options` {Object | string | URL}
-  * `protocol` {string} Protocol to use. Defaults to `http:`.
+  * `protocol` {string} Protocol to use. **Default:** `http:`.
   * `host` {string} A domain name or IP address of the server to issue the
-    request to. Defaults to `localhost`.
+    request to. **Default:** `localhost`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` is preferred over `host`.
   * `family` {number} IP address family to use when resolving `host` and
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `port` {number} Port of remote server. Defaults to 80.
+  * `port` {number} Port of remote server. **Default:** `80`.
   * `localAddress` {string} Local interface to bind for network connections.
   * `socketPath` {string} Unix Domain Socket (use one of host:port or
     socketPath).
-  * `method` {string} A string specifying the HTTP request method. Defaults to
+  * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
-  * `path` {string} Request path. Defaults to `'/'`. Should include query
-    string if any. E.G. `'/index.html?page=12'`. An exception is thrown when
-    the request path contains illegal characters. Currently, only spaces are
-    rejected but that may change in the future.
+  * `path` {string} Request path. Should include query string if any.
+    E.G. `'/index.html?page=12'`. An exception is thrown when the request path
+    contains illegal characters. Currently, only spaces are rejected but that
+    may change in the future. **Default:** `'/'`.
   * `headers` {Object} An object containing request headers.
   * `auth` {string} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
-  * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible 
+  * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible
     values:
    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
    * `Agent` object: explicitly use the passed in `Agent`.

@@ -159,7 +159,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 
 * `code` {string} JavaScript Module code to parse
 * `options`
-  * `url` {string} URL used in module resolution and stack traces. **Default**:
+  * `url` {string} URL used in module resolution and stack traces. **Default:**
     `'vm:module(i)'` where `i` is a context-specific ascending index.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this Module in.
@@ -184,8 +184,8 @@ in the ECMAScript specification.
 
 * {any}
 
-If the `module.status` is `'errored'`, this property contains the exception 
-thrown by the module during evaluation. If the status is anything else, 
+If the `module.status` is `'errored'`, this property contains the exception
+thrown by the module during evaluation. If the status is anything else,
 accessing this property will result in a thrown exception.
 
 The value `undefined` cannot be used for cases where there is not a thrown
@@ -803,8 +803,8 @@ local scope, so the value `localVar` is changed. In this way
 
 ## Example: Running an HTTP Server within a VM
 
-When using either [`script.runInThisContext()`][] or 
-[`vm.runInThisContext()`][], the code is executed within the current V8 global 
+When using either [`script.runInThisContext()`][] or
+[`vm.runInThisContext()`][], the code is executed within the current V8 global
 context. The code passed to this VM context will have its own isolated scope.
 
 In order to run a simple web server using the `http` module the code passed to

@@ -139,7 +139,7 @@ changes:
   - `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   - `all` {boolean} When `true`, the callback returns all resolved addresses in
-    an array. Otherwise, returns a single address. **Default:** `false`
+    an array. Otherwise, returns a single address. **Default:** `false`.
   - `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
     addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
@@ -243,7 +243,7 @@ Promise for an object with `hostname` and `service` properties.
 added: v0.1.27
 -->
 - `hostname` {string} Hostname to resolve.
-- `rrtype` {string} Resource record type. **Default:** `'A'`
+- `rrtype` {string} Resource record type. **Default:** `'A'`.
 - `callback` {Function}
   - `err` {Error}
   - `records` {string[] | Object[] | Object}
