@@ -1504,7 +1504,7 @@ If the `decodeStrings` property is set in the constructor options, then
 `chunk` may be a string rather than a Buffer, and `encoding` will
 indicate the character encoding of the string. This is to support
 implementations that have an optimized handling for certain string
-data encodings. If the `decodeStrings` property is explicitly set to `false`,
+data encodings. Unless the `decodeStrings` property is explicitly set to `false`,
 the `encoding` argument can be safely ignored, and `chunk` will remain the same
 object that is passed to `.write()`.
 
