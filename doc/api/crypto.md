@@ -301,7 +301,7 @@ Updates the cipher with `data`. If the `inputEncoding` argument is given,
 its value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
 argument is a string using the specified encoding. If the `inputEncoding`
 argument is not given, `data` must be a [`Buffer`][], `TypedArray`, or
-`DataView`.  If `data` is a [`Buffer`][], `TypedArray`, or `DataView`, then
+`DataView`. If `data` is a [`Buffer`][], `TypedArray`, or `DataView`, then
 `inputEncoding` is ignored.
 
 The `outputEncoding` specifies the output format of the enciphered
@@ -552,7 +552,7 @@ added: v0.5.0
 - `encoding` {string}
 
 Returns the Diffie-Hellman generator in the specified `encoding`, which can
-be `'latin1'`, `'hex'`, or `'base64'`. If  `encoding` is provided a string is
+be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPrime([encoding])
@@ -1716,8 +1716,8 @@ const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
-The `crypto.DEFAULT_ENCODING` may be used to change the way the `derivedKey`
-is returned:
+The `crypto.DEFAULT_ENCODING` property may be used to change the way the
+`derivedKey` is returned.
 
 ```js
 const crypto = require('crypto');

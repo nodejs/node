@@ -41,7 +41,7 @@ the event loop until the spawned process either exits or is terminated.
 
 For convenience, the `child_process` module provides a handful of synchronous
 and asynchronous alternatives to [`child_process.spawn()`][] and
-[`child_process.spawnSync()`][].  *Note that each of these alternatives are
+[`child_process.spawnSync()`][]. *Note that each of these alternatives are
 implemented on top of [`child_process.spawn()`][] or [`child_process.spawnSync()`][].*
 
   * [`child_process.exec()`][]: spawns a shell and runs a command within that shell,
@@ -146,8 +146,8 @@ changes:
     [Shell Requirements][] and [Default Windows Shell][].
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024`. If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200 * 1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -189,7 +189,7 @@ exec('cat *.js bad_file | wc -l', (error, stdout, stderr) => {
 ```
 
 If a `callback` function is provided, it is called with the arguments
-`(error, stdout, stderr)`. On success, `error` will be `null`.  On error,
+`(error, stdout, stderr)`. On success, `error` will be `null`. On error,
 `error` will be an instance of [`Error`][]. The `error.code` property will be
 the exit code of the child process while `error.signal` will be set to the
 signal that terminated the process. Any exit code other than `0` is considered
@@ -258,8 +258,8 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200 * 1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -538,7 +538,7 @@ disabled*.
 On non-Windows platforms, if `options.detached` is set to `true`, the child
 process will be made the leader of a new process group and session. Note that
 child processes may continue running after the parent exits regardless of
-whether they are detached or not.  See setsid(2) for more information.
+whether they are detached or not. See setsid(2) for more information.
 
 By default, the parent will wait for the detached child to exit. To prevent
 the parent from waiting for a given `subprocess`, use the `subprocess.unref()`
@@ -712,9 +712,10 @@ changes:
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
-  * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200 * 1024`.
+  * `encoding` {string} The encoding used for all stdio inputs and outputs.
+    **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
@@ -773,8 +774,8 @@ changes:
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200 * 1024`.
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`
   * `windowsHide` {boolean} Hide the subprocess console window that would
@@ -785,12 +786,12 @@ The `child_process.execSync()` method is generally identical to
 [`child_process.exec()`][] with the exception that the method will not return until
 the child process has fully closed. When a timeout has been encountered and
 `killSignal` is sent, the method won't return until the process has completely
-exited. *Note that if  the child process intercepts and handles the `SIGTERM`
+exited. *Note that if the child process intercepts and handles the `SIGTERM`
 signal and doesn't exit, the parent process will wait until the child
 process has exited.*
 
 If the process times out or has a non-zero exit code, this method ***will***
-throw.  The [`Error`][] object will contain the entire result from
+throw. The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
 **Never pass unsanitized user input to this function. Any input containing shell
@@ -830,8 +831,8 @@ changes:
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200 * 1024`.
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
@@ -1168,7 +1169,7 @@ properties:
     Defaults to `false`.
 
 The optional `callback` is a function that is invoked after the message is
-sent but before the child may have received it.  The function is called with a
+sent but before the child may have received it. The function is called with a
 single argument: `null` on success, or an [`Error`][] object on failure.
 
 If no `callback` function is provided and the message cannot be sent, an
