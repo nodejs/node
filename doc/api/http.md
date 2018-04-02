@@ -9,7 +9,7 @@ To use the HTTP server and client one must `require('http')`.
 The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
 In particular, large, possibly chunk-encoded, messages. The interface is
-careful to never buffer entire requests or responses--the
+careful to never buffer entire requests or responses — the
 user is able to stream data.
 
 HTTP message headers are represented by an object like this:
@@ -569,7 +569,7 @@ added: v0.1.29
 
 Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
-server--in that case it is suggested to use the
+server — in that case it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
 creating the request.
 
@@ -868,7 +868,7 @@ connections.
 added: v0.1.17
 -->
 
-This object is created internally by an HTTP server--not by the user. It is
+This object is created internally by an HTTP server — not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
 
 The response implements, but does not inherit from, the [Writable Stream][]

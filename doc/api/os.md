@@ -392,7 +392,7 @@ added: v6.0.0
 * Returns: {Object}
 
 The `os.userInfo()` method returns information about the currently effective
-user -- on POSIX platforms, this is typically a subset of the password file. The
+user — on POSIX platforms, this is typically a subset of the password file. The
 returned object includes the `username`, `uid`, `gid`, `shell`, and `homedir`.
 On Windows, the `uid` and `gid` fields are `-1`, and `shell` is `null`.
 

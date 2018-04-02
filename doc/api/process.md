@@ -189,7 +189,7 @@ process will exit with a non-zero exit code and the stack trace will be printed.
 This is to avoid infinite recursion.
 
 Attempting to resume normally after an uncaught exception can be similar to
-pulling out of the power cord when upgrading a computer -- nine out of ten
+pulling out of the power cord when upgrading a computer — nine out of ten
 times nothing happens - but the 10th time, the system becomes corrupted.
 
 The correct use of `'uncaughtException'` is to perform synchronous cleanup
