@@ -3,11 +3,9 @@
 
 const common = require('../common');
 
-const bufferWarning = 'The Buffer() and new Buffer() constructors are not ' +
-                      'recommended for use due to security and usability ' +
-                      'concerns. Please use the Buffer.alloc(), ' +
-                      'Buffer.allocUnsafe(), or Buffer.from() construction ' +
-                      'methods instead.';
+const bufferWarning = 'Buffer() is deprecated due to security and usability ' +
+                      'issues. Please use the Buffer.alloc(), ' +
+                      'Buffer.allocUnsafe(), or Buffer.from() methods instead.';
 
 common.expectWarning('DeprecationWarning', bufferWarning, 'DEP0005');
 
