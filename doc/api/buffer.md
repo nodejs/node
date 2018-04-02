@@ -434,7 +434,7 @@ Prior to Node.js 8.0.0, the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created
 `Buffer` are unknown and *may contain sensitive data*. Use
 [`Buffer.alloc(size)`][`Buffer.alloc()`] instead to initialize a `Buffer`
-to zeroes.
+with zeroes.
 
 ```js
 const buf = new Buffer(10);
@@ -558,7 +558,7 @@ thrown. A zero-length `Buffer` will be created if `size` is 0.
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
 *may contain sensitive data*. Use [`Buffer.alloc()`] instead to initialize
-`Buffer` instances to zeroes.
+`Buffer` instances with zeroes.
 
 ```js
 const buf = Buffer.allocUnsafe(10);
@@ -601,20 +601,20 @@ thrown. A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
-*may contain sensitive data*. Use [`buf.fill(0)`][`buf.fill()`] to initialize such
-`Buffer` instances to zeroes.
+*may contain sensitive data*. Use [`buf.fill(0)`][`buf.fill()`] to initialize
+such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`] to allocate new `Buffer` instances,
-allocations under 4KB are, by default, sliced from a single pre-allocated
-`Buffer`. This allows applications to avoid the garbage collection overhead of
-creating many individually allocated `Buffer` instances. This approach improves
-both performance and memory usage by eliminating the need to track and cleanup as
-many `Persistent` objects.
+allocations under 4KB are sliced from a single pre-allocated `Buffer`. This
+allows applications to avoid the garbage collection overhead of creating many
+individually allocated `Buffer` instances. This approach improves both
+performance and memory usage by eliminating the need to track and clean up as
+many persistent objects.
 
 However, in the case where a developer may need to retain a small chunk of
 memory from a pool for an indeterminate amount of time, it may be appropriate
-to create an un-pooled `Buffer` instance using `Buffer.allocUnsafeSlow()` then
-copy out the relevant bits.
+to create an un-pooled `Buffer` instance using `Buffer.allocUnsafeSlow()` and
+then copying out the relevant bits.
 
 ```js
 // Need to keep around a few small chunks of memory
@@ -633,8 +633,8 @@ socket.on('readable', () => {
 });
 ```
 
-Use of `Buffer.allocUnsafeSlow()` should be used only as a last resort *after*
-a developer has observed undue memory retention in their applications.
+`Buffer.allocUnsafeSlow()` should be used only as a last resort after a
+developer has observed undue memory retention in their applications.
 
 A `TypeError` will be thrown if `size` is not a number.
 
@@ -2504,7 +2504,8 @@ thrown. A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
 contents of a newly created `SlowBuffer` are unknown and may contain sensitive
-data. Use [`buf.fill(0)`][`buf.fill()`] to initialize a `SlowBuffer` to zeroes.
+data. Use [`buf.fill(0)`][`buf.fill()`] to initialize a `SlowBuffer` with
+zeroes.
 
 ```js
 const { SlowBuffer } = require('buffer');
