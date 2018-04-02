@@ -378,8 +378,7 @@ UV_EXTERN const char* uv_err_name(int err);
   /* read-only */                                                             \
   uv_req_type type;                                                           \
   /* private */                                                               \
-  void* active_queue[2];                                                      \
-  void* reserved[4];                                                          \
+  void* reserved[6];                                                          \
   UV_REQ_PRIVATE_FIELDS                                                       \
 
 /* Abstract base class of all requests. */
@@ -1191,6 +1190,18 @@ UV_EXTERN int uv_fs_write(uv_loop_t* loop,
  */
 #define UV_FS_COPYFILE_EXCL   0x0001
 
+/*
+ * This flag can be used with uv_fs_copyfile() to attempt to create a reflink.
+ * If copy-on-write is not supported, a fallback copy mechanism is used.
+ */
+#define UV_FS_COPYFILE_FICLONE 0x0002
+
+/*
+ * This flag can be used with uv_fs_copyfile() to attempt to create a reflink.
+ * If copy-on-write is not supported, an error is returned.
+ */
+#define UV_FS_COPYFILE_FICLONE_FORCE 0x0004
+
 UV_EXTERN int uv_fs_copyfile(uv_loop_t* loop,
                              uv_fs_t* req,
                              const char* path,
@@ -1531,7 +1542,10 @@ struct uv_loop_s {
   /* Loop reference counting. */
   unsigned int active_handles;
   void* handle_queue[2];
-  void* active_reqs[2];
+  union {
+    void* unused[2];
+    unsigned int count;
+  } active_reqs;
   /* Internal flag to signal loop stop. */
   unsigned int stop_flag;
   UV_LOOP_PRIVATE_FIELDS
