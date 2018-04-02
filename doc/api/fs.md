@@ -634,16 +634,16 @@ representation.
 
 The times in the stat object have the following semantics:
 
-* `atime` "Access Time" - Time when file data last accessed.  Changed
+* `atime` "Access Time" - Time when file data last accessed. Changed
   by the mknod(2), utimes(2), and read(2) system calls.
 * `mtime` "Modified Time" - Time when file data last modified.
   Changed by the mknod(2), utimes(2), and write(2) system calls.
 * `ctime` "Change Time" - Time when file status was last changed
-  (inode data modification).  Changed by the chmod(2), chown(2),
+  (inode data modification). Changed by the chmod(2), chown(2),
   link(2), mknod(2), rename(2), unlink(2), utimes(2),
   read(2), and write(2) system calls.
-* `birthtime` "Birth Time" -  Time of file creation. Set once when the
-  file is created.  On filesystems where birthtime is not available,
+* `birthtime` "Birth Time" - Time of file creation. Set once when the
+  file is created. On filesystems where birthtime is not available,
   this field may instead hold either the `ctime` or
   `1970-01-01T00:00Z` (ie, unix epoch timestamp `0`). Note that this
   value may be greater than `atime` or `mtime` in this case. On Darwin
@@ -652,7 +652,7 @@ The times in the stat object have the following semantics:
   utimes(2) system call.
 
 Prior to Node.js v0.12, the `ctime` held the `birthtime` on Windows
-systems.  Note that as of v0.12, `ctime` is not "creation time", and
+systems. Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
 ## Class: fs.WriteStream
@@ -1140,7 +1140,7 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous close(2).  No arguments other than a possible exception are given
+Asynchronous close(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.closeSync(fd)
@@ -1288,7 +1288,7 @@ const defaults = {
 ```
 
 `options` can include `start` and `end` values to read a range of bytes from
-the file instead of the entire file.  Both `start` and `end` are inclusive and
+the file instead of the entire file. Both `start` and `end` are inclusive and
 start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
 `fs.createReadStream()` reads sequentially from the current file position.
 The `encoding` can be any one of those accepted by [`Buffer`][].
@@ -1359,7 +1359,7 @@ const defaults = {
 ```
 
 `options` may also include a `start` option to allow writing data at
-some position past the beginning of the file.  Modifying a file rather
+some position past the beginning of the file. Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
 default mode `w`. The `encoding` can be any one of those accepted by
 [`Buffer`][].
@@ -1395,7 +1395,7 @@ deprecated: v1.0.0
   * `exists` {boolean}
 
 Test whether or not the given path exists by checking with the file system.
-Then call the `callback` argument with either true or false.  Example:
+Then call the `callback` argument with either true or false. Example:
 
 ```js
 fs.exists('/etc/passwd', (exists) => {
@@ -2153,7 +2153,7 @@ to a non-existent file. The exclusive flag may or may not work with network file
 systems.
 
 `flags` can also be a number as documented by open(2); commonly used constants
-are available from `fs.constants`.  On Windows, flags are translated to
+are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
 
@@ -2277,7 +2277,7 @@ changes:
   * `err` {Error}
   * `files` {string[]|Buffer[]}
 
-Asynchronous readdir(3).  Reads the contents of a directory.
+Asynchronous readdir(3). Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
 the names of the files in the directory excluding `'.'` and `'..'`.
 
@@ -2581,7 +2581,7 @@ the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
 On Linux, when Node.js is linked against musl libc, the procfs file system must
-be mounted on `/proc` in order for this function to work.  Glibc does not have
+be mounted on `/proc` in order for this function to work. Glibc does not have
 this restriction.
 
 ## fs.realpathSync(path[, options])
@@ -2650,7 +2650,7 @@ the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
 On Linux, when Node.js is linked against musl libc, the procfs file system must
-be mounted on `/proc` in order for this function to work.  Glibc does not have
+be mounted on `/proc` in order for this function to work. Glibc does not have
 this restriction.
 
 ## fs.rename(oldPath, newPath, callback)
@@ -2961,7 +2961,7 @@ Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
 Using [`fs.watch()`][] is more efficient than `fs.watchFile()` and
-`fs.unwatchFile()`.  `fs.watch()` should be used instead of `fs.watchFile()`
+`fs.unwatchFile()`. `fs.watch()` should be used instead of `fs.watchFile()`
 and `fs.unwatchFile()` when possible.
 
 ## fs.utimes(path, atime, mtime, callback)
@@ -3056,12 +3056,12 @@ changes:
   * `filename` {string|Buffer}
 
 Watch for changes on `filename`, where `filename` is either a file or a
-directory.  The returned object is a [`fs.FSWatcher`][].
+directory. The returned object is a [`fs.FSWatcher`][].
 
 The second argument is optional. If `options` is provided as a string, it
 specifies the `encoding`. Otherwise `options` should be passed as an object.
 
-The listener callback gets two arguments `(eventType, filename)`.  `eventType`
+The listener callback gets two arguments `(eventType, filename)`. `eventType`
 is either `'rename'` or `'change'`, and `filename` is the name of the file
 which triggered the event.
 
@@ -3123,7 +3123,7 @@ content, and one for truncation).
 <!--type=misc-->
 
 Providing `filename` argument in the callback is only supported on Linux,
-macOS, Windows, and AIX.  Even on supported platforms, `filename` is not always
+macOS, Windows, and AIX. Even on supported platforms, `filename` is not always
 guaranteed to be provided. Therefore, don't assume that `filename` argument is
 always provided in the callback, and have some fallback logic if it is null.
 
@@ -3279,7 +3279,7 @@ changes:
   * `written` {integer}
   * `string` {string}
 
-Write `string` to the file specified by `fd`.  If `string` is not a string, then
+Write `string` to the file specified by `fd`. If `string` is not a string, then
 the value will be coerced to one.
 
 `position` refers to the offset from the beginning of the file where this data
@@ -4118,7 +4118,7 @@ to a non-existent file. The exclusive flag may or may not work with network file
 systems.
 
 `flags` can also be a number as documented by open(2); commonly used constants
-are available from `fs.constants`.  On Windows, flags are translated to
+are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
 
@@ -4254,7 +4254,7 @@ the path. If the `encoding` is set to `'buffer'`, the path returned will be
 passed as a `Buffer` object.
 
 On Linux, when Node.js is linked against musl libc, the procfs file system must
-be mounted on `/proc` in order for this function to work.  Glibc does not have
+be mounted on `/proc` in order for this function to work. Glibc does not have
 this restriction.
 
 ### fsPromises.rename(oldPath, newPath)

@@ -165,7 +165,7 @@ The memory requirements for deflate are (in bytes):
 (1 << (windowBits + 2)) + (1 << (memLevel + 9))
 ```
 
-That is: 128K for windowBits = 15  +  128K for memLevel = 8
+That is: 128K for windowBits = 15 + 128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
 
 For example, to reduce the default memory requirements from 256K to 128K, the
@@ -185,13 +185,13 @@ This is in addition to a single internal output slab buffer of size
 `chunkSize`, which defaults to 16K.
 
 The speed of `zlib` compression is affected most dramatically by the
-`level` setting.  A higher level will result in better compression, but
-will take longer to complete.  A lower level will result in less
+`level` setting. A higher level will result in better compression, but
+will take longer to complete. A lower level will result in less
 compression, but will be much faster.
 
 In general, greater memory usage options will mean that Node.js has to make
 fewer calls to `zlib` because it will be able to process more data on
-each `write` operation.  So, this is another factor that affects the
+each `write` operation. So, this is another factor that affects the
 speed, at the cost of memory usage.
 
 ## Flushing
@@ -233,9 +233,9 @@ added: v0.5.8
 
 All of the constants defined in `zlib.h` are also defined on
 `require('zlib').constants`. In the normal course of operations, it will not be
-necessary to use these  constants. They are documented so that their presence is
+necessary to use these constants. They are documented so that their presence is
 not surprising. This section is taken almost directly from the
-[zlib documentation][].  See <https://zlib.net/manual.html#Constants> for more
+[zlib documentation][]. See <https://zlib.net/manual.html#Constants> for more
 details.
 
 Previously, the constants were available directly from `require('zlib')`, for
@@ -298,7 +298,7 @@ changes:
 
 <!--type=misc-->
 
-Each class takes an `options` object.  All options are optional.
+Each class takes an `options` object. All options are optional.
 
 Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.

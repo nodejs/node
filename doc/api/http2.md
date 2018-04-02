@@ -1439,7 +1439,7 @@ added: v8.4.0
 * Extends: {net.Server}
 
 In `Http2Server`, there are no `'clientError'` events as there are in
-HTTP1. However, there are `'sessionError'`,  and `'streamError'` events for
+HTTP1. However, there are `'sessionError'`, and `'streamError'` events for
 errors emitted on the socket, or from `Http2Session` or `Http2Stream` instances.
 
 #### Event: 'checkContinue'
@@ -2417,8 +2417,8 @@ added: v8.4.0
 
 The raw request/response headers list exactly as they were received.
 
-Note that the keys and values are in the same list.  It is *not* a
-list of tuples.  So, the even-numbered offsets are key values, and the
+Note that the keys and values are in the same list. It is *not* a
+list of tuples. So, the even-numbered offsets are key values, and the
 odd-numbered offsets are the associated values.
 
 Header names are not lowercased, and duplicates are not merged.
@@ -2445,7 +2445,7 @@ added: v8.4.0
 * {Array}
 
 The raw request/response trailer keys and values exactly as they were
-received.  Only populated at the `'end'` event.
+received. Only populated at the `'end'` event.
 
 #### request.setTimeout(msecs, callback)
 <!-- YAML
@@ -2455,7 +2455,7 @@ added: v8.4.0
 * `msecs` {number}
 * `callback` {Function}
 
-Sets the [`Http2Stream`]()'s timeout value to `msecs`.  If a callback is
+Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
@@ -2534,7 +2534,7 @@ Then `request.url` will be:
 ```
 
 To parse the url into its parts `require('url').parse(request.url)`
-can be used.  Example:
+can be used. Example:
 
 ```txt
 $ node
@@ -2791,8 +2791,8 @@ added: v8.4.0
 * `name` {string}
 * `value` {string|string[]}
 
-Sets a single header value for implicit headers.  If this header already exists
-in the to-be-sent headers, its value will be replaced.  Use an array of strings
+Sets a single header value for implicit headers. If this header already exists
+in the to-be-sent headers, its value will be replaced. Use an array of strings
 here to send multiple headers with the same name.
 
 Example:
@@ -2832,7 +2832,7 @@ added: v8.4.0
 * `msecs` {number}
 * `callback` {Function}
 
-Sets the [`Http2Stream`]()'s timeout value to `msecs`.  If a callback is
+Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
@@ -2991,7 +2991,7 @@ response.writeHead(200, {
 ```
 
 Note that Content-Length is given in bytes not characters. The
-`Buffer.byteLength()` API  may be used to determine the number of bytes in a
+`Buffer.byteLength()` API may be used to determine the number of bytes in a
 given encoding. On outbound messages, Node.js does not check if Content-Length
 and the length of the body being transmitted are equal or not. However, when
 receiving messages, Node.js will automatically reject messages when the

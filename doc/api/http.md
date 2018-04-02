@@ -33,7 +33,7 @@ parse the actual headers or the body.
 See [`message.headers`][] for details on how duplicate headers are handled.
 
 The raw headers as they were received are retained in the `rawHeaders`
-property, which is an array of `[key, value, key2, value2, ...]`.  For
+property, which is an array of `[key, value, key2, value2, ...]`. For
 example, the previous message header object might have a `rawHeaders`
 list like the following:
 
@@ -124,7 +124,7 @@ added: v0.3.4
   * `maxSockets` {number} Maximum number of sockets to allow per
     host. **Default:** `Infinity`.
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
-    in a free state.  Only relevant if `keepAlive` is set to `true`.
+    in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
 
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
@@ -203,9 +203,9 @@ added: v0.11.4
 
 Destroy any sockets that are currently in use by the agent.
 
-It is usually not necessary to do this.  However, if using an
+It is usually not necessary to do this. However, if using an
 agent with `keepAlive` enabled, then it is best to explicitly shut down
-the agent when it will no longer be used.  Otherwise,
+the agent when it will no longer be used. Otherwise,
 sockets may hang open for quite a long time before the server
 terminates them.
 
@@ -217,7 +217,7 @@ added: v0.11.4
 * {Object}
 
 An object which contains arrays of sockets currently awaiting use by
-the agent when `keepAlive` is enabled.  Do not modify.
+the agent when `keepAlive` is enabled. Do not modify.
 
 ### agent.getName(options)
 <!-- YAML
@@ -246,7 +246,7 @@ added: v0.11.7
 
 * {number}
 
-By default set to 256.  For agents with `keepAlive` enabled, this
+By default set to 256. For agents with `keepAlive` enabled, this
 sets the maximum number of sockets that will be left open in the free
 state.
 
@@ -278,33 +278,33 @@ added: v0.3.6
 * {Object}
 
 An object which contains arrays of sockets currently in use by the
-agent.  Do not modify.
+agent. Do not modify.
 
 ## Class: http.ClientRequest
 <!-- YAML
 added: v0.1.17
 -->
 
-This object is created internally and returned from [`http.request()`][].  It
-represents an _in-progress_ request whose header has already been queued.  The
+This object is created internally and returned from [`http.request()`][]. It
+represents an _in-progress_ request whose header has already been queued. The
 header is still mutable using the [`setHeader(name, value)`][],
- [`getHeader(name)`][], [`removeHeader(name)`][] API.  The actual header will
+ [`getHeader(name)`][], [`removeHeader(name)`][] API. The actual header will
 be sent along with the first data chunk or when calling [`request.end()`][].
 
 To get the response, add a listener for [`'response'`][] to the request object.
 [`'response'`][] will be emitted from the request object when the response
-headers have been received.  The [`'response'`][] event is executed with one
+headers have been received. The [`'response'`][] event is executed with one
 argument which is an instance of [`http.IncomingMessage`][].
 
 During the [`'response'`][] event, one can add listeners to the
 response object; particularly to listen for the `'data'` event.
 
 If no [`'response'`][] handler is added, then the response will be
-entirely discarded.  However, if a [`'response'`][] event handler is added,
+entirely discarded. However, if a [`'response'`][] event handler is added,
 then the data from the response object **must** be consumed, either by
 calling `response.read()` whenever there is a `'readable'` event, or
 by adding a `'data'` handler, or by calling the `.resume()` method.
-Until the data is consumed, the `'end'` event will not fire.  Also, until
+Until the data is consumed, the `'end'` event will not fire. Also, until
 the data is read it will consume memory that can eventually lead to a
 'process out of memory' error.
 
@@ -578,7 +578,7 @@ For efficiency reasons, Node.js normally buffers the request headers until
 then tries to pack the request headers and data into a single TCP packet.
 
 That's usually desired (it saves a TCP round-trip), but not when the first
-data is not sent until possibly much later.  `request.flushHeaders()` bypasses
+data is not sent until possibly much later. `request.flushHeaders()` bypasses
 the optimization and kickstarts the request.
 
 ### request.getHeader(name)
@@ -707,7 +707,7 @@ added: v0.1.29
 * `encoding` {string}
 * `callback` {Function}
 
-Sends a chunk of the body.  By calling this method
+Sends a chunk of the body. By calling this method
 many times, a request body can be sent to a
 server — in that case it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
@@ -895,7 +895,7 @@ added: v0.1.90
 
 * `callback` {Function}
 
-Stops the server from accepting new connections.  See [`net.Server.close()`][].
+Stops the server from accepting new connections. See [`net.Server.close()`][].
 
 ### server.listen()
 
@@ -937,7 +937,7 @@ If there is a `'timeout'` event listener on the Server object, then it
 will be called with the timed-out socket as an argument.
 
 By default, the Server's timeout value is 2 minutes, and sockets are
-destroyed automatically if they time out.  However, if a callback is assigned
+destroyed automatically if they time out. However, if a callback is assigned
 to the Server's `'timeout'` event, timeouts must be handled explicitly.
 
 Returns `server`.
@@ -1208,8 +1208,8 @@ added: v0.4.0
 * `name` {string}
 * `value` {string | string[]}
 
-Sets a single header value for implicit headers.  If this header already exists
-in the to-be-sent headers, its value will be replaced.  Use an array of strings
+Sets a single header value for implicit headers. If this header already exists
+in the to-be-sent headers, its value will be replaced. Use an array of strings
 here to send multiple headers with the same name.
 
 Example:
@@ -1249,12 +1249,12 @@ added: v0.9.12
 * `msecs` {number}
 * `callback` {Function}
 
-Sets the Socket's timeout value to `msecs`.  If a callback is
+Sets the Socket's timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
 If no `'timeout'` listener is added to the request, the response, or
-the server, then sockets are destroyed when they time out.  If a handler is
+the server, then sockets are destroyed when they time out. If a handler is
 assigned to the request, the response, or the server's `'timeout'` events,
 timed out sockets must be handled explicitly.
 
@@ -1542,8 +1542,8 @@ added: v0.11.6
 
 The raw request/response headers list exactly as they were received.
 
-Note that the keys and values are in the same list.  It is *not* a
-list of tuples.  So, the even-numbered offsets are key values, and the
+Note that the keys and values are in the same list. It is *not* a
+list of tuples. So, the even-numbered offsets are key values, and the
 odd-numbered offsets are the associated values.
 
 Header names are not lowercased, and duplicates are not merged.
@@ -1570,7 +1570,7 @@ added: v0.11.6
 * {Array}
 
 The raw request/response trailer keys and values exactly as they were
-received.  Only populated at the `'end'` event.
+received. Only populated at the `'end'` event.
 
 ### message.setTimeout(msecs, callback)
 <!-- YAML
@@ -1654,7 +1654,7 @@ Then `request.url` will be:
 ```
 
 To parse the url into its parts `require('url').parse(request.url)`
-can be used.  Example:
+can be used. Example:
 
 ```txt
 $ node
@@ -1714,7 +1714,7 @@ added: v0.1.22
 * {Object}
 
 A collection of all the standard HTTP response status codes, and the
-short description of each.  For example, `http.STATUS_CODES[404] === 'Not
+short description of each. For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
 ## http.createServer([options][, requestListener])
