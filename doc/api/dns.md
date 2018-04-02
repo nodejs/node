@@ -499,16 +499,16 @@ will be present on the object:
 
 | Type | Properties |
 |------|------------|
-| `"A"` | `address` / `ttl` |
-| `"AAAA"` | `address` / `ttl` |
-| `"CNAME"` | `value` |
-| `"MX"` | Refer to [`dns.resolveMx()`][] |
-| `"NAPTR"` | Refer to [`dns.resolveNaptr()`][] |
-| `"NS"` | `value` |
-| `"PTR"` | `value` |
-| `"SOA"` | Refer to [`dns.resolveSoa()`][] |
-| `"SRV"` | Refer to [`dns.resolveSrv()`][] |
-| `"TXT"` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
+| `'A'` | `address` / `ttl` |
+| `'AAAA'` | `address` / `ttl` |
+| `'CNAME'` | `value` |
+| `'MX'` | Refer to [`dns.resolveMx()`][] |
+| `'NAPTR'` | Refer to [`dns.resolveNaptr()`][] |
+| `'NS'` | `value` |
+| `'PTR'` | `value` |
+| `'SOA'` | Refer to [`dns.resolveSoa()`][] |
+| `'SRV'` | Refer to [`dns.resolveSrv()`][] |
+| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the `ret` object passed to the callback:
 
