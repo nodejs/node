@@ -127,7 +127,7 @@ added: v9.9.0
 -->
 
 * `env` {Object} A object containing the environment variables to check.
-  Defaults to `process.env`.
+  **Default:** `process.env`.
 * Returns: {number}
 
 Returns:

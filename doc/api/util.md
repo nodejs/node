@@ -373,37 +373,37 @@ changes:
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
     properties will be included in the formatted result as well as [`WeakMap`][]
-    and [`WeakSet`][] entries. Defaults to `false`.
+    and [`WeakSet`][] entries. **Default:** `false`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
-    codes. Defaults to `false`. Colors are customizable, see
-    [Customizing `util.inspect` colors][].
+    codes. Colors are customizable, see [Customizing `util.inspect` colors][].
+    **Default:** `false`.
   * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
-    functions will not be called. Defaults to `true`.
+    functions will not be called. **Default:** `true`.
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
-    objects. Defaults to `false`.
+    objects. **Default:** `false`.
     <!--
     TODO(BridgeAR): Deprecate `maxArrayLength` and replace it with
                     `maxEntries`.
     -->
   * `maxArrayLength` {number} Specifies the maximum number of `Array`,
     [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
-    formatting. Defaults to `100`. Set to `null` or `Infinity` to show all
-    elements. Set to `0` or negative to show no elements.
+    formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
+    negative to show no elements. **Default:** `100`.
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
-    line. Defaults to 60 for legacy compatibility.
+    line. **Default:** `60` for legacy compatibility.
   * `compact` {boolean} Setting this to `false` changes the default indentation
     to use a line break for each object key instead of lining up multiple
     properties in one line. It will also break text that is above the
     `breakLength` size into smaller and better readable chunks and indents
     objects the same as arrays. Note that no text will be reduced below 16
     characters, no matter the `breakLength` size. For more information, see the
-    example below. Defaults to `true`.
+    example below. **Default:** `true`.
   * `depth` {number} Specifies the number visible nested Objects in an `object`.
     This is useful to minimize the inspection output for large complicated
-    objects. To make it recurse indefinitely pass `null` or `Infinity`. Defaults
-    to `Infinity`.
+    objects. To make it recurse indefinitely pass `null` or `Infinity`.
+    **Default:** `Infinity`.
 * Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
@@ -842,15 +842,15 @@ is not supported.
 ### new TextDecoder([encoding[, options]])
 
 * `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
-  supports. Defaults to `'utf-8'`.
+  supports. **Default:** `'utf-8'`.
 * `options` {Object}
-  * `fatal` {boolean} `true` if decoding failures are fatal. Defaults to
-    `false`. This option is only supported when ICU is enabled (see
-    [Internationalization][]).
+  * `fatal` {boolean} `true` if decoding failures are fatal. This option is only
+    supported when ICU is enabled (see [Internationalization][]). **Default:**
+    `false`.
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
      order mark in the decoded result. When `false`, the byte order mark will
      be removed from the output. This option is only used when `encoding` is
-     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. Defaults to `false`.
+     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
 
 Creates an new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
@@ -861,7 +861,7 @@ supported encodings or an alias.
   Typed Array instance containing the encoded data.
 * `options` {Object}
   * `stream` {boolean} `true` if additional chunks of data are expected.
-    Defaults to `false`.
+    **Default:** `false`.
 * Returns: {string}
 
 Decodes the `input` and returns a string. If `options.stream` is `true`, any
@@ -906,7 +906,7 @@ const uint8array = encoder.encode('this is some data');
 
 ### textEncoder.encode([input])
 
-* `input` {string} The text to encode. Defaults to an empty string.
+* `input` {string} The text to encode. **Default:** an empty string.
 * Returns: {Uint8Array}
 
 UTF-8 encodes the `input` string and returns a `Uint8Array` containing the

@@ -139,15 +139,16 @@ changes:
 * `command` {string} The command to run, with space-separated arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
-  * `env` {Object} Environment key-value pairs.
+    **Default:** `null`.
+  * `env` {Object} Environment key-value pairs. **Default:** `null`.
   * `encoding` {string} **Default:** `'utf8'`
-  * `shell` {string} Shell to execute the command with.
-    **Default:** `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See
-    [Shell Requirements][] and [Default Windows Shell][].
+  * `shell` {string} Shell to execute the command with. See
+    [Shell Requirements][] and [Default Windows Shell][]. **Default:**
+    `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows.
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024`. If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200*1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -202,20 +203,6 @@ can be used to specify the character encoding used to decode the stdout and
 stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
-The `options` argument may be passed as the second argument to customize how
-the process is spawned. The default options are:
-
-```js
-const defaults = {
-  encoding: 'utf8',
-  timeout: 0,
-  maxBuffer: 200 * 1024,
-  killSignal: 'SIGTERM',
-  cwd: null,
-  env: null
-};
-```
-
 If `timeout` is greater than `0`, the parent will send the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
 child runs longer than `timeout` milliseconds.
@@ -258,8 +245,8 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200*1024`.
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -341,11 +328,11 @@ changes:
   * `env` {Object} Environment key-value pairs.
   * `execPath` {string} Executable used to create the child process.
   * `execArgv` {Array} List of string arguments passed to the executable.
-    **Default:** `process.execArgv`
+    **Default:** `process.execArgv`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
-    [`stdio`][] for more details. **Default:** `false`
+    [`stdio`][] for more details. **Default:** `false`.
   * `stdio` {Array|string} See [`child_process.spawn()`][]'s [`stdio`][].
     When this option is provided, it overrides `silent`. If the array variant
     is used, it must contain exactly one item with value `'ipc'` or an error
@@ -701,22 +688,22 @@ changes:
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process.
-    - supplying this value will override `stdio[0]`
-  * `stdio` {string|Array} Child's stdio configuration. **Default:** `'pipe'`
-    - `stderr` by default will be output to the parent process' stderr unless
-      `stdio` is specified
+    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
+    be output to the parent process' stderr unless `stdio` is specified.
+    **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `timeout` {number} In milliseconds the maximum amount of time the process
-    is allowed to run. **Default:** `undefined`
+    is allowed to run. **Default:** `undefined`.
   * `killSignal` {string|integer} The signal value to be used when the spawned
-    process will be killed. **Default:** `'SIGTERM'`
+    process will be killed. **Default:** `'SIGTERM'`.
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
-  * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200*1024`.
+  * `encoding` {string} The encoding used for all stdio inputs and outputs.
+    **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
@@ -759,26 +746,25 @@ changes:
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process.
-    - supplying this value will override `stdio[0]`.
-  * `stdio` {string|Array} Child's stdio configuration. **Default:** `'pipe'`
-    - `stderr` by default will be output to the parent process' stderr unless
-      `stdio` is specified
+    to the spawned process. Supplying this value will override `stdio[0]`.
+  * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
+    be output to the parent process' stderr unless `stdio` is specified.
+    **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs.
-  * `shell` {string} Shell to execute the command with.
-    **Default:** `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows. See
-    [Shell Requirements][] and [Default Windows Shell][].
+  * `shell` {string} Shell to execute the command with. See
+    [Shell Requirements][] and [Default Windows Shell][]. **Default:**
+    `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows.
   * `uid` {number} Sets the user identity of the process. (See setuid(2)).
   * `gid` {number} Sets the group identity of the process. (See setgid(2)).
   * `timeout` {number} In milliseconds the maximum amount of time the process
-    is allowed to run. **Default:** `undefined`
+    is allowed to run. **Default:** `undefined`.
   * `killSignal` {string|integer} The signal value to be used when the spawned
-    process will be killed. **Default:** `'SIGTERM'`
+    process will be killed. **Default:** `'SIGTERM'`.
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200*1024`.
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
-    **Default:** `'buffer'`
+    **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
 * Returns: {Buffer|string} The stdout from the command.
@@ -821,21 +807,20 @@ changes:
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
-    to the spawned process.
-    - supplying this value will override `stdio[0]`.
+    to the spawned process. Supplying this value will override `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `timeout` {number} In milliseconds the maximum amount of time the process
-    is allowed to run. **Default:** `undefined`
+    is allowed to run. **Default:** `undefined`.
   * `killSignal` {string|integer} The signal value to be used when the spawned
-    process will be killed. **Default:** `'SIGTERM'`
+    process will be killed. **Default:** `'SIGTERM'`.
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200*1024`.
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
-    **Default:** `'buffer'`
+    **Default:** `'buffer'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
@@ -1106,7 +1091,12 @@ changes:
 
 * `message` {Object}
 * `sendHandle` {Handle}
-* `options` {Object}
+* `options` {Object} The `options` argument, if present, is an object used to
+  parameterize the sending of certain types of handles. `options` supports
+  the following properties:
+  * `keepOpen` - A Boolean value that can be used when passing instances of
+    `net.Socket`. When `true`, the socket is kept open in the sending process.
+    **Default:** `false`.
 * `callback` {Function}
 * Returns: {boolean}
 
@@ -1160,14 +1150,6 @@ for passing a TCP server or socket object to the child process. The child will
 receive the object as the second argument passed to the callback function
 registered on the [`process.on('message')`][] event. Any data that is received
 and buffered in the socket will not be sent to the child.
-
-The `options` argument, if present, is an object used to parameterize the
-sending of certain types of handles. `options` supports the following
-properties:
-
-  * `keepOpen` - A Boolean value that can be used when passing instances of
-    `net.Socket`. When `true`, the socket is kept open in the sending process.
-    Defaults to `false`.
 
 The optional `callback` is a function that is invoked after the message is
 sent but before the child may have received it.  The function is called with a

@@ -503,7 +503,7 @@ changes:
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
-* `operator` {string} **Default:** '!='
+* `operator` {string} **Default:** `'!='`
 * `stackStartFunction` {Function} **Default:** `assert.fail`
 
 > Stability: 0 - Deprecated: Use `assert.fail([message])` or other assert

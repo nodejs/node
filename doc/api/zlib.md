@@ -303,9 +303,9 @@ Each class takes an `options` object.  All options are optional.
 Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
 
-* `flush` {integer} (default: `zlib.constants.Z_NO_FLUSH`)
-* `finishFlush` {integer} (default: `zlib.constants.Z_FINISH`)
-* `chunkSize` {integer} (default: 16\*1024)
+* `flush` {integer} **Default:** `zlib.constants.Z_NO_FLUSH`
+* `finishFlush` {integer} **Default:** `zlib.constants.Z_FINISH`
+* `chunkSize` {integer} **Default:** `16 * 1024`
 * `windowBits` {integer}
 * `level` {integer} (compression only)
 * `memLevel` {integer} (compression only)
@@ -420,7 +420,7 @@ Close the underlying handle.
 added: v0.5.8
 -->
 
-`kind` defaults to `zlib.constants.Z_FULL_FLUSH`.
+* `kind` **Default:** `zlib.constants.Z_FULL_FLUSH`
 
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.

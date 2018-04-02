@@ -399,10 +399,10 @@ function parseListItem(item) {
   }
 
   text = text.trim();
-  const defaultExpr = /\(default\s*[:=]?\s*['"`]?([^, '"`]*)['"`]?\)/i;
+  const defaultExpr = /\s*\*\*Default:\*\*\s*([^]+)$/i;
   const def = text.match(defaultExpr);
   if (def) {
-    item.default = def[1];
+    item.default = def[1].replace(/\.$/, '');
     text = text.replace(defaultExpr, '');
   }
 
