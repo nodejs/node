@@ -68,12 +68,25 @@ napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+napi_value NewScopeEscapeUndefined(napi_env env, napi_callback_info info) {
+  napi_escapable_handle_scope scope;
+  napi_value escapee = NULL;
+  napi_value undefined_object = NULL;
+
+  NAPI_CALL(env, napi_open_escapable_handle_scope(env, &scope));
+  NAPI_CALL(env, napi_get_undefined(env, &undefined_object));
+  NAPI_CALL(env, napi_escape_handle(env, scope, undefined_object, &escapee));
+  NAPI_CALL(env, napi_close_escapable_handle_scope(env, scope));
+  return escapee;
+}
+
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("NewScope", NewScope),
     DECLARE_NAPI_PROPERTY("NewScopeEscape", NewScopeEscape),
     DECLARE_NAPI_PROPERTY("NewScopeEscapeTwice", NewScopeEscapeTwice),
     DECLARE_NAPI_PROPERTY("NewScopeWithException", NewScopeWithException),
+    DECLARE_NAPI_PROPERTY("NewScopeEscapeUndefined", NewScopeEscapeUndefined),
   };
 
   NAPI_CALL(env, napi_define_properties(

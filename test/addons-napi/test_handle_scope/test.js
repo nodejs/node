@@ -17,3 +17,5 @@ assert.throws(
     testHandleScope.NewScopeWithException(() => { throw new RangeError(); });
   },
   RangeError);
+
+assert.ok(testHandleScope.NewScopeEscapeUndefined() === undefined);
