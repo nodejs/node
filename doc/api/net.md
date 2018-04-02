@@ -383,11 +383,11 @@ Creates a new socket object.
     the given file descriptor, otherwise a new socket will be created.
   * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
     are allowed. See [`net.createServer()`][] and the [`'end'`][] event
-    for details. **Default:** `false`
+    for details. **Default:** `false`.
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
-    otherwise ignored. **Default:** `false`
+    otherwise ignored. **Default:** `false`.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
-    otherwise ignored. **Default:** `false`
+    otherwise ignored. **Default:** `false`.
 * Returns: {net.Socket}
 
 The newly created socket can be either a TCP socket or a streaming [IPC][]
@@ -578,12 +578,13 @@ this only when implementing a custom Socket.
 For TCP connections, available `options` are:
 
 * `port` {number} Required. Port the socket should connect to.
-* `host` {string} Host the socket should connect to. **Default:** `'localhost'`
+* `host` {string} Host the socket should connect to. **Default:** `'localhost'`.
 * `localAddress` {string} Local address the socket should connect from.
 * `localPort` {number} Local port the socket should connect from.
-* `family` {number}: Version of IP stack, can be either 4 or 6. **Default:** `4`
+* `family` {number}: Version of IP stack, can be either `4` or `6`.
+  **Default:** `4`.
 * `hints` {number} Optional [`dns.lookup()` hints][].
-* `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][]
+* `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
 
 For [IPC][] connections, available `options` are:
 
@@ -752,28 +753,29 @@ Set the encoding for the socket as a [Readable Stream][]. See
 added: v0.1.92
 -->
 
+* `enable` {boolean} **Default:** `false`
+* `initialDelay` {number} **Default:** `0`
 * Returns: {net.Socket} The socket itself.
 
 Enable/disable keep-alive functionality, and optionally set the initial
 delay before the first keepalive probe is sent on an idle socket.
-`enable` defaults to `false`.
 
 Set `initialDelay` (in milliseconds) to set the delay between the last
 data packet received and the first keepalive probe. Setting 0 for
 initialDelay will leave the value unchanged from the default
-(or previous) setting. Defaults to `0`.
+(or previous) setting.
 
 ### socket.setNoDelay([noDelay])
 <!-- YAML
 added: v0.1.90
 -->
 
+* `noDelay` {boolean} **Default:** `true`
 * Returns: {net.Socket} The socket itself.
 
 Disables the Nagle algorithm. By default TCP connections use the Nagle
 algorithm, they buffer data before sending it off. Setting `true` for
 `noDelay` will immediately fire off data each time `socket.write()` is called.
-`noDelay` defaults to `true`.
 
 ### socket.setTimeout(timeout[, callback])
 <!-- YAML
@@ -964,7 +966,7 @@ added: v0.1.90
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
 * `host` {string} Host the socket should connect to. Will be passed to
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
-   **Default:** `'localhost'`
+   **Default:** `'localhost'`.
 * `connectListener` {Function} Common parameter of the
   [`net.createConnection()`][] functions, an "once" listener for the
   `'connect'` event on the initiating socket. Will be passed to
@@ -987,9 +989,9 @@ Creates a new TCP or [IPC][] server.
 
 * `options` {Object}
   * `allowHalfOpen` {boolean} Indicates whether half-opened TCP
-    connections are allowed. **Default:** `false`
+    connections are allowed. **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
-    paused on incoming connections. **Default:** `false`
+    paused on incoming connections. **Default:** `false`.
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
 * Returns: {net.Server}

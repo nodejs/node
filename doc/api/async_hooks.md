@@ -206,7 +206,7 @@ instance is destroyed.
 * `type` {string} The type of the async resource.
 * `triggerAsyncId` {number} The unique ID of the async resource in whose
   execution context this async resource was created.
-* `resource` {Object} Reference to the resource representing the async 
+* `resource` {Object} Reference to the resource representing the async
   operation, needs to be released during _destroy_.
 
 Called when a class is constructed that has the _possibility_ to emit an
@@ -283,10 +283,10 @@ The `TCPSERVERWRAP` is the server which receives the connections.
 
 The `TCPWRAP` is the new connection from the client. When a new
 connection is made the `TCPWrap` instance is immediately constructed. This
-happens outside of any JavaScript stack (side note: a `executionAsyncId()` of 
+happens outside of any JavaScript stack (side note: a `executionAsyncId()` of
 `0` means it's being executed from C++, with no JavaScript stack above it).
 With only that information, it would be impossible to link resources together in
-terms of what caused them to be created, so `triggerAsyncId` is given the task 
+terms of what caused them to be created, so `triggerAsyncId` is given the task
 of propagating what resource is responsible for the new resource's existence.
 
 ###### `resource`
@@ -582,7 +582,7 @@ the details of the V8 [PromiseHooks][] API.
 ## JavaScript Embedder API
 
 Library developers that handle their own asynchronous resources performing tasks
-like I/O, connection pooling, or managing callback queues may use the 
+like I/O, connection pooling, or managing callback queues may use the
 `AsyncWrap` JavaScript API so that all the appropriate callbacks are called.
 
 ### `class AsyncResource()`
@@ -640,8 +640,7 @@ asyncResource.emitAfter();
   * `requireManualDestroy` {boolean} Disables automatic `emitDestroy` when the
   object is garbage collected. This usually does not need to be set (even if
   `emitDestroy` is called manually), unless the resource's asyncId is retrieved
-  and the sensitive API's `emitDestroy` is called with it.
-  **Default:** `false`
+  and the sensitive API's `emitDestroy` is called with it. **Default:** `false`.
 
 Example usage:
 
@@ -728,7 +727,7 @@ never be called.
 
 #### `asyncResource.triggerAsyncId()`
 
-* Returns: {number} The same `triggerAsyncId` that is passed to the 
+* Returns: {number} The same `triggerAsyncId` that is passed to the
 `AsyncResource` constructor.
 
 [`after` callback]: #async_hooks_after_asyncid

@@ -270,7 +270,7 @@ been completed using the [`cipher.final()`][] method.
 <!-- YAML
 added: v0.7.1
 -->
-- `autoPadding` {boolean} Defaults to `true`.
+- `autoPadding` {boolean} **Default:** `true`
 - Returns the {Cipher} for method chaining.
 
 When using block encryption algorithms, the `Cipher` class will automatically
@@ -443,7 +443,7 @@ The `decipher.setAuthTag()` method must be called before
 <!-- YAML
 added: v0.7.1
 -->
-- `autoPadding` {boolean} Defaults to `true`.
+- `autoPadding` {boolean} **Default:** `true`
 - Returns the {Cipher} for method chaining.
 
 When data has been encrypted without standard block padding, calling
@@ -684,7 +684,7 @@ If `outputEncoding` is given a string will be returned; otherwise a
 added: v0.11.14
 -->
 - `encoding` {string}
-- `format` {string} Defaults to `uncompressed`.
+- `format` {string} **Default:** `uncompressed`
 
 Generates private and public EC Diffie-Hellman key values, and returns
 the public key in the specified `format` and `encoding`. This key should be
@@ -713,7 +713,7 @@ a string is returned; otherwise a [`Buffer`][] is returned.
 added: v0.11.14
 -->
 - `encoding` {string}
-- `format` {string} Defaults to `uncompressed`.
+- `format` {string} **Default:** `uncompressed`
 
 Returns the EC Diffie-Hellman public key in the specified `encoding` and
 `format`.
@@ -1232,7 +1232,7 @@ become deprecated in a future Node.js release.
 added: v6.0.0
 -->
 
-Property for checking and controlling whether a FIPS compliant crypto provider 
+Property for checking and controlling whether a FIPS compliant crypto provider
 is currently in use. Setting to true requires a FIPS build of Node.js.
 
 ### crypto.createCipher(algorithm, password[, options])
@@ -1285,7 +1285,7 @@ changes:
 - `options` {Object} [`stream.transform` options][]
 
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
-initialization vector (`iv`). Optional `options` argument controls stream 
+initialization vector (`iv`). Optional `options` argument controls stream
 behavior.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
@@ -1382,8 +1382,8 @@ changes:
 -->
 - `prime` {string | Buffer | TypedArray | DataView}
 - `primeEncoding` {string}
-- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to 
-  `2`.
+- `generator` {number | string | Buffer | TypedArray | DataView} **Default:**
+  `2`
 - `generatorEncoding` {string}
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
@@ -1406,8 +1406,8 @@ otherwise a number, [`Buffer`][], `TypedArray`, or `DataView` is expected.
 added: v0.5.0
 -->
 - `primeLength` {number}
-- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to 
-  `2`.
+- `generator` {number | string | Buffer | TypedArray | DataView} **Default:**
+  `2`
 
 Creates a `DiffieHellman` key exchange object and generates a prime of
 `primeLength` bits using an optional specific numeric `generator`.
@@ -1875,8 +1875,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} Must be supplied.
-* `offset` {number} Defaults to `0`.
-* `size` {number} Defaults to `buffer.length - offset`.
+* `offset` {number} **Default:** `0`
+* `size` {number} **Default:** `buffer.length - offset`
 
 Synchronous version of [`crypto.randomFill()`][].
 
@@ -1917,8 +1917,8 @@ changes:
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} Must be supplied.
-* `offset` {number} Defaults to `0`.
-* `size` {number} Defaults to `buffer.length - offset`.
+* `offset` {number} **Default:** `0`
+* `size` {number} **Default:** `buffer.length - offset`
 * `callback` {Function} `function(err, buf) {}`.
 
 This function is similar to [`crypto.randomBytes()`][] but requires the first
@@ -1982,7 +1982,7 @@ request.
 added: v0.11.11
 -->
 - `engine` {string}
-- `flags` {crypto.constants} Defaults to `crypto.constants.ENGINE_METHOD_ALL`.
+- `flags` {crypto.constants} **Default:** `crypto.constants.ENGINE_METHOD_ALL`
 
 Load and set the `engine` for some or all OpenSSL functions (selected by flags).
 
