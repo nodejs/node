@@ -583,10 +583,10 @@ changes:
     Required.
   * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
     address, even if another process has already bound a socket on it.
-    Defaults to `false`.
+    **Default:** `false`.
   * `recvBufferSize` {number} - Sets the `SO_RCVBUF` socket value.
   * `sendBufferSize` {number} - Sets the `SO_SNDBUF` socket value.
-  * `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+  * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
 
