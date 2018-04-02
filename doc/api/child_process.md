@@ -143,8 +143,8 @@ changes:
     [Shell Requirements][] and [Default Windows Shell][].
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024`. If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. **Default:** `200 * 1024`. If exceeded, the child process is
+    terminated. See caveat at [`maxBuffer` and Unicode][].
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -257,8 +257,8 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. **Default:** `200 * 1024` If exceeded, the child process is
+    terminated. See caveat at [`maxBuffer` and Unicode][].
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -706,8 +706,8 @@ changes:
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. **Default:** `200 * 1024` If exceeded, the child process is
+    terminated. See caveat at [`maxBuffer` and Unicode][].
   * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
@@ -767,8 +767,8 @@ changes:
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. **Default:** `200 * 1024` If exceeded, the child process is
+    terminated. See caveat at [`maxBuffer` and Unicode][].
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`
   * `windowsHide` {boolean} Hide the subprocess console window that would
@@ -825,8 +825,8 @@ changes:
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. **Default:** `'SIGTERM'`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. **Default:** `200*1024` If exceeded, the child process is terminated.
-    See caveat at [`maxBuffer` and Unicode][].
+    stderr. **Default:** `200 * 1024` If exceeded, the child process is
+    terminated. See caveat at [`maxBuffer` and Unicode][].
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
