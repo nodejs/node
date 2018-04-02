@@ -645,11 +645,11 @@ added: 8.0.0
 * `warning` {string|Error} The warning to emit.
 * `options` {Object}
   * `type` {string} When `warning` is a String, `type` is the name to use
-    for the *type* of warning being emitted. Default: `Warning`.
+    for the *type* of warning being emitted. **Default:** `Warning`.
   * `code` {string} A unique identifier for the warning instance being emitted.
   * `ctor` {Function} When `warning` is a String, `ctor` is an optional
-    function used to limit the generated stack trace. Default
-    `process.emitWarning`
+    function used to limit the generated stack trace. **Default:**
+    `process.emitWarning`.
   * `detail` {string} Additional text to include with the error.
 
 The `process.emitWarning()` method can be used to emit custom or application
@@ -690,11 +690,11 @@ added: v6.0.0
 
 * `warning` {string|Error} The warning to emit.
 * `type` {string} When `warning` is a String, `type` is the name to use
-  for the *type* of warning being emitted. Default: `Warning`.
+  for the *type* of warning being emitted. **Default:** `Warning`.
 * `code` {string} A unique identifier for the warning instance being emitted.
 * `ctor` {Function} When `warning` is a String, `ctor` is an optional
-  function used to limit the generated stack trace. Default
-  `process.emitWarning`
+  function used to limit the generated stack trace. **Default:**
+  `process.emitWarning`.
 
 The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
@@ -915,7 +915,7 @@ For example:
 added: v0.1.13
 -->
 
-* `code` {integer} The exit code. Defaults to `0`.
+* `code` {integer} The exit code. **Default:** `0`.
 
 The `process.exit()` method instructs Node.js to terminate the process
 synchronously with an exit status of `code`. If `code` is omitted, exit uses
@@ -1149,7 +1149,7 @@ added: v0.0.6
 
 * `pid` {number} A process ID
 * `signal` {string|number} The signal to send, either as a string or number.
-  Defaults to `'SIGTERM'`.
+  **Default:** `'SIGTERM'`.
 
 The `process.kill()` method sends the `signal` to the process identified by
 `pid`.

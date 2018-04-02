@@ -275,7 +275,7 @@ added: v0.1.21
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
-* `operator` {string} **Default:** '!='
+* `operator` {string} **Default:** `'!='`
 * `stackStartFunction` {Function} **Default:** `assert.fail`
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as

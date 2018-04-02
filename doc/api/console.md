@@ -187,7 +187,7 @@ binary.
 added: v8.3.0
 -->
 
-* `label` {string} The display label for the counter. Defaults to `'default'`.
+* `label` {string} The display label for the counter. **Default:** `'default'`.
 
 Maintains an internal counter specific to `label` and outputs to `stdout` the
 number of times `console.count()` has been called with the given `label`.
@@ -220,7 +220,7 @@ undefined
 added: v8.3.0
 -->
 
-* `label` {string} The display label for the counter. Defaults to `'default'`.
+* `label` {string} The display label for the counter. **Default:** `'default'`.
 
 Resets the internal counter specific to `label`.
 
@@ -252,25 +252,17 @@ added: v0.1.101
 -->
 * `obj` {any}
 * `options` {Object}
-  * `showHidden` {boolean}
-  * `depth` {number}
-  * `colors` {boolean}
+  * `showHidden` {boolean} If `true` then the object's non-enumerable and symbol
+    properties will be shown too. **Default:** `false`.
+  * `depth` {number} Tells [`util.inspect()`][] how many times to recurse while
+    formatting the object. This is useful for inspecting large complicated
+    objects. To make it recurse indefinitely, pass `null`. **Default:** `2`.
+  * `colors` {boolean} If `true`, then the output will be styled with ANSI color
+     codes. Colors are customizable;
+     see [customizing `util.inspect()` colors][]. **Default:** `false`.
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
-This function bypasses any custom `inspect()` function defined on `obj`. An
-optional `options` object may be passed to alter certain aspects of the
-formatted string:
-
-- `showHidden` - if `true` then the object's non-enumerable and symbol
-properties will be shown too. Defaults to `false`.
-
-- `depth` - tells [`util.inspect()`][] how many times to recurse while
-formatting the object. This is useful for inspecting large complicated objects.
-Defaults to `2`. To make it recurse indefinitely, pass `null`.
-
-- `colors` - if `true`, then the output will be styled with ANSI color codes.
-Defaults to `false`. Colors are customizable; see
-[customizing `util.inspect()` colors][].
+This function bypasses any custom `inspect()` function defined on `obj`.
 
 ### console.error([data][, ...args])
 <!-- YAML

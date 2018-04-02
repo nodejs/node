@@ -887,7 +887,7 @@ added: v8.5.0
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`
+* `flags` {number} modifiers for copy operation. **Default:** `0`.
 * `callback` {Function}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
@@ -930,7 +930,7 @@ added: v8.5.0
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`
+* `flags` {number} modifiers for copy operation. **Default:** `0`.
 
 Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. Returns `undefined`. Node.js makes no guarantees about the
@@ -1635,7 +1635,7 @@ changes:
   * `err` {Error}
 
 Asynchronously creates a directory. No arguments other than a possible exception
-are given to the completion callback. `mode` defaults to `0o777`.
+are given to the completion callback.
 
 See also: mkdir(2)
 
@@ -1756,7 +1756,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
-* `mode` {integer} **Default:** `0o666`
+* `mode` {integer} **Default:** `0o666` (readable and writable)
 * `callback` {Function}
   * `err` {Error}
   * `fd` {integer}
@@ -1806,7 +1806,7 @@ The file is created if it does not exist.
 The file is created if it does not exist.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. It defaults to `0o666` (readable and writable).
+created.
 
 The callback gets two arguments `(err, fd)`.
 
@@ -2366,7 +2366,7 @@ changes:
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback. The `type` argument can be set to `'dir'`,
-`'file'`, or `'junction'` (default is `'file'`) and is only available on
+`'file'`, or `'junction'` and is only available on
 Windows (ignored on other platforms). Note that Windows junction points require
 the destination path to be absolute. When using `'junction'`, the `target`
 argument will automatically be normalized to absolute path.
@@ -2570,13 +2570,13 @@ changes:
 * `filename` {string|Buffer|URL}
 * `options` {string|Object}
   * `persistent` {boolean} Indicates whether the process should continue to run
-    as long as files are being watched. **Default:** `true`
+    as long as files are being watched. **Default:** `true`.
   * `recursive` {boolean} Indicates whether all subdirectories should be
     watched, or only the current directory. This applies when a directory is
     specified, and only on supported platforms (See [Caveats][]). **Default:**
-    `false`
+    `false`.
   * `encoding` {string} Specifies the character encoding to be used for the
-     filename passed to the listener. **Default:** `'utf8'`
+     filename passed to the listener. **Default:** `'utf8'`.
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
   * `filename` {string|Buffer}
@@ -2689,8 +2689,7 @@ The `options` argument may be omitted. If provided, it should be an object. The
 `options` object may contain a boolean named `persistent` that indicates
 whether the process should continue to run as long as files are being watched.
 The `options` object may specify an `interval` property indicating how often the
-target should be polled in milliseconds. The default is
-`{ persistent: true, interval: 5007 }`.
+target should be polled in milliseconds.
 
 The `listener` gets two arguments the current stat object and the previous
 stat object:
@@ -2851,8 +2850,7 @@ changes:
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string or a buffer.
 
-The `encoding` option is ignored if `data` is a buffer. It defaults
-to `'utf8'`.
+The `encoding` option is ignored if `data` is a buffer.
 
 Example:
 
