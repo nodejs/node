@@ -141,7 +141,7 @@ changes:
   - `all` {boolean} When `true`, the callback returns all resolved addresses in
     an array. Otherwise, returns a single address. **Default:** `false`.
   - `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
-    addresses in the order the DNS resolver returned them.  When `false`,
+    addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
     **Default:** currently `false` (addresses are reordered) but this is
     expected to change in the not too distant future.
@@ -499,16 +499,16 @@ will be present on the object:
 
 | Type | Properties |
 |------|------------|
-| `"A"` | `address` / `ttl` |
-| `"AAAA"` | `address` / `ttl` |
-| `"CNAME"` | `value` |
-| `"MX"` | Refer to [`dns.resolveMx()`][] |
-| `"NAPTR"` | Refer to [`dns.resolveNaptr()`][] |
-| `"NS"` | `value` |
-| `"PTR"` | `value` |
-| `"SOA"` | Refer to [`dns.resolveSoa()`][] |
-| `"SRV"` | Refer to [`dns.resolveSrv()`][] |
-| `"TXT"` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
+| `'A'` | `address` / `ttl` |
+| `'AAAA'` | `address` / `ttl` |
+| `'CNAME'` | `value` |
+| `'MX'` | Refer to [`dns.resolveMx()`][] |
+| `'NAPTR'` | Refer to [`dns.resolveNaptr()`][] |
+| `'NS'` | `value` |
+| `'PTR'` | `value` |
+| `'SOA'` | Refer to [`dns.resolveSoa()`][] |
+| `'SRV'` | Refer to [`dns.resolveSrv()`][] |
+| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the `ret` object passed to the callback:
 

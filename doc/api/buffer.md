@@ -59,7 +59,7 @@ differently based on what arguments are provided:
   entire `Buffer`. While this behavior is *intentional* to improve performance,
   development experience has demonstrated that a more explicit distinction is
   required between creating a fast-but-uninitialized `Buffer` versus creating a
-  slower-but-safer `Buffer`. Starting in Node.js 8.0.0,  `Buffer(num)` and
+  slower-but-safer `Buffer`. Starting in Node.js 8.0.0, `Buffer(num)` and
   `new Buffer(num)` will return a `Buffer` with initialized memory.
 * Passing a string, array, or `Buffer` as the first argument copies the
   passed object's data into the `Buffer`.
@@ -426,7 +426,7 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -510,7 +510,7 @@ console.log(buf);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -551,7 +551,7 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -595,7 +595,7 @@ added: v5.12.0
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
@@ -2498,7 +2498,7 @@ deprecated: v6.0.0
 
 * `size` {integer} The desired length of the new `SlowBuffer`.
 
-Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
+Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
 [`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
 thrown. A zero-length `Buffer` will be created if `size` is 0.
 
