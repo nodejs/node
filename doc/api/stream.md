@@ -1502,9 +1502,10 @@ data at once, the `writable._writev()` method should be implemented.
 
 If the `decodeStrings` property is explicitly set to `false` in the constructor
 options, then `chunk` will remain the same object that is passed to `.write()`,
-and may be a string rather than a Buffer. In that case, the `encoding` argument
-will indicate the character encoding of the string. Otherwise, the `encoding`
-argument can be safely ignored.
+and may be a string rather than a Buffer. This is to support implementations
+that have an optimized handling for certain string data encodings. In that case,
+the `encoding` argument will indicate the character encoding of the string.
+Otherwise, the `encoding` argument can be safely ignored.
 
 The `writable._write()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
