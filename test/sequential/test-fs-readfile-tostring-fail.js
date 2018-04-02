@@ -32,8 +32,15 @@ stream.end();
 stream.on('finish', common.mustCall(function() {
   fs.readFile(file, 'utf8', common.mustCall(function(err, buf) {
     assert.ok(err instanceof Error);
-    assert.ok(/^(Array buffer allocation failed|"toString\(\)" failed)$/
-              .test(err.message));
+    if (err.message !== 'Array buffer allocation failed') {
+      const stringLengthHex = kStringMaxLength.toString(16);
+      common.expectsError({
+        message: 'Cannot create a string larger than ' +
+                 `0x${stringLengthHex} bytes`,
+        code: 'ERR_STRING_TOO_LARGE',
+        type: Error
+      })(err);
+    }
     assert.strictEqual(buf, undefined);
   }));
 }));

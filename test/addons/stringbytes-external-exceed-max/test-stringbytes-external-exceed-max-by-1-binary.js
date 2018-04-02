@@ -25,9 +25,14 @@ try {
 if (!binding.ensureAllocation(2 * kStringMaxLength))
   common.skip(skipMessage);
 
-assert.throws(function() {
+const stringLengthHex = kStringMaxLength.toString(16);
+common.expectsError(function() {
   buf.toString('latin1');
-}, /"toString\(\)" failed/);
+}, {
+  message: `Cannot create a string larger than 0x${stringLengthHex} bytes`,
+  code: 'ERR_STRING_TOO_LARGE',
+  type: Error
+});
 
 let maxString = buf.toString('latin1', 1);
 assert.strictEqual(maxString.length, kStringMaxLength);
