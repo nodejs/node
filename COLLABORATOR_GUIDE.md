@@ -408,7 +408,7 @@ recommended but not required.
 
 ### Deprecations
 
-__Deprecation__ refers to the identification of Public APIs that should no
+**Deprecation** refers to the identification of Public APIs that should no
 longer be used.
 
 Node.js uses three Deprecation levels:
@@ -431,8 +431,8 @@ Node.js uses three Deprecation levels:
 
 * *End-of-life* refers to APIs that have gone through Runtime Deprecation and
   are no longer subject to the semantic versioning rules used by the project.
-  Backward-incompatible changes including complete removal of such APIs may occur
-  at any time.
+  Backward-incompatible changes including complete removal of such APIs may
+  occur at any time.
 
 Documentation-Only Deprecations may be handled as semver-minor or semver-major
 changes. Such deprecations have no impact on the successful operation of running
