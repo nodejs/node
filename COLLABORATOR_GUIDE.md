@@ -415,13 +415,13 @@ there is expected impact on the user community.
 
 Node.js uses three Deprecation levels:
 
-* *Documentation-Only Deprecation* refers to elements of the Public API that are
-  being staged for deprecation in a future Node.js major release. An explicit
-  notice indicating the deprecated status is added to the API documentation
-  but no functional changes are implemented in the code. There will be no
-  runtime deprecation warnings emitted for such deprecations by default.
+* *Documentation-Only Deprecation* refers to elements of the Public API that
+  should be avoided by developers. An explicit notice indicating the deprecation
+  status is added to the API documentation but no functional changes are
+  implemented in the code.
+  There will be no warnings emitted for such deprecations at runtime by default.
   Documentation-only deprecations may trigger a runtime warning when launched
-  with [`--pending-deprecation`][] flag (or its alternative,
+  with [`--pending-deprecation`][] flag (or its alternative, the
   `NODE_PENDING_DEPRECATION=1` environment variable).
 
 * *Runtime Deprecation* refers to the use of process warnings emitted at
@@ -441,6 +441,28 @@ code and therefore should not be viewed as breaking changes.
 Runtime Deprecations and End-of-life APIs (internal or public) must be
 handled as semver-major changes unless there is TSC consensus to land the
 deprecation as a semver-minor.
+
+Possible reasons for Runtime deprecations can be:
+
+* Node.js will no longer be able to support the API, for example, if required
+  code is being removed in an upstream project.
+
+* The API is deemed too hard or impossible to use correctly, increasing the
+  risk of undetected bugs or security issues in existing code.
+
+* Breaking the API makes way for simplification of its implementation that is
+  significant enough to make maintainability of Node.js easier, or enables
+  implementation of features that would otherwise be impossible.
+
+In addition, a Documentation-Only deprecation may be issued if it is desirable
+to recommend a single canonical way out of multiple different ones
+which achieve a particular goal with Node.js.
+
+A Runtime deprecation should not be added to an API that
+requires only trivial maintenance. A Runtime deprecation should
+not be added simply because an API has never been documented
+(or has only accidentally been exposed) if there is significant usage
+of the API in the ecosystem.
 
 All Documentation-Only and Runtime deprecations will be assigned a unique
 identifier that can be used to persistently refer to the deprecation in
