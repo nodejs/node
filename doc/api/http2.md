@@ -558,7 +558,7 @@ added: v8.4.0
 -->
 
 * `settings` {[Settings Object][]}
-* Returns {undefined}
+* Returns: {undefined}
 
 Updates the current local settings for this `Http2Session` and sends a new
 `SETTINGS` frame to the connected HTTP/2 peer.
@@ -1609,7 +1609,7 @@ changes:
   * ...: Any [`tls.createServer()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `onRequestHandler` {Function} See [Compatibility API][]
-* Returns {Http2SecureServer}
+* Returns: {Http2SecureServer}
 
 Returns a `tls.Server` instance that creates and manages `Http2Session`
 instances.
@@ -1691,7 +1691,7 @@ changes:
     [`Duplex`][] stream that is to be used as the connection for this session.
   * ...: Any [`net.connect()`][] or [`tls.connect()`][] options can be provided.
 * `listener` {Function}
-* Returns {Http2Session}
+* Returns: {Http2Session}
 
 Returns a HTTP/2 client `Http2Session` instance.
 
