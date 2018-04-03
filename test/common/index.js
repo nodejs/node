@@ -631,7 +631,7 @@ function expectWarning(name, expected) {
     // Remove a warning message after it is seen so that we guarantee that we
     // get each message only once.
     map.delete(expected);
-  }, map.size);
+  }, expected.length);
 }
 
 function expectWarningByName(name, expected, code) {
