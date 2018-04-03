@@ -16,7 +16,7 @@ const httpsServer = https.createServer(options, reqHandler);
 
 function reqHandler(req, res) {
   console.log(`Got request: ${req.headers.host} ${req.url}`);
-  if (req.url === '/setHostFalse5') {
+  if (req.url.startsWith('/setHostFalse')) {
     assert.strictEqual(req.headers.host, undefined);
   } else {
     assert.strictEqual(
@@ -97,6 +97,34 @@ function testHttps() {
       setHost: false,
       port: this.address().port,
       rejectUnauthorized: false
+    }, cb).on('error', thrower);
+
+    https.request({
+      method: 'GET',
+      path: `/${counter++}`,
+      host: 'localhost',
+      setHost: true,
+      //agent: false,
+      port: this.address().port,
+      rejectUnauthorized: false
     }, cb).on('error', thrower).end();
+
+    https.get({
+      method: 'GET',
+      path: `/setHostFalse${counter++}`,
+      host: 'localhost',
+      setHost: 0,
+      port: this.address().port,
+      rejectUnauthorized: false
+    }, cb).on('error', thrower);
+
+    https.get({
+      method: 'GET',
+      path: `/setHostFalse${counter++}`,
+      host: 'localhost',
+      setHost: null,
+      port: this.address().port,
+      rejectUnauthorized: false
+    }, cb).on('error', thrower);
   });
 }
