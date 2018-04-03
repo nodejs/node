@@ -34,6 +34,8 @@ import shlex
 import subprocess
 import shutil
 import string
+import distutils
+from distutils import dir_util
 
 # If not run from node/, cd to node/.
 os.chdir(os.path.dirname(__file__) or '.')
@@ -1354,6 +1356,10 @@ def configure_intl(o):
     print('See the README.md.')
     # .. and we're not about to build it from .gyp!
     sys.exit(1)
+  # If we're not using the in-tree ICU, copy over any patched files
+  if with_icu_source and os.path.isdir('tools/icu/patches/%s' % icu_ver_major):
+    print('Copying ICU patches from tools/icu/patches/%s to %s' % (icu_ver_major, icu_full_path))
+    distutils.dir_util.copy_tree('tools/icu/patches/%s' % icu_ver_major, icu_full_path)
   # map from variable name to subdirs
   icu_src = {
     'stubdata': 'stubdata',
