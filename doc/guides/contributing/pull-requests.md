@@ -166,7 +166,7 @@ contain an explanation about the reason of the breaking change, which
 situation would trigger the breaking change and what is the exact change.
 
 Breaking changes will be listed in the wiki with the aim to make upgrading
-easier.  Please have a look at [Breaking Changes](https://github.com/nodejs/node/wiki/Breaking-changes-between-v4-LTS-and-v6-LTS)
+easier.  Please have a look at [Breaking Changes](https://github.com/nodejs/node/wiki#apibreaking-changes)
 for the level of detail that's suitable.
 
 Sample complete commit message:
