@@ -1187,8 +1187,8 @@ TNode<Int32T> CodeStubAssembler::LoadHashForJSObject(
   {
     Node* length_and_hash_int32 = LoadAndUntagToWord32ObjectField(
         properties_or_hash, PropertyArray::kLengthAndHashOffset);
-    var_hash.Bind(Word32And(length_and_hash_int32,
-                            Int32Constant(PropertyArray::kHashMask)));
+    var_hash.Bind(
+        DecodeWord32<PropertyArray::HashField>(length_and_hash_int32));
     Goto(&done);
   }
 
@@ -2508,7 +2508,8 @@ void CodeStubAssembler::InitializePropertyArrayLength(Node* property_array,
   CSA_ASSERT(
       this,
       IntPtrOrSmiLessThanOrEqual(
-          length, IntPtrOrSmiConstant(PropertyArray::kMaxLength, mode), mode));
+          length, IntPtrOrSmiConstant(PropertyArray::LengthField::kMax, mode),
+          mode));
   StoreObjectFieldNoWriteBarrier(
       property_array, PropertyArray::kLengthAndHashOffset,
       ParameterToTagged(length, mode), MachineRepresentation::kTaggedSigned);
