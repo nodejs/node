@@ -5244,6 +5244,7 @@ Local<v8::Context> v8::Object::CreationContext() {
 
 
 int v8::Object::GetIdentityHash() {
+  i::DisallowHeapAllocation no_gc;
   auto isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope scope(isolate);
   auto self = Utils::OpenHandle(this);
