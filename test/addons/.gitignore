@@ -5,3 +5,5 @@ Makefile
 *.mk
 gyp-mac-tool
 /*/build
+#minor changes
+*.md
