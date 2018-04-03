@@ -26,7 +26,7 @@ async function validateAppendBuffer() {
 }
 
 async function validateAppendString() {
-  //don't refresh the directory
+  // don't refresh the directory
   common.crashOnUnhandledRejection();
 
   const filePath = path.resolve(tmpDir, 'tmp-append-file-buffer.txt');

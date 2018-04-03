@@ -31,7 +31,7 @@ async function validateEmptyWrite() {
 
   const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
-  const buffer = Buffer.from(''); //empty buffer
+  const buffer = Buffer.from(''); // empty buffer
 
   await fileHandle.write(buffer, 0, buffer.length);
   const readFileData = fs.readFileSync(filePathForHandle);
