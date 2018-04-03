@@ -62,18 +62,6 @@ These are detailed in the [Building guide][].
 Once you have `git` and are sure you have all of the necessary dependencies,
 it's time to create a fork.
 
-Before getting started, it is recommended to configure `git` so that it knows
-who you are:
-
-```text
-$ git config --global user.name "J. Random User"
-$ git config --global user.email "j.random.user@example.com"
-```
-Please make sure this local email is also added to your
-[GitHub email list](https://github.com/settings/emails) so that your commits
-will be properly associated with your account and you will be promoted
-to Contributor once your first commit is landed.
-
 ### Step 1: Fork
 
 Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
@@ -85,6 +73,18 @@ $ cd node
 $ git remote add upstream https://github.com/nodejs/node.git
 $ git fetch upstream
 ```
+
+It is recommended to configure `git` so that it knows
+who you are:
+
+```text
+$ git config user.name "J. Random User"
+$ git config user.email "j.random.user@example.com"
+```
+Please make sure this local email is also added to your
+[GitHub email list](https://github.com/settings/emails) so that your commits
+will be properly associated with your account and you will be promoted
+to Contributor once your first commit is landed.
 
 ### Step 2: Branch
 
