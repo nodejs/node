@@ -318,7 +318,6 @@ console.log(myURL.port);
 myURL.port = 1e10; // 10000000000, will be range-checked as described below
 console.log(myURL.port);
 // Prints 1234
-
 ```
 
 The port value may be set as either a number or as a String containing a number
@@ -335,17 +334,15 @@ lies outside the range denoted above, it is ignored.
 
 Note that numbers which contain a decimal point,  
 such as floating-point numbers or numbers in scientific notation, are not an exception to this rule.  
-Leading numbers up to the decimal point will be set as the url's port, assuming they are valid. 
+Leading numbers up to the decimal point will be set as the URL's port, assuming they are valid. 
 
 For example:
 
 ```js
 myURL.port = 4.567e21;
 console.log(myURL.port);
-// Prints 4 (because it is the leading number in the string "4.567e21")
-
+// Prints 4 (because it is the leading number in the string '4.567e21')
 ```
-
 
 #### url.protocol
 
