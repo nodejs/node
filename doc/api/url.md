@@ -313,7 +313,7 @@ myURL.port = 1234.5678;
 console.log(myURL.port);
 // Prints 1234
 
-// Out-of-range numbers, which are not represented in scientific noation,
+// Out-of-range numbers, which are not represented in scientific notation,
 // will be ignored.
 myURL.port = 1e10; // 10000000000, will be range-checked as described below
 console.log(myURL.port);
