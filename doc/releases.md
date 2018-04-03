@@ -147,7 +147,8 @@ Commits may need to be reverted or a major version bump may need to happen.
 
 #### Step 1: Collecting the formatted list of changes:
 
-Collect a formatted list of commits since the last release. Use [`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this:
+Collect a formatted list of commits since the last release.
+Use [`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this:
 
 ```console
 $ changelog-maker --group
@@ -215,9 +216,7 @@ doc/api/*.md`, and substitute this node version with `sed -i
 "s/REPLACEME/$VERSION/g" doc/api/*.md` or `perl -pi -e "s/REPLACEME/$VERSION/g"
 doc/api/*.md`.
 
-*Note*: `$VERSION` should be prefixed with a `v`
-
-_Note_: `$VERSION` should be prefixed with a `v`.
+*Note*: `$VERSION` should be prefixed with a `v`.
 
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
