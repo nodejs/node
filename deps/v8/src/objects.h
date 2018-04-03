@@ -1953,17 +1953,10 @@ class PropertyArray : public HeapObject {
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
-  static const int kLengthMask = 0x3ff;
-#if V8_TARGET_ARCH_64_BIT
-  static const int kHashMask = 0x7ffffc00;
-  STATIC_ASSERT(kLengthMask + kHashMask == 0x7fffffff);
-#else
-  static const int kHashMask = 0x3ffffc00;
-  STATIC_ASSERT(kLengthMask + kHashMask == 0x3fffffff);
-#endif
-
-  static const int kMaxLength = kLengthMask;
-  STATIC_ASSERT(kMaxLength > kMaxNumberOfDescriptors);
+  static const int kLengthFieldSize = 10;
+  class LengthField : public BitField<int, 0, kLengthFieldSize> {};
+  class HashField : public BitField<int, kLengthFieldSize,
+                                    kSmiValueSize - kLengthFieldSize - 1> {};
 
   static const int kNoHashSentinel = 0;
 
@@ -2190,7 +2183,7 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnEntries(
       Handle<JSReceiver> object, PropertyFilter filter);
 
-  static const int kHashMask = PropertyArray::kHashMask;
+  static const int kHashMask = PropertyArray::HashField::kMask;
 
   // Layout description.
   static const int kPropertiesOrHashOffset = HeapObject::kHeaderSize;
