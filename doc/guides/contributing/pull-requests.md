@@ -101,9 +101,11 @@ $ git checkout -b my-branch -t upstream/master
 ### Step 3: Code
 
 The vast majority of Pull Requests opened against the `nodejs/node`
-repository includes changes to either the C/C++ code contained in the `src`
-directory, the JavaScript code contained in the `lib` directory, the
-documentation in `docs/api` or tests within the `test` directory.
+repository includes changes to one or more of the following:
+   - the C/C++ code contained in the `src` directory
+   - the JavaScript code contained in the `lib` directory
+   - the documentation in `docs/api`
+   - tests within the `test` directory.
 
 If you are modifying code, please be sure to run `make lint` from time to
 time to ensure that the changes follow the Node.js code style guide.
