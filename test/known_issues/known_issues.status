@@ -7,13 +7,19 @@ prefix known_issues
 [true] # This section applies to all platforms
 
 [$system==win32]
+test-tls-server-verify: SKIP
 
 [$system==linux]
+test-tls-server-verify: SKIP
 
 [$system==macos]
+test-tls-server-verify: SKIP
 
 [$system==solaris]
+test-tls-server-verify: SKIP
 
 [$system==freebsd]
+test-tls-server-verify: SKIP
 
 [$system==aix]
+test-tls-server-verify: SKIP

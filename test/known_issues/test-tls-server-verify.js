@@ -238,6 +238,9 @@ function runClient(prefix, port, options, cb) {
   });
 
   client.on('exit', function(code) {
+    //assert.strictEqual(
+    //  0, code,
+    //  `${prefix}${options.name}: s_client exited with error code ${code}`);
     if (options.shouldReject) {
       assert.strictEqual(
         true, rejected,
@@ -321,10 +324,6 @@ function runTest(port, testIndex) {
       console.error(`${prefix}- unauthed connection: %s`, c.authorizationError);
       c.write('\n_unauthed\n');
     }
-  });
-
-  server.on('error', (e) => {
-    assert.fail(`Server error: ${e}`);
   });
 
   function runNextClient(clientIndex) {
