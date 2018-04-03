@@ -53,7 +53,7 @@ Notes:
 
 Create a new branch named _"vx.y.z-proposal"_, or something similar. Using `git cherry-pick`, bring the appropriate commits into your new branch. To determine the relevant commits, use [`branch-diff`](https://github.com/rvagg/branch-diff) and [`changelog-maker`](https://github.com/rvagg/changelog-maker/) (both are available on npm and should be installed globally). These tools depend on our commit metadata, as well as the `semver-minor` and `semver-major` GitHub labels. One drawback is that when the `PR-URL` metadata is accidentally omitted from a commit, the commit will show up because it's unsure if it's a duplicate or not.
 
-For a list of commits that could be landed in a patch release on v5.x
+For a list of commits that could be landed in a patch release on v5.x:
 
 ```console
 $ branch-diff v5.x master --exclude-label=semver-major,semver-minor,dont-land-on-v5.x --filter-release --format=simple
@@ -92,7 +92,7 @@ The general rule is to bump this version when there are _breaking ABI_ changes a
 
 #### Step 1: Collecting the formatted list of changes:
 
-Collect a formatted list of commits since the last release. Use [`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this.
+Collect a formatted list of commits since the last release. Use [`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this:
 
 ```console
 $ changelog-maker --group
@@ -154,6 +154,8 @@ were first added in this version. The relevant commits should already include
 `sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md` or
 `perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md`.
 
+_Note_: `$VERSION` should be prefixed with a `v`.
+
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
 docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
@@ -207,7 +209,7 @@ All release slaves should achieve "SUCCESS" (and be green, not red). A release w
 
 You can rebuild the release as many times as you need prior to promoting them if you encounter problems.
 
-If you have an error on Windows and need to start again, be aware that you'll get immediate failure unless you wait up to 2 minutes for the linker to stop from previous jobs. i.e. if a build fails after having started compiling, that slave will still have a linker process that's running for another couple of minutes which will prevent Jenkins from clearing the workspace to start a new one. This isn't a big deal, it's just a hassle because it'll result in another failed build if you start again!
+If you have an error on Windows and need to start again, be aware that you'll get immediate failure unless you wait up to 2 minutes for the linker to stop from previous jobs. i.e. if a build fails after having started compiling, that slave will still have a linker process that's running for another couple of minutes which will prevent Jenkins from clearing the workspace to start a new one. This isn't a big deal, it's just a hassle because it'll result in another failed build if you start again!.
 
 ARMv7 takes the longest to compile. Unfortunately ccache isn't as effective on release builds, I think it's because of the additional macro settings that go in to a release build that nullify previous builds. Also most of the release build machines are separate to the test build machines so they don't get any benefit from ongoing compiles between releases. You can expect 1.5 hours for the ARMv7 builder to complete and you should normally wait for this to finish. It is possible to rush a release out if you want and add additional builds later but we normally provide ARMv7 from initial promotion.
 
