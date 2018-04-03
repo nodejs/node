@@ -28,7 +28,7 @@ const testCases = [
       rejectUnauthorized: true,
       ca: [loadPEM('fake-cnnic-root-cert')]
     },
-    errorCode: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+    errorCode: 'CERT_HAS_EXPIRED'
   },
   // Test 1: for the fix of node#2061
   // agent6-cert.pem is signed by intermediate cert of ca3.
@@ -58,7 +58,7 @@ function runTest(tindex) {
   const server = tls.createServer(tcase.serverOpts, (s) => {
     s.resume();
   }).listen(0, common.mustCall(function() {
-    tcase.clientOpts = this.address().port;
+    tcase.clientOpts.port = this.address().port;
     const client = tls.connect(tcase.clientOpts);
     client.on('error', common.mustCall((e) => {
       assert.strictEqual(e.code, tcase.errorCode);
