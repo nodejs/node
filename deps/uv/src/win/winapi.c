@@ -52,11 +52,15 @@ sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
 /* Powrprof.dll function pointer */
 sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
 
+/* User32.dll function pointer */
+sSetWinEventHook pSetWinEventHook;
+
 
 void uv_winapi_init(void) {
   HMODULE ntdll_module;
   HMODULE kernel32_module;
   HMODULE powrprof_module;
+  HMODULE user32_module;
 
   ntdll_module = GetModuleHandleA("ntdll.dll");
   if (ntdll_module == NULL) {
@@ -154,6 +158,12 @@ void uv_winapi_init(void) {
   if (powrprof_module != NULL) {
     pPowerRegisterSuspendResumeNotification = (sPowerRegisterSuspendResumeNotification)
       GetProcAddress(powrprof_module, "PowerRegisterSuspendResumeNotification");
+  }
+
+  user32_module = LoadLibraryA("user32.dll");
+  if (user32_module != NULL) {
+    pSetWinEventHook = (sSetWinEventHook)
+      GetProcAddress(user32_module, "SetWinEventHook");
   }
 
 }

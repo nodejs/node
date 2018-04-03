@@ -6,7 +6,6 @@
 
 const BB = require('bluebird')
 
-const cache = require('./cache')
 const cacache = require('cacache')
 const cp = require('child_process')
 const deprCheck = require('./utils/depr-check')
@@ -18,6 +17,7 @@ const log = require('npmlog')
 const move = require('move-concurrently')
 const npm = require('./npm')
 const output = require('./utils/output')
+const pacote = require('pacote')
 const pacoteOpts = require('./config/pacote')
 const path = require('path')
 const PassThrough = require('stream').PassThrough
@@ -26,8 +26,8 @@ const pipe = BB.promisify(require('mississippi').pipe)
 const prepublishWarning = require('./utils/warn-deprecated')('prepublish-on-install')
 const pinflight = require('promise-inflight')
 const readJson = BB.promisify(require('read-package-json'))
-const tarPack = BB.promisify(require('./utils/tar').pack)
-const writeStreamAtomic = require('fs-write-stream-atomic')
+const tar = require('tar')
+const packlist = require('npm-packlist')
 
 pack.usage = 'npm pack [[<@scope>/]<pkg>...]'
 
@@ -68,12 +68,8 @@ function pack_ (pkg, dir) {
           return packDirectory(mani, mani._resolved, target)
         })
       } else {
-        return cache.add(pkg).then((info) => {
-          return pipe(
-            cacache.get.stream.byDigest(pacoteOpts().cache, info.integrity || mani._integrity),
-            writeStreamAtomic(target)
-          )
-        }).then(() => target)
+        return pacote.tarball.toFile(pkg, target, pacoteOpts())
+        .then(() => target)
       }
     })
   })
@@ -118,11 +114,24 @@ function packDirectory (mani, dir, target) {
   }).then((pkg) => {
     return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'packing'}, (tmp) => {
       const tmpTarget = path.join(tmp, path.basename(target))
-      return tarPack(tmpTarget, dir, pkg).then(() => {
-        return move(tmpTarget, target, {Promise: BB, fs})
-      }).then(() => {
-        return lifecycle(pkg, 'postpack', dir)
-      }).then(() => target)
+
+      const tarOpt = {
+        file: tmpTarget,
+        cwd: dir,
+        prefix: 'package/',
+        portable: true,
+        noMtime: true,
+        gzip: true
+      }
+
+      return packlist({ path: dir })
+      // NOTE: node-tar does some Magic Stuff depending on prefixes for files
+      //       specifically with @ signs, so we just neutralize that one
+      //       and any such future "features" by prepending `./`
+        .then((files) => tar.create(tarOpt, files.map((f) => `./${f}`)))
+        .then(() => move(tmpTarget, target, {Promise: BB, fs}))
+        .then(() => lifecycle(pkg, 'postpack', dir))
+        .then(() => target)
     })
   })
 }

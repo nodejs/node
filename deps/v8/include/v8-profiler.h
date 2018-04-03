@@ -287,6 +287,13 @@ class V8_EXPORT CpuProfiler {
   static CpuProfiler* New(Isolate* isolate);
 
   /**
+   * Synchronously collect current stack sample in all profilers attached to
+   * the |isolate|. The call does not affect number of ticks recorded for
+   * the current top node.
+   */
+  static void CollectSample(Isolate* isolate);
+
+  /**
    * Disposes the CPU profiler object.
    */
   void Dispose();
@@ -322,7 +329,8 @@ class V8_EXPORT CpuProfiler {
    * Recording the forced sample does not contribute to the aggregated
    * profile statistics.
    */
-  void CollectSample();
+  V8_DEPRECATED("Use static CollectSample(Isolate*) instead.",
+                void CollectSample());
 
   /**
    * Tells the profiler whether the embedder is idle.

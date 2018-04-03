@@ -61,31 +61,32 @@ assert.deepStrictEqual(writable.data, CSI.kClearLine);
   assert.deepStrictEqual(writable.data, set[2]);
 });
 
-assert.doesNotThrow(() => readline.cursorTo(null));
-assert.doesNotThrow(() => readline.cursorTo());
+// Undefined or null as stream should not throw.
+readline.cursorTo(null);
+readline.cursorTo();
 
 writable.data = '';
-assert.doesNotThrow(() => readline.cursorTo(writable, 'a'));
+readline.cursorTo(writable, 'a');
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
-assert.doesNotThrow(() => readline.cursorTo(writable, 'a', 'b'));
+readline.cursorTo(writable, 'a', 'b');
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
-assert.throws(
+common.expectsError(
   () => readline.cursorTo(writable, 'a', 1),
-  common.expectsError({
+  {
     type: Error,
     code: 'ERR_INVALID_CURSOR_POS',
     message: 'Cannot set cursor row without setting its column'
-  }));
+  });
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
-assert.doesNotThrow(() => readline.cursorTo(writable, 1, 'a'));
+readline.cursorTo(writable, 1, 'a');
 assert.strictEqual(writable.data, '\x1b[2G');
 
 writable.data = '';
-assert.doesNotThrow(() => readline.cursorTo(writable, 1, 2));
+readline.cursorTo(writable, 1, 2);
 assert.strictEqual(writable.data, '\x1b[3;2H');

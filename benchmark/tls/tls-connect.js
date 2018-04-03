@@ -1,7 +1,7 @@
 'use strict';
-var fs = require('fs'),
-  path = require('path'),
-  tls = require('tls');
+const fs = require('fs');
+const path = require('path');
+const tls = require('tls');
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
@@ -11,15 +11,13 @@ const bench = common.createBenchmark(main, {
 
 var clientConn = 0;
 var serverConn = 0;
-var server;
 var dur;
 var concurrency;
 var running = true;
 
 function main(conf) {
-  dur = +conf.dur;
-  concurrency = +conf.concurrency;
-
+  dur = conf.dur;
+  concurrency = conf.concurrency;
   const cert_dir = path.resolve(__dirname, '../../test/fixtures');
   const options = {
     key: fs.readFileSync(`${cert_dir}/test_key.pem`),
@@ -28,7 +26,7 @@ function main(conf) {
     ciphers: 'AES256-GCM-SHA384'
   };
 
-  server = tls.createServer(options, onConnection);
+  const server = tls.createServer(options, onConnection);
   server.listen(common.PORT, onListening);
 }
 

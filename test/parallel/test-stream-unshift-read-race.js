@@ -68,9 +68,13 @@ r._read = function(n) {
 };
 
 function pushError() {
-  assert.throws(function() {
+  common.expectsError(function() {
     r.push(Buffer.allocUnsafe(1));
-  }, /^Error: stream\.push\(\) after EOF$/);
+  }, {
+    code: 'ERR_STREAM_PUSH_AFTER_EOF',
+    type: Error,
+    message: 'stream.push() after EOF'
+  });
 }
 
 
@@ -82,9 +86,13 @@ w._write = function(chunk, encoding, cb) {
 };
 
 r.on('end', common.mustCall(function() {
-  assert.throws(function() {
+  common.expectsError(function() {
     r.unshift(Buffer.allocUnsafe(1));
-  }, /^Error: stream\.unshift\(\) after end event$/);
+  }, {
+    code: 'ERR_STREAM_UNSHIFT_AFTER_END_EVENT',
+    type: Error,
+    message: 'stream.unshift() after end event'
+  });
   w.end();
 }));
 
@@ -103,9 +111,9 @@ w.on('finish', common.mustCall(function() {
   // lacking that piece.
   assert.strictEqual(written[0], 'asdfasdfas');
   let asdf = 'd';
-  console.error('0: %s', written[0]);
+  console.error(`0: ${written[0]}`);
   for (let i = 1; i < written.length; i++) {
-    console.error('%s: %s', i.toString(32), written[i]);
+    console.error(`${i.toString(32)}: ${written[i]}`);
     assert.strictEqual(written[i].slice(0, 4), '1234');
     for (let j = 4; j < written[i].length; j++) {
       const c = written[i].charAt(j);

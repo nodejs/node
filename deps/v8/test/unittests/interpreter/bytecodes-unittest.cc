@@ -134,70 +134,72 @@ TEST(Bytecodes, PrefixMappings) {
 }
 
 TEST(Bytecodes, ScaleForSignedOperand) {
-  CHECK(Bytecodes::ScaleForSignedOperand(0) == OperandScale::kSingle);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMaxInt8) == OperandScale::kSingle);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMinInt8) == OperandScale::kSingle);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMaxInt8 + 1) ==
-        OperandScale::kDouble);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMinInt8 - 1) ==
-        OperandScale::kDouble);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMaxInt16) == OperandScale::kDouble);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMinInt16) == OperandScale::kDouble);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMaxInt16 + 1) ==
-        OperandScale::kQuadruple);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMinInt16 - 1) ==
-        OperandScale::kQuadruple);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMaxInt) == OperandScale::kQuadruple);
-  CHECK(Bytecodes::ScaleForSignedOperand(kMinInt) == OperandScale::kQuadruple);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(0), OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMaxInt8), OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMinInt8), OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMaxInt8 + 1),
+           OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMinInt8 - 1),
+           OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMaxInt16), OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMinInt16), OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMaxInt16 + 1),
+           OperandScale::kQuadruple);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMinInt16 - 1),
+           OperandScale::kQuadruple);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMaxInt), OperandScale::kQuadruple);
+  CHECK_EQ(Bytecodes::ScaleForSignedOperand(kMinInt), OperandScale::kQuadruple);
 }
 
 TEST(Bytecodes, ScaleForUnsignedOperands) {
   // int overloads
-  CHECK(Bytecodes::ScaleForUnsignedOperand(0) == OperandScale::kSingle);
-  CHECK(Bytecodes::ScaleForUnsignedOperand(kMaxUInt8) == OperandScale::kSingle);
-  CHECK(Bytecodes::ScaleForUnsignedOperand(kMaxUInt8 + 1) ==
-        OperandScale::kDouble);
-  CHECK(Bytecodes::ScaleForUnsignedOperand(kMaxUInt16) ==
-        OperandScale::kDouble);
-  CHECK(Bytecodes::ScaleForUnsignedOperand(kMaxUInt16 + 1) ==
-        OperandScale::kQuadruple);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(0), OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(kMaxUInt8),
+           OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(kMaxUInt8 + 1),
+           OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(kMaxUInt16),
+           OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(kMaxUInt16 + 1),
+           OperandScale::kQuadruple);
   // size_t overloads
-  CHECK(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(0)) ==
-        OperandScale::kSingle);
-  CHECK(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(kMaxUInt8)) ==
-        OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(0)),
+           OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(kMaxUInt8)),
+           OperandScale::kSingle);
   CHECK(Bytecodes::ScaleForUnsignedOperand(
             static_cast<size_t>(kMaxUInt8 + 1)) == OperandScale::kDouble);
-  CHECK(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(kMaxUInt16)) ==
-        OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(kMaxUInt16)),
+           OperandScale::kDouble);
   CHECK(Bytecodes::ScaleForUnsignedOperand(
             static_cast<size_t>(kMaxUInt16 + 1)) == OperandScale::kQuadruple);
-  CHECK(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(kMaxUInt32)) ==
-        OperandScale::kQuadruple);
+  CHECK_EQ(Bytecodes::ScaleForUnsignedOperand(static_cast<size_t>(kMaxUInt32)),
+           OperandScale::kQuadruple);
 }
 
 TEST(Bytecodes, SizesForUnsignedOperands) {
   // int overloads
-  CHECK(Bytecodes::SizeForUnsignedOperand(0) == OperandSize::kByte);
-  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt8) == OperandSize::kByte);
-  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt8 + 1) ==
-        OperandSize::kShort);
-  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt16) == OperandSize::kShort);
-  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt16 + 1) ==
-        OperandSize::kQuad);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(0), OperandSize::kByte);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(kMaxUInt8), OperandSize::kByte);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(kMaxUInt8 + 1),
+           OperandSize::kShort);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(kMaxUInt16), OperandSize::kShort);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(kMaxUInt16 + 1),
+           OperandSize::kQuad);
   // size_t overloads
-  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(0)) ==
-        OperandSize::kByte);
-  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt8)) ==
-        OperandSize::kByte);
-  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt8 + 1)) ==
-        OperandSize::kShort);
-  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt16)) ==
-        OperandSize::kShort);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(0)),
+           OperandSize::kByte);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt8)),
+           OperandSize::kByte);
+  CHECK_EQ(
+      Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt8 + 1)),
+      OperandSize::kShort);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt16)),
+           OperandSize::kShort);
   CHECK(Bytecodes::SizeForUnsignedOperand(
             static_cast<size_t>(kMaxUInt16 + 1)) == OperandSize::kQuad);
-  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt32)) ==
-        OperandSize::kQuad);
+  CHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt32)),
+           OperandSize::kQuad);
 }
 
 // Helper macros to generate a check for if a bytecode is in a macro list of
@@ -325,10 +327,10 @@ TEST(OperandScale, PrefixesRequired) {
   CHECK(Bytecodes::OperandScaleRequiresPrefixBytecode(OperandScale::kDouble));
   CHECK(
       Bytecodes::OperandScaleRequiresPrefixBytecode(OperandScale::kQuadruple));
-  CHECK(Bytecodes::OperandScaleToPrefixBytecode(OperandScale::kDouble) ==
-        Bytecode::kWide);
-  CHECK(Bytecodes::OperandScaleToPrefixBytecode(OperandScale::kQuadruple) ==
-        Bytecode::kExtraWide);
+  CHECK_EQ(Bytecodes::OperandScaleToPrefixBytecode(OperandScale::kDouble),
+           Bytecode::kWide);
+  CHECK_EQ(Bytecodes::OperandScaleToPrefixBytecode(OperandScale::kQuadruple),
+           Bytecode::kExtraWide);
 }
 
 TEST(AccumulatorUse, LogicalOperators) {

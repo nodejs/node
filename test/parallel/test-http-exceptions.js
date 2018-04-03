@@ -21,7 +21,12 @@
 
 'use strict';
 require('../common');
+const Countdown = require('../common/countdown');
 const http = require('http');
+const NUMBER_OF_EXCEPTIONS = 4;
+const countdown = new Countdown(NUMBER_OF_EXCEPTIONS, () => {
+  process.exit(0);
+});
 
 const server = http.createServer(function(req, res) {
   intentionally_not_defined(); // eslint-disable-line no-undef
@@ -30,16 +35,16 @@ const server = http.createServer(function(req, res) {
   res.end();
 });
 
-server.listen(0, function() {
-  for (let i = 0; i < 4; i += 1) {
-    http.get({ port: this.address().port, path: `/busy/${i}` });
-  }
-});
-
-let exception_count = 0;
-
-process.on('uncaughtException', function(err) {
+function onUncaughtException(err) {
   console.log(`Caught an exception: ${err}`);
   if (err.name === 'AssertionError') throw err;
-  if (++exception_count === 4) process.exit(0);
+  countdown.dec();
+}
+
+process.on('uncaughtException', onUncaughtException);
+
+server.listen(0, function() {
+  for (let i = 0; i < NUMBER_OF_EXCEPTIONS; i += 1) {
+    http.get({ port: this.address().port, path: `/busy/${i}` });
+  }
 });

@@ -16,4 +16,4 @@ assertEquals("JPY54,306", nf_JPY.format(parseFloat(54306.4047970)));
 
 var nf_EUR = new Intl.NumberFormat(['pt'], {style: 'currency', currency: 'EUR'});
 
-assertEquals("€1.000,00", nf_EUR.format(1000.00));
+assertEquals("€\u00a01.000,00", nf_EUR.format(1000.00));

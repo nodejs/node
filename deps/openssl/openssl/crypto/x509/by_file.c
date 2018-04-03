@@ -92,12 +92,12 @@ static int by_file_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp,
                         long argl, char **ret)
 {
     int ok = 0;
-    char *file;
+    const char *file;
 
     switch (cmd) {
     case X509_L_FILE_LOAD:
         if (argl == X509_FILETYPE_DEFAULT) {
-            file = (char *)getenv(X509_get_default_cert_file_env());
+            file = getenv(X509_get_default_cert_file_env());
             if (file)
                 ok = (X509_load_cert_crl_file(ctx, file,
                                               X509_FILETYPE_PEM) != 0);
@@ -140,7 +140,7 @@ int X509_load_cert_file(X509_LOOKUP *ctx, const char *file, int type)
 
     if (type == X509_FILETYPE_PEM) {
         for (;;) {
-            x = PEM_read_bio_X509_AUX(in, NULL, NULL, NULL);
+            x = PEM_read_bio_X509_AUX(in, NULL, NULL, "");
             if (x == NULL) {
                 if ((ERR_GET_REASON(ERR_peek_last_error()) ==
                      PEM_R_NO_START_LINE) && (count > 0)) {
@@ -199,7 +199,7 @@ int X509_load_crl_file(X509_LOOKUP *ctx, const char *file, int type)
 
     if (type == X509_FILETYPE_PEM) {
         for (;;) {
-            x = PEM_read_bio_X509_CRL(in, NULL, NULL, NULL);
+            x = PEM_read_bio_X509_CRL(in, NULL, NULL, "");
             if (x == NULL) {
                 if ((ERR_GET_REASON(ERR_peek_last_error()) ==
                      PEM_R_NO_START_LINE) && (count > 0)) {
@@ -253,7 +253,7 @@ int X509_load_cert_crl_file(X509_LOOKUP *ctx, const char *file, int type)
         X509err(X509_F_X509_LOAD_CERT_CRL_FILE, ERR_R_SYS_LIB);
         return 0;
     }
-    inf = PEM_X509_INFO_read_bio(in, NULL, NULL, NULL);
+    inf = PEM_X509_INFO_read_bio(in, NULL, NULL, "");
     BIO_free(in);
     if (!inf) {
         X509err(X509_F_X509_LOAD_CERT_CRL_FILE, ERR_R_PEM_LIB);

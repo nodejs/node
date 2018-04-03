@@ -11,74 +11,49 @@ namespace v8 {
 namespace internal {
 
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
-  V(AccessCheck, "Access check needed")                                        \
-  V(NoReason, "no reason")                                                     \
-  V(ConstantGlobalVariableAssignment, "Constant global variable assignment")   \
-  V(ConversionOverflow, "conversion overflow")                                 \
+  V(ArrayBufferWasNeutered, "array buffer was neutered")                       \
+  V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
+  V(CouldNotGrowElements, "failed to grow elements store")                     \
+  V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
   V(DivisionByZero, "division by zero")                                        \
-  V(ExpectedHeapNumber, "Expected heap number")                                \
-  V(ExpectedSmi, "Expected smi")                                               \
-  V(ForcedDeoptToRuntime, "Forced deopt to runtime")                           \
   V(Hole, "hole")                                                              \
   V(InstanceMigrationFailed, "instance migration failed")                      \
   V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")    \
-  V(InsufficientTypeFeedbackForCallWithArguments,                              \
-    "Insufficient type feedback for call with arguments")                      \
   V(InsufficientTypeFeedbackForConstruct,                                      \
     "Insufficient type feedback for construct")                                \
-  V(FastPathFailed, "Falling off the fast path")                               \
   V(InsufficientTypeFeedbackForForIn, "Insufficient type feedback for for-in") \
-  V(InsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,                  \
-    "Insufficient type feedback for combined type of binary operation")        \
+  V(InsufficientTypeFeedbackForBinaryOperation,                                \
+    "Insufficient type feedback for binary operation")                         \
+  V(InsufficientTypeFeedbackForCompareOperation,                               \
+    "Insufficient type feedback for compare operation")                        \
   V(InsufficientTypeFeedbackForGenericNamedAccess,                             \
     "Insufficient type feedback for generic named access")                     \
   V(InsufficientTypeFeedbackForGenericKeyedAccess,                             \
     "Insufficient type feedback for generic keyed access")                     \
-  V(InsufficientTypeFeedbackForLHSOfBinaryOperation,                           \
-    "Insufficient type feedback for LHS of binary operation")                  \
-  V(InsufficientTypeFeedbackForRHSOfBinaryOperation,                           \
-    "Insufficient type feedback for RHS of binary operation")                  \
-  V(KeyIsNegative, "key is negative")                                          \
+  V(InsufficientTypeFeedbackForUnaryOperation,                                 \
+    "Insufficient type feedback for unary operation")                          \
   V(LostPrecision, "lost precision")                                           \
   V(LostPrecisionOrNaN, "lost precision or NaN")                               \
-  V(MementoFound, "memento found")                                             \
   V(MinusZero, "minus zero")                                                   \
   V(NaN, "NaN")                                                                \
-  V(NegativeKeyEncountered, "Negative key encountered")                        \
-  V(NegativeValue, "negative value")                                           \
   V(NoCache, "no cache")                                                       \
   V(NotAHeapNumber, "not a heap number")                                       \
-  V(NotAHeapNumberUndefined, "not a heap number/undefined")                    \
   V(NotAJavaScriptObject, "not a JavaScript object")                           \
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
   V(NotASmi, "not a Smi")                                                      \
   V(NotASymbol, "not a Symbol")                                                \
   V(OutOfBounds, "out of bounds")                                              \
-  V(OutsideOfRange, "Outside of range")                                        \
   V(Overflow, "overflow")                                                      \
-  V(Proxy, "proxy")                                                            \
-  V(ReceiverWasAGlobalObject, "receiver was a global object")                  \
+  V(ReceiverNotAGlobalProxy, "receiver was not a global proxy")                \
   V(Smi, "Smi")                                                                \
-  V(TooManyArguments, "too many arguments")                                    \
-  V(TracingElementsTransitions, "Tracing elements transitions")                \
-  V(TypeMismatchBetweenFeedbackAndConstant,                                    \
-    "Type mismatch between feedback and constant")                             \
-  V(UnexpectedCellContentsInConstantGlobalStore,                               \
-    "Unexpected cell contents in constant global store")                       \
-  V(UnexpectedCellContentsInGlobalStore,                                       \
-    "Unexpected cell contents in global store")                                \
-  V(UnexpectedObject, "unexpected object")                                     \
-  V(UnexpectedRHSOfBinaryOperation, "Unexpected RHS of binary operation")      \
-  V(UnknownMapInPolymorphicAccess, "Unknown map in polymorphic access")        \
-  V(UnknownMapInPolymorphicCall, "Unknown map in polymorphic call")            \
-  V(UnknownMapInPolymorphicElementAccess,                                      \
-    "Unknown map in polymorphic element access")                               \
-  V(UnknownMap, "Unknown map")                                                 \
+  V(Unknown, "(unknown)")                                                      \
   V(ValueMismatch, "value mismatch")                                           \
+  V(WrongCallTarget, "wrong call target")                                      \
+  V(WrongEnumIndices, "wrong enum indices")                                    \
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
-  V(UndefinedOrNullInForIn, "null or undefined in for-in")                     \
-  V(UndefinedOrNullInToObject, "null or undefined in ToObject")
+  V(WrongName, "wrong name")                                                   \
+  V(WrongValue, "wrong value")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,

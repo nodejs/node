@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-rsautl,
 rsautl - RSA utility
 
 =head1 SYNOPSIS
@@ -105,7 +106,7 @@ Recover the signed data
 
 Examine the raw signed data:
 
- openssl rsautl -verify -in file -inkey key.pem -raw -hexdump
+ openssl rsautl -verify -in sig -inkey key.pem -raw -hexdump
 
  0000 - 00 01 ff ff ff ff ff ff-ff ff ff ff ff ff ff ff   ................
  0010 - ff ff ff ff ff ff ff ff-ff ff ff ff ff ff ff ff   ................

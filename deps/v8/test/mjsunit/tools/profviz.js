@@ -28,7 +28,7 @@
 // Load implementations from <project root>/tools.
 // Files: tools/csvparser.js tools/splaytree.js tools/codemap.js
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
-// Files: tools/logreader.js tools/tickprocessor.js
+// Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
 // Files: tools/profviz/composer.js
 // Env: TEST_FILE_NAME
 

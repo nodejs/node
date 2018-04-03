@@ -86,6 +86,9 @@ API
     should) be closed with :c:func:`uv_loop_close` so the resources associated
     with it are freed.
 
+    .. warning::
+        This function is not thread safe.
+
 .. c:function:: int uv_run(uv_loop_t* loop, uv_run_mode mode)
 
     This function runs the event loop. It will act differently depending on the
@@ -106,7 +109,8 @@ API
 
 .. c:function:: int uv_loop_alive(const uv_loop_t* loop)
 
-    Returns non-zero if there are active handles or request in the loop.
+    Returns non-zero if there are referenced active handles, active
+    requests or closing handles in the loop.
 
 .. c:function:: void uv_stop(uv_loop_t* loop)
 
@@ -215,6 +219,18 @@ API
 
     .. caution::
 
-       Any previous value returned from :c:func`uv_backend_fd` is now
+       Any previous value returned from :c:func:`uv_backend_fd` is now
        invalid. That function must be called again to determine the
        correct backend file descriptor.
+
+.. c:function:: void* uv_loop_get_data(const uv_loop_t* loop)
+
+    Returns `loop->data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_loop_set_data(uv_loop_t* loop, void* data)
+
+    Sets `loop->data` to `data`.
+
+    .. versionadded:: 1.19.0

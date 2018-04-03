@@ -6,9 +6,9 @@
 
 #include "src/debug/debug.h"
 
-#include "src/codegen.h"
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

@@ -7,55 +7,65 @@ const http2 = require('http2');
 
 const server = http2.createServer();
 
-const optionsToTest = {
-  opaqueData: 'Uint8Array',
-  graceful: 'boolean',
-  errorCode: 'number',
-  lastStreamID: 'number'
-};
+const types = [
+  true,
+  {},
+  [],
+  null,
+  new Date()
+];
 
-const types = {
-  boolean: true,
-  number: 1,
-  object: {},
-  array: [],
-  null: null,
-  Uint8Array: Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5])
-};
+server.on('stream', common.mustCall((stream) => {
+  const session = stream.session;
 
-server.on(
-  'stream',
-  common.mustCall((stream) => {
-    Object.keys(optionsToTest).forEach((option) => {
-      Object.keys(types).forEach((type) => {
-        if (type === optionsToTest[option]) {
-          return;
-        }
-        common.expectsError(
-          () =>
-            stream.session.shutdown(
-              { [option]: types[type] },
-              common.mustNotCall()
-            ),
-          {
-            type: TypeError,
-            code: 'ERR_INVALID_OPT_VALUE',
-            message: `The value "${String(types[type])}" is invalid ` +
-            `for option "${option}"`
-          }
-        );
-      });
-    });
-    stream.session.destroy();
-  })
-);
+  types.forEach((input) => {
+    common.expectsError(
+      () => session.goaway(input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "code" argument must be of type number. Received type ' +
+                 typeof input
+      }
+    );
+    common.expectsError(
+      () => session.goaway(0, input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "lastStreamID" argument must be of type number. ' +
+                 `Received type ${typeof input}`
+      }
+    );
+    common.expectsError(
+      () => session.goaway(0, 0, input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "opaqueData" argument must be one of type Buffer, ' +
+                 `TypedArray, or DataView. Received type ${typeof input}`
+      }
+    );
+  });
+
+  stream.session.destroy();
+}));
 
 server.listen(
   0,
   common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
+    // On certain operating systems, an ECONNRESET may occur. We do not need
+    // to test for it here. Do not make this a mustCall
+    client.on('error', () => {});
     const req = client.request();
+    // On certain operating systems, an ECONNRESET may occur. We do not need
+    // to test for it here. Do not make this a mustCall
+    req.on('error', () => {});
     req.resume();
-    req.on('end', common.mustCall(() => server.close()));
+    req.on('close', common.mustCall(() => {
+      client.close();
+      server.close();
+    }));
   })
 );

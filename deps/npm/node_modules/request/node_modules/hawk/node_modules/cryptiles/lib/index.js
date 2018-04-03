@@ -1,27 +1,49 @@
+'use strict';
+
 // Load modules
 
-var Crypto = require('crypto');
-var Boom = require('boom');
+const Crypto = require('crypto');
+const Boom = require('boom');
 
 
 // Declare internals
 
-var internals = {};
+const internals = {};
 
 
 // Generate a cryptographically strong pseudo-random data
 
 exports.randomString = function (size) {
 
-    var buffer = exports.randomBits((size + 1) * 6);
+    const buffer = exports.randomBits((size + 1) * 6);
     if (buffer instanceof Error) {
         return buffer;
     }
 
-    var string = buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/\=/g, '');
+    const string = buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/\=/g, '');
     return string.slice(0, size);
 };
 
+
+// Return a random string of digits
+
+exports.randomDigits = function (size) {
+
+    const buffer = exports.randomBits(size * 8);
+    if (buffer instanceof Error) {
+        return buffer;
+    }
+
+    const digits = [];
+    for (let i = 0; i < buffer.length; ++i) {
+        digits.push(Math.floor(buffer[i] / 25.6));
+    }
+
+    return digits.join('');
+};
+
+
+// Generate a buffer of random bits
 
 exports.randomBits = function (bits) {
 
@@ -31,7 +53,7 @@ exports.randomBits = function (bits) {
         return Boom.internal('Invalid random bits count');
     }
 
-    var bytes = Math.ceil(bits / 8);
+    const bytes = Math.ceil(bits / 8);
     try {
         return Crypto.randomBytes(bytes);
     }
@@ -51,18 +73,16 @@ exports.fixedTimeComparison = function (a, b) {
         return false;
     }
 
-    var mismatch = (a.length === b.length ? 0 : 1);
+    let mismatch = (a.length === b.length ? 0 : 1);
     if (mismatch) {
         b = a;
     }
 
-    for (var i = 0, il = a.length; i < il; ++i) {
-        var ac = a.charCodeAt(i);
-        var bc = b.charCodeAt(i);
+    for (let i = 0; i < a.length; ++i) {
+        const ac = a.charCodeAt(i);
+        const bc = b.charCodeAt(i);
         mismatch |= (ac ^ bc);
     }
 
     return (mismatch === 0);
 };
-
-

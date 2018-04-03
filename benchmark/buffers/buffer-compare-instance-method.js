@@ -7,10 +7,8 @@ const bench = common.createBenchmark(main, {
   millions: [1]
 });
 
-function main(conf) {
-  const iter = (conf.millions >>> 0) * 1e6;
-  const size = (conf.size >>> 0);
-  const args = (conf.args >>> 0);
+function main({ millions, size, args }) {
+  const iter = millions * 1e6;
   const b0 = Buffer.alloc(size, 'a');
   const b1 = Buffer.alloc(size, 'a');
   const b0Len = b0.length;

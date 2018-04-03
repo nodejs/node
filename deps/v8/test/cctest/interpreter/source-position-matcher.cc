@@ -150,7 +150,7 @@ bool SourcePositionMatcher::CompareExpressionPositions(
   for (size_t i = 0; i < original_positions->size(); ++i) {
     PositionTableEntry original = original_positions->at(i);
     PositionTableEntry optimized = original_positions->at(i);
-    CHECK(original.source_position > 0);
+    CHECK_GT(original.source_position, 0);
     if ((original.is_statement || optimized.is_statement) ||
         (original.source_position != optimized.source_position) ||
         (original.source_position < 0)) {

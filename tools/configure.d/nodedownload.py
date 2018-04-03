@@ -60,7 +60,7 @@ def unpack(packedfile, parent_path):
             icuzip.extractall(parent_path)
             return parent_path
     elif tarfile.is_tarfile(packedfile):
-        with tarfile.TarFile.open(packedfile, 'r') as icuzip:
+        with contextlib.closing(tarfile.TarFile.open(packedfile, 'r')) as icuzip:
             print ' Extracting tarfile: %s' % packedfile
             icuzip.extractall(parent_path)
             return parent_path

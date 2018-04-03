@@ -69,11 +69,12 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                     Maybe<bool> generatePreview,
                     std::unique_ptr<AwaitPromiseCallback>) override;
   void callFunctionOn(
-      const String16& objectId, const String16& expression,
+      const String16& expression, Maybe<String16> objectId,
       Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
       Maybe<bool> silent, Maybe<bool> returnByValue,
       Maybe<bool> generatePreview, Maybe<bool> userGesture,
-      Maybe<bool> awaitPromise,
+      Maybe<bool> awaitPromise, Maybe<int> executionContextId,
+      Maybe<String16> objectGroup,
       std::unique_ptr<CallFunctionOnCallback>) override;
   Response releaseObject(const String16& objectId) override;
   Response getProperties(
@@ -100,6 +101,9 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   Response queryObjects(
       const String16& prototypeObjectId,
       std::unique_ptr<protocol::Runtime::RemoteObject>* objects) override;
+  Response globalLexicalScopeNames(
+      Maybe<int> executionContextId,
+      std::unique_ptr<protocol::Array<String16>>* outNames) override;
 
   void reset();
   void reportExecutionContextCreated(InspectedContext*);

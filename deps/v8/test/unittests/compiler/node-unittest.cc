@@ -15,11 +15,10 @@ using testing::UnorderedElementsAre;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace node_unittest {
 
 typedef TestWithZone NodeTest;
 
-
-namespace {
 
 const IrOpcode::Value kOpcode0 = static_cast<IrOpcode::Value>(0);
 const IrOpcode::Value kOpcode1 = static_cast<IrOpcode::Value>(1);
@@ -28,8 +27,6 @@ const IrOpcode::Value kOpcode2 = static_cast<IrOpcode::Value>(2);
 const Operator kOp0(kOpcode0, Operator::kNoProperties, "Op0", 0, 0, 0, 1, 0, 0);
 const Operator kOp1(kOpcode1, Operator::kNoProperties, "Op1", 1, 0, 0, 1, 0, 0);
 const Operator kOp2(kOpcode2, Operator::kNoProperties, "Op2", 2, 0, 0, 1, 0, 0);
-
-}  // namespace
 
 
 TEST_F(NodeTest, New) {
@@ -261,7 +258,7 @@ TEST_F(NodeTest, BigNodes) {
   }
 }
 
-
+}  // namespace node_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

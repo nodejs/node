@@ -1,0 +1,30 @@
+# Copyright 2017 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+{
+  ### Example configuration for trybots (please keep as reference).
+  # 'v8_linux64_rel_ng_triggered': [
+  #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
+  # ],
+
+  'v8_linux64_fyi_rel_ng_triggered': [
+    {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
+    {'name': 'test262_variants', 'variant': 'infra_staging', 'shards': 2},
+    {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
+    {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
+  ],
+  'v8_linux64_rel_ng_triggered': [
+    {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+    {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+  ],
+  'v8_linux_gc_stress_dbg': [
+    {'name': 'mjsunit', 'variant': 'slow_path', 'shards': 2},
+  ],
+  'v8_linux64_asan_rel_ng_triggered': [
+    {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+  ],
+  'v8_linux64_tsan_rel': [
+    {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+  ],
+}

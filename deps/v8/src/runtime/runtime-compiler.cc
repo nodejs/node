@@ -57,6 +57,24 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   return function->code();
 }
 
+RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
+  HandleScope scope(isolate);
+  StackLimitCheck check(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  DCHECK_EQ(function->feedback_vector()->optimization_marker(),
+            OptimizationMarker::kLogFirstExecution);
+  DCHECK(FLAG_log_function_events);
+  Handle<SharedFunctionInfo> sfi(function->shared());
+  LOG(isolate, FunctionEvent("first-execution", Script::cast(sfi->script()), -1,
+                             0, sfi->start_position(), sfi->end_position(),
+                             sfi->DebugName()));
+  function->feedback_vector()->ClearOptimizationMarker();
+  // Return the code to continue execution, we don't care at this point whether
+  // this is for lazy compilation or has been eagerly complied.
+  return function->code();
+}
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
   HandleScope scope(isolate);
@@ -119,72 +137,35 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   function->shared()->set_is_asm_wasm_broken(true);
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
-  function->ReplaceCode(isolate->builtins()->builtin(Builtins::kCompileLazy));
+  function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
   if (function->shared()->code() ==
       isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
-    function->shared()->ReplaceCode(
+    function->shared()->set_code(
         isolate->builtins()->builtin(Builtins::kCompileLazy));
   }
   return Smi::kZero;
 }
 
-RUNTIME_FUNCTION(Runtime_NotifyStubFailure) {
+RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
+  DCHECK(deoptimizer->compiled_code()->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  delete deoptimizer;
-  return isolate->heap()->undefined_value();
-}
+  DCHECK_NULL(isolate->context());
 
-class ActivationsFinder : public ThreadVisitor {
- public:
-  Code* code_;
-  bool has_code_activations_;
-
-  explicit ActivationsFinder(Code* code)
-      : code_(code), has_code_activations_(false) {}
-
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    JavaScriptFrameIterator it(isolate, top);
-    VisitFrames(&it);
-  }
-
-  void VisitFrames(JavaScriptFrameIterator* it) {
-    for (; !it->done(); it->Advance()) {
-      JavaScriptFrame* frame = it->frame();
-      if (code_->contains(frame->pc())) has_code_activations_ = true;
-    }
-  }
-};
-
-
-RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(type_arg, 0);
-  Deoptimizer::BailoutType type =
-      static_cast<Deoptimizer::BailoutType>(type_arg);
-  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
-  DCHECK(AllowHeapAllocation::IsAllowed());
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-
   Handle<JSFunction> function = deoptimizer->function();
-  Handle<Code> optimized_code = deoptimizer->compiled_code();
-
-  DCHECK(optimized_code->kind() == Code::OPTIMIZED_FUNCTION);
-  DCHECK(optimized_code->is_turbofanned());
-  DCHECK(type == deoptimizer->bailout_type());
-  DCHECK_NULL(isolate->context());
+  Deoptimizer::BailoutType type = deoptimizer->bailout_type();
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
-  isolate->set_context(function->native_context());
+  isolate->set_context(deoptimizer->function()->native_context());
 
   // Make sure to materialize objects before causing any allocation.
-  JavaScriptFrameIterator it(isolate);
-  deoptimizer->MaterializeHeapObjects(&it);
+  deoptimizer->MaterializeHeapObjects();
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
@@ -192,31 +173,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
 
-  if (type == Deoptimizer::LAZY) {
-    return isolate->heap()->undefined_value();
-  }
-
-  // Search for other activations of the same optimized code.
-  // At this point {it} is at the topmost frame of all the frames materialized
-  // by the deoptimizer. Note that this frame does not necessarily represent
-  // an activation of {function} because of potential inlined tail-calls.
-  ActivationsFinder activations_finder(*optimized_code);
-  activations_finder.VisitFrames(&it);
-  isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
-
-  if (!activations_finder.has_code_activations_) {
-    Deoptimizer::UnlinkOptimizedCode(*optimized_code,
-                                     function->context()->native_context());
-
-    // Evict optimized code for this function from the cache so that it
-    // doesn't get used for new closures.
-    if (function->feedback_vector()->optimized_code() == *optimized_code) {
-      function->ClearOptimizedCodeSlot("notify deoptimized");
-    }
-  } else {
-    // TODO(titzer): we should probably do DeoptimizeCodeList(code)
-    // unconditionally if the code is not already marked for deoptimization.
-    // If there is an index by shared function info, all the better.
+  // Invalidate the underlying optimized code on non-lazy deopts.
+  if (type != Deoptimizer::LAZY) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 
@@ -270,9 +228,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  // We're not prepared to handle a function with arguments object.
-  DCHECK(!function->shared()->uses_arguments());
-
   // Only reachable when OST is enabled.
   CHECK(FLAG_use_osr);
 
@@ -301,8 +256,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   Handle<Code> result;
   if (maybe_result.ToHandle(&result) &&
       result->kind() == Code::OPTIMIZED_FUNCTION) {
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(result->deoptimization_data());
+    DeoptimizationData* data =
+        DeoptimizationData::cast(result->deoptimization_data());
 
     if (data->OsrPcOffset()->value() >= 0) {
       DCHECK(BailoutId(data->OsrBytecodeOffset()->value()) == ast_id);
@@ -335,30 +290,9 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   if (!function->IsOptimized()) {
-    function->ReplaceCode(function->shared()->code());
+    function->set_code(function->shared()->code());
   }
-  return NULL;
-}
-
-
-RUNTIME_FUNCTION(Runtime_TryInstallOptimizedCode) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  // First check if this is a real stack overflow.
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
-
-  // Only try to install optimized functions if the interrupt was InstallCode.
-  if (isolate->stack_guard()->CheckAndClearInstallCode()) {
-    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-  }
-
-  return (function->IsOptimized()) ? function->code()
-                                   : function->shared()->code();
+  return nullptr;
 }
 
 static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,

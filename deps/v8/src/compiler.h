@@ -5,10 +5,12 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
+#include <forward_list>
 #include <memory>
 
 #include "src/allocation.h"
 #include "src/bailout-reason.h"
+#include "src/code-events.h"
 #include "src/contexts.h"
 #include "src/isolate.h"
 #include "src/zone/zone.h"
@@ -26,6 +28,8 @@ template <typename T>
 class ThreadedList;
 template <typename T>
 class ThreadedListZoneEntry;
+
+typedef std::forward_list<std::unique_ptr<CompilationJob>> CompilationJobList;
 
 // The V8 compiler API.
 //
@@ -53,12 +57,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
-  // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
-  static CompilationJob* PrepareUnoptimizedCompilationJob(ParseInfo* parse_info,
-                                                          Isolate* isolate);
+  // Compile top level code on a background thread. Should be finalized by
+  // GetSharedFunctionInfoForBackgroundCompile.
+  static std::unique_ptr<CompilationJob> CompileTopLevelOnBackgroundThread(
+      ParseInfo* parse_info, AccountingAllocator* allocator,
+      CompilationJobList* inner_function_jobs);
 
   // Generate and install code from previously queued compilation job.
-  static bool FinalizeCompilationJob(CompilationJob* job);
+  static bool FinalizeCompilationJob(CompilationJob* job, Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -95,6 +101,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       int column_offset = 0, Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
 
+  // Create a function that results from wrapping |source| in a function,
+  // with |arguments| being a list of parameters for that function.
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
+      Handle<String> source, Handle<FixedArray> arguments,
+      Handle<Context> context, int line_offset = 0, int column_offset = 0,
+      Handle<Object> script_name = Handle<Object>(),
+      ScriptOriginOptions options = ScriptOriginOptions());
+
   // Returns true if the embedder permits compiling the given source string in
   // the given context.
   static bool CodeGenerationFromStringsAllowed(Isolate* isolate,
@@ -107,27 +121,33 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       ParseRestriction restriction, int parameters_end_pos);
 
   // Create a shared function info object for a String source within a context.
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
-      Handle<String> source, Handle<Object> script_name, int line_offset,
-      int column_offset, ScriptOriginOptions resource_options,
-      Handle<Object> source_map_url, Handle<Context> context,
+  static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
+      Handle<String> source, MaybeHandle<Object> maybe_script_name,
+      int line_offset, int column_offset, ScriptOriginOptions resource_options,
+      MaybeHandle<Object> maybe_source_map_url, Handle<Context> context,
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code);
+      ScriptCompiler::NoCacheReason no_cache_reason,
+      NativesFlag is_natives_code,
+      MaybeHandle<FixedArray> maybe_host_defined_options);
 
   // Create a shared function info object for a Script that has already been
   // parsed while the script was being loaded from a streamed source.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
       Handle<Script> script, ParseInfo* info, int source_length);
 
-  // Create a shared function info object (the code may be lazily compiled).
+  // Create a shared function info object for a Script that has already been
+  // compiled on a background thread.
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForBackgroundCompile(
+      Handle<Script> script, ParseInfo* parse_info, int source_length,
+      CompilationJob* outer_function_job,
+      CompilationJobList* inner_function_jobs);
+
+  // Create a shared function info object for the given function literal
+  // node (the code may be lazily compiled).
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
                                                           Handle<Script> script,
                                                           Isolate* isolate);
-
-  // Create a shared function info object for a native function literal.
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
-      v8::Extension* extension, Handle<String> name);
 
   // ===========================================================================
   // The following family of methods provides support for OSR. Code generated
@@ -163,21 +183,20 @@ class V8_EXPORT_PRIVATE CompilationJob {
     kSucceeded,
     kFailed,
   };
-
-  CompilationJob(Isolate* isolate, ParseInfo* parse_info, CompilationInfo* info,
-                 const char* compiler_name,
+  CompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
+                 CompilationInfo* compilation_info, const char* compiler_name,
                  State initial_state = State::kReadyToPrepare);
   virtual ~CompilationJob() {}
 
   // Prepare the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status PrepareJob();
+  MUST_USE_RESULT Status PrepareJob(Isolate* isolate);
 
   // Executes the compile job. Can be called on a background thread if
   // can_execute_on_background_thread() returns true.
   MUST_USE_RESULT Status ExecuteJob();
 
   // Finalizes the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status FinalizeJob();
+  MUST_USE_RESULT Status FinalizeJob(Isolate* isolate);
 
   // Report a transient failure, try again next time. Should only be called on
   // optimization compilation jobs.
@@ -188,42 +207,34 @@ class V8_EXPORT_PRIVATE CompilationJob {
   Status AbortOptimization(BailoutReason reason);
 
   void RecordOptimizedCompilationStats() const;
-  void RecordUnoptimizedCompilationStats() const;
-
-  virtual bool can_execute_on_background_thread() const { return true; }
+  void RecordUnoptimizedCompilationStats(Isolate* isolate) const;
+  void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
+                                 Isolate* isolate) const;
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
   uintptr_t stack_limit() const { return stack_limit_; }
 
-  bool executed_on_background_thread() const {
-    DCHECK_IMPLIES(!can_execute_on_background_thread(),
-                   !executed_on_background_thread_);
-    return executed_on_background_thread_;
-  }
   State state() const { return state_; }
   ParseInfo* parse_info() const { return parse_info_; }
   CompilationInfo* compilation_info() const { return compilation_info_; }
-  Isolate* isolate() const;
   virtual size_t AllocatedMemory() const { return 0; }
 
  protected:
   // Overridden by the actual implementation.
-  virtual Status PrepareJobImpl() = 0;
+  virtual Status PrepareJobImpl(Isolate* isolate) = 0;
   virtual Status ExecuteJobImpl() = 0;
-  virtual Status FinalizeJobImpl() = 0;
+  virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
  private:
   // TODO(6409): Remove parse_info once Fullcode and AstGraphBuilder are gone.
   ParseInfo* parse_info_;
   CompilationInfo* compilation_info_;
-  ThreadId isolate_thread_id_;
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
   const char* compiler_name_;
   State state_;
   uintptr_t stack_limit_;
-  bool executed_on_background_thread_;
 
   MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
     if (status == SUCCEEDED) {

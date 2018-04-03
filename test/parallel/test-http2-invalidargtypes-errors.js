@@ -7,37 +7,26 @@ const http2 = require('http2');
 
 const server = http2.createServer();
 
-server.on(
-  'stream',
-  common.mustCall((stream) => {
-    const invalidArgTypeError = (param, type) => ({
-      type: TypeError,
+server.on('stream', common.mustCall((stream) => {
+  common.expectsError(
+    () => stream.close('string'),
+    {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: `The "${param}" argument must be of type ${type}`
-    });
-    common.expectsError(
-      () => stream.session.priority(undefined, {}),
-      invalidArgTypeError('stream', 'Http2Stream')
-    );
-    common.expectsError(
-      () => stream.session.rstStream(undefined),
-      invalidArgTypeError('stream', 'Http2Stream')
-    );
-    common.expectsError(
-      () => stream.session.rstStream(stream, 'string'),
-      invalidArgTypeError('code', 'number')
-    );
-    stream.session.destroy();
-  })
-);
+      type: TypeError,
+      message: 'The "code" argument must be of type number. ' +
+               'Received type string'
+    }
+  );
+  stream.respond();
+  stream.end('ok');
+}));
 
-server.listen(
-  0,
-  common.mustCall(() => {
-    const client = http2.connect(`http://localhost:${server.address().port}`);
-    const req = client.request();
-    req.resume();
-    req.on('end', common.mustCall(() => server.close()));
-    req.end();
-  })
-);
+server.listen(0, common.mustCall(() => {
+  const client = http2.connect(`http://localhost:${server.address().port}`);
+  const req = client.request();
+  req.resume();
+  req.on('close', common.mustCall(() => {
+    server.close();
+    client.close();
+  }));
+}));

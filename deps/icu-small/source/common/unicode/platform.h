@@ -132,6 +132,8 @@
 #define U_PF_BROWSER_NATIVE_CLIENT 4020
 /** Android is based on Linux. @internal */
 #define U_PF_ANDROID 4050
+/** Fuchsia is a POSIX-ish platform. @internal */
+#define U_PF_FUCHSIA 4100
 /* Maximum value for Linux-based platform is 4499 */
 /** z/OS is the successor to OS/390 which was the successor to MVS. @internal */
 #define U_PF_OS390 9000
@@ -152,6 +154,8 @@
 #   include <android/api-level.h>
 #elif defined(__pnacl__) || defined(__native_client__)
 #   define U_PLATFORM U_PF_BROWSER_NATIVE_CLIENT
+#elif defined(__Fuchsia__)
+#   define U_PLATFORM U_PF_FUCHSIA
 #elif defined(linux) || defined(__linux__) || defined(__linux)
 #   define U_PLATFORM U_PF_LINUX
 #elif defined(__APPLE__) && defined(__MACH__)
@@ -190,6 +194,20 @@
 #   define U_PLATFORM U_PF_OS400
 #else
 #   define U_PLATFORM U_PF_UNKNOWN
+#endif
+
+/**
+ * \def UPRV_INCOMPLETE_CPP11_SUPPORT
+ * This switch turns off ICU 60 NumberFormatter code.
+ * By default, this switch is enabled on AIX and z/OS,
+ * which have poor C++11 support.
+ *
+ * NOTE: This switch is intended to be temporary; see #13393.
+ *
+ * @internal
+ */
+#ifndef UPRV_INCOMPLETE_CPP11_SUPPORT
+#   define UPRV_INCOMPLETE_CPP11_SUPPORT (U_PLATFORM == U_PF_AIX || U_PLATFORM == U_PF_OS390 || U_PLATFORM == U_PF_SOLARIS )
 #endif
 
 /**
@@ -330,31 +348,6 @@
 #   define U_HAVE_INTTYPES_H U_HAVE_STDINT_H
 #endif
 
-/**
- * \def U_IOSTREAM_SOURCE
- * Defines what support for C++ streams is available.
- *
- * If U_IOSTREAM_SOURCE is set to 199711, then &lt;iostream&gt; is available
- * (the ISO/IEC C++ FDIS was published in November 1997), and then
- * one should qualify streams using the std namespace in ICU header
- * files.
- * Starting with ICU 49, this is the only supported version.
- *
- * If U_IOSTREAM_SOURCE is set to 198506, then &lt;iostream.h&gt; is
- * available instead (in June 1985 Stroustrup published
- * "An Extensible I/O Facility for C++" at the summer USENIX conference).
- * Starting with ICU 49, this version is not supported any more.
- *
- * If U_IOSTREAM_SOURCE is 0 (or any value less than 199711),
- * then C++ streams are not available and
- * support for them will be silently suppressed in ICU.
- *
- * @internal
- */
-#ifndef U_IOSTREAM_SOURCE
-#define U_IOSTREAM_SOURCE 199711
-#endif
-
 /*===========================================================================*/
 /** @{ Compiler and environment features                                     */
 /*===========================================================================*/
@@ -489,9 +482,9 @@
     /* Otherwise use the predefined value. */
 #elif !defined(__cplusplus)
 #   define U_CPLUSPLUS_VERSION 0
-#elif __cplusplus >= 201402L
+#elif __cplusplus >= 201402L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
 #   define U_CPLUSPLUS_VERSION 14
-#elif __cplusplus >= 201103L
+#elif __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
 #   define U_CPLUSPLUS_VERSION 11
 #else
     // C++98 or C++03
@@ -503,22 +496,6 @@
 namespace std {
   typedef decltype(nullptr) nullptr_t;
 };
-#endif
-
-/**
- * \def U_HAVE_RVALUE_REFERENCES
- * Set to 1 if the compiler supports rvalue references.
- * C++11 feature, necessary for move constructor & move assignment.
- * @internal
- */
-#ifdef U_HAVE_RVALUE_REFERENCES
-    /* Use the predefined value. */
-#elif U_CPLUSPLUS_VERSION >= 11 || __has_feature(cxx_rvalue_references) \
-        || defined(__GXX_EXPERIMENTAL_CXX0X__) \
-        || (defined(_MSC_VER) && _MSC_VER >= 1600)  /* Visual Studio 2010 */
-#   define U_HAVE_RVALUE_REFERENCES 1
-#else
-#   define U_HAVE_RVALUE_REFERENCES 0
 #endif
 
 /**
@@ -654,7 +631,7 @@ namespace std {
  */
 #ifdef U_CHARSET_IS_UTF8
     /* Use the predefined value. */
-#elif U_PLATFORM == U_PF_ANDROID || U_PLATFORM_IS_DARWIN_BASED
+#elif U_PLATFORM_IS_LINUX_BASED || U_PLATFORM_IS_DARWIN_BASED
 #   define U_CHARSET_IS_UTF8 1
 #else
 #   define U_CHARSET_IS_UTF8 0
@@ -772,8 +749,10 @@ namespace std {
 #else
     /*
      * Notes:
-     * Visual Studio 10 (_MSC_VER>=1600) defines char16_t but
-     * does not support u"abc" string literals.
+     * Visual Studio 2010 (_MSC_VER==1600) defines char16_t as a typedef
+     * and does not support u"abc" string literals.
+     * Visual Studio 2015 (_MSC_VER>=1900) and above adds support for
+     * both char16_t and u"abc" string literals.
      * gcc 4.4 defines the __CHAR16_TYPE__ macro to a usable type but
      * does not support u"abc" string literals.
      * C++11 and C11 require support for UTF-16 literals
@@ -871,6 +850,16 @@ namespace std {
 #    define U_CALLCONV U_EXPORT2
 #endif
 
+/**
+ * \def U_CALLCONV_FPTR
+ * Similar to U_CALLCONV, but only used on function pointers.
+ * @internal
+ */
+#if U_PLATFORM == U_PF_OS390 && defined(__cplusplus)
+#    define U_CALLCONV_FPTR U_CALLCONV
+#else
+#    define U_CALLCONV_FPTR
+#endif
 /* @} */
 
 #endif

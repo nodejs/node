@@ -15,7 +15,7 @@ const primValues = {
 };
 
 const bench = common.createBenchmark(main, {
-  prim: Object.keys(primValues),
+  primitive: Object.keys(primValues),
   n: [25],
   len: [1e5],
   method: [
@@ -30,14 +30,19 @@ const bench = common.createBenchmark(main, {
   ]
 });
 
-function main(conf) {
-  const prim = primValues[conf.prim];
-  const n = +conf.n;
-  const len = +conf.len;
+function run(fn, n, actual, expected) {
+  bench.start();
+  for (var i = 0; i < n; ++i) {
+    fn(actual, expected);
+  }
+  bench.end(n);
+}
+
+function main({ n, len, primitive, method }) {
+  const prim = primValues[primitive];
   const actual = [];
   const expected = [];
   const expectedWrong = [];
-  var i;
 
   for (var x = 0; x < len; x++) {
     actual.push(prim);
@@ -52,70 +57,38 @@ function main(conf) {
   const expectedSet = new Set(expected);
   const expectedWrongSet = new Set(expectedWrong);
 
-  switch (conf.method) {
+  switch (method) {
+    // Empty string falls through to next line as default, mostly for tests.
     case '':
-      // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual_Array':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        // eslint-disable-next-line no-restricted-properties
-        assert.deepEqual(actual, expected);
-      }
-      bench.end(n);
+      // eslint-disable-next-line no-restricted-properties
+      run(assert.deepEqual, n, actual, expected);
       break;
     case 'deepStrictEqual_Array':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        assert.deepStrictEqual(actual, expected);
-      }
-      bench.end(n);
+      run(assert.deepStrictEqual, n, actual, expected);
       break;
     case 'notDeepEqual_Array':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        // eslint-disable-next-line no-restricted-properties
-        assert.notDeepEqual(actual, expectedWrong);
-      }
-      bench.end(n);
+      // eslint-disable-next-line no-restricted-properties
+      run(assert.notDeepEqual, n, actual, expectedWrong);
       break;
     case 'notDeepStrictEqual_Array':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        assert.notDeepStrictEqual(actual, expectedWrong);
-      }
-      bench.end(n);
+      run(assert.notDeepStrictEqual, n, actual, expectedWrong);
       break;
     case 'deepEqual_Set':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        // eslint-disable-next-line no-restricted-properties
-        assert.deepEqual(actualSet, expectedSet);
-      }
-      bench.end(n);
+      // eslint-disable-next-line no-restricted-properties
+      run(assert.deepEqual, n, actualSet, expectedSet);
       break;
     case 'deepStrictEqual_Set':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        assert.deepStrictEqual(actualSet, expectedSet);
-      }
-      bench.end(n);
+      run(assert.deepStrictEqual, n, actualSet, expectedSet);
       break;
     case 'notDeepEqual_Set':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        // eslint-disable-next-line no-restricted-properties
-        assert.notDeepEqual(actualSet, expectedWrongSet);
-      }
-      bench.end(n);
+      // eslint-disable-next-line no-restricted-properties
+      run(assert.notDeepEqual, n, actualSet, expectedWrongSet);
       break;
     case 'notDeepStrictEqual_Set':
-      bench.start();
-      for (i = 0; i < n; ++i) {
-        assert.notDeepStrictEqual(actualSet, expectedWrongSet);
-      }
-      bench.end(n);
+      run(assert.notDeepStrictEqual, n, actualSet, expectedWrongSet);
       break;
     default:
-      throw new Error('Unsupported method');
+      throw new Error(`Unsupported method "${method}"`);
   }
 }

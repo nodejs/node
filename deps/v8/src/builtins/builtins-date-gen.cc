@@ -29,8 +29,8 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
 
   GotoIf(TaggedIsSmi(receiver), &receiver_not_date);
   Node* receiver_instance_type = LoadInstanceType(receiver);
-  GotoIf(Word32NotEqual(receiver_instance_type, Int32Constant(JS_DATE_TYPE)),
-         &receiver_not_date);
+  GotoIfNot(InstanceTypeEqual(receiver_instance_type, JS_DATE_TYPE),
+            &receiver_not_date);
 
   // Load the specified date field, falling back to the runtime as necessary.
   if (field_index == JSDate::kDateValue) {

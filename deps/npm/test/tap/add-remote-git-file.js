@@ -10,6 +10,7 @@ var rimraf = require('rimraf')
 var test = require('tap').test
 
 var npm = require('../../lib/npm.js')
+var fetchPackageMetadata = require('../../lib/fetch-package-metadata.js')
 var common = require('../common-tap.js')
 
 var pkg = resolve(__dirname, 'add-remote-git-file')
@@ -34,13 +35,15 @@ test('setup', function (t) {
 
 test('cache from repo', function (t) {
   process.chdir(pkg)
-  return npm.commands.cache.add(cloneURL).then((data) => {
+  fetchPackageMetadata(cloneURL, process.cwd(), {}, (err, manifest) => {
+    if (err) t.fail(err.message)
     t.equal(
-      url.parse(data.manifest._resolved).protocol,
+      url.parse(manifest._resolved).protocol,
       'git+file:',
       'npm didn\'t go crazy adding git+git+git+git'
     )
-    t.equal(data.manifest._spec.type, 'git', 'cached git')
+    t.equal(manifest._requested.type, 'git', 'cached git')
+    t.end()
   })
 })
 

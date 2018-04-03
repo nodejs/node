@@ -68,9 +68,9 @@ flow(stream, 5000, function() {
 process.on('exit', function(code) {
   assert.strictEqual(reads, 2);
   // we pushed up the high water mark
-  assert.strictEqual(stream._readableState.highWaterMark, 8192);
+  assert.strictEqual(stream.readableHighWaterMark, 8192);
   // length is 0 right now, because we pulled it all out.
-  assert.strictEqual(stream._readableState.length, 0);
+  assert.strictEqual(stream.readableLength, 0);
   assert(!code);
   assert.strictEqual(depth, 0);
   console.log('ok');

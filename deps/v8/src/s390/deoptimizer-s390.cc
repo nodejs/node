@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen.h"
+#include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -98,12 +98,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ LoadP(r3, MemOperand(r2, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  // DCHECK(Register::kNumRegisters == kNumberOfRegisters);
+  // DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   // __ mvc(MemOperand(r3, FrameDescription::registers_offset()),
   //        MemOperand(sp), kNumberOfRegisters * kPointerSize);
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   // TODO(john.yan): optimize the following code by using mvc instruction
-  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ LoadP(r4, MemOperand(sp, i * kPointerSize));
@@ -210,9 +210,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ ld(dreg, MemOperand(r3, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ LoadP(r8, MemOperand(r4, FrameDescription::state_offset()));
-  __ push(r8);
+  // Push pc and continuation from the last output frame.
   __ LoadP(r8, MemOperand(r4, FrameDescription::pc_offset()));
   __ push(r8);
   __ LoadP(r8, MemOperand(r4, FrameDescription::continuation_offset()));
@@ -252,6 +250,8 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ bind(&done);
   __ StoreP(ip, MemOperand(sp));
 }
+
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

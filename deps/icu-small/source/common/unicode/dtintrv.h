@@ -69,7 +69,7 @@ public:
      * <pre>
      * .   Base* polymorphic_pointer = createPolymorphicObject();
      * .   if (polymorphic_pointer->getDynamicClassID() ==
-     * .       erived::getStaticClassID()) ...
+     * .       derived::getStaticClassID()) ...
      * </pre>
      * @return          The class ID for all objects of this class.
      * @stable ICU 4.0

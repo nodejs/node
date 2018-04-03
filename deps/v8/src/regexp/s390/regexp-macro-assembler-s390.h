@@ -160,7 +160,7 @@ class RegExpMacroAssemblerS390 : public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to, CRegister cr = cr7);
 
   // Call and return internally in the generated code in a way that

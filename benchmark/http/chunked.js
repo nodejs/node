@@ -16,9 +16,9 @@ const bench = common.createBenchmark(main, {
   c: [100]
 });
 
-function main(conf) {
+function main({ len, n, c }) {
   const http = require('http');
-  const chunk = Buffer.alloc(conf.len, '8');
+  const chunk = Buffer.alloc(len, '8');
 
   const server = http.createServer(function(req, res) {
     function send(left) {
@@ -28,12 +28,12 @@ function main(conf) {
         send(left - 1);
       }, 0);
     }
-    send(conf.n);
+    send(n);
   });
 
   server.listen(common.PORT, function() {
     bench.http({
-      connections: conf.c
+      connections: c
     }, function() {
       server.close();
     });

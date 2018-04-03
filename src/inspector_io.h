@@ -36,6 +36,7 @@ class InspectorIoDelegate;
 
 enum class InspectorAction {
   kStartSession,
+  kStartSessionUnconditionally,  // First attach with --inspect-brk
   kEndSession,
   kSendMessage
 };
@@ -44,7 +45,9 @@ enum class InspectorAction {
 enum class TransportAction {
   kKill,
   kSendMessage,
-  kStop
+  kStop,
+  kAcceptSession,
+  kDeclineSession
 };
 
 class InspectorIo {
@@ -61,7 +64,6 @@ class InspectorIo {
   void Stop();
 
   bool IsStarted();
-  bool IsConnected();
 
   void WaitForDisconnect();
   // Called from thread to queue an incoming message and trigger
@@ -124,6 +126,8 @@ class InspectorIo {
   void WaitForFrontendMessageWhilePaused();
   // Broadcast incoming_message_cond_
   void NotifyMessageReceived();
+  // Attach session to an inspector. Either kAcceptSession or kDeclineSession
+  TransportAction Attach(int session_id);
 
   const DebugOptions options_;
 

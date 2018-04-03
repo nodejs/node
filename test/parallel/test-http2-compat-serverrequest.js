@@ -46,7 +46,7 @@ server.listen(0, common.mustCall(function() {
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {
-      client.destroy();
+      client.close();
     }));
     request.end();
     request.resume();

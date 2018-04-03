@@ -36,11 +36,13 @@ static v8::Persistent<v8::Promise::Resolver> persistent;
 static void Callback(uv_work_t* req, int ignored) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
-  node::CallbackScope callback_scope(isolate, v8::Object::New(isolate), {0, 0});
+  node::CallbackScope callback_scope(isolate, v8::Object::New(isolate),
+                                     node::async_context{0, 0});
 
   v8::Local<v8::Promise::Resolver> local =
       v8::Local<v8::Promise::Resolver>::New(isolate, persistent);
-  local->Resolve(v8::Undefined(isolate));
+  local->Resolve(isolate->GetCurrentContext(),
+                 v8::Undefined(isolate)).ToChecked();
   delete req;
 }
 
@@ -48,11 +50,15 @@ static void TestResolveAsync(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
 
   if (persistent.IsEmpty()) {
-    persistent.Reset(isolate, v8::Promise::Resolver::New(isolate));
+    persistent.Reset(isolate, v8::Promise::Resolver::New(
+        isolate->GetCurrentContext()).ToLocalChecked());
 
     uv_work_t* req = new uv_work_t;
 
-    uv_queue_work(uv_default_loop(), req, [](uv_work_t*) {}, Callback);
+    uv_queue_work(node::GetCurrentEventLoop(isolate),
+                  req,
+                  [](uv_work_t*) {},
+                  Callback);
   }
 
   v8::Local<v8::Promise::Resolver> local =
@@ -66,6 +72,6 @@ void Initialize(v8::Local<v8::Object> exports) {
   NODE_SET_METHOD(exports, "testResolveAsync", TestResolveAsync);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

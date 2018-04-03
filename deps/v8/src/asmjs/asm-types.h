@@ -83,8 +83,8 @@ class AsmValueType {
   }
 
   bitset_t Bitset() const {
-    DCHECK((reinterpret_cast<uintptr_t>(this) & kAsmValueTypeTag) ==
-           kAsmValueTypeTag);
+    DCHECK_EQ(reinterpret_cast<uintptr_t>(this) & kAsmValueTypeTag,
+              kAsmValueTypeTag);
     return static_cast<bitset_t>(reinterpret_cast<uintptr_t>(this) &
                                  ~kAsmValueTypeTag);
   }

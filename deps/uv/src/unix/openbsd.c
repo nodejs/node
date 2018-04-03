@@ -36,7 +36,14 @@
 #include <unistd.h>
 
 
+static uv_mutex_t process_title_mutex;
+static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
 static char *process_title;
+
+
+static void init_process_title_mutex_once(void) {
+  uv_mutex_init(&process_title_mutex);
+}
 
 
 int uv__platform_loop_init(uv_loop_t* loop) {
@@ -71,11 +78,11 @@ int uv_exepath(char* buffer, size_t* size) {
   int err;
 
   if (buffer == NULL || size == NULL || *size == 0)
-    return -EINVAL;
+    return UV_EINVAL;
 
   mypid = getpid();
   for (;;) {
-    err = -ENOMEM;
+    err = UV_ENOMEM;
     argsbuf_tmp = uv__realloc(argsbuf, argsbuf_size);
     if (argsbuf_tmp == NULL)
       goto out;
@@ -88,14 +95,14 @@ int uv_exepath(char* buffer, size_t* size) {
       break;
     }
     if (errno != ENOMEM) {
-      err = -errno;
+      err = UV__ERR(errno);
       goto out;
     }
     argsbuf_size *= 2U;
   }
 
   if (argsbuf[0] == NULL) {
-    err = -EINVAL;  /* FIXME(bnoordhuis) More appropriate error. */
+    err = UV_EINVAL;  /* FIXME(bnoordhuis) More appropriate error. */
     goto out;
   }
 
@@ -121,7 +128,7 @@ uint64_t uv_get_free_memory(void) {
   int which[] = {CTL_VM, VM_UVMEXP};
 
   if (sysctl(which, 2, &info, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   return (uint64_t) info.free * sysconf(_SC_PAGESIZE);
 }
@@ -133,7 +140,7 @@ uint64_t uv_get_total_memory(void) {
   size_t size = sizeof(info);
 
   if (sysctl(which, 2, &info, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   return (uint64_t) info;
 }
@@ -149,11 +156,21 @@ int uv_set_process_title(const char* title) {
   char* new_title;
 
   new_title = uv__strdup(title);
-  if (process_title == NULL)
-    return -ENOMEM;
+
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
+
+  if (process_title == NULL) {
+    uv_mutex_unlock(&process_title_mutex);
+    return UV_ENOMEM;
+  }
+
   uv__free(process_title);
   process_title = new_title;
   setproctitle("%s", title);
+
+  uv_mutex_unlock(&process_title_mutex);
+
   return 0;
 }
 
@@ -162,18 +179,25 @@ int uv_get_process_title(char* buffer, size_t size) {
   size_t len;
 
   if (buffer == NULL || size == 0)
-    return -EINVAL;
+    return UV_EINVAL;
+
+  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
+  uv_mutex_lock(&process_title_mutex);
 
   if (process_title) {
     len = strlen(process_title) + 1;
 
-    if (size < len)
-      return -ENOBUFS;
+    if (size < len) {
+      uv_mutex_unlock(&process_title_mutex);
+      return UV_ENOBUFS;
+    }
 
     memcpy(buffer, process_title, len);
   } else {
     len = 0;
   }
+
+  uv_mutex_unlock(&process_title_mutex);
 
   buffer[len] = '\0';
 
@@ -195,7 +219,7 @@ int uv_resident_set_memory(size_t* rss) {
   mib[5] = 1;
 
   if (sysctl(mib, 6, &kinfo, &size, NULL, 0) < 0)
-    return -errno;
+    return UV__ERR(errno);
 
   *rss = kinfo.p_vm_rssize * page_size;
   return 0;
@@ -209,7 +233,7 @@ int uv_uptime(double* uptime) {
   static int which[] = {CTL_KERN, KERN_BOOTTIME};
 
   if (sysctl(which, 2, &info, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   now = time(NULL);
 
@@ -231,16 +255,16 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   size = sizeof(model);
   if (sysctl(which, 2, &model, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   which[1] = HW_NCPU;
   size = sizeof(numcpus);
   if (sysctl(which, 2, &numcpus, &size, NULL, 0))
-    return -errno;
+    return UV__ERR(errno);
 
   *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos))
-    return -ENOMEM;
+    return UV_ENOMEM;
 
   *count = numcpus;
 
@@ -248,7 +272,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   size = sizeof(cpuspeed);
   if (sysctl(which, 2, &cpuspeed, &size, NULL, 0)) {
     uv__free(*cpu_infos);
-    return -errno;
+    return UV__ERR(errno);
   }
 
   size = sizeof(info);
@@ -259,7 +283,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     size = sizeof(info);
     if (sysctl(which, 3, &info, &size, NULL, 0)) {
       uv__free(*cpu_infos);
-      return -errno;
+      return UV__ERR(errno);
     }
 
     cpu_info = &(*cpu_infos)[i];

@@ -37,11 +37,13 @@ function Stringify(x, depth) {
     case "boolean":
     case "number":
     case "function":
+    case "symbol":
       return x.toString();
     case "string":
       return "\"" + x.toString() + "\"";
-    case "symbol":
-      return x.toString();
+    case "bigint":
+      // TODO(neis): Use x.toString() once we have it.
+      return String(x) + "n";
     case "object":
       if (IS_NULL(x)) return "null";
       if (x.constructor && x.constructor.name === "Array") {

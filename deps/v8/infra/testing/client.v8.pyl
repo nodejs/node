@@ -1,0 +1,48 @@
+# Copyright 2017 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+{
+  ### Example configuration for CI bots (please keep as reference).
+  # 'V8 Linux64': [
+  #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
+  # ],
+  # 'V8 Linux64 - debug': [
+  #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
+  # ],
+
+  'V8 Linux - debug': [
+    {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
+    {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
+    {'name': 'test262_variants', 'variant': 'code_serializer', 'shards': 1},
+    {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
+  ],
+  'V8 Linux - gc stress': [
+    {'name': 'mjsunit', 'variant': 'slow_path', 'shards': 2},
+  ],
+  'V8 Linux64': [
+    {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+  ],
+  'V8 Linux64 - debug': [
+    {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+    {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+  ],
+  'V8 Linux64 ASAN': [
+    {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+  ],
+  'V8 Linux64 TSAN': [
+    {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+  ],
+  'V8 Linux64 - fyi': [
+    {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 1},
+    {'name': 'test262_variants', 'variant': 'infra_staging', 'shards': 2},
+    {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
+    {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
+  ],
+  'V8 Linux64 - debug - fyi': [
+    {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
+    {'name': 'test262_variants', 'variant': 'infra_staging', 'shards': 3},
+    {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
+    {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
+  ],
+}

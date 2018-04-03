@@ -15,6 +15,7 @@ struct async_req {
   int output;
   v8::Isolate* isolate;
   v8::Persistent<v8::Function> callback;
+  node::async_context context;
 };
 
 void DoAsync(uv_work_t* r) {
@@ -47,7 +48,8 @@ void AfterAsync(uv_work_t* r) {
 
   if (use_makecallback) {
     v8::Local<v8::Value> ret =
-        node::MakeCallback(isolate, global, callback, 2, argv);
+        node::MakeCallback(isolate, global, callback, 2, argv, req->context)
+            .ToLocalChecked();
     // This should be changed to an empty handle.
     assert(!ret.IsEmpty());
   } else {
@@ -55,6 +57,7 @@ void AfterAsync(uv_work_t* r) {
   }
 
   // cleanup
+  node::EmitAsyncDestroy(isolate, req->context);
   req->callback.Reset();
   delete req;
 
@@ -73,11 +76,12 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   req->input = args[0]->IntegerValue();
   req->output = 0;
   req->isolate = isolate;
+  req->context = node::EmitAsyncInit(isolate, v8::Object::New(isolate), "test");
 
   v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[1]);
   req->callback.Reset(isolate, callback);
 
-  uv_queue_work(uv_default_loop(),
+  uv_queue_work(node::GetCurrentEventLoop(isolate),
                 &req->req,
                 DoAsync,
                 (uv_after_work_cb)AfterAsync<use_makecallback>);

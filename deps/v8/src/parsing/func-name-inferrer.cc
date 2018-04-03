@@ -6,7 +6,6 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
-#include "src/list-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -47,7 +46,7 @@ void FuncNameInferrer::PushVariableName(const AstRawString* name) {
 
 void FuncNameInferrer::RemoveAsyncKeywordFromEnd() {
   if (IsOpen()) {
-    CHECK(names_stack_.length() > 0);
+    CHECK_GT(names_stack_.length(), 0);
     CHECK(names_stack_.last().name->IsOneByteEqualTo("async"));
     names_stack_.RemoveLast();
   }

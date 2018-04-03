@@ -406,7 +406,7 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
             OPENSSL_cleanse(buf, PEM_BUFSIZE);
 
         OPENSSL_assert(strlen(objstr) + 23 + 2 * enc->iv_len + 13 <=
-                       sizeof buf);
+                       sizeof(buf));
 
         buf[0] = '\0';
         PEM_proc_type(buf, PEM_TYPE_ENCRYPTED);
@@ -536,7 +536,8 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
               ((c >= '0') && (c <= '9'))))
             break;
 #else
-        if (!(isupper(c) || (c == '-') || isdigit(c)))
+        if (!(isupper((unsigned char)c) || (c == '-')
+            || isdigit((unsigned char)c)))
             break;
 #endif
         header++;

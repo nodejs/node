@@ -36,6 +36,10 @@
   # Irregexp interpreter overflows stack. We should just not crash.
   'fast/js/regexp-stack-overflow': [PASS, FAIL],
 }],  # ALWAYS
+['system == windows', {
+  # Exceeds call stack on windows after MSVS2017 switch.
+  'fast/js/excessive-comma-usage': [SKIP],
+}],  # system == windows
 ['mode == debug', {
   # Too slow in debug mode.
   'dfg-int-overflow-in-loop': [SKIP],
@@ -110,12 +114,6 @@
   'fast/js/excessive-comma-usage': [SKIP],
   'run-json-stringify': [SKIP],
 }],  # 'gcov_coverage'
-
-##############################################################################
-['variant == stress_asm_wasm', {
-  # Stack size too large with asm.js validator.
-  'fast/js/excessive-comma-usage': [SKIP],
-}],  # variant == stress_asm_wasm
 
 ##############################################################################
 ['variant == wasm_traps', {

@@ -43,7 +43,7 @@
 U_NAMESPACE_BEGIN
 
 class Hashtable;
-class FixedDecimal;
+class IFixedDecimal;
 class VisibleDigitsWithExponent;
 class RuleChain;
 class PluralRuleParser;
@@ -367,7 +367,7 @@ public:
     /**
       * @internal
       */
-    UnicodeString select(const FixedDecimal &number) const;
+    UnicodeString select(const IFixedDecimal &number) const;
     /**
       * @internal
       */
@@ -402,7 +402,7 @@ public:
     /**
      * Deprecated Function, does not produce useful results.
      *
-     * Orginally intended to return all the values for which select() would return the keyword.
+     * Originally intended to return all the values for which select() would return the keyword.
      * If the keyword is unknown, returns no values, but this is not an error.  If
      * the number of values is unlimited, returns no values and -1 as the
      * count.

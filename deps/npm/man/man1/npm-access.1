@@ -1,4 +1,4 @@
-.TH "NPM\-ACCESS" "1" "July 2017" "" ""
+.TH "NPM\-ACCESS" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-access\fR \- Set access level on published packages
 .SH SYNOPSIS
@@ -68,6 +68,9 @@ You have been given read\-write privileges for a package, either as a member
 of a team or directly as an owner\.
 
 .RE
+.P
+If you have two\-factor authentication enabled then you'll have to pass in an
+otp with \fB\-\-otp\fP when making access changes\.
 .P
 If your account is not paid, then attempts to publish scoped packages will fail
 with an HTTP 402 status code (logically enough), unless you use

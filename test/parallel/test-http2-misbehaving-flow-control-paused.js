@@ -56,32 +56,27 @@ let client;
 
 const server = h2.createServer({ settings: { initialWindowSize: 36 } });
 server.on('stream', (stream) => {
-
-  // Not reading causes the flow control window to get backed up.
+  // Set the high water mark to zero, since otherwise we still accept
+  // reads from the source stream (if we can consume them).
+  stream._readableState.highWaterMark = 0;
   stream.pause();
-
-  stream.on('error', common.mustCall((err) => {
-    common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      type: Error,
-      message: 'Stream closed with error code 3'
-    })(err);
+  stream.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    type: Error,
+    message: 'Stream closed with error code NGHTTP2_FLOW_CONTROL_ERROR'
+  }));
+  stream.on('close', common.mustCall(() => {
     server.close();
     client.destroy();
   }));
-
   stream.on('end', common.mustNotCall());
-
   stream.respond();
   stream.end('ok');
 });
 
 server.listen(0, () => {
   client = net.connect(server.address().port, () => {
-    client.on('error', console.log);
-
     client.write(preamble);
-
     client.write(data);
     client.write(data);
     client.write(data);

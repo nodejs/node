@@ -14,7 +14,7 @@ void Utf8DecoderBase::Reset(uint16_t* buffer, size_t buffer_length,
                             const uint8_t* stream, size_t stream_length) {
   // Assume everything will fit in the buffer and stream won't be needed.
   last_byte_of_buffer_unused_ = false;
-  unbuffered_start_ = NULL;
+  unbuffered_start_ = nullptr;
   unbuffered_length_ = 0;
   bool writing_to_buffer = true;
   // Loop until stream is read, writing to buffer as long as buffer has space.
@@ -72,7 +72,7 @@ void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream,
     if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
       *data++ = Utf16::LeadSurrogate(character);
       *data++ = Utf16::TrailSurrogate(character);
-      DCHECK(data_length > 1);
+      DCHECK_GT(data_length, 1);
       data_length -= 2;
     } else {
       *data++ = character;

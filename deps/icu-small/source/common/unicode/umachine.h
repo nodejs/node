@@ -299,6 +299,10 @@ typedef int8_t UBool;
 // for AIX, uchar.h needs to be included
 # include <uchar.h>
 # define U_CHAR16_IS_TYPEDEF 1
+#elif defined(_MSC_VER) && (_MSC_VER < 1900)
+// Versions of Visual Studio/MSVC below 2015 do not support char16_t as a real type,
+// and instead use a typedef.  https://msdn.microsoft.com/library/bb531344.aspx
+# define U_CHAR16_IS_TYPEDEF 1
 #else
 # define U_CHAR16_IS_TYPEDEF 0
 #endif
@@ -366,7 +370,7 @@ typedef int8_t UBool;
  * Exception: ICU 58 UChar was defined to UCHAR_TYPE if that macro was defined.
  * The current UChar responds to UCHAR_TYPE but OldUChar does not.
  *
- * @draft ICU 59
+ * @stable ICU 59
  */
 #if U_SIZEOF_WCHAR_T==2
     typedef wchar_t OldUChar;

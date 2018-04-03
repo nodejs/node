@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const http = require('http');
-const assert = require('assert');
 
 // Fix for https://github.com/nodejs/node/issues/14368
 
@@ -10,7 +9,10 @@ const server = http.createServer(handle);
 
 function handle(req, res) {
   res.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'write after end');
+    common.expectsError({
+      code: 'ERR_STREAM_WRITE_AFTER_END',
+      type: Error
+    })(err);
     server.close();
   }));
 

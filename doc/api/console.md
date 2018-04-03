@@ -78,13 +78,12 @@ const { Console } = console;
 ```
 
 ### new Console(stdout[, stderr])
-* `stdout` {Writable}
-* `stderr` {Writable}
+* `stdout` {stream.Writable}
+* `stderr` {stream.Writable}
 
-Creates a new `Console` by passing one or two writable stream instances.
-`stdout` is a writable stream to print log or info output. `stderr`
-is used for warning or error output. If `stderr` is not passed, warning and error
-output will be sent to `stdout`.
+Creates a new `Console` with one or two writable stream instances. `stdout` is a
+writable stream to print log or info output. `stderr` is used for warning or
+error output. If `stderr` is not provided, `stdout` is used for `stderr`.
 
 ```js
 const output = fs.createWriteStream('./stdout.log');
@@ -104,70 +103,32 @@ The global `console` is a special `Console` whose output is sent to
 new Console(process.stdout, process.stderr);
 ```
 
-### console.assert(value[, message][, ...args])
+### console.assert(value[, ...message])
 <!-- YAML
 added: v0.1.101
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17706
+    description: The implementation is now spec compliant and does not throw
+                 anymore.
 -->
-* `value` {any}
-* `message` {any}
-* `...args` {any}
+* `value` {any} The value tested for being truthy.
+* `...message` {any} All arguments besides `value` are used as error message.
 
 A simple assertion test that verifies whether `value` is truthy. If it is not,
-an `AssertionError` is thrown. If provided, the error `message` is formatted
-using [`util.format()`][] and used as the error message.
+`Assertion failed` is logged. If provided, the error `message` is formatted
+using [`util.format()`][] by passing along all message arguments. The output is
+used as the error message.
 
 ```js
 console.assert(true, 'does nothing');
 // OK
-console.assert(false, 'Whoops %s', 'didn\'t work');
-// AssertionError: Whoops didn't work
+console.assert(false, 'Whoops %s work', 'didn\'t');
+// Assertion failed: Whoops didn't work
 ```
 
-*Note*: The `console.assert()` method is implemented differently in Node.js
-than the `console.assert()` method [available in browsers][web-api-assert].
-
-Specifically, in browsers, calling `console.assert()` with a falsy
-assertion will cause the `message` to be printed to the console without
-interrupting execution of subsequent code. In Node.js, however, a falsy
-assertion will cause an `AssertionError` to be thrown.
-
-Functionality approximating that implemented by browsers can be implemented
-by extending Node.js' `console` and overriding the `console.assert()` method.
-
-In the following example, a simple module is created that extends and overrides
-the default behavior of `console` in Node.js.
-
-<!-- eslint-disable func-name-matching -->
-```js
-'use strict';
-
-// Creates a simple extension of console with a
-// new impl for assert without monkey-patching.
-const myConsole = Object.create(console, {
-  assert: {
-    value: function assert(assertion, message, ...args) {
-      try {
-        console.assert(assertion, message, ...args);
-      } catch (err) {
-        console.error(err.stack);
-      }
-    },
-    configurable: true,
-    enumerable: true,
-    writable: true,
-  },
-});
-
-module.exports = myConsole;
-```
-
-This can then be used as a direct replacement for the built in console:
-
-```js
-const console = require('./myConsole');
-console.assert(false, 'this message will print, but no error thrown');
-console.log('this will also print');
-```
+Calling `console.assert()` with a falsy assertion will only cause the `message`
+to be printed to the console without interrupting execution of subsequent code.
 
 ### console.clear()
 <!-- YAML
@@ -177,8 +138,8 @@ added: v8.3.0
 When `stdout` is a TTY, calling `console.clear()` will attempt to clear the
 TTY. When `stdout` is not a TTY, this method does nothing.
 
-*Note*: The specific operation of `console.clear()` can vary across operating
-systems and terminal types. For most Linux operating systems, `console.clear()`
+The specific operation of `console.clear()` can vary across operating systems
+and terminal types. For most Linux operating systems, `console.clear()`
 operates similarly to the `clear` shell command. On Windows, `console.clear()`
 will clear only the output in the current terminal viewport for the Node.js
 binary.
@@ -216,7 +177,7 @@ undefined
 >
 ```
 
-### console.countReset([label = 'default'])
+### console.countReset([label='default'])
 <!-- YAML
 added: v8.3.0
 -->
@@ -237,6 +198,19 @@ abc: 1
 undefined
 >
 ```
+
+### console.debug(data[, ...args])
+<!-- YAML
+added: v8.0.0
+changes:
+  - version: v9.3.0
+    pr-url: https://github.com/nodejs/node/pull/17033
+    description: "`console.debug` is now an alias for `console.log`."
+-->
+* `data` {any}
+* `...args` {any}
+
+The `console.debug()` function is an alias for [`console.log()`][].
 
 ### console.dir(obj[, options])
 <!-- YAML
@@ -263,6 +237,19 @@ Defaults to `2`. To make it recurse indefinitely, pass `null`.
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
 Defaults to `false`. Colors are customizable; see
 [customizing `util.inspect()` colors][].
+
+### console.dirxml(...data)
+<!-- YAML
+added: v8.0.0
+changes:
+  - version: v9.3.0
+    pr-url: https://github.com/nodejs/node/pull/17152
+    description: "`console.dirxml` now calls `console.log` for its arguments."
+-->
+* `...data` {any}
+
+This method calls `console.log()` passing it the arguments received.
+Please note that this method does not produce any XML formatting.
 
 ### console.error([data][, ...args])
 <!-- YAML
@@ -293,7 +280,7 @@ values are concatenated. See [`util.format()`][] for more information.
 added: v8.5.0
 -->
 
-* `label` {any}
+* `...label` {any}
 
 Increases indentation of subsequent lines by two spaces.
 
@@ -345,6 +332,47 @@ console.log('count:', count);
 
 See [`util.format()`][] for more information.
 
+### console.table(tabularData[, properties])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `tabularData` {any}
+* `properties` {string[]} Alternate properties for constructing the table.
+
+Try to construct a table with the columns of the properties of `tabularData`
+(or use `properties`) and rows of `tabularData` and logit. Falls back to just
+logging the argument if it can’t be parsed as tabular.
+
+```js
+// These can't be parsed as tabular data
+console.table(Symbol());
+// Symbol()
+
+console.table(undefined);
+// undefined
+```
+
+```js
+console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }]);
+// ┌─────────┬─────┬─────┐
+// │ (index) │  a  │  b  │
+// ├─────────┼─────┼─────┤
+// │    0    │  1  │ 'Y' │
+// │    1    │ 'Z' │  2  │
+// └─────────┴─────┴─────┘
+```
+
+```js
+console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
+// ┌─────────┬─────┐
+// │ (index) │  a  │
+// ├─────────┼─────┤
+// │    0    │  1  │
+// │    1    │ 'Z' │
+// └─────────┴─────┘
+```
+
 ### console.time(label)
 <!-- YAML
 added: v0.1.104
@@ -376,11 +404,6 @@ for (let i = 0; i < 100; i++) {}
 console.timeEnd('100-elements');
 // prints 100-elements: 225.438ms
 ```
-
-*Note*: As of Node.js v6.0.0, `console.timeEnd()` deletes the timer to avoid
-leaking it. On older versions, the timer persisted. This allowed
-`console.timeEnd()` to be called multiple times for the same label. This
-functionality was unintended and is no longer supported.
 
 ### console.trace([message][, ...args])
 <!-- YAML
@@ -417,15 +440,99 @@ added: v0.1.100
 
 The `console.warn()` function is an alias for [`console.error()`][].
 
+## Inspector only methods
+The following methods are exposed by the V8 engine in the general API but do
+not display anything unless used in conjunction with the [inspector][]
+(`--inspect` flag).
+
+### console.markTimeline(label)
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+This method does not display anything unless used in the inspector. The
+`console.markTimeline()` method is the deprecated form of
+[`console.timeStamp()`][].
+
+### console.profile([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string}
+
+This method does not display anything unless used in the inspector. The
+`console.profile()` method starts a JavaScript CPU profile with an optional
+label until [`console.profileEnd()`][] is called. The profile is then added to
+the **Profile** panel of the inspector.
+```js
+console.profile('MyLabel');
+// Some code
+console.profileEnd();
+// Adds the profile 'MyLabel' to the Profiles panel of the inspector.
+```
+
+### console.profileEnd()
+<!-- YAML
+added: v8.0.0
+-->
+
+This method does not display anything unless used in the inspector. Stops the
+current JavaScript CPU profiling session if one has been started and prints
+the report to the **Profiles** panel of the inspector. See
+[`console.profile()`][] for an example.
+
+### console.table(array[, columns])
+<!-- YAML
+added: v8.0.0
+-->
+* `array` {Array|Object}
+* `columns` {Array}
+
+This method does not display anything unless used in the inspector. Prints to
+`stdout` the array `array` formatted as a table.
+
+### console.timeStamp([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string}
+
+This method does not display anything unless used in the inspector. The
+`console.timeStamp()` method adds an event with the label `label` to the
+**Timeline** panel of the inspector.
+
+### console.timeline([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+This method does not display anything unless used in the inspector. The
+`console.timeline()` method is the deprecated form of [`console.time()`][].
+
+### console.timelineEnd([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+This method does not display anything unless used in the inspector. The
+`console.timelineEnd()` method is the deprecated form of
+[`console.timeEnd()`][].
+
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
+[`console.profile()`]: #console_console_profile_label
+[`console.profileEnd()`]: #console_console_profileend
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
+[`console.timeStamp()`]: #console_console_timestamp_label
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdout`]: process.html#process_process_stdout
 [`util.format()`]: util.html#util_util_format_format_args
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[inspector]: debugger.html
 [note on process I/O]: process.html#process_a_note_on_process_i_o
-[web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert

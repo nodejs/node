@@ -72,15 +72,6 @@
 typedef size_t uintptr_t;
 #endif
 
-/**
- * \def U_HAVE_MSVC_2003_OR_EARLIER
- * Flag for workaround of MSVC 2003 optimization bugs
- * @internal
- */
-#if !defined(U_HAVE_MSVC_2003_OR_EARLIER) && defined(_MSC_VER) && (_MSC_VER < 1400)
-#define U_HAVE_MSVC_2003_OR_EARLIER
-#endif
-
 /*===========================================================================*/
 /** @{ Information about POSIX support                                       */
 /*===========================================================================*/
@@ -120,15 +111,15 @@ typedef size_t uintptr_t;
     /* Use the predefined value. */
 #elif U_PLATFORM == U_PF_ANDROID
 #   define U_TIMEZONE timezone
+#elif defined(__UCLIBC__)
+    // uClibc does not have __timezone or _timezone.
+#elif defined(_NEWLIB_VERSION)
+#   define U_TIMEZONE _timezone
+#elif defined(__GLIBC__)
+    // glibc
+#   define U_TIMEZONE __timezone
 #elif U_PLATFORM_IS_LINUX_BASED
-#   if defined(__UCLIBC__)
-       /* uClibc does not have __timezone or _timezone. */
-#   elif defined(_NEWLIB_VERSION)
-#      define U_TIMEZONE      _timezone
-#   elif defined(__GLIBC__)
-       /* glibc */
-#      define U_TIMEZONE      __timezone
-#   endif
+    // not defined
 #elif U_PLATFORM_USES_ONLY_WIN32_API
 #   define U_TIMEZONE _timezone
 #elif U_PLATFORM == U_PF_BSD && !defined(__NetBSD__)
@@ -214,7 +205,7 @@ typedef size_t uintptr_t;
 /**
  * \def U_HAVE_STD_ATOMICS
  * Defines whether the standard C++11 <atomic> is available.
- * ICU will use this when avialable,
+ * ICU will use this when available,
  * otherwise will fall back to compiler or platform specific alternatives.
  * @internal
  */
@@ -239,7 +230,7 @@ typedef size_t uintptr_t;
 
 /**
  *  \def U_HAVE_CLANG_ATOMICS
- *  Defines whether Clang c11 style built-in atomics are avaialable.
+ *  Defines whether Clang c11 style built-in atomics are available.
  *  These are used in preference to gcc atomics when both are available.
  */
 #ifdef U_HAVE_CLANG_ATOMICS
@@ -277,7 +268,7 @@ typedef size_t uintptr_t;
 
 /**
  * Platform utilities isolates the platform dependencies of the
- * libarary.  For each platform which this code is ported to, these
+ * library.  For each platform which this code is ported to, these
  * functions may have to be re-implemented.
  */
 
@@ -425,7 +416,7 @@ U_INTERNAL const char*  U_EXPORT2 uprv_getDefaultCodepage(void);
 
 /**
  * Please use uloc_getDefault() instead.
- * Return the default locale ID string by querying ths system, or
+ * Return the default locale ID string by querying the system, or
  *     zero if one cannot be found.
  * This function can call setlocale() on Unix platforms. Please read the
  * platform documentation on setlocale() before calling this function.

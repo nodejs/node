@@ -8,10 +8,16 @@ rules:
   symbol-description: off
 
   # Custom rules in tools/eslint-rules
-  prefer-assert-iferror: error
-  prefer-assert-methods: error
-  prefer-common-mustnotcall: error
-  crypto-check: error
-  inspector-check: error
+  node-core/prefer-assert-iferror: error
+  node-core/prefer-assert-methods: error
+  node-core/prefer-common-expectserror: error
+  node-core/prefer-common-mustnotcall: error
+  node-core/crypto-check: error
+  node-core/inspector-check: error
+  node-core/number-isnan: error
   ## common module is mandatory in tests
-  required-modules: [error, common]
+  node-core/required-modules: [error, common]
+
+# Global scoped methods and vars
+globals:
+  WebAssembly: false

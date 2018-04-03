@@ -26,6 +26,10 @@ const fs = require('fs');
 const { URL } = require('url');
 const f = __filename;
 
+assert.throws(() => fs.exists(f), { code: 'ERR_INVALID_CALLBACK' });
+assert.throws(() => fs.exists(), { code: 'ERR_INVALID_CALLBACK' });
+assert.throws(() => fs.exists(f, {}), { code: 'ERR_INVALID_CALLBACK' });
+
 fs.exists(f, common.mustCall(function(y) {
   assert.strictEqual(y, true);
 }));
@@ -34,9 +38,20 @@ fs.exists(`${f}-NO`, common.mustCall(function(y) {
   assert.strictEqual(y, false);
 }));
 
+// If the path is invalid, fs.exists will still invoke the callback with false
+// instead of throwing errors
 fs.exists(new URL('https://foo'), common.mustCall(function(y) {
+  assert.strictEqual(y, false);
+}));
+
+fs.exists({}, common.mustCall(function(y) {
   assert.strictEqual(y, false);
 }));
 
 assert(fs.existsSync(f));
 assert(!fs.existsSync(`${f}-NO`));
+
+// fs.existsSync() never throws
+assert(!fs.existsSync());
+assert(!fs.existsSync({}));
+assert(!fs.existsSync(new URL('https://foo')));

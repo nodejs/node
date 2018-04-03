@@ -1,0 +1,20 @@
+assert.js:*
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: Input A expected to deepStrictEqual input B:
++ expected - actual
+
+- Comparison {}
++ Comparison {
++   bar: true
++ }
+    at Object.<anonymous> (*assert_throws_stack.js:*:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *

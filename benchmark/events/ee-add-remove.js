@@ -4,9 +4,7 @@ const events = require('events');
 
 const bench = common.createBenchmark(main, { n: [25e4] });
 
-function main(conf) {
-  const n = conf.n | 0;
-
+function main({ n }) {
   const ee = new events.EventEmitter();
   const listeners = [];
 

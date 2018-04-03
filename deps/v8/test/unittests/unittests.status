@@ -3,8 +3,4 @@
 # found in the LICENSE file.
 
 [
-[ALWAYS, {
-    # BUG(5677): Real timers are flaky
-    'RuntimeCallStatsTest.*': [SKIP],
-}], # ALWAYS
 ]

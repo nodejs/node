@@ -29,6 +29,7 @@
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/base/template-utils.h"
 #include "src/macro-assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
@@ -113,7 +114,7 @@ bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
   // Retrieve the corresponding X register so we can check that the upper part
   // was properly cleared.
   int64_t result_x = core->xreg(reg.code());
-  if ((result_x & 0xffffffff00000000L) != 0) {
+  if ((result_x & 0xFFFFFFFF00000000L) != 0) {
     printf("Expected 0x%08" PRIx32 "\t Found 0x%016" PRIx64 "\n",
            expected, result_x);
     return false;
@@ -145,7 +146,7 @@ bool EqualFP32(float expected, const RegisterDump* core,
   // Retrieve the corresponding D register so we can check that the upper part
   // was properly cleared.
   uint64_t result_64 = core->dreg_bits(fpreg.code());
-  if ((result_64 & 0xffffffff00000000L) != 0) {
+  if ((result_64 & 0xFFFFFFFF00000000L) != 0) {
     printf("Expected 0x%08" PRIx32 " (%f)\t Found 0x%016" PRIx64 "\n",
            bit_cast<uint32_t>(expected), expected, result_64);
     return false;
@@ -192,8 +193,8 @@ static char FlagV(uint32_t flags) {
 
 
 bool EqualNzcv(uint32_t expected, uint32_t result) {
-  CHECK((expected & ~NZCVFlag) == 0);
-  CHECK((result & ~NZCVFlag) == 0);
+  CHECK_EQ(expected & ~NZCVFlag, 0);
+  CHECK_EQ(result & ~NZCVFlag, 0);
   if (result != expected) {
     printf("Expected: %c%c%c%c\t Found: %c%c%c%c\n",
         FlagN(expected), FlagZ(expected), FlagC(expected), FlagV(expected),
@@ -226,7 +227,6 @@ bool EqualRegisters(const RegisterDump* a, const RegisterDump* b) {
 
   return true;
 }
-
 
 RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
                               int reg_size, int reg_count, RegList allowed) {
@@ -451,3 +451,5 @@ void RegisterDump::Dump(MacroAssembler* masm) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __

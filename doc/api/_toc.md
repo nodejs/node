@@ -1,5 +1,8 @@
-@// NB(chrisdickinson): if you move this file, be sure to update tools/doc/html.js to
-@// point at the new location.
+@// NB(chrisdickinson): if you move this file, be sure to update
+@// tools/doc/html.js to point at the new location.
+
+<!--introduced_in=v0.10.0-->
+
 * [About these Docs](documentation.html)
 * [Usage & Example](synopsis.html)
 
@@ -55,4 +58,4 @@
 <div class="line"></div>
 
 * [GitHub Repo & Issue Tracker](https://github.com/nodejs/node)
-* [Mailing List](http://groups.google.com/group/nodejs)
+* [Mailing List](https://groups.google.com/group/nodejs)

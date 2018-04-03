@@ -50,9 +50,6 @@
 /test/fuzzer/wasm_corpus
 /test/fuzzer/wasm_corpus.tar.gz
 /test/mozilla/data
-/test/promises-aplus/promises-tests
-/test/promises-aplus/promises-tests.tar.gz
-/test/promises-aplus/sinon
 /test/test262/data
 /test/test262/data.tar
 /test/test262/harness
@@ -68,16 +65,17 @@
 !/testing/gtest/include/gtest/gtest_prod.h
 /third_party/*
 !/third_party/binutils
+!/third_party/eu-strip
 !/third_party/inspector_protocol
+!/third_party/colorama
+/third_party/colorama/src
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
 /tools/gyp
 /tools/jsfunfuzz/jsfunfuzz
 /tools/jsfunfuzz/jsfunfuzz.tar.gz
-/tools/luci-go/linux64/isolate
-/tools/luci-go/mac64/isolate
-/tools/luci-go/win64/isolate.exe
+/tools/luci-go
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/swarming_client
@@ -93,6 +91,7 @@ TAGS
 bsuite
 compile_commands.json
 d8
+!/test/mjsunit/d8
 d8_g
 gccauses
 gcsuspects
@@ -104,5 +103,6 @@ turbo*.cfg
 turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
+/Default/
 !/third_party/jinja2
 !/third_party/markupsafe

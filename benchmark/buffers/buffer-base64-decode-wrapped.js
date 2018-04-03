@@ -6,15 +6,14 @@ const bench = common.createBenchmark(main, {
   n: [32],
 });
 
-function main(conf) {
-  const n = +conf.n;
+function main({ n }) {
   const charsPerLine = 76;
   const linesCount = 8 << 16;
   const bytesCount = charsPerLine * linesCount / 4 * 3;
 
   const line = `${'abcd'.repeat(charsPerLine / 4)}\n`;
   const data = line.repeat(linesCount);
-  // eslint-disable-next-line no-unescaped-regexp-dot
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   data.match(/./);  // Flatten the string
   const buffer = Buffer.alloc(bytesCount, line, 'base64');
 

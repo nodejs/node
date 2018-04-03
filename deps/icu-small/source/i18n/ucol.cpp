@@ -95,6 +95,7 @@ ucol_safeClone(const UCollator *coll, void * /*stackBuffer*/, int32_t * pBufferS
     Collator *newColl = Collator::fromUCollator(coll)->clone();
     if (newColl == NULL) {
         *status = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
     } else {
         *status = U_SAFECLONE_ALLOCATED_WARNING;
     }

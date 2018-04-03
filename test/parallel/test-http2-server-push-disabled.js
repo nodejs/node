@@ -21,16 +21,16 @@ server.on('stream', common.mustCall((stream) => {
   // and pushStream() must throw.
   assert.strictEqual(stream.pushAllowed, false);
 
-  assert.throws(() => {
+  common.expectsError(() => {
     stream.pushStream({
       ':scheme': 'http',
       ':path': '/foobar',
       ':authority': `localhost:${server.address().port}`,
     }, common.mustNotCall());
-  }, common.expectsError({
+  }, {
     code: 'ERR_HTTP2_PUSH_DISABLED',
     type: Error
-  }));
+  });
 
   stream.respond({ ':status': 200 });
   stream.end('test');
@@ -42,13 +42,13 @@ server.listen(0, common.mustCall(() => {
                                options);
   const req = client.request({ ':path': '/' });
 
-  // Because push stream sre disabled, this must not be called.
+  // Because push streams are disabled, this must not be called.
   client.on('stream', common.mustNotCall());
 
   req.resume();
   req.on('end', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
   req.end();
 }));

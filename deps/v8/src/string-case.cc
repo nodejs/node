@@ -62,7 +62,7 @@ int FastAsciiConvert(char* dst, const char* src, int length,
   DisallowHeapAllocation no_gc;
   // We rely on the distance between upper and lower case letters
   // being a known power of 2.
-  DCHECK('a' - 'A' == (1 << 5));
+  DCHECK_EQ('a' - 'A', 1 << 5);
   // Boundaries for the range of input characters than require conversion.
   static const char lo = is_lower ? 'A' - 1 : 'a' - 1;
   static const char hi = is_lower ? 'Z' + 1 : 'z' + 1;

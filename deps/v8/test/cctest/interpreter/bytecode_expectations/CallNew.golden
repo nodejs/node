@@ -17,9 +17,9 @@ parameter count: 1
 bytecode array length: 12
 bytecodes: [
   /*   45 E> */ B(StackCheck),
-  /*   50 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   50 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
-  /*   57 E> */ B(Construct), R(0), R(0), U8(0), U8(0),
+  /*   57 E> */ B(Construct), R(0), R(0), U8(0), U8(2),
   /*   67 S> */ B(Return),
 ]
 constant pool: [
@@ -39,12 +39,12 @@ parameter count: 1
 bytecode array length: 18
 bytecodes: [
   /*   58 E> */ B(StackCheck),
-  /*   63 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   63 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
                 B(LdaSmi), I8(3),
                 B(Star), R(1),
                 B(Ldar), R(0),
-  /*   70 E> */ B(Construct), R(0), R(1), U8(1), U8(0),
+  /*   70 E> */ B(Construct), R(0), R(1), U8(1), U8(2),
   /*   81 S> */ B(Return),
 ]
 constant pool: [
@@ -69,7 +69,7 @@ parameter count: 1
 bytecode array length: 26
 bytecodes: [
   /*  100 E> */ B(StackCheck),
-  /*  105 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*  105 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
                 B(LdaSmi), I8(3),
                 B(Star), R(1),
@@ -78,7 +78,7 @@ bytecodes: [
                 B(LdaSmi), I8(5),
                 B(Star), R(3),
                 B(Ldar), R(0),
-  /*  112 E> */ B(Construct), R(0), R(1), U8(3), U8(0),
+  /*  112 E> */ B(Construct), R(0), R(1), U8(3), U8(2),
   /*  129 S> */ B(Return),
 ]
 constant pool: [

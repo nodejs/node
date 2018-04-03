@@ -9,6 +9,9 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/factory-inl.h"
+#include "src/objects/js-regexp.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
@@ -59,15 +62,15 @@ Node* RegExpBuiltinsAssembler::AllocateRegExpResult(Node* context, Node* length,
       LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
   StoreMapNoWriteBarrier(result, map);
 
-  Node* const empty_array = EmptyFixedArrayConstant();
-  DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
   StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
-                                 empty_array);
+                                 EmptyFixedArrayConstant());
   StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
 
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
-  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kInputOffset, input);
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
+                                 UndefinedConstant());
 
   // Initialize the elements.
 
@@ -116,7 +119,7 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(Node* context, Node* regexp,
   // Store through runtime.
   // TODO(ishell): Use SetPropertyStub here once available.
   Node* const name = HeapConstant(isolate()->factory()->lastIndex_string());
-  Node* const language_mode = SmiConstant(STRICT);
+  Node* const language_mode = SmiConstant(LanguageMode::kStrict);
   CallRuntime(Runtime::kSetProperty, context, regexp, name, value,
               language_mode);
 }
@@ -220,8 +223,6 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Allocate a new object to store the named capture properties.
     // TODO(jgruber): Could be optimized by adding the object map to the heap
     // root list.
-    // TODO(jgruber): Replace CreateDataProperty runtime calls once we have
-    // equivalent functionality in CSA.
 
     Node* const native_context = LoadNativeContext(context);
     Node* const map = LoadContextElement(
@@ -230,14 +231,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
         AllocateNameDictionary(NameDictionary::kInitialCapacity);
 
     Node* const group_object = AllocateJSObjectFromMap(map, properties);
-
-    // Store it on the result as a 'group' property.
-
-    {
-      Node* const name = HeapConstant(isolate()->factory()->groups_string());
-      CallRuntime(Runtime::kCreateDataProperty, context, result, name,
-                  group_object);
-    }
+    StoreObjectField(result, JSRegExpResult::kGroupsOffset, group_object);
 
     // One or more named captures exist, add a property for each one.
 
@@ -264,6 +258,9 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       Node* const capture =
           LoadFixedArrayElement(result_elements, SmiUntag(index));
 
+      // TODO(jgruber): Calling into runtime to create each property is slow.
+      // Either we should create properties entirely in CSA (should be doable),
+      // or only call runtime once and loop there.
       CallRuntime(Runtime::kCreateDataProperty, context, group_object, name,
                   capture);
 
@@ -308,7 +305,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 #ifdef V8_INTERPRETED_REGEXP
   return CallRuntime(Runtime::kRegExpExec, context, regexp, string, last_index,
                      match_info);
-#else   // V8_INTERPRETED_REGEXP
+#else  // V8_INTERPRETED_REGEXP
   CSA_ASSERT(this, TaggedIsNotSmi(regexp));
   CSA_ASSERT(this, IsJSRegExp(regexp));
 
@@ -341,15 +338,15 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   // must fail.
 
   Label if_failure(this);
-  Node* const smi_string_length = LoadStringLength(string);
-  {
-    CSA_ASSERT(this, IsNumberNormalized(last_index));
-    CSA_ASSERT(this, IsNumberPositive(last_index));
-    Node* const last_index_is_not_smi = TaggedIsNotSmi(last_index);
-    Node* const last_index_is_oob =
-        SmiGreaterThan(last_index, smi_string_length);
-    GotoIf(Word32Or(last_index_is_not_smi, last_index_is_oob), &if_failure);
-  }
+
+  CSA_ASSERT(this, IsNumberNormalized(last_index));
+  CSA_ASSERT(this, IsNumberPositive(last_index));
+  GotoIf(TaggedIsNotSmi(last_index), &if_failure);
+
+  Node* const int_string_length = LoadStringLengthAsWord(string);
+  Node* const int_last_index = SmiUntag(last_index);
+
+  GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &if_failure);
 
   Node* const data = LoadObjectField(regexp, JSRegExp::kDataOffset);
   {
@@ -405,14 +402,11 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   // Load the irregexp code object and offsets into the subject string. Both
   // depend on whether the string is one- or two-byte.
 
-  Node* const int_last_index = SmiUntag(last_index);
-
   VARIABLE(var_string_start, MachineType::PointerRepresentation());
   VARIABLE(var_string_end, MachineType::PointerRepresentation());
   VARIABLE(var_code, MachineRepresentation::kTagged);
 
   {
-    Node* const int_string_length = SmiUntag(smi_string_length);
     Node* const direct_string_data = to_direct.PointerToData(&runtime);
 
     Label next(this), if_isonebyte(this), if_istwobyte(this, Label::kDeferred);
@@ -651,7 +645,6 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
     Node* const context, Node* const regexp, Node* const string,
     Label* if_didnotmatch, const bool is_fastpath) {
-  Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(0);
 
@@ -712,14 +705,14 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
       Label if_isoob(this, Label::kDeferred);
       GotoIfNot(TaggedIsSmi(lastindex), &if_isoob);
-      Node* const string_length = LoadStringLength(string);
+      TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
       GotoIfNot(SmiLessThanOrEqual(lastindex, string_length), &if_isoob);
       Goto(&run_exec);
 
       BIND(&if_isoob);
       {
         StoreLastIndex(context, regexp, smi_zero, is_fastpath);
-        var_result.Bind(null);
+        var_result.Bind(NullConstant());
         Goto(if_didnotmatch);
       }
     }
@@ -747,7 +740,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
     // {match_indices} is either null or the RegExpMatchInfo array.
     // Return early if exec failed, possibly updating last index.
-    GotoIfNot(WordEqual(match_indices, null), &successful_match);
+    GotoIfNot(IsNull(match_indices), &successful_match);
 
     GotoIfNot(should_update_last_index, if_didnotmatch);
 
@@ -777,8 +770,6 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(Node* const context,
                                                        Node* const regexp,
                                                        Node* const string,
                                                        const bool is_fastpath) {
-  Node* const null = NullConstant();
-
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
   Label if_didnotmatch(this), out(this);
@@ -796,7 +787,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(Node* const context,
 
   BIND(&if_didnotmatch);
   {
-    var_result.Bind(null);
+    var_result.Bind(NullConstant());
     Goto(&out);
   }
 
@@ -837,6 +828,11 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
   Label out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32);
 
+#ifdef V8_ENABLE_FORCE_SLOW_PATH
+  var_result.Bind(Int32Constant(0));
+  GotoIfForceSlowPath(&out);
+#endif
+
   Node* const native_context = LoadNativeContext(context);
   Node* const regexp_fun =
       LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
@@ -873,6 +869,8 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
                                                  Label* const if_isunmodified,
                                                  Label* const if_ismodified) {
   CSA_ASSERT(this, WordEqual(LoadMap(object), map));
+
+  GotoIfForceSlowPath(if_ismodified);
 
   // TODO(ishell): Update this check once map changes for constant field
   // tracking are landing.
@@ -974,7 +972,8 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
 
   // Callers ensure that last_index is in-bounds.
   CSA_ASSERT(this,
-             SmiLessThanOrEqual(last_index, LoadStringLength(subject_string)));
+             UintPtrLessThanOrEqual(SmiUntag(last_index),
+                                    LoadStringLengthAsWord(subject_string)));
 
   Node* const needle_string =
       LoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex);
@@ -991,12 +990,14 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
   BIND(&if_success);
   {
     CSA_ASSERT(this, TaggedIsPositiveSmi(match_from));
-    CSA_ASSERT(this, SmiLessThan(match_from, LoadStringLength(subject_string)));
+    CSA_ASSERT(this, UintPtrLessThan(SmiUntag(match_from),
+                                     LoadStringLengthAsWord(subject_string)));
 
     const int kNumRegisters = 2;
     STATIC_ASSERT(RegExpMatchInfo::kInitialCaptureIndices >= kNumRegisters);
 
-    Node* const match_to = SmiAdd(match_from, LoadStringLength(needle_string));
+    Node* const match_to =
+        SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
     StoreFixedArrayElement(match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
                            SmiConstant(kNumRegisters), SKIP_WRITE_BARRIER);
@@ -1055,12 +1056,9 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
                                            bool is_fastpath) {
   Isolate* isolate = this->isolate();
 
-  Node* const int_zero = IntPtrConstant(0);
-  Node* const int_one = IntPtrConstant(1);
-  VARIABLE(var_length, MachineType::PointerRepresentation(), int_zero);
-  VARIABLE(var_flags, MachineType::PointerRepresentation());
-
-  Node* const is_dotall_enabled = IsDotAllEnabled(isolate);
+  TNode<IntPtrT> const int_one = IntPtrConstant(1);
+  TVARIABLE(Smi, var_length, SmiConstant(0));
+  TVARIABLE(IntPtrT, var_flags);
 
   // First, count the number of characters we will need and check which flags
   // are set.
@@ -1069,28 +1067,21 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     // Refer to JSRegExp's flag property on the fast-path.
     CSA_ASSERT(this, IsJSRegExp(regexp));
     Node* const flags_smi = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
-    Node* const flags_intptr = SmiUntag(flags_smi);
-    var_flags.Bind(flags_intptr);
+    var_flags = SmiUntag(flags_smi);
 
-#define CASE_FOR_FLAG(FLAG)                                  \
-  do {                                                       \
-    Label next(this);                                        \
-    GotoIfNot(IsSetWord(flags_intptr, FLAG), &next);         \
-    var_length.Bind(IntPtrAdd(var_length.value(), int_one)); \
-    Goto(&next);                                             \
-    BIND(&next);                                             \
+#define CASE_FOR_FLAG(FLAG)                          \
+  do {                                               \
+    Label next(this);                                \
+    GotoIfNot(IsSetWord(var_flags, FLAG), &next);    \
+    var_length = SmiAdd(var_length, SmiConstant(1)); \
+    Goto(&next);                                     \
+    BIND(&next);                                     \
   } while (false)
 
     CASE_FOR_FLAG(JSRegExp::kGlobal);
     CASE_FOR_FLAG(JSRegExp::kIgnoreCase);
     CASE_FOR_FLAG(JSRegExp::kMultiline);
-    {
-      Label next(this);
-      GotoIfNot(is_dotall_enabled, &next);
-      CASE_FOR_FLAG(JSRegExp::kDotAll);
-      Goto(&next);
-      BIND(&next);
-    }
+    CASE_FOR_FLAG(JSRegExp::kDotAll);
     CASE_FOR_FLAG(JSRegExp::kUnicode);
     CASE_FOR_FLAG(JSRegExp::kSticky);
 #undef CASE_FOR_FLAG
@@ -1098,7 +1089,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     DCHECK(!is_fastpath);
 
     // Fall back to GetProperty stub on the slow-path.
-    var_flags.Bind(int_zero);
+    var_flags = IntPtrConstant(0);
 
 #define CASE_FOR_FLAG(NAME, FLAG)                                          \
   do {                                                                     \
@@ -1108,8 +1099,8 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Label if_isflagset(this);                                              \
     BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);                   \
     BIND(&if_isflagset);                                                   \
-    var_length.Bind(IntPtrAdd(var_length.value(), int_one));               \
-    var_flags.Bind(WordOr(var_flags.value(), IntPtrConstant(FLAG)));       \
+    var_length = SmiAdd(var_length, SmiConstant(1));                       \
+    var_flags = Signed(WordOr(var_flags, IntPtrConstant(FLAG)));           \
     Goto(&next);                                                           \
     BIND(&next);                                                           \
   } while (false)
@@ -1117,13 +1108,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     CASE_FOR_FLAG("global", JSRegExp::kGlobal);
     CASE_FOR_FLAG("ignoreCase", JSRegExp::kIgnoreCase);
     CASE_FOR_FLAG("multiline", JSRegExp::kMultiline);
-    {
-      Label next(this);
-      GotoIfNot(is_dotall_enabled, &next);
-      CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
-      Goto(&next);
-      BIND(&next);
-    }
+    CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
     CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
     CASE_FOR_FLAG("sticky", JSRegExp::kSticky);
 #undef CASE_FOR_FLAG
@@ -1133,8 +1118,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   // char for each set flag.
 
   {
-    Node* const result = AllocateSeqOneByteString(context, var_length.value());
-    Node* const flags_intptr = var_flags.value();
+    Node* const result = AllocateSeqOneByteString(context, var_length);
 
     VARIABLE(var_offset, MachineType::PointerRepresentation(),
              IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
@@ -1142,7 +1126,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 #define CASE_FOR_FLAG(FLAG, CHAR)                              \
   do {                                                         \
     Label next(this);                                          \
-    GotoIfNot(IsSetWord(flags_intptr, FLAG), &next);           \
+    GotoIfNot(IsSetWord(var_flags, FLAG), &next);              \
     Node* const value = Int32Constant(CHAR);                   \
     StoreNoWriteBarrier(MachineRepresentation::kWord8, result, \
                         var_offset.value(), value);            \
@@ -1154,13 +1138,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     CASE_FOR_FLAG(JSRegExp::kGlobal, 'g');
     CASE_FOR_FLAG(JSRegExp::kIgnoreCase, 'i');
     CASE_FOR_FLAG(JSRegExp::kMultiline, 'm');
-    {
-      Label next(this);
-      GotoIfNot(is_dotall_enabled, &next);
-      CASE_FOR_FLAG(JSRegExp::kDotAll, 's');
-      Goto(&next);
-      BIND(&next);
-    }
+    CASE_FOR_FLAG(JSRegExp::kDotAll, 's');
     CASE_FOR_FLAG(JSRegExp::kUnicode, 'u');
     CASE_FOR_FLAG(JSRegExp::kSticky, 'y');
 #undef CASE_FOR_FLAG
@@ -1241,8 +1219,7 @@ TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   Label if_isfastpath(this), if_isslowpath(this, Label::kDeferred);
-  Branch(IsFastRegExpNoPrototype(context, receiver, map), &if_isfastpath,
-         &if_isslowpath);
+  BranchIfFastRegExp(context, receiver, map, &if_isfastpath, &if_isslowpath);
 
   BIND(&if_isfastpath);
   Return(FlagsGetter(context, receiver, true));
@@ -1637,19 +1614,11 @@ TF_BUILTIN(RegExpPrototypeMultilineGetter, RegExpBuiltinsAssembler) {
              "RegExp.prototype.multiline");
 }
 
-Node* RegExpBuiltinsAssembler::IsDotAllEnabled(Isolate* isolate) {
-  Node* flag_ptr = ExternalConstant(
-      ExternalReference::address_of_regexp_dotall_flag(isolate));
-  Node* const flag_value = Load(MachineType::Int8(), flag_ptr);
-  return Word32NotEqual(flag_value, Int32Constant(0));
-}
-
 // ES #sec-get-regexp.prototype.dotAll
 TF_BUILTIN(RegExpPrototypeDotAllGetter, RegExpBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
   static const int kNoCounter = -1;
-  CSA_ASSERT(this, IsDotAllEnabled(isolate()));
   FlagGetter(context, receiver, JSRegExp::kDotAll, kNoCounter,
              "RegExp.prototype.dotAll");
 }
@@ -1701,10 +1670,10 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
     Node* const result = CallJS(call_callable, context, exec, regexp, string);
 
     var_result.Bind(result);
-    GotoIf(WordEqual(result, NullConstant()), &out);
+    GotoIf(IsNull(result), &out);
 
     ThrowIfNotJSReceiver(context, result,
-                         MessageTemplate::kInvalidRegExpExecResult, "unused");
+                         MessageTemplate::kInvalidRegExpExecResult, "");
 
     Goto(&out);
   }
@@ -1760,8 +1729,7 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
     Node* const match_indices = RegExpExec(context, receiver, string);
 
     // Return true iff exec matched successfully.
-    Node* const result =
-        SelectBooleanConstant(WordNotEqual(match_indices, NullConstant()));
+    Node* const result = SelectBooleanConstant(IsNotNull(match_indices));
     Return(result);
   }
 }
@@ -1802,15 +1770,16 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
 
   BIND(&if_isunicode);
   {
-    Node* const string_length = LoadStringLength(string);
-    GotoIfNot(SmiLessThan(index_plus_one, string_length), &out);
+    TNode<IntPtrT> const string_length = LoadStringLengthAsWord(string);
+    TNode<IntPtrT> untagged_plus_one = SmiUntag(index_plus_one);
+    GotoIfNot(IntPtrLessThan(untagged_plus_one, string_length), &out);
 
-    Node* const lead = StringCharCodeAt(string, index);
+    Node* const lead = StringCharCodeAt(string, SmiUntag(index));
     GotoIfNot(Word32Equal(Word32And(lead, Int32Constant(0xFC00)),
                           Int32Constant(0xD800)),
               &out);
 
-    Node* const trail = StringCharCodeAt(string, index_plus_one);
+    Node* const trail = StringCharCodeAt(string, untagged_plus_one);
     GotoIfNot(Word32Equal(Word32And(trail, Int32Constant(0xFC00)),
                           Int32Constant(0xDC00)),
               &out);
@@ -1904,7 +1873,7 @@ class GrowableFixedArray {
 
     Node* const result_length = a->SmiTag(length());
     Node* const result = a->AllocateUninitializedJSArrayWithoutElements(
-        kind, array_map, result_length, nullptr);
+        array_map, result_length, nullptr);
 
     // Note: We do not currently shrink the fixed array.
 
@@ -1954,18 +1923,12 @@ class GrowableFixedArray {
     CSA_ASSERT(a, a->IntPtrGreaterThan(new_capacity, a->IntPtrConstant(0)));
     CSA_ASSERT(a, a->IntPtrGreaterThanOrEqual(new_capacity, element_count));
 
-    const ElementsKind kind = PACKED_ELEMENTS;
-    const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-    const CodeStubAssembler::ParameterMode mode =
-        CodeStubAssembler::INTPTR_PARAMETERS;
-    const CodeStubAssembler::AllocationFlags flags =
-        CodeStubAssembler::kAllowLargeObjectAllocation;
-
     Node* const from_array = var_array_.value();
-    Node* const to_array =
-        a->AllocateFixedArray(kind, new_capacity, mode, flags);
-    a->CopyFixedArrayElements(kind, from_array, kind, to_array, element_count,
-                              new_capacity, barrier_mode, mode);
+
+    CodeStubAssembler::ExtractFixedArrayFlags flags;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays;
+    Node* to_array = a->ExtractFixedArray(from_array, nullptr, element_count,
+                                          new_capacity, flags);
 
     return to_array;
   }
@@ -1986,7 +1949,6 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
   CSA_ASSERT(this, IsString(string));
   if (is_fastpath) CSA_ASSERT(this, IsFastRegExp(context, regexp));
 
-  Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(0);
 
@@ -2048,7 +2010,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         Node* const result = RegExpExec(context, regexp, string);
 
         Label load_match(this);
-        Branch(WordEqual(result, null), &if_didnotmatch, &load_match);
+        Branch(IsNull(result), &if_didnotmatch, &load_match);
 
         BIND(&load_match);
         {
@@ -2061,7 +2023,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
             Node* const match = LoadFixedArrayElement(result_fixed_array, 0);
 
             // The match is guaranteed to be a string on the fast path.
-            CSA_ASSERT(this, IsStringInstanceType(LoadInstanceType(match)));
+            CSA_ASSERT(this, IsString(match));
 
             var_match.Bind(match);
             Goto(&if_didmatch);
@@ -2081,7 +2043,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
       {
         // Return null if there were no matches, otherwise just exit the loop.
         GotoIfNot(IntPtrEqual(array.length(), int_zero), &out);
-        Return(null);
+        Return(NullConstant());
       }
 
       BIND(&if_didmatch);
@@ -2094,8 +2056,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
 
         // Advance last index if the match is the empty string.
 
-        Node* const match_length = LoadStringLength(match);
-        GotoIfNot(SmiEqual(match_length, smi_zero), &loop);
+        TNode<Smi> const match_length = LoadStringLengthAsSmi(match);
+        GotoIfNot(SmiEqual(match_length, SmiConstant(0)), &loop);
 
         Node* last_index = LoadLastIndex(context, regexp, is_fastpath);
         if (is_fastpath) {
@@ -2151,10 +2113,23 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
 
   BIND(&fast_path);
-  RegExpPrototypeMatchBody(context, receiver, string, true);
+  // TODO(pwong): Could be optimized to remove the overhead of calling the
+  //              builtin (at the cost of a larger builtin).
+  Return(CallBuiltin(Builtins::kRegExpMatchFast, context, receiver, string));
 
   BIND(&slow_path);
   RegExpPrototypeMatchBody(context, receiver, string, false);
+}
+
+// Helper that skips a few initial checks. and assumes...
+// 1) receiver is a "fast" RegExp
+// 2) pattern is a string
+TF_BUILTIN(RegExpMatchFast, RegExpBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const string = Parameter(Descriptor::kPattern);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  RegExpPrototypeMatchBody(context, receiver, string, true);
 }
 
 void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(
@@ -2206,9 +2181,10 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   // Ensure last index is 0.
   {
-    Label next(this);
-    GotoIf(SameValue(previous_last_index, smi_zero), &next);
+    Label next(this), slow(this, Label::kDeferred);
+    BranchIfSameValue(previous_last_index, smi_zero, &next, &slow);
 
+    BIND(&slow);
     SlowStoreLastIndex(context, regexp, smi_zero);
     Goto(&next);
     BIND(&next);
@@ -2219,21 +2195,21 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   // Reset last index if necessary.
   {
-    Label next(this);
+    Label next(this), slow(this, Label::kDeferred);
     Node* const current_last_index = SlowLoadLastIndex(context, regexp);
 
-    GotoIf(SameValue(current_last_index, previous_last_index), &next);
+    BranchIfSameValue(current_last_index, previous_last_index, &next, &slow);
 
+    BIND(&slow);
     SlowStoreLastIndex(context, regexp, previous_last_index);
     Goto(&next);
-
     BIND(&next);
   }
 
   // Return -1 if no match was found.
   {
     Label next(this);
-    GotoIfNot(WordEqual(exec_result, NullConstant()), &next);
+    GotoIfNot(IsNull(exec_result), &next);
     Return(SmiConstant(-1));
     BIND(&next);
   }
@@ -2278,10 +2254,23 @@ TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
 
   BIND(&fast_path);
-  RegExpPrototypeSearchBodyFast(context, receiver, string);
+  // TODO(pwong): Could be optimized to remove the overhead of calling the
+  //              builtin (at the cost of a larger builtin).
+  Return(CallBuiltin(Builtins::kRegExpSearchFast, context, receiver, string));
 
   BIND(&slow_path);
   RegExpPrototypeSearchBodySlow(context, receiver, string);
+}
+
+// Helper that skips a few initial checks. and assumes...
+// 1) receiver is a "fast" RegExp
+// 2) pattern is a string
+TF_BUILTIN(RegExpSearchFast, RegExpBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const string = Parameter(Descriptor::kPattern);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  RegExpPrototypeSearchBodyFast(context, receiver, string);
 }
 
 // Generates the fast path for @@split. {regexp} is an unmodified, non-sticky
@@ -2295,10 +2284,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
   CSA_ASSERT(this, TaggedIsSmi(limit));
   CSA_ASSERT(this, IsString(string));
 
-  Node* const null = NullConstant();
-  Node* const smi_zero = SmiConstant(0);
-  Node* const int_zero = IntPtrConstant(0);
-  Node* const int_limit = SmiUntag(limit);
+  TNode<Smi> const smi_zero = SmiConstant(0);
+  TNode<IntPtrT> const int_zero = IntPtrConstant(0);
+  TNode<IntPtrT> const int_limit = SmiUntag(limit);
 
   const ElementsKind kind = PACKED_ELEMENTS;
   const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
@@ -2316,7 +2304,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     BIND(&next);
   }
 
-  Node* const string_length = LoadStringLength(string);
+  TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
 
   // If passed the empty {string}, return either an empty array or a singleton
   // array depending on whether the {regexp} matches.
@@ -2333,7 +2321,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
                                                      smi_zero, last_match_info);
 
       Label return_singleton_array(this);
-      Branch(WordEqual(match_indices, null), &return_singleton_array,
+      Branch(IsNull(match_indices), &return_singleton_array,
              &return_empty_array);
 
       BIND(&return_singleton_array);
@@ -2397,7 +2385,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     // We're done if no match was found.
     {
       Label next(this);
-      Branch(WordEqual(match_indices, null), &push_suffix_and_out, &next);
+      Branch(IsNull(match_indices), &push_suffix_and_out, &next);
       BIND(&next);
     }
 
@@ -2407,7 +2395,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     // We're done if the match starts beyond the string.
     {
       Label next(this);
-      Branch(WordEqual(match_from, string_length), &push_suffix_and_out, &next);
+      Branch(SmiEqual(match_from, string_length), &push_suffix_and_out, &next);
       BIND(&next);
     }
 
@@ -2548,7 +2536,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   // to verify the constructor property and jump to the slow path if it has
   // been changed.
 
-  // Convert {maybe_limit} to a uint32, capping at the maximal smi value.
+  // Verify {maybe_limit}.
 
   VARIABLE(var_limit, MachineRepresentation::kTagged, maybe_limit);
   Label if_limitissmimax(this), runtime(this, Label::kDeferred);
@@ -2557,21 +2545,12 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
     Label next(this);
 
     GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
-    GotoIf(TaggedIsPositiveSmi(maybe_limit), &next);
+    Branch(TaggedIsPositiveSmi(maybe_limit), &next, &runtime);
 
-    var_limit.Bind(ToUint32(context, maybe_limit));
-    {
-      // ToUint32(limit) could potentially change the shape of the RegExp
-      // object. Recheck that we are still on the fast path and bail to runtime
-      // otherwise.
-      {
-        Label next(this);
-        BranchIfFastRegExp(context, regexp, &next, &runtime);
-        BIND(&next);
-      }
-
-      Branch(TaggedIsPositiveSmi(var_limit.value()), &next, &if_limitissmimax);
-    }
+    // We need to be extra-strict and require the given limit to be either
+    // undefined or a positive smi. We can't call ToUint32(maybe_limit) since
+    // that might move us onto the slow path, resulting in ordering spec
+    // violations (see https://crbug.com/801171).
 
     BIND(&if_limitissmimax);
     {
@@ -2595,13 +2574,8 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   RegExpPrototypeSplitBody(context, regexp, string, var_limit.value());
 
   BIND(&runtime);
-  {
-    // The runtime call passes in limit to ensure the second ToUint32(limit)
-    // call is not observable.
-    CSA_ASSERT(this, IsNumber(var_limit.value()));
-    Return(CallRuntime(Runtime::kRegExpSplit, context, regexp, string,
-                       var_limit.value()));
-  }
+  Return(CallRuntime(Runtime::kRegExpSplit, context, regexp, string,
+                     var_limit.value()));
 }
 
 // ES#sec-regexp.prototype-@@split
@@ -2651,11 +2625,10 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
   Isolate* const isolate = this->isolate();
 
-  Node* const null = NullConstant();
   Node* const undefined = UndefinedConstant();
-  Node* const int_zero = IntPtrConstant(0);
-  Node* const int_one = IntPtrConstant(1);
-  Node* const smi_zero = SmiConstant(0);
+  TNode<IntPtrT> const int_zero = IntPtrConstant(0);
+  TNode<IntPtrT> const int_one = IntPtrConstant(1);
+  TNode<Smi> const smi_zero = SmiConstant(0);
 
   Node* const native_context = LoadNativeContext(context);
 
@@ -2670,8 +2643,8 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
   {
     ElementsKind kind = PACKED_ELEMENTS;
     Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
-    Node* const capacity = IntPtrConstant(16);
-    Node* const length = smi_zero;
+    TNode<IntPtrT> const capacity = IntPtrConstant(16);
+    TNode<Smi> const length = smi_zero;
     Node* const allocation_site = nullptr;
     ParameterMode capacity_mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
@@ -2690,7 +2663,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
   // If no matches, return the subject string.
   var_result.Bind(string);
-  GotoIf(WordEqual(res, null), &out);
+  GotoIf(IsNull(res), &out);
 
   // Reload last match info since it might have changed.
   last_match_info =
@@ -2717,22 +2690,19 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     // input string and some replacements that were returned from the replace
     // function.
 
-    VARIABLE(var_match_start, MachineRepresentation::kTagged);
-    var_match_start.Bind(smi_zero);
+    TVARIABLE(Smi, var_match_start, smi_zero);
 
-    Node* const end = SmiUntag(res_length);
-    VARIABLE(var_i, MachineType::PointerRepresentation());
-    var_i.Bind(int_zero);
+    TNode<IntPtrT> const end = SmiUntag(res_length);
+    TVARIABLE(IntPtrT, var_i, int_zero);
 
     Variable* vars[] = {&var_i, &var_match_start};
     Label loop(this, 2, vars);
     Goto(&loop);
     BIND(&loop);
     {
-      Node* const i = var_i.value();
-      GotoIfNot(IntPtrLessThan(i, end), &create_result);
+      GotoIfNot(IntPtrLessThan(var_i, end), &create_result);
 
-      Node* const elem = LoadFixedArrayElement(res_elems, i);
+      Node* const elem = LoadFixedArrayElement(res_elems, var_i);
 
       Label if_issmi(this), if_isstring(this), loop_epilogue(this);
       Branch(TaggedIsSmi(elem), &if_issmi, &if_isstring);
@@ -2749,20 +2719,18 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           TNode<IntPtrT> int_elem = SmiUntag(elem);
           TNode<IntPtrT> new_match_start =
               Signed(IntPtrAdd(WordShr(int_elem, IntPtrConstant(11)),
-                               WordAnd(int_elem, IntPtrConstant(0x7ff))));
-          var_match_start.Bind(SmiTag(new_match_start));
+                               WordAnd(int_elem, IntPtrConstant(0x7FF))));
+          var_match_start = SmiTag(new_match_start);
           Goto(&loop_epilogue);
         }
 
         BIND(&if_isnegativeorzero);
         {
-          Node* const next_i = IntPtrAdd(i, int_one);
-          var_i.Bind(next_i);
+          var_i = IntPtrAdd(var_i, int_one);
 
-          Node* const next_elem = LoadFixedArrayElement(res_elems, next_i);
+          Node* const next_elem = LoadFixedArrayElement(res_elems, var_i);
 
-          Node* const new_match_start = SmiSub(next_elem, elem);
-          var_match_start.Bind(new_match_start);
+          var_match_start = SmiSub(next_elem, elem);
           Goto(&loop_epilogue);
         }
       }
@@ -2772,24 +2740,23 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
         CSA_ASSERT(this, IsString(elem));
 
         Callable call_callable = CodeFactory::Call(isolate);
+        TNode<Smi> match_start = var_match_start;
         Node* const replacement_obj =
             CallJS(call_callable, context, replace_callable, undefined, elem,
-                   var_match_start.value(), string);
+                   match_start, string);
 
         Node* const replacement_str = ToString_Inline(context, replacement_obj);
-        StoreFixedArrayElement(res_elems, i, replacement_str);
+        StoreFixedArrayElement(res_elems, var_i, replacement_str);
 
-        Node* const elem_length = LoadStringLength(elem);
-        Node* const new_match_start =
-            SmiAdd(var_match_start.value(), elem_length);
-        var_match_start.Bind(new_match_start);
+        TNode<Smi> const elem_length = LoadStringLengthAsSmi(elem);
+        var_match_start = SmiAdd(match_start, elem_length);
 
         Goto(&loop_epilogue);
       }
 
       BIND(&loop_epilogue);
       {
-        var_i.Bind(IntPtrAdd(var_i.value(), int_one));
+        var_i = IntPtrAdd(var_i, int_one);
         Goto(&loop);
       }
     }
@@ -2860,57 +2827,43 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   // ToString({replace_value}) does not contain '$', i.e. we're doing a simple
   // string replacement.
 
-  Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(0);
+  const bool kIsFastPath = true;
 
   CSA_ASSERT(this, IsFastRegExp(context, regexp));
   CSA_ASSERT(this, IsString(replace_string));
   CSA_ASSERT(this, IsString(string));
 
-  Label out(this);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  // Load the last match info.
-  Node* const native_context = LoadNativeContext(context);
-  Node* const last_match_info =
-      LoadContextElement(native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
+  VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
+  VARIABLE(var_match_indices, MachineRepresentation::kTagged);
+  VARIABLE(var_last_match_end, MachineRepresentation::kTagged, smi_zero);
+  VARIABLE(var_is_unicode, MachineRepresentation::kWord32, Int32Constant(0));
+  Variable* vars[] = {&var_result, &var_last_match_end};
+  Label out(this), loop(this, 2, vars), loop_end(this),
+      if_nofurthermatches(this);
 
   // Is {regexp} global?
-  Label if_isglobal(this), if_isnonglobal(this);
-  Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
-  Node* const is_global =
-      WordAnd(SmiUntag(flags), IntPtrConstant(JSRegExp::kGlobal));
-  Branch(WordEqual(is_global, int_zero), &if_isnonglobal, &if_isglobal);
+  Node* const is_global = FastFlagGetter(regexp, JSRegExp::kGlobal);
+  GotoIfNot(is_global, &loop);
 
-  BIND(&if_isglobal);
-  {
-    // Hand off global regexps to runtime.
-    FastStoreLastIndex(regexp, smi_zero);
-    Node* const result =
-        CallRuntime(Runtime::kStringReplaceGlobalRegExpWithString, context,
-                    string, regexp, replace_string, last_match_info);
-    var_result.Bind(result);
-    Goto(&out);
-  }
+  var_is_unicode.Bind(FastFlagGetter(regexp, JSRegExp::kUnicode));
+  FastStoreLastIndex(regexp, smi_zero);
+  Goto(&loop);
 
-  BIND(&if_isnonglobal);
+  BIND(&loop);
   {
-    // Run exec, then manually construct the resulting string.
-    Label if_didnotmatch(this);
-    Node* const match_indices = RegExpPrototypeExecBodyWithoutResult(
-        context, regexp, string, &if_didnotmatch, true);
+    var_match_indices.Bind(RegExpPrototypeExecBodyWithoutResult(
+        context, regexp, string, &if_nofurthermatches, kIsFastPath));
 
     // Successful match.
     {
-      Node* const subject_start = smi_zero;
       Node* const match_start = LoadFixedArrayElement(
-          match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+          var_match_indices.value(), RegExpMatchInfo::kFirstCaptureIndex);
       Node* const match_end = LoadFixedArrayElement(
-          match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
-      Node* const subject_end = LoadStringLength(string);
+          var_match_indices.value(), RegExpMatchInfo::kFirstCaptureIndex + 1);
 
       Label if_replaceisempty(this), if_replaceisnotempty(this);
-      Node* const replace_length = LoadStringLength(replace_string);
+      TNode<Smi> const replace_length = LoadStringLengthAsSmi(replace_string);
       Branch(SmiEqual(replace_length, smi_zero), &if_replaceisempty,
              &if_replaceisnotempty);
 
@@ -2918,38 +2871,50 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
       {
         // TODO(jgruber): We could skip many of the checks that using SubString
         // here entails.
-
         Node* const first_part =
-            SubString(context, string, subject_start, match_start);
-        Node* const second_part =
-            SubString(context, string, match_end, subject_end);
+            SubString(context, string, var_last_match_end.value(), match_start);
 
-        Node* const result = StringAdd(context, first_part, second_part);
+        Node* const result = StringAdd(context, var_result.value(), first_part);
         var_result.Bind(result);
-        Goto(&out);
+        Goto(&loop_end);
       }
 
       BIND(&if_replaceisnotempty);
       {
         Node* const first_part =
-            SubString(context, string, subject_start, match_start);
-        Node* const second_part = replace_string;
-        Node* const third_part =
-            SubString(context, string, match_end, subject_end);
+            SubString(context, string, var_last_match_end.value(), match_start);
 
-        Node* result = StringAdd(context, first_part, second_part);
-        result = StringAdd(context, result, third_part);
-
+        Node* result = StringAdd(context, var_result.value(), first_part);
+        result = StringAdd(context, result, replace_string);
         var_result.Bind(result);
-        Goto(&out);
+        Goto(&loop_end);
+      }
+
+      BIND(&loop_end);
+      {
+        var_last_match_end.Bind(match_end);
+        // Non-global case ends here after the first replacement.
+        GotoIfNot(is_global, &if_nofurthermatches);
+
+        GotoIf(SmiNotEqual(match_end, match_start), &loop);
+        // If match is the empty string, we have to increment lastIndex.
+        Node* const this_index = FastLoadLastIndex(regexp);
+        Node* const next_index = AdvanceStringIndex(
+            string, this_index, var_is_unicode.value(), kIsFastPath);
+        FastStoreLastIndex(regexp, next_index);
+        Goto(&loop);
       }
     }
+  }
 
-    BIND(&if_didnotmatch);
-    {
-      var_result.Bind(string);
-      Goto(&out);
-    }
+  BIND(&if_nofurthermatches);
+  {
+    TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
+    Node* const last_part =
+        SubString(context, string, var_last_match_end.value(), string_length);
+    Node* const result = StringAdd(context, var_result.value(), last_part);
+    var_result.Bind(result);
+    Goto(&out);
   }
 
   BIND(&out);
@@ -3052,7 +3017,7 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   //   if (replace.contains("$")) {
   //     CallRuntime(RegExpReplace)
   //   } else {
-  //     ReplaceSimpleStringFastPath()  // Bails to runtime for global regexps.
+  //     ReplaceSimpleStringFastPath()
   //   }
   // }
 
@@ -3085,7 +3050,6 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Node* const string = Parameter(Descriptor::kString);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const null = NullConstant();
   Node* const smi_zero = SmiConstant(0);
 
   CSA_ASSERT(this, IsJSRegExp(regexp));
@@ -3098,6 +3062,7 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Node* const match_indices = RegExpExecInternal(context, regexp, string,
                                                  smi_zero, internal_match_info);
 
+  Node* const null = NullConstant();
   Label if_matched(this), if_didnotmatch(this);
   Branch(WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
 

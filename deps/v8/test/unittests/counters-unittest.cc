@@ -4,11 +4,15 @@
 
 #include <vector>
 
+#include "src/base/atomic-utils.h"
+#include "src/base/platform/time.h"
 #include "src/counters-inl.h"
 #include "src/counters.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/tracing/tracing-category-observer.h"
+
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -42,40 +46,105 @@ class AggregatedMemoryHistogramTest : public ::testing::Test {
   MockHistogram mock_;
 };
 
-class RuntimeCallStatsTest : public ::testing::Test {
+static base::TimeTicks runtime_call_stats_test_time_ = base::TimeTicks();
+// Time source used for the RuntimeCallTimer during tests. We cannot rely on
+// the native timer since it's too unpredictable on the build bots.
+static base::TimeTicks RuntimeCallStatsTestNow() {
+  return runtime_call_stats_test_time_;
+}
+
+class RuntimeCallStatsTest : public TestWithNativeContext {
  public:
   RuntimeCallStatsTest() {
-    FLAG_runtime_stats =
-        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE;
-  }
-  virtual ~RuntimeCallStatsTest() {}
-
-  RuntimeCallStats* stats() { return &stats_; }
-  RuntimeCallStats::CounterId counter_id() {
-    return &RuntimeCallStats::TestCounter1;
-  }
-  RuntimeCallStats::CounterId counter_id2() {
-    return &RuntimeCallStats::TestCounter2;
-  }
-  RuntimeCallStats::CounterId counter_id3() {
-    return &RuntimeCallStats::TestCounter3;
-  }
-  RuntimeCallCounter* counter() { return &(stats()->*counter_id()); }
-  RuntimeCallCounter* counter2() { return &(stats()->*counter_id2()); }
-  RuntimeCallCounter* counter3() { return &(stats()->*counter_id3()); }
-  void Sleep(int32_t milliseconds) {
-    base::ElapsedTimer timer;
-    base::TimeDelta delta = base::TimeDelta::FromMilliseconds(milliseconds);
-    timer.Start();
-    while (!timer.HasExpired(delta)) {
-      base::OS::Sleep(base::TimeDelta::FromMicroseconds(0));
-    }
+    base::AsAtomic32::Relaxed_Store(
+        &FLAG_runtime_stats,
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE);
+    // We need to set {time_} to a non-zero value since it would otherwise
+    // cause runtime call timers to think they are uninitialized.
+    Sleep(1);
+    stats()->Reset();
   }
 
-  const uint32_t kEpsilonMs = 20;
+  ~RuntimeCallStatsTest() {
+    // Disable RuntimeCallStats before tearing down the isolate to prevent
+    // printing the tests table. Comment the following line for debugging
+    // purposes.
+    base::AsAtomic32::Relaxed_Store(&FLAG_runtime_stats, 0);
+  }
+
+  static void SetUpTestCase() {
+    TestWithIsolate::SetUpTestCase();
+    // Use a custom time source to precisly emulate system time.
+    RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
+  }
+
+  static void TearDownTestCase() {
+    TestWithIsolate::TearDownTestCase();
+    // Restore the original time source.
+    RuntimeCallTimer::Now = &base::TimeTicks::HighResolutionNow;
+  }
+
+  RuntimeCallStats* stats() {
+    return isolate()->counters()->runtime_call_stats();
+  }
+
+  // Print current RuntimeCallStats table. For debugging purposes.
+  void PrintStats() { stats()->Print(); }
+
+  RuntimeCallCounterId counter_id() {
+    return RuntimeCallCounterId::kTestCounter1;
+  }
+
+  RuntimeCallCounterId counter_id2() {
+    return RuntimeCallCounterId::kTestCounter2;
+  }
+
+  RuntimeCallCounterId counter_id3() {
+    return RuntimeCallCounterId::kTestCounter3;
+  }
+
+  RuntimeCallCounter* js_counter() {
+    return stats()->GetCounter(RuntimeCallCounterId::kJS_Execution);
+  }
+  RuntimeCallCounter* counter() { return stats()->GetCounter(counter_id()); }
+  RuntimeCallCounter* counter2() { return stats()->GetCounter(counter_id2()); }
+  RuntimeCallCounter* counter3() { return stats()->GetCounter(counter_id3()); }
+
+  void Sleep(int64_t microseconds) {
+    base::TimeDelta delta = base::TimeDelta::FromMicroseconds(microseconds);
+    time_ += delta;
+    runtime_call_stats_test_time_ =
+        base::TimeTicks::FromInternalValue(time_.InMicroseconds());
+  }
 
  private:
-  RuntimeCallStats stats_;
+  base::TimeDelta time_;
+};
+
+// Temporarily use the native time to modify the test time.
+class ElapsedTimeScope {
+ public:
+  explicit ElapsedTimeScope(RuntimeCallStatsTest* test) : test_(test) {
+    timer_.Start();
+  }
+  ~ElapsedTimeScope() { test_->Sleep(timer_.Elapsed().InMicroseconds()); }
+
+ private:
+  base::ElapsedTimer timer_;
+  RuntimeCallStatsTest* test_;
+};
+
+// Temporarily use the default time source.
+class NativeTimeScope {
+ public:
+  NativeTimeScope() {
+    CHECK_EQ(RuntimeCallTimer::Now, &RuntimeCallStatsTestNow);
+    RuntimeCallTimer::Now = &base::TimeTicks::HighResolutionNow;
+  }
+  ~NativeTimeScope() {
+    CHECK_EQ(RuntimeCallTimer::Now, &base::TimeTicks::HighResolutionNow);
+    RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
+  }
 };
 
 }  // namespace
@@ -231,15 +300,11 @@ TEST_F(AggregatedMemoryHistogramTest, ManySamples2) {
   }
 }
 
-#define EXPECT_IN_RANGE(start, value, end) \
-  EXPECT_LE(start, value);                 \
-  EXPECT_GE(end, value)
-
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimer) {
   RuntimeCallTimer timer;
 
   Sleep(50);
-  RuntimeCallStats::Enter(stats(), &timer, counter_id());
+  stats()->Enter(&timer, counter_id());
   EXPECT_EQ(counter(), timer.counter());
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_TRUE(timer.IsStarted());
@@ -247,18 +312,18 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimer) {
 
   Sleep(100);
 
-  RuntimeCallStats::Leave(stats(), &timer);
+  stats()->Leave(&timer);
   Sleep(50);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
   RuntimeCallTimer timer;
   RuntimeCallTimer timer2;
 
-  RuntimeCallStats::Enter(stats(), &timer, counter_id());
+  stats()->Enter(&timer, counter_id());
   EXPECT_TRUE(timer.IsStarted());
   EXPECT_FALSE(timer2.IsStarted());
   EXPECT_EQ(counter(), timer.counter());
@@ -267,7 +332,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
 
   Sleep(50);
 
-  RuntimeCallStats::Enter(stats(), &timer2, counter_id2());
+  stats()->Enter(&timer2, counter_id2());
   // timer 1 is paused, while timer 2 is active.
   EXPECT_TRUE(timer2.IsStarted());
   EXPECT_EQ(counter(), timer.counter());
@@ -277,25 +342,25 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
   EXPECT_EQ(&timer2, stats()->current_timer());
 
   Sleep(100);
-  RuntimeCallStats::Leave(stats(), &timer2);
+  stats()->Leave(&timer2);
 
   // The subtimer subtracts its time from the parent timer.
   EXPECT_TRUE(timer.IsStarted());
   EXPECT_FALSE(timer2.IsStarted());
   EXPECT_EQ(0, counter()->count());
   EXPECT_EQ(1, counter2()->count());
-  EXPECT_EQ(0, counter()->time().InMilliseconds());
-  EXPECT_IN_RANGE(100, counter2()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(0, counter()->time().InMicroseconds());
+  EXPECT_EQ(100, counter2()->time().InMicroseconds());
   EXPECT_EQ(&timer, stats()->current_timer());
 
   Sleep(100);
 
-  RuntimeCallStats::Leave(stats(), &timer);
+  stats()->Leave(&timer);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, counter2()->count());
-  EXPECT_IN_RANGE(150, counter()->time().InMilliseconds(), 150 + kEpsilonMs);
-  EXPECT_IN_RANGE(100, counter2()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(150, counter()->time().InMicroseconds());
+  EXPECT_EQ(100, counter2()->time().InMicroseconds());
   EXPECT_EQ(nullptr, stats()->current_timer());
 }
 
@@ -303,13 +368,13 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerRecursive) {
   RuntimeCallTimer timer;
   RuntimeCallTimer timer2;
 
-  RuntimeCallStats::Enter(stats(), &timer, counter_id());
+  stats()->Enter(&timer, counter_id());
   EXPECT_EQ(counter(), timer.counter());
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_TRUE(timer.IsStarted());
   EXPECT_EQ(&timer, stats()->current_timer());
 
-  RuntimeCallStats::Enter(stats(), &timer2, counter_id());
+  stats()->Enter(&timer2, counter_id());
   EXPECT_EQ(counter(), timer2.counter());
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_EQ(&timer, timer2.parent());
@@ -318,20 +383,19 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerRecursive) {
 
   Sleep(50);
 
-  RuntimeCallStats::Leave(stats(), &timer2);
+  stats()->Leave(&timer2);
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_FALSE(timer2.IsStarted());
   EXPECT_TRUE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
-  EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
+  EXPECT_EQ(50, counter()->time().InMicroseconds());
 
   Sleep(100);
 
-  RuntimeCallStats::Leave(stats(), &timer);
+  stats()->Leave(&timer);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(2, counter()->count());
-  EXPECT_IN_RANGE(150, counter()->time().InMilliseconds(),
-                  150 + 2 * kEpsilonMs);
+  EXPECT_EQ(150, counter()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScope) {
@@ -341,14 +405,13 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScope) {
   }
   Sleep(100);
   EXPECT_EQ(1, counter()->count());
-  EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
+  EXPECT_EQ(50, counter()->time().InMicroseconds());
   {
     RuntimeCallTimerScope scope(stats(), counter_id());
     Sleep(50);
   }
   EXPECT_EQ(2, counter()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                  100 + 2 * kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScopeRecursive) {
@@ -356,17 +419,16 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScopeRecursive) {
     RuntimeCallTimerScope scope(stats(), counter_id());
     Sleep(50);
     EXPECT_EQ(0, counter()->count());
-    EXPECT_EQ(0, counter()->time().InMilliseconds());
+    EXPECT_EQ(0, counter()->time().InMicroseconds());
     {
       RuntimeCallTimerScope scope(stats(), counter_id());
       Sleep(50);
     }
     EXPECT_EQ(1, counter()->count());
-    EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
+    EXPECT_EQ(50, counter()->time().InMicroseconds());
   }
   EXPECT_EQ(2, counter()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                  100 + 2 * kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RenameTimer) {
@@ -375,22 +437,23 @@ TEST_F(RuntimeCallStatsTest, RenameTimer) {
     Sleep(50);
     EXPECT_EQ(0, counter()->count());
     EXPECT_EQ(0, counter2()->count());
-    EXPECT_EQ(0, counter()->time().InMilliseconds());
-    EXPECT_EQ(0, counter2()->time().InMilliseconds());
+    EXPECT_EQ(0, counter()->time().InMicroseconds());
+    EXPECT_EQ(0, counter2()->time().InMicroseconds());
     {
       RuntimeCallTimerScope scope(stats(), counter_id());
       Sleep(100);
     }
-    CHANGE_CURRENT_RUNTIME_COUNTER(stats(), TestCounter2);
+    CHANGE_CURRENT_RUNTIME_COUNTER(stats(),
+                                   RuntimeCallCounterId::kTestCounter2);
     EXPECT_EQ(1, counter()->count());
     EXPECT_EQ(0, counter2()->count());
-    EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
-    EXPECT_IN_RANGE(0, counter2()->time().InMilliseconds(), 0);
+    EXPECT_EQ(100, counter()->time().InMicroseconds());
+    EXPECT_EQ(0, counter2()->time().InMicroseconds());
   }
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, counter2()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
-  EXPECT_IN_RANGE(50, counter2()->time().InMilliseconds(), 50 + kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(50, counter2()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, BasicPrintAndSnapshot) {
@@ -399,9 +462,9 @@ TEST_F(RuntimeCallStatsTest, BasicPrintAndSnapshot) {
   EXPECT_EQ(0, counter()->count());
   EXPECT_EQ(0, counter2()->count());
   EXPECT_EQ(0, counter3()->count());
-  EXPECT_EQ(0, counter()->time().InMilliseconds());
-  EXPECT_EQ(0, counter2()->time().InMilliseconds());
-  EXPECT_EQ(0, counter3()->time().InMilliseconds());
+  EXPECT_EQ(0, counter()->time().InMicroseconds());
+  EXPECT_EQ(0, counter2()->time().InMicroseconds());
+  EXPECT_EQ(0, counter3()->time().InMicroseconds());
 
   {
     RuntimeCallTimerScope scope(stats(), counter_id());
@@ -412,9 +475,9 @@ TEST_F(RuntimeCallStatsTest, BasicPrintAndSnapshot) {
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(0, counter2()->count());
   EXPECT_EQ(0, counter3()->count());
-  EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
-  EXPECT_EQ(0, counter2()->time().InMilliseconds());
-  EXPECT_EQ(0, counter3()->time().InMilliseconds());
+  EXPECT_EQ(50, counter()->time().InMicroseconds());
+  EXPECT_EQ(0, counter2()->time().InMicroseconds());
+  EXPECT_EQ(0, counter3()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, PrintAndSnapshot) {
@@ -422,11 +485,11 @@ TEST_F(RuntimeCallStatsTest, PrintAndSnapshot) {
     RuntimeCallTimerScope scope(stats(), counter_id());
     Sleep(100);
     EXPECT_EQ(0, counter()->count());
-    EXPECT_EQ(0, counter()->time().InMilliseconds());
+    EXPECT_EQ(0, counter()->time().InMicroseconds());
     {
       RuntimeCallTimerScope scope(stats(), counter_id2());
       EXPECT_EQ(0, counter2()->count());
-      EXPECT_EQ(0, counter2()->time().InMilliseconds());
+      EXPECT_EQ(0, counter2()->time().InMicroseconds());
       Sleep(50);
 
       // This calls Snapshot on the current active timer and sychronizes and
@@ -435,40 +498,35 @@ TEST_F(RuntimeCallStatsTest, PrintAndSnapshot) {
       stats()->Print(out);
       EXPECT_EQ(0, counter()->count());
       EXPECT_EQ(0, counter2()->count());
-      EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
-      EXPECT_IN_RANGE(50, counter2()->time().InMilliseconds(), 50 + kEpsilonMs);
+      EXPECT_EQ(100, counter()->time().InMicroseconds());
+      EXPECT_EQ(50, counter2()->time().InMicroseconds());
       // Calling Print several times shouldn't have a (big) impact on the
       // measured times.
       stats()->Print(out);
       EXPECT_EQ(0, counter()->count());
       EXPECT_EQ(0, counter2()->count());
-      EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
-      EXPECT_IN_RANGE(50, counter2()->time().InMilliseconds(), 50 + kEpsilonMs);
+      EXPECT_EQ(100, counter()->time().InMicroseconds());
+      EXPECT_EQ(50, counter2()->time().InMicroseconds());
 
       Sleep(50);
       stats()->Print(out);
       EXPECT_EQ(0, counter()->count());
       EXPECT_EQ(0, counter2()->count());
-      EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
-      EXPECT_IN_RANGE(100, counter2()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
+      EXPECT_EQ(100, counter()->time().InMicroseconds());
+      EXPECT_EQ(100, counter2()->time().InMicroseconds());
       Sleep(50);
     }
     Sleep(50);
     EXPECT_EQ(0, counter()->count());
     EXPECT_EQ(1, counter2()->count());
-    EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
-    EXPECT_IN_RANGE(150, counter2()->time().InMilliseconds(), 150 + kEpsilonMs);
+    EXPECT_EQ(100, counter()->time().InMicroseconds());
+    EXPECT_EQ(150, counter2()->time().InMicroseconds());
     Sleep(50);
   }
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, counter2()->count());
-  EXPECT_IN_RANGE(200, counter()->time().InMilliseconds(), 200 + kEpsilonMs);
-  EXPECT_IN_RANGE(150, counter2()->time().InMilliseconds(),
-                  150 + 2 * kEpsilonMs);
+  EXPECT_EQ(200, counter()->time().InMicroseconds());
+  EXPECT_EQ(150, counter2()->time().InMicroseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, NestedScopes) {
@@ -499,9 +557,127 @@ TEST_F(RuntimeCallStatsTest, NestedScopes) {
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(2, counter2()->count());
   EXPECT_EQ(2, counter3()->count());
-  EXPECT_IN_RANGE(250, counter()->time().InMilliseconds(), 250 + kEpsilonMs);
-  EXPECT_IN_RANGE(300, counter2()->time().InMilliseconds(), 300 + kEpsilonMs);
-  EXPECT_IN_RANGE(100, counter3()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(250, counter()->time().InMicroseconds());
+  EXPECT_EQ(300, counter2()->time().InMicroseconds());
+  EXPECT_EQ(100, counter3()->time().InMicroseconds());
+}
+
+TEST_F(RuntimeCallStatsTest, BasicJavaScript) {
+  RuntimeCallCounter* counter =
+      stats()->GetCounter(RuntimeCallCounterId::kJS_Execution);
+  EXPECT_EQ(0, counter->count());
+  EXPECT_EQ(0, counter->time().InMicroseconds());
+
+  {
+    NativeTimeScope native_timer_scope;
+    RunJS("function f() { return 1; }");
+  }
+  EXPECT_EQ(1, counter->count());
+  int64_t time = counter->time().InMicroseconds();
+  EXPECT_LT(0, time);
+
+  {
+    NativeTimeScope native_timer_scope;
+    RunJS("f()");
+  }
+  EXPECT_EQ(2, counter->count());
+  EXPECT_LE(time, counter->time().InMicroseconds());
+}
+
+TEST_F(RuntimeCallStatsTest, FunctionLengthGetter) {
+  RuntimeCallCounter* getter_counter =
+      stats()->GetCounter(RuntimeCallCounterId::kFunctionLengthGetter);
+  RuntimeCallCounter* js_counter =
+      stats()->GetCounter(RuntimeCallCounterId::kJS_Execution);
+  EXPECT_EQ(0, getter_counter->count());
+  EXPECT_EQ(0, js_counter->count());
+  EXPECT_EQ(0, getter_counter->time().InMicroseconds());
+  EXPECT_EQ(0, js_counter->time().InMicroseconds());
+
+  {
+    NativeTimeScope native_timer_scope;
+    RunJS("function f(array) { return array.length; }");
+  }
+  EXPECT_EQ(0, getter_counter->count());
+  EXPECT_EQ(1, js_counter->count());
+  EXPECT_EQ(0, getter_counter->time().InMicroseconds());
+  int64_t js_time = js_counter->time().InMicroseconds();
+  EXPECT_LT(0, js_time);
+
+  {
+    NativeTimeScope native_timer_scope;
+    RunJS("f.length");
+  }
+  EXPECT_EQ(1, getter_counter->count());
+  EXPECT_EQ(2, js_counter->count());
+  EXPECT_LE(0, getter_counter->time().InMicroseconds());
+  EXPECT_LT(js_time, js_counter->time().InMicroseconds());
+
+  {
+    NativeTimeScope native_timer_scope;
+    RunJS("for (let i = 0; i < 50; i++) { f.length }");
+  }
+  EXPECT_EQ(51, getter_counter->count());
+  EXPECT_EQ(3, js_counter->count());
+}
+
+namespace {
+static RuntimeCallStatsTest* current_test;
+static const int kCustomCallbackTime = 1234;
+static void CustomCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  RuntimeCallTimerScope scope(current_test->stats(),
+                              current_test->counter_id2());
+  current_test->Sleep(kCustomCallbackTime);
+}
+}  // namespace
+
+TEST_F(RuntimeCallStatsTest, CustomCallback) {
+  current_test = this;
+  // Set up a function template with a custom callback.
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->Set(isolate, "callback",
+                       v8::FunctionTemplate::New(isolate, CustomCallback));
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(v8_context()).ToLocalChecked();
+  SetGlobalProperty("custom_object", object);
+
+  // TODO(cbruni): Check api accessor timer (one above the custom callback).
+  EXPECT_EQ(0, js_counter()->count());
+  EXPECT_EQ(0, counter()->count());
+  EXPECT_EQ(0, counter2()->count());
+  {
+    RuntimeCallTimerScope scope(stats(), counter_id());
+    Sleep(100);
+    RunJS("custom_object.callback();");
+  }
+  EXPECT_EQ(1, js_counter()->count());
+  // Given that no native timers are used, only the two scopes explitly
+  // mentioned above will track the time.
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(1, counter2()->count());
+  EXPECT_EQ(kCustomCallbackTime, counter2()->time().InMicroseconds());
+
+  RunJS("for (let i = 0; i < 9; i++) { custom_object.callback() };");
+  EXPECT_EQ(2, js_counter()->count());
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(10, counter2()->count());
+  EXPECT_EQ(kCustomCallbackTime * 10, counter2()->time().InMicroseconds());
+
+  RunJS("for (let i = 0; i < 4000; i++) { custom_object.callback() };");
+  EXPECT_EQ(3, js_counter()->count());
+  EXPECT_EQ(0, js_counter()->time().InMicroseconds());
+  EXPECT_EQ(1, counter()->count());
+  EXPECT_EQ(100, counter()->time().InMicroseconds());
+  EXPECT_EQ(4010, counter2()->count());
+  EXPECT_EQ(kCustomCallbackTime * 4010, counter2()->time().InMicroseconds());
 }
 
 }  // namespace internal

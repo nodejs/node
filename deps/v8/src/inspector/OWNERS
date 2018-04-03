@@ -12,5 +12,8 @@ yangguo@chromium.org
 per-file js_protocol.json=set noparent
 per-file js_protocol.json=dgozman@chromium.org
 per-file js_protocol.json=pfeldman@chromium.org
+per-file js_protocol.pdl=set noparent
+per-file js_protocol.pdl=dgozman@chromium.org
+per-file js_protocol.pdl=pfeldman@chromium.org
 
 # COMPONENT: Platform>DevTools>JavaScript

@@ -1,5 +1,6 @@
 {
-  "id": "cache.json#",
+  "$id": "cache.json#",
+  "$schema": "http://json-schema.org/draft-06/schema#",
   "properties": {
     "beforeRequest": {
       "oneOf": [

@@ -7,8 +7,7 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const n = conf.n >>> 0;
+function main({ n }) {
   bench.start();
   for (var i = 0; i < n; i++) {
     // Access every item in object to process values.

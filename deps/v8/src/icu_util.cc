@@ -32,7 +32,7 @@ namespace internal {
 
 #if defined(V8_INTL_SUPPORT) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 namespace {
-char* g_icu_data_ptr = NULL;
+char* g_icu_data_ptr = nullptr;
 
 void free_icu_data_ptr() {
   delete[] g_icu_data_ptr;
@@ -62,7 +62,7 @@ bool InitializeICUDefaultLocation(const char* exec_path,
   free(icu_data_file_default);
   return result;
 #else
-  return InitializeICU(NULL);
+  return InitializeICU(nullptr);
 #endif
 #endif
 }
@@ -81,6 +81,8 @@ bool InitializeICU(const char* icu_data_file) {
 
   UErrorCode err = U_ZERO_ERROR;
   udata_setCommonData(reinterpret_cast<void*>(addr), &err);
+  // Never try to load ICU data from files.
+  udata_setFileAccess(UDATA_ONLY_PACKAGES, &err);
   return err == U_ZERO_ERROR;
 #elif ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC
   // Mac/Linux bundle the ICU data in.
@@ -100,7 +102,7 @@ bool InitializeICU(const char* icu_data_file) {
   g_icu_data_ptr = new char[size];
   if (fread(g_icu_data_ptr, 1, size, inf) != size) {
     delete[] g_icu_data_ptr;
-    g_icu_data_ptr = NULL;
+    g_icu_data_ptr = nullptr;
     fclose(inf);
     return false;
   }
@@ -110,6 +112,8 @@ bool InitializeICU(const char* icu_data_file) {
 
   UErrorCode err = U_ZERO_ERROR;
   udata_setCommonData(reinterpret_cast<void*>(g_icu_data_ptr), &err);
+  // Never try to load ICU data from files.
+  udata_setFileAccess(UDATA_ONLY_PACKAGES, &err);
   return err == U_ZERO_ERROR;
 #endif
 #endif

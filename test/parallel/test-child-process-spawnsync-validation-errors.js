@@ -4,6 +4,21 @@ const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
 
+let invalidArgTypeError;
+let invalidArgTypeErrorCount = 62;
+
+if (common.isWindows) {
+  invalidArgTypeError =
+    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 42);
+} else {
+  invalidArgTypeError =
+    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
+                        invalidArgTypeErrorCount);
+}
+
+const invalidRangeError =
+  common.expectsError({ code: 'ERR_OUT_OF_RANGE', type: RangeError }, 20);
+
 function pass(option, value) {
   // Run the command with the specified option. Since it's not a real command,
   // spawnSync() should run successfully but return an ENOENT error.
@@ -20,187 +35,172 @@ function fail(option, value, message) {
 
 {
   // Validate the cwd option
-  const err = /^TypeError: "cwd" must be a string$/;
-
   pass('cwd', undefined);
   pass('cwd', null);
   pass('cwd', __dirname);
-  fail('cwd', 0, err);
-  fail('cwd', 1, err);
-  fail('cwd', true, err);
-  fail('cwd', false, err);
-  fail('cwd', [], err);
-  fail('cwd', {}, err);
-  fail('cwd', common.mustNotCall(), err);
+  fail('cwd', 0, invalidArgTypeError);
+  fail('cwd', 1, invalidArgTypeError);
+  fail('cwd', true, invalidArgTypeError);
+  fail('cwd', false, invalidArgTypeError);
+  fail('cwd', [], invalidArgTypeError);
+  fail('cwd', {}, invalidArgTypeError);
+  fail('cwd', common.mustNotCall(), invalidArgTypeError);
 }
 
 {
   // Validate the detached option
-  const err = /^TypeError: "detached" must be a boolean$/;
-
   pass('detached', undefined);
   pass('detached', null);
   pass('detached', true);
   pass('detached', false);
-  fail('detached', 0, err);
-  fail('detached', 1, err);
-  fail('detached', __dirname, err);
-  fail('detached', [], err);
-  fail('detached', {}, err);
-  fail('detached', common.mustNotCall(), err);
+  fail('detached', 0, invalidArgTypeError);
+  fail('detached', 1, invalidArgTypeError);
+  fail('detached', __dirname, invalidArgTypeError);
+  fail('detached', [], invalidArgTypeError);
+  fail('detached', {}, invalidArgTypeError);
+  fail('detached', common.mustNotCall(), invalidArgTypeError);
 }
 
 if (!common.isWindows) {
   {
     // Validate the uid option
     if (process.getuid() !== 0) {
-      const err = /^TypeError: "uid" must be an integer$/;
-
       pass('uid', undefined);
       pass('uid', null);
       pass('uid', process.getuid());
-      fail('uid', __dirname, err);
-      fail('uid', true, err);
-      fail('uid', false, err);
-      fail('uid', [], err);
-      fail('uid', {}, err);
-      fail('uid', common.mustNotCall(), err);
-      fail('uid', NaN, err);
-      fail('uid', Infinity, err);
-      fail('uid', 3.1, err);
-      fail('uid', -3.1, err);
+      fail('uid', __dirname, invalidArgTypeError);
+      fail('uid', true, invalidArgTypeError);
+      fail('uid', false, invalidArgTypeError);
+      fail('uid', [], invalidArgTypeError);
+      fail('uid', {}, invalidArgTypeError);
+      fail('uid', common.mustNotCall(), invalidArgTypeError);
+      fail('uid', NaN, invalidArgTypeError);
+      fail('uid', Infinity, invalidArgTypeError);
+      fail('uid', 3.1, invalidArgTypeError);
+      fail('uid', -3.1, invalidArgTypeError);
+    } else {
+      // Decrement invalidArgTypeErrorCount if validation isn't possible
+      invalidArgTypeErrorCount -= 10;
     }
   }
 
   {
     // Validate the gid option
     if (process.getgid() !== 0) {
-      const err = /^TypeError: "gid" must be an integer$/;
-
       pass('gid', undefined);
       pass('gid', null);
       pass('gid', process.getgid());
-      fail('gid', __dirname, err);
-      fail('gid', true, err);
-      fail('gid', false, err);
-      fail('gid', [], err);
-      fail('gid', {}, err);
-      fail('gid', common.mustNotCall(), err);
-      fail('gid', NaN, err);
-      fail('gid', Infinity, err);
-      fail('gid', 3.1, err);
-      fail('gid', -3.1, err);
+      fail('gid', __dirname, invalidArgTypeError);
+      fail('gid', true, invalidArgTypeError);
+      fail('gid', false, invalidArgTypeError);
+      fail('gid', [], invalidArgTypeError);
+      fail('gid', {}, invalidArgTypeError);
+      fail('gid', common.mustNotCall(), invalidArgTypeError);
+      fail('gid', NaN, invalidArgTypeError);
+      fail('gid', Infinity, invalidArgTypeError);
+      fail('gid', 3.1, invalidArgTypeError);
+      fail('gid', -3.1, invalidArgTypeError);
+    } else {
+      // Decrement invalidArgTypeErrorCount if validation isn't possible
+      invalidArgTypeErrorCount -= 10;
     }
   }
 }
 
 {
   // Validate the shell option
-  const err = /^TypeError: "shell" must be a boolean or string$/;
-
   pass('shell', undefined);
   pass('shell', null);
   pass('shell', false);
-  fail('shell', 0, err);
-  fail('shell', 1, err);
-  fail('shell', [], err);
-  fail('shell', {}, err);
-  fail('shell', common.mustNotCall(), err);
+  fail('shell', 0, invalidArgTypeError);
+  fail('shell', 1, invalidArgTypeError);
+  fail('shell', [], invalidArgTypeError);
+  fail('shell', {}, invalidArgTypeError);
+  fail('shell', common.mustNotCall(), invalidArgTypeError);
 }
 
 {
   // Validate the argv0 option
-  const err = /^TypeError: "argv0" must be a string$/;
-
   pass('argv0', undefined);
   pass('argv0', null);
   pass('argv0', 'myArgv0');
-  fail('argv0', 0, err);
-  fail('argv0', 1, err);
-  fail('argv0', true, err);
-  fail('argv0', false, err);
-  fail('argv0', [], err);
-  fail('argv0', {}, err);
-  fail('argv0', common.mustNotCall(), err);
+  fail('argv0', 0, invalidArgTypeError);
+  fail('argv0', 1, invalidArgTypeError);
+  fail('argv0', true, invalidArgTypeError);
+  fail('argv0', false, invalidArgTypeError);
+  fail('argv0', [], invalidArgTypeError);
+  fail('argv0', {}, invalidArgTypeError);
+  fail('argv0', common.mustNotCall(), invalidArgTypeError);
 }
 
 {
   // Validate the windowsHide option
-  const err = /^TypeError: "windowsHide" must be a boolean$/;
-
   pass('windowsHide', undefined);
   pass('windowsHide', null);
   pass('windowsHide', true);
   pass('windowsHide', false);
-  fail('windowsHide', 0, err);
-  fail('windowsHide', 1, err);
-  fail('windowsHide', __dirname, err);
-  fail('windowsHide', [], err);
-  fail('windowsHide', {}, err);
-  fail('windowsHide', common.mustNotCall(), err);
+  fail('windowsHide', 0, invalidArgTypeError);
+  fail('windowsHide', 1, invalidArgTypeError);
+  fail('windowsHide', __dirname, invalidArgTypeError);
+  fail('windowsHide', [], invalidArgTypeError);
+  fail('windowsHide', {}, invalidArgTypeError);
+  fail('windowsHide', common.mustNotCall(), invalidArgTypeError);
 }
 
 {
   // Validate the windowsVerbatimArguments option
-  const err = /^TypeError: "windowsVerbatimArguments" must be a boolean$/;
-
   pass('windowsVerbatimArguments', undefined);
   pass('windowsVerbatimArguments', null);
   pass('windowsVerbatimArguments', true);
   pass('windowsVerbatimArguments', false);
-  fail('windowsVerbatimArguments', 0, err);
-  fail('windowsVerbatimArguments', 1, err);
-  fail('windowsVerbatimArguments', __dirname, err);
-  fail('windowsVerbatimArguments', [], err);
-  fail('windowsVerbatimArguments', {}, err);
-  fail('windowsVerbatimArguments', common.mustNotCall(), err);
+  fail('windowsVerbatimArguments', 0, invalidArgTypeError);
+  fail('windowsVerbatimArguments', 1, invalidArgTypeError);
+  fail('windowsVerbatimArguments', __dirname, invalidArgTypeError);
+  fail('windowsVerbatimArguments', [], invalidArgTypeError);
+  fail('windowsVerbatimArguments', {}, invalidArgTypeError);
+  fail('windowsVerbatimArguments', common.mustNotCall(), invalidArgTypeError);
 }
 
 {
   // Validate the timeout option
-  const err = /^TypeError: "timeout" must be an unsigned integer$/;
-
   pass('timeout', undefined);
   pass('timeout', null);
   pass('timeout', 1);
   pass('timeout', 0);
-  fail('timeout', -1, err);
-  fail('timeout', true, err);
-  fail('timeout', false, err);
-  fail('timeout', __dirname, err);
-  fail('timeout', [], err);
-  fail('timeout', {}, err);
-  fail('timeout', common.mustNotCall(), err);
-  fail('timeout', NaN, err);
-  fail('timeout', Infinity, err);
-  fail('timeout', 3.1, err);
-  fail('timeout', -3.1, err);
+  fail('timeout', -1, invalidRangeError);
+  fail('timeout', true, invalidRangeError);
+  fail('timeout', false, invalidRangeError);
+  fail('timeout', __dirname, invalidRangeError);
+  fail('timeout', [], invalidRangeError);
+  fail('timeout', {}, invalidRangeError);
+  fail('timeout', common.mustNotCall(), invalidRangeError);
+  fail('timeout', NaN, invalidRangeError);
+  fail('timeout', Infinity, invalidRangeError);
+  fail('timeout', 3.1, invalidRangeError);
+  fail('timeout', -3.1, invalidRangeError);
 }
 
 {
   // Validate the maxBuffer option
-  const err = /^TypeError: "maxBuffer" must be a positive number$/;
-
   pass('maxBuffer', undefined);
   pass('maxBuffer', null);
   pass('maxBuffer', 1);
   pass('maxBuffer', 0);
   pass('maxBuffer', Infinity);
   pass('maxBuffer', 3.14);
-  fail('maxBuffer', -1, err);
-  fail('maxBuffer', NaN, err);
-  fail('maxBuffer', -Infinity, err);
-  fail('maxBuffer', true, err);
-  fail('maxBuffer', false, err);
-  fail('maxBuffer', __dirname, err);
-  fail('maxBuffer', [], err);
-  fail('maxBuffer', {}, err);
-  fail('maxBuffer', common.mustNotCall(), err);
+  fail('maxBuffer', -1, invalidRangeError);
+  fail('maxBuffer', NaN, invalidRangeError);
+  fail('maxBuffer', -Infinity, invalidRangeError);
+  fail('maxBuffer', true, invalidRangeError);
+  fail('maxBuffer', false, invalidRangeError);
+  fail('maxBuffer', __dirname, invalidRangeError);
+  fail('maxBuffer', [], invalidRangeError);
+  fail('maxBuffer', {}, invalidRangeError);
+  fail('maxBuffer', common.mustNotCall(), invalidRangeError);
 }
 
 {
   // Validate the killSignal option
-  const typeErr = /^TypeError: "killSignal" must be a string or number$/;
   const unknownSignalErr =
     common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }, 17);
 
@@ -208,11 +208,11 @@ if (!common.isWindows) {
   pass('killSignal', null);
   pass('killSignal', 'SIGKILL');
   fail('killSignal', 'SIGNOTAVALIDSIGNALNAME', unknownSignalErr);
-  fail('killSignal', true, typeErr);
-  fail('killSignal', false, typeErr);
-  fail('killSignal', [], typeErr);
-  fail('killSignal', {}, typeErr);
-  fail('killSignal', common.mustNotCall(), typeErr);
+  fail('killSignal', true, invalidArgTypeError);
+  fail('killSignal', false, invalidArgTypeError);
+  fail('killSignal', [], invalidArgTypeError);
+  fail('killSignal', {}, invalidArgTypeError);
+  fail('killSignal', common.mustNotCall(), invalidArgTypeError);
 
   // Invalid signal names and numbers should fail
   fail('killSignal', 500, unknownSignalErr);

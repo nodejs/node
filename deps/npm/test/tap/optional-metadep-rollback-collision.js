@@ -1,3 +1,4 @@
+'use strict'
 var fs = require('graceful-fs')
 var path = require('path')
 
@@ -12,7 +13,9 @@ var pkg = path.resolve(__dirname, 'optional-metadep-rollback-collision')
 var deps = path.resolve(pkg, 'deps')
 var opdep = path.resolve(pkg, 'node_modules', 'opdep')
 var cache = path.resolve(pkg, 'cache')
-var pidfile = path.resolve(pkg, 'child.pid')
+var createServer = require('http').createServer
+var mr = require('npm-registry-mock')
+var serverPort = 27991
 
 var json = {
   name: 'optional-metadep-rollback-collision',
@@ -31,7 +34,7 @@ var d1 = {
     preinstall: 'sleep 1'
   },
   dependencies: {
-    foo: 'http://localhost:8080/'
+    foo: 'http://localhost:' + serverPort + '/'
   }
 }
 
@@ -43,9 +46,9 @@ var d2 = {
     postinstall: 'node blart.js'
   },
   dependencies: {
-    'graceful-fs': '^3.0.2',
-    mkdirp: '^0.5.0',
-    rimraf: '^2.2.8'
+    'request': '^0.9.0',
+    mkdirp: '^0.3.5',
+    wordwrap: '^0.0.2'
   }
 }
 
@@ -54,51 +57,11 @@ var opdep_json = {
   version: '1.0.0',
   description: 'To explode, of course!',
   main: 'index.js',
-  scripts: {
-    preinstall: 'node bad-server.js'
-  },
   dependencies: {
     d1: 'file:../d1',
     d2: 'file:../d2'
   }
 }
-
-var badServer = function () { /*
-var createServer = require('http').createServer
-var spawn = require('child_process').spawn
-var fs = require('fs')
-var path = require('path')
-var pidfile = path.resolve(__dirname, '..', '..', 'child.pid')
-
-if (process.argv[2]) {
-  console.log('ok')
-  createServer(function (req, res) {
-    setTimeout(function () {
-      res.writeHead(404)
-      res.end()
-    }, 1000)
-    this.close()
-  }).listen(8080)
-} else {
-  var child = spawn(
-    process.execPath,
-    [__filename, 'whatever'],
-    {
-      stdio: [0, 1, 2],
-      detached: true
-    }
-  )
-  child.unref()
-
-  // kill any prior children, if existing.
-  try {
-    var pid = +fs.readFileSync(pidfile)
-    process.kill(pid, 'SIGKILL')
-  } catch (er) {}
-
-  fs.writeFileSync(pidfile, child.pid + '\n')
-}
-*/ }.toString().split('\n').slice(1, -1).join('\n')
 
 var blart = function () { /*
 var rando = require('crypto').randomBytes
@@ -153,8 +116,17 @@ mkdirp(BASEDIR, function go () {
   }, 3 * 1000)
 })
 */ }.toString().split('\n').slice(1, -1).join('\n')
+
+let badServer
+let mockServer
 test('setup', function (t) {
   cleanup()
+  badServer = createServer(function (req, res) {
+    setTimeout(function () {
+      res.writeHead(404)
+      res.end()
+    }, 1000)
+  }).listen(serverPort)
 
   mkdirp.sync(pkg)
   fs.writeFileSync(
@@ -180,17 +152,19 @@ test('setup', function (t) {
     path.join(deps, 'opdep', 'package.json'),
     JSON.stringify(opdep_json, null, 2)
   )
-  fs.writeFileSync(path.join(deps, 'opdep', 'bad-server.js'), badServer)
-
-  t.end()
+  mr({ port: common.port }, function (er, server) {
+    mockServer = server
+    t.end()
+  })
 })
-
 test('go go test racer', function (t) {
-  common.npm(
+  return common.npm(
     [
       '--prefix', pkg,
       '--fetch-retries', '0',
-      '--loglevel', 'silent',
+      '--loglevel', 'error',
+      '--no-progress',
+      '--registry', common.registry,
       '--parseable',
       '--cache', cache,
       'install'
@@ -200,19 +174,14 @@ test('go go test racer', function (t) {
       env: {
         PATH: process.env.PATH,
         Path: process.env.Path
-      }
-    },
-    function (er, code, stdout, stderr) {
-      t.ifError(er, 'install ran to completion without error')
-      t.is(code, 0, 'npm install exited with code 0')
+      },
+      stdio: 'pipe'
+    }).spread((code, stdout, stderr) => {
       t.comment(stdout.trim())
-      // stdout should be empty, because we only have one, optional, dep and
-      // if it fails we shouldn't try installing anything
-      t.equal(stdout, '')
+      t.comment(stderr.trim())
+      t.is(code, 0, 'npm install exited with code 0')
       t.notOk(/not ok/.test(stdout), 'should not contain the string \'not ok\'')
-      t.end()
-    }
-  )
+    })
 })
 
 test('verify results', function (t) {
@@ -223,16 +192,14 @@ test('verify results', function (t) {
 })
 
 test('cleanup', function (t) {
+  mockServer.close()
+  badServer.close()
   cleanup()
   t.end()
 })
 
 function cleanup () {
   process.chdir(osenv.tmpdir())
-  try {
-    var pid = +fs.readFileSync(pidfile)
-    process.kill(pid, 'SIGKILL')
-  } catch (er) {}
 
   rimraf.sync(pkg)
 }

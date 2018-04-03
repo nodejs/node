@@ -76,7 +76,7 @@ hint: and commit the result with 'git commit'
    2. Include the backport target in the pull request title in the following
       format — `[v6.x backport] <commit title>`.
       Example: `[v6.x backport] process: improve performance of nextTick`
-   3. Check the checkbox labelled "Allow edits from maintainers".
+   3. Check the checkbox labeled "Allow edits from maintainers".
    4. In the description add a reference to the original PR
    5. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
       default `<pr base branch>`)

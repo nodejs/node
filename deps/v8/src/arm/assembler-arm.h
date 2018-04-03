@@ -65,11 +65,16 @@ namespace internal {
   V(s16) V(s17) V(s18) V(s19) V(s20) V(s21) V(s22) V(s23) \
   V(s24) V(s25) V(s26) V(s27) V(s28) V(s29) V(s30) V(s31)
 
-#define DOUBLE_REGISTERS(V)                               \
+#define LOW_DOUBLE_REGISTERS(V)                           \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15) \
+  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15)
+
+#define NON_LOW_DOUBLE_REGISTERS(V)                       \
   V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
   V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
+
+#define DOUBLE_REGISTERS(V) \
+  LOW_DOUBLE_REGISTERS(V) NON_LOW_DOUBLE_REGISTERS(V)
 
 #define SIMD128_REGISTERS(V)                              \
   V(q0)  V(q1)  V(q2)  V(q3)  V(q4)  V(q5)  V(q6)  V(q7)  \
@@ -83,7 +88,11 @@ namespace internal {
 
 #define ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(V)          \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)               \
+  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)
+
+#define C_REGISTERS(V)                                            \
+  V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
+  V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
 
 // The ARM ABI does not specify the usage of register r9, which may be reserved
@@ -140,248 +149,143 @@ const int kNumSafepointRegisters = 16;
 const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
 const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
-// CPU Registers.
-//
-// 1) We would prefer to use an enum, but enum values are assignment-
-// compatible with int, which has caused code-generation bugs.
-//
-// 2) We would prefer to use a class instead of a struct but we don't like
-// the register initialization to depend on the particular initialization
-// order (which appears to be different on OS X, Linux, and Windows for the
-// installed versions of C++ we tried). Using a struct permits C-style
-// "initialization". Also, the Register objects cannot be const as this
-// forces initialization stubs in MSVC, making us dependent on initialization
-// order.
-//
-// 3) By not using an enum, we are possibly preventing the compiler from
-// doing certain constant folds, which may significantly reduce the
-// code generated for some assembly instructions (because they boil down
-// to a few constants). If this is a problem, we could change the code
-// such that we use an enum in optimized mode, and the struct in debug
-// mode. This way we get the compile-time error checking in debug mode
-// and best performance in optimized code.
-
-struct Register {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
+enum RegisterCode {
+#define REGISTER_CODE(R) kRegCode_##R,
+  GENERAL_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
-  static constexpr int kNumRegisters = Code::kAfterLast;
-
-  static Register from_code(int code) {
-    DCHECK(code >= 0);
-    DCHECK(code < kNumRegisters);
-    Register r = {code};
-    return r;
-  }
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(Register reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-  void set_code(int code) {
-    reg_code = code;
-    DCHECK(is_valid());
-  }
-
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+      kRegAfterLast
 };
+
+class Register : public RegisterBase<Register, kRegAfterLast> {
+  friend class RegisterBase;
+  explicit constexpr Register(int code) : RegisterBase(code) {}
+};
+
+static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
+                  sizeof(Register) == sizeof(int),
+              "Register can efficiently be passed by value");
 
 // r7: context register
 // r9: lithium scratch
-#define DECLARE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+#define DECLARE_REGISTER(R) \
+  constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
-constexpr Register no_reg = {Register::kCode_no_reg};
+constexpr Register no_reg = Register::no_reg();
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = false;
 constexpr bool kSimdMaskRegisters = false;
 
-// Single word VFP register.
-struct SwVfpRegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    FLOAT_REGISTERS(REGISTER_CODE)
+enum SwVfpRegisterCode {
+#define REGISTER_CODE(R) kSwVfpCode_##R,
+  FLOAT_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+      kSwVfpAfterLast
+};
 
-  static constexpr int kMaxNumRegisters = Code::kAfterLast;
-
+// Single word VFP register.
+class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
+ public:
   static constexpr int kSizeInBytes = 4;
 
-  bool is_valid() const { return 0 <= reg_code && reg_code < 32; }
-  bool is(SwVfpRegister reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-  static SwVfpRegister from_code(int code) {
-    SwVfpRegister r = {code};
-    return r;
-  }
   static void split_code(int reg_code, int* vm, int* m) {
     DCHECK(from_code(reg_code).is_valid());
     *m = reg_code & 0x1;
     *vm = reg_code >> 1;
   }
-  void split_code(int* vm, int* m) const {
-    split_code(reg_code, vm, m);
-  }
+  void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
 
-  int reg_code;
+ private:
+  friend class RegisterBase;
+  explicit constexpr SwVfpRegister(int code) : RegisterBase(code) {}
 };
+
+static_assert(IS_TRIVIALLY_COPYABLE(SwVfpRegister) &&
+                  sizeof(SwVfpRegister) == sizeof(int),
+              "SwVfpRegister can efficiently be passed by value");
 
 typedef SwVfpRegister FloatRegister;
 
-// Double word VFP register.
-struct DwVfpRegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
+enum DoubleRegisterCode {
+#define REGISTER_CODE(R) kDoubleCode_##R,
+  DOUBLE_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+      kDoubleAfterLast
+};
 
-  static constexpr int kMaxNumRegisters = Code::kAfterLast;
-
-  inline static int NumRegisters();
-
+// Double word VFP register.
+class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
+ public:
   // A few double registers are reserved: one as a scratch register and one to
   // hold 0.0, that does not fit in the immediate field of vmov instructions.
   //  d14: 0.0
   //  d15: scratch register.
   static constexpr int kSizeInBytes = 8;
 
-  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DwVfpRegister reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
+  inline static int NumRegisters();
 
-  static DwVfpRegister from_code(int code) {
-    DwVfpRegister r = {code};
-    return r;
-  }
   static void split_code(int reg_code, int* vm, int* m) {
     DCHECK(from_code(reg_code).is_valid());
     *m = (reg_code & 0x10) >> 4;
     *vm = reg_code & 0x0F;
   }
-  void split_code(int* vm, int* m) const {
-    split_code(reg_code, vm, m);
-  }
+  void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
 
-  int reg_code;
+ private:
+  friend class RegisterBase;
+  friend class LowDwVfpRegister;
+  explicit constexpr DwVfpRegister(int code) : RegisterBase(code) {}
 };
 
+static_assert(IS_TRIVIALLY_COPYABLE(DwVfpRegister) &&
+                  sizeof(DwVfpRegister) == sizeof(int),
+              "DwVfpRegister can efficiently be passed by value");
 
 typedef DwVfpRegister DoubleRegister;
 
 
 // Double word VFP register d0-15.
-struct LowDwVfpRegister {
+class LowDwVfpRegister
+    : public RegisterBase<LowDwVfpRegister, kDoubleCode_d16> {
  public:
-  static constexpr int kMaxNumLowRegisters = 16;
-  constexpr operator DwVfpRegister() const {
-    return DwVfpRegister { reg_code };
-  }
-  static LowDwVfpRegister from_code(int code) {
-    LowDwVfpRegister r = { code };
-    return r;
-  }
+  constexpr operator DwVfpRegister() const { return DwVfpRegister(reg_code_); }
 
-  bool is_valid() const {
-    return 0 <= reg_code && reg_code < kMaxNumLowRegisters;
-  }
-  bool is(DwVfpRegister reg) const { return reg_code == reg.reg_code; }
-  bool is(LowDwVfpRegister reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  SwVfpRegister low() const {
-    SwVfpRegister reg;
-    reg.reg_code = reg_code * 2;
-
-    DCHECK(reg.is_valid());
-    return reg;
-  }
+  SwVfpRegister low() const { return SwVfpRegister::from_code(code() * 2); }
   SwVfpRegister high() const {
-    SwVfpRegister reg;
-    reg.reg_code = (reg_code * 2) + 1;
-
-    DCHECK(reg.is_valid());
-    return reg;
+    return SwVfpRegister::from_code(code() * 2 + 1);
   }
 
-  int reg_code;
+ private:
+  friend class RegisterBase;
+  explicit constexpr LowDwVfpRegister(int code) : RegisterBase(code) {}
 };
 
+enum Simd128RegisterCode {
+#define REGISTER_CODE(R) kSimd128Code_##R,
+  SIMD128_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kSimd128AfterLast
+};
 
 // Quad word NEON register.
-struct QwNeonRegister {
-  static constexpr int kMaxNumRegisters = 16;
-
-  static QwNeonRegister from_code(int code) {
-    QwNeonRegister r = { code };
-    return r;
-  }
-
-  bool is_valid() const {
-    return (0 <= reg_code) && (reg_code < kMaxNumRegisters);
-  }
-  bool is(QwNeonRegister reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
+class QwNeonRegister : public RegisterBase<QwNeonRegister, kSimd128AfterLast> {
+ public:
   static void split_code(int reg_code, int* vm, int* m) {
     DCHECK(from_code(reg_code).is_valid());
     int encoded_code = reg_code << 1;
     *m = (encoded_code & 0x10) >> 4;
     *vm = encoded_code & 0x0F;
   }
-  void split_code(int* vm, int* m) const {
-    split_code(reg_code, vm, m);
-  }
-  DwVfpRegister low() const {
-    DwVfpRegister reg;
-    reg.reg_code = reg_code * 2;
-
-    DCHECK(reg.is_valid());
-    return reg;
-  }
+  void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
+  DwVfpRegister low() const { return DwVfpRegister::from_code(code() * 2); }
   DwVfpRegister high() const {
-    DwVfpRegister reg;
-    reg.reg_code = reg_code * 2 + 1;
-
-    DCHECK(reg.is_valid());
-    return reg;
+    return DwVfpRegister::from_code(code() * 2 + 1);
   }
 
-  int reg_code;
+ private:
+  friend class RegisterBase;
+  explicit constexpr QwNeonRegister(int code) : RegisterBase(code) {}
 };
 
 
@@ -389,92 +293,42 @@ typedef QwNeonRegister QuadRegister;
 
 typedef QwNeonRegister Simd128Register;
 
+enum CRegisterCode {
+#define REGISTER_CODE(R) kCCode_##R,
+  C_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kCAfterLast
+};
+
+// Coprocessor register
+class CRegister : public RegisterBase<CRegister, kCAfterLast> {
+  friend class RegisterBase;
+  explicit constexpr CRegister(int code) : RegisterBase(code) {}
+};
+
 // Support for the VFP registers s0 to s31 (d0 to d15).
 // Note that "s(N):s(N+1)" is the same as "d(N/2)".
-constexpr SwVfpRegister s0  = {  0 };
-constexpr SwVfpRegister s1  = {  1 };
-constexpr SwVfpRegister s2  = {  2 };
-constexpr SwVfpRegister s3  = {  3 };
-constexpr SwVfpRegister s4  = {  4 };
-constexpr SwVfpRegister s5  = {  5 };
-constexpr SwVfpRegister s6  = {  6 };
-constexpr SwVfpRegister s7  = {  7 };
-constexpr SwVfpRegister s8  = {  8 };
-constexpr SwVfpRegister s9  = {  9 };
-constexpr SwVfpRegister s10 = { 10 };
-constexpr SwVfpRegister s11 = { 11 };
-constexpr SwVfpRegister s12 = { 12 };
-constexpr SwVfpRegister s13 = { 13 };
-constexpr SwVfpRegister s14 = { 14 };
-constexpr SwVfpRegister s15 = { 15 };
-constexpr SwVfpRegister s16 = { 16 };
-constexpr SwVfpRegister s17 = { 17 };
-constexpr SwVfpRegister s18 = { 18 };
-constexpr SwVfpRegister s19 = { 19 };
-constexpr SwVfpRegister s20 = { 20 };
-constexpr SwVfpRegister s21 = { 21 };
-constexpr SwVfpRegister s22 = { 22 };
-constexpr SwVfpRegister s23 = { 23 };
-constexpr SwVfpRegister s24 = { 24 };
-constexpr SwVfpRegister s25 = { 25 };
-constexpr SwVfpRegister s26 = { 26 };
-constexpr SwVfpRegister s27 = { 27 };
-constexpr SwVfpRegister s28 = { 28 };
-constexpr SwVfpRegister s29 = { 29 };
-constexpr SwVfpRegister s30 = { 30 };
-constexpr SwVfpRegister s31 = { 31 };
+#define DECLARE_FLOAT_REGISTER(R) \
+  constexpr SwVfpRegister R = SwVfpRegister::from_code<kSwVfpCode_##R>();
+FLOAT_REGISTERS(DECLARE_FLOAT_REGISTER)
+#undef DECLARE_FLOAT_REGISTER
 
-constexpr DwVfpRegister no_dreg = { -1 };
-constexpr LowDwVfpRegister d0 = { 0 };
-constexpr LowDwVfpRegister d1 = { 1 };
-constexpr LowDwVfpRegister d2 = { 2 };
-constexpr LowDwVfpRegister d3 = { 3 };
-constexpr LowDwVfpRegister d4 = { 4 };
-constexpr LowDwVfpRegister d5 = { 5 };
-constexpr LowDwVfpRegister d6 = { 6 };
-constexpr LowDwVfpRegister d7 = { 7 };
-constexpr LowDwVfpRegister d8 = { 8 };
-constexpr LowDwVfpRegister d9 = { 9 };
-constexpr LowDwVfpRegister d10 = { 10 };
-constexpr LowDwVfpRegister d11 = { 11 };
-constexpr LowDwVfpRegister d12 = { 12 };
-constexpr LowDwVfpRegister d13 = { 13 };
-constexpr LowDwVfpRegister d14 = { 14 };
-constexpr LowDwVfpRegister d15 = { 15 };
-constexpr DwVfpRegister d16 = { 16 };
-constexpr DwVfpRegister d17 = { 17 };
-constexpr DwVfpRegister d18 = { 18 };
-constexpr DwVfpRegister d19 = { 19 };
-constexpr DwVfpRegister d20 = { 20 };
-constexpr DwVfpRegister d21 = { 21 };
-constexpr DwVfpRegister d22 = { 22 };
-constexpr DwVfpRegister d23 = { 23 };
-constexpr DwVfpRegister d24 = { 24 };
-constexpr DwVfpRegister d25 = { 25 };
-constexpr DwVfpRegister d26 = { 26 };
-constexpr DwVfpRegister d27 = { 27 };
-constexpr DwVfpRegister d28 = { 28 };
-constexpr DwVfpRegister d29 = { 29 };
-constexpr DwVfpRegister d30 = { 30 };
-constexpr DwVfpRegister d31 = { 31 };
+#define DECLARE_LOW_DOUBLE_REGISTER(R) \
+  constexpr LowDwVfpRegister R = LowDwVfpRegister::from_code<kDoubleCode_##R>();
+LOW_DOUBLE_REGISTERS(DECLARE_LOW_DOUBLE_REGISTER)
+#undef DECLARE_LOW_DOUBLE_REGISTER
 
-constexpr QwNeonRegister q0  = {  0 };
-constexpr QwNeonRegister q1  = {  1 };
-constexpr QwNeonRegister q2  = {  2 };
-constexpr QwNeonRegister q3  = {  3 };
-constexpr QwNeonRegister q4  = {  4 };
-constexpr QwNeonRegister q5  = {  5 };
-constexpr QwNeonRegister q6  = {  6 };
-constexpr QwNeonRegister q7  = {  7 };
-constexpr QwNeonRegister q8  = {  8 };
-constexpr QwNeonRegister q9  = {  9 };
-constexpr QwNeonRegister q10 = { 10 };
-constexpr QwNeonRegister q11 = { 11 };
-constexpr QwNeonRegister q12 = { 12 };
-constexpr QwNeonRegister q13 = { 13 };
-constexpr QwNeonRegister q14 = { 14 };
-constexpr QwNeonRegister q15 = { 15 };
+#define DECLARE_DOUBLE_REGISTER(R) \
+  constexpr DwVfpRegister R = DwVfpRegister::from_code<kDoubleCode_##R>();
+NON_LOW_DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
+#undef DECLARE_DOUBLE_REGISTER
 
+constexpr DwVfpRegister no_dreg = DwVfpRegister::no_reg();
+
+#define DECLARE_SIMD128_REGISTER(R) \
+  constexpr Simd128Register R = Simd128Register::from_code<kSimd128Code_##R>();
+SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
+#undef DECLARE_SIMD128_REGISTER
 
 // Aliases for double registers.
 constexpr LowDwVfpRegister kFirstCalleeSavedDoubleReg = d8;
@@ -487,43 +341,12 @@ constexpr LowDwVfpRegister kScratchDoubleReg = d14;
 constexpr QwNeonRegister kScratchQuadReg = q7;
 constexpr LowDwVfpRegister kScratchDoubleReg2 = d15;
 
-// Coprocessor register
-struct CRegister {
-  bool is_valid() const { return 0 <= reg_code && reg_code < 16; }
-  bool is(CRegister creg) const { return reg_code == creg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
+constexpr CRegister no_creg = CRegister::no_reg();
 
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
-};
-
-
-constexpr CRegister no_creg = { -1 };
-
-constexpr CRegister cr0  = {  0 };
-constexpr CRegister cr1  = {  1 };
-constexpr CRegister cr2  = {  2 };
-constexpr CRegister cr3  = {  3 };
-constexpr CRegister cr4  = {  4 };
-constexpr CRegister cr5  = {  5 };
-constexpr CRegister cr6  = {  6 };
-constexpr CRegister cr7  = {  7 };
-constexpr CRegister cr8  = {  8 };
-constexpr CRegister cr9  = {  9 };
-constexpr CRegister cr10 = { 10 };
-constexpr CRegister cr11 = { 11 };
-constexpr CRegister cr12 = { 12 };
-constexpr CRegister cr13 = { 13 };
-constexpr CRegister cr14 = { 14 };
-constexpr CRegister cr15 = { 15 };
-
+#define DECLARE_C_REGISTER(R) \
+  constexpr CRegister R = CRegister::from_code<kCCode_##R>();
+C_REGISTERS(DECLARE_C_REGISTER)
+#undef DECLARE_C_REGISTER
 
 // Coprocessor number
 enum Coprocessor {
@@ -584,10 +407,8 @@ class Operand BASE_EMBEDDED {
 
   // Return true if this is a register operand.
   bool IsRegister() const {
-    return rm_.is_valid() &&
-        rs_.is(no_reg) &&
-        shift_op_ == LSL &&
-        shift_imm_ == 0;
+    return rm_.is_valid() && rs_ == no_reg && shift_op_ == LSL &&
+           shift_imm_ == 0;
   }
   // Return true if this is a register operand shifted with an immediate.
   bool IsImmediateShiftedRegister() const {
@@ -639,8 +460,8 @@ class Operand BASE_EMBEDDED {
 
 
  private:
-  Register rm_;
-  Register rs_;
+  Register rm_ = no_reg;
+  Register rs_ = no_reg;
   ShiftOp shift_op_;
   int shift_imm_;                // valid if rm_ != no_reg && rs_ == no_reg
   union Value {
@@ -684,13 +505,13 @@ class MemOperand BASE_EMBEDDED {
   }
 
   void set_offset(int32_t offset) {
-      DCHECK(rm_.is(no_reg));
-      offset_ = offset;
+    DCHECK(rm_ == no_reg);
+    offset_ = offset;
   }
 
   uint32_t offset() const {
-      DCHECK(rm_.is(no_reg));
-      return offset_;
+    DCHECK(rm_ == no_reg);
+    return offset_;
   }
 
   Register rn() const { return rn_; }
@@ -776,14 +597,15 @@ class Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
@@ -830,10 +652,6 @@ class Assembler : public AssemblerBase {
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(static Address target_address_at(Address pc, Code* code));
-  INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
@@ -1085,6 +903,9 @@ class Assembler : public AssemblerBase {
   void strd(Register src1,
             Register src2,
             const MemOperand& dst, Condition cond = al);
+
+  // Load literal from a pc relative address.
+  void ldr_pcrel(Register dst, int imm12, Condition cond = al);
 
   // Load/Store exclusive instructions
   void ldrex(Register dst, Register src, Condition cond = al);
@@ -1523,6 +1344,10 @@ class Assembler : public AssemblerBase {
 
   void pop();
 
+  void vpush(QwNeonRegister src, Condition cond = al) {
+    vstm(db_w, sp, src.low(), src.high(), cond);
+  }
+
   void vpush(DwVfpRegister src, Condition cond = al) {
     vstm(db_w, sp, src, src, cond);
   }
@@ -1791,13 +1616,13 @@ class Assembler : public AssemblerBase {
   bool VfpRegisterIsAvailable(DwVfpRegister reg) {
     DCHECK(reg.is_valid());
     return IsEnabled(VFP32DREGS) ||
-           (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters);
+           (reg.code() < LowDwVfpRegister::kNumRegisters);
   }
 
   bool VfpRegisterIsAvailable(QwNeonRegister reg) {
     DCHECK(reg.is_valid());
     return IsEnabled(VFP32DREGS) ||
-           (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters / 2);
+           (reg.code() < LowDwVfpRegister::kNumRegisters / 2);
   }
 
   inline void emit(Instr x);
@@ -1893,7 +1718,7 @@ class Assembler : public AssemblerBase {
   void AddrMode5(Instr instr, CRegister crd, const MemOperand& x);
 
   // Labels
-  void print(Label* L);
+  void print(const Label* L);
   void bind_to(Label* L, int pos);
   void next(Label* L);
 
@@ -1904,7 +1729,6 @@ class Assembler : public AssemblerBase {
   void ConstantPoolAddEntry(int position, Double value);
 
   friend class RelocInfo;
-  friend class CodePatcher;
   friend class BlockConstPoolScope;
   friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;

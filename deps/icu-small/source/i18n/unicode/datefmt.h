@@ -44,7 +44,8 @@ class TimeZone;
 class DateTimePatternGenerator;
 
 // explicit template instantiation. see digitlst.h
-#if defined (_MSC_VER)
+// (When building DLLs for Windows this is required.)
+#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
 template class U_I18N_API EnumSet<UDateFormatBooleanAttribute,
             0,
             UDAT_BOOLEAN_ATTRIBUTE_COUNT>;

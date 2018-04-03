@@ -2,7 +2,7 @@
 const common = require('../common.js');
 const { domainToASCII, domainToUnicode } = require('url');
 
-const inputs = {
+const domains = {
   empty: {
     ascii: '',
     unicode: ''
@@ -26,20 +26,18 @@ const inputs = {
 };
 
 const bench = common.createBenchmark(main, {
-  input: Object.keys(inputs),
+  domain: Object.keys(domains),
   to: ['ascii', 'unicode'],
   n: [5e6]
 });
 
-function main(conf) {
-  const n = conf.n | 0;
-  const to = conf.to;
-  const input = inputs[conf.input][to];
+function main({ n, to, domain }) {
+  const value = domains[domain][to];
   const method = to === 'ascii' ? domainToASCII : domainToUnicode;
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    method(input);
+    method(value);
   }
   bench.end(n);
 }

@@ -65,12 +65,12 @@ static UBool getSystemTimeInformation(TimeZone *tz, SYSTEMTIME &daylightDate, SY
             // Always use DOW type rule
             int32_t hour, min, sec, mil;
             standardDate.wYear = 0;
-            standardDate.wMonth = std->getRule()->getRuleMonth() + 1;
-            standardDate.wDay = std->getRule()->getRuleWeekInMonth();
+            standardDate.wMonth = static_cast<WORD>(std->getRule()->getRuleMonth()) + 1;
+            standardDate.wDay = static_cast<WORD>(std->getRule()->getRuleWeekInMonth());
             if (standardDate.wDay < 0) {
                 standardDate.wDay = 5;
             }
-            standardDate.wDayOfWeek = std->getRule()->getRuleDayOfWeek() - 1;
+            standardDate.wDayOfWeek = static_cast<WORD>(std->getRule()->getRuleDayOfWeek()) - 1;
 
             mil = std->getRule()->getRuleMillisInDay();
             hour = mil/3600000;
@@ -80,18 +80,18 @@ static UBool getSystemTimeInformation(TimeZone *tz, SYSTEMTIME &daylightDate, SY
             sec = mil/1000;
             mil %= 1000;
 
-            standardDate.wHour = hour;
-            standardDate.wMinute = min;
-            standardDate.wSecond = sec;
-            standardDate.wMilliseconds = mil;
+            standardDate.wHour = static_cast<WORD>(hour);
+            standardDate.wMinute = static_cast<WORD>(min);
+            standardDate.wSecond = static_cast<WORD>(sec);
+            standardDate.wMilliseconds = static_cast<WORD>(mil);
 
             daylightDate.wYear = 0;
-            daylightDate.wMonth = dst->getRule()->getRuleMonth() + 1;
-            daylightDate.wDay = dst->getRule()->getRuleWeekInMonth();
+            daylightDate.wMonth = static_cast<WORD>(dst->getRule()->getRuleMonth()) + 1;
+            daylightDate.wDay = static_cast<WORD>(dst->getRule()->getRuleWeekInMonth());
             if (daylightDate.wDay < 0) {
                 daylightDate.wDay = 5;
             }
-            daylightDate.wDayOfWeek = dst->getRule()->getRuleDayOfWeek() - 1;
+            daylightDate.wDayOfWeek = static_cast<WORD>(dst->getRule()->getRuleDayOfWeek()) - 1;
 
             mil = dst->getRule()->getRuleMillisInDay();
             hour = mil/3600000;
@@ -101,10 +101,10 @@ static UBool getSystemTimeInformation(TimeZone *tz, SYSTEMTIME &daylightDate, SY
             sec = mil/1000;
             mil %= 1000;
 
-            daylightDate.wHour = hour;
-            daylightDate.wMinute = min;
-            daylightDate.wSecond = sec;
-            daylightDate.wMilliseconds = mil;
+            daylightDate.wHour = static_cast<WORD>(hour);
+            daylightDate.wMinute = static_cast<WORD>(min);
+            daylightDate.wSecond = static_cast<WORD>(sec);
+            daylightDate.wMilliseconds = static_cast<WORD>(mil);
         }
     } else {
         result = FALSE;

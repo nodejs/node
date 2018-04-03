@@ -33,6 +33,7 @@
 #include "uhash.h"
 #include "uresimp.h"
 #include "unicode/ustring.h"
+#include "unicode/utf8.h"
 
 void res_write_java(struct SResource *res,UErrorCode *status);
 
@@ -244,7 +245,8 @@ str_write_java(const UChar *src, int32_t srcLen, UBool printEndLine, UErrorCode 
     memset(buf,0,length);
 
     bufLen = uCharsToChars(buf,length,src,srcLen,status);
-
+    // buflen accounts for extra bytes added due to multi byte encoding of
+    //        non ASCII characters
     if(printEndLine)
         write_tabs(out);
 
@@ -284,10 +286,22 @@ str_write_java(const UChar *src, int32_t srcLen, UBool printEndLine, UErrorCode 
                 }
             }
             T_FileStream_write(out,"\"",1);
+            uint32_t byteIndex = 0;
+            uint32_t trailBytes = 0;
             if(len+add<bufLen){
+                // check the trail bytes to be added to the output line
+                while (byteIndex < add) {
+                    if (U8_IS_LEAD(*(current + byteIndex))) {
+                        trailBytes = U8_COUNT_TRAIL_BYTES(*(current + byteIndex));
+                        add += trailBytes;
+                    }
+                    byteIndex++;
+                }
                 T_FileStream_write(out,current,add);
-                T_FileStream_write(out,"\" +\n",4);
-                write_tabs(out);
+                if (len + add < bufLen) {
+                    T_FileStream_write(out,"\" +\n",4);
+                    write_tabs(out);
+                }
             }else{
                 T_FileStream_write(out,current,bufLen-len);
             }
@@ -437,9 +451,7 @@ bytes_write_java(const BinaryResource *res, UErrorCode * /*status*/) {
     char byteBuffer[100] = { 0 };
 	uint8_t*  byteArray = NULL;
     int byteIterator = 0;
-
     int32_t srcLen=res->fLength;
-
     if(srcLen>0 )
 	{
         byteArray = res->fData;

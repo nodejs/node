@@ -44,6 +44,12 @@
 }],  # variant == stress
 
 ##############################################################################
+['variant == stress_incremental_marking', {
+  # BUG(chromium:772010).
+  'debug/debug-*': [PASS, ['system == windows', SKIP]],
+}],  # variant == stress_incremental_marking
+
+##############################################################################
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
   # Tests taking too long

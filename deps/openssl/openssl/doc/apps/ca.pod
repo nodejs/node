@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-ca,
 ca - sample minimal CA application
 
 =head1 SYNOPSIS
@@ -422,6 +423,10 @@ The default value is B<yes>, to be compatible with older (pre 0.9.8)
 versions of OpenSSL.  However, to make CA certificate roll-over easier,
 it's recommended to use the value B<no>, especially if combined with
 the B<-selfsign> command line option.
+
+Note that it is valid in some circumstances for certificates to be created
+without any subject. In the case where there are multiple certificates without
+subjects this does not count as a duplicate.
 
 =item B<serial>
 

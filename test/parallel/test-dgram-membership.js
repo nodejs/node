@@ -11,13 +11,13 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 {
   const socket = setup();
   socket.close(common.mustCall(() => {
-    assert.throws(() => {
+    common.expectsError(() => {
       socket.addMembership(multicastAddress);
-    }, common.expectsError({
+    }, {
       code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
       type: Error,
       message: /^Not running$/
-    }));
+    });
   }));
 }
 
@@ -25,39 +25,39 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 {
   const socket = setup();
   socket.close(common.mustCall(() => {
-    assert.throws(() => {
+    common.expectsError(() => {
       socket.dropMembership(multicastAddress);
-    }, common.expectsError({
+    }, {
       code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
       type: Error,
       message: /^Not running$/
-    }));
+    });
   }));
 }
 
 // addMembership() with no argument should throw
 {
   const socket = setup();
-  assert.throws(() => {
+  common.expectsError(() => {
     socket.addMembership();
-  }, common.expectsError({
+  }, {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
     message: /^The "multicastAddress" argument must be specified$/
-  }));
+  });
   socket.close();
 }
 
 // dropMembership() with no argument should throw
 {
   const socket = setup();
-  assert.throws(() => {
+  common.expectsError(() => {
     socket.dropMembership();
-  }, common.expectsError({
+  }, {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
     message: /^The "multicastAddress" argument must be specified$/
-  }));
+  });
   socket.close();
 }
 

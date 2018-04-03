@@ -8,12 +8,9 @@ const eol = common.isWindows ? '\r\n' : '\n';
 
 assert.strictEqual(os.EOL, eol);
 
-common.expectsError(function() {
-  os.EOL = 123;
-}, {
-  type: TypeError,
-  message: /^Cannot assign to read only property 'EOL' of object '#<Object>'$/
-});
+// Test that the `Error` is a `TypeError` but do not check the message as it
+// varies between different JavaScript engines.
+assert.throws(function() { os.EOL = 123; }, TypeError);
 
 const foo = 'foo';
 Object.defineProperties(os, {

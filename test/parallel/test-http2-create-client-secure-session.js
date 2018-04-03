@@ -19,11 +19,16 @@ function loadKey(keyname) {
 
 function onStream(stream, headers) {
   const socket = stream.session[kSocket];
+
+  assert(stream.session.encrypted);
+  assert(stream.session.alpnProtocol, 'h2');
+  const originSet = stream.session.originSet;
+  assert(Array.isArray(originSet));
+  assert.strictEqual(originSet[0],
+                     `https://${socket.servername}:${socket.remotePort}`);
+
   assert(headers[':authority'].startsWith(socket.servername));
-  stream.respond({
-    'content-type': 'text/html',
-    ':status': 200
-  });
+  stream.respond({ 'content-type': 'application/json' });
   stream.end(JSON.stringify({
     servername: socket.servername,
     alpnProtocol: socket.alpnProtocol
@@ -33,35 +38,44 @@ function onStream(stream, headers) {
 function verifySecureSession(key, cert, ca, opts) {
   const server = h2.createSecureServer({ cert, key });
   server.on('stream', common.mustCall(onStream));
-  server.listen(0);
-  server.on('listening', common.mustCall(function() {
-    const headers = { ':path': '/' };
-    if (!opts) {
-      opts = {};
-    }
+  server.on('close', common.mustCall());
+  server.listen(0, common.mustCall(() => {
+    opts = opts || { };
     opts.secureContext = tls.createSecureContext({ ca });
-    const client = h2.connect(`https://localhost:${this.address().port}`, opts, function() {
-      const req = client.request(headers);
+    const client = h2.connect(`https://localhost:${server.address().port}`,
+                              opts);
+    // Verify that a 'secureConnect' listener is attached
+    assert.strictEqual(client.socket.listenerCount('secureConnect'), 1);
+    const req = client.request();
 
-      req.on('response', common.mustCall(function(headers) {
-        assert.strictEqual(headers[':status'], 200, 'status code is set');
-        assert.strictEqual(headers['content-type'], 'text/html',
-                           'content type is set');
-        assert(headers['date'], 'there is a date');
-      }));
+    client.on('connect', common.mustCall(() => {
+      assert(client.encrypted);
+      assert.strictEqual(client.alpnProtocol, 'h2');
+      const originSet = client.originSet;
+      assert(Array.isArray(originSet));
+      assert.strictEqual(originSet.length, 1);
+      assert.strictEqual(
+        originSet[0],
+        `https://${opts.servername || 'localhost'}:${server.address().port}`);
+    }));
 
-      let data = '';
-      req.setEncoding('utf8');
-      req.on('data', (d) => data += d);
-      req.on('end', common.mustCall(() => {
-        const jsonData = JSON.parse(data);
-        assert.strictEqual(jsonData.servername, opts.servername || 'localhost');
-        assert.strictEqual(jsonData.alpnProtocol, 'h2');
-        server.close();
-        client[kSocket].destroy();
-      }));
-      req.end();
-    });
+    req.on('response', common.mustCall((headers) => {
+      assert.strictEqual(headers[':status'], 200);
+      assert.strictEqual(headers['content-type'], 'application/json');
+      assert(headers.date);
+    }));
+
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (d) => data += d);
+    req.on('end', common.mustCall(() => {
+      const jsonData = JSON.parse(data);
+      assert.strictEqual(jsonData.servername,
+                         opts.servername || 'localhost');
+      assert.strictEqual(jsonData.alpnProtocol, 'h2');
+      server.close(common.mustCall());
+      client[kSocket].destroy();
+    }));
   }));
 }
 

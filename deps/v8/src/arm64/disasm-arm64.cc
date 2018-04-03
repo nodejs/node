@@ -256,27 +256,26 @@ void DisassemblingDecoder::VisitLogicalImmediate(Instruction* instr) {
 
 bool DisassemblingDecoder::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
   DCHECK((reg_size == kXRegSizeInBits) ||
-         ((reg_size == kWRegSizeInBits) && (value <= 0xffffffff)));
+         ((reg_size == kWRegSizeInBits) && (value <= 0xFFFFFFFF)));
 
   // Test for movz: 16-bits set at positions 0, 16, 32 or 48.
-  if (((value & 0xffffffffffff0000UL) == 0UL) ||
-      ((value & 0xffffffff0000ffffUL) == 0UL) ||
-      ((value & 0xffff0000ffffffffUL) == 0UL) ||
-      ((value & 0x0000ffffffffffffUL) == 0UL)) {
+  if (((value & 0xFFFFFFFFFFFF0000UL) == 0UL) ||
+      ((value & 0xFFFFFFFF0000FFFFUL) == 0UL) ||
+      ((value & 0xFFFF0000FFFFFFFFUL) == 0UL) ||
+      ((value & 0x0000FFFFFFFFFFFFUL) == 0UL)) {
     return true;
   }
 
   // Test for movn: NOT(16-bits set at positions 0, 16, 32 or 48).
   if ((reg_size == kXRegSizeInBits) &&
-      (((value & 0xffffffffffff0000UL) == 0xffffffffffff0000UL) ||
-       ((value & 0xffffffff0000ffffUL) == 0xffffffff0000ffffUL) ||
-       ((value & 0xffff0000ffffffffUL) == 0xffff0000ffffffffUL) ||
-       ((value & 0x0000ffffffffffffUL) == 0x0000ffffffffffffUL))) {
+      (((value & 0xFFFFFFFFFFFF0000UL) == 0xFFFFFFFFFFFF0000UL) ||
+       ((value & 0xFFFFFFFF0000FFFFUL) == 0xFFFFFFFF0000FFFFUL) ||
+       ((value & 0xFFFF0000FFFFFFFFUL) == 0xFFFF0000FFFFFFFFUL) ||
+       ((value & 0x0000FFFFFFFFFFFFUL) == 0x0000FFFFFFFFFFFFUL))) {
     return true;
   }
-  if ((reg_size == kWRegSizeInBits) &&
-      (((value & 0xffff0000) == 0xffff0000) ||
-       ((value & 0x0000ffff) == 0x0000ffff))) {
+  if ((reg_size == kWRegSizeInBits) && (((value & 0xFFFF0000) == 0xFFFF0000) ||
+                                        ((value & 0x0000FFFF) == 0x0000FFFF))) {
     return true;
   }
   return false;
@@ -547,7 +546,7 @@ void DisassemblingDecoder::VisitUnconditionalBranchToRegister(
     case RET: {
       mnemonic = "ret";
       if (instr->Rn() == kLinkRegCode) {
-        form = NULL;
+        form = nullptr;
       }
       break;
     }
@@ -1244,7 +1243,7 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
     switch (instr->ImmHint()) {
       case NOP: {
         mnemonic = "nop";
-        form = NULL;
+        form = nullptr;
         break;
       }
     }
@@ -1262,7 +1261,7 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
       }
       case ISB: {
         mnemonic = "isb";
-        form = NULL;
+        form = nullptr;
         break;
       }
     }
@@ -1334,8 +1333,8 @@ void DisassemblingDecoder::VisitNEON3Same(Instruction* instr) {
         "shadd",       "uhadd",       "shadd",       "uhadd",
         "sqadd",       "uqadd",       "sqadd",       "uqadd",
         "srhadd",      "urhadd",      "srhadd",      "urhadd",
-        NULL,          NULL,          NULL,
-        NULL,  // Handled by logical cases above.
+        nullptr,       nullptr,       nullptr,
+        nullptr,  // Handled by logical cases above.
         "shsub",       "uhsub",       "shsub",       "uhsub",
         "sqsub",       "uqsub",       "sqsub",       "uqsub",
         "cmgt",        "cmhi",        "cmgt",        "cmhi",
@@ -1976,8 +1975,8 @@ void DisassemblingDecoder::VisitNEONExtract(Instruction* instr) {
 }
 
 void DisassemblingDecoder::VisitNEONLoadStoreMultiStruct(Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
   const char* form_1v = "{'Vt.%1$s}, ['Xns]";
   const char* form_2v = "{'Vt.%1$s, 'Vt2.%1$s}, ['Xns]";
   const char* form_3v = "{'Vt.%1$s, 'Vt2.%1$s, 'Vt3.%1$s}, ['Xns]";
@@ -2046,7 +2045,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStruct(Instruction* instr) {
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreMultiStructMask)) {
     case NEON_LD2:
     case NEON_LD3:
@@ -2073,8 +2072,8 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStruct(Instruction* instr) {
 
 void DisassemblingDecoder::VisitNEONLoadStoreMultiStructPostIndex(
     Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
   const char* form_1v = "{'Vt.%1$s}, ['Xns], 'Xmr1";
   const char* form_2v = "{'Vt.%1$s, 'Vt2.%1$s}, ['Xns], 'Xmr2";
   const char* form_3v = "{'Vt.%1$s, 'Vt2.%1$s, 'Vt3.%1$s}, ['Xns], 'Xmr3";
@@ -2144,7 +2143,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStructPostIndex(
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreMultiStructPostIndexMask)) {
     case NEON_LD2_post:
     case NEON_LD3_post:
@@ -2170,8 +2169,8 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStructPostIndex(
 }
 
 void DisassemblingDecoder::VisitNEONLoadStoreSingleStruct(Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
 
   const char* form_1b = "{'Vt.b}['IVLSLane0], ['Xns]";
   const char* form_1h = "{'Vt.h}['IVLSLane1], ['Xns]";
@@ -2294,7 +2293,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreSingleStruct(Instruction* instr) {
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreSingleStructMask)) {
     case NEON_LD1_h:
     case NEON_LD2_h:
@@ -2342,8 +2341,8 @@ void DisassemblingDecoder::VisitNEONLoadStoreSingleStruct(Instruction* instr) {
 
 void DisassemblingDecoder::VisitNEONLoadStoreSingleStructPostIndex(
     Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
 
   const char* form_1b = "{'Vt.b}['IVLSLane0], ['Xns], 'Xmb1";
   const char* form_1h = "{'Vt.h}['IVLSLane1], ['Xns], 'Xmb2";
@@ -2455,7 +2454,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreSingleStructPostIndex(
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreSingleStructPostIndexMask)) {
     case NEON_LD1_h_post:
     case NEON_LD2_h_post:
@@ -3332,8 +3331,6 @@ void DisassemblingDecoder::AppendRegisterNameToOutput(const CPURegister& reg) {
     // Filter special registers
     if (reg.IsX() && (reg.code() == 27)) {
       AppendToOutput("cp");
-    } else if (reg.IsX() && (reg.code() == 28)) {
-      AppendToOutput("jssp");
     } else if (reg.IsX() && (reg.code() == 29)) {
       AppendToOutput("fp");
     } else if (reg.IsX() && (reg.code() == 30)) {
@@ -3355,10 +3352,10 @@ void DisassemblingDecoder::Format(Instruction* instr, const char* mnemonic,
                                   const char* format) {
   // TODO(mcapewel) don't think I can use the instr address here - there needs
   //                to be a base address too
-  DCHECK(mnemonic != NULL);
+  DCHECK_NOT_NULL(mnemonic);
   ResetOutput();
   Substitute(instr, mnemonic);
-  if (format != NULL) {
+  if (format != nullptr) {
     buffer_[buffer_pos_++] = ' ';
     Substitute(instr, format);
   }
@@ -3469,7 +3466,7 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
     case 'e':
       // This is register Rm, but using a 4-bit specifier. Used in NEON
       // by-element instructions.
-      reg_num = (instr->Rm() & 0xf);
+      reg_num = (instr->Rm() & 0xF);
       break;
     case 'a':
       reg_num = instr->Ra();
@@ -3545,8 +3542,6 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
       return field_len;
     default:
       UNREACHABLE();
-      reg_type = CPURegister::kRegister;
-      reg_size = kXRegSizeInBits;
   }
 
   if ((reg_type == CPURegister::kRegister) && (reg_num == kZeroRegCode) &&
@@ -3561,7 +3556,7 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
 
 int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
                                                    const char* format) {
-  DCHECK(format[0] == 'I');
+  DCHECK_EQ(format[0], 'I');
 
   switch (format[1]) {
     case 'M': {  // IMoveImm or IMoveLSL.
@@ -3569,10 +3564,10 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
         uint64_t imm = static_cast<uint64_t>(instr->ImmMoveWide())
                        << (16 * instr->ShiftMoveWide());
         if (format[5] == 'N') imm = ~imm;
-        if (!instr->SixtyFourBits()) imm &= UINT64_C(0xffffffff);
+        if (!instr->SixtyFourBits()) imm &= UINT64_C(0xFFFFFFFF);
         AppendToOutput("#0x%" PRIx64, imm);
       } else {
-        DCHECK(format[5] == 'L');
+        DCHECK_EQ(format[5], 'L');
         AppendToOutput("#0x%" PRIx64, instr->ImmMoveWide());
         if (instr->ShiftMoveWide() > 0) {
           AppendToOutput(", lsl #%d", 16 * instr->ShiftMoveWide());
@@ -3617,7 +3612,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
       return 6;
     }
     case 'A': {  // IAddSub.
-      DCHECK(instr->ShiftAddSub() <= 1);
+      DCHECK_LE(instr->ShiftAddSub(), 1);
       int64_t imm = instr->ImmAddSub() << (12 * instr->ShiftAddSub());
       AppendToOutput("#0x%" PRIx64 " (%" PRId64 ")", imm, imm);
       return 7;
@@ -3696,7 +3691,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             vm_index = (vm_index << 1) | instr->NEONM();
           }
           AppendToOutput("%d", vm_index);
-          return strlen("IVByElemIndex");
+          return static_cast<int>(strlen("IVByElemIndex"));
         }
         case 'I': {  // INS element.
           if (strncmp(format, "IVInsIndex", strlen("IVInsIndex")) == 0) {
@@ -3709,11 +3704,11 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
               rn_index = imm4 >> tz;
               if (strncmp(format, "IVInsIndex1", strlen("IVInsIndex1")) == 0) {
                 AppendToOutput("%d", rd_index);
-                return strlen("IVInsIndex1");
+                return static_cast<int>(strlen("IVInsIndex1"));
               } else if (strncmp(format, "IVInsIndex2",
                                  strlen("IVInsIndex2")) == 0) {
                 AppendToOutput("%d", rn_index);
-                return strlen("IVInsIndex2");
+                return static_cast<int>(strlen("IVInsIndex2"));
               }
             }
             return 0;
@@ -3728,38 +3723,38 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
               0) {
             AppendToOutput("#0x%" PRIx32 " (%.4f)", instr->ImmNEONabcdefgh(),
                            instr->ImmNEONFP32());
-            return strlen("IVMIImmFPSingle");
+            return static_cast<int>(strlen("IVMIImmFPSingle"));
           } else if (strncmp(format, "IVMIImmFPDouble",
                              strlen("IVMIImmFPDouble")) == 0) {
             AppendToOutput("#0x%" PRIx32 " (%.4f)", instr->ImmNEONabcdefgh(),
                            instr->ImmNEONFP64());
-            return strlen("IVMIImmFPDouble");
+            return static_cast<int>(strlen("IVMIImmFPDouble"));
           } else if (strncmp(format, "IVMIImm8", strlen("IVMIImm8")) == 0) {
             uint64_t imm8 = instr->ImmNEONabcdefgh();
             AppendToOutput("#0x%" PRIx64, imm8);
-            return strlen("IVMIImm8");
+            return static_cast<int>(strlen("IVMIImm8"));
           } else if (strncmp(format, "IVMIImm", strlen("IVMIImm")) == 0) {
             uint64_t imm8 = instr->ImmNEONabcdefgh();
             uint64_t imm = 0;
             for (int i = 0; i < 8; ++i) {
               if (imm8 & (1 << i)) {
-                imm |= (UINT64_C(0xff) << (8 * i));
+                imm |= (UINT64_C(0xFF) << (8 * i));
               }
             }
             AppendToOutput("#0x%" PRIx64, imm);
-            return strlen("IVMIImm");
+            return static_cast<int>(strlen("IVMIImm"));
           } else if (strncmp(format, "IVMIShiftAmt1",
                              strlen("IVMIShiftAmt1")) == 0) {
             int cmode = instr->NEONCmode();
             int shift_amount = 8 * ((cmode >> 1) & 3);
             AppendToOutput("#%d", shift_amount);
-            return strlen("IVMIShiftAmt1");
+            return static_cast<int>(strlen("IVMIShiftAmt1"));
           } else if (strncmp(format, "IVMIShiftAmt2",
                              strlen("IVMIShiftAmt2")) == 0) {
             int cmode = instr->NEONCmode();
             int shift_amount = 8 << (cmode & 1);
             AppendToOutput("#%d", shift_amount);
-            return strlen("IVMIShiftAmt2");
+            return static_cast<int>(strlen("IVMIShiftAmt2"));
           } else {
             UNIMPLEMENTED();
             return 0;
@@ -3795,7 +3790,7 @@ int DisassemblingDecoder::SubstituteBitfieldImmediateField(Instruction* instr,
         AppendToOutput("#%d", s + 1);
         return 5;
       } else {
-        DCHECK(format[3] == '-');
+        DCHECK_EQ(format[3], '-');
         AppendToOutput("#%d", s - r + 1);
         return 7;
       }
@@ -3816,7 +3811,7 @@ int DisassemblingDecoder::SubstituteBitfieldImmediateField(Instruction* instr,
 
 int DisassemblingDecoder::SubstituteLiteralField(Instruction* instr,
                                                  const char* format) {
-  DCHECK(strncmp(format, "LValue", 6) == 0);
+  DCHECK_EQ(strncmp(format, "LValue", 6), 0);
   USE(format);
 
   switch (instr->Mask(LoadLiteralMask)) {
@@ -3858,7 +3853,7 @@ int DisassemblingDecoder::SubstituteShiftField(Instruction* instr,
 
 int DisassemblingDecoder::SubstituteConditionField(Instruction* instr,
                                                    const char* format) {
-  DCHECK(format[0] == 'C');
+  DCHECK_EQ(format[0], 'C');
   const char* condition_code[] = { "eq", "ne", "hs", "lo",
                                    "mi", "pl", "vs", "vc",
                                    "hi", "ls", "ge", "lt",
@@ -3880,12 +3875,12 @@ int DisassemblingDecoder::SubstituteConditionField(Instruction* instr,
 int DisassemblingDecoder::SubstitutePCRelAddressField(Instruction* instr,
                                                       const char* format) {
   USE(format);
-  DCHECK(strncmp(format, "AddrPCRel", 9) == 0);
+  DCHECK_EQ(strncmp(format, "AddrPCRel", 9), 0);
 
   int offset = instr->ImmPCRel();
 
   // Only ADR (AddrPCRelByte) is supported.
-  DCHECK(strcmp(format, "AddrPCRelByte") == 0);
+  DCHECK_EQ(strcmp(format, "AddrPCRelByte"), 0);
 
   char sign = '+';
   if (offset < 0) {
@@ -3927,8 +3922,8 @@ int DisassemblingDecoder::SubstituteBranchTargetField(Instruction* instr,
 
 int DisassemblingDecoder::SubstituteExtendField(Instruction* instr,
                                                 const char* format) {
-  DCHECK(strncmp(format, "Ext", 3) == 0);
-  DCHECK(instr->ExtendMode() <= 7);
+  DCHECK_EQ(strncmp(format, "Ext", 3), 0);
+  DCHECK_LE(instr->ExtendMode(), 7);
   USE(format);
 
   const char* extend_mode[] = { "uxtb", "uxth", "uxtw", "uxtx",
@@ -3954,7 +3949,7 @@ int DisassemblingDecoder::SubstituteExtendField(Instruction* instr,
 
 int DisassemblingDecoder::SubstituteLSRegOffsetField(Instruction* instr,
                                                      const char* format) {
-  DCHECK(strncmp(format, "Offsetreg", 9) == 0);
+  DCHECK_EQ(strncmp(format, "Offsetreg", 9), 0);
   const char* extend_mode[] = { "undefined", "undefined", "uxtw", "lsl",
                                 "undefined", "undefined", "sxtw", "sxtx" };
   USE(format);
@@ -3983,7 +3978,7 @@ int DisassemblingDecoder::SubstituteLSRegOffsetField(Instruction* instr,
 
 int DisassemblingDecoder::SubstitutePrefetchField(Instruction* instr,
                                                   const char* format) {
-  DCHECK(format[0] == 'P');
+  DCHECK_EQ(format[0], 'P');
   USE(format);
 
   int prefetch_mode = instr->PrefetchMode();
@@ -3998,7 +3993,7 @@ int DisassemblingDecoder::SubstitutePrefetchField(Instruction* instr,
 
 int DisassemblingDecoder::SubstituteBarrierField(Instruction* instr,
                                                  const char* format) {
-  DCHECK(format[0] == 'M');
+  DCHECK_EQ(format[0], 'M');
   USE(format);
 
   static const char* const options[4][4] = {

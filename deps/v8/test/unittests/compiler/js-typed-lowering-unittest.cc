@@ -65,77 +65,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
 };
 
 
-// -----------------------------------------------------------------------------
-// JSToBoolean
-
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
-  Node* input = Parameter(Type::Boolean(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_EQ(input, r.replacement());
-}
-
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
-  Node* input = Parameter(Type::OrderedNumber(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
-}
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithNumber) {
-  Node* input = Parameter(Type::Number(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsNumberToBoolean(input));
-}
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithDetectableReceiverOrNull) {
-  Node* input = Parameter(Type::DetectableReceiverOrNull(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsBooleanNot(IsReferenceEqual(input, IsNullConstant())));
-}
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithReceiverOrNullOrUndefined) {
-  Node* input = Parameter(Type::ReceiverOrNullOrUndefined(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsBooleanNot(IsObjectIsUndetectable(input)));
-}
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
-  Node* input = Parameter(Type::String(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsBooleanNot(IsReferenceEqual(
-                  input, IsHeapConstant(factory()->empty_string()))));
-}
-
-TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
-  Node* input = Parameter(Type::Any(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_FALSE(r.Changed());
-}
-
 
 // -----------------------------------------------------------------------------
 // JSToName
@@ -453,8 +382,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
       Reduce(graph()->NewNode(javascript()->LoadNamed(name, feedback), receiver,
                               context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
-                                           receiver, effect, control));
+  EXPECT_THAT(r.replacement(), IsStringLength(receiver));
 }
 
 

@@ -31,7 +31,7 @@ class CacheLineSizes {
   uint32_t ExtractCacheLineSize(int cache_line_size_shift) const {
     // The cache type register holds the size of cache lines in words as a
     // power of two.
-    return 4 << ((cache_type_register_ >> cache_line_size_shift) & 0xf);
+    return 4 << ((cache_type_register_ >> cache_line_size_shift) & 0xF);
   }
 
   uint32_t cache_type_register_;
@@ -49,8 +49,8 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
   uintptr_t dsize = sizes.dcache_line_size();
   uintptr_t isize = sizes.icache_line_size();
   // Cache line sizes are always a power of 2.
-  DCHECK(CountSetBits(dsize, 64) == 1);
-  DCHECK(CountSetBits(isize, 64) == 1);
+  DCHECK_EQ(CountSetBits(dsize, 64), 1);
+  DCHECK_EQ(CountSetBits(isize, 64), 1);
   uintptr_t dstart = start & ~(dsize - 1);
   uintptr_t istart = start & ~(isize - 1);
   uintptr_t end = start + length;

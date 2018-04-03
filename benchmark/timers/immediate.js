@@ -2,13 +2,13 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  thousands: [2000],
+  thousands: [5000],
   type: ['depth', 'depth1', 'breadth', 'breadth1', 'breadth4', 'clear']
 });
 
-function main(conf) {
-  const N = +conf.thousands * 1e3;
-  switch (conf.type) {
+function main({ thousands, type }) {
+  const N = thousands * 1e3;
+  switch (type) {
     case 'depth':
       depth(N);
       break;
@@ -88,6 +88,7 @@ function breadth1(N) {
 
 // concurrent setImmediate, 4 arguments
 function breadth4(N) {
+  N /= 2;
   var n = 0;
   bench.start();
   function cb(a1, a2, a3, a4) {
@@ -101,6 +102,7 @@ function breadth4(N) {
 }
 
 function clear(N) {
+  N *= 4;
   bench.start();
   function cb(a1) {
     if (a1 === 2)

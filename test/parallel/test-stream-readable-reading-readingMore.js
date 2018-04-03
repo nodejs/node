@@ -15,7 +15,7 @@ assert.strictEqual(state.readingMore, false);
 
 readable.on('data', common.mustCall((data) => {
   // while in a flowing state, should try to read more.
-  if (state.flowing)
+  if (readable.readableFlowing)
     assert.strictEqual(state.readingMore, true);
 
   // reading as long as we've not ended
@@ -37,7 +37,8 @@ readable.on('readable', common.mustCall(() => {
   // if the stream has ended, we shouldn't be reading
   assert.strictEqual(state.ended, !state.reading);
 
-  if (readable.read() === null) // reached end of stream
+  const data = readable.read();
+  if (data === null) // reached end of stream
     process.nextTick(common.mustCall(onStreamEnd, 1));
 }, 2));
 

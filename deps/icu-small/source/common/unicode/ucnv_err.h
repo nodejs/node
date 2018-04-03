@@ -119,19 +119,19 @@ typedef struct UConverter UConverter;
 #define UCNV_ESCAPE_JAVA      "J"
 /**
  * FROM_U_CALLBACK_ESCAPE context option to escape the code unit according to C (\\uXXXX \\UXXXXXXXX)
- * TO_U_CALLBACK_ESCAPE option to escape the character value accoding to C (\\xXXXX)
+ * TO_U_CALLBACK_ESCAPE option to escape the character value according to C (\\xXXXX)
  * @stable ICU 2.0
  */
 #define UCNV_ESCAPE_C         "C"
 /**
  * FROM_U_CALLBACK_ESCAPE context option to escape the code unit according to XML Decimal escape \htmlonly(&amp;#DDDD;)\endhtmlonly
- * TO_U_CALLBACK_ESCAPE context option to escape the character value accoding to XML Decimal escape \htmlonly(&amp;#DDDD;)\endhtmlonly
+ * TO_U_CALLBACK_ESCAPE context option to escape the character value according to XML Decimal escape \htmlonly(&amp;#DDDD;)\endhtmlonly
  * @stable ICU 2.0
  */
 #define UCNV_ESCAPE_XML_DEC   "D"
 /**
  * FROM_U_CALLBACK_ESCAPE context option to escape the code unit according to XML Hex escape \htmlonly(&amp;#xXXXX;)\endhtmlonly
- * TO_U_CALLBACK_ESCAPE context option to escape the character value accoding to XML Hex escape \htmlonly(&amp;#xXXXX;)\endhtmlonly
+ * TO_U_CALLBACK_ESCAPE context option to escape the character value according to XML Hex escape \htmlonly(&amp;#xXXXX;)\endhtmlonly
  * @stable ICU 2.0
  */
 #define UCNV_ESCAPE_XML_HEX   "X"
@@ -171,7 +171,7 @@ typedef enum {
                              code points.
                              The error code U_INVALID_CHAR_FOUND will be set. */
     UCNV_RESET = 3,       /**< The callback is called with this reason when a
-                             'reset' has occured. Callback should reset all
+                             'reset' has occurred. Callback should reset all
                              state. */
     UCNV_CLOSE = 4,        /**< Called when the converter is closed. The
                              callback should release any allocated memory.*/
@@ -199,7 +199,7 @@ typedef struct {
     const UChar *sourceLimit;   /**< Pointer to the limit (end + 1) of source buffer. @stable ICU 2.0    */
     char *target;               /**< Pointer to the target buffer. @stable ICU 2.0    */
     const char *targetLimit;    /**< Pointer to the limit (end + 1) of target buffer. @stable ICU 2.0     */
-    int32_t *offsets;           /**< Pointer to the buffer that recieves the offsets. *offset = blah ; offset++;. @stable ICU 2.0  */
+    int32_t *offsets;           /**< Pointer to the buffer that receives the offsets. *offset = blah ; offset++;. @stable ICU 2.0  */
 } UConverterFromUnicodeArgs;
 
 
@@ -215,7 +215,7 @@ typedef struct {
     const char *sourceLimit;    /**< Pointer to the limit (end + 1) of source buffer. @stable ICU 2.0    */
     UChar *target;              /**< Pointer to the target buffer. @stable ICU 2.0    */
     const UChar *targetLimit;   /**< Pointer to the limit (end + 1) of target buffer. @stable ICU 2.0     */
-    int32_t *offsets;           /**< Pointer to the buffer that recieves the offsets. *offset = blah ; offset++;. @stable ICU 2.0  */
+    int32_t *offsets;           /**< Pointer to the buffer that receives the offsets. *offset = blah ; offset++;. @stable ICU 2.0  */
 } UConverterToUnicodeArgs;
 
 

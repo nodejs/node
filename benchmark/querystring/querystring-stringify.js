@@ -7,10 +7,7 @@ const bench = common.createBenchmark(main, {
   n: [1e7],
 });
 
-function main(conf) {
-  const type = conf.type;
-  const n = conf.n | 0;
-
+function main({ type, n }) {
   const inputs = {
     noencode: {
       foo: 'bar',
@@ -20,7 +17,7 @@ function main(conf) {
     encodemany: {
       '\u0080\u0083\u0089': 'bar',
       '\u008C\u008E\u0099': 'quux',
-      xyzzy: '\u00A5q\u00A3r'
+      'xyzzy': '\u00A5q\u00A3r'
     },
     encodelast: {
       foo: 'bar',

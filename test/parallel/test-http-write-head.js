@@ -44,22 +44,21 @@ const s = http.createServer(common.mustCall((req, res) => {
   common.expectsError(
     () => res.setHeader('foo', undefined),
     {
-      code: 'ERR_MISSING_ARGS',
+      code: 'ERR_HTTP_INVALID_HEADER_VALUE',
       type: TypeError,
-      message: 'The "value" argument must be specified'
+      message: 'Invalid value "undefined" for header "foo"'
     }
   );
 
   res.writeHead(200, { Test: '2' });
 
-  assert.throws(() => {
+  common.expectsError(() => {
     res.writeHead(100, {});
-  }, common.expectsError({
+  }, {
     code: 'ERR_HTTP_HEADERS_SENT',
     type: Error,
     message: 'Cannot render headers after they are sent to the client'
-  })
-  );
+  });
 
   res.end();
 }));
@@ -69,7 +68,7 @@ s.listen(0, common.mustCall(runTest));
 function runTest() {
   http.get({ port: this.address().port }, common.mustCall((response) => {
     response.on('end', common.mustCall(() => {
-      assert.strictEqual(response.headers['test'], '2');
+      assert.strictEqual(response.headers.test, '2');
       assert(response.rawHeaders.includes('Test'));
       s.close();
     }));

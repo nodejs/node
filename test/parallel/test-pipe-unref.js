@@ -2,10 +2,11 @@
 const common = require('../common');
 const net = require('net');
 
-common.refreshTmpDir();
+// This test should end immediately after `unref` is called
+
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const s = net.Server();
 s.listen(common.PIPE);
 s.unref();
-
-setTimeout(common.mustNotCall(), 1000).unref();

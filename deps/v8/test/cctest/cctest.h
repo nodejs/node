@@ -32,10 +32,12 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
+#include "src/assembler.h"
 #include "src/debug/debug-interface.h"
+#include "src/factory.h"
 #include "src/flags.h"
 #include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
@@ -113,7 +115,7 @@ class CcTest {
   bool enabled() { return enabled_; }
 
   static v8::Isolate* isolate() {
-    CHECK(isolate_ != NULL);
+    CHECK_NOT_NULL(isolate_);
     v8::base::Relaxed_Store(&isolate_used_, 1);
     return isolate_;
   }
@@ -245,7 +247,7 @@ class RegisterThreadedTest {
  public:
   explicit RegisterThreadedTest(CcTest::TestFunction* callback,
                                 const char* name)
-      : fuzzer_(NULL), callback_(callback), name_(name) {
+      : fuzzer_(nullptr), callback_(callback), name_(name) {
     prev_ = first_;
     first_ = this;
     count_++;
@@ -566,6 +568,25 @@ static inline void CheckDoubleEquals(double expected, double actual) {
   CHECK_GE(expected, actual - kEpsilon);
 }
 
+static inline uint8_t* AllocateAssemblerBuffer(
+    size_t* allocated,
+    size_t requested = v8::internal::AssemblerBase::kMinimalBufferSize) {
+  size_t page_size = v8::internal::AllocatePageSize();
+  size_t alloc_size = RoundUp(requested, page_size);
+  void* result = v8::internal::AllocatePages(
+      nullptr, alloc_size, page_size, v8::PageAllocator::kReadWriteExecute);
+  CHECK(result);
+  *allocated = alloc_size;
+  return static_cast<uint8_t*>(result);
+}
+
+static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
+                                                 size_t allocated) {
+  bool result = v8::internal::SetPermissions(buffer, allocated,
+                                             v8::PageAllocator::kReadExecute);
+  CHECK(result);
+}
+
 static v8::debug::DebugDelegate dummy_delegate;
 
 static inline void EnableDebugger(v8::Isolate* isolate) {
@@ -631,21 +652,26 @@ class ManualGCScope {
   ManualGCScope()
       : flag_concurrent_marking_(i::FLAG_concurrent_marking),
         flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
-        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking) {
+        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
+        flag_parallel_marking_(i::FLAG_parallel_marking) {
     i::FLAG_concurrent_marking = false;
     i::FLAG_concurrent_sweeping = false;
     i::FLAG_stress_incremental_marking = false;
+    // Parallel marking has a dependency on concurrent marking.
+    i::FLAG_parallel_marking = false;
   }
   ~ManualGCScope() {
     i::FLAG_concurrent_marking = flag_concurrent_marking_;
     i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
     i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
+    i::FLAG_parallel_marking = flag_parallel_marking_;
   }
 
  private:
   bool flag_concurrent_marking_;
   bool flag_concurrent_sweeping_;
   bool flag_stress_incremental_marking_;
+  bool flag_parallel_marking_;
 };
 
 // This is an abstract base class that can be overridden to implement a test
@@ -654,8 +680,26 @@ class ManualGCScope {
 class TestPlatform : public v8::Platform {
  public:
   // v8::Platform implementation.
+  v8::PageAllocator* GetPageAllocator() override {
+    return old_platform_->GetPageAllocator();
+  }
+
   void OnCriticalMemoryPressure() override {
     old_platform_->OnCriticalMemoryPressure();
+  }
+
+  bool OnCriticalMemoryPressure(size_t length) override {
+    return old_platform_->OnCriticalMemoryPressure(length);
+  }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return old_platform_->GetForegroundTaskRunner(isolate);
+  }
+
+  std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return old_platform_->GetBackgroundTaskRunner(isolate);
   }
 
   void CallOnBackgroundThread(v8::Task* task,
@@ -675,6 +719,10 @@ class TestPlatform : public v8::Platform {
 
   double MonotonicallyIncreasingTime() override {
     return old_platform_->MonotonicallyIncreasingTime();
+  }
+
+  double CurrentClockTimeMillis() override {
+    return old_platform_->CurrentClockTimeMillis();
   }
 
   void CallIdleOnForegroundThread(v8::Isolate* isolate,

@@ -3,17 +3,15 @@ const common = require('../common.js');
 const domain = require('domain');
 
 const bench = common.createBenchmark(main, {
-  arguments: [0, 1, 2, 3],
+  args: [0, 1, 2, 3],
   n: [10]
 });
 
 const bdomain = domain.create();
 const gargs = [1, 2, 3];
 
-function main(conf) {
-
-  const n = +conf.n;
-  const myArguments = gargs.slice(0, conf.arguments);
+function main({ n, args }) {
+  const myArguments = gargs.slice(0, args);
   bench.start();
 
   bdomain.enter();
@@ -30,15 +28,6 @@ function main(conf) {
   bench.end(n);
 }
 
-function fn(a, b, c) {
-  if (!a)
-    a = 1;
-
-  if (!b)
-    b = 2;
-
-  if (!c)
-    c = 3;
-
+function fn(a = 1, b = 2, c = 3) {
   return a + b + c;
 }

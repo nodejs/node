@@ -14,28 +14,11 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const n = conf.n >>> 0;
-  const pathType = conf.pathType;
-
+function main({ n, pathType }) {
+  const path = pathType === 'relative' ? relative_path : resolved_path;
   bench.start();
-  if (pathType === 'relative')
-    relativePath(n);
-  else if (pathType === 'resolved')
-    resolvedPath(n);
-  else
-    throw new Error(`unknown "pathType": ${pathType}`);
+  for (var i = 0; i < n; i++) {
+    fs.realpathSync(path);
+  }
   bench.end(n);
-}
-
-function relativePath(n) {
-  for (var i = 0; i < n; i++) {
-    fs.realpathSync(relative_path);
-  }
-}
-
-function resolvedPath(n) {
-  for (var i = 0; i < n; i++) {
-    fs.realpathSync(resolved_path);
-  }
 }

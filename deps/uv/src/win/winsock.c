@@ -559,3 +559,33 @@ int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info_in,
     return SOCKET_ERROR;
   }
 }
+
+int uv__convert_to_localhost_if_unspecified(const struct sockaddr* addr,
+                                            struct sockaddr_storage* storage) {
+  struct sockaddr_in* dest4;
+  struct sockaddr_in6* dest6;
+
+  if (addr == NULL)
+    return UV_EINVAL;
+
+  switch (addr->sa_family) {
+  case AF_INET:
+    dest4 = (struct sockaddr_in*) storage;
+    memcpy(dest4, addr, sizeof(*dest4));
+    if (dest4->sin_addr.s_addr == 0)
+      dest4->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    return 0;
+  case AF_INET6:
+    dest6 = (struct sockaddr_in6*) storage;
+    memcpy(dest6, addr, sizeof(*dest6));
+    if (memcmp(&dest6->sin6_addr,
+               &uv_addr_ip6_any_.sin6_addr,
+               sizeof(uv_addr_ip6_any_.sin6_addr)) == 0) {
+      struct in6_addr init_sin6_addr = IN6ADDR_LOOPBACK_INIT;
+      dest6->sin6_addr = init_sin6_addr;
+    }
+    return 0;
+  default:
+    return UV_EINVAL;
+  }
+}

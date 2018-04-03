@@ -15,54 +15,39 @@ const bench = common.createBenchmark(main, {
   n: [1024]
 });
 
-function main(conf) {
-  const len = +conf.len;
-  const n = +conf.n;
-  switch (conf.type) {
+function main({ len, n, type }) {
+  let fn, i;
+  switch (type) {
     case '':
     case 'fast-alloc':
-      bench.start();
-      for (let i = 0; i < n * 1024; i++) {
-        Buffer.alloc(len);
-      }
-      bench.end(n);
+      fn = Buffer.alloc;
       break;
     case 'fast-alloc-fill':
       bench.start();
-      for (let i = 0; i < n * 1024; i++) {
+      for (i = 0; i < n * 1024; i++) {
         Buffer.alloc(len, 0);
       }
       bench.end(n);
-      break;
+      return;
     case 'fast-allocUnsafe':
-      bench.start();
-      for (let i = 0; i < n * 1024; i++) {
-        Buffer.allocUnsafe(len);
-      }
-      bench.end(n);
+      fn = Buffer.allocUnsafe;
       break;
     case 'slow-allocUnsafe':
-      bench.start();
-      for (let i = 0; i < n * 1024; i++) {
-        Buffer.allocUnsafeSlow(len);
-      }
-      bench.end(n);
+      fn = Buffer.allocUnsafeSlow;
       break;
     case 'slow':
-      bench.start();
-      for (let i = 0; i < n * 1024; i++) {
-        SlowBuffer(len);
-      }
-      bench.end(n);
+      fn = SlowBuffer;
       break;
     case 'buffer()':
-      bench.start();
-      for (let i = 0; i < n * 1024; i++) {
-        Buffer(len);
-      }
-      bench.end(n);
+      fn = Buffer;
       break;
     default:
-      assert.fail(null, null, 'Should not get here');
+      assert.fail('Should not get here');
   }
+
+  bench.start();
+  for (i = 0; i < n * 1024; i++) {
+    fn(len);
+  }
+  bench.end(n);
 }

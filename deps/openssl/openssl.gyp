@@ -7,7 +7,6 @@
     'is_clang': 0,
     'gcc_version': 0,
     'openssl_no_asm%': 0,
-    'llvm_version%': 0,
     'xcode_version%': 0,
     'gas_version%': 0,
     'openssl_fips%': 'false',
@@ -158,6 +157,9 @@
       }, {
         'defines': ['<@(openssl_default_defines_not_win)'],
         'cflags': ['-Wno-missing-field-initializers'],
+        'xcode_settings': {
+          'WARNING_CFLAGS': ['-Wno-missing-field-initializers'],
+        },
         'conditions': [
           ['OS=="mac"', {
             'defines': ['<@(openssl_default_defines_mac)'],

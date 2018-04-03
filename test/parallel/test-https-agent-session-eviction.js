@@ -8,7 +8,8 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const https = require('https');
-const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
+const { OPENSSL_VERSION_NUMBER, SSL_OP_NO_TICKET } =
+    require('crypto').constants;
 
 const options = {
   key: readKey('agent1-key.pem'),
@@ -58,14 +59,25 @@ function second(server, session) {
     res.resume();
   });
 
-  // Let it fail
-  req.on('error', common.mustCall(function(err) {
-    assert(/wrong version number/.test(err.message));
+  if (OPENSSL_VERSION_NUMBER >= 0x10100000) {
+    // Although we have a TLS 1.2 session to offer to the TLS 1.0 server,
+    // connection to the TLS 1.0 server should work.
+    req.on('response', common.mustCall(function(res) {
+      // The test is now complete for OpenSSL 1.1.0.
+      server.close();
+    }));
+  } else {
+    // OpenSSL 1.0.x mistakenly locked versions based on the session it was
+    // offering. This causes this sequent request to fail. Let it fail, but
+    // test that this is mitigated on the next try by invalidating the session.
+    req.on('error', common.mustCall(function(err) {
+      assert(/wrong version number/.test(err.message));
 
-    req.on('close', function() {
-      third(server);
-    });
-  }));
+      req.on('close', function() {
+        third(server);
+      });
+    }));
+  }
   req.end();
 }
 

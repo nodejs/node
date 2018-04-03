@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#undef DECL_PRIMITIVE_ACCESSORS
 #undef DECL_BOOLEAN_ACCESSORS
 #undef DECL_INT_ACCESSORS
 #undef DECL_ACCESSORS
@@ -17,6 +18,7 @@
 #undef RELAXED_SMI_ACCESSORS
 #undef BOOL_GETTER
 #undef BOOL_ACCESSORS
+#undef BIT_FIELD_ACCESSORS
 #undef TYPE_CHECKER
 #undef FIELD_ADDR
 #undef FIELD_ADDR_CONST

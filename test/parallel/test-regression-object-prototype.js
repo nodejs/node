@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 'use strict';
 
 Object.prototype.xadsadsdasasdxx = function() {

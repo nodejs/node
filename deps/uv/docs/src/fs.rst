@@ -340,6 +340,36 @@ API
     .. note::
         These functions are not implemented on Windows.
 
+.. c:function:: uv_fs_type uv_fs_get_type(const uv_fs_t* req)
+
+    Returns `req->fs_type`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: ssize_t uv_fs_get_result(const uv_fs_t* req)
+
+    Returns `req->result`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_fs_get_ptr(const uv_fs_t* req)
+
+    Returns `req->ptr`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: const char* uv_fs_get_path(const uv_fs_t* req)
+
+    Returns `req->path`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: uv_stat_t* uv_fs_get_statbuf(uv_fs_t* req)
+
+    Returns `&req->statbuf`.
+
+    .. versionadded:: 1.19.0
+
 .. seealso:: The :c:type:`uv_req_t` API functions also apply.
 
 Helper functions
@@ -353,3 +383,156 @@ Helper functions
    any attempts to close it or to use it after closing the fd may lead to malfunction.
 
     .. versionadded:: 1.12.0
+
+File open constants
+-------------------
+
+.. c:macro:: UV_FS_O_APPEND
+
+    The file is opened in append mode. Before each write, the file offset is
+    positioned at the end of the file.
+
+.. c:macro:: UV_FS_O_CREAT
+
+    The file is created if it does not already exist.
+
+.. c:macro:: UV_FS_O_DIRECT
+
+    File I/O is done directly to and from user-space buffers, which must be
+    aligned. Buffer size and address should be a multiple of the physical sector
+    size of the block device.
+
+    .. note::
+        `UV_FS_O_DIRECT` is supported on Linux, and on Windows via
+        `FILE_FLAG_NO_BUFFERING <https://msdn.microsoft.com/en-us/library/windows/desktop/cc644950.aspx>`_.
+        `UV_FS_O_DIRECT` is not supported on macOS.
+
+.. c:macro:: UV_FS_O_DIRECTORY
+
+    If the path is not a directory, fail the open.
+
+    .. note::
+        `UV_FS_O_DIRECTORY` is not supported on Windows.
+
+.. c:macro:: UV_FS_O_DSYNC
+
+    The file is opened for synchronous I/O. Write operations will complete once
+    all data and a minimum of metadata are flushed to disk.
+
+    .. note::
+        `UV_FS_O_DSYNC` is supported on Windows via
+        `FILE_FLAG_WRITE_THROUGH <https://msdn.microsoft.com/en-us/library/windows/desktop/cc644950.aspx>`_.
+
+.. c:macro:: UV_FS_O_EXCL
+
+    If the `O_CREAT` flag is set and the file already exists, fail the open.
+
+    .. note::
+        In general, the behavior of `O_EXCL` is undefined if it is used without
+        `O_CREAT`. There is one exception: on Linux 2.6 and later, `O_EXCL` can
+        be used without `O_CREAT` if pathname refers to a block device. If the
+        block device is in use by the system (e.g., mounted), the open will fail
+        with the error `EBUSY`.
+
+.. c:macro:: UV_FS_O_EXLOCK
+
+    Atomically obtain an exclusive lock.
+
+    .. note::
+        `UV_FS_O_EXLOCK` is only supported on macOS and Windows.
+
+    .. versionchanged:: 1.17.0 support is added for Windows.
+
+.. c:macro:: UV_FS_O_NOATIME
+
+    Do not update the file access time when the file is read.
+
+    .. note::
+        `UV_FS_O_NOATIME` is not supported on Windows.
+
+.. c:macro:: UV_FS_O_NOCTTY
+
+    If the path identifies a terminal device, opening the path will not cause
+    that terminal to become the controlling terminal for the process (if the
+    process does not already have one).
+
+    .. note::
+        `UV_FS_O_NOCTTY` is not supported on Windows.
+
+.. c:macro:: UV_FS_O_NOFOLLOW
+
+    If the path is a symbolic link, fail the open.
+
+    .. note::
+        `UV_FS_O_NOFOLLOW` is not supported on Windows.
+
+.. c:macro:: UV_FS_O_NONBLOCK
+
+    Open the file in nonblocking mode if possible.
+
+    .. note::
+        `UV_FS_O_NONBLOCK` is not supported on Windows.
+
+.. c:macro:: UV_FS_O_RANDOM
+
+    Access is intended to be random. The system can use this as a hint to
+    optimize file caching.
+
+    .. note::
+        `UV_FS_O_RANDOM` is only supported on Windows via
+        `FILE_FLAG_RANDOM_ACCESS <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+
+.. c:macro:: UV_FS_O_RDONLY
+
+    Open the file for read-only access.
+
+.. c:macro:: UV_FS_O_RDWR
+
+    Open the file for read-write access.
+
+.. c:macro:: UV_FS_O_SEQUENTIAL
+
+    Access is intended to be sequential from beginning to end. The system can
+    use this as a hint to optimize file caching.
+
+    .. note::
+        `UV_FS_O_SEQUENTIAL` is only supported on Windows via
+        `FILE_FLAG_SEQUENTIAL_SCAN <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+
+.. c:macro:: UV_FS_O_SHORT_LIVED
+
+    The file is temporary and should not be flushed to disk if possible.
+
+    .. note::
+        `UV_FS_O_SHORT_LIVED` is only supported on Windows via
+        `FILE_ATTRIBUTE_TEMPORARY <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+
+.. c:macro:: UV_FS_O_SYMLINK
+
+    Open the symbolic link itself rather than the resource it points to.
+
+.. c:macro:: UV_FS_O_SYNC
+
+    The file is opened for synchronous I/O. Write operations will complete once
+    all data and all metadata are flushed to disk.
+
+    .. note::
+        `UV_FS_O_SYNC` is supported on Windows via
+        `FILE_FLAG_WRITE_THROUGH <https://msdn.microsoft.com/en-us/library/windows/desktop/cc644950.aspx>`_.
+
+.. c:macro:: UV_FS_O_TEMPORARY
+
+    The file is temporary and should not be flushed to disk if possible.
+
+    .. note::
+        `UV_FS_O_TEMPORARY` is only supported on Windows via
+        `FILE_ATTRIBUTE_TEMPORARY <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+
+.. c:macro:: UV_FS_O_TRUNC
+
+    If the file exists and is a regular file, and the file is opened
+    successfully for write access, its length shall be truncated to zero.
+
+.. c:macro:: UV_FS_O_WRONLY
+
+    Open the file for write-only access.

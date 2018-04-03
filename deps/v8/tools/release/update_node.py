@@ -28,6 +28,7 @@ import os
 import shutil
 import subprocess
 import sys
+import stat
 
 TARGET_SUBDIR = os.path.join("deps", "v8")
 
@@ -61,7 +62,11 @@ def UninitGit(path):
   target = os.path.join(path, ".git")
   if os.path.isdir(target):
     print ">> Cleaning up %s" % path
-    shutil.rmtree(target)
+    def OnRmError(func, path, exec_info):
+      # This might happen on Windows
+      os.chmod(path, stat.S_IWRITE)
+      os.unlink(path)
+    shutil.rmtree(target, onerror=OnRmError)
 
 def CommitPatch(options):
   """Makes a dummy commit for the changes in the index.

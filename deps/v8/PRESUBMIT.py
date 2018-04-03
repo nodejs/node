@@ -153,16 +153,17 @@ def _CheckUnwantedDependencies(input_api, output_api):
   return results
 
 
+# TODO(mstarzinger): Similar checking should be made available as part of
+# tools/presubmit.py (note that tools/check-inline-includes.sh exists).
 def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
   """Attempts to prevent inclusion of inline headers into normal header
   files. This tries to establish a layering where inline headers can be
   included by other inline headers or compilation units only."""
   file_inclusion_pattern = r'(?!.+-inl\.h).+\.h'
   include_directive_pattern = input_api.re.compile(r'#include ".+-inl.h"')
-  include_warning = (
-    'You might be including an inline header (e.g. foo-inl.h) within a\n'
-    'normal header (e.g. bar.h) file.  Can you avoid introducing the\n'
-    '#include?  The commit queue will not block on this warning.')
+  include_error = (
+    'You are including an inline header (e.g. foo-inl.h) within a normal\n'
+    'header (e.g. bar.h) file.  This violates layering of dependencies.')
 
   def FilterFile(affected_file):
     black_list = (_EXCLUDED_PATHS +
@@ -181,7 +182,7 @@ def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
           '%s:%d\n    %s' % (local_path, line_number, line.strip()))
 
   if problems:
-    return [output_api.PresubmitPromptOrNotify(include_warning, problems)]
+    return [output_api.PresubmitError(include_error, problems)]
   else:
     return []
 
@@ -279,6 +280,9 @@ def _CommonChecks(input_api, output_api):
       _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
   results.extend(_CheckMissingFiles(input_api, output_api))
   results.extend(_CheckJSONFiles(input_api, output_api))
+  results.extend(_CheckMacroUndefs(input_api, output_api))
+  results.extend(input_api.RunTests(
+    input_api.canned_checks.CheckVPythonSpec(input_api, output_api)))
   return results
 
 
@@ -337,6 +341,66 @@ def _CheckJSONFiles(input_api, output_api):
   return [output_api.PresubmitError(r) for r in results]
 
 
+def _CheckMacroUndefs(input_api, output_api):
+  """
+  Checks that each #define in a .cc file is eventually followed by an #undef.
+
+  TODO(clemensh): This check should eventually be enabled for all cc files via
+  tools/presubmit.py (https://crbug.com/v8/6811).
+  """
+  def FilterFile(affected_file):
+    # Skip header files, as they often define type lists which are used in
+    # other files.
+    white_list = (r'.+\.cc',r'.+\.cpp',r'.+\.c')
+    return input_api.FilterSourceFile(affected_file, white_list=white_list)
+
+  def TouchesMacros(f):
+    for line in f.GenerateScmDiff().splitlines():
+      if not line.startswith('+') and not line.startswith('-'):
+        continue
+      if define_pattern.match(line[1:]) or undef_pattern.match(line[1:]):
+        return True
+    return False
+
+  define_pattern = input_api.re.compile(r'#define (\w+)')
+  undef_pattern = input_api.re.compile(r'#undef (\w+)')
+  errors = []
+  for f in input_api.AffectedFiles(
+      file_filter=FilterFile, include_deletes=False):
+    if not TouchesMacros(f):
+      continue
+
+    defined_macros = dict()
+    with open(f.LocalPath()) as fh:
+      line_nr = 0
+      for line in fh:
+        line_nr += 1
+
+        define_match = define_pattern.match(line)
+        if define_match:
+          name = define_match.group(1)
+          defined_macros[name] = line_nr
+
+        undef_match = undef_pattern.match(line)
+        if undef_match:
+          name = undef_match.group(1)
+          if not name in defined_macros:
+            errors.append('{}:{}: Macro named \'{}\' was not defined before.'
+                          .format(f.LocalPath(), line_nr, name))
+          else:
+            del defined_macros[name]
+    for name, line_nr in sorted(defined_macros.items(), key=lambda e: e[1]):
+      errors.append('{}:{}: Macro missing #undef: {}'
+                    .format(f.LocalPath(), line_nr, name))
+
+  if errors:
+    return [output_api.PresubmitPromptOrNotify(
+        'Detected mismatches in #define / #undef in the file(s) where you '
+        'modified preprocessor macros.',
+        errors)]
+  return []
+
+
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
@@ -366,6 +430,6 @@ def PostUploadHook(cl, change, output_api):
   return output_api.EnsureCQIncludeTrybotsAreAdded(
       cl,
       [
-        'master.tryserver.v8:v8_linux_noi18n_rel_ng'
+        'luci.v8.try:v8_linux_noi18n_rel_ng'
       ],
       'Automatically added noi18n trybots to run tests on CQ.')

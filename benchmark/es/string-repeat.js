@@ -12,14 +12,12 @@ const configs = {
 
 const bench = common.createBenchmark(main, configs);
 
-function main(conf) {
-  const n = +conf.n;
-  const size = +conf.size;
-  const character = conf.encoding === 'ascii' ? 'a' : '\ud83d\udc0e'; // '🐎'
+function main({ n, size, encoding, mode }) {
+  const character = encoding === 'ascii' ? 'a' : '\ud83d\udc0e'; // '🐎'
 
   let str;
 
-  switch (conf.mode) {
+  switch (mode) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'Array':
@@ -35,7 +33,7 @@ function main(conf) {
       bench.end(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${mode}"`);
   }
 
   assert.strictEqual([...str].length, size);

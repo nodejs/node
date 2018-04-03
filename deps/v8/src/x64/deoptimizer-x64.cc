@@ -4,7 +4,6 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
@@ -13,18 +12,20 @@
 namespace v8 {
 namespace internal {
 
-
-const int Deoptimizer::table_entry_size_ = 10;
+const int Deoptimizer::table_entry_size_ = 5;
 
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
+  Label deopt_table_entry;
+  __ bind(&deopt_table_entry);
+
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
-  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kNumRegisters;
   __ subp(rsp, Immediate(kDoubleRegsSize));
 
   const RegisterConfiguration* config = RegisterConfiguration::Default();
@@ -35,7 +36,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Movsd(Operand(rsp, offset), xmm_reg);
   }
 
-  const int kFloatRegsSize = kFloatSize * XMMRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * XMMRegister::kNumRegisters;
   __ subp(rsp, Immediate(kFloatRegsSize));
 
   for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
@@ -64,7 +65,22 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   Register arg5 = r11;
 
   // Get the bailout id from the stack.
-  __ movp(arg_reg_3, Operand(rsp, kSavedRegistersAreaSize));
+  __ movp(rax, Operand(rsp, kSavedRegistersAreaSize));
+
+  // address of deoptimization table
+  __ leap(rdx, Operand(&deopt_table_entry));
+
+  // rax = deopt_entry - deopt_table_entry - 5
+  __ subp(rax, rdx);
+  __ subl(rax, Immediate(5));
+
+  // rax /= 5
+  __ movl(rbx, Immediate(0xcccccccd));
+  __ imulq(rax, rbx);
+  __ shrq(rax, Immediate(0x22));
+
+  // bailout id
+  __ movl(arg_reg_3, rax);
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
@@ -113,7 +129,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Fill in the float input registers.
   int float_regs_offset = FrameDescription::float_registers_offset();
-  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+  for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
     int src_offset = i * kFloatSize;
     int dst_offset = i * kFloatSize + float_regs_offset;
     __ movl(rcx, Operand(rsp, src_offset));
@@ -123,7 +139,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Fill in the double input registers.
   int double_regs_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+  for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
     int dst_offset = i * kDoubleSize + double_regs_offset;
     __ popq(Operand(rbx, dst_offset));
   }
@@ -196,8 +212,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Movsd(xmm_reg, Operand(rbx, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ Push(Operand(rbx, FrameDescription::state_offset()));
+  // Push pc and continuation from the last output frame.
   __ PushQuad(Operand(rbx, FrameDescription::pc_offset()));
   __ PushQuad(Operand(rbx, FrameDescription::continuation_offset()));
 
@@ -212,8 +227,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     Register r = Register::from_code(i);
     // Do not restore rsp, simply pop the value into the next register
     // and overwrite this afterwards.
-    if (r.is(rsp)) {
-      DCHECK(i > 0);
+    if (r == rsp) {
+      DCHECK_GT(i, 0);
       r = Register::from_code(i - 1);
     }
     __ popq(r);
@@ -233,13 +248,13 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   for (int i = 0; i < count(); i++) {
     int start = masm()->pc_offset();
     USE(start);
-    __ pushq_imm32(i);
-    __ jmp(&done);
+    __ call(&done);
     DCHECK(masm()->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   if (kPCOnStackSize == 2 * kPointerSize) {

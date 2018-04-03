@@ -36,20 +36,26 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceConvertReceiver(Node* node);
   Reduction ReduceCheckHeapObject(Node* node);
   Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceCheckNumber(Node* node);
   Reduction ReduceCheckString(Node* node);
   Reduction ReduceCheckSeqString(Node* node);
+  Reduction ReduceCheckEqualsInternalizedString(Node* node);
+  Reduction ReduceCheckEqualsSymbol(Node* node);
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberFloor(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
   Reduction ReduceNumberToUint8Clamped(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
+  Reduction ReduceSameValue(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSpeculativeToNumber(Node* node);
   Reduction ReduceCheckNotTaggedHole(Node* node);
+  Reduction ReduceTypeOf(Node* node);
+  Reduction ReduceToBoolean(Node* node);
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   Factory* factory() const;

@@ -20,7 +20,6 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 
   // Underlying function needs to have bytecode available.
   DCHECK(function->shared()->HasBytecodeArray());
-  DCHECK(!function->shared()->HasBaselineCode());
   int size = function->shared()->bytecode_array()->register_count();
   Handle<FixedArray> register_file = isolate->factory()->NewFixedArray(size);
 

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const vm = require('vm');
@@ -44,9 +44,12 @@ assert.strictEqual(3, context.foo);
 assert.strictEqual('lala', context.thing);
 
 // Issue GH-227:
-assert.throws(() => {
+common.expectsError(() => {
   vm.runInNewContext('', null, 'some.js');
-}, /^TypeError: sandbox must be an object$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError
+});
 
 // Issue GH-1140:
 // Test runInContext signature
@@ -56,24 +59,30 @@ try {
 } catch (e) {
   gh1140Exception = e;
   assert.ok(/expected-filename/.test(e.stack),
-            'expected appearance of filename in Error stack');
+            `expected appearance of filename in Error stack: ${e.stack}`);
 }
-assert.ok(gh1140Exception,
-          'expected exception from runInContext signature test');
+// This is outside of catch block to confirm catch block ran.
+assert.strictEqual(gh1140Exception.toString(), 'Error');
 
-// GH-558, non-context argument segfaults / raises assertion
-const nonContextualSandboxErrorMsg =
-  /^TypeError: contextifiedSandbox argument must be an object\.$/;
-const contextifiedSandboxErrorMsg =
-    /^TypeError: sandbox argument must have been converted to a context\.$/;
+const nonContextualSandboxError = {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: /must be of type Object/
+};
+const contextifiedSandboxError = {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: /must be of type vm\.Context/
+};
+
 [
-  [undefined, nonContextualSandboxErrorMsg],
-  [null, nonContextualSandboxErrorMsg], [0, nonContextualSandboxErrorMsg],
-  [0.0, nonContextualSandboxErrorMsg], ['', nonContextualSandboxErrorMsg],
-  [{}, contextifiedSandboxErrorMsg], [[], contextifiedSandboxErrorMsg]
+  [undefined, nonContextualSandboxError],
+  [null, nonContextualSandboxError], [0, nonContextualSandboxError],
+  [0.0, nonContextualSandboxError], ['', nonContextualSandboxError],
+  [{}, contextifiedSandboxError], [[], contextifiedSandboxError]
 ].forEach((e) => {
-  assert.throws(() => { script.runInContext(e[0]); }, e[1]);
-  assert.throws(() => { vm.runInContext('', e[0]); }, e[1]);
+  common.expectsError(() => { script.runInContext(e[0]); }, e[1]);
+  common.expectsError(() => { vm.runInContext('', e[0]); }, e[1]);
 });
 
 // Issue GH-693:
@@ -81,7 +90,7 @@ const contextifiedSandboxErrorMsg =
 script = vm.createScript('const assert = require(\'assert\'); assert.throws(' +
                          'function() { throw "hello world"; }, /hello/);',
                          'some.js');
-script.runInNewContext({ require: require });
+script.runInNewContext({ require });
 
 // Issue GH-7529
 script = vm.createScript('delete b');
@@ -90,18 +99,22 @@ Object.defineProperty(ctx, 'b', { configurable: false });
 ctx = vm.createContext(ctx);
 assert.strictEqual(script.runInContext(ctx), false);
 
-// Error on the first line of a module should
-// have the correct line and column number
-assert.throws(() => {
-  vm.runInContext(' throw new Error()', context, {
-    filename: 'expected-filename.js',
-    lineOffset: 32,
-    columnOffset: 123
-  });
-}, (err) => {
-  return /^ \^/m.test(err.stack) &&
-         /expected-filename\.js:33:131/.test(err.stack);
-}, 'Expected appearance of proper offset in Error stack');
+// Error on the first line of a module should have the correct line and column
+// number.
+{
+  let stack = null;
+  assert.throws(() => {
+    vm.runInContext(' throw new Error()', context, {
+      filename: 'expected-filename.js',
+      lineOffset: 32,
+      columnOffset: 123
+    });
+  }, (err) => {
+    stack = err.stack;
+    return /^ \^/m.test(stack) &&
+           /expected-filename\.js:33:131/.test(stack);
+  }, `stack not formatted as expected: ${stack}`);
+}
 
 // https://github.com/nodejs/node/issues/6158
 ctx = new Proxy({}, {});

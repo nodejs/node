@@ -1,7 +1,5 @@
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 'use strict';
-
-// Naïve DNS parser/serializer.
 
 const assert = require('assert');
 const os = require('os');
@@ -21,6 +19,8 @@ const types = {
 const classes = {
   IN: 1
 };
+
+// Naïve DNS parser/serializer.
 
 function readDomainFromPacket(buffer, offset) {
   assert.ok(offset < buffer.length);
@@ -287,4 +287,26 @@ function writeDNSPacket(parsed) {
   }));
 }
 
-module.exports = { types, classes, writeDNSPacket, parseDNSPacket };
+const mockedErrorCode = 'ENOTFOUND';
+const mockedSysCall = 'getaddrinfo';
+
+function errorLookupMock(code = mockedErrorCode, syscall = mockedSysCall) {
+  return function lookupWithError(host, dnsopts, cb) {
+    const err = new Error(`${syscall} ${code} ${host}`);
+    err.code = code;
+    err.errno = code;
+    err.syscall = syscall;
+    err.hostname = host;
+    cb(err);
+  };
+}
+
+module.exports = {
+  types,
+  classes,
+  writeDNSPacket,
+  parseDNSPacket,
+  errorLookupMock,
+  mockedErrorCode,
+  mockedSysCall
+};

@@ -29,7 +29,7 @@ const N = 500000;
 
 const server = net.Server(function(socket) {
   socket.on('data', function(d) {
-    console.error('got %d bytes', d.length);
+    console.error(`got ${d.length} bytes`);
   });
 
   socket.on('end', function() {

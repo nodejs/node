@@ -159,6 +159,7 @@ class UploadCL(Step):
                      force=True,
                      bypass_hooks=True,
                      cq=self._options.use_commit_queue,
+                     cq_dry_run=self._options.use_dry_run,
                      cwd=cwd)
       print "CL uploaded."
     else:
@@ -195,9 +196,13 @@ class AutoRoll(ScriptsBase):
                              "specified."),
     parser.add_argument("--roll", help="Deprecated.",
                         default=True, action="store_true")
-    parser.add_argument("--use-commit-queue",
-                        help="Check the CQ bit on upload.",
-                        default=True, action="store_true")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--use-commit-queue",
+                       help="Trigger the CQ full run on upload.",
+                       default=False, action="store_true")
+    group.add_argument("--use-dry-run",
+                       help="Trigger the CQ dry run on upload.",
+                       default=True, action="store_true")
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.author or not options.reviewer:

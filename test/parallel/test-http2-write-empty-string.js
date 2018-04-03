@@ -34,7 +34,7 @@ server.listen(0, common.mustCall(function() {
 
   req.on('end', common.mustCall(function() {
     assert.strictEqual('1\n2\n3\n', res);
-    client.destroy();
+    client.close();
   }));
 
   req.end();

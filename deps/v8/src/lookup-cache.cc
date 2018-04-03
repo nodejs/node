@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 
 void DescriptorLookupCache::Clear() {
-  for (int index = 0; index < kLength; index++) keys_[index].source = NULL;
+  for (int index = 0; index < kLength; index++) keys_[index].source = nullptr;
 }
 
 }  // namespace internal

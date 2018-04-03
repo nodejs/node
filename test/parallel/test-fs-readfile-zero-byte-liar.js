@@ -21,6 +21,9 @@
 
 'use strict';
 const common = require('../common');
+
+// Test that readFile works even when stat returns size 0.
+
 const assert = require('assert');
 const fs = require('fs');
 

@@ -1,11 +1,11 @@
-.TH "NPM\-PUBLISH" "1" "July 2017" "" ""
+.TH "NPM\-PUBLISH" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm publish [<tarball>|<folder>] [\-\-tag <tag>] [\-\-access <public|restricted>]
+npm publish [<tarball>|<folder>] [\-\-tag <tag>] [\-\-access <public|restricted>] [\-\-otp otpcode]
 
 Publishes '\.' if no argument supplied
 Sets tag 'latest' if no \-\-tag specified
@@ -43,6 +43,11 @@ Tells the registry whether this package should be published as public or
 restricted\. Only applies to scoped packages, which default to \fBrestricted\fP\|\.
 If you don't have a paid account, you must publish with \fB\-\-access public\fP
 to publish scoped packages\.
+.IP \(bu 2
+\fB[\-\-otp <otpcode>]\fP
+If you have two\-factor authentication enabled in \fBauth\-and\-writes\fP mode
+then you can provide a code from your authenticator with this\. If you
+don't include this and you're running from a TTY then you'll be prompted\.
 
 .RE
 .P
@@ -76,6 +81,8 @@ npm help deprecate
 npm help dist\-tag
 .IP \(bu 2
 npm help pack
+.IP \(bu 2
+npm help profile
 
 .RE
 

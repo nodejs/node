@@ -1,6 +1,5 @@
-per-file *-mips*=ivica.bogosavljevic@imgtec.com
-per-file *-mips*=Miran.Karic@imgtec.com
-per-file *-mips*=dusan.simicic@imgtec.com
+per-file *-mips*=ivica.bogosavljevic@mips.com
+per-file *-mips*=Miran.Karic@mips.com
 per-file *-ppc*=dstence@us.ibm.com
 per-file *-ppc*=joransiu@ca.ibm.com
 per-file *-ppc*=jyan@ca.ibm.com

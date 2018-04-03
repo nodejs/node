@@ -442,3 +442,29 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, buffer.byteLength);
   assertEquals(3*kPageSize, memory.buffer.byteLength);
 })();
+
+(function TestInitialMemorySharedModule() {
+  print("TestInitialMemorySharedModule");
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  builder.addFunction('f', kSig_i_v)
+      .addBody([
+        kExprI32Const, 0x1d,                       // --
+        kExprI32Const, 0x20,                       // --
+        kExprI32StoreMem, 0, 0,  // --
+        kExprI32Const, 0x1d,                       // --
+        kExprI32LoadMem, 0, 0,  // --
+      ])
+      .exportFunc();
+
+  // First instance load/store success
+  var module = new WebAssembly.Module(builder.toBuffer());
+  let memory1= new WebAssembly.Memory({initial: 1, maximum: 20});
+  let instance1  = new WebAssembly.Instance(module, {m: {imported_mem: memory1}});
+  assertEquals(0x20, instance1.exports.f());
+
+  // Second instance should trap as it has no initial memory
+  let memory2= new WebAssembly.Memory({initial: 0, maximum: 2});
+  let instance2  = new WebAssembly.Instance(module, {m: {imported_mem: memory2}});
+  assertTraps(kTrapMemOutOfBounds, () => instance2.exports.f());
+})();

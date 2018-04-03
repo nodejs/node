@@ -45,9 +45,9 @@ class LoopFinderTester : HandleAndZoneScope {
         zero(jsgraph.Int32Constant(0)),
         one(jsgraph.OneConstant()),
         half(jsgraph.Constant(0.5)),
-        self(graph.NewNode(common.Int32Constant(0xaabbccdd))),
+        self(graph.NewNode(common.Int32Constant(0xAABBCCDD))),
         dead(graph.NewNode(common.Dead())),
-        loop_tree(NULL) {
+        loop_tree(nullptr) {
     graph.SetEnd(end);
     graph.SetStart(start);
     leaf[0] = zero;
@@ -123,7 +123,7 @@ class LoopFinderTester : HandleAndZoneScope {
   }
 
   LoopTree* GetLoopTree() {
-    if (loop_tree == NULL) {
+    if (loop_tree == nullptr) {
       if (FLAG_trace_turbo_graph) {
         OFStream os(stdout);
         os << AsRPO(graph);
@@ -168,7 +168,7 @@ class LoopFinderTester : HandleAndZoneScope {
       CHECK(loop);
       // Check parentage.
       LoopTree::Loop* parent =
-          i == 0 ? NULL : tree->ContainingLoop(chain[i - 1]);
+          i == 0 ? nullptr : tree->ContainingLoop(chain[i - 1]);
       CHECK_EQ(parent, loop->parent());
       for (int j = i - 1; j >= 0; j--) {
         // This loop should be nested inside all the outer loops.

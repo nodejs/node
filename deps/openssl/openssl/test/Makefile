@@ -73,6 +73,7 @@ CLIENTHELLOTEST=	clienthellotest
 BADDTLSTEST=	bad_dtls_test
 SSLV2CONFTEST = 	sslv2conftest
 DTLSTEST =	dtlstest
+FATALERRTEST =	fatalerrtest
 
 TESTS=		alltests
 
@@ -87,7 +88,7 @@ EXE=	$(BNTEST)$(EXE_EXT) $(ECTEST)$(EXE_EXT)  $(ECDSATEST)$(EXE_EXT) $(ECDHTEST)
 	$(ASN1TEST)$(EXE_EXT) $(V3NAMETEST)$(EXE_EXT) $(HEARTBEATTEST)$(EXE_EXT) \
 	$(CONSTTIMETEST)$(EXE_EXT) $(VERIFYEXTRATEST)$(EXE_EXT) \
 	$(CLIENTHELLOTEST)$(EXE_EXT) $(SSLV2CONFTEST)$(EXE_EXT) $(DTLSTEST)$(EXE_EXT) \
-	$(BADDTLSTEST)$(EXE_EXT)
+	$(BADDTLSTEST)$(EXE_EXT) $(FATALERRTEST)$(EXE_EXT)
 
 # $(METHTEST)$(EXE_EXT)
 
@@ -102,7 +103,7 @@ OBJ=	$(BNTEST).o $(ECTEST).o  $(ECDSATEST).o $(ECDHTEST).o $(IDEATEST).o \
 	$(EVPTEST).o $(EVPEXTRATEST).o $(IGETEST).o $(JPAKETEST).o $(ASN1TEST).o $(V3NAMETEST).o \
 	$(HEARTBEATTEST).o $(CONSTTIMETEST).o $(VERIFYEXTRATEST).o \
 	$(CLIENTHELLOTEST).o  $(SSLV2CONFTEST).o $(DTLSTEST).o ssltestlib.o \
-	$(BADDTLSTEST).o
+	$(BADDTLSTEST).o $(FATALERRTEST).o
 
 SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(MD2TEST).c  $(MD4TEST).c $(MD5TEST).c \
@@ -114,7 +115,7 @@ SRC=	$(BNTEST).c $(ECTEST).c  $(ECDSATEST).c $(ECDHTEST).c $(IDEATEST).c \
 	$(EVPTEST).c $(EVPEXTRATEST).c $(IGETEST).c $(JPAKETEST).c $(SRPTEST).c $(ASN1TEST).c \
 	$(V3NAMETEST).c $(HEARTBEATTEST).c $(CONSTTIMETEST).c $(VERIFYEXTRATEST).c \
 	$(CLIENTHELLOTEST).c  $(SSLV2CONFTEST).c $(DTLSTEST).c ssltestlib.c \
-	$(BADDTLSTEST).c
+	$(BADDTLSTEST).c $(FATALERRTEST).c
 
 EXHEADER= 
 HEADER=	testutil.h ssltestlib.h $(EXHEADER)
@@ -159,7 +160,7 @@ alltests: \
 	test_ss test_ca test_engine test_evp test_evp_extra test_ssl test_tsa test_ige \
 	test_jpake test_srp test_cms test_ocsp test_v3name test_heartbeat \
 	test_constant_time test_verify_extra test_clienthello test_sslv2conftest \
-	test_dtls test_bad_dtls
+	test_dtls test_bad_dtls test_fatalerr
 
 test_evp: $(EVPTEST)$(EXE_EXT) evptests.txt
 	../util/shlib_wrap.sh ./$(EVPTEST) evptests.txt
@@ -373,6 +374,10 @@ test_bad_dtls: $(BADDTLSTEST)$(EXE_EXT)
 	@echo $(START) $@
 	../util/shlib_wrap.sh ./$(BADDTLSTEST)
 
+test_fatalerr: $(FATALERRTEST)$(EXE_EXT)
+	@echo $(START) $@
+	../util/shlib_wrap.sh ./$(FATALERRTEST) ../apps/server.pem ../apps/server.pem
+
 test_sslv2conftest: $(SSLV2CONFTEST)$(EXE_EXT)
 	@echo $(START) $@
 	../util/shlib_wrap.sh ./$(SSLV2CONFTEST)
@@ -560,6 +565,9 @@ $(CLIENTHELLOTEST)$(EXE_EXT): $(CLIENTHELLOTEST).o
 
 $(BADDTLSTEST)$(EXE_EXT): $(BADDTLSTEST).o
 	@target=$(BADDTLSTEST) $(BUILD_CMD)
+
+$(FATALERRTEST)$(EXE_EXT): $(FATALERRTEST).o ssltestlib.o $(DLIBSSL) $(DLIBCRYPTO)
+	@target=$(FATALERRTEST); exobj=ssltestlib.o; $(BUILD_CMD)
 
 $(SSLV2CONFTEST)$(EXE_EXT): $(SSLV2CONFTEST).o
 	@target=$(SSLV2CONFTEST) $(BUILD_CMD)
@@ -776,6 +784,25 @@ exptest.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 exptest.o: ../include/openssl/ossl_typ.h ../include/openssl/rand.h
 exptest.o: ../include/openssl/safestack.h ../include/openssl/stack.h
 exptest.o: ../include/openssl/symhacks.h exptest.c
+fatalerrtest.o: ../include/openssl/asn1.h ../include/openssl/bio.h
+fatalerrtest.o: ../include/openssl/buffer.h ../include/openssl/comp.h
+fatalerrtest.o: ../include/openssl/crypto.h ../include/openssl/dtls1.h
+fatalerrtest.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+fatalerrtest.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+fatalerrtest.o: ../include/openssl/err.h ../include/openssl/evp.h
+fatalerrtest.o: ../include/openssl/hmac.h ../include/openssl/kssl.h
+fatalerrtest.o: ../include/openssl/lhash.h ../include/openssl/obj_mac.h
+fatalerrtest.o: ../include/openssl/objects.h ../include/openssl/opensslconf.h
+fatalerrtest.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+fatalerrtest.o: ../include/openssl/pem.h ../include/openssl/pem2.h
+fatalerrtest.o: ../include/openssl/pkcs7.h ../include/openssl/pqueue.h
+fatalerrtest.o: ../include/openssl/safestack.h ../include/openssl/sha.h
+fatalerrtest.o: ../include/openssl/srtp.h ../include/openssl/ssl.h
+fatalerrtest.o: ../include/openssl/ssl2.h ../include/openssl/ssl23.h
+fatalerrtest.o: ../include/openssl/ssl3.h ../include/openssl/stack.h
+fatalerrtest.o: ../include/openssl/symhacks.h ../include/openssl/tls1.h
+fatalerrtest.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h
+fatalerrtest.o: fatalerrtest.c ssltestlib.h
 heartbeat_test.o: ../e_os.h ../include/openssl/asn1.h ../include/openssl/bio.h
 heartbeat_test.o: ../include/openssl/buffer.h ../include/openssl/comp.h
 heartbeat_test.o: ../include/openssl/crypto.h ../include/openssl/dsa.h

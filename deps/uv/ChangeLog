@@ -1,3 +1,215 @@
+2018.02.22, Version 1.19.2 (Stable), c5afc37e2a8a70d8ab0da8dac10b77ba78c0488c
+
+Changes since version 1.19.1:
+
+* test: fix incorrect asserts (cjihrig)
+
+* test: fix a typo in test-fork.c (Felix Yan)
+
+* build: remove long-obsolete gyp workarounds (Ben Noordhuis)
+
+* build: split off tests into separate gyp file (Ben Noordhuis)
+
+* test: check uv_cond_timedwait more carefully (Jamie Davis)
+
+* include,src: introduce UV__ERR() macro (Mason X)
+
+* build: add url field to libuv.pc (Ben Noordhuis)
+
+* doc: mark IBM i as Tier 3 support (Jesse Gorzinski)
+
+* win,build: correct C2059 errors (Michael Fero)
+
+* zos: fix timeout for condition variable (jBarz)
+
+* win: CREATE_NO_WINDOW when stdio is not inherited (Nick Logan)
+
+* build: fix commmon.gypi comment (Ryuichi KAWAMATA)
+
+* doc: document uv_timer_start() on an active timer (Vladimír Čunát)
+
+* doc: add note about handle movability (Bartosz Sosnowski)
+
+* doc: fix syntax error in loop documentation (Bartosz Sosnowski)
+
+* osx,stream: retry sending handle on EMSGSIZE error (Santiago Gimeno)
+
+* unix: delay fs req register until after validation (cjihrig)
+
+* test: add tests for bad inputs (Joyee Cheung)
+
+* unix,win: ensure req->bufs is freed (cjihrig)
+
+* test: add additional fs memory management checks (cjihrig)
+
+
+2018.01.20, Version 1.19.1 (Stable), 8202d1751196c2374ad370f7f3779daef89befae
+
+Changes since version 1.19.0:
+
+* Revert "unix,tcp: avoid marking server sockets connected" (Ben Noordhuis)
+
+* Revert "unix,fs: fix for potential partial reads/writes" (Ben Noordhuis)
+
+* Revert "win: use RemoveDirectoryW() instead of _wmrmdir()" (Ben Noordhuis)
+
+* cygwin: fix compilation of ifaddrs impl (Brad King)
+
+
+2018.01.18, Version 1.19.0 (Stable), effbb7c9d29090b2e085a40867f8cdfa916a66df
+
+Changes since version 1.18.0:
+
+* core: add getter/setter functions for easier ABI compat (Anna Henningsen)
+
+* unix: make get(set)_process_title MT-safe (Matt Harrison)
+
+* unix,win: wait for threads to start (Ben Noordhuis)
+
+* test: add threadpool init/teardown test (Bartosz Sosnowski)
+
+* win, process: uv_kill improvements (Bartosz Sosnowski)
+
+* win: set _WIN32_WINNT to 0x0600 (cjihrig)
+
+* zos: implement uv_fs_event* functions (jBarz)
+
+* unix,tcp: avoid marking server sockets connected (Jameson Nash)
+
+* doc: mark Windows 7 as Tier 1 support (Bartosz Sosnowski)
+
+* win: map 0.0.0.0 and :: addresses to localhost (Bartosz Sosnowski)
+
+* build: install libuv.pc unconditionally (Ben Noordhuis)
+
+* test: remove custom timeout for thread test on ppc (Ben Noordhuis)
+
+* test: allow multicast not permitted status (Jérémy Lal)
+
+* test: allow net unreachable status in udp test (Ben Noordhuis)
+
+* unix: use SA_RESTART when setting our sighandler (Brad King)
+
+* unix,fs: fix for potential partial reads/writes (Ben Wijen)
+
+* win,build: do not build executable installer for dll (Bert Belder)
+
+* win: allow directory symlinks to be created in a non-elevated context (Bert
+  Belder)
+
+* zos,test: accept SIGKILL for flaky test (jBarz)
+
+* win: use RemoveDirectoryW() instead of _wmrmdir() (Ben Noordhuis)
+
+* unix: fix uv_cpu_info() error on FreeBSD (elephantp)
+
+* zos,test: decrease pings to avoid timeout (jBarz)
+
+
+2017.12.02, Version 1.18.0 (Stable), 1489c98b7fc17f1702821a269eb0c5e730c5c813
+
+Changes since version 1.17.0:
+
+* aix: fix -Wmaybe-uninitialized warning (cjihrig)
+
+* doc: remove note about SIGWINCH on Windows (Bartosz Sosnowski)
+
+* Revert "unix,win: wait for threads to start" (Ben Noordhuis)
+
+* unix,win: add uv_os_getpid() (Bartosz Sosnowski)
+
+* unix: remove incorrect assertion in uv_shutdown() (Jameson Nash)
+
+* doc: fix IRC URL in CONTRIBUTING.md (Matt Harrison)
+
+
+2017.11.25, Version 1.17.0 (Stable), 1344d2bb82e195d0eafc0b40ba103f18dfd04cc5
+
+Changes since version 1.16.1:
+
+* unix: avoid malloc() call in uv_spawn() (Ben Noordhuis)
+
+* doc: clarify the description of uv_loop_alive() (Ed Schouten)
+
+* win: map UV_FS_O_EXLOCK to a share mode of 0 (Joran Dirk Greef)
+
+* win: fix build on case-sensitive file systems (Ben Noordhuis)
+
+* win: fix test runner build with mingw64 (Ben Noordhuis)
+
+* win: remove unused variable in test/test-fs.c (Ben Noordhuis)
+
+* zos: add strnlen() implementation (jBarz)
+
+* unix: keep track of bound sockets sent via spawn (jBarz)
+
+* unix,win: wait for threads to start (Ben Noordhuis)
+
+* test: add threadpool init/teardown test (Bartosz Sosnowski)
+
+* test: avoid malloc() in threadpool test (Ben Noordhuis)
+
+* test: lower number of tasks in threadpool test (Ben Noordhuis)
+
+* win: issue memory barrier in uv_thread_join() (Ben Noordhuis)
+
+* ibmi: add support for new platform (Xu Meng)
+
+* test: fix test-spawn compilation (Bartosz Sosnowski)
+
+
+2017.11.11, Version 1.16.1 (Stable), 4056fbe46493ef87237e307e0025e551db875e13
+
+Changes since version 1.16.0:
+
+* unix: move net/if.h include (cjihrig)
+
+* win: fix undeclared NDIS_IF_MAX_STRING_SIZE (Nick Logan)
+
+
+2017.11.07, Version 1.16.0 (Stable), d68779f0ea742918f653b9c20237460271c39aeb
+
+Changes since version 1.15.0:
+
+* win: change st_blksize from `2048` to `4096` (Joran Dirk Greef)
+
+* unix,win: add fs open flags, map O_DIRECT|O_DSYNC (Joran Dirk Greef)
+
+* win, fs: fix non-symlink reparse points (Wade Brainerd)
+
+* test: fix -Wstrict-prototypes warnings (Ben Noordhuis)
+
+* unix, windows: map ENOTTY errno (Ben Noordhuis)
+
+* unix: fall back to fsync() if F_FULLFSYNC fails (Joran Dirk Greef)
+
+* unix: do not close invalid kqueue fd after fork (jBarz)
+
+* zos: reset epoll data after fork (jBarz)
+
+* zos: skip fork_threadpool_queue_work_simple (jBarz)
+
+* test: keep platform_output as first test (Bartosz Sosnowski)
+
+* win: fix non-English dlopen error message (Bartosz Sosnowski)
+
+* unix,win: add uv_os_getppid() (cjihrig)
+
+* test: fix const qualification compiler warning (Ben Noordhuis)
+
+* doc: mark uv_default_loop() as not thread safe (rayrase)
+
+* win, pipe: null-initialize stream->shutdown_req (Jameson Nash)
+
+* tty, win: get SetWinEventHook pointer at startup (Bartosz Sosnowski)
+
+* test: no extra new line in skipped test output (Bartosz Sosnowski)
+
+* pipe: allow access from other users (Bartosz Sosnowski)
+
+* unix,win: add uv_if_{indextoname,indextoiid} (Pekka Nikander)
+
+
 2017.10.03, Version 1.15.0 (Stable), 8b69ce1419d2958011d415a636810705c36c2cc2
 
 Changes since version 1.14.1:

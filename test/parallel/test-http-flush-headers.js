@@ -5,7 +5,7 @@ const http = require('http');
 
 const server = http.createServer();
 server.on('request', function(req, res) {
-  assert.strictEqual(req.headers['foo'], 'bar');
+  assert.strictEqual(req.headers.foo, 'bar');
   res.end('ok');
   server.close();
 });

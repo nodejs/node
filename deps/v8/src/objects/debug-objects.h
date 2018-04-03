@@ -6,12 +6,15 @@
 #define V8_OBJECTS_DEBUG_OBJECTS_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.

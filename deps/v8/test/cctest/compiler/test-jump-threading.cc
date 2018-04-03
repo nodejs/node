@@ -19,7 +19,7 @@ class TestCode : public HandleAndZoneScope {
         blocks_(main_zone()),
         sequence_(main_isolate(), main_zone(), &blocks_),
         rpo_number_(RpoNumber::FromInt(0)),
-        current_(NULL) {}
+        current_(nullptr) {}
 
   ZoneVector<InstructionBlock*> blocks_;
   InstructionSequence sequence_;
@@ -29,8 +29,8 @@ class TestCode : public HandleAndZoneScope {
   int Jump(int target) {
     Start();
     InstructionOperand ops[] = {UseRpo(target)};
-    sequence_.AddInstruction(
-        Instruction::New(main_zone(), kArchJmp, 0, NULL, 1, ops, 0, NULL));
+    sequence_.AddInstruction(Instruction::New(main_zone(), kArchJmp, 0, nullptr,
+                                              1, ops, 0, nullptr));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
@@ -45,7 +45,7 @@ class TestCode : public HandleAndZoneScope {
     InstructionCode code = 119 | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
     sequence_.AddInstruction(
-        Instruction::New(main_zone(), code, 0, NULL, 2, ops, 0, NULL));
+        Instruction::New(main_zone(), code, 0, nullptr, 2, ops, 0, nullptr));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
@@ -78,14 +78,14 @@ class TestCode : public HandleAndZoneScope {
   void End() {
     Start();
     sequence_.EndBlock(current_->rpo_number());
-    current_ = NULL;
+    current_ = nullptr;
     rpo_number_ = RpoNumber::FromInt(rpo_number_.ToInt() + 1);
   }
   InstructionOperand UseRpo(int num) {
     return sequence_.AddImmediate(Constant(RpoNumber::FromInt(num)));
   }
   void Start(bool deferred = false) {
-    if (current_ == NULL) {
+    if (current_ == nullptr) {
       current_ = new (main_zone())
           InstructionBlock(main_zone(), rpo_number_, RpoNumber::Invalid(),
                            RpoNumber::Invalid(), deferred, false);
@@ -94,7 +94,7 @@ class TestCode : public HandleAndZoneScope {
     }
   }
   void Defer() {
-    CHECK(current_ == NULL);
+    CHECK_NULL(current_);
     Start(true);
   }
   void AddGapMove(int index, const InstructionOperand& from,

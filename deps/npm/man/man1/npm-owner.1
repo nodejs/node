@@ -1,4 +1,4 @@
-.TH "NPM\-OWNER" "1" "July 2017" "" ""
+.TH "NPM\-OWNER" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-owner\fR \- Manage package owners
 .SH SYNOPSIS
@@ -34,6 +34,10 @@ privileges\.
 Note that there is only one level of access\.  Either you can modify a package,
 or you can't\.  Future versions may contain more fine\-grained access levels, but
 that is not implemented at this time\.
+.P
+If you have two\-factor authentication enabled with \fBauth\-and\-writes\fP then
+you'll need to include an otp on the command line when changing ownership
+with \fB\-\-otp\fP\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

@@ -22,7 +22,6 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       extension_(nullptr),
       compile_options_(ScriptCompiler::kNoCompileOptions),
       script_scope_(nullptr),
-      asm_function_scope_(nullptr),
       unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),
@@ -46,7 +45,13 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   Isolate* isolate = shared->GetIsolate();
   InitFromIsolate(isolate);
 
+  // Do not support re-parsing top-level function of a wrapped script.
+  // TODO(yangguo): consider whether we need a top-level function in a
+  //                wrapped script at all.
+  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script())->is_wrapped());
+
   set_toplevel(shared->is_toplevel());
+  set_wrapped_as_function(shared->is_wrapped());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
   set_compiler_hints(shared->compiler_hints());
@@ -54,13 +59,14 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_end_position(shared->end_position());
   function_literal_id_ = shared->function_literal_id();
   set_language_mode(shared->language_mode());
-  set_module(shared->kind() == FunctionKind::kModule);
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  set_module(script->origin_options().IsModule());
+  DCHECK(!(is_eval() && is_module()));
 
   Handle<HeapObject> scope_info(shared->outer_scope_info());
   if (!scope_info->IsTheHole(isolate) &&
@@ -72,9 +78,10 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   // FeedbackMetadata, we can only collect type profile if the feedback vector
   // has the appropriate slots.
   set_collect_type_profile(
-      shared->feedback_metadata()->length() == 0
-          ? FLAG_type_profile && script->IsUserJavaScript()
-          : shared->feedback_metadata()->HasTypeProfileSlot());
+      isolate->is_collecting_type_profile() &&
+      (shared->feedback_metadata()->length() == 0
+           ? script->IsUserJavaScript()
+           : shared->feedback_metadata()->HasTypeProfileSlot()));
   if (block_coverage_enabled() && script->IsUserJavaScript()) {
     AllocateSourceRangeMap();
   }
@@ -87,11 +94,15 @@ ParseInfo::ParseInfo(Handle<Script> script)
   set_allow_lazy_parsing();
   set_toplevel();
   set_script(script);
+  set_wrapped_as_function(script->is_wrapped());
 
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  set_module(script->origin_options().IsModule());
+  DCHECK(!(is_eval() && is_module()));
 
-  set_collect_type_profile(FLAG_type_profile && script->IsUserJavaScript());
+  set_collect_type_profile(script->GetIsolate()->is_collecting_type_profile() &&
+                           script->IsUserJavaScript());
   if (block_coverage_enabled() && script->IsUserJavaScript()) {
     AllocateSourceRangeMap();
   }
@@ -113,7 +124,6 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_end_position(shared->end_position());
   p->function_literal_id_ = shared->function_literal_id();
   p->set_language_mode(shared->language_mode());
-  p->set_module(shared->kind() == FunctionKind::kModule);
 
   // BUG(5946): This function exists as a workaround until we can
   // get rid of %SetCode in our native functions. The ParseInfo
@@ -125,6 +135,8 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   // We tolerate a ParseInfo without a Script in this case.
   p->set_native(true);
   p->set_eval(false);
+  p->set_module(false);
+  DCHECK_NE(shared->kind(), FunctionKind::kModule);
 
   Handle<HeapObject> scope_info(shared->outer_scope_info());
   if (!scope_info->IsTheHole(isolate) &&
@@ -144,19 +156,38 @@ FunctionKind ParseInfo::function_kind() const {
   return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
 }
 
+bool ParseInfo::requires_instance_fields_initializer() const {
+  return SharedFunctionInfo::RequiresInstanceFieldsInitializer::decode(
+      compiler_hints_);
+}
+
 void ParseInfo::InitFromIsolate(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   set_hash_seed(isolate->heap()->HashSeed());
   set_stack_limit(isolate->stack_guard()->real_climit());
   set_unicode_cache(isolate->unicode_cache());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
+  set_logger(isolate->logger());
   set_ast_string_constants(isolate->ast_string_constants());
-  if (FLAG_block_coverage && isolate->is_block_code_coverage()) {
-    set_block_coverage_enabled();
+  if (isolate->is_block_code_coverage()) set_block_coverage_enabled();
+  if (isolate->is_collecting_type_profile()) set_collect_type_profile();
+}
+
+void ParseInfo::EmitBackgroundParseStatisticsOnBackgroundThread() {
+  // If runtime call stats was enabled by tracing, emit a trace event at the
+  // end of background parsing on the background thread.
+  if (runtime_call_stats_ &&
+      (FLAG_runtime_stats &
+       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+    auto value = v8::tracing::TracedValue::Create();
+    runtime_call_stats_->Dump(value.get());
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
+                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
+                         "runtime-call-stats", std::move(value));
   }
 }
 
-void ParseInfo::UpdateStatisticsAfterBackgroundParse(Isolate* isolate) {
+void ParseInfo::UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate) {
   // Copy over the counters from the background thread to the main counters on
   // the isolate.
   RuntimeCallStats* main_call_stats = isolate->counters()->runtime_call_stats();
@@ -197,7 +228,7 @@ void ParseInfo::ResetCharacterStream() { character_stream_.reset(); }
 
 void ParseInfo::set_character_stream(
     std::unique_ptr<Utf16CharacterStream> character_stream) {
-  DCHECK(character_stream_.get() == nullptr);
+  DCHECK_NULL(character_stream_);
   character_stream_.swap(character_stream);
 }
 

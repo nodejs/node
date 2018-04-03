@@ -6,10 +6,8 @@
 
 <!--name=module-->
 
-Node.js has a simple module loading system.  In Node.js, files and modules
-are in one-to-one correspondence (each file is treated as a separate module).
-
-As an example, consider a file named `foo.js`:
+In the Node.js module system, each file is treated as a separate module. For
+example, consider a file named `foo.js`:
 
 ```js
 const circle = require('./circle.js');
@@ -40,22 +38,26 @@ In this example, the variable `PI` is private to `circle.js`.
 The `module.exports` property can be assigned a new value (such as a function
 or object).
 
-Below, `bar.js` makes use of the `square` module, which exports a constructor:
+Below, `bar.js` makes use of the `square` module, which exports a Square class:
 
 ```js
-const square = require('./square.js');
-const mySquare = square(2);
-console.log(`The area of my square is ${mySquare.area()}`);
+const Square = require('./square.js');
+const mySquare = new Square(2);
+console.log(`The area of mySquare is ${mySquare.area()}`);
 ```
 
 The `square` module is defined in `square.js`:
 
 ```js
 // assigning to exports will not modify module, must use module.exports
-module.exports = (width) => {
-  return {
-    area: () => width ** 2
-  };
+module.exports = class Square {
+  constructor(width) {
+    this.width = width;
+  }
+
+  area() {
+    return this.width ** 2;
+  }
 };
 ```
 
@@ -350,9 +352,9 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of Node.js's awareness of package.json files.
 
-*Note*: If the file specified by the `"main"` entry of `package.json` is
-missing and can not be resolved, Node.js will report the entire module as
-missing with the default error:
+If the file specified by the `"main"` entry of `package.json` is missing and
+can not be resolved, Node.js will report the entire module as missing with the
+default error:
 
 ```txt
 Error: Cannot find module 'some-library'
@@ -405,7 +407,7 @@ If the `NODE_PATH` environment variable is set to a colon-delimited list
 of absolute paths, then Node.js will search those paths for modules if they
 are not found elsewhere.
 
-*Note*: On Windows, `NODE_PATH` is delimited by semicolons instead of colons.
+On Windows, `NODE_PATH` is delimited by semicolons (`;`) instead of colons.
 
 `NODE_PATH` was originally created to support loading modules from
 varying paths before the current [module resolution][] algorithm was frozen.
@@ -428,8 +430,8 @@ configured `node_prefix`.
 
 These are mostly for historic reasons.
 
-*Note*: It is strongly encouraged to place dependencies in the local
-`node_modules` folder. These will be loaded faster, and more reliably.
+It is strongly encouraged to place dependencies in the local `node_modules`
+folder. These will be loaded faster, and more reliably.
 
 ## The module wrapper
 
@@ -466,7 +468,7 @@ added: v0.1.27
 
 * {string}
 
-The directory name of the current module. This the same as the
+The directory name of the current module. This is the same as the
 [`path.dirname()`][] of the [`__filename`][].
 
 Example: running `node example.js` from `/Users/mjr`
@@ -598,11 +600,48 @@ filename scales linearly with the number of registered extensions.
 In other words, adding extensions slows down the module loader and
 should be discouraged.
 
+#### require.main
+<!-- YAML
+added: v0.1.17
+-->
+
+* {Object}
+
+The `Module` object representing the entry script loaded when the Node.js
+process launched.
+See ["Accessing the main module"](#modules_accessing_the_main_module).
+
+In `entry.js` script:
+
+```js
+console.log(require.main);
+```
+
+```sh
+node entry.js
+```
+
+<!-- eslint-skip -->
+```js
+Module {
+  id: '.',
+  exports: {},
+  parent: null,
+  filename: '/absolute/path/to/entry.js',
+  loaded: false,
+  children: [],
+  paths:
+   [ '/absolute/path/to/node_modules',
+     '/absolute/path/node_modules',
+     '/absolute/node_modules',
+     '/node_modules' ] }
+```
+
 #### require.resolve(request[, options])
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v8.9.0
     pr-url: https://github.com/nodejs/node/pull/16397
     description: The `paths` option is now supported.
 -->
@@ -620,13 +659,15 @@ but rather than loading the module, just return the resolved filename.
 
 #### require.resolve.paths(request)
 <!-- YAML
-added: REPLACEME
+added: v8.9.0
 -->
 
 * `request` {string} The module path whose lookup paths are being retrieved.
-* Returns: {Array}
+* Returns: {Array|null}
 
-Returns an array containing the paths searched during resolution of `request`.
+Returns an array containing the paths searched during resolution of `request` or
+null if the `request` string references a core module, for example `http` or
+`fs`.
 
 ## The `module` Object
 <!-- YAML
@@ -725,7 +766,7 @@ exports = { hello: false };  // Not exported, only available in the module
 ```
 
 When the `module.exports` property is being completely replaced by a new
-object, it is common to also reassign `exports`, for example:
+object, it is common to also reassign `exports`:
 
 <!-- eslint-disable func-name-matching -->
 ```js
@@ -812,10 +853,39 @@ added: v0.5.1
 The `module.require` method provides a way to load a module as if
 `require()` was called from the original module.
 
-*Note*: In order to do this, it is necessary to get a reference to the
-`module` object.  Since `require()` returns the `module.exports`, and the
-`module` is typically *only* available within a specific module's code, it must
-be explicitly exported in order to be used.
+In order to do this, it is necessary to get a reference to the `module` object.
+Since `require()` returns the `module.exports`, and the `module` is typically
+*only* available within a specific module's code, it must be explicitly exported
+in order to be used.
+
+## The `Module` Object
+
+<!-- YAML
+added: v0.3.7
+-->
+
+* {Object}
+
+Provides general utility methods when interacting with instances of
+`Module` -- the `module` variable often seen in file modules. Accessed
+via `require('module')`.
+
+### module.builtinModules
+<!-- YAML
+added: v9.3.0
+-->
+
+* {string[]}
+
+A list of the names of all modules provided by Node.js. Can be used to verify
+if a module is maintained by a third party or not.
+
+Note that `module` in this context isn't the same object that's provided
+by the [module wrapper][]. To access it, require the `Module` module:
+
+```js
+const builtin = require('module').builtinModules;
+```
 
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
@@ -824,4 +894,5 @@ be explicitly exported in order to be used.
 [`path.dirname()`]: path.html#path_path_dirname_path
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
+[module wrapper]: #modules_the_module_wrapper
 [native addons]: addons.html

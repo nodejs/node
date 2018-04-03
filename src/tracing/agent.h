@@ -8,11 +8,18 @@
 namespace node {
 namespace tracing {
 
-using v8::platform::tracing::TracingController;
+class TracingController : public v8::platform::tracing::TracingController {
+ public:
+  TracingController() : v8::platform::tracing::TracingController() {}
+
+  int64_t CurrentTimestampMicroseconds() override {
+    return uv_hrtime() / 1000;
+  }
+};
 
 class Agent {
  public:
-  Agent();
+  explicit Agent(const std::string& log_file_pattern);
   void Start(const std::string& enabled_categories);
   void Stop();
 

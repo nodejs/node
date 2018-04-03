@@ -160,7 +160,7 @@ def compare_params_list(context, kind, params_1, params_2, types_map_1, types_ma
 
 
 def compare_types(context, kind, type_1, type_2, types_map_1, types_map_2, depth, errors, reverse):
-    if depth > 10:
+    if depth > 5:
         return
 
     base_type_1 = type_1["type"]

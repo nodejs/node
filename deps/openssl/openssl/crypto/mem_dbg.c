@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -633,16 +633,22 @@ static void print_leak_doall_arg(const MEM *m, MEM_LEAK *l)
     APP_INFO *amip;
     int ami_cnt;
     struct tm *lcl = NULL;
+    struct tm result = {0};
     CRYPTO_THREADID ti;
 
-#define BUF_REMAIN (sizeof buf - (size_t)(bufp - buf))
+#define BUF_REMAIN (sizeof(buf) - (size_t)(bufp - buf))
 
     if (m->addr == (char *)l->bio)
         return;
 
     if (options & V_CRYPTO_MDEBUG_TIME) {
+# if defined(OPENSSL_THREADS) && !defined(OPENSSL_SYS_WIN32) && \
+            !defined(OPENSSL_SYS_OS2) && !defined(OPENSSL_SYS_SUNOS) && \
+            (!defined(OPENSSL_SYS_VMS) || defined(localtime_r))
+        lcl = localtime_r(&m->time, &result);
+# else
         lcl = localtime(&m->time);
-
+# endif
         BIO_snprintf(bufp, BUF_REMAIN, "[%02d:%02d:%02d] ",
                      lcl->tm_hour, lcl->tm_min, lcl->tm_sec);
         bufp += strlen(bufp);
@@ -679,7 +685,7 @@ static void print_leak_doall_arg(const MEM *m, MEM_LEAK *l)
 
         ami_cnt++;
         memset(buf, '>', ami_cnt);
-        BIO_snprintf(buf + ami_cnt, sizeof buf - ami_cnt,
+        BIO_snprintf(buf + ami_cnt, sizeof(buf) - ami_cnt,
                      " thread=%lu, file=%s, line=%d, info=\"",
                      CRYPTO_THREADID_hash(&amip->threadid), amip->file,
                      amip->line);
@@ -689,10 +695,10 @@ static void print_leak_doall_arg(const MEM *m, MEM_LEAK *l)
             memcpy(buf + buf_len, amip->info, 128 - buf_len - 3);
             buf_len = 128 - 3;
         } else {
-            BUF_strlcpy(buf + buf_len, amip->info, sizeof buf - buf_len);
+            BUF_strlcpy(buf + buf_len, amip->info, sizeof(buf) - buf_len);
             buf_len = strlen(buf);
         }
-        BIO_snprintf(buf + buf_len, sizeof buf - buf_len, "\"\n");
+        BIO_snprintf(buf + buf_len, sizeof(buf) - buf_len, "\"\n");
 
         BIO_puts(l->bio, buf);
 

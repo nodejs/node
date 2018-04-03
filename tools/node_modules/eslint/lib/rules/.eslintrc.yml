@@ -1,0 +1,4 @@
+rules:
+    rulesdir/no-invalid-meta: "error"
+    rulesdir/consistent-docs-description: "error"
+    rulesdir/consistent-docs-url: "error"

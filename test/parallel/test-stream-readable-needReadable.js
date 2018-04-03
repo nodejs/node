@@ -38,7 +38,7 @@ asyncReadable.on('readable', common.mustCall(() => {
     // then we need to notify the reader on future changes.
     assert.strictEqual(asyncReadable._readableState.needReadable, true);
   }
-}, 3));
+}, 2));
 
 process.nextTick(common.mustCall(() => {
   asyncReadable.push('foooo');
@@ -46,8 +46,9 @@ process.nextTick(common.mustCall(() => {
 process.nextTick(common.mustCall(() => {
   asyncReadable.push('bar');
 }));
-process.nextTick(common.mustCall(() => {
+setImmediate(common.mustCall(() => {
   asyncReadable.push(null);
+  assert.strictEqual(asyncReadable._readableState.needReadable, false);
 }));
 
 const flowing = new Readable({
@@ -84,13 +85,13 @@ slowProducer.on('readable', common.mustCall(() => {
 
 process.nextTick(common.mustCall(() => {
   slowProducer.push('foo');
-}));
-process.nextTick(common.mustCall(() => {
-  slowProducer.push('foo');
-}));
-process.nextTick(common.mustCall(() => {
-  slowProducer.push('foo');
-}));
-process.nextTick(common.mustCall(() => {
-  slowProducer.push(null);
+  process.nextTick(common.mustCall(() => {
+    slowProducer.push('foo');
+    process.nextTick(common.mustCall(() => {
+      slowProducer.push('foo');
+      process.nextTick(common.mustCall(() => {
+        slowProducer.push(null);
+      }));
+    }));
+  }));
 }));

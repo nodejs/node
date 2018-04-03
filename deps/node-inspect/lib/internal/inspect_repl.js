@@ -900,10 +900,8 @@ function createRepl(inspector) {
         return new Promise((resolve, reject) => {
           const absoluteFile = Path.resolve(filename);
           const writer = FS.createWriteStream(absoluteFile);
-          let totalSize;
           let sizeWritten = 0;
           function onProgress({ done, total, finished }) {
-            totalSize = total;
             if (finished) {
               print('Heap snaphost prepared.');
             } else {
@@ -913,13 +911,18 @@ function createRepl(inspector) {
           function onChunk({ chunk }) {
             sizeWritten += chunk.length;
             writer.write(chunk);
-            print(`Writing snapshot: ${sizeWritten}/${totalSize}`, true);
-            if (sizeWritten >= totalSize) {
-              writer.end();
+            print(`Writing snapshot: ${sizeWritten}`, true);
+          }
+          function onResolve() {
+            writer.end(() => {
               teardown();
               print(`Wrote snapshot: ${absoluteFile}`);
               resolve();
-            }
+            });
+          }
+          function onReject(error) {
+            teardown();
+            reject(error);
           }
           function teardown() {
             HeapProfiler.removeListener(
@@ -932,10 +935,7 @@ function createRepl(inspector) {
 
           print('Heap snapshot: 0/0', true);
           HeapProfiler.takeHeapSnapshot({ reportProgress: true })
-            .then(null, (error) => {
-              teardown();
-              reject(error);
-            });
+            .then(onResolve, onReject);
         });
       },
 

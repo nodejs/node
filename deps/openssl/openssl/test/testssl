@@ -292,6 +292,15 @@ if [ -z "$extra" -a `uname -m` = "x86_64" ]; then
   $ssltest -cipher AES128-SHA256 -bytes 8m	|| exit 1
 fi
 
+#############################################################################
+# Signature algorithms + SNI
+
+$ssltest -tls12 -sn_client server1 -sn_server1 server1 -sn_server2 server2 -sn_expect1 -client_sigalgs RSA+SHA256 -server_digest_expect SHA256 || exit 1
+$ssltest -tls12 -sn_client server1 -sn_server1 server1 -sn_server2 server2 -sn_expect1 -client_sigalgs RSA+SHA256 -server_digest_expect SHA256 -sni_in_cert_cb || exit 1
+# Switching SSL_CTX on SNI must not break signature algorithm negotiation.
+$ssltest -tls12 -sn_client server2 -sn_server1 server1 -sn_server2 server2 -sn_expect2 -client_sigalgs RSA+SHA256 -server_digest_expect SHA256 || exit 1
+$ssltest -tls12 -sn_client server2 -sn_server1 server1 -sn_server2 server2 -sn_expect2 -client_sigalgs RSA+SHA256 -server_digest_expect SHA256 -sni_in_cert_cb || exit 1
+
 
 $ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 no -c_ticket no -ticket_expect no || exit 1
 $ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 no -c_ticket yes -ticket_expect no || exit 1

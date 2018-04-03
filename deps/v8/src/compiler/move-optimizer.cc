@@ -376,7 +376,7 @@ const Instruction* MoveOptimizer::LastInstruction(
 
 
 void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
-  DCHECK(block->PredecessorCount() > 1);
+  DCHECK_LT(1, block->PredecessorCount());
   // Ensure that the last instruction in all incoming blocks don't contain
   // things that would prevent moving gap moves across them.
   for (RpoNumber& pred_index : block->predecessors()) {

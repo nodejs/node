@@ -8,7 +8,7 @@
 ## Install
 
 ```
-$ npm install --save boxen
+$ npm install boxen
 ```
 
 
@@ -124,7 +124,7 @@ Reduce opacity of the border.
 
 ##### padding
 
-Type: `number` `object`<br>
+Type: `number` `Object`<br>
 Default: `0`
 
 Space between the text and box border.
@@ -133,7 +133,7 @@ Accepts a number or an object with any of the `top`, `right`, `bottom`, `left` p
 
 ##### margin
 
-Type: `number` `object`<br>
+Type: `number` `Object`<br>
 Default: `0`
 
 Space around the box.

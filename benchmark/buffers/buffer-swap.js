@@ -4,7 +4,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   aligned: ['true', 'false'],
-  method: ['swap16', 'swap32', 'swap64'/*, 'htons', 'htonl', 'htonll'*/],
+  method: ['swap16', 'swap32', 'swap64'/* , 'htons', 'htonl', 'htonll' */],
   len: [8, 64, 128, 256, 512, 768, 1024, 1536, 2056, 4096, 8192],
   n: [5e7]
 });
@@ -72,13 +72,9 @@ function genMethod(method) {
   return (new Function(fnString))();
 }
 
-function main(conf) {
-  const method = conf.method || 'swap16';
-  const len = conf.len | 0;
-  const n = conf.n | 0;
-  const aligned = conf.aligned || 'true';
+function main({ method, len, n, aligned = 'true' }) {
   const buf = createBuffer(len, aligned === 'true');
-  const bufferSwap = genMethod(method);
+  const bufferSwap = genMethod(method || 'swap16');
 
   bufferSwap(n, buf);
   bench.start();

@@ -134,15 +134,18 @@ U_NAMESPACE_BEGIN
 // class DateTimePatternGenerator
 // *****************************************************************************
 static const UChar Canonical_Items[] = {
-    // GyQMwWEdDFHmsSv
-    CAP_G, LOW_Y, CAP_Q, CAP_M, LOW_W, CAP_W, CAP_E, LOW_D, CAP_D, CAP_F,
+    // GyQMwWEDFdaHmsSv
+    CAP_G, LOW_Y, CAP_Q, CAP_M, LOW_W, CAP_W, CAP_E,
+    CAP_D, CAP_F, LOW_D, LOW_A, // The UDATPG_x_FIELD constants and these fields have a different order than in ICU4J
     CAP_H, LOW_M, LOW_S, CAP_S, LOW_V, 0
 };
 
 static const dtTypeElem dtTypes[] = {
     // patternChar, field, type, minLen, weight
     {CAP_G, UDATPG_ERA_FIELD, DT_SHORT, 1, 3,},
-    {CAP_G, UDATPG_ERA_FIELD, DT_LONG, 4, 0},
+    {CAP_G, UDATPG_ERA_FIELD, DT_LONG,  4, 0},
+    {CAP_G, UDATPG_ERA_FIELD, DT_NARROW, 5, 0},
+
     {LOW_Y, UDATPG_YEAR_FIELD, DT_NUMERIC, 1, 20},
     {CAP_Y, UDATPG_YEAR_FIELD, DT_NUMERIC + DT_DELTA, 1, 20},
     {LOW_U, UDATPG_YEAR_FIELD, DT_NUMERIC + 2*DT_DELTA, 1, 20},
@@ -150,12 +153,16 @@ static const dtTypeElem dtTypes[] = {
     {CAP_U, UDATPG_YEAR_FIELD, DT_SHORT, 1, 3},
     {CAP_U, UDATPG_YEAR_FIELD, DT_LONG, 4, 0},
     {CAP_U, UDATPG_YEAR_FIELD, DT_NARROW, 5, 0},
+
     {CAP_Q, UDATPG_QUARTER_FIELD, DT_NUMERIC, 1, 2},
     {CAP_Q, UDATPG_QUARTER_FIELD, DT_SHORT, 3, 0},
     {CAP_Q, UDATPG_QUARTER_FIELD, DT_LONG, 4, 0},
+    {CAP_Q, UDATPG_QUARTER_FIELD, DT_NARROW, 5, 0},
     {LOW_Q, UDATPG_QUARTER_FIELD, DT_NUMERIC + DT_DELTA, 1, 2},
-    {LOW_Q, UDATPG_QUARTER_FIELD, DT_SHORT + DT_DELTA, 3, 0},
-    {LOW_Q, UDATPG_QUARTER_FIELD, DT_LONG + DT_DELTA, 4, 0},
+    {LOW_Q, UDATPG_QUARTER_FIELD, DT_SHORT - DT_DELTA, 3, 0},
+    {LOW_Q, UDATPG_QUARTER_FIELD, DT_LONG - DT_DELTA, 4, 0},
+    {LOW_Q, UDATPG_QUARTER_FIELD, DT_NARROW - DT_DELTA, 5, 0},
+
     {CAP_M, UDATPG_MONTH_FIELD, DT_NUMERIC, 1, 2},
     {CAP_M, UDATPG_MONTH_FIELD, DT_SHORT, 3, 0},
     {CAP_M, UDATPG_MONTH_FIELD, DT_LONG, 4, 0},
@@ -165,32 +172,66 @@ static const dtTypeElem dtTypes[] = {
     {CAP_L, UDATPG_MONTH_FIELD, DT_LONG - DT_DELTA, 4, 0},
     {CAP_L, UDATPG_MONTH_FIELD, DT_NARROW - DT_DELTA, 5, 0},
     {LOW_L, UDATPG_MONTH_FIELD, DT_NUMERIC + DT_DELTA, 1, 1},
+
     {LOW_W, UDATPG_WEEK_OF_YEAR_FIELD, DT_NUMERIC, 1, 2},
-    {CAP_W, UDATPG_WEEK_OF_MONTH_FIELD, DT_NUMERIC + DT_DELTA, 1, 0},
+
+    {CAP_W, UDATPG_WEEK_OF_MONTH_FIELD, DT_NUMERIC, 1, 0},
+
     {CAP_E, UDATPG_WEEKDAY_FIELD, DT_SHORT, 1, 3},
     {CAP_E, UDATPG_WEEKDAY_FIELD, DT_LONG, 4, 0},
     {CAP_E, UDATPG_WEEKDAY_FIELD, DT_NARROW, 5, 0},
+    {CAP_E, UDATPG_WEEKDAY_FIELD, DT_SHORTER, 6, 0},
     {LOW_C, UDATPG_WEEKDAY_FIELD, DT_NUMERIC + 2*DT_DELTA, 1, 2},
     {LOW_C, UDATPG_WEEKDAY_FIELD, DT_SHORT - 2*DT_DELTA, 3, 0},
     {LOW_C, UDATPG_WEEKDAY_FIELD, DT_LONG - 2*DT_DELTA, 4, 0},
     {LOW_C, UDATPG_WEEKDAY_FIELD, DT_NARROW - 2*DT_DELTA, 5, 0},
+    {LOW_C, UDATPG_WEEKDAY_FIELD, DT_SHORTER - 2*DT_DELTA, 6, 0},
     {LOW_E, UDATPG_WEEKDAY_FIELD, DT_NUMERIC + DT_DELTA, 1, 2}, // LOW_E is currently not used in CLDR data, should not be canonical
     {LOW_E, UDATPG_WEEKDAY_FIELD, DT_SHORT - DT_DELTA, 3, 0},
     {LOW_E, UDATPG_WEEKDAY_FIELD, DT_LONG - DT_DELTA, 4, 0},
     {LOW_E, UDATPG_WEEKDAY_FIELD, DT_NARROW - DT_DELTA, 5, 0},
+    {LOW_E, UDATPG_WEEKDAY_FIELD, DT_SHORTER - DT_DELTA, 6, 0},
+
     {LOW_D, UDATPG_DAY_FIELD, DT_NUMERIC, 1, 2},
-    {CAP_D, UDATPG_DAY_OF_YEAR_FIELD, DT_NUMERIC + DT_DELTA, 1, 3},
-    {CAP_F, UDATPG_DAY_OF_WEEK_IN_MONTH_FIELD, DT_NUMERIC + 2*DT_DELTA, 1, 0},
-    {LOW_G, UDATPG_DAY_FIELD, DT_NUMERIC + 3*DT_DELTA, 1, 20}, // really internal use, so we don't care
-    {LOW_A, UDATPG_DAYPERIOD_FIELD, DT_SHORT, 1, 0},
+    {LOW_G, UDATPG_DAY_FIELD, DT_NUMERIC + DT_DELTA, 1, 20}, // really internal use, so we don't care
+
+    {CAP_D, UDATPG_DAY_OF_YEAR_FIELD, DT_NUMERIC, 1, 3},
+
+    {CAP_F, UDATPG_DAY_OF_WEEK_IN_MONTH_FIELD, DT_NUMERIC, 1, 0},
+
+    {LOW_A, UDATPG_DAYPERIOD_FIELD, DT_SHORT, 1, 3},
+    {LOW_A, UDATPG_DAYPERIOD_FIELD, DT_LONG, 4, 0},
+    {LOW_A, UDATPG_DAYPERIOD_FIELD, DT_NARROW, 5, 0},
+    {LOW_B, UDATPG_DAYPERIOD_FIELD, DT_SHORT - DT_DELTA, 1, 3},
+    {LOW_B, UDATPG_DAYPERIOD_FIELD, DT_LONG - DT_DELTA, 4, 0},
+    {LOW_B, UDATPG_DAYPERIOD_FIELD, DT_NARROW - DT_DELTA, 5, 0},
+    // b needs to be closer to a than to B, so we make this 3*DT_DELTA
+    {CAP_B, UDATPG_DAYPERIOD_FIELD, DT_SHORT - 3*DT_DELTA, 1, 3},
+    {CAP_B, UDATPG_DAYPERIOD_FIELD, DT_LONG - 3*DT_DELTA, 4, 0},
+    {CAP_B, UDATPG_DAYPERIOD_FIELD, DT_NARROW - 3*DT_DELTA, 5, 0},
+
     {CAP_H, UDATPG_HOUR_FIELD, DT_NUMERIC + 10*DT_DELTA, 1, 2}, // 24 hour
     {LOW_K, UDATPG_HOUR_FIELD, DT_NUMERIC + 11*DT_DELTA, 1, 2}, // 24 hour
     {LOW_H, UDATPG_HOUR_FIELD, DT_NUMERIC, 1, 2}, // 12 hour
     {CAP_K, UDATPG_HOUR_FIELD, DT_NUMERIC + DT_DELTA, 1, 2}, // 12 hour
+    // The C code has had versions of the following 3, keep & update. Should not need these, but...
+    // Without these, certain tests using e.g. staticGetSkeleton fail because j/J in patterns
+    // get skipped instead of mapped to the right hour chars, for example in
+    //   DateFormatTest::TestPatternFromSkeleton
+    //   IntlTestDateTimePatternGeneratorAPI:: testStaticGetSkeleton
+    //   DateIntervalFormatTest::testTicket11985
+    // Need to investigate better handling of jJC replacement e.g. in staticGetSkeleton.
+    {CAP_J, UDATPG_HOUR_FIELD, DT_NUMERIC + 5*DT_DELTA, 1, 2}, // 12/24 hour no AM/PM
+    {LOW_J, UDATPG_HOUR_FIELD, DT_NUMERIC + 6*DT_DELTA, 1, 6}, // 12/24 hour
+    {CAP_C, UDATPG_HOUR_FIELD, DT_NUMERIC + 7*DT_DELTA, 1, 6}, // 12/24 hour with preferred dayPeriods for 12
+
     {LOW_M, UDATPG_MINUTE_FIELD, DT_NUMERIC, 1, 2},
+
     {LOW_S, UDATPG_SECOND_FIELD, DT_NUMERIC, 1, 2},
-    {CAP_S, UDATPG_FRACTIONAL_SECOND_FIELD, DT_NUMERIC + DT_DELTA, 1, 1000},
-    {CAP_A, UDATPG_SECOND_FIELD, DT_NUMERIC + 2*DT_DELTA, 1, 1000},
+    {CAP_A, UDATPG_SECOND_FIELD, DT_NUMERIC + DT_DELTA, 1, 1000},
+
+    {CAP_S, UDATPG_FRACTIONAL_SECOND_FIELD, DT_NUMERIC, 1, 1000},
+
     {LOW_V, UDATPG_ZONE_FIELD, DT_SHORT - 2*DT_DELTA, 1, 0},
     {LOW_V, UDATPG_ZONE_FIELD, DT_LONG - 2*DT_DELTA, 4, 0},
     {LOW_Z, UDATPG_ZONE_FIELD, DT_SHORT, 1, 3},
@@ -202,26 +243,38 @@ static const dtTypeElem dtTypes[] = {
     {CAP_O, UDATPG_ZONE_FIELD, DT_LONG - DT_DELTA, 4, 0},
     {CAP_V, UDATPG_ZONE_FIELD, DT_SHORT - DT_DELTA, 1, 0},
     {CAP_V, UDATPG_ZONE_FIELD, DT_LONG - DT_DELTA, 2, 0},
+    {CAP_V, UDATPG_ZONE_FIELD, DT_LONG-1 - DT_DELTA, 3, 0},
+    {CAP_V, UDATPG_ZONE_FIELD, DT_LONG-2 - DT_DELTA, 4, 0},
     {CAP_X, UDATPG_ZONE_FIELD, DT_NARROW - DT_DELTA, 1, 0},
     {CAP_X, UDATPG_ZONE_FIELD, DT_SHORT - DT_DELTA, 2, 0},
     {CAP_X, UDATPG_ZONE_FIELD, DT_LONG - DT_DELTA, 4, 0},
     {LOW_X, UDATPG_ZONE_FIELD, DT_NARROW - DT_DELTA, 1, 0},
     {LOW_X, UDATPG_ZONE_FIELD, DT_SHORT - DT_DELTA, 2, 0},
     {LOW_X, UDATPG_ZONE_FIELD, DT_LONG - DT_DELTA, 4, 0},
-    {LOW_J, UDATPG_HOUR_FIELD, DT_NUMERIC, 1, 2}, // 12/24 hour
-    {CAP_J, UDATPG_HOUR_FIELD, DT_NUMERIC, 1, 2}, // 12/24 hour no AM/PM
+
     {0, UDATPG_FIELD_COUNT, 0, 0, 0} , // last row of dtTypes[]
  };
 
 static const char* const CLDR_FIELD_APPEND[] = {
-    "Era", "Year", "Quarter", "Month", "Week", "*", "Day-Of-Week", "Day", "*", "*", "*",
+    "Era", "Year", "Quarter", "Month", "Week", "*", "Day-Of-Week",
+    "*", "*", "Day", "*", // The UDATPG_x_FIELD constants and these fields have a different order than in ICU4J
     "Hour", "Minute", "Second", "*", "Timezone"
 };
 
-static const char* const CLDR_FIELD_NAME[] = {
-    "era", "year", "quarter", "month", "week", "*", "weekday", "*", "*", "day", "dayperiod",
+static const char* const CLDR_FIELD_NAME[UDATPG_FIELD_COUNT] = {
+    "era", "year", "quarter", "month", "week", "weekOfMonth", "weekday",
+    "dayOfYear", "weekdayOfMonth", "day", "dayperiod", // The UDATPG_x_FIELD constants and these fields have a different order than in ICU4J
     "hour", "minute", "second", "*", "zone"
 };
+
+static const char* const CLDR_FIELD_WIDTH[] = { // [UDATPG_WIDTH_COUNT]
+    "", "-short", "-narrow"
+};
+
+// TODO(ticket:13619): remove when definition uncommented in dtptngen.h.
+static const int32_t UDATPG_WIDTH_COUNT = UDATPG_NARROW + 1;
+static constexpr UDateTimePGDisplayWidth UDATPG_WIDTH_APPENDITEM = UDATPG_WIDE;
+static constexpr int32_t UDATPG_FIELD_KEY_MAX = 24; // max length of CLDR field tag (type + width)
 
 // For appendItems
 static const UChar UDATPG_ItemFormat[]= {0x7B, 0x30, 0x7D, 0x20, 0x251C, 0x7B, 0x32, 0x7D, 0x3A,
@@ -335,10 +388,11 @@ DateTimePatternGenerator::operator=(const DateTimePatternGenerator& other) {
     }
     for (int32_t i=0; i< UDATPG_FIELD_COUNT; ++i ) {
         appendItemFormats[i] = other.appendItemFormats[i];
-        appendItemNames[i] = other.appendItemNames[i];
-        // NUL-terminate for the C API.
-        appendItemFormats[i].getTerminatedBuffer();
-        appendItemNames[i].getTerminatedBuffer();
+        appendItemFormats[i].getTerminatedBuffer(); // NUL-terminate for the C API.
+        for (int32_t j=0; j< UDATPG_WIDTH_COUNT; ++j ) {
+            fieldDisplayNames[i][j] = other.fieldDisplayNames[i][j];
+            fieldDisplayNames[i][j].getTerminatedBuffer(); // NUL-terminate for the C API.
+        }
     }
     UErrorCode status = U_ZERO_ERROR;
     patternMap->copyFrom(*other.patternMap, status);
@@ -355,10 +409,14 @@ DateTimePatternGenerator::operator==(const DateTimePatternGenerator& other) cons
     if ((pLocale==other.pLocale) && (patternMap->equals(*other.patternMap)) &&
         (dateTimeFormat==other.dateTimeFormat) && (decimal==other.decimal)) {
         for ( int32_t i=0 ; i<UDATPG_FIELD_COUNT; ++i ) {
-           if ((appendItemFormats[i] != other.appendItemFormats[i]) ||
-               (appendItemNames[i] != other.appendItemNames[i]) ) {
-               return FALSE;
-           }
+            if (appendItemFormats[i] != other.appendItemFormats[i]) {
+                return FALSE;
+            }
+            for (int32_t j=0; j< UDATPG_WIDTH_COUNT; ++j ) {
+                if (fieldDisplayNames[i][j] != other.fieldDisplayNames[i][j]) {
+                    return FALSE;
+                }
+            }
         }
         return TRUE;
     }
@@ -780,15 +838,16 @@ struct DateTimePatternGenerator::AppendItemNamesSink : public ResourceSink {
         ResourceTable itemsTable = value.getTable(errorCode);
         if (U_FAILURE(errorCode)) { return; }
         for (int32_t i = 0; itemsTable.getKeyAndValue(i, key, value); ++i) {
-            UDateTimePatternField field = dtpg.getAppendNameNumber(key);
+            UDateTimePGDisplayWidth width;
+            UDateTimePatternField field = dtpg.getFieldAndWidthIndices(key, &width);
             if (field == UDATPG_FIELD_COUNT) { continue; }
             ResourceTable detailsTable = value.getTable(errorCode);
             if (U_FAILURE(errorCode)) { return; }
             for (int32_t j = 0; detailsTable.getKeyAndValue(j, key, value); ++j) {
                 if (uprv_strcmp(key, "dn") != 0) { continue; }
                 const UnicodeString& valueStr = value.getUnicodeString(errorCode);
-                if (dtpg.getAppendItemName(field).isEmpty() && !valueStr.isEmpty()) {
-                    dtpg.setAppendItemName(field, valueStr);
+                if (dtpg.getFieldDisplayName(field,width).isEmpty() && !valueStr.isEmpty()) {
+                    dtpg.setFieldDisplayName(field,width,valueStr);
                 }
                 break;
             }
@@ -797,8 +856,7 @@ struct DateTimePatternGenerator::AppendItemNamesSink : public ResourceSink {
 
     void fillInMissing() {
         for (int32_t i = 0; i < UDATPG_FIELD_COUNT; i++) {
-            UDateTimePatternField field = (UDateTimePatternField)i;
-            UnicodeString& valueStr = dtpg.getMutableAppendItemName(field);
+            UnicodeString& valueStr = dtpg.getMutableFieldDisplayName((UDateTimePatternField)i, UDATPG_WIDE);
             if (valueStr.isEmpty()) {
                 valueStr = CAP_F;
                 U_ASSERT(i < 20);
@@ -812,6 +870,12 @@ struct DateTimePatternGenerator::AppendItemNamesSink : public ResourceSink {
                 }
                 // NUL-terminate for the C API.
                 valueStr.getTerminatedBuffer();
+            }
+            for (int32_t j = 1; j < UDATPG_WIDTH_COUNT; j++) {
+                UnicodeString& valueStr = dtpg.getMutableFieldDisplayName((UDateTimePatternField)i, (UDateTimePGDisplayWidth)j);
+                if (valueStr.isEmpty()) {
+                    valueStr = dtpg.getFieldDisplayName((UDateTimePatternField)i, (UDateTimePGDisplayWidth)(j-1));
+                }
             }
         }
     }
@@ -925,25 +989,35 @@ DateTimePatternGenerator::getAppendItemFormat(UDateTimePatternField field) const
 
 void
 DateTimePatternGenerator::setAppendItemName(UDateTimePatternField field, const UnicodeString& value) {
-    appendItemNames[field] = value;
-    // NUL-terminate for the C API.
-    appendItemNames[field].getTerminatedBuffer();
+    setFieldDisplayName(field, UDATPG_WIDTH_APPENDITEM, value);
 }
 
 const UnicodeString&
 DateTimePatternGenerator::getAppendItemName(UDateTimePatternField field) const {
-    return appendItemNames[field];
+    return fieldDisplayNames[field][UDATPG_WIDTH_APPENDITEM];
+}
+
+void
+DateTimePatternGenerator::setFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width, const UnicodeString& value) {
+    fieldDisplayNames[field][width] = value;
+    // NUL-terminate for the C API.
+    fieldDisplayNames[field][width].getTerminatedBuffer();
+}
+
+UnicodeString
+DateTimePatternGenerator::getFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width) const {
+    return fieldDisplayNames[field][width];
 }
 
 UnicodeString&
-DateTimePatternGenerator::getMutableAppendItemName(UDateTimePatternField field) {
-    return appendItemNames[field];
+DateTimePatternGenerator::getMutableFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width) {
+    return fieldDisplayNames[field][width];
 }
 
 void
 DateTimePatternGenerator::getAppendName(UDateTimePatternField field, UnicodeString& value) {
     value = SINGLE_QUOTE;
-    value += appendItemNames[field];
+    value += fieldDisplayNames[field][UDATPG_WIDTH_APPENDITEM];
     value += SINGLE_QUOTE;
 }
 
@@ -963,47 +1037,13 @@ DateTimePatternGenerator::getBestPattern(const UnicodeString& patternForm, UDate
     int32_t timeMask=(1<<UDATPG_FIELD_COUNT) - 1 - dateMask;
 
     // Replace hour metacharacters 'j', 'C' and 'J', set flags as necessary
-    UnicodeString patternFormCopy = UnicodeString(patternForm);
-    int32_t patPos, patLen = patternFormCopy.length();
-    UBool inQuoted = FALSE;
-    for (patPos = 0; patPos < patLen; patPos++) {
-        UChar patChr = patternFormCopy.charAt(patPos);
-        if (patChr == SINGLE_QUOTE) {
-            inQuoted = !inQuoted;
-        } else if (!inQuoted) {
-            if (patChr == LOW_J) {
-                patternFormCopy.setCharAt(patPos, fDefaultHourFormatChar);
-            } else if (patChr == CAP_C) {
-                AllowedHourFormat preferred;
-                if (fAllowedHourFormats[0] != ALLOWED_HOUR_FORMAT_UNKNOWN) {
-                    preferred = (AllowedHourFormat)fAllowedHourFormats[0];
-                } else {
-                    status = U_INVALID_FORMAT_ERROR;
-                    return UnicodeString();
-                }
-
-                if (preferred == ALLOWED_HOUR_FORMAT_H || preferred == ALLOWED_HOUR_FORMAT_HB || preferred == ALLOWED_HOUR_FORMAT_Hb) {
-                    patternFormCopy.setCharAt(patPos, CAP_H);
-                } else {
-                    patternFormCopy.setCharAt(patPos, LOW_H);
-                }
-
-                if (preferred == ALLOWED_HOUR_FORMAT_HB || preferred == ALLOWED_HOUR_FORMAT_hB) {
-                    flags |= kDTPGSkeletonUsesCapB;
-                } else if (preferred == ALLOWED_HOUR_FORMAT_Hb || preferred == ALLOWED_HOUR_FORMAT_hb) {
-                    flags |= kDTPGSkeletonUsesLowB;
-                }
-            } else if (patChr == CAP_J) {
-                // Get pattern for skeleton with H, then replace H or k
-                // with fDefaultHourFormatChar (if different)
-                patternFormCopy.setCharAt(patPos, CAP_H);
-                flags |= kDTPGSkeletonUsesCapJ;
-            }
-        }
+    UnicodeString patternFormMapped = mapSkeletonMetacharacters(patternForm, &flags, status);
+    if (U_FAILURE(status)) {
+        return UnicodeString();
     }
 
     resultPattern.remove();
-    dtMatcher->set(patternFormCopy, fp);
+    dtMatcher->set(patternFormMapped, fp);
     const PtnSkeleton* specifiedSkeleton=NULL;
     bestPattern=getBestRaw(*dtMatcher, -1, distanceInfo, &specifiedSkeleton);
     if ( distanceInfo->missingFieldMask==0 && distanceInfo->extraFieldMask==0 ) {
@@ -1030,6 +1070,82 @@ DateTimePatternGenerator::getBestPattern(const UnicodeString& patternForm, UDate
     dtFormat=getDateTimeFormat();
     SimpleFormatter(dtFormat, 2, 2, status).format(timePattern, datePattern, resultPattern, status);
     return resultPattern;
+}
+
+/*
+ * Map a skeleton that may have metacharacters jJC to one without, by replacing
+ * the metacharacters with locale-appropriate fields of of h/H/k/K and of a/b/B
+ * (depends on fDefaultHourFormatChar and fAllowedHourFormats being set, which in
+ * turn depends on initData having been run). This method also updates the flags
+ * as necessary. Returns the updated skeleton.
+ */
+UnicodeString
+DateTimePatternGenerator::mapSkeletonMetacharacters(const UnicodeString& patternForm, int32_t* flags, UErrorCode& status) {
+    UnicodeString patternFormMapped;
+    patternFormMapped.remove();
+    UBool inQuoted = FALSE;
+    int32_t patPos, patLen = patternForm.length();
+    for (patPos = 0; patPos < patLen; patPos++) {
+        UChar patChr = patternForm.charAt(patPos);
+        if (patChr == SINGLE_QUOTE) {
+            inQuoted = !inQuoted;
+        } else if (!inQuoted) {
+            // Handle special mappings for 'j' and 'C' in which fields lengths
+            // 1,3,5 => hour field length 1
+            // 2,4,6 => hour field length 2
+            // 1,2 => abbreviated dayPeriod (field length 1..3)
+            // 3,4 => long dayPeriod (field length 4)
+            // 5,6 => narrow dayPeriod (field length 5)
+            if (patChr == LOW_J || patChr == CAP_C) {
+                int32_t extraLen = 0; // 1 less than total field length
+                while (patPos+1 < patLen && patternForm.charAt(patPos+1)==patChr) {
+                    extraLen++;
+                    patPos++;
+                }
+                int32_t hourLen = 1 + (extraLen & 1);
+                int32_t dayPeriodLen = (extraLen < 2)? 1: 3 + (extraLen >> 1);
+                UChar hourChar = LOW_H;
+                UChar dayPeriodChar = LOW_A;
+                if (patChr == LOW_J) {
+                    hourChar = fDefaultHourFormatChar;
+                } else {
+                    AllowedHourFormat preferred;
+                    if (fAllowedHourFormats[0] != ALLOWED_HOUR_FORMAT_UNKNOWN) {
+                        preferred = (AllowedHourFormat)fAllowedHourFormats[0];
+                    } else {
+                        status = U_INVALID_FORMAT_ERROR;
+                        return UnicodeString();
+                    }
+                    if (preferred == ALLOWED_HOUR_FORMAT_H || preferred == ALLOWED_HOUR_FORMAT_HB || preferred == ALLOWED_HOUR_FORMAT_Hb) {
+                        hourChar = CAP_H;
+                    }
+                    // in #13183 just add b/B to skeleton, no longer need to set special flags
+                    if (preferred == ALLOWED_HOUR_FORMAT_HB || preferred == ALLOWED_HOUR_FORMAT_hB) {
+                        dayPeriodChar = CAP_B;
+                    } else if (preferred == ALLOWED_HOUR_FORMAT_Hb || preferred == ALLOWED_HOUR_FORMAT_hb) {
+                        dayPeriodChar = LOW_B;
+                    }
+                }
+                if (hourChar==CAP_H || hourChar==LOW_K) {
+                    dayPeriodLen = 0;
+                }
+                while (dayPeriodLen-- > 0) {
+                    patternFormMapped.append(dayPeriodChar);
+                }
+                while (hourLen-- > 0) {
+                    patternFormMapped.append(hourChar);
+                }
+            } else if (patChr == CAP_J) {
+                // Get pattern for skeleton with H, then replace H or k
+                // with fDefaultHourFormatChar (if different)
+                patternFormMapped.append(CAP_H);
+                *flags |= kDTPGSkeletonUsesCapJ;
+            } else {
+                patternFormMapped.append(patChr);
+            }
+        }
+    }
+    return patternFormMapped;
 }
 
 UnicodeString
@@ -1226,9 +1342,23 @@ DateTimePatternGenerator::getAppendFormatNumber(const char* field) const {
 }
 
 UDateTimePatternField
-DateTimePatternGenerator::getAppendNameNumber(const char* field) const {
+DateTimePatternGenerator::getFieldAndWidthIndices(const char* key, UDateTimePGDisplayWidth* widthP) const {
+    char cldrFieldKey[UDATPG_FIELD_KEY_MAX + 1];
+    uprv_strncpy(cldrFieldKey, key, UDATPG_FIELD_KEY_MAX);
+    cldrFieldKey[UDATPG_FIELD_KEY_MAX]=0; // ensure termination
+    *widthP = UDATPG_WIDE;
+    char* hyphenPtr = uprv_strchr(cldrFieldKey, '-');
+    if (hyphenPtr) {
+        for (int32_t i=UDATPG_WIDTH_COUNT-1; i>0; --i) {
+            if (uprv_strcmp(CLDR_FIELD_WIDTH[i], hyphenPtr)==0) {
+                *widthP=(UDateTimePGDisplayWidth)i;
+                break;
+            }
+        }
+        *hyphenPtr = 0; // now delete width portion of key
+    }
     for (int32_t i=0; i<UDATPG_FIELD_COUNT; ++i ) {
-        if (uprv_strcmp(CLDR_FIELD_NAME[i],field)==0) {
+        if (uprv_strcmp(CLDR_FIELD_NAME[i],cldrFieldKey)==0) {
             return (UDateTimePatternField)i;
         }
     }
@@ -1299,17 +1429,7 @@ DateTimePatternGenerator::adjustFieldTypes(const UnicodeString& pattern,
             const dtTypeElem *row = &dtTypes[canonicalIndex];
             int32_t typeValue = row->field;
 
-            // Handle special day periods.
-            if (typeValue == UDATPG_DAYPERIOD_FIELD && flags != 0) {
-                UChar c = NONE;  // '0'
-                if (flags & kDTPGSkeletonUsesCapB) { c = CAP_B; }
-                if (flags & kDTPGSkeletonUsesLowB) { c = LOW_B; }
-
-                if (c != NONE) {
-                    for (int32_t i = 0; i < field.length(); ++i)
-                    field.setCharAt(i, c);
-                }
-            }
+            // handle day periods - with #13183, no longer need special handling here, integrated with normal types
 
             if ((flags & kDTPGFixFractionalSeconds) != 0 && typeValue == UDATPG_SECOND_FIELD) {
                 field += decimal;
@@ -1841,12 +1961,14 @@ DateTimeMatcher::set(const UnicodeString& pattern, FormatParser* fp, PtnSkeleton
     for (i=0; i<UDATPG_FIELD_COUNT; ++i) {
         skeletonResult.type[i] = NONE;
     }
+    skeletonResult.original.clear();
+    skeletonResult.baseOriginal.clear();
+    skeletonResult.addedDefaultDayPeriod = FALSE;
+
     fp->set(pattern);
     for (i=0; i < fp->itemNumber; i++) {
         const UnicodeString& value = fp->items[i];
-        if ( value.charAt(0) == LOW_A ) {
-            continue;  // skip 'a'
-        }
+        // don't skip 'a' anymore, dayPeriod handled specially below
 
         if ( fp->isQuoteLiteral(value) ) {
             UnicodeString quoteLiteral;
@@ -1861,13 +1983,37 @@ DateTimeMatcher::set(const UnicodeString& pattern, FormatParser* fp, PtnSkeleton
         int32_t field = row->field;
         skeletonResult.original.populate(field, value);
         UChar repeatChar = row->patternChar;
-        int32_t repeatCount = row->minLen; // #7930 removes cap at 3
+        int32_t repeatCount = row->minLen;
         skeletonResult.baseOriginal.populate(field, repeatChar, repeatCount);
         int16_t subField = row->type;
         if ( row->type > 0) {
             subField += value.length();
         }
         skeletonResult.type[field] = subField;
+    }
+    // #13183, handle special behavior for day period characters (a, b, B)
+    if (!skeletonResult.original.isFieldEmpty(UDATPG_HOUR_FIELD)) {
+        if (skeletonResult.original.getFieldChar(UDATPG_HOUR_FIELD)==LOW_H || skeletonResult.original.getFieldChar(UDATPG_HOUR_FIELD)==CAP_K) {
+            // We have a skeleton with 12-hour-cycle format
+            if (skeletonResult.original.isFieldEmpty(UDATPG_DAYPERIOD_FIELD)) {
+                // But we do not have a day period in the skeleton; add the default DAYPERIOD (currently "a")
+                for (i = 0; dtTypes[i].patternChar != 0; i++) {
+                    if ( dtTypes[i].field == UDATPG_DAYPERIOD_FIELD ) {
+                        // first entry for UDATPG_DAYPERIOD_FIELD
+                        skeletonResult.original.populate(UDATPG_DAYPERIOD_FIELD, dtTypes[i].patternChar, dtTypes[i].minLen);
+                        skeletonResult.baseOriginal.populate(UDATPG_DAYPERIOD_FIELD, dtTypes[i].patternChar, dtTypes[i].minLen);
+                        skeletonResult.type[UDATPG_DAYPERIOD_FIELD] = dtTypes[i].type;
+                        skeletonResult.addedDefaultDayPeriod = TRUE;
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Skeleton has 24-hour-cycle hour format and has dayPeriod, delete dayPeriod (i.e. ignore it)
+            skeletonResult.original.clearField(UDATPG_DAYPERIOD_FIELD);
+            skeletonResult.baseOriginal.clearField(UDATPG_DAYPERIOD_FIELD);
+            skeletonResult.type[UDATPG_DAYPERIOD_FIELD] = NONE;
+        }
     }
     copyFrom(skeletonResult);
 }
@@ -2290,13 +2436,27 @@ PtnSkeleton::equals(const PtnSkeleton& other) const  {
 UnicodeString
 PtnSkeleton::getSkeleton() const {
     UnicodeString result;
-    return original.appendTo(result);
+    result = original.appendTo(result);
+    int32_t pos;
+    if (addedDefaultDayPeriod && (pos = result.indexOf(LOW_A)) >= 0) {
+        // for backward compatibility: if DateTimeMatcher.set added a single 'a' that
+        // was not in the provided skeleton, remove it here before returning skeleton.
+        result.remove(pos, 1);
+    }
+    return result;
 }
 
 UnicodeString
 PtnSkeleton::getBaseSkeleton() const {
     UnicodeString result;
-    return baseOriginal.appendTo(result);
+    result = baseOriginal.appendTo(result);
+    int32_t pos;
+    if (addedDefaultDayPeriod && (pos = result.indexOf(LOW_A)) >= 0) {
+        // for backward compatibility: if DateTimeMatcher.set added a single 'a' that
+        // was not in the provided skeleton, remove it here before returning skeleton.
+        result.remove(pos, 1);
+    }
+    return result;
 }
 
 UChar

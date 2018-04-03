@@ -26,6 +26,7 @@
 #include "putilimp.h"
 #include "uset_imp.h"
 #include "udataswp.h"
+#include "utrie2.h"
 
 #ifdef __cplusplus
 U_NAMESPACE_BEGIN
@@ -61,7 +62,7 @@ enum {
 /**
  * Bit mask for getting just the options from a string compare options word
  * that are relevant for case-insensitive string comparison.
- * See uchar.h. Also include _STRNCMP_STYLE and U_COMPARE_CODE_POINT_ORDER.
+ * See stringoptions.h. Also include _STRNCMP_STYLE and U_COMPARE_CODE_POINT_ORDER.
  * @internal
  */
 #define _STRCASECMP_OPTIONS_MASK 0xffff
@@ -69,10 +70,16 @@ enum {
 /**
  * Bit mask for getting just the options from a string compare options word
  * that are relevant for case folding (of a single string or code point).
- * See uchar.h.
+ *
+ * Currently only bit 0 for U_FOLD_CASE_EXCLUDE_SPECIAL_I.
+ * It is conceivable that at some point we might use one more bit for using uppercase sharp s.
+ * It is conceivable that at some point we might want the option to use only simple case foldings
+ * when operating on strings.
+ *
+ * See stringoptions.h.
  * @internal
  */
-#define _FOLD_CASE_OPTIONS_MASK 0xff
+#define _FOLD_CASE_OPTIONS_MASK 7
 
 /* single-code point functions */
 
@@ -141,6 +148,33 @@ private:
     int32_t currentRow;
     int32_t rowCpIndex;
 };
+
+/**
+ * Fast case mapping data for ASCII/Latin.
+ * Linear arrays of delta bytes: 0=no mapping; EXC=exception.
+ * Deltas must not cross the ASCII boundary, or else they cannot be easily used
+ * in simple UTF-8 code.
+ */
+namespace LatinCase {
+
+/** Case mapping/folding data for code points up to U+017F. */
+constexpr UChar LIMIT = 0x180;
+/** U+017F case-folds and uppercases crossing the ASCII boundary. */
+constexpr UChar LONG_S = 0x17f;
+/** Exception: Complex mapping, or too-large delta. */
+constexpr int8_t EXC = -0x80;
+
+/** Deltas for lowercasing for most locales, and default case folding. */
+extern const int8_t TO_LOWER_NORMAL[LIMIT];
+/** Deltas for lowercasing for tr/az/lt, and Turkic case folding. */
+extern const int8_t TO_LOWER_TR_LT[LIMIT];
+
+/** Deltas for uppercasing for most locales. */
+extern const int8_t TO_UPPER_NORMAL[LIMIT];
+/** Deltas for uppercasing for tr/az. */
+extern const int8_t TO_UPPER_TR[LIMIT];
+
+}  // namespace LatinCase
 
 U_NAMESPACE_END
 #endif
@@ -302,6 +336,9 @@ enum {
 
 /* definitions for 16-bit case properties word ------------------------------ */
 
+U_CFUNC const UTrie2 * U_EXPORT2
+ucase_getTrie();
+
 /* 2-bit constants for types of cased characters */
 #define UCASE_TYPE_MASK     3
 enum {
@@ -314,9 +351,13 @@ enum {
 #define UCASE_GET_TYPE(props) ((props)&UCASE_TYPE_MASK)
 #define UCASE_GET_TYPE_AND_IGNORABLE(props) ((props)&7)
 
+#define UCASE_IS_UPPER_OR_TITLE(props) ((props)&2)
+
 #define UCASE_IGNORABLE         4
 #define UCASE_SENSITIVE         8
 #define UCASE_EXCEPTION         0x10
+
+#define UCASE_HAS_EXCEPTION(props) ((props)&UCASE_EXCEPTION)
 
 #define UCASE_DOT_MASK      0x60
 enum {

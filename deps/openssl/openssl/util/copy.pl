@@ -19,6 +19,7 @@ foreach $arg (@ARGV) {
 		next;
 		}
 	$arg =~ s|\\|/|g;	# compensate for bug/feature in cygwin glob...
+	$arg = qq("$arg") if ($arg =~ /\s/);	# compensate for bug in 5.10...
 	foreach (glob $arg)
 		{
 		push @filelist, $_;

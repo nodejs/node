@@ -403,7 +403,7 @@ u_strspn(const UChar *string, const UChar *matchSet);
  * @param saveState The current pointer within the original string,
  *              which is set by this function. The saveState
  *              parameter should the address of a local variable of type
- *              UChar *. (i.e. defined "Uhar *myLocalSaveState" and use
+ *              UChar *. (i.e. defined "UChar *myLocalSaveState" and use
  *              &myLocalSaveState for this parameter).
  * @return A pointer to the next token found in src, or NULL
  *         when there are no more tokens.
@@ -496,16 +496,6 @@ u_strCompare(const UChar *s1, int32_t length1,
  */
 U_STABLE int32_t U_EXPORT2
 u_strCompareIter(UCharIterator *iter1, UCharIterator *iter2, UBool codePointOrder);
-
-#ifndef U_COMPARE_CODE_POINT_ORDER
-/* see also unistr.h and unorm.h */
-/**
- * Option bit for u_strCaseCompare, u_strcasecmp, unorm_compare, etc:
- * Compare strings in code point order instead of code unit order.
- * @stable ICU 2.2
- */
-#define U_COMPARE_CODE_POINT_ORDER  0x8000
-#endif
 
 /**
  * Compare two strings case-insensitively using full case folding.
@@ -894,7 +884,7 @@ u_memrchr32(const UChar *s, UChar32 c, int32_t count);
  * Unicode String literals in C.
  * We need one macro to declare a variable for the string
  * and to statically preinitialize it if possible,
- * and a second macro to dynamically intialize such a string variable if necessary.
+ * and a second macro to dynamically initialize such a string variable if necessary.
  *
  * The macros are defined for maximum performance.
  * They work only for strings that contain "invariant characters", i.e.,

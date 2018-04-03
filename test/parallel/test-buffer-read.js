@@ -6,25 +6,18 @@ const assert = require('assert');
 const buf = Buffer.from([0xa4, 0xfd, 0x48, 0xea, 0xcf, 0xff, 0xd9, 0x01, 0xde]);
 
 function read(buff, funx, args, expected) {
-
   assert.strictEqual(buff[funx](...args), expected);
-  assert.throws(
-    () => buff[funx](-1),
-    common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' })
+  common.expectsError(
+    () => buff[funx](-1, args[1]),
+    { code: 'ERR_OUT_OF_RANGE' }
   );
-
-  assert.doesNotThrow(
-    () => assert.strictEqual(buff[funx](...args, true), expected),
-    'noAssert does not change return value for valid ranges'
-  );
-
 }
 
-// testing basic functionality of readDoubleBE() and readDOubleLE()
+// testing basic functionality of readDoubleBE() and readDoubleLE()
 read(buf, 'readDoubleBE', [1], -3.1827727774563287e+295);
 read(buf, 'readDoubleLE', [1], -6.966010051009108e+144);
 
-// testing basic functionality of readFLoatBE() and readFloatLE()
+// testing basic functionality of readFloatBE() and readFloatLE()
 read(buf, 'readFloatBE', [1], -1.6691549692541768e+37);
 read(buf, 'readFloatLE', [1], -7861303808);
 
@@ -55,17 +48,23 @@ read(buf, 'readUInt32BE', [1], 0xfd48eacf);
 read(buf, 'readUInt32LE', [1], 0xcfea48fd);
 
 // testing basic functionality of readUIntBE() and readUIntLE()
-read(buf, 'readUIntBE', [2, 0], 0xfd);
-read(buf, 'readUIntLE', [2, 0], 0x48);
+read(buf, 'readUIntBE', [2, 2], 0x48ea);
+read(buf, 'readUIntLE', [2, 2], 0xea48);
+
+// invalid byteLength parameter for readUIntBE() and readUIntLE()
+common.expectsError(() => { buf.readUIntBE(2, 0); },
+                    { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readUIntLE(2, 7); },
+                    { code: 'ERR_OUT_OF_RANGE' });
 
 // attempt to overflow buffers, similar to previous bug in array buffers
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
+assert.throws(() => Buffer.allocUnsafe(8).readFloatBE(0xffffffff),
               RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
               RangeError);
 
 // ensure negative values can't get past offset
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
+assert.throws(() => Buffer.allocUnsafe(8).readFloatBE(-1), RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
 
 // offset checks
@@ -119,7 +118,7 @@ assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
                      (0xFFFFFFFF >> (32 - bits)));
 });
 
-// test for common read(U)IntLE/BE
+// Test for common read(U)IntLE/BE
 {
   const buf = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
 

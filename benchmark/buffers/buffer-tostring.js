@@ -9,11 +9,7 @@ const bench = common.createBenchmark(main, {
   n: [1e7]
 });
 
-function main(conf) {
-  var encoding = conf.encoding;
-  const args = conf.args | 0;
-  const len = conf.len | 0;
-  const n = conf.n | 0;
+function main({ encoding, args, len, n }) {
   const buf = Buffer.alloc(len, 42);
 
   if (encoding.length === 0)

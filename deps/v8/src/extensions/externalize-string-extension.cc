@@ -49,8 +49,8 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::Externalize);
   } else {
-    DCHECK(strcmp(*v8::String::Utf8Value(isolate, str), "isOneByteString") ==
-           0);
+    DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "isOneByteString"),
+              0);
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::IsOneByte);
   }

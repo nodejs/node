@@ -28,7 +28,7 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
         type: TypeError,
-        message: 'Value must not be undefined or null'
+        message: 'Invalid value "undefined" for header "test"'
       }
     );
     common.expectsError(
@@ -36,15 +36,16 @@ server.listen(0, common.mustCall(() => {
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
         type: TypeError,
-        message: 'Value must not be undefined or null'
+        message: 'Invalid value "null" for header "test"'
       }
     );
     common.expectsError(
-      () => response.setTrailer(), // trailer name undefined
+      () => response.setTrailer(), // Trailer name undefined
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "name" argument must be of type string'
+        message: 'The "name" argument must be of type string. Received type ' +
+                 'undefined'
       }
     );
     common.expectsError(
@@ -68,7 +69,7 @@ server.listen(0, common.mustCall(() => {
     }));
     request.resume();
     request.on('end', common.mustCall(() => {
-      client.destroy();
+      client.close();
       server.close();
     }));
   }));

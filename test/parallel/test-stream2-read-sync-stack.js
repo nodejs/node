@@ -36,8 +36,8 @@ r._read = function(n) {
 };
 
 r.on('readable', function onReadable() {
-  if (!(r._readableState.length % 256))
-    console.error('readable', r._readableState.length);
+  if (!(r.readableLength % 256))
+    console.error('readable', r.readableLength);
   r.read(N * 2);
 });
 

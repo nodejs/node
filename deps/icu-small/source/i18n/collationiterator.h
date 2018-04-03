@@ -28,6 +28,21 @@ class SkippedState;
 class UCharsTrie;
 class UVector32;
 
+/* Large enough for CEs of most short strings. */
+#define CEBUFFER_INITIAL_CAPACITY 40
+
+// Export an explicit template instantiation of the MaybeStackArray that
+//    is used as a data member of CEBuffer.
+//
+//    When building DLLs for Windows this is required even though
+//    no direct access to the MaybeStackArray leaks out of the i18n library.
+//
+// See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
+//
+#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
+template class U_I18N_API MaybeStackArray<int64_t, CEBUFFER_INITIAL_CAPACITY>;
+#endif
+
 /**
  * Collation element iterator and abstract character iterator.
  *
@@ -36,10 +51,10 @@ class UVector32;
  */
 class U_I18N_API CollationIterator : public UObject {
 private:
-    class CEBuffer {
+    class U_I18N_API CEBuffer {
     private:
         /** Large enough for CEs of most short strings. */
-        static const int32_t INITIAL_CAPACITY = 40;
+        static const int32_t INITIAL_CAPACITY = CEBUFFER_INITIAL_CAPACITY;
     public:
         CEBuffer() : length(0) {}
         ~CEBuffer();

@@ -102,7 +102,7 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
     case TRACE_VALUE_TYPE_STRING:
     case TRACE_VALUE_TYPE_COPY_STRING:
       if (value.as_string == nullptr) {
-        stream_ << "\"NULL\"";
+        stream_ << "\"nullptr\"";
       } else {
         WriteJSONStringToStream(value.as_string, stream_);
       }

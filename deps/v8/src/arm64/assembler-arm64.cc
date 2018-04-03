@@ -92,7 +92,7 @@ void CPURegList::RemoveCalleeSaved() {
   } else if (type() == CPURegister::kVRegister) {
     Remove(GetCalleeSavedV(RegisterSizeInBits()));
   } else {
-    DCHECK(type() == CPURegister::kNoRegister);
+    DCHECK_EQ(type(), CPURegister::kNoRegister);
     DCHECK(IsEmpty());
     // The list must already be empty, so do nothing.
   }
@@ -147,9 +147,6 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
   // is a caller-saved register according to the procedure call standard.
   list.Combine(18);
 
-  // Drop jssp as the stack pointer doesn't need to be included.
-  list.Remove(28);
-
   // Add the link register (x30) to the safepoint list.
   list.Combine(30);
 
@@ -186,7 +183,8 @@ uint32_t RelocInfo::embedded_size() const {
 
 void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
                                      ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
+                                   flush_mode);
 }
 
 void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
@@ -195,19 +193,16 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
   // No icache flushing needed, see comment in set_target_address_at.
 }
 
-Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
-                                              Register reg3, Register reg4) {
-  CPURegList regs(reg1, reg2, reg3, reg4);
-  const RegisterConfiguration* config = RegisterConfiguration::Default();
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    Register candidate = Register::from_code(code);
-    if (regs.IncludesAliasOf(candidate)) continue;
-    return candidate;
-  }
-  UNREACHABLE();
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
 }
 
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
+}
 
 bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
                 const CPURegister& reg3, const CPURegister& reg4,
@@ -361,7 +356,7 @@ bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
 
 
 int ConstPool::DistanceToFirstUse() {
-  DCHECK(first_use_ >= 0);
+  DCHECK_GE(first_use_, 0);
   return assm_->pc_offset() - first_use_;
 }
 
@@ -497,8 +492,8 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
     const MemOperand& operandA,
     const MemOperand& operandB,
     int access_size_log2) {
-  DCHECK(access_size_log2 >= 0);
-  DCHECK(access_size_log2 <= 3);
+  DCHECK_GE(access_size_log2, 0);
+  DCHECK_LE(access_size_log2, 3);
   // Step one: check that they share the same base, that the mode is Offset
   // and that the offset is a multiple of access size.
   if (!operandA.base().Is(operandB.base()) ||
@@ -699,7 +694,7 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
     // The branch is in the middle of the chain.
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
       prev_link->SetImmPCOffsetTarget(isolate_data(), next_link);
-    } else if (label_veneer != NULL) {
+    } else if (label_veneer != nullptr) {
       // Use the veneer for all previous links in the chain.
       prev_link->SetImmPCOffsetTarget(isolate_data(), prev_link);
 
@@ -768,11 +763,11 @@ void Assembler::bind(Label* label) {
 
     CheckLabelLinkChain(label);
 
-    DCHECK(linkoffset >= 0);
+    DCHECK_GE(linkoffset, 0);
     DCHECK(linkoffset < pc_offset());
     DCHECK((linkoffset > prevlinkoffset) ||
            (linkoffset - prevlinkoffset == kStartOfLabelLinkChain));
-    DCHECK(prevlinkoffset >= 0);
+    DCHECK_GE(prevlinkoffset, 0);
 
     // Update the link to point to the label.
     if (link->IsUnresolvedInternalReference()) {
@@ -804,7 +799,7 @@ void Assembler::bind(Label* label) {
 
 
 int Assembler::LinkAndGetByteOffsetTo(Label* label) {
-  DCHECK(sizeof(*pc_) == 1);
+  DCHECK_EQ(sizeof(*pc_), 1);
   CheckLabelLinkChain(label);
 
   int offset;
@@ -819,7 +814,7 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
     // Note that offset can be zero for self-referential instructions. (This
     // could be useful for ADR, for example.)
     offset = label->pos() - pc_offset();
-    DCHECK(offset <= 0);
+    DCHECK_LE(offset, 0);
   } else {
     if (label->is_linked()) {
       // The label is linked, so the referring instruction should be added onto
@@ -828,7 +823,7 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
       // In this case, label->pos() returns the offset of the last linked
       // instruction from the start of the buffer.
       offset = label->pos() - pc_offset();
-      DCHECK(offset != kStartOfLabelLinkChain);
+      DCHECK_NE(offset, kStartOfLabelLinkChain);
       // Note that the offset here needs to be PC-relative only so that the
       // first instruction in a buffer can link to an unbound label. Otherwise,
       // the offset would be 0 for this case, and 0 is reserved for
@@ -883,7 +878,7 @@ void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
 
 void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
   if (unresolved_branches_.empty()) {
-    DCHECK(next_veneer_pool_check_ == kMaxInt);
+    DCHECK_EQ(next_veneer_pool_check_, kMaxInt);
     return;
   }
 
@@ -1635,7 +1630,7 @@ void Assembler::LoadStorePair(const CPURegister& rt,
     // Pre-index and post-index modes.
     DCHECK(!rt.Is(addr.base()));
     DCHECK(!rt2.Is(addr.base()));
-    DCHECK(addr.offset() != 0);
+    DCHECK_NE(addr.offset(), 0);
     if (addr.IsPreIndex()) {
       addrmodeop = LoadStorePairPreIndexFixed;
     } else {
@@ -1761,6 +1756,7 @@ void Assembler::stlxr(const Register& rs, const Register& rt,
                       const Register& rn) {
   DCHECK(rs.Is32Bits());
   DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
   Emit(op | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
@@ -1788,6 +1784,7 @@ void Assembler::stlxrb(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
   Emit(STLXR_b | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
@@ -1814,6 +1811,7 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
@@ -2636,7 +2634,7 @@ Instr Assembler::LoadStoreStructAddrModeField(const MemOperand& addr) {
     } else {
       // The immediate post index addressing mode is indicated by rm = 31.
       // The immediate is implied by the number of vector registers used.
-      addr_field |= (0x1f << Rm_offset);
+      addr_field |= (0x1F << Rm_offset);
     }
   } else {
     DCHECK(addr.IsImmediateOffset() && (addr.offset() == 0));
@@ -3003,7 +3001,7 @@ void Assembler::fmov(const VRegister& vd, double imm) {
   } else {
     DCHECK(vd.Is2D());
     Instr op = NEONModifiedImmediate_MOVI | NEONModifiedImmediateOpBit;
-    Emit(NEON_Q | op | ImmNEONFP(imm) | NEONCmode(0xf) | Rd(vd));
+    Emit(NEON_Q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
   }
 }
 
@@ -3015,7 +3013,7 @@ void Assembler::fmov(const VRegister& vd, float imm) {
     DCHECK(vd.Is2S() | vd.Is4S());
     Instr op = NEONModifiedImmediate_MOVI;
     Instr q = vd.Is4S() ? NEON_Q : 0;
-    Emit(q | op | ImmNEONFP(imm) | NEONCmode(0xf) | Rd(vd));
+    Emit(q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
   }
 }
 
@@ -3498,7 +3496,7 @@ void Assembler::cmlt(const VRegister& vd, const VRegister& vn, int value) {
 NEON_3SAME_LIST(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
 
-#define NEON_FP3SAME_LIST(V)                    \
+#define NEON_FP3SAME_LIST_V2(V)                 \
   V(fadd, NEON_FADD, FADD)                      \
   V(fsub, NEON_FSUB, FSUB)                      \
   V(fmul, NEON_FMUL, FMUL)                      \
@@ -3538,7 +3536,7 @@ NEON_3SAME_LIST(DEFINE_ASM_FUNC)
     }                                                          \
     NEONFP3Same(vd, vn, vm, op);                               \
   }
-NEON_FP3SAME_LIST(DEFINE_ASM_FUNC)
+NEON_FP3SAME_LIST_V2(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
 
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {
@@ -3596,15 +3594,15 @@ void Assembler::movi(const VRegister& vd, const uint64_t imm, Shift shift,
     DCHECK_EQ(shift_amount, 0);
     int imm8 = 0;
     for (int i = 0; i < 8; ++i) {
-      int byte = (imm >> (i * 8)) & 0xff;
-      DCHECK((byte == 0) || (byte == 0xff));
-      if (byte == 0xff) {
+      int byte = (imm >> (i * 8)) & 0xFF;
+      DCHECK((byte == 0) || (byte == 0xFF));
+      if (byte == 0xFF) {
         imm8 |= (1 << i);
       }
     }
     Instr q = vd.Is2D() ? NEON_Q : 0;
     Emit(q | NEONModImmOp(1) | NEONModifiedImmediate_MOVI |
-         ImmNEONabcdefgh(imm8) | NEONCmode(0xe) | Rd(vd));
+         ImmNEONabcdefgh(imm8) | NEONCmode(0xE) | Rd(vd));
   } else if (shift == LSL) {
     NEONModifiedImmShiftLsl(vd, static_cast<int>(imm), shift_amount,
                             NEONModifiedImmediate_MOVI);
@@ -3917,7 +3915,7 @@ void Assembler::dcptr(Label* label) {
       // In this case, label->pos() returns the offset of the last linked
       // instruction from the start of the buffer.
       offset = label->pos() - pc_offset();
-      DCHECK(offset != kStartOfLabelLinkChain);
+      DCHECK_NE(offset, kStartOfLabelLinkChain);
     } else {
       // The label is unused, so it now becomes linked and the internal
       // reference is at the start of the new link chain.
@@ -3953,7 +3951,7 @@ uint32_t Assembler::FPToImm8(double imm) {
   // bit6: 0b00.0000
   uint64_t bit6 = ((bits >> 61) & 0x1) << 6;
   // bit5_to_0: 00cd.efgh
-  uint64_t bit5_to_0 = (bits >> 48) & 0x3f;
+  uint64_t bit5_to_0 = (bits >> 48) & 0x3F;
 
   return static_cast<uint32_t>(bit7 | bit6 | bit5_to_0);
 }
@@ -3971,7 +3969,7 @@ void Assembler::MoveWide(const Register& rd, uint64_t imm, int shift,
     // Check that the top 32 bits are zero (a positive 32-bit number) or top
     // 33 bits are one (a negative 32-bit number, sign extended to 64 bits).
     DCHECK(((imm >> kWRegSizeInBits) == 0) ||
-           ((imm >> (kWRegSizeInBits - 1)) == 0x1ffffffff));
+           ((imm >> (kWRegSizeInBits - 1)) == 0x1FFFFFFFF));
     imm &= kWRegMask;
   }
 
@@ -3984,16 +3982,16 @@ void Assembler::MoveWide(const Register& rd, uint64_t imm, int shift,
     // Calculate a new immediate and shift combination to encode the immediate
     // argument.
     shift = 0;
-    if ((imm & ~0xffffUL) == 0) {
+    if ((imm & ~0xFFFFUL) == 0) {
       // Nothing to do.
-    } else if ((imm & ~(0xffffUL << 16)) == 0) {
+    } else if ((imm & ~(0xFFFFUL << 16)) == 0) {
       imm >>= 16;
       shift = 1;
-    } else if ((imm & ~(0xffffUL << 32)) == 0) {
+    } else if ((imm & ~(0xFFFFUL << 32)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 32;
       shift = 2;
-    } else if ((imm & ~(0xffffUL << 48)) == 0) {
+    } else if ((imm & ~(0xFFFFUL << 48)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 48;
       shift = 3;
@@ -4064,7 +4062,7 @@ void Assembler::EmitStringData(const char* string) {
   size_t len = strlen(string) + 1;
   DCHECK_LE(RoundUp(len, kInstructionSize), static_cast<size_t>(kGap));
   EmitData(string, static_cast<int>(len));
-  // Pad with NULL characters until pc_ is aligned.
+  // Pad with nullptr characters until pc_ is aligned.
   const char pad[] = {'\0', '\0', '\0', '\0'};
   static_assert(sizeof(pad) == kInstructionSize,
                 "Size of padding must match instruction size.");
@@ -4087,11 +4085,11 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     // Refer to instructions-arm64.h for a description of the marker and its
     // arguments.
     hlt(kImmExceptionIsDebug);
-    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugCodeOffset);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugCodeOffset);
     dc32(code);
-    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugParamsOffset);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugParamsOffset);
     dc32(params);
-    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugMessageOffset);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugMessageOffset);
     EmitStringData(message);
     hlt(kImmExceptionIsUnreachable);
 
@@ -4116,8 +4114,8 @@ void Assembler::Logical(const Register& rd,
     int64_t immediate = operand.ImmediateValue();
     unsigned reg_size = rd.SizeInBits();
 
-    DCHECK(immediate != 0);
-    DCHECK(immediate != -1);
+    DCHECK_NE(immediate, 0);
+    DCHECK_NE(immediate, -1);
     DCHECK(rd.Is64Bits() || is_uint32(immediate));
 
     // If the operation is NOT, invert the operation and immediate.
@@ -4247,7 +4245,7 @@ void Assembler::NEONModifiedImmShiftMsl(const VRegister& vd, const int imm8,
   DCHECK(is_uint8(imm8));
 
   int cmode_0 = (shift_amount >> 4) & 1;
-  int cmode = 0xc | cmode_0;
+  int cmode = 0xC | cmode_0;
 
   Instr q = vd.IsQ() ? NEON_Q : 0;
 
@@ -4300,7 +4298,7 @@ void Assembler::EmitExtendShift(const Register& rd,
       case SXTW: sbfm(rd, rn_, non_shift_bits, high_bit); break;
       case UXTX:
       case SXTX: {
-        DCHECK(rn.SizeInBits() == kXRegSizeInBits);
+        DCHECK_EQ(rn.SizeInBits(), kXRegSizeInBits);
         // Nothing to extend. Just shift.
         lsl(rd, rn_, left_shift);
         break;
@@ -4343,7 +4341,7 @@ void Assembler::DataProcExtendedRegister(const Register& rd,
 
 bool Assembler::IsImmAddSub(int64_t immediate) {
   return is_uint12(immediate) ||
-         (is_uint12(immediate >> 12) && ((immediate & 0xfff) == 0));
+         (is_uint12(immediate >> 12) && ((immediate & 0xFFF) == 0));
 }
 
 void Assembler::LoadStore(const CPURegister& rt,
@@ -4438,7 +4436,7 @@ bool Assembler::IsImmLogical(uint64_t value,
                              unsigned* n,
                              unsigned* imm_s,
                              unsigned* imm_r) {
-  DCHECK((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
+  DCHECK((n != nullptr) && (imm_s != nullptr) && (imm_r != nullptr));
   DCHECK((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
 
   bool negate = false;
@@ -4526,7 +4524,7 @@ bool Assembler::IsImmLogical(uint64_t value,
     clz_a = CountLeadingZeros(a, kXRegSizeInBits);
     int clz_c = CountLeadingZeros(c, kXRegSizeInBits);
     d = clz_a - clz_c;
-    mask = ((V8_UINT64_C(1) << d) - 1);
+    mask = ((uint64_t{1} << d) - 1);
     out_n = 0;
   } else {
     // Handle degenerate cases.
@@ -4547,7 +4545,7 @@ bool Assembler::IsImmLogical(uint64_t value,
       // the general case above, and set the N bit in the output.
       clz_a = CountLeadingZeros(a, kXRegSizeInBits);
       d = 64;
-      mask = ~V8_UINT64_C(0);
+      mask = ~uint64_t{0};
       out_n = 1;
     }
   }
@@ -4596,7 +4594,7 @@ bool Assembler::IsImmLogical(uint64_t value,
 
   // Count the set bits in our basic stretch. The special case of clz(0) == -1
   // makes the answer come out right for stretches that reach the very top of
-  // the word (e.g. numbers like 0xffffc00000000000).
+  // the word (e.g. numbers like 0xFFFFC00000000000).
   int clz_b = (b == 0) ? -1 : CountLeadingZeros(b, kXRegSizeInBits);
   int s = clz_a - clz_b;
 
@@ -4628,7 +4626,7 @@ bool Assembler::IsImmLogical(uint64_t value,
   //
   // So we 'or' (-d << 1) with our computed s to form imms.
   *n = out_n;
-  *imm_s = ((-d << 1) | (s - 1)) & 0x3f;
+  *imm_s = ((-d << 1) | (s - 1)) & 0x3F;
   *imm_r = r;
 
   return true;
@@ -4645,13 +4643,13 @@ bool Assembler::IsImmFP32(float imm) {
   // aBbb.bbbc.defg.h000.0000.0000.0000.0000
   uint32_t bits = bit_cast<uint32_t>(imm);
   // bits[19..0] are cleared.
-  if ((bits & 0x7ffff) != 0) {
+  if ((bits & 0x7FFFF) != 0) {
     return false;
   }
 
   // bits[29..25] are all set or all cleared.
-  uint32_t b_pattern = (bits >> 16) & 0x3e00;
-  if (b_pattern != 0 && b_pattern != 0x3e00) {
+  uint32_t b_pattern = (bits >> 16) & 0x3E00;
+  if (b_pattern != 0 && b_pattern != 0x3E00) {
     return false;
   }
 
@@ -4670,13 +4668,13 @@ bool Assembler::IsImmFP64(double imm) {
   // 0000.0000.0000.0000.0000.0000.0000.0000
   uint64_t bits = bit_cast<uint64_t>(imm);
   // bits[47..0] are cleared.
-  if ((bits & 0xffffffffffffL) != 0) {
+  if ((bits & 0xFFFFFFFFFFFFL) != 0) {
     return false;
   }
 
   // bits[61..54] are all set or all cleared.
-  uint32_t b_pattern = (bits >> 48) & 0x3fc0;
-  if (b_pattern != 0 && b_pattern != 0x3fc0) {
+  uint32_t b_pattern = (bits >> 48) & 0x3FC0;
+  if (b_pattern != 0 && b_pattern != 0x3FC0) {
     return false;
   }
 
@@ -4748,7 +4746,7 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
+  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, nullptr);
   bool write_reloc_info = true;
 
   if ((rmode == RelocInfo::COMMENT) ||
@@ -4776,7 +4774,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
         !serializer_enabled() && !emit_debug_code()) {
       return;
     }
-    DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
+    DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
     reloc_info_writer.Write(&rinfo);
   }
 }
@@ -4862,7 +4860,7 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
   RelocInfo rinfo(buffer_ + location_offset, RelocInfo::VENEER_POOL,
-                  static_cast<intptr_t>(size), NULL);
+                  static_cast<intptr_t>(size), nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -4940,7 +4938,7 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
                                 int margin) {
   // There is nothing to do if there are no pending veneer pool entries.
   if (unresolved_branches_.empty())  {
-    DCHECK(next_veneer_pool_check_ == kMaxInt);
+    DCHECK_EQ(next_veneer_pool_check_, kMaxInt);
     return;
   }
 
@@ -5008,7 +5006,7 @@ void PatchingAssembler::PatchAdrFar(int64_t target_offset) {
   adr(rd, target_offset & 0xFFFF);
   movz(scratch, (target_offset >> 16) & 0xFFFF, 16);
   movk(scratch, (target_offset >> 32) & 0xFFFF, 32);
-  DCHECK((target_offset >> 48) == 0);
+  DCHECK_EQ(target_offset >> 48, 0);
   add(rd, rd, scratch);
 }
 

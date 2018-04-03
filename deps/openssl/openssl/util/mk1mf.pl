@@ -428,7 +428,7 @@ EOF
 		{
 		$extra_install .= <<"EOF"
 	\$(MKDIR) \"\$(INSTALLTOP)${o}lib${o}engines\"
-	\$(CP) \"\$(E_SHLIB)\" \"\$(INSTALLTOP)${o}lib${o}engines\"
+	\$(CP) \$(E_SHLIB) \"\$(INSTALLTOP)${o}lib${o}engines\"
 EOF
 		}
 	}
@@ -608,7 +608,7 @@ install: all
 	\$(MKDIR) \"\$(INSTALLTOP)${o}include${o}openssl\"
 	\$(MKDIR) \"\$(INSTALLTOP)${o}lib\"
 	\$(CP) \"\$(INCO_D)${o}*.\[ch\]\" \"\$(INSTALLTOP)${o}include${o}openssl\"
-	\$(CP) \"\$(BIN_D)$o\$(E_EXE)$exep \$(INSTALLTOP)${o}bin\"
+	\$(CP) \"\$(BIN_D)$o\$(E_EXE)$exep\" \"\$(INSTALLTOP)${o}bin\"
 	\$(MKDIR) \"\$(OPENSSLDIR)\"
 	\$(CP) apps${o}openssl.cnf \"\$(OPENSSLDIR)\"
 $extra_install
@@ -765,7 +765,7 @@ foreach (split(/\s+/,$test))
 	{
 	$t=&bname($_);
 	$tt="\$(OBJ_D)${o}$t${obj}";
-	$tt.=" \$(OBJ_D)${o}ssltestlib${obj}" if $t eq "dtlstest";
+	$tt.=" \$(OBJ_D)${o}ssltestlib${obj}" if $t eq "dtlstest" or $t eq "fatalerrtest";
 	$rules.=&do_link_rule("\$(TEST_D)$o$t$exep",$tt,"\$(LIBS_DEP)","\$(L_LIBS) \$(EX_LIBS)");
 	}
 

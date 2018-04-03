@@ -1,8 +1,13 @@
 'use strict';
 
 const common = require('../../common');
-const test_promise = require(`./build/${common.buildType}/test_promise`);
+
+// This tests the promise-related n-api calls
+
 const assert = require('assert');
+const test_promise = require(`./build/${common.buildType}/test_promise`);
+
+common.crashOnUnhandledRejection();
 
 // A resolution
 {
@@ -10,8 +15,7 @@ const assert = require('assert');
   const promise = test_promise.createPromise();
   promise.then(
     common.mustCall(function(result) {
-      assert.strictEqual(result, expected_result,
-                         `promise resolved as expected, received ${result}`);
+      assert.strictEqual(result, expected_result);
     }),
     common.mustNotCall());
   test_promise.concludeCurrentPromise(expected_result, true);
@@ -24,24 +28,34 @@ const assert = require('assert');
   promise.then(
     common.mustNotCall(),
     common.mustCall(function(result) {
-      assert.strictEqual(result, expected_result,
-                         `promise rejected as expected, received ${result}`);
+      assert.strictEqual(result, expected_result);
     }));
   test_promise.concludeCurrentPromise(expected_result, false);
 }
 
 // Chaining
-const promise = test_promise.createPromise();
-promise.then(
-  common.mustCall(function(result) {
-    assert.strictEqual(result, 'chained answer',
-                       'resolving with a promise chains properly');
-  }),
-  common.mustNotCall());
-test_promise.concludeCurrentPromise(Promise.resolve('chained answer'), true);
+{
+  const expected_result = 'chained answer';
+  const promise = test_promise.createPromise();
+  promise.then(
+    common.mustCall(function(result) {
+      assert.strictEqual(result, expected_result);
+    }),
+    common.mustNotCall());
+  test_promise.concludeCurrentPromise(Promise.resolve('chained answer'), true);
+}
 
-assert.strictEqual(test_promise.isPromise(promise), true);
-assert.strictEqual(test_promise.isPromise(Promise.reject(-1)), true);
+const promiseTypeTestPromise = test_promise.createPromise();
+assert.strictEqual(test_promise.isPromise(promiseTypeTestPromise), true);
+test_promise.concludeCurrentPromise(undefined, true);
+
+const rejectPromise = Promise.reject(-1);
+const expected_reason = -1;
+assert.strictEqual(test_promise.isPromise(rejectPromise), true);
+rejectPromise.catch((reason) => {
+  assert.strictEqual(reason, expected_reason);
+});
+
 assert.strictEqual(test_promise.isPromise(2.4), false);
 assert.strictEqual(test_promise.isPromise('I promise!'), false);
 assert.strictEqual(test_promise.isPromise(undefined), false);

@@ -38,8 +38,6 @@
 
 U_NAMESPACE_USE
 
-#define GET_BIDI_PROPS() ubidi_getSingleton()
-
 /* general properties API functions ----------------------------------------- */
 
 struct BinaryProperty;
@@ -62,15 +60,15 @@ static UBool caseBinaryPropertyContains(const BinaryProperty &/*prop*/, UChar32 
 }
 
 static UBool isBidiControl(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return ubidi_isBidiControl(GET_BIDI_PROPS(), c);
+    return ubidi_isBidiControl(c);
 }
 
 static UBool isMirrored(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return ubidi_isMirrored(GET_BIDI_PROPS(), c);
+    return ubidi_isMirrored(c);
 }
 
 static UBool isJoinControl(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return ubidi_isJoinControl(GET_BIDI_PROPS(), c);
+    return ubidi_isJoinControl(c);
 }
 
 #if UCONFIG_NO_NORMALIZATION
@@ -206,6 +204,11 @@ static UBool isPOSIX_xdigit(const BinaryProperty &/*prop*/, UChar32 c, UProperty
     return u_isxdigit(c);
 }
 
+static UBool isRegionalIndicator(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    // Property starts are a subset of lb=RI etc.
+    return 0x1F1E6<=c && c<=0x1F1FF;
+}
+
 static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     /*
      * column and mask values for binary properties from u_getUnicodeProperties().
@@ -276,6 +279,9 @@ static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     { 2,                U_MASK(UPROPS_2_EMOJI_PRESENTATION), defaultContains },
     { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER), defaultContains },
     { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER_BASE), defaultContains },
+    { 2,                U_MASK(UPROPS_2_EMOJI_COMPONENT), defaultContains },
+    { 2,                0, isRegionalIndicator },
+    { 1,                U_MASK(UPROPS_PREPENDED_CONCATENATION_MARK), defaultContains },
 };
 
 U_CAPI UBool U_EXPORT2
@@ -321,11 +327,11 @@ static int32_t getBiDiClass(const IntProperty &/*prop*/, UChar32 c, UProperty /*
 }
 
 static int32_t getBiDiPairedBracketType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return (int32_t)ubidi_getPairedBracketType(GET_BIDI_PROPS(), c);
+    return (int32_t)ubidi_getPairedBracketType(c);
 }
 
 static int32_t biDiGetMaxValue(const IntProperty &/*prop*/, UProperty which) {
-    return ubidi_getMaxValue(GET_BIDI_PROPS(), which);
+    return ubidi_getMaxValue(which);
 }
 
 #if UCONFIG_NO_NORMALIZATION
@@ -343,11 +349,11 @@ static int32_t getGeneralCategory(const IntProperty &/*prop*/, UChar32 c, UPrope
 }
 
 static int32_t getJoiningGroup(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return ubidi_getJoiningGroup(GET_BIDI_PROPS(), c);
+    return ubidi_getJoiningGroup(c);
 }
 
 static int32_t getJoiningType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return ubidi_getJoiningType(GET_BIDI_PROPS(), c);
+    return ubidi_getJoiningType(c);
 }
 
 static int32_t getNumericType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {

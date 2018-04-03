@@ -34,16 +34,16 @@ server.listen(0, common.mustCall(function() {
   c.on('close', common.mustCall(function() {
     console.error('connection closed');
     assert.strictEqual(c._handle, null);
-    assert.doesNotThrow(function() {
-      c.setNoDelay();
-      c.setKeepAlive();
-      c.bufferSize;
-      c.pause();
-      c.resume();
-      c.address();
-      c.remoteAddress;
-      c.remotePort;
-    });
+    // Calling functions / accessing properties of a closed socket should not
+    // throw.
+    c.setNoDelay();
+    c.setKeepAlive();
+    c.bufferSize;
+    c.pause();
+    c.resume();
+    c.address();
+    c.remoteAddress;
+    c.remotePort;
     server.close();
   }));
 }));

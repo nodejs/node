@@ -3,13 +3,44 @@
  */
 'use strict';
 
+module.exports.isDefiningError = function(node) {
+  return node.expression &&
+         node.expression.type === 'CallExpression' &&
+         node.expression.callee &&
+         node.expression.callee.name === 'E' &&
+         node.expression.arguments.length !== 0;
+};
+
 /**
  * Returns true if any of the passed in modules are used in
  * require calls.
  */
 module.exports.isRequired = function(node, modules) {
-  return node.callee.name === 'require' &&
+  return node.callee.name === 'require' && node.arguments.length !== 0 &&
     modules.includes(node.arguments[0].value);
+};
+
+/**
+* Return true if common module is required
+* in AST Node under inspection
+*/
+var commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
+module.exports.isCommonModule = function(node) {
+  return node.callee.name === 'require' &&
+         node.arguments.length !== 0 &&
+         commonModuleRegExp.test(node.arguments[0].value);
+};
+
+/**
+ * Returns true if any of the passed in modules are used in
+ * binding calls.
+ */
+module.exports.isBinding = function(node, modules) {
+  if (node.callee.object) {
+    return node.callee.object.name === 'process' &&
+           node.callee.property.name === 'binding' &&
+           modules.includes(node.arguments[0].value);
+  }
 };
 
 /**

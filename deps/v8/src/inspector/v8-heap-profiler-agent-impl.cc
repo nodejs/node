@@ -63,7 +63,7 @@ class GlobalObjectNameResolver final
     if (m_offset + length + 1 >= m_strings.size()) return "";
     for (size_t i = 0; i < length; ++i) {
       UChar ch = name[i];
-      m_strings[m_offset + i] = ch > 0xff ? '?' : static_cast<char>(ch);
+      m_strings[m_offset + i] = ch > 0xFF ? '?' : static_cast<char>(ch);
     }
     m_strings[m_offset + length] = '\0';
     char* result = &*m_strings.begin() + m_offset;
@@ -363,17 +363,24 @@ buildSampingHeapProfileNode(const v8::AllocationProfile::Node* node) {
 
 Response V8HeapProfilerAgentImpl::stopSampling(
     std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>* profile) {
+  Response result = getSamplingProfile(profile);
+  if (result.isSuccess()) {
+    m_isolate->GetHeapProfiler()->StopSamplingHeapProfiler();
+    m_state->setBoolean(HeapProfilerAgentState::samplingHeapProfilerEnabled,
+                        false);
+  }
+  return result;
+}
+
+Response V8HeapProfilerAgentImpl::getSamplingProfile(
+    std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>* profile) {
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
-  if (!profiler) return Response::Error("Cannot access v8 heap profiler");
   v8::HandleScope scope(
-      m_isolate);  // Allocation profile contains Local handles.
+      m_isolate);  // v8::AllocationProfile contains Local handles.
   std::unique_ptr<v8::AllocationProfile> v8Profile(
       profiler->GetAllocationProfile());
-  profiler->StopSamplingHeapProfiler();
-  m_state->setBoolean(HeapProfilerAgentState::samplingHeapProfilerEnabled,
-                      false);
   if (!v8Profile)
-    return Response::Error("Cannot access v8 sampled heap profile.");
+    return Response::Error("V8 sampling heap profiler was not started.");
   v8::AllocationProfile::Node* root = v8Profile->GetRootNode();
   *profile = protocol::HeapProfiler::SamplingHeapProfile::create()
                  .setHead(buildSampingHeapProfileNode(root))

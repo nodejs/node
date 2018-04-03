@@ -42,6 +42,10 @@ class JSSloppyArgumentsObject : public JSArgumentsObject {
   // Indices of in-object properties.
   static const int kCalleeIndex = kLengthIndex + 1;
 
+  inline static bool GetSloppyArgumentsLength(Isolate* isolate,
+                                              Handle<JSObject> object,
+                                              int* out);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
 };

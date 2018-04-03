@@ -1,18 +1,13 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
-const assert = require('assert');
-const util = require('util');
 const stream = require('stream');
 
 // Verify that when piping a stream to an `OutgoingMessage` (or a type that
 // inherits from `OutgoingMessage`), if data is emitted after the
 // `OutgoingMessage` was closed - a `write after end` error is raised
 
-function MyStream() {
-  stream.call(this);
-}
-util.inherits(MyStream, stream);
+class MyStream extends stream {}
 
 const server = http.createServer(common.mustCall(function(req, res) {
   const myStream = new MyStream();
@@ -21,8 +16,9 @@ const server = http.createServer(common.mustCall(function(req, res) {
   process.nextTick(common.mustCall(() => {
     res.end();
     myStream.emit('data', 'some data');
-    res.on('error', common.mustCall(function(err) {
-      assert.strictEqual(err.message, 'write after end');
+    res.on('error', common.expectsError({
+      code: 'ERR_STREAM_WRITE_AFTER_END',
+      type: Error
     }));
 
     process.nextTick(common.mustCall(() => server.close()));

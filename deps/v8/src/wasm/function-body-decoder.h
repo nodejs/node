@@ -34,18 +34,11 @@ struct FunctionBody {
   uint32_t offset;    // offset in the module bytes, for error reporting
   const byte* start;  // start of the function body
   const byte* end;    // end of the function body
+
+  FunctionBody(FunctionSig* sig, uint32_t offset, const byte* start,
+               const byte* end)
+      : sig(sig), offset(offset), start(start), end(end) {}
 };
-
-static inline FunctionBody FunctionBodyForTesting(const byte* start,
-                                                  const byte* end) {
-  return {nullptr, 0, start, end};
-}
-
-// A {DecodeResult} only stores the failure / success status, but no data. Thus
-// we use {nullptr_t} as data value, such that the only valid data stored in
-// this type is a nullptr.
-// Storing {void} would require template specialization.
-using DecodeResult = Result<std::nullptr_t>;
 
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const wasm::WasmModule* module,
@@ -60,8 +53,10 @@ DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body);
+enum PrintLocals { kPrintLocals, kOmitLocals };
+V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const wasm::WasmModule* module);
+                      const wasm::WasmModule* module, PrintLocals print_locals);
 
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintRawWasmCode(const byte* start, const byte* end);
@@ -69,14 +64,14 @@ void PrintRawWasmCode(const byte* start, const byte* end);
 inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                    const WasmModule* module, FunctionSig* sig,
                                    const byte* start, const byte* end) {
-  FunctionBody body = {sig, 0, start, end};
+  FunctionBody body(sig, 0, start, end);
   return VerifyWasmCode(allocator, module, body);
 }
 
 inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                                  TFBuilder* builder, FunctionSig* sig,
                                  const byte* start, const byte* end) {
-  FunctionBody body = {sig, 0, start, end};
+  FunctionBody body(sig, 0, start, end);
   return BuildTFGraph(allocator, builder, body);
 }
 
@@ -184,7 +179,8 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 
   WasmOpcode current() {
-    return static_cast<WasmOpcode>(read_u8<false>(pc_, "expected bytecode"));
+    return static_cast<WasmOpcode>(
+        read_u8<Decoder::kNoValidate>(pc_, "expected bytecode"));
   }
 
   void next() {
@@ -195,6 +191,12 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 
   bool has_next() { return pc_ < end_; }
+
+  WasmOpcode prefixed_opcode() {
+    byte prefix = read_u8<Decoder::kNoValidate>(pc_, "expected prefix");
+    byte index = read_u8<Decoder::kNoValidate>(pc_ + 1, "expected index");
+    return static_cast<WasmOpcode>(prefix << 8 | index);
+  }
 };
 
 }  // namespace wasm

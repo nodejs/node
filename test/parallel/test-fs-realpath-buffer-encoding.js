@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
 
-const string_dir = fs.realpathSync(common.fixturesDir);
+const string_dir = fs.realpathSync(fixtures.fixturesDir);
 const buffer_dir = Buffer.from(string_dir);
 
 const encodings = ['ascii', 'utf8', 'utf16le', 'ucs2',
@@ -20,13 +21,13 @@ for (encoding in expected) {
   const expected_value = expected[encoding];
   let result;
 
-  result = fs.realpathSync(string_dir, { encoding: encoding });
+  result = fs.realpathSync(string_dir, { encoding });
   assert.strictEqual(result, expected_value);
 
   result = fs.realpathSync(string_dir, encoding);
   assert.strictEqual(result, expected_value);
 
-  result = fs.realpathSync(buffer_dir, { encoding: encoding });
+  result = fs.realpathSync(buffer_dir, { encoding });
   assert.strictEqual(result, expected_value);
 
   result = fs.realpathSync(buffer_dir, encoding);
@@ -52,7 +53,7 @@ for (encoding in expected) {
 
   fs.realpath(
     string_dir,
-    { encoding: encoding },
+    { encoding },
     common.mustCall((err, res) => {
       assert.ifError(err);
       assert.strictEqual(res, expected_value);
@@ -64,7 +65,7 @@ for (encoding in expected) {
   }));
   fs.realpath(
     buffer_dir,
-    { encoding: encoding },
+    { encoding },
     common.mustCall((err, res) => {
       assert.ifError(err);
       assert.strictEqual(res, expected_value);

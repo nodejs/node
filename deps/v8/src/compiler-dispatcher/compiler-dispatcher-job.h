@@ -17,42 +17,73 @@ class UnoptimizedCompileJob;
 
 class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
-  enum Type { kUnoptimizedCompile };
+  enum class Type { kUnoptimizedCompile };
+
+  enum class Status {
+    kInitial,
+    kPrepared,
+    kCompiled,
+    kHasErrorsToReport,
+    kDone,
+    kFailed,
+  };
+
+  CompilerDispatcherJob(Type type) : type_(type), status_(Status::kInitial) {}
 
   virtual ~CompilerDispatcherJob() {}
 
-  virtual Type type() const = 0;
+  Type type() const { return type_; }
+
+  // Returns the current status of the compile
+  Status status() const { return status_; }
 
   // Returns true if this CompilerDispatcherJob has finished (either with a
   // success or a failure).
-  virtual bool IsFinished() = 0;
+  bool IsFinished() const {
+    return status() == Status::kDone || status() == Status::kFailed;
+  }
 
   // Returns true if this CompilerDispatcherJob has failed.
-  virtual bool IsFailed() = 0;
+  bool IsFailed() const { return status() == Status::kFailed; }
 
-  // Return true if the next step can be run on any thread, that is when both
-  // StepNextOnMainThread and StepNextOnBackgroundThread could be used for the
-  // next step.
-  virtual bool CanStepNextOnAnyThread() = 0;
+  // Return true if the next step can be run on any thread.
+  bool NextStepCanRunOnAnyThread() const {
+    return status() == Status::kPrepared;
+  }
 
-  // Step the job forward by one state on the main thread.
-  virtual void StepNextOnMainThread(Isolate* isolate) = 0;
+  // Casts to implementations.
+  const UnoptimizedCompileJob* AsUnoptimizedCompileJob() const;
 
-  // Step the job forward by one state on a background thread.
-  virtual void StepNextOnBackgroundThread() = 0;
+  // Transition from kInitial to kPrepared. Must only be invoked on the
+  // main thread.
+  virtual void PrepareOnMainThread(Isolate* isolate) = 0;
 
-  // Transition from any state to kInitial and free all resources.
+  // Transition from kPrepared to kCompiled (or kReportErrors).
+  virtual void Compile(bool on_background_thread) = 0;
+
+  // Transition from kCompiled to kDone (or kFailed). Must only be invoked on
+  // the main thread.
+  virtual void FinalizeOnMainThread(Isolate* isolate) = 0;
+
+  // Transition from kReportErrors to kFailed. Must only be invoked on the main
+  // thread.
+  virtual void ReportErrorsOnMainThread(Isolate* isolate) = 0;
+
+  // Free all resources. Must only be invoked on the main thread.
   virtual void ResetOnMainThread(Isolate* isolate) = 0;
 
   // Estimate how long the next step will take using the tracer.
   virtual double EstimateRuntimeOfNextStepInMs() const = 0;
 
-  // Even though the name does not imply this, ShortPrint() must only be invoked
-  // on the main thread.
+  // Print short description of job. Must only be invoked on the main thread.
   virtual void ShortPrintOnMainThread() = 0;
 
-  // Casts to implementations.
-  const UnoptimizedCompileJob* AsUnoptimizedCompileJob() const;
+ protected:
+  void set_status(Status status) { status_ = status; }
+
+ private:
+  Type type_;
+  Status status_;
 };
 
 }  // namespace internal

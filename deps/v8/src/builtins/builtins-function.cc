@@ -234,7 +234,7 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
     Handle<Object> length(Smi::kZero, isolate);
     Maybe<PropertyAttributes> attributes =
         JSReceiver::GetPropertyAttributes(&length_lookup);
-    if (!attributes.IsJust()) return isolate->heap()->exception();
+    if (attributes.IsNothing()) return isolate->heap()->exception();
     if (attributes.FromJust() != ABSENT) {
       Handle<Object> target_length;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target_length,

@@ -513,25 +513,31 @@ assertEquals(oz, [1, 2, 3, 4, 5]);
   }
 
   function FakeNewTarget() {}
-  assertEquals(undefined, ReturnNewTarget1());
-  assertEquals(ReturnNewTarget1, new ReturnNewTarget1());
-  assertEquals(FakeNewTarget,
-               Reflect.construct(ReturnNewTarget1, [], FakeNewTarget));
 
-  assertEquals(undefined, ReturnNewTarget2());
-  assertEquals(ReturnNewTarget2, new ReturnNewTarget2());
-  assertEquals(FakeNewTarget,
-               Reflect.construct(ReturnNewTarget2, [], FakeNewTarget));
+  function construct() {
+    assertEquals(undefined, ReturnNewTarget1());
+    assertEquals(ReturnNewTarget1, new ReturnNewTarget1());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget1, [], FakeNewTarget));
 
-  assertEquals(undefined, ReturnNewTarget3());
-  assertEquals(ReturnNewTarget3, new ReturnNewTarget3());
-  assertEquals(FakeNewTarget,
-               Reflect.construct(ReturnNewTarget3, [], FakeNewTarget));
+    assertEquals(undefined, ReturnNewTarget2());
+    assertEquals(ReturnNewTarget2, new ReturnNewTarget2());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget2, [], FakeNewTarget));
 
-  assertEquals(undefined, ReturnNewTarget4());
-  assertEquals(ReturnNewTarget4, new ReturnNewTarget4());
-  assertEquals(FakeNewTarget,
-               Reflect.construct(ReturnNewTarget4, [], FakeNewTarget));
+    assertEquals(undefined, ReturnNewTarget3());
+    assertEquals(ReturnNewTarget3, new ReturnNewTarget3());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget3, [], FakeNewTarget));
+
+    assertEquals(undefined, ReturnNewTarget4());
+    assertEquals(ReturnNewTarget4, new ReturnNewTarget4());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget4, [], FakeNewTarget));
+  }
+  construct();
+  FakeNewTarget.prototype = 1;
+  construct();
 })();
 
 (function testSuperCall() {

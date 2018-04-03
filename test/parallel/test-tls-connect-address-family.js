@@ -7,19 +7,21 @@ if (!common.hasIPv6)
   common.skip('no IPv6 support');
 
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const tls = require('tls');
 const dns = require('dns');
 
 function runTest() {
-  const ciphers = 'AECDH-NULL-SHA';
-  tls.createServer({ ciphers }, common.mustCall(function() {
+  tls.createServer({
+    cert: fixtures.readKey('agent1-cert.pem'),
+    key: fixtures.readKey('agent1-key.pem'),
+  }, common.mustCall(function() {
     this.close();
   })).listen(0, '::1', common.mustCall(function() {
     const options = {
       host: 'localhost',
       port: this.address().port,
       family: 6,
-      ciphers: ciphers,
       rejectUnauthorized: false,
     };
     // Will fail with ECONNREFUSED if the address family is not honored.

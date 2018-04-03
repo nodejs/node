@@ -26,9 +26,9 @@ PASS class X { get constructor() {} } threw exception SyntaxError: Class constru
 PASS class X { set constructor() {} } threw exception SyntaxError: Class constructor may not be an accessor.
 PASS class X { constructor() {} static constructor() { return staticMethodValue; } } did not throw exception.
 PASS class X { constructor() {} static constructor() { return staticMethodValue; } }; X.constructor() is staticMethodValue
-PASS class X { constructor() {} static prototype() {} } threw exception SyntaxError: Classes may not have static property named prototype.
-PASS class X { constructor() {} static get prototype() {} } threw exception SyntaxError: Classes may not have static property named prototype.
-PASS class X { constructor() {} static set prototype() {} } threw exception SyntaxError: Classes may not have static property named prototype.
+PASS class X { constructor() {} static prototype() {} } threw exception SyntaxError: Classes may not have a static property named 'prototype'.
+PASS class X { constructor() {} static get prototype() {} } threw exception SyntaxError: Classes may not have a static property named 'prototype'.
+PASS class X { constructor() {} static set prototype() {} } threw exception SyntaxError: Classes may not have a static property named 'prototype'.
 PASS class X { constructor() {} prototype() { return instanceMethodValue; } } did not throw exception.
 PASS class X { constructor() {} prototype() { return instanceMethodValue; } }; (new X).prototype() is instanceMethodValue
 PASS class X { constructor() {} set foo(a) {} } did not throw exception.

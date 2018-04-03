@@ -19,8 +19,8 @@ considered a `semver-major` change.
 
 ## Using internal/errors.js
 
-The `internal/errors` module exposes three custom `Error` classes that
-are intended to replace existing `Error` objects within the Node.js source.
+The `internal/errors` module exposes all custom errors as subclasses of the
+builtin errors. After being added, an error can be found in the `codes` object.
 
 For instance, an existing `Error` such as:
 
@@ -32,15 +32,15 @@ Can be replaced by first adding a new error key into the `internal/errors.js`
 file:
 
 ```js
-E('FOO', 'Expected string received %s');
+E('FOO', 'Expected string received %s', TypeError);
 ```
 
 Then replacing the existing `new TypeError` in the code:
 
 ```js
-const errors = require('internal/errors');
+const { FOO } = require('internal/errors').codes;
 // ...
-const err = new errors.TypeError('FOO', type);
+const err = new FOO(type);
 ```
 
 ## Adding new errors
@@ -49,8 +49,8 @@ New static error codes are added by modifying the `internal/errors.js` file
 and appending the new error codes to the end using the utility `E()` method.
 
 ```js
-E('EXAMPLE_KEY1', 'This is the error value');
-E('EXAMPLE_KEY2', (a, b) => `${a} ${b}`);
+E('EXAMPLE_KEY1', 'This is the error value', TypeError);
+E('EXAMPLE_KEY2', (a, b) => `${a} ${b}`, RangeError);
 ```
 
 The first argument passed to `E()` is the static identifier. The second
@@ -58,7 +58,24 @@ argument is either a String with optional `util.format()` style replacement
 tags (e.g. `%s`, `%d`), or a function returning a String. The optional
 additional arguments passed to the `errors.message()` function (which is
 used by the `errors.Error`, `errors.TypeError` and `errors.RangeError` classes),
-will be used to format the error message.
+will be used to format the error message. The third argument is the base class
+that the new error will extend.
+
+It is possible to create multiple derived
+classes by providing additional arguments. The other ones will be exposed as
+properties of the main class:
+
+<!-- eslint-disable no-unreachable -->
+```js
+E('EXAMPLE_KEY', 'Error message', TypeError, RangeError);
+
+// In another module
+const { EXAMPLE_KEY } = require('internal/errors').codes;
+// TypeError
+throw new EXAMPLE_KEY();
+// RangeError
+throw new EXAMPLE_KEY.RangeError();
+```
 
 ## Documenting new errors
 
@@ -99,8 +116,6 @@ special cases, they should only validate that the expected code is received
 and NOT validate the message.  This will reduce the amount of test change
 required when the message for an error changes.
 
-For example:
-
 ```js
 assert.throws(() => {
   socket.bind();
@@ -117,70 +132,14 @@ likely be required.
 
 ## API
 
-### Class: errors.Error(key[, args...])
+### Object: errors.codes
 
-* `key` {String} The static error identifier
-* `args...` {Any} Zero or more optional arguments
-
-```js
-const errors = require('internal/errors');
-
-const arg1 = 'foo';
-const arg2 = 'bar';
-const myError = new errors.Error('KEY', arg1, arg2);
-throw myError;
-```
-
-The specific error message for the `myError` instance will depend on the
-associated value of `KEY` (see "Adding new errors").
-
-The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `` `Error [${key}]` ``.
-
-### Class: errors.TypeError(key[, args...])
-
-* `key` {String} The static error identifier
-* `args...` {Any} Zero or more optional arguments
-
-```js
-const errors = require('internal/errors');
-
-const arg1 = 'foo';
-const arg2 = 'bar';
-const myError = new errors.TypeError('KEY', arg1, arg2);
-throw myError;
-```
-
-The specific error message for the `myError` instance will depend on the
-associated value of `KEY` (see "Adding new errors").
-
-The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `` `TypeError [${key}]` ``.
-
-### Class: errors.RangeError(key[, args...])
-
-* `key` {String} The static error identifier
-* `args...` {Any} Zero or more optional arguments
-
-```js
-const errors = require('internal/errors');
-
-const arg1 = 'foo';
-const arg2 = 'bar';
-const myError = new errors.RangeError('KEY', arg1, arg2);
-throw myError;
-```
-
-The specific error message for the `myError` instance will depend on the
-associated value of `KEY` (see "Adding new errors").
-
-The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `` `RangeError [${key}]` ``.
+Exposes all internal error classes to be used by Node.js APIs.
 
 ### Method: errors.message(key, args)
 
-* `key` {String} The static error identifier
+* `key` {string} The static error identifier
 * `args` {Array} Zero or more optional arguments passed as an Array
-* Returns: {String}
+* Returns: {string}
 
 Returns the formatted error message string for the given `key`.

@@ -12,12 +12,13 @@ const dftProtocol = {};
 
 // test for immutable `opts`
 {
-  const opts = { foo: 'bar', NPNProtocols: [ 'http/1.1' ] };
+  const opts = { foo: 'bar', ALPNProtocols: [ 'http/1.1' ] };
   const server = https.createServer(opts);
 
-  tls.convertNPNProtocols([ 'http/1.1' ], dftProtocol);
-  assert.deepStrictEqual(opts, { foo: 'bar', NPNProtocols: [ 'http/1.1' ] });
-  assert.strictEqual(server.NPNProtocols.compare(dftProtocol.NPNProtocols), 0);
+  tls.convertALPNProtocols([ 'http/1.1' ], dftProtocol);
+  assert.deepStrictEqual(opts, { foo: 'bar', ALPNProtocols: [ 'http/1.1' ] });
+  assert.strictEqual(server.ALPNProtocols.compare(dftProtocol.ALPNProtocols),
+                     0);
 }
 
 
@@ -26,8 +27,9 @@ const dftProtocol = {};
   const mustNotCall = common.mustNotCall();
   const server = https.createServer(mustNotCall);
 
-  tls.convertNPNProtocols([ 'http/1.1', 'http/1.0' ], dftProtocol);
-  assert.strictEqual(server.NPNProtocols.compare(dftProtocol.NPNProtocols), 0);
+  tls.convertALPNProtocols([ 'http/1.1' ], dftProtocol);
+  assert.strictEqual(server.ALPNProtocols.compare(dftProtocol.ALPNProtocols),
+                     0);
   assert.strictEqual(server.listeners('request').length, 1);
   assert.strictEqual(server.listeners('request')[0], mustNotCall);
 }
@@ -37,6 +39,7 @@ const dftProtocol = {};
 {
   const server = https.createServer();
 
-  assert.strictEqual(server.NPNProtocols.compare(dftProtocol.NPNProtocols), 0);
+  assert.strictEqual(server.ALPNProtocols.compare(dftProtocol.ALPNProtocols),
+                     0);
   assert.strictEqual(server.listeners('request').length, 0);
 }

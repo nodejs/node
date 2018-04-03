@@ -527,7 +527,7 @@ CollationWeights::allocWeights(uint32_t lowerLimit, uint32_t upperLimit, int32_t
 #ifdef UCOL_DEBUG
         printf("lengthen the short ranges from %ld bytes to %ld and iterate\n", minLength, minLength+1);
 #endif
-        for(int32_t i=0; ranges[i].length==minLength; ++i) {
+        for(int32_t i=0; i<rangeCount && ranges[i].length==minLength; ++i) {
             lengthenRange(ranges[i]);
         }
     }

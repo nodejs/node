@@ -67,6 +67,9 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* NaNConstant();
   Node* MinusOneConstant();
 
+  // Used for padding frames.
+  Node* PaddingConstant() { return TheHoleConstant(); }
+
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.
   Node* HeapConstant(Handle<HeapObject> value);

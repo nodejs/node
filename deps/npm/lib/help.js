@@ -12,6 +12,7 @@ var npm = require('./npm.js')
 var log = require('npmlog')
 var opener = require('opener')
 var glob = require('glob')
+var didYouMean = require('./utils/did-you-mean')
 var cmdList = require('./config/cmd-list').cmdList
 var shorthands = require('./config/cmd-list').shorthands
 var commands = cmdList.concat(Object.keys(shorthands))
@@ -181,6 +182,11 @@ function npmUsage (valid, cb) {
     '',
     'npm@' + npm.version + ' ' + path.dirname(__dirname)
   ].join('\n'))
+
+  if (npm.argv.length > 1) {
+    didYouMean(npm.argv[1], commands)
+  }
+
   cb(valid)
 }
 

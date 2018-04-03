@@ -24,8 +24,17 @@
   var npm = module.exports = new EventEmitter()
   var npmconf = require('./config/core.js')
   var log = require('npmlog')
+  var inspect = require('util').inspect
 
-  var tty = require('tty')
+  // capture global logging
+  process.on('log', function (level) {
+    try {
+      return log[level].apply(log, [].slice.call(arguments, 1))
+    } catch (ex) {
+      log.verbose('attempt to log ' + inspect(arguments) + ' crashed: ' + ex.message)
+    }
+  })
+
   var path = require('path')
   var abbrev = require('abbrev')
   var which = require('which')
@@ -285,19 +294,19 @@
 
         switch (color) {
           case 'always':
-            log.enableColor()
             npm.color = true
             break
           case false:
-            log.disableColor()
             npm.color = false
             break
           default:
-            if (process.stdout.isTTY) npm.color = true
-            else if (!tty.isatty) npm.color = true
-            else if (tty.isatty(1)) npm.color = true
-            else npm.color = false
+            npm.color = process.stdout.isTTY && process.env['TERM'] !== 'dumb'
             break
+        }
+        if (npm.color) {
+          log.enableColor()
+        } else {
+          log.disableColor()
         }
 
         if (config.get('unicode')) {
@@ -306,7 +315,7 @@
           log.disableUnicode()
         }
 
-        if (config.get('progress') && (process.stderr.isTTY || (tty.isatty && tty.isatty(2)))) {
+        if (config.get('progress') && process.stderr.isTTY && process.env['TERM'] !== 'dumb') {
           log.enableProgress()
         } else {
           log.disableProgress()

@@ -34,32 +34,29 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 #define __ masm.
 
 ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
-                                              Register source_reg,
-                                              Register destination_reg,
-                                              bool inline_fastpath) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
+                                              Register destination_reg) {
   HandleScope handles(isolate);
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       v8::internal::CodeObjectRequired::kYes);
-  DoubleToIStub stub(isolate, source_reg, destination_reg, 0, true,
-                     inline_fastpath);
+
+  DoubleToIStub stub(isolate, destination_reg);
 
   byte* start = stub.GetCode()->instruction_start();
-  Label done;
 
   // Save callee save registers.
   __ MultiPush(kCalleeSaved | ra.bit());
@@ -76,7 +73,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Push the double argument.
   __ Dsubu(sp, sp, Operand(kDoubleSize));
   __ Sdc1(f12, MemOperand(sp));
-  __ Move(source_reg, sp);
 
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
@@ -84,7 +80,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (; reg_num < config->num_allocatable_general_registers(); ++reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
+    if (reg != destination_reg) {
       __ push(reg);
       source_reg_offset += kPointerSize;
     }
@@ -95,25 +91,16 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Sdc1(f12, MemOperand(sp));
 
   // Call through to the actual stub
-  if (inline_fastpath) {
-    __ Ldc1(f12, MemOperand(source_reg));
-    __ TryInlineTruncateDoubleToI(destination_reg, f12, &done);
-    if (destination_reg.is(source_reg) && !source_reg.is(sp)) {
-      // Restore clobbered source_reg.
-      __ Daddu(source_reg, sp, Operand(source_reg_offset));
-    }
-  }
   __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
-  __ bind(&done);
 
   __ Daddu(sp, sp, Operand(kDoubleSize));
 
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 2; --reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
+    if (reg != destination_reg) {
       __ Ld(at, MemOperand(sp, 0));
-      __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
+      __ Assert(eq, AbortReason::kRegisterWasClobbered, reg, Operand(at));
       __ Daddu(sp, sp, Operand(kPointerSize));
     }
   }
@@ -138,7 +125,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Assembler::FlushICache(isolate, buffer, actual_size);
+  MakeAssemblerBufferExecutable(buffer, allocated);
+  Assembler::FlushICache(isolate, buffer, allocated);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }
@@ -177,25 +165,15 @@ TEST(ConvertDToI) {
   RunAllTruncationTests(&ConvertDToICVersion);
 #endif
 
-  Register source_registers[] = {
-      sp, v0, v1, a0, a1, a2, a3, a4, a5, a6, a7, t0, t1};
   Register dest_registers[] = {
       v0, v1, a0, a1, a2, a3, a4, a5, a6, a7, t0, t1};
 
-  for (size_t s = 0; s < sizeof(source_registers) / sizeof(Register); s++) {
-    for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
-      RunAllTruncationTests(
-          RunGeneratedCodeCallWrapper,
-          MakeConvertDToIFuncTrampoline(isolate,
-                                        source_registers[s],
-                                        dest_registers[d],
-                                        false));
-      RunAllTruncationTests(
-          RunGeneratedCodeCallWrapper,
-          MakeConvertDToIFuncTrampoline(isolate,
-                                        source_registers[s],
-                                        dest_registers[d],
-                                        true));
-    }
+  for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
+    RunAllTruncationTests(
+        RunGeneratedCodeCallWrapper,
+        MakeConvertDToIFuncTrampoline(isolate, dest_registers[d]));
   }
 }
+
+}  // namespace internal
+}  // namespace v8

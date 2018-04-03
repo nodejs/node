@@ -5,8 +5,10 @@
 
 const path = require('path');
 const common = require('../common.js');
-const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+const filename = path.resolve(process.env.NODE_TMPDIR || __dirname,
+                              `.removeme-benchmark-garbage-${process.pid}`);
 const fs = require('fs');
+const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   dur: [5],
@@ -14,39 +16,43 @@ const bench = common.createBenchmark(main, {
   concurrent: [1, 10]
 });
 
-function main(conf) {
-  const len = +conf.len;
+function main({ len, dur, concurrent }) {
   try { fs.unlinkSync(filename); } catch (e) {}
   var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
 
   var reads = 0;
-  var bench_ended = false;
+  var benchEnded = false;
   bench.start();
   setTimeout(function() {
-    bench_ended = true;
+    benchEnded = true;
     bench.end(reads);
     try { fs.unlinkSync(filename); } catch (e) {}
     process.exit(0);
-  }, +conf.dur * 1000);
+  }, dur * 1000);
 
   function read() {
     fs.readFile(filename, afterRead);
   }
 
   function afterRead(er, data) {
-    if (er)
+    if (er) {
+      if (er.code === 'ENOENT') {
+        // Only OK if unlinked by the timer from main.
+        assert.ok(benchEnded);
+        return;
+      }
       throw er;
+    }
 
     if (data.length !== len)
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    if (!bench_ended)
+    if (!benchEnded)
       read();
   }
 
-  var cur = +conf.concurrent;
-  while (cur--) read();
+  while (concurrent--) read();
 }

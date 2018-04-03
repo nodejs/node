@@ -24,18 +24,19 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const tmp = common.tmpDir;
+const tmpdir = require('../common/tmpdir');
+const tmp = tmpdir.path;
 const filename = path.resolve(tmp, 'truncate-file.txt');
 const data = Buffer.alloc(1024 * 16, 'x');
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 let stat;
 
 const msg = 'Using fs.truncate with a file descriptor is deprecated.' +
             ' Please use fs.ftruncate with a file descriptor instead.';
 
-// truncateSync
+// Check truncateSync
 fs.writeFileSync(filename, data);
 stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 1024 * 16);
@@ -48,7 +49,7 @@ fs.truncateSync(filename);
 stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 0);
 
-// ftruncateSync
+// Check ftruncateSync
 fs.writeFileSync(filename, data);
 const fd = fs.openSync(filename, 'r+');
 
@@ -64,17 +65,15 @@ stat = fs.statSync(filename);
 assert.strictEqual(stat.size, 0);
 
 // truncateSync
-common.expectWarning('DeprecationWarning', msg);
+common.expectWarning('DeprecationWarning', msg, 'DEP0081');
 fs.truncateSync(fd);
 
 fs.closeSync(fd);
 
-// async tests
+// Async tests
 testTruncate(common.mustCall(function(er) {
   assert.ifError(er);
-  testFtruncate(common.mustCall(function(er) {
-    assert.ifError(er);
-  }));
+  testFtruncate(common.mustCall(assert.ifError));
 }));
 
 function testTruncate(cb) {
@@ -103,7 +102,6 @@ function testTruncate(cb) {
     });
   });
 }
-
 
 function testFtruncate(cb) {
   fs.writeFile(filename, data, function(er) {
@@ -134,7 +132,6 @@ function testFtruncate(cb) {
     });
   });
 }
-
 
 // Make sure if the size of the file is smaller than the length then it is
 // filled with zeroes.
@@ -180,8 +177,46 @@ function testFtruncate(cb) {
   fs.writeFileSync(file5, 'Hi');
   const fd = fs.openSync(file5, 'r+');
   process.on('exit', () => fs.closeSync(fd));
+
+  ['', false, null, {}, []].forEach((input) => {
+    assert.throws(
+      () => fs.ftruncate(fd, input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "len" argument must be of type number. ' +
+                 `Received type ${typeof input}`
+      }
+    );
+  });
+
   fs.ftruncate(fd, undefined, common.mustCall(function(err) {
     assert.ifError(err);
     assert(fs.readFileSync(file5).equals(Buffer.from('')));
   }));
 }
+
+{
+  const file6 = path.resolve(tmp, 'truncate-file-6.txt');
+  fs.writeFileSync(file6, 'Hi');
+  const fd = fs.openSync(file6, 'r+');
+  process.on('exit', () => fs.closeSync(fd));
+  fs.ftruncate(fd, -1, common.mustCall(function(err) {
+    assert.ifError(err);
+    assert(fs.readFileSync(file6).equals(Buffer.from('')));
+  }));
+}
+
+['', false, null, undefined, {}, []].forEach((input) => {
+  ['ftruncate', 'ftruncateSync'].forEach((fnName) => {
+    assert.throws(
+      () => fs[fnName](input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "fd" argument must be of type number. ' +
+                 `Received type ${typeof input}`
+      }
+    );
+  });
+});

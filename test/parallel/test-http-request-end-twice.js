@@ -31,7 +31,7 @@ const server = http.Server(function(req, res) {
 server.listen(0, function() {
   const req = http.get({ port: this.address().port }, function(res) {
     res.on('end', function() {
-      assert.ok(!req.end());
+      assert.strictEqual(req.end(), req);
       server.close();
     });
     res.resume();

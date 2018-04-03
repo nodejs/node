@@ -5,8 +5,8 @@ const bench = common.createBenchmark(main, {
   millions: [5]
 });
 
-function main(conf) {
-  const N = +conf.millions * 1e6;
+function main({ millions }) {
+  const N = millions * 1e6;
 
   process.on('exit', function() {
     bench.end(N / 1e6);
@@ -19,9 +19,9 @@ function main(conf) {
   bench.start();
   for (let i = 0; i < N; i++) {
     if (i % 3 === 0)
-      setImmediate(cb3, 512, true, null);
+      setImmediate(cb3, 512, true, null, 512, true, null);
     else if (i % 2 === 0)
-      setImmediate(cb2, false, 5.1);
+      setImmediate(cb2, false, 5.1, 512);
     else
       setImmediate(cb1, 0);
   }

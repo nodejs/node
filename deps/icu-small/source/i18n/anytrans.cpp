@@ -31,9 +31,13 @@
 
 static const UChar TARGET_SEP = 45; // '-'
 static const UChar VARIANT_SEP = 47; // '/'
-static const UChar ANY[] = {65,110,121,0}; // "Any"
+static const UChar ANY[] = {0x41,0x6E,0x79,0}; // "Any"
 static const UChar NULL_ID[] = {78,117,108,108,0}; // "Null"
-static const UChar LATIN_PIVOT[] = {45,76,97,116,105,110,59,76,97,116,105,110,45,0}; // "-Latin;Latin-"
+static const UChar LATIN_PIVOT[] = {0x2D,0x4C,0x61,0x74,0x6E,0x3B,0x4C,0x61,0x74,0x6E,0x2D,0}; // "-Latn;Latn-"
+
+// initial size for an Any-XXXX transform's cache of script-XXXX transforms
+// (will grow as necessary, but we don't expect to have source text with more than 7 scripts)
+#define ANY_TRANS_CACHE_INIT_SIZE 7
 
 //------------------------------------------------------------
 
@@ -186,7 +190,7 @@ AnyTransliterator::AnyTransliterator(const UnicodeString& id,
     Transliterator(id, NULL),
     targetScript(theTargetScript)
 {
-    cache = uhash_open(uhash_hashLong, uhash_compareLong, NULL, &ec);
+    cache = uhash_openSize(uhash_hashLong, uhash_compareLong, NULL, ANY_TRANS_CACHE_INIT_SIZE, &ec);
     if (U_FAILURE(ec)) {
         return;
     }
@@ -212,7 +216,7 @@ AnyTransliterator::AnyTransliterator(const AnyTransliterator& o) :
 {
     // Don't copy the cache contents
     UErrorCode ec = U_ZERO_ERROR;
-    cache = uhash_open(uhash_hashLong, uhash_compareLong, NULL, &ec);
+    cache = uhash_openSize(uhash_hashLong, uhash_compareLong, NULL, ANY_TRANS_CACHE_INIT_SIZE, &ec);
     if (U_FAILURE(ec)) {
         return;
     }
@@ -286,7 +290,7 @@ Transliterator* AnyTransliterator::getTransliterator(UScriptCode source) const {
     }
     if (t == NULL) {
         UErrorCode ec = U_ZERO_ERROR;
-        UnicodeString sourceName(uscript_getName(source), -1, US_INV);
+        UnicodeString sourceName(uscript_getShortName(source), -1, US_INV);
         UnicodeString id(sourceName);
         id.append(TARGET_SEP).append(target);
 

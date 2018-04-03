@@ -117,8 +117,19 @@ L$nocacheinfo:
 	orl	$0x40000000,%edx
 	andb	$15,%ah
 	cmpb	$15,%ah
-	jne	L$notintel
+	jne	L$notP4
 	orl	$0x00100000,%edx
+L$notP4:
+	cmpb	$6,%ah
+	jne	L$notintel
+	andl	$0x0fff0ff0,%eax
+	cmpl	$0x00050670,%eax
+	je	L$knights
+	cmpl	$0x00080650,%eax
+	jne	L$notintel
+L$knights:
+	andl	$0xfbffffff,%ecx
+
 L$notintel:
 	btl	$28,%edx
 	jnc	L$generic
@@ -143,6 +154,10 @@ L$generic:
 	movl	$7,%eax
 	xorl	%ecx,%ecx
 	cpuid
+	btl	$26,%r9d
+	jc	L$notknights
+	andl	$0xfff7ffff,%ebx
+L$notknights:
 	movl	%ebx,8(%rdi)
 L$no_extended_info:
 

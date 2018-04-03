@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "July 2017" "" ""
+.TH "NPM\-INSTALL" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -355,6 +355,9 @@ versions\.
 .P
 The \fB\-\-dry\-run\fP argument will report in the usual way what the install would
 have done without actually installing anything\.
+.P
+The \fB\-\-package\-lock\-only\fP argument will only update the \fBpackage\-lock\.json\fP,
+instead of checking \fBnode_modules\fP and downloading dependencies\.
 .P
 The \fB\-f\fP or \fB\-\-force\fP argument will force npm to fetch remote resources even if a
 local copy exists on disk\.

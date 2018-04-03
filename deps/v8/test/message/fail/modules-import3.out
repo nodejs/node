@@ -1,0 +1,5 @@
+*%(basename)s:7: SyntaxError: The requested module 'modules-import3.js' does not provide an export named 'default'
+import foo from "modules-import3.js";
+       ^^^
+SyntaxError: The requested module 'modules-import3.js' does not provide an export named 'default'
+

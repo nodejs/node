@@ -37,3 +37,10 @@ Now, use it:
 outputs:
 
     hello                     world
+
+# Also supported
+
+**printf**: same args as sprintf, but prints the result to stdout
+
+**fprintf**: same args as sprintf, preceded by a Node stream.  Prints the result
+to the given stream.

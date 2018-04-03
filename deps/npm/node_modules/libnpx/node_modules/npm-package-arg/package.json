@@ -1,0 +1,64 @@
+{
+  "_from": "npm-package-arg@^5.1.2",
+  "_id": "npm-package-arg@5.1.2",
+  "_inBundle": false,
+  "_integrity": "sha512-wJBsrf0qpypPT7A0LART18hCdyhpCMxeTtcb0X4IZO2jsP6Om7EHN1d9KSKiqD+KVH030RVNpWS9thk+pb7wzA==",
+  "_location": "/libnpx/npm-package-arg",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "npm-package-arg@^5.1.2",
+    "name": "npm-package-arg",
+    "escapedName": "npm-package-arg",
+    "rawSpec": "^5.1.2",
+    "saveSpec": null,
+    "fetchSpec": "^5.1.2"
+  },
+  "_requiredBy": [
+    "/libnpx"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-package-arg/-/npm-package-arg-5.1.2.tgz",
+  "_shasum": "fb18d17bb61e60900d6312619919bd753755ab37",
+  "_spec": "npm-package-arg@^5.1.2",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-package-arg/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "hosted-git-info": "^2.4.2",
+    "osenv": "^0.1.4",
+    "semver": "^5.1.0",
+    "validate-npm-package-name": "^3.0.0"
+  },
+  "deprecated": false,
+  "description": "Parse the things that can be arguments to `npm install`",
+  "devDependencies": {
+    "standard": "9.0.2",
+    "tap": "^10.3.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "npa.js"
+  ],
+  "homepage": "https://github.com/npm/npm-package-arg",
+  "license": "ISC",
+  "main": "npa.js",
+  "name": "npm-package-arg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-package-arg.git"
+  },
+  "scripts": {
+    "test": "standard && tap -J --coverage test/*.js"
+  },
+  "version": "5.1.2"
+}

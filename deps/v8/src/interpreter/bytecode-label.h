@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_BYTECODE_LABEL_H_
 #define V8_INTERPRETER_BYTECODE_LABEL_H_
 
+#include <algorithm>
+
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

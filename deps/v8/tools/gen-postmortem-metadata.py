@@ -60,7 +60,6 @@ consts_misc = [
 
     { 'name': 'IsNotStringMask',        'value': 'kIsNotStringMask' },
     { 'name': 'StringTag',              'value': 'kStringTag' },
-    { 'name': 'NotStringTag',           'value': 'kNotStringTag' },
 
     { 'name': 'StringEncodingMask',     'value': 'kStringEncodingMask' },
     { 'name': 'TwoByteStringTag',       'value': 'kTwoByteStringTag' },
@@ -165,8 +164,8 @@ consts_misc = [
         'value': 'Map::ElementsKindBits::kMask' },
     { 'name': 'bit_field2_elements_kind_shift',
         'value': 'Map::ElementsKindBits::kShift' },
-    { 'name': 'bit_field3_dictionary_map_shift',
-        'value': 'Map::DictionaryMap::kShift' },
+    { 'name': 'bit_field3_is_dictionary_map_shift',
+        'value': 'Map::IsDictionaryMapBit::kShift' },
     { 'name': 'bit_field3_number_of_own_descriptors_mask',
         'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
@@ -223,15 +222,10 @@ consts_misc = [
     { 'name': 'namedictionary_prefix_start_index',
         'value': 'NameDictionary::kPrefixStartIndex' },
 
-    { 'name': 'seedednumberdictionaryshape_prefix_size',
-        'value': 'SeededNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'seedednumberdictionaryshape_entry_size',
-        'value': 'SeededNumberDictionaryShape::kEntrySize' },
-
-    { 'name': 'unseedednumberdictionaryshape_prefix_size',
-        'value': 'UnseededNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'unseedednumberdictionaryshape_entry_size',
-        'value': 'UnseededNumberDictionaryShape::kEntrySize' }
+    { 'name': 'numberdictionaryshape_prefix_size',
+        'value': 'NumberDictionaryShape::kPrefixSize' },
+    { 'name': 'numberdictionaryshape_entry_size',
+        'value': 'NumberDictionaryShape::kEntrySize' },
 ];
 
 #
@@ -252,9 +246,9 @@ extras_accessors = [
     'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
     'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
     'JSTypedArray, length, Object, kLengthOffset',
-    'Map, instance_attributes, int, kInstanceAttributesOffset',
-    'Map, inobject_properties_or_constructor_function_index, int, kInObjectPropertiesOrConstructorFunctionIndexOffset',
-    'Map, instance_size, int, kInstanceSizeOffset',
+    'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
+    'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
+    'Map, instance_type, uint16_t, kInstanceTypeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',
     'Map, bit_field3, int, kBitField3Offset',
@@ -378,7 +372,7 @@ def load_objects_from_file(objfilename, checktypes):
         # do so without the embedded newlines.
         #
         for line in objfile:
-                if (line.startswith('enum InstanceType : uint8_t {')):
+                if (line.startswith('enum InstanceType : uint16_t {')):
                         in_insttype = True;
                         continue;
 

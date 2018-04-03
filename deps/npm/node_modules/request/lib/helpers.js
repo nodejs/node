@@ -1,14 +1,14 @@
 'use strict'
 
 var jsonSafeStringify = require('json-stringify-safe')
-  , crypto = require('crypto')
-  , Buffer = require('safe-buffer').Buffer
+var crypto = require('crypto')
+var Buffer = require('safe-buffer').Buffer
 
 var defer = typeof setImmediate === 'undefined'
   ? process.nextTick
   : setImmediate
 
-function paramsHaveRequestBody(params) {
+function paramsHaveRequestBody (params) {
   return (
     params.body ||
     params.requestBodyStream ||
@@ -57,10 +57,10 @@ function version () {
 }
 
 exports.paramsHaveRequestBody = paramsHaveRequestBody
-exports.safeStringify         = safeStringify
-exports.md5                   = md5
-exports.isReadStream          = isReadStream
-exports.toBase64              = toBase64
-exports.copy                  = copy
-exports.version               = version
-exports.defer                 = defer
+exports.safeStringify = safeStringify
+exports.md5 = md5
+exports.isReadStream = isReadStream
+exports.toBase64 = toBase64
+exports.copy = copy
+exports.version = version
+exports.defer = defer

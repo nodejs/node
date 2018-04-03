@@ -28,37 +28,37 @@ const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-const testCases =
-  [{ ca: ['ca1-cert'],
-     key: 'agent2-key',
-     cert: 'agent2-cert',
-     servers: [
+const testCases = [
+  { ca: ['ca1-cert'],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
       { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
       { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
     ]
   },
 
-   { ca: [],
-     key: 'agent2-key',
-     cert: 'agent2-cert',
-     servers: [
-       { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
-       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-       { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-     ]
-   },
+  { ca: [],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
+      { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
+      { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+      { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
+    ]
+  },
 
-   { ca: ['ca1-cert', 'ca2-cert'],
-     key: 'agent2-key',
-     cert: 'agent2-cert',
-     servers: [
-       { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
-       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-       { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
-     ]
-   }
-  ];
+  { ca: ['ca1-cert', 'ca2-cert'],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
+      { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
+      { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+      { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
+    ]
+  }
+];
 
 
 function loadPEM(n) {
@@ -142,6 +142,6 @@ runTest(0);
 
 
 process.on('exit', function() {
-  console.log('successful tests: %d', successfulTests);
+  console.log(`successful tests: ${successfulTests}`);
   assert.strictEqual(successfulTests, testCases.length);
 });

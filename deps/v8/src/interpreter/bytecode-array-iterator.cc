@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects-inl.h"
+#include "src/objects/code-inl.h"
 
 namespace v8 {
 namespace internal {

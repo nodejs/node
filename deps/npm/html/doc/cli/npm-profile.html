@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <title>npm-profile</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-profile.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-profile.html">npm-profile</a></h1> <p>Change settings on your registry profile</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm profile get [--json|--parseable] [&lt;property&gt;]
+npm profile set [--json|--parseable] &lt;property&gt; &lt;value&gt;
+npm profile set password
+npm profile enable-2fa [auth-and-writes|auth-only]
+npm profile disable-2fa
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>Change your profile information on the registry.  This not be available if
+you&#39;re using a non-npmjs registry.</p>
+<ul>
+<li><code>npm profile get [&lt;property&gt;]</code>:
+Display all of the properties of your profile, or one or more specific
+properties.  It looks like:</li>
+</ul>
+<pre><code>+-----------------+---------------------------+
+| name            | example                   |
++-----------------+---------------------------+
+| email           | me@example.com (verified) |
++-----------------+---------------------------+
+| two factor auth | auth-and-writes           |
++-----------------+---------------------------+
+| fullname        | Example User              |
++-----------------+---------------------------+
+| homepage        |                           |
++-----------------+---------------------------+
+| freenode        |                           |
++-----------------+---------------------------+
+| twitter         |                           |
++-----------------+---------------------------+
+| github          |                           |
++-----------------+---------------------------+
+| created         | 2015-02-26T01:38:35.892Z  |
++-----------------+---------------------------+
+| updated         | 2017-10-02T21:29:45.922Z  |
++-----------------+---------------------------+
+</code></pre><ul>
+<li><p><code>npm profile set &lt;property&gt; &lt;value&gt;</code>:
+Set the value of a profile property. You can set the following properties this way:
+  email, fullname, homepage, freenode, twitter, github</p>
+</li>
+<li><p><code>npm profile set password</code>:
+Change your password.  This is interactive, you&#39;ll be prompted for your
+current password and a new password.  You&#39;ll also be prompted for an OTP
+if you have two-factor authentication enabled.</p>
+</li>
+<li><p><code>npm profile enable-2fa [auth-and-writes|auth-only]</code>:
+Enables two-factor authentication. Defaults to <code>auth-and-writes</code> mode. Modes are:</p>
+<ul>
+<li><code>auth-only</code>: Require an OTP when logging in or making changes to your
+account&#39;s authentication.  The OTP will be required on both the website
+and the command line.</li>
+<li><code>auth-and-writes</code>: Requires an OTP at all the times <code>auth-only</code> does, and also requires one when
+publishing a module, setting the <code>latest</code> dist-tag, or changing access
+via <code>npm access</code> and <code>npm owner</code>.</li>
+</ul>
+</li>
+<li><p><code>npm profile disable-2fa</code>:
+Disables two-factor authentication.</p>
+</li>
+</ul>
+<h2 id="details">DETAILS</h2>
+<p>All of the <code>npm profile</code> subcommands accept <code>--json</code> and <code>--parseable</code> and
+will tailor their output based on those.  Some of these commands may not be
+available on non npmjs.com registries.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-profile &mdash; npm@5.6.0</p>

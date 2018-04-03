@@ -35,71 +35,9 @@
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
-namespace i = v8::internal;
-using i::Address;
-using i::Assembler;
-using i::CodeDesc;
-using i::Condition;
-using i::FUNCTION_CAST;
-using i::HandleScope;
-using i::Immediate;
-using i::Isolate;
-using i::Label;
-using i::MacroAssembler;
-using i::Operand;
-using i::RelocInfo;
-using i::Representation;
-using i::Smi;
-using i::SmiIndex;
-using i::byte;
-using i::carry;
-using i::greater;
-using i::greater_equal;
-using i::kIntSize;
-using i::kFloatSize;
-using i::kDoubleSize;
-using i::kPointerSize;
-using i::kSimd128Size;
-using i::kSmiTagMask;
-using i::kSmiValueSize;
-using i::less_equal;
-using i::negative;
-using i::not_carry;
-using i::not_equal;
-using i::equal;
-using i::not_zero;
-using i::positive;
-using i::r11;
-using i::r13;
-using i::r14;
-using i::r15;
-using i::r8;
-using i::r9;
-using i::rax;
-using i::rbp;
-using i::rbx;
-using i::rcx;
-using i::rdi;
-using i::rdx;
-using i::rsi;
-using i::rsp;
-using i::xmm0;
-using i::xmm1;
-using i::xmm2;
-using i::xmm3;
-using i::xmm4;
-using i::xmm5;
-using i::xmm6;
-using i::xmm7;
-using i::xmm8;
-using i::xmm9;
-using i::xmm10;
-using i::xmm11;
-using i::xmm12;
-using i::xmm13;
-using i::xmm14;
-using i::xmm15;
-using i::times_pointer_size;
+namespace v8 {
+namespace internal {
+namespace test_macro_assembler_x64 {
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -114,18 +52,13 @@ typedef int (*F0)();
 
 #define __ masm->
 
-
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
-  __ pushq(i::kRootRegister);
+  __ pushq(kRootRegister);
   __ InitializeRootRegister();
 }
 
-
-static void ExitCode(MacroAssembler* masm) {
-  __ popq(i::kRootRegister);
-}
-
+static void ExitCode(MacroAssembler* masm) { __ popq(kRootRegister); }
 
 TEST(Smi) {
   // Check that C++ Smi operations work as expected.
@@ -164,14 +97,11 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi* value) {
 
 // Test that we can move a Smi value literally into a register.
 TEST(SmiMove) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
@@ -197,6 +127,7 @@ TEST(SmiMove) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -250,14 +181,11 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 // Test that we can compare smis for equality (and more).
 TEST(SmiCompare) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -291,6 +219,7 @@ TEST(SmiCompare) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -299,14 +228,11 @@ TEST(SmiCompare) {
 
 
 TEST(Integer32ToSmi) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -393,20 +319,18 @@ TEST(Integer32ToSmi) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
 }
 
 TEST(SmiCheck) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -461,39 +385,6 @@ TEST(SmiCheck) {
   cond = masm->CheckSmi(rcx);
   __ j(cond, &exit);
 
-  // CheckBothSmi
-
-  __ incq(rax);
-  __ movq(rcx, Immediate(Smi::kMaxValue));
-  __ Integer32ToSmi(rcx, rcx);
-  __ movq(rdx, Immediate(Smi::kMinValue));
-  __ Integer32ToSmi(rdx, rdx);
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(NegateCondition(cond), &exit);
-
-  __ incq(rax);
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  __ xorq(rdx, Immediate(kSmiTagMask));
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  cond = masm->CheckBothSmi(rcx, rcx);
-  __ j(NegateCondition(cond), &exit);
-
-  __ incq(rax);
-  cond = masm->CheckBothSmi(rdx, rdx);
-  __ j(cond, &exit);
-
   // Success
   __ xorq(rax, rax);
 
@@ -503,443 +394,7 @@ TEST(SmiCheck) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  // Call the function from C++.
-  int result = FUNCTION_CAST<F0>(buffer)();
-  CHECK_EQ(0, result);
-}
-
-static void SmiAddTest(MacroAssembler* masm,
-                       Label* exit,
-                       int id,
-                       int first,
-                       int second) {
-  __ movl(rcx, Immediate(first));
-  __ Integer32ToSmi(rcx, rcx);
-  __ movl(rdx, Immediate(second));
-  __ Integer32ToSmi(rdx, rdx);
-  __ movl(r8, Immediate(first + second));
-  __ Integer32ToSmi(r8, r8);
-
-  __ movl(rax, Immediate(id));  // Test number.
-  __ SmiAdd(r9, rcx, rdx, exit);
-  __ cmpq(r9, r8);
-  __ j(not_equal, exit);
-
-  __ incq(rax);
-  __ SmiAdd(rcx, rcx, rdx, exit);
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-
-  __ movl(rcx, Immediate(first));
-  __ Integer32ToSmi(rcx, rcx);
-
-  __ incq(rax);
-  __ SmiAddConstant(r9, rcx, Smi::FromInt(second));
-  __ cmpq(r9, r8);
-  __ j(not_equal, exit);
-
-  __ SmiAddConstant(rcx, rcx, Smi::FromInt(second));
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-
-  __ movl(rcx, Immediate(first));
-  __ Integer32ToSmi(rcx, rcx);
-
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
-  __ incq(rax);
-  __ SmiAddConstant(r9, rcx, Smi::FromInt(second), constraints, exit);
-  __ cmpq(r9, r8);
-  __ j(not_equal, exit);
-
-  __ incq(rax);
-  __ SmiAddConstant(rcx, rcx, Smi::FromInt(second), constraints, exit);
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-
-  __ movl(rcx, Immediate(first));
-  __ Integer32ToSmi(rcx, rcx);
-
-  constraints = i::SmiOperationConstraint::kPreserveSourceRegister |
-                i::SmiOperationConstraint::kBailoutOnNoOverflow;
-  Label done;
-  __ incq(rax);
-  __ SmiAddConstant(rcx, rcx, Smi::FromInt(second), constraints, &done);
-  __ jmp(exit);
-  __ bind(&done);
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-}
-
-
-static void SmiAddOverflowTest(MacroAssembler* masm,
-                               Label* exit,
-                               int id,
-                               int x) {
-  // Adds a Smi to x so that the addition overflows.
-  CHECK(x != 0);  // Can't overflow by adding a Smi.
-  int y_max = (x > 0) ? (Smi::kMaxValue + 0) : (Smi::kMinValue - x - 1);
-  int y_min = (x > 0) ? (Smi::kMaxValue - x + 1) : (Smi::kMinValue + 0);
-
-  __ movl(rax, Immediate(id));
-  __ Move(rcx, Smi::FromInt(x));
-  __ movq(r11, rcx);  // Store original Smi value of x in r11.
-  __ Move(rdx, Smi::FromInt(y_min));
-  {
-    Label overflow_ok;
-    __ SmiAdd(r9, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiAdd(rcx, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
-  __ movq(rcx, r11);
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_min), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_min), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  __ Move(rdx, Smi::FromInt(y_max));
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiAdd(r9, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiAdd(rcx, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  __ movq(rcx, r11);
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiAddConstant(r9, rcx, Smi::FromInt(y_max), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  constraints = i::SmiOperationConstraint::kBailoutOnOverflow;
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiAddConstant(rcx, rcx, Smi::FromInt(y_max), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(equal, exit);
-  }
-}
-
-
-TEST(SmiAdd) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 3, &actual_size, true));
-  CHECK(buffer);
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
-                           v8::internal::CodeObjectRequired::kYes);
-
-  MacroAssembler* masm = &assembler;
-  EntryCode(masm);
-  Label exit;
-
-  // No-overflow tests.
-  SmiAddTest(masm, &exit, 0x10, 1, 2);
-  SmiAddTest(masm, &exit, 0x20, 1, -2);
-  SmiAddTest(masm, &exit, 0x30, -1, 2);
-  SmiAddTest(masm, &exit, 0x40, -1, -2);
-  SmiAddTest(masm, &exit, 0x50, 0x1000, 0x2000);
-  SmiAddTest(masm, &exit, 0x60, Smi::kMinValue, 5);
-  SmiAddTest(masm, &exit, 0x70, Smi::kMaxValue, -5);
-  SmiAddTest(masm, &exit, 0x80, Smi::kMaxValue, Smi::kMinValue);
-
-  SmiAddOverflowTest(masm, &exit, 0x90, -1);
-  SmiAddOverflowTest(masm, &exit, 0xA0, 1);
-  SmiAddOverflowTest(masm, &exit, 0xB0, 1024);
-  SmiAddOverflowTest(masm, &exit, 0xC0, Smi::kMaxValue);
-  SmiAddOverflowTest(masm, &exit, 0xD0, -2);
-  SmiAddOverflowTest(masm, &exit, 0xE0, -42000);
-  SmiAddOverflowTest(masm, &exit, 0xF0, Smi::kMinValue);
-
-  __ xorq(rax, rax);  // Success.
-  __ bind(&exit);
-  ExitCode(masm);
-  __ ret(0);
-
-  CodeDesc desc;
-  masm->GetCode(isolate, &desc);
-  // Call the function from C++.
-  int result = FUNCTION_CAST<F0>(buffer)();
-  CHECK_EQ(0, result);
-}
-
-
-static void SmiSubTest(MacroAssembler* masm,
-                      Label* exit,
-                      int id,
-                      int first,
-                      int second) {
-  __ Move(rcx, Smi::FromInt(first));
-  __ Move(rdx, Smi::FromInt(second));
-  __ Move(r8, Smi::FromInt(first - second));
-
-  __ movl(rax, Immediate(id));  // Test 0.
-  __ SmiSub(r9, rcx, rdx, exit);
-  __ cmpq(r9, r8);
-  __ j(not_equal, exit);
-
-  __ incq(rax);  // Test 1.
-  __ SmiSub(rcx, rcx, rdx, exit);
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-
-  __ Move(rcx, Smi::FromInt(first));
-
-  __ incq(rax);  // Test 2.
-  __ SmiSubConstant(r9, rcx, Smi::FromInt(second));
-  __ cmpq(r9, r8);
-  __ j(not_equal, exit);
-
-  __ incq(rax);  // Test 3.
-  __ SmiSubConstant(rcx, rcx, Smi::FromInt(second));
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
-  __ Move(rcx, Smi::FromInt(first));
-  __ incq(rax);  // Test 4.
-  __ SmiSubConstant(rcx, rcx, Smi::FromInt(second), constraints, exit);
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-
-  __ Move(rcx, Smi::FromInt(first));
-  __ incq(rax);  // Test 5.
-  __ SmiSubConstant(r9, rcx, Smi::FromInt(second), constraints, exit);
-  __ cmpq(r9, r8);
-  __ j(not_equal, exit);
-
-  constraints = i::SmiOperationConstraint::kPreserveSourceRegister |
-                i::SmiOperationConstraint::kBailoutOnNoOverflow;
-  __ Move(rcx, Smi::FromInt(first));
-  Label done;
-  __ incq(rax);  // Test 6.
-  __ SmiSubConstant(rcx, rcx, Smi::FromInt(second), constraints, &done);
-  __ jmp(exit);
-  __ bind(&done);
-  __ cmpq(rcx, r8);
-  __ j(not_equal, exit);
-}
-
-
-static void SmiSubOverflowTest(MacroAssembler* masm,
-                               Label* exit,
-                               int id,
-                               int x) {
-  // Subtracts a Smi from x so that the subtraction overflows.
-  CHECK(x != -1);  // Can't overflow by subtracting a Smi.
-  int y_max = (x < 0) ? (Smi::kMaxValue + 0) : (Smi::kMinValue + 0);
-  int y_min = (x < 0) ? (Smi::kMaxValue + x + 2) : (Smi::kMinValue + x);
-
-  __ movl(rax, Immediate(id));
-  __ Move(rcx, Smi::FromInt(x));
-  __ movq(r11, rcx);  // Store original Smi value of x in r11.
-  __ Move(rdx, Smi::FromInt(y_min));
-  {
-    Label overflow_ok;
-    __ SmiSub(r9, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiSub(rcx, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
-
-  __ movq(rcx, r11);
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiSubConstant(r9, rcx, Smi::FromInt(y_min), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_min), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  __ Move(rdx, Smi::FromInt(y_max));
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiSub(r9, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiSub(rcx, rcx, rdx, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  __ movq(rcx, r11);
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_max), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(not_equal, exit);
-  }
-
-  constraints = i::SmiOperationConstraint::kBailoutOnOverflow;
-  __ movq(rcx, r11);
-  {
-    Label overflow_ok;
-    __ incq(rax);
-    __ SmiSubConstant(rcx, rcx, Smi::FromInt(y_max), constraints, &overflow_ok);
-    __ jmp(exit);
-    __ bind(&overflow_ok);
-    __ incq(rax);
-    __ cmpq(rcx, r11);
-    __ j(equal, exit);
-  }
-}
-
-
-TEST(SmiSub) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 4, &actual_size, true));
-  CHECK(buffer);
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
-                           v8::internal::CodeObjectRequired::kYes);
-
-  MacroAssembler* masm = &assembler;
-  EntryCode(masm);
-  Label exit;
-
-  SmiSubTest(masm, &exit, 0x10, 1, 2);
-  SmiSubTest(masm, &exit, 0x20, 1, -2);
-  SmiSubTest(masm, &exit, 0x30, -1, 2);
-  SmiSubTest(masm, &exit, 0x40, -1, -2);
-  SmiSubTest(masm, &exit, 0x50, 0x1000, 0x2000);
-  SmiSubTest(masm, &exit, 0x60, Smi::kMinValue, -5);
-  SmiSubTest(masm, &exit, 0x70, Smi::kMaxValue, 5);
-  SmiSubTest(masm, &exit, 0x80, -Smi::kMaxValue, Smi::kMinValue);
-  SmiSubTest(masm, &exit, 0x90, 0, Smi::kMaxValue);
-
-  SmiSubOverflowTest(masm, &exit, 0xA0, 1);
-  SmiSubOverflowTest(masm, &exit, 0xB0, 1024);
-  SmiSubOverflowTest(masm, &exit, 0xC0, Smi::kMaxValue);
-  SmiSubOverflowTest(masm, &exit, 0xD0, -2);
-  SmiSubOverflowTest(masm, &exit, 0xE0, -42000);
-  SmiSubOverflowTest(masm, &exit, 0xF0, Smi::kMinValue);
-  SmiSubOverflowTest(masm, &exit, 0x100, 0);
-
-  __ xorq(rax, rax);  // Success.
-  __ bind(&exit);
-  ExitCode(masm);
-  __ ret(0);
-
-  CodeDesc desc;
-  masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -951,7 +406,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
   for (int i = 0; i < 8; i++) {
     __ Move(rcx, Smi::FromInt(x));
     SmiIndex index = masm->SmiToIndex(rdx, rcx, i);
-    CHECK(index.reg.is(rcx) || index.reg.is(rdx));
+    CHECK(index.reg == rcx || index.reg == rdx);
     __ shlq(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(index.reg, r8);
@@ -959,7 +414,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ incq(rax);
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToIndex(rcx, rcx, i);
-    CHECK(index.reg.is(rcx));
+    CHECK(index.reg == rcx);
     __ shlq(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(rcx, r8);
@@ -969,14 +424,11 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 }
 
 TEST(SmiIndex) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 5, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -996,156 +448,21 @@ TEST(SmiIndex) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
 }
-
-void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
-  __ movl(rax, Immediate(id));
-  __ Move(rcx, Smi::FromInt(x));
-  __ Move(rdx, Smi::FromInt(y));
-  __ xorq(rdx, Immediate(kSmiTagMask));
-  __ SelectNonSmi(r9, rcx, rdx, exit);
-
-  __ incq(rax);
-  __ cmpq(r9, rdx);
-  __ j(not_equal, exit);
-
-  __ incq(rax);
-  __ Move(rcx, Smi::FromInt(x));
-  __ Move(rdx, Smi::FromInt(y));
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  __ SelectNonSmi(r9, rcx, rdx, exit);
-
-  __ incq(rax);
-  __ cmpq(r9, rcx);
-  __ j(not_equal, exit);
-
-  __ incq(rax);
-  Label fail_ok;
-  __ Move(rcx, Smi::FromInt(x));
-  __ Move(rdx, Smi::FromInt(y));
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  __ xorq(rdx, Immediate(kSmiTagMask));
-  __ SelectNonSmi(r9, rcx, rdx, &fail_ok);
-  __ jmp(exit);
-  __ bind(&fail_ok);
-}
-
-TEST(SmiSelectNonSmi) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
-                           v8::internal::CodeObjectRequired::kYes);
-
-  MacroAssembler* masm = &assembler;
-  EntryCode(masm);
-  Label exit;
-
-  TestSelectNonSmi(masm, &exit, 0x10, 0, 0);
-  TestSelectNonSmi(masm, &exit, 0x20, 0, 1);
-  TestSelectNonSmi(masm, &exit, 0x30, 1, 0);
-  TestSelectNonSmi(masm, &exit, 0x40, 0, -1);
-  TestSelectNonSmi(masm, &exit, 0x50, -1, 0);
-  TestSelectNonSmi(masm, &exit, 0x60, -1, -1);
-  TestSelectNonSmi(masm, &exit, 0x70, 1, 1);
-  TestSelectNonSmi(masm, &exit, 0x80, Smi::kMinValue, Smi::kMaxValue);
-  TestSelectNonSmi(masm, &exit, 0x90, Smi::kMinValue, Smi::kMinValue);
-
-  __ xorq(rax, rax);  // Success.
-  __ bind(&exit);
-  ExitCode(masm);
-  __ ret(0);
-
-  CodeDesc desc;
-  masm->GetCode(isolate, &desc);
-  // Call the function from C++.
-  int result = FUNCTION_CAST<F0>(buffer)();
-  CHECK_EQ(0, result);
-}
-
-void TestPositiveSmiPowerUp(MacroAssembler* masm, Label* exit, int id, int x) {
-  CHECK(x >= 0);
-  int powers[] = { 0, 1, 2, 3, 8, 16, 24, 31 };
-  int power_count = 8;
-  __ movl(rax, Immediate(id));
-  for (int i = 0; i  < power_count; i++) {
-    int power = powers[i];
-    intptr_t result = static_cast<intptr_t>(x) << power;
-    __ Set(r8, result);
-    __ Move(rcx, Smi::FromInt(x));
-    __ movq(r11, rcx);
-    __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rcx, power);
-    __ cmpq(rdx, r8);
-    __ j(not_equal, exit);
-    __ incq(rax);
-    __ cmpq(r11, rcx);  // rcx unchanged.
-    __ j(not_equal, exit);
-    __ incq(rax);
-    __ PositiveSmiTimesPowerOfTwoToInteger64(rcx, rcx, power);
-    __ cmpq(rdx, r8);
-    __ j(not_equal, exit);
-    __ incq(rax);
-  }
-}
-
-
-TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 4, &actual_size, true));
-  CHECK(buffer);
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
-                           v8::internal::CodeObjectRequired::kYes);
-
-  MacroAssembler* masm = &assembler;
-  EntryCode(masm);
-  Label exit;
-
-  TestPositiveSmiPowerUp(masm, &exit, 0x20, 0);
-  TestPositiveSmiPowerUp(masm, &exit, 0x40, 1);
-  TestPositiveSmiPowerUp(masm, &exit, 0x60, 127);
-  TestPositiveSmiPowerUp(masm, &exit, 0x80, 128);
-  TestPositiveSmiPowerUp(masm, &exit, 0xA0, 255);
-  TestPositiveSmiPowerUp(masm, &exit, 0xC0, 256);
-  TestPositiveSmiPowerUp(masm, &exit, 0x100, 65535);
-  TestPositiveSmiPowerUp(masm, &exit, 0x120, 65536);
-  TestPositiveSmiPowerUp(masm, &exit, 0x140, Smi::kMaxValue);
-
-  __ xorq(rax, rax);  // Success.
-  __ bind(&exit);
-  ExitCode(masm);
-  __ ret(0);
-
-  CodeDesc desc;
-  masm->GetCode(isolate, &desc);
-  // Call the function from C++.
-  int result = FUNCTION_CAST<F0>(buffer)();
-  CHECK_EQ(0, result);
-}
-
 
 TEST(OperandOffset) {
   uint32_t data[256];
   for (uint32_t i = 0; i < 256; i++) { data[i] = i * 0x01010101; }
 
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -1482,6 +799,7 @@ TEST(OperandOffset) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -1489,15 +807,13 @@ TEST(OperandOffset) {
 
 
 TEST(LoadAndStoreWithRepresentation) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
+
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
   __ subq(rsp, Immediate(1 * kPointerSize));
@@ -1519,10 +835,10 @@ TEST(LoadAndStoreWithRepresentation) {
   // Test 2.
   __ movq(rax, Immediate(2));  // Test number.
   __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
-  __ Set(rcx, V8_2PART_UINT64_C(0xdeadbeaf, 12345678));
+  __ Set(rcx, V8_2PART_UINT64_C(0xDEADBEAF, 12345678));
   __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Smi());
   __ movq(rcx, Operand(rsp, 0 * kPointerSize));
-  __ Set(rdx, V8_2PART_UINT64_C(0xdeadbeaf, 12345678));
+  __ Set(rdx, V8_2PART_UINT64_C(0xDEADBEAF, 12345678));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
   __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Smi());
@@ -1558,10 +874,10 @@ TEST(LoadAndStoreWithRepresentation) {
   // Test 5.
   __ movq(rax, Immediate(5));  // Test number.
   __ movq(Operand(rsp, 0 * kPointerSize), Immediate(0));
-  __ Set(rcx, V8_2PART_UINT64_C(0x12345678, deadbeaf));
+  __ Set(rcx, V8_2PART_UINT64_C(0x12345678, DEADBEAF));
   __ Store(Operand(rsp, 0 * kPointerSize), rcx, Representation::Tagged());
   __ movq(rcx, Operand(rsp, 0 * kPointerSize));
-  __ Set(rdx, V8_2PART_UINT64_C(0x12345678, deadbeaf));
+  __ Set(rdx, V8_2PART_UINT64_C(0x12345678, DEADBEAF));
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
   __ Load(rdx, Operand(rsp, 0 * kPointerSize), Representation::Tagged());
@@ -1630,6 +946,7 @@ TEST(LoadAndStoreWithRepresentation) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -1758,14 +1075,11 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
 }
 
 TEST(SIMDMacros) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -1785,9 +1099,14 @@ TEST(SIMDMacros) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
 }
 
 #undef __
+
+}  // namespace test_macro_assembler_x64
+}  // namespace internal
+}  // namespace v8

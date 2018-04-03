@@ -1323,9 +1323,17 @@ _UTF16GetName(const UConverter *cnv) {
 U_CDECL_END
 extern const UConverterSharedData _UTF16Data;
 
-#define IS_UTF16BE(cnv) ((cnv)->sharedData==&_UTF16BEData)
-#define IS_UTF16LE(cnv) ((cnv)->sharedData==&_UTF16LEData)
-#define IS_UTF16(cnv) ((cnv)->sharedData==&_UTF16Data || (cnv)->sharedData==&_UTF16v2Data)
+static inline bool IS_UTF16BE(const UConverter *cnv) {
+    return ((cnv)->sharedData == &_UTF16BEData);
+}
+
+static inline bool IS_UTF16LE(const UConverter *cnv) {
+    return ((cnv)->sharedData == &_UTF16LEData);
+}
+
+static inline bool IS_UTF16(const UConverter *cnv) {
+    return ((cnv)->sharedData==&_UTF16Data) || ((cnv)->sharedData == &_UTF16v2Data);
+}
 
 U_CDECL_BEGIN
 static void U_CALLCONV

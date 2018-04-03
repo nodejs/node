@@ -2,11 +2,11 @@
 .*
 !deps/**/.*
 !test/fixtures/**/.*
-!tools/eslint/**/.*
+!tools/node_modules/**/.*
 !tools/doc/node_modules/**/.*
 !.editorconfig
 !.eslintignore
-!.eslintrc.yaml
+!.eslintrc.js
 !.gitattributes
 !.github
 !.gitignore
@@ -36,6 +36,7 @@ node_g
 icu_config.gypi
 .eslintcache
 node_trace.*.log
+coverage/
 
 /out
 
@@ -58,6 +59,7 @@ _UpgradeReport_Files/
 ipch/
 *.sdf
 *.opensdf
+*.VC.db
 *.VC.opendb
 .vs/
 .vscode/
@@ -104,8 +106,8 @@ deps/npm/node_modules/.bin/
 
 # test artifacts
 tools/faketime
-tools/remark-cli
-tools/remark-preset-lint-node
+tools/remark-cli/node_modules
+tools/remark-preset-lint-node/node_modules
 icu_config.gypi
 *.tap
 
@@ -117,3 +119,11 @@ icu_config.gypi
 deps/uv/.github/
 deps/uv/docs/code/
 deps/uv/docs/src/guide/
+
+# do not override V8's .gitignore
+!deps/v8/**
+# ignore VS compiler output unhandled by V8's .gitignore
+deps/v8/src/Debug/
+deps/v8/src/Release/
+deps/v8/src/inspector/Debug/
+deps/v8/src/inspector/Release/

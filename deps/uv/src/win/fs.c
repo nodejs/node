@@ -245,6 +245,7 @@ INLINE static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req,
   req->ptr = NULL;
   req->path = NULL;
   req->cb = cb;
+  req->fs.info.bufs = NULL;
   memset(&req->fs, 0, sizeof(req->fs));
 }
 
@@ -415,21 +416,21 @@ void fs__open(uv_fs_t* req) {
   umask(current_umask);
 
   /* convert flags and mode to CreateFile parameters */
-  switch (flags & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
-  case _O_RDONLY:
+  switch (flags & (UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR)) {
+  case UV_FS_O_RDONLY:
     access = FILE_GENERIC_READ;
     break;
-  case _O_WRONLY:
+  case UV_FS_O_WRONLY:
     access = FILE_GENERIC_WRITE;
     break;
-  case _O_RDWR:
+  case UV_FS_O_RDWR:
     access = FILE_GENERIC_READ | FILE_GENERIC_WRITE;
     break;
   default:
     goto einval;
   }
 
-  if (flags & _O_APPEND) {
+  if (flags & UV_FS_O_APPEND) {
     access &= ~FILE_WRITE_DATA;
     access |= FILE_APPEND_DATA;
   }
@@ -439,26 +440,33 @@ void fs__open(uv_fs_t* req) {
    * does. We indiscriminately use all the sharing modes, to match
    * UNIX semantics. In particular, this ensures that the file can
    * be deleted even whilst it's open, fixing issue #1449.
+   * We still support exclusive sharing mode, since it is necessary
+   * for opening raw block devices, otherwise Windows will prevent
+   * any attempt to write past the master boot record.
    */
-  share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+  if (flags & UV_FS_O_EXLOCK) {
+    share = 0;
+  } else {
+    share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+  }
 
-  switch (flags & (_O_CREAT | _O_EXCL | _O_TRUNC)) {
+  switch (flags & (UV_FS_O_CREAT | UV_FS_O_EXCL | UV_FS_O_TRUNC)) {
   case 0:
-  case _O_EXCL:
+  case UV_FS_O_EXCL:
     disposition = OPEN_EXISTING;
     break;
-  case _O_CREAT:
+  case UV_FS_O_CREAT:
     disposition = OPEN_ALWAYS;
     break;
-  case _O_CREAT | _O_EXCL:
-  case _O_CREAT | _O_TRUNC | _O_EXCL:
+  case UV_FS_O_CREAT | UV_FS_O_EXCL:
+  case UV_FS_O_CREAT | UV_FS_O_TRUNC | UV_FS_O_EXCL:
     disposition = CREATE_NEW;
     break;
-  case _O_TRUNC:
-  case _O_TRUNC | _O_EXCL:
+  case UV_FS_O_TRUNC:
+  case UV_FS_O_TRUNC | UV_FS_O_EXCL:
     disposition = TRUNCATE_EXISTING;
     break;
-  case _O_CREAT | _O_TRUNC:
+  case UV_FS_O_CREAT | UV_FS_O_TRUNC:
     disposition = CREATE_ALWAYS;
     break;
   default:
@@ -466,29 +474,44 @@ void fs__open(uv_fs_t* req) {
   }
 
   attributes |= FILE_ATTRIBUTE_NORMAL;
-  if (flags & _O_CREAT) {
+  if (flags & UV_FS_O_CREAT) {
     if (!((req->fs.info.mode & ~current_umask) & _S_IWRITE)) {
       attributes |= FILE_ATTRIBUTE_READONLY;
     }
   }
 
-  if (flags & _O_TEMPORARY ) {
+  if (flags & UV_FS_O_TEMPORARY ) {
     attributes |= FILE_FLAG_DELETE_ON_CLOSE | FILE_ATTRIBUTE_TEMPORARY;
     access |= DELETE;
   }
 
-  if (flags & _O_SHORT_LIVED) {
+  if (flags & UV_FS_O_SHORT_LIVED) {
     attributes |= FILE_ATTRIBUTE_TEMPORARY;
   }
 
-  switch (flags & (_O_SEQUENTIAL | _O_RANDOM)) {
+  switch (flags & (UV_FS_O_SEQUENTIAL | UV_FS_O_RANDOM)) {
   case 0:
     break;
-  case _O_SEQUENTIAL:
+  case UV_FS_O_SEQUENTIAL:
     attributes |= FILE_FLAG_SEQUENTIAL_SCAN;
     break;
-  case _O_RANDOM:
+  case UV_FS_O_RANDOM:
     attributes |= FILE_FLAG_RANDOM_ACCESS;
+    break;
+  default:
+    goto einval;
+  }
+
+  if (flags & UV_FS_O_DIRECT) {
+    attributes |= FILE_FLAG_NO_BUFFERING;
+  }
+
+  switch (flags & (UV_FS_O_DSYNC | UV_FS_O_SYNC)) {
+  case 0:
+    break;
+  case UV_FS_O_DSYNC:
+  case UV_FS_O_SYNC:
+    attributes |= FILE_FLAG_WRITE_THROUGH;
     break;
   default:
     goto einval;
@@ -506,9 +529,9 @@ void fs__open(uv_fs_t* req) {
                      NULL);
   if (file == INVALID_HANDLE_VALUE) {
     DWORD error = GetLastError();
-    if (error == ERROR_FILE_EXISTS && (flags & _O_CREAT) &&
-        !(flags & _O_EXCL)) {
-      /* Special case: when ERROR_FILE_EXISTS happens and O_CREAT was */
+    if (error == ERROR_FILE_EXISTS && (flags & UV_FS_O_CREAT) &&
+        !(flags & UV_FS_O_EXCL)) {
+      /* Special case: when ERROR_FILE_EXISTS happens and UV_FS_O_CREAT was */
       /* specified, it means the path referred to a directory. */
       SET_REQ_UV_ERROR(req, UV_EISDIR, error);
     } else {
@@ -1070,7 +1093,8 @@ cleanup:
 }
 
 
-INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
+INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf,
+    int do_lstat) {
   FILE_ALL_INFORMATION file_info;
   FILE_FS_VOLUME_INFORMATION volume_info;
   NTSTATUS nt_status;
@@ -1125,17 +1149,25 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
    */
   statbuf->st_mode = 0;
 
-  if (file_info.BasicInformation.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+  /*
+  * On Windows, FILE_ATTRIBUTE_REPARSE_POINT is a general purpose mechanism
+  * by which filesystem drivers can intercept and alter file system requests.
+  *
+  * The only reparse points we care about are symlinks and mount points, both
+  * of which are treated as POSIX symlinks. Further, we only care when
+  * invoked via lstat, which seeks information about the link instead of its
+  * target. Otherwise, reparse points must be treated as regular files.
+  */
+  if (do_lstat &&
+      (file_info.BasicInformation.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
     /*
-     * It is possible for a file to have FILE_ATTRIBUTE_REPARSE_POINT but not have
-     * any link data. In that case DeviceIoControl() in fs__readlink_handle() sets
-     * the last error to ERROR_NOT_A_REPARSE_POINT. Then the stat result mode
-     * calculated below will indicate a normal directory or file, as if
-     * FILE_ATTRIBUTE_REPARSE_POINT was not present.
+     * If reading the link fails, the reparse point is not a symlink and needs
+     * to be treated as a regular file. The higher level lstat function will
+     * detect this failure and retry without do_lstat if appropriate.
      */
-    if (fs__readlink_handle(handle, NULL, &statbuf->st_size) == 0) {
-      statbuf->st_mode |= S_IFLNK;
-    }
+    if (fs__readlink_handle(handle, NULL, &statbuf->st_size) != 0)
+      return -1;
+    statbuf->st_mode |= S_IFLNK;
   }
 
   if (statbuf->st_mode == 0) {
@@ -1178,8 +1210,12 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
    *
    * Therefore we'll just report a sensible value that's quite commonly okay
    * on modern hardware.
+   *
+   * 4096 is the minimum required to be compatible with newer Advanced Format
+   * drives (which have 4096 bytes per physical sector), and to be backwards
+   * compatible with older drives (which have 512 bytes per physical sector).
    */
-  statbuf->st_blksize = 2048;
+  statbuf->st_blksize = 4096;
 
   /* Todo: set st_flags to something meaningful. Also provide a wrapper for
    * chattr(2).
@@ -1230,9 +1266,11 @@ INLINE static void fs__stat_impl(uv_fs_t* req, int do_lstat) {
     return;
   }
 
-  if (fs__stat_handle(handle, &req->statbuf) != 0) {
+  if (fs__stat_handle(handle, &req->statbuf, do_lstat) != 0) {
     DWORD error = GetLastError();
-    if (do_lstat && error == ERROR_SYMLINK_NOT_SUPPORTED) {
+    if (do_lstat &&
+        (error == ERROR_SYMLINK_NOT_SUPPORTED ||
+         error == ERROR_NOT_A_REPARSE_POINT)) {
       /* We opened a reparse point but it was not a symlink. Try again. */
       fs__stat_impl(req, 0);
 
@@ -1276,7 +1314,7 @@ static void fs__fstat(uv_fs_t* req) {
     return;
   }
 
-  if (fs__stat_handle(handle, &req->statbuf) != 0) {
+  if (fs__stat_handle(handle, &req->statbuf, 0) != 0) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     return;
   }
@@ -1748,7 +1786,7 @@ static void fs__symlink(uv_fs_t* req) {
   }
 
   if (req->fs.info.file_flags & UV_FS_SYMLINK_DIR)
-    flags = SYMBOLIC_LINK_FLAG_DIRECTORY;
+    flags = SYMBOLIC_LINK_FLAG_DIRECTORY | uv__file_symlink_usermode_flag;
   else
     flags = uv__file_symlink_usermode_flag;
 

@@ -85,7 +85,7 @@ class AsmTypeTest : public TestWithZone {
     template <typename Arg, typename... Others>
     static void AddAllArguments(AsmFunctionType* function_type, Arg* arg,
                                 Others... others) {
-      CHECK(function_type != nullptr);
+      CHECK_NOT_NULL(function_type);
       function_type->AddArgument((*arg)());
       AddAllArguments(function_type, others...);
     }
@@ -120,7 +120,7 @@ class AsmTypeTest : public TestWithZone {
   template <typename Overload, typename... Others>
   static void AddAllOverloads(AsmOverloadedFunctionType* function,
                               Overload* overload, Others... others) {
-    CHECK(function != nullptr);
+    CHECK_NOT_NULL(function);
     function->AddOverload(overload);
     AddAllOverloads(function, others...);
   }

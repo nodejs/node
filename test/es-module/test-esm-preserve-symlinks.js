@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 'use strict';
 
 const common = require('../common');
@@ -7,8 +6,9 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-common.refreshTmpDir();
-const tmpDir = common.tmpDir;
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+const tmpDir = tmpdir.path;
 
 const entry = path.join(tmpDir, 'entry.js');
 const real = path.join(tmpDir, 'real.js');

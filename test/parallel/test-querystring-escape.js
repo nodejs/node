@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const qs = require('querystring');
@@ -12,8 +12,15 @@ assert.deepStrictEqual(qs.escape('Ŋōđĕ'), '%C5%8A%C5%8D%C4%91%C4%95');
 assert.deepStrictEqual(qs.escape('testŊōđĕ'), 'test%C5%8A%C5%8D%C4%91%C4%95');
 assert.deepStrictEqual(qs.escape(`${String.fromCharCode(0xD800 + 1)}test`),
                        '%F0%90%91%B4est');
-assert.throws(() => qs.escape(String.fromCharCode(0xD800 + 1)),
-              /^URIError: URI malformed$/);
+
+common.expectsError(
+  () => qs.escape(String.fromCharCode(0xD800 + 1)),
+  {
+    code: 'ERR_INVALID_URI',
+    type: URIError,
+    message: 'URI malformed'
+  }
+);
 
 // using toString for objects
 assert.strictEqual(
@@ -21,12 +28,14 @@ assert.strictEqual(
   'test'
 );
 
-// toString is not callable, must throw an error
-assert.throws(() => qs.escape({ toString: 5 }),
-              /^TypeError: Cannot convert object to primitive value$/);
+// `toString` is not callable, must throw an error.
+// Error message will vary between different JavaScript engines, so only check
+// that it is a `TypeError`.
+assert.throws(() => qs.escape({ toString: 5 }), TypeError);
 
-// should use valueOf instead of non-callable toString
+// Should use valueOf instead of non-callable toString.
 assert.strictEqual(qs.escape({ toString: 5, valueOf: () => 'test' }), 'test');
 
-assert.throws(() => qs.escape(Symbol('test')),
-              /^TypeError: Cannot convert a Symbol value to a string$/);
+// Error message will vary between different JavaScript engines, so only check
+// that it is a `TypeError`.
+assert.throws(() => qs.escape(Symbol('test')), TypeError);

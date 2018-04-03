@@ -11,7 +11,7 @@ const expectValue = 'meoww';
 const server = http2.createServer(common.mustNotCall());
 
 server.once('checkExpectation', common.mustCall((req, res) => {
-  assert.strictEqual(req.headers['expect'], expectValue);
+  assert.strictEqual(req.headers.expect, expectValue);
   res.statusCode = 417;
   res.end();
 }));
@@ -30,7 +30,7 @@ function nextTest(testsToRun) {
     ':method': 'GET',
     ':scheme': 'http',
     ':authority': `localhost:${port}`,
-    expect: expectValue
+    'expect': expectValue
   });
 
   req.on('response', common.mustCall((headers) => {
@@ -39,7 +39,7 @@ function nextTest(testsToRun) {
   }));
 
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
     nextTest(testsToRun - 1);
   }));
 }

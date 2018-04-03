@@ -27,9 +27,9 @@ function checkScope(session, scopeId) {
 }
 
 function debuggerPausedCallback(session, notification) {
-  const params = notification['params'];
-  const callFrame = params['callFrames'][0];
-  const scopeId = callFrame['scopeChain'][0]['object']['objectId'];
+  const params = notification.params;
+  const callFrame = params.callFrames[0];
+  const scopeId = callFrame.scopeChain[0].object.objectId;
   checkScope(session, scopeId);
 }
 
@@ -65,11 +65,11 @@ function testSampleDebugSession() {
   scopeCallback = function(error, result) {
     const i = cur++;
     let v, actual, expected;
-    for (v of result['result']) {
-      actual = v['value']['value'];
-      expected = expects[v['name']][i];
+    for (v of result.result) {
+      actual = v.value.value;
+      expected = expects[v.name][i];
       if (actual !== expected) {
-        failures.push(`Iteration ${i} variable: ${v['name']} ` +
+        failures.push(`Iteration ${i} variable: ${v.name} ` +
           `expected: ${expected} actual: ${actual}`);
       }
     }

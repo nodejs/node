@@ -30,7 +30,7 @@ class InstructionTester : public HandleAndZoneScope {
         schedule(zone()),
         common(zone()),
         machine(zone()),
-        code(NULL) {}
+        code(nullptr) {}
 
   Graph graph;
   Schedule schedule;
@@ -205,7 +205,7 @@ TEST(InstructionIsGapAt) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 2);
+  CHECK_EQ(2, R.code->instructions().size());
 }
 
 
@@ -232,7 +232,7 @@ TEST(InstructionIsGapAt2) {
   R.code->AddInstruction(g1);
   R.code->EndBlock(R.RpoFor(b1));
 
-  CHECK(R.code->instructions().size() == 4);
+  CHECK_EQ(4, R.code->instructions().size());
 }
 
 
@@ -250,7 +250,7 @@ TEST(InstructionAddGapMove) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 2);
+  CHECK_EQ(2, R.code->instructions().size());
 
   int index = 0;
   for (auto instr : R.code->instructions()) {

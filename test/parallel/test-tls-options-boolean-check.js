@@ -6,7 +6,6 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const assert = require('assert');
 const tls = require('tls');
 
 function toArrayBuffer(buf) {
@@ -39,8 +38,6 @@ const caArrBuff = toArrayBuffer(caCert);
 const keyDataView = toDataView(keyBuff);
 const certDataView = toDataView(certBuff);
 const caArrDataView = toDataView(caCert);
-const invalidKeyRE = /^The "key" argument must be one of type string, Buffer, TypedArray, or DataView$/;
-const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, TypedArray, or DataView$/;
 
 // Checks to ensure tls.createServer doesn't throw an error
 // Format ['key', 'cert']
@@ -64,47 +61,59 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [false, [certStr, certStr2]],
   [[{ pem: keyBuff }], false],
   [[{ pem: keyBuff }, { pem: keyBuff }], false]
-].map(([key, cert]) => {
-  assert.doesNotThrow(() => {
-    tls.createServer({ key, cert });
-  });
+].forEach(([key, cert]) => {
+  tls.createServer({ key, cert });
 });
 
 // Checks to ensure tls.createServer predictably throws an error
 // Format ['key', 'cert', 'expected message']
 [
-  [true, certBuff, invalidKeyRE],
-  [keyBuff, true, invalidCertRE],
-  [true, certStr, invalidKeyRE],
-  [keyStr, true, invalidCertRE],
-  [true, certArrBuff, invalidKeyRE],
-  [keyArrBuff, true, invalidCertRE],
-  [true, certDataView, invalidKeyRE],
-  [keyDataView, true, invalidCertRE],
-  [true, true, invalidCertRE],
-  [true, false, invalidKeyRE],
-  [false, true, invalidCertRE],
-  [true, false, invalidKeyRE],
-  [{ pem: keyBuff }, false, invalidKeyRE],
-  [false, { pem: keyBuff }, invalidCertRE],
-  [1, false, invalidKeyRE],
-  [false, 1, invalidCertRE],
-  [[keyBuff, true], [certBuff, certBuff2], invalidKeyRE],
-  [[true, keyStr2], [certStr, certStr2], invalidKeyRE],
-  [[keyBuff, keyBuff2], [true, certBuff2], invalidCertRE],
-  [[keyStr, keyStr2], [certStr, true], invalidCertRE],
-  [[true, false], [certBuff, certBuff2], invalidKeyRE],
-  [[keyStr, keyStr2], [true, false], invalidCertRE],
-  [[keyStr, keyStr2], true, invalidCertRE],
-  [true, [certBuff, certBuff2], invalidKeyRE]
-].map(([key, cert, message]) => {
-  assert.throws(() => {
+  [true, certBuff],
+  [true, certStr],
+  [true, certArrBuff],
+  [true, certDataView],
+  [true, false],
+  [true, false],
+  [{ pem: keyBuff }, false, 'pem'],
+  [[keyBuff, true], [certBuff, certBuff2], 1],
+  [[true, keyStr2], [certStr, certStr2], 0],
+  [[true, false], [certBuff, certBuff2], 0],
+  [true, [certBuff, certBuff2]]
+].forEach(([key, cert, index]) => {
+  const type = typeof (index === undefined ? key : key[index]);
+  common.expectsError(() => {
     tls.createServer({ key, cert });
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message
-  }));
+    message: 'The "key" argument must be one of type string, Buffer, ' +
+             `TypedArray, or DataView. Received type ${type}`
+  });
+});
+
+[
+  [keyBuff, true],
+  [keyStr, true],
+  [keyArrBuff, true],
+  [keyDataView, true],
+  [true, true],
+  [false, true],
+  [false, { pem: keyBuff }, 'pem'],
+  [false, 1],
+  [[keyBuff, keyBuff2], [true, certBuff2], 0],
+  [[keyStr, keyStr2], [certStr, true], 1],
+  [[keyStr, keyStr2], [true, false], 0],
+  [[keyStr, keyStr2], true]
+].forEach(([key, cert, index]) => {
+  const type = typeof (index === undefined ? cert : cert[index]);
+  common.expectsError(() => {
+    tls.createServer({ key, cert });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "cert" argument must be one of type string, Buffer, ' +
+             `TypedArray, or DataView. Received type ${type}`
+  });
 });
 
 // Checks to ensure tls.createServer works with the CA parameter
@@ -117,46 +126,28 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [keyBuff, certBuff, caArrBuff],
   [keyBuff, certBuff, caArrDataView],
   [keyBuff, certBuff, false],
-].map(([key, cert, ca]) => {
-  assert.doesNotThrow(() => {
+].forEach(([key, cert, ca]) => {
+  tls.createServer({ key, cert, ca });
+});
+
+// Checks to ensure tls.createServer throws an error for CA assignment
+// Format ['key', 'cert', 'ca']
+[
+  [keyBuff, certBuff, true],
+  [keyBuff, certBuff, {}],
+  [keyBuff, certBuff, 1],
+  [keyBuff, certBuff, true],
+  [keyBuff, certBuff, [caCert, true], 1]
+].forEach(([key, cert, ca, index]) => {
+  const type = typeof (index === undefined ? ca : ca[index]);
+  common.expectsError(() => {
     tls.createServer({ key, cert, ca });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "ca" argument must be one of type string, Buffer, ' +
+             `TypedArray, or DataView. Received type ${type}`
   });
-});
-
-// Checks to ensure tls.createServer throws an error for CA assignment
-// Format ['key', 'cert', 'ca']
-[
-  [keyBuff, certBuff, true],
-  [keyBuff, certBuff, {}],
-  [keyBuff, certBuff, 1],
-  [keyBuff, certBuff, true],
-  [keyBuff, certBuff, [caCert, true]]
-].map(([key, cert, ca]) => {
-  assert.throws(() => {
-    tls.createServer({ key, cert, ca });
-  }, common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/
-  }));
-});
-
-// Checks to ensure tls.createServer throws an error for CA assignment
-// Format ['key', 'cert', 'ca']
-[
-  [keyBuff, certBuff, true],
-  [keyBuff, certBuff, {}],
-  [keyBuff, certBuff, 1],
-  [keyBuff, certBuff, true],
-  [keyBuff, certBuff, [caCert, true]]
-].map(([key, cert, ca]) => {
-  assert.throws(() => {
-    tls.createServer({ key, cert, ca });
-  }, common.expectsError({
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: /^The "ca" argument must be one of type string, Buffer, TypedArray, or DataView$/
-  }));
 });
 
 // Checks to ensure tls.createSecureContext works with false-y input
@@ -167,8 +158,6 @@ const invalidCertRE = /^The "cert" argument must be one of type string, Buffer, 
   [undefined, undefined, undefined],
   ['', '', ''],
   [0, 0, 0]
-].map(([key, cert, ca]) => {
-  assert.doesNotThrow(() => {
-    tls.createSecureContext({ key, cert, ca });
-  });
+].forEach(([key, cert, ca]) => {
+  tls.createSecureContext({ key, cert, ca });
 });

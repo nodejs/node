@@ -27,9 +27,10 @@ const http = require('http');
 const path = require('path');
 const cp = require('child_process');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const filename = path.join(common.tmpDir || '/tmp', 'big');
+const filename = path.join(tmpdir.path || '/tmp', 'big');
 let count = 0;
 
 const server = http.createServer(function(req, res) {

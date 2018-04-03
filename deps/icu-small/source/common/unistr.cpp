@@ -308,12 +308,10 @@ UnicodeString::UnicodeString(const UnicodeString& that) {
   copyFrom(that);
 }
 
-#if U_HAVE_RVALUE_REFERENCES
 UnicodeString::UnicodeString(UnicodeString &&src) U_NOEXCEPT {
   fUnion.fFields.fLengthAndFlags = kShortString;
   moveFrom(src);
 }
-#endif
 
 UnicodeString::UnicodeString(const UnicodeString& that,
                              int32_t srcStart) {

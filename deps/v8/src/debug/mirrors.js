@@ -45,6 +45,45 @@ var SetValues = global.Set.prototype.values;
 //   - ScriptMirror
 //   - ScopeMirror
 
+macro IS_BOOLEAN(arg)
+(typeof(arg) === 'boolean')
+endmacro
+
+macro IS_DATE(arg)
+(%IsDate(arg))
+endmacro
+
+macro IS_ERROR(arg)
+(%_ClassOf(arg) === 'Error')
+endmacro
+
+macro IS_GENERATOR(arg)
+(%_ClassOf(arg) === 'Generator')
+endmacro
+
+macro IS_MAP(arg)
+(%_IsJSMap(arg))
+endmacro
+
+macro IS_MAP_ITERATOR(arg)
+(%_ClassOf(arg) === 'Map Iterator')
+endmacro
+
+macro IS_SCRIPT(arg)
+(%_ClassOf(arg) === 'Script')
+endmacro
+
+macro IS_SET(arg)
+(%_IsJSSet(arg))
+endmacro
+
+macro IS_SET_ITERATOR(arg)
+(%_ClassOf(arg) === 'Set Iterator')
+endmacro
+
+// Must match PropertyFilter in property-details.h
+define PROPERTY_FILTER_NONE = 0;
+
 // Type names of the different mirrors.
 var MirrorType = {
   UNDEFINED_TYPE : 'undefined',
@@ -530,7 +569,7 @@ inherits(NumberMirror, ValueMirror);
 
 
 NumberMirror.prototype.toText = function() {
-  return %NumberToString(this.value_);
+  return '' + this.value_;
 };
 
 

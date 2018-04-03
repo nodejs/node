@@ -11,36 +11,28 @@
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+const message = 'Use of `let` as the loop variable in a for-loop is ' +
+                'not recommended. Please use `var` instead.';
+const forSelector = 'ForStatement[init.kind="let"]';
+const forInOfSelector = 'ForOfStatement[left.kind="let"],' +
+                        'ForInStatement[left.kind="let"]';
 
 module.exports = {
   create(context) {
+    const sourceCode = context.getSourceCode();
 
-    const msg = 'Use of `let` as the loop variable in a for-loop is ' +
-                'not recommended. Please use `var` instead.';
-
-    /**
-     * Report function to test if the for-loop is declared using `let`.
-     */
-    function testForLoop(node) {
-      if (node.init && node.init.kind === 'let') {
-        context.report(node.init, msg);
-      }
-    }
-
-    /**
-     * Report function to test if the for-in or for-of loop
-     * is declared using `let`.
-     */
-    function testForInOfLoop(node) {
-      if (node.left && node.left.kind === 'let') {
-        context.report(node.left, msg);
-      }
+    function report(node) {
+      context.report({
+        node,
+        message,
+        fix: (fixer) =>
+          fixer.replaceText(sourceCode.getFirstToken(node), 'var')
+      });
     }
 
     return {
-      'ForStatement': testForLoop,
-      'ForInStatement': testForInOfLoop,
-      'ForOfStatement': testForInOfLoop
+      [forSelector]: (node) => report(node.init),
+      [forInOfSelector]: (node) => report(node.left),
     };
   }
 };

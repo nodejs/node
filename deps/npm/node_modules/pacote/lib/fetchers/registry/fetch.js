@@ -22,6 +22,7 @@ function regFetch (uri, registry, opts) {
     integrity: opts.integrity,
     key: opts.key,
     localAddress: opts.localAddress,
+    maxSockets: opts.maxSockets,
     memoize: opts.memoize,
     noProxy: opts.noProxy,
     Promise: BB,

@@ -32,8 +32,8 @@ const cert = fixtures.readSync('test_cert.pem');
 const key = fixtures.readSync('test_key.pem');
 
 const server = tls.createServer({
-  cert: cert,
-  key: key
+  cert,
+  key
 }, function(c) {
   // Nop
   setTimeout(function() {

@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <limits>
 #include <ostream>
 
 #include "src/base/build_config.h"
@@ -41,21 +42,7 @@
 
 #endif  // V8_OS_WIN
 
-// Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
-// warning flag and certain versions of GCC due to a bug:
-// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
-// For now, we use the more involved template-based version from <limits>, but
-// only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-#if V8_CC_GNU && V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
-# include <limits>  // NOLINT
-# define V8_INFINITY std::numeric_limits<double>::infinity()
-#elif V8_LIBC_MSVCRT
-# define V8_INFINITY HUGE_VAL
-#elif V8_OS_AIX
-#define V8_INFINITY (__builtin_inff())
-#else
-# define V8_INFINITY INFINITY
-#endif
+#define V8_INFINITY std::numeric_limits<double>::infinity()
 
 namespace v8 {
 
@@ -111,7 +98,7 @@ namespace internal {
 #endif
 
 // Minimum stack size in KB required by compilers.
-const int kStackSpaceRequiredForCompilation = 40;
+constexpr int kStackSpaceRequiredForCompilation = 40;
 
 // Determine whether double field unboxing feature is enabled.
 #if V8_TARGET_ARCH_64_BIT
@@ -144,102 +131,106 @@ typedef byte* Address;
 // -----------------------------------------------------------------------------
 // Constants
 
-const int KB = 1024;
-const int MB = KB * KB;
-const int GB = KB * KB * KB;
-const int kMaxInt = 0x7FFFFFFF;
-const int kMinInt = -kMaxInt - 1;
-const int kMaxInt8 = (1 << 7) - 1;
-const int kMinInt8 = -(1 << 7);
-const int kMaxUInt8 = (1 << 8) - 1;
-const int kMinUInt8 = 0;
-const int kMaxInt16 = (1 << 15) - 1;
-const int kMinInt16 = -(1 << 15);
-const int kMaxUInt16 = (1 << 16) - 1;
-const int kMinUInt16 = 0;
+constexpr int KB = 1024;
+constexpr int MB = KB * KB;
+constexpr int GB = KB * KB * KB;
+constexpr int kMaxInt = 0x7FFFFFFF;
+constexpr int kMinInt = -kMaxInt - 1;
+constexpr int kMaxInt8 = (1 << 7) - 1;
+constexpr int kMinInt8 = -(1 << 7);
+constexpr int kMaxUInt8 = (1 << 8) - 1;
+constexpr int kMinUInt8 = 0;
+constexpr int kMaxInt16 = (1 << 15) - 1;
+constexpr int kMinInt16 = -(1 << 15);
+constexpr int kMaxUInt16 = (1 << 16) - 1;
+constexpr int kMinUInt16 = 0;
 
-const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
-const int kMinUInt32 = 0;
+constexpr uint32_t kMaxUInt32 = 0xFFFFFFFFu;
+constexpr int kMinUInt32 = 0;
 
-const int kCharSize = sizeof(char);
-const int kShortSize = sizeof(short);  // NOLINT
-const int kIntSize = sizeof(int);
-const int kInt32Size = sizeof(int32_t);
-const int kInt64Size = sizeof(int64_t);
-const int kUInt32Size = sizeof(uint32_t);
-const int kSizetSize = sizeof(size_t);
-const int kFloatSize = sizeof(float);
-const int kDoubleSize = sizeof(double);
-const int kIntptrSize = sizeof(intptr_t);
-const int kUIntptrSize = sizeof(uintptr_t);
-const int kPointerSize = sizeof(void*);
+constexpr int kUInt8Size = sizeof(uint8_t);
+constexpr int kCharSize = sizeof(char);
+constexpr int kShortSize = sizeof(short);  // NOLINT
+constexpr int kUInt16Size = sizeof(uint16_t);
+constexpr int kIntSize = sizeof(int);
+constexpr int kInt32Size = sizeof(int32_t);
+constexpr int kInt64Size = sizeof(int64_t);
+constexpr int kUInt32Size = sizeof(uint32_t);
+constexpr int kSizetSize = sizeof(size_t);
+constexpr int kFloatSize = sizeof(float);
+constexpr int kDoubleSize = sizeof(double);
+constexpr int kIntptrSize = sizeof(intptr_t);
+constexpr int kUIntptrSize = sizeof(uintptr_t);
+constexpr int kPointerSize = sizeof(void*);
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-const int kRegisterSize = kPointerSize + kPointerSize;
+constexpr int kRegisterSize = kPointerSize + kPointerSize;
 #else
-const int kRegisterSize = kPointerSize;
+constexpr int kRegisterSize = kPointerSize;
 #endif
-const int kPCOnStackSize = kRegisterSize;
-const int kFPOnStackSize = kRegisterSize;
+constexpr int kPCOnStackSize = kRegisterSize;
+constexpr int kFPOnStackSize = kRegisterSize;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-const int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
+constexpr int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
 #else
-const int kElidedFrameSlots = 0;
+constexpr int kElidedFrameSlots = 0;
 #endif
 
-const int kDoubleSizeLog2 = 3;
+constexpr int kDoubleSizeLog2 = 3;
+constexpr size_t kMaxWasmCodeMemory = 256 * MB;
 
 #if V8_HOST_ARCH_64_BIT
-const int kPointerSizeLog2 = 3;
-const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
-const uintptr_t kUintptrAllBitsSet = V8_UINT64_C(0xFFFFFFFFFFFFFFFF);
-const bool kRequiresCodeRange = true;
+constexpr int kPointerSizeLog2 = 3;
+constexpr intptr_t kIntptrSignBit =
+    static_cast<intptr_t>(uintptr_t{0x8000000000000000});
+constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
+constexpr bool kRequiresCodeRange = true;
 #if V8_TARGET_ARCH_MIPS64
 // To use pseudo-relative jumps such as j/jal instructions which have 28-bit
 // encoded immediate, the addresses have to be in range of 256MB aligned
 // region. Used only for large object space.
-const size_t kMaximalCodeRangeSize = 256 * MB;
-const size_t kCodeRangeAreaAlignment = 256 * MB;
+constexpr size_t kMaximalCodeRangeSize = 256 * MB;
+constexpr size_t kCodeRangeAreaAlignment = 256 * MB;
 #elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
-const size_t kMaximalCodeRangeSize = 512 * MB;
-const size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMaximalCodeRangeSize = 512 * MB;
+constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 #else
-const size_t kMaximalCodeRangeSize = 512 * MB;
-const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMaximalCodeRangeSize = 512 * MB;
+constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
 #if V8_OS_WIN
-const size_t kMinimumCodeRangeSize = 4 * MB;
-const size_t kReservedCodeRangePages = 1;
+constexpr size_t kMinimumCodeRangeSize = 4 * MB;
+constexpr size_t kReservedCodeRangePages = 1;
 #else
-const size_t kMinimumCodeRangeSize = 3 * MB;
-const size_t kReservedCodeRangePages = 0;
+constexpr size_t kMinimumCodeRangeSize = 3 * MB;
+constexpr size_t kReservedCodeRangePages = 0;
 #endif
 #else
-const int kPointerSizeLog2 = 2;
-const intptr_t kIntptrSignBit = 0x80000000;
-const uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
+constexpr int kPointerSizeLog2 = 2;
+constexpr intptr_t kIntptrSignBit = 0x80000000;
+constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 // x32 port also requires code range.
-const bool kRequiresCodeRange = true;
-const size_t kMaximalCodeRangeSize = 256 * MB;
-const size_t kMinimumCodeRangeSize = 3 * MB;
-const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr bool kRequiresCodeRange = true;
+constexpr size_t kMaximalCodeRangeSize = 256 * MB;
+constexpr size_t kMinimumCodeRangeSize = 3 * MB;
+constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
-const bool kRequiresCodeRange = false;
-const size_t kMaximalCodeRangeSize = 0 * MB;
-const size_t kMinimumCodeRangeSize = 0 * MB;
-const size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr bool kRequiresCodeRange = false;
+constexpr size_t kMaximalCodeRangeSize = 0 * MB;
+constexpr size_t kMinimumCodeRangeSize = 0 * MB;
+constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 #else
-const bool kRequiresCodeRange = false;
-const size_t kMaximalCodeRangeSize = 0 * MB;
-const size_t kMinimumCodeRangeSize = 0 * MB;
-const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr bool kRequiresCodeRange = false;
+constexpr size_t kMaximalCodeRangeSize = 0 * MB;
+constexpr size_t kMinimumCodeRangeSize = 0 * MB;
+constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
-const size_t kReservedCodeRangePages = 0;
+constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
 // Trigger an incremental GCs once the external memory reaches this limit.
-const int kExternalAllocationSoftLimit = 64 * MB;
+constexpr int kExternalAllocationSoftLimit = 64 * MB;
 
 // Maximum object size that gets allocated into regular pages. Objects larger
 // than that size are allocated in large object space and are never moved in
@@ -248,39 +239,39 @@ const int kExternalAllocationSoftLimit = 64 * MB;
 // account.
 //
 // Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
-const int kMaxRegularHeapObjectSize = 507136;
+constexpr int kMaxRegularHeapObjectSize = 507136;
 
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
-const int kBitsPerByte = 8;
-const int kBitsPerByteLog2 = 3;
-const int kBitsPerPointer = kPointerSize * kBitsPerByte;
-const int kBitsPerInt = kIntSize * kBitsPerByte;
+constexpr int kBitsPerByte = 8;
+constexpr int kBitsPerByteLog2 = 3;
+constexpr int kBitsPerPointer = kPointerSize * kBitsPerByte;
+constexpr int kBitsPerInt = kIntSize * kBitsPerByte;
 
 // IEEE 754 single precision floating point number bit layout.
-const uint32_t kBinary32SignMask = 0x80000000u;
-const uint32_t kBinary32ExponentMask = 0x7f800000u;
-const uint32_t kBinary32MantissaMask = 0x007fffffu;
-const int kBinary32ExponentBias = 127;
-const int kBinary32MaxExponent  = 0xFE;
-const int kBinary32MinExponent  = 0x01;
-const int kBinary32MantissaBits = 23;
-const int kBinary32ExponentShift = 23;
+constexpr uint32_t kBinary32SignMask = 0x80000000u;
+constexpr uint32_t kBinary32ExponentMask = 0x7f800000u;
+constexpr uint32_t kBinary32MantissaMask = 0x007fffffu;
+constexpr int kBinary32ExponentBias = 127;
+constexpr int kBinary32MaxExponent = 0xFE;
+constexpr int kBinary32MinExponent = 0x01;
+constexpr int kBinary32MantissaBits = 23;
+constexpr int kBinary32ExponentShift = 23;
 
 // Quiet NaNs have bits 51 to 62 set, possibly the sign bit, and no
 // other bits set.
-const uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
+constexpr uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 
 // Latin1/UTF-16 constants
 // Code-point values in Unicode 4.0 are 21 bits wide.
 // Code units in UTF-16 are 16 bits wide.
 typedef uint16_t uc16;
 typedef int32_t uc32;
-const int kOneByteSize    = kCharSize;
-const int kUC16Size     = sizeof(uc16);      // NOLINT
+constexpr int kOneByteSize = kCharSize;
+constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 
 // 128 bit SIMD value size.
-const int kSimd128Size = 16;
+constexpr int kSimd128Size = 16;
 
 // Round up n to be a multiple of sz, where sz is a power of 2.
 #define ROUND_UP(n, sz) (((n) + ((sz) - 1)) & ~((sz) - 1))
@@ -314,52 +305,60 @@ F FUNCTION_CAST(Address addr) {
 
 
 // -----------------------------------------------------------------------------
-// Forward declarations for frequently used classes
-// (sorted alphabetically)
-
-class FreeStoreAllocationPolicy;
-template <typename T, class P = FreeStoreAllocationPolicy> class List;
-
-// -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum LanguageMode : uint32_t { SLOPPY, STRICT, LANGUAGE_END };
+enum class LanguageMode : bool { kSloppy, kStrict };
+static const size_t LanguageModeSize = 2;
+
+inline size_t hash_value(LanguageMode mode) {
+  return static_cast<size_t>(mode);
+}
 
 inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
-    case SLOPPY: return os << "sloppy";
-    case STRICT: return os << "strict";
-    case LANGUAGE_END:
-      UNREACHABLE();
+    case LanguageMode::kSloppy:
+      return os << "sloppy";
+    case LanguageMode::kStrict:
+      return os << "strict";
   }
   UNREACHABLE();
 }
 
 inline bool is_sloppy(LanguageMode language_mode) {
-  return language_mode == SLOPPY;
+  return language_mode == LanguageMode::kSloppy;
 }
 
 inline bool is_strict(LanguageMode language_mode) {
-  return language_mode != SLOPPY;
+  return language_mode != LanguageMode::kSloppy;
 }
 
 inline bool is_valid_language_mode(int language_mode) {
-  return language_mode == SLOPPY || language_mode == STRICT;
+  return language_mode == static_cast<int>(LanguageMode::kSloppy) ||
+         language_mode == static_cast<int>(LanguageMode::kStrict);
 }
 
 inline LanguageMode construct_language_mode(bool strict_bit) {
   return static_cast<LanguageMode>(strict_bit);
 }
 
+// Return kStrict if either of the language modes is kStrict, or kSloppy
+// otherwise.
+inline LanguageMode stricter_language_mode(LanguageMode mode1,
+                                           LanguageMode mode2) {
+  STATIC_ASSERT(LanguageModeSize == 2);
+  return static_cast<LanguageMode>(static_cast<int>(mode1) |
+                                   static_cast<int>(mode2));
+}
+
 enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 // This constant is used as an undefined value when passing source positions.
-const int kNoSourcePosition = -1;
+constexpr int kNoSourcePosition = -1;
 
 // This constant is used to indicate missing deoptimization information.
-const int kNoDeoptimizationId = -1;
+constexpr int kNoDeoptimizationId = -1;
 
 // Deoptimize bailout kind.
 enum class DeoptimizeKind : uint8_t { kEager, kSoft, kLazy };
@@ -394,63 +393,53 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 // Mask for the sign bit in a smi.
-const intptr_t kSmiSignMask = kIntptrSignBit;
+constexpr intptr_t kSmiSignMask = kIntptrSignBit;
 
-const int kObjectAlignmentBits = kPointerSizeLog2;
-const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
-const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
+constexpr int kObjectAlignmentBits = kPointerSizeLog2;
+constexpr intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
+constexpr intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
 // Desired alignment for pointers.
-const intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
-const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
+constexpr intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
+constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
 // Desired alignment for double values.
-const intptr_t kDoubleAlignment = 8;
-const intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
+constexpr intptr_t kDoubleAlignment = 8;
+constexpr intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 
 // Desired alignment for generated code is 32 bytes (to improve cache line
 // utilization).
-const int kCodeAlignmentBits = 5;
-const intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
-const intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
+constexpr int kCodeAlignmentBits = 5;
+constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
+constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
-// The owner field of a page is tagged with the page header tag. We need that
-// to find out if a slot is part of a large object. If we mask out the lower
-// 0xfffff bits (1M pages), go to the owner offset, and see that this field
-// is tagged with the page header tag, we can just look up the owner.
-// Otherwise, we know that we are somewhere (not within the first 1M) in a
-// large object.
-const int kPageHeaderTag = 3;
-const int kPageHeaderTagSize = 2;
-const intptr_t kPageHeaderTagMask = (1 << kPageHeaderTagSize) - 1;
-
+// Weak references are tagged using the second bit in a pointer.
+constexpr int kWeakReferenceTag = 3;
+constexpr int kWeakReferenceTagSize = 2;
+constexpr intptr_t kWeakReferenceTagMask = (1 << kWeakReferenceTagSize) - 1;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.
 #ifdef V8_HOST_ARCH_64_BIT
-const Address kZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeef));
-const Address kHandleZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddeaf));
-const Address kGlobalHandleZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1baffed00baffedf));
-const Address kFromSpaceZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdaf));
-const uint64_t kDebugZapValue = V8_UINT64_C(0xbadbaddbbadbaddb);
-const uint64_t kSlotsZapValue = V8_UINT64_C(0xbeefdeadbeefdeef);
-const uint64_t kFreeListZapValue = 0xfeed1eaffeed1eaf;
+constexpr uint64_t kZapValue = uint64_t{0xdeadbeedbeadbeef};
+constexpr uint64_t kHandleZapValue = uint64_t{0x1baddead0baddeaf};
+constexpr uint64_t kGlobalHandleZapValue = uint64_t{0x1baffed00baffedf};
+constexpr uint64_t kFromSpaceZapValue = uint64_t{0x1beefdad0beefdaf};
+constexpr uint64_t kDebugZapValue = uint64_t{0xbadbaddbbadbaddb};
+constexpr uint64_t kSlotsZapValue = uint64_t{0xbeefdeadbeefdeef};
+constexpr uint64_t kFreeListZapValue = 0xfeed1eaffeed1eaf;
 #else
-const Address kZapValue = reinterpret_cast<Address>(0xdeadbeef);
-const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddeaf);
-const Address kGlobalHandleZapValue = reinterpret_cast<Address>(0xbaffedf);
-const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdaf);
-const uint32_t kSlotsZapValue = 0xbeefdeef;
-const uint32_t kDebugZapValue = 0xbadbaddb;
-const uint32_t kFreeListZapValue = 0xfeed1eaf;
+constexpr uint32_t kZapValue = 0xdeadbeef;
+constexpr uint32_t kHandleZapValue = 0xbaddeaf;
+constexpr uint32_t kGlobalHandleZapValue = 0xbaffedf;
+constexpr uint32_t kFromSpaceZapValue = 0xbeefdaf;
+constexpr uint32_t kSlotsZapValue = 0xbeefdeef;
+constexpr uint32_t kDebugZapValue = 0xbadbaddb;
+constexpr uint32_t kFreeListZapValue = 0xfeed1eaf;
 #endif
 
-const int kCodeZapValue = 0xbadc0de;
-const uint32_t kPhantomReferenceZap = 0xca11bac;
+constexpr int kCodeZapValue = 0xbadc0de;
+constexpr uint32_t kPhantomReferenceZap = 0xca11bac;
 
 // On Intel architecture, cache line size is 64 bytes.
 // On ARM it may be less (32 bytes), but as far this constant is
@@ -459,18 +448,15 @@ const uint32_t kPhantomReferenceZap = 0xca11bac;
 
 // Constants relevant to double precision floating point numbers.
 // If looking only at the top 32 bits, the QNaN mask is bits 19 to 30.
-const uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
-
+constexpr uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
 
 class AccessorInfo;
-class Allocation;
 class Arguments;
 class Assembler;
 class Code;
-class CodeGenerator;
 class CodeStub;
 class Context;
 class Debug;
@@ -480,10 +466,10 @@ class DescriptorArray;
 class TransitionArray;
 class ExternalReference;
 class FixedArray;
+class FreeStoreAllocationPolicy;
 class FunctionTemplateInfo;
 class MemoryChunk;
-class SeededNumberDictionary;
-class UnseededNumberDictionary;
+class NumberDictionary;
 class NameDictionary;
 class GlobalDictionary;
 template <typename T> class MaybeHandle;
@@ -546,8 +532,7 @@ enum AllocationSpace {
   FIRST_PAGED_SPACE = OLD_SPACE,
   LAST_PAGED_SPACE = MAP_SPACE
 };
-const int kSpaceTagSize = 3;
-const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
+constexpr int kSpaceTagSize = 3;
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
@@ -623,6 +608,8 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
+enum Movability { kMovable, kImmovable };
+
 enum VisitMode {
   VISIT_ALL,
   VISIT_ALL_IN_MINOR_MC_MARK,
@@ -630,8 +617,7 @@ enum VisitMode {
   VISIT_ALL_IN_SCAVENGE,
   VISIT_ALL_IN_SWEEP_NEWSPACE,
   VISIT_ONLY_STRONG,
-  VISIT_ONLY_STRONG_FOR_SERIALIZATION,
-  VISIT_ONLY_STRONG_ROOT_LIST,
+  VISIT_FOR_SERIALIZATION,
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
@@ -713,6 +699,8 @@ enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
 enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
 
+enum ShouldThrow { kThrowOnError, kDontThrow };
+
 // The Store Buffer (GC).
 typedef enum {
   kStoreBufferFullEvent,
@@ -751,12 +739,12 @@ union IeeeDoubleBigEndianArchType {
 
 #if V8_TARGET_LITTLE_ENDIAN
 typedef IeeeDoubleLittleEndianArchType IeeeDoubleArchType;
-const int kIeeeDoubleMantissaWordOffset = 0;
-const int kIeeeDoubleExponentWordOffset = 4;
+constexpr int kIeeeDoubleMantissaWordOffset = 0;
+constexpr int kIeeeDoubleExponentWordOffset = 4;
 #else
 typedef IeeeDoubleBigEndianArchType IeeeDoubleArchType;
-const int kIeeeDoubleMantissaWordOffset = 4;
-const int kIeeeDoubleExponentWordOffset = 0;
+constexpr int kIeeeDoubleMantissaWordOffset = 4;
+constexpr int kIeeeDoubleExponentWordOffset = 0;
 #endif
 
 // AccessorCallback
@@ -931,20 +919,18 @@ enum AllocationSiteMode {
      (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \
     (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6) &&         \
      (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR)))
-const uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
-const uint32_t kHoleNanLower32 = 0xFFFF7FFF;
+constexpr uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
+constexpr uint32_t kHoleNanLower32 = 0xFFFF7FFF;
 #else
-const uint32_t kHoleNanUpper32 = 0xFFF7FFFF;
-const uint32_t kHoleNanLower32 = 0xFFF7FFFF;
+constexpr uint32_t kHoleNanUpper32 = 0xFFF7FFFF;
+constexpr uint32_t kHoleNanLower32 = 0xFFF7FFFF;
 #endif
 
-const uint64_t kHoleNanInt64 =
+constexpr uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
 
-
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
-const double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
-
+constexpr double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 
 // The order of this enum has to be kept in sync with the predicates below.
 enum VariableMode : uint8_t {
@@ -1095,7 +1081,6 @@ enum FunctionKind : uint16_t {
   kArrowFunction = 1 << 0,
   kGeneratorFunction = 1 << 1,
   kConciseMethod = 1 << 2,
-  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kDefaultConstructor = 1 << 3,
   kDerivedConstructor = 1 << 4,
   kBaseConstructor = 1 << 5,
@@ -1103,6 +1088,10 @@ enum FunctionKind : uint16_t {
   kSetterFunction = 1 << 7,
   kAsyncFunction = 1 << 8,
   kModule = 1 << 9,
+  kClassFieldsInitializerFunction = 1 << 10 | kConciseMethod,
+  kLastFunctionKind = kClassFieldsInitializerFunction,
+
+  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultDerivedConstructor = kDefaultConstructor | kDerivedConstructor,
@@ -1134,7 +1123,8 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kAsyncArrowFunction ||
          kind == FunctionKind::kAsyncConciseMethod ||
          kind == FunctionKind::kAsyncConciseGeneratorMethod ||
-         kind == FunctionKind::kAsyncGeneratorFunction;
+         kind == FunctionKind::kAsyncGeneratorFunction ||
+         kind == FunctionKind::kClassFieldsInitializerFunction;
 }
 
 
@@ -1212,6 +1202,11 @@ inline bool IsClassConstructor(FunctionKind kind) {
   return (kind & FunctionKind::kClassConstructor) != 0;
 }
 
+inline bool IsClassFieldsInitializerFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind == FunctionKind::kClassFieldsInitializerFunction;
+}
+
 inline bool IsConstructable(FunctionKind kind) {
   if (IsAccessorFunction(kind)) return false;
   if (IsConciseMethod(kind)) return false;
@@ -1254,13 +1249,17 @@ inline uint32_t ObjectHash(Address address) {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
-//                                                   kString          -> kAny
-// TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
-// similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
-// information about Number might reduce few instructions but causes more
-// deopts. We collect Number only because crankshaft does not handle all
-// cases of oddballs.
+//
+//   kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
+//                                                     kString          -> kAny
+//                                                     kBigInt          -> kAny
+//
+// Technically we wouldn't need the separation between the kNumber and the
+// kNumberOrOddball values here, since for binary operations, we always
+// truncate oddballs to numbers. In practice though it causes TurboFan to
+// generate quite a lot of unused code though if we always handle numbers
+// and oddballs everywhere, although in 99% of the use sites they are only
+// used with numbers.
 class BinaryOperationFeedback {
  public:
   enum {
@@ -1270,18 +1269,23 @@ class BinaryOperationFeedback {
     kNumber = 0x7,
     kNumberOrOddball = 0xF,
     kString = 0x10,
-    kAny = 0x3F
+    kBigInt = 0x20,
+    kAny = 0x7F
   };
 };
 
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall        -> kNumber   -> kAny
-// kInternalizedString -> kString   -> kAny
-//                        kSymbol   -> kAny
-//                        kReceiver -> kAny
-// TODO(epertoso): consider unifying this with BinaryOperationFeedback.
+//
+//   kSignedSmall -> kNumber             -> kNumberOrOddball -> kAny
+//                   kInternalizedString -> kString          -> kAny
+//                                          kSymbol          -> kAny
+//                                          kBigInt          -> kAny
+//                                          kReceiver        -> kAny
+//
+// This is distinct from BinaryOperationFeedback on purpose, because the
+// feedback that matters differs greatly as well as the way it is consumed.
 class CompareOperationFeedback {
  public:
   enum {
@@ -1292,10 +1296,60 @@ class CompareOperationFeedback {
     kInternalizedString = 0x8,
     kString = 0x18,
     kSymbol = 0x20,
+    kBigInt = 0x30,
     kReceiver = 0x40,
     kAny = 0xff
   };
 };
+
+enum class Operation {
+  // Binary operations.
+  kAdd,
+  kSubtract,
+  kMultiply,
+  kDivide,
+  kModulus,
+  kExponentiate,
+  kBitwiseAnd,
+  kBitwiseOr,
+  kBitwiseXor,
+  kShiftLeft,
+  kShiftRight,
+  kShiftRightLogical,
+  // Unary operations.
+  kBitwiseNot,
+  kNegate,
+  kIncrement,
+  kDecrement,
+  // Compare operations.
+  kEqual,
+  kStrictEqual,
+  kLessThan,
+  kLessThanOrEqual,
+  kGreaterThan,
+  kGreaterThanOrEqual,
+};
+
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kNone -> kEnumCacheKeysAndIndices -> kEnumCacheKeys -> kAny
+class ForInFeedback {
+ public:
+  enum {
+    kNone = 0x0,
+    kEnumCacheKeysAndIndices = 0x1,
+    kEnumCacheKeys = 0x3,
+    kAny = 0x7
+  };
+};
+STATIC_ASSERT((ForInFeedback::kNone |
+               ForInFeedback::kEnumCacheKeysAndIndices) ==
+              ForInFeedback::kEnumCacheKeysAndIndices);
+STATIC_ASSERT((ForInFeedback::kEnumCacheKeysAndIndices |
+               ForInFeedback::kEnumCacheKeys) == ForInFeedback::kEnumCacheKeys);
+STATIC_ASSERT((ForInFeedback::kEnumCacheKeys | ForInFeedback::kAny) ==
+              ForInFeedback::kAny);
 
 enum class UnicodeEncoding : uint8_t {
   // Different unicode encodings in a |word32|:
@@ -1369,6 +1423,7 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 enum class OptimizationMarker {
+  kLogFirstExecution,
   kNone,
   kCompileOptimized,
   kCompileOptimizedConcurrent,
@@ -1378,6 +1433,8 @@ enum class OptimizationMarker {
 inline std::ostream& operator<<(std::ostream& os,
                                 const OptimizationMarker& marker) {
   switch (marker) {
+    case OptimizationMarker::kLogFirstExecution:
+      return os << "OptimizationMarker::kLogFirstExecution";
     case OptimizationMarker::kNone:
       return os << "OptimizationMarker::kNone";
     case OptimizationMarker::kCompileOptimized:
@@ -1391,21 +1448,37 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                SpeculationMode speculation_mode) {
+  switch (speculation_mode) {
+    case SpeculationMode::kAllowSpeculation:
+      return os << "SpeculationMode::kAllowSpeculation";
+    case SpeculationMode::kDisallowSpeculation:
+      return os << "SpeculationMode::kDisallowSpeculation";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
 
-#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                \
-  C(Handler, handler)                                   \
-  C(CEntryFP, c_entry_fp)                               \
-  C(CFunction, c_function)                              \
-  C(Context, context)                                   \
-  C(PendingException, pending_exception)                \
-  C(PendingHandlerContext, pending_handler_context)     \
-  C(PendingHandlerCode, pending_handler_code)           \
-  C(PendingHandlerOffset, pending_handler_offset)       \
-  C(PendingHandlerFP, pending_handler_fp)               \
-  C(PendingHandlerSP, pending_handler_sp)               \
-  C(ExternalCaughtException, external_caught_exception) \
-  C(JSEntrySP, js_entry_sp)
+#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                       \
+  C(Handler, handler)                                          \
+  C(CEntryFP, c_entry_fp)                                      \
+  C(CFunction, c_function)                                     \
+  C(Context, context)                                          \
+  C(PendingException, pending_exception)                       \
+  C(PendingHandlerContext, pending_handler_context)            \
+  C(PendingHandlerEntrypoint, pending_handler_entrypoint)      \
+  C(PendingHandlerConstantPool, pending_handler_constant_pool) \
+  C(PendingHandlerFP, pending_handler_fp)                      \
+  C(PendingHandlerSP, pending_handler_sp)                      \
+  C(ExternalCaughtException, external_caught_exception)        \
+  C(JSEntrySP, js_entry_sp)                                    \
+  C(MicrotaskQueueBailoutIndex, microtask_queue_bailout_index) \
+  C(MicrotaskQueueBailoutCount, microtask_queue_bailout_count)
 
 enum IsolateAddressId {
 #define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,
@@ -1416,10 +1489,6 @@ enum IsolateAddressId {
 
 }  // namespace internal
 }  // namespace v8
-
-// Used by js-builtin-reducer to identify whether ReduceArrayIterator() is
-// reducing a JSArray method, or a JSTypedArray method.
-enum class ArrayIteratorKind { kArray, kTypedArray };
 
 namespace i = v8::internal;
 

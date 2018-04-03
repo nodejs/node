@@ -47,7 +47,7 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
       } else if (result_size == 2) {
         key = kCEntryStub2Constant;
       } else {
-        DCHECK(result_size == 3);
+        DCHECK_EQ(3, result_size);
         key = kCEntryStub3Constant;
       }
       return CACHED(
@@ -304,7 +304,6 @@ Node* JSGraph::SingleDeadTypedStateValues() {
 Node* JSGraph::Dead() {
   return CACHED(kDead, graph()->NewNode(common()->Dead()));
 }
-
 
 void JSGraph::GetCachedNodes(NodeVector* nodes) {
   cache_.GetCachedNodes(nodes);

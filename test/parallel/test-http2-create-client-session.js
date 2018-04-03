@@ -5,6 +5,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+const Countdown = require('../common/countdown');
+
 const body =
   '<html><head></head><body><h1>this is some data</h2></body></html>';
 
@@ -23,27 +25,40 @@ function onStream(stream, headers, flags) {
     'content-type': 'text/html',
     ':status': 200
   });
-  stream.end(body);
+  stream.write(body.slice(0, 20));
+  stream.end(body.slice(20));
 }
+
+server.on('close', common.mustCall());
 
 server.listen(0);
 
-let expected = count;
+server.on('listening', common.mustCall(() => {
 
-server.on('listening', common.mustCall(function() {
+  const client = h2.connect(`http://localhost:${server.address().port}`);
+  client.setMaxListeners(101);
 
-  const client = h2.connect(`http://localhost:${this.address().port}`);
+  client.on('goaway', console.log);
 
-  const headers = { ':path': '/' };
+  client.on('connect', common.mustCall(() => {
+    assert(!client.encrypted);
+    assert(!client.originSet);
+    assert.strictEqual(client.alpnProtocol, 'h2c');
+  }));
+
+  const countdown = new Countdown(count, () => {
+    client.close();
+    server.close(common.mustCall());
+  });
 
   for (let n = 0; n < count; n++) {
-    const req = client.request(headers);
+    const req = client.request();
 
     req.on('response', common.mustCall(function(headers) {
       assert.strictEqual(headers[':status'], 200, 'status code is set');
       assert.strictEqual(headers['content-type'], 'text/html',
                          'content type is set');
-      assert(headers['date'], 'there is a date');
+      assert(headers.date);
     }));
 
     let data = '';
@@ -51,12 +66,7 @@ server.on('listening', common.mustCall(function() {
     req.on('data', (d) => data += d);
     req.on('end', common.mustCall(() => {
       assert.strictEqual(body, data);
-      if (--expected === 0) {
-        server.close();
-        client.destroy();
-      }
     }));
-    req.end();
+    req.on('close', common.mustCall(() => countdown.dec()));
   }
-
 }));

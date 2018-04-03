@@ -63,19 +63,20 @@ IsolateData::IsolateData(TaskRunner* task_runner,
   params.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   params.snapshot_blob = startup_data;
-  isolate_ = v8::Isolate::New(params);
+  isolate_.reset(v8::Isolate::New(params));
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   if (with_inspector) {
     isolate_->AddMessageListener(&IsolateData::MessageHandler);
     isolate_->SetPromiseRejectCallback(&IsolateData::PromiseRejectHandler);
-    inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
+    inspector_ = v8_inspector::V8Inspector::create(isolate_.get(), this);
   }
-  v8::HandleScope handle_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_.get());
   not_inspectable_private_.Reset(
-      isolate_, v8::Private::ForApi(isolate_, v8::String::NewFromUtf8(
-                                                  isolate_, "notInspectable",
-                                                  v8::NewStringType::kNormal)
-                                                  .ToLocalChecked()));
+      isolate_.get(),
+      v8::Private::ForApi(isolate_.get(), v8::String::NewFromUtf8(
+                                              isolate_.get(), "notInspectable",
+                                              v8::NewStringType::kNormal)
+                                              .ToLocalChecked()));
 }
 
 IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
@@ -84,27 +85,27 @@ IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
 }
 
 int IsolateData::CreateContextGroup() {
-  v8::HandleScope handle_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_.get());
   v8::Local<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(isolate_);
+      v8::ObjectTemplate::New(isolate_.get());
   for (auto it = setup_global_tasks_.begin(); it != setup_global_tasks_.end();
        ++it) {
-    (*it)->Run(isolate_, global_template);
+    (*it)->Run(isolate_.get(), global_template);
   }
   v8::Local<v8::Context> context =
-      v8::Context::New(isolate_, nullptr, global_template);
+      v8::Context::New(isolate_.get(), nullptr, global_template);
   context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this);
   int context_group_id = ++last_context_group_id_;
   // Should be 2-byte aligned.
   context->SetAlignedPointerInEmbedderData(
       kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2));
-  contexts_[context_group_id].Reset(isolate_, context);
+  contexts_[context_group_id].Reset(isolate_.get(), context);
   if (inspector_) FireContextCreated(context, context_group_id);
   return context_group_id;
 }
 
 v8::Local<v8::Context> IsolateData::GetContext(int context_group_id) {
-  return contexts_[context_group_id].Get(isolate_);
+  return contexts_[context_group_id].Get(isolate_.get());
 }
 
 int IsolateData::GetContextGroupId(v8::Local<v8::Context> context) {
@@ -126,7 +127,7 @@ void IsolateData::RegisterModule(v8::Local<v8::Context> context,
   }
   v8::Local<v8::Value> result;
   if (!module->Evaluate(context).ToLocal(&result)) return;
-  modules_[name] = v8::Global<v8::Module>(isolate_, module);
+  modules_[name] = v8::Global<v8::Module>(isolate_.get(), module);
 }
 
 // static
@@ -134,8 +135,8 @@ v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
     v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
     v8::Local<v8::Module> referrer) {
   IsolateData* data = IsolateData::FromContext(context);
-  std::string str = *v8::String::Utf8Value(data->isolate_, specifier);
-  return data->modules_[ToVector(specifier)].Get(data->isolate_);
+  std::string str = *v8::String::Utf8Value(data->isolate(), specifier);
+  return data->modules_[ToVector(specifier)].Get(data->isolate());
 }
 
 int IsolateData::ConnectSession(int context_group_id,
@@ -202,11 +203,27 @@ void IsolateData::AsyncTaskFinished(void* task) {
   inspector_->asyncTaskFinished(task);
 }
 
+v8_inspector::V8StackTraceId IsolateData::StoreCurrentStackTrace(
+    const v8_inspector::StringView& description) {
+  return inspector_->storeCurrentStackTrace(description);
+}
+
+void IsolateData::ExternalAsyncTaskStarted(
+    const v8_inspector::V8StackTraceId& parent) {
+  inspector_->externalAsyncTaskStarted(parent);
+}
+
+void IsolateData::ExternalAsyncTaskFinished(
+    const v8_inspector::V8StackTraceId& parent) {
+  inspector_->externalAsyncTaskFinished(parent);
+}
+
 void IsolateData::AddInspectedObject(int session_id,
                                      v8::Local<v8::Value> object) {
   auto it = sessions_.find(session_id);
   if (it == sessions_.end()) return;
-  std::unique_ptr<Inspectable> inspectable(new Inspectable(isolate_, object));
+  std::unique_ptr<Inspectable> inspectable(
+      new Inspectable(isolate_.get(), object));
   it->second->addInspectedObject(std::move(inspectable));
 }
 
@@ -359,15 +376,19 @@ void IsolateData::SetCurrentTimeMS(double time) {
 
 double IsolateData::currentTimeMS() {
   if (current_time_set_) return current_time_;
-  return v8::base::OS::TimeCurrentMillis();
+  return v8::internal::V8::GetCurrentPlatform()->CurrentClockTimeMillis();
 }
 
 void IsolateData::SetMemoryInfo(v8::Local<v8::Value> memory_info) {
-  memory_info_.Reset(isolate_, memory_info);
+  memory_info_.Reset(isolate_.get(), memory_info);
 }
 
 void IsolateData::SetLogConsoleApiMessageCalls(bool log) {
   log_console_api_message_calls_ = log;
+}
+
+void IsolateData::SetLogMaxAsyncCallStackDepthChanged(bool log) {
+  log_max_async_call_stack_depth_changed_ = log;
 }
 
 v8::MaybeLocal<v8::Value> IsolateData::memoryInfo(v8::Isolate* isolate,
@@ -389,10 +410,15 @@ void IsolateData::consoleAPIMessage(int contextGroupId,
                                     unsigned lineNumber, unsigned columnNumber,
                                     v8_inspector::V8StackTrace* stack) {
   if (!log_console_api_message_calls_) return;
-  Print(isolate_, message);
+  Print(isolate_.get(), message);
   fprintf(stdout, " (");
-  Print(isolate_, url);
+  Print(isolate_.get(), url);
   fprintf(stdout, ":%d:%d)", lineNumber, columnNumber);
-  Print(isolate_, stack->toString()->string());
+  Print(isolate_.get(), stack->toString()->string());
   fprintf(stdout, "\n");
+}
+
+void IsolateData::maxAsyncCallStackDepthChanged(int depth) {
+  if (!log_max_async_call_stack_depth_changed_) return;
+  fprintf(stdout, "maxAsyncCallStackDepthChanged: %d\n", depth);
 }

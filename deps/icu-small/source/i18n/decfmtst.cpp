@@ -71,7 +71,7 @@ static const UChar gStrictDashEquivalentsPattern[] = {
         // [       \      -      MINUS     ]
         0x005B, 0x005C, 0x002D, 0x2212, 0x005D, 0x0000};
 
-static UChar32 gMinusSigns[] = {
+static const UChar32 gMinusSigns[] = {
     0x002D,
     0x207B,
     0x208B,
@@ -80,7 +80,7 @@ static UChar32 gMinusSigns[] = {
     0xFE63,
     0xFF0D};
 
-static UChar32 gPlusSigns[] = {
+static const UChar32 gPlusSigns[] = {
     0x002B,
     0x207A,
     0x208A,

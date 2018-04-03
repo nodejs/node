@@ -11,63 +11,59 @@ const bench = common.createBenchmark(main, {
   millions: [1]
 });
 
-function runObject(n) {
+function runObject(millions) {
   const m = {};
-  var i = 0;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
     m[`i${i}`] = undefined;
     m[`s${i}`] = undefined;
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function runNullProtoObject(n) {
+function runNullProtoObject(millions) {
   const m = Object.create(null);
-  var i = 0;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
     m[`i${i}`] = undefined;
     m[`s${i}`] = undefined;
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function runNullProtoLiteralObject(n) {
+function runNullProtoLiteralObject(millions) {
   const m = { __proto__: null };
-  var i = 0;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
     m[`i${i}`] = undefined;
     m[`s${i}`] = undefined;
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
 function StorageObject() {}
 StorageObject.prototype = Object.create(null);
 
-function runStorageObject(n) {
+function runStorageObject(millions) {
   const m = new StorageObject();
-  var i = 0;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
     m[`i${i}`] = undefined;
     m[`s${i}`] = undefined;
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
 function fakeMap() {
@@ -80,59 +76,55 @@ function fakeMap() {
   };
 }
 
-function runFakeMap(n) {
+function runFakeMap(millions) {
   const m = fakeMap();
-  var i = 0;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     m.set(`i${i}`, i);
     m.set(`s${i}`, String(i));
     assert.strictEqual(String(m.get(`i${i}`)), m.get(`s${i}`));
     m.set(`i${i}`, undefined);
     m.set(`s${i}`, undefined);
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function runMap(n) {
+function runMap(millions) {
   const m = new Map();
-  var i = 0;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     m.set(`i${i}`, i);
     m.set(`s${i}`, String(i));
     assert.strictEqual(String(m.get(`i${i}`)), m.get(`s${i}`));
     m.set(`i${i}`, undefined);
     m.set(`s${i}`, undefined);
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
+function main({ millions, method }) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'object':
-      runObject(n);
+      runObject(millions);
       break;
     case 'nullProtoObject':
-      runNullProtoObject(n);
+      runNullProtoObject(millions);
       break;
     case 'nullProtoLiteralObject':
-      runNullProtoLiteralObject(n);
+      runNullProtoLiteralObject(millions);
       break;
     case 'storageObject':
-      runStorageObject(n);
+      runStorageObject(millions);
       break;
     case 'fakeMap':
-      runFakeMap(n);
+      runFakeMap(millions);
       break;
     case 'map':
-      runMap(n);
+      runMap(millions);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

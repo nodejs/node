@@ -18,13 +18,12 @@ const bench = common.createBenchmark(main, {
   n: [1e5]
 });
 
-function main(conf) {
-  const n = conf.n | 0;
-  const href = hrefs[conf.href];
-  const path = paths[conf.path];
+function main({ n, href, path }) {
+  const h = hrefs[href];
+  const p = paths[path];
 
   bench.start();
   for (var i = 0; i < n; i += 1)
-    url.resolve(href, path);
+    url.resolve(h, p);
   bench.end(n);
 }

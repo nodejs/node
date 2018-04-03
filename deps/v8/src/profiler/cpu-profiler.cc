@@ -4,6 +4,9 @@
 
 #include "src/profiler/cpu-profiler.h"
 
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/template-utils.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
@@ -129,7 +132,7 @@ ProfilerEventsProcessor::SampleProcessingResult
   }
 
   const TickSampleEventRecord* record = ticks_buffer_.Peek();
-  if (record == NULL) {
+  if (record == nullptr) {
     if (ticks_from_vm_buffer_.IsEmpty()) return NoSamplesInQueue;
     return FoundSampleForNextCodeEvent;
   }
@@ -162,16 +165,19 @@ void ProfilerEventsProcessor::Run() {
 
     if (nextSampleTime > now) {
 #if V8_OS_WIN
-      // Do not use Sleep on Windows as it is very imprecise.
-      // Could be up to 16ms jitter, which is unacceptable for the purpose.
-      while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
-      }
-#else
-      base::OS::Sleep(nextSampleTime - now);
+      if (nextSampleTime - now < base::TimeDelta::FromMilliseconds(100)) {
+        // Do not use Sleep on Windows as it is very imprecise, with up to 16ms
+        // jitter, which is unacceptable for short profile intervals.
+        while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
+        }
+      } else  // NOLINT
 #endif
+      {
+        base::OS::Sleep(nextSampleTime - now);
+      }
     }
 
-    // Schedule next sample. sampler_ is NULL in tests.
+    // Schedule next sample. sampler_ is nullptr in tests.
     if (sampler_) sampler_->DoSample();
   }
 
@@ -197,7 +203,7 @@ void ProfilerEventsProcessor::operator delete(void* ptr) {
 
 int CpuProfiler::GetProfilesCount() {
   // The count of profiles doesn't depend on a security token.
-  return profiles_->profiles()->length();
+  return static_cast<int>(profiles_->profiles()->size());
 }
 
 
@@ -215,7 +221,7 @@ void CpuProfiler::DeleteAllProfiles() {
 void CpuProfiler::DeleteProfile(CpuProfile* profile) {
   profiles_->RemoveProfile(profile);
   delete profile;
-  if (profiles_->profiles()->is_empty() && !is_profiling_) {
+  if (profiles_->profiles()->empty() && !is_profiling_) {
     // If this was the last profile, clean up all accessory data as well.
     ResetProfiles();
   }
@@ -241,14 +247,50 @@ void CpuProfiler::CodeEventHandler(const CodeEventsContainer& evt_rec) {
   }
 }
 
+namespace {
+
+class CpuProfilersManager {
+ public:
+  void AddProfiler(Isolate* isolate, CpuProfiler* profiler) {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    auto result = profilers_.insert(
+        std::pair<Isolate*, std::unique_ptr<std::set<CpuProfiler*>>>(
+            isolate, base::make_unique<std::set<CpuProfiler*>>()));
+    result.first->second->insert(profiler);
+  }
+
+  void RemoveProfiler(Isolate* isolate, CpuProfiler* profiler) {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    auto it = profilers_.find(isolate);
+    DCHECK(it != profilers_.end());
+    it->second->erase(profiler);
+    if (it->second->empty()) {
+      profilers_.erase(it);
+    }
+  }
+
+  void CallCollectSample(Isolate* isolate) {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    auto profilers = profilers_.find(isolate);
+    if (profilers == profilers_.end()) return;
+    for (auto it : *profilers->second) {
+      it->CollectSample();
+    }
+  }
+
+ private:
+  std::map<Isolate*, std::unique_ptr<std::set<CpuProfiler*>>> profilers_;
+  base::Mutex mutex_;
+};
+
+base::LazyInstance<CpuProfilersManager>::type g_profilers_manager =
+    LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
+
 CpuProfiler::CpuProfiler(Isolate* isolate)
-    : isolate_(isolate),
-      sampling_interval_(base::TimeDelta::FromMicroseconds(
-          FLAG_cpu_profiler_sampling_interval)),
-      profiles_(new CpuProfilesCollection(isolate)),
-      is_profiling_(false) {
-  profiles_->set_cpu_profiler(this);
-}
+    : CpuProfiler(isolate, new CpuProfilesCollection(isolate), nullptr,
+                  nullptr) {}
 
 CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilesCollection* test_profiles,
                          ProfileGenerator* test_generator,
@@ -261,10 +303,12 @@ CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilesCollection* test_profiles,
       processor_(test_processor),
       is_profiling_(false) {
   profiles_->set_cpu_profiler(this);
+  g_profilers_manager.Pointer()->AddProfiler(isolate, this);
 }
 
 CpuProfiler::~CpuProfiler() {
   DCHECK(!is_profiling_);
+  g_profilers_manager.Pointer()->RemoveProfiler(isolate_, this);
 }
 
 void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
@@ -281,8 +325,8 @@ void CpuProfiler::CreateEntriesForRuntimeCallStats() {
   static_entries_.clear();
   RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
   CodeMap* code_map = generator_->code_map();
-  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
-    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
+  for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
+    RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
     std::unique_ptr<CodeEntry> entry(
         new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
@@ -290,6 +334,11 @@ void CpuProfiler::CreateEntriesForRuntimeCallStats() {
     code_map->AddCode(reinterpret_cast<Address>(counter), entry.get(), 1);
     static_entries_.push_back(std::move(entry));
   }
+}
+
+// static
+void CpuProfiler::CollectSample(Isolate* isolate) {
+  g_profilers_manager.Pointer()->CallCollectSample(isolate);
 }
 
 void CpuProfiler::CollectSample() {

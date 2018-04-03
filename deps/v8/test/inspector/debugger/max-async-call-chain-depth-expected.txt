@@ -62,7 +62,7 @@ Running test: testConsoleTraceWithEmptySync
                 url : 
             }
         ]
-        description : Promise.resolve
+        description : Promise.then
     }
 }
 

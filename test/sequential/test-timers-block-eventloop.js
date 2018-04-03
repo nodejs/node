@@ -1,22 +1,18 @@
 'use strict';
 
 const common = require('../common');
-const fs = require('fs');
+const assert = require('assert');
 
+let called = false;
 const t1 = setInterval(() => {
-  common.busyLoop(12);
+  assert(!called);
+  called = true;
+  setImmediate(common.mustCall(() => {
+    clearInterval(t1);
+    clearInterval(t2);
+  }));
 }, 10);
 
 const t2 = setInterval(() => {
-  common.busyLoop(15);
+  common.busyLoop(20);
 }, 10);
-
-const t3 = setTimeout(common.mustNotCall('eventloop blocked!'), 100);
-
-setTimeout(function() {
-  fs.stat('./nonexistent.txt', (err, stats) => {
-    clearInterval(t1);
-    clearInterval(t2);
-    clearTimeout(t3);
-  });
-}, 50);

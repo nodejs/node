@@ -10,10 +10,13 @@
     <div id="wrapper">
 
 <h1><a href="../misc/semver.html">semver</a></h1> <p>The semantic versioner for npm</p>
+<h2 id="install">Install</h2>
+<pre><code class="lang-bash">npm install --save semver
+`
+</code></pre>
 <h2 id="usage">Usage</h2>
-<pre><code>$ npm install semver
-$ node
-var semver = require(&#39;semver&#39;)
+<p>As a node module:</p>
+<pre><code class="lang-js">const semver = require(&#39;semver&#39;)
 
 semver.valid(&#39;1.2.3&#39;) // &#39;1.2.3&#39;
 semver.valid(&#39;a.b.c&#39;) // null
@@ -21,10 +24,11 @@ semver.clean(&#39;  =v1.2.3   &#39;) // &#39;1.2.3&#39;
 semver.satisfies(&#39;1.2.3&#39;, &#39;1.x || &gt;=2.5.0 || 5.0.0 - 7.2.3&#39;) // true
 semver.gt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // false
 semver.lt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // true
-</code></pre><p>As a command-line utility:</p>
+</code></pre>
+<p>As a command-line utility:</p>
 <pre><code>$ semver -h
 
-SemVer 5.1.0
+SemVer 5.3.0
 
 A JavaScript implementation of the http://semver.org/ specification
 Copyright Isaac Z. Schlueter
@@ -113,15 +117,15 @@ similar risk on the <em>next</em> set of prerelease versions.</p>
 <h4 id="prerelease-identifiers">Prerelease Identifiers</h4>
 <p>The method <code>.inc</code> takes an additional <code>identifier</code> string argument that
 will append the value of the string as a prerelease identifier:</p>
-<pre><code class="lang-javascript">&gt; semver.inc(&#39;1.2.3&#39;, &#39;prerelease&#39;, &#39;beta&#39;)
-&#39;1.2.4-beta.0&#39;
+<pre><code class="lang-javascript">semver.inc(&#39;1.2.3&#39;, &#39;prerelease&#39;, &#39;beta&#39;)
+// &#39;1.2.4-beta.0&#39;
 </code></pre>
 <p>command-line example:</p>
-<pre><code class="lang-shell">$ semver 1.2.3 -i prerelease --preid beta
+<pre><code class="lang-bash">$ semver 1.2.3 -i prerelease --preid beta
 1.2.4-beta.0
 </code></pre>
 <p>Which then can be used to increment further:</p>
-<pre><code class="lang-shell">$ semver 1.2.4-beta.0 -i prerelease
+<pre><code class="lang-bash">$ semver 1.2.4-beta.0 -i prerelease
 1.2.4-beta.1
 </code></pre>
 <h3 id="advanced-range-syntax">Advanced Range Syntax</h3>
@@ -263,6 +267,8 @@ if none exist. Example: <code>prerelease(&#39;1.2.3-alpha.1&#39;) -&gt; [&#39;al
 <li><code>major(v)</code>: Return the major version number.</li>
 <li><code>minor(v)</code>: Return the minor version number.</li>
 <li><code>patch(v)</code>: Return the patch version number.</li>
+<li><code>intersects(r1, r2, loose)</code>: Return true if the two supplied ranges
+or comparators intersect.</li>
 </ul>
 <h3 id="comparison">Comparison</h3>
 <ul>
@@ -286,6 +292,10 @@ in descending order when passed to <code>Array.sort()</code>.</li>
 (<code>major</code>, <code>premajor</code>, <code>minor</code>, <code>preminor</code>, <code>patch</code>, <code>prepatch</code>, or <code>prerelease</code>),
 or null if the versions are the same.</li>
 </ul>
+<h3 id="comparators">Comparators</h3>
+<ul>
+<li><code>intersects(comparator)</code>: Return true if the comparators intersect</li>
+</ul>
 <h3 id="ranges">Ranges</h3>
 <ul>
 <li><code>validRange(range)</code>: Return the valid range or null if it&#39;s not valid</li>
@@ -303,6 +313,7 @@ versions possible in the range.</li>
 the bounds of the range in either the high or low direction.  The
 <code>hilo</code> argument must be either the string <code>&#39;&gt;&#39;</code> or <code>&#39;&lt;&#39;</code>.  (This is
 the function called by <code>gtr</code> and <code>ltr</code>.)</li>
+<li><code>intersects(range)</code>: Return true if any of the ranges comparators intersect</li>
 </ul>
 <p>Note that, since ranges may be non-contiguous, a version might not be
 greater than a range, less than a range, <em>or</em> satisfy a range!  For
@@ -325,5 +336,5 @@ range, use the <code>satisfies(version, range)</code> function.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@5.3.0</p>
+<p id="footer">semver &mdash; npm@5.6.0</p>
 

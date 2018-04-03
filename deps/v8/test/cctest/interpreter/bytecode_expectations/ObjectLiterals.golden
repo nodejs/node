@@ -75,8 +75,8 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(1), U8(41), R(1),
-  /*   69 E> */ B(AddSmi), I8(1), U8(0),
+  /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
+  /*   69 E> */ B(AddSmi), I8(1), U8(1),
                 B(StaNamedOwnProperty), R(1), U8(1), U8(2),
                 B(Ldar), R(1),
   /*   75 S> */ B(Return),
@@ -97,8 +97,8 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(1), U8(41), R(0),
-                B(CreateClosure), U8(1), U8(0), U8(2),
+  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
+                B(CreateClosure), U8(1), U8(1), U8(2),
                 B(StaNamedOwnProperty), R(0), U8(2), U8(2),
                 B(Ldar), R(0),
   /*   66 S> */ B(Return),
@@ -120,8 +120,8 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(1), U8(41), R(0),
-                B(CreateClosure), U8(1), U8(0), U8(2),
+  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
+                B(CreateClosure), U8(1), U8(1), U8(2),
                 B(StaNamedOwnProperty), R(0), U8(2), U8(2),
                 B(Ldar), R(0),
   /*   67 S> */ B(Return),
@@ -143,10 +143,10 @@ parameter count: 1
 bytecode array length: 33
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(1), U8(41), R(0),
+  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
                 B(LdaConstant), U8(1),
                 B(Star), R(2),
-                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(3),
                 B(LdaNull),
                 B(Star), R(4),
@@ -174,12 +174,12 @@ parameter count: 1
 bytecode array length: 36
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(41), R(0),
+  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
                 B(LdaConstant), U8(1),
                 B(Star), R(2),
-                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(3),
-                B(CreateClosure), U8(3), U8(1), U8(2),
+                B(CreateClosure), U8(3), U8(2), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
@@ -206,12 +206,12 @@ parameter count: 1
 bytecode array length: 33
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(1), U8(41), R(0),
+  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(0),
                 B(LdaConstant), U8(1),
                 B(Star), R(2),
                 B(LdaNull),
                 B(Star), R(3),
-                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
@@ -306,13 +306,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41), R(1),
   /*   64 E> */ B(StaNamedOwnProperty), R(1), U8(2), U8(1),
+                B(Ldar), R(0),
   /*   68 E> */ B(ToName), R(2),
                 B(LdaSmi), I8(1),
                 B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(3),
@@ -338,10 +339,10 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-  /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(1), U8(41), R(1),
+  /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41), R(1),
   /*   60 E> */ B(ToName), R(2),
                 B(LdaSmi), I8(1),
-                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(2),
+                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
                 B(CreateEmptyObjectLiteral),
                 B(Star), R(3),
                 B(Mov), R(1), R(2),
@@ -367,13 +368,13 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-  /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(2), U8(41), R(1),
+  /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41), R(1),
   /*   60 E> */ B(ToName), R(2),
                 B(LdaConstant), U8(2),
-                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(3),
+                B(StaDataPropertyInLiteral), R(1), R(2), U8(0), U8(1),
                 B(LdaConstant), U8(3),
                 B(Star), R(3),
-                B(CreateClosure), U8(4), U8(0), U8(2),
+                B(CreateClosure), U8(4), U8(3), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
@@ -381,7 +382,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked), R(2), U8(4),
                 B(LdaConstant), U8(3),
                 B(Star), R(3),
-                B(CreateClosure), U8(5), U8(1), U8(2),
+                B(CreateClosure), U8(5), U8(4), U8(2),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),

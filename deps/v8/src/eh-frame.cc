@@ -78,7 +78,7 @@ EhFrameWriter::EhFrameWriter(Zone* zone)
       eh_frame_buffer_(zone) {}
 
 void EhFrameWriter::Initialize() {
-  DCHECK(writer_state_ == InternalState::kUndefined);
+  DCHECK_EQ(writer_state_, InternalState::kUndefined);
   eh_frame_buffer_.reserve(128);
   writer_state_ = InternalState::kInitialized;
   WriteCie();
@@ -154,7 +154,7 @@ void EhFrameWriter::WriteFdeHeader() {
 }
 
 void EhFrameWriter::WriteEhFrameHdr(int code_size) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
 
   //
   // In order to calculate offsets in the .eh_frame_hdr, we must know the layout
@@ -236,7 +236,7 @@ void EhFrameWriter::WriteEhFrameHdr(int code_size) {
 }
 
 void EhFrameWriter::WritePaddingToAlignedSize(int unpadded_size) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_GE(unpadded_size, 0);
 
   int padding_size = RoundUp(unpadded_size, kPointerSize) - unpadded_size;
@@ -248,7 +248,7 @@ void EhFrameWriter::WritePaddingToAlignedSize(int unpadded_size) {
 }
 
 void EhFrameWriter::AdvanceLocation(int pc_offset) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_GE(pc_offset, last_pc_offset_);
   uint32_t delta = pc_offset - last_pc_offset_;
 
@@ -274,7 +274,7 @@ void EhFrameWriter::AdvanceLocation(int pc_offset) {
 }
 
 void EhFrameWriter::SetBaseAddressOffset(int base_offset) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_GE(base_offset, 0);
   WriteOpcode(EhFrameConstants::DwarfOpcodes::kDefCfaOffset);
   WriteULeb128(base_offset);
@@ -282,7 +282,7 @@ void EhFrameWriter::SetBaseAddressOffset(int base_offset) {
 }
 
 void EhFrameWriter::SetBaseAddressRegister(Register base_register) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   int code = RegisterToDwarfCode(base_register);
   WriteOpcode(EhFrameConstants::DwarfOpcodes::kDefCfaRegister);
   WriteULeb128(code);
@@ -291,7 +291,7 @@ void EhFrameWriter::SetBaseAddressRegister(Register base_register) {
 
 void EhFrameWriter::SetBaseAddressRegisterAndOffset(Register base_register,
                                                     int base_offset) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_GE(base_offset, 0);
   int code = RegisterToDwarfCode(base_register);
   WriteOpcode(EhFrameConstants::DwarfOpcodes::kDefCfa);
@@ -302,7 +302,7 @@ void EhFrameWriter::SetBaseAddressRegisterAndOffset(Register base_register,
 }
 
 void EhFrameWriter::RecordRegisterSavedToStack(int register_code, int offset) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_EQ(offset % EhFrameConstants::kDataAlignmentFactor, 0);
   int factored_offset = offset / EhFrameConstants::kDataAlignmentFactor;
   if (factored_offset >= 0) {
@@ -319,13 +319,13 @@ void EhFrameWriter::RecordRegisterSavedToStack(int register_code, int offset) {
 }
 
 void EhFrameWriter::RecordRegisterNotModified(Register name) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   WriteOpcode(EhFrameConstants::DwarfOpcodes::kSameValue);
   WriteULeb128(RegisterToDwarfCode(name));
 }
 
 void EhFrameWriter::RecordRegisterFollowsInitialRule(Register name) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   int code = RegisterToDwarfCode(name);
   DCHECK_LE(code, EhFrameConstants::kFollowInitialRuleMask);
   WriteByte((EhFrameConstants::kFollowInitialRuleTag
@@ -334,7 +334,7 @@ void EhFrameWriter::RecordRegisterFollowsInitialRule(Register name) {
 }
 
 void EhFrameWriter::Finish(int code_size) {
-  DCHECK(writer_state_ == InternalState::kInitialized);
+  DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_GE(eh_frame_offset(), cie_size_);
 
   DCHECK_GE(eh_frame_offset(), fde_offset() + kInt32Size);
@@ -360,14 +360,14 @@ void EhFrameWriter::Finish(int code_size) {
 }
 
 void EhFrameWriter::GetEhFrame(CodeDesc* desc) {
-  DCHECK(writer_state_ == InternalState::kFinalized);
+  DCHECK_EQ(writer_state_, InternalState::kFinalized);
   desc->unwinding_info_size = static_cast<int>(eh_frame_buffer_.size());
   desc->unwinding_info = eh_frame_buffer_.data();
 }
 
 void EhFrameWriter::WriteULeb128(uint32_t value) {
   do {
-    byte chunk = value & 0x7f;
+    byte chunk = value & 0x7F;
     value >>= 7;
     if (value != 0) chunk |= 0x80;
     WriteByte(chunk);
@@ -378,7 +378,7 @@ void EhFrameWriter::WriteSLeb128(int32_t value) {
   static const int kSignBitMask = 0x40;
   bool done;
   do {
-    byte chunk = value & 0x7f;
+    byte chunk = value & 0x7F;
     value >>= 7;
     done = ((value == 0) && ((chunk & kSignBitMask) == 0)) ||
            ((value == -1) && ((chunk & kSignBitMask) != 0));
@@ -412,7 +412,7 @@ uint32_t EhFrameIterator::DecodeULeb128(const byte* encoded,
 
   do {
     DCHECK_LT(shift, 8 * static_cast<int>(sizeof(result)));
-    result |= (*current & 0x7f) << shift;
+    result |= (*current & 0x7F) << shift;
     shift += 7;
   } while (*current++ >= 128);
 
@@ -434,7 +434,7 @@ int32_t EhFrameIterator::DecodeSLeb128(const byte* encoded, int* encoded_size) {
   do {
     chunk = *current++;
     DCHECK_LT(shift, 8 * static_cast<int>(sizeof(result)));
-    result |= (chunk & 0x7f) << shift;
+    result |= (chunk & 0x7F) << shift;
     shift += 7;
   } while (chunk >= 128);
 
@@ -478,7 +478,7 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
 
     byte bytecode = eh_frame_iterator.GetNextByte();
 
-    if (((bytecode >> EhFrameConstants::kLocationMaskSize) & 0xff) ==
+    if (((bytecode >> EhFrameConstants::kLocationMaskSize) & 0xFF) ==
         EhFrameConstants::kLocationTag) {
       int value = (bytecode & EhFrameConstants::kLocationMask) *
                   EhFrameConstants::kCodeAlignmentFactor;
@@ -488,7 +488,7 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
       continue;
     }
 
-    if (((bytecode >> EhFrameConstants::kSavedRegisterMaskSize) & 0xff) ==
+    if (((bytecode >> EhFrameConstants::kSavedRegisterMaskSize) & 0xFF) ==
         EhFrameConstants::kSavedRegisterTag) {
       int32_t decoded_offset = eh_frame_iterator.GetNextULeb128();
       stream << "| " << DwarfRegisterCodeToString(
@@ -499,7 +499,7 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
       continue;
     }
 
-    if (((bytecode >> EhFrameConstants::kFollowInitialRuleMaskSize) & 0xff) ==
+    if (((bytecode >> EhFrameConstants::kFollowInitialRuleMaskSize) & 0xFF) ==
         EhFrameConstants::kFollowInitialRuleTag) {
       stream << "| " << DwarfRegisterCodeToString(
                             bytecode & EhFrameConstants::kLocationMask)

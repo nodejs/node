@@ -9,6 +9,7 @@ const chalk = importLazy('chalk');
 const semverDiff = importLazy('semver-diff');
 const latestVersion = importLazy('latest-version');
 const isNpm = importLazy('is-npm');
+const isInstalledGlobally = importLazy('is-installed-globally');
 const boxen = importLazy('boxen');
 const xdgBasedir = importLazy('xdg-basedir');
 const ONE_DAY = 1000 * 60 * 60 * 24;
@@ -109,7 +110,7 @@ class UpdateNotifier {
 			return this;
 		}
 
-		opts = Object.assign({isGlobal: true}, opts);
+		opts = Object.assign({isGlobal: isInstalledGlobally()}, opts);
 
 		opts.message = opts.message || 'Update available ' + chalk().dim(this.update.current) + chalk().reset(' → ') +
 			chalk().green(this.update.latest) + ' \nRun ' + chalk().cyan('npm i ' + (opts.isGlobal ? '-g ' : '') + this.packageName) + ' to update';

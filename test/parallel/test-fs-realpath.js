@@ -21,6 +21,9 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -29,9 +32,9 @@ let async_completed = 0;
 let async_expected = 0;
 const unlink = [];
 let skipSymlinks = false;
-const tmpDir = common.tmpDir;
+const tmpDir = tmpdir.path;
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 let root = '/';
 let assertEqualPath = assert.strictEqual;
@@ -92,38 +95,38 @@ function asynctest(testBlock, args, callback, assertBlock) {
 }
 
 // sub-tests:
-function test_simple_error_callback(cb) {
-  fs.realpath('/this/path/does/not/exist', common.mustCall(function(err, s) {
+function test_simple_error_callback(realpath, realpathSync, cb) {
+  realpath('/this/path/does/not/exist', common.mustCall(function(err, s) {
     assert(err);
     assert(!s);
     cb();
   }));
 }
 
-function test_simple_relative_symlink(callback) {
+function test_simple_relative_symlink(realpath, realpathSync, callback) {
   console.log('test_simple_relative_symlink');
   if (skipSymlinks) {
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return callback();
   }
   const entry = `${tmpDir}/symlink`;
   const expected = `${tmpDir}/cycles/root.js`;
   [
-    [entry, `../${common.tmpDirName}/cycles/root.js`]
+    [entry, `../${path.basename(tmpDir)}/cycles/root.js`]
   ].forEach(function(t) {
     try { fs.unlinkSync(t[0]); } catch (e) {}
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], t[0], 'file');
     fs.symlinkSync(t[1], t[0], 'file');
     unlink.push(t[0]);
   });
-  const result = fs.realpathSync(entry);
+  const result = realpathSync(entry);
   assertEqualPath(result, path.resolve(expected));
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
+  asynctest(realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
   });
 }
 
-function test_simple_absolute_symlink(callback) {
+function test_simple_absolute_symlink(realpath, realpathSync, callback) {
   console.log('test_simple_absolute_symlink');
 
   // this one should still run, even if skipSymlinks is set,
@@ -133,7 +136,7 @@ function test_simple_absolute_symlink(callback) {
   console.log('using type=%s', type);
 
   const entry = `${tmpAbsDir}/symlink`;
-  const expected = `${common.fixturesDir}/nested-index/one`;
+  const expected = fixtures.path('nested-index', 'one');
   [
     [entry, expected]
   ].forEach(function(t) {
@@ -142,21 +145,21 @@ function test_simple_absolute_symlink(callback) {
     fs.symlinkSync(t[1], t[0], type);
     unlink.push(t[0]);
   });
-  const result = fs.realpathSync(entry);
+  const result = realpathSync(entry);
   assertEqualPath(result, path.resolve(expected));
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
+  asynctest(realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
   });
 }
 
-function test_deep_relative_file_symlink(callback) {
+function test_deep_relative_file_symlink(realpath, realpathSync, callback) {
   console.log('test_deep_relative_file_symlink');
   if (skipSymlinks) {
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return callback();
   }
 
-  const expected = path.join(common.fixturesDir, 'cycles', 'root.js');
+  const expected = fixtures.path('cycles', 'root.js');
   const linkData1 = path
                       .relative(path.join(targetsAbsDir, 'nested-index', 'one'),
                                 expected);
@@ -173,19 +176,19 @@ function test_deep_relative_file_symlink(callback) {
   unlink.push(linkPath1);
   unlink.push(entry);
 
-  assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
+  assertEqualPath(realpathSync(entry), path.resolve(expected));
+  asynctest(realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
   });
 }
 
-function test_deep_relative_dir_symlink(callback) {
+function test_deep_relative_dir_symlink(realpath, realpathSync, callback) {
   console.log('test_deep_relative_dir_symlink');
   if (skipSymlinks) {
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return callback();
   }
-  const expected = path.join(common.fixturesDir, 'cycles', 'folder');
+  const expected = fixtures.path('cycles', 'folder');
   const path1b = path.join(targetsAbsDir, 'nested-index', 'one');
   const linkPath1b = path.join(path1b, 'symlink1-dir');
   const linkData1b = path.relative(path1b, expected);
@@ -200,18 +203,18 @@ function test_deep_relative_dir_symlink(callback) {
   unlink.push(linkPath1b);
   unlink.push(entry);
 
-  assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
+  assertEqualPath(realpathSync(entry), path.resolve(expected));
 
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
+  asynctest(realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
   });
 }
 
-function test_cyclic_link_protection(callback) {
+function test_cyclic_link_protection(realpath, realpathSync, callback) {
   console.log('test_cyclic_link_protection');
   if (skipSymlinks) {
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return callback();
   }
   const entry = path.join(tmpDir, '/cycles/realpath-3a');
   [
@@ -223,25 +226,25 @@ function test_cyclic_link_protection(callback) {
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  assert.throws(() => {
-    fs.realpathSync(entry);
-  }, common.expectsError({ code: 'ELOOP', type: Error }));
+  common.expectsError(() => {
+    realpathSync(entry);
+  }, { code: 'ELOOP', type: Error });
   asynctest(
-    fs.realpath, [entry], callback, common.mustCall(function(err, result) {
+    realpath, [entry], callback, common.mustCall(function(err, result) {
       assert.strictEqual(err.path, entry);
       assert.strictEqual(result, undefined);
       return true;
     }));
 }
 
-function test_cyclic_link_overprotection(callback) {
+function test_cyclic_link_overprotection(realpath, realpathSync, callback) {
   console.log('test_cyclic_link_overprotection');
   if (skipSymlinks) {
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return callback();
   }
   const cycles = `${tmpDir}/cycles`;
-  const expected = fs.realpathSync(cycles);
+  const expected = realpathSync(cycles);
   const folder = `${cycles}/folder`;
   const link = `${folder}/cycles`;
   let testPath = cycles;
@@ -249,17 +252,17 @@ function test_cyclic_link_overprotection(callback) {
   try { fs.unlinkSync(link); } catch (ex) {}
   fs.symlinkSync(cycles, link, 'dir');
   unlink.push(link);
-  assertEqualPath(fs.realpathSync(testPath), path.resolve(expected));
-  asynctest(fs.realpath, [testPath], callback, function(er, res) {
+  assertEqualPath(realpathSync(testPath), path.resolve(expected));
+  asynctest(realpath, [testPath], callback, function(er, res) {
     assertEqualPath(res, path.resolve(expected));
   });
 }
 
-function test_relative_input_cwd(callback) {
+function test_relative_input_cwd(realpath, realpathSync, callback) {
   console.log('test_relative_input_cwd');
   if (skipSymlinks) {
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return callback();
   }
 
   // we need to calculate the relative path to the tmp dir from cwd
@@ -284,21 +287,21 @@ function test_relative_input_cwd(callback) {
 
   const origcwd = process.cwd();
   process.chdir(entrydir);
-  assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
+  assertEqualPath(realpathSync(entry), path.resolve(expected));
+  asynctest(realpath, [entry], callback, function(err, result) {
     process.chdir(origcwd);
     assertEqualPath(result, path.resolve(expected));
     return true;
   });
 }
 
-function test_deep_symlink_mix(callback) {
+function test_deep_symlink_mix(realpath, realpathSync, callback) {
   console.log('test_deep_symlink_mix');
   if (common.isWindows) {
     // This one is a mix of files and directories, and it's quite tricky
     // to get the file/dir links sorted out correctly.
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return callback();
   }
 
   /*
@@ -337,22 +340,22 @@ function test_deep_symlink_mix(callback) {
     unlink.push(tmp('node-test-realpath-d2'));
   }
   const expected = `${tmpAbsDir}/cycles/root.js`;
-  assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
+  assertEqualPath(realpathSync(entry), path.resolve(expected));
+  asynctest(realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
     return true;
   });
 }
 
-function test_non_symlinks(callback) {
+function test_non_symlinks(realpath, realpathSync, callback) {
   console.log('test_non_symlinks');
   const entrydir = path.dirname(tmpAbsDir);
   const entry = `${tmpAbsDir.substr(entrydir.length + 1)}/cycles/root.js`;
   const expected = `${tmpAbsDir}/cycles/root.js`;
   const origcwd = process.cwd();
   process.chdir(entrydir);
-  assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
+  assertEqualPath(realpathSync(entry), path.resolve(expected));
+  asynctest(realpath, [entry], callback, function(err, result) {
     process.chdir(origcwd);
     assertEqualPath(result, path.resolve(expected));
     return true;
@@ -360,19 +363,21 @@ function test_non_symlinks(callback) {
 }
 
 const upone = path.join(process.cwd(), '..');
-function test_escape_cwd(cb) {
+function test_escape_cwd(realpath, realpathSync, cb) {
   console.log('test_escape_cwd');
-  asynctest(fs.realpath, ['..'], cb, function(er, uponeActual) {
+  asynctest(realpath, ['..'], cb, function(er, uponeActual) {
     assertEqualPath(
       upone, uponeActual,
       `realpath("..") expected: ${path.resolve(upone)} actual:${uponeActual}`);
   });
 }
-const uponeActual = fs.realpathSync('..');
-assertEqualPath(
-  upone, uponeActual,
-  `realpathSync("..") expected: ${path.resolve(upone)} actual:${uponeActual}`);
 
+function test_upone_actual(realpath, realpathSync, cb) {
+  console.log('test_upone_actual');
+  const uponeActual = realpathSync('..');
+  assertEqualPath(upone, uponeActual);
+  cb();
+}
 
 // going up with .. multiple times
 // .
@@ -381,23 +386,14 @@ assertEqualPath(
 //     |   `-- e -> ..
 //     `-- d -> ..
 // realpath(a/b/e/d/a/b/e/d/a) ==> a
-function test_up_multiple(cb) {
+function test_up_multiple(realpath, realpathSync, cb) {
   console.error('test_up_multiple');
   if (skipSymlinks) {
     common.printSkipMessage('symlink test (no privs)');
-    return runNextTest();
+    return cb();
   }
-  function cleanup() {
-    ['a/b',
-     'a'
-    ].forEach(function(folder) {
-      try { fs.rmdirSync(tmp(folder)); } catch (ex) {}
-    });
-  }
-  function setup() {
-    cleanup();
-  }
-  setup();
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
   fs.mkdirSync(tmp('a'), 0o755);
   fs.mkdirSync(tmp('a/b'), 0o755);
   fs.symlinkSync('..', tmp('a/d'), 'dir');
@@ -411,16 +407,15 @@ function test_up_multiple(cb) {
   const abedabeda = tmp('abedabeda'.split('').join('/'));
   const abedabeda_real = tmp('a');
 
-  assertEqualPath(fs.realpathSync(abedabeda), abedabeda_real);
-  assertEqualPath(fs.realpathSync(abedabed), abedabed_real);
-  fs.realpath(abedabeda, function(er, real) {
+  assertEqualPath(realpathSync(abedabeda), abedabeda_real);
+  assertEqualPath(realpathSync(abedabed), abedabed_real);
+  realpath(abedabeda, function(er, real) {
     assert.ifError(er);
     assertEqualPath(abedabeda_real, real);
-    fs.realpath(abedabed, function(er, real) {
+    realpath(abedabed, function(er, real) {
       assert.ifError(er);
       assertEqualPath(abedabed_real, real);
       cb();
-      cleanup();
     });
   });
 }
@@ -434,7 +429,7 @@ function test_up_multiple(cb) {
 //     |       `-- x.txt
 //     `-- link -> /tmp/node-test-realpath-abs-kids/a/b/
 // realpath(root+'/a/link/c/x.txt') ==> root+'/a/b/c/x.txt'
-function test_abs_with_kids(cb) {
+function test_abs_with_kids(realpath, realpathSync, cb) {
   console.log('test_abs_with_kids');
 
   // this one should still run, even if skipSymlinks is set,
@@ -474,13 +469,22 @@ function test_abs_with_kids(cb) {
   setup();
   const linkPath = `${root}/a/link/c/x.txt`;
   const expectPath = `${root}/a/b/c/x.txt`;
-  const actual = fs.realpathSync(linkPath);
+  const actual = realpathSync(linkPath);
   // console.log({link:linkPath,expect:expectPath,actual:actual},'sync');
   assertEqualPath(actual, path.resolve(expectPath));
-  asynctest(fs.realpath, [linkPath], cb, function(er, actual) {
+  asynctest(realpath, [linkPath], cb, function(er, actual) {
     // console.log({link:linkPath,expect:expectPath,actual:actual},'async');
     assertEqualPath(actual, path.resolve(expectPath));
     cleanup();
+  });
+}
+
+function test_root(realpath, realpathSync, cb) {
+  assertEqualPath(root, realpathSync('/'));
+  realpath('/', function(err, result) {
+    assert.ifError(err);
+    assertEqualPath(root, result);
+    cb();
   });
 }
 
@@ -498,8 +502,10 @@ const tests = [
   test_deep_symlink_mix,
   test_non_symlinks,
   test_escape_cwd,
+  test_upone_actual,
   test_abs_with_kids,
-  test_up_multiple
+  test_up_multiple,
+  test_root,
 ];
 const numtests = tests.length;
 let testsRun = 0;
@@ -510,16 +516,14 @@ function runNextTest(err) {
     return console.log(`${numtests} subtests completed OK for fs.realpath`);
   }
   testsRun++;
-  test(runNextTest);
+  test(fs.realpath, fs.realpathSync, common.mustCall((err) => {
+    assert.ifError(err);
+    testsRun++;
+    test(fs.realpath.native,
+         fs.realpathSync.native,
+         common.mustCall(runNextTest));
+  }));
 }
-
-
-assertEqualPath(root, fs.realpathSync('/'));
-fs.realpath('/', function(err, result) {
-  assert.ifError(err);
-  assertEqualPath(root, result);
-});
-
 
 function runTest() {
   const tmpDirs = ['cycles', 'cycles/folder'];
@@ -534,6 +538,6 @@ function runTest() {
 
 
 process.on('exit', function() {
-  assert.strictEqual(numtests, testsRun);
+  assert.strictEqual(2 * numtests, testsRun);
   assert.strictEqual(async_completed, async_expected);
 });

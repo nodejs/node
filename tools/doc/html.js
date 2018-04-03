@@ -33,7 +33,7 @@ module.exports = toHTML;
 const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
 const DOC_CREATED_REG_EXP = /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.([0-9]+)\s*-->/;
 
-// customized heading without id attribute
+// Customized heading without id attribute.
 const renderer = new marked.Renderer();
 renderer.heading = function(text, level) {
   return `<h${level}>${text}</h${level}>\n`;
@@ -42,7 +42,7 @@ marked.setOptions({
   renderer: renderer
 });
 
-// TODO(chrisdickinson): never stop vomitting / fix this.
+// TODO(chrisdickinson): never stop vomiting / fix this.
 const gtocPath = path.resolve(path.join(
   __dirname,
   '..',
@@ -125,12 +125,10 @@ function toID(filename) {
  * opts: lexed, filename, template, nodeVersion.
  */
 function render(opts, cb) {
-  var lexed = opts.lexed;
-  var filename = opts.filename;
-  var template = opts.template;
+  var { lexed, filename, template } = opts;
   const nodeVersion = opts.nodeVersion || process.version;
 
-  // get the section
+  // Get the section.
   const section = getSection(lexed);
 
   filename = path.basename(filename, '.md');
@@ -138,8 +136,8 @@ function render(opts, cb) {
   parseText(lexed);
   lexed = parseLists(lexed);
 
-  // generate the table of contents.
-  // this mutates the lexed contents in-place.
+  // Generate the table of contents.
+  // This mutates the lexed contents in-place.
   buildToc(lexed, filename, function(er, toc) {
     if (er) return cb(er);
 
@@ -164,8 +162,8 @@ function render(opts, cb) {
 
     template = template.replace(/__ALTDOCS__/, altDocs(filename));
 
-    // content has to be the last thing we do with
-    // the lexed tokens, because it's destructive.
+    // Content has to be the last thing we do with the lexed tokens,
+    // because it's destructive.
     const content = marked.parser(lexed);
     template = template.replace(/__CONTENT__/g, content);
 
@@ -190,7 +188,7 @@ function analyticsScript(analytics) {
   `;
 }
 
-// replace placeholders in text tokens
+// Replace placeholders in text tokens.
 function replaceInText(text) {
   return linkJsTypeDocs(linkManPages(text));
 }
@@ -211,7 +209,8 @@ function altDocs(filename) {
   }
 
   const versions = [
-    { num: '8.x' },
+    { num: '9.x' },
+    { num: '8.x', lts: true },
     { num: '7.x' },
     { num: '6.x', lts: true },
     { num: '5.x' },
@@ -223,7 +222,7 @@ function altDocs(filename) {
   const host = 'https://nodejs.org';
   const href = (v) => `${host}/docs/latest-v${v.num}/api/${filename}.html`;
 
-  function li(v, i) {
+  function li(v) {
     let html = `<li><a href="${href(v)}">${v.num}`;
 
     if (v.lts)
@@ -245,8 +244,8 @@ function altDocs(filename) {
   `;
 }
 
-// handle general body-text replacements
-// for example, link man page references to the actual page
+// Handle general body-text replacements.
+// For example, link man page references to the actual page.
 function parseText(lexed) {
   lexed.forEach(function(tok) {
     if (tok.type === 'table') {
@@ -273,8 +272,8 @@ function parseText(lexed) {
   });
 }
 
-// just update the list item text in-place.
-// lists that come right after a heading are what we're after.
+// Just update the list item text in-place.
+// Lists that come right after a heading are what we're after.
 function parseLists(input) {
   var state = null;
   const savedState = [];
@@ -300,8 +299,8 @@ function parseLists(input) {
         const stabilityMatch = tok.text.match(STABILITY_TEXT_REG_EXP);
         const stability = Number(stabilityMatch[2]);
         const isStabilityIndex =
-          index - 2 === headingIndex || // general
-          index - 3 === headingIndex;   // with api_metadata block
+          index - 2 === headingIndex || // General.
+          index - 3 === headingIndex;   // With api_metadata block.
 
         if (heading && isStabilityIndex) {
           heading.stability = stability;
@@ -409,23 +408,23 @@ function parseYAML(text) {
   return html.join('\n');
 }
 
-// Syscalls which appear in the docs, but which only exist in BSD / OSX
+// Syscalls which appear in the docs, but which only exist in BSD / macOS.
 const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 
-// Handle references to man pages, eg "open(2)" or "lchmod(2)"
-// Returns modified text, with such refs replace with HTML links, for example
-// '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'
+// Handle references to man pages, eg "open(2)" or "lchmod(2)".
+// Returns modified text, with such refs replaced with HTML links, for example
+// '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'.
 function linkManPages(text) {
   return text.replace(
-    / ([a-z.]+)\((\d)([a-z]?)\)/gm,
-    (match, name, number, optionalCharacter) => {
-      // name consists of lowercase letters, number is a single digit
+    /(^|\s)([a-z.]+)\((\d)([a-z]?)\)/gm,
+    (match, beginning, name, number, optionalCharacter) => {
+      // Name consists of lowercase letters, number is a single digit.
       const displayAs = `${name}(${number}${optionalCharacter})`;
       if (BSD_ONLY_SYSCALLS.has(name)) {
-        return ` <a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
+        return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
           `&sektion=${number}">${displayAs}</a>`;
       } else {
-        return ` <a href="http://man7.org/linux/man-pages/man${number}` +
+        return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
           `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
       }
     });
@@ -437,7 +436,7 @@ function linkJsTypeDocs(text) {
   var typeMatches;
 
   // Handle types, for example the source Markdown might say
-  // "This argument should be a {Number} or {String}"
+  // "This argument should be a {Number} or {String}".
   for (i = 0; i < parts.length; i += 2) {
     typeMatches = parts[i].match(/\{([^}]+)\}/g);
     if (typeMatches) {
@@ -447,7 +446,7 @@ function linkJsTypeDocs(text) {
     }
   }
 
-  //XXX maybe put more stuff here?
+  // TODO: maybe put more stuff here?
   return parts.join('`');
 }
 
@@ -462,7 +461,7 @@ function parseAPIHeader(text) {
   return text;
 }
 
-// section is just the first heading
+// Section is just the first heading.
 function getSection(lexed) {
   for (var i = 0, l = lexed.length; i < l; i++) {
     var tok = lexed[i];
@@ -471,6 +470,9 @@ function getSection(lexed) {
   return '';
 }
 
+function getMark(anchor) {
+  return `<span><a class="mark" href="#${anchor}" id="${anchor}">#</a></span>`;
+}
 
 function buildToc(lexed, filename, cb) {
   var toc = [];
@@ -498,12 +500,15 @@ function buildToc(lexed, filename, cb) {
 
     depth = tok.depth;
     const realFilename = path.basename(realFilenames[0], '.md');
-    const id = getId(realFilename + '_' + tok.text.trim());
+    const apiName = tok.text.trim();
+    const id = getId(`${realFilename}_${apiName}`);
     toc.push(new Array((depth - 1) * 2 + 1).join(' ') +
              `* <span class="stability_${tok.stability}">` +
              `<a href="#${id}">${tok.text}</a></span>`);
-    tok.text += '<span><a class="mark" href="#' + id + '" ' +
-                'id="' + id + '">#</a></span>';
+    tok.text += getMark(id);
+    if (realFilename === 'errors' && apiName.startsWith('ERR_')) {
+      tok.text += getMark(apiName);
+    }
   });
 
   toc = marked.parse(toc.join('\n'));
@@ -517,7 +522,7 @@ function getId(text) {
   text = text.replace(/^_+|_+$/, '');
   text = text.replace(/^([^a-z])/, '_$1');
   if (idCounters.hasOwnProperty(text)) {
-    text += '_' + (++idCounters[text]);
+    text += `_${++idCounters[text]}`;
   } else {
     idCounters[text] = 0;
   }
@@ -528,7 +533,7 @@ const numberRe = /^(\d*)/;
 function versionSort(a, b) {
   a = a.trim();
   b = b.trim();
-  let i = 0;  // common prefix length
+  let i = 0; // Common prefix length.
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
   a = a.substr(i);
   b = b.substr(i);

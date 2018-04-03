@@ -5,20 +5,24 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+const Countdown = require('../common/countdown');
 
 const server = h2.createServer();
+let client;
+
+const countdown = new Countdown(3, () => {
+  server.close();
+  client.close();
+});
 
 // we use the lower-level API here
 server.on('stream', common.mustCall((stream) => {
-  stream.respond({ ':status': 200 });
-
   // The first pushStream will complete as normal
   stream.pushStream({
-    ':scheme': 'http',
     ':path': '/foobar',
-    ':authority': `localhost:${server.address().port}`,
-  }, common.mustCall((pushedStream) => {
-    pushedStream.respond({ ':status': 200 });
+  }, common.mustCall((err, pushedStream) => {
+    assert.ifError(err);
+    pushedStream.respond();
     pushedStream.end();
     pushedStream.on('aborted', common.mustNotCall());
   }));
@@ -27,52 +31,41 @@ server.on('stream', common.mustCall((stream) => {
   // will reject it due to the maxReservedRemoteStreams option
   // being set to only 1
   stream.pushStream({
-    ':scheme': 'http',
     ':path': '/foobar',
-    ':authority': `localhost:${server.address().port}`,
-  }, common.mustCall((pushedStream) => {
-    pushedStream.respond({ ':status': 200 });
+  }, common.mustCall((err, pushedStream) => {
+    assert.ifError(err);
+    pushedStream.respond();
     pushedStream.on('aborted', common.mustCall());
     pushedStream.on('error', common.mustNotCall());
-    pushedStream.on('streamClosed',
-                    common.mustCall((code) => assert.strictEqual(code, 8)));
+    pushedStream.on('close', common.mustCall(() => {
+      assert.strictEqual(pushedStream.rstCode, 8);
+      countdown.dec();
+    }));
   }));
 
+  stream.respond();
   stream.end('hello world');
 }));
 server.listen(0);
 
 server.on('listening', common.mustCall(() => {
+  client = h2.connect(`http://localhost:${server.address().port}`,
+                      { maxReservedRemoteStreams: 1 });
 
-  const options = {
-    maxReservedRemoteStreams: 1
-  };
-
-  const client = h2.connect(`http://localhost:${server.address().port}`,
-                            options);
-
-  let remaining = 2;
-  function maybeClose() {
-    if (--remaining === 0) {
-      server.close();
-      client.destroy();
-    }
-  }
-
-  const req = client.request({ ':path': '/' });
+  const req = client.request();
 
   // Because maxReservedRemoteStream is 1, the stream event
   // must only be emitted once, even tho the server sends
   // two push streams.
   client.on('stream', common.mustCall((stream) => {
     stream.resume();
+    stream.on('push', common.mustCall());
     stream.on('end', common.mustCall());
-    stream.on('streamClosed', common.mustCall(maybeClose));
+    stream.on('close', common.mustCall(() => countdown.dec()));
   }));
 
   req.on('response', common.mustCall());
-
   req.resume();
   req.on('end', common.mustCall());
-  req.on('streamClosed', common.mustCall(maybeClose));
+  req.on('close', common.mustCall(() => countdown.dec()));
 }));

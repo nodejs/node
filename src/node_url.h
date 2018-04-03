@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "env.h"
 #include "env-inl.h"
 
 #include <string>
@@ -119,6 +118,9 @@ class URL {
   URL(std::string input, const URL* base) :
       URL(input.c_str(), input.length(), base) {}
 
+  URL(std::string input, const URL& base) :
+      URL(input.c_str(), input.length(), &base) {}
+
   URL(std::string input, std::string base) :
       URL(input.c_str(), input.length(), base.c_str(), base.length()) {}
 
@@ -168,6 +170,13 @@ class URL {
   std::string ToFilePath() const;
 
   const Local<Value> ToObject(Environment* env) const;
+
+  URL(const URL&) = default;
+  URL& operator=(const URL&) = default;
+  URL(URL&&) = default;
+  URL& operator=(URL&&) = default;
+
+  URL() : URL("") {}
 
  private:
   struct url_data context_;

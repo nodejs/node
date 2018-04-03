@@ -36,8 +36,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   if (!array_buffer->is_neuterable()) {
     return isolate->heap()->undefined_value();
   }
-  if (array_buffer->backing_store() == NULL) {
-    CHECK(Smi::kZero == array_buffer->byte_length());
+  if (array_buffer->backing_store() == nullptr) {
+    CHECK_EQ(Smi::kZero, array_buffer->byte_length());
     return isolate->heap()->undefined_value();
   }
   // Shared array buffers should never be neutered.
@@ -55,17 +55,15 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, destination, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, source, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
 
   size_t length;
   CHECK(TryNumberToSize(*length_obj, &length));
 
-  Handle<JSTypedArray> destination_ta = Handle<JSTypedArray>::cast(destination);
-
-  ElementsAccessor* accessor = destination_ta->GetElementsAccessor();
-  return accessor->CopyElements(source, destination, length);
+  ElementsAccessor* accessor = target->GetElementsAccessor();
+  return accessor->CopyElements(source, target, length);
 }
 
 #define BUFFER_VIEW_GETTER(Type, getter, accessor)   \
@@ -95,196 +93,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   return *holder->GetBuffer();
 }
 
-
-// Return codes for Runtime_TypedArraySetFastCases.
-// Should be synchronized with typedarray.js natives.
-enum TypedArraySetResultCodes {
-  // Set from typed array of the same type.
-  // This is processed by TypedArraySetFastCases
-  TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE = 0,
-  // Set from typed array of the different type, overlapping in memory.
-  TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING = 1,
-  // Set from typed array of the different type, non-overlapping.
-  TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING = 2,
-  // Set from non-typed array.
-  TYPED_ARRAY_SET_NON_TYPED_ARRAY = 3
-};
-
-// TypedArraySetFromArrayLike(target, source, source_length, offset);
-RUNTIME_FUNCTION(Runtime_TypedArraySetFromArrayLike) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
-
-  CONVERT_INT32_ARG_CHECKED(source_length, 2);
-  DCHECK_GE(source_length, 0);
-
-  CONVERT_INT32_ARG_CHECKED(offset, 3);
-  DCHECK_GE(offset, 0);
-
-  for (int i = 0; i < source_length; i++) {
-    Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                       Object::GetElement(isolate, source, i));
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + i, value,
-                           LanguageMode::STRICT));
-  }
-
-  return *target;
-}
-
-// TypedArraySetFromOverlappingTypedArray(target, source, offset);
-RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
-
-  CONVERT_INT32_ARG_CHECKED(offset, 2);
-  DCHECK_GE(offset, 0);
-
-  size_t sourceElementSize = source->element_size();
-  size_t targetElementSize = target->element_size();
-
-  uint32_t source_length = source->length_value();
-  if (source_length == 0) return *target;
-
-  // Copy left part.
-
-  // First un-mutated byte after the next write
-  uint32_t target_ptr = 0;
-  CHECK(target->byte_offset()->ToUint32(&target_ptr));
-  target_ptr += (offset + 1) * targetElementSize;
-
-  // Next read at sourcePtr. We do not care for memory changing before
-  // sourcePtr - we have already copied it.
-  uint32_t source_ptr = 0;
-  CHECK(source->byte_offset()->ToUint32(&source_ptr));
-
-  uint32_t left_index;
-  for (left_index = 0; left_index < source_length && target_ptr <= source_ptr;
-       left_index++) {
-    Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value, Object::GetElement(isolate, source, left_index));
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + left_index, value,
-                           LanguageMode::STRICT));
-
-    target_ptr += targetElementSize;
-    source_ptr += sourceElementSize;
-  }
-
-  // Copy right part;
-  // First unmutated byte before the next write
-  CHECK(target->byte_offset()->ToUint32(&target_ptr));
-  target_ptr += (offset + source_length - 1) * targetElementSize;
-
-  // Next read before sourcePtr. We do not care for memory changing after
-  // sourcePtr - we have already copied it.
-  CHECK(target->byte_offset()->ToUint32(&source_ptr));
-  source_ptr += source_length * sourceElementSize;
-
-  uint32_t right_index;
-  DCHECK_GE(source_length, 1);
-  for (right_index = source_length - 1;
-       right_index > left_index && target_ptr >= source_ptr; right_index--) {
-    Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value, Object::GetElement(isolate, source, right_index));
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + right_index, value,
-                           LanguageMode::STRICT));
-
-    target_ptr -= targetElementSize;
-    source_ptr -= sourceElementSize;
-  }
-
-  std::vector<Handle<Object>> temp(right_index + 1 - left_index);
-
-  for (uint32_t i = left_index; i <= right_index; i++) {
-    Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                       Object::GetElement(isolate, source, i));
-    temp[i - left_index] = value;
-  }
-
-  for (uint32_t i = left_index; i <= right_index; i++) {
-    Handle<Object> value;
-
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + i, temp[i - left_index],
-                           LanguageMode::STRICT));
-  }
-
-  return *target;
-}
-
-RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  if (!args[0]->IsJSTypedArray()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
-  }
-
-  if (!args[1]->IsJSTypedArray()) {
-    return Smi::FromInt(TYPED_ARRAY_SET_NON_TYPED_ARRAY);
-  }
-
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 2);
-
-  size_t offset = 0;
-  CHECK(TryNumberToSize(*offset_obj, &offset));
-  size_t target_length = target->length_value();
-  size_t source_length = source->length_value();
-  size_t target_byte_length = NumberToSize(target->byte_length());
-  size_t source_byte_length = NumberToSize(source->byte_length());
-  if (offset > target_length || offset + source_length > target_length ||
-      offset + source_length < offset) {  // overflow
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
-  }
-
-  size_t target_offset = NumberToSize(target->byte_offset());
-  size_t source_offset = NumberToSize(source->byte_offset());
-  uint8_t* target_base =
-      static_cast<uint8_t*>(target->GetBuffer()->backing_store()) +
-      target_offset;
-  uint8_t* source_base =
-      static_cast<uint8_t*>(source->GetBuffer()->backing_store()) +
-      source_offset;
-
-  // Typed arrays of the same type: use memmove.
-  if (target->type() == source->type()) {
-    memmove(target_base + offset * target->element_size(), source_base,
-            source_byte_length);
-    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE);
-  }
-
-  // Typed arrays of different types over the same backing store
-  if ((source_base <= target_base &&
-       source_base + source_byte_length > target_base) ||
-      (target_base <= source_base &&
-       target_base + target_byte_length > source_base)) {
-    // We do not support overlapping ArrayBuffers
-    DCHECK(target->GetBuffer()->backing_store() ==
-           source->GetBuffer()->backing_store());
-    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING);
-  } else {  // Non-overlapping typed arrays
-    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING);
-  }
-}
 
 namespace {
 
@@ -348,14 +156,6 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   return *array;
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArrayMaxSizeInHeap) {
-  DCHECK_EQ(0, args.length());
-  DCHECK_OBJECT_SIZE(FLAG_typed_array_max_size_in_heap +
-                     FixedTypedArrayBase::kDataOffset);
-  return Smi::FromInt(FLAG_typed_array_max_size_in_heap);
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsTypedArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -400,7 +200,7 @@ RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
 
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(args.length(), 2);
   Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(0);
   Handle<Object> length = args.at(1);
   int argc = 1;
@@ -412,6 +212,51 @@ RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
       isolate, result_array,
       JSTypedArray::SpeciesCreate(isolate, exemplar, argc, argv.start(), ""));
   return *result_array;
+}
+
+// 22.2.3.23 %TypedArray%.prototype.set ( overloaded [ , offset ] )
+RUNTIME_FUNCTION(Runtime_TypedArraySet) {
+  HandleScope scope(isolate);
+  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  Handle<Object> obj = args.at(1);
+  Handle<Smi> offset = args.at<Smi>(2);
+
+  DCHECK(!target->WasNeutered());  // Checked in TypedArrayPrototypeSet.
+  DCHECK(!obj->IsJSTypedArray());  // Should be handled by CSA.
+  DCHECK_LE(0, offset->value());
+
+  const uint32_t uint_offset = static_cast<uint32_t>(offset->value());
+
+  if (obj->IsNumber()) {
+    // For number as a first argument, throw TypeError
+    // instead of silently ignoring the call, so that
+    // users know they did something wrong.
+    // (Consistent with Firefox and Blink/WebKit)
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalidArgument));
+  }
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj,
+                                     Object::ToObject(isolate, obj));
+
+  Handle<Object> len;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, len,
+      Object::GetProperty(obj, isolate->factory()->length_string()));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
+                                     Object::ToLength(isolate, len));
+
+  if (uint_offset + len->Number() > target->length_value()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
+  }
+
+  uint32_t int_l;
+  CHECK(DoubleToUint32IfEqualToSelf(len->Number(), &int_l));
+
+  Handle<JSReceiver> source = Handle<JSReceiver>::cast(obj);
+  ElementsAccessor* accessor = target->GetElementsAccessor();
+  return accessor->CopyElements(source, target, int_l, uint_offset);
 }
 
 }  // namespace internal

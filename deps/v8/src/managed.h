@@ -42,7 +42,16 @@ class Managed : public Foreign {
     return reinterpret_cast<Managed<CppType>*>(obj);
   }
 
-  static Handle<Managed<CppType>> New(Isolate* isolate, CppType* ptr) {
+  // Allocate a new CppType and wrap it in a Managed.
+  template <typename... Args>
+  static Handle<Managed<CppType>> Allocate(Isolate* isolate, Args&&... args) {
+    CppType* ptr = new CppType(std::forward<Args>(args)...);
+    return From(isolate, ptr);
+  }
+
+  // Create a Managed from an existing CppType*. Takes ownership of the passed
+  // object.
+  static Handle<Managed<CppType>> From(Isolate* isolate, CppType* ptr) {
     FinalizerWithHandle* finalizer =
         new FinalizerWithHandle(ptr, &NativeDelete);
     isolate->RegisterForReleaseAtTeardown(finalizer);

@@ -193,4 +193,3 @@ REQUEST: foreach (@ARGV) {
     STDERR->printflush(", $output written.\n") if $options{v};
 }
 $curl->cleanup();
-WWW::Curl::Easy::global_cleanup();

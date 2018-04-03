@@ -1,3 +1,4 @@
+<!--lint disable prohibited-strings-->
 @include documentation
 @include synopsis
 @include assert

@@ -34,7 +34,8 @@ const server = http.createServer(function(req, res) {
   res.end();
 });
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 server.listen(common.PIPE, common.mustCall(function() {
 
@@ -58,8 +59,10 @@ server.listen(common.PIPE, common.mustCall(function() {
       assert.strictEqual(res.body, 'hello world\n');
       server.close(common.mustCall(function(error) {
         assert.strictEqual(error, undefined);
-        server.close(common.mustCall(function(error) {
-          assert.strictEqual(error && error.message, 'Not running');
+        server.close(common.expectsError({
+          code: 'ERR_SERVER_NOT_RUNNING',
+          message: 'Server is not running.',
+          type: Error
         }));
       }));
     }));

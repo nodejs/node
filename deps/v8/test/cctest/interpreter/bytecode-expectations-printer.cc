@@ -181,12 +181,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         break;
       case OperandType::kIdx: {
         stream << 'U' << size_tag << '(';
-        uint32_t idx = bytecode_iterator.GetIndexOperand(op_index);
-        if (bytecode == Bytecode::kCallJSRuntime && op_index == 0) {
-          stream << "%" << NameForNativeContextIntrinsicIndex(idx);
-        } else {
-          stream << idx;
-        }
+        stream << bytecode_iterator.GetIndexOperand(op_index);
         break;
       }
       case OperandType::kUImm:
@@ -213,6 +208,12 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         Runtime::FunctionId id =
             bytecode_iterator.GetIntrinsicIdOperand(op_index);
         stream << "Runtime::k" << i::Runtime::FunctionForId(id)->name;
+        break;
+      }
+      case OperandType::kNativeContextIndex: {
+        stream << 'U' << size_tag << '(';
+        uint32_t idx = bytecode_iterator.GetNativeContextIndexOperand(op_index);
+        stream << "%" << NameForNativeContextIntrinsicIndex(idx);
         break;
       }
       default:

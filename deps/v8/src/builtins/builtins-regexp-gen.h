@@ -90,9 +90,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
                   int counter, const char* method_name);
 
-  // Utility method, remove once dotall is unstaged.
-  Node* IsDotAllEnabled(Isolate* isolate);
-
   Node* IsRegExp(Node* const context, Node* const maybe_receiver);
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);

@@ -2,6 +2,7 @@
 require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const expectedHeadersMultipleWrites = {
   'connection': 'close',
@@ -18,8 +19,8 @@ const expectedHeadersEndNoData = {
   'content-length': '0',
 };
 
-let receivedRequests = 0;
-const totalRequests = 3;
+
+const countdown = new Countdown(3, () => server.close());
 
 const server = http.createServer(function(req, res) {
   res.removeHeader('Date');
@@ -42,8 +43,7 @@ const server = http.createServer(function(req, res) {
       throw new Error('Unreachable');
   }
 
-  receivedRequests++;
-  if (totalRequests === receivedRequests) server.close();
+  countdown.dec();
 });
 
 server.listen(0, function() {

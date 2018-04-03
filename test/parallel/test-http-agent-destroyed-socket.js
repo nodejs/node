@@ -47,7 +47,6 @@ const server = http.createServer(common.mustCall((req, res) => {
     request1.socket.on('close', common.mustCall());
     response.resume();
     response.on('end', common.mustCall(() => {
-      /////////////////////////////////
       //
       // THE IMPORTANT PART
       //
@@ -80,7 +79,7 @@ const server = http.createServer(common.mustCall((req, res) => {
     assert(request1.socket.destroyed);
     // assert not reusing the same socket, since it was destroyed.
     assert.notStrictEqual(request1.socket, request2.socket);
-    const countdown = new Countdown(2, common.mustCall(() => server.close()));
+    const countdown = new Countdown(2, () => server.close());
     request2.socket.on('close', common.mustCall(() => countdown.dec()));
     response.on('end', common.mustCall(() => countdown.dec()));
     response.resume();

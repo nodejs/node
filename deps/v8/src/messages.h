@@ -13,9 +13,13 @@
 #include <memory>
 
 #include "src/handles.h"
+#include "src/wasm/wasm-code-wrapper.h"
 
 namespace v8 {
 namespace internal {
+namespace wasm {
+class WasmCode;
+}
 
 // Forward declarations.
 class AbstractCode;
@@ -161,7 +165,7 @@ class WasmStackFrame : public StackFrameBase {
 
   Handle<WasmInstanceObject> wasm_instance_;
   uint32_t wasm_func_index_;
-  Handle<AbstractCode> code_;  // null handle for interpreted frames.
+  WasmCodeWrapper code_;  // null for interpreted frames.
   int offset_;
 
  private:
@@ -263,6 +267,8 @@ class ErrorUtils : public AllStatic {
   T(ApplyNonFunction,                                                          \
     "Function.prototype.apply was called on %, which is a % and not a "        \
     "function")                                                                \
+  T(ArgumentsDisallowedInInitializer,                                          \
+    "'arguments' is not allowed in class field initializer")                   \
   T(ArrayBufferTooShort,                                                       \
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \
@@ -271,6 +277,17 @@ class ErrorUtils : public AllStatic {
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
+  T(BadSortComparisonFunction,                                                 \
+    "The comparison function must be either a function or undefined")          \
+  T(BigIntFromNumber,                                                          \
+    "The number % is not a safe integer and thus cannot be converted to a "    \
+    "BigInt")                                                                  \
+  T(BigIntFromObject, "Cannot convert % to a BigInt")                          \
+  T(BigIntMixedTypes,                                                          \
+    "Cannot mix BigInt and other types, use explicit conversions")             \
+  T(BigIntSerializeJSON, "Do not know how to serialize a BigInt")              \
+  T(BigIntShr, "BigInts have no unsigned right shift, use >> instead")         \
+  T(BigIntToNumber, "Cannot convert a BigInt value to a number")               \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
@@ -287,12 +304,13 @@ class ErrorUtils : public AllStatic {
   T(CircularStructure, "Converting circular structure to JSON")                \
   T(ConstructAbstractClass, "Abstract class % not directly constructable")     \
   T(ConstAssign, "Assignment to constant variable.")                           \
+  T(ConstructorClassField, "Classes may not have a field named 'constructor'") \
   T(ConstructorNonCallable,                                                    \
     "Class constructor % cannot be invoked without 'new'")                     \
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
   T(ConstructorNotReceiver, "The .constructor property is not an object")      \
   T(CurrencyCode, "Currency code is required with currency style.")            \
-  T(CyclicModuleDependency, "Detected cycle while resolving name '%'")         \
+  T(CyclicModuleDependency, "Detected cycle while resolving name '%' in '%'")  \
   T(DataViewNotArrayBuffer,                                                    \
     "First argument to DataView constructor must be an ArrayBuffer")           \
   T(DateType, "this is not a Date object.")                                    \
@@ -312,6 +330,8 @@ class ErrorUtils : public AllStatic {
   T(ImmutablePrototypeSet,                                                     \
     "Immutable prototype object '%' cannot have their prototype set")          \
   T(ImportCallNotNewExpression, "Cannot use new with import")                  \
+  T(ImportMetaOutsideModule, "Cannot use 'import.meta' outside a module")      \
+  T(ImportMissingSpecifier, "import() requires a specifier")                   \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
@@ -464,7 +484,6 @@ class ErrorUtils : public AllStatic {
   T(ReduceNoInitial, "Reduce of empty array with no initial value")            \
   T(RegExpFlags,                                                               \
     "Cannot supply flags when constructing one RegExp from another")           \
-  T(RegExpInvalidReplaceString, "Invalid replacement string: '%'")             \
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
@@ -474,7 +493,8 @@ class ErrorUtils : public AllStatic {
     "small")                                                                   \
   T(SharedArrayBufferSpeciesThis,                                              \
     "SharedArrayBuffer subclass returned this from species constructor")       \
-  T(StaticPrototype, "Classes may not have static property named prototype")   \
+  T(StaticPrototype,                                                           \
+    "Classes may not have a static property named 'prototype'")                \
   T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \
   T(StrictPoisonPill,                                                          \
     "'caller', 'callee', and 'arguments' properties may not be accessed on "   \
@@ -501,6 +521,9 @@ class ErrorUtils : public AllStatic {
   T(SuperAlreadyCalled, "Super constructor may only be called once")           \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
+  T(BigIntDivZero, "Division by zero")                                         \
+  T(BigIntNegativeExponent, "Exponent must be positive")                       \
+  T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedTimezoneID,                                                        \
     "Expected Area/Location(/Location)* for time zone, got %")                 \
@@ -519,6 +542,7 @@ class ErrorUtils : public AllStatic {
   T(InvalidDataViewLength, "Invalid DataView length %")                        \
   T(InvalidOffset, "Start offset % is outside the bounds of the buffer")       \
   T(InvalidHint, "Invalid hint: %")                                            \
+  T(InvalidIndex, "Invalid value: not (convertible to) a safe integer")        \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \
@@ -536,15 +560,16 @@ class ErrorUtils : public AllStatic {
   T(ToPrecisionFormatRange,                                                    \
     "toPrecision() argument must be between 1 and 100")                        \
   T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
-  T(TypedArraySetNegativeOffset, "Start offset is negative")                   \
+  T(TypedArraySetOffsetOutOfBounds, "offset is out of bounds")                 \
   T(TypedArraySetSourceTooLarge, "Source is too large")                        \
   T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
-    "The requested module contains conflicting star exports for name '%'")     \
+    "The requested module '%' contains conflicting star exports for name '%'") \
   T(BadGetterArity, "Getter must not have any formal parameters.")             \
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
+  T(BigIntInvalidString, "Invalid BigInt string")                              \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
   T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
   T(ConstructorIsAsync, "Class constructor may not be an async method")        \
@@ -676,7 +701,7 @@ class ErrorUtils : public AllStatic {
     "Lexical declaration cannot appear in a single-statement context")         \
   T(UnknownLabel, "Undefined label '%'")                                       \
   T(UnresolvableExport,                                                        \
-    "The requested module does not provide an export named '%'")               \
+    "The requested module '%' does not provide an export named '%'")           \
   T(UnterminatedArgList, "missing ) after argument list")                      \
   T(UnterminatedRegExp, "Invalid regular expression: missing /")               \
   T(UnterminatedTemplate, "Unterminated template literal")                     \

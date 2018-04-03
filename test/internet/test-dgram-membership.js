@@ -10,7 +10,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 // addMembership() with valid socket and multicast address should not throw
 {
   const socket = setup();
-  assert.doesNotThrow(() => { socket.addMembership(multicastAddress); });
+  socket.addMembership(multicastAddress);
   socket.close();
 }
 
@@ -27,11 +27,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 // dropMembership() after addMembership() should not throw
 {
   const socket = setup();
-  assert.doesNotThrow(
-    () => {
-      socket.addMembership(multicastAddress);
-      socket.dropMembership(multicastAddress);
-    }
-  );
+  socket.addMembership(multicastAddress);
+  socket.dropMembership(multicastAddress);
   socket.close();
 }

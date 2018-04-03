@@ -1,0 +1,85 @@
+{
+  "_from": "supports-color@^4.0.0",
+  "_id": "supports-color@4.5.0",
+  "_inBundle": false,
+  "_integrity": "sha1-vnoN5ITexcXN34s9WRJQRJEvY1s=",
+  "_location": "/babel-eslint/supports-color",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "supports-color@^4.0.0",
+    "name": "supports-color",
+    "escapedName": "supports-color",
+    "rawSpec": "^4.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^4.0.0"
+  },
+  "_requiredBy": [
+    "/babel-eslint/chalk"
+  ],
+  "_resolved": "https://registry.npmjs.org/supports-color/-/supports-color-4.5.0.tgz",
+  "_shasum": "be7a0de484dec5c5cddf8b3d59125044912f635b",
+  "_spec": "supports-color@^4.0.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint/node_modules/chalk",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "browser": "browser.js",
+  "bugs": {
+    "url": "https://github.com/chalk/supports-color/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "has-flag": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "Detect whether a terminal supports color",
+  "devDependencies": {
+    "ava": "*",
+    "import-fresh": "^2.0.0",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js",
+    "browser.js"
+  ],
+  "homepage": "https://github.com/chalk/supports-color#readme",
+  "keywords": [
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "ansi",
+    "styles",
+    "tty",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "command-line",
+    "support",
+    "supports",
+    "capability",
+    "detect",
+    "truecolor",
+    "16m"
+  ],
+  "license": "MIT",
+  "name": "supports-color",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chalk/supports-color.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "4.5.0"
+}

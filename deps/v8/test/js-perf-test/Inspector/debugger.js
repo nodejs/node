@@ -13,6 +13,9 @@
   benchy('Debugger.getPossibleBreakpoints',
     DebuggerGetPossibleBreakpoints,
     SetupGetPossibleBreakpoints);
+  benchy('AsyncStacksInstrumentation',
+    AsyncStacksInstrumentation,
+    SetupAsyncStacksInstrumentation);
 
   function Setup() {
     SendMessage('Debugger.enable');
@@ -56,5 +59,21 @@
     SendMessage('Debugger.getPossibleBreakpoints', {
       start: {lineNumber: 0, columnNumber: 0, scriptId: scriptId}
     });
+  }
+
+  function SetupAsyncStacksInstrumentation() {
+    Setup();
+    SendMessage('Debugger.setAsyncCallStackDepth', {maxDepth: 1024});
+  }
+
+  function AsyncStacksInstrumentation() {
+    var p = Promise.resolve();
+    var nopCallback = () => undefined;
+    var done = false;
+    for (let i = 0; i < 1000; ++i) {
+      p = p.then(nopCallback);
+    }
+    p = p.then(() => done = true);
+    while (!done) %RunMicrotasks();
   }
 })();

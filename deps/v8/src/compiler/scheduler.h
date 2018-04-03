@@ -49,8 +49,13 @@ class V8_EXPORT_PRIVATE Scheduler {
   //                  \                         /
   //                   +----> kSchedulable ----+--------> kScheduled
   //
-  // 1) GetPlacement(): kUnknown -> kCoupled|kSchedulable|kFixed
+  // 1) InitializePlacement(): kUnknown -> kCoupled|kSchedulable|kFixed
   // 2) UpdatePlacement(): kCoupled|kSchedulable -> kFixed|kScheduled
+  //
+  // We maintain the invariant that all nodes that are not reachable
+  // from the end have kUnknown placement. After the PrepareUses phase runs,
+  // also the opposite is true - all nodes with kUnknown placement are not
+  // reachable from the end.
   enum Placement { kUnknown, kSchedulable, kFixed, kCoupled, kScheduled };
 
   // Per-node data tracked during scheduling.
@@ -81,7 +86,9 @@ class V8_EXPORT_PRIVATE Scheduler {
   inline SchedulerData* GetData(Node* node);
 
   Placement GetPlacement(Node* node);
+  Placement InitializePlacement(Node* node);
   void UpdatePlacement(Node* node, Placement placement);
+  bool IsLive(Node* node);
 
   inline bool IsCoupledControlEdge(Node* node, int index);
   void IncrementUnscheduledUseCount(Node* node, int index, Node* from);

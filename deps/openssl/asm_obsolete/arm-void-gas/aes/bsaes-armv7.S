@@ -81,7 +81,7 @@
 .type	_bsaes_decrypt8,%function
 .align	4
 _bsaes_decrypt8:
-	adr	r6,_bsaes_decrypt8
+	adr	r6,.
 	vldmia	r4!, {q9}		@ round 0 key
 	add	r6,r6,#.LM0ISR-_bsaes_decrypt8
 
@@ -567,7 +567,7 @@ _bsaes_const:
 .type	_bsaes_encrypt8,%function
 .align	4
 _bsaes_encrypt8:
-	adr	r6,_bsaes_encrypt8
+	adr	r6,.
 	vldmia	r4!, {q9}		@ round 0 key
 	sub	r6,r6,#_bsaes_encrypt8-.LM0SR
 
@@ -998,7 +998,7 @@ _bsaes_encrypt8_bitslice:
 .type	_bsaes_key_convert,%function
 .align	4
 _bsaes_key_convert:
-	adr	r6,_bsaes_key_convert
+	adr	r6,.
 	vld1.8	{q7},  [r4]!		@ load round 0 key
 	sub	r6,r6,#_bsaes_key_convert-.LM0
 	vld1.8	{q15}, [r4]!		@ load round 1 key

@@ -1,0 +1,4 @@
+*%(basename)s:8: SyntaxError: Classes may not have a field named 'constructor'
+  constructor = function() {};
+  ^^^^^^^^^^^
+SyntaxError: Classes may not have a field named 'constructor'

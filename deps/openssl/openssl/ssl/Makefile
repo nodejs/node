@@ -15,7 +15,8 @@ KRB5_INCLUDES=
 CFLAGS= $(INCLUDES) $(CFLAG)
 
 GENERAL=Makefile README ssl-lib.com install.com
-TEST=ssltest.c heartbeat_test.c clienthellotest.c sslv2conftest.c dtlstest.c bad_dtls_test.c
+TEST=ssltest.c heartbeat_test.c clienthellotest.c sslv2conftest.c dtlstest.c \
+	bad_dtls_test.c fatalerrtest.c
 APPS=
 
 LIB=$(TOP)/libssl.a
@@ -268,7 +269,7 @@ d1_srvr.o: ../include/openssl/ssl3.h ../include/openssl/stack.h
 d1_srvr.o: ../include/openssl/symhacks.h ../include/openssl/tls1.h
 d1_srvr.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h d1_srvr.c
 d1_srvr.o: ssl_locl.h
-kssl.o: ../include/openssl/asn1.h ../include/openssl/bio.h
+kssl.o: ../crypto/o_time.h ../include/openssl/asn1.h ../include/openssl/bio.h
 kssl.o: ../include/openssl/buffer.h ../include/openssl/comp.h
 kssl.o: ../include/openssl/crypto.h ../include/openssl/dtls1.h
 kssl.o: ../include/openssl/e_os2.h ../include/openssl/ec.h

@@ -6,7 +6,7 @@ const { ChildProcess } = require('child_process');
 assert.strictEqual(typeof ChildProcess, 'function');
 
 function typeName(value) {
-  return value === null ? 'null' : typeof value;
+  return typeof value;
 }
 
 {
@@ -19,7 +19,7 @@ function typeName(value) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "options" argument must be of type object. ' +
+      message: 'The "options" argument must be of type Object. ' +
                `Received type ${typeName(options)}`
     });
   });

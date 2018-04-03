@@ -25,12 +25,14 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
+const tmpdir = require('../common/tmpdir');
+
 let watchSeenOne = 0;
 let watchSeenTwo = 0;
 let watchSeenThree = 0;
 let watchSeenFour = 0;
 
-const testDir = common.tmpDir;
+const testDir = tmpdir.path;
 
 const filenameOne = 'watch.txt';
 const filepathOne = path.join(testDir, filenameOne);
@@ -66,14 +68,11 @@ assert.throws(
   }
 );
 
-assert.doesNotThrow(
-  function() {
-    fs.watchFile(filepathOne, function() {
-      fs.unwatchFile(filepathOne);
-      ++watchSeenOne;
-    });
-  }
-);
+// Does not throw.
+fs.watchFile(filepathOne, function() {
+  fs.unwatchFile(filepathOne);
+  ++watchSeenOne;
+});
 
 setTimeout(function() {
   fs.writeFileSync(filepathOne, 'world');
@@ -93,36 +92,32 @@ assert.throws(
   }
 );
 
-assert.doesNotThrow(
-  function() {
-    function a() {
-      fs.unwatchFile(filepathTwo, a);
-      ++watchSeenTwo;
-    }
-    function b() {
-      fs.unwatchFile(filepathTwo, b);
-      ++watchSeenTwo;
-    }
-    fs.watchFile(filepathTwo, a);
-    fs.watchFile(filepathTwo, b);
+{ // Does not throw.
+  function a() {
+    fs.unwatchFile(filepathTwo, a);
+    ++watchSeenTwo;
   }
-);
+  function b() {
+    fs.unwatchFile(filepathTwo, b);
+    ++watchSeenTwo;
+  }
+  fs.watchFile(filepathTwo, a);
+  fs.watchFile(filepathTwo, b);
+}
 
 setTimeout(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
 }, 1000);
 
-assert.doesNotThrow(
-  function() {
-    function b() {
-      fs.unwatchFile(filenameThree, b);
-      ++watchSeenThree;
-    }
-    fs.watchFile(filenameThree, common.mustNotCall());
-    fs.watchFile(filenameThree, b);
-    fs.unwatchFile(filenameThree, common.mustNotCall());
+{ // Does not throw.
+  function b() {
+    fs.unwatchFile(filenameThree, b);
+    ++watchSeenThree;
   }
-);
+  fs.watchFile(filenameThree, common.mustNotCall());
+  fs.watchFile(filenameThree, b);
+  fs.unwatchFile(filenameThree, common.mustNotCall());
+}
 
 setTimeout(function() {
   fs.writeFileSync(filenameThree, 'pardner');
@@ -136,13 +131,11 @@ setTimeout(function() {
   fs.writeFileSync(filenameFour, 'hey');
 }, 500);
 
-assert.doesNotThrow(
-  function() {
-    function a() {
-      ++watchSeenFour;
-      assert.strictEqual(1, watchSeenFour);
-      fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
-    }
-    fs.watchFile(filenameFour, a);
+{ // Does not throw.
+  function a() {
+    ++watchSeenFour;
+    assert.strictEqual(1, watchSeenFour);
+    fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
   }
-);
+  fs.watchFile(filenameFour, a);
+}

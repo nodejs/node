@@ -10,7 +10,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 var debug = true;
 
 function instantiate(buffer, ffi) {
-  return new WebAssembly.Instance(WebAssembly.Module(buffer), ffi);
+  return new WebAssembly.Instance(new WebAssembly.Module(buffer), ffi);
 }
 
 (function BasicTest() {

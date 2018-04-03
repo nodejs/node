@@ -1,14 +1,16 @@
+'use strict';
+
 // Load modules
 
-var Crypto = require('crypto');
-var Path = require('path');
-var Util = require('util');
-var Escape = require('./escape');
+const Crypto = require('crypto');
+const Path = require('path');
+const Util = require('util');
+const Escape = require('./escape');
 
 
 // Declare internals
 
-var internals = {};
+const internals = {};
 
 
 // Clone object or array
@@ -21,15 +23,15 @@ exports.clone = function (obj, seen) {
         return obj;
     }
 
-    seen = seen || { orig: [], copy: [] };
+    seen = seen || new Map();
 
-    var lookup = seen.orig.indexOf(obj);
-    if (lookup !== -1) {
-        return seen.copy[lookup];
+    const lookup = seen.get(obj);
+    if (lookup) {
+        return lookup;
     }
 
-    var newObj;
-    var cloneDeep = false;
+    let newObj;
+    let cloneDeep = false;
 
     if (!Array.isArray(obj)) {
         if (Buffer.isBuffer(obj)) {
@@ -42,7 +44,7 @@ exports.clone = function (obj, seen) {
             newObj = new RegExp(obj);
         }
         else {
-            var proto = Object.getPrototypeOf(obj);
+            const proto = Object.getPrototypeOf(obj);
             if (proto &&
                 proto.isImmutable) {
 
@@ -59,14 +61,13 @@ exports.clone = function (obj, seen) {
         cloneDeep = true;
     }
 
-    seen.orig.push(obj);
-    seen.copy.push(newObj);
+    seen.set(obj, newObj);
 
     if (cloneDeep) {
-        var keys = Object.getOwnPropertyNames(obj);
-        for (var i = 0, il = keys.length; i < il; ++i) {
-            var key = keys[i];
-            var descriptor = Object.getOwnPropertyDescriptor(obj, key);
+        const keys = Object.getOwnPropertyNames(obj);
+        for (let i = 0; i < keys.length; ++i) {
+            const key = keys[i];
+            const descriptor = Object.getOwnPropertyDescriptor(obj, key);
             if (descriptor &&
                 (descriptor.get ||
                  descriptor.set)) {
@@ -84,9 +85,11 @@ exports.clone = function (obj, seen) {
 
 
 // Merge all the properties of source into target, source wins in conflict, and by default null and undefined from source are applied
+
 /*eslint-disable */
 exports.merge = function (target, source, isNullOverride /* = true */, isMergeArrays /* = true */) {
 /*eslint-enable */
+
     exports.assert(target && typeof target === 'object', 'Invalid target value: must be an object');
     exports.assert(source === null || source === undefined || typeof source === 'object', 'Invalid source value: must be null, undefined, or an object');
 
@@ -100,23 +103,23 @@ exports.merge = function (target, source, isNullOverride /* = true */, isMergeAr
             target.length = 0;                                                          // Must not change target assignment
         }
 
-        for (var i = 0, il = source.length; i < il; ++i) {
+        for (let i = 0; i < source.length; ++i) {
             target.push(exports.clone(source[i]));
         }
 
         return target;
     }
 
-    var keys = Object.keys(source);
-    for (var k = 0, kl = keys.length; k < kl; ++k) {
-        var key = keys[k];
-        var value = source[key];
+    const keys = Object.keys(source);
+    for (let i = 0; i < keys.length; ++i) {
+        const key = keys[i];
+        const value = source[key];
         if (value &&
             typeof value === 'object') {
 
             if (!target[key] ||
                 typeof target[key] !== 'object' ||
-                (Array.isArray(target[key]) ^ Array.isArray(value)) ||
+                (Array.isArray(target[key]) !== Array.isArray(value)) ||
                 value instanceof Date ||
                 Buffer.isBuffer(value) ||
                 value instanceof RegExp) {
@@ -154,7 +157,7 @@ exports.applyToDefaults = function (defaults, options, isNullOverride) {
         return null;
     }
 
-    var copy = exports.clone(defaults);
+    const copy = exports.clone(defaults);
 
     if (options === true) {                                         // If options is set to true, use defaults
         return copy;
@@ -174,8 +177,8 @@ exports.cloneWithShallow = function (source, keys) {
         return source;
     }
 
-    var storage = internals.store(source, keys);    // Move shallow copy items to storage
-    var copy = exports.clone(source);               // Deep copy the rest
+    const storage = internals.store(source, keys);    // Move shallow copy items to storage
+    const copy = exports.clone(source);               // Deep copy the rest
     internals.restore(copy, source, storage);       // Shallow copy the stored items and restore
     return copy;
 };
@@ -183,10 +186,10 @@ exports.cloneWithShallow = function (source, keys) {
 
 internals.store = function (source, keys) {
 
-    var storage = {};
-    for (var i = 0, il = keys.length; i < il; ++i) {
-        var key = keys[i];
-        var value = exports.reach(source, key);
+    const storage = {};
+    for (let i = 0; i < keys.length; ++i) {
+        const key = keys[i];
+        const value = exports.reach(source, key);
         if (value !== undefined) {
             storage[key] = value;
             internals.reachSet(source, key, undefined);
@@ -199,9 +202,9 @@ internals.store = function (source, keys) {
 
 internals.restore = function (copy, source, storage) {
 
-    var keys = Object.keys(storage);
-    for (var i = 0, il = keys.length; i < il; ++i) {
-        var key = keys[i];
+    const keys = Object.keys(storage);
+    for (let i = 0; i < keys.length; ++i) {
+        const key = keys[i];
         internals.reachSet(copy, key, storage[key]);
         internals.reachSet(source, key, storage[key]);
     }
@@ -210,11 +213,11 @@ internals.restore = function (copy, source, storage) {
 
 internals.reachSet = function (obj, key, value) {
 
-    var path = key.split('.');
-    var ref = obj;
-    for (var i = 0, il = path.length; i < il; ++i) {
-        var segment = path[i];
-        if (i + 1 === il) {
+    const path = key.split('.');
+    let ref = obj;
+    for (let i = 0; i < path.length; ++i) {
+        const segment = path[i];
+        if (i + 1 === path.length) {
             ref[segment] = value;
         }
 
@@ -235,13 +238,13 @@ exports.applyToDefaultsWithShallow = function (defaults, options, keys) {
         return null;
     }
 
-    var copy = exports.cloneWithShallow(defaults, keys);
+    const copy = exports.cloneWithShallow(defaults, keys);
 
     if (options === true) {                                         // If options is set to true, use defaults
         return copy;
     }
 
-    var storage = internals.store(options, keys);   // Move shallow copy items to storage
+    const storage = internals.store(options, keys);   // Move shallow copy items to storage
     exports.merge(copy, options, false, false);     // Deep copy the rest
     internals.restore(copy, options, storage);      // Shallow copy the stored items and restore
     return copy;
@@ -254,7 +257,7 @@ exports.deepEqual = function (obj, ref, options, seen) {
 
     options = options || { prototype: true };
 
-    var type = typeof obj;
+    const type = typeof obj;
 
     if (type !== typeof ref) {
         return false;
@@ -287,11 +290,11 @@ exports.deepEqual = function (obj, ref, options, seen) {
             return false;
         }
 
-        for (var i = 0, il = obj.length; i < il; ++i) {
+        for (let i = 0; i < obj.length; ++i) {
             if (options.part) {
-                var found = false;
-                for (var r = 0, rl = ref.length; r < rl; ++r) {
-                    if (exports.deepEqual(obj[i], ref[r], options, seen)) {
+                let found = false;
+                for (let j = 0; j < ref.length; ++j) {
+                    if (exports.deepEqual(obj[i], ref[j], options)) {
                         found = true;
                         break;
                     }
@@ -300,7 +303,7 @@ exports.deepEqual = function (obj, ref, options, seen) {
                 return found;
             }
 
-            if (!exports.deepEqual(obj[i], ref[i], options, seen)) {
+            if (!exports.deepEqual(obj[i], ref[i], options)) {
                 return false;
             }
         }
@@ -317,8 +320,8 @@ exports.deepEqual = function (obj, ref, options, seen) {
             return false;
         }
 
-        for (var j = 0, jl = obj.length; j < jl; ++j) {
-            if (obj[j] !== ref[j]) {
+        for (let i = 0; i < obj.length; ++i) {
+            if (obj[i] !== ref[i]) {
                 return false;
             }
         }
@@ -340,15 +343,15 @@ exports.deepEqual = function (obj, ref, options, seen) {
         }
     }
 
-    var keys = Object.getOwnPropertyNames(obj);
+    const keys = Object.getOwnPropertyNames(obj);
 
     if (!options.part && keys.length !== Object.getOwnPropertyNames(ref).length) {
         return false;
     }
 
-    for (var k = 0, kl = keys.length; k < kl; ++k) {
-        var key = keys[k];
-        var descriptor = Object.getOwnPropertyDescriptor(obj, key);
+    for (let i = 0; i < keys.length; ++i) {
+        const key = keys[i];
+        const descriptor = Object.getOwnPropertyDescriptor(obj, key);
         if (descriptor.get) {
             if (!exports.deepEqual(descriptor, Object.getOwnPropertyDescriptor(ref, key), options, seen)) {
                 return false;
@@ -365,18 +368,23 @@ exports.deepEqual = function (obj, ref, options, seen) {
 
 // Remove duplicate items from array
 
-exports.unique = function (array, key) {
+exports.unique = (array, key) => {
 
-    var index = {};
-    var result = [];
+    let result;
+    if (key) {
+        result = [];
+        const index = new Set();
+        array.forEach((item) => {
 
-    for (var i = 0, il = array.length; i < il; ++i) {
-        var id = (key ? array[i][key] : array[i]);
-        if (index[id] !== true) {
-
-            result.push(array[i]);
-            index[id] = true;
-        }
+            const identifier = item[key];
+            if (!index.has(identifier)) {
+                index.add(identifier);
+                result.push(item);
+            }
+        });
+    }
+    else {
+        result = Array.from(new Set(array));
     }
 
     return result;
@@ -391,8 +399,8 @@ exports.mapToObject = function (array, key) {
         return null;
     }
 
-    var obj = {};
-    for (var i = 0, il = array.length; i < il; ++i) {
+    const obj = {};
+    for (let i = 0; i < array.length; ++i) {
         if (key) {
             if (array[i][key]) {
                 obj[array[i][key]] = true;
@@ -415,10 +423,10 @@ exports.intersect = function (array1, array2, justFirst) {
         return [];
     }
 
-    var common = [];
-    var hash = (Array.isArray(array1) ? exports.mapToObject(array1) : array1);
-    var found = {};
-    for (var i = 0, il = array2.length; i < il; ++i) {
+    const common = [];
+    const hash = (Array.isArray(array1) ? exports.mapToObject(array1) : array1);
+    const found = {};
+    for (let i = 0; i < array2.length; ++i) {
         if (hash[array2[i]] && !found[array2[i]]) {
             if (justFirst) {
                 return array2[i];
@@ -444,7 +452,7 @@ exports.contain = function (ref, values, options) {
         object -> object (key:value)
     */
 
-    var valuePairs = null;
+    let valuePairs = null;
     if (typeof ref === 'object' &&
         typeof values === 'object' &&
         !Array.isArray(ref) &&
@@ -463,11 +471,13 @@ exports.contain = function (ref, values, options) {
     exports.assert(typeof ref === 'string' || typeof ref === 'object', 'Reference must be string or an object');
     exports.assert(values.length, 'Values array cannot be empty');
 
-    var compare, compareFlags;
+    let compare;
+    let compareFlags;
     if (options.deep) {
         compare = exports.deepEqual;
 
-        var hasOnly = options.hasOwnProperty('only'), hasPart = options.hasOwnProperty('part');
+        const hasOnly = options.hasOwnProperty('only');
+        const hasPart = options.hasOwnProperty('part');
 
         compareFlags = {
             prototype: hasOnly ? options.only : hasPart ? !options.part : false,
@@ -475,30 +485,27 @@ exports.contain = function (ref, values, options) {
         };
     }
     else {
-        compare = function (a, b) {
-
-            return a === b;
-        };
+        compare = (a, b) => a === b;
     }
 
-    var misses = false;
-    var matches = new Array(values.length);
-    for (var i = 0, il = matches.length; i < il; ++i) {
+    let misses = false;
+    const matches = new Array(values.length);
+    for (let i = 0; i < matches.length; ++i) {
         matches[i] = 0;
     }
 
     if (typeof ref === 'string') {
-        var pattern = '(';
-        for (i = 0, il = values.length; i < il; ++i) {
-            var value = values[i];
+        let pattern = '(';
+        for (let i = 0; i < values.length; ++i) {
+            const value = values[i];
             exports.assert(typeof value === 'string', 'Cannot compare string reference to non-string value');
             pattern += (i ? '|' : '') + exports.escapeRegex(value);
         }
 
-        var regex = new RegExp(pattern + ')', 'g');
-        var leftovers = ref.replace(regex, function ($0, $1) {
+        const regex = new RegExp(pattern + ')', 'g');
+        const leftovers = ref.replace(regex, ($0, $1) => {
 
-            var index = values.indexOf($1);
+            const index = values.indexOf($1);
             ++matches[index];
             return '';          // Remove from string
         });
@@ -506,8 +513,9 @@ exports.contain = function (ref, values, options) {
         misses = !!leftovers;
     }
     else if (Array.isArray(ref)) {
-        for (i = 0, il = ref.length; i < il; ++i) {
-            for (var j = 0, jl = values.length, matched = false; j < jl && matched === false; ++j) {
+        for (let i = 0; i < ref.length; ++i) {
+            let matched = false;
+            for (let j = 0; j < values.length && matched === false; ++j) {
                 matched = compare(values[j], ref[i], compareFlags) && j;
             }
 
@@ -520,10 +528,10 @@ exports.contain = function (ref, values, options) {
         }
     }
     else {
-        var keys = Object.keys(ref);
-        for (i = 0, il = keys.length; i < il; ++i) {
-            var key = keys[i];
-            var pos = values.indexOf(key);
+        const keys = Object.getOwnPropertyNames(ref);
+        for (let i = 0; i < keys.length; ++i) {
+            const key = keys[i];
+            const pos = values.indexOf(key);
             if (pos !== -1) {
                 if (valuePairs &&
                     !compare(valuePairs[key], ref[key], compareFlags)) {
@@ -539,8 +547,8 @@ exports.contain = function (ref, values, options) {
         }
     }
 
-    var result = false;
-    for (i = 0, il = matches.length; i < il; ++i) {
+    let result = false;
+    for (let i = 0; i < matches.length; ++i) {
         result = result || !!matches[i];
         if ((options.once && matches[i] > 1) ||
             (!options.part && !matches[i])) {
@@ -563,9 +571,9 @@ exports.contain = function (ref, values, options) {
 
 exports.flatten = function (array, target) {
 
-    var result = target || [];
+    const result = target || [];
 
-    for (var i = 0, il = array.length; i < il; ++i) {
+    for (let i = 0; i < array.length; ++i) {
         if (Array.isArray(array[i])) {
             exports.flatten(array[i], result);
         }
@@ -594,20 +602,20 @@ exports.reach = function (obj, chain, options) {
         options = { separator: options };
     }
 
-    var path = chain.split(options.separator || '.');
-    var ref = obj;
-    for (var i = 0, il = path.length; i < il; ++i) {
-        var key = path[i];
+    const path = chain.split(options.separator || '.');
+    let ref = obj;
+    for (let i = 0; i < path.length; ++i) {
+        let key = path[i];
         if (key[0] === '-' && Array.isArray(ref)) {
             key = key.slice(1, key.length);
             key = ref.length - key;
         }
 
         if (!ref ||
-            !ref.hasOwnProperty(key) ||
+            !((typeof ref === 'object' || typeof ref === 'function') && key in ref) ||
             (typeof ref !== 'object' && options.functions === false)) {         // Only object and function can have properties
 
-            exports.assert(!options.strict || i + 1 === il, 'Missing segment', key, 'in reach path ', chain);
+            exports.assert(!options.strict || i + 1 === path.length, 'Missing segment', key, 'in reach path ', chain);
             exports.assert(typeof ref === 'object' || options.functions === true || typeof ref !== 'function', 'Invalid segment', key, 'in reach path ', chain);
             ref = options.default;
             break;
@@ -622,9 +630,9 @@ exports.reach = function (obj, chain, options) {
 
 exports.reachTemplate = function (obj, template, options) {
 
-    return template.replace(/{([^}]+)}/g, function ($0, chain) {
+    return template.replace(/{([^}]+)}/g, ($0, chain) => {
 
-        var value = exports.reach(obj, chain, options);
+        const value = exports.reach(obj, chain, options);
         return (value === undefined || value === null ? '' : value);
     });
 };
@@ -632,9 +640,9 @@ exports.reachTemplate = function (obj, template, options) {
 
 exports.formatStack = function (stack) {
 
-    var trace = [];
-    for (var i = 0, il = stack.length; i < il; ++i) {
-        var item = stack[i];
+    const trace = [];
+    for (let i = 0; i < stack.length; ++i) {
+        const item = stack[i];
         trace.push([item.getFileName(), item.getLineNumber(), item.getColumnNumber(), item.getFunctionName(), item.isConstructor()]);
     }
 
@@ -644,10 +652,10 @@ exports.formatStack = function (stack) {
 
 exports.formatTrace = function (trace) {
 
-    var display = [];
+    const display = [];
 
-    for (var i = 0, il = trace.length; i < il; ++i) {
-        var row = trace[i];
+    for (let i = 0; i < trace.length; ++i) {
+        const row = trace[i];
         display.push((row[4] ? 'new ' : '') + row[3] + ' (' + row[0] + ':' + row[1] + ':' + row[2] + ')');
     }
 
@@ -659,31 +667,27 @@ exports.callStack = function (slice) {
 
     // http://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
 
-    var v8 = Error.prepareStackTrace;
-    Error.prepareStackTrace = function (err, stack) {
+    const v8 = Error.prepareStackTrace;
+    Error.prepareStackTrace = function (_, stack) {
 
         return stack;
     };
 
-    var capture = {};
-    Error.captureStackTrace(capture, arguments.callee);     /*eslint no-caller:0 */
-    var stack = capture.stack;
+    const capture = {};
+    Error.captureStackTrace(capture, this);     // arguments.callee is not supported in strict mode so we use this and slice the trace of this off the result
+    const stack = capture.stack;
 
     Error.prepareStackTrace = v8;
 
-    var trace = exports.formatStack(stack);
+    const trace = exports.formatStack(stack);
 
-    if (slice) {
-        return trace.slice(slice);
-    }
-
-    return trace;
+    return trace.slice(1 + slice);
 };
 
 
 exports.displayStack = function (slice) {
 
-    var trace = exports.callStack(slice === undefined ? 1 : slice + 1);
+    const trace = exports.callStack(slice === undefined ? 1 : slice + 1);
 
     return exports.formatTrace(trace);
 };
@@ -698,7 +702,7 @@ exports.abort = function (message, hideStack) {
         throw new Error(message || 'Unknown error');
     }
 
-    var stack = '';
+    let stack = '';
     if (!hideStack) {
         stack = exports.displayStack(1).join('\n\t');
     }
@@ -717,17 +721,18 @@ exports.assert = function (condition /*, msg1, msg2, msg3 */) {
         throw arguments[1];
     }
 
-    var msgs = [];
-    for (var i = 1, il = arguments.length; i < il; ++i) {
+    let msgs = [];
+    for (let i = 1; i < arguments.length; ++i) {
         if (arguments[i] !== '') {
             msgs.push(arguments[i]);            // Avoids Array.slice arguments leak, allowing for V8 optimizations
         }
     }
 
-    msgs = msgs.map(function (msg) {
+    msgs = msgs.map((msg) => {
 
         return typeof msg === 'string' ? msg : msg instanceof Error ? msg.message : exports.stringify(msg);
     });
+
     throw new Error(msgs.join(' ') || 'Unknown error');
 };
 
@@ -772,7 +777,7 @@ exports.Bench.prototype.elapsed = function () {
 
 exports.Bench.now = function () {
 
-    var ts = process.hrtime();
+    const ts = process.hrtime();
     return (ts[0] * 1e3) + (ts[1] / 1e6);
 };
 
@@ -790,7 +795,8 @@ exports.escapeRegex = function (string) {
 
 exports.base64urlEncode = function (value, encoding) {
 
-    var buf = (Buffer.isBuffer(value) ? value : new Buffer(value, encoding || 'binary'));
+    exports.assert(typeof value === 'string' || Buffer.isBuffer(value), 'value must be string or buffer');
+    const buf = (Buffer.isBuffer(value) ? value : new Buffer(value, encoding || 'binary'));
     return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/\=/g, '');
 };
 
@@ -799,19 +805,18 @@ exports.base64urlEncode = function (value, encoding) {
 
 exports.base64urlDecode = function (value, encoding) {
 
-    if (value &&
-        !/^[\w\-]*$/.test(value)) {
+    if (typeof value !== 'string') {
+
+        return new Error('Value not a string');
+    }
+
+    if (!/^[\w\-]*$/.test(value)) {
 
         return new Error('Invalid character');
     }
 
-    try {
-        var buf = new Buffer(value, 'base64');
-        return (encoding === 'buffer' ? buf : buf.toString(encoding || 'binary'));
-    }
-    catch (err) {
-        return err;
-    }
+    const buf = new Buffer(value, 'base64');
+    return (encoding === 'buffer' ? buf : buf.toString(encoding || 'binary'));
 };
 
 
@@ -838,13 +843,17 @@ exports.escapeJavaScript = function (string) {
     return Escape.escapeJavaScript(string);
 };
 
+exports.escapeJson = function (string) {
+
+    return Escape.escapeJson(string);
+};
 
 exports.nextTick = function (callback) {
 
     return function () {
 
-        var args = arguments;
-        process.nextTick(function () {
+        const args = arguments;
+        process.nextTick(() => {
 
             callback.apply(null, args);
         });
@@ -858,8 +867,8 @@ exports.once = function (method) {
         return method;
     }
 
-    var once = false;
-    var wrapped = function () {
+    let once = false;
+    const wrapped = function () {
 
         if (!once) {
             once = true;
@@ -873,36 +882,7 @@ exports.once = function (method) {
 };
 
 
-exports.isAbsolutePath = function (path, platform) {
-
-    if (!path) {
-        return false;
-    }
-
-    if (Path.isAbsolute) {                      // node >= 0.11
-        return Path.isAbsolute(path);
-    }
-
-    platform = platform || process.platform;
-
-    // Unix
-
-    if (platform !== 'win32') {
-        return path[0] === '/';
-    }
-
-    // Windows
-
-    return !!/^(?:[a-zA-Z]:[\\\/])|(?:[\\\/]{2}[^\\\/]+[\\\/]+[^\\\/])/.test(path);        // C:\ or \\something\something
-};
-
-
-exports.isInteger = function (value) {
-
-    return (typeof value === 'number' &&
-            parseFloat(value) === parseInt(value, 10) &&
-            !isNaN(value));
-};
+exports.isInteger = Number.isSafeInteger;
 
 
 exports.ignore = function () { };
@@ -917,27 +897,28 @@ exports.format = Util.format;
 exports.transform = function (source, transform, options) {
 
     exports.assert(source === null || source === undefined || typeof source === 'object' || Array.isArray(source), 'Invalid source object: must be null, undefined, an object, or an array');
+    const separator = (typeof options === 'object' && options !== null) ? (options.separator || '.') : '.';
 
     if (Array.isArray(source)) {
-        var results = [];
-        for (var i = 0, il = source.length; i < il; ++i) {
+        const results = [];
+        for (let i = 0; i < source.length; ++i) {
             results.push(exports.transform(source[i], transform, options));
         }
         return results;
     }
 
-    var result = {};
-    var keys = Object.keys(transform);
+    const result = {};
+    const keys = Object.keys(transform);
 
-    for (var k = 0, kl = keys.length; k < kl; ++k) {
-        var key = keys[k];
-        var path = key.split('.');
-        var sourcePath = transform[key];
+    for (let i = 0; i < keys.length; ++i) {
+        const key = keys[i];
+        const path = key.split(separator);
+        const sourcePath = transform[key];
 
         exports.assert(typeof sourcePath === 'string', 'All mappings must be "." delineated strings');
 
-        var segment;
-        var res = result;
+        let segment;
+        let res = result;
 
         while (path.length > 1) {
             segment = path.shift();
@@ -964,7 +945,7 @@ exports.uniqueFilename = function (path, extension) {
     }
 
     path = Path.resolve(path);
-    var name = [Date.now(), process.pid, Crypto.randomBytes(8).toString('hex')].join('-') + extension;
+    const name = [Date.now(), process.pid, Crypto.randomBytes(8).toString('hex')].join('-') + extension;
     return Path.join(path, name);
 };
 
@@ -982,10 +963,10 @@ exports.stringify = function () {
 
 exports.shallow = function (source) {
 
-    var target = {};
-    var keys = Object.keys(source);
-    for (var i = 0, il = keys.length; i < il; ++i) {
-        var key = keys[i];
+    const target = {};
+    const keys = Object.keys(source);
+    for (let i = 0; i < keys.length; ++i) {
+        const key = keys[i];
         target[key] = source[key];
     }
 

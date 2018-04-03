@@ -23,6 +23,8 @@ function main({ n, len, type }) {
       opts = { showHidden: true };
       arr = arr.fill('denseArray');
       break;
+      // For testing, if supplied with an empty type, default to denseArray.
+    case '':
     case 'denseArray':
       arr = arr.fill('denseArray');
       break;

@@ -5,8 +5,6 @@
 #include "src/snapshot/serializer-common.h"
 
 #include "src/external-reference-table.h"
-#include "src/ic/stub-cache.h"
-#include "src/list-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -55,6 +53,17 @@ ExternalReferenceEncoder::~ExternalReferenceEncoder() {
                         ExternalReferenceTable::ResolveSymbol(addr));
   }
 #endif  // DEBUG
+}
+
+Maybe<ExternalReferenceEncoder::Value> ExternalReferenceEncoder::TryEncode(
+    Address address) {
+  Maybe<uint32_t> maybe_index = map_->Get(address);
+  if (maybe_index.IsNothing()) return Nothing<Value>();
+  Value result(maybe_index.FromJust());
+#ifdef DEBUG
+  if (result.is_from_api()) count_[result.index()]++;
+#endif  // DEBUG
+  return Just<Value>(result);
 }
 
 ExternalReferenceEncoder::Value ExternalReferenceEncoder::Encode(
@@ -108,7 +117,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
-  return !o->IsString() && !o->IsScript();
+  return !o->IsString() && !o->IsScript() && !o->IsJSTypedArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
@@ -117,6 +126,14 @@ void SerializerDeserializer::RestoreExternalReferenceRedirectors(
   for (AccessorInfo* info : accessor_infos) {
     Foreign::cast(info->js_getter())
         ->set_foreign_address(info->redirected_getter());
+  }
+}
+
+void SerializerDeserializer::RestoreExternalReferenceRedirectors(
+    const std::vector<CallHandlerInfo*>& call_handler_infos) {
+  for (CallHandlerInfo* info : call_handler_infos) {
+    Foreign::cast(info->js_callback())
+        ->set_foreign_address(info->redirected_callback());
   }
 }
 

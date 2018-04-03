@@ -44,6 +44,10 @@ set_target_properties(nghttp2 PROPERTIES
   VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
   C_VISIBILITY_PRESET hidden
 )
+target_include_directories(nghttp2 INTERFACE
+    "${CMAKE_CURRENT_BINARY_DIR}/includes"
+    "${CMAKE_CURRENT_SOURCE_DIR}/includes"
+    )
 
 if(HAVE_CUNIT)
   # Static library (for unittests because of symbol visibility)

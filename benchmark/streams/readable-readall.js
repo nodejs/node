@@ -7,9 +7,8 @@ const bench = common.createBenchmark(main, {
   n: [50e2]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const b = new Buffer(32);
+function main({ n }) {
+  const b = Buffer.alloc(32);
   const s = new Readable();
   function noop() {}
   s._read = noop;

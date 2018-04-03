@@ -33,7 +33,7 @@ if (process.argv[2] === 'child') {
   process.on('message', function(m, socket) {
     if (!socket) return;
 
-    console.error('[%d] got socket', id, m);
+    console.error(`[${id}] got socket ${m}`);
 
     // will call .end('end') or .write('write');
     socket[m](m);
@@ -41,11 +41,11 @@ if (process.argv[2] === 'child') {
     socket.resume();
 
     socket.on('data', function() {
-      console.error('[%d] socket.data', id, m);
+      console.error(`[${id}] socket.data ${m}`);
     });
 
     socket.on('end', function() {
-      console.error('[%d] socket.end', id, m);
+      console.error(`[${id}] socket.end ${m}`);
     });
 
     // store the unfinished socket
@@ -54,27 +54,27 @@ if (process.argv[2] === 'child') {
     }
 
     socket.on('close', function(had_error) {
-      console.error('[%d] socket.close', id, had_error, m);
+      console.error(`[${id}] socket.close ${had_error} ${m}`);
     });
 
     socket.on('finish', function() {
-      console.error('[%d] socket finished', id, m);
+      console.error(`[${id}] socket finished ${m}`);
     });
   });
 
   process.on('message', function(m) {
     if (m !== 'close') return;
-    console.error('[%d] got close message', id);
+    console.error(`[${id}] got close message`);
     needEnd.forEach(function(endMe, i) {
-      console.error('[%d] ending %d/%d', id, i, needEnd.length);
+      console.error(`[${id}] ending ${i}/${needEnd.length}`);
       endMe.end('end');
     });
   });
 
   process.on('disconnect', function() {
-    console.error('[%d] process disconnect, ending', id);
+    console.error(`[${id}] process disconnect, ending`);
     needEnd.forEach(function(endMe, i) {
-      console.error('[%d] ending %d/%d', id, i, needEnd.length);
+      console.error(`[${id}] ending ${i}/${needEnd.length}`);
       endMe.end('end');
     });
   });
@@ -107,7 +107,7 @@ if (process.argv[2] === 'child') {
     connected += 1;
 
     socket.once('close', function() {
-      console.log('[m] socket closed, total %d', ++closed);
+      console.log(`[m] socket closed, total ${++closed}`);
     });
 
     if (connected === count) {
@@ -130,6 +130,7 @@ if (process.argv[2] === 'child') {
         console.error('[m] CLIENT: close event');
         disconnected += 1;
       });
+      client.resume();
     }
   });
 

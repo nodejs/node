@@ -861,7 +861,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   instr->set_block(current_block_);
   instructions_.push_back(instr);
   if (instr->NeedsReferenceMap()) {
-    DCHECK(instr->reference_map() == nullptr);
+    DCHECK_NULL(instr->reference_map());
     ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
     reference_map->set_instruction_position(index);
     instr->set_reference_map(reference_map);
@@ -927,10 +927,10 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
 
 int InstructionSequence::AddDeoptimizationEntry(
     FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-    DeoptimizeReason reason) {
+    DeoptimizeReason reason, VectorSlotPair const& feedback) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
   deoptimization_entries_.push_back(
-      DeoptimizationEntry(descriptor, kind, reason));
+      DeoptimizationEntry(descriptor, kind, reason, feedback));
   return deoptimization_id;
 }
 
@@ -993,7 +993,7 @@ const RegisterConfiguration*
 
 const RegisterConfiguration*
 InstructionSequence::RegisterConfigurationForTesting() {
-  DCHECK(registerConfigurationForTesting_ != nullptr);
+  DCHECK_NOT_NULL(registerConfigurationForTesting_);
   return registerConfigurationForTesting_;
 }
 

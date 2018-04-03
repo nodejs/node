@@ -16,7 +16,7 @@ function a() {
   try {
     return a();
   } catch (e) {
-    compiledConsole = consoleDescriptor.get();
+    compiledConsole = consoleDescriptor.value;
     if (compiledConsole.log) {
       // Using `console.log` itself might not succeed yet, but the code for it
       // has been compiled.

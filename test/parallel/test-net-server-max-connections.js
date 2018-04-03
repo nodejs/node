@@ -55,7 +55,7 @@ function makeConnection(index) {
     }
 
     c.on('close', function() {
-      console.error('closed %d', index);
+      console.error(`closed ${index}`);
       closes++;
 
       if (closes < N / 2) {
@@ -88,7 +88,7 @@ function makeConnection(index) {
 
   c.on('data', function(b) {
     gotData = true;
-    assert.ok(0 < b.length);
+    assert.ok(b.length > 0);
   });
 
   c.on('error', function(e) {
@@ -97,7 +97,7 @@ function makeConnection(index) {
     if (common.isSunOS && (e.code === 'ECONNREFUSED')) {
       c.connect(server.address().port);
     }
-    console.error('error %d: %s', index, e);
+    console.error(`error ${index}: ${e}`);
   });
 }
 

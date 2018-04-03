@@ -9,8 +9,8 @@ const domain = require('domain');
  */
 const d = domain.create();
 
-d.on('error', common.mustCall(function() {
-  process.nextTick(function() {
+d.on('error', common.mustCall(() => {
+  process.nextTick(() => {
     // Scheduling a callback with process.nextTick will enter a _new_ domain,
     // and the callback will be called after the domain that handled the error
     // was exited. So there should be only one domain on the domains stack if
@@ -29,6 +29,6 @@ d.on('error', common.mustCall(function() {
   });
 }));
 
-d.run(function() {
+d.run(() => {
   throw new Error('Error from domain');
 });

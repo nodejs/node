@@ -5,8 +5,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 
-assert.doesNotThrow(() => process.binding('http2'));
-
 const binding = process.binding('http2');
 const http2 = require('http2');
 
@@ -31,6 +29,7 @@ const expectedStatusCodes = {
   HTTP_STATUS_CONTINUE: 100,
   HTTP_STATUS_SWITCHING_PROTOCOLS: 101,
   HTTP_STATUS_PROCESSING: 102,
+  HTTP_STATUS_EARLY_HINTS: 103,
   HTTP_STATUS_OK: 200,
   HTTP_STATUS_CREATED: 201,
   HTTP_STATUS_ACCEPTED: 202,

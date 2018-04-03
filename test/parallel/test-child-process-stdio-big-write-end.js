@@ -30,7 +30,7 @@ switch (process.argv[2]) {
   case 'child':
     return child();
   default:
-    throw new Error('wtf?');
+    throw new Error('invalid');
 }
 
 function parent() {

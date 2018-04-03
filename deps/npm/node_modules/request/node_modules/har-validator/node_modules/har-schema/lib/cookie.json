@@ -1,5 +1,6 @@
 {
-  "id": "cookie.json#",
+  "$id": "cookie.json#",
+  "$schema": "http://json-schema.org/draft-06/schema#",
   "type": "object",
   "required": [
     "name",

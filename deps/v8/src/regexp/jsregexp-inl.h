@@ -30,7 +30,7 @@ int32_t* RegExpImpl::GlobalCache::FetchNext() {
     // Fail if last batch was not even fully filled.
     if (num_matches_ < max_matches_) {
       num_matches_ = 0;  // Signal failed match.
-      return NULL;
+      return nullptr;
     }
 
     int32_t* last_match =
@@ -51,7 +51,7 @@ int32_t* RegExpImpl::GlobalCache::FetchNext() {
       }
       if (last_end_index > subject_->length()) {
         num_matches_ = 0;  // Signal failed match.
-        return NULL;
+        return nullptr;
       }
       num_matches_ = RegExpImpl::IrregexpExecRaw(regexp_,
                                                  subject_,
@@ -60,7 +60,7 @@ int32_t* RegExpImpl::GlobalCache::FetchNext() {
                                                  register_array_size_);
     }
 
-    if (num_matches_ <= 0) return NULL;
+    if (num_matches_ <= 0) return nullptr;
     current_match_index_ = 0;
     return register_array_;
   } else {

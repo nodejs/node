@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_persistent.h"
 #include "v8.h"
 
 #include <assert.h>
@@ -33,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <functional>  // std::function
 #include <type_traits>  // std::remove_reference
 
 namespace node {
@@ -159,6 +161,7 @@ class ListNode {
 
  private:
   template <typename U, ListNode<U> (U::*M)> friend class ListHead;
+  friend int GenDebugSymbols();
   ListNode* prev_;
   ListNode* next_;
   DISALLOW_COPY_AND_ASSIGN(ListNode);
@@ -181,7 +184,6 @@ class ListHead {
 
   inline ListHead() = default;
   inline ~ListHead();
-  inline void MoveBack(ListHead* that);
   inline void PushBack(T* element);
   inline void PushFront(T* element);
   inline bool IsEmpty() const;
@@ -190,6 +192,7 @@ class ListHead {
   inline Iterator end() const;
 
  private:
+  friend int GenDebugSymbols();
   ListNode<T> head_;
   DISALLOW_COPY_AND_ASSIGN(ListHead);
 };
@@ -217,7 +220,7 @@ inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
-    const v8::Persistent<TypeName>& persistent);
+    const Persistent<TypeName>& persistent);
 
 // Unchecked conversion from a non-weak Persistent<T> to Local<TLocal<T>,
 // use with care!
@@ -226,12 +229,12 @@ inline v8::Local<TypeName> PersistentToLocal(
 // scope, it will destroy the reference to the object.
 template <class TypeName>
 inline v8::Local<TypeName> StrongPersistentToLocal(
-    const v8::Persistent<TypeName>& persistent);
+    const Persistent<TypeName>& persistent);
 
 template <class TypeName>
 inline v8::Local<TypeName> WeakPersistentToLocal(
     v8::Isolate* isolate,
-    const v8::Persistent<TypeName>& persistent);
+    const Persistent<TypeName>& persistent);
 
 // Convenience wrapper around v8::String::NewFromOneByte().
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -428,8 +431,18 @@ class BufferValue : public MaybeStackBuffer<char> {
   if (name##_length > 0)                                                      \
     CHECK_NE(name##_data, nullptr);
 
-
+// Use this when a variable or parameter is unused in order to explicitly
+// silence a compiler warning about that.
+template <typename T> inline void USE(T&&) {}
 }  // namespace node
+
+// Run a function when exiting the current scope.
+struct OnScopeLeave {
+  std::function<void()> fn_;
+
+  explicit OnScopeLeave(std::function<void()> fn) : fn_(fn) {}
+  ~OnScopeLeave() { fn_(); }
+};
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

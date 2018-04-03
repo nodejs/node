@@ -357,7 +357,7 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "value" argument must be one of type string, ' +
-               `buffer, or uint8Array. Received type ${typeof val}`
+               `Buffer, or Uint8Array. Received type ${typeof val}`
     }
   );
 });
@@ -504,7 +504,7 @@ assert.strictEqual(buf_bc.lastIndexOf('你好', 5, 'binary'), -1);
 assert.strictEqual(buf_bc.lastIndexOf(Buffer.from('你好'), 7), -1);
 
 // Test lastIndexOf on a longer buffer:
-const bufferString = new Buffer('a man a plan a canal panama');
+const bufferString = Buffer.from('a man a plan a canal panama');
 assert.strictEqual(15, bufferString.lastIndexOf('canal'));
 assert.strictEqual(21, bufferString.lastIndexOf('panama'));
 assert.strictEqual(0, bufferString.lastIndexOf('a man a plan a canal panama'));
@@ -554,7 +554,7 @@ assert.strictEqual(511, longBufferString.lastIndexOf(pattern, 1534));
 // "yolo swag swag yolo swag yolo yolo swag" ..., goes on for about 5MB.
 // This is hard to search because it all looks similar, but never repeats.
 
-// countBits returns the number of bits in the binary reprsentation of n.
+// countBits returns the number of bits in the binary representation of n.
 function countBits(n) {
   let count;
   for (count = 0; n > 0; count++) {
@@ -566,7 +566,7 @@ const parts = [];
 for (let i = 0; i < 1000000; i++) {
   parts.push((countBits(i) % 2 === 0) ? 'yolo' : 'swag');
 }
-const reallyLong = new Buffer(parts.join(' '));
+const reallyLong = Buffer.from(parts.join(' '));
 assert.strictEqual('yolo swag swag yolo', reallyLong.slice(0, 19).toString());
 
 // Expensive reverse searches. Stress test lastIndexOf:

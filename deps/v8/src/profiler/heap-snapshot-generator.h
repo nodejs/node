@@ -7,10 +7,12 @@
 
 #include <deque>
 #include <unordered_map>
+#include <vector>
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 #include "src/profiler/strings-storage.h"
 #include "src/string-hasher.h"
 #include "src/visitors.h"
@@ -24,6 +26,9 @@ class HeapEntry;
 class HeapIterator;
 class HeapProfiler;
 class HeapSnapshot;
+class JSArrayBuffer;
+class JSCollection;
+class JSWeakCollection;
 class SnapshotFiller;
 
 class HeapGraphEdge BASE_EMBEDDED {
@@ -233,7 +238,7 @@ class HeapObjectsMap {
   void StopHeapObjectsTracking();
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream,
                                         int64_t* timestamp_us);
-  const List<TimeInterval>& samples() const { return time_intervals_; }
+  const std::vector<TimeInterval>& samples() const { return time_intervals_; }
 
   SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
 
@@ -260,7 +265,7 @@ class HeapObjectsMap {
   SnapshotObjectId next_id_;
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
-  List<TimeInterval> time_intervals_;
+  std::vector<TimeInterval> time_intervals_;
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
@@ -429,17 +434,14 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                         int index,
                         Object* child_obj,
                         int field_offset);
-  void SetPropertyReference(HeapObject* parent_obj,
-                            int parent,
-                            Name* reference_name,
-                            Object* child,
-                            const char* name_format_string = NULL,
+  void SetPropertyReference(HeapObject* parent_obj, int parent,
+                            Name* reference_name, Object* child,
+                            const char* name_format_string = nullptr,
                             int field_offset = -1);
-  void SetDataOrAccessorPropertyReference(PropertyKind kind,
-                                          JSObject* parent_obj, int parent,
-                                          Name* reference_name, Object* child,
-                                          const char* name_format_string = NULL,
-                                          int field_offset = -1);
+  void SetDataOrAccessorPropertyReference(
+      PropertyKind kind, JSObject* parent_obj, int parent, Name* reference_name,
+      Object* child, const char* name_format_string = nullptr,
+      int field_offset = -1);
 
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
@@ -489,7 +491,8 @@ class NativeObjectsExplorer {
  private:
   void FillRetainedObjects();
   void FillEdges();
-  List<HeapObject*>* GetListMaybeDisposeInfo(v8::RetainedObjectInfo* info);
+  std::vector<HeapObject*>* GetVectorMaybeDisposeInfo(
+      v8::RetainedObjectInfo* info);
   void SetNativeRootReference(v8::RetainedObjectInfo* info);
   void SetRootNativeRootsReference();
   void SetWrapperNativeReferences(HeapObject* wrapper,
@@ -516,7 +519,7 @@ class NativeObjectsExplorer {
   StringsStorage* names_;
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
-  // RetainedObjectInfo* -> List<HeapObject*>*
+  // RetainedObjectInfo* -> std::vector<HeapObject*>*
   base::CustomMatcherHashMap objects_by_info_;
   base::CustomMatcherHashMap native_groups_;
   HeapEntriesAllocator* synthetic_entries_allocator_;
@@ -570,8 +573,7 @@ class HeapSnapshotJSONSerializer {
         strings_(StringsMatch),
         next_node_id_(1),
         next_string_id_(1),
-        writer_(NULL) {
-  }
+        writer_(nullptr) {}
   void Serialize(v8::OutputStream* stream);
 
  private:

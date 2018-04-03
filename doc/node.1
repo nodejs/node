@@ -1,368 +1,384 @@
-.TH NODE 1 2016 Node.js Node.js
-
-.\" This is a man page comment.
-
-.\" Man page syntax (actually roff syntax) is somewhat obscure, but the
-.\" important part is is that .<letter> specifies <letter>'s syntax for that
-.\" line, and \f<letter> specifies it for the characters that follow.
-
-.\" .B   Bold line
-.\" .I   Italic line (Rendered as underlined text in terminals)
-.\" .BI  Alternating bold/italics without spaces between arguments.
-.\"      Use `\ ` to include an "unpaddable" (literal) space in the output.
-.\" .RI  Alternating roman/italic
-
-.\" See http://liw.fi/manpages/ for an overview, or http://www.troff.org/54.pdf
-.\" for detailed language reference.
-
-.\" Macro to display an underlined URL in bold
-.de ur
-.nr CF \\n(.f
-.ft 4
-\\$1
-.ft \\n(CF
-..
-
-
-.SH NAME
-
-node \- Server-side JavaScript runtime
-
-
-.SH SYNOPSIS
-
-.B node
-.RI [ options ]
-.RI [ v8\ options ]
-.RI [ script.js \ |
-.B -e
-.RI \&" script \&"
-.R |
-.B -
-.R ]
-.B [--]
-.RI [ arguments ]
-.br
-.B node debug
-.RI [ script.js " | "
-.B \-e
-.RI \&" script \&"\ |
-.IR <host>:<port> ]
-.I ...
-.br
-.B node
-.RB [ \-\-v8-options ]
-
-Execute without arguments to start the REPL.
-
-
-.SH DESCRIPTION
-
-Node.js is a set of libraries for JavaScript which allows it to be used outside
-of the browser. It is primarily focused on creating simple, easy to build
-network clients and servers.
-
-
-.SH OPTIONS
-
-.TP
-.BR \-v ", " \-\-version
+.\"
+.\" This manpage is written in mdoc(7).
+.\"
+.\" * Language reference:
+.\"   https://man.openbsd.org/mdoc.7
+.\"
+.\" * Atom editor support:
+.\"   https://atom.io/packages/language-roff
+.\"
+.\" * Linting changes:
+.\"   mandoc -Wall -Tlint /path/to/this.file  # BSD
+.\"   groff -w all -z /path/to/this.file      # GNU/Linux, macOS
+.\"
+.\"
+.\" Before making changes, please note the following:
+.\"
+.\" * In Roff, each new sentence should begin on a new line. This gives
+.\"   the Roff formatter better control over text-spacing, line-wrapping,
+.\"   and paragraph justification.
+.\"
+.\" * Do not leave blank lines in the markup. If whitespace is desired
+.\"   for readability, put a dot in the first column to indicate a null/empty
+.\"   command. Comments and horizontal whitespace may optionally follow: each
+.\"   of these lines are an example of a null command immediately followed by
+.\"   a comment.
+.\"
+.\"======================================================================
+.
+.Dd 2018
+.Dt NODE 1
+.
+.Sh NAME
+.Nm node
+.Nd server-side JavaScript runtime
+.
+.\"======================================================================
+.Sh SYNOPSIS
+.Nm node
+.Op Ar options
+.Op Ar v8-options
+.Op Fl e Ar string | Ar script.js | Fl
+.Op Fl \-
+.Op Ar arguments ...
+.
+.Nm node
+.Cm debug
+.Op Fl e Ar string | Ar script.js | Fl | Ar <host>:<port>
+.Ar ...
+.
+.Nm node
+.Op Fl -v8-options
+.
+.\"======================================================================
+.Sh DESCRIPTION
+Node.js is a set of libraries for JavaScript which allows it to be used outside of the browser.
+It is primarily focused on creating simple, easy-to-build network clients and servers.
+.Pp
+Execute
+.Nm
+without arguments to start a REPL.
+.
+.Sh OPTIONS
+.Bl -tag -width 6n
+.It Fl v , Fl -version
 Print node's version.
-
-.TP
-.BR \-h ", " \-\-help
+.
+.It Fl h , Fl -help
 Print node command line options.
 The output of this option is less detailed than this document.
-
-.TP
-.BR \-e ", " \-\-eval " " \fR"\fIscript\fR"
-Evaluate the following argument as JavaScript.
-
-.TP
-.BR \-p ", " \-\-print " " \fR"\fIscript\fR"
-Identical to \fB-e\fR but prints the result.
-
-.TP
-.BR \-c ", " \-\-check
-Syntax check the script without executing.
-
-.TP
-.BR \-i ", " \-\-interactive
+.
+.It Fl e , Fl -eval Ar string
+Evaluate
+.Ar string
+as JavaScript.
+.
+.It Fl p , Fl -print Ar string
+Identical to
+.Fl e ,
+but prints the result.
+.
+.It Fl c , Fl -check
+Check the script's syntax without executing it.
+Exits with an error code if script is invalid.
+.
+.It Fl i , Fl -interactive
 Open the REPL even if stdin does not appear to be a terminal.
-
-.TP
-.BR \-r ", " \-\-require " " \fImodule\fR
-Preload the specified module at startup. Follows `require()`'s module resolution
-rules. \fImodule\fR may be either a path to a file, or a node module name.
-
-.TP
-.BR \-\-inspect \fI[=[host:]port]\fR
-Activate inspector on host:port. Default is 127.0.0.1:9229.
-
-V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js
-instances for debugging and profiling. It uses the Chrome Debugging Protocol.
-
-.TP
-.BR \-\-inspect-brk \fI[=[host:]port]\fR
-Activate inspector on host:port and break at start of user script.
-
-.TP
-.BR \-\-inspect-port \fI=[host:]port\fR
-Set the host:port to be used when the inspector is activated.
-
-.TP
-.BR \-\-no\-deprecation
+.
+.It Fl r , Fl -require Ar module
+Preload the specified
+.Ar module
+at startup.
+Follows `require()`'s module resolution rules.
+.Ar module
+may be either a path to a file, or a node module name.
+.
+.It Fl -inspect Ns = Ns Ar [host:]port
+Activate inspector on
+.Ar host:port .
+Default is
+.Sy 127.0.0.1:9229 .
+.Pp
+V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js instances for debugging and profiling.
+It uses the Chrome Debugging Protocol.
+.
+.It Fl -inspect-brk Ns = Ns Ar [host:]port
+Activate inspector on
+.Ar host:port
+and break at start of user script.
+.
+.It Fl -inspect-port Ns = Ns Ar [host:]port
+Set the
+.Ar host:port
+to be used when the inspector is activated.
+.
+.It Fl -no-deprecation
 Silence deprecation warnings.
-
-.TP
-.BR \-\-trace\-deprecation
+.
+.It Fl -trace-deprecation
 Print stack traces for deprecations.
-
-.TP
-.BR \-\-throw\-deprecation
+.
+.It Fl -throw-deprecation
 Throw errors for deprecations.
-
-.TP
-.BR \-\-pending\-deprecation
+.
+.It Fl -pending-deprecation
 Emit pending deprecation warnings.
-
-.TP
-.BR \-\-no\-warnings
+.
+.It Fl -no-warnings
 Silence all process warnings (including deprecations).
-
-.TP
-.BR \-\-napi\-modules
+.
+.It Fl -napi-modules
 Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
 (experimental).
-
-.TP
-.BR \-\-abort\-on\-uncaught\-exception
+.
+.It Fl -abort-on-uncaught-exception
 Aborting instead of exiting causes a core file to be generated for analysis.
-
-.TP
-.BR \-\-trace\-warnings
+.
+.It Fl -trace-warnings
 Print stack traces for process warnings (including deprecations).
-
-.TP
-.BR \-\-redirect\-warnings=\fIfile\fR
-Write process warnings to the given file instead of printing to stderr.
-
-.TP
-.BR \-\-trace\-sync\-io
-Print a stack trace whenever synchronous I/O is detected after the first turn
-of the event loop.
-
-.TP
-.BR \-\-force\-async\-hooks\-checks
-Enables runtime checks for `async_hooks`. These can also be enabled dynamically
-by enabling one of the `async_hooks` hooks.
-
-.TP
-.BR \-\-trace\-events\-enabled
-Enables the collection of trace event tracing information.
-
-.TP
-.BR \-\-trace\-event\-categories " " \fIcategories\fR
-A comma separated list of categories that should be traced when trace event
-tracing is enabled using \fB--trace-events-enabled\fR.
-
-.TP
-.BR \-\-zero\-fill\-buffers
+.
+.It Fl -redirect-warnings Ns = Ns Ar file
+Write process warnings to the given
+.Ar file
+instead of printing to stderr.
+.
+.It Fl -trace-sync-io
+Print a stack trace whenever synchronous I/O is detected after the first turn of the event loop.
+.
+.It Fl -no-force-async-hooks-checks
+Disable runtime checks for `async_hooks`.
+These will still be enabled dynamically when `async_hooks` is enabled.
+.
+.It Fl -trace-events-enabled
+Enable the collection of trace event tracing information.
+.
+.It Fl -trace-event-categories Ar categories
+A comma-separated list of categories that should be traced when trace event tracing is enabled using
+.Fl -trace-events-enabled .
+.
+.It Fl -trace-event-file-pattern Ar pattern
+Template string specifying the filepath for the trace event data, it
+supports \fB${rotation}\fR and \fB${pid}\fR.
+.
+.It Fl -zero-fill-buffers
 Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
-
-.TP
-.BR \-\-preserve\-symlinks
-Instructs the module loader to preserve symbolic links when resolving and
-caching modules.
-
-.TP
-.BR \-\-track\-heap-objects
+.
+.It Fl -preserve-symlinks
+Instructs the module loader to preserve symbolic links when resolving and caching modules.
+.
+.It Fl -track-heap-objects
 Track heap object allocations for heap snapshots.
-
-.TP
-.BR \-\-prof\-process
-Process v8 profiler output generated using the v8 option \fB\-\-prof\fR
-
-.TP
-.BR \-\-v8\-options
-Print v8 command line options.
-
-Note: v8 options allow words to be separated by both dashes (\fB-\fR) or
-underscores (\fB_\fR).
-
-For example, \fB\-\-stack\-trace\-limit\fR is equivalent to
-\fB\-\-stack\_trace\_limit\fR
-
-.TP
-.BR \-\-v8\-pool\-size =\fInum\fR
-Set v8's thread pool size which will be used to allocate background jobs.
-If set to 0 then v8 will choose an appropriate size of the thread pool based
-on the number of online processors. If the value provided is larger than v8's
-max then the largest value will be chosen.
-
-.TP
-.BR \-\-tls\-cipher\-list =\fIlist\fR
-Specify an alternative default TLS cipher list. (Requires Node.js to be built
-with crypto support. (Default))
-
-.TP
-.BR \-\-enable\-fips
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-\fB./configure \-\-openssl\-fips\fR)
-
-.TP
-.BR \-\-force\-fips
-Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as \fB\-\-enable\-fips\fR)
-
-.TP
-.BR \-\-openssl\-config =\fIfile\fR
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-\fB./configure \-\-openssl\-fips\fR.
-
-.TP
-.BR \-\-use\-openssl\-ca,\-\-use\-bundled\-ca
-Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
-current Node.js version. The default store is selectable at build-time.
-
-Using OpenSSL store allows for external modifications of the store. For most
-Linux and BSD distributions, this store is maintained by the distribution
-maintainers and system administrators. OpenSSL CA store location is dependent on
-configuration of the OpenSSL library but this can be altered at runtime using
-environment variables.
-
-The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
-that is fixed at release time. It is identical on all supported platforms.
-
-See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
-
-.TP
-.BR \-\-icu\-data\-dir =\fIfile\fR
-Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
-
-.TP
-.BR \-\fR
-Alias for stdin, analogous to the use of - in other command line utilities,
-meaning that the script will be read from stdin, and the rest of the options
-are passed to that script.
-
-.TP
-.BR \-\-\fR
-Indicate the end of node options. Pass the rest of the arguments to the script.
-
+.
+.It Fl -prof-process
+Process V8 profiler output generated using the V8 option
+.Fl -prof .
+.
+.It Fl -v8-options
+Print V8 command-line options.
+.Pp
+Note: V8 options allow words to be separated by both dashes (\fB-\fR) or underscores (\fB_\fR).
+.Pp
+For example,
+.Fl -stack-trace-limit
+is equivalent to
+.Fl -stack_trace_limit .
+.
+.It Fl -v8-pool-size Ns = Ns Ar num
+Set V8's thread pool size which will be used to allocate background jobs.
+If set to 0 then V8 will choose an appropriate size of the thread pool based on the number of online processors.
+If the value provided is larger than V8's maximum, then the largest value will be chosen.
+.
+.It Fl -tls-cipher-list Ns = Ns Ar list
+Specify an alternative default TLS cipher list.
+Requires Node.js to be built with crypto support. (Default)
+.
+.It Fl -enable-fips
+Enable FIPS-compliant crypto at startup.
+Requires Node.js to be built with
+.Sy ./configure --openssl-fips .
+.
+.It Fl -force-fips
+Force FIPS-compliant crypto on startup
+(Cannot be disabled from script code).
+Same requirements as
+.Fl -enable-fips .
+.
+.It Fl -openssl-config Ns = Ns Ar file
+Load an OpenSSL configuration file on startup.
+Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is built with
+.Sy ./configure --openssl-fips .
+.
+.It Fl -use-openssl-ca , Fl -use-bundled\-ca
+Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by current Node.js version.
+The default store is selectable at build-time.
+.Pp
+Using OpenSSL store allows for external modifications of the store.
+For most Linux and BSD distributions, this store is maintained by the distribution maintainers and system administrators.
+OpenSSL CA store location is dependent on configuration of the OpenSSL library but this can be altered at runtime using environment variables.
+.Pp
+The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store that is fixed at release time.
+It is identical on all supported platforms.
+.Pp
+See
+.Ev SSL_CERT_DIR
+and
+.Ev SSL_CERT_FILE .
+.
+.It Fl -icu-data-dir Ns = Ns Ar file
+Specify ICU data load path.
+Overrides
+.Ev NODE_ICU_DATA .
+.
+.It Fl \-experimental-modules
+Enable experimental ES module support and caching modules.
+.
+.It Fl \-experimental-vm-modules
+Enable experimental ES module support in VM module.
+.
+.It Sy \-
+Alias for stdin, analogous to the use of - in other command-line utilities.
+The executed script is read from stdin, and remaining arguments are passed to the script.
+.
+.It Fl \-
+Indicate the end of node options.
+Pass the rest of the arguments to the script.
+.Pp
 If no script filename or eval/print script is supplied prior to this, then
 the next argument will be used as a script filename.
-
-.SH ENVIRONMENT VARIABLES
-
-.TP
-.BR NODE_DEBUG =\fImodule\fR[,\fI...\fR]
-\',\'\-separated list of core modules that should print debug information.
-
-.TP
-.BR NODE_DISABLE_COLORS =\fI1\fR
-When set to \fI1\fR, colors will not be used in the REPL.
-
-.TP
-.BR NODE_EXTRA_CA_CERTS =\fIfile\fR
-When set, the well known "root" CAs (like VeriSign) will be extended with the
-extra certificates in \fIfile\fR. The file should consist of one or more
-trusted certificates in PEM format. A message will be emitted (once) with
-\fBprocess.emitWarning()\fR if the file is missing or misformatted, but any
-errors are otherwise ignored.
-
-.TP
-.BR NODE_ICU_DATA =\fIfile\fR
-Data path for ICU (Intl object) data. Will extend linked-in data when compiled
-with small\-icu support.
-
-.TP
-.BR NODE_NO_WARNINGS =\fI1\fR
-When set to \fI1\fR, process warnings are silenced.
-
-.TP
-.BR NODE_OPTIONS =\fIoptions...\fR
-A space-separated list of command line options. \fBoptions...\fR are interpreted
-as if they had been specified on the command line before the actual command line
-(so they can be overridden).  Node will exit with an error if an option that is
-not allowed in the environment is used, such as \fB-p\fR or a script file.
-
-.TP
-.BR NODE_PATH =\fIpath\fR[:\fI...\fR]
-\':\'\-separated list of directories prefixed to the module search path.
-
-.TP
-.BR NODE_PENDING_DEPRECATION = \fI1\fR
-When set to \fI1\fR, emit pending deprecation warnings.
-
-.TP
-.BR NODE_REPL_HISTORY =\fIfile\fR
-Path to the file used to store the persistent REPL history. The default path
-is \fB~/.node_repl_history\fR, which is overridden by this variable. Setting the
-value to an empty string ("" or " ") disables persistent REPL history.
-
-.TP
-.BR OPENSSL_CONF = \fIfile\fR
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-\fB./configure \-\-openssl\-fips\fR.
-
+.El
+.
+.\" =====================================================================
+.Sh ENVIRONMENT
+.Bl -tag -width 6n
+.It Ev NODE_DEBUG Ar modules...
+Comma-separated list of core modules that should print debug information.
+.
+.It Ev NODE_DISABLE_COLORS
+When set to
+.Ar 1 ,
+colors will not be used in the REPL.
+.
+.It Ev NODE_EXTRA_CA_CERTS Ar file
+When set, the well-known
+.Dq root
+CAs (like VeriSign) will be extended with the extra certificates in
+.Ar file .
+The file should consist of one or more trusted certificates in PEM format.
+.Pp
+If
+.Ar file
+is missing or misformatted, a message will be emitted once using
+.Sy process.emitWarning() ,
+but any errors are otherwise ignored.
+.
+.It Ev NODE_ICU_DATA Ar file
+Data path for ICU (Intl object) data.
+Will extend linked-in data when compiled with small-icu support.
+.
+.It Ev NODE_NO_WARNINGS
+When set to
+.Ar 1 ,
+process warnings are silenced.
+.
+.It Ev NODE_OPTIONS Ar options...
+A space-separated list of command-line
+.Ar options ,
+which are interpreted as if they had been specified on the command-line before the actual command (so they can be overridden).
+Node will exit with an error if an option that is not allowed in the environment is used, such as
+.Fl -print
+or a script file.
+.
+.It Ev NODE_PATH Ar directories...
+A colon-separated list of
+.Ar directories
+prefixed to the module search path.
+.
+.It Ev NODE_PENDING_DEPRECATION
+When set to
+.Ar 1 ,
+emit pending deprecation warnings.
+.
+.It Ev NODE_REPL_HISTORY Ar file
+Path to the
+.Ar file
+used to store persistent REPL history.
+The default path is
+.Sy ~/.node_repl_history ,
+which is overridden by this variable.
+Setting the value to an empty string ("" or " ") will disable persistent REPL history.
+.
+.It Ev OPENSSL_CONF Ar file
+Load an OpenSSL configuration file on startup.
+Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is built with
+.Sy ./configure --openssl-fips .
+.Pp
 If the
-\fB\-\-openssl\-config\fR
-command line option is used, the environment variable is ignored.
-
-.TP
-.BR SSL_CERT_DIR = \fIdir\fR
-If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's directory
-containing trusted certificates.
-
-.TP
-.BR SSL_CERT_FILE = \fIfile\fR
-If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's
-file containing trusted certificates.
-
-.TP
-.BR NODE_REDIRECT_WARNINGS=\fIfile\fR
-Write process warnings to the given file instead of printing to stderr.
-(equivalent to using the \-\-redirect\-warnings=\fIfile\fR command-line
-argument).
-
-.SH BUGS
+.Fl -openssl-config
+command-line option is used, this environment variable is ignored.
+.
+.It Ev SSL_CERT_DIR Ar dir
+If
+.Fl -use-openssl-ca
+is enabled, this overrides and sets OpenSSL's directory containing trusted certificates.
+.
+.It Ev SSL_CERT_FILE Ar file
+If
+.Fl -use-openssl-ca
+is enabled, this overrides and sets OpenSSL's file containing trusted certificates.
+.
+.It Ev NODE_REDIRECT_WARNINGS Ar file
+Write process warnings to the given
+.Ar file
+instead of printing to stderr.
+Equivalent to passing
+.Fl -redirect-warnings Ar file
+on command-line.
+.El
+.
+.\"=====================================================================
+.Sh BUGS
 Bugs are tracked in GitHub Issues:
-.ur https://github.com/nodejs/node/issues
-
-
-.SH AUTHORS
-Written and maintained by 1000+ contributors:
-.ur https://github.com/nodejs/node/blob/master/AUTHORS
-
-
-.SH COPYRIGHT
-Copyright Node.js contributors. Node.js is available under the MIT license.
-
-Node.js also includes external libraries that are available under a variety
-of licenses. See
-.ur https://github.com/nodejs/node/blob/master/LICENSE
+.Sy https://github.com/nodejs/node/issues
+.
+.\"======================================================================
+.Sh COPYRIGHT
+Copyright Node.js contributors.
+Node.js is available under the MIT license.
+.
+.Pp
+Node.js also includes external libraries that are available under a variety of licenses.
+See
+.Sy https://github.com/nodejs/node/blob/master/LICENSE
 for the full license text.
-
-
-.SH RESOURCES AND DOCUMENTATION
+.
+.\"======================================================================
+.Sh SEE ALSO
 Website:
-.ur https://nodejs.org/
-
+.Sy https://nodejs.org/
+.
+.Pp
 Documentation:
-.ur https://nodejs.org/api/
-
+.Sy https://nodejs.org/api/
+.
+.Pp
 GitHub repository & Issue Tracker:
-.ur https://github.com/nodejs/node
-
+.Sy https://github.com/nodejs/node
+.
+.Pp
 Mailing list:
-.ur http://groups.google.com/group/nodejs
-
+.Sy http://groups.google.com/group/nodejs
+.
+.Pp
 IRC (general questions):
-.ur "chat.freenode.net #node.js"
+.Sy "chat.freenode.net #node.js"
 (unofficial)
-
+.
+.Pp
 IRC (Node.js core development):
-.ur "chat.freenode.net #node-dev"
+.Sy "chat.freenode.net #node-dev"
+.
+.\"======================================================================
+.Sh AUTHORS
+Written and maintained by 1000+ contributors:
+.Sy https://github.com/nodejs/node/blob/master/AUTHORS
+.

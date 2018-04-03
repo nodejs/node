@@ -27,9 +27,7 @@ const bench = common.createBenchmark(main, {
   n: [32]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const len = +conf.len;
+function main({ n, len }) {
   const b = Buffer.allocUnsafe(len);
   let s = '';
   let i;

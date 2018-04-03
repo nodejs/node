@@ -13,17 +13,17 @@ namespace v8 {
 namespace internal {
 
 void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
-  DCHECK(integer < 1 << 30);
+  DCHECK_LT(integer, 1 << 30);
   integer <<= 2;
   int bytes = 1;
-  if (integer > 0xff) bytes = 2;
-  if (integer > 0xffff) bytes = 3;
-  if (integer > 0xffffff) bytes = 4;
+  if (integer > 0xFF) bytes = 2;
+  if (integer > 0xFFFF) bytes = 3;
+  if (integer > 0xFFFFFF) bytes = 4;
   integer |= (bytes - 1);
-  Put(static_cast<int>(integer & 0xff), "IntPart1");
-  if (bytes > 1) Put(static_cast<int>((integer >> 8) & 0xff), "IntPart2");
-  if (bytes > 2) Put(static_cast<int>((integer >> 16) & 0xff), "IntPart3");
-  if (bytes > 3) Put(static_cast<int>((integer >> 24) & 0xff), "IntPart4");
+  Put(static_cast<int>(integer & 0xFF), "IntPart1");
+  if (bytes > 1) Put(static_cast<int>((integer >> 8) & 0xFF), "IntPart2");
+  if (bytes > 2) Put(static_cast<int>((integer >> 16) & 0xFF), "IntPart3");
+  if (bytes > 3) Put(static_cast<int>((integer >> 24) & 0xFF), "IntPart4");
 }
 
 

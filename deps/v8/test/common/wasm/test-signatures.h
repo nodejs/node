@@ -38,7 +38,9 @@ class TestSignatures {
         sig_v_i(0, 1, kIntTypes4),
         sig_v_ii(0, 2, kIntTypes4),
         sig_v_iii(0, 3, kIntTypes4),
-        sig_s_i(1, 1, kSimd128IntTypes4) {
+        sig_s_i(1, 1, kSimd128IntTypes4),
+        sig_ii_v(2, 0, kIntTypes4),
+        sig_iii_v(3, 0, kIntTypes4) {
     // I used C++ and you won't believe what happened next....
     for (int i = 0; i < 4; i++) kIntTypes4[i] = kWasmI32;
     for (int i = 0; i < 4; i++) kLongTypes4[i] = kWasmI64;
@@ -79,6 +81,9 @@ class TestSignatures {
   FunctionSig* v_ii() { return &sig_v_ii; }
   FunctionSig* v_iii() { return &sig_v_iii; }
   FunctionSig* s_i() { return &sig_s_i; }
+
+  FunctionSig* ii_v() { return &sig_ii_v; }
+  FunctionSig* iii_v() { return &sig_iii_v; }
 
   FunctionSig* many(Zone* zone, ValueType ret, ValueType param, int count) {
     FunctionSig::Builder builder(zone, ret == kWasmStmt ? 0 : 1, count);
@@ -124,6 +129,9 @@ class TestSignatures {
   FunctionSig sig_v_ii;
   FunctionSig sig_v_iii;
   FunctionSig sig_s_i;
+
+  FunctionSig sig_ii_v;
+  FunctionSig sig_iii_v;
 };
 }  // namespace wasm
 }  // namespace internal

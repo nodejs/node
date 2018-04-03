@@ -1178,19 +1178,18 @@ __ecp_nistz256_sqr_montx:
 	adox	$t1, $acc5
 	.byte	0x67,0x67
 	mulx	%rdx, $t0, $t4
-	 mov	$acc0, %rdx
+	 mov	.Lpoly+8*3(%rip), %rdx
 	adox	$t0, $acc6
 	 shlx	$a_ptr, $acc0, $t0
 	adox	$t4, $acc7
 	 shrx	$a_ptr, $acc0, $t4
-	 mov	.Lpoly+8*3(%rip), $t1
+	mov	%rdx,$t1
 
 	# reduction step 1
 	add	$t0, $acc1
 	adc	$t4, $acc2
 
-	mulx	$t1, $t0, $acc0
-	 mov	$acc1, %rdx
+	mulx	$acc0, $t0, $acc0
 	adc	$t0, $acc3
 	 shlx	$a_ptr, $acc1, $t0
 	adc	\$0, $acc0
@@ -1200,8 +1199,7 @@ __ecp_nistz256_sqr_montx:
 	add	$t0, $acc2
 	adc	$t4, $acc3
 
-	mulx	$t1, $t0, $acc1
-	 mov	$acc2, %rdx
+	mulx	$acc1, $t0, $acc1
 	adc	$t0, $acc0
 	 shlx	$a_ptr, $acc2, $t0
 	adc	\$0, $acc1
@@ -1211,8 +1209,7 @@ __ecp_nistz256_sqr_montx:
 	add	$t0, $acc3
 	adc	$t4, $acc0
 
-	mulx	$t1, $t0, $acc2
-	 mov	$acc3, %rdx
+	mulx	$acc2, $t0, $acc2
 	adc	$t0, $acc1
 	 shlx	$a_ptr, $acc3, $t0
 	adc	\$0, $acc2
@@ -1222,12 +1219,12 @@ __ecp_nistz256_sqr_montx:
 	add	$t0, $acc0
 	adc	$t4, $acc1
 
-	mulx	$t1, $t0, $acc3
+	mulx	$acc3, $t0, $acc3
 	adc	$t0, $acc2
 	adc	\$0, $acc3
 
-	xor	$t3, $t3		# cf=0
-	adc	$acc0, $acc4		# accumulate upper half
+	xor	$t3, $t3
+	add	$acc0, $acc4		# accumulate upper half
 	 mov	.Lpoly+8*1(%rip), $a_ptr
 	adc	$acc1, $acc5
 	 mov	$acc4, $acc0
@@ -1236,8 +1233,7 @@ __ecp_nistz256_sqr_montx:
 	 mov	$acc5, $acc1
 	adc	\$0, $t3
 
-	xor	%eax, %eax		# cf=0
-	sbb	\$-1, $acc4		# .Lpoly[0]
+	sub	\$-1, $acc4		# .Lpoly[0]
 	 mov	$acc6, $acc2
 	sbb	$a_ptr, $acc5		# .Lpoly[1]
 	sbb	\$0, $acc6		# .Lpoly[2]

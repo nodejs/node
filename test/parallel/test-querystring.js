@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
 
@@ -75,8 +75,8 @@ const qsTestCases = [
   ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }],
   ['a=b&c&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
   ['a=b&c=&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
-  ['a=b&=c&d=e', 'a=b&=c&d=e', { a: 'b', '': 'c', d: 'e' }],
-  ['a=b&=&c=d', 'a=b&=&c=d', { a: 'b', '': '', c: 'd' }],
+  ['a=b&=c&d=e', 'a=b&=c&d=e', { 'a': 'b', '': 'c', 'd': 'e' }],
+  ['a=b&=&c=d', 'a=b&=&c=d', { 'a': 'b', '': '', 'c': 'd' }],
   ['&&foo=bar&&', 'foo=bar', { foo: 'bar' }],
   ['&', '', {}],
   ['&&&&', '', {}],
@@ -125,11 +125,11 @@ const qsColonTestCases = [
 function extendedFunction() {}
 extendedFunction.prototype = { a: 'b' };
 const qsWeirdObjects = [
-  // eslint-disable-next-line no-unescaped-regexp-dot
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   [{ regexp: /./g }, 'regexp=', { 'regexp': '' }],
-  // eslint-disable-next-line no-unescaped-regexp-dot
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   [{ regexp: new RegExp('.', 'g') }, 'regexp=', { 'regexp': '' }],
-  [{ fn: function() {} }, 'fn=', { 'fn': '' }],
+  [{ fn: () => {} }, 'fn=', { 'fn': '' }],
   [{ fn: new Function('') }, 'fn=', { 'fn': '' }],
   [{ math: Math }, 'math=', { 'math': '' }],
   [{ e: extendedFunction }, 'e=', { 'e': '' }],
@@ -192,7 +192,7 @@ function check(actual, expected, input) {
           `Expected keys: ${inspect(expectedKeys)}`;
   }
   assert.deepStrictEqual(actualKeys, expectedKeys, msg);
-  expectedKeys.forEach(function(key) {
+  expectedKeys.forEach((key) => {
     if (typeof input === 'string') {
       msg = `Input: ${inspect(input)}\n` +
             `Key: ${inspect(key)}\n` +
@@ -206,21 +206,21 @@ function check(actual, expected, input) {
 }
 
 // test that the canonical qs is parsed properly.
-qsTestCases.forEach(function(testCase) {
+qsTestCases.forEach((testCase) => {
   check(qs.parse(testCase[0]), testCase[2], testCase[0]);
 });
 
 // test that the colon test cases can do the same
-qsColonTestCases.forEach(function(testCase) {
+qsColonTestCases.forEach((testCase) => {
   check(qs.parse(testCase[0], ';', ':'), testCase[2], testCase[0]);
 });
 
 // test the weird objects, that they get parsed properly
-qsWeirdObjects.forEach(function(testCase) {
+qsWeirdObjects.forEach((testCase) => {
   check(qs.parse(testCase[1]), testCase[2], testCase[1]);
 });
 
-qsNoMungeTestCases.forEach(function(testCase) {
+qsNoMungeTestCases.forEach((testCase) => {
   assert.deepStrictEqual(testCase[0], qs.stringify(testCase[1], '&', '='));
 });
 
@@ -258,22 +258,27 @@ qsNoMungeTestCases.forEach(function(testCase) {
 // now test stringifying
 
 // basic
-qsTestCases.forEach(function(testCase) {
+qsTestCases.forEach((testCase) => {
   assert.strictEqual(testCase[1], qs.stringify(testCase[2]));
 });
 
-qsColonTestCases.forEach(function(testCase) {
+qsColonTestCases.forEach((testCase) => {
   assert.strictEqual(testCase[1], qs.stringify(testCase[2], ';', ':'));
 });
 
-qsWeirdObjects.forEach(function(testCase) {
+qsWeirdObjects.forEach((testCase) => {
   assert.strictEqual(testCase[1], qs.stringify(testCase[0]));
 });
 
 // invalid surrogate pair throws URIError
-assert.throws(function() {
-  qs.stringify({ foo: '\udc00' });
-}, /^URIError: URI malformed$/);
+common.expectsError(
+  () => qs.stringify({ foo: '\udc00' }),
+  {
+    code: 'ERR_INVALID_URI',
+    type: URIError,
+    message: 'URI malformed'
+  }
+);
 
 // coerce numbers to string
 assert.strictEqual('foo=0', qs.stringify({ foo: 0 }));
@@ -295,9 +300,7 @@ assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
   assert.strictEqual(f, 'a=b&q=x%3Dy%26y%3Dz');
 }
 
-assert.doesNotThrow(function() {
-  qs.parse(undefined);
-});
+qs.parse(undefined); // Should not throw.
 
 // nested in colon
 {
@@ -427,7 +430,7 @@ check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
 }
 
 // Test QueryString.unescapeBuffer
-qsUnescapeTestCases.forEach(function(testCase) {
+qsUnescapeTestCases.forEach((testCase) => {
   assert.strictEqual(qs.unescape(testCase[0]), testCase[1]);
   assert.strictEqual(qs.unescapeBuffer(testCase[0]).toString(), testCase[1]);
 });
@@ -435,7 +438,7 @@ qsUnescapeTestCases.forEach(function(testCase) {
 // test overriding .unescape
 {
   const prevUnescape = qs.unescape;
-  qs.unescape = function(str) {
+  qs.unescape = (str) => {
     return str.replace(/o/g, '_');
   };
   check(

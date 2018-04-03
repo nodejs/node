@@ -9,10 +9,7 @@ const bench = common.createBenchmark(main, {
   n: [25e6]
 });
 
-function main(conf) {
-  const encoding = conf.encoding;
-  const n = conf.n | 0;
-
+function main({ encoding, n }) {
   bench.start();
   for (var i = 0; i < n; ++i) {
     const sd = new StringDecoder(encoding);

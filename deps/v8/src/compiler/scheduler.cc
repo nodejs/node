@@ -76,24 +76,28 @@ Scheduler::SchedulerData* Scheduler::GetData(Node* node) {
   return &node_data_[node->id()];
 }
 
-
-Scheduler::Placement Scheduler::GetPlacement(Node* node) {
+Scheduler::Placement Scheduler::InitializePlacement(Node* node) {
   SchedulerData* data = GetData(node);
-  if (data->placement_ == kUnknown) {  // Compute placement, once, on demand.
-    switch (node->opcode()) {
-      case IrOpcode::kParameter:
-      case IrOpcode::kOsrValue:
-        // Parameters and OSR values are always fixed to the start block.
-        data->placement_ = kFixed;
-        break;
-      case IrOpcode::kPhi:
-      case IrOpcode::kEffectPhi: {
-        // Phis and effect phis are fixed if their control inputs are, whereas
-        // otherwise they are coupled to a floating control node.
-        Placement p = GetPlacement(NodeProperties::GetControlInput(node));
-        data->placement_ = (p == kFixed ? kFixed : kCoupled);
-        break;
-      }
+  if (data->placement_ == kFixed) {
+    // Nothing to do for control nodes that have been already fixed in
+    // the schedule.
+    return data->placement_;
+  }
+  DCHECK_EQ(kUnknown, data->placement_);
+  switch (node->opcode()) {
+    case IrOpcode::kParameter:
+    case IrOpcode::kOsrValue:
+      // Parameters and OSR values are always fixed to the start block.
+      data->placement_ = kFixed;
+      break;
+    case IrOpcode::kPhi:
+    case IrOpcode::kEffectPhi: {
+      // Phis and effect phis are fixed if their control inputs are, whereas
+      // otherwise they are coupled to a floating control node.
+      Placement p = GetPlacement(NodeProperties::GetControlInput(node));
+      data->placement_ = (p == kFixed ? kFixed : kCoupled);
+      break;
+    }
 #define DEFINE_CONTROL_CASE(V) case IrOpcode::k##V:
       CONTROL_OP_LIST(DEFINE_CONTROL_CASE)
 #undef DEFINE_CONTROL_CASE
@@ -101,34 +105,46 @@ Scheduler::Placement Scheduler::GetPlacement(Node* node) {
         // Control nodes that were not control-reachable from end may float.
         data->placement_ = kSchedulable;
         break;
-      }
-      default:
-        data->placement_ = kSchedulable;
-        break;
     }
+    default:
+      data->placement_ = kSchedulable;
+      break;
   }
   return data->placement_;
 }
 
+Scheduler::Placement Scheduler::GetPlacement(Node* node) {
+  return GetData(node)->placement_;
+}
+
+bool Scheduler::IsLive(Node* node) { return GetPlacement(node) != kUnknown; }
 
 void Scheduler::UpdatePlacement(Node* node, Placement placement) {
   SchedulerData* data = GetData(node);
-  if (data->placement_ != kUnknown) {  // Trap on mutation, not initialization.
-    switch (node->opcode()) {
-      case IrOpcode::kParameter:
-        // Parameters are fixed once and for all.
-        UNREACHABLE();
-        break;
-      case IrOpcode::kPhi:
-      case IrOpcode::kEffectPhi: {
-        // Phis and effect phis are coupled to their respective blocks.
-        DCHECK_EQ(Scheduler::kCoupled, data->placement_);
-        DCHECK_EQ(Scheduler::kFixed, placement);
-        Node* control = NodeProperties::GetControlInput(node);
-        BasicBlock* block = schedule_->block(control);
-        schedule_->AddNode(block, node);
-        break;
-      }
+  if (data->placement_ == kUnknown) {
+    // We only update control nodes from {kUnknown} to {kFixed}.  Ideally, we
+    // should check that {node} is a control node (including exceptional calls),
+    // but that is expensive.
+    DCHECK_EQ(Scheduler::kFixed, placement);
+    data->placement_ = placement;
+    return;
+  }
+
+  switch (node->opcode()) {
+    case IrOpcode::kParameter:
+      // Parameters are fixed once and for all.
+      UNREACHABLE();
+      break;
+    case IrOpcode::kPhi:
+    case IrOpcode::kEffectPhi: {
+      // Phis and effect phis are coupled to their respective blocks.
+      DCHECK_EQ(Scheduler::kCoupled, data->placement_);
+      DCHECK_EQ(Scheduler::kFixed, placement);
+      Node* control = NodeProperties::GetControlInput(node);
+      BasicBlock* block = schedule_->block(control);
+      schedule_->AddNode(block, node);
+      break;
+    }
 #define DEFINE_CONTROL_CASE(V) case IrOpcode::k##V:
       CONTROL_OP_LIST(DEFINE_CONTROL_CASE)
 #undef DEFINE_CONTROL_CASE
@@ -139,20 +155,19 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
             DCHECK_EQ(node, NodeProperties::GetControlInput(use));
             UpdatePlacement(use, placement);
           }
-        }
-        break;
       }
-      default:
-        DCHECK_EQ(Scheduler::kSchedulable, data->placement_);
-        DCHECK_EQ(Scheduler::kScheduled, placement);
-        break;
+      break;
     }
-    // Reduce the use count of the node's inputs to potentially make them
-    // schedulable. If all the uses of a node have been scheduled, then the node
-    // itself can be scheduled.
-    for (Edge const edge : node->input_edges()) {
-      DecrementUnscheduledUseCount(edge.to(), edge.index(), edge.from());
-    }
+    default:
+      DCHECK_EQ(Scheduler::kSchedulable, data->placement_);
+      DCHECK_EQ(Scheduler::kScheduled, placement);
+      break;
+  }
+  // Reduce the use count of the node's inputs to potentially make them
+  // schedulable. If all the uses of a node have been scheduled, then the node
+  // itself can be scheduled.
+  for (Edge const edge : node->input_edges()) {
+    DecrementUnscheduledUseCount(edge.to(), edge.index(), edge.from());
   }
   data->placement_ = placement;
 }
@@ -201,7 +216,7 @@ void Scheduler::DecrementUnscheduledUseCount(Node* node, int index,
     return DecrementUnscheduledUseCount(control, index, from);
   }
 
-  DCHECK(GetData(node)->unscheduled_count_ > 0);
+  DCHECK_LT(0, GetData(node)->unscheduled_count_);
   --(GetData(node)->unscheduled_count_);
   if (FLAG_trace_turbo_scheduler) {
     TRACE("  Use count of #%d:%s (used by #%d:%s)-- = %d\n", node->id(),
@@ -636,7 +651,7 @@ class SpecialRPONumberer : public ZoneObject {
   // Computes the special reverse-post-order for the main control flow graph,
   // that is for the graph spanned between the schedule's start and end blocks.
   void ComputeSpecialRPO() {
-    DCHECK(schedule_->end()->SuccessorCount() == 0);
+    DCHECK_EQ(0, schedule_->end()->SuccessorCount());
     DCHECK(!order_);  // Main order does not exist yet.
     ComputeAndInsertSpecialRPO(schedule_->start(), schedule_->end());
   }
@@ -781,7 +796,7 @@ class SpecialRPONumberer : public ZoneObject {
           }
         } else {
           // Push the successor onto the stack.
-          DCHECK(succ->rpo_number() == kBlockUnvisited1);
+          DCHECK_EQ(kBlockUnvisited1, succ->rpo_number());
           stack_depth = Push(stack_, stack_depth, succ, kBlockUnvisited1);
         }
       } else {
@@ -847,7 +862,7 @@ class SpecialRPONumberer : public ZoneObject {
           // Process the next successor.
           if (succ->rpo_number() == kBlockOnStack) continue;
           if (succ->rpo_number() == kBlockVisited2) continue;
-          DCHECK(succ->rpo_number() == kBlockUnvisited2);
+          DCHECK_EQ(kBlockUnvisited2, succ->rpo_number());
           if (loop != nullptr && !loop->members->Contains(succ->id().ToInt())) {
             // The successor is not in the current loop or any nested loop.
             // Add it to the outgoing edges of this loop and visit it later.
@@ -1028,8 +1043,8 @@ class SpecialRPONumberer : public ZoneObject {
 
   void VerifySpecialRPO() {
     BasicBlockVector* order = schedule_->rpo_order();
-    DCHECK(order->size() > 0);
-    DCHECK((*order)[0]->id().ToInt() == 0);  // entry should be first.
+    DCHECK_LT(0, order->size());
+    DCHECK_EQ(0, (*order)[0]->id().ToInt());  // entry should be first.
 
     for (size_t i = 0; i < loops_.size(); i++) {
       LoopInfo* loop = &loops_[i];
@@ -1037,12 +1052,12 @@ class SpecialRPONumberer : public ZoneObject {
       BasicBlock* end = header->loop_end();
 
       DCHECK_NOT_NULL(header);
-      DCHECK(header->rpo_number() >= 0);
-      DCHECK(header->rpo_number() < static_cast<int>(order->size()));
+      DCHECK_LE(0, header->rpo_number());
+      DCHECK_LT(header->rpo_number(), order->size());
       DCHECK_NOT_NULL(end);
-      DCHECK(end->rpo_number() <= static_cast<int>(order->size()));
-      DCHECK(end->rpo_number() > header->rpo_number());
-      DCHECK(header->loop_header() != header);
+      DCHECK_LE(end->rpo_number(), order->size());
+      DCHECK_GT(end->rpo_number(), header->rpo_number());
+      DCHECK_NE(header->loop_header(), header);
 
       // Verify the start ... end list relationship.
       int links = 0;
@@ -1060,8 +1075,8 @@ class SpecialRPONumberer : public ZoneObject {
         block = block->rpo_next();
         DCHECK_LT(links, static_cast<int>(2 * order->size()));  // cycle?
       }
-      DCHECK(links > 0);
-      DCHECK(links == end->rpo_number() - header->rpo_number());
+      DCHECK_LT(0, links);
+      DCHECK_EQ(links, end->rpo_number() - header->rpo_number());
       DCHECK(end_found);
 
       // Check loop depth of the header.
@@ -1075,7 +1090,7 @@ class SpecialRPONumberer : public ZoneObject {
       int count = 0;
       for (int j = 0; j < static_cast<int>(order->size()); j++) {
         BasicBlock* block = order->at(j);
-        DCHECK(block->rpo_number() == j);
+        DCHECK_EQ(block->rpo_number(), j);
         if (j < header->rpo_number() || j >= end->rpo_number()) {
           DCHECK(!header->LoopContains(block));
         } else {
@@ -1084,7 +1099,7 @@ class SpecialRPONumberer : public ZoneObject {
           count++;
         }
       }
-      DCHECK(links == count);
+      DCHECK_EQ(links, count);
     }
   }
 #endif  // DEBUG
@@ -1165,7 +1180,7 @@ class PrepareUsesVisitor {
       : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
 
   void Pre(Node* node) {
-    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
+    if (scheduler_->InitializePlacement(node) == Scheduler::kFixed) {
       // Fixed nodes are always roots for schedule late.
       scheduler_->schedule_root_nodes_.push_back(node);
       if (!schedule_->IsScheduled(node)) {
@@ -1269,7 +1284,9 @@ class ScheduleEarlyNodeVisitor {
     // Propagate schedule early position.
     DCHECK_NOT_NULL(data->minimum_block_);
     for (auto use : node->uses()) {
-      PropagateMinimumPositionToNode(data->minimum_block_, use);
+      if (scheduler_->IsLive(use)) {
+        PropagateMinimumPositionToNode(data->minimum_block_, use);
+      }
     }
   }
 
@@ -1455,6 +1472,7 @@ class ScheduleLateNodeVisitor {
 
     // Check if the {node} has uses in {block}.
     for (Edge edge : node->use_edges()) {
+      if (!scheduler_->IsLive(edge.from())) continue;
       BasicBlock* use_block = GetBlockForUse(edge);
       if (use_block == nullptr || marked_[use_block->id().ToSize()]) continue;
       if (use_block == block) {
@@ -1497,6 +1515,7 @@ class ScheduleLateNodeVisitor {
     // the {node} itself.
     ZoneMap<BasicBlock*, Node*> dominators(scheduler_->zone_);
     for (Edge edge : node->use_edges()) {
+      if (!scheduler_->IsLive(edge.from())) continue;
       BasicBlock* use_block = GetBlockForUse(edge);
       if (use_block == nullptr) continue;
       while (marked_[use_block->dominator()->id().ToSize()]) {
@@ -1545,6 +1564,7 @@ class ScheduleLateNodeVisitor {
   BasicBlock* GetCommonDominatorOfUses(Node* node) {
     BasicBlock* block = nullptr;
     for (Edge edge : node->use_edges()) {
+      if (!scheduler_->IsLive(edge.from())) continue;
       BasicBlock* use_block = GetBlockForUse(edge);
       block = block == nullptr
                   ? use_block
@@ -1735,7 +1755,9 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   NodeVector propagation_roots(control_flow_builder_->control_);
   for (Node* node : control_flow_builder_->control_) {
     for (Node* use : node->uses()) {
-      if (NodeProperties::IsPhi(use)) propagation_roots.push_back(use);
+      if (NodeProperties::IsPhi(use) && IsLive(use)) {
+        propagation_roots.push_back(use);
+      }
     }
   }
   if (FLAG_trace_turbo_scheduler) {

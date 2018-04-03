@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen.h"
+#include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -25,8 +25,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
-  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kMaxNumRegisters;
-  const int kFloatRegsSize = kFloatSize * FloatRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  const int kFloatRegsSize = kFloatSize * FloatRegister::kNumRegisters;
 
   // Save all double FPU registers before messing with them.
   __ Dsubu(sp, sp, Operand(kDoubleRegsSize));
@@ -103,7 +103,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Ld(a1, MemOperand(v0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     if ((saved_regs & (1 << i)) != 0) {
@@ -207,15 +207,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ Ld(a6, MemOperand(a2, FrameDescription::state_offset()));
-  __ push(a6);
-
+  // Push pc and continuation from the last output frame.
   __ Ld(a6, MemOperand(a2, FrameDescription::pc_offset()));
   __ push(a6);
   __ Ld(a6, MemOperand(a2, FrameDescription::continuation_offset()));
   __ push(a6);
-
 
   // Technically restoring 'at' should work unless zero_reg is also restored
   // but it's safer to check for this.
@@ -283,7 +279,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     __ bind(&done);
     __ Push(at);
   } else {
-    DCHECK(kArchVariant != kMips64r6);
+    DCHECK_NE(kArchVariant, kMips64r6);
     // Uncommon case, the branch cannot reach.
     // Create mini trampoline to reach the end of the table
     for (int i = 0, j = 0; i < count(); i++, j++) {
@@ -312,6 +308,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   }
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

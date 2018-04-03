@@ -56,9 +56,7 @@ assert.throws(function() {
 });
 
 // PFX tests
-assert.doesNotThrow(function() {
-  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
-});
+tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 
 assert.throws(function() {
   tls.createSecureContext({ pfx: certPfx });
@@ -132,12 +130,12 @@ const noCapitals = /^[^A-Z]+$/;
 assert(tlsCiphers.every((value) => noCapitals.test(value)));
 validateList(tlsCiphers);
 
-// Assert that we have sha and sha1 but not SHA and SHA1.
+// Assert that we have sha1 and sha256 but not SHA1 and SHA256.
 assert.notStrictEqual(0, crypto.getHashes().length);
 assert(crypto.getHashes().includes('sha1'));
-assert(crypto.getHashes().includes('sha'));
+assert(crypto.getHashes().includes('sha256'));
 assert(!crypto.getHashes().includes('SHA1'));
-assert(!crypto.getHashes().includes('SHA'));
+assert(!crypto.getHashes().includes('SHA256'));
 assert(crypto.getHashes().includes('RSA-SHA1'));
 assert(!crypto.getHashes().includes('rsa-sha1'));
 validateList(crypto.getHashes());
@@ -162,8 +160,8 @@ testImmutability(tls.getCiphers);
 testImmutability(crypto.getHashes);
 testImmutability(crypto.getCurves);
 
-// Regression tests for #5725: hex input that's not a power of two should
-// throw, not assert in C++ land.
+// Regression tests for https://github.com/nodejs/node-v0.x-archive/pull/5725:
+// hex input that's not a power of two should throw, not assert in C++ land.
 assert.throws(function() {
   crypto.createCipher('aes192', 'test').update('0', 'hex');
 }, (err) => {
@@ -238,7 +236,7 @@ assert.throws(function() {
   // Throws crypto error, so there is an opensslErrorStack property.
   // The openSSL stack should have content.
   if ((err instanceof Error) &&
-      /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/.test(err) &&
+      /asn1 encoding routines:[^:]*:wrong tag/.test(err) &&
       err.opensslErrorStack !== undefined &&
       Array.isArray(err.opensslErrorStack) &&
       err.opensslErrorStack.length > 0) {
@@ -262,7 +260,7 @@ assert.throws(function() {
 
 /**
  * Check if the stream function uses utf8 as a default encoding.
- **/
+ */
 
 function testEncoding(options, assertionHash) {
   const hash = crypto.createHash('sha256', options);

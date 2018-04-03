@@ -20,46 +20,18 @@ namespace internal {
 // generate an index for each native JS file.
 class SourceCodeCache final BASE_EMBEDDED {
  public:
-  explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
+  explicit SourceCodeCache(Script::Type type) : type_(type), cache_(nullptr) {}
 
-  void Initialize(Isolate* isolate, bool create_heap_objects) {
-    cache_ = create_heap_objects ? isolate->heap()->empty_fixed_array() : NULL;
-  }
+  void Initialize(Isolate* isolate, bool create_heap_objects);
 
   void Iterate(RootVisitor* v) {
     v->VisitRootPointer(Root::kExtensions,
                         bit_cast<Object**, FixedArray**>(&cache_));
   }
 
-  bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
-    for (int i = 0; i < cache_->length(); i+=2) {
-      SeqOneByteString* str = SeqOneByteString::cast(cache_->get(i));
-      if (str->IsUtf8EqualTo(name)) {
-        *handle = Handle<SharedFunctionInfo>(
-            SharedFunctionInfo::cast(cache_->get(i + 1)));
-        return true;
-      }
-    }
-    return false;
-  }
+  bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle);
 
-  void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared) {
-    Isolate* isolate = shared->GetIsolate();
-    Factory* factory = isolate->factory();
-    HandleScope scope(isolate);
-    int length = cache_->length();
-    Handle<FixedArray> new_array = factory->NewFixedArray(length + 2, TENURED);
-    cache_->CopyTo(0, *new_array, 0, cache_->length());
-    cache_ = *new_array;
-    Handle<String> str =
-        factory
-            ->NewStringFromOneByte(Vector<const uint8_t>::cast(name), TENURED)
-            .ToHandleChecked();
-    DCHECK(!str.is_null());
-    cache_->set(length, *str);
-    cache_->set(length + 1, *shared);
-    Script::cast(shared->script())->set_type(type_);
-  }
+  void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared);
 
  private:
   Script::Type type_;

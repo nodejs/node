@@ -22,7 +22,7 @@ server.listen(0, common.mustCall(() => {
   let remaining = codes.length;
   function maybeClose() {
     if (--remaining === 0) {
-      client.destroy();
+      client.close();
       server.close();
     }
   }

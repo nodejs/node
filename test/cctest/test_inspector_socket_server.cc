@@ -95,16 +95,17 @@ class TestInspectorServerDelegate : public SocketServerDelegate {
     server_ = server;
   }
 
-  bool StartSession(int session_id, const std::string& target_id) override {
+  void StartSession(int session_id, const std::string& target_id) override {
     buffer_.clear();
     CHECK_NE(targets_.end(),
              std::find(targets_.begin(), targets_.end(), target_id));
     if (target_id == UNCONNECTABLE_TARGET_ID) {
-      return false;
+      server_->DeclineSession(session_id);
+      return;
     }
     connected++;
     session_id_ = session_id;
-    return true;
+    server_->AcceptSession(session_id);
   }
 
   void MessageReceived(int session_id, const std::string& message) override {
@@ -313,7 +314,7 @@ class ServerHolder {
  public:
   template <typename Delegate>
   ServerHolder(Delegate* delegate, uv_loop_t* loop, int port)
-               : ServerHolder(delegate, loop, HOST, port, NULL) { }
+               : ServerHolder(delegate, loop, HOST, port, nullptr) { }
 
   template <typename Delegate>
   ServerHolder(Delegate* delegate, uv_loop_t* loop, const std::string host,
@@ -350,12 +351,13 @@ class ServerHolder {
 
 class ServerDelegateNoTargets : public SocketServerDelegate {
  public:
+  ServerDelegateNoTargets() : server_(nullptr) { }
   void Connect(InspectorSocketServer* server) { }
   void MessageReceived(int session_id, const std::string& message) override { }
   void EndSession(int session_id) override { }
 
-  bool StartSession(int session_id, const std::string& target_id) override {
-    return false;
+  void StartSession(int session_id, const std::string& target_id) override {
+    server_->DeclineSession(session_id);
   }
 
   std::vector<std::string> GetTargetIds() override {
@@ -375,6 +377,9 @@ class ServerDelegateNoTargets : public SocketServerDelegate {
   }
 
   bool done = false;
+
+ private:
+  InspectorSocketServer* server_;
 };
 
 static void TestHttpRequest(int port, const std::string& path,
@@ -393,7 +398,7 @@ static const std::string WsHandshakeRequest(const std::string& target_id) {
          "Sec-WebSocket-Key: aaa==\r\n"
          "Sec-WebSocket-Version: 13\r\n\r\n";
 }
-}  // namespace
+}  // anonymous namespace
 
 
 TEST_F(InspectorSocketServerTest, InspectorSessions) {
@@ -407,7 +412,6 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   well_behaved_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   well_behaved_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
-
   EXPECT_EQ(1, delegate.connected);
 
   well_behaved_socket.Write("\x81\x84\x7F\xC2\x66\x31\x4E\xF0\x55\x05");
@@ -416,7 +420,6 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   delegate.Write("5678");
 
   well_behaved_socket.Expect("\x81\x4" "5678");
-
   well_behaved_socket.Write(CLIENT_CLOSE_FRAME);
   well_behaved_socket.Expect(SERVER_CLOSE_FRAME);
 
@@ -617,7 +620,7 @@ TEST_F(InspectorSocketServerTest, BindsToIpV6) {
     return;
   }
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, "::", 0, NULL);
+  ServerHolder server(&delegate, &loop, "::", 0, nullptr);
   ASSERT_TRUE(server->Start());
 
   SocketWrapper socket1(&loop);

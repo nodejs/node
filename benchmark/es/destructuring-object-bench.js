@@ -7,45 +7,43 @@ const bench = common.createBenchmark(main, {
   millions: [100]
 });
 
-function runNormal(n) {
+function runNormal(millions) {
   var i = 0;
   const o = { x: 0, y: 1 };
   bench.start();
-  for (; i < n; i++) {
+  for (; i < millions * 1e6; i++) {
     /* eslint-disable no-unused-vars */
     const x = o.x;
     const y = o.y;
     const r = o.r || 2;
     /* eslint-enable no-unused-vars */
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function runDestructured(n) {
+function runDestructured(millions) {
   var i = 0;
   const o = { x: 0, y: 1 };
   bench.start();
-  for (; i < n; i++) {
+  for (; i < millions * 1e6; i++) {
     /* eslint-disable no-unused-vars */
     const { x, y, r = 2 } = o;
     /* eslint-enable no-unused-vars */
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
+function main({ millions, method }) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'normal':
-      runNormal(n);
+      runNormal(millions);
       break;
     case 'destructureObject':
-      runDestructured(n);
+      runDestructured(millions);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

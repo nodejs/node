@@ -276,7 +276,7 @@ bytecodes: [
                 B(JumpIfUndefined), U8(12),
   /*   64 E> */ B(StackCheck),
   /*   92 S> */ B(Ldar), R(1),
-                B(Inc), U8(3),
+                B(Inc), U8(0),
                 B(Star), R(1),
                 B(JumpLoop), U8(11), I8(0),
                 B(LdaUndefined),

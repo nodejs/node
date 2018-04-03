@@ -26,23 +26,16 @@ server.listen(0, common.mustCall(function() {
 
         server.close();
       }));
-      response.end();
+      assert.strictEqual(response.end(), response);
     }));
   }));
 
   const url = `http://localhost:${port}`;
-  const client = h2.connect(url, common.mustCall(function() {
-    const headers = {
-      ':path': '/foobar',
-      ':method': 'GET',
-      ':scheme': 'http',
-      ':authority': `localhost:${port}`
-    };
-    const request = client.request(headers);
+  const client = h2.connect(url, common.mustCall(() => {
+    const request = client.request();
     request.resume();
-    request.on('end', common.mustCall(function() {
-      client.destroy();
+    request.on('end', common.mustCall(() => {
+      client.close();
     }));
-    request.end();
   }));
 }));

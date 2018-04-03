@@ -112,7 +112,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
 #endif
 
   MAYBE_RETURN_NULL(
-      Object::AddDataProperty(&it, value, attributes, Object::THROW_ON_ERROR,
+      Object::AddDataProperty(&it, value, attributes, kThrowOnError,
                               Object::CERTAINLY_NOT_STORE_FROM_KEYED));
   return value;
 }
@@ -212,7 +212,10 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     // Install accumulated accessors.
     for (int i = 0; i < valid_descriptors; i++) {
       Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
-      JSObject::SetAccessor(obj, accessor).Assert();
+      Handle<Name> name(Name::cast(accessor->name()), isolate);
+      JSObject::SetAccessor(obj, name, accessor,
+                            accessor->initial_property_attributes())
+          .Assert();
     }
   }
 
@@ -282,10 +285,10 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(Isolate* isolate,
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <=
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<UnseededNumberDictionary> slow_cache =
+    Handle<NumberDictionary> slow_cache =
         isolate->slow_template_instantiations_cache();
     int entry = slow_cache->FindEntry(serial_number);
-    if (entry == UnseededNumberDictionary::kNotFound) {
+    if (entry == NumberDictionary::kNotFound) {
       return MaybeHandle<JSObject>();
     }
     return handle(JSObject::cast(slow_cache->ValueAt(entry)), isolate);
@@ -310,10 +313,9 @@ void CacheTemplateInstantiation(Isolate* isolate, int serial_number,
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <=
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<UnseededNumberDictionary> cache =
+    Handle<NumberDictionary> cache =
         isolate->slow_template_instantiations_cache();
-    auto new_cache =
-        UnseededNumberDictionary::Set(cache, serial_number, object);
+    auto new_cache = NumberDictionary::Set(cache, serial_number, object);
     if (*new_cache != *cache) {
       isolate->native_context()->set_slow_template_instantiations_cache(
           *new_cache);
@@ -332,11 +334,11 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <=
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<UnseededNumberDictionary> cache =
+    Handle<NumberDictionary> cache =
         isolate->slow_template_instantiations_cache();
     int entry = cache->FindEntry(serial_number);
-    DCHECK_NE(UnseededNumberDictionary::kNotFound, entry);
-    cache = UnseededNumberDictionary::DeleteEntry(cache, entry);
+    DCHECK_NE(NumberDictionary::kNotFound, entry);
+    cache = NumberDictionary::DeleteEntry(cache, entry);
     isolate->native_context()->set_slow_template_instantiations_cache(*cache);
   }
 }
@@ -556,7 +558,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
-      HOLEY_SMI_ELEMENTS);
+      TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
   object_map->set_may_have_interesting_symbols(true);
@@ -631,17 +633,16 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
           shared, isolate->native_context());
 
   if (obj->remove_prototype()) {
-    result->set_map(*isolate->sloppy_function_without_prototype_map());
     DCHECK(prototype.is_null());
     DCHECK(result->shared()->IsApiFunction());
-    DCHECK(!result->has_initial_map());
-    DCHECK(!result->has_prototype());
     DCHECK(!result->IsConstructor());
+    DCHECK(!result->has_prototype_slot());
     return result;
   }
 
   // Down from here is only valid for API functions that can be used as a
   // constructor (don't set the "remove prototype" flag).
+  DCHECK(result->has_prototype_slot());
 
   if (obj->read_only_prototype()) {
     result->set_map(*isolate->sloppy_function_with_readonly_prototype_map());
@@ -689,12 +690,11 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
       break;
     default:
       UNREACHABLE();
-      type = JS_OBJECT_TYPE;  // Keep the compiler happy.
       break;
   }
 
-  Handle<Map> map =
-      isolate->factory()->NewMap(type, instance_size, HOLEY_SMI_ELEMENTS);
+  Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
+                                               TERMINAL_FAST_ELEMENTS_KIND);
   JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
 
   // Mark as undetectable if needed.
@@ -705,7 +705,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     // that is undetectable but not callable, we need to update the types.h
     // to allow encoding this.
     CHECK(!obj->instance_call_handler()->IsUndefined(isolate));
-    map->set_is_undetectable();
+    map->set_is_undetectable(true);
   }
 
   // Mark as needs_access_check if needed.
@@ -716,20 +716,20 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   // Set interceptor information in the map.
   if (!obj->named_property_handler()->IsUndefined(isolate)) {
-    map->set_has_named_interceptor();
+    map->set_has_named_interceptor(true);
     map->set_may_have_interesting_symbols(true);
   }
   if (!obj->indexed_property_handler()->IsUndefined(isolate)) {
-    map->set_has_indexed_interceptor();
+    map->set_has_indexed_interceptor(true);
   }
 
   // Mark instance as callable in the map.
   if (!obj->instance_call_handler()->IsUndefined(isolate)) {
-    map->set_is_callable();
+    map->set_is_callable(true);
     map->set_is_constructor(true);
   }
 
-  if (immutable_proto) map->set_immutable_proto(true);
+  if (immutable_proto) map->set_is_immutable_proto(true);
 
   return result;
 }

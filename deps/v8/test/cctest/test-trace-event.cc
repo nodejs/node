@@ -22,14 +22,16 @@ struct MockTraceObject {
   uint64_t bind_id;
   int num_args;
   unsigned int flags;
+  int64_t timestamp;
   MockTraceObject(char phase, std::string name, uint64_t id, uint64_t bind_id,
-                  int num_args, int flags)
+                  int num_args, int flags, int64_t timestamp)
       : phase(phase),
         name(name),
         id(id),
         bind_id(bind_id),
         num_args(num_args),
-        flags(flags) {}
+        flags(flags),
+        timestamp(timestamp) {}
 };
 
 typedef std::vector<MockTraceObject*> MockTraceObjectList;
@@ -51,8 +53,20 @@ class MockTracingController : public v8::TracingController {
       const uint64_t* arg_values,
       std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
       unsigned int flags) override {
-    MockTraceObject* to = new MockTraceObject(phase, std::string(name), id,
-                                              bind_id, num_args, flags);
+    return AddTraceEventWithTimestamp(
+        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+        arg_names, arg_types, arg_values, arg_convertables, flags, 0);
+  }
+
+  uint64_t AddTraceEventWithTimestamp(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags, int64_t timestamp) override {
+    MockTraceObject* to = new MockTraceObject(
+        phase, std::string(name), id, bind_id, num_args, flags, timestamp);
     trace_object_list_.push_back(to);
     return 0;
   }
@@ -238,4 +252,25 @@ TEST(TestEventInContext) {
   CHECK_EQ(TRACE_EVENT_PHASE_LEAVE_CONTEXT, GET_TRACE_OBJECT(2)->phase);
   CHECK_EQ("Isolate", GET_TRACE_OBJECT(2)->name);
   CHECK_EQ(isolate_id, GET_TRACE_OBJECT(2)->id);
+}
+
+TEST(TestEventWithTimestamp) {
+  MockTracingPlatform platform;
+
+  TRACE_EVENT_INSTANT_WITH_TIMESTAMP0("v8-cat", "0arg",
+                                      TRACE_EVENT_SCOPE_GLOBAL, 1729);
+  TRACE_EVENT_INSTANT_WITH_TIMESTAMP1("v8-cat", "1arg",
+                                      TRACE_EVENT_SCOPE_GLOBAL, 4104, "val", 1);
+  TRACE_EVENT_MARK_WITH_TIMESTAMP2("v8-cat", "mark", 13832, "a", 1, "b", 2);
+
+  CHECK_EQ(3, GET_TRACE_OBJECTS_LIST->size());
+
+  CHECK_EQ(1729, GET_TRACE_OBJECT(0)->timestamp);
+  CHECK_EQ(0, GET_TRACE_OBJECT(0)->num_args);
+
+  CHECK_EQ(4104, GET_TRACE_OBJECT(1)->timestamp);
+  CHECK_EQ(1, GET_TRACE_OBJECT(1)->num_args);
+
+  CHECK_EQ(13832, GET_TRACE_OBJECT(2)->timestamp);
+  CHECK_EQ(2, GET_TRACE_OBJECT(2)->num_args);
 }

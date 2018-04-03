@@ -83,11 +83,14 @@ declare_args() {
   # Sets -dV8_TRACE_IGNITION.
   v8_enable_trace_ignition = false
 
-  # Sets -dV8_CONCURRENT_MARKING
-  v8_enable_concurrent_marking = false
+  # Sets -dV8_TRACE_FEEDBACK_UPDATES.
+  v8_enable_trace_feedback_updates = false
 
-  # Sets -dV8_CSA_WRITE_BARRIER
-  v8_enable_csa_write_barrier = false
+  # Sets -dV8_CONCURRENT_MARKING
+  v8_enable_concurrent_marking = true
+
+  # Enables various testing features.
+  v8_enable_test_features = ""
 
   # Build the snapshot with unwinding information for perf.
   # Sets -dV8_USE_SNAPSHOT_WITH_UNWINDING_INFO.
@@ -110,6 +113,9 @@ declare_args() {
   # Similar to the ARM hard float ABI but on MIPS.
   v8_use_mips_abi_hardfloat = true
 
+  # Controls the threshold for on-heap/off-heap Typed Arrays.
+  v8_typed_array_max_size_in_heap = 64
+
   # List of extra files to snapshot. They will be snapshotted in order so
   # if files export symbols used by later files, they should go first.
   #
@@ -129,6 +135,9 @@ declare_args() {
   # Temporary flag to allow embedders to update their microtasks scopes
   # while rolling in a new version of V8.
   v8_check_microtasks_scopes_consistency = ""
+
+  # Enable mitigations for executing untrusted code.
+  v8_untrusted_code_mitigations = true
 }
 
 # Derived defaults.
@@ -143,6 +152,9 @@ if (v8_enable_disassembler == "") {
 }
 if (v8_enable_trace_maps == "") {
   v8_enable_trace_maps = is_debug
+}
+if (v8_enable_test_features == "") {
+  v8_enable_test_features = is_debug || dcheck_always_on
 }
 if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = is_debug
@@ -205,8 +217,12 @@ config("libsampler_config") {
 # This config should only be applied to code using V8 and not any V8 code
 # itself.
 config("external_config") {
+  defines = []
   if (is_component_build) {
-    defines = [ "USING_V8_SHARED" ]
+    defines += [ "USING_V8_SHARED" ]
+  }
+  if (v8_enable_v8_checks) {
+    defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
   }
   include_dirs = [
     "include",
@@ -237,6 +253,8 @@ config("features") {
     defines +=
         [ "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}" ]
   }
+  defines +=
+      [ "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}" ]
   if (v8_enable_future) {
     defines += [ "V8_ENABLE_FUTURE" ]
   }
@@ -260,6 +278,13 @@ config("features") {
   }
   if (v8_enable_trace_ignition) {
     defines += [ "V8_TRACE_IGNITION" ]
+  }
+  if (v8_enable_trace_feedback_updates) {
+    defines += [ "V8_TRACE_FEEDBACK_UPDATES" ]
+  }
+  if (v8_enable_test_features) {
+    defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
+    defines += [ "V8_ENABLE_FORCE_SLOW_PATH" ]
   }
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]
@@ -290,9 +315,6 @@ config("features") {
   }
   if (v8_enable_concurrent_marking) {
     defines += [ "V8_CONCURRENT_MARKING" ]
-  }
-  if (v8_enable_csa_write_barrier) {
-    defines += [ "V8_CSA_WRITE_BARRIER" ]
   }
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
@@ -479,6 +501,10 @@ config("toolchain") {
     defines += [ "ENABLE_VERIFY_CSA" ]
   }
 
+  if (!v8_untrusted_code_mitigations) {
+    defines += [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ]
+  }
+
   if (v8_no_inline) {
     cflags += [
       "-fno-inline-functions",
@@ -493,6 +519,12 @@ config("toolchain") {
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]
+
+    if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
+      # We exclude MIPS because the IsMipsArchVariant macro causes trouble.
+      cflags += [ "-Wunreachable-code" ]
+    }
+
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el") {
       cflags += [ "-Wshorten-64-to-32" ]
@@ -557,16 +589,10 @@ action("js2c") {
     "src/js/macros.py",
     "src/messages.h",
     "src/js/prologue.js",
-    "src/js/max-min.js",
-    "src/js/v8natives.js",
     "src/js/array.js",
-    "src/js/string.js",
     "src/js/typedarray.js",
-    "src/js/weak-collection.js",
     "src/js/messages.js",
-    "src/js/templates.js",
     "src/js/spread.js",
-    "src/js/proxy.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
     "src/debug/liveedit.js",
@@ -739,6 +765,16 @@ action("postmortem-metadata") {
   sources = [
     "src/objects.h",
     "src/objects-inl.h",
+    "src/objects/code-inl.h",
+    "src/objects/code.h",
+    "src/objects/data-handler.h",
+    "src/objects/data-handler-inl.h",
+    "src/objects/fixed-array-inl.h",
+    "src/objects/fixed-array.h",
+    "src/objects/js-array-inl.h",
+    "src/objects/js-array.h",
+    "src/objects/js-regexp-inl.h",
+    "src/objects/js-regexp.h",
     "src/objects/map.h",
     "src/objects/map-inl.h",
     "src/objects/script.h",
@@ -757,65 +793,68 @@ action("postmortem-metadata") {
          rebase_path(sources, root_build_dir)
 }
 
-action("run_mksnapshot") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+if (v8_use_snapshot) {
+  action("run_mksnapshot") {
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  deps = [
-    ":mksnapshot($v8_snapshot_toolchain)",
-  ]
-
-  script = "tools/run.py"
-
-  sources = []
-
-  outputs = [
-    "$target_gen_dir/snapshot.cc",
-  ]
-
-  args = [
-    "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
-                                      "root_out_dir") + "/mksnapshot",
-                       root_build_dir),
-    "--startup_src",
-    rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
-  ]
-
-  if (v8_random_seed != "0") {
-    args += [
-      "--random-seed",
-      v8_random_seed,
+    deps = [
+      ":mksnapshot($v8_snapshot_toolchain)",
     ]
-  }
 
-  if (v8_os_page_size != "0") {
-    args += [
-      "--v8_os_page_size",
-      v8_os_page_size,
+    script = "tools/run.py"
+
+    sources = []
+
+    outputs = [
+      "$target_gen_dir/snapshot.cc",
     ]
-  }
 
-  if (v8_perf_prof_unwinding_info) {
-    args += [ "--perf-prof-unwinding-info" ]
-  }
-
-  if (v8_use_external_startup_data) {
-    outputs += [ "$root_out_dir/snapshot_blob.bin" ]
-    args += [
-      "--startup_blob",
-      rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
+    args = [
+      "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
+                                        "root_out_dir") + "/mksnapshot",
+                         root_build_dir),
+      "--turbo_instruction_scheduling",
+      "--startup_src",
+      rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
     ]
-  }
 
-  if (v8_embed_script != "") {
-    sources += [ v8_embed_script ]
-    args += [ rebase_path(v8_embed_script, root_build_dir) ]
-  }
+    if (v8_random_seed != "0") {
+      args += [
+        "--random-seed",
+        v8_random_seed,
+      ]
+    }
 
-  if (v8_enable_fast_mksnapshot) {
-    args += [
-      "--no-turbo-rewrite-far-jumps",
-      "--no-turbo-verify-allocation",
-    ]
+    if (v8_os_page_size != "0") {
+      args += [
+        "--v8_os_page_size",
+        v8_os_page_size,
+      ]
+    }
+
+    if (v8_perf_prof_unwinding_info) {
+      args += [ "--perf-prof-unwinding-info" ]
+    }
+
+    if (v8_use_external_startup_data) {
+      outputs += [ "$root_out_dir/snapshot_blob.bin" ]
+      args += [
+        "--startup_blob",
+        rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
+      ]
+    }
+
+    if (v8_embed_script != "") {
+      sources += [ v8_embed_script ]
+      args += [ rebase_path(v8_embed_script, root_build_dir) ]
+    }
+
+    if (v8_enable_fast_mksnapshot) {
+      args += [
+        "--no-turbo-rewrite-far-jumps",
+        "--no-turbo-verify-allocation",
+      ]
+    }
   }
 }
 
@@ -840,6 +879,7 @@ action("v8_dump_build_config") {
     "target_cpu=\"$target_cpu\"",
     "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
+    "v8_enable_verify_predictable=$v8_enable_verify_predictable",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
   ]
@@ -861,7 +901,7 @@ source_set("v8_maybe_snapshot") {
   } else {
     # Ignore v8_use_external_startup_data setting if no snapshot is used.
     public_deps = [
-      ":v8_builtins_setup",
+      ":v8_init",
       ":v8_nosnapshot",
     ]
   }
@@ -896,44 +936,46 @@ v8_source_set("v8_nosnapshot") {
   configs = [ ":internal_config" ]
 }
 
-v8_source_set("v8_snapshot") {
-  # Only targets in this file and the top-level visibility target can
-  # depend on this.
-  visibility = [
-    ":*",
-    "//:gn_visibility",
-  ]
-
-  deps = [
-    ":js2c",
-    ":js2c_experimental_extras",
-    ":js2c_extras",
-    ":v8_base",
-  ]
-  public_deps = [
-    # This should be public so downstream targets can declare the snapshot
-    # output file as their inputs.
-    ":run_mksnapshot",
-  ]
-
-  sources = [
-    "$target_gen_dir/experimental-extras-libraries.cc",
-    "$target_gen_dir/extras-libraries.cc",
-    "$target_gen_dir/libraries.cc",
-    "$target_gen_dir/snapshot.cc",
-    "src/setup-isolate-deserialize.cc",
-  ]
-
-  if (use_jumbo_build == true) {
-    jumbo_excluded_sources = [
-      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
-      # Generated source, contains same variable names as libraries.cc
-      "$target_gen_dir/experimental-extras-libraries.cc",
-      "$target_gen_dir/libraries.cc",
+if (v8_use_snapshot) {
+  v8_source_set("v8_snapshot") {
+    # Only targets in this file and the top-level visibility target can
+    # depend on this.
+    visibility = [
+      ":*",
+      "//:gn_visibility",
     ]
-  }
 
-  configs = [ ":internal_config" ]
+    deps = [
+      ":js2c",
+      ":js2c_experimental_extras",
+      ":js2c_extras",
+      ":v8_base",
+    ]
+    public_deps = [
+      # This should be public so downstream targets can declare the snapshot
+      # output file as their inputs.
+      ":run_mksnapshot",
+    ]
+
+    sources = [
+      "$target_gen_dir/experimental-extras-libraries.cc",
+      "$target_gen_dir/extras-libraries.cc",
+      "$target_gen_dir/libraries.cc",
+      "$target_gen_dir/snapshot.cc",
+      "src/setup-isolate-deserialize.cc",
+    ]
+
+    if (use_jumbo_build == true) {
+      jumbo_excluded_sources = [
+        # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+        # Generated source, contains same variable names as libraries.cc
+        "$target_gen_dir/experimental-extras-libraries.cc",
+        "$target_gen_dir/libraries.cc",
+      ]
+    }
+
+    configs = [ ":internal_config" ]
+  }
 }
 
 if (v8_use_external_startup_data) {
@@ -961,7 +1003,7 @@ if (v8_use_external_startup_data) {
   }
 }
 
-v8_source_set("v8_builtins_generators") {
+v8_source_set("v8_initializers") {
   visibility = [
     ":*",
     "test/cctest:*",
@@ -992,8 +1034,6 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-conversion-gen.cc",
     "src/builtins/builtins-date-gen.cc",
     "src/builtins/builtins-debug-gen.cc",
-    "src/builtins/builtins-forin-gen.cc",
-    "src/builtins/builtins-forin-gen.h",
     "src/builtins/builtins-function-gen.cc",
     "src/builtins/builtins-generator-gen.cc",
     "src/builtins/builtins-global-gen.cc",
@@ -1005,14 +1045,14 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-iterator-gen.cc",
     "src/builtins/builtins-iterator-gen.h",
     "src/builtins/builtins-math-gen.cc",
+    "src/builtins/builtins-math-gen.h",
     "src/builtins/builtins-number-gen.cc",
     "src/builtins/builtins-object-gen.cc",
     "src/builtins/builtins-promise-gen.cc",
     "src/builtins/builtins-promise-gen.h",
     "src/builtins/builtins-proxy-gen.cc",
     "src/builtins/builtins-proxy-gen.h",
-    "src/builtins/builtins-proxy-helpers-gen.cc",
-    "src/builtins/builtins-proxy-helpers-gen.h",
+    "src/builtins/builtins-reflect-gen.cc",
     "src/builtins/builtins-regexp-gen.cc",
     "src/builtins/builtins-regexp-gen.h",
     "src/builtins/builtins-sharedarraybuffer-gen.cc",
@@ -1023,6 +1063,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-utils-gen.h",
     "src/builtins/builtins-wasm-gen.cc",
     "src/builtins/setup-builtins-internal.cc",
+    "src/heap/setup-heap-internal.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
     "src/ic/binary-op-assembler.cc",
@@ -1044,6 +1085,10 @@ v8_source_set("v8_builtins_generators") {
       # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
       "src/builtins/builtins-async-iterator-gen.cc",
       "src/builtins/builtins-async-generator-gen.cc",
+
+      # This source file takes an unusually large amount of time to
+      # compile.  Build it separately to avoid bottlenecks.
+      "src/builtins/builtins-regexp-gen.cc",
     ]
   }
 
@@ -1096,11 +1141,11 @@ v8_source_set("v8_builtins_generators") {
   configs = [ ":internal_config" ]
 }
 
-v8_source_set("v8_builtins_setup") {
+v8_source_set("v8_init") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":v8_builtins_generators",
+    ":v8_initializers",
   ]
 
   sources = [
@@ -1189,8 +1234,6 @@ v8_source_set("v8_base") {
     "src/assembler.h",
     "src/assert-scope.cc",
     "src/assert-scope.h",
-    "src/ast/ast-expression-rewriter.cc",
-    "src/ast/ast-expression-rewriter.h",
     "src/ast/ast-function-literal-id-reindexer.cc",
     "src/ast/ast-function-literal-id-reindexer.h",
     "src/ast/ast-numbering.cc",
@@ -1213,8 +1256,6 @@ v8_source_set("v8_base") {
     "src/ast/scopes.h",
     "src/ast/variables.cc",
     "src/ast/variables.h",
-    "src/background-parsing-task.cc",
-    "src/background-parsing-task.h",
     "src/bailout-reason.cc",
     "src/bailout-reason.h",
     "src/basic-block-profiler.cc",
@@ -1231,6 +1272,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-api.cc",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
+    "src/builtins/builtins-bigint.cc",
     "src/builtins/builtins-boolean.cc",
     "src/builtins/builtins-call.cc",
     "src/builtins/builtins-callsite.cc",
@@ -1308,6 +1350,7 @@ v8_source_set("v8_base") {
     "src/compiler/access-info.h",
     "src/compiler/all-nodes.cc",
     "src/compiler/all-nodes.h",
+    "src/compiler/allocation-builder.h",
     "src/compiler/basic-block-instrumentor.cc",
     "src/compiler/basic-block-instrumentor.h",
     "src/compiler/branch-elimination.cc",
@@ -1425,10 +1468,6 @@ v8_source_set("v8_base") {
     "src/compiler/memory-optimizer.h",
     "src/compiler/move-optimizer.cc",
     "src/compiler/move-optimizer.h",
-    "src/compiler/new-escape-analysis-reducer.cc",
-    "src/compiler/new-escape-analysis-reducer.h",
-    "src/compiler/new-escape-analysis.cc",
-    "src/compiler/new-escape-analysis.h",
     "src/compiler/node-aux-data.h",
     "src/compiler/node-cache.cc",
     "src/compiler/node-cache.h",
@@ -1530,6 +1569,8 @@ v8_source_set("v8_base") {
     "src/debug/debug-scopes.h",
     "src/debug/debug-stack-trace-iterator.cc",
     "src/debug/debug-stack-trace-iterator.h",
+    "src/debug/debug-type-profile.cc",
+    "src/debug/debug-type-profile.h",
     "src/debug/debug.cc",
     "src/debug/debug.h",
     "src/debug/interface-types.h",
@@ -1539,6 +1580,7 @@ v8_source_set("v8_base") {
     "src/deoptimize-reason.h",
     "src/deoptimizer.cc",
     "src/deoptimizer.h",
+    "src/detachable-vector.h",
     "src/disasm.h",
     "src/disassembler.cc",
     "src/disassembler.h",
@@ -1569,6 +1611,7 @@ v8_source_set("v8_base") {
     "src/extensions/trigger-failure-extension.h",
     "src/external-reference-table.cc",
     "src/external-reference-table.h",
+    "src/factory-inl.h",
     "src/factory.cc",
     "src/factory.h",
     "src/fast-dtoa.cc",
@@ -1576,13 +1619,10 @@ v8_source_set("v8_base") {
     "src/feedback-vector-inl.h",
     "src/feedback-vector.cc",
     "src/feedback-vector.h",
-    "src/ffi/ffi-compiler.cc",
-    "src/ffi/ffi-compiler.h",
     "src/field-index-inl.h",
     "src/field-index.h",
     "src/field-type.cc",
     "src/field-type.h",
-    "src/find-and-replace-pattern.h",
     "src/fixed-dtoa.cc",
     "src/fixed-dtoa.h",
     "src/flag-definitions.h",
@@ -1603,9 +1643,12 @@ v8_source_set("v8_base") {
     "src/handles.cc",
     "src/handles.h",
     "src/heap-symbols.h",
+    "src/heap/array-buffer-collector.cc",
+    "src/heap/array-buffer-collector.h",
     "src/heap/array-buffer-tracker-inl.h",
     "src/heap/array-buffer-tracker.cc",
     "src/heap/array-buffer-tracker.h",
+    "src/heap/barrier.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
     "src/heap/concurrent-marking.cc",
@@ -1647,22 +1690,21 @@ v8_source_set("v8_base") {
     "src/heap/scavenger-inl.h",
     "src/heap/scavenger.cc",
     "src/heap/scavenger.h",
-    "src/heap/sequential-marking-deque.cc",
-    "src/heap/sequential-marking-deque.h",
     "src/heap/slot-set.h",
     "src/heap/spaces-inl.h",
     "src/heap/spaces.cc",
     "src/heap/spaces.h",
     "src/heap/store-buffer.cc",
     "src/heap/store-buffer.h",
+    "src/heap/stress-marking-observer.cc",
+    "src/heap/stress-marking-observer.h",
+    "src/heap/stress-scavenge-observer.cc",
+    "src/heap/stress-scavenge-observer.h",
+    "src/heap/sweeper.cc",
+    "src/heap/sweeper.h",
     "src/heap/worklist.h",
-    "src/ic/access-compiler-data.h",
-    "src/ic/access-compiler.cc",
-    "src/ic/access-compiler.h",
     "src/ic/call-optimization.cc",
     "src/ic/call-optimization.h",
-    "src/ic/handler-compiler.cc",
-    "src/ic/handler-compiler.h",
     "src/ic/handler-configuration-inl.h",
     "src/ic/handler-configuration.cc",
     "src/ic/handler-configuration.h",
@@ -1739,8 +1781,6 @@ v8_source_set("v8_base") {
     "src/layout-descriptor-inl.h",
     "src/layout-descriptor.cc",
     "src/layout-descriptor.h",
-    "src/list-inl.h",
-    "src/list.h",
     "src/locked-queue-inl.h",
     "src/locked-queue.h",
     "src/log-inl.h",
@@ -1772,8 +1812,10 @@ v8_source_set("v8_base") {
     "src/objects.h",
     "src/objects/arguments-inl.h",
     "src/objects/arguments.h",
-    "src/objects/code-cache-inl.h",
-    "src/objects/code-cache.h",
+    "src/objects/bigint.cc",
+    "src/objects/bigint.h",
+    "src/objects/code-inl.h",
+    "src/objects/code.h",
     "src/objects/compilation-cache-inl.h",
     "src/objects/compilation-cache.h",
     "src/objects/debug-objects-inl.h",
@@ -1781,12 +1823,21 @@ v8_source_set("v8_base") {
     "src/objects/debug-objects.h",
     "src/objects/descriptor-array.h",
     "src/objects/dictionary.h",
+    "src/objects/fixed-array-inl.h",
+    "src/objects/fixed-array.h",
     "src/objects/frame-array-inl.h",
     "src/objects/frame-array.h",
     "src/objects/hash-table-inl.h",
     "src/objects/hash-table.h",
     "src/objects/intl-objects.cc",
     "src/objects/intl-objects.h",
+    "src/objects/js-array-inl.h",
+    "src/objects/js-array.h",
+    "src/objects/js-collection-inl.h",
+    "src/objects/js-collection.h",
+    "src/objects/js-regexp-inl.h",
+    "src/objects/js-regexp.h",
+    "src/objects/literal-objects-inl.h",
     "src/objects/literal-objects.cc",
     "src/objects/literal-objects.h",
     "src/objects/map-inl.h",
@@ -1798,6 +1849,8 @@ v8_source_set("v8_base") {
     "src/objects/name.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
+    "src/objects/property-descriptor-object-inl.h",
+    "src/objects/property-descriptor-object.h",
     "src/objects/regexp-match-info.h",
     "src/objects/scope-info.cc",
     "src/objects/scope-info.h",
@@ -1808,8 +1861,12 @@ v8_source_set("v8_base") {
     "src/objects/string-inl.h",
     "src/objects/string-table.h",
     "src/objects/string.h",
+    "src/objects/template-objects.cc",
+    "src/objects/template-objects.h",
     "src/ostreams.cc",
     "src/ostreams.h",
+    "src/parsing/background-parsing-task.cc",
+    "src/parsing/background-parsing-task.h",
     "src/parsing/duplicate-finder.h",
     "src/parsing/expression-classifier.h",
     "src/parsing/expression-scope-reparenter.cc",
@@ -1904,6 +1961,7 @@ v8_source_set("v8_base") {
     "src/runtime-profiler.h",
     "src/runtime/runtime-array.cc",
     "src/runtime/runtime-atomics.cc",
+    "src/runtime/runtime-bigint.cc",
     "src/runtime/runtime-classes.cc",
     "src/runtime/runtime-collections.cc",
     "src/runtime/runtime-compiler.cc",
@@ -1940,10 +1998,25 @@ v8_source_set("v8_base") {
     "src/safepoint-table.h",
     "src/setup-isolate.h",
     "src/signature.h",
+    "src/simulator-base.cc",
+    "src/simulator-base.h",
     "src/simulator.h",
-    "src/small-pointer-list.h",
+    "src/snapshot/builtin-deserializer-allocator.cc",
+    "src/snapshot/builtin-deserializer-allocator.h",
+    "src/snapshot/builtin-deserializer.cc",
+    "src/snapshot/builtin-deserializer.h",
+    "src/snapshot/builtin-serializer-allocator.cc",
+    "src/snapshot/builtin-serializer-allocator.h",
+    "src/snapshot/builtin-serializer.cc",
+    "src/snapshot/builtin-serializer.h",
+    "src/snapshot/builtin-snapshot-utils.cc",
+    "src/snapshot/builtin-snapshot-utils.h",
     "src/snapshot/code-serializer.cc",
     "src/snapshot/code-serializer.h",
+    "src/snapshot/default-deserializer-allocator.cc",
+    "src/snapshot/default-deserializer-allocator.h",
+    "src/snapshot/default-serializer-allocator.cc",
+    "src/snapshot/default-serializer-allocator.h",
     "src/snapshot/deserializer.cc",
     "src/snapshot/deserializer.h",
     "src/snapshot/natives-common.cc",
@@ -1985,6 +2058,7 @@ v8_source_set("v8_base") {
     "src/string-stream.h",
     "src/strtod.cc",
     "src/strtod.h",
+    "src/third_party/utf8-decoder/utf8-decoder.h",
     "src/tracing/trace-event.cc",
     "src/tracing/trace-event.h",
     "src/tracing/traced-value.cc",
@@ -2019,6 +2093,8 @@ v8_source_set("v8_base") {
     "src/v8threads.h",
     "src/value-serializer.cc",
     "src/value-serializer.h",
+    "src/vector-slot-pair.cc",
+    "src/vector-slot-pair.h",
     "src/vector.h",
     "src/version.cc",
     "src/version.h",
@@ -2026,6 +2102,11 @@ v8_source_set("v8_base") {
     "src/visitors.h",
     "src/vm-state-inl.h",
     "src/vm-state.h",
+    "src/wasm/baseline/liftoff-assembler-defs.h",
+    "src/wasm/baseline/liftoff-assembler.cc",
+    "src/wasm/baseline/liftoff-assembler.h",
+    "src/wasm/baseline/liftoff-compiler.cc",
+    "src/wasm/baseline/liftoff-register.h",
     "src/wasm/compilation-manager.cc",
     "src/wasm/compilation-manager.h",
     "src/wasm/decoder.h",
@@ -2035,6 +2116,8 @@ v8_source_set("v8_base") {
     "src/wasm/leb-helper.h",
     "src/wasm/local-decl-encoder.cc",
     "src/wasm/local-decl-encoder.h",
+    "src/wasm/memory-tracing.cc",
+    "src/wasm/memory-tracing.h",
     "src/wasm/module-compiler.cc",
     "src/wasm/module-compiler.h",
     "src/wasm/module-decoder.cc",
@@ -2045,9 +2128,16 @@ v8_source_set("v8_base") {
     "src/wasm/streaming-decoder.h",
     "src/wasm/wasm-api.cc",
     "src/wasm/wasm-api.h",
+    "src/wasm/wasm-code-manager.cc",
+    "src/wasm/wasm-code-manager.h",
     "src/wasm/wasm-code-specialization.cc",
     "src/wasm/wasm-code-specialization.h",
+    "src/wasm/wasm-code-wrapper.cc",
+    "src/wasm/wasm-code-wrapper.h",
+    "src/wasm/wasm-constants.h",
     "src/wasm/wasm-debug.cc",
+    "src/wasm/wasm-engine.cc",
+    "src/wasm/wasm-engine.h",
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
     "src/wasm/wasm-interpreter.cc",
@@ -2055,16 +2145,21 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-js.cc",
     "src/wasm/wasm-js.h",
     "src/wasm/wasm-limits.h",
+    "src/wasm/wasm-memory.cc",
+    "src/wasm/wasm-memory.h",
     "src/wasm/wasm-module-builder.cc",
     "src/wasm/wasm-module-builder.h",
     "src/wasm/wasm-module.cc",
     "src/wasm/wasm-module.h",
+    "src/wasm/wasm-objects-inl.h",
     "src/wasm/wasm-objects.cc",
     "src/wasm/wasm-objects.h",
     "src/wasm/wasm-opcodes.cc",
     "src/wasm/wasm-opcodes.h",
     "src/wasm/wasm-result.cc",
     "src/wasm/wasm-result.h",
+    "src/wasm/wasm-serialization.cc",
+    "src/wasm/wasm-serialization.h",
     "src/wasm/wasm-text.cc",
     "src/wasm/wasm-text.h",
     "src/wasm/wasm-value.h",
@@ -2075,6 +2170,7 @@ v8_source_set("v8_base") {
     "src/zone/zone-chunk-list.h",
     "src/zone/zone-containers.h",
     "src/zone/zone-handle-set.h",
+    "src/zone/zone-list-inl.h",
     "src/zone/zone-segment.cc",
     "src/zone/zone-segment.h",
     "src/zone/zone.cc",
@@ -2085,8 +2181,15 @@ v8_source_set("v8_base") {
     jumbo_excluded_sources = [
       # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
       "src/profiler/heap-snapshot-generator.cc",  # Macro clash in mman-linux.h
-      "src/compiler/escape-analysis.cc",  # Symbol clashes with new-escape-analysis.cc
-      "src/compiler/escape-analysis-reducer.cc",  # Symbol clashes with new-escape-analysis-reducer.cc
+
+      # These source files take an unusually large amount of time to
+      # compile.  Build them separately to avoid bottlenecks.
+      "src/api.cc",
+      "src/code-stub-assembler.cc",
+      "src/elements.cc",
+      "src/heap/heap.cc",
+      "src/objects.cc",
+      "src/parsing/parser.cc",
     ]
   }
 
@@ -2101,9 +2204,7 @@ v8_source_set("v8_base") {
       "src/ia32/assembler-ia32.cc",
       "src/ia32/assembler-ia32.h",
       "src/ia32/code-stubs-ia32.cc",
-      "src/ia32/code-stubs-ia32.h",
       "src/ia32/codegen-ia32.cc",
-      "src/ia32/codegen-ia32.h",
       "src/ia32/cpu-ia32.cc",
       "src/ia32/deoptimizer-ia32.cc",
       "src/ia32/disasm-ia32.cc",
@@ -2115,10 +2216,9 @@ v8_source_set("v8_base") {
       "src/ia32/simulator-ia32.cc",
       "src/ia32/simulator-ia32.h",
       "src/ia32/sse-instr.h",
-      "src/ic/ia32/access-compiler-ia32.cc",
-      "src/ic/ia32/handler-compiler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
+      "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
@@ -2129,18 +2229,15 @@ v8_source_set("v8_base") {
       "src/compiler/x64/unwinding-info-writer-x64.cc",
       "src/compiler/x64/unwinding-info-writer-x64.h",
       "src/debug/x64/debug-x64.cc",
-      "src/ic/x64/access-compiler-x64.cc",
-      "src/ic/x64/handler-compiler-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
       "src/third_party/valgrind/valgrind.h",
+      "src/wasm/baseline/x64/liftoff-assembler-x64.h",
       "src/x64/assembler-x64-inl.h",
       "src/x64/assembler-x64.cc",
       "src/x64/assembler-x64.h",
       "src/x64/code-stubs-x64.cc",
-      "src/x64/code-stubs-x64.h",
       "src/x64/codegen-x64.cc",
-      "src/x64/codegen-x64.h",
       "src/x64/cpu-x64.cc",
       "src/x64/deoptimizer-x64.cc",
       "src/x64/disasm-x64.cc",
@@ -2165,7 +2262,6 @@ v8_source_set("v8_base") {
       "src/arm/code-stubs-arm.cc",
       "src/arm/code-stubs-arm.h",
       "src/arm/codegen-arm.cc",
-      "src/arm/codegen-arm.h",
       "src/arm/constants-arm.cc",
       "src/arm/constants-arm.h",
       "src/arm/cpu-arm.cc",
@@ -2187,10 +2283,9 @@ v8_source_set("v8_base") {
       "src/compiler/arm/unwinding-info-writer-arm.cc",
       "src/compiler/arm/unwinding-info-writer-arm.h",
       "src/debug/arm/debug-arm.cc",
-      "src/ic/arm/access-compiler-arm.cc",
-      "src/ic/arm/handler-compiler-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.h",
+      "src/wasm/baseline/arm/liftoff-assembler-arm.h",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
@@ -2200,7 +2295,6 @@ v8_source_set("v8_base") {
       "src/arm64/code-stubs-arm64.cc",
       "src/arm64/code-stubs-arm64.h",
       "src/arm64/codegen-arm64.cc",
-      "src/arm64/codegen-arm64.h",
       "src/arm64/constants-arm64.h",
       "src/arm64/cpu-arm64.cc",
       "src/arm64/decoder-arm64-inl.h",
@@ -2212,6 +2306,7 @@ v8_source_set("v8_base") {
       "src/arm64/eh-frame-arm64.cc",
       "src/arm64/frame-constants-arm64.cc",
       "src/arm64/frame-constants-arm64.h",
+      "src/arm64/instructions-arm64-constants.cc",
       "src/arm64/instructions-arm64.cc",
       "src/arm64/instructions-arm64.h",
       "src/arm64/instrument-arm64.cc",
@@ -2233,11 +2328,17 @@ v8_source_set("v8_base") {
       "src/compiler/arm64/unwinding-info-writer-arm64.cc",
       "src/compiler/arm64/unwinding-info-writer-arm64.h",
       "src/debug/arm64/debug-arm64.cc",
-      "src/ic/arm64/access-compiler-arm64.cc",
-      "src/ic/arm64/handler-compiler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
+      "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
+    if (use_jumbo_build) {
+      jumbo_excluded_sources += [
+        # TODO(mostynb@opera.com): fix this code so it doesn't need
+        # to be excluded, see the comments inside.
+        "src/arm64/instructions-arm64-constants.cc",
+      ]
+    }
   } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
     sources += [  ### gcmole(arch:mipsel) ###
       "src/compiler/mips/code-generator-mips.cc",
@@ -2245,15 +2346,12 @@ v8_source_set("v8_base") {
       "src/compiler/mips/instruction-scheduler-mips.cc",
       "src/compiler/mips/instruction-selector-mips.cc",
       "src/debug/mips/debug-mips.cc",
-      "src/ic/mips/access-compiler-mips.cc",
-      "src/ic/mips/handler-compiler-mips.cc",
       "src/mips/assembler-mips-inl.h",
       "src/mips/assembler-mips.cc",
       "src/mips/assembler-mips.h",
       "src/mips/code-stubs-mips.cc",
       "src/mips/code-stubs-mips.h",
       "src/mips/codegen-mips.cc",
-      "src/mips/codegen-mips.h",
       "src/mips/constants-mips.cc",
       "src/mips/constants-mips.h",
       "src/mips/cpu-mips.cc",
@@ -2268,6 +2366,7 @@ v8_source_set("v8_base") {
       "src/mips/simulator-mips.h",
       "src/regexp/mips/regexp-macro-assembler-mips.cc",
       "src/regexp/mips/regexp-macro-assembler-mips.h",
+      "src/wasm/baseline/mips/liftoff-assembler-mips.h",
     ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
@@ -2276,15 +2375,12 @@ v8_source_set("v8_base") {
       "src/compiler/mips64/instruction-scheduler-mips64.cc",
       "src/compiler/mips64/instruction-selector-mips64.cc",
       "src/debug/mips64/debug-mips64.cc",
-      "src/ic/mips64/access-compiler-mips64.cc",
-      "src/ic/mips64/handler-compiler-mips64.cc",
       "src/mips64/assembler-mips64-inl.h",
       "src/mips64/assembler-mips64.cc",
       "src/mips64/assembler-mips64.h",
       "src/mips64/code-stubs-mips64.cc",
       "src/mips64/code-stubs-mips64.h",
       "src/mips64/codegen-mips64.cc",
-      "src/mips64/codegen-mips64.h",
       "src/mips64/constants-mips64.cc",
       "src/mips64/constants-mips64.h",
       "src/mips64/cpu-mips64.cc",
@@ -2299,6 +2395,7 @@ v8_source_set("v8_base") {
       "src/mips64/simulator-mips64.h",
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
+      "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###
@@ -2307,15 +2404,12 @@ v8_source_set("v8_base") {
       "src/compiler/ppc/instruction-scheduler-ppc.cc",
       "src/compiler/ppc/instruction-selector-ppc.cc",
       "src/debug/ppc/debug-ppc.cc",
-      "src/ic/ppc/access-compiler-ppc.cc",
-      "src/ic/ppc/handler-compiler-ppc.cc",
       "src/ppc/assembler-ppc-inl.h",
       "src/ppc/assembler-ppc.cc",
       "src/ppc/assembler-ppc.h",
       "src/ppc/code-stubs-ppc.cc",
       "src/ppc/code-stubs-ppc.h",
       "src/ppc/codegen-ppc.cc",
-      "src/ppc/codegen-ppc.h",
       "src/ppc/constants-ppc.cc",
       "src/ppc/constants-ppc.h",
       "src/ppc/cpu-ppc.cc",
@@ -2330,6 +2424,7 @@ v8_source_set("v8_base") {
       "src/ppc/simulator-ppc.h",
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
       "src/regexp/ppc/regexp-macro-assembler-ppc.h",
+      "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [  ### gcmole(arch:s390) ###
@@ -2338,8 +2433,6 @@ v8_source_set("v8_base") {
       "src/compiler/s390/instruction-scheduler-s390.cc",
       "src/compiler/s390/instruction-selector-s390.cc",
       "src/debug/s390/debug-s390.cc",
-      "src/ic/s390/access-compiler-s390.cc",
-      "src/ic/s390/handler-compiler-s390.cc",
       "src/regexp/s390/regexp-macro-assembler-s390.cc",
       "src/regexp/s390/regexp-macro-assembler-s390.h",
       "src/s390/assembler-s390-inl.h",
@@ -2348,7 +2441,6 @@ v8_source_set("v8_base") {
       "src/s390/code-stubs-s390.cc",
       "src/s390/code-stubs-s390.h",
       "src/s390/codegen-s390.cc",
-      "src/s390/codegen-s390.h",
       "src/s390/constants-s390.cc",
       "src/s390/constants-s390.h",
       "src/s390/cpu-s390.cc",
@@ -2361,6 +2453,7 @@ v8_source_set("v8_base") {
       "src/s390/macro-assembler-s390.h",
       "src/s390/simulator-s390.cc",
       "src/s390/simulator-s390.h",
+      "src/wasm/baseline/s390/liftoff-assembler-s390.h",
     ]
   }
 
@@ -2439,6 +2532,8 @@ v8_component("v8_libbase") {
     "src/base/once.cc",
     "src/base/once.h",
     "src/base/optional.h",
+    "src/base/page-allocator.cc",
+    "src/base/page-allocator.h",
     "src/base/platform/condition-variable.cc",
     "src/base/platform/condition-variable.h",
     "src/base/platform/elapsed-timer.h",
@@ -2458,6 +2553,7 @@ v8_component("v8_libbase") {
     "src/base/sys-info.h",
     "src/base/template-utils.h",
     "src/base/timezone-cache.h",
+    "src/base/tsan.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
   ]
@@ -2561,6 +2657,10 @@ v8_component("v8_libplatform") {
     "include/libplatform/libplatform-export.h",
     "include/libplatform/libplatform.h",
     "include/libplatform/v8-tracing.h",
+    "src/libplatform/default-background-task-runner.cc",
+    "src/libplatform/default-background-task-runner.h",
+    "src/libplatform/default-foreground-task-runner.cc",
+    "src/libplatform/default-foreground-task-runner.h",
     "src/libplatform/default-platform.cc",
     "src/libplatform/default-platform.h",
     "src/libplatform/task-queue.cc",
@@ -2625,10 +2725,34 @@ v8_source_set("fuzzer_support") {
 }
 
 ###############################################################################
+# Produce a single static library for embedders
+#
+
+if (v8_monolithic) {
+  # A component build is not monolithic.
+  assert(!is_component_build)
+
+  # Using external startup data would produce separate files.
+  assert(!v8_use_external_startup_data)
+  v8_static_library("v8_monolith") {
+    deps = [
+      ":v8",
+      ":v8_libbase",
+      ":v8_libplatform",
+      ":v8_libsampler",
+      "//build/config:exe_and_shlib_deps",
+      "//build/win:default_exe_manifest",
+    ]
+
+    configs = [ ":internal_config" ]
+  }
+}
+
+###############################################################################
 # Executables
 #
 
-if (current_toolchain == v8_snapshot_toolchain) {
+if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -2640,7 +2764,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
 
     deps = [
       ":v8_base",
-      ":v8_builtins_setup",
+      ":v8_init",
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_nosnapshot",
@@ -2683,6 +2807,8 @@ group("gn_all") {
 }
 
 group("v8_clusterfuzz") {
+  testonly = true
+
   deps = [
     ":d8",
   ]
@@ -2693,6 +2819,13 @@ group("v8_clusterfuzz") {
       ":d8(//build/toolchain/linux:clang_x64_v8_arm64)",
       ":d8(//build/toolchain/linux:clang_x86)",
       ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
+    ]
+  }
+
+  if (v8_test_isolation_mode != "noop") {
+    deps += [
+      "tools:run-deopt-fuzzer_run",
+      "tools:run-num-fuzzer_run",
     ]
   }
 }
@@ -2707,6 +2840,7 @@ group("v8_fuzzers") {
   testonly = true
   deps = [
     ":v8_simple_json_fuzzer",
+    ":v8_simple_multi_return_fuzzer",
     ":v8_simple_parser_fuzzer",
     ":v8_simple_regexp_fuzzer",
     ":v8_simple_wasm_async_fuzzer",
@@ -2753,7 +2887,7 @@ if (is_component_build) {
     ]
 
     if (v8_use_snapshot) {
-      public_deps += [ ":v8_builtins_generators" ]
+      public_deps += [ ":v8_initializers" ]
     }
 
     configs = [ ":internal_config" ]
@@ -2779,7 +2913,7 @@ if (is_component_build) {
     ]
 
     if (v8_use_snapshot) {
-      public_deps += [ ":v8_builtins_generators" ]
+      public_deps += [ ":v8_initializers" ]
     }
 
     public_configs = [ ":external_config" ]
@@ -2955,6 +3089,24 @@ v8_source_set("json_fuzzer") {
 }
 
 v8_fuzzer("json_fuzzer") {
+}
+
+v8_source_set("multi_return_fuzzer") {
+  sources = [
+    "test/fuzzer/multi-return.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("multi_return_fuzzer") {
 }
 
 v8_source_set("parser_fuzzer") {

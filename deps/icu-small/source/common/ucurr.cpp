@@ -17,6 +17,7 @@
 #include "unicode/ustring.h"
 #include "unicode/parsepos.h"
 #include "ustr_imp.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "uassert.h"
@@ -25,10 +26,14 @@
 #include "uenumimp.h"
 #include "uhash.h"
 #include "hash.h"
+#include "uinvchar.h"
 #include "uresimp.h"
 #include "ulist.h"
+#include "uresimp.h"
 #include "ureslocs.h"
 #include "ulocimp.h"
+
+using namespace icu;
 
 //#define UCURR_DEBUG_EQUIV 1
 #ifdef UCURR_DEBUG_EQUIV
@@ -103,6 +108,7 @@ static const char VAR_DELIM_STR[] = "_";
 
 // Tag for localized display names (symbols) of currencies
 static const char CURRENCIES[] = "Currencies";
+static const char CURRENCIES_NARROW[] = "Currencies%narrow";
 static const char CURRENCYPLURALS[] = "CurrencyPlurals";
 
 static const UChar EUR_STR[] = {0x0045,0x0055,0x0052,0};
@@ -545,93 +551,97 @@ U_CAPI int32_t U_EXPORT2
 ucurr_forLocale(const char* locale,
                 UChar* buff,
                 int32_t buffCapacity,
-                UErrorCode* ec)
-{
-    int32_t resLen = 0;
-    const UChar* s = NULL;
-    if (ec != NULL && U_SUCCESS(*ec)) {
-        if ((buff && buffCapacity) || !buffCapacity) {
-            UErrorCode localStatus = U_ZERO_ERROR;
-            char id[ULOC_FULLNAME_CAPACITY];
-            if ((resLen = uloc_getKeywordValue(locale, "currency", id, ULOC_FULLNAME_CAPACITY, &localStatus))) {
-                // there is a currency keyword. Try to see if it's valid
-                if(buffCapacity > resLen) {
-                    /* Normalize the currency keyword value to upper case. */
-                    T_CString_toUpperCase(id);
-                    u_charsToUChars(id, buff, resLen);
-                }
-            } else {
-                // get country or country_variant in `id'
-                uint32_t variantType = idForLocale(locale, id, sizeof(id), ec);
+                UErrorCode* ec) {
+    if (U_FAILURE(*ec)) { return 0; }
+    if (buffCapacity < 0 || (buff == nullptr && buffCapacity > 0)) {
+        *ec = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
 
-                if (U_FAILURE(*ec)) {
-                    return 0;
-                }
+    char currency[4];  // ISO currency codes are alpha3 codes.
+    UErrorCode localStatus = U_ZERO_ERROR;
+    int32_t resLen = uloc_getKeywordValue(locale, "currency",
+                                          currency, UPRV_LENGTHOF(currency), &localStatus);
+    if (U_SUCCESS(localStatus) && resLen == 3 && uprv_isInvariantString(currency, resLen)) {
+        if (resLen < buffCapacity) {
+            T_CString_toUpperCase(currency);
+            u_charsToUChars(currency, buff, resLen);
+        }
+        return u_terminateUChars(buff, buffCapacity, resLen, ec);
+    }
+
+    // get country or country_variant in `id'
+    char id[ULOC_FULLNAME_CAPACITY];
+    uint32_t variantType = idForLocale(locale, id, UPRV_LENGTHOF(id), ec);
+    if (U_FAILURE(*ec)) {
+        return 0;
+    }
 
 #if !UCONFIG_NO_SERVICE
-                const UChar* result = CReg::get(id);
-                if (result) {
-                    if(buffCapacity > u_strlen(result)) {
-                        u_strcpy(buff, result);
-                    }
-                    return u_strlen(result);
-                }
+    const UChar* result = CReg::get(id);
+    if (result) {
+        if(buffCapacity > u_strlen(result)) {
+            u_strcpy(buff, result);
+        }
+        resLen = u_strlen(result);
+        return u_terminateUChars(buff, buffCapacity, resLen, ec);
+    }
 #endif
-                // Remove variants, which is only needed for registration.
-                char *idDelim = strchr(id, VAR_DELIM);
-                if (idDelim) {
-                    idDelim[0] = 0;
-                }
+    // Remove variants, which is only needed for registration.
+    char *idDelim = uprv_strchr(id, VAR_DELIM);
+    if (idDelim) {
+        idDelim[0] = 0;
+    }
 
-                // Look up the CurrencyMap element in the root bundle.
-                UResourceBundle *rb = ures_openDirect(U_ICUDATA_CURR, CURRENCY_DATA, &localStatus);
-                UResourceBundle *cm = ures_getByKey(rb, CURRENCY_MAP, rb, &localStatus);
-                UResourceBundle *countryArray = ures_getByKey(rb, id, cm, &localStatus);
-                UResourceBundle *currencyReq = ures_getByIndex(countryArray, 0, NULL, &localStatus);
+    const UChar* s = NULL;  // Currency code from data file.
+    if (id[0] == 0) {
+        // No point looking in the data for an empty string.
+        // This is what we would get.
+        localStatus = U_MISSING_RESOURCE_ERROR;
+    } else {
+        // Look up the CurrencyMap element in the root bundle.
+        localStatus = U_ZERO_ERROR;
+        UResourceBundle *rb = ures_openDirect(U_ICUDATA_CURR, CURRENCY_DATA, &localStatus);
+        UResourceBundle *cm = ures_getByKey(rb, CURRENCY_MAP, rb, &localStatus);
+        UResourceBundle *countryArray = ures_getByKey(rb, id, cm, &localStatus);
+        UResourceBundle *currencyReq = ures_getByIndex(countryArray, 0, NULL, &localStatus);
+        s = ures_getStringByKey(currencyReq, "id", &resLen, &localStatus);
+
+        // Get the second item when PREEURO is requested, and this is a known Euro country.
+        // If the requested variant is PREEURO, and this isn't a Euro country,
+        // assume that the country changed over to the Euro in the future.
+        // This is probably an old version of ICU that hasn't been updated yet.
+        // The latest currency is probably correct.
+        if (U_SUCCESS(localStatus)) {
+            if ((variantType & VARIANT_IS_PREEURO) && u_strcmp(s, EUR_STR) == 0) {
+                currencyReq = ures_getByIndex(countryArray, 1, currencyReq, &localStatus);
                 s = ures_getStringByKey(currencyReq, "id", &resLen, &localStatus);
-
-                /*
-                Get the second item when PREEURO is requested, and this is a known Euro country.
-                If the requested variant is PREEURO, and this isn't a Euro country, assume
-                that the country changed over to the Euro in the future. This is probably
-                an old version of ICU that hasn't been updated yet. The latest currency is
-                probably correct.
-                */
-                if (U_SUCCESS(localStatus)) {
-                    if ((variantType & VARIANT_IS_PREEURO) && u_strcmp(s, EUR_STR) == 0) {
-                        currencyReq = ures_getByIndex(countryArray, 1, currencyReq, &localStatus);
-                        s = ures_getStringByKey(currencyReq, "id", &resLen, &localStatus);
-                    }
-                    else if ((variantType & VARIANT_IS_EURO)) {
-                        s = EUR_STR;
-                    }
-                }
-                ures_close(countryArray);
-                ures_close(currencyReq);
-
-                if ((U_FAILURE(localStatus)) && strchr(id, '_') != 0)
-                {
-                    // We don't know about it.  Check to see if we support the variant.
-                    uloc_getParent(locale, id, sizeof(id), ec);
-                    *ec = U_USING_FALLBACK_WARNING;
-                    return ucurr_forLocale(id, buff, buffCapacity, ec);
-                }
-                else if (*ec == U_ZERO_ERROR || localStatus != U_ZERO_ERROR) {
-                    // There is nothing to fallback to. Report the failure/warning if possible.
-                    *ec = localStatus;
-                }
-                if (U_SUCCESS(*ec)) {
-                    if(buffCapacity > resLen) {
-                        u_strcpy(buff, s);
-                    }
-                }
+            } else if ((variantType & VARIANT_IS_EURO)) {
+                s = EUR_STR;
             }
-            return u_terminateUChars(buff, buffCapacity, resLen, ec);
-        } else {
-            *ec = U_ILLEGAL_ARGUMENT_ERROR;
+        }
+        ures_close(currencyReq);
+        ures_close(countryArray);
+    }
+
+    if ((U_FAILURE(localStatus)) && strchr(id, '_') != 0) {
+        // We don't know about it.  Check to see if we support the variant.
+        uloc_getParent(locale, id, UPRV_LENGTHOF(id), ec);
+        *ec = U_USING_FALLBACK_WARNING;
+        // TODO: Loop over the shortened id rather than recursing and
+        // looking again for a currency keyword.
+        return ucurr_forLocale(id, buff, buffCapacity, ec);
+    }
+    if (*ec == U_ZERO_ERROR || localStatus != U_ZERO_ERROR) {
+        // There is nothing to fallback to. Report the failure/warning if possible.
+        *ec = localStatus;
+    }
+    if (U_SUCCESS(*ec)) {
+        if(buffCapacity > resLen) {
+            u_strcpy(buff, s);
         }
     }
-    return resLen;
+    return u_terminateUChars(buff, buffCapacity, resLen, ec);
 }
 
 // end registration
@@ -648,7 +658,16 @@ static UBool fallback(char *loc) {
         return FALSE;
     }
     UErrorCode status = U_ZERO_ERROR;
-    uloc_getParent(loc, loc, (int32_t)uprv_strlen(loc), &status);
+    if (uprv_strcmp(loc, "en_GB") == 0) {
+        // HACK: See #13368.  We need "en_GB" to fall back to "en_001" instead of "en"
+        // in order to consume the correct data strings.  This hack will be removed
+        // when proper data sink loading is implemented here.
+        // NOTE: "001" adds 1 char over "GB".  However, both call sites allocate
+        // arrays with length ULOC_FULLNAME_CAPACITY (plenty of room for en_001).
+        uprv_strcpy(loc + 3, "001");
+    } else {
+        uloc_getParent(loc, loc, (int32_t)uprv_strlen(loc), &status);
+    }
  /*
     char *i = uprv_strrchr(loc, '_');
     if (i == NULL) {
@@ -684,7 +703,7 @@ ucurr_getName(const UChar* currency,
     }
 
     int32_t choice = (int32_t) nameStyle;
-    if (choice < 0 || choice > 1) {
+    if (choice < 0 || choice > 2) {
         *ec = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -717,15 +736,19 @@ ucurr_getName(const UChar* currency,
 
     const UChar* s = NULL;
     ec2 = U_ZERO_ERROR;
-    UResourceBundle* rb = ures_open(U_ICUDATA_CURR, loc, &ec2);
+    LocalUResourceBundlePointer rb(ures_open(U_ICUDATA_CURR, loc, &ec2));
 
-    rb = ures_getByKey(rb, CURRENCIES, rb, &ec2);
-
-    // Fetch resource with multi-level resource inheritance fallback
-    rb = ures_getByKeyWithFallback(rb, buf, rb, &ec2);
-
-    s = ures_getStringByIndex(rb, choice, len, &ec2);
-    ures_close(rb);
+    if (nameStyle == UCURR_NARROW_SYMBOL_NAME) {
+        CharString key;
+        key.append(CURRENCIES_NARROW, ec2);
+        key.append("/", ec2);
+        key.append(buf, ec2);
+        s = ures_getStringByKeyWithFallback(rb.getAlias(), key.data(), len, &ec2);
+    } else {
+        ures_getByKey(rb.getAlias(), CURRENCIES, rb.getAlias(), &ec2);
+        ures_getByKeyWithFallback(rb.getAlias(), buf, rb.getAlias(), &ec2);
+        s = ures_getStringByIndex(rb.getAlias(), choice, len, &ec2);
+    }
 
     // If we've succeeded we're done.  Otherwise, try to fallback.
     // If that fails (because we are already at root) then exit.
@@ -2216,6 +2239,7 @@ ucurr_countCurrencies(const char* locale,
         UErrorCode localStatus = U_ZERO_ERROR;
         char id[ULOC_FULLNAME_CAPACITY];
         uloc_getKeywordValue(locale, "currency", id, ULOC_FULLNAME_CAPACITY, &localStatus);
+
         // get country or country_variant in `id'
         /*uint32_t variantType =*/ idForLocale(locale, id, sizeof(id), ec);
 

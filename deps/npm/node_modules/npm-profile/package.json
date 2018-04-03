@@ -1,0 +1,61 @@
+{
+  "_from": "npm-profile@2.0.5",
+  "_id": "npm-profile@2.0.5",
+  "_inBundle": false,
+  "_integrity": "sha512-tLmpDUCV72f/1/oXoyb+VwsZjOlsanp34pZeIZS0mxDoQUOX4Ld1hgPeOqoX4XggE88m7W47DHET2v+qd6sihg==",
+  "_location": "/npm-profile",
+  "_phantomChildren": {
+    "cacache": "9.2.9",
+    "lru-cache": "4.1.1",
+    "mississippi": "1.3.0",
+    "retry": "0.10.1",
+    "safe-buffer": "5.1.1",
+    "ssri": "4.1.6"
+  },
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "npm-profile@2.0.5",
+    "name": "npm-profile",
+    "escapedName": "npm-profile",
+    "rawSpec": "2.0.5",
+    "saveSpec": null,
+    "fetchSpec": "2.0.5"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-profile/-/npm-profile-2.0.5.tgz",
+  "_shasum": "0e61b8f1611bd19d1eeff5e3d5c82e557da3b9d7",
+  "_spec": "npm-profile@2.0.5",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-profile/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "aproba": "^1.1.2",
+    "make-fetch-happen": "^2.5.0"
+  },
+  "deprecated": false,
+  "description": "Library for updating an npmjs.com profile",
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/npm/npm-profile/tree/latest/lib#readme",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "npm-profile",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-profile.git"
+  },
+  "version": "2.0.5"
+}

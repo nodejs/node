@@ -228,8 +228,8 @@ class AsmMinMaxType final : public AsmCallableType {
 }  // namespace
 
 AsmType* AsmType::MinMaxType(Zone* zone, AsmType* dest, AsmType* src) {
-  DCHECK(dest->AsValueType() != nullptr);
-  DCHECK(src->AsValueType() != nullptr);
+  DCHECK_NOT_NULL(dest->AsValueType());
+  DCHECK_NOT_NULL(src->AsValueType());
   auto* MinMax = new (zone) AsmMinMaxType(dest, src);
   return reinterpret_cast<AsmType*>(MinMax);
 }
@@ -300,7 +300,7 @@ bool AsmOverloadedFunctionType::CanBeInvokedWith(
 }
 
 void AsmOverloadedFunctionType::AddOverload(AsmType* overload) {
-  DCHECK(overload->AsCallableType() != nullptr);
+  DCHECK_NOT_NULL(overload->AsCallableType());
   overloads_.push_back(overload);
 }
 

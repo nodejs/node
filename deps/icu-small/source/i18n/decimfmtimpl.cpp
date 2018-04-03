@@ -521,7 +521,8 @@ static FixedDecimal &initFixedDecimal(
         const VisibleDigits &digits, FixedDecimal &result) {
     result.source = 0.0;
     result.isNegative = digits.isNegative();
-    result.isNanOrInfinity = digits.isNaNOrInfinity();
+    result._isNaN = digits.isNaN();
+    result._isInfinite = digits.isInfinite();
     digits.getFixedDecimal(
             result.source, result.intValue, result.decimalDigits,
             result.decimalDigitsWithoutTrailingZeros,
@@ -1382,8 +1383,8 @@ DecimalFormatImpl::toNumberPattern(
     DigitInterval maxInterval;
 
     // Only for significant digits
-    int32_t sigMin;
-    int32_t sigMax;
+    int32_t sigMin = 0; /* initialize to avoid compiler warning */
+    int32_t sigMax = 0; /* initialize to avoid compiler warning */
 
     // These are all the digits to be displayed. For significant digits,
     // this interval always starts at the 1's place an extends left.

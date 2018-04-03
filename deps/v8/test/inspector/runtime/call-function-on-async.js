@@ -7,13 +7,22 @@ let callFunctionOn = Protocol.Runtime.callFunctionOn.bind(Protocol.Runtime);
 
 let remoteObject1;
 let remoteObject2;
+let executionContextId;
 
-InspectorTest.runAsyncTestSuite([
+Protocol.Runtime.enable();
+Protocol.Runtime.onExecutionContextCreated(messageObject => {
+  executionContextId = messageObject.params.context.id;
+  InspectorTest.runAsyncTestSuite(testSuite);
+});
+
+let testSuite = [
   async function prepareTestSuite() {
     let result = await Protocol.Runtime.evaluate({ expression: '({a : 1})' });
     remoteObject1 = result.result.result;
     result = await Protocol.Runtime.evaluate({ expression: '({a : 2})' });
     remoteObject2 = result.result.result;
+
+    await Protocol.Runtime.evaluate({ expression: 'globalObjectProperty = 42;' });
   },
 
   async function testArguments() {
@@ -102,8 +111,31 @@ InspectorTest.runAsyncTestSuite([
       generatePreview: false,
       awaitPromise: true
     }));
-  }
-]);
+  },
+
+  async function testEvaluateOnExecutionContext() {
+    InspectorTest.logMessage(await callFunctionOn({
+      executionContextId,
+      functionDeclaration: '(function(arg) { return this.globalObjectProperty + arg; })',
+      arguments: prepareArguments([ 28 ]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: false
+    }));
+  },
+
+  async function testPassingBothObjectIdAndExecutionContextId() {
+    InspectorTest.logMessage(await callFunctionOn({
+      executionContextId,
+      objectId: remoteObject1.objectId,
+      functionDeclaration: '(function() { return 42; })',
+      arguments: prepareArguments([]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: false
+    }));
+  },
+];
 
 function prepareArguments(args) {
   return args.map(arg => {

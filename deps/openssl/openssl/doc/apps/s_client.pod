@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-s_client,
 s_client - SSL/TLS client program
 
 =head1 SYNOPSIS
@@ -197,12 +198,14 @@ Can be used to override the implicit B<-ign_eof> after B<-quiet>.
 =item B<-psk_identity identity>
 
 Use the PSK identity B<identity> when using a PSK cipher suite.
+The default value is "Client_identity" (without the quotes).
 
 =item B<-psk key>
 
 Use the PSK key B<key> when using a PSK cipher suite. The key is
 given as a hexadecimal number without leading 0x, for example -psk
 1a2b3c4d.
+This option must be provided in order to use a PSK cipher.
 
 =item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
@@ -247,7 +250,7 @@ use the server's cipher preferences; only used for SSLV2.
 
 send the protocol-specific message(s) to switch to TLS for communication.
 B<protocol> is a keyword for the intended protocol.  Currently, the only
-supported keywords are "smtp", "pop3", "imap", and "ftp".
+supported keywords are "smtp", "pop3", "imap", "ftp" and "xmpp".
 
 =item B<-tlsextdebug>
 

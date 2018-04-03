@@ -11,6 +11,7 @@
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
+namespace remote_object_unittest {
 
 typedef TestWithIsolate RemoteObjectTest;
 
@@ -115,4 +116,5 @@ TEST_F(RemoteObjectTest, ClassOf) {
   EXPECT_STREQ("test_class", *result);
 }
 
+}  // namespace remote_object_unittest
 }  // namespace v8

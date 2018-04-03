@@ -71,10 +71,11 @@ if (common.isWindows) {
   mode_sync = 0o644;
 }
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const file1 = path.join(common.tmpDir, 'a.js');
-const file2 = path.join(common.tmpDir, 'a1.js');
+const file1 = path.join(tmpdir.path, 'a.js');
+const file2 = path.join(tmpdir.path, 'a1.js');
 
 // Create file1.
 fs.closeSync(fs.openSync(file1, 'w'));
@@ -108,6 +109,16 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       assert.strictEqual(mode_async, fs.fstatSync(fd).mode & 0o777);
     }
 
+    common.expectsError(
+      () => fs.fchmod(fd, {}),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "mode" argument must be of type number. ' +
+                 'Received type object'
+      }
+    );
+
     fs.fchmodSync(fd, mode_sync);
     if (common.isWindows) {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
@@ -121,7 +132,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
 
 // lchmod
 if (fs.lchmod) {
-  const link = path.join(common.tmpDir, 'symbolic-link');
+  const link = path.join(tmpdir.path, 'symbolic-link');
 
   fs.symlinkSync(file2, link);
 
@@ -136,6 +147,27 @@ if (fs.lchmod) {
   }));
 }
 
+['', false, null, undefined, {}, []].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "fd" argument must be of type number. ' +
+             `Received type ${typeof input}`
+  };
+  assert.throws(() => fs.fchmod(input, 0o000), errObj);
+  assert.throws(() => fs.fchmodSync(input, 0o000), errObj);
+});
+
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
+             ` Received type ${typeof input}`
+  };
+  assert.throws(() => fs.chmod(input, 1, common.mustNotCall()), errObj);
+  assert.throws(() => fs.chmodSync(input, 1), errObj);
+});
 
 process.on('exit', function() {
   assert.strictEqual(0, openCount);

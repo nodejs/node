@@ -1,11 +1,8 @@
 'use strict';
 
 const common = require('../common.js');
-const PORT = common.PORT;
-
 const path = require('path');
 const fs = require('fs');
-
 const file = path.join(path.resolve(__dirname, '../fixtures'), 'alice.html');
 
 const bench = common.createBenchmark(main, {
@@ -15,10 +12,7 @@ const bench = common.createBenchmark(main, {
   benchmarker: ['h2load']
 }, { flags: ['--no-warnings', '--expose-http2'] });
 
-function main(conf) {
-  const n = +conf.requests;
-  const m = +conf.streams;
-  const c = +conf.clients;
+function main({ requests, streams, clients }) {
   const http2 = require('http2');
   const server = http2.createServer();
   server.on('stream', (stream) => {
@@ -27,13 +21,13 @@ function main(conf) {
     out.pipe(stream);
     stream.on('error', (err) => {});
   });
-  server.listen(PORT, () => {
+  server.listen(common.PORT, () => {
     bench.http({
       path: '/',
-      requests: n,
-      maxConcurrentStreams: m,
-      clients: c,
-      threads: c
+      requests,
+      maxConcurrentStreams: streams,
+      clients,
+      threads: clients
     }, () => { server.close(); });
   });
 }

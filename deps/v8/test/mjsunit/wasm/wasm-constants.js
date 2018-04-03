@@ -78,7 +78,7 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmAnyFunctionTypeForm = 0x70;
 
-let kResizableMaximumFlag = 1;
+let kHasMaximumFlag = 1;
 
 // Function declaration flags
 let kDeclFunctionName   = 0x01;
@@ -92,6 +92,7 @@ let kWasmI32 = 0x7f;
 let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
+let kWasmS128  = 0x7b;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -122,6 +123,16 @@ let kSig_v_l = makeSig([kWasmI64], []);
 let kSig_v_d = makeSig([kWasmF64], []);
 let kSig_v_dd = makeSig([kWasmF64, kWasmF64], []);
 let kSig_v_ddi = makeSig([kWasmF64, kWasmF64, kWasmI32], []);
+let kSig_ii_v = makeSig([], [kWasmI32, kWasmI32]);
+let kSig_iii_v = makeSig([], [kWasmI32, kWasmI32, kWasmI32]);
+let kSig_ii_i = makeSig([kWasmI32], [kWasmI32, kWasmI32]);
+let kSig_iii_i = makeSig([kWasmI32], [kWasmI32, kWasmI32, kWasmI32]);
+let kSig_ii_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32, kWasmI32]);
+let kSig_iii_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32, kWasmI32, kWasmI32]);
+
+let kSig_v_f = makeSig([kWasmF32], []);
+let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
+let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -327,6 +338,12 @@ let kExprF64ReinterpretI64 = 0xbf;
 // Prefix opcodes
 let kAtomicPrefix = 0xfe;
 
+let kExprI32AtomicLoad = 0x10;
+let kExprI32AtomicLoad8U = 0x12;
+let kExprI32AtomicLoad16U = 0x13;
+let kExprI32AtomicStore = 0x17;
+let kExprI32AtomicStore8U = 0x19;
+let kExprI32AtomicStore16U = 0x1a;
 let kExprI32AtomicAdd = 0x1e;
 let kExprI32AtomicAdd8U = 0x20;
 let kExprI32AtomicAdd16U = 0x21;
@@ -387,7 +404,7 @@ function assertTraps(trap, code) {
   throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
 }
 
-function assertWasmThrows(values, code) {
+function assertWasmThrows(runtime_id, values, code) {
   try {
     if (typeof code === 'function') {
       code();
@@ -396,15 +413,18 @@ function assertWasmThrows(values, code) {
     }
   } catch (e) {
     assertTrue(e instanceof WebAssembly.RuntimeError);
-    assertNotEquals(e['WasmExceptionTag'], undefined);
-    assertTrue(Number.isInteger(e['WasmExceptionTag']));
-    // TODO(kschimpf): Extract values from the exception.
-    let e_values = [];
-    assertEquals(values, e_values);
+    var e_runtime_id = e['WasmExceptionRuntimeId'];
+    assertEquals(e_runtime_id, runtime_id);
+    assertTrue(Number.isInteger(e_runtime_id));
+    var e_values = e['WasmExceptionValues'];
+    assertEquals(values.length, e_values.length);
+    for (i = 0; i < values.length; ++i) {
+      assertEquals(values[i], e_values[i]);
+    }
     // Success.
     return;
   }
-  throw new MjsUnitAssertionError('Did not throw, expected: ' + values);
+  throw new MjsUnitAssertionError('Did not throw expected: ' + runtime_id + values);
 }
 
 function wasmI32Const(val) {

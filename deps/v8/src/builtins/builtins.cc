@@ -19,6 +19,7 @@ namespace internal {
 #define FORWARD_DECLARE(Name) \
   Object* Builtin_##Name(int argc, Object** args, Isolate* isolate);
 BUILTIN_LIST_C(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
 
 namespace {
 
@@ -97,7 +98,7 @@ const char* Builtins::Lookup(byte* pc) {
       if (entry->contains(pc)) return name(i);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
@@ -106,19 +107,6 @@ Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
       return builtin_handle(kFastNewFunctionContextEval);
     case ScopeType::FUNCTION_SCOPE:
       return builtin_handle(kFastNewFunctionContextFunction);
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
-
-Handle<Code> Builtins::NewCloneShallowArray(
-    AllocationSiteMode allocation_mode) {
-  switch (allocation_mode) {
-    case TRACK_ALLOCATION_SITE:
-      return builtin_handle(kFastCloneShallowArrayTrack);
-    case DONT_TRACK_ALLOCATION_SITE:
-      return builtin_handle(kFastCloneShallowArrayDontTrack);
     default:
       UNREACHABLE();
   }
@@ -147,8 +135,17 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
-Handle<Code> Builtins::builtin_handle(Name name) {
-  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(name)));
+void Builtins::set_builtin(int index, HeapObject* builtin) {
+  DCHECK(Builtins::IsBuiltinId(index));
+  DCHECK(Internals::HasHeapObjectTag(builtin));
+  // The given builtin may be completely uninitialized thus we cannot check its
+  // type here.
+  builtins_[index] = builtin;
+}
+
+Handle<Code> Builtins::builtin_handle(int index) {
+  DCHECK(IsBuiltinId(index));
+  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(index)));
 }
 
 // static
@@ -173,33 +170,29 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
                  CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN)
 #undef CASE_OTHER
-    case kConsoleAssert: {
+    case kArrayFilterLoopEagerDeoptContinuation:
+    case kArrayFilterLoopLazyDeoptContinuation:
+    case kArrayEveryLoopEagerDeoptContinuation:
+    case kArrayEveryLoopLazyDeoptContinuation:
+    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
+    case kArrayFindIndexLoopEagerDeoptContinuation:
+    case kArrayFindIndexLoopLazyDeoptContinuation:
+    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
+    case kArrayFindLoopEagerDeoptContinuation:
+    case kArrayFindLoopLazyDeoptContinuation:
+    case kArrayForEach:
+    case kArrayForEachLoopEagerDeoptContinuation:
+    case kArrayForEachLoopLazyDeoptContinuation:
+    case kArrayMapLoopEagerDeoptContinuation:
+    case kArrayMapLoopLazyDeoptContinuation:
+    case kArrayReduceLoopEagerDeoptContinuation:
+    case kArrayReduceLoopLazyDeoptContinuation:
+    case kArrayReduceRightLoopEagerDeoptContinuation:
+    case kArrayReduceRightLoopLazyDeoptContinuation:
+    case kArraySomeLoopEagerDeoptContinuation:
+    case kArraySomeLoopLazyDeoptContinuation:
+    case kConsoleAssert:
       return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEach: {
-      Handle<Code> code = BUILTIN_CODE(isolate, ArrayForEach);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEachLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayForEachLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEachLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayForEachLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayMapLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayMapLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayMapLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayMapLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
     default:
       UNREACHABLE();
   }
@@ -209,7 +202,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
 
 // static
 const char* Builtins::name(int index) {
-  DCHECK(0 <= index && index < builtin_count);
+  DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].name;
 }
 
@@ -220,8 +213,81 @@ Address Builtins::CppEntryOf(int index) {
 }
 
 // static
+bool Builtins::IsLazy(int index) {
+  DCHECK(IsBuiltinId(index));
+  // There are a couple of reasons that builtins can require eager-loading,
+  // i.e. deserialization at isolate creation instead of on-demand. For
+  // instance:
+  // * DeserializeLazy implements lazy loading.
+  // * Immovability requirement. This can only conveniently be guaranteed at
+  //   isolate creation (at runtime, we'd have to allocate in LO space).
+  // * To avoid conflicts in SharedFunctionInfo::function_data (Illegal,
+  //   HandleApiCall, interpreter entry trampolines).
+  // * Frequent use makes lazy loading unnecessary (CompileLazy).
+  // TODO(wasm): Remove wasm builtins once immovability is no longer required.
+  switch (index) {
+    case kAbort:  // Required by wasm.
+    case kArrayFindLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
+    case kArrayFindLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
+    // https://crbug.com/v8/6786.
+    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
+    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopEagerDeoptContinuation:
+    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopLazyDeoptContinuation:
+    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
+    case kArrayForEachLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
+    case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
+    case kArrayMapLoopLazyDeoptContinuation:       // https://crbug.com/v8/6786.
+    case kArrayEveryLoopEagerDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayEveryLoopLazyDeoptContinuation:     // https://crbug.com/v8/6786.
+    case kArrayFilterLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kArrayFilterLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayReduceLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kArrayReduceLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayReduceRightLoopEagerDeoptContinuation:
+    case kArrayReduceRightLoopLazyDeoptContinuation:
+    case kArraySomeLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
+    case kArraySomeLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kCheckOptimizationMarker:
+    case kCompileLazy:
+    case kDeserializeLazy:
+    case kFunctionPrototypeHasInstance:  // https://crbug.com/v8/6786.
+    case kHandleApiCall:
+    case kIllegal:
+    case kInterpreterEnterBytecodeAdvance:
+    case kInterpreterEnterBytecodeDispatch:
+    case kInterpreterEntryTrampoline:
+    case kObjectConstructor_ConstructStub:    // https://crbug.com/v8/6787.
+    case kProxyConstructor_ConstructStub:     // https://crbug.com/v8/6787.
+    case kNumberConstructor_ConstructStub:    // https://crbug.com/v8/6787.
+    case kStringConstructor_ConstructStub:    // https://crbug.com/v8/6787.
+    case kProxyConstructor:                   // https://crbug.com/v8/6787.
+    case kRecordWrite:  // https://crbug.com/chromium/765301.
+    case kThrowWasmTrapDivByZero:             // Required by wasm.
+    case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
+    case kThrowWasmTrapFloatUnrepresentable:  // Required by wasm.
+    case kThrowWasmTrapFuncInvalid:           // Required by wasm.
+    case kThrowWasmTrapFuncSigMismatch:       // Required by wasm.
+    case kThrowWasmTrapMemOutOfBounds:        // Required by wasm.
+    case kThrowWasmTrapRemByZero:             // Required by wasm.
+    case kThrowWasmTrapUnreachable:           // Required by wasm.
+    case kToNumber:                           // Required by wasm.
+    case kWasmCompileLazy:                    // Required by wasm.
+    case kWasmStackGuard:                     // Required by wasm.
+      return false;
+    default:
+      // TODO(6624): Extend to other kinds.
+      return KindOf(index) == TFJ;
+  }
+  UNREACHABLE();
+}
+
+// static
 Builtins::Kind Builtins::KindOf(int index) {
-  DCHECK(0 <= index && index < builtin_count);
+  DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].kind;
 }
 

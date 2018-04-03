@@ -25,8 +25,9 @@ const assert = require('assert');
 
 const path = require('path');
 const fs = require('fs');
-const fn = path.join(common.tmpDir, 'write.txt');
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+const fn = path.join(tmpdir.path, 'write.txt');
+tmpdir.refresh();
 const file = fs.createWriteStream(fn, {
   highWaterMark: 10
 });
@@ -64,10 +65,17 @@ file
     assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
     callbacks.close++;
-    assert.throws(function() {
-      console.error('write after end should not be allowed');
-      file.write('should not work anymore');
-    }, /^Error: write after end$/);
+    common.expectsError(
+      () => {
+        console.error('write after end should not be allowed');
+        file.write('should not work anymore');
+      },
+      {
+        code: 'ERR_STREAM_WRITE_AFTER_END',
+        type: Error,
+        message: 'write after end'
+      }
+    );
 
     fs.unlinkSync(fn);
   });

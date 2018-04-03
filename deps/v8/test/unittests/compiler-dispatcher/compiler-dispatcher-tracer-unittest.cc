@@ -11,40 +11,36 @@ namespace internal {
 TEST(CompilerDispatcherTracerTest, EstimateWithoutSamples) {
   CompilerDispatcherTracer tracer(nullptr);
 
-  EXPECT_EQ(0.0, tracer.EstimatePrepareToParseInMs());
-  EXPECT_EQ(1.0, tracer.EstimateParseInMs(0));
-  EXPECT_EQ(1.0, tracer.EstimateParseInMs(42));
-  EXPECT_EQ(0.0, tracer.EstimateFinalizeParsingInMs());
-  EXPECT_EQ(0.0, tracer.EstimatePrepareToCompileInMs());
-  EXPECT_EQ(0.0, tracer.EstimateCompileInMs());
-  EXPECT_EQ(0.0, tracer.EstimateCompileInMs());
-  EXPECT_EQ(0.0, tracer.EstimateFinalizeCompilingInMs());
+  EXPECT_EQ(0.0, tracer.EstimatePrepareInMs());
+  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(1));
+  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(42));
+  EXPECT_EQ(0.0, tracer.EstimateFinalizeInMs());
 }
 
 TEST(CompilerDispatcherTracerTest, Average) {
   CompilerDispatcherTracer tracer(nullptr);
 
-  EXPECT_EQ(0.0, tracer.EstimatePrepareToParseInMs());
+  EXPECT_EQ(0.0, tracer.EstimatePrepareInMs());
 
-  tracer.RecordPrepareToParse(1.0);
-  tracer.RecordPrepareToParse(2.0);
-  tracer.RecordPrepareToParse(3.0);
+  tracer.RecordPrepare(1.0);
+  tracer.RecordPrepare(2.0);
+  tracer.RecordPrepare(3.0);
 
-  EXPECT_EQ((1.0 + 2.0 + 3.0) / 3, tracer.EstimatePrepareToParseInMs());
+  EXPECT_EQ((1.0 + 2.0 + 3.0) / 3, tracer.EstimatePrepareInMs());
 }
 
 TEST(CompilerDispatcherTracerTest, SizeBasedAverage) {
   CompilerDispatcherTracer tracer(nullptr);
 
-  EXPECT_EQ(1.0, tracer.EstimateParseInMs(100));
+  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(100));
 
   // All three samples parse 100 units/ms.
-  tracer.RecordParse(1.0, 100);
-  tracer.RecordParse(2.0, 200);
-  tracer.RecordParse(3.0, 300);
+  tracer.RecordCompile(1.0, 100);
+  tracer.RecordCompile(2.0, 200);
+  tracer.RecordCompile(3.0, 300);
 
-  EXPECT_EQ(1.0, tracer.EstimateParseInMs(100));
-  EXPECT_EQ(5.0, tracer.EstimateParseInMs(500));
+  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(100));
+  EXPECT_EQ(5.0, tracer.EstimateCompileInMs(500));
 }
 
 }  // namespace internal

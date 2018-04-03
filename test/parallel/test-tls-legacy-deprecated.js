@@ -4,12 +4,12 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const assert = require('assert');
 const tls = require('tls');
 
 common.expectWarning(
   'DeprecationWarning',
-  'tls.createSecurePair() is deprecated. Please use tls.Socket instead.'
+  'tls.createSecurePair() is deprecated. Please use tls.TLSSocket instead.',
+  'DEP0064'
 );
 
-assert.doesNotThrow(() => tls.createSecurePair());
+tls.createSecurePair();

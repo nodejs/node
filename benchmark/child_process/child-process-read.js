@@ -17,11 +17,8 @@ const bench = common.createBenchmark(main, {
   dur: [5]
 });
 
-function main(conf) {
+function main({ dur, len }) {
   bench.start();
-
-  const dur = +conf.dur;
-  const len = +conf.len;
 
   const msg = `"${'.'.repeat(len)}"`;
   const options = { 'stdio': ['ignore', 'pipe', 'ignore'] };

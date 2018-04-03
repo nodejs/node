@@ -16,20 +16,39 @@ let pacoteOpts
 const path = require('path')
 const localWorker = require('./extract-worker.js')
 const workerFarm = require('worker-farm')
+const isRegistry = require('../../utils/is-registry.js')
 
 const WORKER_PATH = require.resolve('./extract-worker.js')
 let workers
 
+// NOTE: temporarily disabled on non-OSX due to ongoing issues:
+//
+// * Seems to make Windows antivirus issues much more common
+// * Messes with Docker (I think)
+//
+// There are other issues that should be fixed that affect OSX too:
+//
+// * Logging is messed up right now because pacote does its own thing
+// * Global deduplication in pacote breaks due to multiple procs
+//
+// As these get fixed, we can start experimenting with re-enabling it
+// at least on some platforms.
+const ENABLE_WORKERS = process.platform === 'darwin'
+
 extract.init = () => {
-  workers = workerFarm({
-    maxConcurrentCallsPerWorker: npm.limit.fetch,
-    maxRetries: 1
-  }, WORKER_PATH)
+  if (ENABLE_WORKERS) {
+    workers = workerFarm({
+      maxConcurrentCallsPerWorker: npm.limit.fetch,
+      maxRetries: 1
+    }, WORKER_PATH)
+  }
   return BB.resolve()
 }
 extract.teardown = () => {
-  workerFarm.end(workers)
-  workers = null
+  if (ENABLE_WORKERS) {
+    workerFarm.end(workers)
+    workers = null
+  }
   return BB.resolve()
 }
 module.exports = extract
@@ -54,7 +73,7 @@ function extract (staging, pkg, log) {
     let msg = args
     const spec = typeof args[0] === 'string' ? npa(args[0]) : args[0]
     args[0] = spec.raw
-    if (spec.registry || spec.type === 'remote') {
+    if (ENABLE_WORKERS && (isRegistry(spec) || spec.type === 'remote')) {
       // We can't serialize these options
       opts.loglevel = opts.log.level
       opts.log = null

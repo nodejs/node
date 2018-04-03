@@ -38,14 +38,11 @@ function benchmark(method, n, values, values2) {
   bench.end(n);
 }
 
-function main(conf) {
-  const n = +conf.n;
-  const len = +conf.len;
-
+function main({ n, len, method }) {
   const array = Array(len).fill(1);
   var values, values2;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual_primitiveOnly':
@@ -120,6 +117,6 @@ function main(conf) {
       benchmark(assert.notDeepEqual, n, values, values2);
       break;
     default:
-      throw new Error('Unsupported method');
+      throw new Error(`Unsupported method ${method}`);
   }
 }

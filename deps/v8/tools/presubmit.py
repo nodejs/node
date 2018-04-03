@@ -54,16 +54,11 @@ from testrunner.local import utils
 # build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
 # build/include_what_you_use: Started giving false positives for variables
 #   named "string" and "map" assuming that you needed to include STL headers.
-# TODO(bmeurer): Fix and re-enable readability/check
-# http://crrev.com/2199323003 relands.
 
 LINT_RULES = """
 -build/header_guard
 -build/include_what_you_use
--build/namespaces
--readability/check
 -readability/fn_size
-+readability/streams
 -runtime/references
 """.split()
 
@@ -228,8 +223,9 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples', join('test', 'cctest'),
-            join('test', 'unittests'), join('test', 'inspector')]
+    dirs = ['include', 'samples', 'src']
+    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    return dirs + [join('test', dir) for dir in test_dirs]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -366,7 +362,6 @@ class SourceProcessor(SourceFileProcessor):
                        'regexp-pcre.js',
                        'resources-123.js',
                        'rjsmin.py',
-                       'script-breakpoint.h',
                        'sqlite.js',
                        'sqlite-change-heap.js',
                        'sqlite-pointer-masking.js',
@@ -513,11 +508,30 @@ class StatusFilesProcessor(SourceFileProcessor):
     return True
 
   def GetPathsToSearch(self):
-    return ['test']
+    return ['test', 'tools/testrunner']
 
   def ProcessFiles(self, files):
+    success = True
+    for status_file_path in sorted(self._GetStatusFiles(files)):
+      success &= statusfile.PresubmitCheck(status_file_path)
+      success &= _CheckStatusFileForDuplicateKeys(status_file_path)
+    return success
+
+  def _GetStatusFiles(self, files):
     test_path = join(dirname(TOOLS_PATH), 'test')
-    status_files = set([])
+    testrunner_path = join(TOOLS_PATH, 'testrunner')
+    status_files = set()
+
+    for file_path in files:
+      if file_path.startswith(testrunner_path):
+        for suitepath in os.listdir(test_path):
+          suitename = os.path.basename(suitepath)
+          status_file = os.path.join(
+              test_path, suitename, suitename + ".status")
+          if os.path.exists(status_file):
+            status_files.add(status_file)
+        return status_files
+
     for file_path in files:
       if file_path.startswith(test_path):
         # Strip off absolute path prefix pointing to test suites.
@@ -531,12 +545,7 @@ class StatusFilesProcessor(SourceFileProcessor):
           if not os.path.exists(status_file):
             continue
           status_files.add(status_file)
-
-    success = True
-    for status_file_path in sorted(status_files):
-      success &= statusfile.PresubmitCheck(status_file_path)
-      success &= _CheckStatusFileForDuplicateKeys(status_file_path)
-    return success
+    return status_files
 
 
 def CheckDeps(workspace):
@@ -545,9 +554,15 @@ def CheckDeps(workspace):
 
 
 def PyTests(workspace):
-  test_scripts = join(workspace, 'tools', 'release', 'test_scripts.py')
-  return subprocess.call(
-      [sys.executable, test_scripts], stdout=subprocess.PIPE) == 0
+  result = True
+  for script in [
+      join(workspace, 'tools', 'release', 'test_scripts.py'),
+      join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
+    ]:
+    print 'Running ' + script
+    result &= subprocess.call(
+        [sys.executable, script], stdout=subprocess.PIPE) == 0
+  return result
 
 
 def GetOptions():
@@ -564,8 +579,8 @@ def Main():
   success = True
   print "Running checkdeps..."
   success &= CheckDeps(workspace)
-  print "Running C++ lint check..."
   if not options.no_lint:
+    print "Running C++ lint check..."
     success &= CppLintProcessor().RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."

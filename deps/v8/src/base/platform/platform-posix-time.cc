@@ -19,7 +19,7 @@ const char* PosixDefaultTimezoneCache::LocalTimezone(double time) {
 }
 
 double PosixDefaultTimezoneCache::LocalTimeOffset() {
-  time_t tv = time(NULL);
+  time_t tv = time(nullptr);
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
   // tm_gmtoff includes any daylight savings offset, so subtract it.

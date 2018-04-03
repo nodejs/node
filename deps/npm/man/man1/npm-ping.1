@@ -1,4 +1,4 @@
-.TH "NPM\-PING" "1" "July 2017" "" ""
+.TH "NPM\-PING" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-ping\fR \- Ping npm registry
 .SH SYNOPSIS
@@ -11,6 +11,21 @@ npm ping [\-\-registry <registry>]
 .SH DESCRIPTION
 .P
 Ping the configured or given npm registry and verify authentication\.
+If it works it will output something like:
+.P
+.RS 2
+.nf
+Ping success: {*Details about registry*}
+.fi
+.RE
+.P
+otherwise you will get:
+.P
+.RS 2
+.nf
+Ping error: {*Detail about error}
+.fi
+.RE
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

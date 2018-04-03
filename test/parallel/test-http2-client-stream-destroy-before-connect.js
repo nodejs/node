@@ -18,38 +18,32 @@ server.on('stream', (stream) => {
   // system specific timings.
   stream.on('error', (err) => {
     assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
-    assert.strictEqual(err.message, 'Stream closed with error code 2');
+    assert.strictEqual(err.message,
+                       'Stream closed with error code NGHTTP2_INTERNAL_ERROR');
   });
-  stream.respond({});
+  stream.respond();
   stream.end();
 });
 
-server.listen(0);
-
-server.on('listening', common.mustCall(() => {
-
+server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
 
-  const req = client.request({ ':path': '/' });
-  const err = new Error('test');
-  req.destroy(err);
+  const req = client.request();
+  req.destroy(new Error('test'));
 
-  req.on('error', common.mustCall((err) => {
-    common.expectsError({
-      type: Error,
-      message: 'test'
-    })(err);
+  req.on('error', common.expectsError({
+    type: Error,
+    message: 'test'
   }));
 
-  req.on('streamClosed', common.mustCall((code) => {
+  req.on('close', common.mustCall(() => {
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
-    assert.strictEqual(code, NGHTTP2_INTERNAL_ERROR);
+    assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
     server.close();
-    client.destroy();
+    client.close();
   }));
 
   req.on('response', common.mustNotCall());
   req.resume();
   req.on('end', common.mustCall());
-
 }));

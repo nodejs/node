@@ -24,6 +24,7 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
+const Countdown = require('../common/countdown');
 
 const SERVER_RESPONSES = [
   'HTTP/1.0 200 ok\r\nContent-Length: 0\r\n\r\n',
@@ -41,34 +42,27 @@ const SHOULD_KEEP_ALIVE = [
   true,  // HTTP/1.1, Connection: keep-alive
   false  // HTTP/1.1, Connection: close
 ];
-let requests = 0;
-let responses = 0;
 http.globalAgent.maxSockets = 5;
 
+const countdown = new Countdown(SHOULD_KEEP_ALIVE.length, () => server.close());
+
+const getCountdownIndex = () => SERVER_RESPONSES.length - countdown.remaining;
+
 const server = net.createServer(function(socket) {
-  socket.write(SERVER_RESPONSES[requests]);
-  ++requests;
+  socket.write(SERVER_RESPONSES[getCountdownIndex()]);
 }).listen(0, function() {
   function makeRequest() {
     const req = http.get({ port: server.address().port }, function(res) {
       assert.strictEqual(
-        req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
-        `${SERVER_RESPONSES[responses]} should ${
-          SHOULD_KEEP_ALIVE[responses] ? '' : 'not '}Keep-Alive`);
-      ++responses;
-      if (responses < SHOULD_KEEP_ALIVE.length) {
+        req.shouldKeepAlive, SHOULD_KEEP_ALIVE[getCountdownIndex()],
+        `${SERVER_RESPONSES[getCountdownIndex()]} should ${
+          SHOULD_KEEP_ALIVE[getCountdownIndex()] ? '' : 'not '}Keep-Alive`);
+      countdown.dec();
+      if (countdown.remaining) {
         makeRequest();
-      } else {
-        server.close();
       }
       res.resume();
     });
   }
-
   makeRequest();
-});
-
-process.on('exit', function() {
-  assert.strictEqual(requests, SERVER_RESPONSES.length);
-  assert.strictEqual(responses, SHOULD_KEEP_ALIVE.length);
 });

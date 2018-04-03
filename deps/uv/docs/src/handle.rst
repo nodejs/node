@@ -9,6 +9,9 @@
 Structures are aligned so that any libuv handle can be cast to `uv_handle_t`.
 All API functions defined here work with any handle type.
 
+Libuv handles are not movable. Pointers to handle structures passed to
+functions must remain valid for the duration of the requested operation. Take
+care when using stack allocated handles.
 
 Data types
 ----------
@@ -211,6 +214,38 @@ just for some handle types.
         Be very careful when using this function. libuv assumes it's in control of the file
         descriptor so any change to it may lead to malfunction.
 
+.. c:function:: uv_loop_t* uv_handle_get_loop(const uv_handle_t* handle)
+
+    Returns `handle->loop`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_handle_get_data(const uv_handle_t* handle)
+
+    Returns `handle->data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_handle_set_data(uv_handle_t* handle, void* data)
+
+    Sets `handle->data` to `data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: uv_handle_type uv_handle_get_type(const uv_handle_t* handle)
+
+    Returns `handle->type`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: const char* uv_handle_type_name(uv_handle_type type)
+
+    Returns the name for the equivalent struct for a given handle type,
+    e.g. `"pipe"` (as in :c:type:`uv_pipe_t`) for `UV_NAMED_PIPE`.
+
+    If no such handle type exists, this returns `NULL`.
+
+    .. versionadded:: 1.19.0
 
 .. _refcount:
 

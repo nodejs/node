@@ -4,6 +4,8 @@
 
 #include "src/visitors.h"
 
+#include "src/objects/code.h"
+
 namespace v8 {
 namespace internal {
 

@@ -21,11 +21,13 @@
 
 'use strict';
 const common = require('../common');
+const Countdown = require('../common/countdown');
 
 const http = require('http');
 const net = require('net');
 
 const seeds = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
+const countdown = new Countdown(seeds.length, () => server.close());
 
 // Set up some timing issues where sockets can be destroyed
 // via either the req or res.
@@ -72,11 +74,8 @@ function generator(seeds) {
 
 server.listen(0, common.mustCall(function() {
   const client = net.connect({ port: this.address().port });
-  let done = 0;
   server.on('requestDone', function() {
-    if (++done === seeds.length) {
-      server.close();
-    }
+    countdown.dec();
   });
 
   // immediately write the pipelined requests.

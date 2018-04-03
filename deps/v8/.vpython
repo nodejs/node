@@ -1,0 +1,32 @@
+# This is a vpython "spec" file.
+#
+# It describes patterns for python wheel dependencies of the python scripts in
+# the chromium repo, particularly for dependencies that have compiled components
+# (since pure-python dependencies can be easily vendored into third_party).
+#
+# When vpython is invoked, it finds this file and builds a python VirtualEnv,
+# containing all of the dependencies described in this file, fetching them from
+# CIPD (the "Chrome Infrastructure Package Deployer" service). Unlike `pip`,
+# this never requires the end-user machine to have a working python extension
+# compilation environment. All of these packages are built using:
+#   https://chromium.googlesource.com/infra/infra/+/master/infra/tools/dockerbuild/
+#
+# All python scripts in the repo share this same spec, to avoid dependency
+# fragmentation.
+#
+# If you have depot_tools installed in your $PATH, you can invoke python scripts
+# in this repo by running them as you normally would run them, except
+# substituting `vpython` instead of `python` on the command line, e.g.:
+#   vpython path/to/script.py some --arguments
+#
+# Read more about `vpython` and how to modify this file here:
+#   https://chromium.googlesource.com/infra/infra/+/master/doc/users/vpython.md
+
+python_version: "2.7"
+
+# Needed by third_party/catapult/devil/devil, which is imported by
+# build/android/test_runner.py when running performance tests.
+wheel: <
+  name: "infra/python/wheels/psutil/${vpython_platform}"
+  version: "version:5.2.2"
+>

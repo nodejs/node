@@ -21,6 +21,7 @@ const ssri = require('ssri')
 const validate = require('aproba')
 const writeFileAtomic = require('write-file-atomic')
 const unixFormatPath = require('./utils/unix-format-path.js')
+const isRegistry = require('./utils/is-registry.js')
 
 const PKGLOCK = 'package-lock.json'
 const SHRINKWRAP = 'npm-shrinkwrap.json'
@@ -101,7 +102,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
   if (!seen) seen = new Set()
   if (seen.has(tree)) return
   seen.add(tree)
-  tree.children.sort(function (aa, bb) { return moduleName(aa).localeCompare(moduleName(bb)) }).forEach(function (child) {
+  sortModules(tree.children).forEach(function (child) {
     if (child.fakeChild) {
       deps[moduleName(child)] = child.fakeChild
       return
@@ -113,7 +114,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
     if (child.fromBundle || child.isInLink) {
       pkginfo.bundled = true
     } else {
-      if (requested.registry) {
+      if (isRegistry(requested)) {
         pkginfo.resolved = child.package._resolved
       }
       // no integrity for git deps as integirty hashes are based on the
@@ -130,7 +131,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
     if (isOnlyOptional(child)) pkginfo.optional = true
     if (child.requires.length) {
       pkginfo.requires = {}
-      child.requires.sort((a, b) => moduleName(a).localeCompare(moduleName(b))).forEach((required) => {
+      sortModules(child.requires).forEach((required) => {
         var requested = required.package._requested || getRequested(required) || {}
         pkginfo.requires[moduleName(required)] = childVersion(top, required, requested)
       })
@@ -142,10 +143,18 @@ function shrinkwrapDeps (deps, top, tree, seen) {
   })
 }
 
+function sortModules (modules) {
+  // sort modules with the locale-agnostic Unicode sort
+  var sortedModuleNames = modules.map(moduleName).sort()
+  return modules.sort((a, b) => (
+    sortedModuleNames.indexOf(moduleName(a)) - sortedModuleNames.indexOf(moduleName(b))
+  ))
+}
+
 function childVersion (top, child, req) {
   if (req.type === 'directory' || req.type === 'file') {
     return 'file:' + unixFormatPath(path.relative(top.path, child.package._resolved || req.fetchSpec))
-  } else if (!req.registry && !child.fromBundle) {
+  } else if (!isRegistry(req) && !child.fromBundle) {
     return child.package._resolved || req.saveSpec || req.rawSpec
   } else {
     return child.package.version

@@ -35,6 +35,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_bignum {
 
 static const int kBufferSize = 1024;
 
@@ -640,7 +641,7 @@ TEST(MultiplyUInt64) {
   CHECK_EQ(0, strcmp("FFFEFFFFFFFFFFFF00010000000000000000000000000", buffer));
 
   AssignDecimalString(&bignum, "15611230384529777");
-  bignum.MultiplyByUInt64(V8_2PART_UINT64_C(0x8ac72304, 89e80000));
+  bignum.MultiplyByUInt64(V8_2PART_UINT64_C(0x8AC72304, 89E80000));
   CHECK(bignum.ToHexString(buffer, kBufferSize));
   CHECK_EQ(0, strcmp("1E10EE4B11D15A7F3DE7F3C7680000", buffer));
 }
@@ -1541,5 +1542,6 @@ TEST(AssignPowerUInt16) {
                   buffer));
 }
 
+}  // namespace test_bignum
 }  // namespace internal
 }  // namespace v8

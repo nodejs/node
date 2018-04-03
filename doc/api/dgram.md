@@ -161,7 +161,7 @@ added: v0.11.14
 -->
 
 * `options` {Object} Required. Supports the following properties:
-  * `port` {Integer}
+  * `port` {integer}
   * `address` {string}
   * `exclusive` {boolean}
 * `callback` {Function}
@@ -295,7 +295,7 @@ If `msg` is a `String`, then it is automatically converted to a `Buffer`
 with `'utf8'` encoding. With messages that
 contain  multi-byte characters, `offset` and `length` will be calculated with
 respect to [byte length][] and not the character position.
-If `msg` is an array, `offset` and `length` must not be specified.
+If `msg` is an array, `offset` and `length` must not be specified.
 
 The `address` argument is a string. If the value of `address` is a host name,
 DNS will be used to resolve the address of the host.  If `address` is not
@@ -319,7 +319,7 @@ the error is emitted as an `'error'` event on the `socket` object.
 Offset and length are optional but both *must* be set if either are used.
 They are supported only when the first argument is a `Buffer` or `Uint8Array`.
 
-Example of sending a UDP packet to a random port on `localhost`;
+Example of sending a UDP packet to a port on `localhost`;
 
 ```js
 const dgram = require('dgram');
@@ -330,8 +330,8 @@ client.send(message, 41234, 'localhost', (err) => {
 });
 ```
 
-Example of sending a UDP packet composed of multiple buffers to a random port
-on `127.0.0.1`;
+Example of sending a UDP packet composed of multiple buffers to a port on
+`127.0.0.1`;
 
 ```js
 const dgram = require('dgram');
@@ -390,12 +390,12 @@ packets may be sent to a local interface's broadcast address.
 added: v8.6.0
 -->
 
-* `multicastInterface` {String}
+* `multicastInterface` {string}
 
-*Note: All references to scope in this section are refering to
+*Note: All references to scope in this section are referring to
 [IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
-with a scope index is written as `'IP%scope'` where scope is an interface name or
-interface number.*
+with a scope index is written as `'IP%scope'` where scope is an interface name
+or interface number.*
 
 Sets the default outgoing multicast interface of the socket to a chosen
 interface or back to system interface selection. The `multicastInterface` must
@@ -455,7 +455,7 @@ On IPv4, if `multicastInterface` is a valid address but does not match any
 interface, or if the address does not match the family then
 a [`System Error`][] such as `EADDRNOTAVAIL` or `EPROTONOSUP` is thrown.
 
-On IPv6, most errors with specifying or omiting scope will result in the socket
+On IPv6, most errors with specifying or omitting scope will result in the socket
 continuing to use (or returning to) the system's default interface selection.
 
 A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`) can be
@@ -486,7 +486,7 @@ packet is allowed to travel through, specifically for multicast traffic.  Each
 router or gateway that forwards a packet decrements the TTL. If the TTL is
 decremented to 0 by a router, it will not be forwarded.
 
-The argument passed to to `socket.setMulticastTTL()` is a number of hops
+The argument passed to `socket.setMulticastTTL()` is a number of hops
 between 0 and 255. The default on most systems is `1` but can vary.
 
 ### socket.setRecvBufferSize(size)
@@ -629,7 +629,7 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`]: #dgram_socket_address
 [`socket.address().port`]: #dgram_socket_address
 [`socket.bind()`]: #dgram_socket_bind_port_address_callback
-[`System Error`]: errors.html#errors_class_system_error
+[`System Error`]: errors.html#errors_class_systemerror
 [byte length]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
-[IPv6 Zone Indices]: https://en.wikipedia.org/wiki/IPv6_address#Link-local_addresses_and_zone_indices
+[IPv6 Zone Indices]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses
 [RFC 4007]: https://tools.ietf.org/html/rfc4007

@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
@@ -22,7 +23,7 @@ namespace wasm {
 namespace testing {
 
 uint32_t GetInitialMemSize(const WasmModule* module) {
-  return WasmModule::kPageSize * module->initial_pages;
+  return kWasmPageSize * module->initial_pages;
 }
 
 std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
@@ -42,8 +43,71 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
   return std::move(decoding_result.val);
 }
 
-int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                int argc, Handle<Object> argv[]) {
+bool InterpretWasmModuleForTesting(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance,
+                                   const char* name, size_t argc,
+                                   WasmValue* args) {
+  MaybeHandle<WasmExportedFunction> maybe_function =
+      GetExportedFunction(isolate, instance, "main");
+  Handle<WasmExportedFunction> function;
+  if (!maybe_function.ToHandle(&function)) {
+    return false;
+  }
+  int function_index = function->function_index();
+  FunctionSig* signature = instance->module()->functions[function_index].sig;
+  size_t param_count = signature->parameter_count();
+  std::unique_ptr<WasmValue[]> arguments(new WasmValue[param_count]);
+
+  memcpy(arguments.get(), args, std::min(param_count, argc));
+
+  // Fill the parameters up with default values.
+  for (size_t i = argc; i < param_count; ++i) {
+    switch (signature->GetParam(i)) {
+      case MachineRepresentation::kWord32:
+        arguments[i] = WasmValue(int32_t{0});
+        break;
+      case MachineRepresentation::kWord64:
+        arguments[i] = WasmValue(int64_t{0});
+        break;
+      case MachineRepresentation::kFloat32:
+        arguments[i] = WasmValue(0.0f);
+        break;
+      case MachineRepresentation::kFloat64:
+        arguments[i] = WasmValue(0.0);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  // Don't execute more than 16k steps.
+  constexpr int kMaxNumSteps = 16 * 1024;
+
+  Zone zone(isolate->allocator(), ZONE_NAME);
+
+  WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
+  WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
+  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
+  thread->Reset();
+
+  // Start an activation so that we can deal with stack overflows. We do not
+  // finish the activation. An activation is just part of the state of the
+  // interpreter, and we do not reuse the interpreter anyways. In addition,
+  // finishing the activation is not correct in all cases, e.g. when the
+  // execution of the interpreter did not finish after kMaxNumSteps.
+  thread->StartActivation();
+  thread->InitFrame(&instance->module()->functions[function_index],
+                    arguments.get());
+  WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
+
+  isolate->clear_pending_exception();
+
+  return interpreter_result != WasmInterpreter::PAUSED;
+}
+
+int32_t RunWasmModuleForTesting(Isolate* isolate,
+                                Handle<WasmInstanceObject> instance, int argc,
+                                Handle<Object> argv[]) {
   ErrorThrower thrower(isolate, "RunWasmModule");
   return CallWasmFunctionForTesting(isolate, instance, &thrower, "main", argc,
                                     argv);
@@ -95,25 +159,34 @@ int32_t InterpretWasmModule(Isolate* isolate,
   WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
   WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
+
+  // Start an activation so that we can deal with stack overflows. We do not
+  // finish the activation. An activation is just part of the state of the
+  // interpreter, and we do not reuse the interpreter anyways. In addition,
+  // finishing the activation is not correct in all cases, e.g. when the
+  // execution of the interpreter did not finish after kMaxNumSteps.
+  thread->StartActivation();
   thread->InitFrame(&(instance->module()->functions[function_index]), args);
   WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
 
+  bool stack_overflow = isolate->has_pending_exception();
+  isolate->clear_pending_exception();
+
   *possible_nondeterminism = thread->PossibleNondeterminism();
-  if (interpreter_result == WasmInterpreter::FINISHED) {
-    WasmValue val = thread->GetReturnValue();
-    return val.to<int32_t>();
-  } else if (thread->state() == WasmInterpreter::TRAPPED) {
-    return 0xdeadbeef;
-  } else {
-    thrower->RangeError(
-        "Interpreter did not finish execution within its step bound");
-    return -1;
-  }
+  if (stack_overflow) return 0xDEADBEEF;
+
+  if (thread->state() == WasmInterpreter::TRAPPED) return 0xDEADBEEF;
+
+  if (interpreter_result == WasmInterpreter::FINISHED)
+    return thread->GetReturnValue().to<int32_t>();
+
+  thrower->RangeError(
+      "Interpreter did not finish execution within its step bound");
+  return -1;
 }
 
-int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                   ErrorThrower* thrower, const char* name,
-                                   int argc, Handle<Object> argv[]) {
+MaybeHandle<WasmExportedFunction> GetExportedFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name) {
   Handle<JSObject> exports_object;
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
   exports_object = Handle<JSObject>::cast(
@@ -123,9 +196,22 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
-  if (!property_found.FromMaybe(false)) return -1;
+  if (!property_found.FromMaybe(false)) return {};
+  if (!desc.value()->IsJSFunction()) return {};
 
-  Handle<JSFunction> main_export = Handle<JSFunction>::cast(desc.value());
+  return Handle<WasmExportedFunction>::cast(desc.value());
+}
+
+int32_t CallWasmFunctionForTesting(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance,
+                                   ErrorThrower* thrower, const char* name,
+                                   int argc, Handle<Object> argv[]) {
+  MaybeHandle<WasmExportedFunction> maybe_export =
+      GetExportedFunction(isolate, instance, name);
+  Handle<WasmExportedFunction> main_export;
+  if (!maybe_export.ToHandle(&main_export)) {
+    return -1;
+  }
 
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
@@ -152,7 +238,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 }
 
 void SetupIsolateForWasmModule(Isolate* isolate) {
-  WasmJs::Install(isolate);
+  WasmJs::Install(isolate, true);
 }
 
 }  // namespace testing

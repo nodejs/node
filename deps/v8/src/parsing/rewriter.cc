@@ -263,6 +263,9 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
     node->finally_block()->statements()->Add(
         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+    // We can't tell whether the finally-block is guaranteed to set .result, so
+    // reset is_set_ before visiting the try-block.
+    is_set_ = false;
   }
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
@@ -335,6 +338,10 @@ void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
   replacement_ = node;
 }
 
+void Processor::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* node) {
+  replacement_ = node;
+}
 
 // Expressions are never visited.
 #define DEF_VISIT(type)                                         \
@@ -359,7 +366,9 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
   RuntimeCallTimerScope runtimeTimer(
       info->runtime_call_stats(),
-      &RuntimeCallStats::CompileRewriteReturnResult);
+      info->on_background_thread()
+          ? RuntimeCallCounterId::kCompileBackgroundRewriteReturnResult
+          : RuntimeCallCounterId::kCompileRewriteReturnResult);
 
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);

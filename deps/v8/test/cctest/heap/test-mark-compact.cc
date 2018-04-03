@@ -42,7 +42,6 @@
 #include "src/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/sequential-marking-deque.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -51,30 +50,6 @@
 namespace v8 {
 namespace internal {
 namespace heap {
-
-TEST(SequentialMarkingDeque) {
-  CcTest::InitializeVM();
-  SequentialMarkingDeque s(CcTest::i_isolate()->heap());
-  s.SetUp();
-  s.StartUsing();
-  Address original_address = reinterpret_cast<Address>(&s);
-  Address current_address = original_address;
-  while (!s.IsFull()) {
-    s.Push(HeapObject::FromAddress(current_address));
-    current_address += kPointerSize;
-  }
-
-  while (!s.IsEmpty()) {
-    Address value = s.Pop()->address();
-    current_address -= kPointerSize;
-    CHECK_EQ(current_address, value);
-  }
-
-  CHECK_EQ(original_address, current_address);
-  s.StopUsing();
-  CcTest::i_isolate()->cancelable_task_manager()->CancelAndWait();
-  s.TearDown();
-}
 
 TEST(Promotion) {
   CcTest::InitializeVM();
@@ -154,8 +129,9 @@ HEAP_TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunction(func_name);
-    JSReceiver::SetProperty(global, func_name, function, SLOPPY).Check();
+    Handle<JSFunction> function = factory->NewFunctionForTest(func_name);
+    JSReceiver::SetProperty(global, func_name, function, LanguageMode::kSloppy)
+        .Check();
 
     factory->NewJSObject(function);
   }
@@ -172,10 +148,12 @@ HEAP_TEST(MarkCompactCollector) {
     Handle<JSObject> obj = factory->NewJSObject(function);
 
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    JSReceiver::SetProperty(global, obj_name, obj, SLOPPY).Check();
+    JSReceiver::SetProperty(global, obj_name, obj, LanguageMode::kSloppy)
+        .Check();
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, LanguageMode::kSloppy)
+        .Check();
   }
 
   CcTest::CollectGarbage(OLD_SPACE);
@@ -353,7 +331,7 @@ TEST(Regress5829) {
   array->set_length(9);
   heap->CreateFillerObjectAt(old_end - kPointerSize, kPointerSize,
                              ClearRecordedSlots::kNo);
-  heap->old_space()->EmptyAllocationInfo();
+  heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   for (auto object_and_size :

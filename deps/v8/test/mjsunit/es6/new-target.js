@@ -472,3 +472,12 @@ function get_new_target() { return new.target; }
   tagNewTargetProp.Prop = C;
   assertEquals(new tagNewTargetProp, ["tagNewTargetProp"]);
 })();
+
+(function testDeleteSloppy() {
+  assertTrue(delete new.target);
+})();
+
+(function testDeleteStrict() {
+  "use strict";
+  assertTrue(delete new.target);
+})();

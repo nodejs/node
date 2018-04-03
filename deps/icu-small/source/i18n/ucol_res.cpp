@@ -62,7 +62,7 @@ namespace {
 static const UChar *rootRules = NULL;
 static int32_t rootRulesLength = 0;
 static UResourceBundle *rootBundle = NULL;
-static UInitOnce gInitOnce = U_INITONCE_INITIALIZER;
+static UInitOnce gInitOnceUcolRes = U_INITONCE_INITIALIZER;
 
 }  // namespace
 
@@ -74,7 +74,7 @@ ucol_res_cleanup() {
     rootRulesLength = 0;
     ures_close(rootBundle);
     rootBundle = NULL;
-    gInitOnce.reset();
+    gInitOnceUcolRes.reset();
     return TRUE;
 }
 
@@ -97,7 +97,7 @@ U_CDECL_END
 void
 CollationLoader::appendRootRules(UnicodeString &s) {
     UErrorCode errorCode = U_ZERO_ERROR;
-    umtx_initOnce(gInitOnce, CollationLoader::loadRootRules, errorCode);
+    umtx_initOnce(gInitOnceUcolRes, CollationLoader::loadRootRules, errorCode);
     if(U_SUCCESS(errorCode)) {
         s.append(rootRules, rootRulesLength);
     }
@@ -110,7 +110,7 @@ CollationLoader::loadRules(const char *localeID, const char *collationType,
     U_ASSERT(collationType != NULL && *collationType != 0);
     // Copy the type for lowercasing.
     char type[16];
-    int32_t typeLength = uprv_strlen(collationType);
+    int32_t typeLength = static_cast<int32_t>(uprv_strlen(collationType));
     if(typeLength >= UPRV_LENGTHOF(type)) {
         errorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return;
@@ -318,7 +318,7 @@ CollationLoader::loadFromCollations(UErrorCode &errorCode) {
     // Load the collations/type tailoring, with type fallback.
     LocalUResourceBundlePointer localData(
             ures_getByKeyWithFallback(collations, type, NULL, &errorCode));
-    int32_t typeLength = uprv_strlen(type);
+    int32_t typeLength = static_cast<int32_t>(uprv_strlen(type));
     if(errorCode == U_MISSING_RESOURCE_ERROR) {
         errorCode = U_USING_DEFAULT_WARNING;
         typeFallback = TRUE;
@@ -451,6 +451,7 @@ CollationLoader::loadFromData(UErrorCode &errorCode) {
     const CollationCacheEntry *entry = new CollationCacheEntry(validLocale, t.getAlias());
     if(entry == NULL) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
     } else {
         t.orphan();
     }

@@ -1,0 +1,15 @@
+Tests url in Debugger.CallFrame.
+[
+    [0] : {
+        url : 
+    }
+    [1] : {
+        url : source-url.js
+    }
+    [2] : {
+        url : test.js
+    }
+    [3] : {
+        url : expr.js
+    }
+]

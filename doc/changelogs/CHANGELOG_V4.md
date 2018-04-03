@@ -1,5 +1,8 @@
 # Node.js 4 ChangeLog
 
+<!--lint disable prohibited-strings-->
+<!--lint disable maximum-line-length-->
+
 <table>
 <tr>
 <th>LTS 'Argon'</th>
@@ -7,6 +10,10 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.9.1">4.9.1</a><br/>
+<a href="#4.9.0">4.9.0</a><br/>
+<a href="#4.8.7">4.8.7</a><br/>
+<a href="#4.8.6">4.8.6</a><br/>
 <a href="#4.8.5">4.8.5</a><br/>
 <a href="#4.8.4">4.8.4</a><br/>
 <a href="#4.8.3">4.8.3</a><br/>
@@ -50,6 +57,7 @@
 </table>
 
 * Other Versions
+  * [9.x](CHANGELOG_V9.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
@@ -63,6 +71,144 @@
 *Note*: Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.9.1"></a>
+## 2018-03-29, Version 4.9.1 'Argon' (Maintenance), @MylesBorins
+
+### Notable Changes
+
+No additional commits.
+
+Due to incorrect staging of the upgrade to the GCC 4.9.X compiler, the latest releases for PPC little
+endian were built using GCC 4.9.X instead of GCC 4.8.X. This caused an ABI breakage on PPCLE based
+environments. This has been fixed in our infrastructure and we are doing this release to ensure that
+the hosted binaries are adhering to our platform support contract.
+
+<a id="4.9.0"></a>
+## 2018-03-28, Version 4.9.0 'Argon' (Maintenance), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/march-2018-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2018-7158
+* CVE-2018-7159
+
+### Notable Changes
+
+* **Upgrade to OpenSSL 1.0.2o**: Does not contain any security fixes that are known to impact Node.js.
+* **Fix for `'path'` module regular expression denial of service (CVE-2018-7158)**: A regular expression used for parsing POSIX an Windows paths could be used to cause a denial of service if an attacker were able to have a specially crafted path string passed through one of the impacted `'path'` module functions.
+* **Reject spaces in HTTP `Content-Length` header values (CVE-2018-7159)**: The Node.js HTTP parser allowed for spaces inside `Content-Length` header values. Such values now lead to rejected connections in the same way as non-numeric values.
+* **Update root certificates**: 5 additional root certificates have been added to the Node.js binary and 30 have been removed.
+
+### Commits
+
+* [[`497ff3cd4f`](https://github.com/nodejs/node/commit/497ff3cd4f)] - **crypto**: update root certificates (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`514709e41f`](https://github.com/nodejs/node/commit/514709e41f)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`5108108606`](https://github.com/nodejs/node/commit/5108108606)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`d67d0a63d9`](https://github.com/nodejs/node/commit/d67d0a63d9)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`6af057ecc8`](https://github.com/nodejs/node/commit/6af057ecc8)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`b50cd3359d`](https://github.com/nodejs/node/commit/b50cd3359d)] - **deps**: upgrade openssl sources to 1.0.2o (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`da6e24c8d6`](https://github.com/nodejs/node/commit/da6e24c8d6)] - **deps**: reject interior blanks in Content-Length (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`7ebc9981e0`](https://github.com/nodejs/node/commit/7ebc9981e0)] - **deps**: upgrade http-parser to v2.8.0 (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`6fd2cc93a6`](https://github.com/nodejs/node/commit/6fd2cc93a6)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`bf00665af6`](https://github.com/nodejs/node/commit/bf00665af6)] - **path**: unwind regular expressions in Windows (Myles Borins)
+* [[`4196fcf23e`](https://github.com/nodejs/node/commit/4196fcf23e)] - **path**: unwind regular expressions in POSIX (Myles Borins)
+* [[`625986b699`](https://github.com/nodejs/node/commit/625986b699)] - **src**: drop CNNIC+StartCom certificate whitelisting (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`ebc46448a4`](https://github.com/nodejs/node/commit/ebc46448a4)] - **tools**: update certdata.txt (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+
+<a id="4.8.7"></a>
+## 2017-12-08, Version 4.8.7 'Argon' (Maintenance), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2017-15896
+* CVE-2017-3738 (from the openssl project)
+
+### Notable Changes
+
+* **deps**:
+  * openssl updated to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+
+### Commits
+
+* [[`4f8fae3493`](https://github.com/nodejs/node/commit/4f8fae3493)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`eacd090e7b`](https://github.com/nodejs/node/commit/eacd090e7b)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`3e6b0b0d13`](https://github.com/nodejs/node/commit/3e6b0b0d13)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`b0ed4c52af`](https://github.com/nodejs/node/commit/b0ed4c52af)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`dd6a2dff1e`](https://github.com/nodejs/node/commit/dd6a2dff1e)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`b3afedfbe9`](https://github.com/nodejs/node/commit/b3afedfbe9)] - **deps**: upgrade openssl sources to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`f7eb162d0d`](https://github.com/nodejs/node/commit/f7eb162d0d)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+
+<a id="4.8.6"></a>
+## 2017-11-07, Version 4.8.6 'Argon' (Maintenance), @MylesBorins
+
+This Maintenance release comes with 47 commits. This includes 26 commits which are updates to dependencies,
+8 which are build / tool related, 4 which are doc related, and 2 which are test related.
+
+This release includes a security update to openssl that has been deemed low severity for the Node.js project.
+
+### Notable Changes
+
+* **crypto**:
+  - update root certificates (Ben Noordhuis) [#13279](https://github.com/nodejs/node/pull/13279)
+  - update root certificates (Ben Noordhuis) [#12402](https://github.com/nodejs/node/pull/12402)
+* **deps**:
+  - add support for more modern versions of INTL (Bruno Pagani) [#13040](https://github.com/nodejs/node/pull/13040)
+  - upgrade openssl sources to 1.0.2m (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+  - upgrade openssl sources to 1.0.2l (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+
+### Commits
+
+* [[`e064ae62e4`](https://github.com/nodejs/node/commit/e064ae62e4)] - **build**: fix make test-v8 (Ben Noordhuis) [#15562](https://github.com/nodejs/node/pull/15562)
+* [[`a7f7a87a1b`](https://github.com/nodejs/node/commit/a7f7a87a1b)] - **build**: run test-hash-seed at the end of test-v8 (Michaël Zasso) [#14219](https://github.com/nodejs/node/pull/14219)
+* [[`05e8b1b7d9`](https://github.com/nodejs/node/commit/05e8b1b7d9)] - **build**: codesign tarball binary on macOS (Evan Lucas) [#14179](https://github.com/nodejs/node/pull/14179)
+* [[`e2b6fdf93e`](https://github.com/nodejs/node/commit/e2b6fdf93e)] - **build**: avoid /docs/api and /docs/doc/api upload (Rod Vagg) [#12957](https://github.com/nodejs/node/pull/12957)
+* [[`59d35c0775`](https://github.com/nodejs/node/commit/59d35c0775)] - **build,tools**: do not force codesign prefix (Evan Lucas) [#14179](https://github.com/nodejs/node/pull/14179)
+* [[`210fa72e9e`](https://github.com/nodejs/node/commit/210fa72e9e)] - **crypto**: update root certificates (Ben Noordhuis) [#13279](https://github.com/nodejs/node/pull/13279)
+* [[`752b46a259`](https://github.com/nodejs/node/commit/752b46a259)] - **crypto**: update root certificates (Ben Noordhuis) [#12402](https://github.com/nodejs/node/pull/12402)
+* [[`3640ba4acb`](https://github.com/nodejs/node/commit/3640ba4acb)] - **crypto**: clear err stack after ECDH::BufferToPoint (Ryan Kelly) [#13275](https://github.com/nodejs/node/pull/13275)
+* [[`545235fc4b`](https://github.com/nodejs/node/commit/545235fc4b)] - **deps**: add missing #include "unicode/normlzr.h" (Bruno Pagani) [#13040](https://github.com/nodejs/node/pull/13040)
+* [[`ea09a1c3e6`](https://github.com/nodejs/node/commit/ea09a1c3e6)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+* [[`68661a95b5`](https://github.com/nodejs/node/commit/68661a95b5)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`bdcb2525fb`](https://github.com/nodejs/node/commit/bdcb2525fb)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`3f93ffee89`](https://github.com/nodejs/node/commit/3f93ffee89)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`16fbd9da0d`](https://github.com/nodejs/node/commit/16fbd9da0d)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+* [[`55e15ec820`](https://github.com/nodejs/node/commit/55e15ec820)] - **deps**: upgrade openssl sources to 1.0.2m (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+* [[`9c3e246ffe`](https://github.com/nodejs/node/commit/9c3e246ffe)] - **deps**: backport 4e18190 from V8 upstream (jshin) [#15562](https://github.com/nodejs/node/pull/15562)
+* [[`43d1ac3a62`](https://github.com/nodejs/node/commit/43d1ac3a62)] - **deps**: backport bff3074 from V8 upstream (Myles Borins) [#15562](https://github.com/nodejs/node/pull/15562)
+* [[`b259fd3bd5`](https://github.com/nodejs/node/commit/b259fd3bd5)] - **deps**: cherry pick d7f813b4 from V8 upstream (akos.palfi) [#15562](https://github.com/nodejs/node/pull/15562)
+* [[`85800c4ba4`](https://github.com/nodejs/node/commit/85800c4ba4)] - **deps**: backport e28183b5 from upstream V8 (karl) [#15562](https://github.com/nodejs/node/pull/15562)
+* [[`06eb181916`](https://github.com/nodejs/node/commit/06eb181916)] - **deps**: update openssl asm and asm_obsolete files (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`c0fe1fccc3`](https://github.com/nodejs/node/commit/c0fe1fccc3)] - **deps**: update openssl config files (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`523eb60424`](https://github.com/nodejs/node/commit/523eb60424)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`0aacd5a8cd`](https://github.com/nodejs/node/commit/0aacd5a8cd)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`80c48c0720`](https://github.com/nodejs/node/commit/80c48c0720)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`bbd92b4676`](https://github.com/nodejs/node/commit/bbd92b4676)] - **deps**: copy all openssl header files to include dir (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`8507f0fb5d`](https://github.com/nodejs/node/commit/8507f0fb5d)] - **deps**: upgrade openssl sources to 1.0.2l (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`9bfada8f0c`](https://github.com/nodejs/node/commit/9bfada8f0c)] - **deps**: add example of comparing OpenSSL changes (Daniel Bevenius) [#13234](https://github.com/nodejs/node/pull/13234)
+* [[`71f9cdf241`](https://github.com/nodejs/node/commit/71f9cdf241)] - **deps**: cherry-pick 09db540,686558d from V8 upstream (Jesse Rosenberger) [#14829](https://github.com/nodejs/node/pull/14829)
+* [[`751f1ac08e`](https://github.com/nodejs/node/commit/751f1ac08e)] - ***Revert*** "**deps**: backport e093a04, 09db540 from upstream V8" (Jesse Rosenberger) [#14829](https://github.com/nodejs/node/pull/14829)
+* [[`ed6298c7de`](https://github.com/nodejs/node/commit/ed6298c7de)] - **deps**: cherry-pick 18ea996 from c-ares upstream (Anna Henningsen) [#13883](https://github.com/nodejs/node/pull/13883)
+* [[`639180adfa`](https://github.com/nodejs/node/commit/639180adfa)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#12913](https://github.com/nodejs/node/pull/12913)
+* [[`9ba73e1797`](https://github.com/nodejs/node/commit/9ba73e1797)] - **deps**: cherry-pick 4ae5993 from upstream OpenSSL (Shigeki Ohtsu) [#12913](https://github.com/nodejs/node/pull/12913)
+* [[`f8e282e51c`](https://github.com/nodejs/node/commit/f8e282e51c)] - **doc**: fix typo in zlib.md (Luigi Pinca) [#16480](https://github.com/nodejs/node/pull/16480)
+* [[`532a2941cb`](https://github.com/nodejs/node/commit/532a2941cb)] - **doc**: add missing make command to UPGRADING.md (Daniel Bevenius) [#13233](https://github.com/nodejs/node/pull/13233)
+* [[`1db33296cb`](https://github.com/nodejs/node/commit/1db33296cb)] - **doc**: add entry for subprocess.killed property (Rich Trott) [#14578](https://github.com/nodejs/node/pull/14578)
+* [[`0fa09dfd77`](https://github.com/nodejs/node/commit/0fa09dfd77)] - **doc**: change `child` to `subprocess` (Rich Trott) [#14578](https://github.com/nodejs/node/pull/14578)
+* [[`43bbfafaef`](https://github.com/nodejs/node/commit/43bbfafaef)] - **docs**: Fix broken links in crypto.md (Zuzana Svetlikova) [#15182](https://github.com/nodejs/node/pull/15182)
+* [[`1bde7f5cef`](https://github.com/nodejs/node/commit/1bde7f5cef)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`e69f47b686`](https://github.com/nodejs/node/commit/e69f47b686)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`cb92f93cd5`](https://github.com/nodejs/node/commit/cb92f93cd5)] - **test**: remove internal headers from addons (Gibson Fahnestock) [#7947](https://github.com/nodejs/node/pull/7947)
+* [[`5d9164c315`](https://github.com/nodejs/node/commit/5d9164c315)] - **test**: move test-cluster-debug-port to sequential (Oleksandr Kushchak) [#16292](https://github.com/nodejs/node/pull/16292)
+* [[`07c912e849`](https://github.com/nodejs/node/commit/07c912e849)] - **tools**: update certdata.txt (Ben Noordhuis) [#13279](https://github.com/nodejs/node/pull/13279)
+* [[`c40bffcb88`](https://github.com/nodejs/node/commit/c40bffcb88)] - **tools**: update certdata.txt (Ben Noordhuis) [#12402](https://github.com/nodejs/node/pull/12402)
+* [[`161162713f`](https://github.com/nodejs/node/commit/161162713f)] - **tools**: be explicit about including key-id (Myles Borins) [#13309](https://github.com/nodejs/node/pull/13309)
+* [[`0c820c092b`](https://github.com/nodejs/node/commit/0c820c092b)] - **v8**: fix stack overflow in recursive method (Ben Noordhuis) [#12460](https://github.com/nodejs/node/pull/12460)
+* [[`a1f992975f`](https://github.com/nodejs/node/commit/a1f992975f)] - **zlib**: fix crash when initializing failed (Anna Henningsen) [#14666](https://github.com/nodejs/node/pull/14666)
+* [[`31bf595b94`](https://github.com/nodejs/node/commit/31bf595b94)] - **zlib**: fix node crashing on invalid options (Alexey Orlenko) [#13098](https://github.com/nodejs/node/pull/13098)
 
 <a id="4.8.5"></a>
 ## 2017-10-24, Version 4.8.5 'Argon' (Maintenance), @MylesBorins

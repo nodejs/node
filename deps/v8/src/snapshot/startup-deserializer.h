@@ -12,10 +12,11 @@ namespace v8 {
 namespace internal {
 
 // Initializes an isolate with context-independent data from a given snapshot.
-class StartupDeserializer final : public Deserializer {
+class StartupDeserializer final : public Deserializer<> {
  public:
-  explicit StartupDeserializer(const SnapshotData* data)
-      : Deserializer(data, false) {}
+  StartupDeserializer(const SnapshotData* startup_data,
+                      const BuiltinSnapshotData* builtin_data)
+      : Deserializer(startup_data, false), builtin_data_(builtin_data) {}
 
   // Deserialize the snapshot into an empty heap.
   void DeserializeInto(Isolate* isolate);
@@ -25,7 +26,9 @@ class StartupDeserializer final : public Deserializer {
   void PrintDisassembledCodeObjects();
 
   // Rehash after deserializing an isolate.
-  void Rehash();
+  void RehashHeap();
+
+  const BuiltinSnapshotData* builtin_data_;
 };
 
 }  // namespace internal

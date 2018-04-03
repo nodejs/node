@@ -304,7 +304,7 @@ static void read_cb(uv_stream_t* handle,
   union handles* recv;
   uv_write_t* write_req;
 
-  if (nread == UV__EOF || nread == UV__ECONNABORTED) {
+  if (nread == UV_EOF || nread == UV_ECONNABORTED) {
     return;
   }
 

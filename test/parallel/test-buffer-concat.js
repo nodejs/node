@@ -44,25 +44,35 @@ assert.notStrictEqual(flatOne, one[0]);
 assert.strictEqual(flatLong.toString(), check);
 assert.strictEqual(flatLongLen.toString(), check);
 
-assertWrongList();
-assertWrongList(null);
-assertWrongList(Buffer.from('hello'));
-assertWrongList([42]);
-assertWrongList(['hello', 'world']);
-assertWrongList(['hello', Buffer.from('world')]);
-
-function assertWrongList(value) {
+[undefined, null, Buffer.from('hello')].forEach((value) => {
   assert.throws(() => {
     Buffer.concat(value);
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "list" argument must be one of type ' +
-             'array, buffer, or uint8Array'
-  }));
-}
+    message: 'The "list" argument must be one of type Array, Buffer, ' +
+             `or Uint8Array. Received type ${typeof value}`
+  });
+});
 
-// eslint-disable-next-line crypto-check
+[[42], ['hello', Buffer.from('world')]].forEach((value) => {
+  assert.throws(() => {
+    Buffer.concat(value);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "list[0]" argument must be one of type Array, Buffer, ' +
+             `or Uint8Array. Received type ${typeof value[0]}`
+  });
+});
+
+assert.throws(() => {
+  Buffer.concat([Buffer.from('hello'), 3]);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "list[1]" argument must be one of type Array, Buffer, ' +
+           'or Uint8Array. Received type number'
+});
+
+// eslint-disable-next-line node-core/crypto-check
 const random10 = common.hasCrypto ?
   require('crypto').randomBytes(10) :
   Buffer.alloc(10, 1);

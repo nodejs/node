@@ -41,10 +41,8 @@
     outline: none;
 }
 
-.button-input-invisible {
-    vertical-align: middle;
-    width: 0px;
-    visibility: hidden;
+.invisible {
+    display: none;
 }
 
 
@@ -57,9 +55,12 @@
     !important
 }
 
+
 body {
     margin: 0;
     padding: 0;
+    height: 100vh;
+    width: 100vw;
     overflow:hidden;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -69,8 +70,8 @@ body {
     user-select: none;
 }
 
-p { 
-    text-align: center; 
+p {
+    text-align: center;
     overflow: overlay;
     position: relative;
 }
@@ -97,21 +98,47 @@ div.scrollable {
     overflow-y: _croll; overflow-x: hidden;
 }
 
-g.control rect { 
+g.turbonode[relToHover="input"] rect {
+    stroke: #67e62c;
+    stroke-width: 16px;
+}
+
+g.turbonode[relToHover="output"] rect {
+    stroke: #d23b14;
+    stroke-width: 16px;
+}
+
+path[relToHover="input"] {
+    stroke: #67e62c;
+    stroke-width: 16px;
+}
+
+path[relToHover="output"] {
+    stroke: #d23b14;
+    stroke-width: 16px;
+}
+
+
+g.turbonode:hover rect {
+  stroke: #000000;
+  stroke-width: 7px;
+}
+
+g.control rect {
     fill: #EFCC00;
     stroke: #080808;
     stroke-width: 5px;
 }
 
-g.javascript rect { 
+g.javascript rect {
     fill: #DD7E6B;
 }
 
-g.simplified rect { 
+g.simplified rect {
     fill: #3C78D8;
 }
 
-g.machine rect { 
+g.machine rect {
     fill: #6AA84F;
 }
 
@@ -156,47 +183,14 @@ circle.halfFilledBubbleStyle:hover {
     stroke-width: 3px;
 }
 
-path.effect {
+path {
     fill: none;
     stroke: #080808;
     stroke-width: 4px;
     cursor: default;
 }
 
-path.effect:hover {
-    stroke-width: 6px;
-}
-
-path.control {
-    fill: none;
-    stroke: #080808;
-    stroke-width: 4px;
-    cursor: default;
-}
-
-path.control:hover {
-    stroke-width: 6px;
-}
-
-path.value {
-    fill: none;
-    stroke: #888888;
-    stroke-width: 4px;
-    cursor: default;
-}
-
-path.value:hover {
-    stroke-width: 6px;
-}
-
-path.frame-state {
-    fill: none;
-    stroke: #080808;
-    stroke-width: 4px;
-    cursor: default;
-}
-
-path.frame-state:hover{
+path:hover {
     stroke-width: 6px;
 }
 
@@ -246,32 +240,19 @@ span.linkable-text:hover {
     font-weight: bold;
 }
 
+
 #left {
     float: left; height: 100%; background-color: #FFFFFF;
-    -webkit-transition: all 1s ease-in-out;
-    -moz-transition: all 1s ease-in-out;
-    -o-transition: all 1s ease-in-out;
-    transition: all .3s ease-in-out;
-    transition-property: width;
 }
 
 #middle {
-    float:left; height: 100%; background-color: #F8F8F8; 
-    -webkit-transition: all 1s ease-in-out;
-    -moz-transition: all 1s ease-in-out;
-    -o-transition: all 1s ease-in-out;
-    transition: all .3s ease-in-out;
-    transition-property: width;
+    float:left; height: 100%; background-color: #F8F8F8;
 }
 
 #right {
-    float: right; background-color: #FFFFFF; 
-    -webkit-transition: all 1s ease-in-out;
-    -moz-transition: all 1s ease-in-out;
-    -o-transition: all 1s ease-in-out;
-    transition: all .3s ease-in-out;
-    transition-property: width;
+    float: right; background-color: #FFFFFF;
 }
+
 
 #disassembly-collapse {
     right: 0;
@@ -288,7 +269,7 @@ span.linkable-text:hover {
 #graph-toolbox {
     position: relative;
     top: 1em;
-    left: 0.7em;
+    left: 25px;
     border: 2px solid #eee8d5;
     border-radius: 5px;
     padding: 0.7em;
@@ -337,4 +318,44 @@ tspan {
 
 text {
     dominant-baseline: text-before-edge;
+}
+
+.resizer-left {
+    position:absolute;
+    width: 4px;
+    height:100%;
+    background: #a0a0a0;
+    cursor: pointer;
+}
+
+.resizer-left.snapped {
+    width: 12px;
+}
+
+.resizer-left:hover {
+    background: orange;
+}
+
+.resizer-left.dragged {
+    background: orange;
+}
+
+.resizer-right {
+    position:absolute;
+    width: 4px;
+    height:100%;
+    background: #a0a0a0;
+    cursor: pointer;
+}
+
+.resizer-right.snapped {
+    width: 12px;
+}
+
+.resizer-right:hover {
+    background: orange;
+}
+
+.resizer-right.dragged {
+    background: orange;
 }

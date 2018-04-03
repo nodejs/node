@@ -6,9 +6,11 @@
 
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
 
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -118,8 +120,7 @@ namespace internal {
  *              bool direct_call = false,
  *              Isolate* isolate);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
- * (in regexp-macro-assembler.cc) via the CALL_GENERATED_REGEXP_CODE macro
- * in mips/simulator-mips.h.
+ * (in regexp-macro-assembler.cc) via the GeneratedCode wrapper.
  *
  * clang-format on
  */
@@ -130,7 +131,7 @@ RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone,
                                                    Mode mode,
                                                    int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize,
+      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
                                CodeObjectRequired::kYes)),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -180,8 +181,8 @@ void RegExpMacroAssemblerMIPS::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerMIPS::AdvanceRegister(int reg, int by) {
-  DCHECK(reg >= 0);
-  DCHECK(reg < num_registers_);
+  DCHECK_LE(0, reg);
+  DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     __ Ld(a0, register_location(reg));
     __ Daddu(a0, a0, Operand(by));
@@ -484,7 +485,7 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ Dsubu(a0, current_character(), Operand(minus));
   __ And(a0, a0, Operand(mask));
   BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
@@ -538,11 +539,11 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
       // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
       __ Branch(&success, eq, current_character(), Operand(' '));
-      // Check range 0x09..0x0d.
+      // Check range 0x09..0x0D.
       __ Dsubu(a0, current_character(), Operand('\t'));
       __ Branch(&success, ls, a0, Operand('\r' - '\t'));
       // \u00a0 (NBSP).
-      BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00a0 - '\t'));
+      BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00A0 - '\t'));
       __ bind(&success);
       return true;
     }
@@ -561,34 +562,34 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
     BranchOrBacktrack(on_no_match, ls, a0, Operand('9' - '0'));
     return true;
   case '.': {
-    // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029).
+    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
     __ Xor(a0, current_character(), Operand(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c.
-    __ Dsubu(a0, a0, Operand(0x0b));
-    BranchOrBacktrack(on_no_match, ls, a0, Operand(0x0c - 0x0b));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
+    __ Dsubu(a0, a0, Operand(0x0B));
+    BranchOrBacktrack(on_no_match, ls, a0, Operand(0x0C - 0x0B));
     if (mode_ == UC16) {
       // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-      // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ Dsubu(a0, a0, Operand(0x2028 - 0x0b));
+      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+      // 0x201D (0x2028 - 0x0B) or 0x201E.
+      __ Dsubu(a0, a0, Operand(0x2028 - 0x0B));
       BranchOrBacktrack(on_no_match, ls, a0, Operand(1));
     }
     return true;
   }
   case 'n': {
-    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029).
+    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
     __ Xor(a0, current_character(), Operand(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c.
-    __ Dsubu(a0, a0, Operand(0x0b));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
+    __ Dsubu(a0, a0, Operand(0x0B));
     if (mode_ == LATIN1) {
-      BranchOrBacktrack(on_no_match, hi, a0, Operand(0x0c - 0x0b));
+      BranchOrBacktrack(on_no_match, hi, a0, Operand(0x0C - 0x0B));
     } else {
       Label done;
-      BranchOrBacktrack(&done, ls, a0, Operand(0x0c - 0x0b));
+      BranchOrBacktrack(&done, ls, a0, Operand(0x0C - 0x0B));
       // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-      // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ Dsubu(a0, a0, Operand(0x2028 - 0x0b));
+      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+      // 0x201D (0x2028 - 0x0B) or 0x201E.
+      __ Dsubu(a0, a0, Operand(0x2028 - 0x0B));
       BranchOrBacktrack(on_no_match, hi, a0, Operand(1));
       __ bind(&done);
     }
@@ -915,7 +916,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       __ CallCFunction(grow_stack, num_arguments);
       // Restore regexp registers.
       __ MultiPop(regexp_registers);
-      // If return NULL, we have failed to grow the stack, and
+      // If return nullptr, we have failed to grow the stack, and
       // must exit with a stack-overflow exception.
       __ Branch(&exit_with_exception, eq, v0, Operand(zero_reg));
       // Otherwise use return value as new stack pointer.
@@ -937,8 +938,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(
-      code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
+  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
+                                                    masm_->CodeObject());
   LOG(masm_->isolate(),
       RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -946,7 +947,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
 
 void RegExpMacroAssemblerMIPS::GoTo(Label* to) {
-  if (to == NULL) {
+  if (to == nullptr) {
     Backtrack();
     return;
   }
@@ -1231,14 +1232,14 @@ void RegExpMacroAssemblerMIPS::BranchOrBacktrack(Label* to,
                                                  Register rs,
                                                  const Operand& rt) {
   if (condition == al) {  // Unconditional.
-    if (to == NULL) {
+    if (to == nullptr) {
       Backtrack();
       return;
     }
     __ jmp(to);
     return;
   }
-  if (to == NULL) {
+  if (to == nullptr) {
     __ Branch(&backtrack_label_, condition, rs, rt);
     return;
   }
@@ -1269,7 +1270,7 @@ void RegExpMacroAssemblerMIPS::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerMIPS::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   __ Daddu(backtrack_stackpointer(),
           backtrack_stackpointer(),
           Operand(-kIntSize));
@@ -1278,7 +1279,7 @@ void RegExpMacroAssemblerMIPS::Push(Register source) {
 
 
 void RegExpMacroAssemblerMIPS::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ Lw(target, MemOperand(backtrack_stackpointer()));
   __ Daddu(backtrack_stackpointer(), backtrack_stackpointer(), kIntSize);
 }
@@ -1314,7 +1315,7 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
   }
   // We assume that we cannot do unaligned loads on MIPS, so this function
   // must only be used to load a single character at a time.
-  DCHECK(characters == 1);
+  DCHECK_EQ(1, characters);
   __ Daddu(t1, end_of_input_address(), Operand(offset));
   if (mode_ == LATIN1) {
     __ Lbu(current_character(), MemOperand(t1, 0));

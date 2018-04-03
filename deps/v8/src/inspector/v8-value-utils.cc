@@ -76,7 +76,8 @@ protocol::Response toProtocolValue(v8::Local<v8::Context> context,
       if (name->IsString()) {
         v8::Maybe<bool> hasRealNamedProperty = object->HasRealNamedProperty(
             context, v8::Local<v8::String>::Cast(name));
-        if (!hasRealNamedProperty.IsJust() || !hasRealNamedProperty.FromJust())
+        if (hasRealNamedProperty.IsNothing() ||
+            !hasRealNamedProperty.FromJust())
           continue;
       }
       v8::Local<v8::String> propertyName;
@@ -84,6 +85,7 @@ protocol::Response toProtocolValue(v8::Local<v8::Context> context,
       v8::Local<v8::Value> property;
       if (!object->Get(context, name).ToLocal(&property))
         return Response::InternalError();
+      if (property->IsUndefined()) continue;
       std::unique_ptr<protocol::Value> propertyValue;
       Response response =
           toProtocolValue(context, property, maxDepth, &propertyValue);

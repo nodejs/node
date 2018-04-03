@@ -149,7 +149,7 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
 // Handle all register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'r');
+  DCHECK_EQ(format[0], 'r');
 
   if ((format[1] == 't') || (format[1] == 's')) {  // 'rt & 'rs register
     int reg = instr->RTValue();
@@ -172,7 +172,7 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 // Handle all FP register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatFPRegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'D');
+  DCHECK_EQ(format[0], 'D');
 
   int retval = 2;
   int reg = -1;
@@ -270,7 +270,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         return 8;
       }
       case 's': {
-        DCHECK(format[1] == 'h');
+        DCHECK_EQ(format[1], 'h');
         int32_t value = 0;
         int32_t opcode = instr->OpcodeValue() << 26;
         int32_t sh = instr->Bits(15, 11);
@@ -601,19 +601,19 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case LFSX: {
-      Format(instr, "lfsx    'rt, 'ra, 'rb");
+      Format(instr, "lfsx    'Dt, 'ra, 'rb");
       return;
     }
     case LFSUX: {
-      Format(instr, "lfsux   'rt, 'ra, 'rb");
+      Format(instr, "lfsux   'Dt, 'ra, 'rb");
       return;
     }
     case LFDX: {
-      Format(instr, "lfdx    'rt, 'ra, 'rb");
+      Format(instr, "lfdx    'Dt, 'ra, 'rb");
       return;
     }
     case LFDUX: {
-      Format(instr, "lfdux   'rt, 'ra, 'rb");
+      Format(instr, "lfdux   'Dt, 'ra, 'rb");
       return;
     }
     case STFSX: {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc --stress-compaction
+// Flags: --expose-wasm --expose-gc --stress-compaction --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
@@ -162,9 +162,36 @@ function testOOBThrows() {
 
 
   for (offset = 65534; offset < 66536; offset++) {
+    const trap_count = %GetWasmRecoveredTrapCount();
     assertTraps(kTrapMemOutOfBounds, read);
     assertTraps(kTrapMemOutOfBounds, write);
+    if (%IsWasmTrapHandlerEnabled()) {
+      assertEquals(trap_count + 2, %GetWasmRecoveredTrapCount());
+    }
   }
 }
 
 testOOBThrows();
+
+function testAddressSpaceLimit() {
+  // 1TiB, see wasm-memory.h
+  const kMaxAddressSpace = 1 * 1024 * 1024 * 1024 * 1024;
+  const kAddressSpacePerMemory = 8 * 1024 * 1024 * 1024;
+
+  try {
+    let memories = [];
+    let address_space = 0;
+    while (address_space <= kMaxAddressSpace + 1) {
+      memories.push(new WebAssembly.Memory({initial: 1}));
+      address_space += kAddressSpacePerMemory;
+    }
+  } catch (e) {
+    assertTrue(e instanceof RangeError);
+    return;
+  }
+  failWithMessage("allocated too much memory");
+}
+
+if(%IsWasmTrapHandlerEnabled()) {
+  testAddressSpaceLimit();
+}

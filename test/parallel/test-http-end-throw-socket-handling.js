@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const Countdown = require('../common/countdown');
 
 // Make sure that throwing in 'end' handler doesn't lock
 // up the socket forever.
@@ -29,10 +30,10 @@ const common = require('../common');
 // the same, we should not be so brittle and easily broken.
 
 const http = require('http');
+const countdown = new Countdown(10, () => server.close());
 
-let n = 0;
 const server = http.createServer((req, res) => {
-  if (++n === 10) server.close();
+  countdown.dec();
   res.end('ok');
 });
 

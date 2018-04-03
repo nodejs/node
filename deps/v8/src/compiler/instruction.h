@@ -19,13 +19,11 @@
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
+#include "src/source-position.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
-
-class SourcePosition;
-
 namespace compiler {
 
 class Schedule;
@@ -775,7 +773,7 @@ class ReferenceMap final : public ZoneObject {
   int instruction_position() const { return instruction_position_; }
 
   void set_instruction_position(int pos) {
-    DCHECK(instruction_position_ == -1);
+    DCHECK_EQ(-1, instruction_position_);
     instruction_position_ = pos;
   }
 
@@ -846,7 +844,7 @@ class V8_EXPORT_PRIVATE Instruction final {
                           size_t output_count, InstructionOperand* outputs,
                           size_t input_count, InstructionOperand* inputs,
                           size_t temp_count, InstructionOperand* temps) {
-    DCHECK(opcode >= 0);
+    DCHECK_LE(0, opcode);
     DCHECK(output_count == 0 || outputs != nullptr);
     DCHECK(input_count == 0 || inputs != nullptr);
     DCHECK(temp_count == 0 || temps != nullptr);
@@ -903,7 +901,8 @@ class V8_EXPORT_PRIVATE Instruction final {
   bool IsTailCall() const {
     return arch_opcode() == ArchOpcode::kArchTailCallCodeObject ||
            arch_opcode() == ArchOpcode::kArchTailCallCodeObjectFromJSFunction ||
-           arch_opcode() == ArchOpcode::kArchTailCallAddress;
+           arch_opcode() == ArchOpcode::kArchTailCallAddress ||
+           arch_opcode() == ArchOpcode::kArchTailCallWasm;
   }
   bool IsThrow() const {
     return arch_opcode() == ArchOpcode::kArchThrowTerminator;
@@ -1123,16 +1122,16 @@ class StateValueDescriptor {
   StateValueDescriptor()
       : kind_(StateValueKind::kPlain), type_(MachineType::AnyTagged()) {}
 
-  static StateValueDescriptor ArgumentsElements(bool is_rest) {
+  static StateValueDescriptor ArgumentsElements(ArgumentsStateType type) {
     StateValueDescriptor descr(StateValueKind::kArgumentsElements,
                                MachineType::AnyTagged());
-    descr.is_rest_ = is_rest;
+    descr.args_type_ = type;
     return descr;
   }
-  static StateValueDescriptor ArgumentsLength(bool is_rest) {
+  static StateValueDescriptor ArgumentsLength(ArgumentsStateType type) {
     StateValueDescriptor descr(StateValueKind::kArgumentsLength,
                                MachineType::AnyTagged());
-    descr.is_rest_ = is_rest;
+    descr.args_type_ = type;
     return descr;
   }
   static StateValueDescriptor Plain(MachineType type) {
@@ -1171,10 +1170,10 @@ class StateValueDescriptor {
            kind_ == StateValueKind::kNested);
     return id_;
   }
-  int is_rest() const {
+  ArgumentsStateType arguments_type() const {
     DCHECK(kind_ == StateValueKind::kArgumentsElements ||
            kind_ == StateValueKind::kArgumentsLength);
-    return is_rest_;
+    return args_type_;
   }
 
  private:
@@ -1185,7 +1184,7 @@ class StateValueDescriptor {
   MachineType type_;
   union {
     size_t id_;
-    bool is_rest_;
+    ArgumentsStateType args_type_;
   };
 };
 
@@ -1245,11 +1244,11 @@ class StateValueList {
     nested_.push_back(nested);
     return nested;
   }
-  void PushArgumentsElements(bool is_rest) {
-    fields_.push_back(StateValueDescriptor::ArgumentsElements(is_rest));
+  void PushArgumentsElements(ArgumentsStateType type) {
+    fields_.push_back(StateValueDescriptor::ArgumentsElements(type));
   }
-  void PushArgumentsLength(bool is_rest) {
-    fields_.push_back(StateValueDescriptor::ArgumentsLength(is_rest));
+  void PushArgumentsLength(ArgumentsStateType type) {
+    fields_.push_back(StateValueDescriptor::ArgumentsLength(type));
   }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));
@@ -1318,17 +1317,22 @@ class DeoptimizationEntry final {
  public:
   DeoptimizationEntry() {}
   DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-                      DeoptimizeReason reason)
-      : descriptor_(descriptor), kind_(kind), reason_(reason) {}
+                      DeoptimizeReason reason, VectorSlotPair const& feedback)
+      : descriptor_(descriptor),
+        kind_(kind),
+        reason_(reason),
+        feedback_(feedback) {}
 
   FrameStateDescriptor* descriptor() const { return descriptor_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
   FrameStateDescriptor* descriptor_ = nullptr;
   DeoptimizeKind kind_ = DeoptimizeKind::kEager;
-  DeoptimizeReason reason_ = DeoptimizeReason::kNoReason;
+  DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
+  VectorSlotPair feedback_ = VectorSlotPair();
 };
 
 typedef ZoneVector<DeoptimizationEntry> DeoptimizationVector;
@@ -1367,15 +1371,15 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
+    DCHECK_LE(0, code_start_);
+    DCHECK_LT(0, code_end_);
+    DCHECK_GE(code_end_, code_start_);
     return code_start_;
   }
   int last_instruction_index() const {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
+    DCHECK_LE(0, code_start_);
+    DCHECK_LT(0, code_end_);
+    DCHECK_GE(code_end_, code_start_);
     return code_end_ - 1;
   }
 
@@ -1530,8 +1534,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
 
   Instruction* InstructionAt(int index) const {
-    DCHECK(index >= 0);
-    DCHECK(index < static_cast<int>(instructions_.size()));
+    DCHECK_LE(0, index);
+    DCHECK_GT(instructions_.size(), index);
     return instructions_[index];
   }
 
@@ -1546,7 +1550,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   int AddConstant(int virtual_register, Constant constant) {
     // TODO(titzer): allow RPO numbers as constants?
-    DCHECK(constant.type() != Constant::kRpoNumber);
+    DCHECK_NE(Constant::kRpoNumber, constant.type());
     DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
     DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.insert(std::make_pair(virtual_register, constant));
@@ -1578,8 +1582,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
         return Constant(op->inline_value());
       case ImmediateOperand::INDEXED: {
         int index = op->indexed_value();
-        DCHECK(index >= 0);
-        DCHECK(index < static_cast<int>(immediates_.size()));
+        DCHECK_LE(0, index);
+        DCHECK_GT(immediates_.size(), index);
         return immediates_[index];
       }
     }
@@ -1587,7 +1591,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
-                             DeoptimizeKind kind, DeoptimizeReason reason);
+                             DeoptimizeKind kind, DeoptimizeReason reason,
+                             VectorSlotPair const& feedback);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

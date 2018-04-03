@@ -28,24 +28,24 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const http = require('http');
 const fs = require('fs');
+const Countdown = require('../common/countdown');
 
 http.globalAgent.maxSockets = 1;
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const image = fixtures.readSync('/person.jpg');
 
 console.log(`image.length = ${image.length}`);
 
 const total = 10;
-let requests = 0;
-let responses = 0;
+const responseCountdown = new Countdown(total, common.mustCall(() => {
+  checkFiles();
+  server.close();
+}));
 
 const server = http.Server(function(req, res) {
-  if (++requests === total) {
-    server.close();
-  }
-
   setTimeout(function() {
     res.writeHead(200, {
       'content-type': 'image/jpeg',
@@ -69,14 +69,12 @@ server.listen(0, function() {
 
       http.get(opts, function(res) {
         console.error(`recv ${x}`);
-        const s = fs.createWriteStream(`${common.tmpDir}/${x}.jpg`);
+        const s = fs.createWriteStream(`${tmpdir.path}/${x}.jpg`);
         res.pipe(s);
 
         s.on('finish', function() {
           console.error(`done ${x}`);
-          if (++responses === total) {
-            checkFiles();
-          }
+          responseCountdown.dec();
         });
       }).on('error', function(e) {
         console.error('error! ', e.message);
@@ -86,28 +84,17 @@ server.listen(0, function() {
   }
 });
 
-
-let checkedFiles = false;
 function checkFiles() {
   // Should see 1.jpg, 2.jpg, ..., 100.jpg in tmpDir
-  const files = fs.readdirSync(common.tmpDir);
+  const files = fs.readdirSync(tmpdir.path);
   assert(total <= files.length);
 
   for (let i = 0; i < total; i++) {
     const fn = `${i}.jpg`;
     assert.ok(files.includes(fn), `couldn't find '${fn}'`);
-    const stat = fs.statSync(`${common.tmpDir}/${fn}`);
+    const stat = fs.statSync(`${tmpdir.path}/${fn}`);
     assert.strictEqual(
       image.length, stat.size,
       `size doesn't match on '${fn}'. Got ${stat.size} bytes`);
   }
-
-  checkedFiles = true;
 }
-
-
-process.on('exit', function() {
-  assert.strictEqual(total, requests);
-  assert.strictEqual(total, responses);
-  assert.ok(checkedFiles);
-});

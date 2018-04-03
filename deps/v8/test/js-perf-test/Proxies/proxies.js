@@ -463,3 +463,43 @@ newBenchmark("SetSymbolWithTrap", {
     return value === SOME_OTHER_NUMBER;
   }
 });
+
+// ----------------------------------------------------------------------------
+
+var obj20prop = {};
+var measured;
+
+newBenchmark("HasInIdiom", {
+  setup() {
+    for (var i = 0; i < 20; ++i) {
+      obj20prop['prop' + i] = SOME_NUMBER;
+    }
+    p = new Proxy(obj20prop, {
+      has: function(target, propertyKey) {
+        return true;
+      },
+      get: function(target, propertyKey, receiver) {
+        if (typeof propertyKey == 'string' && propertyKey.match('prop'))
+          return SOME_NUMBER;
+        else
+          return Reflect.get(target, propertyKey, receiver);
+      },
+    });
+    measured = function measured(o) {
+      var result = 0;
+      for (var x in o) {
+        if (Object.prototype.hasOwnProperty(o, x)) {
+          var v = o[x];
+          result += v;
+        }
+      }
+      return result;
+    }
+  },
+  run() {
+    result = measured(p);
+  },
+  teardown() {
+    return result === 20 * SOME_NUMBER;
+  }
+});

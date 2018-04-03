@@ -132,7 +132,7 @@ public:
     ResourceBundle(UErrorCode &err);
 
     /**
-     * Standard constructor, onstructs a resource bundle for the locale-specific
+     * Standard constructor, constructs a resource bundle for the locale-specific
      * bundle in the specified package.
      *
      * @param packageName   The packageName and locale together point to an ICU udata object,

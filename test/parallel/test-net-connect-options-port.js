@@ -60,14 +60,14 @@ const net = require('net');
 {
   // connect({hint}, cb) and connect({hint})
   const hints = (dns.ADDRCONFIG | dns.V4MAPPED) + 42;
-  const hintOptBlocks = doConnect([{ hints: hints }],
+  const hintOptBlocks = doConnect([{ hints }],
                                   () => common.mustNotCall());
   for (const block of hintOptBlocks) {
-    assert.throws(block, common.expectsError({
+    common.expectsError(block, {
       code: 'ERR_INVALID_OPT_VALUE',
       type: TypeError,
       message: /The value "\d+" is invalid for option "hints"/
-    }));
+    });
   }
 }
 
@@ -102,27 +102,33 @@ const net = require('net');
 function doConnect(args, getCb) {
   return [
     function createConnectionWithCb() {
-      return net.createConnection.apply(net, args.concat(getCb()));
+      return net.createConnection.apply(net, args.concat(getCb()))
+        .resume();
     },
     function createConnectionWithoutCb() {
       return net.createConnection.apply(net, args)
-        .on('connect', getCb());
+        .on('connect', getCb())
+        .resume();
     },
     function connectWithCb() {
-      return net.connect.apply(net, args.concat(getCb()));
+      return net.connect.apply(net, args.concat(getCb()))
+        .resume();
     },
     function connectWithoutCb() {
       return net.connect.apply(net, args)
-        .on('connect', getCb());
+        .on('connect', getCb())
+        .resume();
     },
     function socketConnectWithCb() {
       const socket = new net.Socket();
-      return socket.connect.apply(socket, args.concat(getCb()));
+      return socket.connect.apply(socket, args.concat(getCb()))
+        .resume();
     },
     function socketConnectWithoutCb() {
       const socket = new net.Socket();
       return socket.connect.apply(socket, args)
-        .on('connect', getCb());
+        .on('connect', getCb())
+        .resume();
     }
   ];
 }
@@ -171,27 +177,26 @@ function canConnect(port) {
   // connect(port, cb) and connect(port)
   const portArgBlocks = doConnect([port], noop);
   for (const block of portArgBlocks) {
-    assert.doesNotThrow(block, `${block.name}(${port})`);
+    block();
   }
 
   // connect(port, host, cb) and connect(port, host)
   const portHostArgBlocks = doConnect([port, 'localhost'], noop);
   for (const block of portHostArgBlocks) {
-    assert.doesNotThrow(block, `${block.name}(${port})`);
+    block();
   }
 
   // connect({port}, cb) and connect({port})
   const portOptBlocks = doConnect([{ port }], noop);
   for (const block of portOptBlocks) {
-    assert.doesNotThrow(block, `${block.name}({port: ${port}})`);
+    block();
   }
 
   // connect({port, host}, cb) and connect({port, host})
   const portHostOptBlocks = doConnect([{ port: port, host: 'localhost' }],
                                       noop);
   for (const block of portHostOptBlocks) {
-    assert.doesNotThrow(block,
-                        `${block.name}({port: ${port}, host: 'localhost'})`);
+    block();
   }
 }
 
@@ -205,25 +210,19 @@ function asyncFailToConnect(port) {
   // connect(port, cb) and connect(port)
   const portArgBlocks = doConnect([port], dont);
   for (const block of portArgBlocks) {
-    assert.doesNotThrow(function() {
-      block().on('error', onError());
-    }, `${block.name}(${port})`);
+    block().on('error', onError());
   }
 
   // connect({port}, cb) and connect({port})
   const portOptBlocks = doConnect([{ port }], dont);
   for (const block of portOptBlocks) {
-    assert.doesNotThrow(function() {
-      block().on('error', onError());
-    }, `${block.name}({port: ${port}})`);
+    block().on('error', onError());
   }
 
   // connect({port, host}, cb) and connect({port, host})
   const portHostOptBlocks = doConnect([{ port: port, host: 'localhost' }],
                                       dont);
   for (const block of portHostOptBlocks) {
-    assert.doesNotThrow(function() {
-      block().on('error', onError());
-    }, `${block.name}({port: ${port}, host: 'localhost'})`);
+    block().on('error', onError());
   }
 }

@@ -26,6 +26,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import re
+import tempfile
+import os
+import subprocess
+import time
+
 
 kSmiTag = 0
 kSmiTagSize = 1
@@ -184,3 +189,50 @@ class FindAnywhere (gdb.Command):
       self.find(m.group(1), m.group(2), value)
 
 FindAnywhere()
+
+
+class Redirect(gdb.Command):
+  """Redirect the subcommand's stdout  to a temporary file.
+
+Usage:   redirect subcommand...
+Example:
+  redirect job 0x123456789
+  redirect x/1024xg 0x12345678
+
+If provided, the generated temporary file is directly openend with the
+GDB_EXTERNAL_EDITOR environment variable.
+  """
+  def __init__(self):
+    super(Redirect, self).__init__("redirect", gdb.COMMAND_USER)
+
+  def invoke(self, subcommand, from_tty):
+    old_stdout = gdb.execute("p dup(1)", to_string=True).split("=")[-1].strip()
+    try:
+      time_suffix = time.strftime("%Y%m%d-%H%M%S")
+      fd, file = tempfile.mkstemp(suffix="-%s.gdbout" % time_suffix)
+      try:
+        # Temporaily redirect stdout to the created tmp file for the
+        # duration of the subcommand.
+        gdb.execute('p dup2(open("%s", 1), 1)' % file, to_string=True)
+        # Execute subcommand non interactively.
+        result = gdb.execute(subcommand, from_tty=False, to_string=True)
+        # Write returned string results to the temporary file as well.
+        with open(file, 'a') as f:
+          f.write(result)
+        # Open generated result.
+        if 'GDB_EXTERNAL_EDITOR' in os.environ:
+          open_cmd = os.environ['GDB_EXTERNAL_EDITOR']
+          print("Opening '%s' with %s" % (file, open_cmd))
+          subprocess.call([open_cmd, file])
+        else:
+          print("Open output:\n  %s '%s'" % (os.environ['EDITOR'], file))
+      finally:
+        # Restore original stdout.
+        gdb.execute("p dup2(%s, 1)" % old_stdout, to_string=True)
+        # Close the temporary file.
+        os.close(fd)
+    finally:
+      # Close the originally duplicated stdout descriptor.
+      gdb.execute("p close(%s)" % old_stdout, to_string=True)
+
+Redirect()

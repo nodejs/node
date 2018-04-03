@@ -22,12 +22,13 @@ assert.throws(() => tls.createServer({ key: 'dummykey', passphrase: 1 }),
 assert.throws(() => tls.createServer({ ecdhCurve: 1 }),
               /TypeError: ECDH curve name must be a string/);
 
-assert.throws(() => tls.createServer({ handshakeTimeout: 'abcd' }),
-              common.expectsError({
-                code: 'ERR_INVALID_ARG_TYPE',
-                type: TypeError,
-                message: 'The "timeout" argument must be of type number'
-              })
+common.expectsError(() => tls.createServer({ handshakeTimeout: 'abcd' }),
+                    {
+                      code: 'ERR_INVALID_ARG_TYPE',
+                      type: TypeError,
+                      message: 'The "options.handshakeTimeout" property must ' +
+                               'be of type number. Received type string'
+                    }
 );
 
 assert.throws(() => tls.createServer({ sessionTimeout: 'abcd' }),
@@ -39,8 +40,13 @@ assert.throws(() => tls.createServer({ ticketKeys: 'abcd' }),
 assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }),
               /TypeError: Ticket keys length must be 48 bytes/);
 
-assert.throws(() => tls.createSecurePair({}),
-              /Error: First argument must be a tls module SecureContext/);
+common.expectsError(
+  () => tls.createSecurePair({}),
+  {
+    code: 'ERR_ASSERTION',
+    message: 'context.context must be a NativeSecureContext'
+  }
+);
 
 {
   const buffer = Buffer.from('abcd');

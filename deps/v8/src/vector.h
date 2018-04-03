@@ -19,14 +19,14 @@ namespace internal {
 template <typename T>
 class Vector {
  public:
-  Vector() : start_(NULL), length_(0) {}
+  constexpr Vector() : start_(nullptr), length_(0) {}
 
   Vector(T* data, size_t length) : start_(data), length_(length) {
-    DCHECK(length == 0 || data != NULL);
+    DCHECK(length == 0 || data != nullptr);
   }
 
   template <int N>
-  explicit Vector(T (&arr)[N]) : start_(arr), length_(N) {}
+  explicit constexpr Vector(T (&arr)[N]) : start_(arr), length_(N) {}
 
   static Vector<T> New(int length) {
     return Vector<T>(NewArray<T>(length), length);
@@ -47,13 +47,13 @@ class Vector {
   }
 
   // Returns the length of the vector as a size_t.
-  size_t size() const { return length_; }
+  constexpr size_t size() const { return length_; }
 
   // Returns whether or not the vector is empty.
-  bool is_empty() const { return length_ == 0; }
+  constexpr bool is_empty() const { return length_ == 0; }
 
   // Returns the pointer to the start of the data in the vector.
-  T* start() const { return start_; }
+  constexpr T* start() const { return start_; }
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
@@ -65,11 +65,14 @@ class Vector {
 
   T& first() { return start_[0]; }
 
-  T& last() { return start_[length_ - 1]; }
+  T& last() {
+    DCHECK_LT(0, length_);
+    return start_[length_ - 1];
+  }
 
   typedef T* iterator;
-  inline iterator begin() const { return &start_[0]; }
-  inline iterator end() const { return &start_[length_]; }
+  constexpr iterator begin() const { return start_; }
+  constexpr iterator end() const { return start_ + length_; }
 
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
@@ -115,12 +118,12 @@ class Vector {
   // vector is empty.
   void Dispose() {
     DeleteArray(start_);
-    start_ = NULL;
+    start_ = nullptr;
     length_ = 0;
   }
 
   inline Vector<T> operator+(size_t offset) {
-    DCHECK_LT(offset, length_);
+    DCHECK_LE(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
 
@@ -128,10 +131,10 @@ class Vector {
   inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
 
   // Factory method for creating empty vectors.
-  static Vector<T> empty() { return Vector<T>(NULL, 0); }
+  static Vector<T> empty() { return Vector<T>(nullptr, 0); }
 
-  template<typename S>
-  static Vector<T> cast(Vector<S> input) {
+  template <typename S>
+  static constexpr Vector<T> cast(Vector<S> input) {
     return Vector<T>(reinterpret_cast<T*>(input.start()),
                      input.length() * sizeof(S) / sizeof(T));
   }
@@ -214,7 +217,7 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
 }
 
 template <typename T, int N>
-inline Vector<T> ArrayVector(T (&arr)[N]) {
+inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
   return Vector<T>(arr);
 }
 

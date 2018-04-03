@@ -36,16 +36,16 @@ receiver = net.createServer(function(socket) {
     });
 
     passedSocket.on('data', function(data) {
-      passedSocket.send('[echo] ' + data);
+      passedSocket.send(`[echo] ${data}`);
     });
     passedSocket.on('close', function() {
       receiver.close();
     });
-    passedSocket.send('[greeting] ' + greeting);
+    passedSocket.send(`[greeting] ${greeting}`);
   });
 });
 
-/* To signal the test runne we're up and listening */
+/* To signal the test runner we're up and listening */
 receiver.on('listening', function() {
   console.log('ready');
 });

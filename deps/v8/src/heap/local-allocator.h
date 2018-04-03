@@ -33,7 +33,7 @@ class LocalAllocator {
         compaction_spaces_.Get(CODE_SPACE));
     // Give back remaining LAB space if this LocalAllocator's new space LAB
     // sits right next to new space allocation top.
-    const AllocationInfo info = new_space_lab_.Close();
+    const LinearAllocationArea info = new_space_lab_.Close();
     const Address top = new_space_->top();
     if (info.limit() != nullptr && info.limit() == top) {
       DCHECK_NOT_NULL(info.top());
@@ -71,17 +71,6 @@ class LocalAllocator {
         UNREACHABLE();
         break;
     }
-  }
-
-  void AnnounceLockedPage(MemoryChunk* chunk) {
-    const AllocationSpace space = chunk->owner()->identity();
-    // There are no allocations on large object and map space and hence we
-    // cannot announce that we locked a page there.
-    if (space == LO_SPACE || space == MAP_SPACE) return;
-
-    DCHECK(space != NEW_SPACE);
-    compaction_spaces_.Get(space)->AnnounceLockedPage(
-        reinterpret_cast<Page*>(chunk));
   }
 
  private:

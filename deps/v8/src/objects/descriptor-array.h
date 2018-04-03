@@ -6,6 +6,7 @@
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,45 +19,49 @@ class Handle;
 
 class Isolate;
 
+// An EnumCache is a pair used to hold keys and indices caches.
+class EnumCache : public Tuple2 {
+ public:
+  DECL_ACCESSORS(keys, FixedArray)
+  DECL_ACCESSORS(indices, FixedArray)
+
+  DECL_CAST(EnumCache)
+
+  // Layout description.
+  static const int kKeysOffset = kValue1Offset;
+  static const int kIndicesOffset = kValue2Offset;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(EnumCache);
+};
+
 // A DescriptorArray is a fixed array used to hold instance descriptors.
-// The format of the these objects is:
+// The format of these objects is:
 //   [0]: Number of descriptors
-//   [1]: Either Smi(0) if uninitialized,
-//        or enum cache bridge (FixedArray[2]):
-//          [0]: enum cache: FixedArray containing all own enumerable keys
-//          [1]: either Smi(0) or pointer to fixed array with indices
+//   [1]: Enum cache.
 //   [2]: first key (and internalized String)
 //   [3]: first descriptor details (see PropertyDetails)
-//   [4]: first value for constants | Smi(1) when not usedA
+//   [4]: first value for constants | Smi(1) when not used
 //
 //   [2 + number of descriptors * 3]: start of slack
 class DescriptorArray : public FixedArray {
  public:
-  // Returns true for both shared empty_descriptor_array and for smis, which the
-  // map uses to encode additional bit fields when the descriptor array is not
-  // yet used.
-  inline bool IsEmpty();
-
   // Returns the number of descriptors in the array.
-  inline int number_of_descriptors();
-  inline int number_of_descriptors_storage();
-  inline int NumberOfSlackDescriptors();
+  inline int number_of_descriptors() const;
+  inline int number_of_descriptors_storage() const;
+  inline int NumberOfSlackDescriptors() const;
 
   inline void SetNumberOfDescriptors(int number_of_descriptors);
-  inline int number_of_entries();
+  inline int number_of_entries() const;
 
-  inline bool HasEnumCache();
-  inline bool HasEnumIndicesCache();
-  inline FixedArray* GetEnumCache();
-  inline FixedArray* GetEnumIndicesCache();
+  inline EnumCache* GetEnumCache();
 
   void ClearEnumCache();
   inline void CopyEnumCacheFrom(DescriptorArray* array);
   // Initialize or change the enum cache,
-  // using the supplied storage for the small "bridge".
   static void SetEnumCache(Handle<DescriptorArray> descriptors,
-                           Isolate* isolate, Handle<FixedArray> new_cache,
-                           Handle<FixedArray> new_index_cache);
+                           Isolate* isolate, Handle<FixedArray> keys,
+                           Handle<FixedArray> indices);
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name* GetKey(int descriptor_number);
@@ -122,22 +127,13 @@ class DescriptorArray : public FixedArray {
   static const int kNotFound = -1;
 
   static const int kDescriptorLengthIndex = 0;
-  static const int kEnumCacheBridgeIndex = 1;
+  static const int kEnumCacheIndex = 1;
   static const int kFirstIndex = 2;
-
-  // The length of the "bridge" to the enum cache.
-  static const int kEnumCacheBridgeLength = 2;
-  static const int kEnumCacheBridgeCacheIndex = 0;
-  static const int kEnumCacheBridgeIndicesCacheIndex = 1;
 
   // Layout description.
   static const int kDescriptorLengthOffset = FixedArray::kHeaderSize;
-  static const int kEnumCacheBridgeOffset =
-      kDescriptorLengthOffset + kPointerSize;
-  static const int kFirstOffset = kEnumCacheBridgeOffset + kPointerSize;
-
-  // Layout description for the bridge array.
-  static const int kEnumCacheBridgeCacheOffset = FixedArray::kHeaderSize;
+  static const int kEnumCacheOffset = kDescriptorLengthOffset + kPointerSize;
+  static const int kFirstOffset = kEnumCacheOffset + kPointerSize;
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.
@@ -146,16 +142,17 @@ class DescriptorArray : public FixedArray {
   static const int kEntryValueIndex = 2;
   static const int kEntrySize = 3;
 
+  // Print all the descriptors.
+  void PrintDescriptors(std::ostream& os);  // NOLINT
+  void PrintDescriptorDetails(std::ostream& os, int descriptor,
+                              PropertyDetails::PrintMode mode);
+
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
-
-  // Print all the descriptors.
-  void PrintDescriptors(std::ostream& os);  // NOLINT
-
-  void PrintDescriptorDetails(std::ostream& os, int descriptor,
-                              PropertyDetails::PrintMode mode);
 #endif
+
+  DECL_VERIFIER(DescriptorArray)
 
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?

@@ -1,13 +1,14 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
-const async_hooks = require('async_hooks');
+const async_hooks = require('internal/async_hooks');
 const initHooks = require('./init-hooks');
 
-const expectedId = async_hooks.newUid();
-const expectedTriggerId = async_hooks.newUid();
+const expectedId = async_hooks.newAsyncId();
+const expectedTriggerId = async_hooks.newAsyncId();
 const expectedType = 'test_emit_init_type';
 const expectedResource = { key: 'test_emit_init_resource' };
 
@@ -36,20 +37,24 @@ switch (process.argv[2]) {
 assert.ok(!process.argv[2]);
 
 
-const c1 = spawnSync(process.execPath, [__filename, 'test_invalid_async_id']);
+const c1 = spawnSync(process.execPath, [
+  '--expose-internals', __filename, 'test_invalid_async_id'
+]);
 assert.strictEqual(
   c1.stderr.toString().split(/[\r\n]+/g)[0],
   'RangeError [ERR_INVALID_ASYNC_ID]: Invalid asyncId value: undefined');
 assert.strictEqual(c1.status, 1);
 
-const c2 = spawnSync(process.execPath, [__filename, 'test_invalid_trigger_id']);
+const c2 = spawnSync(process.execPath, [
+  '--expose-internals', __filename, 'test_invalid_trigger_id'
+]);
 assert.strictEqual(
   c2.stderr.toString().split(/[\r\n]+/g)[0],
   'RangeError [ERR_INVALID_ASYNC_ID]: Invalid triggerAsyncId value: undefined');
 assert.strictEqual(c2.status, 1);
 
 const c3 = spawnSync(process.execPath, [
-  __filename, 'test_invalid_trigger_id_negative'
+  '--expose-internals', __filename, 'test_invalid_trigger_id_negative'
 ]);
 assert.strictEqual(
   c3.stderr.toString().split(/[\r\n]+/g)[0],

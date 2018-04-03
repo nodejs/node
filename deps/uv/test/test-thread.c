@@ -44,7 +44,7 @@ struct fs_req {
 
 struct test_thread {
   uv_thread_t thread_id;
-  volatile int thread_called;
+  int thread_called;
 };
 
 static void getaddrinfo_do(struct getaddrinfo_req* req);
@@ -54,7 +54,7 @@ static void getaddrinfo_cb(uv_getaddrinfo_t* handle,
 static void fs_do(struct fs_req* req);
 static void fs_cb(uv_fs_t* handle);
 
-static volatile int thread_called;
+static int thread_called;
 static uv_key_t tls_key;
 
 
@@ -105,36 +105,30 @@ static void fs_cb(uv_fs_t* handle) {
 
 
 static void do_work(void* arg) {
-  struct getaddrinfo_req getaddrinfo_reqs[16];
-  struct fs_req fs_reqs[16];
-  uv_loop_t* loop;
+  struct getaddrinfo_req getaddrinfo_reqs[4];
+  struct fs_req fs_reqs[4];
+  uv_loop_t loop;
   size_t i;
-  int r;
   struct test_thread* thread = arg;
 
-  loop = malloc(sizeof *loop);
-  ASSERT(loop != NULL);
-  ASSERT(0 == uv_loop_init(loop));
+  ASSERT(0 == uv_loop_init(&loop));
 
   for (i = 0; i < ARRAY_SIZE(getaddrinfo_reqs); i++) {
     struct getaddrinfo_req* req = getaddrinfo_reqs + i;
-    req->counter = 16;
-    req->loop = loop;
+    req->counter = 4;
+    req->loop = &loop;
     getaddrinfo_do(req);
   }
 
   for (i = 0; i < ARRAY_SIZE(fs_reqs); i++) {
     struct fs_req* req = fs_reqs + i;
-    req->counter = 16;
-    req->loop = loop;
+    req->counter = 4;
+    req->loop = &loop;
     fs_do(req);
   }
 
-  r = uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT(r == 0);
-
-  ASSERT(0 == uv_loop_close(loop));
-  free(loop);
+  ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
+  ASSERT(0 == uv_loop_close(&loop));
   thread->thread_called = 1;
 }
 
@@ -179,7 +173,7 @@ TEST_IMPL(threadpool_multiple_event_loops) {
   for (i = 0; i < ARRAY_SIZE(threads); i++) {
     r = uv_thread_join(&threads[i].thread_id);
     ASSERT(r == 0);
-    ASSERT(threads[i].thread_called);
+    ASSERT(threads[i].thread_called == 1);
   }
 
   return 0;

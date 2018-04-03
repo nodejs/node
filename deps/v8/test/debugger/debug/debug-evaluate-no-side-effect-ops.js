@@ -57,6 +57,8 @@ function listener(event, exec_state, event_data, data) {
     success(true, `T||F`);
     success(false, `T?F:T`);
     success(false, `!T`);
+    success(1, `+one`);
+    success(-1, `-one`);
     success(-2, `~one`);
     success(4, `one << two`);
     success(1, `two >> one`);

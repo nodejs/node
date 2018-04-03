@@ -23,39 +23,38 @@ function makeTest(count, rest) {
   }
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-  const ctx = conf.context === 'context' ? {} : null;
-  var fn = makeTest(conf.count, conf.rest);
-  const args = new Array(conf.count);
+function main({ millions, context, count, rest, method }) {
+  const ctx = context === 'context' ? {} : null;
+  var fn = makeTest(count, rest);
+  const args = new Array(count);
   var i;
-  for (i = 0; i < conf.count; i++)
+  for (i = 0; i < count; i++)
     args[i] = i;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'apply':
       bench.start();
-      for (i = 0; i < n; i++)
+      for (i = 0; i < millions * 1e6; i++)
         fn.apply(ctx, args);
-      bench.end(n / 1e6);
+      bench.end(millions);
       break;
     case 'spread':
       if (ctx !== null)
         fn = fn.bind(ctx);
       bench.start();
-      for (i = 0; i < n; i++)
+      for (i = 0; i < millions * 1e6; i++)
         fn(...args);
-      bench.end(n / 1e6);
+      bench.end(millions);
       break;
     case 'call-spread':
       bench.start();
-      for (i = 0; i < n; i++)
+      for (i = 0; i < millions * 1e6; i++)
         fn.call(ctx, ...args);
-      bench.end(n / 1e6);
+      bench.end(millions);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

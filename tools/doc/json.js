@@ -23,13 +23,13 @@
 
 module.exports = doJSON;
 
-// Take the lexed input, and return a JSON-encoded object
-// A module looks like this: https://gist.github.com/1777387
+// Take the lexed input, and return a JSON-encoded object.
+// A module looks like this: https://gist.github.com/1777387.
 
 const common = require('./common.js');
 const marked = require('marked');
 
-// customized heading without id attribute
+// Customized heading without id attribute.
 const renderer = new marked.Renderer();
 renderer.heading = function(text, level) {
   return `<h${level}>${text}</h${level}>\n`;
@@ -68,20 +68,19 @@ function doJSON(input, filename, cb) {
                             JSON.stringify(tok)));
       }
 
-      // Sometimes we have two headings with a single
-      // blob of description.  Treat as a clone.
+      // Sometimes we have two headings with a single blob of description.
+      // Treat as a clone.
       if (current &&
           state === 'AFTERHEADING' &&
           depth === tok.depth) {
         var clone = current;
         current = newSection(tok);
         current.clone = clone;
-        // don't keep it around on the stack.
+        // Don't keep it around on the stack.
         stack.pop();
       } else {
-        // if the level is greater than the current depth,
-        // then it's a child, so we should just leave the stack
-        // as it is.
+        // If the level is greater than the current depth,
+        // then it's a child, so we should just leave the stack as it is.
         // However, if it's a sibling or higher, then it implies
         // the closure of the other sections that came before.
         // root is always considered the level=0 section,
@@ -99,19 +98,19 @@ function doJSON(input, filename, cb) {
       stack.push(current);
       state = 'AFTERHEADING';
       return;
-    } // heading
+    }
 
-    // Immediately after a heading, we can expect the following
+    // Immediately after a heading, we can expect the following:
     //
-    // { type: 'blockquote_start' }
+    // { type: 'blockquote_start' },
     // { type: 'paragraph', text: 'Stability: ...' },
-    // { type: 'blockquote_end' }
+    // { type: 'blockquote_end' },
     //
-    // a list: starting with list_start, ending with list_end,
+    // A list: starting with list_start, ending with list_end,
     // maybe containing other nested lists in each item.
     //
-    // If one of these isn't found, then anything that comes between
-    // here and the next heading should be parsed as the desc.
+    // If one of these isn't found, then anything that comes
+    // between here and the next heading should be parsed as the desc.
     var stability;
     if (state === 'AFTERHEADING') {
       if (type === 'blockquote_start') {
@@ -171,7 +170,7 @@ function doJSON(input, filename, cb) {
 
   });
 
-  // finish any sections left open
+  // Finish any sections left open.
   while (root !== (current = stack.pop())) {
     finishSection(current, stack[stack.length - 1]);
   }
@@ -180,14 +179,15 @@ function doJSON(input, filename, cb) {
 }
 
 
-// go from something like this:
+// Go from something like this:
+//
 // [ { type: 'list_item_start' },
 //   { type: 'text',
 //     text: '`settings` Object, Optional' },
 //   { type: 'list_start', ordered: false },
 //   { type: 'list_item_start' },
 //   { type: 'text',
-//     text: 'exec: String, file path to worker file.  Default: `__filename`' },
+//     text: 'exec: String, file path to worker file. Default: `__filename`' },
 //   { type: 'list_item_end' },
 //   { type: 'list_item_start' },
 //   { type: 'text',
@@ -204,7 +204,9 @@ function doJSON(input, filename, cb) {
 //   { type: 'list_end' },
 //   { type: 'list_item_end' },
 //   { type: 'list_end' } ]
+//
 // to something like:
+//
 // [ { name: 'settings',
 //     type: 'object',
 //     optional: true,
@@ -228,7 +230,7 @@ function processList(section) {
   var current;
   const stack = [];
 
-  // for now, *just* build the heirarchical list
+  // For now, *just* build the hierarchical list.
   list.forEach(function(tok) {
     const type = tok.type;
     if (type === 'space') return;
@@ -256,28 +258,27 @@ function processList(section) {
                         `${JSON.stringify(tok)}\n` +
                         JSON.stringify(list));
       }
-      current.textRaw = current.textRaw || '';
-      current.textRaw += `${tok.text} `;
+      current.textRaw = `${current.textRaw || ''}${tok.text} `;
     }
   });
 
-  // shove the name in there for properties, since they are always
-  // just going to be the value etc.
+  // Shove the name in there for properties,
+  // since they are always just going to be the value etc.
   if (section.type === 'property' && values[0]) {
     values[0].textRaw = `\`${section.name}\` ${values[0].textRaw}`;
   }
 
-  // now pull the actual values out of the text bits.
+  // Now pull the actual values out of the text bits.
   values.forEach(parseListItem);
 
   // Now figure out what this list actually means.
-  // depending on the section type, the list could be different things.
+  // Depending on the section type, the list could be different things.
 
   switch (section.type) {
     case 'ctor':
     case 'classMethod':
     case 'method':
-      // each item is an argument, unless the name is 'return',
+      // Each item is an argument, unless the name is 'return',
       // in which case it's the return value.
       section.signatures = section.signatures || [];
       var sig = {};
@@ -293,8 +294,8 @@ function processList(section) {
       break;
 
     case 'property':
-      // there should be only one item, which is the value.
-      // copy the data up to the section.
+      // There should be only one item, which is the value.
+      // Copy the data up to the section.
       var value = values[0] || {};
       delete value.name;
       section.typeof = value.type || section.typeof;
@@ -305,7 +306,7 @@ function processList(section) {
       break;
 
     case 'event':
-      // event: each item is an argument.
+      // Event: each item is an argument.
       section.params = values;
       break;
 
@@ -322,6 +323,8 @@ function processList(section) {
   delete section.list;
 }
 
+const paramExpr = /\((.*)\);?$/;
+
 // textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
   var params = text.match(paramExpr);
@@ -337,7 +340,7 @@ function parseSignature(text, sig) {
     var optional = false;
     var def;
 
-    // for grouped optional params such as someMethod(a[, b[, c]])
+    // For grouped optional params such as someMethod(a[, b[, c]]).
     var pos;
     for (pos = 0; pos < p.length; pos++) {
       if (optionalCharDict[p[pos]] === undefined) { break; }
@@ -359,7 +362,7 @@ function parseSignature(text, sig) {
     if (!param) {
       param = sig.params[i] = { name: p };
     }
-    // at this point, the name should match.
+    // At this point, the name should match.
     if (p !== param.name) {
       console.error('Warning: invalid param "%s"', p);
       console.error(` > ${JSON.stringify(param)}`);
@@ -375,8 +378,8 @@ function parseListItem(item) {
   if (item.options) item.options.forEach(parseListItem);
   if (!item.textRaw) return;
 
-  // the goal here is to find the name, type, default, and optional.
-  // anything left over is 'desc'
+  // The goal here is to find the name, type, default, and optional.
+  // Anything left over is 'desc'.
   var text = item.textRaw.trim();
   // text = text.replace(/^(Argument|Param)s?\s*:?\s*/i, '');
 
@@ -450,9 +453,8 @@ function finishSection(section, parent) {
   if (!section.list) section.list = [];
   processList(section);
 
-  // classes sometimes have various 'ctor' children
-  // which are actually just descriptions of a constructor
-  // class signature.
+  // Classes sometimes have various 'ctor' children
+  // which are actually just descriptions of a constructor class signature.
   // Merge them into the parent.
   if (section.type === 'class' && section.ctors) {
     section.signatures = section.signatures || [];
@@ -467,8 +469,8 @@ function finishSection(section, parent) {
     delete section.ctors;
   }
 
-  // properties are a bit special.
-  // their "type" is the type of object, not "property"
+  // Properties are a bit special.
+  // Their "type" is the type of object, not "property".
   if (section.properties) {
     section.properties.forEach(function(p) {
       if (p.typeof) p.type = p.typeof;
@@ -477,7 +479,7 @@ function finishSection(section, parent) {
     });
   }
 
-  // handle clones
+  // Handle clones.
   if (section.clone) {
     var clone = section.clone;
     delete section.clone;
@@ -495,7 +497,7 @@ function finishSection(section, parent) {
     plur = `${section.type}s`;
   }
 
-  // if the parent's type is 'misc', then it's just a random
+  // If the parent's type is 'misc', then it's just a random
   // collection of stuff, like the "globals" section.
   // Make the children top-level items.
   if (section.type === 'misc') {
@@ -555,43 +557,24 @@ function deepCopy_(src) {
 }
 
 
-// these parse out the contents of an H# tag
-const eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
-const classExpr = /^Class:\s*([^ ]+).*$/i;
-const propExpr = /^[^.]+\.([^ .()]+)\s*$/;
-const braceExpr = /^[^.[]+(\[[^\]]+\])\s*$/;
-const classMethExpr = /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i;
-const methExpr = /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/;
-const newExpr = /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/;
-var paramExpr = /\((.*)\);?$/;
+// These parse out the contents of an H# tag.
+const headingExpressions = [
+  { type: 'event', re: /^Event(?::|\s)+['"]?([^"']+).*$/i },
+  { type: 'class', re: /^Class:\s*([^ ]+).*$/i },
+  { type: 'property', re: /^[^.[]+(\[[^\]]+\])\s*$/ },
+  { type: 'property', re: /^[^.]+\.([^ .()]+)\s*$/ },
+  { type: 'classMethod', re: /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i },
+  { type: 'method', re: /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/ },
+  { type: 'ctor', re: /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/ },
+];
 
-function newSection(tok) {
-  const section = {};
-  // infer the type from the text.
-  const text = section.textRaw = tok.text;
-  if (text.match(eventExpr)) {
-    section.type = 'event';
-    section.name = text.replace(eventExpr, '$1');
-  } else if (text.match(classExpr)) {
-    section.type = 'class';
-    section.name = text.replace(classExpr, '$1');
-  } else if (text.match(braceExpr)) {
-    section.type = 'property';
-    section.name = text.replace(braceExpr, '$1');
-  } else if (text.match(propExpr)) {
-    section.type = 'property';
-    section.name = text.replace(propExpr, '$1');
-  } else if (text.match(classMethExpr)) {
-    section.type = 'classMethod';
-    section.name = text.replace(classMethExpr, '$1');
-  } else if (text.match(methExpr)) {
-    section.type = 'method';
-    section.name = text.replace(methExpr, '$1');
-  } else if (text.match(newExpr)) {
-    section.type = 'ctor';
-    section.name = text.replace(newExpr, '$1');
-  } else {
-    section.name = text;
+function newSection({ text }) {
+  // Infer the type from the text.
+  for (const { type, re } of headingExpressions) {
+    const [, name] = text.match(re) || [];
+    if (name) {
+      return { textRaw: text, type, name };
+    }
   }
-  return section;
+  return { textRaw: text, name: text };
 }

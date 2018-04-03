@@ -128,7 +128,6 @@ Error.prepareStackTrace = function(error, frames) {
   }
 })();
 
-
 (function testStackOverflow() {
   print("testStackOverflow");
   var builder = new WasmModuleBuilder();
@@ -139,7 +138,7 @@ Error.prepareStackTrace = function(error, frames) {
       kExprI32Const, 0,
       kExprCallIndirect, sig_index, kTableZero
     ])
-    .exportFunc()
+    .exportFunc();
   builder.appendToTable([0]);
 
   try {
@@ -154,6 +153,32 @@ Error.prepareStackTrace = function(error, frames) {
         [    true, "recursion",    0,   3, null],
         [    true, "recursion",    0,   3, null],
         [    true, "recursion",    0,   3, null]
+    ]);
+  }
+})();
+
+(function testBigOffset() {
+  print('testBigOffset');
+  var builder = new WasmModuleBuilder();
+
+  let body = [kExprI32Const, 0, kExprI32Add];
+  while (body.length <= 65536) body = body.concat(body);
+  body.unshift(kExprI32Const, 0);
+  body.push(kExprUnreachable);
+  let unreachable_pos = body.length - 1;
+
+  builder.addFunction('main', kSig_v_v).addBody(body).exportFunc();
+
+  try {
+    builder.instantiate().exports.main();
+    fail('expected wasm exception');
+  } catch (e) {
+    assertEquals('unreachable', e.message, 'trap reason');
+    verifyStack(e.stack, [
+      // isWasm, function, line, pos, file
+      [true, 'main', 0, unreachable_pos + 1, null],  // -
+      [false, 'testBigOffset', 173, 0, 'stack.js'],  //-
+      [false, null, 184, 0, 'stack.js']
     ]);
   }
 })();

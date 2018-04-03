@@ -59,7 +59,8 @@ common.restoreStderr();
 {
   common.expectWarning('DeprecationWarning',
                        'tls.parseCertString() is deprecated. ' +
-                       'Please use querystring.parse() instead.');
+                       'Please use querystring.parse() instead.',
+                       'DEP0076');
 
   const ret = tls.parseCertString('foo=bar');
   assert.deepStrictEqual(ret, { __proto__: null, foo: 'bar' });

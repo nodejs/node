@@ -55,14 +55,28 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
    */
   static FilteredBreakIteratorBuilder *createInstance(const Locale& where, UErrorCode& status);
 
+#ifndef U_HIDE_DEPRECATED_API
+  /**
+   * This function has been deprecated in favor of createEmptyInstance, which has
+   * identical behavior.
+   * @param status The error code.
+   * @return the new builder
+   * @deprecated ICU 60 use createEmptyInstance instead
+   * @see createEmptyInstance()
+   */
+  static FilteredBreakIteratorBuilder *createInstance(UErrorCode &status);
+#endif  /* U_HIDE_DEPRECATED_API */
+
+#ifndef U_HIDE_DRAFT_API
   /**
    * Construct an empty FilteredBreakIteratorBuilder.
    * In this state, it will not suppress any segment boundaries.
    * @param status The error code.
    * @return the new builder
-   * @stable ICU 56
+   * @draft ICU 60
    */
-  static FilteredBreakIteratorBuilder *createInstance(UErrorCode &status);
+  static FilteredBreakIteratorBuilder *createEmptyInstance(UErrorCode &status);
+#endif  /* U_HIDE_DRAFT_API */
 
   /**
    * Suppress a certain string from being the end of a segment.
@@ -90,18 +104,34 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
   virtual UBool unsuppressBreakAfter(const UnicodeString& string, UErrorCode& status) = 0;
 
   /**
+   * This function has been deprecated in favor of wrapIteratorWithFilter()
+   * The behavior is identical.
+   * @param adoptBreakIterator the break iterator to adopt
+   * @param status error code
+   * @return the new BreakIterator, owned by the caller.
+   * @deprecated ICU 60 use wrapIteratorWithFilter() instead
+   * @see wrapBreakIteratorWithFilter()
+   */
+  virtual BreakIterator *build(BreakIterator* adoptBreakIterator, UErrorCode& status) = 0;
+
+#ifndef U_HIDE_DRAFT_API
+  /**
    * Wrap (adopt) an existing break iterator in a new filtered instance.
    * The resulting BreakIterator is owned by the caller.
    * The BreakIteratorFilter may be destroyed before the BreakIterator is destroyed.
    * Note that the adoptBreakIterator is adopted by the new BreakIterator
    * and should no longer be used by the caller.
    * The FilteredBreakIteratorBuilder may be reused.
+   * This function is an alias for build()
    * @param adoptBreakIterator the break iterator to adopt
    * @param status error code
    * @return the new BreakIterator, owned by the caller.
-   * @stable ICU 56
+   * @draft ICU 60
    */
-  virtual BreakIterator *build(BreakIterator* adoptBreakIterator, UErrorCode& status) = 0;
+  inline BreakIterator *wrapIteratorWithFilter(BreakIterator* adoptBreakIterator, UErrorCode& status) {
+    return build(adoptBreakIterator, status);
+  }
+#endif  /* U_HIDE_DRAFT_API */
 
  protected:
   /**

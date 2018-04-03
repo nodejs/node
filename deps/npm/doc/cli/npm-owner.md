@@ -27,6 +27,10 @@ Note that there is only one level of access.  Either you can modify a package,
 or you can't.  Future versions may contain more fine-grained access levels, but
 that is not implemented at this time.
 
+If you have two-factor authentication enabled with `auth-and-writes` then
+you'll need to include an otp on the command line when changing ownership
+with `--otp`.
+
 ## SEE ALSO
 
 * npm-publish(1)

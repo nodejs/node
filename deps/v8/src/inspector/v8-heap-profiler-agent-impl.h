@@ -46,6 +46,8 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   Response startSampling(Maybe<double> samplingInterval) override;
   Response stopSampling(
       std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>*) override;
+  Response getSamplingProfile(
+      std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>*) override;
 
  private:
   void startTrackingHeapObjectsInternal(bool trackAllocations);

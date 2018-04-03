@@ -31,6 +31,9 @@ npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set.
 For details see [this issue](https://github.com/npm/npm/issues/14528).
 
+Notice that you need to use underscores instead of dashes, so `--allow-same-version`
+would become `npm_config_allow_same_version=true`.
+
 ### npmrc Files
 
 The four relevant files are:
@@ -184,7 +187,7 @@ The browser that is called by the `npm docs` command to open websites.
 * Type: String, Array or null
 
 The Certificate Authority signing certificate that is trusted for SSL
-connections to the registry. Values should be in PEM format with newlines
+connections to the registry. Values should be in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with newlines
 replaced by the string "\n". For example:
 
     ca="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
@@ -260,11 +263,18 @@ Number of ms to wait for cache lock files to expire.
 * Type: String
 
 A client certificate to pass when accessing the registry.  Values should be in
-PEM format with newlines replaced by the string "\n". For example:
+PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with newlines replaced by the string "\n". For example:
 
     cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
 
 It is _not_ the path to a certificate file (and there is no "certfile" option).
+
+### cidr
+
+* Default: `null`
+* Type: String, Array, null
+
+This is a list of CIDR address to be used when configuring limited access tokens with the `npm token create` command.
 
 ### color
 
@@ -388,6 +398,13 @@ the git binary.
 * Type: Boolean
 
 Tag the commit when using the `npm version` command.
+
+### commit-hooks
+
+* Default: `true`
+* Type: Boolean
+
+Run git commit hooks when using the `npm version` command.
 
 ### global
 
@@ -576,15 +593,15 @@ to the npm registry.  Must be IPv4 in versions of Node prior to 0.12.
 
 ### loglevel
 
-* Default: "warn"
+* Default: "notice"
 * Type: String
-* Values: "silent", "error", "warn", "http", "info", "verbose", "silly"
+* Values: "silent", "error", "warn", "notice", "http", "timing", "info",
+  "verbose", "silly"
 
 What level of logs to report.  On failure, *all* logs are written to
 `npm-debug.log` in the current working directory.
 
-Any logs of a higher level than the setting are shown.
-The default is "warn", which shows warn and error output.
+Any logs of a higher level than the setting are shown. The default is "notice".
 
 ### logstream
 
@@ -639,6 +656,15 @@ Any "%s" in the message will be replaced with the version number.
 
 The registry you want to send cli metrics to if `send-metrics` is true.
 
+### node-options
+
+* Default: null
+* Type: String
+
+Options to pass through to Node.js via the `NODE_OPTIONS` environment
+variable.  This does not impact how npm itself is executed but it does
+impact how lifecycle scripts are called.
+
 ### node-version
 
 * Default: process.version
@@ -689,6 +715,14 @@ Attempt to install packages in the `optionalDependencies` object.  Note
 that if these packages fail to install, the overall installation
 process is not aborted.
 
+### otp
+
+* Default: null
+* Type: Number
+
+This is a one-time password from a two-factor authenticator.  It's needed
+when publishing or changing package permissions with `npm access`.
+
 ### package-lock
 
 * Default: true
@@ -698,6 +732,14 @@ If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
 
 This option is an alias for `--shrinkwrap`.
+
+### package-lock-only
+
+* Default: false
+* Type: Boolean
+
+If set to true, it will update only the `package-json`,
+instead of checking `node_modules` and downloading dependencies.
 
 ### parseable
 
@@ -754,18 +796,6 @@ operations, if `process.stderr` is a TTY.
 
 Set to `false` to suppress the progress bar.
 
-### proprietary-attribs
-
-* Default: true
-* Type: Boolean
-
-Whether or not to include proprietary extended attributes in the
-tarballs created by npm.
-
-Unless you are expecting to unpack package tarballs with something other
-than npm -- particularly a very outdated tar implementation -- leave
-this as true.
-
 ### proxy
 
 * Default: null
@@ -774,6 +804,13 @@ this as true.
 A proxy to use for outgoing http requests. If the `HTTP_PROXY` or
 `http_proxy` environment variables are set, proxy settings will be
 honored by the underlying `request` library.
+
+### read-only
+
+* Default: false
+* Type: Boolean
+
+This is used to mark a token as unable to publish when configuring limited access tokens with the `npm token create` command.
 
 ### rebuild-bundle
 

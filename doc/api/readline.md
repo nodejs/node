@@ -29,9 +29,9 @@ rl.question('What do you think of Node.js? ', (answer) => {
 });
 ```
 
-*Note*: Once this code is invoked, the Node.js application will not
-terminate until the `readline.Interface` is closed because the interface
-waits for data to be received on the `input` stream.
+Once this code is invoked, the Node.js application will not terminate until the
+`readline.Interface` is closed because the interface waits for data to be
+received on the `input` stream.
 
 ## Class: Interface
 <!-- YAML
@@ -60,8 +60,8 @@ The `'close'` event is emitted when one of the following occur:
 
 The listener function is called without passing any arguments.
 
-The `readline.Interface` instance should be considered to be "finished" once
-the `'close'` event is emitted.
+The `readline.Interface` instance is finished once the `'close'` event is
+emitted.
 
 ### Event: 'line'
 <!-- YAML
@@ -74,8 +74,6 @@ presses the `<Enter>`, or `<Return>` keys.
 
 The listener function is called with a string containing the single line of
 received input.
-
-For example:
 
 ```js
 rl.on('line', (input) => {
@@ -95,8 +93,6 @@ The `'pause'` event is emitted when one of the following occur:
   events [`SIGTSTP`][] and [`SIGCONT`][])
 
 The listener function is called without passing any arguments.
-
-For example:
 
 ```js
 rl.on('pause', () => {
@@ -133,8 +129,6 @@ not be emitted.
 
 The listener function is invoked without passing any arguments.
 
-For example:
-
 ```js
 rl.on('SIGCONT', () => {
   // `prompt` will automatically resume the stream
@@ -142,7 +136,7 @@ rl.on('SIGCONT', () => {
 });
 ```
 
-*Note*: The `'SIGCONT'` event is _not_ supported on Windows.
+The `'SIGCONT'` event is _not_ supported on Windows.
 
 ### Event: 'SIGINT'
 <!-- YAML
@@ -155,8 +149,6 @@ listeners registered when the `input` stream receives a `SIGINT`, the `'pause'`
 event will be emitted.
 
 The listener function is invoked without passing any arguments.
-
-For example:
 
 ```js
 rl.on('SIGINT', () => {
@@ -184,8 +176,6 @@ paused before the process was sent to the background.
 
 The listener function is invoked without passing any arguments.
 
-For example:
-
 ```js
 rl.on('SIGTSTP', () => {
   // This will override SIGTSTP and prevent the program from going to the
@@ -194,7 +184,7 @@ rl.on('SIGTSTP', () => {
 });
 ```
 
-*Note*: The `'SIGTSTP'` event is _not_ supported on Windows.
+The `'SIGTSTP'` event is _not_ supported on Windows.
 
 ### rl.close()
 <!-- YAML
@@ -262,8 +252,8 @@ rl.question('What is your favorite food? ', (answer) => {
 });
 ```
 
-*Note*: The `callback` function passed to `rl.question()` does not follow the
-typical pattern of accepting an `Error` object or `null` as the first argument.
+The `callback` function passed to `rl.question()` does not follow the typical
+pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
 
 ### rl.resume()
@@ -307,23 +297,21 @@ paused.
 If the `readline.Interface` was created with `output` set to `null` or
 `undefined` the `data` and `key` are not written.
 
-For example:
-
 ```js
 rl.write('Delete this!');
 // Simulate Ctrl+u to delete the line written previously
 rl.write(null, { ctrl: true, name: 'u' });
 ```
 
-*Note*: The `rl.write()` method will write the data to the `readline`
-Interface's `input` *as if it were provided by the user*.
+The `rl.write()` method will write the data to the `readline` Interface's
+`input` *as if it were provided by the user*.
 
 ## readline.clearLine(stream, dir)
 <!-- YAML
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 * `dir` {number}
   * `-1` - to the left from cursor
   * `1` - to the right from cursor
@@ -338,7 +326,7 @@ in a specified direction identified by `dir`.
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 
 The `readline.clearScreenDown()` method clears the given [TTY][] stream from
 the current position of the cursor down.
@@ -362,33 +350,32 @@ changes:
 -->
 
 * `options` {Object}
-  * `input` {Readable} The [Readable][] stream to listen to. This option is
-    *required*.
-  * `output` {Writable} The [Writable][] stream to write readline data to.
+  * `input` {stream.Readable} The [Readable][] stream to listen to. This option
+    is *required*.
+  * `output` {stream.Writable} The [Writable][] stream to write readline data
+    to.
   * `completer` {Function} An optional function used for Tab autocompletion.
   * `terminal` {boolean} `true` if the `input` and `output` streams should be
     treated like a TTY, and have ANSI/VT100 escape codes written to it.
     Defaults to checking `isTTY` on the `output` stream upon instantiation.
-  * `historySize` {number} maximum number of history lines retained. To disable
-    the history set this value to `0`. Defaults to `30`. This option makes sense
-    only if `terminal` is set to `true` by the user or by an internal `output`
-    check, otherwise the history caching mechanism is not initialized at all.
-  * `prompt` - the prompt string to use. Default: `'> '`
+  * `historySize` {number} Maximum number of history lines retained. To disable
+    the history set this value to `0`. This option makes sense only if
+    `terminal` is set to `true` by the user or by an internal `output` check,
+    otherwise the history caching mechanism is not initialized at all.
+    **Default:** `30`
+  * `prompt` {string} The prompt string to use. **Default:** `'> '`
   * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
-    end-of-line input. Default to `100` milliseconds.
-    `crlfDelay` will be coerced to a number no less than `100`. It can be set to
-    `Infinity`, in which case `\r` followed by `\n` will always be considered a
-    single newline (which may be reasonable for [reading files][] with `\r\n`
-    line delimiter).
+    end-of-line input. `crlfDelay` will be coerced to a number no less than
+    `100`. It can be set to `Infinity`, in which case `\r` followed by `\n`
+    will always be considered a single newline (which may be reasonable for
+    [reading files][] with `\r\n` line delimiter). **Default:** `100`
   * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
     to the history list duplicates an older one, this removes the older line
-    from the list. Defaults to `false`.
+    from the list. **Default:** `false`
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
-
-For example:
 
 ```js
 const readline = require('readline');
@@ -445,7 +432,7 @@ function completer(linePartial, callback) {
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 * `x` {number}
 * `y` {number}
 
@@ -457,7 +444,7 @@ given [TTY][] `stream`.
 added: v0.7.7
 -->
 
-* `stream` {Readable}
+* `stream` {stream.Readable}
 * `interface` {readline.Interface}
 
 The `readline.emitKeypressEvents()` method causes the given [Readable][]
@@ -468,8 +455,8 @@ autocompletion is disabled when copy-pasted input is detected.
 
 If the `stream` is a [TTY][], then it must be in raw mode.
 
-*Note*: This is automatically called by any readline instance on its `input`
-if the `input` is a terminal. Closing the `readline` instance does not stop
+This is automatically called by any readline instance on its `input` if the
+`input` is a terminal. Closing the `readline` instance does not stop
 the `input` from emitting `'keypress'` events.
 
 ```js
@@ -483,7 +470,7 @@ if (process.stdin.isTTY)
 added: v0.7.7
 -->
 
-* `stream` {Writable}
+* `stream` {stream.Writable}
 * `dx` {number}
 * `dy` {number}
 

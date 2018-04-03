@@ -1,6 +1,10 @@
 module.exports = authify
 
 function authify (authed, parsed, headers, credentials) {
+  if (credentials && credentials.otp) {
+    this.log.verbose('request', 'passing along npm otp')
+    headers['npm-otp'] = credentials.otp
+  }
   if (credentials && credentials.token) {
     this.log.verbose('request', 'using bearer token for auth')
     headers.authorization = 'Bearer ' + credentials.token

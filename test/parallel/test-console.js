@@ -29,23 +29,21 @@ assert.ok(process.stderr.writable);
 assert.strictEqual(typeof process.stdout.fd, 'number');
 assert.strictEqual(typeof process.stderr.fd, 'number');
 
-assert.doesNotThrow(function() {
-  process.once('warning', common.mustCall((warning) => {
-    assert(/no such label/.test(warning.message));
-  }));
+process.once('warning', common.mustCall((warning) => {
+  assert(/no such label/.test(warning.message));
+}));
 
-  console.timeEnd('no such label');
-});
+console.timeEnd('no such label');
 
-assert.doesNotThrow(function() {
-  console.time('label');
-  console.timeEnd('label');
-});
+console.time('label');
+console.timeEnd('label');
 
+// Check that the `Error` is a `TypeError` but do not check the message as it
+// will be different in different JavaScript engines.
 assert.throws(() => console.time(Symbol('test')),
-              /^TypeError: Cannot convert a Symbol value to a string$/);
+              TypeError);
 assert.throws(() => console.timeEnd(Symbol('test')),
-              /^TypeError: Cannot convert a Symbol value to a string$/);
+              TypeError);
 
 
 // an Object with a custom .inspect() function
@@ -66,6 +64,13 @@ console.log('foo', 'bar');
 console.log('%s %s', 'foo', 'bar', 'hop');
 console.log({ slashes: '\\\\' });
 console.log(custom_inspect);
+
+// test console.debug() goes to stdout
+console.debug('foo');
+console.debug('foo', 'bar');
+console.debug('%s %s', 'foo', 'bar', 'hop');
+console.debug({ slashes: '\\\\' });
+console.debug(custom_inspect);
 
 // test console.info() goes to stdout
 console.info('foo');
@@ -93,6 +98,14 @@ console.dir(custom_inspect);
 console.dir(custom_inspect, { showHidden: false });
 console.dir({ foo: { bar: { baz: true } } }, { depth: 0 });
 console.dir({ foo: { bar: { baz: true } } }, { depth: 1 });
+
+// test console.dirxml()
+console.dirxml(custom_inspect, custom_inspect);
+console.dirxml(
+  { foo: { bar: { baz: true } } },
+  { foo: { bar: { quux: false } } },
+  { foo: { bar: { quux: true } } }
+);
 
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
@@ -123,6 +136,12 @@ console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
+console.assert(false, '%s should', 'console.assert', 'not throw');
+assert.strictEqual(errStrings[errStrings.length - 1],
+                   'Assertion failed: console.assert should not throw\n');
+
+console.assert(true, 'this should not throw');
+
 assert.strictEqual(strings.length, process.stdout.writeTimes);
 assert.strictEqual(errStrings.length, process.stderr.writeTimes);
 common.restoreStdout();
@@ -152,30 +171,36 @@ for (const expected of expectedStrings) {
   assert.strictEqual(errStrings.shift(), `${expected}\n`);
 }
 
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+}
+
 assert.strictEqual(strings.shift(),
                    "{ foo: 'bar', inspect: [Function: inspect] }\n");
 assert.strictEqual(strings.shift(),
                    "{ foo: 'bar', inspect: [Function: inspect] }\n");
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
+assert.strictEqual(strings.shift(), 'inspect inspect\n');
+assert.ok(strings[0].includes('foo: { bar: { baz:'));
+assert.ok(strings[0].includes('quux'));
+assert.ok(strings.shift().includes('quux: true'));
+
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
+// verify that console.time() coerces label values to strings as expected
+assert.ok(/^: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^null: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^NaN: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
 assert.strictEqual(errStrings.shift().split('\n').shift(),
                    'Trace: This is a {"formatted":"trace"} 10 foo');
-
-common.expectsError(() => {
-  console.assert(false, 'should throw');
-}, {
-  code: 'ERR_ASSERTION',
-  message: /^should throw$/
-});
-
-assert.doesNotThrow(() => {
-  console.assert(true, 'this should not throw');
-});
 
 // hijack stderr to catch `process.emitWarning` which is using
 // `process.nextTick`

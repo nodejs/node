@@ -9,9 +9,7 @@ const bench = common.createBenchmark(main, {
 });
 
 
-function main(conf) {
-  const n = conf.n >>> 0;
-
+function main({ n }) {
   bench.start();
   for (var i = 0; i < n; i++) {
     fs.readdirSync(path.resolve(__dirname, '../../lib/'));

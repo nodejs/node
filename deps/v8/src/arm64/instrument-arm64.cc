@@ -9,7 +9,7 @@ namespace internal {
 
 Counter::Counter(const char* name, CounterType type)
     : count_(0), enabled_(false), type_(type) {
-  DCHECK(name != NULL);
+  DCHECK_NOT_NULL(name);
   strncpy(name_, name, kCounterNameMaxLength);
 }
 
@@ -96,12 +96,11 @@ static const CounterDescriptor kCounterList[] = {
 
 Instrument::Instrument(const char* datafile, uint64_t sample_period)
     : output_stream_(stderr), sample_period_(sample_period) {
-
-  // Set up the output stream. If datafile is non-NULL, use that file. If it
-  // can't be opened, or datafile is NULL, use stderr.
-  if (datafile != NULL) {
+  // Set up the output stream. If datafile is non-nullptr, use that file. If it
+  // can't be opened, or datafile is nullptr, use stderr.
+  if (datafile != nullptr) {
     output_stream_ = fopen(datafile, "w");
-    if (output_stream_ == NULL) {
+    if (output_stream_ == nullptr) {
       fprintf(stderr, "Can't open output file %s. Using stderr.\n", datafile);
       output_stream_ = stderr;
     }
@@ -190,8 +189,8 @@ void Instrument::DumpEventMarker(unsigned marker) {
   // line.
   static Counter* counter = GetCounter("Instruction");
 
-  fprintf(output_stream_, "# %c%c @ %" PRId64 "\n", marker & 0xff,
-          (marker >> 8) & 0xff, counter->count());
+  fprintf(output_stream_, "# %c%c @ %" PRId64 "\n", marker & 0xFF,
+          (marker >> 8) & 0xFF, counter->count());
 }
 
 

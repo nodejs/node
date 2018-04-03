@@ -29,16 +29,9 @@
 
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
-#include "src/factory.h"
+#include "src/factory-inl.h"
 #include "src/isolate.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/factory.h -> src/objects-inl.h
-#include "src/objects-inl.h"
 #include "src/objects.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/feedback-vector.h ->
-// src/feedback-vector-inl.h
-#include "src/feedback-vector-inl.h"
 #include "src/unicode-cache.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -52,8 +45,8 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff",
-                                 ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(255.0,
+           StringToDouble(&uc, "0xFF", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF",
                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
@@ -61,7 +54,7 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff", ALLOW_HEX));
+  CHECK_EQ(255.0, StringToDouble(&uc, "0xFF", ALLOW_HEX));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF", ALLOW_HEX));
 }
 

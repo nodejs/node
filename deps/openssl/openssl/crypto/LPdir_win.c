@@ -94,8 +94,23 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
             TCHAR *wdir = NULL;
             /* len_0 denotes string length *with* trailing 0 */
             size_t index = 0, len_0 = strlen(extdir) + 1;
+            size_t amount;
 
-            wdir = (TCHAR *)calloc(len_0, sizeof(TCHAR));
+            /*
+             * Size check
+             * The reasoning is that absolutely worst case, each byte in
+             * extdir will take up one TCHAR each, so the maximum size in
+             * bytes that we can tolerate is MAX_PATH TCHARs...  not counting
+             * the ending NUL.
+             */
+            if ((len_0 - 1) > MAX_PATH * sizeof(TCHAR)) {
+                free(*ctx);
+                *ctx = NULL;
+                errno = EINVAL;
+                return 0;
+            }
+            amount = len_0 * sizeof(TCHAR);
+            wdir = (TCHAR *)malloc(amount);
             if (wdir == NULL) {
                 if (extdirbuf != NULL) {
                     free(extdirbuf);

@@ -8,7 +8,10 @@ const builtins = new Set(
 );
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
-export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
+const baseURL = new url.URL('file://');
+baseURL.pathname = process.cwd() + '/';
+
+export function resolve(specifier, parentModuleURL = baseURL /*, defaultResolve */) {
   if (builtins.has(specifier)) {
     return {
       url: specifier,

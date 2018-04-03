@@ -12,7 +12,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-using namespace interpreter;
+using interpreter::Bytecode;
+using interpreter::Bytecodes;
+using interpreter::OperandType;
 
 BytecodeLoopAssignments::BytecodeLoopAssignments(int parameter_count,
                                                  int register_count, Zone* zone)
@@ -74,7 +76,7 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
 namespace {
 
 void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
-                      const BytecodeArrayAccessor& accessor) {
+                      const interpreter::BytecodeArrayAccessor& accessor) {
   int num_operands = Bytecodes::NumberOfOperands(bytecode);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
 
@@ -157,6 +159,7 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
             in_liveness.MarkRegisterLive(r.index() + j);
           }
         }
+        break;
       }
       default:
         DCHECK(!Bytecodes::IsRegisterInputOperandType(operand_types[i]));
@@ -167,7 +170,7 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
 
 void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
                        BytecodeLivenessState* next_bytecode_in_liveness,
-                       const BytecodeArrayAccessor& accessor,
+                       const interpreter::BytecodeArrayAccessor& accessor,
                        const BytecodeLivenessMap& liveness_map) {
   int current_offset = accessor.current_offset();
   const Handle<BytecodeArray>& bytecode_array = accessor.bytecode_array();
@@ -219,7 +222,7 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
 }
 
 void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments& assignments,
-                       const BytecodeArrayAccessor& accessor) {
+                       const interpreter::BytecodeArrayAccessor& accessor) {
   int num_operands = Bytecodes::NumberOfOperands(bytecode);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
 
@@ -260,7 +263,7 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
   int osr_loop_end_offset =
       osr_bailout_id.IsNone() ? -1 : osr_bailout_id.ToInt();
 
-  BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
+  interpreter::BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
   for (iterator.GoToEnd(); iterator.IsValid(); --iterator) {
     Bytecode bytecode = iterator.current_bytecode();
     int current_offset = iterator.current_offset();
@@ -495,7 +498,7 @@ std::ostream& BytecodeAnalysis::PrintLivenessTo(std::ostream& os) const {
 
 #if DEBUG
 bool BytecodeAnalysis::LivenessIsValid() {
-  BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
+  interpreter::BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
 
   BytecodeLivenessState previous_liveness(bytecode_array()->register_count(),
                                           zone());
@@ -585,7 +588,7 @@ bool BytecodeAnalysis::LivenessIsValid() {
 
     int loop_indent = 0;
 
-    BytecodeArrayIterator forward_iterator(bytecode_array());
+    interpreter::BytecodeArrayIterator forward_iterator(bytecode_array());
     for (; !forward_iterator.done(); forward_iterator.Advance()) {
       int current_offset = forward_iterator.current_offset();
       const BitVector& in_liveness =

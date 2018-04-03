@@ -22,7 +22,9 @@
 namespace v8 {
 namespace internal {
 namespace interpreter {
+namespace bytecode_array_writer_unittest {
 
+#define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
 #define R(i) static_cast<uint32_t>(Register(i).ToOperand())
 
 class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
@@ -169,7 +171,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       /*  5 68 S> */ B(JumpIfUndefined), U8(39),
       /*  7       */ B(JumpIfNull), U8(37),
       /*  9       */ B(ToObject), R8(3),
-      /* 11       */ B(ForInPrepare), R8(3), R8(4),
+      /* 11       */ B(ForInPrepare), R8(3), U8(4),
       /* 14       */ B(LdaZero),
       /* 15       */ B(Star), R8(7),
       /* 17 63 S> */ B(ForInContinue), R8(7), R8(6),
@@ -201,7 +203,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   WriteJump(Bytecode::kJumpIfUndefined, &jump_end_1, {68, true});
   WriteJump(Bytecode::kJumpIfNull, &jump_end_2);
   Write(Bytecode::kToObject, R(3));
-  Write(Bytecode::kForInPrepare, R(3), R(4));
+  Write(Bytecode::kForInPrepare, R(3), U8(4));
   Write(Bytecode::kLdaZero);
   Write(Bytecode::kStar, R(7));
   writer()->BindLabel(&back_jump);
@@ -363,6 +365,10 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
   CHECK(source_iterator.done());
 }
 
+#undef B
+#undef R
+
+}  // namespace bytecode_array_writer_unittest
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

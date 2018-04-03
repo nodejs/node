@@ -53,8 +53,7 @@ v8::Local<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
   if (name->Equals(context, v8_str(isolate, "collectSample")).FromJust()) {
     return v8::FunctionTemplate::New(isolate, ProfilerExtension::CollectSample);
   }
-  CHECK(false);
-  return v8::Local<v8::FunctionTemplate>();
+  UNREACHABLE();
 }
 
 void ProfilerExtension::StartProfiling(
@@ -74,7 +73,7 @@ void ProfilerExtension::StopProfiling(
 
 void ProfilerExtension::CollectSample(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  profiler_->CollectSample();
+  v8::CpuProfiler::CollectSample(args.GetIsolate());
 }
 
 }  // namespace internal

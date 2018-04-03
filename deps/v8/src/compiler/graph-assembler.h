@@ -8,6 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {
@@ -28,8 +29,7 @@ namespace compiler {
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToWord32)             \
   V(Float64ExtractHighWord32)            \
-  V(Float64Abs)                          \
-  V(BitcastWordToTagged)
+  V(Float64Abs)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(WordShl)                              \
@@ -37,10 +37,13 @@ namespace compiler {
   V(WordAnd)                              \
   V(Word32Or)                             \
   V(Word32And)                            \
+  V(Word32Xor)                            \
   V(Word32Shr)                            \
   V(Word32Shl)                            \
+  V(Word32Sar)                            \
   V(IntAdd)                               \
   V(IntSub)                               \
+  V(IntMul)                               \
   V(IntLessThan)                          \
   V(UintLessThan)                         \
   V(Int32Add)                             \
@@ -52,6 +55,7 @@ namespace compiler {
   V(Int32LessThan)                        \
   V(Float64Add)                           \
   V(Float64Sub)                           \
+  V(Float64Div)                           \
   V(Float64Mod)                           \
   V(Float64Equal)                         \
   V(Float64LessThan)                      \
@@ -71,19 +75,21 @@ namespace compiler {
 #define JSGRAPH_SINGLETON_CONSTANT_LIST(V) \
   V(TrueConstant)                          \
   V(FalseConstant)                         \
+  V(NullConstant)                          \
   V(HeapNumberMapConstant)                 \
   V(NoContextConstant)                     \
   V(EmptyStringConstant)                   \
   V(UndefinedConstant)                     \
   V(TheHoleConstant)                       \
   V(FixedArrayMapConstant)                 \
+  V(FixedDoubleArrayMapConstant)           \
   V(ToNumberBuiltinConstant)               \
   V(AllocateInNewSpaceStubConstant)        \
   V(AllocateInOldSpaceStubConstant)
 
 class GraphAssembler;
 
-enum class GraphAssemblerLabelType { kDeferred, kNonDeferred };
+enum class GraphAssemblerLabelType { kDeferred, kNonDeferred, kLoop };
 
 // Label with statically known count of incoming branches and phis.
 template <size_t VarCount>
@@ -92,9 +98,8 @@ class GraphAssemblerLabel {
   Node* PhiAt(size_t index);
 
   template <typename... Reps>
-  explicit GraphAssemblerLabel(GraphAssemblerLabelType is_deferred,
-                               Reps... reps)
-      : is_deferred_(is_deferred == GraphAssemblerLabelType::kDeferred) {
+  explicit GraphAssemblerLabel(GraphAssemblerLabelType type, Reps... reps)
+      : type_(type) {
     STATIC_ASSERT(VarCount == sizeof...(reps));
     MachineRepresentation reps_array[] = {MachineRepresentation::kNone,
                                           reps...};
@@ -113,10 +118,13 @@ class GraphAssemblerLabel {
     is_bound_ = true;
   }
   bool IsBound() const { return is_bound_; }
-  bool IsDeferred() const { return is_deferred_; }
+  bool IsDeferred() const {
+    return type_ == GraphAssemblerLabelType::kDeferred;
+  }
+  bool IsLoop() const { return type_ == GraphAssemblerLabelType::kLoop; }
 
   bool is_bound_ = false;
-  bool is_deferred_;
+  GraphAssemblerLabelType const type_;
   size_t merged_count_ = 0;
   Node* effect_;
   Node* control_;
@@ -133,14 +141,20 @@ class GraphAssembler {
   // Create label.
   template <typename... Reps>
   static GraphAssemblerLabel<sizeof...(Reps)> MakeLabelFor(
-      GraphAssemblerLabelType is_deferred, Reps... reps) {
-    return GraphAssemblerLabel<sizeof...(Reps)>(is_deferred, reps...);
+      GraphAssemblerLabelType type, Reps... reps) {
+    return GraphAssemblerLabel<sizeof...(Reps)>(type, reps...);
   }
 
   // Convenience wrapper for creating non-deferred labels.
   template <typename... Reps>
   static GraphAssemblerLabel<sizeof...(Reps)> MakeLabel(Reps... reps) {
     return MakeLabelFor(GraphAssemblerLabelType::kNonDeferred, reps...);
+  }
+
+  // Convenience wrapper for creating loop labels.
+  template <typename... Reps>
+  static GraphAssemblerLabel<sizeof...(Reps)> MakeLoopLabel(Reps... reps) {
+    return MakeLabelFor(GraphAssemblerLabelType::kLoop, reps...);
   }
 
   // Convenience wrapper for creating deferred labels.
@@ -179,9 +193,12 @@ class GraphAssembler {
   // Debugging
   Node* DebugBreak();
 
+  Node* Unreachable();
+
   Node* Float64RoundDown(Node* value);
 
   Node* ToNumber(Node* value);
+  Node* BitcastWordToTagged(Node* value);
   Node* Allocate(PretenureFlag pretenure, Node* size);
   Node* LoadField(FieldAccess const&, Node* object);
   Node* LoadElement(ElementAccess const&, Node* object, Node* index);
@@ -195,12 +212,13 @@ class GraphAssembler {
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
 
-  Node* DeoptimizeIf(DeoptimizeReason reason, Node* condition,
-                     Node* frame_state);
+  Node* DeoptimizeIf(DeoptimizeReason reason, VectorSlotPair const& feedback,
+                     Node* condition, Node* frame_state);
   Node* DeoptimizeIfNot(DeoptimizeKind kind, DeoptimizeReason reason,
-                        Node* condition, Node* frame_state);
-  Node* DeoptimizeIfNot(DeoptimizeReason reason, Node* condition,
+                        VectorSlotPair const& feedback, Node* condition,
                         Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeReason reason, VectorSlotPair const& feedback,
+                        Node* condition, Node* frame_state);
   template <typename... Args>
   Node* Call(const CallDescriptor* desc, Args... args);
   template <typename... Args>
@@ -263,48 +281,74 @@ Node* GraphAssemblerLabel<VarCount>::PhiAt(size_t index) {
 template <typename... Vars>
 void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
                                 Vars... vars) {
-  DCHECK(!label->IsBound());
-
   int merged_count = static_cast<int>(label->merged_count_);
   Node* var_array[] = {nullptr, vars...};
-  if (merged_count == 0) {
-    // Just set the control, effect and variables directly.
-    label->control_ = current_control_;
-    label->effect_ = current_effect_;
-    for (size_t i = 0; i < sizeof...(vars); i++) {
-      label->bindings_[i] = var_array[i + 1];
-    }
-  } else if (merged_count == 1) {
-    // Create merge, effect phi and a phi for each variable.
-    label->control_ =
-        graph()->NewNode(common()->Merge(2), label->control_, current_control_);
-    label->effect_ = graph()->NewNode(common()->EffectPhi(2), label->effect_,
-                                      current_effect_, label->control_);
-    for (size_t i = 0; i < sizeof...(vars); i++) {
-      label->bindings_[i] = graph()->NewNode(
-          common()->Phi(label->representations_[i], 2), label->bindings_[i],
-          var_array[i + 1], label->control_);
+  if (label->IsLoop()) {
+    if (merged_count == 0) {
+      DCHECK(!label->IsBound());
+      label->control_ = graph()->NewNode(common()->Loop(2), current_control_,
+                                         current_control_);
+      label->effect_ = graph()->NewNode(common()->EffectPhi(2), current_effect_,
+                                        current_effect_, label->control_);
+      Node* terminate = graph()->NewNode(common()->Terminate(), label->effect_,
+                                         label->control_);
+      NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+      for (size_t i = 0; i < sizeof...(vars); i++) {
+        label->bindings_[i] = graph()->NewNode(
+            common()->Phi(label->representations_[i], 2), var_array[i + 1],
+            var_array[i + 1], label->control_);
+      }
+    } else {
+      DCHECK(label->IsBound());
+      DCHECK_EQ(1, merged_count);
+      label->control_->ReplaceInput(1, current_control_);
+      label->effect_->ReplaceInput(1, current_effect_);
+      for (size_t i = 0; i < sizeof...(vars); i++) {
+        label->bindings_[i]->ReplaceInput(1, var_array[i + 1]);
+      }
     }
   } else {
-    // Append to the merge, effect phi and phis.
-    DCHECK_EQ(IrOpcode::kMerge, label->control_->opcode());
-    label->control_->AppendInput(graph()->zone(), current_control_);
-    NodeProperties::ChangeOp(label->control_,
-                             common()->Merge(merged_count + 1));
+    DCHECK(!label->IsBound());
+    if (merged_count == 0) {
+      // Just set the control, effect and variables directly.
+      DCHECK(!label->IsBound());
+      label->control_ = current_control_;
+      label->effect_ = current_effect_;
+      for (size_t i = 0; i < sizeof...(vars); i++) {
+        label->bindings_[i] = var_array[i + 1];
+      }
+    } else if (merged_count == 1) {
+      // Create merge, effect phi and a phi for each variable.
+      label->control_ = graph()->NewNode(common()->Merge(2), label->control_,
+                                         current_control_);
+      label->effect_ = graph()->NewNode(common()->EffectPhi(2), label->effect_,
+                                        current_effect_, label->control_);
+      for (size_t i = 0; i < sizeof...(vars); i++) {
+        label->bindings_[i] = graph()->NewNode(
+            common()->Phi(label->representations_[i], 2), label->bindings_[i],
+            var_array[i + 1], label->control_);
+      }
+    } else {
+      // Append to the merge, effect phi and phis.
+      DCHECK_EQ(IrOpcode::kMerge, label->control_->opcode());
+      label->control_->AppendInput(graph()->zone(), current_control_);
+      NodeProperties::ChangeOp(label->control_,
+                               common()->Merge(merged_count + 1));
 
-    DCHECK_EQ(IrOpcode::kEffectPhi, label->effect_->opcode());
-    label->effect_->ReplaceInput(merged_count, current_effect_);
-    label->effect_->AppendInput(graph()->zone(), label->control_);
-    NodeProperties::ChangeOp(label->effect_,
-                             common()->EffectPhi(merged_count + 1));
+      DCHECK_EQ(IrOpcode::kEffectPhi, label->effect_->opcode());
+      label->effect_->ReplaceInput(merged_count, current_effect_);
+      label->effect_->AppendInput(graph()->zone(), label->control_);
+      NodeProperties::ChangeOp(label->effect_,
+                               common()->EffectPhi(merged_count + 1));
 
-    for (size_t i = 0; i < sizeof...(vars); i++) {
-      DCHECK_EQ(IrOpcode::kPhi, label->bindings_[i]->opcode());
-      label->bindings_[i]->ReplaceInput(merged_count, var_array[i + 1]);
-      label->bindings_[i]->AppendInput(graph()->zone(), label->control_);
-      NodeProperties::ChangeOp(
-          label->bindings_[i],
-          common()->Phi(label->representations_[i], merged_count + 1));
+      for (size_t i = 0; i < sizeof...(vars); i++) {
+        DCHECK_EQ(IrOpcode::kPhi, label->bindings_[i]->opcode());
+        label->bindings_[i]->ReplaceInput(merged_count, var_array[i + 1]);
+        label->bindings_[i]->AppendInput(graph()->zone(), label->control_);
+        NodeProperties::ChangeOp(
+            label->bindings_[i],
+            common()->Phi(label->representations_[i], merged_count + 1));
+      }
     }
   }
   label->merged_count_++;
@@ -312,9 +356,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
 
 template <size_t VarCount>
 void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
-  DCHECK(current_control_ == nullptr);
-  DCHECK(current_effect_ == nullptr);
-  DCHECK(label->merged_count_ > 0);
+  DCHECK_NULL(current_control_);
+  DCHECK_NULL(current_effect_);
+  DCHECK_LT(0, label->merged_count_);
 
   current_control_ = label->control_;
   current_effect_ = label->effect_;

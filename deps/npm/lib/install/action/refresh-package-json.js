@@ -14,7 +14,7 @@ module.exports = function (staging, pkg, log) {
 
   return readJson(path.join(pkg.path, 'package.json'), false).then((metadata) => {
     Object.keys(pkg.package).forEach(function (key) {
-      if (key !== 'dependencies' && !isEmpty(pkg.package[key])) {
+      if (key !== 'version' && key !== 'dependencies' && !isEmpty(pkg.package[key])) {
         metadata[key] = pkg.package[key]
       }
     })

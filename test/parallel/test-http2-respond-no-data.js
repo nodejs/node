@@ -13,7 +13,7 @@ const server = http2.createServer();
 const status = [204, 205, 304];
 
 server.on('stream', common.mustCall((stream) => {
-  stream.on('streamClosed', common.mustCall(() => {
+  stream.on('close', common.mustCall(() => {
     assert.strictEqual(stream.destroyed, true);
   }));
   stream.respond({ ':status': status.shift() });
@@ -27,7 +27,7 @@ function makeRequest() {
   req.resume();
 
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
 
     if (!status.length) {
       server.close();

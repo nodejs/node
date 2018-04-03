@@ -1,8 +1,8 @@
 'use strict';
 
-// These testcases are specific to one uncommon behaviour in path module. Few
+// These testcases are specific to one uncommon behavior in path module. Few
 // of the functions in path module, treat '' strings as current working
-// directory. This test makes sure that the behaviour is intact between commits.
+// directory. This test makes sure that the behavior is intact between commits.
 // See: https://github.com/nodejs/node/pull/2106
 
 require('../common');

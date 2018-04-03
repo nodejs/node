@@ -130,3 +130,48 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     assert.strictEqual(typeof parsed[k], 'string', `${k} should be a string`);
   });
 }));
+
+['', false, null, undefined, {}, []].forEach((input) => {
+  ['fstat', 'fstatSync'].forEach((fnName) => {
+    assert.throws(
+      () => fs[fnName](input),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "fd" argument must be of type number. ' +
+                 `Received type ${typeof input}`
+      }
+    );
+  });
+});
+
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  assert.throws(
+    () => fs.lstat(input, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+    }
+  );
+  assert.throws(
+    () => fs.lstatSync(input),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+    }
+  );
+  assert.throws(
+    () => fs.stat(input, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+    }
+  );
+  assert.throws(
+    () => fs.statSync(input),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+    }
+  );
+});

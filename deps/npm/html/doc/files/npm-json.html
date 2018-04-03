@@ -129,13 +129,21 @@ is an object with a &quot;name&quot; field and optionally &quot;url&quot; and &q
 </code></pre><p>Both email and url are optional either way.</p>
 <p>npm also sets a top-level &quot;maintainers&quot; field with your npm user info.</p>
 <h2 id="files">files</h2>
-<p>The &quot;files&quot; field is an array of files to include in your project.  If
-you name a folder in the array, then it will also include the files
-inside that folder. (Unless they would be ignored by another rule.)</p>
-<p>You can also provide a &quot;.npmignore&quot; file in the root of your package or
-in subdirectories, which will keep files from being included, even
-if they would be picked up by the files array.  The <code>.npmignore</code> file
-works just like a <code>.gitignore</code>.</p>
+<p>The optional &quot;files&quot; field is an array of file patterns that describes
+the entries to be included when your package is installed as a
+dependency. If the files array is omitted, everything except
+automatically-excluded files will be included in your publish. If you
+name a folder in the array, then it will also include the files inside
+that folder (unless they would be ignored by another rule in this
+section.).</p>
+<p>You can also provide a <code>.npmignore</code> file in the root of your package or
+in subdirectories, which will keep files from being included. At the
+root of your package it will not override the &quot;files&quot; field, but in
+subdirectories it will. The <code>.npmignore</code> file works just like a
+<code>.gitignore</code>. If there is a <code>.gitignore</code> file, and <code>.npmignore</code> is
+missing, <code>.gitignore</code>&#39;s contents will be used instead.</p>
+<p>Files included with the &quot;package.json#files&quot; field <em>cannot</em> be excluded
+through <code>.npmignore</code> or <code>.gitignore</code>.</p>
 <p>Certain files are always included, regardless of settings:</p>
 <ul>
 <li><code>package.json</code></li>
@@ -273,11 +281,13 @@ html project page that you put in your browser.  It&#39;s for computers.</p>
 shortcut syntax you use for <code>npm install</code>:</p>
 <pre><code>&quot;repository&quot;: &quot;npm/npm&quot;
 
+&quot;repository&quot;: &quot;github:user/repo&quot;
+
 &quot;repository&quot;: &quot;gist:11081aaa281&quot;
 
-&quot;repository&quot;: &quot;bitbucket:example/repo&quot;
+&quot;repository&quot;: &quot;bitbucket:user/repo&quot;
 
-&quot;repository&quot;: &quot;gitlab:another/repo&quot;
+&quot;repository&quot;: &quot;gitlab:user/repo&quot;
 </code></pre><h2 id="scripts">scripts</h2>
 <p>The &quot;scripts&quot; property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle
@@ -462,7 +472,7 @@ array and executing <code>npm pack</code>.</p>
   &quot;name&quot;: &quot;awesome-web-framework&quot;,
   &quot;version&quot;: &quot;1.0.0&quot;,
   &quot;bundledDependencies&quot;: [
-    &#39;renderized&#39;, &#39;super-streams&#39;
+    &quot;renderized&quot;, &quot;super-streams&quot;
   ]
 }
 </code></pre><p>we can obtain <code>awesome-web-framework-1.0.0.tgz</code> file by running <code>npm pack</code>.
@@ -507,7 +517,7 @@ that it works on node.</p>
 are capable of properly installing your program.  For example:</p>
 <pre><code>{ &quot;engines&quot; : { &quot;npm&quot; : &quot;~1.0.20&quot; } }
 </code></pre><p>Unless the user has set the <code>engine-strict</code> config flag, this
-field is advisory only will produce warnings when your package is installed as a dependency.</p>
+field is advisory only and will only produce warnings when your package is installed as a dependency.</p>
 <h2 id="enginestrict">engineStrict</h2>
 <p><strong>This feature was removed in npm 3.0.0</strong></p>
 <p>Prior to npm 3.0.0, this feature was used to treat this package as if the
@@ -593,5 +603,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@5.3.0</p>
+<p id="footer">package.json &mdash; npm@5.6.0</p>
 

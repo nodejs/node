@@ -2285,13 +2285,16 @@ static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
   uv__tty_console_width = sb_info.dwSize.X;
   uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
 
-  if (!SetWinEventHook(EVENT_CONSOLE_LAYOUT,
-                       EVENT_CONSOLE_LAYOUT,
-                       NULL,
-                       uv__tty_console_resize_event,
-                       0,
-                       0,
-                       WINEVENT_OUTOFCONTEXT))
+  if (pSetWinEventHook == NULL)
+    return 0;
+
+  if (!pSetWinEventHook(EVENT_CONSOLE_LAYOUT,
+                        EVENT_CONSOLE_LAYOUT,
+                        NULL,
+                        uv__tty_console_resize_event,
+                        0,
+                        0,
+                        WINEVENT_OUTOFCONTEXT))
     return 0;
 
   while (GetMessage(&msg, NULL, 0, 0)) {

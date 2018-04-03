@@ -1,13 +1,21 @@
-.TH "SEMVER" "7" "July 2017" "" ""
+.TH "SEMVER" "7" "December 2017" "" ""
 .SH "NAME"
 \fBsemver\fR \- The semantic versioner for npm
-.SH Usage
+.SH Install
 .P
 .RS 2
 .nf
-$ npm install semver
-$ node
-var semver = require('semver')
+npm install \-\-save semver
+`
+.fi
+.RE
+.SH Usage
+.P
+As a node module:
+.P
+.RS 2
+.nf
+const semver = require('semver')
 
 semver\.valid('1\.2\.3') // '1\.2\.3'
 semver\.valid('a\.b\.c') // null
@@ -24,7 +32,7 @@ As a command\-line utility:
 .nf
 $ semver \-h
 
-SemVer 5\.1\.0
+SemVer 5\.3\.0
 
 A JavaScript implementation of the http://semver\.org/ specification
 Copyright Isaac Z\. Schlueter
@@ -138,8 +146,8 @@ will append the value of the string as a prerelease identifier:
 .P
 .RS 2
 .nf
-> semver\.inc('1\.2\.3', 'prerelease', 'beta')
-\|'1\.2\.4\-beta\.0'
+semver\.inc('1\.2\.3', 'prerelease', 'beta')
+// '1\.2\.4\-beta\.0'
 .fi
 .RE
 .P
@@ -364,6 +372,9 @@ if none exist\. Example: \fBprerelease('1\.2\.3\-alpha\.1') \-> ['alpha', 1]\fP
 \fBminor(v)\fP: Return the minor version number\.
 .IP \(bu 2
 \fBpatch(v)\fP: Return the patch version number\.
+.IP \(bu 2
+\fBintersects(r1, r2, loose)\fP: Return true if the two supplied ranges
+or comparators intersect\.
 
 .RE
 .SS Comparison
@@ -399,6 +410,12 @@ in descending order when passed to \fBArray\.sort()\fP\|\.
 or null if the versions are the same\.
 
 .RE
+.SS Comparators
+.RS 0
+.IP \(bu 2
+\fBintersects(comparator)\fP: Return true if the comparators intersect
+
+.RE
 .SS Ranges
 .RS 0
 .IP \(bu 2
@@ -423,6 +440,8 @@ versions possible in the range\.
 the bounds of the range in either the high or low direction\.  The
 \fBhilo\fP argument must be either the string \fB\|'>'\fP or \fB\|'<'\fP\|\.  (This is
 the function called by \fBgtr\fP and \fBltr\fP\|\.)
+.IP \(bu 2
+\fBintersects(range)\fP: Return true if any of the ranges comparators intersect
 
 .RE
 .P

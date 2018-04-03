@@ -7,26 +7,28 @@ declare namespace ajv {
   interface Ajv {
     /**
     * Validate data using schema
-    * Schema will be compiled and cached (using serialized JSON as key. [json-stable-stringify](https://github.com/substack/json-stable-stringify) is used to serialize.
-    * @param  {String|Object} schemaKeyRef key, ref or schema object
+    * Schema will be compiled and cached (using serialized JSON as key, [json-stable-stringify](https://github.com/substack/json-stable-stringify) is used to serialize by default).
+    * @param  {String|Object|Boolean} schemaKeyRef key, ref or schema object
     * @param  {Any} data to be validated
     * @return {Boolean} validation result. Errors from the last validation will be available in `ajv.errors` (and also in compiled schema: `schema.errors`).
     */
-    validate(schemaKeyRef: Object | string, data: any): boolean;
+    validate(schemaKeyRef: Object | string | boolean, data: any): boolean | Thenable<any>;
     /**
     * Create validating function for passed schema.
-    * @param  {Object} schema schema object
+    * @param  {Object|Boolean} schema schema object
     * @return {Function} validating function
     */
-    compile(schema: Object): ValidateFunction;
+    compile(schema: Object | boolean): ValidateFunction;
     /**
     * Creates validating function for passed schema with asynchronous loading of missing schemas.
     * `loadSchema` option should be a function that accepts schema uri and node-style callback.
     * @this  Ajv
-    * @param {Object}   schema schema object
-    * @param {Function} callback node-style callback, it is always called with 2 parameters: error (or null) and validating function.
+    * @param {Object|Boolean} schema schema object
+    * @param {Boolean} meta optional true to compile meta-schema; this parameter can be skipped
+    * @param {Function} callback optional node-style callback, it is always called with 2 parameters: error (or null) and validating function.
+    * @return {Thenable<ValidateFunction>} validating function
     */
-    compileAsync(schema: Object, callback: (err: Error, validate: ValidateFunction) => any): void;
+    compileAsync(schema: Object | boolean, meta?: Boolean, callback?: (err: Error, validate: ValidateFunction) => any): Thenable<ValidateFunction>;
     /**
     * Adds schema to the instance.
     * @param {Object|Array} schema schema or array of schemas. If array is passed, `key` and other parameters will be ignored.
@@ -42,10 +44,10 @@ declare namespace ajv {
     addMetaSchema(schema: Object, key?: string): void;
     /**
     * Validate schema
-    * @param {Object} schema schema to validate
+    * @param {Object|Boolean} schema schema to validate
     * @return {Boolean} true if schema is valid
     */
-    validateSchema(schema: Object): boolean;
+    validateSchema(schema: Object | boolean): boolean;
     /**
     * Get compiled schema from the instance by `key` or `ref`.
     * @param  {String} keyRef `key` that was passed to `addSchema` or full schema reference (`schema.id` or resolved id).
@@ -57,9 +59,9 @@ declare namespace ajv {
     * If no parameter is passed all schemas but meta-schemas are removed.
     * If RegExp is passed all schemas with key/id matching pattern but meta-schemas are removed.
     * Even if schema is referenced by other schemas it still can be removed as other schemas have local references.
-    * @param  {String|Object|RegExp} schemaKeyRef key, ref, pattern to match key/ref or schema object
+    * @param  {String|Object|RegExp|Boolean} schemaKeyRef key, ref, pattern to match key/ref or schema object
     */
-    removeSchema(schemaKeyRef?: Object | string | RegExp): void;
+    removeSchema(schemaKeyRef?: Object | string | RegExp | boolean): void;
     /**
     * Add custom format
     * @param {String} name format name
@@ -107,13 +109,13 @@ declare namespace ajv {
       parentData?: Object | Array<any>,
       parentDataProperty?: string | number,
       rootData?: Object | Array<any>
-    ): boolean | Thenable<boolean>;
+    ): boolean | Thenable<any>;
     errors?: Array<ErrorObject>;
-    schema?: Object;
+    schema?: Object | boolean;
   }
 
   interface Options {
-    v5?: boolean;
+    $data?: boolean;
     allErrors?: boolean;
     verbose?: boolean;
     jsonPointers?: boolean;
@@ -121,28 +123,29 @@ declare namespace ajv {
     unicode?: boolean;
     format?: string;
     formats?: Object;
-    unknownFormats?: boolean | string | Array<string>;
+    unknownFormats?: true | string[] | 'ignore';
     schemas?: Array<Object> | Object;
-    ownProperties?: boolean;
-    missingRefs?: boolean | string;
-    extendRefs?: boolean | string;
-    loadSchema?: (uri: string, cb: (err: Error, schema: Object) => any) => any;
-    removeAdditional?: boolean | string;
-    useDefaults?: boolean | string;
-    coerceTypes?: boolean | string;
+    schemaId?: '$id' | 'id';
+    missingRefs?: true | 'ignore' | 'fail';
+    extendRefs?: true | 'ignore' | 'fail';
+    loadSchema?: (uri: string, cb?: (err: Error, schema: Object) => void) => Thenable<Object | boolean>;
+    removeAdditional?: boolean | 'all' | 'failing';
+    useDefaults?: boolean | 'shared';
+    coerceTypes?: boolean | 'array';
     async?: boolean | string;
     transpile?: string | ((code: string) => string);
     meta?: boolean | Object;
-    validateSchema?: boolean | string;
+    validateSchema?: boolean | 'log';
     addUsedSchema?: boolean;
     inlineRefs?: boolean | number;
     passContext?: boolean;
     loopRequired?: number;
-    multipleOfPrecision?: number;
-    errorDataPath?: string;
+    ownProperties?: boolean;
+    multipleOfPrecision?: boolean | number;
+    errorDataPath?: string,
     messages?: boolean;
     sourceCode?: boolean;
-    beautify?: boolean | Object;
+    processCode?: (code: string) => string;
     cache?: Object;
   }
 
@@ -157,27 +160,30 @@ declare namespace ajv {
   interface KeywordDefinition {
     type?: string | Array<string>;
     async?: boolean;
+    $data?: boolean;
     errors?: boolean | string;
+    metaSchema?: Object;
     // schema: false makes validate not to expect schema (ValidateFunction)
     schema?: boolean;
     modifying?: boolean;
     valid?: boolean;
     // one and only one of the following properties should be present
-    validate?: ValidateFunction | SchemaValidateFunction;
-    compile?: (schema: Object, parentSchema: Object) => ValidateFunction;
-    macro?: (schema: Object, parentSchema: Object) => Object;
-    inline?: (it: Object, keyword: string, schema: Object, parentSchema: Object) => string;
+    validate?: SchemaValidateFunction | ValidateFunction;
+    compile?: (schema: any, parentSchema: Object) => ValidateFunction;
+    macro?: (schema: any, parentSchema: Object) => Object | boolean;
+    inline?: (it: Object, keyword: string, schema: any, parentSchema: Object) => string;
   }
 
   interface SchemaValidateFunction {
     (
-      schema: Object,
+      schema: any,
       data: any,
       parentSchema?: Object,
       dataPath?: string,
       parentData?: Object | Array<any>,
-      parentDataProperty?: string | number
-    ): boolean | Thenable<boolean>;
+      parentDataProperty?: string | number,
+      rootData?: Object | Array<any>
+    ): boolean | Thenable<any>;
     errors?: Array<ErrorObject>;
   }
 
@@ -191,10 +197,12 @@ declare namespace ajv {
     dataPath: string;
     schemaPath: string;
     params: ErrorParameters;
+    // Added to validation errors of propertyNames keyword schema
+    propertyName?: string;
     // Excluded if messages set to false.
     message?: string;
     // These are added with the `verbose` option.
-    schema?: Object;
+    schema?: any;
     parentSchema?: Object;
     data?: any;
   }
@@ -204,7 +212,7 @@ declare namespace ajv {
                           MultipleOfParams | PatternParams | RequiredParams |
                           TypeParams | UniqueItemsParams | CustomParams |
                           PatternGroupsParams | PatternRequiredParams |
-                          SwitchParams | NoParams | EnumParams;
+                          PropertyNamesParams | SwitchParams | NoParams | EnumParams;
 
   interface RefParams {
     ref: string;
@@ -268,6 +276,10 @@ declare namespace ajv {
 
   interface PatternRequiredParams {
     missingPattern: string;
+  }
+
+  interface PropertyNamesParams {
+    propertyName: string;
   }
 
   interface SwitchParams {

@@ -6,7 +6,8 @@ const verifyGraph = require('./verify-graph');
 
 const net = require('net');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const hooks = initHooks();
 hooks.enable();
@@ -28,11 +29,11 @@ function onexit() {
   hooks.disable();
   verifyGraph(
     hooks,
-    [ { type: 'PIPEWRAP', id: 'pipe:1', triggerAsyncId: null },
-      { type: 'PIPEWRAP', id: 'pipe:2', triggerAsyncId: 'pipe:1' },
+    [ { type: 'PIPESERVERWRAP', id: 'pipeserver:1', triggerAsyncId: null },
+      { type: 'PIPEWRAP', id: 'pipe:1', triggerAsyncId: 'pipeserver:1' },
       { type: 'PIPECONNECTWRAP', id: 'pipeconnect:1',
-        triggerAsyncId: 'pipe:2' },
-      { type: 'PIPEWRAP', id: 'pipe:3', triggerAsyncId: 'pipe:1' },
-      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerAsyncId: 'pipe:3' } ]
+        triggerAsyncId: 'pipe:1' },
+      { type: 'PIPEWRAP', id: 'pipe:2', triggerAsyncId: 'pipeserver:1' },
+      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerAsyncId: 'pipe:2' } ]
   );
 }

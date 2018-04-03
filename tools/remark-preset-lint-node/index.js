@@ -39,6 +39,16 @@ module.exports.plugins = [
   [require('remark-lint-file-extension'), 'md'],
   [require('remark-lint-first-heading-level'), 1],
   [require('remark-lint-heading-style'), 'atx'],
+  [
+    require('remark-lint-prohibited-strings'),
+    [
+      { no: 'Github', yes: 'GitHub' },
+      { no: 'Javascript', yes: 'JavaScript' },
+      { no: 'Node.JS', yes: 'Node.js' },
+      { no: 'v8', yes: 'V8' }
+    ]
+  ],
   [require('remark-lint-strong-marker'), '*'],
-  [require('remark-lint-table-cell-padding'), 'padded']
+  [require('remark-lint-table-cell-padding'), 'padded'],
+  [require('remark-lint-maximum-line-length'), 80]
 ];

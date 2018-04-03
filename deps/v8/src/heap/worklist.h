@@ -6,6 +6,7 @@
 #define V8_HEAP_WORKLIST_
 
 #include <cstddef>
+#include <utility>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
@@ -168,6 +169,11 @@ class Worklist {
     PublishPopSegmentToGlobal(task_id);
   }
 
+  void MergeGlobalPool(Worklist* other) {
+    auto pair = other->global_pool_.Extract();
+    global_pool_.MergeList(pair.first, pair.second);
+  }
+
  private:
   FRIEND_TEST(WorkListTest, SegmentCreate);
   FRIEND_TEST(WorkListTest, SegmentPush);
@@ -302,6 +308,28 @@ class Worklist {
       for (Segment* current = top_; current != nullptr;
            current = current->next()) {
         current->Iterate(callback);
+      }
+    }
+
+    std::pair<Segment*, Segment*> Extract() {
+      Segment* top = nullptr;
+      {
+        base::LockGuard<base::Mutex> guard(&lock_);
+        if (top_ == nullptr) return std::make_pair(nullptr, nullptr);
+        top = top_;
+        set_top(nullptr);
+      }
+      Segment* end = top;
+      while (end->next() != nullptr) end = end->next();
+      return std::make_pair(top, end);
+    }
+
+    void MergeList(Segment* start, Segment* end) {
+      if (start == nullptr) return;
+      {
+        base::LockGuard<base::Mutex> guard(&lock_);
+        end->set_next(top_);
+        set_top(start);
       }
     }
 

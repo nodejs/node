@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "1" "July 2017" "" ""
+.TH "NPM\-CONFIG" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- Manage the npm configuration files
 .SH SYNOPSIS
@@ -8,7 +8,7 @@
 npm config set <key> <value> [\-g|\-\-global]
 npm config get <key>
 npm config delete <key>
-npm config list [\-l]
+npm config list [\-l] [\-\-json]
 npm config edit
 npm get <key>
 npm set <key> <value> [\-g|\-\-global]
@@ -59,7 +59,8 @@ npm config list
 .fi
 .RE
 .P
-Show all the config settings\. Use \fB\-l\fP to also show defaults\.
+Show all the config settings\. Use \fB\-l\fP to also show defaults\. Use \fB\-\-json\fP
+to show the settings in json format\.
 .SS delete
 .P
 .RS 2

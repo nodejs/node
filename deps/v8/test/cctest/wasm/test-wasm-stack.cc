@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
 #include "src/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -9,10 +10,10 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace test_wasm_stack {
 
 using v8::Local;
 using v8::Utils;
@@ -47,8 +48,8 @@ void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack) {
 
 struct ExceptionInfo {
   const char* func_name;
-  int line_nr;
-  int column;
+  int line_nr;  // 1-based
+  int column;   // 1-based
 };
 
 template <int N>
@@ -70,21 +71,46 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
     v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
     v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
     CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
+    // Line and column are 1-based in v8::StackFrame, just as in ExceptionInfo.
     CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
     CHECK_EQ(excInfos[frameNr].column, frame->GetColumn());
   }
+
+  CheckComputeLocation(i_isolate, exc, excInfos[0]);
 }
+
+void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
+                          const ExceptionInfo& topLocation) {
+  MessageLocation loc;
+  CHECK(i_isolate->ComputeLocationFromStackTrace(&loc, exc));
+  printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
+  Handle<JSMessageObject> message = i_isolate->CreateMessage(exc, nullptr);
+  printf("msg start: %d, end: %d, line: %d, col: %d\n",
+         message->start_position(), message->end_position(),
+         message->GetLineNumber(), message->GetColumnNumber());
+  CHECK_EQ(loc.start_pos(), message->start_position());
+  CHECK_EQ(loc.end_pos(), message->end_position());
+  // In the message, the line is 1-based, but the column is 0-based.
+  CHECK_EQ(topLocation.line_nr, message->GetLineNumber());
+  CHECK_LE(1, topLocation.column);
+  CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
+}
+
+#undef CHECK_CSTREQ
 
 }  // namespace
 
 // Call from JS to wasm to JS and throw an Error from JS.
-TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
-  WasmRunner<void> r(kExecuteCompiled);
+WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
+  WasmRunner<void> r(execution_mode);
   TestSignatures sigs;
 
+  Handle<FixedArray> js_imports_table =
+      r.main_isolate()->factory()->NewFixedArray(2 * 3 + 1, TENURED);
   uint32_t js_throwing_index = r.builder().AddJsFunction(
       sigs.v_v(),
-      "(function js() {\n function a() {\n throw new Error(); };\n a(); })");
+      "(function js() {\n function a() {\n throw new Error(); };\n a(); })",
+      js_imports_table);
 
   // Add a nop such that we don't always get position 1.
   BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
@@ -124,41 +150,56 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 }
 
 // Trigger a trap in wasm, stack should be JS -> wasm -> wasm.
-TEST(CollectDetailedWasmStack_WasmError) {
-  TestSignatures sigs;
-  // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<int> r(kExecuteCompiled, "main", true);
+WASM_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
+  for (int pos_shift = 0; pos_shift < 3; ++pos_shift) {
+    // Test a position with 1, 2 or 3 bytes needed to represent it.
+    int unreachable_pos = 1 << (8 * pos_shift);
+    TestSignatures sigs;
+    // Create a WasmRunner with stack checks and traps enabled.
+    WasmRunner<int> r(execution_mode, "main",
+                      compiler::kRuntimeExceptionSupport);
 
-  BUILD(r, WASM_UNREACHABLE);
-  uint32_t wasm_index_1 = r.function()->func_index;
+    std::vector<byte> code(unreachable_pos + 1, kExprNop);
+    code[unreachable_pos] = kExprUnreachable;
+    r.Build(code.data(), code.data() + code.size());
 
-  WasmFunctionCompiler& f2 = r.NewFunction<int>("call_main");
-  BUILD(f2, WASM_CALL_FUNCTION0(0));
-  uint32_t wasm_index_2 = f2.function_index();
+    uint32_t wasm_index_1 = r.function()->func_index;
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+    WasmFunctionCompiler& f2 = r.NewFunction<int>("call_main");
+    BUILD(f2, WASM_CALL_FUNCTION0(0));
+    uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CompileRun("(function callFn(fn) { fn(); })"))));
+    Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
-  Isolate* isolate = js_wasm_wrapper->GetIsolate();
-  isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
-                                                     v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> maybe_exc;
-  Handle<Object> args[] = {js_wasm_wrapper};
-  MaybeHandle<Object> maybe_return_obj =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args,
-                         Execution::MessageHandling::kReport, &maybe_exc);
-  CHECK(maybe_return_obj.is_null());
+    Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CompileRun("(function callFn(fn) { fn(); })"))));
 
-  // Line and column are 1-based, so add 1 for the expected wasm output.
-  ExceptionInfo expected_exceptions[] = {
-      {"main", static_cast<int>(wasm_index_1) + 1, 2},       // -
-      {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
-      {"callFn", 1, 24}                                      //-
-  };
-  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
-                      expected_exceptions);
+    Isolate* isolate = js_wasm_wrapper->GetIsolate();
+    isolate->SetCaptureStackTraceForUncaughtExceptions(
+        true, 10, v8::StackTrace::kOverview);
+    Handle<Object> global(isolate->context()->global_object(), isolate);
+    MaybeHandle<Object> maybe_exc;
+    Handle<Object> args[] = {js_wasm_wrapper};
+    MaybeHandle<Object> maybe_return_obj =
+        Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                           Execution::MessageHandling::kReport, &maybe_exc);
+    CHECK(maybe_return_obj.is_null());
+    Handle<Object> exception = maybe_exc.ToHandleChecked();
+
+    static constexpr int kMainLocalsLength = 1;
+    // Line and column are 1-based, so add 1 for the expected wasm output.
+    const int expected_main_pos = unreachable_pos + kMainLocalsLength + 1;
+    ExceptionInfo expected_exceptions[] = {
+        {"main", static_cast<int>(wasm_index_1) + 1, expected_main_pos},  // -
+        {"call_main", static_cast<int>(wasm_index_2) + 1, 2},             // -
+        {"callFn", 1, 24}                                                 //-
+    };
+    CheckExceptionInfos(isolate, exception, expected_exceptions);
+  }
 }
+
+}  // namespace test_wasm_stack
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

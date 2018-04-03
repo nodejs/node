@@ -21,7 +21,6 @@
 
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
-#include "util.h"
 #include "util-inl.h"
 #include <limits.h>
 #include <string.h>
@@ -29,24 +28,20 @@
 namespace node {
 namespace crypto {
 
-const BIO_METHOD NodeBIO::method = {
-  BIO_TYPE_MEM,
-  "node.js SSL buffer",
-  NodeBIO::Write,
-  NodeBIO::Read,
-  NodeBIO::Puts,
-  NodeBIO::Gets,
-  NodeBIO::Ctrl,
-  NodeBIO::New,
-  NodeBIO::Free,
-  nullptr
-};
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define BIO_set_data(bio, data) bio->ptr = data
+#define BIO_get_data(bio) bio->ptr
+#define BIO_set_shutdown(bio, shutdown_) bio->shutdown = shutdown_
+#define BIO_get_shutdown(bio) bio->shutdown
+#define BIO_set_init(bio, init_) bio->init = init_
+#define BIO_get_init(bio) bio->init
+#endif
 
 
 BIO* NodeBIO::New() {
   // The const_cast doesn't violate const correctness.  OpenSSL's usage of
   // BIO_METHOD is effectively const but BIO_new() takes a non-const argument.
-  return BIO_new(const_cast<BIO_METHOD*>(&method));
+  return BIO_new(const_cast<BIO_METHOD*>(GetMethod()));
 }
 
 
@@ -71,12 +66,9 @@ void NodeBIO::AssignEnvironment(Environment* env) {
 
 
 int NodeBIO::New(BIO* bio) {
-  bio->ptr = new NodeBIO();
+  BIO_set_data(bio, new NodeBIO());
 
-  // XXX Why am I doing it?!
-  bio->shutdown = 1;
-  bio->init = 1;
-  bio->num = -1;
+  BIO_set_init(bio, 1);
 
   return 1;
 }
@@ -86,10 +78,10 @@ int NodeBIO::Free(BIO* bio) {
   if (bio == nullptr)
     return 0;
 
-  if (bio->shutdown) {
-    if (bio->init && bio->ptr != nullptr) {
+  if (BIO_get_shutdown(bio)) {
+    if (BIO_get_init(bio) && BIO_get_data(bio) != nullptr) {
       delete FromBIO(bio);
-      bio->ptr = nullptr;
+      BIO_set_data(bio, nullptr);
     }
   }
 
@@ -98,13 +90,13 @@ int NodeBIO::Free(BIO* bio) {
 
 
 int NodeBIO::Read(BIO* bio, char* out, int len) {
-  int bytes;
   BIO_clear_retry_flags(bio);
 
-  bytes = FromBIO(bio)->Read(out, len);
+  NodeBIO* nbio = FromBIO(bio);
+  int bytes = nbio->Read(out, len);
 
   if (bytes == 0) {
-    bytes = bio->num;
+    bytes = nbio->eof_return();
     if (bytes != 0) {
       BIO_set_retry_read(bio);
     }
@@ -162,7 +154,7 @@ int NodeBIO::Puts(BIO* bio, const char* str) {
 
 
 int NodeBIO::Gets(BIO* bio, char* out, int size) {
-  NodeBIO* nbio =  FromBIO(bio);
+  NodeBIO* nbio = FromBIO(bio);
 
   if (nbio->Length() == 0)
     return 0;
@@ -202,7 +194,7 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
       ret = nbio->Length() == 0;
       break;
     case BIO_C_SET_BUF_MEM_EOF_RETURN:
-      bio->num = num;
+      nbio->set_eof_return(num);
       break;
     case BIO_CTRL_INFO:
       ret = nbio->Length();
@@ -217,10 +209,10 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
       ret = 0;
       break;
     case BIO_CTRL_GET_CLOSE:
-      ret = bio->shutdown;
+      ret = BIO_get_shutdown(bio);
       break;
     case BIO_CTRL_SET_CLOSE:
-      bio->shutdown = num;
+      BIO_set_shutdown(bio, num);
       break;
     case BIO_CTRL_WPENDING:
       ret = 0;
@@ -239,6 +231,41 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
       break;
   }
   return ret;
+}
+
+
+const BIO_METHOD* NodeBIO::GetMethod() {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  static const BIO_METHOD method = {
+    BIO_TYPE_MEM,
+    "node.js SSL buffer",
+    Write,
+    Read,
+    Puts,
+    Gets,
+    Ctrl,
+    New,
+    Free,
+    nullptr
+  };
+
+  return &method;
+#else
+  static BIO_METHOD* method = nullptr;
+
+  if (method == nullptr) {
+    method = BIO_meth_new(BIO_TYPE_MEM, "node.js SSL buffer");
+    BIO_meth_set_write(method, Write);
+    BIO_meth_set_read(method, Read);
+    BIO_meth_set_puts(method, Puts);
+    BIO_meth_set_gets(method, Gets);
+    BIO_meth_set_ctrl(method, Ctrl);
+    BIO_meth_set_create(method, New);
+    BIO_meth_set_destroy(method, Free);
+  }
+
+  return method;
+#endif
 }
 
 
@@ -488,6 +515,13 @@ NodeBIO::~NodeBIO() {
   read_head_ = nullptr;
   write_head_ = nullptr;
 }
+
+
+NodeBIO* NodeBIO::FromBIO(BIO* bio) {
+  CHECK_NE(BIO_get_data(bio), nullptr);
+  return static_cast<NodeBIO*>(BIO_get_data(bio));
+}
+
 
 }  // namespace crypto
 }  // namespace node

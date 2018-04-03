@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-named-captures --harmony-regexp-lookbehind
+// Flags: --harmony-regexp-named-captures --allow-natives-syntax
 
 // Malformed named captures.
 assertThrows("/(?<>a)/u", SyntaxError);  // Empty name.
@@ -360,6 +360,7 @@ function toSlowMode(re) {
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
   assertEquals("cd", "abcd".replace(re, "$3"));
   assertEquals("$<sndcd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<sndacd", "abcd".replace(re, "$<snd$1"));
   assertEquals("$<42a>cd", "abcd".replace(re, "$<42$1>"));
   assertEquals("$<fth>cd", "abcd".replace(re, "$<fth>"));
   assertEquals("$<a>cd", "abcd".replace(re, "$<$1>"));
@@ -371,10 +372,11 @@ function toSlowMode(re) {
   assertEquals("badc", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("badc", "abcd".replace(re, "$2$1"));
   assertEquals("", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<snd$<snd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<snda$<sndc", "abcd".replace(re, "$<snd$1"));
+  assertEquals("", "abcd".replace(re, "$<42$1>"));
+  assertEquals("", "abcd".replace(re, "$<fth>"));
+  assertEquals("", "abcd".replace(re, "$<$1>"));
 }
 
 // @@replace with a string replacement argument (non-global, named captures).
@@ -383,10 +385,11 @@ function toSlowMode(re) {
   assertEquals("bacd", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
   assertEquals("cd", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<sndcd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<sndacd", "abcd".replace(re, "$<snd$1"));
+  assertEquals("cd", "abcd".replace(re, "$<42$1>"));
+  assertEquals("cd", "abcd".replace(re, "$<fth>"));
+  assertEquals("cd", "abcd".replace(re, "$<$1>"));
 }
 
 // @@replace with a string replacement argument (slow, global, named captures).
@@ -395,10 +398,11 @@ function toSlowMode(re) {
   assertEquals("badc", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("badc", "abcd".replace(re, "$2$1"));
   assertEquals("", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<snd$<snd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<snda$<sndc", "abcd".replace(re, "$<snd$1"));
+  assertEquals("", "abcd".replace(re, "$<42$1>"));
+  assertEquals("", "abcd".replace(re, "$<fth>"));
+  assertEquals("", "abcd".replace(re, "$<$1>"));
 }
 
 // @@replace with a string replacement argument (slow, non-global,
@@ -408,8 +412,130 @@ function toSlowMode(re) {
   assertEquals("bacd", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
   assertEquals("cd", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<sndcd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<sndacd", "abcd".replace(re, "$<snd$1"));
+  assertEquals("cd", "abcd".replace(re, "$<42$1>"));
+  assertEquals("cd", "abcd".replace(re, "$<fth>"));
+  assertEquals("cd", "abcd".replace(re, "$<$1>"));
+}
+
+// Tests for 'groups' semantics on the regexp result object.
+// https://crbug.com/v8/7192
+
+{
+  const re = /./;
+  const result = re.exec("a");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["a"], result);
+  assertEquals(0, result.index);
+  assertEquals(undefined, result.groups);
+
+  Array.prototype.groups = { a: "b" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("$<a>", "a".replace(re, "$<a>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  const re = toSlowMode(/./);
+  const result = re.exec("a");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["a"], result);
+  assertEquals(0, result.index);
+  assertEquals(undefined, result.groups);
+
+  Array.prototype.groups = { a: "b" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("$<a>", "a".replace(re, "$<a>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  const re = /(?<a>a).|(?<x>x)/;
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["ab", "a", undefined], result);
+  assertEquals(0, result.index);
+  assertEquals({a: "a", x: undefined}, result.groups);
+
+  // a is a matched named capture, b is an unmatched named capture, and z
+  // is not a named capture.
+  Array.prototype.groups = { a: "b", x: "y", z: "z" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("a", "ab".replace(re, "$<a>"));
+  assertEquals("", "ab".replace(re, "$<x>"));
+  assertEquals("", "ab".replace(re, "$<z>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  const re = toSlowMode(/(?<a>a).|(?<x>x)/);
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertArrayEquals(["ab", "a", undefined], result);
+  assertEquals(0, result.index);
+  assertEquals({a: "a", x: undefined}, result.groups);
+
+  // a is a matched named capture, b is an unmatched named capture, and z
+  // is not a named capture.
+  Array.prototype.groups = { a: "b", x: "y", z: "z" };
+  assertTrue(%SpeciesProtector());
+  assertEquals("a", "ab".replace(re, "$<a>"));
+  assertEquals("", "ab".replace(re, "$<x>"));
+  assertEquals("", "ab".replace(re, "$<z>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  class FakeRegExp extends RegExp {
+    exec(subject) {
+      const fake_result = [ "ab", "a" ];
+      fake_result.index = 0;
+      // groups is not set, triggering prototype lookup.
+      return fake_result;
+    }
+  };
+
+  const re = new FakeRegExp();
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertFalse(result.hasOwnProperty('groups'));
+
+  Array.prototype.groups = { a: "b" };
+  Array.prototype.groups.__proto__.b = "c";
+  assertTrue(%SpeciesProtector());
+  assertEquals("b", "ab".replace(re, "$<a>"));
+  assertEquals("c", "ab".replace(re, "$<b>"));
+  Array.prototype.groups = undefined;
+}
+
+{
+  class FakeRegExp extends RegExp {
+    exec(subject) {
+      const fake_result = [ "ab", "a" ];
+      fake_result.index = 0;
+      fake_result.groups = { a: "b" };
+      fake_result.groups.__proto__.b = "c";
+      return fake_result;
+    }
+  };
+
+  const re = new FakeRegExp();
+  const result = re.exec("ab");
+  assertTrue(%SpeciesProtector());
+  assertEquals(result.__proto__, Array.prototype);
+  assertTrue(result.hasOwnProperty('groups'));
+  assertEquals({ a: "b" }, result.groups);
+
+  assertEquals("b", "ab".replace(re, "$<a>"));
+  assertEquals("c", "ab".replace(re, "$<b>"));
 }

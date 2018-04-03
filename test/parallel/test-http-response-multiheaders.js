@@ -3,6 +3,7 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
+const Countdown = require('../common/countdown');
 
 // Test that certain response header fields do not repeat.
 // 'content-length' should also be in this list but it is
@@ -27,6 +28,7 @@ const norepeat = [
   'age',
   'expires'
 ];
+const runCount = 2;
 
 const server = http.createServer(function(req, res) {
   const num = req.headers['x-num'];
@@ -47,8 +49,8 @@ const server = http.createServer(function(req, res) {
 });
 
 server.listen(0, common.mustCall(function() {
-  let count = 0;
-  for (let n = 1; n <= 2; n++) {
+  const countdown = new Countdown(runCount, () => server.close());
+  for (let n = 1; n <= runCount; n++) {
     // this runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. The
     // result on the client side should be the same in
@@ -58,7 +60,7 @@ server.listen(0, common.mustCall(function() {
     http.get(
       { port: this.address().port, headers: { 'x-num': n } },
       common.mustCall(function(res) {
-        if (++count === 2) server.close();
+        countdown.dec();
         for (const name of norepeat) {
           assert.strictEqual(res.headers[name], 'A');
         }

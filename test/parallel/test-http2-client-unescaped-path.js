@@ -4,6 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
+const Countdown = require('../common/countdown');
 
 const server = http2.createServer();
 
@@ -13,14 +14,12 @@ const count = 32;
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
+  client.setMaxListeners(33);
 
-  let remaining = count + 1;
-  function maybeClose() {
-    if (--remaining === 0) {
-      server.close();
-      client.destroy();
-    }
-  }
+  const countdown = new Countdown(count + 1, () => {
+    server.close();
+    client.close();
+  });
 
   // nghttp2 will catch the bad header value for us.
   function doTest(i) {
@@ -28,9 +27,9 @@ server.listen(0, common.mustCall(() => {
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
       type: Error,
-      message: 'Stream closed with error code 1'
+      message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
     }));
-    req.on('streamClosed', common.mustCall(maybeClose));
+    req.on('close', common.mustCall(() => countdown.dec()));
   }
 
   for (let i = 0; i <= count; i += 1)

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-opt
+// Flags: --no-stress-incremental-marking
 // Files: test/mjsunit/code-coverage-utils.js
 
 // Test precise code coverage.

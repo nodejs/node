@@ -7,11 +7,15 @@ const types = [
   'UInt16BE',
   'UInt32LE',
   'UInt32BE',
+  'UIntLE',
+  'UIntBE',
   'Int8',
   'Int16LE',
   'Int16BE',
   'Int32LE',
   'Int32BE',
+  'IntLE',
+  'IntBE',
   'FloatLE',
   'FloatBE',
   'DoubleLE',
@@ -19,7 +23,6 @@ const types = [
 ];
 
 const bench = common.createBenchmark(main, {
-  noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
   type: types,
   millions: [1]
@@ -28,9 +31,10 @@ const bench = common.createBenchmark(main, {
 const INT8 = 0x7f;
 const INT16 = 0x7fff;
 const INT32 = 0x7fffffff;
-const UINT8 = (INT8 * 2) + 1;
-const UINT16 = (INT16 * 2) + 1;
-const UINT32 = INT32;
+const INT48 = 0x7fffffffffff;
+const UINT8 = 0xff;
+const UINT16 = 0xffff;
+const UINT32 = 0xffffffff;
 
 const mod = {
   writeInt8: INT8,
@@ -42,42 +46,56 @@ const mod = {
   writeUInt16BE: UINT16,
   writeUInt16LE: UINT16,
   writeUInt32BE: UINT32,
-  writeUInt32LE: UINT32
+  writeUInt32LE: UINT32,
+  writeUIntLE: INT8,
+  writeUIntBE: INT16,
+  writeIntLE: INT32,
+  writeIntBE: INT48
 };
 
-function main(conf) {
-  const noAssert = conf.noAssert === 'true';
-  const len = +conf.millions * 1e6;
-  const clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
+const byteLength = {
+  writeUIntLE: 1,
+  writeUIntBE: 2,
+  writeIntLE: 4,
+  writeIntBE: 6
+};
+
+function main({ millions, buf, type }) {
+  const clazz = buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   const buff = new clazz(8);
-  const type = conf.type || 'UInt8';
-  const fn = `write${type}`;
+  const fn = `write${type || 'UInt8'}`;
 
-  if (/Int/.test(fn))
-    benchInt(buff, fn, len, noAssert);
+  if (!/\d/.test(fn))
+    benchSpecialInt(buff, fn, millions);
+  else if (/Int/.test(fn))
+    benchInt(buff, fn, millions);
   else
-    benchFloat(buff, fn, len, noAssert);
+    benchFloat(buff, fn, millions);
 }
 
-function benchInt(buff, fn, len, noAssert) {
+function benchInt(buff, fn, millions) {
   const m = mod[fn];
-  const testFunction = new Function('buff', `
-    for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(i & ${m}, 0, ${JSON.stringify(noAssert)});
-    }
-  `);
   bench.start();
-  testFunction(buff);
-  bench.end(len / 1e6);
+  for (var i = 0; i !== millions * 1e6; i++) {
+    buff[fn](i & m, 0);
+  }
+  bench.end(millions);
 }
 
-function benchFloat(buff, fn, len, noAssert) {
-  const testFunction = new Function('buff', `
-    for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(i, 0, ${JSON.stringify(noAssert)});
-    }
-  `);
+function benchSpecialInt(buff, fn, millions) {
+  const m = mod[fn];
+  const byte = byteLength[fn];
   bench.start();
-  testFunction(buff);
-  bench.end(len / 1e6);
+  for (var i = 0; i !== millions * 1e6; i++) {
+    buff[fn](i & m, 0, byte);
+  }
+  bench.end(millions);
+}
+
+function benchFloat(buff, fn, millions) {
+  bench.start();
+  for (var i = 0; i !== millions * 1e6; i++) {
+    buff[fn](i, 0);
+  }
+  bench.end(millions);
 }

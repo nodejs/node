@@ -59,16 +59,29 @@ assert.throws(
   }
 );
 
-assert.throws(
-  require,
-  common.expectsError({
-    code: 'ERR_ASSERTION',
-    message: /^missing path$/
-  }));
+const re = /^The "id" argument must be of type string\. Received type \w+$/;
+[1, false, null, undefined, {}].forEach((value) => {
+  common.expectsError(
+    () => { require(value); },
+    {
+      type: TypeError,
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: re
+    });
+});
 
-assert.throws(
-  () => { require({}); },
-  common.expectsError({
-    code: 'ERR_ASSERTION',
-    message: /^path must be a string$/
-  }));
+
+common.expectsError(
+  () => { require(''); },
+  {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: 'The argument \'id\' must be a non-empty string. Received \'\''
+  });
+
+common.expectsError(
+  () => { require('../fixtures/packages/is-dir'); },
+  {
+    code: 'MODULE_NOT_FOUND',
+    message: 'Cannot find module \'../fixtures/packages/is-dir\''
+  });

@@ -7,27 +7,13 @@
 #include <algorithm>
 
 #include "src/debug/debug-interface.h"
-#include "src/inspector/protocol/Debugger.h"
-#include "src/inspector/script-breakpoint.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-debugger-script.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8_inspector;
-using namespace v8;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8_inspector {
 
 class WasmTranslation::TranslatorImpl {
  public:
@@ -44,7 +30,7 @@ class WasmTranslation::TranslatorImpl {
           column(column) {}
   };
 
-  virtual void Init(Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) = 0;
+  virtual void Init(v8::Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) = 0;
   virtual void Translate(TransLocation*) = 0;
   virtual void TranslateBack(TransLocation*) = 0;
   virtual ~TranslatorImpl() {}
@@ -56,23 +42,24 @@ class WasmTranslation::TranslatorImpl {
 class WasmTranslation::TranslatorImpl::RawTranslator
     : public WasmTranslation::TranslatorImpl {
  public:
-  void Init(Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) {}
+  void Init(v8::Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) {}
   void Translate(TransLocation*) {}
   void TranslateBack(TransLocation*) {}
 };
 
 class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     : public WasmTranslation::TranslatorImpl {
-  using OffsetTable = debug::WasmDisassembly::OffsetTable;
+  using OffsetTable = v8::debug::WasmDisassembly::OffsetTable;
 
  public:
-  DisassemblingTranslator(Isolate* isolate, Local<debug::WasmScript> script)
+  DisassemblingTranslator(v8::Isolate* isolate,
+                          v8::Local<v8::debug::WasmScript> script)
       : script_(isolate, script) {}
 
-  void Init(Isolate* isolate, WasmTranslation* translation,
+  void Init(v8::Isolate* isolate, WasmTranslation* translation,
             V8DebuggerAgentImpl* agent) override {
     // Register fake scripts for each function in this wasm module/script.
-    Local<debug::WasmScript> script = script_.Get(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
     int num_functions = script->NumFunctions();
     int num_imported_functions = script->NumImportedFunctions();
     DCHECK_LE(0, num_imported_functions);
@@ -163,7 +150,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
 
  private:
   String16 GetFakeScriptUrl(v8::Isolate* isolate, int func_index) {
-    Local<debug::WasmScript> script = script_.Get(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
     String16 script_name = toProtocolString(script->Name().ToLocalChecked());
     int numFunctions = script->NumFunctions();
     int numImported = script->NumImportedFunctions();
@@ -195,9 +182,10 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     String16 fake_script_id = GetFakeScriptId(underlyingScriptId, func_idx);
     String16 fake_script_url = GetFakeScriptUrl(isolate, func_idx);
 
-    v8::Local<debug::WasmScript> script = script_.Get(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
     // TODO(clemensh): Generate disassembly lazily when queried by the frontend.
-    debug::WasmDisassembly disassembly = script->DisassembleFunction(func_idx);
+    v8::debug::WasmDisassembly disassembly =
+        script->DisassembleFunction(func_idx);
 
     DCHECK_EQ(0, offset_tables_.count(func_idx));
     offset_tables_.insert(
@@ -254,7 +242,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     return &inserted.first->second;
   }
 
-  Global<debug::WasmScript> script_;
+  v8::Global<v8::debug::WasmScript> script_;
 
   // We assume to only disassemble a subset of the functions, so store them in a
   // map instead of an array.
@@ -267,7 +255,7 @@ WasmTranslation::WasmTranslation(v8::Isolate* isolate)
 
 WasmTranslation::~WasmTranslation() { Clear(); }
 
-void WasmTranslation::AddScript(Local<debug::WasmScript> script,
+void WasmTranslation::AddScript(v8::Local<v8::debug::WasmScript> script,
                                 V8DebuggerAgentImpl* agent) {
   std::unique_ptr<TranslatorImpl> impl;
   switch (mode_) {
@@ -338,3 +326,5 @@ void WasmTranslation::AddFakeScript(const String16& scriptId,
   DCHECK_EQ(0, fake_scripts_.count(scriptId));
   fake_scripts_.insert(std::make_pair(scriptId, translator));
 }
+
+}  // namespace v8_inspector

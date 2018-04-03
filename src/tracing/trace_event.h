@@ -92,6 +92,23 @@ enum CategoryGroupEnabledFlags {
 //                    unsigned int flags)
 #define TRACE_EVENT_API_ADD_TRACE_EVENT node::tracing::AddTraceEventImpl
 
+// Add a trace event to the platform tracing system.
+// uint64_t TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP(
+//                    char phase,
+//                    const uint8_t* category_group_enabled,
+//                    const char* name,
+//                    const char* scope,
+//                    uint64_t id,
+//                    uint64_t bind_id,
+//                    int num_args,
+//                    const char** arg_names,
+//                    const uint8_t* arg_types,
+//                    const uint64_t* arg_values,
+//                    unsigned int flags,
+//                    int64_t timestamp)
+#define TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP \
+  node::tracing::AddTraceEventWithTimestampImpl
+
 // Set the duration field of a COMPLETE trace event.
 // void TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION(
 //     const uint8_t* category_group_enabled,
@@ -207,10 +224,18 @@ enum CategoryGroupEnabledFlags {
     }                                                                          \
   } while (0)
 
-// Adds a trace event with a given timestamp. Not Implemented.
+// Adds a trace event with a given timestamp.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(phase, category_group, name, \
                                                 timestamp, flags, ...)       \
-  UNIMPLEMENTED()
+  do {                                                                       \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                  \
+    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {  \
+      node::tracing::AddTraceEventWithTimestamp(                     \
+          phase, INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,     \
+          node::tracing::kGlobalScope, node::tracing::kNoId, \
+          node::tracing::kNoId, flags, timestamp, ##__VA_ARGS__);    \
+    }                                                                        \
+  } while (0)
 
 // Adds a trace event with a given id and timestamp. Not Implemented.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_ID_AND_TIMESTAMP(     \
@@ -219,9 +244,20 @@ enum CategoryGroupEnabledFlags {
 
 // Adds a trace event with a given id, thread_id, and timestamp. Not
 // Implemented.
-#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(            \
-    phase, category_group, name, id, thread_id, timestamp, flags, ...) \
-  UNIMPLEMENTED()
+#define INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                  \
+    phase, category_group, name, id, thread_id, timestamp, flags, ...)       \
+  do {                                                                       \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                  \
+    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {  \
+      unsigned int trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID;      \
+      node::tracing::TraceID trace_event_trace_id(id,                        \
+                                                  &trace_event_flags);       \
+      node::tracing::AddTraceEventWithTimestamp(                             \
+          phase, INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,     \
+          trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),       \
+          node::tracing::kNoId, trace_event_flags, timestamp, ##__VA_ARGS__);\
+    }                                                                        \
+  } while (0)
 
 // Enter and leave a context based on the current scope.
 #define INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \
@@ -252,8 +288,6 @@ namespace tracing {
 const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
-
-extern intptr_t kRuntimeCallStatsTracingEnabled;
 
 class TraceEventHelper {
  public:
@@ -404,12 +438,34 @@ static inline uint64_t AddTraceEventImpl(
     arg_convertibles[1].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
         static_cast<intptr_t>(arg_values[1])));
   }
-  // DCHECK(num_args <= 2);
+  // DCHECK(num_args, 2);
   v8::TracingController* controller =
       node::tracing::TraceEventHelper::GetTracingController();
   return controller->AddTraceEvent(phase, category_group_enabled, name, scope, id,
                                    bind_id, num_args, arg_names, arg_types,
                                    arg_values, arg_convertibles, flags);
+}
+
+static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
+    char phase, const uint8_t* category_group_enabled, const char* name,
+    const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values, unsigned int flags, int64_t timestamp) {
+  std::unique_ptr<v8::ConvertableToTraceFormat> arg_convertables[2];
+  if (num_args > 0 && arg_types[0] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertables[0].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[0])));
+  }
+  if (num_args > 1 && arg_types[1] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertables[1].reset(reinterpret_cast<v8::ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[1])));
+  }
+  // DCHECK_LE(num_args, 2);
+  v8::TracingController* controller =
+      node::tracing::TraceEventHelper::GetTracingController();
+  return controller->AddTraceEventWithTimestamp(
+      phase, category_group_enabled, name, scope, id, bind_id, num_args,
+      arg_names, arg_types, arg_values, arg_convertables, flags, timestamp);
 }
 
 // Define SetTraceValue for each allowed type. It stores the type and
@@ -514,11 +570,53 @@ static inline uint64_t AddTraceEvent(
       arg_names, arg_types, arg_values, flags);
 }
 
+static V8_INLINE uint64_t AddTraceEventWithTimestamp(
+    char phase, const uint8_t* category_group_enabled, const char* name,
+    const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
+    int64_t timestamp) {
+  return TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP(
+      phase, category_group_enabled, name, scope, id, bind_id, kZeroNumArgs,
+      nullptr, nullptr, nullptr, flags, timestamp);
+}
+
+template <class ARG1_TYPE>
+static V8_INLINE uint64_t AddTraceEventWithTimestamp(
+    char phase, const uint8_t* category_group_enabled, const char* name,
+    const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
+    int64_t timestamp, const char* arg1_name, ARG1_TYPE&& arg1_val) {
+  const int num_args = 1;
+  uint8_t arg_type;
+  uint64_t arg_value;
+  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_type, &arg_value);
+  return TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP(
+      phase, category_group_enabled, name, scope, id, bind_id, num_args,
+      &arg1_name, &arg_type, &arg_value, flags, timestamp);
+}
+
+template <class ARG1_TYPE, class ARG2_TYPE>
+static V8_INLINE uint64_t AddTraceEventWithTimestamp(
+    char phase, const uint8_t* category_group_enabled, const char* name,
+    const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
+    int64_t timestamp, const char* arg1_name, ARG1_TYPE&& arg1_val,
+    const char* arg2_name, ARG2_TYPE&& arg2_val) {
+  const int num_args = 2;
+  const char* arg_names[2] = {arg1_name, arg2_name};
+  unsigned char arg_types[2];
+  uint64_t arg_values[2];
+  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_types[0],
+                &arg_values[0]);
+  SetTraceValue(std::forward<ARG2_TYPE>(arg2_val), &arg_types[1],
+                &arg_values[1]);
+  return TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP(
+      phase, category_group_enabled, name, scope, id, bind_id, num_args,
+      arg_names, arg_types, arg_values, flags, timestamp);
+}
+
 // Used by TRACE_EVENTx macros. Do not use directly.
 class ScopedTracer {
  public:
   // Note: members of data_ intentionally left uninitialized. See Initialize.
-  ScopedTracer() : p_data_(NULL) {}
+  ScopedTracer() : p_data_(nullptr) {}
 
   ~ScopedTracer() {
     if (p_data_ && *data_.category_group_enabled)

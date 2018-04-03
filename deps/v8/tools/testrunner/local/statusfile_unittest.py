@@ -87,7 +87,7 @@ class StatusFileTest(unittest.TestCase):
     )
 
   def test_read_statusfile_section_true(self):
-    rules, wildcards = statusfile.ReadStatusFile(
+    rules, prefix_rules = statusfile.ReadStatusFile(
         TEST_STATUS_FILE % 'system==linux', make_variables())
 
     self.assertEquals(
@@ -99,15 +99,15 @@ class StatusFileTest(unittest.TestCase):
     )
     self.assertEquals(
         {
-          'foo/*': set(['SLOW', 'FAIL']),
+          'foo/': set(['SLOW', 'FAIL']),
         },
-        wildcards[''],
+        prefix_rules[''],
     )
     self.assertEquals({}, rules['default'])
-    self.assertEquals({}, wildcards['default'])
+    self.assertEquals({}, prefix_rules['default'])
 
   def test_read_statusfile_section_false(self):
-    rules, wildcards = statusfile.ReadStatusFile(
+    rules, prefix_rules = statusfile.ReadStatusFile(
         TEST_STATUS_FILE % 'system==windows', make_variables())
 
     self.assertEquals(
@@ -119,15 +119,15 @@ class StatusFileTest(unittest.TestCase):
     )
     self.assertEquals(
         {
-          'foo/*': set(['PASS', 'SLOW']),
+          'foo/': set(['PASS', 'SLOW']),
         },
-        wildcards[''],
+        prefix_rules[''],
     )
     self.assertEquals({}, rules['default'])
-    self.assertEquals({}, wildcards['default'])
+    self.assertEquals({}, prefix_rules['default'])
 
   def test_read_statusfile_section_variant(self):
-    rules, wildcards = statusfile.ReadStatusFile(
+    rules, prefix_rules = statusfile.ReadStatusFile(
         TEST_STATUS_FILE % 'system==linux and variant==default',
         make_variables(),
     )
@@ -141,9 +141,9 @@ class StatusFileTest(unittest.TestCase):
     )
     self.assertEquals(
         {
-          'foo/*': set(['PASS', 'SLOW']),
+          'foo/': set(['PASS', 'SLOW']),
         },
-        wildcards[''],
+        prefix_rules[''],
     )
     self.assertEquals(
         {
@@ -153,9 +153,9 @@ class StatusFileTest(unittest.TestCase):
     )
     self.assertEquals(
         {
-          'foo/*': set(['FAIL']),
+          'foo/': set(['FAIL']),
         },
-        wildcards['default'],
+        prefix_rules['default'],
     )
 
 

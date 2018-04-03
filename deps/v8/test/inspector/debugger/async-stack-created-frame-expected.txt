@@ -2,78 +2,78 @@ Checks created frame for async call chain
 
 Running test: testPromise
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 promise (test.js:20:14)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testPromiseThen
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 promiseThen (test.js:28:14)
 (anonymous) (expr.js:0:0)
 
 foo2 (test.js:14:2)
--- Promise.resolve --
+-- Promise.then --
 promiseThen (test.js:29:14)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testPromiseThenThen
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 promiseThenThen (test.js:37:14)
 (anonymous) (expr.js:0:0)
 
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 promiseThenThen (test.js:38:14)
 (anonymous) (expr.js:0:0)
 
 foo2 (test.js:14:2)
--- Promise.resolve --
+-- Promise.then --
 promiseThenThen (test.js:37:25)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testPromiseResolve
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 promiseResolve (test.js:44:27)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testPromiseReject
 foo1 (test.js:10:2)
--- Promise.reject --
+-- Promise.catch --
 promiseReject (test.js:48:31)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testPromiseAll
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 promiseAll (test.js:52:44)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testPromiseRace
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 promiseRace (test.js:56:45)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testThenableJob1
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 thenableJob1 (test.js:60:72)
 (anonymous) (expr.js:0:0)
 
 
 Running test: testThenableJob2
 foo1 (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 thenableJob2 (test.js:64:57)
 (anonymous) (expr.js:0:0)
 

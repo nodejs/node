@@ -32,6 +32,7 @@
 
 #include "unicode/utypes.h"
 #include "unicode/localpointer.h"
+#include "unicode/stringoptions.h"
 #include "unicode/uset.h"
 
 /**
@@ -525,30 +526,6 @@ unorm2_hasBoundaryAfter(const UNormalizer2 *norm2, UChar32 c);
  */
 U_STABLE UBool U_EXPORT2
 unorm2_isInert(const UNormalizer2 *norm2, UChar32 c);
-
-/**
- * Option bit for unorm_compare:
- * Both input strings are assumed to fulfill FCD conditions.
- * @stable ICU 2.2
- */
-#define UNORM_INPUT_IS_FCD          0x20000
-
-/**
- * Option bit for unorm_compare:
- * Perform case-insensitive comparison.
- * @stable ICU 2.2
- */
-#define U_COMPARE_IGNORE_CASE       0x10000
-
-#ifndef U_COMPARE_CODE_POINT_ORDER
-/* see also unistr.h and ustring.h */
-/**
- * Option bit for u_strCaseCompare, u_strcasecmp, unorm_compare, etc:
- * Compare strings in code point order instead of code unit order.
- * @stable ICU 2.2
- */
-#define U_COMPARE_CODE_POINT_ORDER  0x8000
-#endif
 
 /**
  * Compares two strings for canonical equivalence.

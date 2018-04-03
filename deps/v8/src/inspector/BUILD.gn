@@ -79,17 +79,6 @@ action("inspector_injected_script") {
 
 config("inspector_config") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
-  cflags = []
-  if (is_win) {
-    cflags += [
-      "/wd4267",  # Truncation from size_t to int.
-      "/wd4305",  # Truncation from 'type1' to 'type2'.
-      "/wd4324",  # Struct padded due to declspec(align).
-      "/wd4714",  # Function marked forceinline not inlined.
-      "/wd4800",  # Value forced to bool.
-      "/wd4996",  # Deprecated function call.
-    ]
-  }
   if (is_component_build) {
     defines = [ "BUILDING_V8_SHARED" ]
   }
@@ -120,7 +109,6 @@ v8_source_set("inspector") {
     "inspected-context.h",
     "remote-object-id.cc",
     "remote-object-id.h",
-    "script-breakpoint.h",
     "search-util.cc",
     "search-util.h",
     "string-16.cc",

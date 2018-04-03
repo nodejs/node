@@ -94,3 +94,14 @@
 (function TestTruncation() {
   assertEquals("ba", "a".padStart(2, "bc"));
 })();
+
+
+(function TestMaxLength() {
+  assertThrows(() => "123".padStart(Math.pow(2, 40)), RangeError);
+  assertThrows(() => "123".padStart(1 << 30), RangeError);
+})();
+
+
+(function TestNoArguments() {
+  assertEquals("abc", "abc".padStart());
+})();

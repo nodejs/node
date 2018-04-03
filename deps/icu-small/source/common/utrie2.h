@@ -20,6 +20,7 @@
 #define __UTRIE2_H__
 
 #include "unicode/utypes.h"
+#include "unicode/utf8.h"
 #include "putilimp.h"
 #include "udataswp.h"
 
@@ -54,6 +55,8 @@ typedef struct UTrie UTrie;
  *   is truncated, omitting both the BMP portion and the high range.
  * - There is a special small index for 2-byte UTF-8, and the initial data
  *   entries are designed for fast 1/2-byte UTF-8 lookup.
+ *   Starting with ICU 60, C0 and C1 are not recognized as UTF-8 lead bytes any more at all,
+ *   and the associated 2-byte indexes are unused.
  */
 
 /**
@@ -933,29 +936,29 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
 /** Internal UTF-8 next-post-increment: get the next code point's data. */
 #define _UTRIE2_U8_NEXT(trie, ascii, data, src, limit, result) { \
     uint8_t __lead=(uint8_t)*(src)++; \
-    if(__lead<0xc0) { \
+    if(U8_IS_SINGLE(__lead)) { \
         (result)=(trie)->ascii[__lead]; \
     } else { \
         uint8_t __t1, __t2; \
-        if( /* handle U+0000..U+07FF inline */ \
-            __lead<0xe0 && (src)<(limit) && \
+        if( /* handle U+0800..U+FFFF inline */ \
+            0xe0<=__lead && __lead<0xf0 && ((src)+1)<(limit) && \
+            U8_IS_VALID_LEAD3_AND_T1(__lead, __t1=(uint8_t)*(src)) && \
+            (__t2=(uint8_t)(*((src)+1)-0x80))<= 0x3f \
+        ) { \
+            (src)+=2; \
+            (result)=(trie)->data[ \
+                ((int32_t)((trie)->index[((__lead-0xe0)<<(12-UTRIE2_SHIFT_2))+ \
+                                         ((__t1&0x3f)<<(6-UTRIE2_SHIFT_2))+(__t2>>UTRIE2_SHIFT_2)]) \
+                <<UTRIE2_INDEX_SHIFT)+ \
+                (__t2&UTRIE2_DATA_MASK)]; \
+        } else if( /* handle U+0080..U+07FF inline */ \
+            __lead<0xe0 && __lead>=0xc2 && (src)<(limit) && \
             (__t1=(uint8_t)(*(src)-0x80))<=0x3f \
         ) { \
             ++(src); \
             (result)=(trie)->data[ \
                 (trie)->index[(UTRIE2_UTF8_2B_INDEX_2_OFFSET-0xc0)+__lead]+ \
                 __t1]; \
-        } else if( /* handle U+0000..U+CFFF inline */ \
-            __lead<0xed && ((src)+1)<(limit) && \
-            (__t1=(uint8_t)(*(src)-0x80))<=0x3f && (__lead>0xe0 || __t1>=0x20) && \
-            (__t2=(uint8_t)(*((src)+1)-0x80))<= 0x3f \
-        ) { \
-            (src)+=2; \
-            (result)=(trie)->data[ \
-                ((int32_t)((trie)->index[((__lead-0xe0)<<(12-UTRIE2_SHIFT_2))+ \
-                                         (__t1<<(6-UTRIE2_SHIFT_2))+(__t2>>UTRIE2_SHIFT_2)]) \
-                <<UTRIE2_INDEX_SHIFT)+ \
-                (__t2&UTRIE2_DATA_MASK)]; \
         } else { \
             int32_t __index=utrie2_internalU8NextIndex((trie), __lead, (const uint8_t *)(src), \
                                                                        (const uint8_t *)(limit)); \
@@ -968,7 +971,7 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
 /** Internal UTF-8 pre-decrement-previous: get the previous code point's data. */
 #define _UTRIE2_U8_PREV(trie, ascii, data, start, src, result) { \
     uint8_t __b=(uint8_t)*--(src); \
-    if(__b<0x80) { \
+    if(U8_IS_SINGLE(__b)) { \
         (result)=(trie)->ascii[__b]; \
     } else { \
         int32_t __index=utrie2_internalU8PrevIndex((trie), __b, (const uint8_t *)(start), \
@@ -979,12 +982,5 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
 }
 
 U_CDECL_END
-
-/**
- * Work around MSVC 2003 optimization bugs.
- */
-#if defined (U_HAVE_MSVC_2003_OR_EARLIER)
-#pragma optimize("", off)
-#endif
 
 #endif

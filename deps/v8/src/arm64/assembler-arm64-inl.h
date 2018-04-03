@@ -27,132 +27,21 @@ void RelocInfo::apply(intptr_t delta) {
   *p += delta;  // Relocate entry.
 }
 
-inline int CPURegister::code() const {
-  DCHECK(IsValid());
-  return reg_code;
-}
-
-
-inline CPURegister::RegisterType CPURegister::type() const {
-  DCHECK(IsValidOrNone());
-  return reg_type;
-}
-
-inline RegList CPURegister::bit() const {
-  DCHECK(static_cast<size_t>(reg_code) < (sizeof(RegList) * kBitsPerByte));
-  return IsValid() ? 1UL << reg_code : 0;
-}
-
-
-inline int CPURegister::SizeInBits() const {
-  DCHECK(IsValid());
-  return reg_size;
-}
-
-
-inline int CPURegister::SizeInBytes() const {
-  DCHECK(IsValid());
-  DCHECK(SizeInBits() % 8 == 0);
-  return reg_size / 8;
-}
-
-inline bool CPURegister::Is8Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 8;
-}
-
-inline bool CPURegister::Is16Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 16;
-}
-
-inline bool CPURegister::Is32Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 32;
-}
-
-
-inline bool CPURegister::Is64Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 64;
-}
-
-inline bool CPURegister::Is128Bits() const {
-  DCHECK(IsValid());
-  return reg_size == 128;
-}
-
-inline bool CPURegister::IsValid() const {
-  if (IsValidRegister() || IsValidVRegister()) {
-    DCHECK(!IsNone());
-    return true;
-  } else {
-    DCHECK(IsNone());
-    return false;
-  }
-}
-
-
-inline bool CPURegister::IsValidRegister() const {
-  return IsRegister() &&
-         ((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits)) &&
-         ((reg_code < kNumberOfRegisters) || (reg_code == kSPRegInternalCode));
-}
-
-inline bool CPURegister::IsValidVRegister() const {
-  return IsVRegister() &&
-         ((reg_size == kBRegSizeInBits) || (reg_size == kHRegSizeInBits) ||
-          (reg_size == kSRegSizeInBits) || (reg_size == kDRegSizeInBits) ||
-          (reg_size == kQRegSizeInBits)) &&
-         (reg_code < kNumberOfVRegisters);
-}
-
-inline bool CPURegister::IsNone() const {
-  // kNoRegister types should always have size 0 and code 0.
-  DCHECK((reg_type != kNoRegister) || (reg_code == 0));
-  DCHECK((reg_type != kNoRegister) || (reg_size == 0));
-
-  return reg_type == kNoRegister;
-}
-
-
-inline bool CPURegister::Is(const CPURegister& other) const {
-  DCHECK(IsValidOrNone() && other.IsValidOrNone());
-  return Aliases(other) && (reg_size == other.reg_size);
-}
-
-
-inline bool CPURegister::Aliases(const CPURegister& other) const {
-  DCHECK(IsValidOrNone() && other.IsValidOrNone());
-  return (reg_code == other.reg_code) && (reg_type == other.reg_type);
-}
-
-
-inline bool CPURegister::IsRegister() const {
-  return reg_type == kRegister;
-}
-
-inline bool CPURegister::IsVRegister() const { return reg_type == kVRegister; }
 
 inline bool CPURegister::IsSameSizeAndType(const CPURegister& other) const {
-  return (reg_size == other.reg_size) && (reg_type == other.reg_type);
-}
-
-
-inline bool CPURegister::IsValidOrNone() const {
-  return IsValid() || IsNone();
+  return (reg_size_ == other.reg_size_) && (reg_type_ == other.reg_type_);
 }
 
 
 inline bool CPURegister::IsZero() const {
   DCHECK(IsValid());
-  return IsRegister() && (reg_code == kZeroRegCode);
+  return IsRegister() && (reg_code_ == kZeroRegCode);
 }
 
 
 inline bool CPURegister::IsSP() const {
   DCHECK(IsValid());
-  return IsRegister() && (reg_code == kSPRegInternalCode);
+  return IsRegister() && (reg_code_ == kSPRegInternalCode);
 }
 
 
@@ -254,44 +143,53 @@ inline VRegister VRegister::VRegFromCode(unsigned code) {
 }
 
 inline Register CPURegister::W() const {
-  DCHECK(IsValidRegister());
-  return Register::WRegFromCode(reg_code);
+  DCHECK(IsRegister());
+  return Register::WRegFromCode(reg_code_);
 }
 
+inline Register CPURegister::Reg() const {
+  DCHECK(IsRegister());
+  return Register::Create(reg_code_, reg_size_);
+}
+
+inline VRegister CPURegister::VReg() const {
+  DCHECK(IsVRegister());
+  return VRegister::Create(reg_code_, reg_size_);
+}
 
 inline Register CPURegister::X() const {
-  DCHECK(IsValidRegister());
-  return Register::XRegFromCode(reg_code);
+  DCHECK(IsRegister());
+  return Register::XRegFromCode(reg_code_);
 }
 
 inline VRegister CPURegister::V() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::VRegFromCode(reg_code);
+  DCHECK(IsVRegister());
+  return VRegister::VRegFromCode(reg_code_);
 }
 
 inline VRegister CPURegister::B() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::BRegFromCode(reg_code);
+  DCHECK(IsVRegister());
+  return VRegister::BRegFromCode(reg_code_);
 }
 
 inline VRegister CPURegister::H() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::HRegFromCode(reg_code);
+  DCHECK(IsVRegister());
+  return VRegister::HRegFromCode(reg_code_);
 }
 
 inline VRegister CPURegister::S() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::SRegFromCode(reg_code);
+  DCHECK(IsVRegister());
+  return VRegister::SRegFromCode(reg_code_);
 }
 
 inline VRegister CPURegister::D() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::DRegFromCode(reg_code);
+  DCHECK(IsVRegister());
+  return VRegister::DRegFromCode(reg_code_);
 }
 
 inline VRegister CPURegister::Q() const {
-  DCHECK(IsValidVRegister());
-  return VRegister::QRegFromCode(reg_code);
+  DCHECK(IsVRegister());
+  return VRegister::QRegFromCode(reg_code_);
 }
 
 
@@ -386,7 +284,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
       extend_(extend),
       shift_amount_(shift_amount) {
   DCHECK(reg.IsValid());
-  DCHECK(shift_amount <= 4);
+  DCHECK_LE(shift_amount, 4);
   DCHECK(!reg.IsSP());
 
   // Extend modes SXTX and UXTX require a 64-bit register.
@@ -541,15 +439,12 @@ MemOperand::MemOperand(Register base,
   DCHECK(shift == LSL);
 }
 
-
 MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
-  : base_(base), addrmode_(addrmode) {
+    : base_(base), regoffset_(NoReg), addrmode_(addrmode) {
   DCHECK(base.Is64Bits() && !base.IsZero());
 
   if (offset.IsImmediate()) {
     offset_ = offset.ImmediateValue();
-
-    regoffset_ = NoReg;
   } else if (offset.IsShiftedRegister()) {
     DCHECK((addrmode == Offset) || (addrmode == PostIndex));
 
@@ -637,12 +532,6 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 }
 
 
-Address Assembler::target_address_at(Address pc, Code* code) {
-  Address constant_pool = code ? code->constant_pool() : NULL;
-  return target_address_at(pc, constant_pool);
-}
-
-
 Address Assembler::target_address_from_return_address(Address pc) {
   // Returns the address of the call target from the return address that will
   // be returned to after a call.
@@ -720,28 +609,19 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
 }
 
 
-void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
-                                      Address target,
-                                      ICacheFlushMode icache_flush_mode) {
-  Address constant_pool = code ? code->constant_pool() : NULL;
-  set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
-}
-
-
 int RelocInfo::target_address_size() {
   return kPointerSize;
 }
 
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  return Assembler::target_address_at(pc_, host_);
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
-                              || rmode_ == EMBEDDED_OBJECT
-                              || rmode_ == EXTERNAL_REFERENCE);
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
+         rmode_ == EMBEDDED_OBJECT || rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_pointer_address_at(pc_);
 }
 
@@ -753,24 +633,24 @@ Address RelocInfo::constant_pool_entry_address() {
 
 HeapObject* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return HeapObject::cast(
-      reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_)));
+  return HeapObject::cast(reinterpret_cast<Object*>(
+      Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Handle<HeapObject>(
-      reinterpret_cast<HeapObject**>(Assembler::target_address_at(pc_, host_)));
+  return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+      Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 void RelocInfo::set_target_object(HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(target->GetIsolate(), pc_, host_,
+  Assembler::set_target_address_at(target->GetIsolate(), pc_, constant_pool_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
                                                                   target);
     host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
@@ -780,7 +660,7 @@ void RelocInfo::set_target_object(HeapObject* target,
 
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == EXTERNAL_REFERENCE);
-  return Assembler::target_address_at(pc_, host_);
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 
@@ -815,9 +695,9 @@ void RelocInfo::WipeOut(Isolate* isolate) {
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = NULL;
+    Memory::Address_at(pc_) = nullptr;
   } else {
-    Assembler::set_target_address_at(isolate, pc_, host_, NULL);
+    Assembler::set_target_address_at(isolate, pc_, constant_pool_, nullptr);
   }
 }
 
@@ -921,7 +801,7 @@ LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
 
 
 int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
-  DCHECK(kStartOfLabelLinkChain == 0);
+  DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);
   DCHECK(IsAligned(offset, kInstructionSize));
   return offset >> kInstructionSizeLog2;
@@ -1070,7 +950,7 @@ Instr Assembler::ExtendMode(Extend extend) {
 
 
 Instr Assembler::ImmExtendShift(unsigned left_shift) {
-  DCHECK(left_shift <= 4);
+  DCHECK_LE(left_shift, 4);
   return left_shift << ImmExtendShift_offset;
 }
 

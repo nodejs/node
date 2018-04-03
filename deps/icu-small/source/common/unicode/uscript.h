@@ -444,6 +444,13 @@ typedef enum UScriptCode {
       /** @stable ICU 58 */
       USCRIPT_SYMBOLS_EMOJI                 = 174,/* Zsye */
 
+      /** @stable ICU 60 */
+      USCRIPT_MASARAM_GONDI                 = 175,/* Gonm */
+      /** @stable ICU 60 */
+      USCRIPT_SOYOMBO                       = 176,/* Soyo */
+      /** @stable ICU 60 */
+      USCRIPT_ZANABAZAR_SQUARE              = 177,/* Zanb */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UScriptCode value.
@@ -451,7 +458,7 @@ typedef enum UScriptCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    USCRIPT_CODE_LIMIT    = 175
+    USCRIPT_CODE_LIMIT    = 178
 #endif  // U_HIDE_DEPRECATED_API
 } UScriptCode;
 
@@ -469,7 +476,7 @@ typedef enum UScriptCode {
  * @param nameOrAbbrOrLocale name of the script, as given in
  * PropertyValueAliases.txt, or ISO 15924 code or locale
  * @param fillIn the UScriptCode buffer to fill in the script code
- * @param capacity the capacity (size) fo UScriptCode buffer passed in.
+ * @param capacity the capacity (size) of UScriptCode buffer passed in.
  * @param err the error status code.
  * @return The number of script codes filled in the buffer passed in
  * @stable ICU 2.4

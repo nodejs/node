@@ -24,21 +24,21 @@ src.constructor = 'foo';
 src.Constructor = 'bar';
 src.CONSTRUCTOR = 'baz';
 // eslint-disable-next-line no-proto
-src['__proto__'] = 'foo';
-src['__PROTO__'] = 'bar';
-src['__Proto__'] = 'baz';
+src.__proto__ = 'foo';
+src.__PROTO__ = 'bar';
+src.__Proto__ = 'baz';
 
 function checkHeaders(headers) {
-  assert.deepStrictEqual(headers['accept'],
+  assert.deepStrictEqual(headers.accept,
                          'abc, def, ghijklmnop');
   assert.deepStrictEqual(headers['www-authenticate'],
                          'foo, bar, baz');
   assert.deepStrictEqual(headers['proxy-authenticate'],
                          'foo, bar, baz');
   assert.deepStrictEqual(headers['x-foo'], 'foo, bar, baz');
-  assert.deepStrictEqual(headers['constructor'], 'foo, bar, baz');
+  assert.deepStrictEqual(headers.constructor, 'foo, bar, baz');
   // eslint-disable-next-line no-proto
-  assert.deepStrictEqual(headers['__proto__'], 'foo, bar, baz');
+  assert.deepStrictEqual(headers.__proto__, 'foo, bar, baz');
 }
 
 server.on('stream', common.mustCall((stream, headers) => {
@@ -54,8 +54,8 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request(src);
   req.on('response', common.mustCall(checkHeaders));
-  req.on('streamClosed', common.mustCall(() => {
+  req.on('close', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
 }));

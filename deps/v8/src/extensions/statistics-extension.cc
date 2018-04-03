@@ -17,7 +17,7 @@ const char* const StatisticsExtension::kSource =
 
 v8::Local<v8::FunctionTemplate> StatisticsExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
-  DCHECK(strcmp(*v8::String::Utf8Value(isolate, str), "getV8Statistics") == 0);
+  DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "getV8Statistics"), 0);
   return v8::FunctionTemplate::New(isolate, StatisticsExtension::GetCounters);
 }
 
@@ -85,24 +85,6 @@ void StatisticsExtension::GetCounters(
   ,
 
       STATS_COUNTER_LIST_1(ADD_COUNTER) STATS_COUNTER_LIST_2(ADD_COUNTER)
-#undef ADD_COUNTER
-#define ADD_COUNTER(name)                            \
-  { counters->count_of_##name(), "count_of_" #name } \
-  , {counters->size_of_##name(), "size_of_" #name},
-
-          INSTANCE_TYPE_LIST(ADD_COUNTER)
-#undef ADD_COUNTER
-#define ADD_COUNTER(name)                                                \
-  { counters->count_of_CODE_TYPE_##name(), "count_of_CODE_TYPE_" #name } \
-  , {counters->size_of_CODE_TYPE_##name(), "size_of_CODE_TYPE_" #name},
-
-              CODE_KIND_LIST(ADD_COUNTER)
-#undef ADD_COUNTER
-#define ADD_COUNTER(name)                                                    \
-  { counters->count_of_FIXED_ARRAY_##name(), "count_of_FIXED_ARRAY_" #name } \
-  , {counters->size_of_FIXED_ARRAY_##name(), "size_of_FIXED_ARRAY_" #name},
-
-                  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
   };  // End counter_list array.
 

@@ -78,7 +78,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
     base_size += FixedArray::kHeaderSize;
     element_count = IntPtrOrSmiAdd(element_count, parameter_map_count, mode);
   }
-  bool empty = IsIntPtrOrSmiConstantZero(arguments_count);
+  bool empty = IsIntPtrOrSmiConstantZero(arguments_count, mode);
   DCHECK_IMPLIES(empty, parameter_map_count == nullptr);
   Node* size =
       empty ? IntPtrConstant(base_size)
@@ -136,7 +136,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
   Node* unused;
   std::tie(result, elements, unused) =
       AllocateArgumentsObject(map, rest_count, nullptr, param_mode, base_size);
-  DCHECK(unused == nullptr);
+  DCHECK_NULL(unused);
   CodeStubArguments arguments(this, arg_count, frame_ptr, param_mode);
   VARIABLE(offset, MachineType::PointerRepresentation());
   offset.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
@@ -408,12 +408,6 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
 
   BIND(&done);
   return result.value();
-}
-
-TF_BUILTIN(FastNewSloppyArguments, ArgumentsBuiltinsAssembler) {
-  Node* function = Parameter(FastNewArgumentsDescriptor::kFunction);
-  Node* context = Parameter(FastNewArgumentsDescriptor::kContext);
-  Return(EmitFastNewSloppyArguments(context, function));
 }
 
 }  // namespace internal

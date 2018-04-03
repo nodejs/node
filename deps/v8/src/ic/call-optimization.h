@@ -6,7 +6,6 @@
 #define V8_IC_CALL_OPTIMIZATION_H_
 
 #include "src/code-stubs.h"
-#include "src/ic/access-compiler.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 
@@ -16,6 +15,10 @@ namespace internal {
 class CallOptimization BASE_EMBEDDED {
  public:
   explicit CallOptimization(Handle<Object> function);
+
+  Context* GetAccessorContext(Map* holder_map) const;
+  bool IsCrossContextLazyAccessorPair(Context* native_context,
+                                      Map* holder_map) const;
 
   bool is_constant_call() const { return !constant_function_.is_null(); }
 

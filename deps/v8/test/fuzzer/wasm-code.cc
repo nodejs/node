@@ -13,23 +13,13 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-using namespace v8::internal::wasm::fuzzer;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace fuzzer {
 
 class WasmCodeFuzzer : public WasmExecutionFuzzer {
-  virtual bool GenerateModule(
+  bool GenerateModule(
       Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
       ZoneBuffer& buffer, int32_t& num_args,
       std::unique_ptr<WasmValue[]>& interpreter_args,
@@ -58,3 +48,8 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   return WasmCodeFuzzer().FuzzWasmModule(data, size);
 }
+
+}  // namespace fuzzer
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

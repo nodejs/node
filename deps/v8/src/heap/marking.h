@@ -267,13 +267,6 @@ class Marking : public AllStatic {
   }
 
   template <AccessMode mode = AccessMode::NON_ATOMIC>
-  INLINE(static bool BlackToGrey(MarkBit markbit)) {
-    STATIC_ASSERT(mode == AccessMode::NON_ATOMIC);
-    DCHECK(IsBlack(markbit));
-    return markbit.Next().Clear<mode>();
-  }
-
-  template <AccessMode mode = AccessMode::NON_ATOMIC>
   INLINE(static bool WhiteToGrey(MarkBit markbit)) {
     return markbit.Set<mode>();
   }

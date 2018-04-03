@@ -6,7 +6,6 @@ const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
 
 const key = fixtures.readKey('agent2-key.pem');
 const cert = fixtures.readKey('agent2-cert.pem');
@@ -15,9 +14,7 @@ let ntests = 0;
 let nsuccess = 0;
 
 function loadDHParam(n) {
-  let path = fixtures.fixturesDir;
-  if (n !== 'error') path += '/keys';
-  return fs.readFileSync(`${path}/dh${n}.pem`);
+  return fixtures.readKey(`dh${n}.pem`);
 }
 
 const cipherlist = {
@@ -27,7 +24,7 @@ const cipherlist = {
 };
 
 function test(size, type, name, next) {
-  const cipher = type ? cipherlist[type] : cipherlist['NOT_PFS'];
+  const cipher = type ? cipherlist[type] : cipherlist.NOT_PFS;
 
   if (name) tls.DEFAULT_ECDH_CURVE = name;
 
@@ -80,7 +77,7 @@ function testDHE2048() {
 }
 
 function testECDHE256() {
-  test(256, 'ECDH', tls.DEFAULT_ECDH_CURVE, testECDHE512);
+  test(256, 'ECDH', 'prime256v1', testECDHE512);
   ntests++;
 }
 

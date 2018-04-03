@@ -19,13 +19,14 @@ void MakeCallback(const FunctionCallbackInfo<Value>& args) {
   Local<Object> recv = args[0].As<Object>();
   Local<Function> method = args[1].As<Function>();
 
-  node::MakeCallback(isolate, recv, method, 0, nullptr);
+  node::MakeCallback(isolate, recv, method, 0, nullptr,
+                     node::async_context{0, 0});
 }
 
 void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "makeCallback", MakeCallback);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

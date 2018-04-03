@@ -1,0 +1,84 @@
+{
+  "_from": "cli-table2",
+  "_id": "cli-table2@0.2.0",
+  "_inBundle": false,
+  "_integrity": "sha1-LR738hig54biFFQFYtS9F3/jLZc=",
+  "_location": "/cli-table2",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "cli-table2",
+    "name": "cli-table2",
+    "escapedName": "cli-table2",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/cli-table2/-/cli-table2-0.2.0.tgz",
+  "_shasum": "2d1ef7f218a0e786e214540562d4bd177fe32d97",
+  "_spec": "cli-table2",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "James Talmage"
+  },
+  "bugs": {
+    "url": "https://github.com/jamestalmage/cli-table2/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "colors": "^1.1.2",
+    "lodash": "^3.10.1",
+    "string-width": "^1.0.1"
+  },
+  "deprecated": false,
+  "description": "Pretty unicode tables for the command line. Based on the original cli-table.",
+  "devDependencies": {
+    "ansi-256-colors": "^1.1.0",
+    "chai": "^3.4.1",
+    "cli-table": "^0.3.1",
+    "coveralls": "^2.11.4",
+    "git-rev": "^0.2.1",
+    "growl": "^1.8.1",
+    "gulp": "^3.9.0",
+    "gulp-istanbul": "^0.10.3",
+    "gulp-mocha": "^2.2.0",
+    "gulp-util": "^3.0.7",
+    "sinon": "^1.17.2",
+    "sinon-chai": "^2.8.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "homepage": "https://github.com/jamestalmage/cli-table2",
+  "keywords": [
+    "node",
+    "command",
+    "line",
+    "cli",
+    "table",
+    "tables",
+    "tabular",
+    "unicode",
+    "colors",
+    "grid"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "cli-table2",
+  "optionalDependencies": {
+    "colors": "^1.1.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamestalmage/cli-table2.git"
+  },
+  "scripts": {
+    "test": "gulp coverage"
+  },
+  "version": "0.2.0"
+}

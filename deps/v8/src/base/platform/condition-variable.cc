@@ -28,7 +28,7 @@ ConditionVariable::ConditionVariable() {
   DCHECK_EQ(0, result);
   result = pthread_condattr_destroy(&attr);
 #else
-  int result = pthread_cond_init(&native_handle_, NULL);
+  int result = pthread_cond_init(&native_handle_, nullptr);
 #endif
   DCHECK_EQ(0, result);
   USE(result);

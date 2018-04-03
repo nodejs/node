@@ -13,20 +13,20 @@ const bench = common.createBenchmark(main, {
   ]
 });
 
-function main(conf) {
-  const n = +conf.n;
+function main({ n, method }) {
   const throws = () => { throw new TypeError('foobar'); };
   const doesNotThrow = () => { return 'foobar'; };
   const regExp = /foobar/;
   const message = 'failure';
   var i;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'doesNotThrow':
       bench.start();
       for (i = 0; i < n; ++i) {
+        // eslint-disable-next-line no-restricted-syntax
         assert.doesNotThrow(doesNotThrow);
       }
       bench.end(n);
@@ -54,6 +54,6 @@ function main(conf) {
       bench.end(n);
       break;
     default:
-      throw new Error(`Unsupported method ${conf.method}`);
+      throw new Error(`Unsupported method ${method}`);
   }
 }

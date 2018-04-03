@@ -9,37 +9,43 @@ Protocol.Runtime.onConsoleAPICalled(message => {
   InspectorTest.log(message.params.args[0].value);
 });
 
-InspectorTest.runTestSuite([
-  function zero(next) {
-    checkInterval(0.0).then(next);
+InspectorTest.runAsyncTestSuite([
+  function zero() {
+    return checkInterval(0.0);
   },
-  function verySmall(next) {
-    checkInterval(1e-15).then(next);
+  function verySmall() {
+    return checkInterval(1e-15);
   },
-  function small(next) {
-    checkInterval(0.001).then(next);
+  function small() {
+    return checkInterval(0.001);
   },
-  function regular(next) {
-    checkInterval(1.2345).then(next);
+  function regular() {
+    return checkInterval(1.2345);
   },
-  function big(next) {
-    checkInterval(10000.2345).then(next);
+  function big() {
+    return checkInterval(10000.2345);
   },
-  function veryBig(next) {
-    checkInterval(1e+15 + 0.2345).then(next);
+  function veryBig() {
+    return checkInterval(1e+15 + 0.2345);
   },
-  function huge(next) {
-    checkInterval(1e+42).then(next);
+  function huge() {
+    return checkInterval(1e+42);
+  },
+  function undefinedAsLabel() {
+    return checkInterval(1.0, 'undefined');
+  },
+  function emptyAsLabel() {
+    return checkInterval(1.0, '');
   }
 ]);
 
-function checkInterval(time) {
+async function checkInterval(time, label) {
+  label = label === undefined ? '\'timeEnd\'' : label;
   utils.setCurrentTimeMSForTest(0.0);
-  return Protocol.Runtime.evaluate({
-    expression: `console.log('js: ' + ${time} + 'ms')`})
-    .then(() => Protocol.Runtime.evaluate({
-      expression: 'console.time(\'timeEnd\')'}))
-    .then(() => utils.setCurrentTimeMSForTest(time))
-    .then(() => Protocol.Runtime.evaluate({
-      expression: 'console.timeEnd(\'timeEnd\')'}));
+  Protocol.Runtime.evaluate({
+    expression: `console.log('js: ' + ${time} + 'ms')`
+  });
+  await Protocol.Runtime.evaluate({expression: `console.time(${label})`});
+  utils.setCurrentTimeMSForTest(time);
+  await Protocol.Runtime.evaluate({expression: `console.timeEnd(${label})`});
 }

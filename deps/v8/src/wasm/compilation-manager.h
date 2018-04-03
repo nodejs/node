@@ -26,12 +26,20 @@ class CompilationManager {
                             std::unique_ptr<byte[]> bytes_copy, size_t length,
                             Handle<Context> context, Handle<JSPromise> promise);
 
-  // Removes {job} from the list of active compile jobs. This will delete {job}.
-  void RemoveJob(AsyncCompileJob* job);
+  std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
+      Isolate* isolate, Handle<Context> context, Handle<JSPromise> promise);
+
+  // Removes {job} from the list of active compile jobs.
+  std::shared_ptr<AsyncCompileJob> RemoveJob(AsyncCompileJob* job);
 
   void TearDown();
 
  private:
+  AsyncCompileJob* CreateAsyncCompileJob(Isolate* isolate,
+                                         std::unique_ptr<byte[]> bytes_copy,
+                                         size_t length, Handle<Context> context,
+                                         Handle<JSPromise> promise);
+
   // We use an AsyncCompileJob as the key for itself so that we can delete the
   // job from the map when it is finished.
   std::unordered_map<AsyncCompileJob*, std::shared_ptr<AsyncCompileJob>> jobs_;

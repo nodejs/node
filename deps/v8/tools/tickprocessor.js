@@ -842,159 +842,91 @@ WindowsCppEntriesProvider.prototype.unmangleName = function(name) {
 };
 
 
-function ArgumentsProcessor(args) {
-  this.args_ = args;
-  this.result_ = ArgumentsProcessor.DEFAULTS;
-  function parseBool(str) {
-    if (str == "true" || str == "1") return true;
-    return false;
+class ArgumentsProcessor extends BaseArgumentsProcessor {
+  getArgsDispatch() {
+    let dispatch = {
+      '-j': ['stateFilter', TickProcessor.VmStates.JS,
+          'Show only ticks from JS VM state'],
+      '-g': ['stateFilter', TickProcessor.VmStates.GC,
+          'Show only ticks from GC VM state'],
+      '-p': ['stateFilter', TickProcessor.VmStates.PARSER,
+          'Show only ticks from PARSER VM state'],
+      '-b': ['stateFilter', TickProcessor.VmStates.BYTECODE_COMPILER,
+          'Show only ticks from BYTECODE_COMPILER VM state'],
+      '-c': ['stateFilter', TickProcessor.VmStates.COMPILER,
+          'Show only ticks from COMPILER VM state'],
+      '-o': ['stateFilter', TickProcessor.VmStates.OTHER,
+          'Show only ticks from OTHER VM state'],
+      '-e': ['stateFilter', TickProcessor.VmStates.EXTERNAL,
+          'Show only ticks from EXTERNAL VM state'],
+      '--filter-runtime-timer': ['runtimeTimerFilter', null,
+              'Show only ticks matching the given runtime timer scope'],
+      '--call-graph-size': ['callGraphSize', TickProcessor.CALL_GRAPH_SIZE,
+          'Set the call graph size'],
+      '--ignore-unknown': ['ignoreUnknown', true,
+          'Exclude ticks of unknown code entries from processing'],
+      '--separate-ic': ['separateIc', parseBool,
+          'Separate IC entries'],
+      '--separate-bytecodes': ['separateBytecodes', parseBool,
+          'Separate Bytecode entries'],
+      '--separate-builtins': ['separateBuiltins', parseBool,
+          'Separate Builtin entries'],
+      '--separate-stubs': ['separateStubs', parseBool,
+          'Separate Stub entries'],
+      '--unix': ['platform', 'unix',
+          'Specify that we are running on *nix platform'],
+      '--windows': ['platform', 'windows',
+          'Specify that we are running on Windows platform'],
+      '--mac': ['platform', 'mac',
+          'Specify that we are running on Mac OS X platform'],
+      '--nm': ['nm', 'nm',
+          'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
+      '--target': ['targetRootFS', '',
+          'Specify the target root directory for cross environment'],
+      '--range': ['range', 'auto,auto',
+          'Specify the range limit as [start],[end]'],
+      '--distortion': ['distortion', 0,
+          'Specify the logging overhead in picoseconds'],
+      '--source-map': ['sourceMap', null,
+          'Specify the source map that should be used for output'],
+      '--timed-range': ['timedRange', true,
+          'Ignore ticks before first and after last Date.now() call'],
+      '--pairwise-timed-range': ['pairwiseTimedRange', true,
+          'Ignore ticks outside pairs of Date.now() calls'],
+      '--only-summary': ['onlySummary', true,
+          'Print only tick summary, exclude other information'],
+      '--preprocess': ['preprocessJson', true,
+          'Preprocess for consumption with web interface']
+    };
+    dispatch['--js'] = dispatch['-j'];
+    dispatch['--gc'] = dispatch['-g'];
+    dispatch['--compiler'] = dispatch['-c'];
+    dispatch['--other'] = dispatch['-o'];
+    dispatch['--external'] = dispatch['-e'];
+    dispatch['--ptr'] = dispatch['--pairwise-timed-range'];
+    return dispatch;
   }
 
-  this.argsDispatch_ = {
-    '-j': ['stateFilter', TickProcessor.VmStates.JS,
-        'Show only ticks from JS VM state'],
-    '-g': ['stateFilter', TickProcessor.VmStates.GC,
-        'Show only ticks from GC VM state'],
-    '-p': ['stateFilter', TickProcessor.VmStates.PARSER,
-        'Show only ticks from PARSER VM state'],
-    '-b': ['stateFilter', TickProcessor.VmStates.BYTECODE_COMPILER,
-        'Show only ticks from BYTECODE_COMPILER VM state'],
-    '-c': ['stateFilter', TickProcessor.VmStates.COMPILER,
-        'Show only ticks from COMPILER VM state'],
-    '-o': ['stateFilter', TickProcessor.VmStates.OTHER,
-        'Show only ticks from OTHER VM state'],
-    '-e': ['stateFilter', TickProcessor.VmStates.EXTERNAL,
-        'Show only ticks from EXTERNAL VM state'],
-    '--filter-runtime-timer': ['runtimeTimerFilter', null,
-            'Show only ticks matching the given runtime timer scope'],
-    '--call-graph-size': ['callGraphSize', TickProcessor.CALL_GRAPH_SIZE,
-        'Set the call graph size'],
-    '--ignore-unknown': ['ignoreUnknown', true,
-        'Exclude ticks of unknown code entries from processing'],
-    '--separate-ic': ['separateIc', parseBool,
-        'Separate IC entries'],
-    '--separate-bytecodes': ['separateBytecodes', parseBool,
-        'Separate Bytecode entries'],
-    '--separate-builtins': ['separateBuiltins', parseBool,
-        'Separate Builtin entries'],
-    '--separate-stubs': ['separateStubs', parseBool,
-        'Separate Stub entries'],
-    '--unix': ['platform', 'unix',
-        'Specify that we are running on *nix platform'],
-    '--windows': ['platform', 'windows',
-        'Specify that we are running on Windows platform'],
-    '--mac': ['platform', 'mac',
-        'Specify that we are running on Mac OS X platform'],
-    '--nm': ['nm', 'nm',
-        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
-    '--target': ['targetRootFS', '',
-        'Specify the target root directory for cross environment'],
-    '--range': ['range', 'auto,auto',
-        'Specify the range limit as [start],[end]'],
-    '--distortion': ['distortion', 0,
-        'Specify the logging overhead in picoseconds'],
-    '--source-map': ['sourceMap', null,
-        'Specify the source map that should be used for output'],
-    '--timed-range': ['timedRange', true,
-        'Ignore ticks before first and after last Date.now() call'],
-    '--pairwise-timed-range': ['pairwiseTimedRange', true,
-        'Ignore ticks outside pairs of Date.now() calls'],
-    '--only-summary': ['onlySummary', true,
-        'Print only tick summary, exclude other information'],
-    '--preprocess': ['preprocessJson', true,
-        'Preprocess for consumption with web interface']
-  };
-  this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
-  this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
-  this.argsDispatch_['--compiler'] = this.argsDispatch_['-c'];
-  this.argsDispatch_['--other'] = this.argsDispatch_['-o'];
-  this.argsDispatch_['--external'] = this.argsDispatch_['-e'];
-  this.argsDispatch_['--ptr'] = this.argsDispatch_['--pairwise-timed-range'];
-};
-
-
-ArgumentsProcessor.DEFAULTS = {
-  logFileName: 'v8.log',
-  platform: 'unix',
-  stateFilter: null,
-  callGraphSize: 5,
-  ignoreUnknown: false,
-  separateIc: true,
-  separateBytecodes: false,
-  separateBuiltins: true,
-  separateStubs: true,
-  preprocessJson: null,
-  targetRootFS: '',
-  nm: 'nm',
-  range: 'auto,auto',
-  distortion: 0,
-  timedRange: false,
-  pairwiseTimedRange: false,
-  onlySummary: false,
-  runtimeTimerFilter: null,
-};
-
-
-ArgumentsProcessor.prototype.parse = function() {
-  while (this.args_.length) {
-    var arg = this.args_.shift();
-    if (arg.charAt(0) != '-') {
-      this.result_.logFileName = arg;
-      continue;
-    }
-    var userValue = null;
-    var eqPos = arg.indexOf('=');
-    if (eqPos != -1) {
-      userValue = arg.substr(eqPos + 1);
-      arg = arg.substr(0, eqPos);
-    }
-    if (arg in this.argsDispatch_) {
-      var dispatch = this.argsDispatch_[arg];
-      var property = dispatch[0];
-      var defaultValue = dispatch[1];
-      if (typeof defaultValue == "function") {
-        userValue = defaultValue(userValue);
-      } else if (userValue == null) {
-        userValue = defaultValue;
-      }
-      this.result_[property] = userValue;
-    } else {
-      return false;
-    }
+  getDefaultResults() {
+    return {
+      logFileName: 'v8.log',
+      platform: 'unix',
+      stateFilter: null,
+      callGraphSize: 5,
+      ignoreUnknown: false,
+      separateIc: true,
+      separateBytecodes: false,
+      separateBuiltins: true,
+      separateStubs: true,
+      preprocessJson: null,
+      targetRootFS: '',
+      nm: 'nm',
+      range: 'auto,auto',
+      distortion: 0,
+      timedRange: false,
+      pairwiseTimedRange: false,
+      onlySummary: false,
+      runtimeTimerFilter: null,
+    };
   }
-  return true;
-};
-
-
-ArgumentsProcessor.prototype.result = function() {
-  return this.result_;
-};
-
-
-ArgumentsProcessor.prototype.printUsageAndExit = function() {
-
-  function padRight(s, len) {
-    s = s.toString();
-    if (s.length < len) {
-      s = s + (new Array(len - s.length + 1).join(' '));
-    }
-    return s;
-  }
-
-  print('Cmdline args: [options] [log-file-name]\n' +
-        'Default log file name is "' +
-        ArgumentsProcessor.DEFAULTS.logFileName + '".\n');
-  print('Options:');
-  for (var arg in this.argsDispatch_) {
-    var synonyms = [arg];
-    var dispatch = this.argsDispatch_[arg];
-    for (var synArg in this.argsDispatch_) {
-      if (arg !== synArg && dispatch === this.argsDispatch_[synArg]) {
-        synonyms.push(synArg);
-        delete this.argsDispatch_[synArg];
-      }
-    }
-    print('  ' + padRight(synonyms.join(', '), 20) + " " + dispatch[2]);
-  }
-  quit(2);
-};
+}

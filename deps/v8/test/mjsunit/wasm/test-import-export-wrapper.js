@@ -299,3 +299,28 @@ assertThrows(function TestWasmWrapperNoElisionTypeMismatch() {
     assertEquals(the_export(2, -2), 0);
     assertEquals(%CheckWasmWrapperElision(the_export, expect_no_elison), true);
 });
+
+
+(function TestSimpleI64Ret() {
+  var builder = new WasmModuleBuilder();
+  builder.addFunction("exp", kSig_l_v)
+    .addBody([
+      kExprI64Const, 23
+    ])
+    .exportFunc();
+  var exported = builder.instantiate().exports.exp;
+
+  var builder = new WasmModuleBuilder();
+  builder.addImport("imp", "func", kSig_l_v);
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprCallFunction, 0,
+      kExprI32ConvertI64
+    ])
+    .exportFunc();
+
+  var instance = builder.instantiate({imp: {func: exported}});
+
+  assertEquals(23, instance.exports.main());
+
+})();

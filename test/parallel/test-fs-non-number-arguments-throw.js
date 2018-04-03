@@ -4,9 +4,10 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const tempFile = path.join(common.tmpDir, 'fs-non-number-arguments-throw');
+const tmpdir = require('../common/tmpdir');
+const tempFile = path.join(tmpdir.path, 'fs-non-number-arguments-throw');
 
-common.refreshTmpDir();
+tmpdir.refresh();
 fs.writeFileSync(tempFile, 'abc\ndef');
 
 // a sanity check when using numbers instead of strings

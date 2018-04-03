@@ -113,7 +113,7 @@ InstructionSequence* InstructionSequenceTest::sequence() {
 
 
 void InstructionSequenceTest::StartLoop(int loop_blocks) {
-  CHECK(current_block_ == nullptr);
+  CHECK_NULL(current_block_);
   if (!loop_blocks_.empty()) {
     CHECK(!loop_blocks_.back().loop_header_.IsValid());
   }
@@ -123,7 +123,7 @@ void InstructionSequenceTest::StartLoop(int loop_blocks) {
 
 
 void InstructionSequenceTest::EndLoop() {
-  CHECK(current_block_ == nullptr);
+  CHECK_NULL(current_block_);
   CHECK(!loop_blocks_.empty());
   CHECK_EQ(0, loop_blocks_.back().expected_blocks_);
   loop_blocks_.pop_back();
@@ -158,7 +158,7 @@ Instruction* InstructionSequenceTest::EndBlock(BlockCompletion completion) {
       break;
   }
   completions_.push_back(completion);
-  CHECK(current_block_ != nullptr);
+  CHECK_NOT_NULL(current_block_);
   sequence()->EndBlock(current_block_->rpo_number());
   current_block_ = nullptr;
   return result;
@@ -195,7 +195,7 @@ PhiInstruction* InstructionSequenceTest::Phi(VReg incoming_vreg_0,
   for (; input_count < arraysize(inputs); ++input_count) {
     if (inputs[input_count].value_ == kNoValue) break;
   }
-  CHECK(input_count > 0);
+  CHECK_LT(0, input_count);
   auto phi = new (zone()) PhiInstruction(zone(), NewReg().value_, input_count);
   for (size_t i = 0; i < input_count; ++i) {
     SetInput(phi, i, inputs[i]);
@@ -216,7 +216,7 @@ PhiInstruction* InstructionSequenceTest::Phi(VReg incoming_vreg_0,
 
 void InstructionSequenceTest::SetInput(PhiInstruction* phi, size_t input,
                                        VReg vreg) {
-  CHECK(vreg.value_ != kNoValue);
+  CHECK_NE(kNoValue, vreg.value_);
   phi->SetInput(input, vreg.value_);
 }
 
@@ -432,8 +432,7 @@ InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
     default:
       break;
   }
-  CHECK(false);
-  return InstructionOperand();
+  UNREACHABLE();
 }
 
 
@@ -468,13 +467,12 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
     default:
       break;
   }
-  CHECK(false);
-  return InstructionOperand();
+  UNREACHABLE();
 }
 
 
 InstructionBlock* InstructionSequenceTest::NewBlock(bool deferred) {
-  CHECK(current_block_ == nullptr);
+  CHECK_NULL(current_block_);
   Rpo rpo = Rpo::FromInt(static_cast<int>(instruction_blocks_.size()));
   Rpo loop_header = Rpo::Invalid();
   Rpo loop_end = Rpo::Invalid();

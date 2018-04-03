@@ -20,15 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const filepath = path.join(common.tmpDir, 'large.txt');
+const filepath = path.join(tmpdir.path, 'large.txt');
 const fd = fs.openSync(filepath, 'w+');
 const offset = 5 * 1024 * 1024 * 1024; // 5GB
 const message = 'Large File';
@@ -43,9 +44,8 @@ assert.strictEqual(readBuf.toString(), message);
 fs.readSync(fd, readBuf, 0, 1, 0);
 assert.strictEqual(readBuf[0], 0);
 
-assert.doesNotThrow(
-  () => { fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001); }
-);
+// Verify that floating point positions do not throw.
+fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001);
 fs.close(fd);
 
 // Normally, we don't clean up tmp files at the end of a test, but we'll make an

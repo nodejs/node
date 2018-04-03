@@ -129,7 +129,7 @@ class LoopVariableOptimizer::VariableLimits : public ZoneObject {
     // Then we go through both lists in lock-step until we find
     // the common tail.
     while (head_ != other_limit) {
-      DCHECK(limit_count_ > 0);
+      DCHECK_LT(0, limit_count_);
       limit_count_--;
       other_limit = other_limit->next();
       head_ = head_->next();
@@ -301,7 +301,8 @@ const InductionVariable* LoopVariableOptimizer::FindInductionVariable(
 
 InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   DCHECK_EQ(2, phi->op()->ValueInputCount());
-  DCHECK_EQ(IrOpcode::kLoop, NodeProperties::GetControlInput(phi)->opcode());
+  Node* loop = NodeProperties::GetControlInput(phi);
+  DCHECK_EQ(IrOpcode::kLoop, loop->opcode());
   Node* initial = phi->InputAt(0);
   Node* arith = phi->InputAt(1);
   InductionVariable::ArithmeticType arithmeticType;
@@ -310,23 +311,28 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
       arith->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
   } else if (arith->opcode() == IrOpcode::kJSSubtract ||
-             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract) {
+             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
+             arith->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract) {
     arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
   } else {
     return nullptr;
   }
 
   // TODO(jarin) Support both sides.
-  if (arith->InputAt(0) != phi) {
-    if ((arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber &&
-         arith->InputAt(0)->opcode() != IrOpcode::kSpeculativeToNumber) ||
-        arith->InputAt(0)->InputAt(0) != phi) {
-      return nullptr;
+  if (arith->InputAt(0) != phi) return nullptr;
+
+  Node* effect_phi = nullptr;
+  for (Node* use : loop->uses()) {
+    if (use->opcode() == IrOpcode::kEffectPhi) {
+      DCHECK_NULL(effect_phi);
+      effect_phi = use;
     }
   }
+  if (!effect_phi) return nullptr;
+
   Node* incr = arith->InputAt(1);
-  return new (zone())
-      InductionVariable(phi, arith, incr, initial, zone(), arithmeticType);
+  return new (zone()) InductionVariable(phi, effect_phi, arith, incr, initial,
+                                        zone(), arithmeticType);
 }
 
 void LoopVariableOptimizer::DetectInductionVariables(Node* loop) {
@@ -396,10 +402,14 @@ void LoopVariableOptimizer::ChangeToPhisAndInsertGuards() {
       Type* backedge_type = NodeProperties::GetType(backedge_value);
       Type* phi_type = NodeProperties::GetType(induction_var->phi());
       if (!backedge_type->Is(phi_type)) {
-        Node* backedge_control =
-            NodeProperties::GetControlInput(induction_var->phi())->InputAt(1);
-        Node* rename = graph()->NewNode(common()->TypeGuard(phi_type),
-                                        backedge_value, backedge_control);
+        Node* loop = NodeProperties::GetControlInput(induction_var->phi());
+        Node* backedge_control = loop->InputAt(1);
+        Node* backedge_effect =
+            NodeProperties::GetEffectInput(induction_var->effect_phi(), 1);
+        Node* rename =
+            graph()->NewNode(common()->TypeGuard(phi_type), backedge_value,
+                             backedge_effect, backedge_control);
+        induction_var->effect_phi()->ReplaceInput(1, rename);
         induction_var->phi()->ReplaceInput(1, rename);
       }
     }

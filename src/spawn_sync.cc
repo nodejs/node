@@ -25,7 +25,6 @@
 #include "util.h"
 
 #include <string.h>
-#include <stdlib.h>
 
 
 namespace node {
@@ -417,14 +416,7 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 SyncProcessRunner::~SyncProcessRunner() {
   CHECK_EQ(lifecycle_, kHandlesClosed);
 
-  if (stdio_pipes_ != nullptr) {
-    for (size_t i = 0; i < stdio_count_; i++) {
-      if (stdio_pipes_[i] != nullptr)
-        delete stdio_pipes_[i];
-    }
-  }
-
-  delete[] stdio_pipes_;
+  stdio_pipes_.reset();
   delete[] file_buffer_;
   delete[] args_buffer_;
   delete[] cwd_buffer_;
@@ -495,7 +487,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   uv_process_.data = this;
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
-    SyncProcessStdioPipe* h = stdio_pipes_[i];
+    SyncProcessStdioPipe* h = stdio_pipes_[i].get();
     if (h != nullptr) {
       r = h->Start();
       if (r < 0)
@@ -554,11 +546,11 @@ void SyncProcessRunner::CloseStdioPipes() {
   CHECK_LT(lifecycle_, kHandlesClosed);
 
   if (stdio_pipes_initialized_) {
-    CHECK_NE(stdio_pipes_, nullptr);
+    CHECK(stdio_pipes_);
     CHECK_NE(uv_loop_, nullptr);
 
     for (uint32_t i = 0; i < stdio_count_; i++) {
-      if (stdio_pipes_[i] != nullptr)
+      if (stdio_pipes_[i])
         stdio_pipes_[i]->Close();
     }
 
@@ -711,14 +703,14 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
 
 Local<Array> SyncProcessRunner::BuildOutputArray() {
   CHECK_GE(lifecycle_, kInitialized);
-  CHECK_NE(stdio_pipes_, nullptr);
+  CHECK(stdio_pipes_);
 
   EscapableHandleScope scope(env()->isolate());
   Local<Context> context = env()->context();
   Local<Array> js_output = Array::New(env()->isolate(), stdio_count_);
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
-    SyncProcessStdioPipe* h = stdio_pipes_[i];
+    SyncProcessStdioPipe* h = stdio_pipes_[i].get();
     if (h != nullptr && h->writable())
       js_output->Set(context, i, h->GetOutputAsBuffer(env())).FromJust();
     else
@@ -851,7 +843,8 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   stdio_count_ = js_stdio_options->Length();
   uv_stdio_containers_ = new uv_stdio_container_t[stdio_count_];
 
-  stdio_pipes_ = new SyncProcessStdioPipe*[stdio_count_]();
+  stdio_pipes_.reset(
+      new std::unique_ptr<SyncProcessStdioPipe>[stdio_count_]());
   stdio_pipes_initialized_ = true;
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
@@ -925,7 +918,7 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
 
 int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
   CHECK_LT(child_fd, stdio_count_);
-  CHECK_EQ(stdio_pipes_[child_fd], nullptr);
+  CHECK(!stdio_pipes_[child_fd]);
 
   uv_stdio_containers_[child_fd].flags = UV_IGNORE;
 
@@ -938,23 +931,21 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
                                     bool writable,
                                     uv_buf_t input_buffer) {
   CHECK_LT(child_fd, stdio_count_);
-  CHECK_EQ(stdio_pipes_[child_fd], nullptr);
+  CHECK(!stdio_pipes_[child_fd]);
 
-  SyncProcessStdioPipe* h = new SyncProcessStdioPipe(this,
-                                                     readable,
-                                                     writable,
-                                                     input_buffer);
+  std::unique_ptr<SyncProcessStdioPipe> h(
+      new SyncProcessStdioPipe(this, readable, writable, input_buffer));
 
   int r = h->Initialize(uv_loop_);
   if (r < 0) {
-    delete h;
+    h.reset();
     return r;
   }
 
-  stdio_pipes_[child_fd] = h;
-
   uv_stdio_containers_[child_fd].flags = h->uv_flags();
   uv_stdio_containers_[child_fd].data.stream = h->uv_stream();
+
+  stdio_pipes_[child_fd] = std::move(h);
 
   return 0;
 }
@@ -962,7 +953,7 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
 
 int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
   CHECK_LT(child_fd, stdio_count_);
-  CHECK_EQ(stdio_pipes_[child_fd], nullptr);
+  CHECK(!stdio_pipes_[child_fd]);
 
   uv_stdio_containers_[child_fd].flags = UV_INHERIT_FD;
   uv_stdio_containers_[child_fd].data.fd = inherit_fd;
@@ -1081,5 +1072,5 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(spawn_sync,
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(spawn_sync,
   node::SyncProcessRunner::Initialize)

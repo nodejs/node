@@ -6,6 +6,34 @@ import("../../gni/v8.gni")
 
 v8_executable("cctest") {
   testonly = true
+  deps = [
+    ":cctest_sources",
+  ]
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  ldflags = []
+
+  # TODO(machenbach): Translate from gyp.
+  #["OS=="aix"", {
+  #  "ldflags": [ "-Wl,-bbigtoc" ],
+  #}],
+
+  # crbug.com/676417: Suppress symbol import warning from linker.
+  if (is_win && is_component_build) {
+    ldflags += [
+      "/ignore:4217",
+      "/ignore:4049",
+    ]
+    remove_configs = [ "//build/config/win:default_incremental_linking" ]
+    configs += [ "//build/config/win:no_incremental_linking" ]
+  }
+}
+
+v8_source_set("cctest_sources") {
+  testonly = true
 
   sources = [
     "$target_gen_dir/resources.cc",
@@ -54,14 +82,16 @@ v8_executable("cctest") {
     "compiler/test-run-load-store.cc",
     "compiler/test-run-machops.cc",
     "compiler/test-run-native-calls.cc",
+    "compiler/test-run-retpoline.cc",
     "compiler/test-run-stackcheck.cc",
     "compiler/test-run-stubs.cc",
+    "compiler/test-run-tail-calls.cc",
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
     "compiler/test-run-wasm-machops.cc",
+    "compiler/value-helper.cc",
     "compiler/value-helper.h",
     "expression-type-collector-macros.h",
-    "ffi/test-ffi.cc",
     "gay-fixed.cc",
     "gay-fixed.h",
     "gay-precision.cc",
@@ -75,6 +105,7 @@ v8_executable("cctest") {
     "heap/test-array-buffer-tracker.cc",
     "heap/test-compaction.cc",
     "heap/test-concurrent-marking.cc",
+    "heap/test-embedder-tracing.cc",
     "heap/test-heap.cc",
     "heap/test-incremental-marking.cc",
     "heap/test-invalidated-slots.cc",
@@ -119,7 +150,6 @@ v8_executable("cctest") {
     "test-bignum.cc",
     "test-bit-vector.cc",
     "test-circular-queue.cc",
-    "test-code-cache.cc",
     "test-code-layout.cc",
     "test-code-stub-assembler.cc",
     "test-compiler.cc",
@@ -150,7 +180,6 @@ v8_executable("cctest") {
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
     "test-intl.cc",
-    "test-list.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
     "test-log.cc",
@@ -200,15 +229,32 @@ v8_executable("cctest") {
     "wasm/test-run-wasm-relocation.cc",
     "wasm/test-run-wasm-simd.cc",
     "wasm/test-run-wasm.cc",
+    "wasm/test-streaming-compilation.cc",
     "wasm/test-wasm-breakpoints.cc",
+    "wasm/test-wasm-codegen.cc",
     "wasm/test-wasm-interpreter-entry.cc",
     "wasm/test-wasm-stack.cc",
     "wasm/test-wasm-trap-position.cc",
+    "wasm/wasm-run-utils.cc",
     "wasm/wasm-run-utils.h",
   ]
 
+  if (use_jumbo_build) {
+    jumbo_excluded_sources = [
+      # TODO(mostynb@opera.com): figure out the jumbo issues with these source
+      # files, and include them in jumbo compilation units.
+      "interpreter/bytecode-expectations-printer.cc",
+      "interpreter/bytecode-expectations-printer.h",
+      "interpreter/test-bytecode-generator.cc",
+      "test-api.cc",
+      "test-api.h",
+    ]
+  }
+
   if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
+      "assembler-helper-arm.cc",
+      "assembler-helper-arm.h",
       "test-assembler-arm.cc",
       "test-code-stubs-arm.cc",
       "test-code-stubs.cc",
@@ -216,7 +262,7 @@ v8_executable("cctest") {
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-run-wasm-relocation-arm.cc",
-      "test-simulator-arm.cc",
+      "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
@@ -229,7 +275,7 @@ v8_executable("cctest") {
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
       "test-run-wasm-relocation-arm64.cc",
-      "test-simulator-arm64.cc",
+      "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
     ]
@@ -306,26 +352,14 @@ v8_executable("cctest") {
     ]
   }
 
-  if (is_linux) {
-    # TODO(machenbach): Translate 'or OS=="qnx"' from gyp.
-    sources += [ "test-platform-linux.cc" ]
-  } else if (is_win) {
-    sources += [ "test-platform-win32.cc" ]
-  }
-
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
   ]
 
-  # TODO(machenbach): Translate from gyp.
-  #["OS=="aix"", {
-  #  "ldflags": [ "-Wl,-bbigtoc" ],
-  #}],
-
-  deps = [
+  public_deps = [
     ":resources",
-    "../..:v8_builtins_generators",
+    "../..:v8_initializers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
@@ -334,6 +368,7 @@ v8_executable("cctest") {
   ]
 
   defines = []
+  deps = []
 
   if (is_component_build) {
     # cctest can't be built against a shared library, so we
@@ -351,18 +386,6 @@ v8_executable("cctest") {
   }
 
   cflags = []
-  ldflags = []
-
-  # crbug.com/676417: Suppress symbol import warning from linker.
-  if (is_win && is_component_build) {
-    ldflags += [
-      "/ignore:4217",
-      "/ignore:4049",
-    ]
-    remove_configs = [ "//build/config/win:default_incremental_linking" ]
-    configs += [ "//build/config/win:no_incremental_linking" ]
-  }
-
   if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
@@ -403,6 +426,7 @@ action("resources") {
     "../../tools/consarray.js",
     "../../tools/profile.js",
     "../../tools/profile_view.js",
+    "../../tools/arguments.js",
     "../../tools/logreader.js",
     "log-eq-of-logging-and-traversal.js",
   ]

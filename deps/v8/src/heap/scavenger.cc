@@ -4,10 +4,12 @@
 
 #include "src/heap/scavenger.h"
 
+#include "src/heap/barrier.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/scavenger-inl.h"
+#include "src/heap/sweeper.h"
 #include "src/objects-body-descriptors-inl.h"
 
 namespace v8 {
@@ -72,26 +74,47 @@ Scavenger::Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
       is_compacting_(heap->incremental_marking()->IsCompacting()) {}
 
 void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
-  // We are not collecting slots on new space objects during mutation
-  // thus we have to scan for pointers to evacuation candidates when we
-  // promote objects. But we should not record any slots in non-black
-  // objects. Grey object's slots would be rescanned.
-  // White object might not survive until the end of collection
-  // it would be a violation of the invariant to record it's slots.
+  // We are not collecting slots on new space objects during mutation thus we
+  // have to scan for pointers to evacuation candidates when we promote
+  // objects. But we should not record any slots in non-black objects. Grey
+  // object's slots would be rescanned. White object might not survive until
+  // the end of collection it would be a violation of the invariant to record
+  // its slots.
   const bool record_slots =
       is_compacting_ &&
       heap()->incremental_marking()->atomic_marking_state()->IsBlack(target);
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
-  if (target->IsJSFunction()) {
-    // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
-    // this links are recorded during processing of weak lists.
-    JSFunction::BodyDescriptorWeak::IterateBody(target, size, &visitor);
-  } else {
-    target->IterateBody(target->map()->instance_type(), size, &visitor);
+  target->IterateBody(target->map()->instance_type(), size, &visitor);
+}
+
+void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
+  AllocationSpace space = page->owner()->identity();
+  if ((space == OLD_SPACE) && !page->SweepingDone()) {
+    heap()->mark_compact_collector()->sweeper()->AddPage(
+        space, reinterpret_cast<Page*>(page),
+        Sweeper::READD_TEMPORARY_REMOVED_PAGE);
   }
 }
 
-void Scavenger::Process(Barrier* barrier) {
+void Scavenger::ScavengePage(MemoryChunk* page) {
+  CodePageMemoryModificationScope memory_modification_scope(page);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      page,
+      [this](Address addr) { return CheckAndScavengeObject(heap_, addr); },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::IterateTyped(
+      page, [this](SlotType type, Address host_addr, Address addr) {
+        return UpdateTypedSlotHelper::UpdateTypedSlot(
+            heap_->isolate(), type, addr, [this](Object** addr) {
+              return CheckAndScavengeObject(heap(),
+                                            reinterpret_cast<Address>(addr));
+            });
+      });
+
+  AddPageToSweeperIfNecessary(page);
+}
+
+void Scavenger::Process(OneshotBarrier* barrier) {
   // Threshold when to switch processing the promotion list to avoid
   // allocating too much backing store in the worklist.
   const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
@@ -128,20 +151,6 @@ void Scavenger::Process(Barrier* barrier) {
       }
     }
   } while (!done);
-}
-
-void Scavenger::RecordCopiedObject(HeapObject* obj) {
-  bool should_record = FLAG_log_gc;
-#ifdef DEBUG
-  should_record = FLAG_heap_stats;
-#endif
-  if (should_record) {
-    if (heap()->new_space()->Contains(obj)) {
-      heap()->new_space()->RecordAllocation(obj);
-    } else {
-      heap()->new_space()->RecordPromotion(obj);
-    }
-  }
 }
 
 void Scavenger::Finalize() {

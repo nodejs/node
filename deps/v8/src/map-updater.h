@@ -148,10 +148,6 @@ class MapUpdater {
       Handle<DescriptorArray> descriptors, int descriptor,
       PropertyLocation location, Representation representation);
 
-  inline void GeneralizeIfTransitionableFastElementsKind(
-      PropertyConstness* constness, Representation* representation,
-      Handle<FieldType>* field_type);
-
   void GeneralizeField(Handle<Map> map, int modify_index,
                        PropertyConstness new_constness,
                        Representation new_representation,

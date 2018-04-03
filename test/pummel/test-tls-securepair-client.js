@@ -117,7 +117,7 @@ function test(keyfn, certfn, check, next) {
   function startClient() {
     const s = new net.Stream();
 
-    const sslcontext = tls.createSecureContext({ key: key, cert: cert });
+    const sslcontext = tls.createSecureContext({ key, cert });
     sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
     const pair = tls.createSecurePair(sslcontext, false);

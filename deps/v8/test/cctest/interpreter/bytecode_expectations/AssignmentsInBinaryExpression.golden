@@ -102,11 +102,11 @@ bytecodes: [
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), I8(56),
                 B(Star), R(0),
-  /*   59 E> */ B(Sub), R(0), U8(0),
+  /*   59 E> */ B(Sub), R(0), U8(1),
                 B(Star), R(1),
                 B(LdaSmi), I8(57),
                 B(Star), R(0),
-  /*   63 E> */ B(Add), R(1), U8(1),
+  /*   63 E> */ B(Add), R(1), U8(0),
                 B(Star), R(0),
   /*   75 S> */ B(Inc), U8(2),
                 B(Star), R(0),
@@ -203,11 +203,11 @@ bytecodes: [
   /*   63 E> */ B(Add), R(2), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(0),
-  /*   78 E> */ B(AddSmi), I8(1), U8(1),
+  /*   78 E> */ B(AddSmi), I8(1), U8(2),
                 B(Star), R(3),
                 B(LdaSmi), I8(2),
                 B(Star), R(1),
-  /*   83 E> */ B(Mul), R(3), U8(2),
+  /*   83 E> */ B(Mul), R(3), U8(1),
   /*   73 E> */ B(Add), R(2), U8(3),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
@@ -238,7 +238,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 43
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(17),
@@ -249,8 +249,8 @@ bytecodes: [
   /*   55 E> */ B(Add), R(1), U8(0),
                 B(Star), R(1),
                 B(Ldar), R(0),
-                B(ToNumber), R(2), U8(1),
-                B(Ldar), R(2),
+                B(ToNumeric), U8(1),
+                B(Star), R(2),
                 B(Inc), U8(1),
                 B(Star), R(0),
                 B(Ldar), R(2),

@@ -24,6 +24,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_field_type_tracking {
 
 // TODO(ishell): fix this once TransitionToPrototype stops generalizing
 // all field representations (similar to crbug/448711 where elements kind
@@ -65,11 +66,11 @@ static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
   Handle<AccessorPair> pair = factory->NewAccessorPair();
   Handle<String> empty_string = factory->empty_string();
   if (with_getter) {
-    Handle<JSFunction> func = factory->NewFunction(empty_string);
+    Handle<JSFunction> func = factory->NewFunctionForTest(empty_string);
     pair->set_getter(*func);
   }
   if (with_setter) {
-    Handle<JSFunction> func = factory->NewFunction(empty_string);
+    Handle<JSFunction> func = factory->NewFunctionForTest(empty_string);
     pair->set_setter(*func);
   }
   return pair;
@@ -109,6 +110,20 @@ class Expectations {
     CHECK(index < MAX_PROPERTIES);
     kinds_[index] = kind;
     locations_[index] = location;
+    if (kind == kData && location == kField &&
+        IsTransitionableFastElementsKind(elements_kind_) &&
+        Map::IsInplaceGeneralizableField(constness, representation,
+                                         FieldType::cast(*value))) {
+      // Maps with transitionable elements kinds must have non in-place
+      // generalizable fields.
+      if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
+          constness == kConst) {
+        constness = kMutable;
+      }
+      if (representation.IsHeapObject() && !FieldType::cast(*value)->IsAny()) {
+        value = FieldType::Any(isolate_);
+      }
+    }
     constnesses_[index] = constness;
     attributes_[index] = attributes;
     representations_[index] = representation;
@@ -317,27 +332,14 @@ class Expectations {
   Handle<Map> AddDataField(Handle<Map> map, PropertyAttributes attributes,
                            PropertyConstness constness,
                            Representation representation,
-                           Handle<FieldType> heap_type) {
+                           Handle<FieldType> field_type) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
-    PropertyConstness expected_constness = constness;
-    Representation expected_representation = representation;
-    Handle<FieldType> expected_heap_type = heap_type;
-    if (IsTransitionableFastElementsKind(map->elements_kind())) {
-      // Maps with transitionable elements kinds must have non in-place
-      // generalizable fields.
-      if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
-        expected_constness = kMutable;
-      }
-      if (representation.IsHeapObject() && heap_type->IsClass()) {
-        expected_heap_type = FieldType::Any(isolate_);
-      }
-    }
-    SetDataField(property_index, attributes, expected_constness,
-                 expected_representation, expected_heap_type);
+    SetDataField(property_index, attributes, constness, representation,
+                 field_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    return Map::CopyWithField(map, name, heap_type, attributes, constness,
+    return Map::CopyWithField(map, name, field_type, attributes, constness,
                               representation, INSERT_TRANSITION)
         .ToHandleChecked();
   }
@@ -399,7 +401,7 @@ class Expectations {
     Handle<String> name = MakeName("prop", property_index);
     Map* target =
         TransitionsAccessor(map).SearchTransition(*name, kData, attributes);
-    CHECK(target != NULL);
+    CHECK_NOT_NULL(target);
     return handle(target);
   }
 
@@ -607,7 +609,7 @@ static void TestGeneralizeField(int detach_property_at_index,
 
   CHECK(detach_property_at_index >= -1 &&
         detach_property_at_index < kPropCount);
-  CHECK(property_index < kPropCount);
+  CHECK_LT(property_index, kPropCount);
   CHECK_NE(detach_property_at_index, property_index);
 
   const bool is_detached_map = detach_property_at_index >= 0;
@@ -1403,7 +1405,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   Expectations expectations(isolate);
 
   const int kSplitProp = 2;
-  CHECK(kSplitProp < kCustomPropIndex);
+  CHECK_LT(kSplitProp, kCustomPropIndex);
 
   const PropertyConstness constness = kMutable;
   const Representation representation = Representation::Smi();
@@ -1482,7 +1484,7 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      js_func_ = factory->NewFunction(factory->empty_string());
+      js_func_ = factory->NewFunctionForTest(factory->empty_string());
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
@@ -1568,7 +1570,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      js_func_ = factory->NewFunction(factory->empty_string());
+      js_func_ = factory->NewFunctionForTest(factory->empty_string());
       pair_ = CreateAccessorPair(true, true);
     }
 
@@ -1715,6 +1717,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
 
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
+  initial_map->set_instance_type(JS_ARRAY_TYPE);
   initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
 
   Handle<Map> map = initial_map;
@@ -1808,6 +1811,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
 
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
+  initial_map->set_instance_type(JS_ARRAY_TYPE);
   initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
 
   Handle<Map> map = initial_map;
@@ -1990,7 +1994,6 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
         {kConst, Representation::HeapObject(), current_type},
         {kConst, Representation::HeapObject(), new_type},
         {kConst, Representation::HeapObject(), expected_type});
-
     if (FLAG_modify_map_inplace) {
       // kConst to kMutable migration does not create a new map, therefore
       // trivial generalization.
@@ -2118,7 +2121,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       Handle<String> name = MakeName("prop", i);
       Map* target =
           TransitionsAccessor(map2).SearchTransition(*name, kData, NONE);
-      CHECK(target != NULL);
+      CHECK_NOT_NULL(target);
       map2 = handle(target);
     }
 
@@ -2640,7 +2643,8 @@ TEST(TransitionDataConstantToSameDataConstant) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<JSFunction> js_func = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> js_func =
+      factory->NewFunctionForTest(factory->empty_string());
   TransitionToDataConstantOperator transition_op(js_func);
 
   SameMapChecker checker;
@@ -2687,7 +2691,8 @@ TEST(TransitionDataConstantToDataField) {
   Factory* factory = isolate->factory();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<JSFunction> js_func1 = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> js_func1 =
+      factory->NewFunctionForTest(factory->empty_string());
   TransitionToDataConstantOperator transition_op1(js_func1);
 
   Handle<Object> value2 = isolate->factory()->NewHeapNumber(0);
@@ -2723,7 +2728,7 @@ TEST(HoleyMutableHeapNumber) {
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
 
   mhn = isolate->factory()->NewHeapNumber(0.0, MUTABLE);
-  CHECK_EQ(V8_UINT64_C(0), mhn->value_as_bits());
+  CHECK_EQ(uint64_t{0}, mhn->value_as_bits());
 
   mhn->set_value_as_bits(kHoleNanInt64);
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
@@ -2742,5 +2747,6 @@ TEST(HoleyMutableHeapNumber) {
   CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
 }
 
+}  // namespace test_field_type_tracking
 }  // namespace internal
 }  // namespace v8

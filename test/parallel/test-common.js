@@ -45,12 +45,12 @@ assert.throws(function() {
 }, /^TypeError: Invalid minimum value: \/foo\/$/);
 
 // assert.fail() tests
-assert.throws(
+common.expectsError(
   () => { assert.fail('fhqwhgads'); },
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: /^fhqwhgads$/
-  }));
+  });
 
 const fnOnce = common.mustCall(() => {});
 fnOnce();

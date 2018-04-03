@@ -8,10 +8,8 @@ const bench = common.createBenchmark(main, {
   n: [4e5]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const method = conf.method;
-  const chunk = Buffer.alloc(+conf.inputLen, 'a');
+function main({ n, method, inputLen }) {
+  const chunk = Buffer.alloc(inputLen, 'a');
 
   var i = 0;
   switch (method) {

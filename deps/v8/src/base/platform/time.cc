@@ -38,7 +38,7 @@ int64_t ComputeThreadTicks() {
       THREAD_BASIC_INFO,
       reinterpret_cast<thread_info_t>(&thread_info_data),
       &thread_info_count);
-  CHECK(kr == KERN_SUCCESS);
+  CHECK_EQ(kr, KERN_SUCCESS);
 
   v8::base::CheckedNumeric<int64_t> absolute_micros(
       thread_info_data.user_time.seconds +
@@ -195,7 +195,7 @@ TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
 
 struct mach_timespec TimeDelta::ToMachTimespec() const {
   struct mach_timespec ts;
-  DCHECK(delta_ >= 0);
+  DCHECK_GE(delta_, 0);
   ts.tv_sec = static_cast<unsigned>(delta_ / Time::kMicrosecondsPerSecond);
   ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
       Time::kNanosecondsPerMicrosecond;
@@ -298,8 +298,7 @@ Time Time::NowFromSystemTime() {
 
 
 // Time between windows epoch and standard epoch.
-static const int64_t kTimeToEpochInMicroseconds = V8_INT64_C(11644473600000000);
-
+static const int64_t kTimeToEpochInMicroseconds = int64_t{11644473600000000};
 
 Time Time::FromFiletime(FILETIME ft) {
   if (ft.dwLowDateTime == 0 && ft.dwHighDateTime == 0) {
@@ -316,7 +315,7 @@ Time Time::FromFiletime(FILETIME ft) {
 
 
 FILETIME Time::ToFiletime() const {
-  DCHECK(us_ >= 0);
+  DCHECK_GE(us_, 0);
   FILETIME ft;
   if (IsNull()) {
     ft.dwLowDateTime = 0;
@@ -338,7 +337,7 @@ FILETIME Time::ToFiletime() const {
 
 Time Time::Now() {
   struct timeval tv;
-  int result = gettimeofday(&tv, NULL);
+  int result = gettimeofday(&tv, nullptr);
   DCHECK_EQ(0, result);
   USE(result);
   return FromTimeval(tv);
@@ -351,8 +350,8 @@ Time Time::NowFromSystemTime() {
 
 
 Time Time::FromTimespec(struct timespec ts) {
-  DCHECK(ts.tv_nsec >= 0);
-  DCHECK(ts.tv_nsec < static_cast<long>(kNanosecondsPerSecond));  // NOLINT
+  DCHECK_GE(ts.tv_nsec, 0);
+  DCHECK_LT(ts.tv_nsec, kNanosecondsPerSecond);
   if (ts.tv_nsec == 0 && ts.tv_sec == 0) {
     return Time();
   }
@@ -384,7 +383,7 @@ struct timespec Time::ToTimespec() const {
 
 
 Time Time::FromTimeval(struct timeval tv) {
-  DCHECK(tv.tv_usec >= 0);
+  DCHECK_GE(tv.tv_usec, 0);
   DCHECK(tv.tv_usec < static_cast<suseconds_t>(kMicrosecondsPerSecond));
   if (tv.tv_usec == 0 && tv.tv_sec == 0) {
     return Time();
@@ -577,7 +576,7 @@ static LazyDynamicInstance<TickClock, CreateHighResTickClockTrait,
                            ThreadSafeInitOnceTrait>::type high_res_tick_clock =
     LAZY_DYNAMIC_INSTANCE_INITIALIZER;
 
-
+// static
 TimeTicks TimeTicks::Now() {
   // Make sure we never return 0 here.
   TimeTicks ticks(tick_clock.Pointer()->Now());
@@ -585,7 +584,7 @@ TimeTicks TimeTicks::Now() {
   return ticks;
 }
 
-
+// static
 TimeTicks TimeTicks::HighResolutionNow() {
   // Make sure we never return 0 here.
   TimeTicks ticks(high_res_tick_clock.Pointer()->Now());
@@ -621,6 +620,8 @@ TimeTicks TimeTicks::HighResolutionNow() {
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
+#else
+#error platform does not implement TimeTicks::HighResolutionNow.
 #endif  // V8_OS_MACOSX
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);

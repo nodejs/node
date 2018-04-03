@@ -12,10 +12,7 @@ const bench = common.createBenchmark(main, {
   n: [25e6]
 });
 
-function main(conf) {
-  const type = conf.type;
-  const n = conf.n | 0;
-
+function main({ type, n }) {
   const input = inputs[type] || '';
 
   // Force-optimize url.format() so that the benchmark doesn't get

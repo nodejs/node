@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const { Transform, Readable, Writable } = require('stream');
@@ -54,13 +54,32 @@ testTransform(0, 0, {
   writableHighWaterMark: 777,
 });
 
-// test undefined, null, NaN
-[undefined, null, NaN].forEach((v) => {
+// test undefined, null
+[undefined, null].forEach((v) => {
   testTransform(DEFAULT, DEFAULT, { readableHighWaterMark: v });
   testTransform(DEFAULT, DEFAULT, { writableHighWaterMark: v });
   testTransform(666, DEFAULT, { highWaterMark: v, readableHighWaterMark: 666 });
   testTransform(DEFAULT, 777, { highWaterMark: v, writableHighWaterMark: 777 });
 });
+
+// test NaN
+{
+  common.expectsError(() => {
+    new Transform({ readableHighWaterMark: NaN });
+  }, {
+    type: TypeError,
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "NaN" is invalid for option "readableHighWaterMark"'
+  });
+
+  common.expectsError(() => {
+    new Transform({ writableHighWaterMark: NaN });
+  }, {
+    type: TypeError,
+    code: 'ERR_INVALID_OPT_VALUE',
+    message: 'The value "NaN" is invalid for option "writableHighWaterMark"'
+  });
+}
 
 // test non Duplex streams ignore the options
 {

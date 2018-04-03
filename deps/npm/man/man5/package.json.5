@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "July 2017" "" ""
+.TH "PACKAGE\.JSON" "5" "December 2017" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -207,14 +207,23 @@ Both email and url are optional either way\.
 npm also sets a top\-level "maintainers" field with your npm user info\.
 .SH files
 .P
-The "files" field is an array of files to include in your project\.  If
-you name a folder in the array, then it will also include the files
-inside that folder\. (Unless they would be ignored by another rule\.)
+The optional "files" field is an array of file patterns that describes
+the entries to be included when your package is installed as a
+dependency\. If the files array is omitted, everything except
+automatically\-excluded files will be included in your publish\. If you
+name a folder in the array, then it will also include the files inside
+that folder (unless they would be ignored by another rule in this
+section\.)\.
 .P
-You can also provide a "\.npmignore" file in the root of your package or
-in subdirectories, which will keep files from being included, even
-if they would be picked up by the files array\.  The \fB\|\.npmignore\fP file
-works just like a \fB\|\.gitignore\fP\|\.
+You can also provide a \fB\|\.npmignore\fP file in the root of your package or
+in subdirectories, which will keep files from being included\. At the
+root of your package it will not override the "files" field, but in
+subdirectories it will\. The \fB\|\.npmignore\fP file works just like a
+\fB\|\.gitignore\fP\|\. If there is a \fB\|\.gitignore\fP file, and \fB\|\.npmignore\fP is
+missing, \fB\|\.gitignore\fP\|'s contents will be used instead\.
+.P
+Files included with the "package\.json#files" field \fIcannot\fR be excluded
+through \fB\|\.npmignore\fP or \fB\|\.gitignore\fP\|\.
 .P
 Certain files are always included, regardless of settings:
 .RS 0
@@ -446,11 +455,13 @@ shortcut syntax you use for \fBnpm install\fP:
 .nf
 "repository": "npm/npm"
 
+"repository": "github:user/repo"
+
 "repository": "gist:11081aaa281"
 
-"repository": "bitbucket:example/repo"
+"repository": "bitbucket:user/repo"
 
-"repository": "gitlab:another/repo"
+"repository": "gitlab:user/repo"
 .fi
 .RE
 .SH scripts
@@ -743,7 +754,7 @@ If we define a package\.json like this:
   "name": "awesome\-web\-framework",
   "version": "1\.0\.0",
   "bundledDependencies": [
-    'renderized', 'super\-streams'
+    "renderized", "super\-streams"
   ]
 }
 .fi
@@ -815,7 +826,7 @@ are capable of properly installing your program\.  For example:
 .RE
 .P
 Unless the user has set the \fBengine\-strict\fP config flag, this
-field is advisory only will produce warnings when your package is installed as a dependency\.
+field is advisory only and will only produce warnings when your package is installed as a dependency\.
 .SH engineStrict
 .P
 \fBThis feature was removed in npm 3\.0\.0\fR

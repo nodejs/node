@@ -10,7 +10,7 @@ node has two options:
 1. `node --debug <file>`: Start `file` with remote debugging enabled.
 2. `node debug <file>`: Start an interactive CLI debugger for `<file>`.
 
-But for the Chrome inspector protol,
+But for the Chrome inspector protocol,
 there's only one: `node --inspect <file>`.
 
 This project tries to provide the missing second option

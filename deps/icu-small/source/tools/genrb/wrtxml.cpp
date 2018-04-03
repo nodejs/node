@@ -368,6 +368,7 @@ static char* convertAndEscape(char** pDest, int32_t destCap, int32_t* destLength
 #define LF       0x000D
 #define AT_SIGN  0x0040
 
+#if UCONFIG_NO_REGULAR_EXPRESSIONS==0
 static void
 trim(char **src, int32_t *len){
 
@@ -420,6 +421,8 @@ print(UChar* src, int32_t srcLen,const char *tagStart,const char *tagEnd,  UErro
 
     }
 }
+#endif
+
 static void
 printNoteElements(const UString *src, UErrorCode *status){
 
@@ -471,6 +474,7 @@ static void printAttribute(const char *name, const char *value, int32_t /*len*/)
     write_utf8_file(out, UnicodeString("\""));
 }
 
+#if UCONFIG_NO_REGULAR_EXPRESSIONS==0 /* donot compile when no RegularExpressions are available */
 static void printAttribute(const char *name, const UnicodeString value, int32_t /*len*/)
 {
     write_utf8_file(out, UnicodeString(" "));
@@ -479,6 +483,7 @@ static void printAttribute(const char *name, const UnicodeString value, int32_t 
     write_utf8_file(out, value);
     write_utf8_file(out, UnicodeString("\""));
 }
+#endif
 
 static void
 printComments(struct UString *src, const char *resName, UBool printTranslate, UErrorCode *status){

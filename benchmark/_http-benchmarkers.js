@@ -89,13 +89,14 @@ class TestDoubleBenchmarker {
   }
 
   create(options) {
+    const env = Object.assign({
+      duration: options.duration,
+      test_url: `http://127.0.0.1:${options.port}${options.path}`,
+    }, process.env);
+
     const child = child_process.fork(this.executable, {
       silent: true,
-      env: {
-        duration: options.duration,
-        connections: options.connections,
-        path: `http://127.0.0.1:${options.port}${options.path}`
-      }
+      env
     });
     return child;
   }
@@ -184,7 +185,7 @@ exports.run = function(options, callback) {
     port: exports.PORT,
     path: '/',
     connections: 100,
-    duration: 10,
+    duration: 5,
     benchmarker: exports.default_http_benchmarker
   }, options);
   if (!options.benchmarker) {

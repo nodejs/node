@@ -42,6 +42,8 @@ BUILTIN(ErrorCaptureStackTrace) {
   HandleScope scope(isolate);
   Handle<Object> object_obj = args.atOrUndefined(isolate, 1);
 
+  isolate->CountUsage(v8::Isolate::kErrorCaptureStackTrace);
+
   if (!object_obj->IsJSObject()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidArgument, object_obj));
@@ -60,19 +62,18 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   // Add the stack accessors.
 
-  Handle<AccessorInfo> error_stack =
-      Accessors::ErrorStackInfo(isolate, DONT_ENUM);
+  Handle<AccessorInfo> error_stack = isolate->factory()->error_stack_accessor();
+  Handle<Name> name(Name::cast(error_stack->name()), isolate);
 
   // Explicitly check for frozen objects. Other access checks are performed by
   // the LookupIterator in SetAccessor below.
   if (!JSObject::IsExtensible(object)) {
     return isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kDefineDisallowed,
-        handle(error_stack->name(), isolate)));
+        MessageTemplate::kDefineDisallowed, name));
   }
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSObject::SetAccessor(object, error_stack));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::SetAccessor(object, name, error_stack, DONT_ENUM));
   return isolate->heap()->undefined_value();
 }
 

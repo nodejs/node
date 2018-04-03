@@ -3,3 +3,11 @@ paused in throwCaught
 uncaught: false
 paused in throwUncaught
 uncaught: true
+paused in throwInPromiseCaught
+uncaught: false
+paused in promiseUncaught
+uncaught: true
+paused in throwInMapConstructor
+uncaught: true
+paused in throwInAsyncIterator
+uncaught: true

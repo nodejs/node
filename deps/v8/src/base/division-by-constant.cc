@@ -53,7 +53,7 @@ template <class T>
 MagicNumbersForDivision<T> UnsignedDivisionByConstant(T d,
                                                       unsigned leading_zeros) {
   STATIC_ASSERT(static_cast<T>(0) < static_cast<T>(-1));
-  DCHECK(d != 0);
+  DCHECK_NE(d, 0);
   const unsigned bits = static_cast<unsigned>(sizeof(T)) * 8;
   const T ones = ~static_cast<T>(0) >> leading_zeros;
   const T min = static_cast<T>(1) << (bits - 1);

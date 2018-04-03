@@ -2200,7 +2200,7 @@ int32_t  RegexMatcher::split(UText *input,
                     if (dest[i] == NULL) {
                         dest[i] = utext_openUChars(NULL, NULL, 0, &status);
                     } else {
-                        static UChar emptyString[] = {(UChar)0};
+                        static const UChar emptyString[] = {(UChar)0};
                         utext_replace(dest[i], 0, utext_nativeLength(dest[i]), emptyString, 0, &status);
                     }
                 }
@@ -5469,7 +5469,7 @@ GC_Done:
                 if (lbStartIdx < 0) {
                     // First time through loop.
                     lbStartIdx = fp->fInputIdx - minML;
-                    if (lbStartIdx > 0) {
+                    if (lbStartIdx > 0 && lbStartIdx < fInputLength) {
                         U16_SET_CP_START(inputBuf, 0, lbStartIdx);
                     }
                 } else {
@@ -5546,7 +5546,7 @@ GC_Done:
                 if (lbStartIdx < 0) {
                     // First time through loop.
                     lbStartIdx = fp->fInputIdx - minML;
-                    if (lbStartIdx > 0) {
+                    if (lbStartIdx > 0 && lbStartIdx < fInputLength) {
                         U16_SET_CP_START(inputBuf, 0, lbStartIdx);
                     }
                 } else {

@@ -4,6 +4,7 @@
 
 #include "src/snapshot/partial-deserializer.h"
 
+#include "src/api.h"
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/snapshot.h"
 
@@ -29,7 +30,9 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
-  if (!ReserveSpace()) V8::FatalProcessOutOfMemory("PartialDeserializer");
+  if (!allocator()->ReserveSpace()) {
+    V8::FatalProcessOutOfMemory("PartialDeserializer");
+  }
 
   AddAttachedObject(global_proxy);
 
@@ -43,14 +46,14 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 
-  RegisterDeserializedObjectsForBlackAllocation();
+  allocator()->RegisterDeserializedObjectsForBlackAllocation();
 
   // There's no code deserialized here. If this assert fires then that's
   // changed and logging should be added to notify the profiler et al of the
   // new code, which also has to be flushed from instruction cache.
   CHECK_EQ(start_address, code_space->top());
 
-  if (FLAG_rehash_snapshot && can_rehash()) RehashContext(Context::cast(root));
+  if (FLAG_rehash_snapshot && can_rehash()) Rehash();
 
   return Handle<Object>(root, isolate);
 }
@@ -66,8 +69,8 @@ void PartialDeserializer::DeserializeEmbedderFields(
        code = source()->Get()) {
     HandleScope scope(isolate());
     int space = code & kSpaceMask;
-    DCHECK(space <= kNumberOfSpaces);
-    DCHECK(code - space == kNewObject);
+    DCHECK_LE(space, kNumberOfSpaces);
+    DCHECK_EQ(code - space, kNewObject);
     Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(space)),
                          isolate());
     int index = source()->GetInt();
@@ -81,13 +84,5 @@ void PartialDeserializer::DeserializeEmbedderFields(
     delete[] data;
   }
 }
-
-void PartialDeserializer::RehashContext(Context* context) {
-  DCHECK(can_rehash());
-  for (const auto& array : transition_arrays()) array->Sort();
-  context->global_object()->global_dictionary()->Rehash();
-  SortMapDescriptors();
-}
-
 }  // namespace internal
 }  // namespace v8

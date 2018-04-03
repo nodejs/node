@@ -759,6 +759,10 @@ void DefineSignalConstants(Local<Object> target) {
 }
 
 void DefineOpenSSLConstants(Local<Object> target) {
+#ifdef OPENSSL_VERSION_NUMBER
+    NODE_DEFINE_CONSTANT(target, OPENSSL_VERSION_NUMBER);
+#endif
+
 #ifdef SSL_OP_ALL
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
@@ -967,11 +971,6 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, DH_NOT_SUITABLE_GENERATOR);
 #endif
 
-#ifndef OPENSSL_NO_NEXTPROTONEG
-#define NPN_ENABLED 1
-    NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
-#endif
-
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 #define ALPN_ENABLED 1
     NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);
@@ -1024,6 +1023,8 @@ void DefineOpenSSLConstants(Local<Object> target) {
 }
 
 void DefineSystemConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_DIR);
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_JUNCTION);
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);

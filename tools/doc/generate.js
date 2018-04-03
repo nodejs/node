@@ -24,19 +24,19 @@
 const processIncludes = require('./preprocess.js');
 const fs = require('fs');
 
-// parse the args.
-// Don't use nopt or whatever for this.  It's simple enough.
+// Parse the args.
+// Don't use nopt or whatever for this. It's simple enough.
 
 const args = process.argv.slice(2);
 let format = 'json';
 let template = null;
-let inputFile = null;
+let filename = null;
 let nodeVersion = null;
 let analytics = null;
 
 args.forEach(function(arg) {
   if (!arg.startsWith('--')) {
-    inputFile = arg;
+    filename = arg;
   } else if (arg.startsWith('--format=')) {
     format = arg.replace(/^--format=/, '');
   } else if (arg.startsWith('--template=')) {
@@ -50,42 +50,32 @@ args.forEach(function(arg) {
 
 nodeVersion = nodeVersion || process.version;
 
-if (!inputFile) {
+if (!filename) {
   throw new Error('No input file specified');
 }
 
-console.error('Input file = %s', inputFile);
-fs.readFile(inputFile, 'utf8', function(er, input) {
+fs.readFile(filename, 'utf8', (er, input) => {
   if (er) throw er;
-  // process the input for @include lines
-  processIncludes(inputFile, input, next);
+  // Process the input for @include lines.
+  processIncludes(filename, input, next);
 });
 
 function next(er, input) {
   if (er) throw er;
   switch (format) {
     case 'json':
-      require('./json.js')(input, inputFile, function(er, obj) {
-        console.log(JSON.stringify(obj, null, 2));
+      require('./json.js')(input, filename, (er, obj) => {
         if (er) throw er;
+        console.log(JSON.stringify(obj, null, 2));
       });
       break;
 
     case 'html':
-      require('./html.js')(
-        {
-          input: input,
-          filename: inputFile,
-          template: template,
-          nodeVersion: nodeVersion,
-          analytics: analytics,
-        },
-
-        function(er, html) {
-          if (er) throw er;
-          console.log(html);
-        }
-      );
+      require('./html')({ input, filename, template, nodeVersion, analytics },
+                        (err, html) => {
+                          if (err) throw err;
+                          console.log(html);
+                        });
       break;
 
     default:

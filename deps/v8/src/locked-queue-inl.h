@@ -22,7 +22,7 @@ struct LockedQueue<Record>::Node : Malloced {
 template <typename Record>
 inline LockedQueue<Record>::LockedQueue() {
   head_ = new Node();
-  CHECK(head_ != nullptr);
+  CHECK_NOT_NULL(head_);
   tail_ = head_;
 }
 
@@ -43,7 +43,7 @@ inline LockedQueue<Record>::~LockedQueue() {
 template <typename Record>
 inline void LockedQueue<Record>::Enqueue(const Record& record) {
   Node* n = new Node();
-  CHECK(n != nullptr);
+  CHECK_NOT_NULL(n);
   n->value = record;
   {
     base::LockGuard<base::Mutex> guard(&tail_mutex_);

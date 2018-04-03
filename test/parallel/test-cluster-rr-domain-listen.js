@@ -36,16 +36,16 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
 
-  //Kill worker when listening
+  // Kill worker when listening
   cluster.on('listening', function() {
     worker.kill();
   });
 
-  //Kill process when worker is killed
+  // Kill process when worker is killed
   cluster.on('exit', function() {
     process.exit(0);
   });
 
-  //Create worker
+  // Create worker
   const worker = cluster.fork();
 }

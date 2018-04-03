@@ -18,7 +18,8 @@ OsrHelper::OsrHelper(CompilationInfo* info)
     : parameter_count_(
           info->shared_info()->bytecode_array()->parameter_count()),
       stack_slot_count_(
-          info->shared_info()->bytecode_array()->register_count() +
+          InterpreterFrameConstants::RegisterStackSlotCount(
+              info->shared_info()->bytecode_array()->register_count()) +
           InterpreterFrameConstants::kExtraSlotCount) {}
 
 void OsrHelper::SetupFrame(Frame* frame) {

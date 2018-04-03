@@ -31,13 +31,11 @@ const bench = common.createBenchmark(main, {
   millions: [1, 10, 50]
 });
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  const fn = conf.type === 'cxx' ? cxx : js;
+function main({ millions, type }) {
+  const fn = type === 'cxx' ? cxx : js;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     fn();
   }
-  bench.end(+conf.millions);
+  bench.end(millions);
 }

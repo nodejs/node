@@ -11,13 +11,10 @@ const bench = common.createBenchmark(main, {
   method: ['write', 'end']
 });
 
-function main(conf) {
-  const dur = +conf.dur;
-  const len = +conf.len;
-
+function main({ dur, len, type, method }) {
   var encoding;
   var chunk;
-  switch (conf.type) {
+  switch (type) {
     case 'buf':
       chunk = Buffer.alloc(len, 'x');
       break;
@@ -55,7 +52,7 @@ function main(conf) {
       pummel();  // Line up next request.
       res.resume();
     });
-    if (conf.method === 'write') {
+    if (method === 'write') {
       req.write(chunk, encoding);
       req.end();
     } else {

@@ -11,7 +11,7 @@
 
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
-#include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -140,8 +140,8 @@ void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
 
 void WasmFunctionBuilder::SetName(Vector<const char> name) { name_ = name; }
 
-void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
-                                           int to_number_position) {
+void WasmFunctionBuilder::AddAsmWasmOffset(size_t call_position,
+                                           size_t to_number_position) {
   // We only want to emit one mapping per byte offset.
   DCHECK(asm_offsets_.size() == 0 || body_.size() > last_asm_byte_offset_);
 
@@ -150,21 +150,25 @@ void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
   asm_offsets_.write_u32v(byte_offset - last_asm_byte_offset_);
   last_asm_byte_offset_ = byte_offset;
 
-  DCHECK_GE(call_position, 0);
-  asm_offsets_.write_i32v(call_position - last_asm_source_position_);
+  DCHECK_GE(std::numeric_limits<uint32_t>::max(), call_position);
+  uint32_t call_position_u32 = static_cast<uint32_t>(call_position);
+  asm_offsets_.write_i32v(call_position_u32 - last_asm_source_position_);
 
-  DCHECK_GE(to_number_position, 0);
-  asm_offsets_.write_i32v(to_number_position - call_position);
-  last_asm_source_position_ = to_number_position;
+  DCHECK_GE(std::numeric_limits<uint32_t>::max(), to_number_position);
+  uint32_t to_number_position_u32 = static_cast<uint32_t>(to_number_position);
+  asm_offsets_.write_i32v(to_number_position_u32 - call_position_u32);
+  last_asm_source_position_ = to_number_position_u32;
 }
 
-void WasmFunctionBuilder::SetAsmFunctionStartPosition(int position) {
+void WasmFunctionBuilder::SetAsmFunctionStartPosition(
+    size_t function_position) {
   DCHECK_EQ(0, asm_func_start_source_position_);
-  DCHECK_LE(0, position);
+  DCHECK_GE(std::numeric_limits<uint32_t>::max(), function_position);
+  uint32_t function_position_u32 = static_cast<uint32_t>(function_position);
   // Must be called before emitting any asm.js source position.
   DCHECK_EQ(0, asm_offsets_.size());
-  asm_func_start_source_position_ = position;
-  last_asm_source_position_ = position;
+  asm_func_start_source_position_ = function_position_u32;
+  last_asm_source_position_ = function_position_u32;
 }
 
 void WasmFunctionBuilder::DeleteCodeAfter(size_t position) {
@@ -226,7 +230,8 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       start_function_index_(-1),
       min_memory_size_(16),
       max_memory_size_(0),
-      has_max_memory_size_(false) {}
+      has_max_memory_size_(false),
+      has_shared_memory_(false) {}
 
 WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
   functions_.push_back(new (zone_) WasmFunctionBuilder(this));
@@ -325,6 +330,8 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
   max_memory_size_ = value;
 }
 
+void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
+
 void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == Emit magic =============================================================
   buffer.write_u32(kWasmMagic);
@@ -336,7 +343,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(signatures_.size());
 
     for (FunctionSig* sig : signatures_) {
-      buffer.write_u8(kWasmFunctionTypeForm);
+      buffer.write_u8(kWasmFunctionTypeCode);
       buffer.write_size(sig->parameter_count());
       for (auto param : sig->parameters()) {
         buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(param));
@@ -385,8 +392,8 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   if (indirect_functions_.size() > 0) {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer.write_u8(1);  // table count
-    buffer.write_u8(kWasmAnyFunctionTypeForm);
-    buffer.write_u8(kResizableMaximumFlag);
+    buffer.write_u8(kWasmAnyFunctionTypeCode);
+    buffer.write_u8(kHasMaximumFlag);
     buffer.write_size(indirect_functions_.size());
     buffer.write_size(indirect_functions_.size());
     FixupSection(buffer, start);
@@ -396,8 +403,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   {
     size_t start = EmitSection(kMemorySectionCode, buffer);
     buffer.write_u8(1);  // memory count
-    buffer.write_u8(has_max_memory_size_ ? kResizableMaximumFlag
-                                         : kNoMaximumFlag);
+    if (has_shared_memory_) {
+      buffer.write_u8(has_max_memory_size_ ? MemoryFlags::kSharedAndMaximum
+                                           : MemoryFlags::kSharedNoMaximum);
+    } else {
+      buffer.write_u8(has_max_memory_size_ ? MemoryFlags::kMaximum
+                                           : MemoryFlags::kNoMaximum);
+    }
     buffer.write_u32v(min_memory_size_);
     if (has_max_memory_size_) {
       buffer.write_u32v(max_memory_size_);
@@ -542,7 +554,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(4);
     buffer.write(reinterpret_cast<const byte*>("name"), 4);
     // Emit a subsection for the function names.
-    buffer.write_u8(NameSectionType::kFunction);
+    buffer.write_u8(NameSectionKindCode::kFunction);
     // Emit a placeholder for the subsection length.
     size_t functions_start = buffer.reserve_u32v();
     // Emit the function names.

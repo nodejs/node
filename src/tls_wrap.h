@@ -27,7 +27,7 @@
 #include "node.h"
 #include "node_crypto.h"  // SSLWrap
 
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "env.h"
 #include "stream_wrap.h"
 #include "util.h"
@@ -48,7 +48,8 @@ class NodeBIO;
 
 class TLSWrap : public AsyncWrap,
                 public crypto::SSLWrap<TLSWrap>,
-                public StreamBase {
+                public StreamBase,
+                public StreamListener {
  public:
   ~TLSWrap() override;
 
@@ -56,7 +57,6 @@ class TLSWrap : public AsyncWrap,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
 
-  void* Cast() override;
   int GetFD() override;
   bool IsAlive() override;
   bool IsClosing() override;
@@ -65,6 +65,8 @@ class TLSWrap : public AsyncWrap,
   int ReadStart() override;
   int ReadStop() override;
 
+  ShutdownWrap* CreateShutdownWrap(
+      v8::Local<v8::Object> req_wrap_object) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
   int DoWrite(WriteWrap* w,
               uv_buf_t* bufs,
@@ -77,9 +79,11 @@ class TLSWrap : public AsyncWrap,
 
   size_t self_size() const override { return sizeof(*this); }
 
-  void clear_stream() { stream_ = nullptr; }
-
  protected:
+  inline StreamBase* underlying_stream() {
+    return static_cast<StreamBase*>(stream_);
+  }
+
   static const int kClearOutChunkSize = 16384;
 
   // Maximum number of bytes for hello parser
@@ -91,19 +95,6 @@ class TLSWrap : public AsyncWrap,
   // Maximum number of buffers passed to uv_write()
   static const int kSimultaneousBufferCount = 10;
 
-  // Write callback queue's item
-  class WriteItem {
-   public:
-    explicit WriteItem(WriteWrap* w) : w_(w) {
-    }
-    ~WriteItem() {
-      w_ = nullptr;
-    }
-
-    WriteWrap* w_;
-    ListNode<WriteItem> member_;
-  };
-
   TLSWrap(Environment* env,
           Kind kind,
           StreamBase* stream,
@@ -112,10 +103,8 @@ class TLSWrap : public AsyncWrap,
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
   void EncOut();
-  static void EncOutCb(WriteWrap* req_wrap, int status);
   bool ClearIn();
   void ClearOut();
-  void MakePending();
   bool InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
@@ -132,24 +121,11 @@ class TLSWrap : public AsyncWrap,
 
   AsyncWrap* GetAsyncWrap() override;
   bool IsIPCPipe() override;
-  uint32_t UpdateWriteQueueSize(uint32_t write_queue_size = 0);
 
   // Resource implementation
-  static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
-  static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
-  static void OnReadImpl(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
-  static void OnAfterWriteSelf(WriteWrap* w, void* ctx);
-  static void OnAllocSelf(size_t size, uv_buf_t* buf, void* ctx);
-  static void OnReadSelf(ssize_t nread,
-                         const uv_buf_t* buf,
-                         uv_handle_type pending,
-                         void* ctx);
-  static void OnDestructImpl(void* ctx);
-
-  void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
+  void OnStreamAfterWrite(WriteWrap* w, int status) override;
+  uv_buf_t OnStreamAlloc(size_t size) override;
+  void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
 
   v8::Local<v8::Value> GetSSLError(int status, int* err, std::string* msg);
 
@@ -171,14 +147,13 @@ class TLSWrap : public AsyncWrap,
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
   crypto::SecureContext* sc_;
-  StreamBase* stream_;
   BIO* enc_in_;
   BIO* enc_out_;
-  crypto::NodeBIO* clear_in_;
+  std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
-  typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
-  WriteItemList write_item_queue_;
-  WriteItemList pending_write_items_;
+  WriteWrap* current_write_ = nullptr;
+  WriteWrap* current_empty_write_ = nullptr;
+  bool write_callback_scheduled_ = false;
   bool started_;
   bool established_;
   bool shutdown_;
@@ -190,8 +165,8 @@ class TLSWrap : public AsyncWrap,
   bool eof_;
 
  private:
-  static void UpdateWriteQueueSize(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetWriteQueueSize(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
 };
 
 }  // namespace node

@@ -11,7 +11,7 @@
 
 <h1><a href="../cli/npm-publish.html">npm-publish</a></h1> <p>Publish a package</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm publish [&lt;tarball&gt;|&lt;folder&gt;] [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;]
+<pre><code>npm publish [&lt;tarball&gt;|&lt;folder&gt;] [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;] [--otp otpcode]
 
 Publishes &#39;.&#39; if no argument supplied
 Sets tag &#39;latest&#39; if no --tag specified
@@ -45,6 +45,11 @@ restricted. Only applies to scoped packages, which default to <code>restricted</
 If you don&#39;t have a paid account, you must publish with <code>--access public</code>
 to publish scoped packages.</p>
 </li>
+<li><p><code>[--otp &lt;otpcode&gt;]</code>
+If you have two-factor authentication enabled in <code>auth-and-writes</code> mode
+then you can provide a code from your authenticator with this. If you
+don&#39;t include this and you&#39;re running from a TTY then you&#39;ll be prompted.</p>
+</li>
 </ul>
 <p>Fails if the package name and version combination already exists in
 the specified registry.</p>
@@ -66,6 +71,7 @@ packs them into a tarball to be uploaded to the registry.</p>
 <li><a href="../cli/npm-deprecate.html">npm-deprecate(1)</a></li>
 <li><a href="../cli/npm-dist-tag.html">npm-dist-tag(1)</a></li>
 <li><a href="../cli/npm-pack.html">npm-pack(1)</a></li>
+<li><a href="../cli/npm-profile.html">npm-profile(1)</a></li>
 </ul>
 
 </div>
@@ -79,5 +85,5 @@ packs them into a tarball to be uploaded to the registry.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-publish &mdash; npm@5.3.0</p>
+<p id="footer">npm-publish &mdash; npm@5.6.0</p>
 

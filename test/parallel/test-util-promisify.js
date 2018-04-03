@@ -184,3 +184,14 @@ const stat = promisify(fs.stat);
     })
   ]);
 }
+
+[undefined, null, true, 0, 'str', {}, [], Symbol()].forEach((input) => {
+  common.expectsError(
+    () => promisify(input),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "original" argument must be of type Function. ' +
+               `Received type ${typeof input}`
+    });
+});

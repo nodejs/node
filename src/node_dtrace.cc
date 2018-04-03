@@ -24,7 +24,6 @@
 #ifdef HAVE_DTRACE
 #include "node_provider.h"
 #elif HAVE_ETW
-#include "node_win32_etw_provider.h"
 #include "node_win32_etw_provider-inl.h"
 #else
 #define NODE_HTTP_SERVER_REQUEST(arg0, arg1)

@@ -177,7 +177,7 @@ STACK_OF(X509_EXTENSION) *X509v3_add_ext(STACK_OF(X509_EXTENSION) **x,
  err2:
     if (new_ex != NULL)
         X509_EXTENSION_free(new_ex);
-    if (sk != NULL)
+    if (x != NULL && *x == NULL && sk != NULL)
         sk_X509_EXTENSION_free(sk);
     return (NULL);
 }

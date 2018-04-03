@@ -1,4 +1,4 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "July 2017" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SH SYNOPSIS
@@ -34,7 +34,7 @@ and not to any pre or post script\.
 .P
 The \fBenv\fP script is a special built\-in command that can be used to list
 environment variables that will be available to the script at runtime\. If an
-"env" command is defined in your package it will take precedence over the
+"env" command is defined in your package, it will take precedence over the
 built\-in\.
 .P
 In addition to the shell's pre\-existing \fBPATH\fP, \fBnpm run\fP adds
@@ -49,7 +49,27 @@ you should write:
 .fi
 .RE
 .P
-instead of \fB"scripts": {"test": "node_modules/\.bin/tap test/\\*\.js"}\fP to run your tests\.
+instead of
+.P
+.RS 2
+.nf
+"scripts": {"test": "node_modules/\.bin/tap test/\\*\.js"}
+.fi
+.RE
+.P
+to run your tests\.
+.P
+The actual shell your script is run within is platform dependent\. By default,
+on Unix\-like systems it is the \fB/bin/sh\fP command, on Windows it is the \fBcmd\.exe\fP\|\.
+The actual shell referred to by \fB/bin/sh\fP also depends on the system\.
+As of \fBnpm@5\.1\.0\fP \fIhttps://github\.com/npm/npm/releases/tag/v5\.1\.0\fR you can
+customize the shell with the \fBscript\-shell\fP configuration\.
+.P
+Scripts are run from the root of the module, regardless of what your current
+working directory is when you call \fBnpm run\fP\|\. If you want your script to
+use different behavior based on what subdirectory you're in, you can use the
+\fBINIT_CWD\fP environment variable, which holds the full path you were in when
+you ran \fBnpm run\fP\|\.
 .P
 \fBnpm run\fP sets the \fBNODE\fP environment variable to the \fBnode\fP executable with
 which \fBnpm\fP is executed\. Also, if the \fB\-\-scripts\-prepend\-node\-path\fP is passed,
@@ -74,6 +94,8 @@ npm help start
 npm help restart
 .IP \(bu 2
 npm help stop
+.IP \(bu 2
+npm help 7 config
 
 .RE
 

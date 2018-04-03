@@ -1,9 +1,22 @@
 {
-  "private": true,
   "name": "remark-preset-lint-node",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "remark preset to configure remark-lint with settings for nodejs/node",
   "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/watilde/remark-preset-lint-node.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/watilde/remark-preset-lint-node/issues"
+  },
+  "homepage": "https://github.com/watilde/remark-preset-lint-node#readme",
   "dependencies": {
     "remark-lint": "^6.0.0",
     "remark-lint-blockquote-indentation": "^1.0.0",
@@ -19,6 +32,7 @@
     "remark-lint-first-heading-level": "^1.0.0",
     "remark-lint-hard-break-spaces": "^1.0.1",
     "remark-lint-heading-style": "^1.0.0",
+    "remark-lint-maximum-line-length": "^1.0.2",
     "remark-lint-no-auto-link-without-protocol": "^1.0.0",
     "remark-lint-no-blockquote-without-caret": "^1.0.0",
     "remark-lint-no-duplicate-definitions": "^1.0.0",
@@ -34,6 +48,7 @@
     "remark-lint-no-table-indentation": "^1.0.0",
     "remark-lint-no-tabs": "^1.0.0",
     "remark-lint-no-unused-definitions": "^1.0.0",
+    "remark-lint-prohibited-strings": "^1.0.0",
     "remark-lint-rule-style": "^1.0.0",
     "remark-lint-strong-marker": "^1.0.0",
     "remark-lint-table-cell-padding": "^1.0.0",

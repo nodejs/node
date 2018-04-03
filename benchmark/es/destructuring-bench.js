@@ -8,10 +8,10 @@ const bench = common.createBenchmark(main, {
   millions: [100]
 });
 
-function runSwapManual(n) {
+function runSwapManual(millions) {
   var x, y, r;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     x = 1, y = 2;
     r = x;
     x = y;
@@ -19,34 +19,32 @@ function runSwapManual(n) {
     assert.strictEqual(x, 2);
     assert.strictEqual(y, 1);
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function runSwapDestructured(n) {
+function runSwapDestructured(millions) {
   var x, y;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     x = 1, y = 2;
     [x, y] = [y, x];
     assert.strictEqual(x, 2);
     assert.strictEqual(y, 1);
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
+function main({ millions, method }) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'swap':
-      runSwapManual(n);
+      runSwapManual(millions);
       break;
     case 'destructure':
-      runSwapDestructured(n);
+      runSwapDestructured(millions);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

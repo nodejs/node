@@ -51,12 +51,5 @@ Object.getOwnPropertyNames(global).forEach(function(name) {
       `${name}.prototype.constructor`);
 });
 
-// This is the current set of dictionary mode objects.
-// Remove items as we fix them. See issue 5902.
-assertEquals(
-    [
-      'Error.prototype',
-      'EvalError.prototype', 'RangeError.prototype', 'ReferenceError.prototype',
-      'SyntaxError.prototype', 'TypeError.prototype', 'URIError.prototype'
-    ],
-    log);
+// There should be no dictionary mode builtin objects.
+assertEquals([], log);

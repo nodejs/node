@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "July 2017" "" ""
+.TH "NPM\-VERSION" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
@@ -121,6 +121,16 @@ Type: Boolean
 .RE
 .P
 Commit and tag the version change\.
+.SS commit\-hooks
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run git commit hooks when committing the version change\.
 .SS sign\-git\-tag
 .RS 0
 .IP \(bu 2

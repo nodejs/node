@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_custom(it, $keyword) {
+module.exports = function generate_custom(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -11,7 +11,7 @@ module.exports = function generate_custom(it, $keyword) {
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $errs = 'errs__' + $lvl;
-  var $isData = it.opts.v5 && $schema && $schema.$data,
+  var $isData = it.opts.$data && $schema && $schema.$data,
     $schemaValue;
   if ($isData) {
     out += ' var schema' + ($lvl) + ' = ' + (it.util.getData($schema.$data, $dataLvl, it.dataPathArr)) + '; ';
@@ -21,7 +21,8 @@ module.exports = function generate_custom(it, $keyword) {
   }
   var $rule = this,
     $definition = 'definition' + $lvl,
-    $rDef = $rule.definition;
+    $rDef = $rule.definition,
+    $closingBraces = '';
   var $compile, $inline, $macro, $ruleValidate, $validateCode;
   if ($isData && $rDef.$data) {
     $validateCode = 'keywordValidate' + $lvl;
@@ -29,6 +30,7 @@ module.exports = function generate_custom(it, $keyword) {
     out += ' var ' + ($definition) + ' = RULES.custom[\'' + ($keyword) + '\'].definition; var ' + ($validateCode) + ' = ' + ($definition) + '.validate;';
   } else {
     $ruleValidate = it.useCustomRule($rule, $schema, it.schema, it);
+    if (!$ruleValidate) return;
     $schemaValue = 'validate.schema' + $schemaPath;
     $validateCode = $ruleValidate.code;
     $compile = $rDef.compile;
@@ -44,8 +46,13 @@ module.exports = function generate_custom(it, $keyword) {
     out += '' + ($ruleErrs) + ' = null;';
   }
   out += 'var ' + ($errs) + ' = errors;var ' + ($valid) + ';';
-  if ($validateSchema) {
-    out += ' ' + ($valid) + ' = ' + ($definition) + '.validateSchema(' + ($schemaValue) + '); if (' + ($valid) + ') {';
+  if ($isData && $rDef.$data) {
+    $closingBraces += '}';
+    out += ' if (' + ($schemaValue) + ' === undefined) { ' + ($valid) + ' = true; } else { ';
+    if ($validateSchema) {
+      $closingBraces += '}';
+      out += ' ' + ($valid) + ' = ' + ($definition) + '.validateSchema(' + ($schemaValue) + '); if (' + ($valid) + ') { ';
+    }
   }
   if ($inline) {
     if ($rDef.statements) {
@@ -55,6 +62,7 @@ module.exports = function generate_custom(it, $keyword) {
     }
   } else if ($macro) {
     var $it = it.util.copy(it);
+    var $closingBraces = '';
     $it.level++;
     var $nextValid = 'valid' + $it.level;
     $it.schema = $ruleValidate.validate;
@@ -104,11 +112,9 @@ module.exports = function generate_custom(it, $keyword) {
     }
   }
   if ($rDef.modifying) {
-    out += ' ' + ($data) + ' = ' + ($parentData) + '[' + ($parentDataProperty) + '];';
+    out += ' if (' + ($parentData) + ') ' + ($data) + ' = ' + ($parentData) + '[' + ($parentDataProperty) + '];';
   }
-  if ($validateSchema) {
-    out += ' }';
-  }
+  out += '' + ($closingBraces);
   if ($rDef.valid) {
     if ($breakOnError) {
       out += ' if (true) { ';

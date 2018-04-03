@@ -28,14 +28,14 @@
 // Load implementations from <project root>/tools.
 // Files: tools/splaytree.js tools/codemap.js tools/csvparser.js
 // Files: tools/consarray.js tools/profile.js tools/profile_view.js
-// Files: tools/logreader.js tools/tickprocessor.js
+// Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
 // Env: TEST_FILE_NAME
 
 
 (function testArgumentsProcessor() {
   var p_default = new ArgumentsProcessor([]);
   assertTrue(p_default.parse());
-  assertEquals(ArgumentsProcessor.DEFAULTS, p_default.result());
+  assertEquals(p_default.getDefaultResults(), p_default.result());
 
   var p_logFile = new ArgumentsProcessor(['logfile.log']);
   assertTrue(p_logFile.parse());

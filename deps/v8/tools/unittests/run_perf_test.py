@@ -94,8 +94,8 @@ class PerfTest(unittest.TestCase):
         include=([os.path.join(cls.base, "run_perf.py")]))
     cls._cov.start()
     import run_perf
-    from testrunner.local import commands
-    global commands
+    from testrunner.local import command
+    global command
     global run_perf
 
   @classmethod
@@ -125,9 +125,14 @@ class PerfTest(unittest.TestCase):
                            stderr=None,
                            timed_out=kwargs.get("timed_out", False))
                     for arg in args[1]]
-    def execute(*args, **kwargs):
-      return test_outputs.pop()
-    commands.Execute = MagicMock(side_effect=execute)
+    def create_cmd(*args, **kwargs):
+      cmd = MagicMock()
+      def execute(*args, **kwargs):
+        return test_outputs.pop()
+      cmd.execute = MagicMock(side_effect=execute)
+      return cmd
+
+    command.Command = MagicMock(side_effect=create_cmd)
 
     # Check that d8 is called from the correct cwd for each test run.
     dirs = [path.join(TEST_WORKSPACE, arg) for arg in args[0]]
@@ -164,18 +169,23 @@ class PerfTest(unittest.TestCase):
     self.assertEquals(errors, self._LoadResults()["errors"])
 
   def _VerifyMock(self, binary, *args, **kwargs):
-    arg = [path.join(path.dirname(self.base), binary)]
-    arg += args
-    commands.Execute.assert_called_with(
-        arg, timeout=kwargs.get("timeout", 60))
+    shell = path.join(path.dirname(self.base), binary)
+    command.Command.assert_called_with(
+        cmd_prefix=[],
+        shell=shell,
+        args=list(args),
+        timeout=kwargs.get('timeout', 60))
 
   def _VerifyMockMultiple(self, *args, **kwargs):
-    expected = []
-    for arg in args:
-      a = [path.join(path.dirname(self.base), arg[0])]
-      a += arg[1:]
-      expected.append(((a,), {"timeout": kwargs.get("timeout", 60)}))
-    self.assertEquals(expected, commands.Execute.call_args_list)
+    self.assertEquals(len(args), len(command.Command.call_args_list))
+    for arg, actual in zip(args, command.Command.call_args_list):
+      expected = {
+        'cmd_prefix': [],
+        'shell': path.join(path.dirname(self.base), arg[0]),
+        'args': list(arg[1:]),
+        'timeout': kwargs.get('timeout', 60)
+      }
+      self.assertEquals((expected, ), actual)
 
   def testOneRun(self):
     self._WriteTestInput(V8_JSON)
@@ -436,10 +446,10 @@ class PerfTest(unittest.TestCase):
                        "Richards: 200\nDeltaBlue: 20\n",
                        "Richards: 50\nDeltaBlue: 200\n",
                        "Richards: 100\nDeltaBlue: 20\n"])
-    test_output_no_patch = path.join(TEST_WORKSPACE, "results_no_patch.json")
+    test_output_secondary = path.join(TEST_WORKSPACE, "results_secondary.json")
     self.assertEquals(0, self._CallMain(
-        "--outdir-no-patch", "out-no-patch",
-        "--json-test-results-no-patch", test_output_no_patch,
+        "--outdir-secondary", "out-secondary",
+        "--json-test-results-secondary", test_output_secondary,
     ))
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["100.0", "200.0"], "stddev": ""},
@@ -448,13 +458,13 @@ class PerfTest(unittest.TestCase):
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["50.0", "100.0"], "stddev": ""},
       {"name": "DeltaBlue", "results": ["200.0", "200.0"], "stddev": ""},
-    ], test_output_no_patch)
+    ], test_output_secondary)
     self._VerifyErrors([])
     self._VerifyMockMultiple(
         (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
-        (path.join("out-no-patch", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out-secondary", "x64.release", "d7"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
-        (path.join("out-no-patch", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out-secondary", "x64.release", "d7"), "--flag", "run.js"),
     )
 
   def testWrongBinaryWithProf(self):
@@ -545,3 +555,7 @@ class PerfTest(unittest.TestCase):
         'stddev': '',
       },
     ], results['traces'])
+
+
+if __name__ == '__main__':
+  unittest.main()

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-template-escapes
-
 // This test is added because harmony-template-escapes were not properly
 // handled in the preparser.
 

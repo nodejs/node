@@ -37,8 +37,8 @@
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 #define __ assm.
 
@@ -53,7 +53,7 @@ TEST(DisasmIa320) {
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
   Assembler assm(isolate, buffer, sizeof buffer);
-  DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
+  DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
   // Short immediate instructions
   __ adc(eax, 12345678);
   __ add(eax, Immediate(12345678));
@@ -481,6 +481,8 @@ TEST(DisasmIa320) {
     __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
+    __ haddps(xmm1, xmm0);
+    __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
 
     __ andpd(xmm0, xmm1);
 
@@ -550,6 +552,8 @@ TEST(DisasmIa320) {
       __ pextrw(Operand(edx, 4), xmm0, 1);
       __ pextrd(eax, xmm0, 1);
       __ pextrd(Operand(edx, 4), xmm0, 1);
+      __ insertps(xmm1, xmm2, 0);
+      __ insertps(xmm1, Operand(edx, 4), 0);
       __ pinsrb(xmm1, eax, 0);
       __ pinsrb(xmm1, Operand(edx, 4), 0);
       __ pinsrd(xmm1, eax, 0);
@@ -611,6 +615,9 @@ TEST(DisasmIa320) {
       __ vrcpps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vrsqrtps(xmm1, xmm0);
       __ vrsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovaps(xmm0, xmm1);
+      __ vshufps(xmm0, xmm1, xmm2, 3);
+      __ vshufps(xmm0, xmm1, Operand(edx, 4), 3);
 
       __ vcmpeqps(xmm5, xmm4, xmm1);
       __ vcmpeqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
@@ -655,6 +662,8 @@ TEST(DisasmIa320) {
       __ vpextrw(Operand(edx, 4), xmm0, 1);
       __ vpextrd(eax, xmm0, 1);
       __ vpextrd(Operand(edx, 4), xmm0, 1);
+      __ vinsertps(xmm0, xmm1, xmm2, 0);
+      __ vinsertps(xmm0, xmm1, Operand(edx, 4), 0);
       __ vpinsrb(xmm0, xmm1, eax, 0);
       __ vpinsrb(xmm0, xmm1, Operand(edx, 4), 0);
       __ vpinsrw(xmm0, xmm1, eax, 0);
@@ -667,6 +676,8 @@ TEST(DisasmIa320) {
       __ vcvttps2dq(xmm1, xmm0);
       __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
 
+      __ vmovdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ vmovd(xmm0, edi);
       __ vmovd(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovd(eax, xmm1);
@@ -846,8 +857,8 @@ TEST(DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
@@ -859,3 +870,6 @@ TEST(DisasmIa320) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

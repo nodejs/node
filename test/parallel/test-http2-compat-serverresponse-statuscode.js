@@ -27,31 +27,30 @@ server.listen(0, common.mustCall(function() {
 
     assert.strictEqual(response.statusCode, expectedDefaultStatusCode);
 
-    assert.doesNotThrow(function() {
-      response.statusCode = realStatusCodes.ok;
-      response.statusCode = realStatusCodes.multipleChoices;
-      response.statusCode = realStatusCodes.badRequest;
-      response.statusCode = realStatusCodes.internalServerError;
-    });
+    // Setting the response.statusCode should not throw.
+    response.statusCode = realStatusCodes.ok;
+    response.statusCode = realStatusCodes.multipleChoices;
+    response.statusCode = realStatusCodes.badRequest;
+    response.statusCode = realStatusCodes.internalServerError;
 
-    assert.throws(function() {
+    common.expectsError(function() {
       response.statusCode = realStatusCodes.continue;
-    }, common.expectsError({
+    }, {
       code: 'ERR_HTTP2_INFO_STATUS_NOT_ALLOWED',
       type: RangeError
-    }));
-    assert.throws(function() {
+    });
+    common.expectsError(function() {
       response.statusCode = fakeStatusCodes.tooLow;
-    }, common.expectsError({
+    }, {
       code: 'ERR_HTTP2_STATUS_INVALID',
       type: RangeError
-    }));
-    assert.throws(function() {
+    });
+    common.expectsError(function() {
       response.statusCode = fakeStatusCodes.tooHigh;
-    }, common.expectsError({
+    }, {
       code: 'ERR_HTTP2_STATUS_INVALID',
       type: RangeError
-    }));
+    });
 
     response.on('finish', common.mustCall(function() {
       server.close();
@@ -69,7 +68,7 @@ server.listen(0, common.mustCall(function() {
     };
     const request = client.request(headers);
     request.on('end', common.mustCall(function() {
-      client.destroy();
+      client.close();
     }));
     request.end();
     request.resume();

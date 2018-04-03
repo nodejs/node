@@ -9,12 +9,10 @@
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
-#include "src/codegen.h"
 #include "src/counters.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/heap/heap-inl.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
@@ -32,9 +30,8 @@ namespace internal {
 
 void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
   __ Mov(x5, Operand(x0, LSL, kPointerSizeLog2));
-  __ Str(x1, MemOperand(jssp, x5));
-  __ Push(x1);
-  __ Push(x2);
+  __ Str(x1, MemOperand(__ StackPointer(), x5));
+  __ Push(x1, x2);
   __ Add(x0, x0, Operand(3));
   __ TailCallRuntime(Runtime::kNewArray);
 }
@@ -42,35 +39,20 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label done;
-  Register input = source();
   Register result = destination();
-  DCHECK(is_truncating());
 
   DCHECK(result.Is64Bits());
-  DCHECK(jssp.Is(masm->StackPointer()));
 
-  int double_offset = offset();
+  UseScratchRegisterScope temps(masm);
+  Register scratch1 = temps.AcquireX();
+  Register scratch2 = temps.AcquireX();
+  DoubleRegister double_scratch = temps.AcquireD();
 
-  DoubleRegister double_scratch = d0;  // only used if !skip_fastpath()
-  Register scratch1 = GetAllocatableRegisterThatIsNotOneOf(input, result);
-  Register scratch2 =
-      GetAllocatableRegisterThatIsNotOneOf(input, result, scratch1);
-
-  __ Push(scratch1, scratch2);
-  // Account for saved regs if input is jssp.
-  if (input.is(jssp)) double_offset += 2 * kPointerSize;
-
-  if (!skip_fastpath()) {
-    __ Push(double_scratch);
-    if (input.is(jssp)) double_offset += 1 * kDoubleSize;
-    __ Ldr(double_scratch, MemOperand(input, double_offset));
-    // Try to convert with a FPU convert instruction.  This handles all
-    // non-saturating cases.
-    __ TryConvertDoubleToInt64(result, double_scratch, &done);
-    __ Fmov(result, double_scratch);
-  } else {
-    __ Ldr(result, MemOperand(input, double_offset));
-  }
+  __ Peek(double_scratch, 0);
+  // Try to convert with a FPU convert instruction.  This handles all
+  // non-saturating cases.
+  __ TryConvertDoubleToInt64(result, double_scratch, &done);
+  __ Fmov(result, double_scratch);
 
   // If we reach here we need to manually convert the input to an int32.
 
@@ -92,7 +74,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   if (masm->emit_debug_code()) {
     __ Cmp(exponent, HeapNumber::kExponentBias + 63);
     // Exponents less than this should have been handled by the Fcvt case.
-    __ Check(ge, kUnexpectedValue);
+    __ Check(ge, AbortReason::kUnexpectedValue);
   }
 
   // Isolate the mantissa bits, and set the implicit '1'.
@@ -111,57 +93,14 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ Lsl(result, mantissa, exponent);
 
   __ Bind(&done);
-  if (!skip_fastpath()) {
-    __ Pop(double_scratch);
-  }
-  __ Pop(scratch2, scratch1);
   __ Ret();
-}
-
-
-void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
-  CPURegList saved_regs = kCallerSaved;
-  CPURegList saved_fp_regs = kCallerSavedV;
-
-  // We don't allow a GC during a store buffer overflow so there is no need to
-  // store the registers in any particular way, but we do have to store and
-  // restore them.
-
-  // We don't care if MacroAssembler scratch registers are corrupted.
-  saved_regs.Remove(*(masm->TmpList()));
-  saved_fp_regs.Remove(*(masm->FPTmpList()));
-
-  __ PushCPURegList(saved_regs);
-  if (save_doubles()) {
-    __ PushCPURegList(saved_fp_regs);
-  }
-
-  AllowExternalCallThatCantCauseGC scope(masm);
-  __ Mov(x0, ExternalReference::isolate_address(isolate()));
-  __ CallCFunction(
-      ExternalReference::store_buffer_overflow_function(isolate()), 1, 0);
-
-  if (save_doubles()) {
-    __ PopCPURegList(saved_fp_regs);
-  }
-  __ PopCPURegList(saved_regs);
-  __ Ret();
-}
-
-
-void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
-    Isolate* isolate) {
-  StoreBufferOverflowStub stub1(isolate, kDontSaveFPRegs);
-  stub1.GetCode();
-  StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
-  stub2.GetCode();
 }
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   // Stack on entry:
-  // jssp[0]: Exponent (as a tagged value).
-  // jssp[1]: Base (as a tagged value).
+  // sp[0]: Exponent (as a tagged value).
+  // sp[1]: Base (as a tagged value).
   //
   // The (tagged) result will be returned in x0, as a heap number.
 
@@ -283,10 +222,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the following stubs are generated in this order
   // because pregenerated stubs can only call other pregenerated stubs.
-  // RecordWriteStub uses StoreBufferOverflowStub, which in turn uses
-  // CEntryStub.
   CEntryStub::GenerateAheadOfTime(isolate);
-  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
 }
@@ -298,8 +234,7 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   USE(isolate);
 }
 
-
-bool CEntryStub::NeedsImmovableCode() {
+Movability CEntryStub::NeedsImmovableCode() {
   // CEntryStub stores the return address on the stack before calling into
   // C++ code. In some cases, the VM accesses this address, but it is not used
   // when the C++ code returns to the stub because LR holds the return address
@@ -308,7 +243,7 @@ bool CEntryStub::NeedsImmovableCode() {
   // TODO(jbramley): Whilst this is the only analysis that makes sense, I can't
   // find any comment to confirm this, and I don't hit any crashes whatever
   // this function returns. The anaylsis should be properly confirmed.
-  return true;
+  return kImmovable;
 }
 
 
@@ -340,15 +275,14 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // The stack on entry holds the arguments and the receiver, with the receiver
   // at the highest address:
   //
-  //    jssp]argc-1]: receiver
-  //    jssp[argc-2]: arg[argc-2]
+  //    sp]argc-1]: receiver
+  //    sp[argc-2]: arg[argc-2]
   //    ...           ...
-  //    jssp[1]:      arg[1]
-  //    jssp[0]:      arg[0]
+  //    sp[1]:      arg[1]
+  //    sp[0]:      arg[0]
   //
   // The arguments are in reverse order, so that arg[argc-2] is actually the
   // first argument to the target function and arg[0] is the last.
-  DCHECK(jssp.Is(__ StackPointer()));
   const Register& argc_input = x0;
   const Register& target_input = x1;
 
@@ -368,15 +302,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   //  - Adjust for the arg[] array.
   Register temp_argv = x11;
   if (!argv_in_register()) {
-    __ Add(temp_argv, jssp, Operand(x0, LSL, kPointerSizeLog2));
+    __ SlotAddress(temp_argv, x0);
     //  - Adjust for the receiver.
     __ Sub(temp_argv, temp_argv, 1 * kPointerSize);
   }
 
-  // Reserve three slots to preserve x21-x23 callee-saved registers. If the
-  // result size is too large to be returned in registers then also reserve
-  // space for the return value.
-  int extra_stack_space = 3 + (result_size() <= 2 ? 0 : result_size());
+  // Reserve three slots to preserve x21-x23 callee-saved registers.
+  int extra_stack_space = 3;
   // Enter the exit frame.
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(
@@ -388,11 +320,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Poke(argv, 1 * kPointerSize);
   __ Poke(argc, 2 * kPointerSize);
   __ Poke(target, 3 * kPointerSize);
-
-  if (result_size() > 2) {
-    // Save the location of the return value into x8 for call.
-    __ Add(x8, __ StackPointer(), Operand(4 * kPointerSize));
-  }
 
   // We normally only keep tagged values in callee-saved registers, as they
   // could be pushed onto the stack by called stubs and functions, and on the
@@ -456,25 +383,17 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ Ldr(temp, MemOperand(fp, ExitFrameConstants::kSPOffset));
     __ Ldr(temp, MemOperand(temp, -static_cast<int64_t>(kXRegSize)));
     __ Cmp(temp, x12);
-    __ Check(eq, kReturnAddressNotFoundInFrame);
+    __ Check(eq, AbortReason::kReturnAddressNotFoundInFrame);
   }
 
   // Call the builtin.
   __ Blr(target);
   __ Bind(&return_location);
 
-  if (result_size() > 2) {
-    DCHECK_EQ(3, result_size());
-    // Read result values stored on stack.
-    __ Ldr(x0, MemOperand(__ StackPointer(), 4 * kPointerSize));
-    __ Ldr(x1, MemOperand(__ StackPointer(), 5 * kPointerSize));
-    __ Ldr(x2, MemOperand(__ StackPointer(), 6 * kPointerSize));
-  }
-  // Result returned in x0, x1:x0 or x2:x1:x0 - do not destroy these registers!
+  // Result returned in x0 or x1:x0 - do not destroy these registers!
 
   //  x0    result0      The return code from the call.
-  //  x1    result1      For calls which return ObjectPair or ObjectTriple.
-  //  x2    result2      For calls which return ObjectTriple.
+  //  x1    result1      For calls which return ObjectPair.
   //  x21   argv
   //  x22   argc
   //  x23   target
@@ -494,28 +413,21 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Peek(argc, 2 * kPointerSize);
   __ Peek(target, 3 * kPointerSize);
 
-  __ LeaveExitFrame(save_doubles(), x10, true);
-  DCHECK(jssp.Is(__ StackPointer()));
+  __ LeaveExitFrame(save_doubles(), x10, x9);
   if (!argv_in_register()) {
     // Drop the remaining stack slots and return from the stub.
-    __ Drop(x11);
+    __ DropArguments(x11);
   }
   __ AssertFPCRState();
   __ Ret();
-
-  // The stack pointer is still csp if we aren't returning, and the frame
-  // hasn't changed (except for the return address).
-  __ SetStackPointer(csp);
 
   // Handling of exception.
   __ Bind(&exception_returned);
 
   ExternalReference pending_handler_context_address(
       IsolateAddressId::kPendingHandlerContextAddress, isolate());
-  ExternalReference pending_handler_code_address(
-      IsolateAddressId::kPendingHandlerCodeAddress, isolate());
-  ExternalReference pending_handler_offset_address(
-      IsolateAddressId::kPendingHandlerOffsetAddress, isolate());
+  ExternalReference pending_handler_entrypoint_address(
+      IsolateAddressId::kPendingHandlerEntrypointAddress, isolate());
   ExternalReference pending_handler_fp_address(
       IsolateAddressId::kPendingHandlerFPAddress, isolate());
   ExternalReference pending_handler_sp_address(
@@ -534,18 +446,16 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ CallCFunction(find_handler, 3);
   }
 
-  // We didn't execute a return case, so the stack frame hasn't been updated
-  // (except for the return address slot). However, we don't need to initialize
-  // jssp because the throw method will immediately overwrite it when it
-  // unwinds the stack.
-  __ SetStackPointer(jssp);
-
   // Retrieve the handler context, SP and FP.
   __ Mov(cp, Operand(pending_handler_context_address));
   __ Ldr(cp, MemOperand(cp));
-  __ Mov(jssp, Operand(pending_handler_sp_address));
-  __ Ldr(jssp, MemOperand(jssp));
-  __ Mov(csp, jssp);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch, Operand(pending_handler_sp_address));
+    __ Ldr(scratch, MemOperand(scratch));
+    __ Mov(csp, scratch);
+  }
   __ Mov(fp, Operand(pending_handler_fp_address));
   __ Ldr(fp, MemOperand(fp));
 
@@ -557,18 +467,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Bind(&not_js_frame);
 
   // Compute the handler entry address and jump to it.
-  __ Mov(x10, Operand(pending_handler_code_address));
+  __ Mov(x10, Operand(pending_handler_entrypoint_address));
   __ Ldr(x10, MemOperand(x10));
-  __ Mov(x11, Operand(pending_handler_offset_address));
-  __ Ldr(x11, MemOperand(x11));
-  __ Add(x10, x10, Code::kHeaderSize - kHeapObjectTag);
-  __ Add(x10, x10, x11);
   __ Br(x10);
 }
 
-
 // This is the entry point from C++. 5 arguments are provided in x0-x4.
-// See use of the CALL_GENERATED_CODE macro for example in src/execution.cc.
+// See use of the JSEntryFunction for example in src/execution.cc.
 // Input:
 //   x0: code entry.
 //   x1: function.
@@ -578,7 +483,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 // Output:
 //   x0: result.
 void JSEntryStub::Generate(MacroAssembler* masm) {
-  DCHECK(jssp.Is(__ StackPointer()));
   Register code_entry = x0;
 
   // Enable instruction instrumentation. This only works on the simulator, and
@@ -587,20 +491,15 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   Label invoke, handler_entry, exit;
 
-  // Push callee-saved registers and synchronize the system stack pointer (csp)
-  // and the JavaScript stack pointer (jssp).
-  //
-  // We must not write to jssp until after the PushCalleeSavedRegisters()
-  // call, since jssp is itself a callee-saved register.
-  __ SetStackPointer(csp);
   __ PushCalleeSavedRegisters();
-  __ Mov(jssp, csp);
-  __ SetStackPointer(jssp);
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Set up the reserved register for 0.0.
   __ Fmov(fp_zero, 0.0);
+
+  // Initialize the root array register
+  __ InitializeRootRegister();
 
   // Build an entry frame (see layout below).
   StackFrame::Type marker = type();
@@ -612,7 +511,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   __ Push(x13, x12, xzr, x10);
   // Set up fp.
-  __ Sub(fp, jssp, EntryFrameConstants::kCallerFPOffset);
+  __ Sub(fp, __ StackPointer(), EntryFrameConstants::kCallerFPOffset);
 
   // Push the JS entry frame marker. Also set js_entry_sp if this is the
   // outermost JS call.
@@ -620,24 +519,26 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   ExternalReference js_entry_sp(IsolateAddressId::kJSEntrySPAddress, isolate());
   __ Mov(x10, ExternalReference(js_entry_sp));
   __ Ldr(x11, MemOperand(x10));
-  __ Cbnz(x11, &non_outermost_js);
+
+  // Select between the inner and outermost frame marker, based on the JS entry
+  // sp. We assert that the inner marker is zero, so we can use xzr to save a
+  // move instruction.
+  DCHECK_EQ(StackFrame::INNER_JSENTRY_FRAME, 0);
+  __ Cmp(x11, 0);  // If x11 is zero, this is the outermost frame.
+  __ Csel(x12, xzr, StackFrame::OUTERMOST_JSENTRY_FRAME, ne);
+  __ B(ne, &done);
   __ Str(fp, MemOperand(x10));
-  __ Mov(x12, StackFrame::OUTERMOST_JSENTRY_FRAME);
-  __ Push(x12);
-  __ B(&done);
-  __ Bind(&non_outermost_js);
-  // We spare one instruction by pushing xzr since the marker is 0.
-  DCHECK(StackFrame::INNER_JSENTRY_FRAME == 0);
-  __ Push(xzr);
+
   __ Bind(&done);
+  __ Push(x12, padreg);
 
   // The frame set up looks like this:
-  // jssp[0] : JS entry frame marker.
-  // jssp[1] : C entry FP.
-  // jssp[2] : stack frame marker.
-  // jssp[3] : stack frmae marker.
-  // jssp[4] : bad frame pointer 0xfff...ff   <- fp points here.
-
+  // sp[0] : padding.
+  // sp[1] : JS entry frame marker.
+  // sp[2] : C entry FP.
+  // sp[3] : stack frame marker.
+  // sp[4] : stack frame marker.
+  // sp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -665,7 +566,26 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // Invoke: Link this frame into the handler chain.
   __ Bind(&invoke);
-  __ PushStackHandler();
+
+  // Push new stack handler.
+  static_assert(StackHandlerConstants::kSize == 2 * kPointerSize,
+                "Unexpected offset for StackHandlerConstants::kSize");
+  static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
+                "Unexpected offset for StackHandlerConstants::kNextOffset");
+
+  // Link the current handler as the next handler.
+  __ Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
+  __ Ldr(x10, MemOperand(x11));
+  __ Push(padreg, x10);
+
+  // Set this new handler as the current one.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch, __ StackPointer());
+    __ Str(scratch, MemOperand(x11));
+  }
+
   // If an exception not caught by another handler occurs, this handler
   // returns control to the code after the B(&invoke) above, which
   // restores all callee-saved registers (including cp and fp) to their
@@ -681,387 +601,84 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // x2: receiver.
   // x3: argc.
   // x4: argv.
+  __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
-  if (type() == StackFrame::CONSTRUCT_ENTRY) {
-    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
-            RelocInfo::CODE_TARGET);
-  } else {
-    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
-  }
-
-  // Unlink this frame from the handler chain.
-  __ PopStackHandler();
-
+  // Pop the stack handler and unlink this frame from the handler chain.
+  static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
+                "Unexpected offset for StackHandlerConstants::kNextOffset");
+  __ Pop(x10, padreg);
+  __ Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
+  __ Drop(StackHandlerConstants::kSlotCount - 2);
+  __ Str(x10, MemOperand(x11));
 
   __ Bind(&exit);
   // x0 holds the result.
   // The stack pointer points to the top of the entry frame pushed on entry from
   // C++ (at the beginning of this stub):
-  // jssp[0] : JS entry frame marker.
-  // jssp[1] : C entry FP.
-  // jssp[2] : stack frame marker.
-  // jssp[3] : stack frmae marker.
-  // jssp[4] : bad frame pointer 0xfff...ff   <- fp points here.
+  // sp[0] : padding.
+  // sp[1] : JS entry frame marker.
+  // sp[2] : C entry FP.
+  // sp[3] : stack frame marker.
+  // sp[4] : stack frame marker.
+  // sp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
-  __ Pop(x10);
-  __ Cmp(x10, StackFrame::OUTERMOST_JSENTRY_FRAME);
-  __ B(ne, &non_outermost_js_2);
-  __ Mov(x11, ExternalReference(js_entry_sp));
-  __ Str(xzr, MemOperand(x11));
-  __ Bind(&non_outermost_js_2);
+  {
+    Register c_entry_fp = x11;
+    __ PeekPair(x10, c_entry_fp, 1 * kPointerSize);
+    __ Cmp(x10, StackFrame::OUTERMOST_JSENTRY_FRAME);
+    __ B(ne, &non_outermost_js_2);
+    __ Mov(x12, ExternalReference(js_entry_sp));
+    __ Str(xzr, MemOperand(x12));
+    __ Bind(&non_outermost_js_2);
 
-  // Restore the top frame descriptors from the stack.
-  __ Pop(x10);
-  __ Mov(x11, ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()));
-  __ Str(x10, MemOperand(x11));
+    // Restore the top frame descriptors from the stack.
+    __ Mov(x12,
+           ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()));
+    __ Str(c_entry_fp, MemOperand(x12));
+  }
 
   // Reset the stack to the callee saved registers.
-  __ Drop(-EntryFrameConstants::kCallerFPOffset, kByteSizeInBytes);
+  static_assert(EntryFrameConstants::kFixedFrameSize % (2 * kPointerSize) == 0,
+                "Size of entry frame is not a multiple of 16 bytes");
+  __ Drop(EntryFrameConstants::kFixedFrameSize / kPointerSize);
   // Restore the callee-saved registers and return.
-  DCHECK(jssp.Is(__ StackPointer()));
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
   __ PopCalleeSavedRegisters();
-  // After this point, we must not modify jssp because it is a callee-saved
-  // register which we have just restored.
   __ Ret();
 }
 
-
-void StringHelper::GenerateFlatOneByteStringEquals(
-    MacroAssembler* masm, Register left, Register right, Register scratch1,
-    Register scratch2, Register scratch3) {
-  DCHECK(!AreAliased(left, right, scratch1, scratch2, scratch3));
-  Register result = x0;
-  Register left_length = scratch1;
-  Register right_length = scratch2;
-
-  // Compare lengths. If lengths differ, strings can't be equal. Lengths are
-  // smis, and don't need to be untagged.
-  Label strings_not_equal, check_zero_length;
-  __ Ldr(left_length, FieldMemOperand(left, String::kLengthOffset));
-  __ Ldr(right_length, FieldMemOperand(right, String::kLengthOffset));
-  __ Cmp(left_length, right_length);
-  __ B(eq, &check_zero_length);
-
-  __ Bind(&strings_not_equal);
-  __ Mov(result, Smi::FromInt(NOT_EQUAL));
-  __ Ret();
-
-  // Check if the length is zero. If so, the strings must be equal (and empty.)
-  Label compare_chars;
-  __ Bind(&check_zero_length);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ Cbnz(left_length, &compare_chars);
-  __ Mov(result, Smi::FromInt(EQUAL));
-  __ Ret();
-
-  // Compare characters. Falls through if all characters are equal.
-  __ Bind(&compare_chars);
-  GenerateOneByteCharsCompareLoop(masm, left, right, left_length, scratch2,
-                                  scratch3, &strings_not_equal);
-
-  // Characters in strings are equal.
-  __ Mov(result, Smi::FromInt(EQUAL));
-  __ Ret();
-}
-
-
-void StringHelper::GenerateCompareFlatOneByteStrings(
-    MacroAssembler* masm, Register left, Register right, Register scratch1,
-    Register scratch2, Register scratch3, Register scratch4) {
-  DCHECK(!AreAliased(left, right, scratch1, scratch2, scratch3, scratch4));
-  Label result_not_equal, compare_lengths;
-
-  // Find minimum length and length difference.
-  Register length_delta = scratch3;
-  __ Ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
-  __ Ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
-  __ Subs(length_delta, scratch1, scratch2);
-
-  Register min_length = scratch1;
-  __ Csel(min_length, scratch2, scratch1, gt);
-  __ Cbz(min_length, &compare_lengths);
-
-  // Compare loop.
-  GenerateOneByteCharsCompareLoop(masm, left, right, min_length, scratch2,
-                                  scratch4, &result_not_equal);
-
-  // Compare lengths - strings up to min-length are equal.
-  __ Bind(&compare_lengths);
-
-  DCHECK(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
-
-  // Use length_delta as result if it's zero.
-  Register result = x0;
-  __ Subs(result, length_delta, 0);
-
-  __ Bind(&result_not_equal);
-  Register greater = x10;
-  Register less = x11;
-  __ Mov(greater, Smi::FromInt(GREATER));
-  __ Mov(less, Smi::FromInt(LESS));
-  __ CmovX(result, greater, gt);
-  __ CmovX(result, less, lt);
-  __ Ret();
-}
-
-
-void StringHelper::GenerateOneByteCharsCompareLoop(
-    MacroAssembler* masm, Register left, Register right, Register length,
-    Register scratch1, Register scratch2, Label* chars_not_equal) {
-  DCHECK(!AreAliased(left, right, length, scratch1, scratch2));
-
-  // Change index to run from -length to -1 by adding length to string
-  // start. This means that loop ends when index reaches zero, which
-  // doesn't need an additional compare.
-  __ SmiUntag(length);
-  __ Add(scratch1, length, SeqOneByteString::kHeaderSize - kHeapObjectTag);
-  __ Add(left, left, scratch1);
-  __ Add(right, right, scratch1);
-
-  Register index = length;
-  __ Neg(index, length);  // index = -length;
-
-  // Compare loop
-  Label loop;
-  __ Bind(&loop);
-  __ Ldrb(scratch1, MemOperand(left, index));
-  __ Ldrb(scratch2, MemOperand(right, index));
-  __ Cmp(scratch1, scratch2);
-  __ B(ne, chars_not_equal);
-  __ Add(index, index, 1);
-  __ Cbnz(index, &loop);
-}
-
-
-RecordWriteStub::RegisterAllocation::RegisterAllocation(Register object,
-                                                        Register address,
-                                                        Register scratch)
-    : object_(object),
-      address_(address),
-      scratch0_(scratch),
-      saved_regs_(kCallerSaved),
-      saved_fp_regs_(kCallerSavedV) {
-  DCHECK(!AreAliased(scratch, object, address));
-
-  // The SaveCallerSaveRegisters method needs to save caller-saved
-  // registers, but we don't bother saving MacroAssembler scratch registers.
-  saved_regs_.Remove(MacroAssembler::DefaultTmpList());
-  saved_fp_regs_.Remove(MacroAssembler::DefaultFPTmpList());
-
-  // We would like to require more scratch registers for this stub,
-  // but the number of registers comes down to the ones used in
-  // FullCodeGen::SetVar(), which is architecture independent.
-  // We allocate 2 extra scratch registers that we'll save on the stack.
-  CPURegList pool_available = GetValidRegistersForAllocation();
-  CPURegList used_regs(object, address, scratch);
-  pool_available.Remove(used_regs);
-  scratch1_ = Register(pool_available.PopLowestIndex());
-  scratch2_ = Register(pool_available.PopLowestIndex());
-
-  // The scratch registers will be restored by other means so we don't need
-  // to save them with the other caller saved registers.
-  saved_regs_.Remove(scratch0_);
-  saved_regs_.Remove(scratch1_);
-  saved_regs_.Remove(scratch2_);
-}
-
-void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
-  // We need some extra registers for this stub, they have been allocated
-  // but we need to save them before using them.
-  regs_.Save(masm);
-
-  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    Label dont_need_remembered_set;
-
-    Register val = regs_.scratch0();
-    __ Ldr(val, MemOperand(regs_.address()));
-    __ JumpIfNotInNewSpace(val, &dont_need_remembered_set);
-
-    __ JumpIfInNewSpace(regs_.object(), &dont_need_remembered_set);
-
-    // First notify the incremental marker if necessary, then update the
-    // remembered set.
-    CheckNeedsToInformIncrementalMarker(
-        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
-    InformIncrementalMarker(masm);
-    regs_.Restore(masm);  // Restore the extra scratch registers we used.
-
-    __ RememberedSetHelper(object(), address(),
-                           value(),  // scratch1
-                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
-
-    __ Bind(&dont_need_remembered_set);
-  }
-
-  CheckNeedsToInformIncrementalMarker(
-      masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
-  InformIncrementalMarker(masm);
-  regs_.Restore(masm);  // Restore the extra scratch registers we used.
-  __ Ret();
-}
-
-
-void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
-  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
-  Register address =
-    x0.Is(regs_.address()) ? regs_.scratch0() : regs_.address();
-  DCHECK(!address.Is(regs_.object()));
-  DCHECK(!address.Is(x0));
-  __ Mov(address, regs_.address());
-  __ Mov(x0, regs_.object());
-  __ Mov(x1, address);
-  __ Mov(x2, ExternalReference::isolate_address(isolate()));
-
-  AllowExternalCallThatCantCauseGC scope(masm);
-  ExternalReference function =
-      ExternalReference::incremental_marking_record_write_function(
-          isolate());
-  __ CallCFunction(function, 3, 0);
-
-  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
-}
-
-void RecordWriteStub::Activate(Code* code) {
-  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
-}
-
-void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
-    MacroAssembler* masm,
-    OnNoNeedToInformIncrementalMarker on_no_need,
-    Mode mode) {
-  Label need_incremental;
-  Label need_incremental_pop_scratch;
-
-#ifndef V8_CONCURRENT_MARKING
-  Label on_black;
-  // If the object is not black we don't have to inform the incremental marker.
-  __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
-
-  regs_.Restore(masm);  // Restore the extra scratch registers we used.
-  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(),
-                           value(),  // scratch1
-                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
-  } else {
-    __ Ret();
-  }
-
-  __ Bind(&on_black);
-#endif
-
-  // Get the value from the slot.
-  Register val = regs_.scratch0();
-  __ Ldr(val, MemOperand(regs_.address()));
-
-  if (mode == INCREMENTAL_COMPACTION) {
-    Label ensure_not_white;
-
-    __ CheckPageFlagClear(val, regs_.scratch1(),
-                          MemoryChunk::kEvacuationCandidateMask,
-                          &ensure_not_white);
-
-    __ CheckPageFlagClear(regs_.object(),
-                          regs_.scratch1(),
-                          MemoryChunk::kSkipEvacuationSlotsRecordingMask,
-                          &need_incremental);
-
-    __ Bind(&ensure_not_white);
-  }
-
-  // We need extra registers for this, so we push the object and the address
-  // register temporarily.
-  __ Push(regs_.address(), regs_.object());
-  __ JumpIfWhite(val,
-                 regs_.scratch1(),  // Scratch.
-                 regs_.object(),    // Scratch.
-                 regs_.address(),   // Scratch.
-                 regs_.scratch2(),  // Scratch.
-                 &need_incremental_pop_scratch);
-  __ Pop(regs_.object(), regs_.address());
-
-  regs_.Restore(masm);  // Restore the extra scratch registers we used.
-  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(),
-                           value(),  // scratch1
-                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
-  } else {
-    __ Ret();
-  }
-
-  __ Bind(&need_incremental_pop_scratch);
-  __ Pop(regs_.object(), regs_.address());
-
-  __ Bind(&need_incremental);
-  // Fall through when we need to inform the incremental marker.
-}
-
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  Label skip_to_incremental_noncompacting;
-  Label skip_to_incremental_compacting;
-
-  // We patch these two first instructions back and forth between a nop and
-  // real branch when we start and stop incremental heap marking.
-  // Initially the stub is expected to be in STORE_BUFFER_ONLY mode, so 2 nops
-  // are generated.
-  // See RecordWriteStub::Patch for details.
-  {
-    InstructionAccurateScope scope(masm, 2);
-    __ adr(xzr, &skip_to_incremental_noncompacting);
-    __ adr(xzr, &skip_to_incremental_compacting);
-  }
-
-  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object(), address(),
-                           value(),  // scratch1
-                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
-  }
-  __ Ret();
-
-  __ Bind(&skip_to_incremental_noncompacting);
-  GenerateIncremental(masm, INCREMENTAL);
-
-  __ Bind(&skip_to_incremental_compacting);
-  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
-}
-
-
-// The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
-// a "Push lr" instruction, followed by a call.
+// The entry hook is a Push (stp) instruction, followed by a call.
 static const unsigned int kProfileEntryHookCallSize =
-    Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
+    (1 * kInstructionSize) + Assembler::kCallSizeWithRelocation;
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != NULL) {
+  if (tasm->isolate()->function_entry_hook() != nullptr) {
     Assembler::BlockConstPoolScope no_const_pools(tasm);
     DontEmitDebugCodeScope no_debug_code(tasm);
     Label entry_hook_call_start;
     tasm->Bind(&entry_hook_call_start);
-    tasm->Push(lr);
+    tasm->Push(padreg, lr);
     tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    DCHECK(tasm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
-           kProfileEntryHookCallSize);
-    tasm->Pop(lr);
+    DCHECK_EQ(tasm->SizeOfCodeGeneratedSince(&entry_hook_call_start),
+              kProfileEntryHookCallSize);
+    tasm->Pop(lr, padreg);
   }
 }
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != NULL) {
+  if (masm->isolate()->function_entry_hook() != nullptr) {
     ProfileEntryHookStub stub(masm->isolate());
     Assembler::BlockConstPoolScope no_const_pools(masm);
     DontEmitDebugCodeScope no_debug_code(masm);
     Label entry_hook_call_start;
     __ Bind(&entry_hook_call_start);
-    __ Push(lr);
+    __ Push(padreg, lr);
     __ CallStub(&stub);
-    DCHECK(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
-           kProfileEntryHookCallSize);
-    __ Pop(lr);
+    DCHECK_EQ(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start),
+              kProfileEntryHookCallSize);
+    __ Pop(lr, padreg);
   }
 }
 
@@ -1075,6 +692,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ PushCPURegList(kCallerSaved);
   DCHECK(kCallerSaved.IncludesAliasOf(lr));
   const int kNumSavedRegs = kCallerSaved.Count();
+  DCHECK_EQ(kNumSavedRegs % 2, 0);
 
   // Compute the function's address as the first argument.
   __ Sub(x0, lr, kProfileEntryHookCallSize);
@@ -1096,7 +714,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // The caller's return address is above the saved temporaries.
   // Grab its location for the second argument to the hook.
-  __ Add(x1, __ StackPointer(), kNumSavedRegs * kPointerSize);
+  __ SlotAddress(x1, kNumSavedRegs);
 
   {
     // Create a dummy frame, as CallCFunction requires this.
@@ -1110,14 +728,6 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  // When calling into C++ code the stack pointer must be csp.
-  // Therefore this code must use csp for peek/poke operations when the
-  // stub is generated. When the stub is called
-  // (via DirectCEntryStub::GenerateCall), the caller must setup an ExitFrame
-  // and configure the stack pointer *before* doing the call.
-  const Register old_stack_pointer = __ StackPointer();
-  __ SetStackPointer(csp);
-
   // Put return address on the stack (accessible to GC through exit frame pc).
   __ Poke(lr, 0);
   // Call the C++ function.
@@ -1126,8 +736,6 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
   __ Peek(lr, 0);
   __ AssertFPCRState();
   __ Ret();
-
-  __ SetStackPointer(old_stack_pointer);
 }
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
@@ -1143,162 +751,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   // Branch to the stub.
   __ Blr(lr);
 }
-
-void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                      Label* miss,
-                                                      Label* done,
-                                                      Register receiver,
-                                                      Register properties,
-                                                      Handle<Name> name,
-                                                      Register scratch0) {
-  DCHECK(!AreAliased(receiver, properties, scratch0));
-  DCHECK(name->IsUniqueName());
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the hole value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // scratch0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = scratch0;
-    // Capacity is smi 2^n.
-    __ Ldrsw(index, UntagSmiFieldMemOperand(properties, kCapacityOffset));
-    __ Sub(index, index, 1);
-    __ And(index, index, name->Hash() + NameDictionary::GetProbeOffset(i));
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ Add(index, index, Operand(index, LSL, 1));  // index *= 3.
-
-    Register entity_name = scratch0;
-    // Having undefined at this place means the name is not contained.
-    Register tmp = index;
-    __ Add(tmp, properties, Operand(index, LSL, kPointerSizeLog2));
-    __ Ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
-
-    __ JumpIfRoot(entity_name, Heap::kUndefinedValueRootIndex, done);
-
-    // Stop if found the property.
-    __ Cmp(entity_name, Operand(name));
-    __ B(eq, miss);
-
-    Label good;
-    __ JumpIfRoot(entity_name, Heap::kTheHoleValueRootIndex, &good);
-
-    // Check if the entry name is not a unique name.
-    __ Ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-    __ Ldrb(entity_name,
-            FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ JumpIfNotUniqueNameInstanceType(entity_name, miss);
-    __ Bind(&good);
-  }
-
-  CPURegList spill_list(CPURegister::kRegister, kXRegSizeInBits, 0, 6);
-  spill_list.Combine(lr);
-  spill_list.Remove(scratch0);  // Scratch registers don't need to be preserved.
-
-  __ PushCPURegList(spill_list);
-
-  __ Ldr(x0, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
-  __ Mov(x1, Operand(name));
-  NameDictionaryLookupStub stub(masm->isolate(), NEGATIVE_LOOKUP);
-  __ CallStub(&stub);
-  // Move stub return value to scratch0. Note that scratch0 is not included in
-  // spill_list and won't be clobbered by PopCPURegList.
-  __ Mov(scratch0, x0);
-  __ PopCPURegList(spill_list);
-
-  __ Cbz(scratch0, done);
-  __ B(miss);
-}
-
-
-void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
-  // This stub overrides SometimesSetsUpAFrame() to return false. That means
-  // we cannot call anything that could cause a GC from this stub.
-  //
-  // Arguments are in x0 and x1:
-  //   x0: property dictionary.
-  //   x1: the name of the property we are looking for.
-  //
-  // Return value is in x0 and is zero if lookup failed, non zero otherwise.
-  // If the lookup is successful, x2 will contains the index of the entry.
-
-  Register result = x0;
-  Register dictionary = x0;
-  Register key = x1;
-  Register index = x2;
-  Register mask = x3;
-  Register hash = x4;
-  Register undefined = x5;
-  Register entry_key = x6;
-
-  Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
-
-  __ Ldrsw(mask, UntagSmiFieldMemOperand(dictionary, kCapacityOffset));
-  __ Sub(mask, mask, 1);
-
-  __ Ldr(hash, FieldMemOperand(key, Name::kHashFieldOffset));
-  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
-
-  for (int i = kInlinedProbes; i < kTotalProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    // Capacity is smi 2^n.
-    if (i > 0) {
-      // Add the probe offset (i + i * i) left shifted to avoid right shifting
-      // the hash in a separate instruction. The value hash + i + i * i is right
-      // shifted in the following and instruction.
-      DCHECK(NameDictionary::GetProbeOffset(i) <
-             1 << (32 - Name::kHashFieldOffset));
-      __ Add(index, hash,
-             NameDictionary::GetProbeOffset(i) << Name::kHashShift);
-    } else {
-      __ Mov(index, hash);
-    }
-    __ And(index, mask, Operand(index, LSR, Name::kHashShift));
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ Add(index, index, Operand(index, LSL, 1));  // index *= 3.
-
-    __ Add(index, dictionary, Operand(index, LSL, kPointerSizeLog2));
-    __ Ldr(entry_key, FieldMemOperand(index, kElementsStartOffset));
-
-    // Having undefined at this place means the name is not contained.
-    __ Cmp(entry_key, undefined);
-    __ B(eq, &not_in_dictionary);
-
-    // Stop if found the property.
-    __ Cmp(entry_key, key);
-    __ B(eq, &in_dictionary);
-
-    if (i != kTotalProbes - 1 && mode() == NEGATIVE_LOOKUP) {
-      // Check if the entry name is not a unique name.
-      __ Ldr(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
-      __ Ldrb(entry_key, FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ JumpIfNotUniqueNameInstanceType(entry_key, &maybe_in_dictionary);
-    }
-  }
-
-  __ Bind(&maybe_in_dictionary);
-  // If we are doing negative lookup then probing failure should be
-  // treated as a lookup success. For positive lookup, probing failure
-  // should be treated as lookup failure.
-  if (mode() == POSITIVE_LOOKUP) {
-    __ Mov(result, 0);
-    __ Ret();
-  }
-
-  __ Bind(&in_dictionary);
-  __ Mov(result, 1);
-  __ Ret();
-
-  __ Bind(&not_in_dictionary);
-  __ Mov(result, 0);
-  __ Ret();
-}
-
 
 template<class T>
 static void CreateArrayDispatch(MacroAssembler* masm,
@@ -1324,7 +776,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
 
   } else {
     UNREACHABLE();
@@ -1374,7 +826,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       __ Ldr(x10, FieldMemOperand(allocation_site, 0));
       __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex,
                        &normal_sequence);
-      __ Assert(eq, kExpectedAllocationSite);
+      __ Assert(eq, AbortReason::kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store 'kind'
@@ -1402,7 +854,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
   } else {
     UNREACHABLE();
   }
@@ -1486,16 +938,16 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Initial map for the builtin Array function should be a map.
     __ Ldr(x10, FieldMemOperand(constructor,
                                 JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ JumpIfSmi(x10, &unexpected_map);
     __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
     __ Bind(&unexpected_map);
-    __ Abort(kUnexpectedInitialMapForArrayFunction);
+    __ Abort(AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ Bind(&map_ok);
 
     // We should either have undefined in the allocation_site register or a
     // valid AllocationSite.
-    __ AssertUndefinedOrAllocationSite(allocation_site, x10);
+    __ AssertUndefinedOrAllocationSite(allocation_site);
   }
 
   // Enter the context of the Array function.
@@ -1583,11 +1035,11 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     // Initial map for the builtin Array function should be a map.
     __ Ldr(x10, FieldMemOperand(constructor,
                                 JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ JumpIfSmi(x10, &unexpected_map);
     __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
     __ Bind(&unexpected_map);
-    __ Abort(kUnexpectedInitialMapForArrayFunction);
+    __ Abort(AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ Bind(&map_ok);
   }
 
@@ -1603,7 +1055,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     Label done;
     __ Cmp(x3, PACKED_ELEMENTS);
     __ Ccmp(x3, HOLEY_ELEMENTS, ZFlag, ne);
-    __ Assert(eq, kInvalidElementsKindForInternalArrayOrInternalPackedArray);
+    __ Assert(
+        eq,
+        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
   }
 
   Label fast_elements_case;
@@ -1624,18 +1078,17 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
   return static_cast<int>(ref0.address() - ref1.address());
 }
 
-
 // Calls an API function. Allocates HandleScope, extracts returned value
 // from handle and propagates exceptions.
 // 'stack_space' is the space to be unwound on exit (includes the call JS
 // arguments space and the additional space allocated for the fast call).
 // 'spill_offset' is the offset from the stack pointer where
 // CallApiFunctionAndReturn can spill registers.
-static void CallApiFunctionAndReturn(
-    MacroAssembler* masm, Register function_address,
-    ExternalReference thunk_ref, int stack_space,
-    MemOperand* stack_space_operand, int spill_offset,
-    MemOperand return_value_operand, MemOperand* context_restore_operand) {
+static void CallApiFunctionAndReturn(MacroAssembler* masm,
+                                     Register function_address,
+                                     ExternalReference thunk_ref,
+                                     int stack_space, int spill_offset,
+                                     MemOperand return_value_operand) {
   ASM_LOCATION("CallApiFunctionAndReturn");
   Isolate* isolate = masm->isolate();
   ExternalReference next_address =
@@ -1721,7 +1174,7 @@ static void CallApiFunctionAndReturn(
   if (__ emit_debug_code()) {
     __ Ldr(w1, MemOperand(handle_scope_base, kLevelOffset));
     __ Cmp(w1, level_reg);
-    __ Check(eq, kUnexpectedLevelAfterReturnFromApiCall);
+    __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
   }
   __ Sub(level_reg, level_reg, 1);
   __ Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
@@ -1737,16 +1190,7 @@ static void CallApiFunctionAndReturn(
   __ Peek(x21, (spill_offset + 2) * kXRegSize);
   __ Peek(x22, (spill_offset + 3) * kXRegSize);
 
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    __ Ldr(cp, *context_restore_operand);
-  }
-
-  if (stack_space_operand != NULL) {
-    __ Ldr(w2, *stack_space_operand);
-  }
-
-  __ LeaveExitFrame(false, x1, !restore_context);
+  __ LeaveExitFrame(false, x1, x5);
 
   // Check if the function scheduled an exception.
   __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));
@@ -1754,11 +1198,7 @@ static void CallApiFunctionAndReturn(
   __ JumpIfNotRoot(x5, Heap::kTheHoleValueRootIndex,
                    &promote_scheduled_exception);
 
-  if (stack_space_operand != NULL) {
-    __ Drop(x2, 1);
-  } else {
-    __ Drop(stack_space);
-  }
+  __ DropSlots(stack_space);
   __ Ret();
 
   // Re-throw by promoting a scheduled exception.
@@ -1780,7 +1220,6 @@ static void CallApiFunctionAndReturn(
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- x0                  : callee
   //  -- x4                  : call_data
   //  -- x2                  : holder
   //  -- x1                  : api_function_address
@@ -1790,74 +1229,34 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- sp[(argc - 1) * 8]  : first argument
   //  -- sp[argc * 8]        : receiver
-  //  -- sp[(argc + 1) * 8]  : accessor_holder
   // -----------------------------------
 
-  Register callee = x0;
   Register call_data = x4;
   Register holder = x2;
   Register api_function_address = x1;
-  Register context = cp;
 
   typedef FunctionCallbackArguments FCA;
 
-  STATIC_ASSERT(FCA::kArgsLength == 8);
-  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
-  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
-  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kArgsLength == 6);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
   STATIC_ASSERT(FCA::kReturnValueOffset == 3);
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
 
-  // new target
-  __ PushRoot(Heap::kUndefinedValueRootIndex);
+  Register undef = x7;
+  __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
 
-  // context, callee and call data.
-  __ Push(context, callee, call_data);
+  // Push new target, call data.
+  __ Push(undef, call_data);
 
-  Register scratch = call_data;
-  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   Register isolate_reg = x5;
   __ Mov(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 
   // FunctionCallbackArguments:
   //    return value, return value default, isolate, holder.
-  __ Push(scratch, scratch, isolate_reg, holder);
-
-  // Enter a new context
-  if (is_lazy()) {
-    // ----------- S t a t e -------------------------------------
-    //  -- sp[0]                                 : holder
-    //  -- ...
-    //  -- sp[(FCA::kArgsLength - 1) * 8]        : new_target
-    //  -- sp[FCA::kArgsLength * 8]              : last argument
-    //  -- ...
-    //  -- sp[(FCA::kArgsLength + argc - 1) * 8] : first argument
-    //  -- sp[(FCA::kArgsLength + argc) * 8]     : receiver
-    //  -- sp[(FCA::kArgsLength + argc + 1) * 8] : accessor_holder
-    // -----------------------------------------------------------
-
-    // Load context from accessor_holder
-    Register accessor_holder = context;
-    Register scratch2 = callee;
-    __ Ldr(accessor_holder,
-           MemOperand(__ StackPointer(),
-                      (FCA::kArgsLength + 1 + argc()) * kPointerSize));
-    // Look for the constructor if |accessor_holder| is not a function.
-    Label skip_looking_for_constructor;
-    __ Ldr(scratch, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
-    __ Ldrb(scratch2, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ Tst(scratch2, Operand(1 << Map::kIsConstructor));
-    __ B(ne, &skip_looking_for_constructor);
-    __ GetMapConstructor(context, scratch, scratch, scratch2);
-    __ bind(&skip_looking_for_constructor);
-    __ Ldr(context, FieldMemOperand(context, JSFunction::kContextOffset));
-  } else {
-    // Load context from callee
-    __ Ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
+  __ Push(undef, undef, isolate_reg, holder);
 
   // Prepare arguments.
   Register args = x6;
@@ -1867,8 +1266,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // not controlled by GC.
   const int kApiStackSpace = 3;
 
-  // Allocate space for CallApiFunctionAndReturn can store some scratch
-  // registeres on the stack.
+  // Allocate space so that CallApiFunctionAndReturn can store some scratch
+  // registers on the stack.
   const int kCallApiFunctionSpillSpace = 4;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
@@ -1877,7 +1276,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   DCHECK(!AreAliased(x0, api_function_address));
   // x0 = FunctionCallbackInfo&
   // Arguments is after the return address.
-  __ Add(x0, masm->StackPointer(), 1 * kPointerSize);
+  __ SlotAddress(x0, 1);
   // FunctionCallbackInfo::implicit_args_ and FunctionCallbackInfo::values_
   __ Add(x10, args, Operand((FCA::kArgsLength - 1 + argc()) * kPointerSize));
   __ Stp(args, x10, MemOperand(x0, 0 * kPointerSize));
@@ -1889,29 +1288,23 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
       ExternalReference::invoke_function_callback(masm->isolate());
 
   AllowExternalCallThatCantCauseGC scope(masm);
-  MemOperand context_restore_operand(
-      fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
   // Stores return the first js argument
-  int return_value_offset = 0;
-  if (is_store()) {
-    return_value_offset = 2 + FCA::kArgsLength;
-  } else {
-    return_value_offset = 2 + FCA::kReturnValueOffset;
-  }
+  int return_value_offset = 2 + FCA::kReturnValueOffset;
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  const int stack_space = argc() + FCA::kArgsLength + 2;
-  MemOperand* stack_space_operand = nullptr;
+  // The number of arguments might be odd, but will be padded when calling the
+  // stub. We do not round up stack_space to account for odd argc here, this
+  // will be done in CallApiFunctionAndReturn.
+  const int stack_space = (argc() + 1) + FCA::kArgsLength;
 
+  // The current frame needs to be aligned.
+  DCHECK_EQ((stack_space - (argc() + 1)) % 2, 0);
   const int spill_offset = 1 + kApiStackSpace;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
-                           stack_space_operand, spill_offset,
-                           return_value_operand, &context_restore_operand);
+                           spill_offset, return_value_operand);
 }
 
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
-  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
-  // name below the exit frame to make GC aware of them.
   STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
   STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
   STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
@@ -1924,23 +1317,31 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
   Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
-  Register scratch = x4;
-  Register scratch2 = x5;
-  Register scratch3 = x6;
-  DCHECK(!AreAliased(receiver, holder, callback, scratch));
+  Register data = x4;
+  Register undef = x5;
+  Register isolate_address = x6;
+  Register name = x7;
+  DCHECK(!AreAliased(receiver, holder, callback, data, undef, isolate_address,
+                     name));
 
-  __ Push(receiver);
+  __ Ldr(data, FieldMemOperand(callback, AccessorInfo::kDataOffset));
+  __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
+  __ Mov(isolate_address,
+         Operand(ExternalReference::isolate_address(isolate())));
+  __ Ldr(name, FieldMemOperand(callback, AccessorInfo::kNameOffset));
 
-  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-  __ Mov(scratch2, Operand(ExternalReference::isolate_address(isolate())));
-  __ Ldr(scratch3, FieldMemOperand(callback, AccessorInfo::kDataOffset));
-  __ Push(scratch3, scratch, scratch, scratch2, holder);
-  __ Push(Smi::kZero);  // should_throw_on_error -> false
-  __ Ldr(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
-  __ Push(scratch);
+  // PropertyCallbackArguments:
+  //   receiver, data, return value, return value default, isolate, holder,
+  //   should_throw_on_error
+  // These are followed by the property name, which is also pushed below the
+  // exit frame to make the GC aware of it.
+  __ Push(receiver, data, undef, undef, isolate_address, holder, xzr, name);
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+  static const int kStackUnwindSpace =
+      PropertyCallbackArguments::kArgsLength + 1;
+  static_assert(kStackUnwindSpace % 2 == 0,
+                "slots must be a multiple of 2 for stack pointer alignment");
 
   // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
   __ Mov(x0, masm->StackPointer());  // x0 = Handle<Name>
@@ -1948,8 +1349,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   const int kApiStackSpace = 1;
 
-  // Allocate space for CallApiFunctionAndReturn can store some scratch
-  // registeres on the stack.
+  // Allocate space so that CallApiFunctionAndReturn can store some scratch
+  // registers on the stack.
   const int kCallApiFunctionSpillSpace = 4;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
@@ -1958,24 +1359,25 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
   __ Poke(x1, 1 * kPointerSize);
-  __ Add(x1, masm->StackPointer(), 1 * kPointerSize);
+  __ SlotAddress(x1, 1);
   // x1 = v8::PropertyCallbackInfo&
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
 
   Register api_function_address = x2;
-  __ Ldr(scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
+  Register js_getter = x4;
+  __ Ldr(js_getter, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
   __ Ldr(api_function_address,
-         FieldMemOperand(scratch, Foreign::kForeignAddressOffset));
+         FieldMemOperand(js_getter, Foreign::kForeignAddressOffset));
 
   const int spill_offset = 1 + kApiStackSpace;
   // +3 is to skip prolog, return address and name handle.
   MemOperand return_value_operand(
       fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           kStackUnwindSpace, NULL, spill_offset,
-                           return_value_operand, NULL);
+                           kStackUnwindSpace, spill_offset,
+                           return_value_operand);
 }
 
 #undef __

@@ -3,7 +3,6 @@
 const BB = require('bluebird')
 
 const cacache = require('cacache')
-const cache = require('./cache')
 const createReadStream = require('graceful-fs').createReadStream
 const getPublishConfig = require('./utils/get-publish-config.js')
 const lifecycle = BB.promisify(require('./utils/lifecycle.js'))
@@ -16,11 +15,10 @@ const pack = require('./pack')
 const pacote = require('pacote')
 const pacoteOpts = require('./config/pacote')
 const path = require('path')
-const pipe = BB.promisify(require('mississippi').pipe)
 const readJson = BB.promisify(require('read-package-json'))
 const semver = require('semver')
 const statAsync = BB.promisify(require('graceful-fs').stat)
-const writeStreamAtomic = require('fs-write-stream-atomic')
+const readUserInfo = require('./utils/read-user-info.js')
 
 publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
                 "\n\nPublishes '.' if no argument supplied" +
@@ -104,20 +102,11 @@ function publishFromPackage (arg) {
   return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'fromPackage'}, (tmp) => {
     const extracted = path.join(tmp, 'package')
     const target = path.join(tmp, 'package.json')
-    return cache.add(arg).then((info) => {
-      const opts = pacoteOpts({integrity: info.integrity})
-      return BB.all([
-        pipe(
-          cacache.get.stream.byDigest(opts.cache, info.integrity),
-          writeStreamAtomic(target)
-        ).then(() => target),
-        pacote.extract(arg, extracted, opts).then(() => {
-          return readJson(path.join(extracted, 'package.json'))
-        })
-      ]).spread((target, pkg) => {
-        return upload(arg, pkg, false, target)
-      })
-    })
+    const opts = pacoteOpts()
+    return pacote.tarball.toFile(arg, target, opts)
+    .then(() => pacote.extract(arg, extracted, opts))
+    .then(() => readJson(path.join(extracted, 'package.json')))
+    .tap((pkg) => upload(arg, pkg, false, target))
   })
 }
 
@@ -198,6 +187,14 @@ function upload (arg, pkg, isRetry, cached) {
       } else {
         throw err
       }
+    })
+  }).catch((err) => {
+    if (err.code !== 'EOTP' && !(err.code === 'E401' && /one-time pass/.test(err.message))) throw err
+    // we prompt on stdout and read answers from stdin, so they need to be ttys.
+    if (!process.stdin.isTTY || !process.stdout.isTTY) throw err
+    return readUserInfo.otp('Enter OTP:  ').then((otp) => {
+      npm.config.set('otp', otp)
+      return upload(arg, pkg, isRetry, cached)
     })
   })
 }

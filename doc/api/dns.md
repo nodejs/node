@@ -114,8 +114,6 @@ Returns an array of IP address strings, formatted according to [rfc5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
-For example:
-
 <!-- eslint-disable semi-->
 ```js
 [
@@ -141,12 +139,12 @@ changes:
   - `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   - `all` {boolean} When `true`, the callback returns all resolved addresses in
-    an array. Otherwise, returns a single address. Defaults to `false`.
+    an array. Otherwise, returns a single address. **Default:** `false`
   - `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
     addresses in the order the DNS resolver returned them.  When `false`,
     IPv4 addresses are placed before IPv6 addresses.
-    Default: currently `false` (addresses are reordered) but this is expected
-    to change in the not too distant future.
+    **Default:** currently `false` (addresses are reordered) but this is
+    expected to change in the not too distant future.
     New code should use `{ verbatim: true }`.
 - `callback` {Function}
   - `err` {Error}
@@ -245,7 +243,7 @@ Promise for an object with `hostname` and `service` properties.
 added: v0.1.27
 -->
 - `hostname` {string} Hostname to resolve.
-- `rrtype` {string} Resource record type. Default: `'A'`.
+- `rrtype` {string} Resource record type. **Default:** `'A'`
 - `callback` {Function}
   - `err` {Error}
   - `records` {string[] | Object[] | Object}
@@ -369,8 +367,6 @@ function will contain an array of objects with the following properties:
 * `order`
 * `preference`
 
-For example:
-
 <!-- eslint-skip -->
 ```js
 {
@@ -483,7 +479,7 @@ added: v0.1.27
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
-two-dimensional array of the text records available for `hostname` (e.g.,
+two-dimensional array of the text records available for `hostname` (e.g.
 `[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
 one record. Depending on the use case, these could be either joined together or
 treated separately.
@@ -514,7 +510,7 @@ will be present on the object:
 | `"SRV"` | Refer to [`dns.resolveSrv()`][] |
 | `"TXT"` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
 
-Here is a example of the `ret` object passed to the callback:
+Here is an example of the `ret` object passed to the callback:
 
 <!-- eslint-disable semi -->
 ```js
@@ -557,8 +553,6 @@ added: v0.11.3
 Sets the IP address and port of servers to be used when performing DNS
 resolution. The `servers` argument is an array of [rfc5952][] formatted
 addresses. If the port is the IANA default DNS port (53) it can be omitted.
-
-For example:
 
 ```js
 dns.setServers([

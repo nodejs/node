@@ -30,13 +30,16 @@ namespace trap_handler {
 
 struct ProtectedInstructionData {
   // The offset of this instruction from the start of its code object.
-  intptr_t instr_offset;
+  // Wasm code never grows larger than 2GB, so uint32_t is sufficient.
+  uint32_t instr_offset;
 
   // The offset of the landing pad from the start of its code object.
   //
   // TODO(eholk): Using a single landing pad and store parameters here.
-  intptr_t landing_offset;
+  uint32_t landing_offset;
 };
+
+const int kInvalidIndex = -1;
 
 /// Adjusts the base code pointer.
 void UpdateHandlerDataCodePointer(int index, void* base);
@@ -47,9 +50,11 @@ void UpdateHandlerDataCodePointer(int index, void* base);
 /// UpdateHandlerDataCodePointer and ReleaseHandlerData, or -1 on failure.
 int RegisterHandlerData(void* base, size_t size,
                         size_t num_protected_instructions,
-                        ProtectedInstructionData* protected_instructions);
+                        const ProtectedInstructionData* protected_instructions);
 
 /// Removes the data from the master list and frees any memory, if necessary.
+/// TODO(mtrofin): once FLAG_wasm_jit_to_native is not needed, we can switch
+/// to using size_t for index and not need kInvalidIndex.
 void ReleaseHandlerData(int index);
 
 #if V8_OS_WIN
@@ -61,7 +66,7 @@ void ReleaseHandlerData(int index);
 #define THREAD_LOCAL __thread
 #endif
 
-inline bool UseTrapHandler() {
+inline bool IsTrapHandlerEnabled() {
   return FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED;
 }
 
@@ -70,24 +75,27 @@ extern THREAD_LOCAL int g_thread_in_wasm_code;
 inline bool IsThreadInWasm() { return g_thread_in_wasm_code; }
 
 inline void SetThreadInWasm() {
-  if (UseTrapHandler()) {
+  if (IsTrapHandlerEnabled()) {
     DCHECK(!IsThreadInWasm());
     g_thread_in_wasm_code = true;
   }
 }
 
 inline void ClearThreadInWasm() {
-  if (UseTrapHandler()) {
+  if (IsTrapHandlerEnabled()) {
     DCHECK(IsThreadInWasm());
     g_thread_in_wasm_code = false;
   }
 }
 
 bool RegisterDefaultSignalHandler();
+V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
 
 #if V8_OS_LINUX
 bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context);
 #endif  // V8_OS_LINUX
+
+size_t GetRecoveredTrapCount();
 
 }  // namespace trap_handler
 }  // namespace internal

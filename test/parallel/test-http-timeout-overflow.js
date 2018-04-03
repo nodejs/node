@@ -20,19 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-const assert = require('assert');
-
+const common = require('../common');
 const http = require('http');
 
-let serverRequests = 0;
-let clientRequests = 0;
-
-const server = http.createServer(function(req, res) {
-  serverRequests++;
+const server = http.createServer(common.mustCall(function(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('OK');
-});
+}));
 
 server.listen(0, function() {
   function callback() {}
@@ -44,10 +38,9 @@ server.listen(0, function() {
   }, function(res) {
     req.clearTimeout(callback);
 
-    res.on('end', function() {
-      clientRequests++;
+    res.on('end', common.mustCall(function() {
       server.close();
-    });
+    }));
 
     res.resume();
   });
@@ -55,9 +48,4 @@ server.listen(0, function() {
   // Overflow signed int32
   req.setTimeout(0xffffffff, callback);
   req.end();
-});
-
-process.once('exit', function() {
-  assert.strictEqual(clientRequests, 1);
-  assert.strictEqual(serverRequests, 1);
 });

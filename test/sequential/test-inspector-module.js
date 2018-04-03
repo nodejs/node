@@ -4,7 +4,6 @@ const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
-const assert = require('assert');
 const { Session } = require('inspector');
 
 const session = new Session();
@@ -18,10 +17,8 @@ common.expectsError(
   }
 );
 
-assert.doesNotThrow(() => session.connect());
-
-assert.doesNotThrow(
-  () => session.post('Runtime.evaluate', { expression: '2 + 2' }));
+session.connect();
+session.post('Runtime.evaluate', { expression: '2 + 2' });
 
 [1, {}, [], true, Infinity, undefined].forEach((i) => {
   common.expectsError(
@@ -43,7 +40,7 @@ assert.doesNotThrow(
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message:
-        'The "params" argument must be of type object. ' +
+        'The "params" argument must be of type Object. ' +
         `Received type ${typeof i}`
     }
   );
@@ -54,9 +51,20 @@ common.expectsError(
   {
     code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
     type: Error,
-    message: 'The inspector is already connected'
+    message: 'The inspector session is already connected'
   }
 );
 
-assert.doesNotThrow(() => session.disconnect());
-assert.doesNotThrow(() => session.disconnect());
+const session2 = new Session();
+common.expectsError(
+  () => session2.connect(),
+  {
+    code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
+    type: Error,
+    message: 'Another inspector session is already connected'
+  }
+);
+
+session.disconnect();
+// Calling disconnect twice should not throw.
+session.disconnect();

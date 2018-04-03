@@ -10,19 +10,14 @@
 var npm = require('./npm.js')
 var log = require('npmlog')
 var chain = require('slide').chain
-var fs = require('graceful-fs')
 var path = require('path')
+var fs = require('graceful-fs')
 var lifecycle = require('./utils/lifecycle.js')
 var readJson = require('read-package-json')
-var link = require('./utils/link.js')
-var linkIfExists = link.ifExists
-var cmdShim = require('cmd-shim')
-var cmdShimIfExists = cmdShim.ifExists
-var asyncMap = require('slide').asyncMap
+var binLinks = require('bin-links')
+var binLinksConfig = require('./config/bin-links.js')
 var ini = require('ini')
 var writeFile = require('write-file-atomic')
-var packageId = require('./utils/package-id.js')
-var output = require('./utils/output.js')
 
 module.exports = build
 build.usage = 'npm build [<folder>]'
@@ -72,7 +67,8 @@ function build_ (global, didPre, didRB) {
       if (er) return cb(er)
       chain([
         !didPre && [lifecycle, pkg, 'preinstall', folder],
-        [linkStuff, pkg, folder, global, didRB],
+        [linkStuff, pkg, folder, global],
+        !didRB && [rebuildBundles, pkg, folder],
         [writeBuiltinConf, pkg, folder],
         didPre !== build._noLC && [lifecycle, pkg, 'install', folder],
         didPre !== build._noLC && [lifecycle, pkg, 'postinstall', folder]
@@ -100,35 +96,13 @@ var writeBuiltinConf = build.writeBuiltinConf = function (pkg, folder, cb) {
   writeFile(path.resolve(folder, 'npmrc'), data, cb)
 }
 
-var linkStuff = build.linkStuff = function (pkg, folder, global, didRB, cb) {
+var linkStuff = build.linkStuff = function (pkg, folder, global, cb) {
   // allow to opt out of linking binaries.
   if (npm.config.get('bin-links') === false) return cb()
-
-  // if it's global, and folder is in {prefix}/node_modules,
-  // then bins are in {prefix}/bin
-  // otherwise, then bins are in folder/../.bin
-  var parent = pkg.name && pkg.name[0] === '@' ? path.dirname(path.dirname(folder)) : path.dirname(folder)
-  var gnm = global && npm.globalDir
-  var gtop = parent === gnm
-
-  log.info('linkStuff', packageId(pkg))
-  log.silly('linkStuff', packageId(pkg), 'has', parent, 'as its parent node_modules')
-  if (global) log.silly('linkStuff', packageId(pkg), 'is part of a global install')
-  if (gnm) log.silly('linkStuff', packageId(pkg), 'is installed into a global node_modules')
-  if (gtop) log.silly('linkStuff', packageId(pkg), 'is installed into the top-level global node_modules')
-
-  asyncMap(
-    [linkBins, linkMans, !didRB && rebuildBundles],
-    function (fn, cb) {
-      if (!fn) return cb()
-      log.verbose(fn.name, packageId(pkg))
-      fn(pkg, folder, parent, gtop, cb)
-    },
-    cb
-  )
+  return binLinks(pkg, folder, global, binLinksConfig(pkg), cb)
 }
 
-function rebuildBundles (pkg, folder, parent, gtop, cb) {
+function rebuildBundles (pkg, folder, cb) {
   if (!npm.config.get('rebuild-bundle')) return cb()
 
   var deps = Object.keys(pkg.dependencies || {})
@@ -163,85 +137,4 @@ function rebuildBundles (pkg, folder, parent, gtop, cb) {
       }
     }), cb)
   })
-}
-
-function linkBins (pkg, folder, parent, gtop, cb) {
-  if (!pkg.bin || !gtop && path.basename(parent) !== 'node_modules') {
-    return cb()
-  }
-  var binRoot = gtop ? npm.globalBin
-                     : path.resolve(parent, '.bin')
-  log.verbose('linkBins', [pkg.bin, binRoot, gtop])
-
-  asyncMap(Object.keys(pkg.bin), function (b, cb) {
-    linkBin(
-      path.resolve(folder, pkg.bin[b]),
-      path.resolve(binRoot, b),
-      gtop && folder,
-      function (er) {
-        if (er) return cb(er)
-        // bins should always be executable.
-        // XXX skip chmod on windows?
-        var src = path.resolve(folder, pkg.bin[b])
-        fs.chmod(src, npm.modes.exec, function (er) {
-          if (er && er.code === 'ENOENT' && npm.config.get('ignore-scripts')) {
-            return cb()
-          }
-          if (er || !gtop) return cb(er)
-          var dest = path.resolve(binRoot, b)
-          var out = npm.config.get('parseable')
-                  ? dest + '::' + src + ':BINFILE'
-                  : dest + ' -> ' + src
-          if (!npm.config.get('json') && !npm.config.get('parseable')) output(out)
-          cb()
-        })
-      }
-    )
-  }, cb)
-}
-
-function linkBin (from, to, gently, cb) {
-  if (process.platform !== 'win32') {
-    return linkIfExists(from, to, gently, cb)
-  } else {
-    return cmdShimIfExists(from, to, cb)
-  }
-}
-
-function linkMans (pkg, folder, parent, gtop, cb) {
-  if (!pkg.man || !gtop || process.platform === 'win32') return cb()
-
-  var manRoot = path.resolve(npm.config.get('prefix'), 'share', 'man')
-  log.verbose('linkMans', 'man files are', pkg.man, 'in', manRoot)
-
-  // make sure that the mans are unique.
-  // otherwise, if there are dupes, it'll fail with EEXIST
-  var set = pkg.man.reduce(function (acc, man) {
-    acc[path.basename(man)] = man
-    return acc
-  }, {})
-  pkg.man = pkg.man.filter(function (man) {
-    return set[path.basename(man)] === man
-  })
-
-  asyncMap(pkg.man, function (man, cb) {
-    if (typeof man !== 'string') return cb()
-    log.silly('linkMans', 'preparing to link', man)
-    var parseMan = man.match(/(.*\.([0-9]+)(\.gz)?)$/)
-    if (!parseMan) {
-      return cb(new Error(
-        man + ' is not a valid name for a man file.  ' +
-        'Man files must end with a number, ' +
-        'and optionally a .gz suffix if they are compressed.'
-      ))
-    }
-
-    var stem = parseMan[1]
-    var sxn = parseMan[2]
-    var bn = path.basename(stem)
-    var manSrc = path.resolve(folder, man)
-    var manDest = path.join(manRoot, 'man' + sxn, bn)
-
-    linkIfExists(manSrc, manDest, gtop && folder, cb)
-  }, cb)
 }

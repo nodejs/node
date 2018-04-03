@@ -68,6 +68,24 @@ Running test: testExceptionInFunctionExpression
             exceptionId : <exceptionId>
             lineNumber : 0
             scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 21
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 35
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
             text : Uncaught
         }
         result : {
@@ -153,4 +171,25 @@ Running test: testFunctionReturnRejectedPromise
             }
         }
     }
+}
+
+Running test: testEvaluateOnExecutionContext
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 70
+            type : number
+            value : 70
+        }
+    }
+}
+
+Running test: testPassingBothObjectIdAndExecutionContextId
+{
+    error : {
+        code : -32000
+        message : ObjectId must not be specified together with executionContextId
+    }
+    id : <messageId>
 }

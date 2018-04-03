@@ -1,8 +1,10 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
-const RuleTester = require('../../tools/eslint').RuleTester;
+common.skipIfEslintMissing();
+
+const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/no-let-in-for-declaration');
 
 const ruleTester = new RuleTester({ parserOptions: { ecmaVersion: 6 } });
@@ -24,14 +26,17 @@ ruleTester.run('no-let-in-for-declaration', rule, {
   invalid: [
     {
       code: 'for (let foo = 1;;);',
+      output: 'for (var foo = 1;;);',
       errors: [{ message }]
     },
     {
       code: 'for (let foo in bar);',
+      output: 'for (var foo in bar);',
       errors: [{ message }]
     },
     {
       code: 'for (let foo of bar);',
+      output: 'for (var foo of bar);',
       errors: [{ message }]
     }
   ]

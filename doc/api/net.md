@@ -1,6 +1,7 @@
 # Net
 
 <!--introduced_in=v0.10.0-->
+<!--lint disable maximum-line-length-->
 
 > Stability: 2 - Stable
 
@@ -194,14 +195,11 @@ length of the queue of pending connections. The actual length will be determined
 by the OS through sysctl settings such as `tcp_max_syn_backlog` and `somaxconn`
 on Linux. The default value of this parameter is 511 (not 512).
 
+All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for details).
 
-*Note*:
-
-* All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
-  details).
-* The `server.listen()` method can be called again if and only if there was an error
-  during the first `server.listen()` call or `server.close()` has been called.
-  Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
+The `server.listen()` method can be called again if and only if there was an error
+during the first `server.listen()` call or `server.close()` has been called.
+Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 One of the most common errors raised when listening is `EADDRINUSE`.
 This happens when another server is already listening on the requested
@@ -237,7 +235,7 @@ The `handle` object can be either a server, a socket (anything with an
 underlying `_handle` member), or an object with an `fd` member that is a
 valid file descriptor.
 
-*Note*: Listening on a file descriptor is not supported on Windows.
+Listening on a file descriptor is not supported on Windows.
 
 #### server.listen(options[, callback])
 <!-- YAML
@@ -250,10 +248,10 @@ added: v0.11.14
   * `path` {string} Will be ignored if `port` is specified. See
     [Identifying paths for IPC connections][].
   * `backlog` {number} Common parameter of [`server.listen()`][]
-    functions
-  * `exclusive` {boolean} Default to `false`
+    functions.
+  * `exclusive` {boolean} **Default:** `false`
 * `callback` {Function} Common parameter of [`server.listen()`][]
-  functions
+  functions.
 * Returns: {net.Server}
 
 If `port` is specified, it behaves the same as
@@ -281,10 +279,10 @@ server.listen({
 added: v0.1.90
 -->
 
-* `path` {String} Path the server should listen to. See
+* `path` {string} Path the server should listen to. See
   [Identifying paths for IPC connections][].
-* `backlog` {number} Common parameter of [`server.listen()`][] functions
-* `callback` {Function} Common parameter of [`server.listen()`][] functions
+* `backlog` {number} Common parameter of [`server.listen()`][] functions.
+* `callback` {Function} Common parameter of [`server.listen()`][] functions.
 * Returns: {net.Server}
 
 Start a [IPC][] server listening for connections on the given `path`.
@@ -295,8 +293,8 @@ added: v0.1.90
 -->
 * `port` {number}
 * `host` {string}
-* `backlog` {number} Common parameter of [`server.listen()`][] functions
-* `callback` {Function} Common parameter of [`server.listen()`][] functions
+* `backlog` {number} Common parameter of [`server.listen()`][] functions.
+* `callback` {Function} Common parameter of [`server.listen()`][] functions.
 * Returns: {net.Server}
 
 Start a TCP server listening for connections on the given `port` and `host`.
@@ -309,9 +307,9 @@ If `host` is omitted, the server will accept connections on the
 [unspecified IPv6 address][] (`::`) when IPv6 is available, or the
 [unspecified IPv4 address][] (`0.0.0.0`) otherwise.
 
-*Note*: In most operating systems, listening to the
-[unspecified IPv6 address][] (`::`) may cause the `net.Server` to also listen on
-the [unspecified IPv4 address][] (`0.0.0.0`).
+In most operating systems, listening to the [unspecified IPv6 address][] (`::`)
+may cause the `net.Server` to also listen on the [unspecified IPv4 address][]
+(`0.0.0.0`).
 
 ### server.listening
 <!-- YAML
@@ -385,11 +383,11 @@ Creates a new socket object.
     the given file descriptor, otherwise a new socket will be created.
   * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
     are allowed. See [`net.createServer()`][] and the [`'end'`][] event
-    for details. Defaults to `false`.
+    for details. **Default:** `false`
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
-    otherwise ignored. Defaults to `false`.
+    otherwise ignored. **Default:** `false`
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
-    otherwise ignored. Defaults to `false`.
+    otherwise ignored. **Default:** `false`
 * Returns: {net.Socket}
 
 The newly created socket can be either a TCP socket or a streaming [IPC][]
@@ -421,8 +419,7 @@ added: v0.1.90
 * {Buffer}
 
 Emitted when data is received.  The argument `data` will be a `Buffer` or
-`String`.  Encoding of data is set by `socket.setEncoding()`.
-(See the [Readable Stream][] section for more information.)
+`String`.  Encoding of data is set by [`socket.setEncoding()`][].
 
 Note that the **data will be lost** if there is no listener when a `Socket`
 emits a `'data'` event.
@@ -581,12 +578,12 @@ this only when implementing a custom Socket.
 For TCP connections, available `options` are:
 
 * `port` {number} Required. Port the socket should connect to.
-* `host` {string} Host the socket should connect to. Defaults to `'localhost'`.
+* `host` {string} Host the socket should connect to. **Default:** `'localhost'`
 * `localAddress` {string} Local address the socket should connect from.
 * `localPort` {number} Local port the socket should connect from.
-* `family` {number}: Version of IP stack, can be either 4 or 6. Defaults to 4.
+* `family` {number}: Version of IP stack, can be either 4 or 6. **Default:** `4`
 * `hints` {number} Optional [`dns.lookup()` hints][].
-* `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+* `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][]
 
 For [IPC][] connections, available `options` are:
 
@@ -748,7 +745,7 @@ added: v0.1.90
 * Returns: {net.Socket} The socket itself.
 
 Set the encoding for the socket as a [Readable Stream][]. See
-[`stream.setEncoding()`][] for more information.
+[`readable.setEncoding()`][] for more information.
 
 ### socket.setKeepAlive([enable][, initialDelay])
 <!-- YAML
@@ -802,7 +799,7 @@ socket.on('timeout', () => {
 
 If `timeout` is 0, then the existing idle timeout is disabled.
 
-The optional `callback` parameter will be added as a one time listener for the
+The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
 
 ### socket.unref()
@@ -885,7 +882,7 @@ Possible signatures:
 * [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`]
   for TCP connections.
 
-*Note*: The [`net.connect()`][] function is an alias to this function.
+The [`net.connect()`][] function is an alias to this function.
 
 ### net.createConnection(options[, connectListener])
 <!-- YAML
@@ -917,7 +914,7 @@ in the [`net.createServer()`][] section:
 ```js
 const net = require('net');
 const client = net.createConnection({ port: 8124 }, () => {
-  //'connect' listener
+  // 'connect' listener
   console.log('connected to server!');
   client.write('world!\r\n');
 });
@@ -965,9 +962,9 @@ added: v0.1.90
 
 * `port` {number} Port the socket should connect to. Will be passed to
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
-* `host` {string} Host the socket should connect to. Defaults to `'localhost'`.
-  Will be passed to
+* `host` {string} Host the socket should connect to. Will be passed to
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
+   **Default:** `'localhost'`
 * `connectListener` {Function} Common parameter of the
   [`net.createConnection()`][] functions, an "once" listener for the
   `'connect'` event on the initiating socket. Will be passed to
@@ -989,12 +986,12 @@ added: v0.5.0
 Creates a new TCP or [IPC][] server.
 
 * `options` {Object}
-  * `allowHalfOpen` {boolean} Default to `false`. Indicates whether half-opened
-    TCP connections are allowed.
-  * `pauseOnConnect` {boolean} Default to `false`. Indicates whether the socket
-    should be paused on incoming connections.
+  * `allowHalfOpen` {boolean} Indicates whether half-opened TCP
+    connections are allowed. **Default:** `false`
+  * `pauseOnConnect` {boolean} Indicates whether the socket should be
+    paused on incoming connections. **Default:** `false`
 * `connectionListener` {Function} Automatically set as a listener for the
-  [`'connection'`][] event
+  [`'connection'`][] event.
 * Returns: {net.Server}
 
 If `allowHalfOpen` is set to `true`, when the other end of the socket
@@ -1119,9 +1116,10 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`socket.end()`]: #net_socket_end_data_encoding
 [`socket.pause()`]: #net_socket_pause
 [`socket.resume()`]: #net_socket_resume
+[`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
-[`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
+[`readable.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [IPC]: #net_ipc_support
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
 [Readable Stream]: stream.html#stream_class_stream_readable

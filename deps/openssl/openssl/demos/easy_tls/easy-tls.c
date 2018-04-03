@@ -295,9 +295,9 @@ static void tls_errflush(void *apparg)
     if (errbuf_i == 0)
         return;
 
-    assert(errbuf_i < sizeof errbuf);
+    assert(errbuf_i < sizeof(errbuf));
     assert(errbuf[errbuf_i] == 0);
-    if (errbuf_i == sizeof errbuf - 1) {
+    if (errbuf_i == sizeof(errbuf) - 1) {
         /* make sure we have a newline, even if string has been truncated */
         errbuf[errbuf_i - 1] = '\n';
     }
@@ -316,11 +316,11 @@ static void tls_errprintf(int flush, void *apparg, const char *fmt, ...)
     va_list args;
     int r;
 
-    if (errbuf_i < sizeof errbuf - 1) {
+    if (errbuf_i < sizeof(errbuf) - 1) {
         size_t n;
 
         va_start(args, fmt);
-        n = (sizeof errbuf) - errbuf_i;
+        n = (sizeof(errbuf)) - errbuf_i;
         r = vsnprintf(errbuf + errbuf_i, n, fmt, args);
         va_end(args);
         if (r >= n)
@@ -328,10 +328,10 @@ static void tls_errprintf(int flush, void *apparg, const char *fmt, ...)
         if (r >= 0) {
             errbuf_i += r;
         } else {
-            errbuf_i = sizeof errbuf - 1;
+            errbuf_i = sizeof(errbuf) - 1;
             errbuf[errbuf_i] = '\0';
         }
-        assert(errbuf_i < sizeof errbuf);
+        assert(errbuf_i < sizeof(errbuf));
         assert(errbuf[errbuf_i] == 0);
     }
 #ifndef TLS_CUMULATE_ERRORS
@@ -369,11 +369,11 @@ static char *tls_openssl_errors(const char *app_prefix_1,
         default_text = "?" "?" "?";
 
     while ((err = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
-        if (reasons_i < sizeof reasons) {
+        if (reasons_i < sizeof(reasons)) {
             size_t n;
             int r;
 
-            n = (sizeof reasons) - reasons_i;
+            n = (sizeof(reasons)) - reasons_i;
             r = snprintf(reasons + reasons_i, n, "%s%s",
                          (reasons_i > 0 ? ", " : ""),
                          ERR_reason_error_string(err));
@@ -382,9 +382,9 @@ static char *tls_openssl_errors(const char *app_prefix_1,
             if (r >= 0) {
                 reasons_i += r;
             } else {
-                reasons_i = sizeof reasons;
+                reasons_i = sizeof(reasons);
             }
-            assert(reasons_i <= sizeof reasons);
+            assert(reasons_i <= sizeof(reasons));
         }
 
         errstring = ERR_error_string(err, NULL);
@@ -397,7 +397,7 @@ static char *tls_openssl_errors(const char *app_prefix_1,
 
     if (!printed_something) {
         assert(reasons_i == 0);
-        snprintf(reasons, sizeof reasons, "%s", default_text);
+        snprintf(reasons, sizeof(reasons), "%s", default_text);
         tls_errprintf(0, apparg, "OpenSSL error%s%s: %s\n", app_prefix_1,
                       app_prefix_2, default_text);
     }
@@ -442,7 +442,7 @@ static void tls_rand_seed_uniquely(void)
     data.time = time(NULL);
     data.stack = (void *)&data;
 
-    RAND_seed((const void *)&data, sizeof data);
+    RAND_seed((const void *)&data, sizeof(data));
 }
 
 void tls_rand_seed(void)
@@ -465,7 +465,7 @@ void tls_rand_seed(void)
     data.gid = getgid();
     data.egid = getegid();
 
-    RAND_seed((const void *)&data, sizeof data);
+    RAND_seed((const void *)&data, sizeof(data));
     tls_rand_seed_uniquely();
 }
 
@@ -543,7 +543,7 @@ tls_get_x509_subject_name_oneline(X509 *cert,
     name = X509_get_subject_name(cert); /* does not increment any reference
                                          * counter */
 
-    assert(sizeof namestring->str >= 4); /* "?" or "...", plus 0 */
+    assert(sizeof(namestring->str) >= 4); /* "?" or "...", plus 0 */
 
     if (name == NULL) {
         namestring->str[0] = '?';
@@ -551,12 +551,12 @@ tls_get_x509_subject_name_oneline(X509 *cert,
     } else {
         size_t len;
 
-        X509_NAME_oneline(name, namestring->str, sizeof namestring->str);
+        X509_NAME_oneline(name, namestring->str, sizeof(namestring->str));
         len = strlen(namestring->str);
         assert(namestring->str[len] == 0);
-        assert(len < sizeof namestring->str);
+        assert(len < sizeof(namestring->str));
 
-        if (len + 1 == sizeof namestring->str) {
+        if (len + 1 == sizeof(namestring->str)) {
             /*
              * (Probably something was cut off.) Does not really work --
              * X509_NAME_oneline truncates after name components, we cannot
@@ -617,7 +617,7 @@ void tls_set_dhe1024(int i, void *apparg)
 
     tls_init(apparg);
     if (i >= 0) {
-        i %= sizeof seed / sizeof seed[0];
+        i %= sizeof(seed) / sizeof(seed[0]);
         assert(strlen(seed[i]) == 20);
         memcpy(seedbuf, seed[i], 20);
         dsaparams =
@@ -711,7 +711,7 @@ SSL_CTX *tls_create_ctx(struct tls_create_ctx_args a, void *apparg)
     if ((a.ca_file != NULL) || (a.verify_depth > 0)) {
         context_num++;
         r = SSL_CTX_set_session_id_context(ret, (const void *)&context_num,
-                                           (unsigned int)sizeof context_num);
+                                           (unsigned int)sizeof(context_num));
         if (!r)
             goto err;
 
@@ -762,7 +762,7 @@ SSL_CTX *tls_create_ctx(struct tls_create_ctx_args a, void *apparg)
         if (tls_dhe1024 == NULL) {
             int i;
 
-            if (RAND_bytes((unsigned char *)&i, sizeof i) <= 0)
+            if (RAND_bytes((unsigned char *)&i, sizeof(i)) <= 0)
                 goto err_return;
             /*
              * make sure that i is non-negative -- pick one of the provided
@@ -955,11 +955,11 @@ static void write_info(SSL *ssl, int *info_fd)
             /* should not happen, but make sure */
             *strchr(peer.str, '\n') = '\0';
         }
-        r = snprintf(infobuf, sizeof infobuf, "%c:%s\n%s\n", v_ok,
+        r = snprintf(infobuf, sizeof(infobuf), "%c:%s\n%s\n", v_ok,
                      X509_verify_cert_error_string(v), peer.str);
         DEBUG_MSG2("snprintf", r);
-        if (r == -1 || r >= sizeof infobuf)
-            r = sizeof infobuf - 1;
+        if (r == -1 || r >= sizeof(infobuf))
+            r = sizeof(infobuf) - 1;
         write(*info_fd, infobuf, r);
         close(*info_fd);
         *info_fd = -1;
@@ -1082,7 +1082,7 @@ tls_proxy(int clear_fd, int tls_fd, int info_fd, SSL_CTX *ctx, int client_p)
 
         if (!closed) {
             if (clear_to_tls.offset + clear_to_tls.len <
-                sizeof clear_to_tls.buf) {
+                sizeof(clear_to_tls.buf)) {
                 r = read_attempt(clear_fd, &clear_to_tls, &clear_read_select,
                                  &closed, &progress);
                 if (r != 0)
@@ -1096,7 +1096,7 @@ tls_proxy(int clear_fd, int tls_fd, int info_fd, SSL_CTX *ctx, int client_p)
 
         if (!closed && !in_handshake) {
             if (tls_to_clear.offset + tls_to_clear.len <
-                sizeof tls_to_clear.buf) {
+                sizeof(tls_to_clear.buf)) {
                 r = tls_read_attempt(ssl, &tls_to_clear, &tls_write_select,
                                      &tls_read_select, &closed, &progress,
                                      &err_pref_1);
@@ -1231,13 +1231,13 @@ tls_read_attempt(SSL *ssl, struct tunnelbuf *buf, int *write_select,
 
     DEBUG_MSG("tls_read_attempt");
     total = buf->offset + buf->len;
-    assert(total < sizeof buf->buf);
-    n = SSL_read(ssl, buf->buf + total, (sizeof buf->buf) - total);
+    assert(total < sizeof(buf->buf));
+    n = SSL_read(ssl, buf->buf + total, sizeof(buf->buf) - total);
     DEBUG_MSG2("SSL_read", n);
     r = tls_get_error(ssl, n, write_select, read_select, closed, progress);
     if (n > 0) {
         buf->len += n;
-        assert(buf->offset + buf->len <= sizeof buf->buf);
+        assert(buf->offset + buf->len <= sizeof(buf->buf));
     }
     if (r == -1)
         *err_pref = " during SSL_read";
@@ -1297,13 +1297,13 @@ read_attempt(int fd, struct tunnelbuf *buf, int *select, int *closed,
 
     DEBUG_MSG("read_attempt");
     total = buf->offset + buf->len;
-    assert(total < sizeof buf->buf);
-    n = read(fd, buf->buf + total, (sizeof buf->buf) - total);
+    assert(total < sizeof(buf->buf));
+    n = read(fd, buf->buf + total, sizeof(buf->buf) - total);
     DEBUG_MSG2("read", n);
     r = get_error(n, select, closed, progress);
     if (n > 0) {
         buf->len += n;
-        assert(buf->offset + buf->len <= sizeof buf->buf);
+        assert(buf->offset + buf->len <= sizeof(buf->buf));
     }
     if (r == -1)
         tls_errprintf(1, tls_child_apparg, "read error: %s\n",

@@ -168,14 +168,23 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ## files
 
-The "files" field is an array of files to include in your project.  If
-you name a folder in the array, then it will also include the files
-inside that folder. (Unless they would be ignored by another rule.)
+The optional "files" field is an array of file patterns that describes
+the entries to be included when your package is installed as a
+dependency. If the files array is omitted, everything except
+automatically-excluded files will be included in your publish. If you
+name a folder in the array, then it will also include the files inside
+that folder (unless they would be ignored by another rule in this
+section.).
 
-You can also provide a ".npmignore" file in the root of your package or
-in subdirectories, which will keep files from being included, even
-if they would be picked up by the files array.  The `.npmignore` file
-works just like a `.gitignore`.
+You can also provide a `.npmignore` file in the root of your package or
+in subdirectories, which will keep files from being included. At the
+root of your package it will not override the "files" field, but in
+subdirectories it will. The `.npmignore` file works just like a
+`.gitignore`. If there is a `.gitignore` file, and `.npmignore` is
+missing, `.gitignore`'s contents will be used instead.
+
+Files included with the "package.json#files" field _cannot_ be excluded
+through `.npmignore` or `.gitignore`.
 
 Certain files are always included, regardless of settings:
 
@@ -364,11 +373,13 @@ shortcut syntax you use for `npm install`:
 
     "repository": "npm/npm"
 
+    "repository": "github:user/repo"
+
     "repository": "gist:11081aaa281"
 
-    "repository": "bitbucket:example/repo"
+    "repository": "bitbucket:user/repo"
 
-    "repository": "gitlab:another/repo"
+    "repository": "gitlab:user/repo"
 
 ## scripts
 
@@ -609,7 +620,7 @@ If we define a package.json like this:
   "name": "awesome-web-framework",
   "version": "1.0.0",
   "bundledDependencies": [
-    'renderized', 'super-streams'
+    "renderized", "super-streams"
   ]
 }
 ```
@@ -669,7 +680,7 @@ are capable of properly installing your program.  For example:
     { "engines" : { "npm" : "~1.0.20" } }
 
 Unless the user has set the `engine-strict` config flag, this
-field is advisory only will produce warnings when your package is installed as a dependency.
+field is advisory only and will only produce warnings when your package is installed as a dependency.
 
 ## engineStrict
 

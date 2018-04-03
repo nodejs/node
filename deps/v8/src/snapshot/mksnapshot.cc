@@ -15,11 +15,10 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-using namespace v8;
-
 class SnapshotWriter {
  public:
-  SnapshotWriter() : snapshot_cpp_path_(NULL), snapshot_blob_path_(NULL) {}
+  SnapshotWriter()
+      : snapshot_cpp_path_(nullptr), snapshot_blob_path_(nullptr) {}
 
   void SetSnapshotFile(const char* snapshot_cpp_file) {
     snapshot_cpp_path_ = snapshot_cpp_file;
@@ -95,7 +94,7 @@ class SnapshotWriter {
   static void WriteSnapshotData(FILE* fp,
                                 const i::Vector<const i::byte>& blob) {
     for (int i = 0; i < blob.length(); i++) {
-      if ((i & 0x1f) == 0x1f) fprintf(fp, "\n");
+      if ((i & 0x1F) == 0x1F) fprintf(fp, "\n");
       if (i > 0) fprintf(fp, ",");
       fprintf(fp, "%u", static_cast<unsigned char>(blob.at(i)));
     }
@@ -103,8 +102,8 @@ class SnapshotWriter {
   }
 
   static FILE* GetFileDescriptorOrDie(const char* filename) {
-    FILE* fp = base::OS::FOpen(filename, "wb");
-    if (fp == NULL) {
+    FILE* fp = v8::base::OS::FOpen(filename, "wb");
+    if (fp == nullptr) {
       i::PrintF("Unable to open file \"%s\" for writing.\n", filename);
       exit(1);
     }
@@ -116,10 +115,10 @@ class SnapshotWriter {
 };
 
 char* GetExtraCode(char* filename, const char* description) {
-  if (filename == NULL || strlen(filename) == 0) return NULL;
+  if (filename == nullptr || strlen(filename) == 0) return nullptr;
   ::printf("Loading script for %s: %s\n", description, filename);
-  FILE* file = base::OS::FOpen(filename, "rb");
-  if (file == NULL) {
+  FILE* file = v8::base::OS::FOpen(filename, "rb");
+  if (file == nullptr) {
     fprintf(stderr, "Failed to open '%s': errno %d\n", filename, errno);
     exit(1);
   }
@@ -156,9 +155,9 @@ int main(int argc, char** argv) {
   }
 
   i::CpuFeatures::Probe(true);
-  V8::InitializeICUDefaultLocation(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+  v8::V8::InitializePlatform(platform.get());
   v8::V8::Initialize();
 
   {
@@ -166,13 +165,15 @@ int main(int argc, char** argv) {
     if (i::FLAG_startup_src) writer.SetSnapshotFile(i::FLAG_startup_src);
     if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
 
-    char* embed_script = GetExtraCode(argc >= 2 ? argv[1] : NULL, "embedding");
-    StartupData blob = v8::V8::CreateSnapshotDataBlob(embed_script);
+    char* embed_script =
+        GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding");
+    v8::StartupData blob = v8::V8::CreateSnapshotDataBlob(embed_script);
     delete[] embed_script;
 
-    char* warmup_script = GetExtraCode(argc >= 3 ? argv[2] : NULL, "warm up");
+    char* warmup_script =
+        GetExtraCode(argc >= 3 ? argv[2] : nullptr, "warm up");
     if (warmup_script) {
-      StartupData cold = blob;
+      v8::StartupData cold = blob;
       blob = v8::V8::WarmUpSnapshotDataBlob(cold, warmup_script);
       delete[] cold.data;
       delete[] warmup_script;
@@ -183,8 +184,7 @@ int main(int argc, char** argv) {
     delete[] blob.data;
   }
 
-  V8::Dispose();
-  V8::ShutdownPlatform();
-  delete platform;
+  v8::V8::Dispose();
+  v8::V8::ShutdownPlatform();
   return 0;
 }

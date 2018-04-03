@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-req,
 req - PKCS#10 certificate request and certificate generating utility.
 
 =head1 SYNOPSIS

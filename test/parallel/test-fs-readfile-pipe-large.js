@@ -18,9 +18,11 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-const filename = path.join(common.tmpDir, '/readfile_pipe_large_test.txt');
+const tmpdir = require('../common/tmpdir');
+
+const filename = path.join(tmpdir.path, '/readfile_pipe_large_test.txt');
 const dataExpected = 'a'.repeat(999999);
-common.refreshTmpDir();
+tmpdir.refresh();
 fs.writeFileSync(filename, dataExpected);
 
 const exec = require('child_process').exec;
@@ -29,8 +31,16 @@ const node = JSON.stringify(process.execPath);
 const cmd = `cat ${filename} | ${node} ${f} child`;
 exec(cmd, { maxBuffer: 1000000 }, function(err, stdout, stderr) {
   assert.ifError(err);
-  assert.strictEqual(stdout, dataExpected, 'it reads the file and outputs it');
-  assert.strictEqual(stderr, '', 'it does not write to stderr');
+  assert.strictEqual(
+    stdout,
+    dataExpected,
+    `expect it reads the file and outputs 999999 'a' but got : ${stdout}`
+  );
+  assert.strictEqual(
+    stderr,
+    '',
+    `expect that it does not write to stderr, but got : ${stderr}`
+  );
   console.log('ok');
 });
 

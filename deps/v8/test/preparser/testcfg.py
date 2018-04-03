@@ -32,23 +32,22 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-class PreparserTestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(PreparserTestSuite, self).__init__(name, root)
+class VariantsGenerator(testsuite.VariantsGenerator):
+  def _get_variants(self, test):
+    return self._standard_variant
 
-  def shell(self):
-    return "d8"
 
+class TestSuite(testsuite.TestSuite):
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
-    def Test(name, source, expectation, extra_flags=[]):
+    def Test(name, source, expectation):
       source = source.replace("\n", " ")
-      testname = os.path.join(filename, name)
-      flags = ["-e", source]
+      path = os.path.join(filename, name)
       if expectation:
-        flags += ["--throws"]
-      flags += extra_flags
-      test = testcase.TestCase(self, testname, flags=flags)
+        template_flags = ["--throws"]
+      else:
+        template_flags = []
+      test = self._create_test(path, source, template_flags)
       result.append(test)
     def Template(name, source):
       def MkTest(replacement, expectation):
@@ -71,16 +70,48 @@ class PreparserTestSuite(testsuite.TestSuite):
       self._ParsePythonTestTemplates(result, f)
     return result
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return testcase.flags
+  def _create_test(self, path, source, template_flags):
+    return super(TestSuite, self)._create_test(
+        path, source=source, template_flags=template_flags)
 
-  def GetSourceForTest(self, testcase):
-    assert testcase.flags[0] == "-e"
-    return testcase.flags[1]
+  def _test_class(self):
+    return TestCase
 
-  def _VariantGeneratorFactory(self):
-    return testsuite.StandardVariantGenerator
+  def _LegacyVariantsGeneratorFactory(self):
+    return testsuite.StandardLegacyVariantsGenerator
+
+  def _variants_gen_class(self):
+    return VariantsGenerator
+
+
+class TestCase(testcase.TestCase):
+  def __init__(self, suite, path, name, source, template_flags):
+    super(TestCase, self).__init__(suite, path, name)
+
+    self._source = source
+    self._template_flags = template_flags
+
+  def _get_cmd_params(self, ctx):
+    return (
+        self._get_files_params(ctx) +
+        self._get_extra_flags(ctx) +
+        ['-e', self._source] +
+        self._template_flags +
+        self._get_variant_flags() +
+        self._get_statusfile_flags() +
+        self._get_mode_flags(ctx) +
+        self._get_source_flags()
+    )
+
+  def _get_mode_flags(self, ctx):
+    return []
+
+  def is_source_available(self):
+    return True
+
+  def get_source(self):
+    return self._source
 
 
 def GetSuite(name, root):
-  return PreparserTestSuite(name, root)
+  return TestSuite(name, root)

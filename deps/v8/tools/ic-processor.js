@@ -156,94 +156,24 @@ IcProcessor.prototype.processPropertyIC = function (
   var entry = this.profile_.findEntry(pc);
   print(type + " (" + old_state + "->" + new_state + modifier + ") at " +
         this.formatName(entry) + ":" + line + ":" + column + " " + name +
-        " (map 0x" + map.toString(16) + ")");
+        " (map 0x" + map.toString(16) + ")" +
+        (slow_reason ? " " + slow_reason : ""));
 }
 
-function padLeft(s, len) {
-  s = s.toString();
-  if (s.length < len) {
-    var padLength = len - s.length;
-    if (!(padLength in padLeft)) {
-      padLeft[padLength] = new Array(padLength + 1).join(' ');
-    }
-    s = padLeft[padLength] + s;
+
+class ArgumentsProcessor extends BaseArgumentsProcessor {
+  getArgsDispatch() {
+    return {
+      '--range': ['range', 'auto,auto',
+          'Specify the range limit as [start],[end]'],
+      '--source-map': ['sourceMap', null,
+          'Specify the source map that should be used for output']
+    };
   }
-  return s;
-};
-
-
-function ArgumentsProcessor(args) {
-  this.args_ = args;
-  this.result_ = ArgumentsProcessor.DEFAULTS;
-
-  this.argsDispatch_ = {
-    '--range': ['range', 'auto,auto',
-        'Specify the range limit as [start],[end]'],
-    '--source-map': ['sourceMap', null,
-        'Specify the source map that should be used for output']
-  };
-};
-
-
-ArgumentsProcessor.DEFAULTS = {
-  logFileName: 'v8.log',
-  range: 'auto,auto',
-};
-
-
-ArgumentsProcessor.prototype.parse = function() {
-  while (this.args_.length) {
-    var arg = this.args_.shift();
-    if (arg.charAt(0) != '-') {
-      this.result_.logFileName = arg;
-      continue;
-    }
-    var userValue = null;
-    var eqPos = arg.indexOf('=');
-    if (eqPos != -1) {
-      userValue = arg.substr(eqPos + 1);
-      arg = arg.substr(0, eqPos);
-    }
-    if (arg in this.argsDispatch_) {
-      var dispatch = this.argsDispatch_[arg];
-      this.result_[dispatch[0]] = userValue == null ? dispatch[1] : userValue;
-    } else {
-      return false;
-    }
+  getDefaultResults() {
+   return {
+      logFileName: 'v8.log',
+      range: 'auto,auto',
+    };
   }
-  return true;
-};
-
-
-ArgumentsProcessor.prototype.result = function() {
-  return this.result_;
-};
-
-
-ArgumentsProcessor.prototype.printUsageAndExit = function() {
-
-  function padRight(s, len) {
-    s = s.toString();
-    if (s.length < len) {
-      s = s + (new Array(len - s.length + 1).join(' '));
-    }
-    return s;
-  }
-
-  print('Cmdline args: [options] [log-file-name]\n' +
-        'Default log file name is "' +
-        ArgumentsProcessor.DEFAULTS.logFileName + '".\n');
-  print('Options:');
-  for (var arg in this.argsDispatch_) {
-    var synonyms = [arg];
-    var dispatch = this.argsDispatch_[arg];
-    for (var synArg in this.argsDispatch_) {
-      if (arg !== synArg && dispatch === this.argsDispatch_[synArg]) {
-        synonyms.push(synArg);
-        delete this.argsDispatch_[synArg];
-      }
-    }
-    print('  ' + padRight(synonyms.join(', '), 20) + " " + dispatch[2]);
-  }
-  quit(2);
-};
+}

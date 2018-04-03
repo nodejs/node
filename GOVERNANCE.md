@@ -4,27 +4,30 @@ The Node.js project is governed by its Collaborators, including a Technical
 Steering Committee (TSC) which is responsible for high-level guidance of the
 project.
 
+<!-- TOC -->
+
+- [Collaborators](#collaborators)
+  - [Collaborator Activities](#collaborator-activities)
+- [Technical Steering Committee](#technical-steering-committee)
+  - [TSC Meetings](#tsc-meetings)
+- [Collaborator Nominations](#collaborator-nominations)
+  - [Onboarding](#onboarding)
+- [Consensus Seeking Process](#consensus-seeking-process)
+
+<!-- /TOC -->
+
 ## Collaborators
 
-The [nodejs/node](https://github.com/nodejs/node) GitHub repository is
-maintained by Collaborators who are added by the TSC on an ongoing basis.
+The [nodejs/node][] GitHub repository is maintained by Node.js Core
+Collaborators. Upon becoming Collaborators, they:
 
-Individuals identified by the TSC as making significant and valuable
-contributions across any Node.js repository may be made Collaborators and given
-commit access to the project. Activities taken into consideration include (but
-are not limited to) the quality of:
+* Become members of the @nodejs/collaborators team
+* Gain individual membership of the Node.js foundation
 
-* code commits and pull requests
-* documentation commits and pull requests
-* comments on issues and pull requests
-* contributions to the Node.js website
-* assistance provided to end users and novice contributors
-* participation in Working Groups
-* other participation in the wider Node.js community
+Their privileges include but are not limited to:
 
-If individuals making valuable contributions do not believe they have been
-considered for commit access, they may log an issue or contact a TSC member
-directly.
+* Commit access to the [nodejs/node][] repository
+* Access to the Node.js continuous integration (CI) jobs
 
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
@@ -35,7 +38,7 @@ responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
 for sign-off.
 
-If one or more Collaborators oppose a proposed change, then the change can not
+If one or more Collaborators oppose a proposed change, then the change cannot
 be accepted unless:
 
 * Discussions and/or additional changes result in no Collaborators objecting to
@@ -49,6 +52,8 @@ Collaborators may opt to elevate significant or controversial modifications to
 the TSC by assigning the `tsc-review` label to a pull request or issue. The
 TSC should serve as the final arbiter where required.
 
+See:
+
 * [Current list of Collaborators](./README.md#current-project-team-members)
 * [A guide for Collaborators](./COLLABORATOR_GUIDE.md)
 
@@ -56,11 +61,11 @@ TSC should serve as the final arbiter where required.
 
 Typical activities of a Collaborator include:
 
-* helping users and novice contributors
-* contributing code and documentation changes that improve the project
-* reviewing and commenting on issues and pull requests
-* participation in working groups
-* merging pull requests
+* Helping users and novice contributors
+* Contributing code and documentation changes that improve the project
+* Reviewing and commenting on issues and pull requests
+* Participation in working groups
+* Merging pull requests
 
 The TSC periodically reviews the Collaborator list to identify inactive
 Collaborators. Past Collaborators are typically given _Emeritus_ status. Emeriti
@@ -68,8 +73,8 @@ may request that the TSC restore them to active status.
 
 ## Technical Steering Committee
 
-The Technical Steering Committee (TSC) has final authority over this project
-including:
+A subset of the Collaborators forms the Technical Steering Committee (TSC).
+The TSC has final authority over this project, including:
 
 * Technical direction
 * Project governance and process (including this policy)
@@ -78,7 +83,8 @@ including:
 * Conduct guidelines
 * Maintaining the list of additional Collaborators
 
-* [Current list of TSC members](./README.md#current-project-team-members)
+The current list of TSC members can be found in
+[the project README](./README.md#current-project-team-members).
 
 The operations of the TSC are governed by the [TSC Charter][] as approved by
 the Node.js Foundation Board of Directors.
@@ -128,10 +134,70 @@ the issue tracker is:
   either the proposal is dropped or the objecting members are persuaded. If
   there is an extended impasse, a motion for a vote may be made.
 
+## Collaborator Nominations
+
+Any existing Collaborator can nominate an individual making significant
+and valuable contributions across the Node.js organization to become a new
+Collaborator.
+
+To nominate a new Collaborator, open an issue in the [nodejs/node][]
+repository, with a summary of the nominee's contributions, for example:
+
+* Commits in the [nodejs/node][] repository.
+  * Can be shown using the link
+    `https://github.com/nodejs/node/commits?author=${GITHUB_ID}`
+    (replace `${GITHUB_ID}` with the nominee's GitHub ID).
+* Pull requests and issues opened in the [nodejs/node][] repository.
+  * Can be shown using the link
+    `https://github.com/nodejs/node/pulls?q=author%3A${GITHUB_ID}+`
+* Comments and reviews on issues and pull requests in the
+  [nodejs/node][] repository
+  * Can be shown using the links
+    `https://github.com/nodejs/node/pulls?q=reviewed-by%3A${GITHUB_ID}+`
+    and `https://github.com/nodejs/node/pulls?q=commenter%3A${GITHUB_ID}+`
+* Assistance provided to end users and novice contributors
+* Participation in other projects, teams, and working groups of the
+  Node.js organization
+  * Can be shown using the links
+  `https://github.com/search?q=author%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
+    and
+`https://github.com/search?q=commenter%3A${GITHUB_ID}++org%3Anodejs&type=Issues`
+* Other participation in the wider Node.js community
+
+Mention @nodejs/collaborators in the issue to notify other Collaborators about
+the nomination.
+
+If there are no objections raised by any Collaborators one week after
+the issue is opened, the nomination will be considered as accepted.
+Should there be any objections against the nomination, the TSC is responsible
+for working with the individuals involved and finding a resolution.
+The nomination must be approved by the TSC, which is assumed when there are no
+objections from any TSC members.
+
+Prior to the public nomination, the Collaborator initiating it can seek
+feedback from other Collaborators in private using
+[the GitHub discussion page][collaborators-discussions] of the
+Collaborators team, and work with the nominee to improve the nominee's
+contribution profile, in order to make the nomination as frictionless
+as possible.
+
+If individuals making valuable contributions do not believe they have been
+considered for a nomination, they may log an issue or contact a Collaborator
+directly.
+
+### Onboarding
+
+When the nomination is accepted, the new Collaborator will be onboarded
+by a TSC member. See [the onboarding guide](./doc/onboarding.md) on
+details of the onboarding process. In general, the onboarding should be
+completed within a month after the nomination is accepted.
+
 ## Consensus Seeking Process
 
 The TSC follows a [Consensus Seeking][] decision making model as described by
 the [TSC Charter][].
 
+[collaborators-discussions]: https://github.com/orgs/nodejs/teams/collaborators/discussions
+[Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/master/TSC-Charter.md
-[Consensus Seeking]: http://en.wikipedia.org/wiki/Consensus-seeking_decision-making
+[nodejs/node]: https://github.com/nodejs/node

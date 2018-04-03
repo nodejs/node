@@ -134,7 +134,7 @@ dh_gen.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
 dh_gen.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 dh_gen.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 dh_gen.o: ../cryptlib.h dh_gen.c
-dh_kdf.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
+dh_kdf.o: ../../e_os.h ../../include/openssl/asn1.h ../../include/openssl/bio.h
 dh_kdf.o: ../../include/openssl/buffer.h ../../include/openssl/cms.h
 dh_kdf.o: ../../include/openssl/crypto.h ../../include/openssl/dh.h
 dh_kdf.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h

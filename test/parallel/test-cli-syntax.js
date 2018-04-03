@@ -13,7 +13,9 @@ const syntaxArgs = [
   ['--check']
 ];
 
-const syntaxErrorRE = /^SyntaxError: Unexpected identifier$/m;
+// Match on the name of the `Error` but not the message as it is different
+// depending on the JavaScript engine.
+const syntaxErrorRE = /^SyntaxError: \b/m;
 const notFoundRE = /^Error: Cannot find module/m;
 
 // test good syntax with and without shebang

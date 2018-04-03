@@ -39,11 +39,11 @@ const mod = {
   setUint32: UINT32
 };
 
-function main(conf) {
-  const len = +conf.millions * 1e6;
+function main({ millions, type }) {
+  type = type || 'Uint8';
+  const len = millions * 1e6;
   const ab = new ArrayBuffer(8);
   const dv = new DataView(ab, 0, 8);
-  const type = conf.type || 'Uint8';
   const le = /LE$/.test(type);
   const fn = `set${type.replace(/[LB]E$/, '')}`;
 

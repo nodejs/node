@@ -60,6 +60,21 @@ struct CodeProtectionInfoListEntry {
 extern size_t gNumCodeObjects;
 extern CodeProtectionInfoListEntry* gCodeObjects;
 
+extern std::atomic_size_t gRecoveredTrapCount;
+
+// Searches the fault location table for an entry matching fault_addr. If found,
+// returns true and sets landing_pad to the address of a fragment of code that
+// can recover from this fault. Otherwise, returns false and leaves offset
+// unchanged.
+bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad);
+
+#if V8_TRAP_HANDLER_SUPPORTED
+// When using the default signal handler, we save the old one to restore in case
+// V8 chooses not to handle the signal.
+extern struct sigaction g_old_handler;
+extern bool g_is_default_signal_handler_registered;
+#endif
+
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8

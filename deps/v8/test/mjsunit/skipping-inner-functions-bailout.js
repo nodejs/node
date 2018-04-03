@@ -76,3 +76,9 @@ function TestMultiBailout3() {
   function not_skippable_either() {}
 }
 TestMultiBailout3();
+
+// Regression test for
+// https://bugs.chromium.org/p/chromium/issues/detail?id=761980. The conditions
+// triggering a bailout occur in a context where we're not generating data
+// anyway (inside an arrow function). (This needs to be at top level.)
+x => { (y=eval()) => {} }

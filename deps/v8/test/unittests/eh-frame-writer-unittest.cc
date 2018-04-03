@@ -5,11 +5,12 @@
 #include "src/eh-frame.h"
 #include "test/unittests/test-utils.h"
 
+namespace v8 {
+namespace internal {
+
 // Test enabled only on supported architectures.
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) || \
     defined(V8_TARGET_ARCH_ARM64)
-
-using namespace v8::internal;
 
 namespace {
 
@@ -46,7 +47,7 @@ TEST_F(EhFrameWriterTest, Alignment) {
 }
 
 TEST_F(EhFrameWriterTest, FDEHeader) {
-  static const int kProcedureSize = 0x5678abcd;
+  static const int kProcedureSize = 0x5678ABCD;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -75,7 +76,7 @@ TEST_F(EhFrameWriterTest, FDEHeader) {
 }
 
 TEST_F(EhFrameWriterTest, SetOffset) {
-  static const uint32_t kOffset = 0x0badc0de;
+  static const uint32_t kOffset = 0x0BADC0DE;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -131,7 +132,7 @@ TEST_F(EhFrameWriterTest, SetRegister) {
 
 TEST_F(EhFrameWriterTest, SetRegisterAndOffset) {
   Register test_register = Register::from_code(kTestRegisterCode);
-  static const uint32_t kOffset = 0x0badc0de;
+  static const uint32_t kOffset = 0x0BADC0DE;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -198,7 +199,7 @@ TEST_F(EhFrameWriterTest, PcOffsetEncoding8bit) {
 TEST_F(EhFrameWriterTest, PcOffsetEncoding8bitDelta) {
   static const int kFirstOffset = 0x10;
   static const int kSecondOffset = 0x70;
-  static const int kThirdOffset = 0xb5;
+  static const int kThirdOffset = 0xB5;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -467,3 +468,6 @@ TEST_F(EhFrameWriterTest, EhFrameHdrLayout) {
 }
 
 #endif
+
+}  // namespace internal
+}  // namespace v8

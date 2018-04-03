@@ -70,8 +70,9 @@ BN_bn2bin() returns the length of the big-endian number placed at B<to>.
 BN_bin2bn() returns the B<BIGNUM>, NULL on error.
 
 BN_bn2hex() and BN_bn2dec() return a null-terminated string, or NULL
-on error. BN_hex2bn() and BN_dec2bn() return the number's length in
-hexadecimal or decimal digits, and 0 on error.
+on error. BN_hex2bn() and BN_dec2bn() return the number of characters
+used in parsing, or 0 on error, in which
+case no new B<BIGNUM> will be created.
 
 BN_print_fp() and BN_print() return 1 on success, 0 on write errors.
 

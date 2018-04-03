@@ -28,7 +28,7 @@ const values = [
   for (const value of values) {
     // Test and `async function`
     async function asyncFn() {
-      return await Promise.resolve(value);
+      return value;
     }
 
     const cbAsyncFn = callbackify(asyncFn);
@@ -70,7 +70,7 @@ const values = [
   for (const value of values) {
     // Test an `async function`
     async function asyncFn() {
-      return await Promise.reject(value);
+      return Promise.reject(value);
     }
 
     const cbAsyncFn = callbackify(asyncFn);
@@ -142,7 +142,7 @@ const values = [
   for (const value of values) {
     async function asyncFn(arg) {
       assert.strictEqual(arg, value);
-      return await Promise.resolve(arg);
+      return arg;
     }
 
     const cbAsyncFn = callbackify(asyncFn);
@@ -183,7 +183,7 @@ const values = [
     const iAmThat = {
       async fn(arg) {
         assert.strictEqual(this, iAmThat);
-        return await Promise.resolve(arg);
+        return arg;
       },
     };
     iAmThat.cbFn = callbackify(iAmThat.fn);
@@ -220,7 +220,9 @@ const values = [
     [fixture],
     common.mustCall((err, stdout, stderr) => {
       assert.ifError(err);
-      assert.strictEqual(stdout.trim(), fixture);
+      assert.strictEqual(
+        stdout.trim(),
+        `ifError got unwanted exception: ${fixture}`);
       assert.strictEqual(stderr, '');
     })
   );
@@ -229,19 +231,20 @@ const values = [
 {
   // Verify that non-function inputs throw.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       callbackify(value);
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "original" argument must be of type function'
-    }));
+      message: 'The "original" argument must be of type Function. ' +
+               `Received type ${typeof value}`
+    });
   });
 }
 
 {
   async function asyncFn() {
-    return await Promise.resolve(42);
+    return 42;
   }
 
   const cb = callbackify(asyncFn);
@@ -250,12 +253,13 @@ const values = [
   // Verify that the last argument to the callbackified function is a function.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
     args.push(value);
-    assert.throws(() => {
+    common.expectsError(() => {
       cb(...args);
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The last argument must be of type function'
-    }));
+      message: 'The last argument must be of type Function. ' +
+               `Received type ${typeof value}`
+    });
   });
 }

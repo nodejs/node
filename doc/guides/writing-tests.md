@@ -18,6 +18,13 @@ Add tests when:
 - Fixing regressions and bugs.
 - Expanding test coverage.
 
+## Test directory structure
+
+See [directory structure overview][] for outline of existing test & locations.
+When deciding on whether to expand an existing test file or create a new one,
+consider going through the files related to the subsystem.
+For example, look for `test-streams` when writing a test for `lib/streams.js`.
+
 ## Test structure
 
 Let's analyze this basic test from the Node.js test suite:
@@ -25,39 +32,44 @@ Let's analyze this basic test from the Node.js test suite:
 ```javascript
 'use strict';                                                          // 1
 const common = require('../common');                                   // 2
+const fixtures = require('../common/fixtures');                        // 3
 
-// This test ensures that the http-parser can handle UTF-8 characters  // 4
-// in the http header.                                                 // 5
+// This test ensures that the http-parser can handle UTF-8 characters  // 5
+// in the http header.                                                 // 6
 
-const assert = require('assert');                                      // 7
-const http = require('http');                                          // 8
+const assert = require('assert');                                      // 8
+const http = require('http');                                          // 9
 
-const server = http.createServer(common.mustCall((req, res) => {       // 10
-  res.end('ok');                                                       // 11
-}));                                                                   // 12
-server.listen(0, () => {                                               // 13
-  http.get({                                                           // 14
-    port: server.address().port,                                       // 15
-    headers: { 'Test': 'Düsseldorf' }                                  // 16
-  }, common.mustCall((res) => {                                        // 17
-    assert.strictEqual(res.statusCode, 200);                           // 18
-    server.close();                                                    // 19
-  }));                                                                 // 20
-});                                                                    // 21
+const server = http.createServer(common.mustCall((req, res) => {       // 11
+  res.end('ok');                                                       // 12
+}));                                                                   // 13
+server.listen(0, () => {                                               // 14
+  http.get({                                                           // 15
+    port: server.address().port,                                       // 16
+    headers: { 'Test': 'Düsseldorf' }                                  // 17
+  }, common.mustCall((res) => {                                        // 18
+    assert.strictEqual(res.statusCode, 200);                           // 19
+    server.close();                                                    // 20
+  }));                                                                 // 21
+});                                                                    // 22
+// ...                                                                 // 23
 ```
 
-### **Lines 1-2**
+### **Lines 1-3**
 
 ```javascript
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 ```
 
 The first line enables strict mode. All tests should be in strict mode unless
 the nature of the test requires that the test run without it.
 
 The second line loads the `common` module. The [`common` module][] is a helper
-module that provides useful tools for the tests.
+module that provides useful tools for the tests. Some common functionality has
+been extracted into submodules, which are required separately like the fixtures
+module here.
 
 Even if a test uses no functions or other properties exported by `common`,
 the test should still include the `common` module before any other modules. This
@@ -70,7 +82,7 @@ assigning it to an identifier:
 require('../common');
 ```
 
-### **Lines 4-5**
+### **Lines 5-6**
 
 ```javascript
 // This test ensures that the http-parser can handle UTF-8 characters
@@ -80,7 +92,7 @@ require('../common');
 A test should start with a comment containing a brief description of what it is
 designed to test.
 
-### **Lines 7-8**
+### **Lines 8-9**
 
 ```javascript
 const assert = require('assert');
@@ -95,7 +107,7 @@ The require statements are sorted in
 [ASCII][] order (digits, upper
 case, `_`, lower case).
 
-### **Lines 10-21**
+### **Lines 11-22**
 
 This is the body of the test. This test is simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
@@ -122,7 +134,7 @@ explanation go [here](https://github.com/nodejs/testing/issues/27).
 
 In the event a test needs a timer, consider using the
 `common.platformTimeout()` method. It allows setting specific timeouts
-depending on the platform. For example:
+depending on the platform:
 
 ```javascript
 const timer = setTimeout(fail, common.platformTimeout(4000));
@@ -133,11 +145,15 @@ platforms.
 
 ### The *common* API
 
-Make use of the helpers from the `common` module as much as possible.
+Make use of the helpers from the `common` module as much as possible. Please
+refer to the [common file documentation](https://github.com/nodejs/node/tree/master/test/common)
+for the full details of the helpers.
+
+#### common.mustCall
 
 One interesting case is `common.mustCall`. The use of `common.mustCall` may
-avoid the use of extra variables and the corresponding assertions. Let's explain
-this with a real test from the test suite.
+avoid the use of extra variables and the corresponding assertions. Let's
+explain this with a real test from the test suite.
 
 ```javascript
 'use strict';
@@ -189,6 +205,24 @@ const server = http.createServer(common.mustCall(function(req, res) {
 });
 
 ```
+#### Countdown Module
+
+The common [Countdown module](https://github.com/nodejs/node/tree/master/test/common#countdown-module)
+provides a simple countdown mechanism for tests that require a particular
+action to be taken after a given number of completed tasks (for instance,
+shutting down an HTTP server after a specific number of requests).
+
+```javascript
+const Countdown = require('../common/countdown');
+
+const countdown = new Countdown(2, function() {
+  console.log('.');
+});
+
+countdown.dec();
+countdown.dec(); // The countdown callback will be invoked now.
+```
+
 
 ### Flags
 
@@ -212,8 +246,8 @@ const freelist = require('internal/freelist');
 
 When writing assertions, prefer the strict versions:
 
-* `assert.strictEqual()` over `assert.equal()`
-* `assert.deepStrictEqual()` over `assert.deepEqual()`
+- `assert.strictEqual()` over `assert.equal()`
+- `assert.deepStrictEqual()` over `assert.deepEqual()`
 
 When using `assert.throws()`, if possible, provide the full error message:
 
@@ -233,13 +267,11 @@ features in JavaScript code in the `lib` directory. However, when writing
 tests, for the ease of backporting, it is encouraged to use those ES.Next
 features that can be used directly without a flag in
 [all maintained branches][]. [node.green][] lists available features
-in each release.
+in each release, such as:
 
-For example:
-
-* `let` and `const` over `var`
-* Template literals over string concatenation
-* Arrow functions when appropriate
+- `let` and `const` over `var`
+- Template literals over string concatenation
+- Arrow functions when appropriate
 
 ## Naming Test Files
 
@@ -280,12 +312,14 @@ the upstream project, send another PR here to update Node.js accordingly.
 Be sure to update the hash in the URL following `WPT Refs:`.
 
 ## C++ Unit test
+
 C++ code can be tested using [Google Test][]. Most features in Node.js can be
 tested using the methods described previously in this document. But there are
 cases where these might not be enough, for example writing code for Node.js
 that will only be called when Node.js is embedded.
 
 ### Adding a new test
+
 The unit test should be placed in `test/cctest` and be named with the prefix
 `test` followed by the name of unit being tested. For example, the code below
 would be placed in `test/cctest/test_env.cc`:
@@ -307,8 +341,8 @@ TEST_F(EnvTest, RunAtExit) {
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
   node::IsolateData* isolateData = node::CreateIsolateData(isolate_, uv_default_loop());
   Argv argv{"node", "-e", ";"};
-  auto env = Environment:CreateEnvironment(isolateData, context, 1, *argv, 2, *argv);
-  node::AtExit(at_exit_callback);
+  auto env = node::CreateEnvironment(isolateData, context, 1, *argv, 2, *argv);
+  node::AtExit(env, at_exit_callback);
   node::RunAtExit(env);
   EXPECT_TRUE(called_cb);
 }
@@ -319,18 +353,26 @@ static void at_exit_callback(void* arg) {
 ```
 
 Next add the test to the `sources` in the `cctest` target in node.gyp:
+
 ```console
 'sources': [
   'test/cctest/test_env.cc',
   ...
 ],
 ```
+
+Note that the only sources that should be included in the cctest target are
+actual test or helper source files. There might be a need to include specific
+object files that are compiled by the `node` target and this can be done by
+adding them to the `libraries` section in the cctest target.
+
 The test can be executed by running the `cctest` target:
+
 ```console
 $ make cctest
 ```
 
-### Node test fixture
+### Node.js test fixture
 There is a [test fixture][] named `node_test_fixture.h` which can be included by
 unit tests. The fixture takes care of setting up the Node.js environment
 and tearing it down after the tests have finished.
@@ -345,3 +387,4 @@ will depend on what is being tested if this is required or not.
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
+[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories

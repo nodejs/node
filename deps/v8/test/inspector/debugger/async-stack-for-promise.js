@@ -217,6 +217,13 @@ function reject() {
   return Promise.reject().catch(foo1);
 }
 
+function finally1() {
+  return Promise.reject().finally(foo1);
+}
+
+function finally2() {
+  return Promise.resolve().finally(foo1);
+}
 //# sourceURL=test.js`, 7, 26);
 
 session.setupScriptMap();
@@ -230,20 +237,12 @@ Protocol.Debugger.onPaused(message => {
 Protocol.Debugger.enable();
 Protocol.Debugger.setAsyncCallStackDepth({ maxDepth: 128 });
 var testList = [
-  'promise',
-  'promiseResolvedBySetTimeout',
-  'promiseAll',
-  'promiseAllReverseOrder',
-  'promiseRace',
-  'twoChainedCallbacks',
-  'promiseResolve',
-  'thenableJobResolvedInSetTimeout',
-  'thenableJobResolvedInSetTimeoutWithStack',
-  'thenableJobResolvedByPromise',
-  'thenableJobResolvedByPromiseWithStack',
-  'lateThenCallback',
-  'complex',
-  'reject',
+  'promise', 'promiseResolvedBySetTimeout', 'promiseAll',
+  'promiseAllReverseOrder', 'promiseRace', 'twoChainedCallbacks',
+  'promiseResolve', 'thenableJobResolvedInSetTimeout',
+  'thenableJobResolvedInSetTimeoutWithStack', 'thenableJobResolvedByPromise',
+  'thenableJobResolvedByPromiseWithStack', 'lateThenCallback', 'complex',
+  'reject', 'finally1', 'finally2'
 ]
 InspectorTest.runTestSuite(testList.map(name => {
   return eval(`

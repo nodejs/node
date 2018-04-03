@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <algorithm>
 #include <new>
 
 #include "src/base/bits.h"
@@ -18,8 +19,7 @@ namespace v8 {
 namespace base {
 
 static LazyMutex entropy_mutex = LAZY_MUTEX_INITIALIZER;
-static RandomNumberGenerator::EntropySource entropy_source = NULL;
-
+static RandomNumberGenerator::EntropySource entropy_source = nullptr;
 
 // static
 void RandomNumberGenerator::SetEntropySource(EntropySource source) {
@@ -31,7 +31,7 @@ void RandomNumberGenerator::SetEntropySource(EntropySource source) {
 RandomNumberGenerator::RandomNumberGenerator() {
   // Check if embedder supplied an entropy source.
   { LockGuard<Mutex> lock_guard(entropy_mutex.Pointer());
-    if (entropy_source != NULL) {
+    if (entropy_source != nullptr) {
       int64_t seed;
       if (entropy_source(reinterpret_cast<unsigned char*>(&seed),
                          sizeof(seed))) {
@@ -53,7 +53,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
 #else
   // Gather entropy from /dev/urandom if available.
   FILE* fp = fopen("/dev/urandom", "rb");
-  if (fp != NULL) {
+  if (fp != nullptr) {
     int64_t seed;
     size_t n = fread(&seed, sizeof(seed), 1, fp);
     fclose(fp);
@@ -115,6 +115,85 @@ void RandomNumberGenerator::NextBytes(void* buffer, size_t buflen) {
   }
 }
 
+static std::vector<uint64_t> ComplementSample(
+    const std::unordered_set<uint64_t>& set, uint64_t max) {
+  std::vector<uint64_t> result;
+  result.reserve(max - set.size());
+  for (uint64_t i = 0; i < max; i++) {
+    if (!set.count(i)) {
+      result.push_back(i);
+    }
+  }
+  return result;
+}
+
+std::vector<uint64_t> RandomNumberGenerator::NextSample(uint64_t max,
+                                                        size_t n) {
+  CHECK_LE(n, max);
+
+  if (n == 0) {
+    return std::vector<uint64_t>();
+  }
+
+  // Choose to select or exclude, whatever needs fewer generator calls.
+  size_t smaller_part = static_cast<size_t>(
+      std::min(max - static_cast<uint64_t>(n), static_cast<uint64_t>(n)));
+  std::unordered_set<uint64_t> selected;
+
+  size_t counter = 0;
+  while (selected.size() != smaller_part && counter / 3 < smaller_part) {
+    uint64_t x = static_cast<uint64_t>(NextDouble() * max);
+    CHECK_LT(x, max);
+
+    selected.insert(x);
+    counter++;
+  }
+
+  if (selected.size() == smaller_part) {
+    if (smaller_part != n) {
+      return ComplementSample(selected, max);
+    }
+    return std::vector<uint64_t>(selected.begin(), selected.end());
+  }
+
+  // Failed to select numbers in smaller_part * 3 steps, try different approach.
+  return NextSampleSlow(max, n, selected);
+}
+
+std::vector<uint64_t> RandomNumberGenerator::NextSampleSlow(
+    uint64_t max, size_t n, const std::unordered_set<uint64_t>& excluded) {
+  CHECK_GE(max - excluded.size(), n);
+
+  std::vector<uint64_t> result;
+  result.reserve(max - excluded.size());
+
+  for (uint64_t i = 0; i < max; i++) {
+    if (!excluded.count(i)) {
+      result.push_back(i);
+    }
+  }
+
+  // Decrease result vector until it contains values to select or exclude,
+  // whatever needs fewer generator calls.
+  size_t larger_part = static_cast<size_t>(
+      std::max(max - static_cast<uint64_t>(n), static_cast<uint64_t>(n)));
+
+  // Excluded set may cause that initial result is already smaller than
+  // larget_part.
+  while (result.size() != larger_part && result.size() > n) {
+    size_t x = static_cast<size_t>(NextDouble() * result.size());
+    CHECK_LT(x, result.size());
+
+    std::swap(result[x], result.back());
+    result.pop_back();
+  }
+
+  if (result.size() != n) {
+    return ComplementSample(
+        std::unordered_set<uint64_t>(result.begin(), result.end()), max);
+  }
+  return result;
+}
 
 int RandomNumberGenerator::Next(int bits) {
   DCHECK_LT(0, bits);
@@ -134,9 +213,9 @@ void RandomNumberGenerator::SetSeed(int64_t seed) {
 
 uint64_t RandomNumberGenerator::MurmurHash3(uint64_t h) {
   h ^= h >> 33;
-  h *= V8_UINT64_C(0xFF51AFD7ED558CCD);
+  h *= uint64_t{0xFF51AFD7ED558CCD};
   h ^= h >> 33;
-  h *= V8_UINT64_C(0xC4CEB9FE1A85EC53);
+  h *= uint64_t{0xC4CEB9FE1A85EC53};
   h ^= h >> 33;
   return h;
 }

@@ -33,8 +33,7 @@ namespace internal {
   typedef Name##Descriptor Builtin_##Name##_InterfaceDescriptor;
 
 // Define interface descriptors for IC handlers/dispatchers.
-#define DEFINE_TFH_INTERFACE_DESCRIPTOR(Name, Kind, Extra,   \
-                                        InterfaceDescriptor) \
+#define DEFINE_TFH_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \
   typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
 
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DEFINE_TFJ_INTERFACE_DESCRIPTOR,

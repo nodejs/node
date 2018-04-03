@@ -7,11 +7,13 @@ const mkdirp = Bluebird.promisify(require('mkdirp'))
 const lstat = Bluebird.promisify(fs.lstat)
 const readdir = Bluebird.promisify(fs.readdir)
 const symlink = Bluebird.promisify(fs.symlink)
-const gentlyRm = require('../../utils/gently-rm')
+const gentlyRm = Bluebird.promisify(require('../../utils/gently-rm'))
 const moduleStagingPath = require('../module-staging-path.js')
 const move = require('move-concurrently')
 const moveOpts = {fs: fs, Promise: Bluebird, maxConcurrency: 4}
 const getRequested = require('../get-requested.js')
+const log = require('npmlog')
+const packageId = require('../../utils/package-id.js')
 
 module.exports = function (staging, pkg, log) {
   log.silly('finalize', pkg.realpath)
@@ -88,8 +90,17 @@ module.exports = function (staging, pkg, log) {
   }
 }
 
-module.exports.rollback = function (top, staging, pkg, next) {
-  const requested = pkg.package._requested || getRequested(pkg)
-  if (requested && requested.type === 'directory') return next()
-  gentlyRm(pkg.path, false, top, next)
+module.exports.rollback = function (top, staging, pkg) {
+  return Bluebird.try(() => {
+    const requested = pkg.package._requested || getRequested(pkg)
+    if (requested && requested.type === 'directory') return Promise.resolve()
+    // strictly speaking rolling back a finalize should ONLY remove module that
+    // was being finalized, not any of the things under it. But currently
+    // those modules are guaranteed to be useless so we may as well remove them too.
+    // When/if we separate `commit` step and can rollback to previous versions
+    // of upgraded modules then we'll need to revisit this…
+    return gentlyRm(pkg.path, false, top).catch((err) => {
+      log.warn('rollback', `Rolling back ${packageId(pkg)} failed (this is probably harmless): ${err.message ? err.message : err}`)
+    })
+  })
 }

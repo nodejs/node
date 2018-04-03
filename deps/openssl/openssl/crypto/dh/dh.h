@@ -257,11 +257,13 @@ DH *DH_get_1024_160(void);
 DH *DH_get_2048_224(void);
 DH *DH_get_2048_256(void);
 
+# ifndef OPENSSL_NO_CMS
 /* RFC2631 KDF */
 int DH_KDF_X9_42(unsigned char *out, size_t outlen,
                  const unsigned char *Z, size_t Zlen,
                  ASN1_OBJECT *key_oid,
                  const unsigned char *ukm, size_t ukmlen, const EVP_MD *md);
+# endif
 
 # define EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx, len) \
         EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DH, EVP_PKEY_OP_PARAMGEN, \

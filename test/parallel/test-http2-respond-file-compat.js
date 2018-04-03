@@ -16,7 +16,7 @@ server.listen(0, () => {
   const req = client.request();
   req.on('response', common.mustCall());
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
     server.close();
   }));
   req.end();

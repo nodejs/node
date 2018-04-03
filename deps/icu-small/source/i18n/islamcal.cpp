@@ -614,7 +614,7 @@ void IslamicCalendar::handleComputeFields(int32_t julianDay, UErrorCode &status)
             days = julianDay - ASTRONOMICAL_EPOC;
         }
         // Use the civil calendar approximation, which is just arithmetic
-        year  = (int)ClockMath::floorDivide( (double)(30 * days + 10646) , 10631.0 );
+        year  = (int32_t)ClockMath::floorDivide(30 * (int64_t)days + 10646, (int64_t)10631);
         month = (int32_t)uprv_ceil((days - 29 - yearStart(year)) / 29.5 );
         month = month<11?month:11;
         startDate = monthStart(year, month);

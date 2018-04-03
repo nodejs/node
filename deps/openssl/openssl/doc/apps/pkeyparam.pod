@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-pkeyparam,
 pkeyparam - public key algorithm parameter processing tool
 
 =head1 SYNOPSIS

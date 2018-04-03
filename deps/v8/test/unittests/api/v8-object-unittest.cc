@@ -37,10 +37,7 @@ TEST_F(ObjectTest, SetAccessorWhenUnconfigurablePropAlreadyDefined) {
 
 using LapContextTest = TestWithIsolate;
 
-// TODO(yukishiino): Enable this unittest once
-// PropertyAccessInfo::accessor_holder() gets supported.  Currently we're using
-// PropertyAccessInfo::holder(), which doesn't return the accessor holder.
-TEST_F(LapContextTest, DISABLED_CurrentContextInLazyAccessorOnPrototype) {
+TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
   // The receiver object is created in |receiver_context|, but its prototype
   // object is created in |prototype_context|, and the property is accessed
   // from |caller_context|.

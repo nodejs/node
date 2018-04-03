@@ -6,7 +6,6 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var fs = require('graceful-fs')
 var tar = require('tar')
-var zlib = require('zlib')
 var basepath = path.resolve(__dirname, path.basename(__filename, '.js'))
 var fixturepath = path.resolve(basepath, 'npm-test-files')
 var targetpath = path.resolve(basepath, 'target')
@@ -210,14 +209,14 @@ test('.npmignore should always be overridden by files array', function (t) {
       include: File(''),
       ignore: File(''),
       sub: Dir({
-        include: File('')
+        included: File('')
       })
     })
   )
   withFixture(t, fixture, function (done) {
     t.notOk(fileExists('ignore'), 'toplevel file excluded')
     t.ok(fileExists('include'), 'unignored file included')
-    t.ok(fileExists('sub/include'), 'nested file included')
+    t.ok(fileExists('sub/included'), 'nested file included')
     done()
   })
 })
@@ -384,30 +383,12 @@ test('include main file', function (t) {
   })
 })
 
-test('certain files ignored unconditionally', function (t) {
+test('certain files ignored by default', function (t) {
   var fixture = new Tacks(
     Dir({
       'package.json': File({
         name: 'npm-test-files',
-        version: '1.2.5',
-        files: [
-          '.git',
-          '.svn',
-          'CVS',
-          '.hg',
-          '.lock-wscript',
-          '.wafpickle-0',
-          '.wafpickle-5',
-          '.wafpickle-50',
-          'build/config.gypi',
-          'npm-debug.log',
-          '.npmrc',
-          '.foo.swp',
-          '.DS_Store',
-          '._ohno',
-          'foo.orig',
-          'package-lock.json'
-        ]
+        version: '1.2.5'
       }),
       '.git': Dir({foo: File('')}),
       '.svn': Dir({foo: File('')}),
@@ -446,6 +427,73 @@ test('certain files ignored unconditionally', function (t) {
     t.notOk(fileExists('._ohnoes'), '._ohnoes not included')
     t.notOk(fileExists('foo.orig'), 'foo.orig not included')
     t.notOk(fileExists('package-lock.json'), 'package-lock.json not included')
+    done()
+  })
+})
+
+test('default-ignored files can be explicitly included', function (t) {
+  var fixture = new Tacks(
+    Dir({
+      'package.json': File({
+        name: 'npm-test-files',
+        version: '1.2.5',
+        files: [
+          '.git',
+          '.svn',
+          'CVS',
+          '.hg',
+          '.lock-wscript',
+          '.wafpickle-0',
+          '.wafpickle-5',
+          '.wafpickle-50',
+          'build/config.gypi',
+          'npm-debug.log',
+          '.npmrc',
+          '.foo.swp',
+          '.DS_Store',
+          '._ohno',
+          '._ohnoes',
+          'foo.orig',
+          'package-lock.json'
+        ]
+      }),
+      '.git': Dir({foo: File('')}),
+      '.svn': Dir({foo: File('')}),
+      'CVS': Dir({foo: File('')}),
+      '.hg': Dir({foo: File('')}),
+      '.lock-wscript': File(''),
+      '.wafpickle-0': File(''),
+      '.wafpickle-5': File(''),
+      '.wafpickle-50': File(''),
+      'build': Dir({'config.gypi': File('')}),
+      'npm-debug.log': File(''),
+      '.npmrc': File(''),
+      '.foo.swp': File(''),
+      '.DS_Store': Dir({foo: File('')}),
+      '._ohno': File(''),
+      '._ohnoes': Dir({noes: File('')}),
+      'foo.orig': File(''),
+      'package-lock.json': File('')
+    })
+  )
+  withFixture(t, fixture, function (done) {
+    t.ok(fileExists('.git'), '.git included')
+    t.ok(fileExists('.svn'), '.svn included')
+    t.ok(fileExists('CVS'), 'CVS included')
+    t.ok(fileExists('.hg'), '.hg included')
+    t.ok(fileExists('.lock-wscript'), '.lock-wscript included')
+    t.ok(fileExists('.wafpickle-0'), '.wafpickle-0 included')
+    t.ok(fileExists('.wafpickle-5'), '.wafpickle-5 included')
+    t.ok(fileExists('.wafpickle-50'), '.wafpickle-50 included')
+    t.ok(fileExists('build/config.gypi'), 'build/config.gypi included')
+    t.ok(fileExists('npm-debug.log'), 'npm-debug.log included')
+    t.ok(fileExists('.npmrc'), '.npmrc included')
+    t.ok(fileExists('.foo.swp'), '.foo.swp included')
+    t.ok(fileExists('.DS_Store'), '.DS_Store included')
+    t.ok(fileExists('._ohno'), '._ohno included')
+    t.ok(fileExists('._ohnoes'), '._ohnoes included')
+    t.ok(fileExists('foo.orig'), 'foo.orig included')
+    t.ok(fileExists('package-lock.json'), 'package-lock.json included')
     done()
   })
 })
@@ -578,6 +626,36 @@ test('folder-based inclusion works', function (t) {
   })
 })
 
+test('file that starts with @ sign included normally', (t) => {
+  const fixture = new Tacks(
+    Dir({
+      'package.json': File({
+        name: 'npm-test-files',
+        version: '1.2.5'
+      }),
+      '@sub1': Dir({
+        sub: Dir({
+          include1: File('')
+        })
+      }),
+      sub2: Dir({
+        '@include': File(''),
+        '@sub3': Dir({
+          include1: File('')
+        })
+      })
+    })
+  )
+  withFixture(t, fixture, function (done) {
+    t.ok(fileExists('@sub1/sub/include1'), '@ dir included')
+
+    t.ok(fileExists('sub2/@include'), '@ file included')
+    t.ok(fileExists('sub2/@sub3/include1'), 'nested @ dir included')
+
+    done()
+  })
+})
+
 function fileExists (file) {
   try {
     return !!fs.statSync(path.resolve(targetpath, 'package', file))
@@ -609,10 +687,11 @@ function withFixture (t, fixture, tester) {
 
 function extractTarball (cb) {
   // Unpack to disk so case-insensitive filesystems are consistent
-  fs.createReadStream(path.join(basepath, 'npm-test-files-1.2.5.tgz'))
-    .pipe(zlib.Unzip())
-    .on('error', cb)
-    .pipe(tar.Extract(targetpath))
-    .on('error', cb)
-    .on('end', function () { cb() })
+  tar.extract({
+    file: basepath + '/npm-test-files-1.2.5.tgz',
+    cwd: targetpath,
+    sync: true
+  })
+
+  cb()
 }

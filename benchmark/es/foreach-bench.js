@@ -8,61 +8,54 @@ const bench = common.createBenchmark(main, {
   millions: [5]
 });
 
-function useFor(n, items, count) {
-  var i, j;
+function useFor(millions, items, count) {
   bench.start();
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < count; j++) {
+  for (var i = 0; i < millions * 1e6; i++) {
+    for (var j = 0; j < count; j++) {
       /* eslint-disable no-unused-vars */
       const item = items[j];
       /* esline-enable no-unused-vars */
     }
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function useForOf(n, items) {
-  var i, item;
+function useForOf(millions, items) {
+  var item;
   bench.start();
-  for (i = 0; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     for (item of items) {}
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function useForIn(n, items) {
-  var i, j, item;
+function useForIn(millions, items) {
   bench.start();
-  for (i = 0; i < n; i++) {
-    for (j in items) {
+  for (var i = 0; i < millions * 1e6; i++) {
+    for (var j in items) {
       /* eslint-disable no-unused-vars */
-      item = items[j];
+      const item = items[j];
       /* esline-enable no-unused-vars */
     }
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function useForEach(n, items) {
-  var i;
+function useForEach(millions, items) {
   bench.start();
-  for (i = 0; i < n; i++) {
+  for (var i = 0; i < millions * 1e6; i++) {
     items.forEach((item) => {});
   }
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-  const count = +conf.count;
-
+function main({ millions, count, method }) {
   const items = new Array(count);
-  var i;
   var fn;
-  for (i = 0; i < count; i++)
+  for (var i = 0; i < count; i++)
     items[i] = i;
 
-  switch (conf.method) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'for':
@@ -78,7 +71,7 @@ function main(conf) {
       fn = useForEach;
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
-  fn(n, items, count);
+  fn(millions, items, count);
 }

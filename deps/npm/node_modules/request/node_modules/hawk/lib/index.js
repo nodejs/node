@@ -1,3 +1,5 @@
+'use strict';
+
 // Export sub-modules
 
 exports.error = exports.Error = require('boom');

@@ -277,7 +277,7 @@ int MAIN(int argc, char **argv)
             else {
                 p8pass = pass;
                 if (EVP_read_pw_string
-                    (pass, sizeof pass, "Enter Encryption Password:", 1))
+                    (pass, sizeof(pass), "Enter Encryption Password:", 1))
                     goto end;
             }
             app_RAND_load_file(NULL, bio_err, 0);
@@ -331,7 +331,7 @@ int MAIN(int argc, char **argv)
             p8pass = passin;
         else {
             p8pass = pass;
-            EVP_read_pw_string(pass, sizeof pass, "Enter Password:", 0);
+            EVP_read_pw_string(pass, sizeof(pass), "Enter Password:", 0);
         }
         p8inf = PKCS8_decrypt(p8, p8pass, strlen(p8pass));
     }

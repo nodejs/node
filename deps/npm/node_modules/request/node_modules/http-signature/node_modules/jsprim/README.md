@@ -284,9 +284,4 @@ returns:
 
 # Contributing
 
-Code should be "make check" clean.  This target assumes that
-[jsl](http://github.com/davepacheco/javascriptlint) and
-[jsstyle](http://github.com/davepacheco/jsstyle) are on your path.
-
-New tests should generally accompany new functions and bug fixes.  The tests
-should pass cleanly (run tests/basic.js).
+See separate [contribution guidelines](CONTRIBUTING.md).

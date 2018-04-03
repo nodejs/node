@@ -6,10 +6,9 @@ const bench = common.createBenchmark(main, {
   n: [32],
 });
 
-function main(conf) {
-  const n = +conf.n;
+function main({ n }) {
   const s = 'abcd'.repeat(8 << 20);
-  // eslint-disable-next-line no-unescaped-regexp-dot
+  // eslint-disable-next-line node-core/no-unescaped-regexp-dot
   s.match(/./);  // Flatten string.
   assert.strictEqual(s.length % 4, 0);
   const b = Buffer.allocUnsafe(s.length / 4 * 3);

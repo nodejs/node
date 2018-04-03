@@ -1,14 +1,15 @@
 'use strict';
+// Flags: --expose-internals
 const common = require('../common');
 const assert = require('assert');
-const async_id_symbol = process.binding('async_wrap').async_id_symbol;
+const { async_id_symbol } = require('internal/async_hooks').symbols;
 const http = require('http');
 
 // Regression test for https://github.com/nodejs/node/issues/13325
 // Checks that an http.Agent properly asyncReset()s a reused socket handle, and
 // re-assigns the fresh async id to the reused `net.Socket` instance.
 
-// Make sure a single socket is transpartently reused for 2 requests.
+// Make sure a single socket is transparently reused for 2 requests.
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: Infinity,

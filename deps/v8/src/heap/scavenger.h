@@ -14,80 +14,33 @@
 namespace v8 {
 namespace internal {
 
-static const int kCopiedListSegmentSize = 256;
-static const int kPromotionListSegmentSize = 256;
-
-using AddressRange = std::pair<Address, Address>;
-using ObjectAndSize = std::pair<HeapObject*, int>;
-using CopiedList = Worklist<ObjectAndSize, kCopiedListSegmentSize>;
-using PromotionList = Worklist<ObjectAndSize, kPromotionListSegmentSize>;
+class OneshotBarrier;
 
 class Scavenger {
  public:
-  class Barrier {
-   public:
-    Barrier() : tasks_(0), waiting_(0), done_(false) {}
+  static const int kCopiedListSegmentSize = 256;
+  static const int kPromotionListSegmentSize = 256;
 
-    void Start() {
-      base::LockGuard<base::Mutex> guard(&mutex_);
-      tasks_++;
-    }
-
-    void NotifyAll() {
-      base::LockGuard<base::Mutex> guard(&mutex_);
-      if (waiting_ > 0) condition_.NotifyAll();
-    }
-
-    void Wait() {
-      base::LockGuard<base::Mutex> guard(&mutex_);
-      waiting_++;
-      if (waiting_ == tasks_) {
-        done_ = true;
-        condition_.NotifyAll();
-      } else {
-        // Spurious wakeup is ok here.
-        condition_.Wait(&mutex_);
-      }
-      waiting_--;
-    }
-
-    void Reset() { done_ = false; }
-
-    bool Done() { return done_; }
-
-   private:
-    base::ConditionVariable condition_;
-    base::Mutex mutex_;
-    int tasks_;
-    int waiting_;
-    bool done_;
-  };
+  using ObjectAndSize = std::pair<HeapObject*, int>;
+  using CopiedList = Worklist<ObjectAndSize, kCopiedListSegmentSize>;
+  using PromotionList = Worklist<ObjectAndSize, kPromotionListSegmentSize>;
 
   Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
             PromotionList* promotion_list, int task_id);
 
-  // Scavenges an object |object| referenced from slot |p|. |object| is required
-  // to be in from space.
-  inline void ScavengeObject(HeapObject** p, HeapObject* object);
-
-  // Potentially scavenges an object referenced from |slot_address| if it is
-  // indeed a HeapObject and resides in from space.
-  inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
-                                                   Address slot_address);
+  // Entry point for scavenging an old generation page. For scavenging single
+  // objects see RootScavengingVisitor and ScavengeVisitor below.
+  void ScavengePage(MemoryChunk* page);
 
   // Processes remaining work (=objects) after single objects have been
   // manually scavenged using ScavengeObject or CheckAndScavengeObject.
-  void Process(Barrier* barrier = nullptr);
+  void Process(OneshotBarrier* barrier = nullptr);
 
   // Finalize the Scavenger. Needs to be called from the main thread.
   void Finalize();
 
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
-
-  void AnnounceLockedPage(MemoryChunk* chunk) {
-    allocator_.AnnounceLockedPage(chunk);
-  }
 
  private:
   // Number of objects to process before interrupting for potentially waking
@@ -98,6 +51,17 @@ class Scavenger {
   inline Heap* heap() { return heap_; }
 
   inline void PageMemoryFence(Object* object);
+
+  void AddPageToSweeperIfNecessary(MemoryChunk* page);
+
+  // Potentially scavenges an object referenced from |slot_address| if it is
+  // indeed a HeapObject and resides in from space.
+  inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
+                                                   Address slot_address);
+
+  // Scavenges an object |object| referenced from slot |p|. |object| is required
+  // to be in from space.
+  inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
   V8_INLINE bool MigrateObject(Map* map, HeapObject* source, HeapObject* target,
@@ -128,7 +92,7 @@ class Scavenger {
 
   void IterateAndScavengePromotedObject(HeapObject* target, int size);
 
-  void RecordCopiedObject(HeapObject* obj);
+  static inline bool ContainsOnlyData(VisitorId visitor_id);
 
   Heap* const heap_;
   PromotionList::View promotion_list_;
@@ -142,6 +106,8 @@ class Scavenger {
   const bool is_compacting_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;
+  friend class RootScavengeVisitor;
+  friend class ScavengeVisitor;
 };
 
 // Helper class for turning the scavenger into an object visitor that is also

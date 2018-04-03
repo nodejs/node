@@ -46,9 +46,8 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   GotoIf(TaggedIsSmi(tagged), &invalid);
 
   // Fail if the array's instance type is not JSTypedArray.
-  GotoIf(Word32NotEqual(LoadInstanceType(tagged),
-                        Int32Constant(JS_TYPED_ARRAY_TYPE)),
-         &invalid);
+  GotoIfNot(InstanceTypeEqual(LoadInstanceType(tagged), JS_TYPED_ARRAY_TYPE),
+            &invalid);
 
   // Fail if the array's JSArrayBuffer is not shared.
   Node* array_buffer = LoadObjectField(tagged, JSTypedArray::kBufferOffset);
@@ -214,7 +213,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   ValidateAtomicIndex(array, index_word32, context);
   Node* index_word = ChangeUint32ToWord(index_word32);
 
-  Node* value_integer = ToInteger(context, value);
+  Node* value_integer = ToInteger_Inline(CAST(context), CAST(value));
   Node* value_word32 = TruncateTaggedToWord32(context, value_integer);
 
 #if DEBUG
@@ -267,7 +266,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
       ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
   ValidateAtomicIndex(array, index_word32, context);
 
-  Node* value_integer = ToInteger(context, value);
+  Node* value_integer = ToInteger_Inline(CAST(context), CAST(value));
 
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
@@ -341,8 +340,8 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
       ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
   ValidateAtomicIndex(array, index_word32, context);
 
-  Node* old_value_integer = ToInteger(context, old_value);
-  Node* new_value_integer = ToInteger(context, new_value);
+  Node* old_value_integer = ToInteger_Inline(CAST(context), CAST(old_value));
+  Node* new_value_integer = ToInteger_Inline(CAST(context), CAST(new_value));
 
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
@@ -437,7 +436,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
       ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
   ValidateAtomicIndex(array, index_word32, context);
 
-  Node* value_integer = ToInteger(context, value);
+  Node* value_integer = ToInteger_Inline(CAST(context), CAST(value));
 
 #if DEBUG
   // In Debug mode, we re-validate the index as a sanity check because

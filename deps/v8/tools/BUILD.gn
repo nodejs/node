@@ -13,7 +13,7 @@ group("gn_all") {
       ":jsfunfuzz_run",
       ":run-deopt-fuzzer_run",
       ":run-gcmole_run",
-      ":run-valgrind_run",
+      ":run-num-fuzzer_run",
     ]
   }
 }
@@ -50,10 +50,11 @@ v8_isolate_run("run-gcmole") {
   isolate = "gcmole/run-gcmole.isolate"
 }
 
-v8_isolate_run("run-valgrind") {
+# TODO(machenbach): Add tests as dependencies.
+v8_isolate_run("run-num-fuzzer") {
   deps = [
     "..:d8_run",
   ]
 
-  isolate = "run-valgrind.isolate"
+  isolate = "run-num-fuzzer.isolate"
 }

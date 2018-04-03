@@ -5,11 +5,11 @@ const bench = common.createBenchmark(main, {
   millions: [10]
 });
 
-function main(conf) {
-  const N = +conf.millions * 1e6;
+function main({ millions }) {
+  const N = millions * 1e6;
 
   process.on('exit', function() {
-    bench.end(N / 1e6);
+    bench.end(millions);
   });
 
   function cb() {}

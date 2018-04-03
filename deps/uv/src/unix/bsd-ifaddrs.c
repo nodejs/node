@@ -36,6 +36,7 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
     return 1;
   if (ent->ifa_addr == NULL)
     return 1;
+#if !defined(__CYGWIN__) && !defined(__MSYS__)
   /*
    * If `exclude_type` is `UV__EXCLUDE_IFPHYS`, just see whether `sa_family`
    * equals to `AF_LINK` or not. Otherwise, the result depends on the operation
@@ -43,6 +44,7 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
    */
   if (exclude_type == UV__EXCLUDE_IFPHYS)
     return (ent->ifa_addr->sa_family != AF_LINK);
+#endif
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
   /*
    * On BSD getifaddrs returns information related to the raw underlying
@@ -68,7 +70,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   int i;
 
   if (getifaddrs(&addrs) != 0)
-    return -errno;
+    return UV__ERR(errno);
 
   *count = 0;
 
@@ -83,7 +85,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   if (*addresses == NULL) {
     freeifaddrs(addrs);
-    return -ENOMEM;
+    return UV_ENOMEM;
   }
 
   address = *addresses;

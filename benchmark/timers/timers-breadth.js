@@ -2,11 +2,11 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  thousands: [500],
+  thousands: [5000],
 });
 
-function main(conf) {
-  const N = +conf.thousands * 1e3;
+function main({ thousands }) {
+  const N = thousands * 1e3;
   var n = 0;
   bench.start();
   function cb() {

@@ -108,14 +108,14 @@ class V8Console : public v8::debug::ConsoleDelegate {
                                     int)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CommandLineAPIData* data = static_cast<CommandLineAPIData*>(
-        info.Data().As<v8::External>()->Value());
+        info.Data().As<v8::ArrayBuffer>()->GetContents().Data());
     (data->first->*func)(info, data->second);
   }
   template <void (V8Console::*func)(const v8::debug::ConsoleCallArguments&,
                                     const v8::debug::ConsoleContext&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CommandLineAPIData* data = static_cast<CommandLineAPIData*>(
-        info.Data().As<v8::External>()->Value());
+        info.Data().As<v8::ArrayBuffer>()->GetContents().Data());
     v8::debug::ConsoleCallArguments args(info);
     (data->first->*func)(args, v8::debug::ConsoleContext());
   }

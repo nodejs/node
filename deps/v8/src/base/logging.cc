@@ -17,7 +17,11 @@ namespace base {
 
 namespace {
 
+void DefaultDcheckHandler(const char* file, int line, const char* message);
+
 void (*g_print_stack_trace)() = nullptr;
+
+void (*g_dcheck_function)(const char*, int, const char*) = DefaultDcheckHandler;
 
 void PrettyPrintChar(std::ostream& os, int ch) {
   switch (ch) {
@@ -48,10 +52,18 @@ void PrettyPrintChar(std::ostream& os, int ch) {
   }
 }
 
+void DefaultDcheckHandler(const char* file, int line, const char* message) {
+  V8_Fatal(file, line, "Debug check failed: %s.", message);
+}
+
 }  // namespace
 
 void SetPrintStackTrace(void (*print_stack_trace)()) {
   g_print_stack_trace = print_stack_trace;
+}
+
+void SetDcheckFunction(void (*dcheck_function)(const char*, int, const char*)) {
+  g_dcheck_function = dcheck_function ? dcheck_function : &DefaultDcheckHandler;
 }
 
 // Define specialization to pretty print characters (escaping non-printable
@@ -107,8 +119,6 @@ DEFINE_CHECK_OP_IMPL(GT)
 }  // namespace base
 }  // namespace v8
 
-
-// Contains protection against recursive calls (faults while handling faults).
 void V8_Fatal(const char* file, int line, const char* format, ...) {
   fflush(stdout);
   fflush(stderr);
@@ -124,4 +134,8 @@ void V8_Fatal(const char* file, int line, const char* format, ...) {
 
   fflush(stderr);
   v8::base::OS::Abort();
+}
+
+void V8_Dcheck(const char* file, int line, const char* message) {
+  v8::base::g_dcheck_function(file, line, message);
 }

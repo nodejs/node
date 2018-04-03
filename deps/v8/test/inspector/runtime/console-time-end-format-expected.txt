@@ -27,3 +27,11 @@ timeEnd: 1000000000000000.2ms
 Running test: huge
 js: 1e+42ms
 timeEnd: 1e+42ms
+
+Running test: undefinedAsLabel
+js: 1ms
+default: 1ms
+
+Running test: emptyAsLabel
+js: 1ms
+default: 1ms

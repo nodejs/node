@@ -30,9 +30,8 @@
 #include "src/base/atomicops.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-
+namespace v8 {
+namespace base {
 
 #define CHECK_EQU(v1, v2) \
   CHECK_EQ(static_cast<int64_t>(v1), static_cast<int64_t>(v2))
@@ -169,12 +168,11 @@ static void TestAtomicIncrementBounds() {
   CHECK_EQU(test_val - 1, value);
 }
 
-
-// Return an AtomicType with the value 0xa5a5a5..
+// Return an AtomicType with the value 0xA5A5A5..
 template <class AtomicType>
 static AtomicType TestFillValue() {
   AtomicType val = 0;
-  memset(&val, 0xa5, sizeof(AtomicType));
+  memset(&val, 0xA5, sizeof(AtomicType));
   return val;
 }
 
@@ -287,3 +285,6 @@ TEST(Load) {
   TestLoad<Atomic32>();
   TestLoad<AtomicWord>();
 }
+
+}  // namespace base
+}  // namespace v8

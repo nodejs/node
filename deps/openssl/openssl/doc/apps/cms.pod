@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-cms,
 cms - CMS utility
 
 =head1 SYNOPSIS

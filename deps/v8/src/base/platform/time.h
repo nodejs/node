@@ -280,7 +280,7 @@ class TimeBase {
 
 class V8_BASE_EXPORT Time final : public time_internal::TimeBase<Time> {
  public:
-  // Contains the NULL time. Use Time::Now() to get the current time.
+  // Contains the nullptr time. Use Time::Now() to get the current time.
   Time() : TimeBase(0) {}
 
   // Returns the current time. Watch out, the system might adjust its clock

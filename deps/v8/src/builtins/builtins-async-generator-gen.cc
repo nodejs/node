@@ -237,15 +237,19 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
   CSA_SLOW_ASSERT(this, IsGeneratorSuspended(generator));
 
-  CallStub(CodeFactory::ResumeGenerator(isolate()), context, value, generator,
-           SmiConstant(resume_mode));
+  // Remember the {resume_mode} for the {generator}.
+  StoreObjectFieldNoWriteBarrier(generator,
+                                 JSGeneratorObject::kResumeModeOffset,
+                                 SmiConstant(resume_mode));
+
+  CallStub(CodeFactory::ResumeGenerator(isolate()), context, value, generator);
 
   TailCallBuiltin(Builtins::kAsyncGeneratorResumeNext, context, generator);
 }
 
 template <typename Descriptor>
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
-  Node* generator = Parameter(Descriptor::kReceiver);
+  Node* generator = Parameter(Descriptor::kGenerator);
   Node* value = Parameter(Descriptor::kAwaited);
   Node* context = Parameter(Descriptor::kContext);
 
@@ -489,8 +493,11 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
 
   BIND(&resume_generator);
   {
+    // Remember the {resume_type} for the {generator}.
+    StoreObjectFieldNoWriteBarrier(
+        generator, JSGeneratorObject::kResumeModeOffset, resume_type);
     CallStub(CodeFactory::ResumeGenerator(isolate()), context,
-             LoadValueFromAsyncGeneratorRequest(next), generator, resume_type);
+             LoadValueFromAsyncGeneratorRequest(next), generator);
     var_state.Bind(LoadGeneratorState(generator));
     var_next.Bind(LoadFirstAsyncGeneratorRequestFromQueue(generator));
     Goto(&start);

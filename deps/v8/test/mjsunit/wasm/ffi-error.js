@@ -7,11 +7,11 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function testCallFFI(ffi) {
+function instantiateWithFFI(ffi) {
   var builder = new WasmModuleBuilder();
 
   var sig_index = kSig_i_dd;
-  builder.addImport("", "fun", sig_index);
+  builder.addImport("mod", "fun", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprGetLocal, 0,              // --
@@ -20,45 +20,75 @@ function testCallFFI(ffi) {
     ])    // --
     .exportFunc();
 
-  var module = builder.instantiate(ffi);
+  return builder.instantiate(ffi);
 }
 
 // everything is good.
 (function() {
-  var ffi = {"": {fun: function(a, b) { print(a, b); }}}
-  testCallFFI(ffi);
+  var ffi = {"mod": {fun: function(a, b) { print(a, b); }}}
+  instantiateWithFFI(ffi);
 })();
 
 
 // FFI object should be an object.
 assertThrows(function() {
   var ffi = 0;
-  testCallFFI(ffi);
+  instantiateWithFFI(ffi);
+});
+
+
+// FFI object should have a "mod" property.
+assertThrows(function() {
+  instantiateWithFFI({});
 });
 
 
 // FFI object should have a "fun" property.
 assertThrows(function() {
-  var ffi = new Object();
-  testCallFFI(ffi);
+  instantiateWithFFI({mod: {}});
 });
 
 
 // "fun" should be a JS function.
 assertThrows(function() {
-  var ffi = new Object();
-  ffi.fun = new Object();
-  testCallFFI(ffi);
+  instantiateWithFFI({mod: {fun: new Object()}});
 });
 
 
 // "fun" should be a JS function.
 assertThrows(function() {
-  var ffi = new Object();
-  ffi.fun = 0;
-  testCallFFI(ffi);
+  instantiateWithFFI({mod: {fun: 0}});
 });
 
+// "fun" should have signature "i_dd"
+assertThrows(function () {
+  var builder = new WasmModuleBuilder();
+
+  var sig_index = kSig_i_dd;
+  builder.addFunction("exp", kSig_i_i)
+    .addBody([
+      kExprGetLocal, 0,
+    ])    // --
+    .exportFunc();
+
+  var exported = builder.instantiate().exports.exp;
+  instantiateWithFFI({mod: {fun: exported}});
+});
+
+// "fun" matches signature "i_dd"
+(function () {
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("exp", kSig_i_dd)
+    .addBody([
+      kExprI32Const, 33,
+    ])    // --
+    .exportFunc();
+
+  var exported = builder.instantiate().exports.exp;
+  var instance = instantiateWithFFI({mod: {fun: exported}});
+  assertEquals(33, instance.exports.main());
+})();
 
 (function I64InSignatureThrows() {
   var builder = new WasmModuleBuilder();

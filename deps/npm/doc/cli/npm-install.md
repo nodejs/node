@@ -310,6 +310,9 @@ versions.
 The `--dry-run` argument will report in the usual way what the install would
 have done without actually installing anything.
 
+The `--package-lock-only` argument will only update the `package-lock.json`,
+instead of checking `node_modules` and downloading dependencies.
+
 The `-f` or `--force` argument will force npm to fetch remote resources even if a
 local copy exists on disk.
 

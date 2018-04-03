@@ -6,14 +6,24 @@
 const common = require('../common');
 const zlib = require('zlib');
 
-[undefined, null, true, false, 0, 1, [1, 2, 3], { foo: 'bar' }].forEach((i) => {
+[
+  undefined,
+  null,
+  true,
+  false,
+  0,
+  1,
+  [1, 2, 3],
+  { foo: 'bar' }
+].forEach((input) => {
   common.expectsError(
-    () => zlib.deflateSync(i),
+    () => zlib.deflateSync(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "buffer" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, DataView, or ArrayBuffer. ' +
+               `Received type ${typeof input}`
     }
   );
 });

@@ -32,6 +32,7 @@
     'msvs_use_common_release': 0,
     'clang%': 0,
     'asan%': 0,
+    'cfi_vptr%': 0,
     'lsan%': 0,
     'msan%': 0,
     'tsan%': 0,

@@ -7,7 +7,7 @@
 var stdlib = this;
 
 function assertValidAsm(func) {
-  assertTrue(%IsAsmWasmCode(func));
+  assertTrue(%IsAsmWasmCode(func), "must be valid asm code");
 }
 
 function assertWasm(expected, func, ffi) {
@@ -424,6 +424,23 @@ function TestContinueInDoWhileFalse() {
 }
 
 assertWasm(47, TestContinueInDoWhileFalse);
+
+
+function TestContinueInForLoop() {
+  "use asm";
+
+  function caller() {
+    var i = 0;
+    for (; (i|0) < 10; i = (i+1)|0) {
+      continue;
+    }
+    return 4711;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(4711, TestContinueInForLoop);
 
 
 function TestNot() {

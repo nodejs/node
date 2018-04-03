@@ -1,5 +1,8 @@
+// Flags: --expose_internals
+
 'use strict';
 const common = require('../common');
+const { kTimeout, TIMEOUT_MAX } = require('internal/timers');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -30,13 +33,13 @@ let lastIdleStart;
 
 server.listen(0, () => {
   socket = net.connect(server.address().port, function() {
-    const s = socket.setTimeout(Number.MAX_VALUE, function() {
+    const s = socket.setTimeout(TIMEOUT_MAX, function() {
       throw new Error('timeout');
     });
     assert.ok(s instanceof net.Socket);
 
-    assert.notStrictEqual(socket._idleTimeout, -1);
-    lastIdleStart = socket._idleStart;
+    assert.notStrictEqual(socket[kTimeout]._idleTimeout, -1);
+    lastIdleStart = socket[kTimeout]._idleStart;
 
     const tsocket = tls.connect({
       socket: socket,
@@ -47,6 +50,6 @@ server.listen(0, () => {
 });
 
 process.on('exit', () => {
-  assert.strictEqual(socket._idleTimeout, -1);
-  assert(lastIdleStart < socket._idleStart);
+  assert.strictEqual(socket[kTimeout]._idleTimeout, -1);
+  assert(lastIdleStart < socket[kTimeout]._idleStart);
 });

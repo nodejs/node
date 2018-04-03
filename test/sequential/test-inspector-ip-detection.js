@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 
@@ -14,12 +15,12 @@ if (!ip)
 
 function checkIpAddress(ip, response) {
   const res = response[0];
-  const wsUrl = res['webSocketDebuggerUrl'];
+  const wsUrl = res.webSocketDebuggerUrl;
   assert.ok(wsUrl);
   const match = wsUrl.match(/^ws:\/\/(.*):\d+\/(.*)/);
   assert.strictEqual(ip, match[1]);
-  assert.strictEqual(res['id'], match[2]);
-  assert.strictEqual(ip, res['devtoolsFrontendUrl'].match(/.*ws=(.*):\d+/)[1]);
+  assert.strictEqual(res.id, match[2]);
+  assert.strictEqual(ip, res.devtoolsFrontendUrl.match(/.*ws=(.*):\d+/)[1]);
 }
 
 function pickIPv4Address() {

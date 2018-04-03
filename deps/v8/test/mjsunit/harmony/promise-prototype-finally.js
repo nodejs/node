@@ -524,3 +524,94 @@ assertTrue(descriptor.configurable);
 assertFalse(descriptor.enumerable);
 assertEquals("finally", Promise.prototype.finally.name);
 assertEquals(1, Promise.prototype.finally.length);
+
+var count = 0;
+class FooPromise extends Promise {
+  constructor(resolve, reject) {
+    count++;
+    return super(resolve, reject);
+  }
+}
+
+testAsync(assert => {
+  assert.plan(1);
+  count = 0;
+
+  new FooPromise(r => r()).finally(() => {}).then(() => {
+    assert.equals(6, count);
+  });
+}, "finally/speciesconstructor");
+
+testAsync(assert => {
+  assert.plan(1);
+  count = 0;
+
+  FooPromise.resolve().finally(() => {}).then(() => {
+    assert.equals(6, count);
+  })
+}, "resolve/finally/speciesconstructor");
+
+testAsync(assert => {
+  assert.plan(1);
+  count = 0;
+
+  FooPromise.reject().finally(() => {}).catch(() => {
+    assert.equals(6, count);
+  })
+}, "reject/finally/speciesconstructor");
+
+testAsync(assert => {
+  assert.plan(2);
+
+  class MyPromise extends Promise {
+    static get [Symbol.species]() { return Promise; }
+  }
+
+  var p = Promise
+      .resolve()
+      .finally(() => MyPromise.resolve());
+
+  assert.equals(true, p instanceof Promise);
+  assert.equals(false, p instanceof MyPromise);
+}, "finally/Symbol.Species");
+
+testAsync(assert => {
+  assert.plan(3);
+  let resolve;
+  let value = 0;
+
+  let p = new Promise(r => { resolve = r });
+
+  Promise.resolve()
+    .finally(() => {
+      return p;
+    })
+    .then(() => {
+      value = 1;
+    });
+
+  // This makes sure we take the fast path in PromiseResolve that just
+  // returns the promise it receives as value. If we had to create
+  // another wrapper promise, that would cause an additional tick in
+  // the microtask queue.
+  Promise.resolve()
+    // onFinally has run.
+    .then(() => { resolve(); })
+    // thenFinally has run.
+    .then(() => assert.equals(0, value))
+    // promise returned by .finally has been resolved.
+    .then(() => assert.equals(0, value))
+    // onFulfilled callback of .then() has run.
+    .then(() => assert.equals(1, value));
+
+}, "PromiseResolve-ordering");
+
+(function testIsObject() {
+  var called = false;
+  var p = new Proxy(Promise.resolve(), {});
+  var oldThen = Promise.prototype.then;
+  Promise.prototype.then = () => called = true;
+  Promise.prototype.finally.call(p);
+  assertTrue(called);
+  Promise.prototype.then = oldThen;
+})();

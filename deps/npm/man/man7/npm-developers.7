@@ -1,4 +1,4 @@
-.TH "NPM\-DEVELOPERS" "7" "July 2017" "" ""
+.TH "NPM\-DEVELOPERS" "7" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-developers\fR \- Developer Guide
 .SH DESCRIPTION
@@ -175,6 +175,18 @@ The following paths and files are never ignored, so adding them to
 \fBLICENSE\fP / \fBLICENCE\fP
 
 .RE
+.P
+If, given the structure of your project, you find \fB\|\.npmignore\fP to be a
+maintenance headache, you might instead try populating the \fBfiles\fP
+property of \fBpackage\.json\fP, which is an array of file or directory names
+that should be included in your package\. Sometimes a whitelist is easier
+to manage than a blacklist\.
+.SS Testing whether your \fB\|\.npmignore\fP or \fBfiles\fP config works
+.P
+If you want to double check that your package will include only the files
+you intend it to when published, you can run the \fBnpm pack\fP command locally
+which will generate a tarball in the working directory, the same way it
+does for publishing\.
 .SH Link Packages
 .P
 \fBnpm link\fP is designed to install a development package and see the

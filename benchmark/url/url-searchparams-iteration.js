@@ -4,7 +4,7 @@ const assert = require('assert');
 const { URLSearchParams } = require('url');
 
 const bench = common.createBenchmark(main, {
-  method: ['forEach', 'iterator'],
+  loopMethod: ['forEach', 'iterator'],
   n: [1e6]
 });
 
@@ -44,11 +44,8 @@ function iterator(n) {
   assert.strictEqual(noDead[1], '3rd');
 }
 
-function main(conf) {
-  const method = conf.method;
-  const n = conf.n | 0;
-
-  switch (method) {
+function main({ loopMethod, n }) {
+  switch (loopMethod) {
     case 'forEach':
       forEach(n);
       break;
@@ -56,6 +53,6 @@ function main(conf) {
       iterator(n);
       break;
     default:
-      throw new Error('Unknown method');
+      throw new Error(`Unknown method ${loopMethod}`);
   }
 }

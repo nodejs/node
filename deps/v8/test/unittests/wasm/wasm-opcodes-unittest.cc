@@ -19,6 +19,7 @@ TEST_F(WasmOpcodesTest, EveryOpcodeHasAName) {
   } kValues[] = {
 #define DECLARE_ELEMENT(name, opcode, sig) {kExpr##name, "kExpr" #name},
       FOREACH_OPCODE(DECLARE_ELEMENT)};
+#undef DECLARE_ELEMENT
 
   for (size_t i = 0; i < arraysize(kValues); i++) {
     const char* result = WasmOpcodes::OpcodeName(kValues[i].opcode);

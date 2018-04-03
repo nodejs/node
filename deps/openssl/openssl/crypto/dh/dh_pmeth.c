@@ -207,7 +207,11 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
     case EVP_PKEY_CTRL_DH_KDF_TYPE:
         if (p1 == -2)
             return dctx->kdf_type;
+#ifdef OPENSSL_NO_CMS
+        if (p1 != EVP_PKEY_DH_KDF_NONE)
+#else
         if (p1 != EVP_PKEY_DH_KDF_NONE && p1 != EVP_PKEY_DH_KDF_X9_42)
+#endif
             return -2;
         dctx->kdf_type = p1;
         return 1;
@@ -448,7 +452,9 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
             return ret;
         *keylen = ret;
         return 1;
-    } else if (dctx->kdf_type == EVP_PKEY_DH_KDF_X9_42) {
+    }
+#ifndef OPENSSL_NO_CMS
+    else if (dctx->kdf_type == EVP_PKEY_DH_KDF_X9_42) {
         unsigned char *Z = NULL;
         size_t Zlen = 0;
         if (!dctx->kdf_outlen || !dctx->kdf_oid)
@@ -479,6 +485,7 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
         }
         return ret;
     }
+#endif
     return 1;
 }
 

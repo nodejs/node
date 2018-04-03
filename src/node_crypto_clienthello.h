@@ -24,29 +24,15 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-
 #include <stddef.h>  // size_t
-#include <stdlib.h>  // nullptr
+#include <stdint.h>
 
 namespace node {
 namespace crypto {
 
 class ClientHelloParser {
  public:
-  ClientHelloParser() : state_(kEnded),
-                        onhello_cb_(nullptr),
-                        onend_cb_(nullptr),
-                        cb_arg_(nullptr),
-                        session_size_(0),
-                        session_id_(nullptr),
-                        servername_size_(0),
-                        servername_(nullptr),
-                        ocsp_request_(0),
-                        tls_ticket_size_(0),
-                        tls_ticket_(nullptr) {
-    Reset();
-  }
+  inline ClientHelloParser();
 
   class ClientHello {
    public:

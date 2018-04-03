@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common.js');
-const path = require('path');
+const { posix } = require('path');
 
 const bench = common.createBenchmark(main, {
   props: [
@@ -9,10 +9,8 @@ const bench = common.createBenchmark(main, {
   n: [1e7]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const p = path.posix;
-  const props = String(conf.props).split('|');
+function main({ n, props }) {
+  props = props.split('|');
   const obj = {
     root: props[0] || '',
     dir: props[1] || '',
@@ -23,7 +21,7 @@ function main(conf) {
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    p.format(obj);
+    posix.format(obj);
   }
   bench.end(n);
 }

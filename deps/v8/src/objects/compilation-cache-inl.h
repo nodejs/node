@@ -32,7 +32,7 @@ uint32_t CompilationCacheShape::StringSharedHash(String* source,
     // collection.
     Script* script(Script::cast(shared->script()));
     hash ^= String::cast(script->source())->Hash();
-    STATIC_ASSERT(LANGUAGE_END == 2);
+    STATIC_ASSERT(LanguageModeSize == 2);
     if (is_strict(language_mode)) hash ^= 0x8000;
     hash += position;
   }

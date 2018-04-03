@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable dot-notation */
+
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
@@ -59,10 +61,10 @@ function runSymbol(n) {
   bench.end(n / 1e6);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
+function main({ millions, method }) {
+  const n = millions * 1e6;
 
-  switch (conf.method) {
+  switch (method) {
     // '' is a default case for tests
     case '':
     case 'property':
@@ -78,6 +80,6 @@ function main(conf) {
       runSymbol(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

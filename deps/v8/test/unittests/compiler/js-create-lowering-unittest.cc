@@ -40,8 +40,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph,
-                             MaybeHandle<FeedbackVector>(), native_context(),
+    JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph, native_context(),
                              zone());
     return reducer.Reduce(node);
   }
@@ -93,7 +92,7 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedMapped) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Handle<SharedFunctionInfo> shared(isolate()->script_function()->shared());
   Node* const frame_state_outer = FrameState(shared, graph()->start());
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(graph()->NewNode(
@@ -111,7 +110,7 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedUnmapped) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Handle<SharedFunctionInfo> shared(isolate()->script_function()->shared());
   Node* const frame_state_outer = FrameState(shared, graph()->start());
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(graph()->NewNode(
@@ -129,7 +128,7 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Handle<SharedFunctionInfo> shared(isolate()->script_function()->shared());
   Node* const frame_state_outer = FrameState(shared, graph()->start());
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(graph()->NewNode(

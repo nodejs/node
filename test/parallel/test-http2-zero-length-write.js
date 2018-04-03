@@ -41,11 +41,12 @@ server.listen(0, common.mustCall(() => {
   let actual = '';
   const req = client.request({ ':method': 'POST' });
   req.on('response', common.mustCall());
+  req.setEncoding('utf8');
   req.on('data', (chunk) => actual += chunk);
   req.on('end', common.mustCall(() => {
     assert.strictEqual(actual, expect);
     server.close();
-    client.destroy();
+    client.close();
   }));
   getSrc().pipe(req);
 }));

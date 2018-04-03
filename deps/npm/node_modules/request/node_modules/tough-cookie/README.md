@@ -134,6 +134,9 @@ else
   cookies = [Cookie.parse(res.headers['set-cookie'])];
 ```
 
+_Potentially non-standard behavior:_ currently, tough-cookie will limit the number of spaces before the `=` to 256 characters.
+See [Issue 92](https://github.com/salesforce/tough-cookie/issues/92)
+
 ### Properties
 
 Cookie object properties:

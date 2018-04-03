@@ -9,7 +9,7 @@ const npa = require('npm-package-arg')
 module.exports = manifest
 function manifest (spec, opts) {
   opts = optCheck(opts)
-  spec = typeof spec === 'string' ? npa(spec, opts.where) : spec
+  spec = npa(spec, opts.where)
 
   const label = [
     spec.name,

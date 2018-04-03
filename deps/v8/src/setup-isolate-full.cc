@@ -5,6 +5,7 @@
 #include "src/setup-isolate.h"
 
 #include "src/base/logging.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/interpreter/setup-interpreter.h"
 #include "src/isolate.h"
@@ -12,21 +13,29 @@
 namespace v8 {
 namespace internal {
 
-void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate,
-                                         bool create_heap_objects) {
-  if (create_heap_objects) {
+void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate) {
+  if (create_heap_objects_) {
     SetupBuiltinsInternal(isolate);
   } else {
-    DCHECK(isolate->snapshot_available());
+    CHECK(isolate->snapshot_available());
   }
 }
 
 void SetupIsolateDelegate::SetupInterpreter(
-    interpreter::Interpreter* interpreter, bool create_heap_objects) {
-  if (create_heap_objects) {
+    interpreter::Interpreter* interpreter) {
+  if (create_heap_objects_) {
     interpreter::SetupInterpreter::InstallBytecodeHandlers(interpreter);
   } else {
-    DCHECK(interpreter->IsDispatchTableInitialized());
+    CHECK(interpreter->IsDispatchTableInitialized());
+  }
+}
+
+bool SetupIsolateDelegate::SetupHeap(Heap* heap) {
+  if (create_heap_objects_) {
+    return SetupHeapInternal(heap);
+  } else {
+    CHECK(heap->isolate()->snapshot_available());
+    return true;
   }
 }
 

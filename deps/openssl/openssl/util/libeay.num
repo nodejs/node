@@ -4370,7 +4370,7 @@ DH_compute_key_padded                   4732	EXIST::FUNCTION:DH
 ECDSA_METHOD_set_sign                   4733	EXIST::FUNCTION:ECDSA
 CMS_RecipientEncryptedKey_cert_cmp      4734	EXIST:!VMS:FUNCTION:CMS
 CMS_RecipEncryptedKey_cert_cmp          4734	EXIST:VMS:FUNCTION:CMS
-DH_KDF_X9_42                            4735	EXIST::FUNCTION:DH
+DH_KDF_X9_42                            4735	EXIST::FUNCTION:CMS,DH
 RSA_OAEP_PARAMS_free                    4736	EXIST::FUNCTION:RSA
 EVP_des_ede3_wrap                       4737	EXIST::FUNCTION:DES
 RSA_OAEP_PARAMS_it                      4738	EXIST:!EXPORT_VAR_AS_FUNCTION:VARIABLE:RSA
@@ -4416,3 +4416,18 @@ X509_VERIFY_PARAM_add1_host             4771	EXIST::FUNCTION:
 EC_GROUP_get_mont_data                  4772	EXIST::FUNCTION:EC
 i2d_re_X509_tbs                         4773	EXIST::FUNCTION:
 EVP_PKEY_asn1_set_item                  4774	EXIST::FUNCTION:
+EVP_PKEY_meth_get_init                  4775	EXIST::FUNCTION:
+EVP_PKEY_meth_get_verify_recover        4776	EXIST:!VMS:FUNCTION:
+EVP_PKEY_meth_get_vrfy_recover          4776	EXIST:VMS:FUNCTION:
+EVP_PKEY_meth_get_keygen                4777	EXIST::FUNCTION:
+EVP_PKEY_meth_get_derive                4778	EXIST::FUNCTION:
+EVP_PKEY_meth_get_verifyctx             4779	EXIST::FUNCTION:
+EVP_PKEY_meth_get_paramgen              4780	EXIST::FUNCTION:
+EVP_PKEY_meth_get_verify                4781	EXIST::FUNCTION:
+EVP_PKEY_meth_get_sign                  4782	EXIST::FUNCTION:
+EVP_PKEY_meth_get_signctx               4783	EXIST::FUNCTION:
+EVP_PKEY_meth_get_ctrl                  4784	EXIST::FUNCTION:
+EVP_PKEY_meth_get_decrypt               4785	EXIST::FUNCTION:
+EVP_PKEY_meth_get_cleanup               4786	EXIST::FUNCTION:
+EVP_PKEY_meth_get_encrypt               4787	EXIST::FUNCTION:
+EVP_PKEY_meth_get_copy                  4788	EXIST::FUNCTION:

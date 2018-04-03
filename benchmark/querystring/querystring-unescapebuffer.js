@@ -12,10 +12,7 @@ const bench = common.createBenchmark(main, {
   n: [10e6],
 });
 
-function main(conf) {
-  const input = conf.input;
-  const n = conf.n | 0;
-
+function main({ input, n }) {
   bench.start();
   for (var i = 0; i < n; i += 1)
     querystring.unescapeBuffer(input);

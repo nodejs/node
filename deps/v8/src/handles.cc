@@ -5,6 +5,7 @@
 #include "src/handles.h"
 
 #include "src/address-map.h"
+#include "src/api.h"
 #include "src/base/logging.h"
 #include "src/identity-map.h"
 #include "src/objects-inl.h"
@@ -52,10 +53,11 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
 
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  int n = impl->blocks()->length();
+  int n = static_cast<int>(impl->blocks()->size());
   if (n == 0) return 0;
-  return ((n - 1) * kHandleBlockSize) + static_cast<int>(
-      (isolate->handle_scope_data()->next - impl->blocks()->last()));
+  return ((n - 1) * kHandleBlockSize) +
+         static_cast<int>(
+             (isolate->handle_scope_data()->next - impl->blocks()->back()));
 }
 
 
@@ -70,16 +72,16 @@ Object** HandleScope::Extend(Isolate* isolate) {
   if (!Utils::ApiCheck(current->level != current->sealed_level,
                        "v8::HandleScope::CreateHandle()",
                        "Cannot create a handle without a HandleScope")) {
-    return NULL;
+    return nullptr;
   }
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   // If there's more room in the last block, we use that. This is used
   // for fast creation of scopes after scope barriers.
-  if (!impl->blocks()->is_empty()) {
-    Object** limit = &impl->blocks()->last()[kHandleBlockSize];
+  if (!impl->blocks()->empty()) {
+    Object** limit = &impl->blocks()->back()[kHandleBlockSize];
     if (current->limit != limit) {
       current->limit = limit;
-      DCHECK(limit - current->next < kHandleBlockSize);
+      DCHECK_LT(limit - current->next, kHandleBlockSize);
     }
   }
 
@@ -90,7 +92,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
     result = impl->GetSpareOrNewBlock();
     // Add the extension to the global list of blocks, but count the
     // extension as part of the current scope.
-    impl->blocks()->Add(result);
+    impl->blocks()->push_back(result);
     current->limit = &result[kHandleBlockSize];
   }
 
@@ -106,9 +108,9 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 
 #ifdef ENABLE_HANDLE_ZAPPING
 void HandleScope::ZapRange(Object** start, Object** end) {
-  DCHECK(end - start <= kHandleBlockSize);
+  DCHECK_LE(end - start, kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
-    *reinterpret_cast<Address*>(p) = kHandleZapValue;
+    *reinterpret_cast<Address*>(p) = reinterpret_cast<Address>(kHandleZapValue);
   }
 }
 #endif
@@ -178,10 +180,10 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
   Object** new_next = impl_->GetSpareOrNewBlock();
   Object** new_limit = &new_next[kHandleBlockSize];
   // Check that at least one HandleScope exists, see the class description.
-  DCHECK(!impl_->blocks()->is_empty());
+  DCHECK(!impl_->blocks()->empty());
   // Check that we are not in a SealedHandleScope.
-  DCHECK(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
-  impl_->blocks()->Add(new_next);
+  DCHECK(data->limit == &impl_->blocks()->back()[kHandleBlockSize]);
+  impl_->blocks()->push_back(new_next);
 
 #ifdef DEBUG
   prev_level_ = data->level;

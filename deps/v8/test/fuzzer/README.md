@@ -79,7 +79,7 @@ new fuzzer to cluster fuzz.
    for more information.
 
 2. Compile the fuzzer in chromium (for different configurations see:
-   https://chromium.googlesource.com/chromium/src/+/master/testing/libfuzzer/reproducing.md):
+   https://chromium.googlesource.com/chromium/src/+/master/testing/libfuzzer/reference.md):
 
    * `gn gen out/libfuzzer '--args=use_libfuzzer=true is_asan=true is_debug=false enable_nacl=false'`
 

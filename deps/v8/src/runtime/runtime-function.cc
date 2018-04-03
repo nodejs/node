@@ -9,7 +9,6 @@
 #include "src/compiler.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +63,9 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
   if (function->IsJSFunction()) {
-    return *Handle<JSFunction>::cast(function)->shared()->GetSourceCode();
+    Handle<SharedFunctionInfo> shared(
+        Handle<JSFunction>::cast(function)->shared());
+    return *SharedFunctionInfo::GetSourceCode(shared);
   }
   return isolate->heap()->undefined_value();
 }
@@ -98,18 +99,6 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CHECK(fun->IsConstructor());
-  JSFunction::SetPrototype(fun, value);
-  return args[0];  // return TOS
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -136,7 +125,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.
-  target_shared->ReplaceCode(source_shared->code());
+  target_shared->set_code(source_shared->code());
   if (source_shared->HasBytecodeArray()) {
     target_shared->set_bytecode_array(source_shared->bytecode_array());
   }
@@ -162,8 +151,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   SharedFunctionInfo::SetScript(target_shared, source_script);
 
   // Set the code of the target function.
-  target->ReplaceCode(source_shared->code());
-  DCHECK(target->next_function_link()->IsUndefined(isolate));
+  target->set_code(source_shared->code());
 
   Handle<Context> context(source->context());
   target->set_context(*context);
@@ -206,18 +194,6 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
   return isolate->heap()->ToBoolean(object->IsConstructor());
 }
 
-RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-
-  if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(object);
-    func->shared()->set_force_inline(true);
-  }
-  return isolate->heap()->undefined_value();
-}
-
 
 RUNTIME_FUNCTION(Runtime_Call) {
   HandleScope scope(isolate);
@@ -231,15 +207,6 @@ RUNTIME_FUNCTION(Runtime_Call) {
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));
-}
-
-
-// ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
-RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
 }
 
 

@@ -184,7 +184,7 @@ AES_encrypt:
 #if __ARM_ARCH__<7
 	sub	r3,pc,#8		@ AES_encrypt
 #else
-	adr	r3,AES_encrypt
+	adr	r3,.
 #endif
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	$rounds,r0		@ inp
@@ -430,7 +430,7 @@ _armv4_AES_set_encrypt_key:
 #if __ARM_ARCH__<7
 	sub	r3,pc,#8		@ AES_set_encrypt_key
 #else
-	adr	r3,private_AES_set_encrypt_key
+	adr	r3,.
 #endif
 	teq	r0,#0
 #if __ARM_ARCH__>=7
@@ -952,7 +952,7 @@ AES_decrypt:
 #if __ARM_ARCH__<7
 	sub	r3,pc,#8		@ AES_decrypt
 #else
-	adr	r3,AES_decrypt
+	adr	r3,.
 #endif
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	$rounds,r0		@ inp

@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 if (!common.hasCrypto)
@@ -6,29 +7,16 @@ if (!common.hasCrypto)
 const http2 = require('http2');
 const {
   constants,
-  Http2Session,
+  Http2Stream,
   nghttp2ErrorString
 } = process.binding('http2');
+const { NghttpError } = require('internal/http2/util');
 
 // tests error handling within additionalHeaders
-// - NGHTTP2_ERR_NOMEM (should emit session error)
 // - every other NGHTTP2 error from binding (should emit stream error)
 
-const specificTestKeys = [
-  'NGHTTP2_ERR_NOMEM'
-];
-
-const specificTests = [
-  {
-    ngError: constants.NGHTTP2_ERR_NOMEM,
-    error: {
-      code: 'ERR_OUTOFMEMORY',
-      type: Error,
-      message: 'Out of memory'
-    },
-    type: 'session'
-  }
-];
+const specificTestKeys = [];
+const specificTests = [];
 
 const genericTests = Object.getOwnPropertyNames(constants)
   .filter((key) => (
@@ -38,7 +26,8 @@ const genericTests = Object.getOwnPropertyNames(constants)
     ngError: constants[key],
     error: {
       code: 'ERR_HTTP2_ERROR',
-      type: Error,
+      type: NghttpError,
+      name: 'Error [ERR_HTTP2_ERROR]',
       message: nghttp2ErrorString(constants[key])
     },
     type: 'stream'
@@ -50,7 +39,7 @@ const tests = specificTests.concat(genericTests);
 let currentError;
 
 // mock sendHeaders because we only care about testing error handling
-Http2Session.prototype.sendHeaders = () => currentError.ngError;
+Http2Stream.prototype.info = () => currentError.ngError;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {
@@ -62,10 +51,6 @@ server.on('stream', common.mustCall((stream, headers) => {
   if (currentError.type === 'stream') {
     stream.session.on('error', errorMustNotCall);
     stream.on('error', errorMustCall);
-    stream.on('error', common.mustCall(() => {
-      stream.respond();
-      stream.end();
-    }));
   } else {
     stream.session.once('error', errorMustCall);
     stream.on('error', errorMustNotCall);
@@ -77,24 +62,21 @@ server.on('stream', common.mustCall((stream, headers) => {
 server.listen(0, common.mustCall(() => runTest(tests.shift())));
 
 function runTest(test) {
-  const port = server.address().port;
-  const url = `http://localhost:${port}`;
-  const headers = {
-    ':path': '/',
-    ':method': 'POST',
-    ':scheme': 'http',
-    ':authority': `localhost:${port}`
-  };
-
-  const client = http2.connect(url);
-  const req = client.request(headers);
+  const client = http2.connect(`http://localhost:${server.address().port}`);
+  const req = client.request({ ':method': 'POST' });
 
   currentError = test;
   req.resume();
   req.end();
 
-  req.on('end', common.mustCall(() => {
-    client.destroy();
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    type: Error,
+    message: 'Stream closed with error code NGHTTP2_INTERNAL_ERROR'
+  }));
+
+  req.on('close', common.mustCall(() => {
+    client.close();
 
     if (!tests.length) {
       server.close();

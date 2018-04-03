@@ -1119,7 +1119,8 @@ deps = {
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
-          "--use-commit-queue --bypass-hooks --gerrit", "", cwd=chrome_dir),
+          "--cq-dry-run --bypass-hooks --gerrit", "",
+          cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]

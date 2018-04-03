@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/contexts.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/runtime/runtime.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
@@ -14,6 +15,8 @@
 namespace v8 {
 namespace internal {
 namespace interpreter {
+
+#define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
 
 TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
   struct BytecodesAndResult {
@@ -42,10 +45,10 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
        10,
        0,
        "CallAnyReceiver.Wide r134, r135-r144, [177]"},
-      {{B(ForInPrepare), R8(10), R8(11)},
+      {{B(ForInPrepare), R8(10), U8(11)},
        3,
        0,
-       "         ForInPrepare r10, r11-r13"},
+       "         ForInPrepare r10-r12, [11]"},
       {{B(CallRuntime), U16(Runtime::FunctionId::kIsDate), R8(0), U8(0)},
        5,
        0,
@@ -64,7 +67,10 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
        6,
        0,
        "JumpIfNull.ExtraWide [123456789]"},
-  };
+      {{B(CallJSRuntime), U8(Context::BOOLEAN_FUNCTION_INDEX), R8(0), U8(0)},
+       4,
+       0,
+       "      CallJSRuntime [boolean_function], r0-r0"}};
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     // Generate reference string by prepending formatted bytes.
@@ -90,6 +96,8 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
     CHECK_EQ(actual_ss.str(), expected_ss.str());
   }
 }
+
+#undef B
 
 }  // namespace interpreter
 }  // namespace internal

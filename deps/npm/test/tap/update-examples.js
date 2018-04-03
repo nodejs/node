@@ -125,7 +125,7 @@ function mockInstaller (where, dryrun, what) {
 }
 mockInstaller.prototype = {}
 mockInstaller.prototype.run = function (cb) {
-  cb()
+  return cb ? cb() : Promise.resolve()
 }
 
 var npm = requireInject.installGlobally('../../lib/npm.js', {

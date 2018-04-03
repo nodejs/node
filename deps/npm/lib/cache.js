@@ -4,6 +4,7 @@ const BB = require('bluebird')
 
 const assert = require('assert')
 const cacache = require('cacache')
+const finished = BB.promisify(require('mississippi').finished)
 const log = require('npmlog')
 const npa = require('npm-package-arg')
 const npm = require('./npm.js')
@@ -105,7 +106,7 @@ function add (args, where) {
   log.verbose('cache add', 'spec', spec)
   if (!spec) return BB.reject(new Error(usage))
   log.silly('cache add', 'parsed spec', spec)
-  return pacote.prefetch(spec, pacoteOpts({where}))
+  return finished(pacote.tarball.stream(spec, pacoteOpts({where})).resume())
 }
 
 cache.verify = verify

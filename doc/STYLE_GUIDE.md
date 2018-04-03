@@ -3,24 +3,20 @@
 * Documentation is written in markdown files with names formatted as
   `lowercase-with-dashes.md`.
   * Underscores in filenames are allowed only when they are present in the
-    topic the document will describe (e.g., `child_process`).
+    topic the document will describe (e.g. `child_process`).
   * Some files, such as top-level markdown files, are exceptions.
 * Documents should be word-wrapped at 80 characters.
 * The formatting described in `.editorconfig` is preferred.
   * A [plugin][] is available for some editors to automatically apply these
     rules.
-* Mechanical issues, like spelling and grammar, should be identified by tools,
-  insofar as is possible. If not caught by a tool, they should be pointed out by
-  human reviewers.
+* Changes to documentation should be checked with `make lint-md`.
 * American English spelling is preferred. "Capitalize" vs. "Capitalise",
   "color" vs. "colour", etc.
-* Though controversial, the [Oxford comma][] is preferred for clarity's sake.
-* Generally avoid personal pronouns in reference documentation ("I", "you",
-  "we").
-  * Pronouns are acceptable in more colloquial documentation, like guides.
-  * Use gender-neutral pronouns and mass nouns. Non-comprehensive
-    examples:
-    * OK: "they", "their", "them", "folks", "people", "developers", "cats"
+* Use [serial commas][].
+* Avoid personal pronouns in reference documentation ("I", "you", "we").
+  * Personal pronouns are acceptable in colloquial documentation such as guides.
+  * Use gender-neutral pronouns and gender-neutral plural nouns.
+    * OK: "they", "their", "them", "folks", "people", "developers"
     * NOT OK: "his", "hers", "him", "her", "guys", "dudes"
 * When combining wrapping elements (parentheses and quotes), terminal
   punctuation should be placed:
@@ -69,9 +65,12 @@
 * Function returns should use the following format:
   * <code>* Returns: {type|type2} Optional description.</code>
   * E.g. <code>* Returns: {AsyncHook} A reference to `asyncHook`.</code>
+* Use official styling for capitalization in products and projects.
+  * OK: JavaScript, Google's V8
+  * NOT OK: Javascript, Google's v8
 
 [Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
-[Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
+[serial commas]: https://en.wikipedia.org/wiki/Serial_comma
 [The New York Times Manual of Style and Usage]: https://en.wikipedia.org/wiki/The_New_York_Times_Manual_of_Style_and_Usage
 [plugin]: http://editorconfig.org/#download

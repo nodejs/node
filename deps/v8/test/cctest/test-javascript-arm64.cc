@@ -39,40 +39,23 @@
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 
-using ::v8::Context;
-using ::v8::Extension;
-using ::v8::Function;
-using ::v8::FunctionTemplate;
-using ::v8::HandleScope;
-using ::v8::Local;
-using ::v8::Message;
-using ::v8::MessageCallback;
-using ::v8::Object;
-using ::v8::ObjectTemplate;
-using ::v8::Persistent;
-using ::v8::Script;
-using ::v8::StackTrace;
-using ::v8::String;
-using ::v8::TryCatch;
-using ::v8::Undefined;
-using ::v8::V8;
-using ::v8::Value;
+namespace v8 {
+namespace internal {
+namespace test_javascript_arm64 {
 
-static void ExpectBoolean(Local<Context> context, bool expected,
+static void ExpectBoolean(Local<v8::Context> context, bool expected,
                           Local<Value> result) {
   CHECK(result->IsBoolean());
   CHECK_EQ(expected, result->BooleanValue(context).FromJust());
 }
 
-
-static void ExpectInt32(Local<Context> context, int32_t expected,
+static void ExpectInt32(Local<v8::Context> context, int32_t expected,
                         Local<Value> result) {
   CHECK(result->IsInt32());
   CHECK_EQ(expected, result->Int32Value(context).FromJust());
 }
 
-
-static void ExpectNumber(Local<Context> context, double expected,
+static void ExpectNumber(Local<v8::Context> context, double expected,
                          Local<Value> result) {
   CHECK(result->IsNumber());
   CHECK_EQ(expected, result->NumberValue(context).FromJust());
@@ -125,7 +108,7 @@ TEST(binary_op) {
   ExpectInt32(env.local(), 0x2468, result);
 }
 
-static void if_comparison_testcontext_helper(Local<Context> context,
+static void if_comparison_testcontext_helper(Local<v8::Context> context,
                                              char const* op, char const* lhs,
                                              char const* rhs, int expect) {
   char buffer[256];
@@ -139,7 +122,7 @@ static void if_comparison_testcontext_helper(Local<Context> context,
   ExpectInt32(context, expect, result);
 }
 
-static void if_comparison_effectcontext_helper(Local<Context> context,
+static void if_comparison_effectcontext_helper(Local<v8::Context> context,
                                                char const* op, char const* lhs,
                                                char const* rhs, int expect) {
   char buffer[256];
@@ -154,7 +137,7 @@ static void if_comparison_effectcontext_helper(Local<Context> context,
   ExpectInt32(context, expect, result);
 }
 
-static void if_comparison_helper(Local<Context> context, char const* op,
+static void if_comparison_helper(Local<v8::Context> context, char const* op,
                                  int expect_when_lt, int expect_when_eq,
                                  int expect_when_gt) {
   // TODO(all): Non-SMI tests.
@@ -259,3 +242,7 @@ TEST(unary_not) {
   result = CompileRun("var a = 1; if ( !a ) { 1; } else { 0; }");
   ExpectInt32(env.local(), 0, result);
 }
+
+}  // namespace test_javascript_arm64
+}  // namespace internal
+}  // namespace v8

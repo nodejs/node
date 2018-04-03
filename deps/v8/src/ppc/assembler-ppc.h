@@ -104,11 +104,16 @@ namespace internal {
   V(r24) V(r25) V(r26) V(r27) V(r28) V(r30)
 #endif
 
-#define DOUBLE_REGISTERS(V)                               \
+#define LOW_DOUBLE_REGISTERS(V)                           \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15) \
+  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15)
+
+#define NON_LOW_DOUBLE_REGISTERS(V)                       \
   V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
   V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
+
+#define DOUBLE_REGISTERS(V) \
+  LOW_DOUBLE_REGISTERS(V) NON_LOW_DOUBLE_REGISTERS(V)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
 #define SIMD128_REGISTERS DOUBLE_REGISTERS
@@ -118,6 +123,10 @@ namespace internal {
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)               \
   V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
   V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
+
+#define C_REGISTERS(V)                                            \
+  V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
+  V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
 
 // Register list in load/store instructions
@@ -250,69 +259,21 @@ const int kStackFrameLRSlot = 1;
 const int kStackFrameExtraParamSlot = 2;
 #endif
 
-// CPU Registers.
-//
-// 1) We would prefer to use an enum, but enum values are assignment-
-// compatible with int, which has caused code-generation bugs.
-//
-// 2) We would prefer to use a class instead of a struct but we don't like
-// the register initialization to depend on the particular initialization
-// order (which appears to be different on OS X, Linux, and Windows for the
-// installed versions of C++ we tried). Using a struct permits C-style
-// "initialization". Also, the Register objects cannot be const as this
-// forces initialization stubs in MSVC, making us dependent on initialization
-// order.
-//
-// 3) By not using an enum, we are possibly preventing the compiler from
-// doing certain constant folds, which may significantly reduce the
-// code generated for some assembly instructions (because they boil down
-// to a few constants). If this is a problem, we could change the code
-// such that we use an enum in optimized mode, and the struct in debug
-// mode. This way we get the compile-time error checking in debug mode
-// and best performance in optimized code.
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
-struct Register {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
+enum RegisterCode {
+#define REGISTER_CODE(R) kRegCode_##R,
+  GENERAL_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+      kRegAfterLast
+};
 
-  static constexpr int kNumRegisters = Code::kAfterLast;
-
-#define REGISTER_COUNT(R) 1 +
-  static constexpr int kNumAllocatable =
-      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_COUNT) 0;
-#undef REGISTER_COUNT
-
-#define REGISTER_BIT(R) 1 << kCode_##R |
-  static constexpr RegList kAllocatable =
-      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_BIT) 0;
-#undef REGISTER_BIT
-
-  static Register from_code(int code) {
-    DCHECK(code >= 0);
-    DCHECK(code < kNumRegisters);
-    Register r = {code};
-    return r;
-  }
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(Register reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-  void set_code(int code) {
-    reg_code = code;
-    DCHECK(is_valid());
-  }
-
+class Register : public RegisterBase<Register, kRegAfterLast> {
+ public:
 #if V8_TARGET_LITTLE_ENDIAN
   static constexpr int kMantissaOffset = 0;
   static constexpr int kExponentOffset = 4;
@@ -321,14 +282,20 @@ struct Register {
   static constexpr int kExponentOffset = 0;
 #endif
 
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+ private:
+  friend class RegisterBase;
+  explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
-#define DEFINE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
+                  sizeof(Register) == sizeof(int),
+              "Register can efficiently be passed by value");
+
+#define DEFINE_REGISTER(R) \
+  constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr Register no_reg = {Register::kCode_no_reg};
+constexpr Register no_reg = Register::no_reg();
 
 // Aliases
 constexpr Register kLithiumScratch = r11;        // lithium scratch.
@@ -336,40 +303,35 @@ constexpr Register kConstantPoolRegister = r28;  // Constant pool.
 constexpr Register kRootRegister = r29;          // Roots array pointer.
 constexpr Register cp = r30;                     // JavaScript context pointer.
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
-// Double word FP register.
-struct DoubleRegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
+enum DoubleRegisterCode {
+#define REGISTER_CODE(R) kDoubleCode_##R,
+  DOUBLE_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
-  static constexpr int kNumRegisters = Code::kAfterLast;
-  static constexpr int kMaxNumRegisters = kNumRegisters;
-
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  static DoubleRegister from_code(int code) {
-    DoubleRegister r = {code};
-    return r;
-  }
-
-  int reg_code;
+      kDoubleAfterLast
 };
+
+// Double word FP register.
+class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
+ public:
+  // A few double registers are reserved: one as a scratch register and one to
+  // hold 0.0, that does not fit in the immediate field of vmov instructions.
+  // d14: 0.0
+  // d15: scratch register.
+  static constexpr int kSizeInBytes = 8;
+  inline static int NumRegisters();
+
+ private:
+  friend class RegisterBase;
+  explicit constexpr DoubleRegister(int code) : RegisterBase(code) {}
+};
+
+static_assert(IS_TRIVIALLY_COPYABLE(DoubleRegister) &&
+                  sizeof(DoubleRegister) == sizeof(int),
+              "DoubleRegister can efficiently be passed by value");
 
 typedef DoubleRegister FloatRegister;
 
@@ -377,10 +339,10 @@ typedef DoubleRegister FloatRegister;
 typedef DoubleRegister Simd128Register;
 
 #define DEFINE_REGISTER(R) \
-  constexpr DoubleRegister R = {DoubleRegister::kCode_##R};
+  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr Register no_dreg = {Register::kCode_no_reg};
+constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 constexpr DoubleRegister kFirstCalleeSavedDoubleReg = d14;
 constexpr DoubleRegister kLastCalleeSavedDoubleReg = d31;
@@ -389,33 +351,24 @@ constexpr DoubleRegister kScratchDoubleReg = d13;
 
 Register ToRegister(int num);
 
-// Coprocessor register
-struct CRegister {
-  bool is_valid() const { return 0 <= reg_code && reg_code < 8; }
-  bool is(CRegister creg) const { return reg_code == creg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+enum CRegisterCode {
+#define REGISTER_CODE(R) kCCode_##R,
+  C_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kCAfterLast
 };
 
-constexpr CRegister no_creg = {-1};
+// Coprocessor register
+class CRegister : public RegisterBase<CRegister, kCAfterLast> {
+  friend class RegisterBase;
+  explicit constexpr CRegister(int code) : RegisterBase(code) {}
+};
 
-constexpr CRegister cr0 = {0};
-constexpr CRegister cr1 = {1};
-constexpr CRegister cr2 = {2};
-constexpr CRegister cr3 = {3};
-constexpr CRegister cr4 = {4};
-constexpr CRegister cr5 = {5};
-constexpr CRegister cr6 = {6};
-constexpr CRegister cr7 = {7};
+constexpr CRegister no_creg = CRegister::no_reg();
+#define DECLARE_C_REGISTER(R) \
+  constexpr CRegister R = CRegister::from_code<kCCode_##R>();
+C_REGISTERS(DECLARE_C_REGISTER)
+#undef DECLARE_C_REGISTER
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
@@ -431,12 +384,19 @@ class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(intptr_t immediate,
-                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR));
+                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR)
+         : rmode_(rmode)) {
+    value_.immediate = immediate;
+  }
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
-  INLINE(explicit Operand(const ExternalReference& f));
+  INLINE(explicit Operand(const ExternalReference& f)
+         : rmode_(RelocInfo::EXTERNAL_REFERENCE)) {
+    value_.immediate = reinterpret_cast<intptr_t>(f.address());
+  }
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value));
-
+  INLINE(explicit Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR)) {
+    value_.immediate = reinterpret_cast<intptr_t>(value);
+  }
   // rm
   INLINE(explicit Operand(Register rm));
 
@@ -444,7 +404,7 @@ class Operand BASE_EMBEDDED {
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const);
+  INLINE(bool is_reg() const) { return rm_.is_valid(); }
 
   bool must_output_reloc_info(const Assembler* assembler) const;
 
@@ -471,7 +431,7 @@ class Operand BASE_EMBEDDED {
   }
 
  private:
-  Register rm_;
+  Register rm_ = no_reg;
   union Value {
     Value() {}
     HeapObjectRequest heap_object_request;  // if is_heap_object_request_
@@ -496,18 +456,16 @@ class MemOperand BASE_EMBEDDED {
   explicit MemOperand(Register ra, Register rb);
 
   int32_t offset() const {
-    DCHECK(rb_.is(no_reg));
+    DCHECK(rb_ == no_reg);
     return offset_;
   }
 
   // PowerPC - base register
   Register ra() const {
-    DCHECK(!ra_.is(no_reg));
     return ra_;
   }
 
   Register rb() const {
-    DCHECK(offset_ == 0 && !rb_.is(no_reg));
     return rb_;
   }
 
@@ -544,14 +502,15 @@ class Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
@@ -623,10 +582,6 @@ class Assembler : public AssemblerBase {
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(static Address target_address_at(Address pc, Code* code));
-  INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
@@ -710,16 +665,16 @@ class Assembler : public AssemblerBase {
     x_form(instr_name, src, dst, r0, rc);                                   \
   }
 
-#define DECLARE_PPC_X_INSTRUCTIONS_D_FORM(name, instr_name, instr_value)    \
-  template <class R>                                                        \
-  inline void name(const R rt, const Register ra,                           \
-                   const Register rb, const RCBit rc = LeaveRC) {           \
-    DCHECK(!ra.is(r0));                                                     \
-    x_form(instr_name, rt.code(), ra.code(), rb.code(), rc);                \
-  }                                                                         \
-  template <class R>                                                        \
-  inline void name(const R dst, const MemOperand& src) {                    \
-    name(dst, src.ra(), src.rb());                                          \
+#define DECLARE_PPC_X_INSTRUCTIONS_D_FORM(name, instr_name, instr_value) \
+  template <class R>                                                     \
+  inline void name(const R rt, const Register ra, const Register rb,     \
+                   const RCBit rc = LeaveRC) {                           \
+    DCHECK(ra != r0);                                                    \
+    x_form(instr_name, rt.code(), ra.code(), rb.code(), rc);             \
+  }                                                                      \
+  template <class R>                                                     \
+  inline void name(const R dst, const MemOperand& src) {                 \
+    name(dst, src.ra(), src.rb());                                       \
   }
 
 #define DECLARE_PPC_X_INSTRUCTIONS_E_FORM(name, instr_name, instr_value)    \
@@ -744,7 +699,7 @@ class Assembler : public AssemblerBase {
   }
 #define DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM(name, instr_name, instr_value) \
   inline void name(const Register dst, const MemOperand& src) {             \
-    DCHECK(!src.ra_.is(r0));                                                \
+    DCHECK(src.ra_ != r0);                                                  \
     x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
   }
 
@@ -786,7 +741,7 @@ class Assembler : public AssemblerBase {
 #if V8_TARGET_ARCH_PPC64
     Register ra = src.ra();
     Register rb = src.rb();
-    DCHECK(!ra.is(r0));
+    DCHECK(ra != r0);
     x_form(LWAX, rt, ra, rb, LeaveRC);
 #else
     lwzx(rt, src);
@@ -797,7 +752,7 @@ class Assembler : public AssemblerBase {
     emit(EXT2 | EXTSW | ra.code() * B21 | rs.code() * B16 | rc);
 #else
     // nop on 32-bit
-    DCHECK(rs.is(ra) && rc == LeaveRC);
+    DCHECK(rs == ra && rc == LeaveRC);
 #endif
   }
 
@@ -1577,17 +1532,43 @@ class Assembler : public AssemblerBase {
   int last_bound_pos_;
   // Optimizable cmpi information.
   int optimizable_cmpi_pos_;
-  CRegister cmpi_cr_;
+  CRegister cmpi_cr_ = CRegister::no_reg();
 
   ConstantPoolBuilder constant_pool_builder_;
 
-  // Code emission
-  inline void CheckBuffer();
+  void CheckBuffer() {
+    if (buffer_space() <= kGap) {
+      GrowBuffer();
+    }
+  }
+
   void GrowBuffer(int needed = 0);
-  inline void emit(Instr x);
-  inline void TrackBranch();
+  // Code emission
+  void emit(Instr x) {
+    CheckBuffer();
+    *reinterpret_cast<Instr*>(pc_) = x;
+    pc_ += kInstrSize;
+    CheckTrampolinePoolQuick();
+  }
+  void TrackBranch() {
+    DCHECK(!trampoline_emitted_);
+    int count = tracked_branch_count_++;
+    if (count == 0) {
+      // We leave space (kMaxBlockTrampolineSectionSize)
+      // for BlockTrampolinePoolScope buffer.
+      next_trampoline_check_ =
+          pc_offset() + kMaxCondBranchReach - kMaxBlockTrampolineSectionSize;
+    } else {
+      next_trampoline_check_ -= kTrampolineSlotsSize;
+    }
+  }
+
   inline void UntrackBranch();
-  inline void CheckTrampolinePoolQuick();
+  void CheckTrampolinePoolQuick() {
+    if (pc_offset() >= next_trampoline_check_) {
+      CheckTrampolinePool();
+    }
+  }
 
   // Instruction generation
   void a_form(Instr instr, DoubleRegister frt, DoubleRegister fra,
@@ -1656,7 +1637,6 @@ class Assembler : public AssemblerBase {
 
   friend class RegExpMacroAssemblerPPC;
   friend class RelocInfo;
-  friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
 

@@ -43,7 +43,7 @@ const optsInfo = {
 for (const [type, expect] of [
   ['string', expectStr],
   ['Buffer', expectBuf],
-  ...common.getArrayBufferViews(expectBuf).map((obj) =>
+  ...common.getBufferSources(expectBuf).map((obj) =>
     [obj[Symbol.toStringTag], obj]
   )
 ]) {

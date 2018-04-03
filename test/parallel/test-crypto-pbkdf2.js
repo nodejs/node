@@ -65,6 +65,28 @@ common.expectsError(
   }
 );
 
+common.expectsError(
+  () => crypto.pbkdf2Sync('password', 'salt', -1, 20, null),
+  {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError,
+    message: 'The value of "iterations" is out of range. ' +
+             'It must be a non-negative number. Received -1'
+  }
+);
+
+['str', null, undefined, [], {}].forEach((notNumber) => {
+  common.expectsError(
+    () => {
+      crypto.pbkdf2Sync('password', 'salt', 1, notNumber, 'sha256');
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "keylen" argument must be of type number. ' +
+               `Received type ${typeof notNumber}`
+    });
+});
+
 [Infinity, -Infinity, NaN, -1, 4073741824, INT_MAX + 1].forEach((i) => {
   common.expectsError(
     () => {
@@ -73,24 +95,21 @@ common.expectsError(
     }, {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-      message: 'The "keylen" argument is out of range'
+      message: 'The value of "keylen" is out of range.'
     });
 });
 
 // Should not get FATAL ERROR with empty password and salt
 // https://github.com/nodejs/node/issues/8571
-assert.doesNotThrow(() => {
-  crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustCall((e) => {
-    assert.ifError(e);
-  }));
-});
+crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustCall(assert.ifError));
 
 common.expectsError(
   () => crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall()),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "digest" argument must be one of type string or null'
+    message: 'The "digest" argument must be one of type string or null. ' +
+             'Received type undefined'
   });
 
 common.expectsError(
@@ -98,58 +117,57 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "digest" argument must be one of type string or null'
+    message: 'The "digest" argument must be one of type string or null. ' +
+             'Received type undefined'
   });
 
-[1, {}, [], true, undefined, null].forEach((i) => {
+[1, {}, [], true, undefined, null].forEach((input) => {
+  const msgPart2 = `Buffer, or TypedArray. Received type ${typeof input}`;
   common.expectsError(
-    () => crypto.pbkdf2(i, 'salt', 8, 8, 'sha256', common.mustNotCall()),
+    () => crypto.pbkdf2(input, 'salt', 8, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "password" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+      message: `The "password" argument must be one of type string, ${msgPart2}`
     }
   );
 
   common.expectsError(
-    () => crypto.pbkdf2('pass', i, 8, 8, 'sha256', common.mustNotCall()),
+    () => crypto.pbkdf2('pass', input, 8, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "salt" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+      message: `The "salt" argument must be one of type string, ${msgPart2}`
     }
   );
 
   common.expectsError(
-    () => crypto.pbkdf2Sync(i, 'salt', 8, 8, 'sha256'),
+    () => crypto.pbkdf2Sync(input, 'salt', 8, 8, 'sha256'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "password" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+      message: `The "password" argument must be one of type string, ${msgPart2}`
     }
   );
 
   common.expectsError(
-    () => crypto.pbkdf2Sync('pass', i, 8, 8, 'sha256'),
+    () => crypto.pbkdf2Sync('pass', input, 8, 8, 'sha256'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "salt" argument must be one of type string, ' +
-               'Buffer, or TypedArray'
+      message: `The "salt" argument must be one of type string, ${msgPart2}`
     }
   );
 });
 
 ['test', {}, [], true, undefined, null].forEach((i) => {
+  const received = `Received type ${typeof i}`;
   common.expectsError(
     () => crypto.pbkdf2('pass', 'salt', i, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "iterations" argument must be of type number'
+      message: `The "iterations" argument must be of type number. ${received}`
     }
   );
 
@@ -158,7 +176,7 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "iterations" argument must be of type number'
+      message: `The "iterations" argument must be of type number. ${received}`
     }
   );
 });

@@ -17,9 +17,9 @@ parameter count: 1
 bytecode array length: 10
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   32 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
-  /*   39 E> */ B(CallUndefinedReceiver0), R(0), U8(0),
+  /*   39 E> */ B(CallUndefinedReceiver0), R(0), U8(2),
   /*   43 S> */ B(Return),
 ]
 constant pool: [
@@ -39,7 +39,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   34 E> */ B(StackCheck),
-  /*   39 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   39 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
                 B(LdaSmi), I8(1),
                 B(Star), R(1),
@@ -47,7 +47,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
                 B(Star), R(3),
-  /*   46 E> */ B(CallUndefinedReceiver), R(0), R(1), U8(3), U8(0),
+  /*   46 E> */ B(CallUndefinedReceiver), R(0), R(1), U8(3), U8(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [

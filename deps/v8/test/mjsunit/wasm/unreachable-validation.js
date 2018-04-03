@@ -128,3 +128,5 @@ run(I, "U (block (iblock 0 0 brt01) drop)", [unr, ...block, ...iblock, ...zero, 
 run(V, "(iblock (iblock U 0 brt01)) drop", [...iblock, ...iblock, unr, ...zero, ...brt01, end, end, drop]);
 run(I, "(block (fblock U 0 brt01) drop)", [...iblock, ...fblock, unr, ...zero, ...brt01, end, drop, end]);
 run(I, "(iblock (fblock U 0 brt01) drop 0) drop", [...iblock, ...fblock, unr, ...zero, ...brt01, end, drop, ...zero, end, drop]);
+
+run(I, "(iblock (block (U brif 1))", [...iblock, ...block, unr, kExprBrIf, 0, end, end, kExprDrop]);

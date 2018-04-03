@@ -7,10 +7,35 @@ import("../../gni/v8.gni")
 v8_executable("unittests") {
   testonly = true
 
+  # TODO(machenbach): Translate from gyp.
+  #['OS=="aix"', {
+  #  'ldflags': [ '-Wl,-bbigtoc' ],
+  #}],
+
+  deps = [
+    ":unittests_sources",
+    "../..:v8_for_testing",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/config:exe_and_shlib_deps",
+    "//build/win:default_exe_manifest",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+}
+v8_source_set("unittests_sources") {
+  testonly = true
+
   sources = [
     "../../test/common/wasm/wasm-macro-gen.h",
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
+    "allocation-unittest.cc",
     "api/access-check-unittest.cc",
     "api/exception-unittest.cc",
     "api/interceptor-unittest.cc",
@@ -39,8 +64,11 @@ v8_executable("unittests") {
     "base/sys-info-unittest.cc",
     "base/template-utils-unittest.cc",
     "base/utils/random-number-generator-unittest.cc",
+    "bigint-unittest.cc",
     "cancelable-tasks-unittest.cc",
     "char-predicates-unittest.cc",
+    "code-stub-assembler-unittest.cc",
+    "code-stub-assembler-unittest.h",
     "compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",
     "compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc",
@@ -48,6 +76,8 @@ v8_executable("unittests") {
     "compiler/branch-elimination-unittest.cc",
     "compiler/bytecode-analysis-unittest.cc",
     "compiler/checkpoint-elimination-unittest.cc",
+    "compiler/code-assembler-unittest.cc",
+    "compiler/code-assembler-unittest.h",
     "compiler/common-operator-reducer-unittest.cc",
     "compiler/common-operator-unittest.cc",
     "compiler/compiler-test-utils.h",
@@ -56,7 +86,6 @@ v8_executable("unittests") {
     "compiler/dead-code-elimination-unittest.cc",
     "compiler/diamond-unittest.cc",
     "compiler/effect-control-linearizer-unittest.cc",
-    "compiler/escape-analysis-unittest.cc",
     "compiler/graph-reducer-unittest.cc",
     "compiler/graph-reducer-unittest.h",
     "compiler/graph-trimmer-unittest.cc",
@@ -93,6 +122,7 @@ v8_executable("unittests") {
     "compiler/schedule-unittest.cc",
     "compiler/scheduler-rpo-unittest.cc",
     "compiler/scheduler-unittest.cc",
+    "compiler/simplified-lowering-unittest.cc",
     "compiler/simplified-operator-reducer-unittest.cc",
     "compiler/simplified-operator-unittest.cc",
     "compiler/state-values-utils-unittest.cc",
@@ -101,8 +131,10 @@ v8_executable("unittests") {
     "compiler/value-numbering-reducer-unittest.cc",
     "compiler/zone-stats-unittest.cc",
     "counters-unittest.cc",
+    "detachable-vector-unittest.cc",
     "eh-frame-iterator-unittest.cc",
     "eh-frame-writer-unittest.cc",
+    "heap/barrier-unittest.cc",
     "heap/bitmap-unittest.cc",
     "heap/embedder-tracing-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
@@ -136,6 +168,7 @@ v8_executable("unittests") {
     "libplatform/worker-thread-unittest.cc",
     "locked-queue-unittest.cc",
     "object-unittest.cc",
+    "parser/ast-value-unittest.cc",
     "parser/preparser-unittest.cc",
     "register-configuration-unittest.cc",
     "run-all-unittests.cc",
@@ -145,6 +178,7 @@ v8_executable("unittests") {
     "test-utils.cc",
     "test-utils.h",
     "unicode-unittest.cc",
+    "utils-unittest.cc",
     "value-serializer-unittest.cc",
     "wasm/control-transfer-unittest.cc",
     "wasm/decoder-unittest.cc",
@@ -153,6 +187,8 @@ v8_executable("unittests") {
     "wasm/loop-assignment-analysis-unittest.cc",
     "wasm/module-decoder-unittest.cc",
     "wasm/streaming-decoder-unittest.cc",
+    "wasm/trap-handler-unittest.cc",
+    "wasm/wasm-code-manager-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",
@@ -161,6 +197,15 @@ v8_executable("unittests") {
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
   ]
+
+  if (use_jumbo_build) {
+    jumbo_excluded_sources = [
+      # TODO(mostynb@opera.com): figure out how to make this build in both
+      # modes.  Template issues on windows if we add a functional_unittest
+      # namespace as with the other files.
+      "base/functional-unittest.cc",
+    ]
+  }
 
   if (v8_current_cpu == "arm") {
     sources += [ "compiler/arm/instruction-selector-arm-unittest.cc" ]
@@ -184,11 +229,6 @@ v8_executable("unittests") {
     "../..:external_config",
     "../..:internal_config_base",
   ]
-
-  # TODO(machenbach): Translate from gyp.
-  #['OS=="aix"', {
-  #  'ldflags': [ '-Wl,-bbigtoc' ],
-  #}],
 
   deps = [
     "../..:v8_for_testing",

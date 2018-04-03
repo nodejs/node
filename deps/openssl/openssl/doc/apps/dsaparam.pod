@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-dsaparam,
 dsaparam - DSA parameter manipulation and generation
 
 =head1 SYNOPSIS

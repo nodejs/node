@@ -972,7 +972,7 @@ int tls1_final_finish_mac(SSL *s,
             int hashsize = EVP_MD_size(md);
             EVP_MD_CTX *hdgst = s->s3->handshake_dgst[idx];
             if (!hdgst || hashsize < 0
-                || hashsize > (int)(sizeof buf - (size_t)(q - buf))) {
+                || hashsize > (int)(sizeof(buf) - (size_t)(q - buf))) {
                 /*
                  * internal error: 'buf' is too small for this cipersuite!
                  */
@@ -990,7 +990,7 @@ int tls1_final_finish_mac(SSL *s,
     if (!tls1_PRF(ssl_get_algorithm2(s),
                   str, slen, buf, (int)(q - buf), NULL, 0, NULL, 0, NULL, 0,
                   s->session->master_key, s->session->master_key_length,
-                  out, buf2, sizeof buf2))
+                  out, buf2, sizeof(buf2)))
         err = 1;
     EVP_MD_CTX_cleanup(&ctx);
 
@@ -999,7 +999,7 @@ int tls1_final_finish_mac(SSL *s,
     if (err)
         return 0;
     else
-        return sizeof buf2;
+        return sizeof(buf2);
 }
 
 int tls1_mac(SSL *ssl, unsigned char *md, int send)
@@ -1165,8 +1165,8 @@ int tls1_generate_master_secret(SSL *s, unsigned char *out, unsigned char *p,
              s->s3->client_random, SSL3_RANDOM_SIZE,
              co, col,
              s->s3->server_random, SSL3_RANDOM_SIZE,
-             so, sol, p, len, s->session->master_key, buff, sizeof buff);
-    OPENSSL_cleanse(buff, sizeof buff);
+             so, sol, p, len, s->session->master_key, buff, sizeof(buff));
+    OPENSSL_cleanse(buff, sizeof(buff));
 #ifdef SSL_DEBUG
     fprintf(stderr, "Premaster Secret:\n");
     BIO_dump_fp(stderr, (char *)p, len);

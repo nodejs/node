@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-rand,
 rand - generate pseudo-random bytes
 
 =head1 SYNOPSIS

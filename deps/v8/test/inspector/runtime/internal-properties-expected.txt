@@ -387,6 +387,16 @@ expression: gen2
                     }
                 }
             }
+            [4] : {
+                name : [[Scopes]]
+                value : {
+                    className : Array
+                    description : Scopes[2]
+                    objectId : <objectId>
+                    subtype : internal#scopeList
+                    type : object
+                }
+            }
         ]
     }
 }
@@ -431,6 +441,16 @@ expression: gen2.next();gen2
                         lineNumber : 9
                         scriptId : <scriptId>
                     }
+                }
+            }
+            [4] : {
+                name : [[Scopes]]
+                value : {
+                    className : Array
+                    description : Scopes[2]
+                    objectId : <objectId>
+                    subtype : internal#scopeList
+                    type : object
                 }
             }
         ]

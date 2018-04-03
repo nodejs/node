@@ -66,10 +66,8 @@
 #if !UCONFIG_NO_SERVICE
 static icu::ICULocaleService* gService = NULL;
 static icu::UInitOnce gServiceInitOnce = U_INITONCE_INITIALIZER;
-#endif
 
 // INTERNAL - for cleanup
-
 U_CDECL_BEGIN
 static UBool calendar_cleanup(void) {
 #if !UCONFIG_NO_SERVICE
@@ -82,6 +80,7 @@ static UBool calendar_cleanup(void) {
     return TRUE;
 }
 U_CDECL_END
+#endif
 
 // ------------------------------------------
 //
@@ -234,6 +233,8 @@ static ECalType getCalendarType(const char *s) {
     return CALTYPE_UNKNOWN;
 }
 
+#if !UCONFIG_NO_SERVICE
+// Only used with service registration.
 static UBool isStandardSupportedKeyword(const char *keyword, UErrorCode& status) {
     if(U_FAILURE(status)) {
         return FALSE;
@@ -242,6 +243,7 @@ static UBool isStandardSupportedKeyword(const char *keyword, UErrorCode& status)
     return (calType != CALTYPE_UNKNOWN);
 }
 
+// only used with service registration.
 static void getCalendarKeyword(const UnicodeString &id, char *targetBuffer, int32_t targetBufferSize) {
     UnicodeString calendarKeyword = UNICODE_STRING_SIMPLE("calendar=");
     int32_t calKeyLen = calendarKeyword.length();
@@ -255,6 +257,7 @@ static void getCalendarKeyword(const UnicodeString &id, char *targetBuffer, int3
     }
     targetBuffer[keyLen] = 0;
 }
+#endif
 
 static ECalType getCalendarTypeForLocale(const char *locid) {
     UErrorCode status = U_ZERO_ERROR;
@@ -705,6 +708,8 @@ fZone(NULL),
 fRepeatedWallTime(UCAL_WALLTIME_LAST),
 fSkippedWallTime(UCAL_WALLTIME_LAST)
 {
+    validLocale[0] = 0;
+    actualLocale[0] = 0;
     clear();
     if (U_FAILURE(success)) {
         return;
@@ -731,6 +736,8 @@ fZone(NULL),
 fRepeatedWallTime(UCAL_WALLTIME_LAST),
 fSkippedWallTime(UCAL_WALLTIME_LAST)
 {
+    validLocale[0] = 0;
+    actualLocale[0] = 0;
     if (U_FAILURE(success)) {
         return;
     }
@@ -763,6 +770,8 @@ fZone(NULL),
 fRepeatedWallTime(UCAL_WALLTIME_LAST),
 fSkippedWallTime(UCAL_WALLTIME_LAST)
 {
+    validLocale[0] = 0;
+    actualLocale[0] = 0;
     if (U_FAILURE(success)) {
         return;
     }
@@ -819,8 +828,10 @@ Calendar::operator=(const Calendar &right)
         fWeekendCease            = right.fWeekendCease;
         fWeekendCeaseMillis      = right.fWeekendCeaseMillis;
         fNextStamp               = right.fNextStamp;
-        uprv_strcpy(validLocale, right.validLocale);
-        uprv_strcpy(actualLocale, right.actualLocale);
+        uprv_strncpy(validLocale, right.validLocale, sizeof(validLocale));
+        uprv_strncpy(actualLocale, right.actualLocale, sizeof(actualLocale));
+        validLocale[sizeof(validLocale)-1] = 0;
+        actualLocale[sizeof(validLocale)-1] = 0;
     }
 
     return *this;
@@ -2966,7 +2977,7 @@ void Calendar::computeTime(UErrorCode& status) {
     //  }
 #endif
 
-    int32_t millisInDay;
+    double millisInDay;
 
     // We only use MILLISECONDS_IN_DAY if it has been set by the user.
     // This makes it possible for the caller to set the calendar to a
@@ -3086,10 +3097,10 @@ UBool Calendar::getImmediatePreviousZoneTransition(UDate base, UDate *transition
 * reflects local zone wall time.
 * @stable ICU 2.0
 */
-int32_t Calendar::computeMillisInDay() {
+double Calendar::computeMillisInDay() {
   // Do the time portion of the conversion.
 
-    int32_t millisInDay = 0;
+    double millisInDay = 0;
 
     // Find the best set of fields specifying the time of day.  There
     // are only two possibilities here; the HOUR_OF_DAY or the
@@ -3131,7 +3142,7 @@ int32_t Calendar::computeMillisInDay() {
 * or range.
 * @stable ICU 2.0
 */
-int32_t Calendar::computeZoneOffset(double millis, int32_t millisInDay, UErrorCode &ec) {
+int32_t Calendar::computeZoneOffset(double millis, double millisInDay, UErrorCode &ec) {
     int32_t rawOffset, dstOffset;
     UDate wall = millis + millisInDay;
     BasicTimeZone* btz = getBasicTimeZone();
@@ -3212,13 +3223,13 @@ int32_t Calendar::handleComputeJulianDay(UCalendarDateFields bestField)  {
         bestField == UCAL_DAY_OF_WEEK_IN_MONTH);
     int32_t year;
 
-    if (bestField == UCAL_WEEK_OF_YEAR) {
-        year = internalGet(UCAL_YEAR_WOY, handleGetExtendedYear());
-        internalSet(UCAL_EXTENDED_YEAR, year);
+    if (bestField == UCAL_WEEK_OF_YEAR && newerField(UCAL_YEAR_WOY, UCAL_YEAR) == UCAL_YEAR_WOY) {
+        year = internalGet(UCAL_YEAR_WOY);
     } else {
         year = handleGetExtendedYear();
-        internalSet(UCAL_EXTENDED_YEAR, year);
     }
+
+    internalSet(UCAL_EXTENDED_YEAR, year);
 
 #if defined (U_DEBUG_CAL)
     fprintf(stderr, "%s:%d: bestField= %s - y=%d\n", __FILE__, __LINE__, fldName(bestField), year);

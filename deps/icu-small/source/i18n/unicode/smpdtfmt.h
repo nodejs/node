@@ -1434,6 +1434,16 @@ private:
                            int32_t patLoc, UBool isNegative) const;
 
     /**
+     * Counts number of digit code points in the specified text.
+     *
+     * @param text  input text
+     * @param start start index, inclusive
+     * @param end   end index, exclusive
+     * @return  number of digits found in the text in the specified range.
+    */
+    int32_t countDigits(const UnicodeString& text, int32_t start, int32_t end) const;
+
+    /**
      * Translate a pattern, mapping each character in the from string to the
      * corresponding character in the to string. Return an error if the original
      * pattern contains an unmapped character, or if a quote is unmatched.

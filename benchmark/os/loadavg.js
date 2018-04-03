@@ -7,9 +7,7 @@ const bench = common.createBenchmark(main, {
   n: [5e6]
 });
 
-function main(conf) {
-  const n = +conf.n;
-
+function main({ n }) {
   bench.start();
   for (var i = 0; i < n; ++i)
     loadavg();

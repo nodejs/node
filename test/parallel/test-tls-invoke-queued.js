@@ -26,21 +26,22 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const fs = require('fs');
 const tls = require('tls');
+
+const fixtures = require('../common/fixtures');
 
 let received = '';
 
 const server = tls.createServer({
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 }, common.mustCall(function(c) {
-  c._write('hello ', null, common.mustCall(function() {
-    c._write('world!', null, common.mustCall(function() {
+  c.write('hello ', null, common.mustCall(function() {
+    c.write('world!', null, common.mustCall(function() {
       c.destroy();
     }));
     // Data on next _write() will be written but callback will not be invoked
-    c._write(' gosh', null, common.mustNotCall());
+    c.write(' gosh', null, common.mustNotCall());
   }));
 
   server.close();

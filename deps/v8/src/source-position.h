@@ -27,8 +27,7 @@ struct SourcePositionInfo;
 //
 // A defined inlining_id refers to positions in
 // CompilationInfo::inlined_functions or
-// DeoptimizationInputData::InliningPositions, depending on the compilation
-// stage.
+// DeoptimizationData::InliningPositions, depending on the compilation stage.
 class SourcePosition final {
  public:
   explicit SourcePosition(int script_offset, int inlining_id = kNotInlined)
@@ -54,12 +53,12 @@ class SourcePosition final {
 
   void SetScriptOffset(int script_offset) {
     DCHECK(script_offset <= ScriptOffsetField::kMax - 2);
-    DCHECK(script_offset >= kNoSourcePosition);
+    DCHECK_GE(script_offset, kNoSourcePosition);
     value_ = ScriptOffsetField::update(value_, script_offset + 1);
   }
   void SetInliningId(int inlining_id) {
     DCHECK(inlining_id <= InliningIdField::kMax - 2);
-    DCHECK(inlining_id >= kNotInlined);
+    DCHECK_GE(inlining_id, kNotInlined);
     value_ = InliningIdField::update(value_, inlining_id + 1);
   }
 
@@ -97,7 +96,7 @@ struct InliningPosition {
   // position of the inlined call
   SourcePosition position = SourcePosition::Unknown();
 
-  // references position in DeoptimizationInputData::literals()
+  // references position in DeoptimizationData::literals()
   int inlined_function_id;
 };
 

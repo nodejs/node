@@ -66,8 +66,8 @@ static bool run_shell;
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   v8::V8::InitializeExternalStartupData(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+  v8::V8::InitializePlatform(platform.get());
   v8::V8::Initialize();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::Isolate::CreateParams create_params;
@@ -85,13 +85,12 @@ int main(int argc, char* argv[]) {
       return 1;
     }
     v8::Context::Scope context_scope(context);
-    result = RunMain(isolate, platform, argc, argv);
-    if (run_shell) RunShell(context, platform);
+    result = RunMain(isolate, platform.get(), argc, argv);
+    if (run_shell) RunShell(context, platform.get());
   }
   isolate->Dispose();
   v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
-  delete platform;
   delete create_params.array_buffer_allocator;
   return result;
 }

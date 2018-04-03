@@ -966,26 +966,26 @@ _LMBCSFromUnicode(UConverterFromUnicodeArgs*     args,
 
                 if(extraInfo->localeConverterIndex < ULMBCS_DOUBLEOPTGROUP_START)
                 {
-                  bytes_written = LMBCSConversionWorker (extraInfo,
+                  bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                      ULMBCS_GRP_L1, pLMBCS, &uniChar,
                      &lastConverterIndex, groups_tried);
 
                   if(!bytes_written)
                   {
-                     bytes_written = LMBCSConversionWorker (extraInfo,
+                     bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                          ULMBCS_GRP_EXCEPT, pLMBCS, &uniChar,
                          &lastConverterIndex, groups_tried);
                   }
                   if(!bytes_written)
                   {
-                      bytes_written = LMBCSConversionWorker (extraInfo,
+                      bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                           extraInfo->localeConverterIndex, pLMBCS, &uniChar,
                           &lastConverterIndex, groups_tried);
                   }
                 }
                 else
                 {
-                     bytes_written = LMBCSConversionWorker (extraInfo,
+                     bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                          extraInfo->localeConverterIndex, pLMBCS, &uniChar,
                          &lastConverterIndex, groups_tried);
                 }

@@ -49,6 +49,7 @@ class StringUtil {
   static void builderAppend(StringBuilder& builder, const char* s, size_t len) {
     builder.append(s, len);
   }
+  static void builderAppendQuotedString(StringBuilder&, const String&);
   static void builderReserve(StringBuilder& builder, size_t capacity) {
     builder.reserveCapacity(capacity);
   }
@@ -85,6 +86,9 @@ class StringBufferImpl : public StringBuffer {
 
   DISALLOW_COPY_AND_ASSIGN(StringBufferImpl);
 };
+
+String16 debuggerIdToString(const std::pair<int64_t, int64_t>& debuggerId);
+String16 stackTraceIdToString(uintptr_t id);
 
 }  //  namespace v8_inspector
 

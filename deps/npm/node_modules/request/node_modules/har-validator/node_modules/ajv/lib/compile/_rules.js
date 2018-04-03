@@ -5,6 +5,8 @@ module.exports = {
   '$ref': require('../dotjs/ref'),
   allOf: require('../dotjs/allOf'),
   anyOf: require('../dotjs/anyOf'),
+  const: require('../dotjs/const'),
+  contains: require('../dotjs/contains'),
   dependencies: require('../dotjs/dependencies'),
   'enum': require('../dotjs/enum'),
   format: require('../dotjs/format'),
@@ -22,6 +24,7 @@ module.exports = {
   oneOf: require('../dotjs/oneOf'),
   pattern: require('../dotjs/pattern'),
   properties: require('../dotjs/properties'),
+  propertyNames: require('../dotjs/propertyNames'),
   required: require('../dotjs/required'),
   uniqueItems: require('../dotjs/uniqueItems'),
   validate: require('../dotjs/validate')

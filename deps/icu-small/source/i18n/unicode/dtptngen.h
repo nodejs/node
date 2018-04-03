@@ -18,6 +18,7 @@
 #include "unicode/locid.h"
 #include "unicode/udat.h"
 #include "unicode/udatpg.h"
+#include "unicode/unistr.h"
 
 U_NAMESPACE_BEGIN
 
@@ -206,11 +207,11 @@ public:
      * @return conflicting status.  The value could be UDATPG_NO_CONFLICT,
      *                             UDATPG_BASE_CONFLICT or UDATPG_CONFLICT.
      * @stable ICU 3.8
-	 * <p>
-	 * <h4>Sample code</h4>
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
-	 * \snippet samples/dtptngsample/dtptngsample.cpp addPatternExample
-	 * <p>
+     * <p>
+     * <h4>Sample code</h4>
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
+     * \snippet samples/dtptngsample/dtptngsample.cpp addPatternExample
+     * <p>
      */
     UDateTimePatternConflict addPattern(const UnicodeString& pattern,
                                         UBool override,
@@ -262,13 +263,28 @@ public:
 
     /**
      * Getter corresponding to setAppendItemNames. Values below 0 or at or above
-     * UDATPG_FIELD_COUNT are illegal arguments.
+     * UDATPG_FIELD_COUNT are illegal arguments. Note: The more general method
+     * for getting date/time field display names is getFieldDisplayName.
      *
      * @param field  such as UDATPG_ERA_FIELD.
      * @return name for field
+     * @see getFieldDisplayName
      * @stable ICU 3.8
      */
     const UnicodeString& getAppendItemName(UDateTimePatternField field) const;
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * The general interface to get a display name for a particular date/time field,
+     * in one of several possible display widths.
+     *
+     * @param field  The desired UDateTimePatternField, such as UDATPG_ERA_FIELD.
+     * @param width  The desired UDateTimePGDisplayWidth, such as UDATPG_ABBREVIATED.
+     * @return.      The display name for field
+     * @draft ICU 61
+     */
+    UnicodeString getFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width) const;
+#endif  // U_HIDE_DRAFT_API
 
     /**
      * The DateTimeFormat is a message format pattern used to compose date and
@@ -312,11 +328,11 @@ public:
      * @return bestPattern
      *            The best pattern found from the given skeleton.
      * @stable ICU 3.8
-	 * <p>
-	 * <h4>Sample code</h4>
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample
-	 * <p>
+     * <p>
+     * <h4>Sample code</h4>
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample
+     * <p>
      */
      UnicodeString getBestPattern(const UnicodeString& skeleton, UErrorCode& status);
 
@@ -360,11 +376,11 @@ public:
      *               which must not indicate a failure before the function call.
      * @return pattern adjusted to match the skeleton fields widths and subtypes.
      * @stable ICU 3.8
-	 * <p>
-	 * <h4>Sample code</h4>
-	 * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
-	 * \snippet samples/dtptngsample/dtptngsample.cpp replaceFieldTypesExample
-	 * <p>
+     * <p>
+     * <h4>Sample code</h4>
+     * \snippet samples/dtptngsample/dtptngsample.cpp getBestPatternExample1
+     * \snippet samples/dtptngsample/dtptngsample.cpp replaceFieldTypesExample
+     * <p>
      */
      UnicodeString replaceFieldTypes(const UnicodeString& pattern,
                                      const UnicodeString& skeleton,
@@ -506,13 +522,17 @@ private:
      */
     DateTimePatternGenerator& operator=(const DateTimePatternGenerator& other);
 
+    // TODO(ticket:13619): re-enable when UDATPG_NARROW no longer in  draft mode.
+    // static const int32_t UDATPG_WIDTH_COUNT = UDATPG_NARROW + 1;
+
     Locale pLocale;  // pattern locale
     FormatParser *fp;
     DateTimeMatcher* dtMatcher;
     DistanceInfo *distanceInfo;
     PatternMap *patternMap;
     UnicodeString appendItemFormats[UDATPG_FIELD_COUNT];
-    UnicodeString appendItemNames[UDATPG_FIELD_COUNT];
+    // TODO(ticket:13619): [3] -> UDATPG_WIDTH_COUNT
+    UnicodeString fieldDisplayNames[UDATPG_FIELD_COUNT][3];
     UnicodeString dateTimeFormat;
     UnicodeString decimal;
     DateTimeMatcher *skipMatcher;
@@ -526,9 +546,8 @@ private:
     enum {
         kDTPGNoFlags = 0,
         kDTPGFixFractionalSeconds = 1,
-        kDTPGSkeletonUsesCapJ = 2,
-        kDTPGSkeletonUsesLowB = 3,
-        kDTPGSkeletonUsesCapB = 4
+        kDTPGSkeletonUsesCapJ = 2
+        // with #13183, no longer need flags for b, B
     };
 
     void initData(const Locale &locale, UErrorCode &status);
@@ -543,9 +562,13 @@ private:
     void setDateTimeFromCalendar(const Locale& locale, UErrorCode& status);
     void setDecimalSymbols(const Locale& locale, UErrorCode& status);
     UDateTimePatternField getAppendFormatNumber(const char* field) const;
-    UDateTimePatternField getAppendNameNumber(const char* field) const;
-    UnicodeString& getMutableAppendItemName(UDateTimePatternField field);
+#ifndef U_HIDE_DRAFT_API
+    UDateTimePatternField getFieldAndWidthIndices(const char* key, UDateTimePGDisplayWidth* widthP) const;
+    void setFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width, const UnicodeString& value);
+    UnicodeString& getMutableFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width);
+#endif  // U_HIDE_DRAFT_API
     void getAppendName(UDateTimePatternField field, UnicodeString& value);
+    UnicodeString mapSkeletonMetacharacters(const UnicodeString& patternForm, int32_t* flags, UErrorCode& status);
     int32_t getCanonicalIndex(const UnicodeString& field);
     const UnicodeString* getBestRaw(DateTimeMatcher& source, int32_t includeMask, DistanceInfo* missingFields, const PtnSkeleton** specifiedSkeletonPtr = 0);
     UnicodeString adjustFieldTypes(const UnicodeString& pattern, const PtnSkeleton* specifiedSkeleton, int32_t flags, UDateTimePatternMatchOptions options = UDATPG_MATCH_NO_OPTIONS);

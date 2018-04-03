@@ -19,25 +19,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Test that the usage of elliptic curves are not permitted if disabled during
+// server initialization.
+
 'use strict';
 const common = require('../common');
+const { readKey } = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 if (!common.opensslCli)
   common.skip('missing openssl-cli');
 
+const OPENSSL_VERSION_NUMBER =
+  require('crypto').constants.OPENSSL_VERSION_NUMBER;
+if (OPENSSL_VERSION_NUMBER >= 0x10100000)
+  common.skip('false ecdhCurve not supported in OpenSSL 1.1.0');
+
 const assert = require('assert');
 const tls = require('tls');
 const exec = require('child_process').exec;
-const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`),
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem'),
   ciphers: 'ECDHE-RSA-AES128-SHA',
   ecdhCurve: false
 };
+
+common.expectWarning('DeprecationWarning',
+                     '{ ecdhCurve: false } is deprecated.',
+                     'DEP0083');
 
 const server = tls.createServer(options, common.mustNotCall());
 

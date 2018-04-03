@@ -15,9 +15,16 @@ Run expression 'console.trace()' with async chain len: 3
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 67
-                    functionName : Promise.resolve.then.then.then
-                    lineNumber : 0
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
                     scriptId : <scriptId>
                     url : 
                 }
@@ -25,13 +32,59 @@ Run expression 'console.trace()' with async chain len: 3
             parent : {
                 callFrames : [
                     [0] : {
-                        columnNumber : 46
-                        functionName : 
-                        lineNumber : 0
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
                         scriptId : <scriptId>
                         url : 
                     }
                 ]
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
             }
         }
         timestamp : <timestamp>
@@ -53,9 +106,16 @@ Run expression 'console.trace()' with async chain len: 3
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 67
-                    functionName : Promise.resolve.then.then.then
-                    lineNumber : 0
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
                     scriptId : <scriptId>
                     url : 
                 }
@@ -63,14 +123,59 @@ Run expression 'console.trace()' with async chain len: 3
             parent : {
                 callFrames : [
                     [0] : {
-                        columnNumber : 46
-                        functionName : 
-                        lineNumber : 0
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
                         scriptId : <scriptId>
                         url : 
                     }
                 ]
-                description : Promise.resolve
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
             }
         }
         timestamp : <timestamp>
@@ -92,9 +197,16 @@ Run expression 'console.trace()' with async chain len: 3
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 67
-                    functionName : Promise.resolve.then.then.then
-                    lineNumber : 0
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
                     scriptId : <scriptId>
                     url : 
                 }
@@ -102,14 +214,59 @@ Run expression 'console.trace()' with async chain len: 3
             parent : {
                 callFrames : [
                     [0] : {
-                        columnNumber : 46
-                        functionName : 
-                        lineNumber : 0
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
                         scriptId : <scriptId>
                         url : 
                     }
                 ]
-                description : Promise.resolve
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
             }
         }
         timestamp : <timestamp>
@@ -131,9 +288,16 @@ Run expression 'console.trace()' with async chain len: 3
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 67
-                    functionName : Promise.resolve.then.then.then
-                    lineNumber : 0
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
                     scriptId : <scriptId>
                     url : 
                 }
@@ -141,14 +305,59 @@ Run expression 'console.trace()' with async chain len: 3
             parent : {
                 callFrames : [
                     [0] : {
-                        columnNumber : 46
-                        functionName : 
-                        lineNumber : 0
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
                         scriptId : <scriptId>
                         url : 
                     }
                 ]
-                description : Promise.resolve
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
             }
         }
         timestamp : <timestamp>
@@ -170,9 +379,16 @@ Run expression 'console.trace()' with async chain len: 3
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 67
-                    functionName : Promise.resolve.then.then.then
-                    lineNumber : 0
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
                     scriptId : <scriptId>
                     url : 
                 }
@@ -180,14 +396,59 @@ Run expression 'console.trace()' with async chain len: 3
             parent : {
                 callFrames : [
                     [0] : {
-                        columnNumber : 46
-                        functionName : 
-                        lineNumber : 0
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
                         scriptId : <scriptId>
                         url : 
                     }
                 ]
-                description : Promise.resolve
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
             }
         }
         timestamp : <timestamp>
@@ -209,9 +470,16 @@ Run expression 'console.trace()' with async chain len: 3
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 67
-                    functionName : Promise.resolve.then.then.then
-                    lineNumber : 0
+                    columnNumber : 14
+                    functionName : asyncCall
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : 
+                }
+                [1] : {
+                    columnNumber : 33
+                    functionName : Promise.resolve.then
+                    lineNumber : 5
                     scriptId : <scriptId>
                     url : 
                 }
@@ -219,14 +487,59 @@ Run expression 'console.trace()' with async chain len: 3
             parent : {
                 callFrames : [
                     [0] : {
-                        columnNumber : 46
-                        functionName : 
-                        lineNumber : 0
+                        columnNumber : 22
+                        functionName : asyncCall
+                        lineNumber : 5
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 33
+                        functionName : Promise.resolve.then
+                        lineNumber : 5
                         scriptId : <scriptId>
                         url : 
                     }
                 ]
-                description : Promise.resolve
+                description : Promise.then
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 22
+                            functionName : asyncCall
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                        [1] : {
+                            columnNumber : 33
+                            functionName : Promise.resolve.then
+                            lineNumber : 5
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.then
+                    parent : {
+                        callFrames : [
+                            [0] : {
+                                columnNumber : 22
+                                functionName : asyncCall
+                                lineNumber : 5
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                            [1] : {
+                                columnNumber : 4
+                                functionName : 
+                                lineNumber : 6
+                                scriptId : <scriptId>
+                                url : 
+                            }
+                        ]
+                        description : Promise.then
+                    }
+                }
             }
         }
         timestamp : <timestamp>

@@ -1,142 +1,57 @@
-var log = require('npmlog')
-var npm = require('../npm.js')
-var read = require('read')
-var userValidate = require('npm-user-validate')
-var output = require('../utils/output')
-var chain = require('slide').chain
+'use strict'
+const read = require('../utils/read-user-info.js')
+const profile = require('npm-profile')
+const log = require('npmlog')
+const npm = require('../npm.js')
+const output = require('../utils/output.js')
+const pacoteOpts = require('../config/pacote')
+const fetchOpts = require('../config/fetch-opts')
 
 module.exports.login = function login (creds, registry, scope, cb) {
-  var c = {
-    u: creds.username || '',
-    p: creds.password || '',
-    e: creds.email || ''
-  }
-  var u = {}
+  let username = creds.username || ''
+  let password = creds.password || ''
+  let email = creds.email || ''
+  const auth = {}
+  if (npm.config.get('otp')) auth.otp = npm.config.get('otp')
 
-  chain([
-    [readUsername, c, u],
-    [readPassword, c, u],
-    [readEmail, c, u],
-    [save, c, u, registry, scope]
-  ], function (err, res) {
-    cb(err, res && res[res.length - 1])
-  })
-}
-
-function readUsername (c, u, cb) {
-  var v = userValidate.username
-  read({prompt: 'Username: ', default: c.u || ''}, function (er, un) {
-    if (er) {
-      return cb(er.message === 'cancelled' ? er.message : er)
+  return read.username('Username:', username, {log: log}).then((u) => {
+    username = u
+    return read.password('Password: ', password)
+  }).then((p) => {
+    password = p
+    return read.email('Email: (this IS public) ', email, {log: log})
+  }).then((e) => {
+    email = e
+    return profile.login(username, password, {registry: registry, auth: auth}).catch((err) => {
+      if (err.code === 'EOTP') throw err
+      return profile.adduser(username, email, password, {
+        registry: registry,
+        opts: fetchOpts.fromPacote(pacoteOpts())
+      })
+    }).catch((err) => {
+      if (err.code === 'EOTP' && !auth.otp) {
+        return read.otp('Authenticator provided OTP:').then((otp) => {
+          auth.otp = otp
+          return profile.login(username, password, {registry: registry, auth: auth})
+        })
+      } else {
+        throw err
+      }
+    })
+  }).then((result) => {
+    const newCreds = {}
+    if (result && result.token) {
+      newCreds.token = result.token
+    } else {
+      newCreds.username = username
+      newCreds.password = password
+      newCreds.email = email
+      newCreds.alwaysAuth = npm.config.get('always-auth')
     }
 
-    // make sure it's valid.  we have to do this here, because
-    // couchdb will only ever say "bad password" with a 401 when
-    // you try to PUT a _users record that the validate_doc_update
-    // rejects for *any* reason.
-
-    if (!un) {
-      return readUsername(c, u, cb)
-    }
-
-    var error = v(un)
-    if (error) {
-      log.warn(error.message)
-      return readUsername(c, u, cb)
-    }
-
-    c.changed = c.u !== un
-    u.u = un
-    cb(er)
-  })
-}
-
-function readPassword (c, u, cb) {
-  var v = userValidate.pw
-
-  var prompt
-  if (c.p && !c.changed) {
-    prompt = 'Password: (or leave unchanged) '
-  } else {
-    prompt = 'Password: '
-  }
-
-  read({prompt: prompt, silent: true}, function (er, pw) {
-    if (er) {
-      return cb(er.message === 'cancelled' ? er.message : er)
-    }
-
-    if (!c.changed && pw === '') {
-      // when the username was not changed,
-      // empty response means "use the old value"
-      pw = c.p
-    }
-
-    if (!pw) {
-      return readPassword(c, u, cb)
-    }
-
-    var error = v(pw)
-    if (error) {
-      log.warn(error.message)
-      return readPassword(c, u, cb)
-    }
-
-    c.changed = c.changed || c.p !== pw
-    u.p = pw
-    cb(er)
-  })
-}
-
-function readEmail (c, u, cb) {
-  var v = userValidate.email
-  var r = { prompt: 'Email: (this IS public) ', default: c.e || '' }
-  read(r, function (er, em) {
-    if (er) {
-      return cb(er.message === 'cancelled' ? er.message : er)
-    }
-
-    if (!em) {
-      return readEmail(c, u, cb)
-    }
-
-    var error = v(em)
-    if (error) {
-      log.warn(error.message)
-      return readEmail(c, u, cb)
-    }
-
-    u.e = em
-    cb(er)
-  })
-}
-
-function save (c, u, registry, scope, cb) {
-  var params = {
-    auth: {
-      username: u.u,
-      password: u.p,
-      email: u.e
-    }
-  }
-  npm.registry.adduser(registry, params, function (er, doc) {
-    if (er) return cb(er)
-
-    var newCreds = (doc && doc.token)
-    ? {
-      token: doc.token
-    }
-    : {
-      username: u.u,
-      password: u.p,
-      email: u.e,
-      alwaysAuth: npm.config.get('always-auth')
-    }
-
-    log.info('adduser', 'Authorized user %s', u.u)
-    var scopeMessage = scope ? ' to scope ' + scope : ''
-    output('Logged in as %s%s on %s.', u.u, scopeMessage, registry)
-
+    log.info('adduser', 'Authorized user %s', username)
+    const scopeMessage = scope ? ' to scope ' + scope : ''
+    output('Logged in as %s%s on %s.', username, scopeMessage, registry)
     cb(null, newCreds)
-  })
+  }).catch(cb)
 }

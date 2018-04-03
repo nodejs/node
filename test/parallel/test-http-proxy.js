@@ -50,7 +50,7 @@ const proxy = http.createServer(function(req, res) {
 
     console.error(`proxy res headers: ${JSON.stringify(proxy_res.headers)}`);
 
-    assert.strictEqual('world', proxy_res.headers['hello']);
+    assert.strictEqual('world', proxy_res.headers.hello);
     assert.strictEqual('text/plain', proxy_res.headers['content-type']);
     assert.deepStrictEqual(cookies, proxy_res.headers['set-cookie']);
 
@@ -81,7 +81,7 @@ function startReq() {
     console.error('got res');
     assert.strictEqual(200, res.statusCode);
 
-    assert.strictEqual('world', res.headers['hello']);
+    assert.strictEqual('world', res.headers.hello);
     assert.strictEqual('text/plain', res.headers['content-type']);
     assert.deepStrictEqual(cookies, res.headers['set-cookie']);
 

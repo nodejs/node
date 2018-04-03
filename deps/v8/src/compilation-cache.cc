@@ -95,14 +95,15 @@ CompilationCacheScript::CompilationCacheScript(Isolate* isolate)
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
 bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
-                                       Handle<Object> name, int line_offset,
-                                       int column_offset,
+                                       MaybeHandle<Object> maybe_name,
+                                       int line_offset, int column_offset,
                                        ScriptOriginOptions resource_options) {
   Handle<Script> script =
       Handle<Script>(Script::cast(function_info->script()), isolate());
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
-  if (name.is_null()) {
+  Handle<Object> name;
+  if (!maybe_name.ToHandle(&name)) {
     return script->name()->IsUndefined(isolate());
   }
   // Do the fast bailout checks first.
@@ -123,7 +124,7 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
 // will be cached, but subsequent code from different source / line
 // won't.
 InfoVectorPair CompilationCacheScript::Lookup(
-    Handle<String> source, Handle<Object> name, int line_offset,
+    Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Context> context, LanguageMode language_mode) {
   InfoVectorPair result;
@@ -132,7 +133,7 @@ InfoVectorPair CompilationCacheScript::Lookup(
   // into the caller's handle scope.
   { HandleScope scope(isolate());
     const int generation = 0;
-    DCHECK(generations() == 1);
+    DCHECK_EQ(generations(), 1);
     Handle<CompilationCacheTable> table = GetTable(generation);
     InfoVectorPair probe = table->LookupScript(source, context, language_mode);
     if (probe.has_shared()) {
@@ -194,7 +195,7 @@ InfoVectorPair CompilationCacheEval::Lookup(
   // having cleared the cache.
   InfoVectorPair result;
   const int generation = 0;
-  DCHECK(generations() == 1);
+  DCHECK_EQ(generations(), 1);
   Handle<CompilationCacheTable> table = GetTable(generation);
   result = table->LookupEval(source, outer_info, native_context, language_mode,
                              position);
@@ -263,7 +264,7 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 }
 
 InfoVectorPair CompilationCache::LookupScript(
-    Handle<String> source, Handle<Object> name, int line_offset,
+    Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Context> context, LanguageMode language_mode) {
   InfoVectorPair empty_result;
@@ -283,7 +284,7 @@ InfoVectorPair CompilationCache::LookupEval(
     result = eval_global_.Lookup(source, outer_info, context, language_mode,
                                  position);
   } else {
-    DCHECK(position != kNoSourcePosition);
+    DCHECK_NE(position, kNoSourcePosition);
     Handle<Context> native_context(context->native_context(), isolate());
     result = eval_contextual_.Lookup(source, outer_info, native_context,
                                      language_mode, position);
@@ -320,7 +321,7 @@ void CompilationCache::PutEval(Handle<String> source,
     eval_global_.Put(source, outer_info, function_info, context, literals,
                      position);
   } else {
-    DCHECK(position != kNoSourcePosition);
+    DCHECK_NE(position, kNoSourcePosition);
     Handle<Context> native_context(context->native_context(), isolate());
     eval_contextual_.Put(source, outer_info, function_info, native_context,
                          literals, position);

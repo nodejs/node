@@ -1,19 +1,19 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const { mainScriptPath,
-        readMainScriptSource,
-        NodeInstance } = require('../common/inspector-helper.js');
+const { NodeInstance } = require('../common/inspector-helper.js');
 
 function checkListResponse(response) {
   assert.strictEqual(1, response.length);
-  assert.ok(response[0]['devtoolsFrontendUrl']);
+  assert.ok(response[0].devtoolsFrontendUrl);
   assert.ok(
-    /ws:\/\/127\.0\.0\.1:\d+\/[0-9A-Fa-f]{8}-/
-      .test(response[0]['webSocketDebuggerUrl']));
+    /ws:\/\/localhost:\d+\/[0-9A-Fa-f]{8}-/
+      .test(response[0].webSocketDebuggerUrl),
+    response[0].webSocketDebuggerUrl);
 }
 
 function checkVersion(response) {
@@ -33,7 +33,7 @@ function checkBadPath(err) {
 }
 
 function checkException(message) {
-  assert.strictEqual(message['exceptionDetails'], undefined,
+  assert.strictEqual(message.exceptionDetails, undefined,
                      'An exception occurred during execution');
 }
 
@@ -46,10 +46,10 @@ function assertNoUrlsWhileConnected(response) {
 function assertScopeValues({ result }, expected) {
   const unmatched = new Set(Object.keys(expected));
   for (const actual of result) {
-    const value = expected[actual['name']];
+    const value = expected[actual.name];
     if (value) {
-      assert.strictEqual(value, actual['value']['value']);
-      unmatched.delete(actual['name']);
+      assert.strictEqual(value, actual.value.value);
+      unmatched.delete(actual.name);
     }
   }
   if (unmatched.size)
@@ -75,7 +75,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   await session.send(commands);
-  await session.waitForBreakOnLine(0, mainScriptPath);
+  await session.waitForBreakOnLine(0, session.scriptPath());
 }
 
 async function testBreakpoint(session) {
@@ -83,7 +83,7 @@ async function testBreakpoint(session) {
   const commands = [
     { 'method': 'Debugger.setBreakpointByUrl',
       'params': { 'lineNumber': 5,
-                  'url': mainScriptPath,
+                  'url': session.scriptPath(),
                   'columnNumber': 0,
                   'condition': ''
       }
@@ -94,11 +94,11 @@ async function testBreakpoint(session) {
   const { scriptSource } = await session.send({
     'method': 'Debugger.getScriptSource',
     'params': { 'scriptId': session.mainScriptId } });
-  assert(scriptSource && (scriptSource.includes(readMainScriptSource())),
+  assert(scriptSource && (scriptSource.includes(session.script())),
          `Script source is wrong: ${scriptSource}`);
 
   await session.waitForConsoleOutput('log', ['A message', 5]);
-  const paused = await session.waitForBreakOnLine(5, mainScriptPath);
+  const paused = await session.waitForBreakOnLine(5, session.scriptPath());
   const scopeId = paused.params.callFrames[0].scopeChain[0].object.objectId;
 
   console.log('[test]', 'Verify we can read current application state');
@@ -125,14 +125,14 @@ async function testBreakpoint(session) {
     }
   });
 
-  assert.strictEqual(1002, result['value']);
+  assert.strictEqual(1002, result.value);
 
   result = (await session.send({
     'method': 'Runtime.evaluate', 'params': {
       'expression': '5 * 5'
     }
   })).result;
-  assert.strictEqual(25, result['value']);
+  assert.strictEqual(25, result.value);
 }
 
 async function testI18NCharacters(session) {
@@ -169,7 +169,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
 
   // the global require has the same properties as a normal `require`
   result = await session.send(
@@ -184,7 +184,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
   // `require` twice returns the same value
   result = await session.send(
     {
@@ -200,7 +200,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
   // after require the module appears in require.cache
   result = await session.send(
     {
@@ -212,7 +212,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']),
+  assert.deepStrictEqual(JSON.parse(result.result.value),
                          { old: 'yes' });
   // remove module from require.cache
   result = await session.send(
@@ -223,7 +223,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.strictEqual(result['result']['value'], true);
+  assert.strictEqual(result.result.value, true);
   // require again, should get fresh (empty) exports
   result = await session.send(
     {
@@ -233,7 +233,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {});
+  assert.deepStrictEqual(JSON.parse(result.result.value), {});
   // require 2nd module, exports an empty object
   result = await session.send(
     {
@@ -243,7 +243,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {});
+  assert.deepStrictEqual(JSON.parse(result.result.value), {});
   // both modules end up with the same module.parent
   result = await session.send(
     {
@@ -258,7 +258,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.deepStrictEqual(JSON.parse(result['result']['value']), {
+  assert.deepStrictEqual(JSON.parse(result.result.value), {
     parentsEqual: true,
     parentId: '<inspector console>'
   });
@@ -275,7 +275,7 @@ async function testCommandLineAPI(session) {
       }
     });
   checkException(result);
-  assert.notStrictEqual(result['result']['value'],
+  assert.notStrictEqual(result.result.value,
                         '<inspector console>');
 }
 

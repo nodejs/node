@@ -167,6 +167,7 @@ int ENGINE_register_complete(ENGINE *e)
 #endif
     ENGINE_register_RAND(e);
     ENGINE_register_pkey_meths(e);
+    ENGINE_register_pkey_asn1_meths(e);
     return 1;
 }
 

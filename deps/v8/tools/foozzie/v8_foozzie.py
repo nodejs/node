@@ -12,6 +12,7 @@ import hashlib
 import itertools
 import json
 import os
+import random
 import re
 import sys
 import traceback
@@ -55,7 +56,34 @@ CONFIGS = dict(
     '--no-lazy-inner-functions',
     '--suppress-asm-messages',
   ],
+  slow_path=[
+    '--force-slow-path',
+    '--suppress-asm-messages',
+  ],
+  slow_path_opt=[
+    '--always-opt',
+    '--force-slow-path',
+    '--suppress-asm-messages',
+  ],
+  trusted=[
+    '--no-untrusted-code-mitigations',
+    '--suppress-asm-messages',
+  ],
+  trusted_opt=[
+    '--always-opt',
+    '--no-untrusted-code-mitigations',
+    '--suppress-asm-messages',
+  ],
 )
+
+# Additional flag experiments. List of tuples like
+# (<likelihood to use flags in [0,1)>, <flag>).
+ADDITIONAL_FLAGS = [
+  (0.1, '--stress-marking=100'),
+  (0.1, '--stress-scavenge=100'),
+  (0.1, '--stress-compaction-random'),
+  (0.1, '--random-gc-interval=2000'),
+]
 
 # Timeout in seconds for one d8 run.
 TIMEOUT = 3
@@ -173,9 +201,9 @@ def parse_args():
   options.second_arch = infer_arch(options.second_d8)
 
   # Ensure we make a sane comparison.
-  assert (options.first_arch != options.second_arch or
-          options.first_config != options.second_config), (
-      'Need either arch or config difference.')
+  if (options.first_arch == options.second_arch and
+      options.first_config == options.second_config):
+    parser.error('Need either arch or config difference.')
   assert options.first_arch in SUPPORTED_ARCHS
   assert options.second_arch in SUPPORTED_ARCHS
   assert options.first_config in CONFIGS
@@ -229,6 +257,7 @@ def fail_bailout(output, ignore_by_output_fun):
 
 def main():
   options = parse_args()
+  rng = random.Random(options.random_seed)
 
   # Suppressions are architecture and configuration specific.
   suppress = v8_suppressions.get_suppression(
@@ -249,6 +278,11 @@ def main():
   first_config_flags = common_flags + CONFIGS[options.first_config]
   second_config_flags = common_flags + CONFIGS[options.second_config]
 
+  # Add additional flags to second config based on experiment percentages.
+  for p, flag in ADDITIONAL_FLAGS:
+    if rng.random() < p:
+      second_config_flags.append(flag)
+
   def run_d8(d8, config_flags):
     preamble = PREAMBLE[:]
     if options.first_arch != options.second_arch:
@@ -260,7 +294,7 @@ def main():
       args = [sys.executable] + args
     return v8_commands.Execute(
         args,
-        cwd=os.path.dirname(options.testcase),
+        cwd=os.path.dirname(os.path.abspath(options.testcase)),
         timeout=TIMEOUT,
     )
 

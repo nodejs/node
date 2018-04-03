@@ -27,6 +27,19 @@ assert.strictEqual(path.win32.normalize('..\\foo..\\..\\..\\bar'),
                    '..\\..\\bar');
 assert.strictEqual(path.win32.normalize('..\\...\\..\\.\\...\\..\\..\\bar'),
                    '..\\..\\bar');
+assert.strictEqual(path.win32.normalize('../../../foo/../../../bar'),
+                   '..\\..\\..\\..\\..\\bar');
+assert.strictEqual(path.win32.normalize('../../../foo/../../../bar/../../'),
+                   '..\\..\\..\\..\\..\\..\\');
+assert.strictEqual(
+  path.win32.normalize('../foobar/barfoo/foo/../../../bar/../../'),
+  '..\\..\\'
+);
+assert.strictEqual(
+  path.win32.normalize('../.../../foobar/../../../bar/../../baz'),
+  '..\\..\\..\\..\\baz'
+);
+assert.strictEqual(path.win32.normalize('foo/bar\\baz'), 'foo\\bar\\baz');
 
 assert.strictEqual(path.posix.normalize('./fixtures///b/../b/c.js'),
                    'fixtures/b/c.js');
@@ -44,3 +57,16 @@ assert.strictEqual(path.posix.normalize('bar/foo..'), 'bar/foo..');
 assert.strictEqual(path.posix.normalize('../foo../../../bar'), '../../bar');
 assert.strictEqual(path.posix.normalize('../.../.././.../../../bar'),
                    '../../bar');
+assert.strictEqual(path.posix.normalize('../../../foo/../../../bar'),
+                   '../../../../../bar');
+assert.strictEqual(path.posix.normalize('../../../foo/../../../bar/../../'),
+                   '../../../../../../');
+assert.strictEqual(
+  path.posix.normalize('../foobar/barfoo/foo/../../../bar/../../'),
+  '../../'
+);
+assert.strictEqual(
+  path.posix.normalize('../.../../foobar/../../../bar/../../baz'),
+  '../../../../baz'
+);
+assert.strictEqual(path.posix.normalize('foo/bar\\baz'), 'foo/bar\\baz');

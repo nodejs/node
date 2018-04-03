@@ -243,6 +243,10 @@ API
     with :c:func:`uv_udp_bind` it will be bound to 0.0.0.0
     (the "all interfaces" IPv4 address) and a random port number.
 
+    On Windows if the `addr` is initialized to point to an unspecified address
+    (``0.0.0.0`` or ``::``) it will be changed to point to ``localhost``.
+    This is done to match the behavior of Linux systems.
+
     :param req: UDP request handle. Need not be initialized.
 
     :param handle: UDP handle. Should have been initialized with
@@ -258,6 +262,9 @@ API
     :param send_cb: Callback to invoke when the data has been sent out.
 
     :returns: 0 on success, or an error code < 0 on failure.
+
+    .. versionchanged:: 1.19.0 added ``0.0.0.0`` and ``::`` to ``localhost``
+        mapping
 
 .. c:function:: int uv_udp_try_send(uv_udp_t* handle, const uv_buf_t bufs[], unsigned int nbufs, const struct sockaddr* addr)
 
@@ -291,5 +298,17 @@ API
         :c:func:`uv_udp_init`.
 
     :returns: 0 on success, or an error code < 0 on failure.
+
+.. c:function:: size_t uv_udp_get_send_queue_size(const uv_udp_t* handle)
+
+    Returns `handle->send_queue_size`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: size_t uv_udp_get_send_queue_count(const uv_udp_t* handle)
+
+    Returns `handle->send_queue_count`.
+
+    .. versionadded:: 1.19.0
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

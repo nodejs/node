@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arm/codegen-arm.h"
-
 #if V8_TARGET_ARCH_ARM
 
 #include <memory>
@@ -16,21 +14,20 @@
 namespace v8 {
 namespace internal {
 
-
 #define __ masm.
 
 #if defined(V8_HOST_ARCH_ARM)
+
 MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
                                                 MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  size_t allocated = 0;
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return stub;
 
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       CodeObjectRequired::kNo);
 
   Register dest = r0;
@@ -171,8 +168,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, allocated);
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
@@ -184,12 +181,11 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  size_t allocated = 0;
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return stub;
 
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       CodeObjectRequired::kNo);
 
   Register dest = r0;
@@ -261,9 +257,8 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
 
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
-
+  Assembler::FlushICache(isolate, buffer, allocated);
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<MemCopyUint16Uint8Function>(buffer);
 #endif
 }
@@ -273,12 +268,11 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 #if defined(USE_SIMULATOR)
   return nullptr;
 #else
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  size_t allocated = 0;
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       CodeObjectRequired::kNo);
 
   __ MovFromFloatParameter(d0);
@@ -290,110 +284,10 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, allocated);
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
-}
-
-#undef __
-
-// -------------------------------------------------------------------------
-// Code generators
-
-#define __ ACCESS_MASM(masm)
-
-void StringCharLoadGenerator::Generate(MacroAssembler* masm,
-                                       Register string,
-                                       Register index,
-                                       Register result,
-                                       Label* call_runtime) {
-  Label indirect_string_loaded;
-  __ bind(&indirect_string_loaded);
-
-  // Fetch the instance type of the receiver into result register.
-  __ ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
-
-  // We need special handling for indirect strings.
-  Label check_sequential;
-  __ tst(result, Operand(kIsIndirectStringMask));
-  __ b(eq, &check_sequential);
-
-  // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string, thin_string;
-  __ and_(result, result, Operand(kStringRepresentationMask));
-  __ cmp(result, Operand(kConsStringTag));
-  __ b(eq, &cons_string);
-  __ cmp(result, Operand(kThinStringTag));
-  __ b(eq, &thin_string);
-
-  // Handle slices.
-  __ ldr(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
-  __ ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
-  __ add(index, index, Operand::SmiUntag(result));
-  __ jmp(&indirect_string_loaded);
-
-  // Handle thin strings.
-  __ bind(&thin_string);
-  __ ldr(string, FieldMemOperand(string, ThinString::kActualOffset));
-  __ jmp(&indirect_string_loaded);
-
-  // Handle cons strings.
-  // Check whether the right hand side is the empty string (i.e. if
-  // this is really a flat string in a cons string). If that is not
-  // the case we would rather go to the runtime system now to flatten
-  // the string.
-  __ bind(&cons_string);
-  __ ldr(result, FieldMemOperand(string, ConsString::kSecondOffset));
-  __ CompareRoot(result, Heap::kempty_stringRootIndex);
-  __ b(ne, call_runtime);
-  // Get the first of the two strings and load its instance type.
-  __ ldr(string, FieldMemOperand(string, ConsString::kFirstOffset));
-  __ jmp(&indirect_string_loaded);
-
-  // Distinguish sequential and external strings. Only these two string
-  // representations can reach here (slices and flat cons strings have been
-  // reduced to the underlying sequential or external string).
-  Label external_string, check_encoding;
-  __ bind(&check_sequential);
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ tst(result, Operand(kStringRepresentationMask));
-  __ b(ne, &external_string);
-
-  // Prepare sequential strings
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
-  __ add(string,
-         string,
-         Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  __ jmp(&check_encoding);
-
-  // Handle external strings.
-  __ bind(&external_string);
-  if (FLAG_debug_code) {
-    // Assert that we do not have a cons or slice (indirect strings) here.
-    // Sequential strings have already been ruled out.
-    __ tst(result, Operand(kIsIndirectStringMask));
-    __ Assert(eq, kExternalStringExpectedButNotFound);
-  }
-  // Rule out short external strings.
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ tst(result, Operand(kShortExternalStringMask));
-  __ b(ne, call_runtime);
-  __ ldr(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
-
-  Label one_byte, done;
-  __ bind(&check_encoding);
-  STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ tst(result, Operand(kStringEncodingMask));
-  __ b(ne, &one_byte);
-  // Two-byte string.
-  __ ldrh(result, MemOperand(string, index, LSL, 1));
-  __ jmp(&done);
-  __ bind(&one_byte);
-  // One-byte string.
-  __ ldrb(result, MemOperand(string, index));
-  __ bind(&done);
 }
 
 #undef __

@@ -20,7 +20,8 @@ class PhaseScope;
 
 class PipelineStatistics : public Malloced {
  public:
-  PipelineStatistics(CompilationInfo* info, ZoneStats* zone_stats);
+  PipelineStatistics(CompilationInfo* info, Isolate* isolate,
+                     ZoneStats* zone_stats);
   ~PipelineStatistics();
 
   void BeginPhaseKind(const char* phase_kind_name);

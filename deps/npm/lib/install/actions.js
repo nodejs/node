@@ -80,12 +80,11 @@ function runAction (action, staging, pkg, log) {
 }
 
 function markAsFailed (pkg) {
+  if (pkg.failed) return
   pkg.failed = true
   pkg.requires.forEach((req) => {
-    req.requiredBy = req.requiredBy.filter((reqReqBy) => {
-      return reqReqBy !== pkg
-    })
-    if (req.requiredBy.length === 0 && !req.userRequired) {
+    var requiredBy = req.requiredBy.filter((reqReqBy) => !reqReqBy.failed)
+    if (requiredBy.length === 0 && !req.userRequired) {
       markAsFailed(req)
     }
   })
@@ -93,12 +92,7 @@ function markAsFailed (pkg) {
 
 function handleOptionalDepErrors (pkg, err) {
   markAsFailed(pkg)
-  var anyFatal = pkg.userRequired || pkg.isTop
-  for (var ii = 0; ii < pkg.requiredBy.length; ++ii) {
-    var parent = pkg.requiredBy[ii]
-    var isFatal = failedDependency(parent, pkg)
-    if (isFatal) anyFatal = true
-  }
+  var anyFatal = failedDependency(pkg)
   if (anyFatal) {
     throw err
   } else {

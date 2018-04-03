@@ -35,3 +35,19 @@
   %OptimizeFunctionOnNextCall(foo);
   assertInstanceof(foo(), TypeError);
 })();
+
+(function TestNonCallableFilter() {
+  function foo() { [].filter(undefined); }
+  assertThrows(foo, TypeError);
+  assertThrows(foo, TypeError);
+  %OptimizeFunctionOnNextCall(foo);
+  assertThrows(foo, TypeError);
+})();
+
+(function TestNonCallableFilterCaught() {
+  function foo() { try { [].filter(undefined) } catch(e) { return e } }
+  assertInstanceof(foo(), TypeError);
+  assertInstanceof(foo(), TypeError);
+  %OptimizeFunctionOnNextCall(foo);
+  assertInstanceof(foo(), TypeError);
+})();

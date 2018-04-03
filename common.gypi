@@ -27,13 +27,17 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.4',
+    'v8_embedder_string': '-node.5',
 
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
+
+    # Disable V8 untrusted code mitigations.
+    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
+    'v8_untrusted_code_mitigations': 'false',
 
     # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
     # between debug and non-debug mode.
@@ -44,29 +48,29 @@
 
     'conditions': [
       ['GENERATOR=="ninja"', {
-        'OBJ_DIR': '<(PRODUCT_DIR)/obj',
-        'V8_BASE': '<(PRODUCT_DIR)/obj/deps/v8/src/libv8_base.a',
+        'obj_dir': '<(PRODUCT_DIR)/obj',
+        'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/src/libv8_base.a',
        }, {
-         'OBJ_DIR%': '<(PRODUCT_DIR)/obj.target',
-         'V8_BASE%': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
+         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+         'v8_base%': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
       }],
       ['OS == "win"', {
         'os_posix': 0,
         'v8_postmortem_support%': 'false',
-        'OBJ_DIR': '<(PRODUCT_DIR)/obj',
-        'V8_BASE': '<(PRODUCT_DIR)/lib/v8_libbase.lib',
+        'obj_dir': '<(PRODUCT_DIR)/obj',
+        'v8_base': '<(PRODUCT_DIR)/lib/v8_libbase.lib',
       }, {
         'os_posix': 1,
         'v8_postmortem_support%': 'true',
       }],
       ['OS== "mac"', {
-        'OBJ_DIR%': '<(PRODUCT_DIR)/obj.target',
-        'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
+        'obj_dir%': '<(PRODUCT_DIR)/obj.target',
+        'v8_base': '<(PRODUCT_DIR)/libv8_base.a',
       }],
       ['openssl_fips != ""', {
-        'OPENSSL_PRODUCT': 'libcrypto.a',
+        'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
       }, {
-        'OPENSSL_PRODUCT': 'libopenssl.a',
+        'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
       }],
       ['OS=="mac"', {
         'clang%': 1,
@@ -169,7 +173,7 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'Optimization': 3, # /Ox, full optimization
-            'FavorSizeOrSpeed': 1, # /Ot, favour speed over size
+            'FavorSizeOrSpeed': 1, # /Ot, favor speed over size
             'InlineFunctionExpansion': 2, # /Ob2, inline anything eligible
             'WholeProgramOptimization': 'true', # /GL, whole program optimization, needed for LTCG
             'OmitFramePointers': 'true',
@@ -186,10 +190,12 @@
             ],
           },
           'VCLinkerTool': {
-            'LinkTimeCodeGeneration': 1, # link-time code generation
             'OptimizeReferences': 2, # /OPT:REF
             'EnableCOMDATFolding': 2, # /OPT:ICF
             'LinkIncremental': 1, # disable incremental linking
+            'AdditionalOptions': [
+              '/LTCG:INCREMENTAL', # incremental link-time code generation
+            ],
           },
         },
       }
@@ -211,8 +217,6 @@
         # and their sheer number drowns out other, more legitimate warnings.
         'DisableSpecificWarnings': ['4267'],
         'WarnAsError': 'false',
-      },
-      'VCLibrarianTool': {
       },
       'VCLinkerTool': {
         'conditions': [
@@ -288,12 +292,12 @@
         ],
       }],
       [ 'OS in "linux freebsd openbsd solaris aix"', {
-        'cflags': [ '-pthread', ],
+        'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android aix"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
+        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++1y' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
           # The 1990s toolchain on SmartOS can't handle thin archives.
@@ -301,6 +305,7 @@
             'standalone_static_library': 1,
           }],
           ['OS=="openbsd"', {
+            'cflags': [ '-I/usr/local/include' ],
             'ldflags': [ '-Wl,-z,wxneeded' ],
           }],
         ],
@@ -409,7 +414,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++1y',  # -std=gnu++1y
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],
@@ -420,7 +425,7 @@
       }],
       ['OS=="freebsd"', {
         'conditions': [
-          ['llvm_version < "4.0"', {
+          ['"0" < llvm_version < "4.0"', {
             # Use this flag because on FreeBSD std::pairs copy constructor is non-trivial.
             # Doesn't apply to llvm 4.0 (FreeBSD 11.1) or later.
             # Refs: https://lists.freebsd.org/pipermail/freebsd-toolchain/2016-March/002094.html

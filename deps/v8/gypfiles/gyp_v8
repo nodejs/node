@@ -38,7 +38,6 @@ import platform
 import shlex
 import subprocess
 import sys
-import vs_toolchain
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 v8_root = os.path.abspath(os.path.join(script_dir, os.pardir))
@@ -101,16 +100,7 @@ def additional_include_files(args=[]):
 
 
 def run_gyp(args):
-  rc = gyp.main(args)
-
-  vs2013_runtime_dll_dirs = vs_toolchain.SetEnvironmentAndGetRuntimeDllDirs()
-  if vs2013_runtime_dll_dirs:
-    x64_runtime, x86_runtime = vs2013_runtime_dll_dirs
-    vs_toolchain.CopyVsRuntimeDlls(
-      os.path.join(v8_root, GetOutputDirectory()),
-      (x86_runtime, x64_runtime))
-
-  if rc != 0:
+  if gyp.main(args) != 0:
     print 'Error running GYP'
     sys.exit(rc)
 
@@ -118,19 +108,14 @@ def run_gyp(args):
 if __name__ == '__main__':
   args = sys.argv[1:]
 
-  gyp_chromium_no_action = os.environ.get('GYP_CHROMIUM_NO_ACTION')
-  if gyp_chromium_no_action == '1':
-    print 'Skipping gyp_v8 due to GYP_CHROMIUM_NO_ACTION env var.'
+  gyp_chromium_no_action = os.environ.get('GYP_CHROMIUM_NO_ACTION', '1')
+  if gyp_chromium_no_action != '0':
+    print 'GYP is now disabled by default.\n'
+    print 'If you really want to run this, set the environment variable '
+    print 'GYP_CHROMIUM_NO_ACTION=0.'
     sys.exit(0)
 
   running_as_hook = '--running-as-hook'
-  if running_as_hook in args and gyp_chromium_no_action != '0':
-    print 'GYP is now disabled by default in runhooks.\n'
-    print 'If you really want to run this, either run '
-    print '`python gypfiles/gyp_v8` explicitly by hand '
-    print 'or set the environment variable GYP_CHROMIUM_NO_ACTION=0.'
-    sys.exit(0)
-
   if running_as_hook in args:
     args.remove(running_as_hook)
 

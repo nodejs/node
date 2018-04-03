@@ -121,9 +121,25 @@ class WasmFunctionBuilder {
     return this;
   }
 
+  getNumLocals() {
+    let total_locals = 0;
+    for (let l of this.locals || []) {
+      for (let type of ["i32", "i64", "f32", "f64", "s128"]) {
+        total_locals += l[type + "_count"] || 0;
+      }
+    }
+    return total_locals;
+  }
+
   addLocals(locals, names) {
-    this.locals = locals;
-    this.local_names = names;
+    const old_num_locals = this.getNumLocals();
+    if (!this.locals) this.locals = []
+    this.locals.push(locals);
+    if (names) {
+      if (!this.local_names) this.local_names = [];
+      const missing_names = old_num_locals - this.local_names.length;
+      this.local_names.push(...new Array(missing_names), ...names);
+    }
     return this;
   }
 
@@ -171,8 +187,8 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addMemory(min, max, exp) {
-    this.memory = {min: min, max: max, exp: exp};
+  addMemory(min, max, exp, shared) {
+    this.memory = {min: min, max: max, exp: exp, shared: shared};
     return this;
   }
 
@@ -240,9 +256,9 @@ class WasmModuleBuilder {
     return this.num_imported_globals++;
   }
 
-  addImportedMemory(module = "", name, initial = 0, maximum) {
+  addImportedMemory(module = "", name, initial = 0, maximum, shared) {
     let o = {module: module, name: name, kind: kExternalMemory,
-             initial: initial, maximum: maximum};
+             initial: initial, maximum: maximum, shared: shared};
     this.imports.push(o);
     return this;
   }
@@ -348,7 +364,12 @@ class WasmModuleBuilder {
             section.emit_u8(imp.mutable);
           } else if (imp.kind == kExternalMemory) {
             var has_max = (typeof imp.maximum) != "undefined";
-            section.emit_u8(has_max ? 1 : 0); // flags
+            var is_shared = (typeof imp.shared) != "undefined";
+            if (is_shared) {
+              section.emit_u8(has_max ? 3 : 2); // flags
+            } else {
+              section.emit_u8(has_max ? 1 : 0); // flags
+            }
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalTable) {
@@ -395,7 +416,13 @@ class WasmModuleBuilder {
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
         const has_max = wasm.memory.max !== undefined;
-        section.emit_u32v(has_max ? kResizableMaximumFlag : 0);
+        const is_shared = wasm.memory.shared !== undefined;
+        // Emit flags (bit 0: reszeable max, bit 1: shared memory)
+        if (is_shared) {
+          section.emit_u8(has_max ? 3 : 2);
+        } else {
+          section.emit_u8(has_max ? 1 : 0);
+        }
         section.emit_u32v(wasm.memory.min);
         if (has_max) section.emit_u32v(wasm.memory.max);
       });
@@ -511,7 +538,7 @@ class WasmModuleBuilder {
         for (let type of wasm.exceptions) {
           section.emit_u32v(type.params.length);
           for (let param of type.params) {
-            section.enit_u8(param);
+            section.emit_u8(param);
           }
         }
       });
@@ -526,9 +553,7 @@ class WasmModuleBuilder {
         for (let func of wasm.functions) {
           // Function body length will be patched later.
           let local_decls = [];
-          let l = func.locals;
-          if (l !== undefined) {
-            let local_decls_count = 0;
+          for (let l of func.locals || []) {
             if (l.i32_count > 0) {
               local_decls.push({count: l.i32_count, type: kWasmI32});
             }
@@ -540,6 +565,9 @@ class WasmModuleBuilder {
             }
             if (l.f64_count > 0) {
               local_decls.push({count: l.f64_count, type: kWasmF64});
+            }
+            if (l.s128_count > 0) {
+              local_decls.push({count: l.s128_count, type: kWasmS128});
             }
           }
 

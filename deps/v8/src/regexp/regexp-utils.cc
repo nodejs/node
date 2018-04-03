@@ -43,14 +43,15 @@ V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Handle<JSReceiver> recv) {
 
 MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
                                               Handle<JSReceiver> recv,
-                                              int value) {
+                                              uint64_t value) {
+  Handle<Object> value_as_object =
+      isolate->factory()->NewNumberFromInt64(value);
   if (HasInitialRegExpMap(isolate, recv)) {
-    JSRegExp::cast(*recv)->set_last_index(Smi::FromInt(value),
-                                          SKIP_WRITE_BARRIER);
+    JSRegExp::cast(*recv)->set_last_index(*value_as_object, SKIP_WRITE_BARRIER);
     return recv;
   } else {
     return Object::SetProperty(recv, isolate->factory()->lastIndex_string(),
-                               handle(Smi::FromInt(value), isolate), STRICT);
+                               value_as_object, LanguageMode::kStrict);
   }
 }
 
@@ -133,6 +134,10 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // TODO(ishell): Update this check once map changes for constant field
   // tracking are landing.
 
+#ifdef V8_ENABLE_FORCE_SLOW_PATH
+  if (isolate->force_slow_path()) return false;
+#endif
+
   if (!obj->IsJSReceiver()) return false;
 
   JSReceiver* recv = JSReceiver::cast(*obj);
@@ -156,12 +161,16 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   return last_index->IsSmi() && Smi::ToInt(last_index) >= 0;
 }
 
-int RegExpUtils::AdvanceStringIndex(Isolate* isolate, Handle<String> string,
-                                    int index, bool unicode) {
-  if (unicode && index < string->length()) {
-    const uint16_t first = string->Get(index);
-    if (first >= 0xD800 && first <= 0xDBFF && string->length() > index + 1) {
-      const uint16_t second = string->Get(index + 1);
+uint64_t RegExpUtils::AdvanceStringIndex(Isolate* isolate,
+                                         Handle<String> string, uint64_t index,
+                                         bool unicode) {
+  DCHECK_LE(static_cast<double>(index), kMaxSafeInteger);
+  const uint64_t string_length = static_cast<uint64_t>(string->length());
+  if (unicode && index < string_length) {
+    const uint16_t first = string->Get(static_cast<uint32_t>(index));
+    if (first >= 0xD800 && first <= 0xDBFF && index + 1 < string_length) {
+      DCHECK_LT(index, std::numeric_limits<uint64_t>::max());
+      const uint16_t second = string->Get(static_cast<uint32_t>(index + 1));
       if (second >= 0xDC00 && second <= 0xDFFF) {
         return index + 2;
       }
@@ -182,8 +191,8 @@ MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
 
   ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
                              Object::ToLength(isolate, last_index_obj), Object);
-  const int last_index = PositiveNumberToUint32(*last_index_obj);
-  const int new_last_index =
+  const uint64_t last_index = PositiveNumberToUint64(*last_index_obj);
+  const uint64_t new_last_index =
       AdvanceStringIndex(isolate, string, last_index, unicode);
 
   return SetLastIndex(isolate, regexp, new_last_index);

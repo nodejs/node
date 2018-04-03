@@ -8,10 +8,11 @@ const assert = require('assert');
 const fs = require('fs');
 const spawn = require('child_process').spawn;
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
-const dirname = `${common.tmpDir}/cwd-does-not-exist-${process.pid}`;
+const dirname = `${tmpdir.path}/cwd-does-not-exist-${process.pid}`;
 const abspathFile = fixtures.path('a.js');
-common.refreshTmpDir();
+tmpdir.refresh();
 fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);

@@ -34,23 +34,23 @@ bool IsNoFrameRegion(i::Address address) {
 #if V8_HOST_ARCH_IA32
     // push %ebp
     // mov %esp,%ebp
-    {3, {0x55, 0x89, 0xe5}, {0, 1, -1}},
+    {3, {0x55, 0x89, 0xE5}, {0, 1, -1}},
     // pop %ebp
     // ret N
-    {2, {0x5d, 0xc2}, {0, 1, -1}},
+    {2, {0x5D, 0xC2}, {0, 1, -1}},
     // pop %ebp
     // ret
-    {2, {0x5d, 0xc3}, {0, 1, -1}},
+    {2, {0x5D, 0xC3}, {0, 1, -1}},
 #elif V8_HOST_ARCH_X64
     // pushq %rbp
     // movq %rsp,%rbp
-    {4, {0x55, 0x48, 0x89, 0xe5}, {0, 1, -1}},
+    {4, {0x55, 0x48, 0x89, 0xE5}, {0, 1, -1}},
     // popq %rbp
     // ret N
-    {2, {0x5d, 0xc2}, {0, 1, -1}},
+    {2, {0x5D, 0xC2}, {0, 1, -1}},
     // popq %rbp
     // ret
-    {2, {0x5d, 0xc3}, {0, 1, -1}},
+    {2, {0x5D, 0xC3}, {0, 1, -1}},
 #endif
     {0, {}, {}}
   };
@@ -92,7 +92,7 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
                                     v8::RegisterState* state) {
   Simulator* simulator = isolate->thread_local_top()->simulator_;
   // Check if there is active simulator.
-  if (simulator == NULL) return false;
+  if (simulator == nullptr) return false;
 #if V8_TARGET_ARCH_ARM
   if (!simulator->has_bad_pc()) {
     state->pc = reinterpret_cast<Address>(simulator->get_pc());

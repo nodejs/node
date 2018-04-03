@@ -85,15 +85,6 @@ class InjectedScript final {
       v8::Local<v8::Value>, const String16& groupName, bool forceValueType,
       bool generatePreview,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result) const;
-  Response wrapObjectProperty(v8::Local<v8::Object>, v8::Local<v8::Name> key,
-                              const String16& groupName,
-                              bool forceValueType = false,
-                              bool generatePreview = false) const;
-  Response wrapPropertyInArray(v8::Local<v8::Array>,
-                               v8::Local<v8::String> property,
-                               const String16& groupName,
-                               bool forceValueType = false,
-                               bool generatePreview = false) const;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(
       v8::Local<v8::Value> table, v8::Local<v8::Value> columns) const;
 

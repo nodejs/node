@@ -35,10 +35,6 @@
 #include <asm/sigcontext.h>  // NOLINT
 #endif
 
-#if defined(LEAK_SANITIZER)
-#include <sanitizer/lsan_interface.h>
-#endif
-
 #include <cmath>
 
 #undef MAP_TYPE
@@ -97,23 +93,13 @@ TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
 }
 
-void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access, void* hint) {
-  const size_t msize = RoundUp(requested, AllocateAlignment());
-  int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (mbase == MAP_FAILED) return NULL;
-  *allocated = msize;
-  return mbase;
-}
-
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddress> result;
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
   FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == NULL) return result;
+  if (fp == nullptr) return result;
 
   // Allocate enough room to be able to store a full file name.
   const int kLibNameLen = FILENAME_MAX + 1;
@@ -121,11 +107,15 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 
   // This loop will terminate once the scanning hits an EOF.
   while (true) {
-    uintptr_t start, end;
+    uintptr_t start, end, offset;
     char attr_r, attr_w, attr_x, attr_p;
     // Parse the addresses and permission bits at the beginning of the line.
     if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
+    if (fscanf(fp, "%" V8PRIxPTR, &offset) != 1) break;
+
+    // Adjust {start} based on {offset}.
+    start -= offset;
 
     int c;
     if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
@@ -142,7 +132,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         ungetc(c, fp);
 
         // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+        if (fgets(lib_name, kLibNameLen, fp) == nullptr) break;
 
         // Drop the newline character read by fgets. We do not need to check
         // for a zero-length string because we know that we at least read the
@@ -179,142 +169,16 @@ void OS::SignalCodeMovingGC() {
   // kernel log.
   long size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
   FILE* f = fopen(OS::GetGCFakeMMapFile(), "w+");
-  if (f == NULL) {
+  if (f == nullptr) {
     OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
     OS::Abort();
   }
   void* addr = mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_EXEC,
                     MAP_PRIVATE, fileno(f), 0);
   DCHECK_NE(MAP_FAILED, addr);
-  OS::Free(addr, size);
+  CHECK(Free(addr, size));
   fclose(f);
 }
-
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) {}
-
-VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(ReserveRegion(size, hint)), size_(size) {}
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
-    : address_(NULL), size_(0) {
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
-  hint = AlignedAddress(hint, alignment);
-  size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation =
-      mmap(hint, request_size, PROT_NONE,
-           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, kMmapFd, kMmapFdOffset);
-  if (reservation == MAP_FAILED) return;
-
-  uint8_t* base = static_cast<uint8_t*>(reservation);
-  uint8_t* aligned_base = RoundUp(base, alignment);
-  DCHECK_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
-  }
-
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
-  DCHECK_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  DCHECK(aligned_size == request_size);
-
-  address_ = static_cast<void*>(aligned_base);
-  size_ = aligned_size;
-#if defined(LEAK_SANITIZER)
-  __lsan_register_root_region(address_, size_);
-#endif
-}
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address(), size());
-    DCHECK(result);
-    USE(result);
-  }
-}
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  CHECK(InVM(address, size));
-  return CommitRegion(address, size, is_executable);
-}
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  CHECK(InVM(address, size));
-  return UncommitRegion(address, size);
-}
-
-bool VirtualMemory::Guard(void* address) {
-  CHECK(InVM(address, OS::CommitPageSize()));
-  OS::Guard(address, OS::CommitPageSize());
-  return true;
-}
-
-void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
-  void* result =
-      mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-           kMmapFd, kMmapFdOffset);
-
-  if (result == MAP_FAILED) return NULL;
-
-#if defined(LEAK_SANITIZER)
-  __lsan_register_root_region(result, size);
-#endif
-  return result;
-}
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(base, size, prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, kMmapFd,
-                         kMmapFdOffset)) {
-    return false;
-  }
-
-  return true;
-}
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return mmap(base, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, kMmapFd,
-              kMmapFdOffset) != MAP_FAILED;
-}
-
-bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
-                                         void* free_start, size_t free_size) {
-#if defined(LEAK_SANITIZER)
-  __lsan_unregister_root_region(base, size);
-  __lsan_register_root_region(base, size - free_size);
-#endif
-  return munmap(free_start, free_size) == 0;
-}
-
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-#if defined(LEAK_SANITIZER)
-  __lsan_unregister_root_region(base, size);
-#endif
-  return munmap(base, size) == 0;
-}
-
-bool VirtualMemory::HasLazyCommits() { return true; }
 
 }  // namespace base
 }  // namespace v8

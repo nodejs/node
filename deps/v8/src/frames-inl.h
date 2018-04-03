@@ -41,7 +41,7 @@ inline StackHandler* StackFrame::top_handler() const {
 
 
 inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
-  if (return_address_location_resolver_ == NULL) {
+  if (return_address_location_resolver_ == nullptr) {
     return pc_address;
   } else {
     return reinterpret_cast<Address*>(
@@ -50,18 +50,22 @@ inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
   }
 }
 
+inline NativeFrame::NativeFrame(StackFrameIteratorBase* iterator)
+    : StackFrame(iterator) {}
+
+inline Address NativeFrame::GetCallerStackPointer() const {
+  return fp() + CommonFrameConstants::kCallerSPOffset;
+}
 
 inline EntryFrame::EntryFrame(StackFrameIteratorBase* iterator)
-    : StackFrame(iterator) {
-}
+    : StackFrame(iterator) {}
 
 inline ConstructEntryFrame::ConstructEntryFrame(
     StackFrameIteratorBase* iterator)
     : EntryFrame(iterator) {}
 
 inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
-    : StackFrame(iterator) {
-}
+    : StackFrame(iterator) {}
 
 inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
@@ -153,34 +157,6 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   return caller_sp() + parameter_offset;
 }
 
-inline Address JavaScriptFrame::GetOperandSlot(int index) const {
-  Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
-  DCHECK(IsAddressAligned(base, kPointerSize));
-  DCHECK_EQ(type(), JAVA_SCRIPT);
-  DCHECK_LT(index, ComputeOperandsCount());
-  DCHECK_LE(0, index);
-  // Operand stack grows down.
-  return base - index * kPointerSize;
-}
-
-
-inline Object* JavaScriptFrame::GetOperand(int index) const {
-  return Memory::Object_at(GetOperandSlot(index));
-}
-
-
-inline int JavaScriptFrame::ComputeOperandsCount() const {
-  Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
-  // Base points to low address of first operand and stack grows down, so add
-  // kPointerSize to get the actual stack size.
-  intptr_t stack_size_in_bytes = (base + kPointerSize) - sp();
-  DCHECK(IsAligned(stack_size_in_bytes, kPointerSize));
-  DCHECK(type() == JAVA_SCRIPT);
-  DCHECK(stack_size_in_bytes >= 0);
-  return static_cast<int>(stack_size_in_bytes >> kPointerSizeLog2);
-}
-
-
 inline void JavaScriptFrame::set_receiver(Object* value) {
   Memory::Object_at(GetParameterSlot(-1)) = value;
 }
@@ -228,6 +204,9 @@ inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
+    : StubFrame(iterator) {}
+
+inline WasmToWasmFrame::WasmToWasmFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
 inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)

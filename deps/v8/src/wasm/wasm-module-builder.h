@@ -10,7 +10,6 @@
 
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 
@@ -173,8 +172,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU32V(WasmOpcode opcode, uint32_t immediate);
   void EmitDirectCallIndex(uint32_t index);
   void SetName(Vector<const char> name);
-  void AddAsmWasmOffset(int call_position, int to_number_position);
-  void SetAsmFunctionStartPosition(int position);
+  void AddAsmWasmOffset(size_t call_position, size_t to_number_position);
+  void SetAsmFunctionStartPosition(size_t function_position);
 
   size_t GetPosition() const { return body_.size(); }
   void FixupByte(size_t position, byte value) {
@@ -236,6 +235,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
+  void SetHasSharedMemory();
 
   // Writing methods.
   void WriteTo(ZoneBuffer& buffer) const;
@@ -295,6 +295,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;
   bool has_max_memory_size_;
+  bool has_shared_memory_;
 };
 
 inline FunctionSig* WasmFunctionBuilder::signature() {

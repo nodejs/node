@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 const stream = require('stream');
+const fs = require('fs');
 const fixtures = require('../common/fixtures');
 
 let zlibPairs = [
@@ -150,6 +151,27 @@ class SlowStream extends stream.Stream {
   }
 }
 
+// windowBits: 8 shouldn't throw
+zlib.createDeflateRaw({ windowBits: 8 });
+
+{
+  const node = fs.createReadStream(fixtures.path('person.jpg'));
+  const raw = [];
+  const reinflated = [];
+  node.on('data', (chunk) => raw.push(chunk));
+
+  // Usually, the inflate windowBits parameter needs to be at least the
+  // value of the matching deflate’s windowBits. However, inflate raw with
+  // windowBits = 8 should be able to handle compressed data from a source
+  // that does not know about the silent 8-to-9 upgrade of windowBits
+  // that most versions of zlib/Node perform, and which *still* results in
+  // a valid 8-bit-window zlib stream.
+  node.pipe(zlib.createDeflateRaw({ windowBits: 9 }))
+      .pipe(zlib.createInflateRaw({ windowBits: 8 }))
+      .on('data', (chunk) => reinflated.push(chunk))
+      .on('end', common.mustCall(
+        () => assert(Buffer.concat(raw).equals(Buffer.concat(reinflated)))));
+}
 
 // for each of the files, make sure that compressing and
 // decompressing results in the same data, for every combination
@@ -167,10 +189,7 @@ testKeys.forEach(common.mustCall((file) => {
               zlibPairs.forEach(common.mustCall((pair) => {
                 const Def = pair[0];
                 const Inf = pair[1];
-                const opts = { level: level,
-                               windowBits: windowBits,
-                               memLevel: memLevel,
-                               strategy: strategy };
+                const opts = { level, windowBits, memLevel, strategy };
 
                 const def = new Def(opts);
                 const inf = new Inf(opts);

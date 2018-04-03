@@ -33,7 +33,7 @@ function testMethodConnect(testsToRun) {
   }));
   req.resume();
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
     testMethodConnect(testsToRun - 1);
   }));
   req.end();

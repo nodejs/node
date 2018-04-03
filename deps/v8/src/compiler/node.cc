@@ -343,7 +343,7 @@ Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
                  InlineCapacityField::encode(inline_capacity)),
       first_use_(nullptr) {
   // Inputs must either be out of line or within the inline capacity.
-  DCHECK(inline_capacity <= kMaxInlineCapacity);
+  DCHECK_GE(kMaxInlineCapacity, inline_capacity);
   DCHECK(inline_count == kOutlineMarker || inline_count <= inline_capacity);
 }
 
@@ -383,29 +383,29 @@ void Node::Verify() {
   if (count > 200 && count % 100) return;
 
   for (int i = 0; i < count; i++) {
-    CHECK_EQ(i, this->GetUsePtr(i)->input_index());
-    CHECK_EQ(this->GetInputPtr(i), this->GetUsePtr(i)->input_ptr());
-    CHECK_EQ(count, this->InputCount());
+    DCHECK_EQ(i, this->GetUsePtr(i)->input_index());
+    DCHECK_EQ(this->GetInputPtr(i), this->GetUsePtr(i)->input_ptr());
+    DCHECK_EQ(count, this->InputCount());
   }
   {  // Direct input iteration.
     int index = 0;
     for (Node* input : this->inputs()) {
-      CHECK_EQ(this->InputAt(index), input);
+      DCHECK_EQ(this->InputAt(index), input);
       index++;
     }
-    CHECK_EQ(count, index);
-    CHECK_EQ(this->InputCount(), index);
+    DCHECK_EQ(count, index);
+    DCHECK_EQ(this->InputCount(), index);
   }
   {  // Input edge iteration.
     int index = 0;
     for (Edge edge : this->input_edges()) {
-      CHECK_EQ(edge.from(), this);
-      CHECK_EQ(index, edge.index());
-      CHECK_EQ(this->InputAt(index), edge.to());
+      DCHECK_EQ(edge.from(), this);
+      DCHECK_EQ(index, edge.index());
+      DCHECK_EQ(this->InputAt(index), edge.to());
       index++;
     }
-    CHECK_EQ(count, index);
-    CHECK_EQ(this->InputCount(), index);
+    DCHECK_EQ(count, index);
+    DCHECK_EQ(this->InputCount(), index);
   }
 }
 #endif

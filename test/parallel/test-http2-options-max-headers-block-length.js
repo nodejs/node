@@ -10,9 +10,7 @@ const server = h2.createServer();
 
 // we use the lower-level API here
 server.on('stream', common.mustNotCall());
-server.listen(0);
-
-server.on('listening', common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
 
   // Setting the maxSendHeaderBlockLength, then attempting to send a
   // headers block that is too big should cause a 'frameError' to
@@ -24,13 +22,13 @@ server.on('listening', common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`,
                             options);
 
-  const req = client.request({ ':path': '/' });
-
+  const req = client.request();
   req.on('response', common.mustNotCall());
 
   req.resume();
-  req.on('end', common.mustCall(() => {
-    client.destroy();
+  req.on('close', common.mustCall(() => {
+    client.close();
+    server.close();
   }));
 
   req.on('frameError', common.mustCall((type, code) => {
@@ -40,35 +38,6 @@ server.on('listening', common.mustCall(() => {
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     type: Error,
-    message: 'Stream closed with error code 7'
+    message: 'Stream closed with error code NGHTTP2_REFUSED_STREAM'
   }));
-
-  req.end();
-
-  // if no frameError listener, should emit 'error' with
-  // code ERR_HTTP2_FRAME_ERROR
-  const req2 = client.request({ ':path': '/' });
-
-  req2.on('response', common.mustNotCall());
-
-  req2.resume();
-  req2.on('end', common.mustCall(() => {
-    server.close();
-    client.destroy();
-  }));
-
-  req2.once('error', common.mustCall((err) => {
-    common.expectsError({
-      code: 'ERR_HTTP2_FRAME_ERROR',
-      type: Error
-    })(err);
-    req2.on('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      type: Error,
-      message: 'Stream closed with error code 7'
-    }));
-  }));
-
-  req2.end();
-
 }));

@@ -100,19 +100,6 @@ ListHead<T, M>::~ListHead() {
 }
 
 template <typename T, ListNode<T> (T::*M)>
-void ListHead<T, M>::MoveBack(ListHead* that) {
-  if (IsEmpty())
-    return;
-  ListNode<T>* to = &that->head_;
-  head_.next_->prev_ = to->prev_;
-  to->prev_->next_ = head_.next_;
-  head_.prev_->next_ = to;
-  to->prev_ = head_.prev_;
-  head_.prev_ = &head_;
-  head_.next_ = &head_;
-}
-
-template <typename T, ListNode<T> (T::*M)>
 void ListHead<T, M>::PushBack(T* element) {
   ListNode<T>* that = &(element->*M);
   head_.prev_->next_ = that;
@@ -155,12 +142,16 @@ typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
 }
 
 template <typename Inner, typename Outer>
+constexpr uintptr_t OffsetOf(Inner Outer::*field) {
+  return reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(0)->*field));
+}
+
+template <typename Inner, typename Outer>
 ContainerOfHelper<Inner, Outer>::ContainerOfHelper(Inner Outer::*field,
                                                    Inner* pointer)
-    : pointer_(reinterpret_cast<Outer*>(
-          reinterpret_cast<uintptr_t>(pointer) -
-          reinterpret_cast<uintptr_t>(&(static_cast<Outer*>(0)->*field)))) {
-}
+    : pointer_(
+        reinterpret_cast<Outer*>(
+            reinterpret_cast<uintptr_t>(pointer) - OffsetOf(field))) {}
 
 template <typename Inner, typename Outer>
 template <typename TypeName>
@@ -177,7 +168,7 @@ inline ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
 template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
-    const v8::Persistent<TypeName>& persistent) {
+    const Persistent<TypeName>& persistent) {
   if (persistent.IsWeak()) {
     return WeakPersistentToLocal(isolate, persistent);
   } else {
@@ -187,15 +178,15 @@ inline v8::Local<TypeName> PersistentToLocal(
 
 template <class TypeName>
 inline v8::Local<TypeName> StrongPersistentToLocal(
-    const v8::Persistent<TypeName>& persistent) {
+    const Persistent<TypeName>& persistent) {
   return *reinterpret_cast<v8::Local<TypeName>*>(
-      const_cast<v8::Persistent<TypeName>*>(&persistent));
+      const_cast<Persistent<TypeName>*>(&persistent));
 }
 
 template <class TypeName>
 inline v8::Local<TypeName> WeakPersistentToLocal(
     v8::Isolate* isolate,
-    const v8::Persistent<TypeName>& persistent) {
+    const Persistent<TypeName>& persistent) {
   return v8::Local<TypeName>::New(isolate, persistent);
 }
 

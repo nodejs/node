@@ -10,8 +10,8 @@ function test() {
   d.on('error', function errorHandler() {
   });
 
-  d.run(function() {
-    d2.run(function() {
+  d.run(() => {
+    d2.run(() => {
       const fs = require('fs');
       fs.exists('/non/existing/file', function onExists() {
         throw new Error('boom!');

@@ -18,6 +18,37 @@ This object is created internally and is returned from [`setImmediate()`][]. It
 can be passed to [`clearImmediate()`][] in order to cancel the scheduled
 actions.
 
+By default, when an immediate is scheduled, the Node.js event loop will continue
+running as long as the immediate is active. The `Immediate` object returned by
+[`setImmediate()`][] exports both `immediate.ref()` and `immediate.unref()`
+functions that can be used to control this default behavior.
+
+### immediate.ref()
+<!-- YAML
+added: v9.7.0
+-->
+
+When called, requests that the Node.js event loop *not* exit so long as the
+`Immediate` is active. Calling `immediate.ref()` multiple times will have no
+effect.
+
+By default, all `Immediate` objects are "ref'd", making it normally unnecessary
+to call `immediate.ref()` unless `immediate.unref()` had been called previously.
+
+Returns a reference to the `Immediate`.
+
+### immediate.unref()
+<!-- YAML
+added: v9.7.0
+-->
+
+When called, the active `Immediate` object will not require the Node.js event
+loop to remain active. If there is no other activity keeping the event loop
+running, the process may exit before the `Immediate` object's callback is
+invoked. Calling `immediate.unref()` multiple times will have no effect.
+
+Returns a reference to the `Immediate`.
+
 ## Class: Timeout
 
 This object is created internally and is returned from [`setTimeout()`][] and
@@ -38,9 +69,8 @@ added: v0.9.1
 When called, requests that the Node.js event loop *not* exit so long as the
 `Timeout` is active. Calling `timeout.ref()` multiple times will have no effect.
 
-*Note*: By default, all `Timeout` objects are "ref'd", making it normally
-unnecessary to call `timeout.ref()` unless `timeout.unref()` had been called
-previously.
+By default, all `Timeout` objects are "ref'd", making it normally unnecessary
+to call `timeout.ref()` unless `timeout.unref()` had been called previously.
 
 Returns a reference to the `Timeout`.
 
@@ -54,8 +84,8 @@ to remain active. If there is no other activity keeping the event loop running,
 the process may exit before the `Timeout` object's callback is invoked. Calling
 `timeout.unref()` multiple times will have no effect.
 
-*Note*: Calling `timeout.unref()` creates an internal timer that will wake the
-Node.js event loop. Creating too many of these can adversely impact performance
+Calling `timeout.unref()` creates an internal timer that will wake the Node.js
+event loop. Creating too many of these can adversely impact performance
 of the Node.js application.
 
 Returns a reference to the `Timeout`.
@@ -87,7 +117,7 @@ next event loop iteration.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-*Note*: This method has a custom variant for promises that is available using
+This method has a custom variant for promises that is available using
 [`util.promisify()`][]:
 
 ```js
@@ -144,12 +174,12 @@ Node.js makes no guarantees about the exact timing of when callbacks will fire,
 nor of their ordering. The callback will be called as close as possible to the
 time specified.
 
-*Note*: When `delay` is larger than `2147483647` or less than `1`, the `delay`
+When `delay` is larger than `2147483647` or less than `1`, the `delay`
 will be set to `1`.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-*Note*: This method has a custom variant for promises that is available using
+This method has a custom variant for promises that is available using
 [`util.promisify()`][]:
 
 ```js

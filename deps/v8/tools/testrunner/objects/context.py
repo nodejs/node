@@ -29,8 +29,8 @@
 class Context():
   def __init__(self, arch, mode, shell_dir, mode_flags, verbose, timeout,
                isolates, command_prefix, extra_flags, noi18n, random_seed,
-               no_sorting, rerun_failures_count, rerun_failures_max,
-               predictable, no_harness, use_perf_data, sancov_dir):
+               no_sorting, rerun_failures_count, rerun_failures_max, no_harness,
+               use_perf_data, sancov_dir, infra_staging=False):
     self.arch = arch
     self.mode = mode
     self.shell_dir = shell_dir
@@ -45,22 +45,7 @@ class Context():
     self.no_sorting = no_sorting
     self.rerun_failures_count = rerun_failures_count
     self.rerun_failures_max = rerun_failures_max
-    self.predictable = predictable
     self.no_harness = no_harness
     self.use_perf_data = use_perf_data
     self.sancov_dir = sancov_dir
-
-  def Pack(self):
-    return [self.arch, self.mode, self.mode_flags, self.timeout, self.isolates,
-            self.command_prefix, self.extra_flags, self.noi18n,
-            self.random_seed, self.no_sorting, self.rerun_failures_count,
-            self.rerun_failures_max, self.predictable, self.no_harness,
-            self.use_perf_data, self.sancov_dir]
-
-  @staticmethod
-  def Unpack(packed):
-    # For the order of the fields, refer to Pack() above.
-    return Context(packed[0], packed[1], None, packed[2], False,
-                   packed[3], packed[4], packed[5], packed[6], packed[7],
-                   packed[8], packed[9], packed[10], packed[11], packed[12],
-                   packed[13], packed[14], packed[15])
+    self.infra_staging = infra_staging

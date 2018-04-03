@@ -71,7 +71,7 @@ class PerThreadAssertData final {
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
     : data_(PerThreadAssertData::GetCurrent()) {
-  if (data_ == NULL) {
+  if (data_ == nullptr) {
     data_ = new PerThreadAssertData();
     PerThreadAssertData::SetCurrent(data_);
   }
@@ -92,7 +92,7 @@ void PerThreadAssertScope<kType, kAllow>::Release() {
   DCHECK_NOT_NULL(data_);
   data_->Set(kType, old_state_);
   if (data_->DecrementLevel()) {
-    PerThreadAssertData::SetCurrent(NULL);
+    PerThreadAssertData::SetCurrent(nullptr);
     delete data_;
   }
   data_ = nullptr;
@@ -102,7 +102,7 @@ void PerThreadAssertScope<kType, kAllow>::Release() {
 template <PerThreadAssertType kType, bool kAllow>
 bool PerThreadAssertScope<kType, kAllow>::IsAllowed() {
   PerThreadAssertData* data = PerThreadAssertData::GetCurrent();
-  return data == NULL || data->Get(kType);
+  return data == nullptr || data->Get(kType);
 }
 
 

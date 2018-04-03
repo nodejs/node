@@ -18,6 +18,7 @@
 #include "unicode/strenum.h"
 #include "unicode/ustring.h"
 #include "unicode/timezone.h"
+#include "unicode/utf16.h"
 
 #include "tznames_impl.h"
 #include "cmemory.h"
@@ -69,7 +70,7 @@ enum UTimeZoneNameTypeIndex {
     UTZNM_INDEX_SHORT_DAYLIGHT,
     UTZNM_INDEX_COUNT
 };
-static const UChar* EMPTY_NAMES[UTZNM_INDEX_COUNT] = {0,0,0,0,0,0,0};
+static const UChar* const EMPTY_NAMES[UTZNM_INDEX_COUNT] = {0,0,0,0,0,0,0};
 
 U_CDECL_BEGIN
 static UBool U_CALLCONV tzdbTimeZoneNames_cleanup(void) {
@@ -411,25 +412,29 @@ TextTrieMap::search(CharacterNode *node, const UnicodeString &text, int32_t star
             return;
         }
     }
-    UChar32 c = text.char32At(index);
     if (fIgnoreCase) {
-        // size of character may grow after fold operation
-        UnicodeString tmp(c);
+        // for folding we need to get a complete code point.
+        // size of character may grow after fold operation;
+        // then we need to get result as UTF16 code units.
+        UChar32 c32 = text.char32At(index);
+        index += U16_LENGTH(c32);
+        UnicodeString tmp(c32);
         tmp.foldCase();
         int32_t tmpidx = 0;
         while (tmpidx < tmp.length()) {
-            c = tmp.char32At(tmpidx);
+            UChar c = tmp.charAt(tmpidx++);
             node = getChildNode(node, c);
             if (node == NULL) {
                 break;
             }
-            tmpidx = tmp.moveIndex32(tmpidx, 1);
         }
     } else {
+        // here we just get the next UTF16 code unit
+        UChar c = text.charAt(index++);
         node = getChildNode(node, c);
     }
     if (node != NULL) {
-        search(node, text, start, index+1, handler, status);
+        search(node, text, start, index, handler, status);
     }
 }
 
@@ -1070,7 +1075,7 @@ TimeZoneNamesImpl::loadStrings(const UnicodeString& tzCanonicalID, UErrorCode& s
     U_ASSERT(!mzIDs.isNull());
 
     const UnicodeString *mzID;
-    while ((mzID = mzIDs->snext(status)) && U_SUCCESS(status)) {
+    while (((mzID = mzIDs->snext(status)) != NULL) && U_SUCCESS(status)) {
         loadMetaZoneNames(*mzID, status);
     }
 }
@@ -1651,7 +1656,7 @@ void TimeZoneNamesImpl::internalLoadAllDisplayNames(UErrorCode& status) {
         StringEnumeration *tzIDs = TimeZone::createTimeZoneIDEnumeration(
             UCAL_ZONE_TYPE_CANONICAL, NULL, NULL, status);
         if (U_SUCCESS(status)) {
-            while ((id = tzIDs->snext(status))) {
+            while ((id = tzIDs->snext(status)) != NULL) {
                 if (U_FAILURE(status)) {
                     break;
                 }
@@ -2056,6 +2061,9 @@ static void U_CALLCONV prepareFind(UErrorCode &status) {
     if (U_SUCCESS(status)) {
         while ((mzID = mzIDs->snext(status)) && U_SUCCESS(status)) {
             const TZDBNames *names = TZDBTimeZoneNames::getMetaZoneNames(*mzID, status);
+            if (U_FAILURE(status)) {
+                break;
+            }
             if (names == NULL) {
                 continue;
             }
@@ -2187,9 +2195,11 @@ TZDBTimeZoneNames::getMetaZoneDisplayName(const UnicodeString& mzID,
     UErrorCode status = U_ZERO_ERROR;
     const TZDBNames *tzdbNames = TZDBTimeZoneNames::getMetaZoneNames(mzID, status);
     if (U_SUCCESS(status)) {
-        const UChar *s = tzdbNames->getName(type);
-        if (s != NULL) {
-            name.setTo(TRUE, s, -1);
+        if (tzdbNames != NULL) {
+            const UChar *s = tzdbNames->getName(type);
+            if (s != NULL) {
+                name.setTo(TRUE, s, -1);
+            }
         }
     }
 

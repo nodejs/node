@@ -47,14 +47,13 @@ static const Operator* PointerConstant(CommonOperatorBuilder* common,
                    static_cast<int32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
-
 BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
-    CompilationInfo* info, Graph* graph, Schedule* schedule) {
+    CompilationInfo* info, Graph* graph, Schedule* schedule, Isolate* isolate) {
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
   size_t n_blocks = static_cast<size_t>(schedule->RpoBlockCount()) - 1;
   BasicBlockProfiler::Data* data =
-      info->isolate()->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
+      isolate->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
   // Set the function name.
   if (info->has_shared_info()) {
     std::ostringstream os;

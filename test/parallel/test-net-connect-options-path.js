@@ -5,7 +5,8 @@ const net = require('net');
 // This file tests the option handling of net.connect,
 // net.createConnect, and new Socket().connect
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 const CLIENT_VARIANTS = 12;
 
@@ -20,9 +21,8 @@ const CLIENT_VARIANTS = 12;
   }, CLIENT_VARIANTS))
   .listen(serverPath, common.mustCall(function() {
     const getConnectCb = () => common.mustCall(function() {
-      const client = this;
-      client.end();
-      client.on('close', common.mustCall(function() {
+      this.end();
+      this.on('close', common.mustCall(function() {
         counter++;
         if (counter === CLIENT_VARIANTS) {
           server.close();
@@ -31,23 +31,29 @@ const CLIENT_VARIANTS = 12;
     });
 
     // CLIENT_VARIANTS depends on the following code
-    net.connect(serverPath, getConnectCb());
+    net.connect(serverPath, getConnectCb()).resume();
     net.connect(serverPath)
-      .on('connect', getConnectCb());
-    net.createConnection(serverPath, getConnectCb());
+      .on('connect', getConnectCb())
+      .resume();
+    net.createConnection(serverPath, getConnectCb()).resume();
     net.createConnection(serverPath)
-      .on('connect', getConnectCb());
-    new net.Socket().connect(serverPath, getConnectCb());
+      .on('connect', getConnectCb())
+      .resume();
+    new net.Socket().connect(serverPath, getConnectCb()).resume();
     new net.Socket().connect(serverPath)
-      .on('connect', getConnectCb());
-    net.connect({ path: serverPath }, getConnectCb());
+      .on('connect', getConnectCb())
+      .resume();
+    net.connect({ path: serverPath }, getConnectCb()).resume();
     net.connect({ path: serverPath })
-      .on('connect', getConnectCb());
-    net.createConnection({ path: serverPath }, getConnectCb());
+      .on('connect', getConnectCb())
+      .resume();
+    net.createConnection({ path: serverPath }, getConnectCb()).resume();
     net.createConnection({ path: serverPath })
-      .on('connect', getConnectCb());
-    new net.Socket().connect({ path: serverPath }, getConnectCb());
+      .on('connect', getConnectCb())
+      .resume();
+    new net.Socket().connect({ path: serverPath }, getConnectCb()).resume();
     new net.Socket().connect({ path: serverPath })
-      .on('connect', getConnectCb());
+      .on('connect', getConnectCb())
+      .resume();
   }));
 }

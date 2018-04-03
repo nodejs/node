@@ -32,7 +32,7 @@ void StoreBuffer::SetUp() {
   // Allocate 3x the buffer size, so that we can start the new store buffer
   // aligned to 2x the size.  This lets us use a bit test to detect the end of
   // the area.
-  base::VirtualMemory reservation;
+  VirtualMemory reservation;
   if (!AllocVirtualMemory(kStoreBufferSize * 3, heap_->GetRandomMmapAddr(),
                           &reservation)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
@@ -53,12 +53,12 @@ void StoreBuffer::SetUp() {
     DCHECK(reinterpret_cast<Address>(limit_[i]) >= reservation.address());
     DCHECK(start_[i] <= vm_limit);
     DCHECK(limit_[i] <= vm_limit);
-    DCHECK((reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask) == 0);
+    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask);
   }
 
-  if (!reservation.Commit(reinterpret_cast<Address>(start_[0]),
-                          kStoreBufferSize * kStoreBuffers,
-                          false)) {  // Not executable.
+  if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
+                                  kStoreBufferSize * kStoreBuffers,
+                                  PageAllocator::kReadWrite)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;
@@ -68,7 +68,7 @@ void StoreBuffer::SetUp() {
 
 
 void StoreBuffer::TearDown() {
-  if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+  if (virtual_memory_.IsReserved()) virtual_memory_.Free();
   top_ = nullptr;
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;
@@ -105,10 +105,14 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, kStoreBuffers);
   Address last_inserted_addr = nullptr;
+
+  // We are taking the chunk map mutex here because the page lookup of addr
+  // below may require us to check if addr is part of a large page.
+  base::LockGuard<base::Mutex> guard(heap_->lo_space()->chunk_map_mutex());
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
     Address addr = *current;
-    Page* page = Page::FromAnyPointerAddress(heap_, addr);
+    MemoryChunk* chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {
       last_inserted_addr = nullptr;
       current++;
@@ -116,15 +120,15 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
       DCHECK(!IsDeletionAddress(end));
       addr = UnmarkDeletionAddress(addr);
       if (end) {
-        RememberedSet<OLD_TO_NEW>::RemoveRange(page, addr, end,
+        RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, addr, end,
                                                SlotSet::PREFREE_EMPTY_BUCKETS);
       } else {
-        RememberedSet<OLD_TO_NEW>::Remove(page, addr);
+        RememberedSet<OLD_TO_NEW>::Remove(chunk, addr);
       }
     } else {
       DCHECK(!IsDeletionAddress(addr));
       if (addr != last_inserted_addr) {
-        RememberedSet<OLD_TO_NEW>::Insert(page, addr);
+        RememberedSet<OLD_TO_NEW>::Insert(chunk, addr);
         last_inserted_addr = addr;
       }
     }

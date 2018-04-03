@@ -46,11 +46,6 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
-  'crbug.com/718739': [
-    '/v8/test/mjsunit/regress/regress-105.js',
-    '/v8/test/mjsunit/regress/regress-crbug-599714.js',
-  ],
-
   'crbug.com/688159': [
     '/v8/test/mjsunit/es7/exponentiation-operator.js',
   ],
@@ -64,19 +59,31 @@ IGNORE_SOURCES = {
   'crbug.com/691587': [
     '/v8/test/mjsunit/asm/regress-674089.js',
   ],
+
+  'crbug.com/774805': [
+    '/v8/test/mjsunit/console.js',
+  ],
 }
 
-# Ignore by test case pattern. Map from bug->regexp.
+# Ignore by test case pattern. Map from config->bug->regexp. Config '' is used
+# to match all configurations. Otherwise use either a compiler configuration,
+# e.g. ignition or validate_asm or an architecture, e.g. x64 or ia32.
+# Bug is preferred to be a crbug.com/XYZ, but can be any short distinguishable
+# label.
 # Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_TEST_CASES = {
-  'crbug.com/718739': re.compile(r'\.caller'),
+  'slow_path': {
+    'crbug.com/800651':
+        re.compile(r'async', re.S),
+  },
+  'slow_path_opt': {
+    'crbug.com/800651':
+        re.compile(r'async', re.S),
+  },
 }
 
-# Ignore by output pattern. Map from config->bug->regexp. Config '' is used
-# to match all configurations. Otherwise use either a compiler configuration,
-# e.g. fullcode or validate_asm or an architecture, e.g. x64 or ia32 or a
-# comma-separated combination, e.g. x64,fullcode, for more specific
-# suppressions.
+# Ignore by output pattern. Map from config->bug->regexp. See IGNORE_TEST_CASES
+# on how to specify config keys.
 # Bug is preferred to be a crbug.com/XYZ, but can be any short distinguishable
 # label.
 # Regular expressions are assumed to be compiled. We use regexp.search.
@@ -246,16 +253,16 @@ class Suppression(object):
     return None
 
   def ignore_by_metadata(self, metadata):
-    return False
+    return None
 
   def ignore_by_content(self, testcase):
-    return False
+    return None
 
   def ignore_by_output1(self, output):
-    return False
+    return None
 
   def ignore_by_output2(self, output):
-    return False
+    return None
 
 
 class V8Suppression(Suppression):
@@ -278,23 +285,25 @@ class V8Suppression(Suppression):
     # Strip off test case preamble.
     try:
       lines = testcase.splitlines()
-      lines = lines[lines.index('print("js-mutation: start generated test case");'):]
+      lines = lines[lines.index(
+          'print("js-mutation: start generated test case");'):]
       content = '\n'.join(lines)
     except ValueError:
       # Search the whole test case if preamble can't be found. E.g. older
       # already minimized test cases might have dropped the delimiter line.
       content = testcase
-    for bug, exp in IGNORE_TEST_CASES.iteritems():
-      if exp.search(content):
-        return bug
-    return False
+    for key in ['', self.arch1, self.arch2, self.config1, self.config2]:
+      for bug, exp in IGNORE_TEST_CASES.get(key, {}).iteritems():
+        if exp.search(content):
+          return bug
+    return None
 
   def ignore_by_metadata(self, metadata):
     for bug, sources in IGNORE_SOURCES.iteritems():
       for source in sources:
         if source in metadata['sources']:
           return bug
-    return False
+    return None
 
   def ignore_by_output1(self, output):
     return self.ignore_by_output(output, self.arch1, self.config1)
@@ -308,16 +317,8 @@ class V8Suppression(Suppression):
         if exp.search(output):
           return bug
       return None
-    bug = check(IGNORE_OUTPUT.get('', {}))
-    if bug:
-      return bug
-    bug = check(IGNORE_OUTPUT.get(arch, {}))
-    if bug:
-      return bug
-    bug = check(IGNORE_OUTPUT.get(config, {}))
-    if bug:
-      return bug
-    bug = check(IGNORE_OUTPUT.get('%s,%s' % (arch, config), {}))
-    if bug:
-      return bug
+    for key in ['', arch, config]:
+      bug = check(IGNORE_OUTPUT.get(key, {}))
+      if bug:
+        return bug
     return None

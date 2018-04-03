@@ -13,8 +13,8 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-// We perform checks for NULL strings since it is possible that a string arg
-// value is NULL.
+// We perform checks for nullptr strings since it is possible that a string arg
+// value is nullptr.
 V8_INLINE static size_t GetAllocLength(const char* str) {
   return str ? strlen(str) + 1 : 0;
 }
@@ -37,7 +37,7 @@ void TraceObject::Initialize(
     const char** arg_names, const uint8_t* arg_types,
     const uint64_t* arg_values,
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
-    unsigned int flags) {
+    unsigned int flags, int64_t timestamp, int64_t cpu_timestamp) {
   pid_ = base::OS::GetCurrentProcessId();
   tid_ = base::OS::GetCurrentThreadId();
   phase_ = phase;
@@ -47,8 +47,8 @@ void TraceObject::Initialize(
   id_ = id;
   bind_id_ = bind_id;
   flags_ = flags;
-  ts_ = base::TimeTicks::HighResolutionNow().ToInternalValue();
-  tts_ = base::ThreadTicks::Now().ToInternalValue();
+  ts_ = timestamp;
+  tts_ = cpu_timestamp;
   duration_ = 0;
   cpu_duration_ = 0;
 
@@ -103,9 +103,9 @@ void TraceObject::Initialize(
 
 TraceObject::~TraceObject() { delete[] parameter_copy_storage_; }
 
-void TraceObject::UpdateDuration() {
-  duration_ = base::TimeTicks::HighResolutionNow().ToInternalValue() - ts_;
-  cpu_duration_ = base::ThreadTicks::Now().ToInternalValue() - tts_;
+void TraceObject::UpdateDuration(int64_t timestamp, int64_t cpu_timestamp) {
+  duration_ = timestamp - ts_;
+  cpu_duration_ = cpu_timestamp - tts_;
 }
 
 void TraceObject::InitializeForTesting(

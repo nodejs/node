@@ -29,3 +29,27 @@ var s = "12345";
   foo(5);
   assertOptimized(foo);
 })();
+
+(function() {
+  function foo(s) { return s[5]; }
+
+  foo(s);
+  foo(s);
+  %OptimizeFunctionOnNextCall(foo);
+  foo(s);
+  %OptimizeFunctionOnNextCall(foo);
+  foo(s);
+  assertOptimized(foo);
+})();
+
+(function() {
+  function foo(s, i) { return s[i]; }
+
+  foo(s, 0);
+  foo(s, 1);
+  %OptimizeFunctionOnNextCall(foo);
+  foo(s, 5);
+  %OptimizeFunctionOnNextCall(foo);
+  foo(s, 5);
+  assertOptimized(foo);
+})();

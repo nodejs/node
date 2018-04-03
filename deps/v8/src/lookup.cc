@@ -48,6 +48,7 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> key,
                                                  bool* success,
                                                  Configuration configuration) {
+  // TODO(mslekova): come up with better way to avoid duplication
   uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     *success = true;
@@ -93,21 +94,9 @@ LookupIterator LookupIterator::ForTransitionHandler(
                     has_property);
 
   if (!transition_map->is_dictionary_map()) {
-    PropertyConstness new_constness = kConst;
-    if (FLAG_track_constant_fields) {
-      if (it.constness() == kConst) {
-        DCHECK_EQ(kData, it.property_details_.kind());
-        // Check that current value matches new value otherwise we should make
-        // the property mutable.
-        if (!it.IsConstFieldValueEqualTo(*value)) new_constness = kMutable;
-      }
-    } else {
-      new_constness = kMutable;
-    }
-
     int descriptor_number = transition_map->LastAdded();
     Handle<Map> new_map = Map::PrepareForDataProperty(
-        transition_map, descriptor_number, new_constness, value);
+        transition_map, descriptor_number, kConst, value);
     // Reload information; this is no-op if nothing changed.
     it.property_details_ =
         new_map->instance_descriptors()->GetDetails(descriptor_number);
@@ -222,8 +211,8 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
   auto root =
       handle(receiver->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   if (root->IsNull(isolate)) {
-    unsigned int magic = 0xbbbbbbbb;
-    isolate->PushStackTraceAndDie(magic, *receiver, NULL, magic);
+    unsigned int magic = 0xBBBBBBBB;
+    isolate->PushStackTraceAndDie(magic, *receiver, nullptr, magic);
   }
   return Handle<JSReceiver>::cast(root);
 }
@@ -248,22 +237,45 @@ void LookupIterator::ReloadPropertyInformation() {
   DCHECK(IsFound() || !holder_->HasFastProperties());
 }
 
+namespace {
+bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver* holder) {
+  static uint32_t context_slots[] = {
+#define TYPED_ARRAY_CONTEXT_SLOTS(Type, type, TYPE, ctype, size) \
+  Context::TYPE##_ARRAY_FUN_INDEX,
+
+      TYPED_ARRAYS(TYPED_ARRAY_CONTEXT_SLOTS)
+#undef TYPED_ARRAY_CONTEXT_SLOTS
+  };
+
+  if (!holder->IsJSFunction()) return false;
+
+  return std::any_of(
+      std::begin(context_slots), std::end(context_slots),
+      [=](uint32_t slot) { return isolate->IsInAnyContext(holder, slot); });
+}
+}  // namespace
+
 void LookupIterator::InternalUpdateProtector() {
   if (isolate_->bootstrapper()->IsActive()) return;
 
   if (*name_ == heap()->constructor_string()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
     // Setting the constructor property could change an instance's @@species
-    if (holder_->IsJSArray()) {
+    if (holder_->IsJSArray() || holder_->IsJSTypedArray()) {
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArrayInstanceConstructorModified);
       isolate_->InvalidateArraySpeciesProtector();
     } else if (holder_->map()->is_prototype_map()) {
       DisallowHeapAllocation no_gc;
-      // Setting the constructor of Array.prototype of any realm also needs
-      // to invalidate the species protector
+      // Setting the constructor of Array.prototype or %TypedArray%.prototype of
+      // any realm also needs to invalidate the species protector.
+      // For typed arrays, we check a prototype of this holder since TypedArrays
+      // have different prototypes for each type, and their parent prototype is
+      // pointing the same TYPED_ARRAY_PROTOTYPE.
       if (isolate_->IsInAnyContext(*holder_,
-                                   Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
+                                   Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+          isolate_->IsInAnyContext(holder_->map()->prototype(),
+                                   Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
         isolate_->CountUsage(v8::Isolate::UseCounterFeature::
                                  kArrayPrototypeConstructorModified);
         isolate_->InvalidateArraySpeciesProtector();
@@ -271,9 +283,10 @@ void LookupIterator::InternalUpdateProtector() {
     }
   } else if (*name_ == heap()->species_symbol()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
-    // Setting the Symbol.species property of any Array constructor invalidates
-    // the species protector
-    if (isolate_->IsInAnyContext(*holder_, Context::ARRAY_FUNCTION_INDEX)) {
+    // Setting the Symbol.species property of any Array or TypedArray
+    // constructor invalidates the species protector
+    if (isolate_->IsInAnyContext(*holder_, Context::ARRAY_FUNCTION_INDEX) ||
+        IsTypedArrayFunctionInAnyContext(isolate_, *holder_)) {
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArraySpeciesModified);
       isolate_->InvalidateArraySpeciesProtector();
@@ -392,7 +405,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       PropertyDetails original_details =
           dictionary->DetailsAt(dictionary_entry());
       int enumeration_index = original_details.dictionary_index();
-      DCHECK(enumeration_index > 0);
+      DCHECK_GT(enumeration_index, 0);
       details = details.set_index(enumeration_index);
       dictionary->SetEntry(dictionary_entry(), *name(), *value, details);
       property_details_ = details;
@@ -490,6 +503,7 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget()));
   holder_ = receiver;
   if (receiver->IsJSGlobalObject()) {
+    JSObject::InvalidatePrototypeChains(receiver->map());
     state_ = DATA;
     return;
   }
@@ -506,6 +520,9 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(),
                                       isolate_);
     int entry;
+    if (receiver->map()->is_prototype_map()) {
+      JSObject::InvalidatePrototypeChains(receiver->map());
+    }
     dictionary = NameDictionary::Add(dictionary, name(),
                                      isolate_->factory()->uninitialized_value(),
                                      property_details_, &entry);
@@ -532,8 +549,8 @@ void LookupIterator::Delete() {
     bool is_prototype_map = holder->map()->is_prototype_map();
     RuntimeCallTimerScope stats_scope(
         isolate_, is_prototype_map
-                      ? &RuntimeCallStats::PrototypeObject_DeleteProperty
-                      : &RuntimeCallStats::Object_DeleteProperty);
+                      ? RuntimeCallCounterId::kPrototypeObject_DeleteProperty
+                      : RuntimeCallCounterId::kObject_DeleteProperty);
 
     PropertyNormalizationMode mode =
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;
@@ -629,11 +646,11 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
   if (IsElement()) {
     // TODO(verwaest): Move code into the element accessor.
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(receiver);
+    isolate_->CountUsage(v8::Isolate::kIndexAccessor);
+    Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(receiver);
 
-    dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, receiver,
-                                             details);
+    dictionary =
+        NumberDictionary::Set(dictionary, index_, pair, receiver, details);
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {
@@ -649,9 +666,12 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
     ReloadPropertyInformation<true>();
   } else {
-    PropertyNormalizationMode mode = receiver->map()->is_prototype_map()
-                                         ? KEEP_INOBJECT_PROPERTIES
-                                         : CLEAR_INOBJECT_PROPERTIES;
+    PropertyNormalizationMode mode = CLEAR_INOBJECT_PROPERTIES;
+    if (receiver->map()->is_prototype_map()) {
+      JSObject::InvalidatePrototypeChains(receiver->map());
+      mode = KEEP_INOBJECT_PROPERTIES;
+    }
+
     // Normalize object to make this operation simple.
     JSObject::NormalizeProperties(receiver, mode, 0,
                                   "TransitionToAccessorPair");
@@ -693,7 +713,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 
 
 Handle<Object> LookupIterator::FetchValue() const {
-  Object* result = NULL;
+  Object* result = nullptr;
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor();
@@ -789,11 +809,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement());
-  Map* holder_map = holder_->map();
-  int index =
-      holder_map->instance_descriptors()->GetFieldIndex(descriptor_number());
-  bool is_double = representation().IsDouble();
-  return FieldIndex::ForPropertyIndex(holder_map, index, is_double);
+  return FieldIndex::ForDescriptor(holder_->map(), descriptor_number());
 }
 
 Handle<FieldType> LookupIterator::GetFieldType() const {
@@ -879,8 +895,8 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
 
 JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
-  if (map->prototype() == heap()->null_value()) return NULL;
-  if (!check_prototype_chain() && !map->has_hidden_prototype()) return NULL;
+  if (map->prototype() == heap()->null_value()) return nullptr;
+  if (!check_prototype_chain() && !map->has_hidden_prototype()) return nullptr;
   return JSReceiver::cast(map->prototype());
 }
 

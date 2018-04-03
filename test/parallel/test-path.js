@@ -30,9 +30,9 @@ const typeErrorTests = [true, false, 7, null, {}, undefined, [], NaN];
 function fail(fn) {
   const args = Array.from(arguments).slice(1);
 
-  assert.throws(() => {
+  common.expectsError(() => {
     fn.apply(null, args);
-  }, common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }));
+  }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
 }
 
 typeErrorTests.forEach((test) => {

@@ -102,3 +102,12 @@ API
     and call ``uv_accept(pipe, handle)``.
 
 .. seealso:: The :c:type:`uv_stream_t` API functions also apply.
+
+.. c:function:: int uv_pipe_chmod(uv_pipe_t* handle, int flags)
+
+    Alters pipe permissions, allowing it to be accessed from processes run by
+    different users. Makes the pipe writable or readable by all users. Mode can
+    be ``UV_WRITABLE``, ``UV_READABLE`` or ``UV_WRITABLE | UV_READABLE``. This
+    function is blocking.
+
+    .. versionadded:: 1.16.0

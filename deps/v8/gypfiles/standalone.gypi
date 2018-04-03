@@ -296,7 +296,7 @@
           'variables': {
             # The Android toolchain needs to use the absolute path to the NDK
             # because it is used at different levels in the GYP files.
-            'android_ndk_root%': '<(base_dir)/third_party/android_tools/ndk/',
+            'android_ndk_root%': '<(base_dir)/third_party/android_ndk/',
             'android_host_arch%': "<!(uname -m | sed -e 's/i[3456]86/x86/')",
             # Version of the NDK. Used to ensure full rebuilds on NDK rolls.
             'android_ndk_version%': 'r12b',
@@ -439,6 +439,7 @@
         '-Wno-undefined-var-template',
         # TODO(yangguo): issue 5258
         '-Wno-nonportable-include-path',
+        '-Wno-tautological-constant-compare',
       ],
       'conditions':[
         ['OS=="android"', {
@@ -782,6 +783,11 @@
               # Don't rely on strict aliasing; v8 does weird pointer casts all
               # over the place.
               '-fno-strict-aliasing',
+            ],
+          }, {
+            'cflags' : [
+              # TODO(hans): https://crbug.com/767059
+              '-Wno-tautological-constant-compare',
             ],
           }],
           [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \

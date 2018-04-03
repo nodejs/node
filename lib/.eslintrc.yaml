@@ -1,5 +1,40 @@
 rules:
+  no-restricted-syntax:
+    # Config copied from .eslintrc.js
+    - error
+    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='doesNotThrow']"
+      message: "Please replace `assert.doesNotThrow()` and add a comment next to the code instead."
+    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])"
+      message: "use a regular expression for second argument of assert.throws()"
+    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.length<2]"
+      message: "assert.throws() must be invoked with at least two arguments."
+    - selector: "CallExpression[callee.name='setTimeout'][arguments.length<2]"
+      message: "setTimeout() must be invoked with at least two arguments."
+    - selector: "CallExpression[callee.name='setInterval'][arguments.length<2]"
+      message: "setInterval() must be invoked with at least 2 arguments."
+    - selector: "ThrowStatement > CallExpression[callee.name=/Error$/]"
+      message: "Use new keyword when throwing an Error."
+    # Config specific to lib
+    - selector: "NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError)$/])"
+      message: "Use an error exported by the internal/errors module."
   # Custom rules in tools/eslint-rules
-  require-buffer: error
-  buffer-constructor: error
-  no-let-in-for-declaration: error
+  node-core/require-buffer: error
+  node-core/buffer-constructor: error
+  node-core/no-let-in-for-declaration: error
+  node-core/lowercase-name-for-primitive: error
+  node-core/non-ascii-character: error
+globals:
+  CHECK: false
+  CHECK_EQ: false
+  CHECK_GE: false
+  CHECK_GT: false
+  CHECK_LE: false
+  CHECK_LT: false
+  CHECK_NE: false
+  DCHECK: false
+  DCHECK_EQ: false
+  DCHECK_GE: false
+  DCHECK_GT: false
+  DCHECK_LE: false
+  DCHECK_LT: false
+  DCHECK_NE: false

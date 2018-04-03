@@ -27,7 +27,7 @@
 
 static int completed_pingers = 0;
 
-#if defined(__CYGWIN__) || defined(__MSYS__)
+#if defined(__CYGWIN__) || defined(__MSYS__) || defined(__MVS__)
 #define NUM_PINGS 100 /* fewer pings to avoid timeout */
 #else
 #define NUM_PINGS 1000

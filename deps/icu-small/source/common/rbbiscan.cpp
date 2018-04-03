@@ -47,6 +47,7 @@
 //
 //------------------------------------------------------------------------------
 static const UChar gRuleSet_rule_char_pattern[]       = {
+ // Characters that may appear as literals in patterns without escaping or quoting.
  //   [    ^      [    \     p     {      Z     }     \     u    0      0    2      0
     0x5b, 0x5e, 0x5b, 0x5c, 0x70, 0x7b, 0x5a, 0x7d, 0x5c, 0x75, 0x30, 0x30, 0x32, 0x30,
  //   -    \      u    0     0     7      f     ]     -     [    \      p
@@ -558,6 +559,10 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
                 fRB->fDefaultTree   = &fRB->fSafeRevTree;
             } else if (opt == UNICODE_STRING("lookAheadHardBreak", 18)) {
                 fRB->fLookAheadHardBreak = TRUE;
+            } else if (opt == UNICODE_STRING("quoted_literals_only", 20)) {
+                fRuleSets[kRuleSet_rule_char-128].clear();
+            } else if (opt == UNICODE_STRING("unquoted_literals",  17)) {
+                fRuleSets[kRuleSet_rule_char-128].applyPattern(UnicodeString(gRuleSet_rule_char_pattern), *fRB->fStatus);
             } else {
                 error(U_BRK_UNRECOGNIZED_OPTION);
             }
@@ -817,27 +822,24 @@ static const UChar      chRParen    = 0x29;
 
 //------------------------------------------------------------------------------
 //
-//  stripRules    Return a rules string without unnecessary
-//                characters.
+//  stripRules    Return a rules string without extra spaces.
+//                (Comments are removed separately, during rule parsing.)
 //
 //------------------------------------------------------------------------------
 UnicodeString RBBIRuleScanner::stripRules(const UnicodeString &rules) {
     UnicodeString strippedRules;
-    int rulesLength = rules.length();
-    for (int idx = 0; idx < rulesLength; ) {
-        UChar ch = rules[idx++];
-        if (ch == chPound) {
-            while (idx < rulesLength
-                && ch != chCR && ch != chLF && ch != chNEL)
-            {
-                ch = rules[idx++];
-            }
+    int32_t rulesLength = rules.length();
+    bool skippingSpaces = false;
+
+    for (int32_t idx=0; idx<rulesLength; idx = rules.moveIndex32(idx, 1)) {
+        UChar32 cp = rules.char32At(idx);
+        bool whiteSpace = u_hasBinaryProperty(cp, UCHAR_PATTERN_WHITE_SPACE);
+        if (skippingSpaces && whiteSpace) {
+            continue;
         }
-        if (!u_isISOControl(ch)) {
-            strippedRules.append(ch);
-        }
+        strippedRules.append(cp);
+        skippingSpaces = whiteSpace;
     }
-    // strippedRules = strippedRules.unescape();
     return strippedRules;
 }
 
@@ -937,6 +939,7 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
             //  It will be treated as white-space, and serves to break up anything
             //    that might otherwise incorrectly clump together with a comment in
             //    the middle (a variable name, for example.)
+            int32_t commentStart = fScanIndex;
             for (;;) {
                 c.fChar = nextCharLL();
                 if (c.fChar == (UChar32)-1 ||  // EOF
@@ -944,6 +947,9 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
                     c.fChar == chLF     ||
                     c.fChar == chNEL    ||
                     c.fChar == chLS)       {break;}
+            }
+            for (int32_t i=commentStart; i<fNextIndex-1; ++i) {
+                fRB->fStrippedRules.setCharAt(i, u' ');
             }
         }
         if (c.fChar == (UChar32)-1) {

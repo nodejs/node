@@ -184,7 +184,7 @@ When something is intentionally missing or removed, set it to `null`.
 Don't set things to `undefined`.  Reserve that value to mean "not yet
 set to anything."
 
-Boolean objects are verboten.
+Boolean objects are forbidden.
 
 ## SEE ALSO
 

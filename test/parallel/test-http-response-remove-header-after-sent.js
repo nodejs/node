@@ -1,12 +1,9 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const http = require('http');
 
 const server = http.createServer((req, res) => {
-  assert.doesNotThrow(() => {
-    res.removeHeader('header1', 1);
-  });
+  res.removeHeader('header1', 1);
   res.write('abc');
   common.expectsError(
     () => res.removeHeader('header2', 2),

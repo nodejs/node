@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 
 ['foobar', 1, {}, []].forEach((input) => connectThrows(input));
@@ -13,12 +12,12 @@ function connectThrows(input) {
     lookup: input
   };
 
-  assert.throws(() => {
+  common.expectsError(() => {
     net.connect(opts);
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError
-  }));
+  });
 }
 
 connectDoesNotThrow(() => {});
@@ -30,7 +29,14 @@ function connectDoesNotThrow(input) {
     lookup: input
   };
 
-  assert.doesNotThrow(() => {
-    net.connect(opts);
+  return net.connect(opts);
+}
+
+{
+  // Verify that an error is emitted when an invalid address family is returned.
+  const s = connectDoesNotThrow((host, options, cb) => {
+    cb(null, '127.0.0.1', 100);
   });
+
+  s.on('error', common.expectsError({ code: 'ERR_INVALID_ADDRESS_FAMILY' }));
 }

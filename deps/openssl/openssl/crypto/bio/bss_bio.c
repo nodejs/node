@@ -144,7 +144,7 @@ static int bio_new(BIO *bio)
 {
     struct bio_bio_st *b;
 
-    b = OPENSSL_malloc(sizeof *b);
+    b = OPENSSL_malloc(sizeof(*b));
     if (b == NULL)
         return 0;
 

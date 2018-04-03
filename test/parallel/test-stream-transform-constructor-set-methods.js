@@ -1,42 +1,40 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
-const Transform = require('stream').Transform;
+const { strictEqual } = require('assert');
+const { Transform } = require('stream');
 
-const _transform = common.mustCall(function _transform(d, e, n) {
-  n();
+const t = new Transform();
+
+t.on('error', common.expectsError({
+  type: Error,
+  code: 'ERR_METHOD_NOT_IMPLEMENTED',
+  message: 'The _transform() method is not implemented'
+}));
+
+t.end(Buffer.from('blerg'));
+
+const _transform = common.mustCall((chunk, _, next) => {
+  next();
 });
 
-const _final = common.mustCall(function _final(n) {
-  n();
+const _final = common.mustCall((next) => {
+  next();
 });
 
-const _flush = common.mustCall(function _flush(n) {
-  n();
+const _flush = common.mustCall((next) => {
+  next();
 });
 
-const t = new Transform({
+const t2 = new Transform({
   transform: _transform,
   flush: _flush,
   final: _final
 });
 
-const t2 = new Transform({});
+strictEqual(t2._transform, _transform);
+strictEqual(t2._flush, _flush);
+strictEqual(t2._final, _final);
 
-t.end(Buffer.from('blerg'));
-t.resume();
-
-common.expectsError(() => {
-  t2.end(Buffer.from('blerg'));
-}, {
-  type: Error,
-  code: 'ERR_METHOD_NOT_IMPLEMENTED',
-  message: 'The _transform method is not implemented'
-});
-
-process.on('exit', () => {
-  assert.strictEqual(t._transform, _transform);
-  assert.strictEqual(t._flush, _flush);
-  assert.strictEqual(t._final, _final);
-});
+t2.end(Buffer.from('blerg'));
+t2.resume();

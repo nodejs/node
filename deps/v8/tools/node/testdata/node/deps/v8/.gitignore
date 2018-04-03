@@ -1,0 +1,7 @@
+/unrelated
+/testing/gtest/*
+!/testing/gtest/include
+/testing/gtest/include/*
+!/testing/gtest/include/gtest
+/testing/gtest/include/gtest/*
+!/testing/gtest/include/gtest/gtest_prod.h

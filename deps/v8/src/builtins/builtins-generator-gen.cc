@@ -31,8 +31,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   Label if_receiverisincompatible(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &if_receiverisincompatible);
   Node* receiver_instance_type = LoadInstanceType(receiver);
-  GotoIfNot(Word32Equal(receiver_instance_type,
-                        Int32Constant(JS_GENERATOR_OBJECT_TYPE)),
+  GotoIfNot(InstanceTypeEqual(receiver_instance_type, JS_GENERATOR_OBJECT_TYPE),
             &if_receiverisincompatible);
 
   // Check if the {receiver} is running or already closed.
@@ -46,11 +45,15 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
             JSGeneratorObject::kGeneratorClosed);
   GotoIf(SmiLessThan(receiver_continuation, closed), &if_receiverisrunning);
 
+  // Remember the {resume_mode} for the {receiver}.
+  StoreObjectFieldNoWriteBarrier(receiver, JSGeneratorObject::kResumeModeOffset,
+                                 SmiConstant(resume_mode));
+
   // Resume the {receiver} using our trampoline.
   VARIABLE(var_exception, MachineRepresentation::kTagged, UndefinedConstant());
   Label if_exception(this, Label::kDeferred), if_final_return(this);
   Node* result = CallStub(CodeFactory::ResumeGenerator(isolate()), context,
-                          value, receiver, SmiConstant(resume_mode));
+                          value, receiver);
   // Make sure we close the generator if there was an exception.
   GotoIfException(result, &if_exception, &var_exception);
 

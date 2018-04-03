@@ -19,7 +19,7 @@
  * Note that unlike other SSL tests, we don't test against our own SSL
  * server method. Firstly because we don't have one; we *only* support
  * DTLS1_BAD_VER as a client. And secondly because even if that were
- * fixed up it's the wrong thing to test against — because if changes
+ * fixed up it's the wrong thing to test against - because if changes
  * are made in generic DTLS code which don't take DTLS1_BAD_VER into
  * account, there's plenty of scope for making those changes such that
  * they break *both* the client and the server in the same way.
@@ -590,13 +590,13 @@ static int send_record(BIO *rbio, unsigned char type, unsigned long seqnr,
     unsigned char *enc;
 
 #ifdef SIXTY_FOUR_BIT_LONG
-    seq[0] = (seqnr >> 40) & 0xff;
-    seq[1] = (seqnr >> 32) & 0xff;
+    seq[0] = (unsigned char)(seqnr >> 40);
+    seq[1] = (unsigned char)(seqnr >> 32);
 #endif
-    seq[2] = (seqnr >> 24) & 0xff;
-    seq[3] = (seqnr >> 16) & 0xff;
-    seq[4] = (seqnr >> 8) & 0xff;
-    seq[5] = seqnr & 0xff;
+    seq[2] = (unsigned char)(seqnr >> 24);
+    seq[3] = (unsigned char)(seqnr >> 16);
+    seq[4] = (unsigned char)(seqnr >> 8);
+    seq[5] = (unsigned char)(seqnr);
 
     pad = 15 - ((len + SHA_DIGEST_LENGTH) % 16);
     enc = OPENSSL_malloc(len + SHA_DIGEST_LENGTH + 1 + pad);
@@ -612,8 +612,8 @@ static int send_record(BIO *rbio, unsigned char type, unsigned long seqnr,
     HMAC_Update(&ctx, seq, 6);
     HMAC_Update(&ctx, &type, 1);
     HMAC_Update(&ctx, ver, 2); /* Version */
-    lenbytes[0] = len >> 8;
-    lenbytes[1] = len & 0xff;
+    lenbytes[0] = (unsigned char)(len >> 8);
+    lenbytes[1] = (unsigned char)(len);
     HMAC_Update(&ctx, lenbytes, 2); /* Length */
     HMAC_Update(&ctx, enc, len); /* Finally the data itself */
     HMAC_Final(&ctx, enc + len, NULL);
@@ -637,8 +637,8 @@ static int send_record(BIO *rbio, unsigned char type, unsigned long seqnr,
     BIO_write(rbio, ver, 2);
     BIO_write(rbio, epoch, 2);
     BIO_write(rbio, seq, 6);
-    lenbytes[0] = (len + sizeof(iv)) >> 8;
-    lenbytes[1] = (len + sizeof(iv)) & 0xff;
+    lenbytes[0] = (unsigned char)((len + sizeof(iv)) >> 8);
+    lenbytes[1] = (unsigned char)(len + sizeof(iv));
     BIO_write(rbio, lenbytes, 2);
 
     BIO_write(rbio, iv, sizeof(iv));

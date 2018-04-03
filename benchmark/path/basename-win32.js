@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common.js');
-const path = require('path');
+const { win32 } = require('path');
 
 const bench = common.createBenchmark(main, {
   pathext: [
@@ -18,20 +18,17 @@ const bench = common.createBenchmark(main, {
   n: [1e6]
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const p = path.win32;
-  var input = String(conf.pathext);
+function main({ n, pathext }) {
   var ext;
-  const extIdx = input.indexOf('|');
+  const extIdx = pathext.indexOf('|');
   if (extIdx !== -1) {
-    ext = input.slice(extIdx + 1);
-    input = input.slice(0, extIdx);
+    ext = pathext.slice(extIdx + 1);
+    pathext = pathext.slice(0, extIdx);
   }
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    p.basename(input, ext);
+    win32.basename(pathext, ext);
   }
   bench.end(n);
 }

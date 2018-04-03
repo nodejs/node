@@ -32,8 +32,6 @@ const options = {
   host: '127.0.0.1',
 };
 
-//http.globalAgent.maxSockets = 15;
-
 const server = http.createServer(function(req, res) {
   const m = /\/(.*)/.exec(req.url);
   const reqid = parseInt(m[1], 10);
@@ -90,7 +88,7 @@ server.listen(0, options.host, function() {
 });
 
 process.on('exit', function() {
-  console.error('done=%j sent=%j', requests_done, requests_sent);
+  console.error(`done=${requests_done} sent=${requests_sent}`);
   assert.strictEqual(requests_done, requests_sent,
                      'timeout on http request called too much');
 });

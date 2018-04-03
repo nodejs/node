@@ -102,7 +102,14 @@ API
     and an uninitialized :c:type:`uv_connect_t`. `addr` should point to an
     initialized ``struct sockaddr_in`` or ``struct sockaddr_in6``.
 
+    On Windows if the `addr` is initialized to point to an unspecified address
+    (``0.0.0.0`` or ``::``) it will be changed to point to ``localhost``.
+    This is done to match the behavior of Linux systems.
+
     The callback is made when the connection has been established or when a
     connection error happened.
+
+    .. versionchanged:: 1.19.0 added ``0.0.0.0`` and ``::`` to ``localhost``
+        mapping
 
 .. seealso:: The :c:type:`uv_stream_t` API functions also apply.

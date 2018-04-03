@@ -327,14 +327,14 @@ class UpdateTypedSlotHelper {
                                             Callback callback) {
     switch (slot_type) {
       case CODE_TARGET_SLOT: {
-        RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, NULL);
+        RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, nullptr);
         return UpdateCodeTarget(&rinfo, callback);
       }
       case CODE_ENTRY_SLOT: {
         return UpdateCodeEntry(addr, callback);
       }
       case EMBEDDED_OBJECT_SLOT: {
-        RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
+        RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, nullptr);
         return UpdateEmbeddedPointer(&rinfo, callback);
       }
       case OBJECT_SLOT: {

@@ -12,31 +12,33 @@
 namespace v8 {
 namespace internal {
 
-inline FieldIndex FieldIndex::ForInObjectOffset(int offset, const Map* map) {
-  DCHECK((offset % kPointerSize) == 0);
-  int index = offset / kPointerSize;
-  DCHECK(map == NULL ||
-         index < (map->GetInObjectPropertyOffset(0) / kPointerSize +
-                  map->GetInObjectProperties()));
-  return FieldIndex(true, index, false, 0, 0, true);
+inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding,
+                                                const Map* map) {
+  DCHECK(map == nullptr || offset < map->instance_size());
+  DCHECK(encoding == kWord32 ? (offset % kInt32Size) == 0
+                             : (offset % kPointerSize) == 0);
+  return FieldIndex(true, offset, encoding, 0, 0);
 }
 
 inline FieldIndex FieldIndex::ForPropertyIndex(const Map* map,
                                                int property_index,
-                                               bool is_double) {
+                                               Representation representation) {
   DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
   int inobject_properties = map->GetInObjectProperties();
   bool is_inobject = property_index < inobject_properties;
   int first_inobject_offset;
+  int offset;
   if (is_inobject) {
     first_inobject_offset = map->GetInObjectPropertyOffset(0);
+    offset = map->GetInObjectPropertyOffset(property_index);
   } else {
     first_inobject_offset = FixedArray::kHeaderSize;
     property_index -= inobject_properties;
+    offset = FixedArray::kHeaderSize + property_index * kPointerSize;
   }
-  return FieldIndex(is_inobject,
-                    property_index + first_inobject_offset / kPointerSize,
-                    is_double, inobject_properties, first_inobject_offset);
+  Encoding encoding = FieldEncoding(representation);
+  return FieldIndex(is_inobject, offset, encoding, inobject_properties,
+                    first_inobject_offset);
 }
 
 // Takes an index as computed by GetLoadByFieldIndex and reconstructs a
@@ -45,21 +47,22 @@ inline FieldIndex FieldIndex::ForLoadByFieldIndex(const Map* map,
                                                   int orig_index) {
   int field_index = orig_index;
   bool is_inobject = true;
-  bool is_double = field_index & 1;
   int first_inobject_offset = 0;
+  Encoding encoding = field_index & 1 ? kDouble : kTagged;
   field_index >>= 1;
+  int offset;
   if (field_index < 0) {
+    first_inobject_offset = FixedArray::kHeaderSize;
     field_index = -(field_index + 1);
     is_inobject = false;
-    first_inobject_offset = FixedArray::kHeaderSize;
-    field_index += FixedArray::kHeaderSize / kPointerSize;
+    offset = FixedArray::kHeaderSize + field_index * kPointerSize;
   } else {
     first_inobject_offset = map->GetInObjectPropertyOffset(0);
-    field_index += JSObject::kHeaderSize / kPointerSize;
+    offset = map->GetInObjectPropertyOffset(field_index);
   }
-  FieldIndex result(is_inobject, field_index, is_double,
-                    map->GetInObjectProperties(), first_inobject_offset);
-  DCHECK(result.GetLoadByFieldIndex() == orig_index);
+  FieldIndex result(is_inobject, offset, encoding, map->GetInObjectProperties(),
+                    first_inobject_offset);
+  DCHECK_EQ(result.GetLoadByFieldIndex(), orig_index);
   return result;
 }
 
@@ -90,12 +93,7 @@ inline FieldIndex FieldIndex::ForDescriptor(const Map* map,
   PropertyDetails details =
       map->instance_descriptors()->GetDetails(descriptor_index);
   int field_index = details.field_index();
-  return ForPropertyIndex(map, field_index,
-                          details.representation().IsDouble());
-}
-
-inline FieldIndex FieldIndex::FromFieldAccessStubKey(int key) {
-  return FieldIndex(key);
+  return ForPropertyIndex(map, field_index, details.representation());
 }
 
 }  // namespace internal

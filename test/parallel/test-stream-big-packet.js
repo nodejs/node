@@ -22,41 +22,29 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const util = require('util');
 const stream = require('stream');
 
 let passed = false;
 
-function PassThrough() {
-  stream.Transform.call(this);
-}
-util.inherits(PassThrough, stream.Transform);
-PassThrough.prototype._transform = function(chunk, encoding, done) {
-  this.push(chunk);
-  done();
-};
-
-function TestStream() {
-  stream.Transform.call(this);
-}
-util.inherits(TestStream, stream.Transform);
-TestStream.prototype._transform = function(chunk, encoding, done) {
-  if (!passed) {
-    // Char 'a' only exists in the last write
-    passed = chunk.toString().includes('a');
+class TestStream extends stream.Transform {
+  _transform(chunk, encoding, done) {
+    if (!passed) {
+      // Char 'a' only exists in the last write
+      passed = chunk.toString().includes('a');
+    }
+    done();
   }
-  done();
-};
+}
 
-const s1 = new PassThrough();
-const s2 = new PassThrough();
+const s1 = new stream.PassThrough();
+const s2 = new stream.PassThrough();
 const s3 = new TestStream();
 s1.pipe(s3);
 // Don't let s2 auto close which may close s3
 s2.pipe(s3, { end: false });
 
 // We must write a buffer larger than highWaterMark
-const big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');
+const big = Buffer.alloc(s1.writableHighWaterMark + 1, 'x');
 
 // Since big is larger than highWaterMark, it will be buffered internally.
 assert(!s1.write(big));

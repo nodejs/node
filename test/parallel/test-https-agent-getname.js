@@ -12,7 +12,7 @@ const agent = new https.Agent();
 // empty options
 assert.strictEqual(
   agent.getName({}),
-  'localhost::::::::::'
+  'localhost:::::::::::::::::'
 );
 
 // pass all options arguments
@@ -23,13 +23,21 @@ const options = {
   ca: 'ca',
   cert: 'cert',
   ciphers: 'ciphers',
+  crl: [Buffer.from('c'), Buffer.from('r'), Buffer.from('l')],
+  dhparam: 'dhparam',
+  ecdhCurve: 'ecdhCurve',
+  honorCipherOrder: false,
   key: 'key',
   pfx: 'pfx',
   rejectUnauthorized: false,
+  secureOptions: 0,
+  secureProtocol: 'secureProtocol',
   servername: 'localhost',
+  sessionIdContext: 'sessionIdContext'
 };
 
 assert.strictEqual(
   agent.getName(options),
-  '0.0.0.0:443:192.168.1.1:ca:cert:ciphers:key:pfx:false:localhost:'
+  '0.0.0.0:443:192.168.1.1:ca:cert::ciphers:key:pfx:false:localhost:' +
+    'secureProtocol:c,r,l:false:ecdhCurve:dhparam:0:sessionIdContext'
 );

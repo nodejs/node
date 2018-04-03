@@ -38,6 +38,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();
 
+  // Provides access to BigInt's bit field.
+  static FieldAccess ForBigIntBitfield();
+
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectPropertiesOrHash();
 
@@ -72,9 +75,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSFunction::code() field.
   static FieldAccess ForJSFunctionCode();
-
-  // Provides access to JSFunction::next_function_link() field.
-  static FieldAccess ForJSFunctionNextFunctionLink();
 
   // Provides access to JSBoundFunction::bound_target_function() field.
   static FieldAccess ForJSBoundFunctionBoundTargetFunction();
@@ -169,11 +169,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedTypedArrayBase::external_pointer() field.
   static FieldAccess ForFixedTypedArrayBaseExternalPointer();
 
-  // Provides access to DescriptorArray::enum_cache_bridge() field.
-  static FieldAccess ForDescriptorArrayEnumCacheBridge();
-
-  // Provides access to DescriptorArray::enum_cache_bridge_cache() field.
-  static FieldAccess ForDescriptorArrayEnumCacheBridgeCache();
+  // Provides access to DescriptorArray::enum_cache() field.
+  static FieldAccess ForDescriptorArrayEnumCache();
 
   // Provides access to Map::bit_field() byte.
   static FieldAccess ForMapBitField();
@@ -241,6 +238,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGlobalObject::native_context() field.
   static FieldAccess ForJSGlobalObjectNativeContext();
 
+  // Provides access to JSGlobalProxy::native_context() field.
+  static FieldAccess ForJSGlobalProxyNativeContext();
+
   // Provides access to JSArrayIterator::object() field.
   static FieldAccess ForJSArrayIteratorObject();
 
@@ -285,8 +285,11 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();
 
-  // Provides access to EnumCache elements.
-  static ElementAccess ForDescriptorArrayEnumCacheBridgeCacheElement();
+  // Provides access to EnumCache::keys() field.
+  static FieldAccess ForEnumCacheKeys();
+
+  // Provides access to EnumCache::indices() field.
+  static FieldAccess ForEnumCacheIndices();
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
@@ -302,6 +305,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForOrderedHashTableBaseNumberOfBuckets();
   static FieldAccess ForOrderedHashTableBaseNumberOfElements();
   static FieldAccess ForOrderedHashTableBaseNumberOfDeletedElements();
+
+  // Provides access to OrderedHashMap elements.
+  static ElementAccess ForOrderedHashMapEntryValue();
 
   // Provides access to Dictionary fields.
   static FieldAccess ForDictionaryMaxNumberKey();

@@ -26,7 +26,7 @@ void PromiseRejectEvent(Isolate* isolate, Handle<JSPromise> promise,
 
   // Report only if we don't actually have a handler.
   if (!promise->has_handler()) {
-    isolate->ReportPromiseReject(Handle<JSObject>::cast(promise), value,
+    isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
 }
@@ -45,9 +45,6 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     // undefined, which will be interpreted by PromiseRejectEvent
     // as being a caught exception event.
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
-    isolate->debug()->OnAsyncTaskEvent(
-        debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise), 0);
   }
   PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
   return isolate->heap()->undefined_value();
@@ -58,8 +55,7 @@ RUNTIME_FUNCTION(Runtime_ReportPromiseReject) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  isolate->ReportPromiseReject(Handle<JSObject>::cast(promise), value,
-                               v8::kPromiseRejectWithNoHandler);
+  isolate->ReportPromiseReject(promise, value, v8::kPromiseRejectWithNoHandler);
   return isolate->heap()->undefined_value();
 }
 
@@ -71,22 +67,6 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CHECK(!promise->has_handler());
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(PromiseReactionJobInfo, info, 0);
-  isolate->EnqueueMicrotask(info);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(PromiseResolveThenableJobInfo, info, 0);
-  isolate->EnqueueMicrotask(info);
   return isolate->heap()->undefined_value();
 }
 

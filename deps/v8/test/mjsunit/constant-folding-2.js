@@ -33,8 +33,6 @@ function test(f) {
   f();
   %OptimizeFunctionOnNextCall(f);
   f();
-  // Assert that there has been no deopt.
-  assertOptimized(f);
 }
 
 test(function add() {
@@ -234,6 +232,7 @@ test(function stringCharCodeAt() {
   assertEquals("NaN", String("abc".charCodeAt(4)));
   assertEquals(98, "abc".charCodeAt(1.1));
   assertEquals("NaN", String("abc".charCodeAt(4.1)));
+  assertEquals("NaN", String("abc".charCodeAt(1 + 4294967295)));
 });
 
 test(function stringCharAt() {
@@ -242,6 +241,7 @@ test(function stringCharAt() {
   assertEquals("", "abc".charAt(4));
   assertEquals("b", "abc".charAt(1.1));
   assertEquals("", "abc".charAt(4.1));
+  assertEquals("", String("abc".charAt(1 + 4294967295)));
 });
 
 

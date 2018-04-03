@@ -41,9 +41,9 @@ TraceObject* TraceBufferRingBuffer::GetEventByHandle(uint64_t handle) {
   size_t chunk_index, event_index;
   uint32_t chunk_seq;
   ExtractHandle(handle, &chunk_index, &chunk_seq, &event_index);
-  if (chunk_index >= chunks_.size()) return NULL;
+  if (chunk_index >= chunks_.size()) return nullptr;
   auto& chunk = chunks_[chunk_index];
-  if (!chunk || chunk->seq() != chunk_seq) return NULL;
+  if (!chunk || chunk->seq() != chunk_seq) return nullptr;
   return chunk->GetEventAt(event_index);
 }
 

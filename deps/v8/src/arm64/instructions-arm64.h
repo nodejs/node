@@ -18,44 +18,26 @@ namespace internal {
 
 typedef uint32_t Instr;
 
-// The following macros initialize a float/double variable with a bit pattern
-// without using static initializers: If ARM64_DEFINE_FP_STATICS is defined, the
-// symbol is defined as uint32_t/uint64_t initialized with the desired bit
-// pattern. Otherwise, the same symbol is declared as an external float/double.
-#if defined(ARM64_DEFINE_FP_STATICS)
-#define DEFINE_FLOAT16(name, value) extern const uint16_t name = value
-#define DEFINE_FLOAT(name, value) extern const uint32_t name = value
-#define DEFINE_DOUBLE(name, value) extern const uint64_t name = value
-#else
-#define DEFINE_FLOAT16(name, value) extern const float16 name
-#define DEFINE_FLOAT(name, value) extern const float name
-#define DEFINE_DOUBLE(name, value) extern const double name
-#endif  // defined(ARM64_DEFINE_FP_STATICS)
-
-DEFINE_FLOAT16(kFP16PositiveInfinity, 0x7c00);
-DEFINE_FLOAT16(kFP16NegativeInfinity, 0xfc00);
-DEFINE_FLOAT(kFP32PositiveInfinity, 0x7f800000);
-DEFINE_FLOAT(kFP32NegativeInfinity, 0xff800000);
-DEFINE_DOUBLE(kFP64PositiveInfinity, 0x7ff0000000000000UL);
-DEFINE_DOUBLE(kFP64NegativeInfinity, 0xfff0000000000000UL);
+extern const float16 kFP16PositiveInfinity;
+extern const float16 kFP16NegativeInfinity;
+extern const float kFP32PositiveInfinity;
+extern const float kFP32NegativeInfinity;
+extern const double kFP64PositiveInfinity;
+extern const double kFP64NegativeInfinity;
 
 // This value is a signalling NaN as both a double and as a float (taking the
 // least-significant word).
-DEFINE_DOUBLE(kFP64SignallingNaN, 0x7ff000007f800001);
-DEFINE_FLOAT(kFP32SignallingNaN, 0x7f800001);
+extern const double kFP64SignallingNaN;
+extern const float kFP32SignallingNaN;
 
 // A similar value, but as a quiet NaN.
-DEFINE_DOUBLE(kFP64QuietNaN, 0x7ff800007fc00001);
-DEFINE_FLOAT(kFP32QuietNaN, 0x7fc00001);
+extern const double kFP64QuietNaN;
+extern const float kFP32QuietNaN;
 
 // The default NaN values (for FPCR.DN=1).
-DEFINE_DOUBLE(kFP64DefaultNaN, 0x7ff8000000000000UL);
-DEFINE_FLOAT(kFP32DefaultNaN, 0x7fc00000);
-DEFINE_FLOAT16(kFP16DefaultNaN, 0x7e00);
-
-#undef DEFINE_FLOAT16
-#undef DEFINE_FLOAT
-#undef DEFINE_DOUBLE
+extern const double kFP64DefaultNaN;
+extern const float kFP32DefaultNaN;
+extern const float16 kFP16DefaultNaN;
 
 unsigned CalcLSDataSize(LoadStoreOp op);
 unsigned CalcLSPairDataSize(LoadStorePairOp op);
@@ -569,7 +551,7 @@ const Instr kImmExceptionIsDebug = 0xdeb0;
 // Parameters are inlined in the code after a debug pseudo-instruction:
 // - Debug code.
 // - Debug parameters.
-// - Debug message string. This is a NULL-terminated ASCII string, padded to
+// - Debug message string. This is a nullptr-terminated ASCII string, padded to
 //   kInstructionSize so that subsequent instructions are correctly aligned.
 // - A kImmExceptionIsUnreachable marker, to catch accidental execution of the
 //   string data.
@@ -660,8 +642,8 @@ class NEONFormatDecoder {
 
   // Set the format mapping for all or individual substitutions.
   void SetFormatMaps(const NEONFormatMap* format0,
-                     const NEONFormatMap* format1 = NULL,
-                     const NEONFormatMap* format2 = NULL);
+                     const NEONFormatMap* format1 = nullptr,
+                     const NEONFormatMap* format2 = nullptr);
   void SetFormatMap(unsigned index, const NEONFormatMap* format);
 
   // Substitute %s in the input string with the placeholder string for each

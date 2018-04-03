@@ -317,8 +317,55 @@ Checks console methods
     params : {
         args : [
             [0] : {
-                type : string
-                value : trace
+                className : Array
+                description : Array(2)
+                objectId : <objectId>
+                preview : {
+                    description : Array(2)
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : 0
+                            subtype : array
+                            type : object
+                            valuePreview : {
+                                description : Array(2)
+                                overflow : false
+                                properties : [
+                                    [0] : {
+                                        name : 1
+                                        type : number
+                                        value : 2
+                                    }
+                                ]
+                                subtype : array
+                                type : object
+                            }
+                        }
+                        [1] : {
+                            name : 1
+                            subtype : array
+                            type : object
+                            valuePreview : {
+                                description : Array(2)
+                                overflow : false
+                                properties : [
+                                    [0] : {
+                                        name : 1
+                                        type : number
+                                        value : 4
+                                    }
+                                ]
+                                subtype : array
+                                type : object
+                            }
+                        }
+                    ]
+                    subtype : array
+                    type : object
+                }
+                subtype : array
+                type : object
             }
         ]
         executionContextId : <executionContextId>
@@ -341,7 +388,7 @@ Checks console methods
             ]
         }
         timestamp : <timestamp>
-        type : trace
+        type : table
     }
 }
 {
@@ -350,7 +397,7 @@ Checks console methods
         args : [
             [0] : {
                 type : string
-                value : console.trace
+                value : trace
             }
         ]
         executionContextId : <executionContextId>
@@ -382,7 +429,7 @@ Checks console methods
         args : [
             [0] : {
                 type : string
-                value : console.group
+                value : console.trace
             }
         ]
         executionContextId : <executionContextId>
@@ -392,6 +439,38 @@ Checks console methods
                     columnNumber : 10
                     functionName : testFunction
                     lineNumber : 19
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.group
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 20
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -423,7 +502,7 @@ Checks console methods
                 [0] : {
                     columnNumber : 10
                     functionName : testFunction
-                    lineNumber : 20
+                    lineNumber : 21
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -455,7 +534,7 @@ Checks console methods
                 [0] : {
                     columnNumber : 10
                     functionName : testFunction
-                    lineNumber : 21
+                    lineNumber : 22
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -487,7 +566,7 @@ Checks console methods
                 [0] : {
                     columnNumber : 10
                     functionName : testFunction
-                    lineNumber : 22
+                    lineNumber : 23
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -519,7 +598,7 @@ Checks console methods
                 [0] : {
                     columnNumber : 10
                     functionName : testFunction
-                    lineNumber : 23
+                    lineNumber : 24
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -551,7 +630,7 @@ Checks console methods
                 [0] : {
                     columnNumber : 10
                     functionName : testFunction
-                    lineNumber : 24
+                    lineNumber : 25
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -574,7 +653,7 @@ Checks console methods
         args : [
             [0] : {
                 type : string
-                value : 1
+                value : default: 1
             }
         ]
         executionContextId : <executionContextId>
@@ -583,46 +662,7 @@ Checks console methods
                 [0] : {
                     columnNumber : 12
                     functionName : foo
-                    lineNumber : 26
-                    scriptId : <scriptId>
-                    url : test.js
-                }
-                [1] : {
-                    columnNumber : 2
-                    functionName : testFunction
-                    lineNumber : 28
-                    scriptId : <scriptId>
-                    url : test.js
-                }
-                [2] : {
-                    columnNumber : 0
-                    functionName : 
-                    lineNumber : 0
-                    scriptId : <scriptId>
-                    url : 
-                }
-            ]
-        }
-        timestamp : <timestamp>
-        type : count
-    }
-}
-{
-    method : Runtime.consoleAPICalled
-    params : {
-        args : [
-            [0] : {
-                type : string
-                value : 2
-            }
-        ]
-        executionContextId : <executionContextId>
-        stackTrace : {
-            callFrames : [
-                [0] : {
-                    columnNumber : 12
-                    functionName : foo
-                    lineNumber : 26
+                    lineNumber : 27
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -634,6 +674,141 @@ Checks console methods
                     url : test.js
                 }
                 [2] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 2
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 12
+                    functionName : foo
+                    lineNumber : 27
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 2
+                    functionName : testFunction
+                    lineNumber : 30
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [2] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 3
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 31
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 4
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 32
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 5
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 33
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
                     columnNumber : 0
                     functionName : 
                     lineNumber : 0

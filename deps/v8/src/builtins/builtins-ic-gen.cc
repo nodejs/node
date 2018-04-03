@@ -28,23 +28,20 @@ IC_BUILTIN(LoadICTrampoline)
 IC_BUILTIN(LoadField)
 IC_BUILTIN(KeyedLoadICTrampoline)
 IC_BUILTIN(KeyedLoadIC_Megamorphic)
+IC_BUILTIN(KeyedLoadIC_PolymorphicName)
+IC_BUILTIN(StoreGlobalIC)
+IC_BUILTIN(StoreGlobalICTrampoline)
+IC_BUILTIN(StoreIC)
+IC_BUILTIN(StoreICTrampoline)
+IC_BUILTIN(KeyedStoreIC)
+IC_BUILTIN(KeyedStoreICTrampoline)
 
-IC_BUILTIN_PARAM(StoreIC, StoreIC, SLOPPY)
-IC_BUILTIN_PARAM(StoreICTrampoline, StoreICTrampoline, SLOPPY)
-IC_BUILTIN_PARAM(StoreICStrict, StoreIC, STRICT)
-IC_BUILTIN_PARAM(StoreICStrictTrampoline, StoreICTrampoline, STRICT)
-IC_BUILTIN_PARAM(KeyedStoreIC, KeyedStoreIC, SLOPPY)
-IC_BUILTIN_PARAM(KeyedStoreICTrampoline, KeyedStoreICTrampoline, SLOPPY)
-IC_BUILTIN_PARAM(KeyedStoreICStrict, KeyedStoreIC, STRICT)
-IC_BUILTIN_PARAM(KeyedStoreICStrictTrampoline, KeyedStoreICTrampoline, STRICT)
 IC_BUILTIN_PARAM(LoadGlobalIC, LoadGlobalIC, NOT_INSIDE_TYPEOF)
 IC_BUILTIN_PARAM(LoadGlobalICInsideTypeof, LoadGlobalIC, INSIDE_TYPEOF)
 IC_BUILTIN_PARAM(LoadGlobalICTrampoline, LoadGlobalICTrampoline,
                  NOT_INSIDE_TYPEOF)
 IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofTrampoline, LoadGlobalICTrampoline,
                  INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LoadICProtoArray, LoadICProtoArray, false)
-IC_BUILTIN_PARAM(LoadICProtoArrayThrowIfNonexistent, LoadICProtoArray, true)
 
 }  // namespace internal
 }  // namespace v8

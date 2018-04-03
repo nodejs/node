@@ -33,14 +33,10 @@ function useWHATWG(n, input, prop) {
   return noDead;
 }
 
-function main(conf) {
-  const type = conf.type;
-  const n = conf.n | 0;
-  const method = conf.method;
-
+function main({ type, n, method }) {
   const input = inputs[type];
   if (!input) {
-    throw new Error('Unknown input type');
+    throw new Error(`Unknown input type "${type}"`);
   }
 
   var noDead;  // Avoid dead code elimination.
@@ -52,7 +48,7 @@ function main(conf) {
       noDead = useWHATWG(n, input);
       break;
     default:
-      throw new Error('Unknown method');
+      throw new Error(`Unknown method ${method}`);
   }
 
   assert.ok(noDead);

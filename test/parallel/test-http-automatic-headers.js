@@ -22,8 +22,8 @@ server.on('listening', common.mustCall(() => {
     assert.strictEqual(res.headers['x-date'], 'foo');
     assert.strictEqual(res.headers['x-connection'], 'bar');
     assert.strictEqual(res.headers['x-content-length'], 'baz');
-    assert(res.headers['date']);
-    assert.strictEqual(res.headers['connection'], 'keep-alive');
+    assert(res.headers.date);
+    assert.strictEqual(res.headers.connection, 'keep-alive');
     assert.strictEqual(res.headers['content-length'], '0');
     server.close();
     agent.destroy();

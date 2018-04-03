@@ -31,30 +31,27 @@ import re
 from variants import ALL_VARIANTS
 from utils import Freeze
 
-# These outcomes can occur in a TestCase's outcomes list:
-SKIP = "SKIP"
+# Possible outcomes
 FAIL = "FAIL"
 PASS = "PASS"
-OKAY = "OKAY"
-TIMEOUT = "TIMEOUT"
-CRASH = "CRASH"
-SLOW = "SLOW"
-FAST_VARIANTS = "FAST_VARIANTS"
-NO_VARIANTS = "NO_VARIANTS"
-# These are just for the status files and are mapped below in DEFS:
+TIMEOUT = "TIMEOUT" # TODO(majeski): unused in status files
+CRASH = "CRASH" # TODO(majeski): unused in status files
+
+# Outcomes only for status file, need special handling
 FAIL_OK = "FAIL_OK"
-PASS_OR_FAIL = "PASS_OR_FAIL"
 FAIL_SLOPPY = "FAIL_SLOPPY"
+
+# Modifiers
+SKIP = "SKIP"
+SLOW = "SLOW"
+NO_VARIANTS = "NO_VARIANTS"
 
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, OKAY, CRASH, SLOW, FAIL_OK,
-            FAST_VARIANTS, NO_VARIANTS, PASS_OR_FAIL, FAIL_SLOPPY, ALWAYS]:
+for key in [SKIP, FAIL, PASS, CRASH, SLOW, FAIL_OK, NO_VARIANTS, FAIL_SLOPPY,
+            ALWAYS]:
   KEYWORDS[key] = key
-
-DEFS = {FAIL_OK: [FAIL, OKAY],
-        PASS_OR_FAIL: [PASS, FAIL]}
 
 # Support arches, modes to be written as keywords instead of strings.
 VARIABLES = {ALWAYS: True}
@@ -69,43 +66,73 @@ for var in ["debug", "release", "big", "little",
 for var in ALL_VARIANTS:
   VARIABLES[var] = var
 
+class StatusFile(object):
+  def __init__(self, path, variables):
+    """
+    _rules:        {variant: {test name: [rule]}}
+    _prefix_rules: {variant: {test name prefix: [rule]}}
+    """
+    with open(path) as f:
+      self._rules, self._prefix_rules = ReadStatusFile(f.read(), variables)
 
-def DoSkip(outcomes):
-  return SKIP in outcomes
+  def get_outcomes(self, testname, variant=None):
+    """Merges variant dependent and independent rules."""
+    outcomes = frozenset()
 
+    for key in set([variant or '', '']):
+      rules = self._rules.get(key, {})
+      prefix_rules = self._prefix_rules.get(key, {})
 
-def IsSlow(outcomes):
-  return SLOW in outcomes
+      if testname in rules:
+        outcomes |= rules[testname]
 
+      for prefix in prefix_rules:
+        if testname.startswith(prefix):
+          outcomes |= prefix_rules[prefix]
 
-def OnlyStandardVariant(outcomes):
-  return NO_VARIANTS in outcomes
+    return outcomes
 
+  def warn_unused_rules(self, tests, check_variant_rules=False):
+    """Finds and prints unused rules in status file.
 
-def OnlyFastVariants(outcomes):
-  return FAST_VARIANTS in outcomes
+    Rule X is unused when it doesn't apply to any tests, which can also mean
+    that all matching tests were skipped by another rule before evaluating X.
 
+    Args:
+      tests: list of pairs (testname, variant)
+      check_variant_rules: if set variant dependent rules are checked
+    """
 
-def IsPassOrFail(outcomes):
-  return ((PASS in outcomes) and (FAIL in outcomes) and
-          (not CRASH in outcomes) and (not OKAY in outcomes))
+    if check_variant_rules:
+      variants = list(ALL_VARIANTS)
+    else:
+      variants = ['']
+    used_rules = set()
 
+    for testname, variant in tests:
+      variant = variant or ''
 
-def IsFailOk(outcomes):
-    return (FAIL in outcomes) and (OKAY in outcomes)
+      if testname in self._rules.get(variant, {}):
+        used_rules.add((testname, variant))
+        if SKIP in self._rules[variant][testname]:
+          continue
 
+      for prefix in self._prefix_rules.get(variant, {}):
+        if testname.startswith(prefix):
+          used_rules.add((prefix, variant))
+          if SKIP in self._prefix_rules[variant][prefix]:
+            break
 
-def _AddOutcome(result, new):
-  global DEFS
-  if new in DEFS:
-    mapped = DEFS[new]
-    if type(mapped) == list:
-      for m in mapped:
-        _AddOutcome(result, m)
-    elif type(mapped) == str:
-      _AddOutcome(result, mapped)
-  else:
-    result.add(new)
+    for variant in variants:
+      for rule, value in (
+          list(self._rules.get(variant, {}).iteritems()) +
+          list(self._prefix_rules.get(variant, {}).iteritems())):
+        if (rule, variant) not in used_rules:
+          if variant == '':
+            variant_desc = 'variant independent'
+          else:
+            variant_desc = 'variant: %s' % variant
+          print 'Unused rule: %s -> %s (%s)' % (rule, value, variant_desc)
 
 
 def _JoinsPassAndFail(outcomes1, outcomes2):
@@ -114,13 +141,17 @@ def _JoinsPassAndFail(outcomes1, outcomes2):
   """
   return (
       PASS in outcomes1 and
-      not FAIL in outcomes1 and
-      FAIL in outcomes2
+      not (FAIL in outcomes1 or FAIL_OK in outcomes1) and
+      (FAIL in outcomes2 or FAIL_OK in outcomes2)
   )
 
 VARIANT_EXPRESSION = object()
 
 def _EvalExpression(exp, variables):
+  """Evaluates expression and returns its result. In case of NameError caused by
+  undefined "variant" identifier returns VARIANT_EXPRESSION marker.
+  """
+
   try:
     return eval(exp, variables)
   except NameError as e:
@@ -129,32 +160,35 @@ def _EvalExpression(exp, variables):
     return VARIANT_EXPRESSION
 
 
-def _EvalVariantExpression(section, rules, wildcards, variant, variables):
-  variables_with_variant = {}
-  variables_with_variant.update(variables)
+def _EvalVariantExpression(
+  condition, section, variables, variant, rules, prefix_rules):
+  variables_with_variant = dict(variables)
   variables_with_variant["variant"] = variant
-  result = _EvalExpression(section[0], variables_with_variant)
+  result = _EvalExpression(condition, variables_with_variant)
   assert result != VARIANT_EXPRESSION
   if result is True:
     _ReadSection(
-        section[1],
-        rules[variant],
-        wildcards[variant],
+        section,
         variables_with_variant,
+        rules[variant],
+        prefix_rules[variant],
     )
   else:
     assert result is False, "Make sure expressions evaluate to boolean values"
 
 
-def _ParseOutcomeList(rule, outcomes, target_dict, variables):
+def _ParseOutcomeList(rule, outcomes, variables, target_dict):
+  """Outcome list format: [condition, outcome, outcome, ...]"""
+
   result = set([])
   if type(outcomes) == str:
     outcomes = [outcomes]
   for item in outcomes:
     if type(item) == str:
-      _AddOutcome(result, item)
+      result.add(item)
     elif type(item) == list:
-      exp = _EvalExpression(item[0], variables)
+      condition = item[0]
+      exp = _EvalExpression(condition, variables)
       assert exp != VARIANT_EXPRESSION, (
         "Nested variant expressions are not supported")
       if exp is False:
@@ -166,10 +200,11 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
 
       for outcome in item[1:]:
         assert type(outcome) == str
-        _AddOutcome(result, outcome)
+        result.add(outcome)
     else:
       assert False
-  if len(result) == 0: return
+  if len(result) == 0:
+    return
   if rule in target_dict:
     # A FAIL without PASS in one rule has always precedence over a single
     # PASS (without FAIL) in another. Otherwise the default PASS expectation
@@ -186,51 +221,69 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
 
 
 def ReadContent(content):
-  global KEYWORDS
   return eval(content, KEYWORDS)
 
 
 def ReadStatusFile(content, variables):
-  # Empty defaults for rules and wildcards. Variant-independent
+  """Status file format
+  Status file := [section]
+  section = [CONDITION, section_rules]
+  section_rules := {path: outcomes}
+  outcomes := outcome | [outcome, ...]
+  outcome := SINGLE_OUTCOME | [CONDITION, SINGLE_OUTCOME, SINGLE_OUTCOME, ...]
+  """
+
+  # Empty defaults for rules and prefix_rules. Variant-independent
   # rules are mapped by "", others by the variant name.
   rules = {variant: {} for variant in ALL_VARIANTS}
   rules[""] = {}
-  wildcards = {variant: {} for variant in ALL_VARIANTS}
-  wildcards[""] = {}
+  prefix_rules = {variant: {} for variant in ALL_VARIANTS}
+  prefix_rules[""] = {}
 
   variables.update(VARIABLES)
-  for section in ReadContent(content):
-    assert type(section) == list
-    assert len(section) == 2
-    exp = _EvalExpression(section[0], variables)
+  for conditional_section in ReadContent(content):
+    assert type(conditional_section) == list
+    assert len(conditional_section) == 2
+    condition, section = conditional_section
+    exp = _EvalExpression(condition, variables)
+
+    # The expression is variant-independent and evaluates to False.
     if exp is False:
-      # The expression is variant-independent and evaluates to False.
       continue
-    elif exp == VARIANT_EXPRESSION:
+
+    # The expression is variant-independent and evaluates to True.
+    if exp is True:
+      _ReadSection(
+          section,
+          variables,
+          rules[''],
+          prefix_rules[''],
+      )
+      continue
+
+    # The expression is variant-dependent (contains "variant" keyword)
+    if exp == VARIANT_EXPRESSION:
       # If the expression contains one or more "variant" keywords, we evaluate
       # it for all possible variants and create rules for those that apply.
       for variant in ALL_VARIANTS:
-        _EvalVariantExpression(section, rules, wildcards, variant, variables)
-    else:
-      # The expression is variant-independent and evaluates to True.
-      assert exp is True, "Make sure expressions evaluate to boolean values"
-      _ReadSection(
-          section[1],
-          rules[""],
-          wildcards[""],
-          variables,
-      )
-  return Freeze(rules), Freeze(wildcards)
+        _EvalVariantExpression(
+            condition, section, variables, variant, rules, prefix_rules)
+      continue
+
+    assert False, "Make sure expressions evaluate to boolean values"
+
+  return Freeze(rules), Freeze(prefix_rules)
 
 
-def _ReadSection(section, rules, wildcards, variables):
+def _ReadSection(section, variables, rules, prefix_rules):
   assert type(section) == dict
-  for rule in section:
+  for rule, outcome_list in section.iteritems():
     assert type(rule) == str
+
     if rule[-1] == '*':
-      _ParseOutcomeList(rule, section[rule], wildcards, variables)
+      _ParseOutcomeList(rule[:-1], outcome_list, variables, prefix_rules)
     else:
-      _ParseOutcomeList(rule, section[rule], rules, variables)
+      _ParseOutcomeList(rule, outcome_list, variables, rules)
 
 JS_TEST_PATHS = {
   'debugger': [[]],
@@ -266,6 +319,8 @@ def PresubmitCheck(path):
                 "Suite name prefix must not be used in rule keys")
         _assert(not rule.endswith('.js'),
                 ".js extension must not be used in rule keys.")
+        _assert('*' not in rule or (rule.count('*') == 1 and rule[-1] == '*'),
+                "Only the last character of a rule key can be a wildcard")
         if basename in JS_TEST_PATHS  and '*' not in rule:
           _assert(any(os.path.exists(os.path.join(os.path.dirname(path),
                                                   *(paths + [rule + ".js"])))

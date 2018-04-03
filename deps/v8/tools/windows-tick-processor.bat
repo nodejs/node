@@ -27,4 +27,4 @@ IF NOT %arg8:~0,2% == 8 (IF NOT %arg8:~0,2% == 8- SET log_file=%8)
 SET arg9=9%9
 IF NOT %arg9:~0,2% == 9 (IF NOT %arg9:~0,2% == 9- SET log_file=%9)
 
-type %log_file% | %D8_PATH%\d8 %tools_dir%splaytree.js %tools_dir%codemap.js %tools_dir%csvparser.js %tools_dir%consarray.js %tools_dir%profile.js %tools_dir%profile_view.js %tools_dir%logreader.js %tools_dir%SourceMap.js %tools_dir%tickprocessor.js %tools_dir%tickprocessor-driver.js -- --windows %*
+type %log_file% | %D8_PATH%\d8 %tools_dir%splaytree.js %tools_dir%codemap.js %tools_dir%csvparser.js %tools_dir%consarray.js %tools_dir%profile.js %tools_dir%profile_view.js %tools_dir%logreader.js %tools_dir%SourceMap.js %tools_dir%arguments.js %tools_dir%tickprocessor.js %tools_dir%tickprocessor-driver.js -- --windows %*

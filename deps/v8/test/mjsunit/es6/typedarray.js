@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // ArrayBuffer
 
 function TestByteLength(param, expectedByteLength) {
@@ -339,16 +341,30 @@ function TestTypedArray(constr, elementSize, typicalElement) {
 
   // Modified %ArrayIteratorPrototype%.next() method is honoured (v8:5699)
   const ArrayIteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]());
+  const ArrayIteratorPrototypeNextDescriptor =
+      Object.getOwnPropertyDescriptor(ArrayIteratorPrototype, 'next');
   const ArrayIteratorPrototypeNext = ArrayIteratorPrototype.next;
   ArrayIteratorPrototype.next = function() {
     return { done: true };
   };
   genArr = new constr([1, 2, 3]);
   assertEquals(0, genArr.length);
+
   ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
 
-  // Modified %ArrayIteratorPrototype%.next() during iteration is honoured as
-  // well.
+  // Modified %ArrayIteratorPrototype%.next() is only loaded during the iterator
+  // prologue.
+  let nextMethod = ArrayIteratorPrototypeNext;
+  let getNextCount = 0;
+  Object.defineProperty(ArrayIteratorPrototype, 'next', {
+    get() {
+      getNextCount++;
+      return nextMethod;
+    },
+    set(v) { nextMethod = v; },
+    configurable: true
+  });
+
   genArr = new constr(Object.defineProperty([1, , 3], 1, {
     get() {
       ArrayIteratorPrototype.next = function() {
@@ -357,9 +373,13 @@ function TestTypedArray(constr, elementSize, typicalElement) {
       return 2;
     }
   }));
-  assertEquals(2, genArr.length);
+  Object.defineProperty(ArrayIteratorPrototype, 'next',
+                        ArrayIteratorPrototypeNextDescriptor);
+  assertEquals(1, getNextCount);
+  assertEquals(3, genArr.length);
   assertEquals(1, genArr[0]);
   assertEquals(2, genArr[1]);
+  assertEquals(3, genArr[2]);
   ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
 }
 
@@ -609,6 +629,114 @@ function TestTypedArraySet() {
   a101[0] = 42;
   b101.set(a101);
   assertArrayPrefix([42], b101);
+
+  // Detached array buffer when accessing a source element
+  var a111 = new Int8Array(100);
+  var evilarr = new Array(100);
+  var detached = false;
+  evilarr[1] = {
+    [Symbol.toPrimitive]() {
+      %ArrayBufferNeuter(a111.buffer);
+      detached = true;
+      return 1;
+    }
+  };
+  assertThrows(() => a111.set(evilarr), TypeError);
+  assertEquals(true, detached);
+
+  // Check if the target is a typed array before converting offset to integer
+  var tmp = {
+    [Symbol.toPrimitive]() {
+      assertUnreachable("Parameter should not be processed when " +
+                        "array.[[ViewedArrayBuffer]] is neutered.");
+      return 1;
+    }
+  };
+  assertThrows(() => Int8Array.prototype.set.call(1, tmp), TypeError);
+  assertThrows(() => Int8Array.prototype.set.call([], tmp), TypeError);
+
+  // Detached array buffer when converting offset.
+  {
+    for (const klass of typedArrayConstructors) {
+      const xs = new klass(10);
+      let detached = false;
+      const offset = {
+        [Symbol.toPrimitive]() {
+          %ArrayBufferNeuter(xs.buffer);
+          detached = true;
+          return 0;
+        }
+      };
+      assertThrows(() => xs.set(xs, offset), TypeError);
+      assertEquals(true, detached);
+    }
+  }
+
+  // Detached JSTypedArray source argument.
+  {
+    for (const klass of typedArrayConstructors) {
+      const a = new klass(2);
+      for (let i = 0; i < a.length; i++) a[i] = i;
+      %ArrayBufferNeuter(a.buffer);
+
+      const b = new klass(2);
+      assertThrows(() => b.set(a), TypeError);
+    }
+  }
+
+  // Various offset edge cases.
+  {
+    for (const klass of typedArrayConstructors) {
+      const xs = new klass(10);
+      assertThrows(() => xs.set(xs, -1), RangeError);
+      assertThrows(() => xs.set(xs, -1 * 2**64), RangeError);
+      xs.set(xs, -0.0);
+      xs.set(xs, 0.0);
+      xs.set(xs, 0.5);
+      assertThrows(() => xs.set(xs, 2**64), RangeError);
+    }
+  }
+
+  // Exhaustively test elements kind combinations with JSArray source arg.
+  {
+    const kSize = 3;
+    const targets = typedArrayConstructors.map(klass => new klass(kSize));
+    const sources = [ [0,1,2]        // PACKED_SMI
+                    , [0,,2]         // HOLEY_SMI
+                    , [0.1,0.2,0.3]  // PACKED_DOUBLE
+                    , [0.1,,0.3]     // HOLEY_DOUBLE
+                    , [{},{},{}]     // PACKED
+                    , [{},,{}]       // HOLEY
+                    , []             // DICTIONARY (patched later)
+                    ];
+
+    // Migrate to DICTIONARY_ELEMENTS.
+    Object.defineProperty(sources[6], 0, {});
+
+    assertTrue(%HasSmiElements(sources[0]));
+    assertTrue(%HasFastElements(sources[0]) && !%HasHoleyElements(sources[0]));
+    assertTrue(%HasSmiElements(sources[1]));
+    assertTrue(%HasFastElements(sources[1]) && %HasHoleyElements(sources[1]));
+    assertTrue(%HasDoubleElements(sources[2]));
+    assertTrue(%HasFastElements(sources[2]) && !%HasHoleyElements(sources[2]));
+    assertTrue(%HasDoubleElements(sources[3]));
+    assertTrue(%HasFastElements(sources[3]) && %HasHoleyElements(sources[3]));
+    assertTrue(%HasObjectElements(sources[4]));
+    assertTrue(%HasFastElements(sources[4]) && !%HasHoleyElements(sources[4]));
+    assertTrue(%HasObjectElements(sources[4]));
+    assertTrue(%HasFastElements(sources[4]) && !%HasHoleyElements(sources[4]));
+    assertTrue(%HasObjectElements(sources[5]));
+    assertTrue(%HasFastElements(sources[5]) && %HasHoleyElements(sources[5]));
+    assertTrue(%HasDictionaryElements(sources[6]));
+
+    for (const target of targets) {
+      for (const source of sources) {
+        target.set(source);
+        %HeapObjectVerify(target);
+        %HeapObjectVerify(source);
+      }
+    }
+  }
 }
 
 TestTypedArraySet();
@@ -885,3 +1013,12 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
                  e.message);
   }
 })();
+
+// Regression test 761654
+assertThrows(function LargeSourceArray() {
+  let v0 = {};
+  v0.length =  2 ** 32; // too large for uint32
+  let a = new Int8Array();
+
+  a.set(v0);
+});

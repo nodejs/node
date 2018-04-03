@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/globals.h"
+#include "src/machine-type.h"
 
 namespace v8 {
 namespace internal {
@@ -16,16 +17,30 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 
-
-// Propagates {Dead} control through the graph and thereby removes dead code.
-// Note that this does not include trimming dead uses from the graph, and it
-// also does not include detecting dead code by any other means than seeing a
-// {Dead} control input; that is left to other reducers.
+// Propagates {Dead} control and {DeadValue} values through the graph and
+// thereby removes dead code.
+// We detect dead values based on types, replacing uses of nodes with
+// {Type::None()} with {DeadValue}. A pure node (other than a phi) using
+// {DeadValue} is replaced by {DeadValue}. When {DeadValue} hits the effect
+// chain, a crashing {Unreachable} node is inserted and the rest of the effect
+// chain is collapsed. We wait for the {EffectControlLinearizer} to connect
+// {Unreachable} nodes to the graph end, since this is much easier if there is
+// no floating control.
+// {DeadValue} has an input, which has to have {Type::None()}. This input is
+// important to maintain the dependency on the cause of the unreachable code.
+// {Unreachable} has a value output and {Type::None()} so it can be used by
+// {DeadValue}.
+// {DeadValue} nodes track a {MachineRepresentation} so they can be lowered to a
+// value-producing node. {DeadValue} has the runtime semantics of crashing and
+// behaves like a constant of its representation so it can be used in gap moves.
+// Since phi nodes are the only remaining use of {DeadValue}, this
+// representation is only adjusted for uses by phi nodes.
+// In contrast to {DeadValue}, {Dead} can never remain in the graph.
 class V8_EXPORT_PRIVATE DeadCodeElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   DeadCodeElimination(Editor* editor, Graph* graph,
-                      CommonOperatorBuilder* common);
+                      CommonOperatorBuilder* common, Zone* temp_zone);
   ~DeadCodeElimination() final {}
 
   const char* reducer_name() const override { return "DeadCodeElimination"; }
@@ -37,10 +52,20 @@ class V8_EXPORT_PRIVATE DeadCodeElimination final
   Reduction ReduceLoopOrMerge(Node* node);
   Reduction ReduceLoopExit(Node* node);
   Reduction ReduceNode(Node* node);
+  Reduction ReducePhi(Node* node);
+  Reduction ReducePureNode(Node* node);
+  Reduction ReduceUnreachableOrIfException(Node* node);
+  Reduction ReduceEffectNode(Node* node);
+  Reduction ReduceDeoptimizeOrReturnOrTerminate(Node* node);
+  Reduction ReduceBranchOrSwitch(Node* node);
 
   Reduction RemoveLoopExit(Node* node);
+  Reduction PropagateDeadControl(Node* node);
 
   void TrimMergeOrPhi(Node* node, int size);
+
+  Node* DeadValue(Node* none_node,
+                  MachineRepresentation rep = MachineRepresentation::kNone);
 
   Graph* graph() const { return graph_; }
   CommonOperatorBuilder* common() const { return common_; }
@@ -49,6 +74,7 @@ class V8_EXPORT_PRIVATE DeadCodeElimination final
   Graph* const graph_;
   CommonOperatorBuilder* const common_;
   Node* const dead_;
+  Zone* zone_;
 
   DISALLOW_COPY_AND_ASSIGN(DeadCodeElimination);
 };

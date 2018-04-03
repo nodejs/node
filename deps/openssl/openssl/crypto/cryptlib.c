@@ -469,11 +469,18 @@ void CRYPTO_THREADID_set_pointer(CRYPTO_THREADID *id, void *ptr)
     }
 }
 
+#ifdef OPENSSL_FIPS
+extern int FIPS_crypto_threadid_set_callback(void (*func) (CRYPTO_THREADID *));
+#endif
+
 int CRYPTO_THREADID_set_callback(void (*func) (CRYPTO_THREADID *))
 {
     if (threadid_callback)
         return 0;
     threadid_callback = func;
+#ifdef OPENSSL_FIPS
+    FIPS_crypto_threadid_set_callback(func);
+#endif
     return 1;
 }
 

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/compiler.h"
 #include "src/objects-inl.h"
@@ -37,7 +38,6 @@ TEST(PreParserScopeAnalysis) {
   i::FLAG_aggressive_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
-  i::HandleScope scope(isolate);
   LocalContext env;
 
   struct {
@@ -45,77 +45,49 @@ TEST(PreParserScopeAnalysis) {
     bool strict_outer;
     bool strict_test_function;
     bool arrow;
-    std::vector<unsigned> location;  // "Directions" to the relevant scope.
   } outers[] = {
       // Normal case (test function at the laziness boundary):
-      {"(function outer() { function test(%s) { %s \n"
-       "function skippable() { } } })();",
-       false,
-       false,
-       false,
-       {0, 0}},
+      {"function test(%s) { %s function skippable() { } } test;", false, false,
+       false},
 
-      {"(function outer() { let test2 = function test(%s) { %s \n"
-       "function skippable() { } } })();",
-       false,
-       false,
-       false,
-       {0, 0}},
+      {"var test2 = function test(%s) { %s function skippable() { } }; test2",
+       false, false, false},
 
       // Arrow functions (they can never be at the laziness boundary):
-      {"(function outer() { function inner() { (%s) => { %s } \n"
-       "function skippable() { } } })();",
-       false,
-       false,
-       true,
-       {0, 0}},
+      {"function test() { (%s) => { %s }; function skippable() { } } test;",
+       false, false, true},
 
-      // Repeat the above mentioned cases w/ outer function declaring itself
-      // strict:
-      {"(function outer() { 'use strict'; function test(%s) { %s \n"
-       "function skippable() { } } })();",
-       true,
-       false,
-       false,
-       {0, 0}},
+      // Repeat the above mentioned cases with global 'use strict'
+      {"'use strict'; function test(%s) { %s function skippable() { } } test;",
+       true, false, false},
 
-      {"(function outer() { 'use strict'; function inner() { "
-       "(%s) => { %s } \nfunction skippable() { } } })();",
-       true,
-       false,
-       true,
-       {0, 0}},
+      {"'use strict'; var test2 = function test(%s) { %s \n"
+       "function skippable() { } }; test2",
+       true, false, false},
+
+      {"'use strict'; function test() { (%s) => { %s };\n"
+       "function skippable() { } } test;",
+       true, false, true},
 
       // ... and with the test function declaring itself strict:
-      {"(function outer() { function test(%s) { 'use strict'; %s \n"
-       "function skippable() { } } })();",
-       false,
-       true,
-       false,
-       {0, 0}},
+      {"function test(%s) { 'use strict'; %s function skippable() { } } test;",
+       false, true, false},
 
-      {"(function outer() { function inner() { "
-       "(%s) => { 'use strict'; %s } \nfunction skippable() { } } })();",
-       false,
-       true,
-       true,
-       {0, 0}},
+      {"var test2 = function test(%s) { 'use strict'; %s \n"
+       "function skippable() { } }; test2",
+       false, true, false},
+
+      {"function test() { 'use strict'; (%s) => { %s };\n"
+       "function skippable() { } } test;",
+       false, true, true},
 
       // Methods containing skippable functions.
-      {"class MyClass { constructor(%s) { %s \n"
-       "function skippable() { } } }",
-       true,
-       true,
-       false,
-       {0, 0}},
-
-      {"class MyClass { test(%s) { %s \n"
-       "function skippable() { } } }",
-       true,
-       true,
-       false,
-       // The default constructor is scope 0 inside the class.
-       {0, 1}},
+      {"function get_method() {\n"
+       "  class MyClass { test_method(%s) { %s function skippable() { } } }\n"
+       "  var o = new MyClass(); return o.test_method;\n"
+       "}\n"
+       "get_method();",
+       true, true, false},
 
       // FIXME(marja): Generators and async functions
   };
@@ -135,11 +107,16 @@ TEST(PreParserScopeAnalysis) {
     Inner(const char* p, const char* s, SkipTests skip, Bailout bailout)
         : params(p), source(s), skip(skip), bailout(bailout) {}
 
+    Inner(const char* s, std::function<void()> p, std::function<void()> e)
+        : source(s), prologue(p), epilogue(e) {}
+
     const char* params = "";
     const char* source;
     SkipTests skip = DONT_SKIP;
     PreciseMaybeAssigned precise_maybe_assigned = PreciseMaybeAssigned::YES;
     Bailout bailout = Bailout::NO;
+    std::function<void()> prologue = nullptr;
+    std::function<void()> epilogue = nullptr;
   } inners[] = {
       // Simple cases
       {"var1;"},
@@ -175,12 +152,20 @@ TEST(PreParserScopeAnalysis) {
 
       // Functions.
       {"function f1() { let var2; }"},
-      {"var var1 = function f1() { let var2; }"},
-      {"let var1 = function f1() { let var2; }"},
-      {"const var1 = function f1() { let var2; }"},
-      {"var var1 = function() { let var2; }"},
-      {"let var1 = function() { let var2; }"},
-      {"const var1 = function() { let var2; }"},
+      {"var var1 = function f1() { let var2; };"},
+      {"let var1 = function f1() { let var2; };"},
+      {"const var1 = function f1() { let var2; };"},
+      {"var var1 = function() { let var2; };"},
+      {"let var1 = function() { let var2; };"},
+      {"const var1 = function() { let var2; };"},
+
+      {"function *f1() { let var2; }"},
+      {"let var1 = function *f1() { let var2; };"},
+      {"let var1 = function*() { let var2; };"},
+
+      {"async function f1() { let var2; }"},
+      {"let var1 = async function f1() { let var2; };"},
+      {"let var1 = async function() { let var2; };"},
 
       // Redeclarations.
       {"var var1; var var1;"},
@@ -208,15 +193,15 @@ TEST(PreParserScopeAnalysis) {
       {"arguments = 5;", SKIP_STRICT},
       {"if (true) { arguments; }"},
       {"if (true) { arguments = 5; }", SKIP_STRICT},
-      {"() => { arguments; }"},
+      {"() => { arguments; };"},
       {"var1, var2, var3", "arguments;"},
       {"var1, var2, var3", "arguments = 5;", SKIP_STRICT},
-      {"var1, var2, var3", "() => { arguments; }"},
-      {"var1, var2, var3", "() => { arguments = 5; }", SKIP_STRICT},
+      {"var1, var2, var3", "() => { arguments; };"},
+      {"var1, var2, var3", "() => { arguments = 5; };", SKIP_STRICT},
 
       {"this;"},
       {"if (true) { this; }"},
-      {"() => { this; }"},
+      {"() => { this; };"},
 
       // Variable called "arguments"
       {"var arguments;", SKIP_STRICT},
@@ -451,6 +436,12 @@ TEST(PreParserScopeAnalysis) {
 
       {"if (true) { function f1() {} function f2() { f1(); } }"},
 
+      {"if (true) { function *f1() {} }"},
+      {"if (true) { async function f1() {} }"},
+
+      // (Potentially sloppy) block function shadowing a catch variable.
+      {"try { } catch(var1) { if (true) { function var1() {} } }"},
+
       // Simple parameters.
       {"var1", ""},
       {"var1", "var1;"},
@@ -518,21 +509,21 @@ TEST(PreParserScopeAnalysis) {
       {"{name1: var1}", "name1 = 16;", SKIP_STRICT_FUNCTION},
       {"{var1}", "var1 = 16;", SKIP_STRICT_FUNCTION},
 
-      {"[var1]", "() => { var1; }", SKIP_STRICT_FUNCTION},
-      {"{name1: var1}", "() => { var1; }", SKIP_STRICT_FUNCTION},
-      {"{name1: var1}", "() => { name1; }", SKIP_STRICT_FUNCTION},
-      {"{var1}", "() => { var1; }", SKIP_STRICT_FUNCTION},
+      {"[var1]", "() => { var1; };", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "() => { var1; };", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "() => { name1; };", SKIP_STRICT_FUNCTION},
+      {"{var1}", "() => { var1; };", SKIP_STRICT_FUNCTION},
 
       {"[var1, var2, var3]", "", SKIP_STRICT_FUNCTION},
       {"{name1: var1, name2: var2, name3: var3}", "", SKIP_STRICT_FUNCTION},
       {"{var1, var2, var3}", "", SKIP_STRICT_FUNCTION},
 
-      {"[var1, var2, var3]", "() => { var2 = 16;}", SKIP_STRICT_FUNCTION},
-      {"{name1: var1, name2: var2, name3: var3}", "() => { var2 = 16;}",
+      {"[var1, var2, var3]", "() => { var2 = 16;};", SKIP_STRICT_FUNCTION},
+      {"{name1: var1, name2: var2, name3: var3}", "() => { var2 = 16;};",
        SKIP_STRICT_FUNCTION},
-      {"{name1: var1, name2: var2, name3: var3}", "() => { name2 = 16;}",
+      {"{name1: var1, name2: var2, name3: var3}", "() => { name2 = 16;};",
        SKIP_STRICT_FUNCTION},
-      {"{var1, var2, var3}", "() => { var2 = 16;}", SKIP_STRICT_FUNCTION},
+      {"{var1, var2, var3}", "() => { var2 = 16;};", SKIP_STRICT_FUNCTION},
 
       // Nesting destructuring.
       {"[var1, [var2, var3], {var4, name5: [var5, var6]}]", "",
@@ -548,9 +539,9 @@ TEST(PreParserScopeAnalysis) {
 
       // Destructuring rest. Because we can.
       {"var1, ...[var2]", "", SKIP_STRICT_FUNCTION},
-      {"var1, ...[var2]", "() => { var2; }", SKIP_STRICT_FUNCTION},
+      {"var1, ...[var2]", "() => { var2; };", SKIP_STRICT_FUNCTION},
       {"var1, ...{0: var2}", "", SKIP_STRICT_FUNCTION},
-      {"var1, ...{0: var2}", "() => { var2; }", SKIP_STRICT_FUNCTION},
+      {"var1, ...{0: var2}", "() => { var2; };", SKIP_STRICT_FUNCTION},
       {"var1, ...[]", "", SKIP_STRICT_FUNCTION},
       {"var1, ...{}", "", SKIP_STRICT_FUNCTION},
       {"var1, ...[var2, var3]", "", SKIP_STRICT_FUNCTION},
@@ -569,16 +560,16 @@ TEST(PreParserScopeAnalysis) {
        PreciseMaybeAssigned::NO},
 
       // Locals shadowing parameters.
-      {"var1, var2", "var var1 = 16; () => { var1 = 17; }"},
+      {"var1, var2", "var var1 = 16; () => { var1 = 17; };"},
 
       // Locals shadowing destructuring parameters and the rest parameter.
-      {"[var1, var2]", "var var1 = 16; () => { var1 = 17; }",
+      {"[var1, var2]", "var var1 = 16; () => { var1 = 17; };",
        SKIP_STRICT_FUNCTION},
-      {"{var1, var2}", "var var1 = 16; () => { var1 = 17; }",
+      {"{var1, var2}", "var var1 = 16; () => { var1 = 17; };",
        SKIP_STRICT_FUNCTION},
-      {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }",
+      {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; };",
        SKIP_STRICT_FUNCTION},
-      {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }",
+      {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; };",
        SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Hoisted sloppy block function shadowing a parameter.
@@ -618,13 +609,13 @@ TEST(PreParserScopeAnalysis) {
 
       // Classes
       {"class MyClass {}"},
-      {"var1 = class MyClass {}"},
-      {"var var1 = class MyClass {}"},
-      {"let var1 = class MyClass {}"},
-      {"const var1 = class MyClass {}"},
-      {"var var1 = class {}"},
-      {"let var1 = class {}"},
-      {"const var1 = class {}"},
+      {"var1 = class MyClass {};"},
+      {"var var1 = class MyClass {};"},
+      {"let var1 = class MyClass {};"},
+      {"const var1 = class MyClass {};"},
+      {"var var1 = class {};"},
+      {"let var1 = class {};"},
+      {"const var1 = class {};"},
 
       {"class MyClass { constructor() {} }"},
       {"class MyClass { constructor() { var var1; } }"},
@@ -664,6 +655,28 @@ TEST(PreParserScopeAnalysis) {
       {"class MyClass extends MyBase { static m() { var var1 = 11; } }"},
       {"class MyClass extends MyBase { static m() { var var1; function foo() { "
        "var1 = 11; } } }"},
+
+      {"class X { ['bar'] = 1; }; new X;",
+       [] { i::FLAG_harmony_public_fields = true; },
+       [] { i::FLAG_harmony_public_fields = false; }},
+      {"class X { static ['foo'] = 2; }; new X;",
+       [] {
+         i::FLAG_harmony_public_fields = true;
+         i::FLAG_harmony_static_fields = true;
+       },
+       [] {
+         i::FLAG_harmony_public_fields = false;
+         i::FLAG_harmony_static_fields = false;
+       }},
+      {"class X { ['bar'] = 1; static ['foo'] = 2; }; new X;",
+       [] {
+         i::FLAG_harmony_public_fields = true;
+         i::FLAG_harmony_static_fields = true;
+       },
+       [] {
+         i::FLAG_harmony_public_fields = false;
+         i::FLAG_harmony_static_fields = false;
+       }},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
@@ -687,84 +700,77 @@ TEST(PreParserScopeAnalysis) {
       int source_len = Utf8LengthHelper(inners[inner_ix].source);
       int len = code_len + params_len + source_len;
 
+      if (inners[inner_ix].prologue != nullptr) {
+        inners[inner_ix].prologue();
+      }
+
       i::ScopedVector<char> program(len + 1);
       i::SNPrintF(program, code, inners[inner_ix].params,
                   inners[inner_ix].source);
+
+      i::HandleScope scope(isolate);
 
       i::Handle<i::String> source =
           factory->InternalizeUtf8String(program.start());
       source->PrintOn(stdout);
       printf("\n");
 
-      // First compile with the lazy inner function and extract the scope data.
-      i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo lazy_info(script);
+      // Compile and run the script to get a pointer to the lazy function.
+      v8::Local<v8::Value> v = CompileRun(program.start());
+      i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+      i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
 
-      // No need to run scope analysis; preparser scope data is produced when
-      // parsing.
-      CHECK(i::parsing::ParseProgram(&lazy_info, isolate));
-
-      // Retrieve the scope data we produced.
-      i::Scope* scope_with_data = i::ScopeTestHelper::FindScope(
-          lazy_info.literal()->scope(), outers[outer_ix].location);
-      i::ProducedPreParsedScopeData* produced_data =
-          scope_with_data->AsDeclarationScope()
-              ->produced_preparsed_scope_data();
-      i::MaybeHandle<i::PreParsedScopeData> maybe_produced_data_on_heap =
-          produced_data->Serialize(isolate);
       if (inners[inner_ix].bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
           !outers[outer_ix].strict_outer) {
-        DCHECK(maybe_produced_data_on_heap.is_null());
+        CHECK(!shared->HasPreParsedScopeData());
         continue;
       }
-      DCHECK(!maybe_produced_data_on_heap.is_null());
-      i::Handle<i::PreParsedScopeData> produced_data_on_heap =
-          maybe_produced_data_on_heap.ToHandleChecked();
 
-      // Then parse eagerly and check against the scope data.
-      script = factory->NewScript(source);
+      CHECK(shared->HasPreParsedScopeData());
+      i::Handle<i::PreParsedScopeData> produced_data_on_heap(
+          i::PreParsedScopeData::cast(shared->preparsed_scope_data()));
 
-      i::ParseInfo eager_normal(script);
-      eager_normal.set_allow_lazy_parsing(false);
+      // Parse the lazy function using the scope data.
+      i::ParseInfo using_scope_data(shared);
+      using_scope_data.set_lazy_compile();
+      using_scope_data.consumed_preparsed_scope_data()->SetData(
+          produced_data_on_heap);
+      CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
 
-      CHECK(i::parsing::ParseProgram(&eager_normal, isolate));
-      CHECK(i::Compiler::Analyze(&eager_normal));
+      // Verify that we skipped at least one function inside that scope.
+      i::DeclarationScope* scope_with_skipped_functions =
+          using_scope_data.literal()->scope();
+      CHECK(i::ScopeTestHelper::HasSkippedFunctionInside(
+          scope_with_skipped_functions));
 
-      // Compare the allocation of the variables in two cases: 1) normal scope
-      // allocation 2) allocation based on the preparse data.
+      // Do scope allocation (based on the preparsed scope data).
+      i::DeclarationScope::Analyze(&using_scope_data);
 
-      i::Scope* normal_scope = i::ScopeTestHelper::FindScope(
-          eager_normal.literal()->scope(), outers[outer_ix].location);
-      CHECK_NULL(normal_scope->sibling());
-      CHECK(normal_scope->is_function_scope());
+      // Parse the lazy function again eagerly to produce baseline data.
+      i::ParseInfo not_using_scope_data(shared);
+      not_using_scope_data.set_lazy_compile();
+      CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate));
 
-      i::ParseInfo eager_using_scope_data(script);
-      eager_using_scope_data.set_allow_lazy_parsing(false);
+      // Verify that we didn't skip anything (there's no preparsed scope data,
+      // so we cannot skip).
+      i::DeclarationScope* scope_without_skipped_functions =
+          not_using_scope_data.literal()->scope();
+      CHECK(!i::ScopeTestHelper::HasSkippedFunctionInside(
+          scope_without_skipped_functions));
 
-      CHECK(i::parsing::ParseProgram(&eager_using_scope_data, isolate));
-      // Don't run scope analysis (that would obviously decide the correct
-      // allocation for the variables).
+      // Do normal scope allocation.
+      i::DeclarationScope::Analyze(&not_using_scope_data);
 
-      i::Scope* unallocated_scope = i::ScopeTestHelper::FindScope(
-          eager_using_scope_data.literal()->scope(), outers[outer_ix].location);
-      CHECK_NULL(unallocated_scope->sibling());
-      CHECK(unallocated_scope->is_function_scope());
-
-      // Mark all inner functions as "skipped", so that we don't try to restore
-      // data for them. No test should contain eager functions, because we
-      // cannot properly decide whether we have or don't have data for them.
-      i::ScopeTestHelper::MarkInnerFunctionsAsSkipped(unallocated_scope);
-      i::ConsumedPreParsedScopeData* consumed_preparsed_scope_data =
-          lazy_info.consumed_preparsed_scope_data();
-      consumed_preparsed_scope_data->SetData(produced_data_on_heap);
-      consumed_preparsed_scope_data->SkipFunctionDataForTesting();
-      consumed_preparsed_scope_data->RestoreScopeAllocationData(
-          unallocated_scope->AsDeclarationScope());
-      i::ScopeTestHelper::AllocateWithoutVariableResolution(unallocated_scope);
-
+      // Verify that scope allocation gave the same results when parsing w/ the
+      // scope data (and skipping functions), and when parsing without.
       i::ScopeTestHelper::CompareScopes(
-          normal_scope, unallocated_scope,
+          scope_without_skipped_functions, scope_with_skipped_functions,
           inners[inner_ix].precise_maybe_assigned == PreciseMaybeAssigned::YES);
+
+      if (inners[inner_ix].epilogue != nullptr) {
+        inners[inner_ix].epilogue();
+      }
     }
   }
 }
@@ -787,4 +793,61 @@ TEST(Regress753896) {
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.
   i::parsing::ParseProgram(&info, isolate);
+}
+
+TEST(ProducingAndConsumingByteData) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::ProducedPreParsedScopeData::ByteData bytes(&zone);
+  // Write some data.
+  bytes.WriteUint32(1983);  // This will be overwritten.
+  bytes.WriteUint32(2147483647);
+  bytes.WriteUint8(4);
+  bytes.WriteUint8(255);
+  bytes.WriteUint32(0);
+  bytes.WriteUint8(0);
+  bytes.OverwriteFirstUint32(2017);
+  bytes.WriteUint8(100);
+  // Write quarter bytes between uint8s and uint32s to verify they're stored
+  // correctly.
+  bytes.WriteQuarter(3);
+  bytes.WriteQuarter(0);
+  bytes.WriteQuarter(2);
+  bytes.WriteQuarter(1);
+  bytes.WriteQuarter(0);
+  bytes.WriteUint8(50);
+  bytes.WriteQuarter(0);
+  bytes.WriteQuarter(1);
+  bytes.WriteQuarter(2);
+  bytes.WriteUint32(50);
+  // End with a lonely quarter.
+  bytes.WriteQuarter(2);
+
+  i::Handle<i::PodArray<uint8_t>> data_on_heap = bytes.Serialize(isolate);
+  i::ConsumedPreParsedScopeData::ByteData bytes_for_reading;
+  i::ConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
+      &bytes_for_reading, *data_on_heap);
+
+  // Read the data back.
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
+  CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
 }

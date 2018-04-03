@@ -13,11 +13,12 @@ namespace tracing {
 using v8::platform::tracing::TraceConfig;
 using std::string;
 
-Agent::Agent() {
+Agent::Agent(const std::string& log_file_pattern) {
   int err = uv_loop_init(&tracing_loop_);
   CHECK_EQ(err, 0);
 
-  NodeTraceWriter* trace_writer = new NodeTraceWriter(&tracing_loop_);
+  NodeTraceWriter* trace_writer = new NodeTraceWriter(
+      log_file_pattern, &tracing_loop_);
   TraceBuffer* trace_buffer = new NodeTraceBuffer(
       NodeTraceBuffer::kBufferChunks, trace_writer, &tracing_loop_);
   tracing_controller_ = new TracingController();
@@ -36,6 +37,7 @@ void Agent::Start(const string& enabled_categories) {
   } else {
     trace_config->AddIncludedCategory("v8");
     trace_config->AddIncludedCategory("node");
+    trace_config->AddIncludedCategory("node.async_hooks");
   }
 
   // This thread should be created *after* async handles are created

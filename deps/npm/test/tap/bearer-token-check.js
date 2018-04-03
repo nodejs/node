@@ -1,8 +1,9 @@
 var resolve = require('path').resolve
 var writeFileSync = require('graceful-fs').writeFileSync
 
+var fs = require('fs')
 var mkdirp = require('mkdirp')
-var mr = require('npm-registry-mock')
+var http = require('http')
 var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
@@ -18,25 +19,29 @@ var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
 var tarballURL = 'http://127.0.0.1:' + common.port + tarballPath
 var tarball = resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
 
-var server
+var EXEC_OPTS = { cwd: pkg, stdio: [0, 'pipe', 2] }
 
-var EXEC_OPTS = { cwd: pkg }
-
-function mocks (server) {
-  var auth = 'Bearer 0xabad1dea'
-  server.get(tarballPath, { authorization: auth }).reply(403, {
-    error: 'token leakage',
-    reason: 'This token should not be sent.'
-  })
-  server.get(tarballPath).replyWithFile(200, tarball)
-}
+var auth = 'Bearer 0xabad1dea'
+var server = http.createServer()
+server.on('request', (req, res) => {
+  if (req.method === 'GET' && req.url === tarballPath) {
+    if (req.headers.authorization === auth) {
+      res.writeHead(403, 'this token should not be sent')
+      res.end()
+    } else {
+      res.writeHead(200, 'ok')
+      res.end(fs.readFileSync(tarball))
+    }
+  } else {
+    res.writeHead(500)
+    res.end()
+  }
+})
 
 test('setup', function (t) {
-  mr({ port: common.port, plugin: mocks }, function (er, s) {
-    server = s
-    t.ok(s, 'set up mock registry')
+  server.listen(common.port, () => {
     setup()
-    t.end()
+    t.done()
   })
 })
 
@@ -44,7 +49,6 @@ test('authed npm install with tarball not on registry', function (t) {
   common.npm(
     [
       'install',
-      '--loglevel', 'silent',
       '--json',
       '--fetch-retries', 0,
       '--registry', common.registry,
@@ -52,7 +56,7 @@ test('authed npm install with tarball not on registry', function (t) {
     ],
     EXEC_OPTS,
     function (err, code, stdout, stderr) {
-      t.ifError(err, 'test runner executed without error')
+      if (err) throw err
       t.equal(code, 0, 'npm install exited OK')
       t.comment(stdout.trim())
       t.comment(stderr.trim())
@@ -79,9 +83,10 @@ test('authed npm install with tarball not on registry', function (t) {
 })
 
 test('cleanup', function (t) {
-  server.close()
-  cleanup()
-  t.end()
+  server.close(() => {
+    cleanup()
+    t.end()
+  })
 })
 
 var contents = '@scoped:registry=' + common.registry + '\n' +

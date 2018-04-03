@@ -5,7 +5,7 @@ const url = require('url');
 
 const throwsObjsAndReportTypes = new Map([
   [undefined, 'undefined'],
-  [null, 'null'],
+  [null, 'object'],
   [true, 'boolean'],
   [false, 'boolean'],
   [0, 'number'],
@@ -14,13 +14,14 @@ const throwsObjsAndReportTypes = new Map([
 ]);
 
 for (const [urlObject, type] of throwsObjsAndReportTypes) {
-  const error = common.expectsError({
+  common.expectsError(function() {
+    url.format(urlObject);
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "urlObject" argument must be one of type object or string. ' +
+    message: 'The "urlObject" argument must be one of type Object or string. ' +
              `Received type ${type}`
   });
-  assert.throws(function() { url.format(urlObject); }, error);
 }
 assert.strictEqual(url.format(''), '');
 assert.strictEqual(url.format({}), '');

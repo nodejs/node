@@ -8,7 +8,6 @@
 #include "src/assembler.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
-#include "src/codegen.h"
 #include "src/counters.h"
 #include "src/double.h"
 #include "src/objects-inl.h"

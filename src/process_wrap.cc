@@ -19,11 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_wrap.h"
-#include "util.h"
+#include "stream_base-inl.h"
 #include "util-inl.h"
 
 #include <string.h>
@@ -145,7 +144,8 @@ class ProcessWrap : public HandleWrap {
     ProcessWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-    Local<Object> js_options = args[0]->ToObject(env->isolate());
+    Local<Object> js_options =
+        args[0]->ToObject(env->context()).ToLocalChecked();
 
     uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
@@ -187,6 +187,8 @@ class ProcessWrap : public HandleWrap {
     if (!argv_v.IsEmpty() && argv_v->IsArray()) {
       Local<Array> js_argv = Local<Array>::Cast(argv_v);
       int argc = js_argv->Length();
+      CHECK_GT(argc + 1, 0);  // Check for overflow.
+
       // Heap allocate to detect errors. +1 is for nullptr.
       options.args = new char*[argc + 1];
       for (int i = 0; i < argc; i++) {
@@ -213,6 +215,7 @@ class ProcessWrap : public HandleWrap {
     if (!env_v.IsEmpty() && env_v->IsArray()) {
       Local<Array> env_opt = Local<Array>::Cast(env_v);
       int envc = env_opt->Length();
+      CHECK_GT(envc + 1, 0);  // Check for overflow.
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
         node::Utf8Value pair(env->isolate(),
@@ -310,4 +313,4 @@ class ProcessWrap : public HandleWrap {
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(process_wrap, node::ProcessWrap::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(process_wrap, node::ProcessWrap::Initialize)

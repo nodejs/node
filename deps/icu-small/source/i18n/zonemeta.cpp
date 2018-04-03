@@ -690,7 +690,6 @@ ZoneMeta::createMetazoneMappings(const UnicodeString &tzid) {
                     mzMappings = new UVector(deleteOlsonToMetaMappingEntry, NULL, status);
                     if (U_FAILURE(status)) {
                         delete mzMappings;
-                        deleteOlsonToMetaMappingEntry(entry);
                         uprv_free(entry);
                         break;
                     }
@@ -792,7 +791,7 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
             break;
         }
         const char *mzID = ures_getKey(&res);
-        int32_t len = uprv_strlen(mzID);
+        int32_t len = static_cast<int32_t>(uprv_strlen(mzID));
         UChar *uMzID = (UChar*)uprv_malloc(sizeof(UChar) * (len + 1));
         if (uMzID == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;

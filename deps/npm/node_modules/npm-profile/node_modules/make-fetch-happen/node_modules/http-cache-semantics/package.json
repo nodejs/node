@@ -1,0 +1,60 @@
+{
+  "_from": "http-cache-semantics@^3.7.3",
+  "_id": "http-cache-semantics@3.8.0",
+  "_inBundle": false,
+  "_integrity": "sha512-HGQFfBdru2fj/dwPn1oLx1fy6QMPeTAD1yzKcxD4l5biw+5QVaui/ehCqxaitoKJC/vHMLKv3Yd+nTlxboOJig==",
+  "_location": "/npm-profile/make-fetch-happen/http-cache-semantics",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "http-cache-semantics@^3.7.3",
+    "name": "http-cache-semantics",
+    "escapedName": "http-cache-semantics",
+    "rawSpec": "^3.7.3",
+    "saveSpec": null,
+    "fetchSpec": "^3.7.3"
+  },
+  "_requiredBy": [
+    "/npm-profile/make-fetch-happen"
+  ],
+  "_resolved": "https://registry.npmjs.org/http-cache-semantics/-/http-cache-semantics-3.8.0.tgz",
+  "_shasum": "1e3ce248730e189ac692a6697b9e3fdea2ff8da3",
+  "_spec": "http-cache-semantics@^3.7.3",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/npm-profile/node_modules/make-fetch-happen",
+  "author": {
+    "name": "Kornel Lesiński",
+    "email": "kornel@geekhood.net",
+    "url": "https://kornel.ski/"
+  },
+  "bugs": {
+    "url": "https://github.com/pornel/http-cache-semantics/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-preset-env": "^1.5.2",
+    "mocha": "^3.4.2"
+  },
+  "files": [
+    "node4/index.js",
+    "index.js",
+    "test"
+  ],
+  "homepage": "https://github.com/pornel/http-cache-semantics#readme",
+  "license": "BSD-2-Clause",
+  "main": "node4/index.js",
+  "name": "http-cache-semantics",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pornel/http-cache-semantics.git"
+  },
+  "scripts": {
+    "compile": "babel -d node4/ index.js; babel -d node4/test test",
+    "prepublish": "npm run compile",
+    "test": "npm run compile; mocha node4/test"
+  },
+  "version": "3.8.0"
+}

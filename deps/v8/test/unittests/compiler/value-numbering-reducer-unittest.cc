@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace value_numbering_reducer_unittest {
 
 struct TestOperator : public Operator {
   TestOperator(Operator::Opcode opcode, Operator::Properties properties,
@@ -126,6 +127,7 @@ TEST_F(ValueNumberingReducerTest, WontReplaceNodeWithItself) {
   EXPECT_FALSE(Reduce(n).Changed());
 }
 
+}  // namespace value_numbering_reducer_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

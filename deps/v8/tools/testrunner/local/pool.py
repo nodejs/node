@@ -8,6 +8,21 @@ from multiprocessing import Event, Process, Queue
 import traceback
 
 
+def setup_testing():
+  """For testing only: Use threading under the hood instead of multiprocessing
+  to make coverage work.
+  """
+  global Queue
+  global Event
+  global Process
+  del Queue
+  del Event
+  del Process
+  from Queue import Queue
+  from threading import Event
+  from threading import Thread as Process
+
+
 class NormalResult():
   def __init__(self, result):
     self.result = result
@@ -120,8 +135,8 @@ class Pool():
                                          self.done,
                                          process_context_fn,
                                          process_context_args))
-        self.processes.append(p)
         p.start()
+        self.processes.append(p)
 
       self.advance(gen)
       while self.count > 0:
@@ -145,6 +160,11 @@ class Pool():
         else:
           yield MaybeResult.create_result(result.result)
         self.advance(gen)
+    except KeyboardInterrupt:
+      raise
+    except Exception as e:
+      traceback.print_exc()
+      print(">>> EXCEPTION: %s" % e)
     finally:
       self.terminate()
     if internal_error:

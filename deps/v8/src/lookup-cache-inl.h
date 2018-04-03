@@ -31,7 +31,7 @@ int DescriptorLookupCache::Lookup(Map* source, Name* name) {
 }
 
 void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
-  DCHECK(result != kAbsent);
+  DCHECK_NE(result, kAbsent);
   int index = Hash(source, name);
   Key& key = keys_[index];
   key.source = source;

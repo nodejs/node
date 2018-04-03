@@ -17,6 +17,7 @@ using testing::StrictMock;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace common_operator_reducer_unittest {
 
 class CommonOperatorReducerTest : public GraphTest {
  public:
@@ -491,6 +492,7 @@ TEST_F(CommonOperatorReducerTest, SelectToFloat64Abs) {
   EXPECT_THAT(r.replacement(), IsFloat64Abs(p0));
 }
 
+}  // namespace common_operator_reducer_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

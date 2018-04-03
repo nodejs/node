@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class CodeSerializer : public Serializer {
+class CodeSerializer : public Serializer<> {
  public:
   static ScriptData* Serialize(Isolate* isolate,
                                Handle<SharedFunctionInfo> info,
@@ -38,8 +38,6 @@ class CodeSerializer : public Serializer {
 
   virtual bool ElideObject(Object* obj) { return false; }
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
-  void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
 
  private:
@@ -104,6 +102,7 @@ class SerializedCodeData : public SerializedData {
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
+  static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
   static const uint32_t kSourceHashOffset = kVersionHashOffset + kUInt32Size;
   static const uint32_t kCpuFeaturesOffset = kSourceHashOffset + kUInt32Size;
   static const uint32_t kFlagHashOffset = kCpuFeaturesOffset + kUInt32Size;
@@ -130,7 +129,7 @@ class SerializedCodeData : public SerializedData {
   // Return ScriptData object and relinquish ownership over it to the caller.
   ScriptData* GetScriptData();
 
-  Vector<const Reservation> Reservations() const;
+  std::vector<Reservation> Reservations() const;
   Vector<const byte> Payload() const;
 
   Vector<const uint32_t> CodeStubKeys() const;

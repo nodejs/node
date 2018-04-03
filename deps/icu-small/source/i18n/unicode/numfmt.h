@@ -28,7 +28,7 @@
 
 /**
  * \file
- * \brief C++ API: Abstract base class for all number formats.
+ * \brief C++ API: Compatibility APIs for number formatting.
  */
 
 #if !UCONFIG_NO_FORMATTING
@@ -53,11 +53,16 @@ class StringEnumeration;
 #endif
 
 /**
+ * <p><strong>IMPORTANT:</strong> New users are strongly encouraged to see if
+ * numberformatter.h fits their use case.  Although not deprecated, this header
+ * is provided for backwards compatibility only.
+ * <hr/>
  *
  * Abstract base class for all number formats.  Provides interface for
  * formatting and parsing a number.  Also provides methods for
  * determining which locales have number formats, and what their names
  * are.
+ *
  * \headerfile unicode/numfmt.h "unicode/numfmt.h"
  * <P>
  * NumberFormat helps you to format and parse numbers for any locale.
@@ -168,6 +173,33 @@ class StringEnumeration;
  */
 class U_I18N_API NumberFormat : public Format {
 public:
+    /**
+     * Rounding mode.
+     *
+     * <p>
+     * For more detail on rounding modes, see:
+     * http://userguide.icu-project.org/formatparse/numbers/rounding-modes
+     *
+     * @stable ICU 2.4
+     */
+    enum ERoundingMode {
+        kRoundCeiling,  /**< Round towards positive infinity */
+        kRoundFloor,    /**< Round towards negative infinity */
+        kRoundDown,     /**< Round towards zero */
+        kRoundUp,       /**< Round away from zero */
+        kRoundHalfEven, /**< Round towards the nearest integer, or
+                             towards the nearest even integer if equidistant */
+        kRoundHalfDown, /**< Round towards the nearest integer, or
+                             towards zero if equidistant */
+        kRoundHalfUp,   /**< Round towards the nearest integer, or
+                             away from zero if equidistant */
+        /**
+          *  Return U_FORMAT_INEXACT_ERROR if number does not format exactly.
+          *  @stable ICU 4.8
+          */
+        kRoundUnnecessary
+    };
+
     /**
      * Alignment Field constants used to construct a FieldPosition object.
      * Signifies that the position of the integer part or fraction part of
@@ -676,6 +708,9 @@ public:
     /**
      * Create a default style NumberFormat for the current default locale.
      * The default formatting style is locale dependent.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createInstance(UErrorCode&);
@@ -684,6 +719,9 @@ public:
      * Create a default style NumberFormat for the specified locale.
      * The default formatting style is locale dependent.
      * @param inLocale    the given locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createInstance(const Locale& inLocale,
@@ -691,6 +729,9 @@ public:
 
     /**
      * Create a specific style NumberFormat for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param desiredLocale    the given locale.
      * @param style            the given style.
      * @param errorCode        Output param filled with success/failure status.
@@ -727,12 +768,18 @@ public:
 
     /**
      * Returns a currency format for the current default locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createCurrencyInstance(UErrorCode&);
 
     /**
      * Returns a currency format for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param inLocale    the given locale.
      * @stable ICU 2.0
      */
@@ -741,12 +788,18 @@ public:
 
     /**
      * Returns a percentage format for the current default locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createPercentInstance(UErrorCode&);
 
     /**
      * Returns a percentage format for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param inLocale    the given locale.
      * @stable ICU 2.0
      */
@@ -755,12 +808,18 @@ public:
 
     /**
      * Returns a scientific format for the current default locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createScientificInstance(UErrorCode&);
 
     /**
      * Returns a scientific format for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param inLocale    the given locale.
      * @stable ICU 2.0
      */
@@ -814,7 +873,7 @@ public:
      * Returns true if grouping is used in this format. For example,
      * in the English locale, with grouping on, the number 1234567
      * might be formatted as "1,234,567". The grouping separator as
-     * well as the size of each group is locale dependant and is
+     * well as the size of each group is locale dependent and is
      * determined by sub-classes of NumberFormat.
      * @see setGroupingUsed
      * @stable ICU 2.0
@@ -964,6 +1023,21 @@ public:
      * @stable ICU 53
      */
     virtual UDisplayContext getContext(UDisplayContextType type, UErrorCode& status) const;
+
+    /**
+     * Get the rounding mode. This will always return NumberFormat::ERoundingMode::kRoundUnnecessary
+     * if the subclass does not support rounding.
+     * @return A rounding mode
+     * @draft ICU 60
+     */
+    virtual ERoundingMode getRoundingMode(void) const;
+
+    /**
+     * Set the rounding mode. If a subclass does not support rounding, this will do nothing.
+     * @param roundingMode A rounding mode
+     * @draft ICU 60
+     */
+    virtual void setRoundingMode(ERoundingMode roundingMode);
 
 public:
 

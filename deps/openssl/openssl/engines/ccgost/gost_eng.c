@@ -157,10 +157,6 @@ static int bind_gost(ENGINE *e, const char *id)
     return ret;
 }
 
-#ifndef OPENSSL_NO_DYNAMIC_ENGINE
-IMPLEMENT_DYNAMIC_BIND_FN(bind_gost)
-    IMPLEMENT_DYNAMIC_CHECK_FN()
-#endif                          /* ndef OPENSSL_NO_DYNAMIC_ENGINE */
 static int gost_digests(ENGINE *e, const EVP_MD **digest,
                         const int **nids, int nid)
 {
@@ -278,4 +274,7 @@ void ENGINE_load_gost(void)
     ENGINE_free(toadd);
     ERR_clear_error();
 }
+#else
+IMPLEMENT_DYNAMIC_BIND_FN(bind_gost)
+IMPLEMENT_DYNAMIC_CHECK_FN()
 #endif

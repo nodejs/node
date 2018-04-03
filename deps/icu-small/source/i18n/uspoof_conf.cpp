@@ -396,6 +396,7 @@ void ConfusabledataBuilder::outputData(UErrorCode &status) {
     for (i=0; i<numKeys; i++) {
         int32_t key =  fKeyVec->elementAti(i);
         UChar32 codePoint = ConfusableDataUtils::keyToCodePoint(key);
+        (void)previousCodePoint;    // Suppress unused variable warning.
         // strictly greater because there can be only one entry per code point
         U_ASSERT(codePoint > previousCodePoint);
         keys[i] = key;

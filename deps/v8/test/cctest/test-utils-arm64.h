@@ -112,7 +112,7 @@ class RegisterDump {
   // Flags accessors.
   inline uint32_t flags_nzcv() const {
     CHECK(IsComplete());
-    CHECK((dump_.flags_ & ~Flags_mask) == 0);
+    CHECK_EQ(dump_.flags_ & ~Flags_mask, 0);
     return dump_.flags_ & Flags_mask;
   }
 
@@ -129,7 +129,7 @@ class RegisterDump {
   // ::Dump method, or a failure in the simulator.
   bool RegAliasesMatch(unsigned code) const {
     CHECK(IsComplete());
-    CHECK(code < kNumberOfRegisters);
+    CHECK_LT(code, kNumberOfRegisters);
     return ((dump_.x_[code] & kWRegMask) == dump_.w_[code]);
   }
 
@@ -142,7 +142,7 @@ class RegisterDump {
   // As RegAliasesMatch, but for floating-point registers.
   bool FPRegAliasesMatch(unsigned code) const {
     CHECK(IsComplete());
-    CHECK(code < kNumberOfVRegisters);
+    CHECK_LT(code, kNumberOfVRegisters);
     return (dump_.d_[code] & kSRegMask) == dump_.s_[code];
   }
 
@@ -212,6 +212,12 @@ bool EqualNzcv(uint32_t expected, uint32_t result);
 
 bool EqualRegisters(const RegisterDump* a, const RegisterDump* b);
 
+// Create an array of type {RegType}, size {Size}, filled with {NoReg}.
+template <typename RegType, size_t Size>
+std::array<RegType, Size> CreateRegisterArray() {
+  return base::make_array<Size>([](size_t) { return RegType::no_reg(); });
+}
+
 // Populate the w, x and r arrays with registers from the 'allowed' mask. The
 // r array will be populated with <reg_size>-sized registers,
 //
@@ -219,7 +225,7 @@ bool EqualRegisters(const RegisterDump* a, const RegisterDump* b);
 // (such as the push and pop tests), but where certain registers must be
 // avoided as they are used for other purposes.
 //
-// Any of w, x, or r can be NULL if they are not required.
+// Any of w, x, or r can be nullptr if they are not required.
 //
 // The return value is a RegList indicating which registers were allocated.
 RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
@@ -238,7 +244,7 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
 // top word anyway, so clobbering the full X registers should make tests more
 // rigorous.
 void Clobber(MacroAssembler* masm, RegList reg_list,
-             uint64_t const value = 0xfedcba9876543210UL);
+             uint64_t const value = 0xFEDCBA9876543210UL);
 
 // As Clobber, but for FP registers.
 void ClobberFP(MacroAssembler* masm, RegList reg_list,

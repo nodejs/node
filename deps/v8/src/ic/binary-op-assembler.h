@@ -24,25 +24,28 @@ class BinaryOpAssembler : public CodeStubAssembler {
 
   Node* Generate_AddWithFeedback(Node* context, Node* lhs, Node* rhs,
                                  Node* slot_id, Node* feedback_vector,
-                                 Node* function, bool rhs_is_smi);
+                                 bool rhs_is_smi);
 
   Node* Generate_SubtractWithFeedback(Node* context, Node* lhs, Node* rhs,
                                       Node* slot_id, Node* feedback_vector,
-                                      Node* function, bool rhs_is_smi);
+                                      bool rhs_is_smi);
 
   Node* Generate_MultiplyWithFeedback(Node* context, Node* lhs, Node* rhs,
                                       Node* slot_id, Node* feedback_vector,
-                                      Node* function, bool rhs_is_smi);
+                                      bool rhs_is_smi);
 
   Node* Generate_DivideWithFeedback(Node* context, Node* dividend,
                                     Node* divisor, Node* slot_id,
-                                    Node* feedback_vector, Node* function,
-                                    bool rhs_is_smi);
+                                    Node* feedback_vector, bool rhs_is_smi);
 
   Node* Generate_ModulusWithFeedback(Node* context, Node* dividend,
                                      Node* divisor, Node* slot_id,
-                                     Node* feedback_vector, Node* function,
-                                     bool rhs_is_smi);
+                                     Node* feedback_vector, bool rhs_is_smi);
+
+  Node* Generate_ExponentiateWithFeedback(Node* context, Node* dividend,
+                                          Node* divisor, Node* slot_id,
+                                          Node* feedback_vector,
+                                          bool rhs_is_smi);
 
  private:
   typedef std::function<Node*(Node*, Node*, Variable*)> SmiOperation;
@@ -50,9 +53,8 @@ class BinaryOpAssembler : public CodeStubAssembler {
 
   Node* Generate_BinaryOperationWithFeedback(
       Node* context, Node* lhs, Node* rhs, Node* slot_id, Node* feedback_vector,
-      Node* function, const SmiOperation& smiOperation,
-      const FloatOperation& floatOperation, Token::Value opcode,
-      bool rhs_is_smi);
+      const SmiOperation& smiOperation, const FloatOperation& floatOperation,
+      Operation op, bool rhs_is_smi);
 };
 
 }  // namespace internal

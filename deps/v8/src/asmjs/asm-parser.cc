@@ -12,8 +12,9 @@
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker.
+#include "src/flags.h"
 #include "src/parsing/scanner.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -103,13 +104,15 @@ void AsmJsParser::InitializeStdlibTypes() {
   stdlib_dqdq2d_->AsFunctionType()->AddArgument(dq);
 
   auto* f = AsmType::Float();
+  auto* fh = AsmType::Floatish();
   auto* fq = AsmType::FloatQ();
-  stdlib_fq2f_ = AsmType::Function(zone(), f);
-  stdlib_fq2f_->AsFunctionType()->AddArgument(fq);
+  auto* fq2fh = AsmType::Function(zone(), fh);
+  fq2fh->AsFunctionType()->AddArgument(fq);
 
   auto* s = AsmType::Signed();
-  auto* s2s = AsmType::Function(zone(), s);
-  s2s->AsFunctionType()->AddArgument(s);
+  auto* u = AsmType::Unsigned();
+  auto* s2u = AsmType::Function(zone(), u);
+  s2u->AsFunctionType()->AddArgument(s);
 
   auto* i = AsmType::Int();
   stdlib_i2s_ = AsmType::Function(zone_, s);
@@ -119,24 +122,36 @@ void AsmJsParser::InitializeStdlibTypes() {
   stdlib_ii2s_->AsFunctionType()->AddArgument(i);
   stdlib_ii2s_->AsFunctionType()->AddArgument(i);
 
+  // The signatures in "9 Standard Library" of the spec draft are outdated and
+  // have been superseded with the following by an errata:
+  //  - Math.min/max : (signed, signed...) -> signed
+  //                   (double, double...) -> double
+  //                   (float, float...) -> float
   auto* minmax_d = AsmType::MinMaxType(zone(), d, d);
-  // *VIOLATION* The float variant is not part of the spec, but firefox accepts
-  // it.
   auto* minmax_f = AsmType::MinMaxType(zone(), f, f);
-  auto* minmax_i = AsmType::MinMaxType(zone(), s, i);
+  auto* minmax_s = AsmType::MinMaxType(zone(), s, s);
   stdlib_minmax_ = AsmType::OverloadedFunction(zone());
-  stdlib_minmax_->AsOverloadedFunctionType()->AddOverload(minmax_i);
+  stdlib_minmax_->AsOverloadedFunctionType()->AddOverload(minmax_s);
   stdlib_minmax_->AsOverloadedFunctionType()->AddOverload(minmax_f);
   stdlib_minmax_->AsOverloadedFunctionType()->AddOverload(minmax_d);
 
+  // The signatures in "9 Standard Library" of the spec draft are outdated and
+  // have been superseded with the following by an errata:
+  //  - Math.abs : (signed) -> unsigned
+  //               (double?) -> double
+  //               (float?) -> floatish
   stdlib_abs_ = AsmType::OverloadedFunction(zone());
-  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(s2s);
+  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(s2u);
   stdlib_abs_->AsOverloadedFunctionType()->AddOverload(stdlib_dq2d_);
-  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(stdlib_fq2f_);
+  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(fq2fh);
 
+  // The signatures in "9 Standard Library" of the spec draft are outdated and
+  // have been superseded with the following by an errata:
+  //  - Math.ceil/floor/sqrt : (double?) -> double
+  //                           (float?) -> floatish
   stdlib_ceil_like_ = AsmType::OverloadedFunction(zone());
   stdlib_ceil_like_->AsOverloadedFunctionType()->AddOverload(stdlib_dq2d_);
-  stdlib_ceil_like_->AsOverloadedFunctionType()->AddOverload(stdlib_fq2f_);
+  stdlib_ceil_like_->AsOverloadedFunctionType()->AddOverload(fq2fh);
 
   stdlib_fround_ = AsmType::FroundType(zone());
 }
@@ -215,7 +230,7 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
-  DCHECK(info->kind == VarKind::kGlobal);
+  DCHECK_EQ(info->kind, VarKind::kGlobal);
   return info->index + static_cast<uint32_t>(global_imports_.size());
 }
 
@@ -277,6 +292,8 @@ void AsmJsParser::Begin(AsmJsScanner::token_t label) {
 
 void AsmJsParser::Loop(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kLoop, label);
+  size_t position = scanner_.Position();
+  current_function_builder_->AddAsmWasmOffset(position, position);
   current_function_builder_->EmitWithU8(kExprLoop, kLocalVoid);
 }
 
@@ -293,7 +310,7 @@ void AsmJsParser::BareBegin(BlockKind kind, AsmJsScanner::token_t label) {
 }
 
 void AsmJsParser::BareEnd() {
-  DCHECK(block_stack_.size() > 0);
+  DCHECK_GT(block_stack_.size(), 0);
   block_stack_.pop_back();
 }
 
@@ -432,7 +449,7 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
     DeclareGlobal(info, mutable_variable, AsmType::Double(), kWasmF64,
                   WasmInitExpr(dvalue));
   } else if (CheckForUnsigned(&uvalue)) {
-    if (uvalue > 0x7fffffff) {
+    if (uvalue > 0x7FFFFFFF) {
       FAIL("Numeric literal out of range");
     }
     DeclareGlobal(info, mutable_variable,
@@ -443,7 +460,7 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
       DeclareGlobal(info, mutable_variable, AsmType::Double(), kWasmF64,
                     WasmInitExpr(-dvalue));
     } else if (CheckForUnsigned(&uvalue)) {
-      if (uvalue > 0x7fffffff) {
+      if (uvalue > 0x7FFFFFFF) {
         FAIL("Numeric literal out of range");
       }
       DeclareGlobal(info, mutable_variable,
@@ -724,8 +741,7 @@ void AsmJsParser::ValidateFunction() {
   return_type_ = nullptr;
 
   // Record start of the function, used as position for the stack check.
-  int start_position = static_cast<int>(scanner_.Position());
-  current_function_builder_->SetAsmFunctionStartPosition(start_position);
+  current_function_builder_->SetAsmFunctionStartPosition(scanner_.Position());
 
   CachedVector<AsmType*> params(cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
@@ -767,6 +783,11 @@ void AsmJsParser::ValidateFunction() {
     current_function_builder_->AddLocal(kWasmI32);
   }
 
+  // Check against limit on number of local variables.
+  if (locals.size() + function_temp_locals_used_ > kV8MaxWasmFunctionLocals) {
+    FAIL("Number of local variables exceeds internal limit");
+  }
+
   // End function
   current_function_builder_->Emit(kExprEnd);
 
@@ -777,7 +798,7 @@ void AsmJsParser::ValidateFunction() {
   }
   function_info = GetVarInfo(function_name);
   if (function_info->type->IsA(AsmType::None())) {
-    DCHECK(function_info->kind == VarKind::kFunction);
+    DCHECK_EQ(function_info->kind, VarKind::kFunction);
     function_info->type = function_type;
   } else if (!function_type->IsA(function_info->type)) {
     // TODO(bradnelson): Should IsExactly be used here?
@@ -852,6 +873,7 @@ void AsmJsParser::ValidateFunctionParams(ZoneVector<AsmType*>* params) {
 // 6.4 ValidateFunction - locals
 void AsmJsParser::ValidateFunctionLocals(size_t param_count,
                                          ZoneVector<ValueType>* locals) {
+  DCHECK(locals->empty());
   // Local Variables.
   while (Peek(TOK(var))) {
     scanner_.EnterLocalScope();
@@ -878,7 +900,7 @@ void AsmJsParser::ValidateFunctionLocals(size_t param_count,
           current_function_builder_->EmitF64Const(-dvalue);
           current_function_builder_->EmitSetLocal(info->index);
         } else if (CheckForUnsigned(&uvalue)) {
-          if (uvalue > 0x7fffffff) {
+          if (uvalue > 0x7FFFFFFF) {
             FAIL("Numeric literal out of range");
           }
           info->kind = VarKind::kLocal;
@@ -930,7 +952,7 @@ void AsmJsParser::ValidateFunctionLocals(size_t param_count,
             current_function_builder_->EmitF32Const(dvalue);
             current_function_builder_->EmitSetLocal(info->index);
           } else if (CheckForUnsigned(&uvalue)) {
-            if (uvalue > 0x7fffffff) {
+            if (uvalue > 0x7FFFFFFF) {
               FAIL("Numeric literal out of range");
             }
             info->kind = VarKind::kLocal;
@@ -1143,18 +1165,18 @@ void AsmJsParser::DoStatement() {
   RECURSE(ValidateStatement());
   EXPECT_TOKEN(TOK(while));
   End();
-  //     }
+  //     }  // end c
   EXPECT_TOKEN('(');
   RECURSE(Expression(AsmType::Int()));
-  //     if (CONDITION) break a;
+  //     if (!CONDITION) break a;
   current_function_builder_->Emit(kExprI32Eqz);
   current_function_builder_->EmitWithU8(kExprBrIf, 1);
   //     continue b;
   current_function_builder_->EmitWithU8(kExprBr, 0);
   EXPECT_TOKEN(')');
-  //   }
+  //   }  // end b
   End();
-  // }
+  // }  // end a
   End();
   SkipSemicolon();
 }
@@ -1174,13 +1196,16 @@ void AsmJsParser::ForStatement() {
   // a: block {
   Begin(pending_label_);
   //   b: loop {
-  Loop(pending_label_);
+  Loop();
+  //     c: block {  // but treated like loop so continue works
+  BareBegin(BlockKind::kLoop, pending_label_);
+  current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
   pending_label_ = 0;
   if (!Peek(';')) {
-    // if (CONDITION) break a;
+    //       if (!CONDITION) break a;
     RECURSE(Expression(AsmType::Int()));
     current_function_builder_->Emit(kExprI32Eqz);
-    current_function_builder_->EmitWithU8(kExprBrIf, 1);
+    current_function_builder_->EmitWithU8(kExprBrIf, 2);
   }
   EXPECT_TOKEN(';');
   // Race past INCREMENT
@@ -1189,18 +1214,21 @@ void AsmJsParser::ForStatement() {
   EXPECT_TOKEN(')');
   //       BODY
   RECURSE(ValidateStatement());
-  //       INCREMENT
+  //     }  // end c
+  End();
+  //     INCREMENT
   size_t end_position = scanner_.Position();
   scanner_.Seek(increment_position);
   if (!Peek(')')) {
     RECURSE(Expression(nullptr));
     // NOTE: No explicit drop because below break is an implicit drop.
   }
+  //     continue b;
   current_function_builder_->EmitWithU8(kExprBr, 0);
   scanner_.Seek(end_position);
-  //   }
+  //   }  // end b
   End();
-  // }
+  // }  // end a
   End();
 }
 
@@ -1307,7 +1335,7 @@ void AsmJsParser::ValidateCase() {
     FAIL("Expected numeric literal");
   }
   // TODO(bradnelson): Share negation plumbing.
-  if ((negate && uvalue > 0x80000000) || (!negate && uvalue > 0x7fffffff)) {
+  if ((negate && uvalue > 0x80000000) || (!negate && uvalue > 0x7FFFFFFF)) {
     FAIL("Numeric literal out of range");
   }
   int32_t value = static_cast<int32_t>(uvalue);
@@ -1368,14 +1396,13 @@ AsmType* AsmJsParser::NumericLiteral() {
     current_function_builder_->EmitF64Const(dvalue);
     return AsmType::Double();
   } else if (CheckForUnsigned(&uvalue)) {
-    if (uvalue <= 0x7fffffff) {
+    if (uvalue <= 0x7FFFFFFF) {
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::FixNum();
-    } else if (uvalue <= 0xffffffff) {
+    } else {
+      DCHECK_LE(uvalue, 0xFFFFFFFF);
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::Unsigned();
-    } else {
-      FAILn("Integer numeric literal out of range.");
     }
   } else {
     FAILn("Expected numeric literal.");
@@ -1524,7 +1551,7 @@ AsmType* AsmJsParser::UnaryExpression() {
   if (Check('-')) {
     uint32_t uvalue;
     if (CheckForUnsigned(&uvalue)) {
-      // TODO(bradnelson): was supposed to be 0x7fffffff, check errata.
+      // TODO(bradnelson): was supposed to be 0x7FFFFFFF, check errata.
       if (uvalue <= 0x80000000) {
         current_function_builder_->EmitI32Const(-static_cast<int32_t>(uvalue));
       } else {
@@ -1592,7 +1619,7 @@ AsmType* AsmJsParser::UnaryExpression() {
       if (!ret->IsA(AsmType::Intish())) {
         FAILn("operator ~ expects intish");
       }
-      current_function_builder_->EmitI32Const(0xffffffff);
+      current_function_builder_->EmitI32Const(0xFFFFFFFF);
       current_function_builder_->Emit(kExprI32Xor);
       ret = AsmType::Signed();
     }
@@ -2037,8 +2064,8 @@ AsmType* AsmJsParser::ParenthesizedExpression() {
 AsmType* AsmJsParser::ValidateCall() {
   AsmType* return_type = call_coercion_;
   call_coercion_ = nullptr;
-  int call_pos = static_cast<int>(scanner_.Position());
-  int to_number_pos = static_cast<int>(call_coercion_position_);
+  size_t call_pos = scanner_.Position();
+  size_t to_number_pos = call_coercion_position_;
   bool allow_peek = (call_coercion_deferred_position_ == scanner_.Position());
   AsmJsScanner::token_t function_name = Consume();
 
@@ -2084,7 +2111,7 @@ AsmType* AsmJsParser::ValidateCall() {
     tmp.emplace(this);
     current_function_builder_->EmitSetLocal(tmp->get());
     // The position of function table calls is after the table lookup.
-    call_pos = static_cast<int>(scanner_.Position());
+    call_pos = scanner_.Position();
   } else {
     VarInfo* function_info = GetVarInfo(function_name);
     if (function_info->kind == VarKind::kUnused) {
@@ -2147,7 +2174,7 @@ AsmType* AsmJsParser::ValidateCall() {
       (return_type == nullptr || return_type->IsA(AsmType::Float()))) {
     DCHECK_NULL(call_coercion_deferred_);
     call_coercion_deferred_ = AsmType::Signed();
-    to_number_pos = static_cast<int>(scanner_.Position());
+    to_number_pos = scanner_.Position();
     return_type = AsmType::Signed();
   } else if (return_type == nullptr) {
     to_number_pos = call_pos;  // No conversion.
@@ -2174,7 +2201,7 @@ AsmType* AsmJsParser::ValidateCall() {
     if (return_type->IsA(AsmType::Float())) {
       FAILn("Imported function can't be called as float");
     }
-    DCHECK(function_info->import != nullptr);
+    DCHECK_NOT_NULL(function_info->import);
     // TODO(bradnelson): Factor out.
     uint32_t index;
     auto it = function_info->import->cache.find(sig);
@@ -2200,12 +2227,18 @@ AsmType* AsmJsParser::ValidateCall() {
     } else if (callable->CanBeInvokedWith(AsmType::Float(),
                                           param_specific_types)) {
       return_type = AsmType::Float();
+    } else if (callable->CanBeInvokedWith(AsmType::Floatish(),
+                                          param_specific_types)) {
+      return_type = AsmType::Floatish();
     } else if (callable->CanBeInvokedWith(AsmType::Double(),
                                           param_specific_types)) {
       return_type = AsmType::Double();
     } else if (callable->CanBeInvokedWith(AsmType::Signed(),
                                           param_specific_types)) {
       return_type = AsmType::Signed();
+    } else if (callable->CanBeInvokedWith(AsmType::Unsigned(),
+                                          param_specific_types)) {
+      return_type = AsmType::Unsigned();
     } else {
       FAILn("Function use doesn't match definition");
     }
@@ -2248,7 +2281,7 @@ AsmType* AsmJsParser::ValidateCall() {
               current_function_builder_->Emit(kExprF32Max);
             }
           }
-        } else if (param_specific_types[0]->IsA(AsmType::Int())) {
+        } else if (param_specific_types[0]->IsA(AsmType::Signed())) {
           TemporaryVariableScope tmp_x(this);
           TemporaryVariableScope tmp_y(this);
           for (size_t i = 1; i < param_specific_types.size(); ++i) {
@@ -2275,14 +2308,13 @@ AsmType* AsmJsParser::ValidateCall() {
         if (param_specific_types[0]->IsA(AsmType::Signed())) {
           TemporaryVariableScope tmp(this);
           current_function_builder_->EmitTeeLocal(tmp.get());
-          current_function_builder_->Emit(kExprI32Clz);
-          current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
           current_function_builder_->EmitGetLocal(tmp.get());
-          current_function_builder_->Emit(kExprElse);
-          current_function_builder_->EmitI32Const(0);
+          current_function_builder_->EmitI32Const(31);
+          current_function_builder_->Emit(kExprI32ShrS);
+          current_function_builder_->EmitTeeLocal(tmp.get());
+          current_function_builder_->Emit(kExprI32Xor);
           current_function_builder_->EmitGetLocal(tmp.get());
           current_function_builder_->Emit(kExprI32Sub);
-          current_function_builder_->Emit(kExprEnd);
         } else if (param_specific_types[0]->IsA(AsmType::DoubleQ())) {
           current_function_builder_->Emit(kExprF64Abs);
         } else if (param_specific_types[0]->IsA(AsmType::FloatQ())) {
@@ -2293,12 +2325,9 @@ AsmType* AsmJsParser::ValidateCall() {
         break;
 
       case VarKind::kMathFround:
-        if (param_specific_types[0]->IsA(AsmType::DoubleQ())) {
-          current_function_builder_->Emit(kExprF32ConvertF64);
-        } else {
-          DCHECK(param_specific_types[0]->IsA(AsmType::FloatQ()));
-        }
-        break;
+        // NOTE: Handled in {AsmJsParser::CallExpression} specially and treated
+        // as a coercion to "float" type. Cannot be reached as a call here.
+        UNREACHABLE();
 
       default:
         UNREACHABLE();
@@ -2364,9 +2393,9 @@ void AsmJsParser::ValidateHeapAccess() {
     // TODO(bradnelson): Check more things.
     // TODO(mstarzinger): Clarify and explain where this limit is coming from,
     // as it is not mandated by the spec directly.
-    if (offset > 0x7fffffff ||
+    if (offset > 0x7FFFFFFF ||
         static_cast<uint64_t>(offset) * static_cast<uint64_t>(size) >
-            0x7fffffff) {
+            0x7FFFFFFF) {
       FAIL("Heap access out of range");
     }
     if (Check(']')) {

@@ -24,7 +24,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
   /*   36 E> */ B(StaLookupSlot), U8(1), U8(0),
-  /*   52 S> */ B(LdaLookupGlobalSlot), U8(2), U8(3), U8(1),
+  /*   52 S> */ B(LdaLookupGlobalSlot), U8(2), U8(1), U8(1),
                 B(Star), R(2),
                 B(LdaConstant), U8(3),
                 B(Star), R(3),
@@ -39,10 +39,10 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(2),
-  /*   52 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(1),
-  /*   62 S> */ B(LdaLookupGlobalSlot), U8(1), U8(7), U8(1),
+  /*   52 E> */ B(CallUndefinedReceiver1), R(2), R(3), U8(3),
+  /*   62 S> */ B(LdaLookupGlobalSlot), U8(1), U8(5), U8(1),
                 B(Star), R(2),
-  /*   69 E> */ B(CallUndefinedReceiver0), R(2), U8(5),
+  /*   69 E> */ B(CallUndefinedReceiver0), R(2), U8(7),
   /*   73 S> */ B(Return),
 ]
 constant pool: [

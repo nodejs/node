@@ -42,7 +42,7 @@ class CompilationSubCache {
     return GetTable(kFirstGeneration);
   }
   void SetFirstTable(Handle<CompilationCacheTable> value) {
-    DCHECK(kFirstGeneration < generations_);
+    DCHECK_LT(kFirstGeneration, generations_);
     tables_[kFirstGeneration] = *value;
   }
 
@@ -79,7 +79,7 @@ class CompilationCacheScript : public CompilationSubCache {
  public:
   explicit CompilationCacheScript(Isolate* isolate);
 
-  InfoVectorPair Lookup(Handle<String> source, Handle<Object> name,
+  InfoVectorPair Lookup(Handle<String> source, MaybeHandle<Object> name,
                         int line_offset, int column_offset,
                         ScriptOriginOptions resource_options,
                         Handle<Context> context, LanguageMode language_mode);
@@ -89,8 +89,8 @@ class CompilationCacheScript : public CompilationSubCache {
            Handle<Cell> literals);
 
  private:
-  bool HasOrigin(Handle<SharedFunctionInfo> function_info, Handle<Object> name,
-                 int line_offset, int column_offset,
+  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
+                 MaybeHandle<Object> name, int line_offset, int column_offset,
                  ScriptOriginOptions resource_options);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
@@ -152,7 +152,7 @@ class CompilationCache {
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
-  InfoVectorPair LookupScript(Handle<String> source, Handle<Object> name,
+  InfoVectorPair LookupScript(Handle<String> source, MaybeHandle<Object> name,
                               int line_offset, int column_offset,
                               ScriptOriginOptions resource_options,
                               Handle<Context> context,

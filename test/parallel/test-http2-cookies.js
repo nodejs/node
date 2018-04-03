@@ -41,8 +41,8 @@ server.on('listening', common.mustCall(() => {
 
   const req = client.request({
     ':path': '/',
-    abc: [1, 2, 3],
-    cookie: ['a=b', 'c=d', 'e=f'],
+    'abc': [1, 2, 3],
+    'cookie': ['a=b', 'c=d', 'e=f'],
   });
   req.resume();
 
@@ -54,7 +54,7 @@ server.on('listening', common.mustCall(() => {
 
   req.on('end', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
   req.end();
 

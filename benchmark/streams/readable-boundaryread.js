@@ -8,11 +8,10 @@ const bench = common.createBenchmark(main, {
   type: ['string', 'buffer']
 });
 
-function main(conf) {
-  const n = +conf.n;
+function main({ n, type }) {
   const s = new Readable();
   var data = 'a'.repeat(32);
-  if (conf.type === 'buffer')
+  if (type === 'buffer')
     data = Buffer.from(data);
   s._read = function() {};
 

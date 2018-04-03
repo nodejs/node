@@ -293,7 +293,7 @@ asyncTest('While inside setImmediate, catching a rejected promise derived ' +
   });
 });
 
-// State adapation tests
+// State adaptation tests
 asyncTest('catching a promise which is asynchronously rejected (via ' +
           'resolution to an asynchronously-rejected promise) prevents' +
           ' unhandledRejection', function(done) {
@@ -683,4 +683,17 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
       done(new Error('fail'));
     }
   }, 1);
+});
+
+asyncTest('Rejected promise inside unhandledRejection allows nextTick loop' +
+          ' to proceed first', function(done) {
+  clean();
+  Promise.reject(0);
+  let didCall = false;
+  process.on('unhandledRejection', () => {
+    assert(!didCall);
+    didCall = true;
+    const promise = Promise.reject(0);
+    process.nextTick(() => promise.catch(() => done()));
+  });
 });

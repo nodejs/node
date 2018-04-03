@@ -30,30 +30,45 @@ const http = require('http');
 const https = require('https');
 
 const host = '*'.repeat(256);
+const MAX_TRIES = 5;
 
-function do_not_call() {
-  throw new Error('This function should not have been called.');
-}
+let errCode = 'ENOTFOUND';
+if (common.isOpenBSD)
+  errCode = 'EAI_FAIL';
 
-function test(mod) {
-
+function tryGet(mod, tries) {
   // Bad host name should not throw an uncatchable exception.
   // Ensure that there is time to attach an error listener.
-  const req1 = mod.get({ host: host, port: 42 }, do_not_call);
-  req1.on('error', common.mustCall(function(err) {
-    assert.strictEqual(err.code, 'ENOTFOUND');
+  const req = mod.get({ host: host, port: 42 }, common.mustNotCall());
+  req.on('error', common.mustCall(function(err) {
+    if (err.code === 'EAGAIN' && tries < MAX_TRIES) {
+      tryGet(mod, ++tries);
+      return;
+    }
+    assert.strictEqual(err.code, errCode);
   }));
   // http.get() called req1.end() for us
+}
 
-  const req2 = mod.request({
+function tryRequest(mod, tries) {
+  const req = mod.request({
     method: 'GET',
     host: host,
     port: 42
-  }, do_not_call);
-  req2.on('error', common.mustCall(function(err) {
-    assert.strictEqual(err.code, 'ENOTFOUND');
+  }, common.mustNotCall());
+  req.on('error', common.mustCall(function(err) {
+    if (err.code === 'EAGAIN' && tries < MAX_TRIES) {
+      tryRequest(mod, ++tries);
+      return;
+    }
+    assert.strictEqual(err.code, errCode);
   }));
-  req2.end();
+  req.end();
+}
+
+function test(mod) {
+  tryGet(mod, 0);
+  tryRequest(mod, 0);
 }
 
 if (common.hasCrypto) {

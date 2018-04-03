@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/boxed-float.h"
 #include "src/globals.h"
 
 // ARM EABI is required.
@@ -29,12 +30,9 @@ inline int EncodeConstantPoolLength(int length) {
   return ((length & 0xfff0) << 4) | (length & 0xf);
 }
 inline int DecodeConstantPoolLength(int instr) {
-  DCHECK((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  DCHECK_EQ(instr & kConstantPoolMarkerMask, kConstantPoolMarker);
   return ((instr >> 4) & 0xfff0) | (instr & 0xf);
 }
-
-// Used in code age prologue - ldr(pc, MemOperand(pc, -4))
-const int kCodeAgeJumpInstruction = 0xe51ff004;
 
 // Number of registers in normal ARM mode.
 const int kNumRegisters = 16;
@@ -662,7 +660,7 @@ class Instruction {
   inline bool HasLink() const { return LinkValue() == 1; }
 
   // Decode the double immediate from a vmov instruction.
-  double DoubleImmedVmov() const;
+  Float64 DoubleImmedVmov() const;
 
   // Instructions are read of out a code stream. The only way to get a
   // reference to an instruction is to convert a pointer. There is no way

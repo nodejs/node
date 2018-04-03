@@ -16,6 +16,9 @@
 
 namespace v8 {
 namespace internal {
+
+class VectorSlotPair;
+
 namespace compiler {
 
 class Reduction;
@@ -29,7 +32,7 @@ class BytecodeGraphBuilder {
       Zone* local_zone, Handle<SharedFunctionInfo> shared,
       Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
       JSGraph* jsgraph, CallFrequency invocation_frequency,
-      SourcePositionTable* source_positions,
+      SourcePositionTable* source_positions, Handle<Context> native_context,
       int inlining_id = SourcePosition::kNotInlined,
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags,
       bool stack_check = true);
@@ -120,9 +123,12 @@ class BytecodeGraphBuilder {
 
   Node** EnsureInputBufferSize(int size);
 
-  Node* const* GetCallArgumentsFromRegister(Node* callee, Node* receiver,
-                                            interpreter::Register first_arg,
-                                            int arg_count);
+  Node* const* GetCallArgumentsFromRegisters(Node* callee, Node* receiver,
+                                             interpreter::Register first_arg,
+                                             int arg_count);
+  Node* const* ProcessCallVarArgs(ConvertReceiverMode receiver_mode,
+                                  Node* callee, interpreter::Register first_reg,
+                                  int arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* const* args,
                              int arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
@@ -149,7 +155,6 @@ class BytecodeGraphBuilder {
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
-  void BuildStoreGlobal(LanguageMode language_mode);
 
   enum class StoreMode {
     // Check the prototype chain before storing.
@@ -157,8 +162,7 @@ class BytecodeGraphBuilder {
     // Store value to the receiver without checking the prototype chain.
     kOwn,
   };
-  void BuildNamedStore(LanguageMode language_mode, StoreMode store_mode);
-  void BuildKeyedStore(LanguageMode language_mode);
+  void BuildNamedStore(StoreMode store_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
@@ -169,6 +173,7 @@ class BytecodeGraphBuilder {
                  std::initializer_list<Node*> args, int slot_id) {
     BuildCall(receiver_mode, args.begin(), args.size(), slot_id);
   }
+  void BuildUnaryOp(const Operator* op);
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
@@ -178,31 +183,38 @@ class BytecodeGraphBuilder {
   void BuildHoleCheckAndThrow(Node* condition, Runtime::FunctionId runtime_id,
                               Node* name = nullptr);
 
-  // Optional early lowering to the simplified operator level. Returns the node
-  // representing the lowered operation or {nullptr} if no lowering available.
-  // Note that the result has already been wired into the environment just like
+  // Optional early lowering to the simplified operator level.  Note that
+  // the result has already been wired into the environment just like
   // any other invocation of {NewNode} would do.
-  Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
-                                   FeedbackSlot slot);
-  Node* TryBuildSimplifiedForInNext(Node* receiver, Node* cache_array,
-                                    Node* cache_type, Node* index,
-                                    FeedbackSlot slot);
-  Node* TryBuildSimplifiedToNumber(Node* input, FeedbackSlot slot);
-  Node* TryBuildSimplifiedCall(const Operator* op, Node* const* args,
-                               int arg_count, FeedbackSlot slot);
-  Node* TryBuildSimplifiedConstruct(const Operator* op, Node* const* args,
-                                    int arg_count, FeedbackSlot slot);
-  Node* TryBuildSimplifiedLoadNamed(const Operator* op, Node* receiver,
-                                    FeedbackSlot slot);
-  Node* TryBuildSimplifiedLoadKeyed(const Operator* op, Node* receiver,
-                                    Node* key, FeedbackSlot slot);
-  Node* TryBuildSimplifiedStoreNamed(const Operator* op, Node* receiver,
-                                     Node* value, FeedbackSlot slot);
-  Node* TryBuildSimplifiedStoreKeyed(const Operator* op, Node* receiver,
-                                     Node* key, Node* value, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedUnaryOp(
+      const Operator* op, Node* operand, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedBinaryOp(
+      const Operator* op, Node* left, Node* right, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedForInNext(
+      Node* receiver, Node* cache_array, Node* cache_type, Node* index,
+      FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedForInPrepare(
+      Node* receiver, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedToNumber(
+      Node* input, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedCall(const Operator* op,
+                                                            Node* const* args,
+                                                            int arg_count,
+                                                            FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedConstruct(
+      const Operator* op, Node* const* args, int arg_count, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedLoadNamed(
+      const Operator* op, Node* receiver, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedLoadKeyed(
+      const Operator* op, Node* receiver, Node* key, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreNamed(
+      const Operator* op, Node* receiver, Node* value, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreKeyed(
+      const Operator* op, Node* receiver, Node* key, Node* value,
+      FeedbackSlot slot);
 
   // Applies the given early reduction onto the current environment.
-  void ApplyEarlyReduction(Reduction reduction);
+  void ApplyEarlyReduction(JSTypeHintLowering::LoweringResult reduction);
 
   // Check the context chain for extensions, for lookup fast paths.
   Environment* CheckContextExtensions(uint32_t depth);
@@ -215,9 +227,16 @@ class BytecodeGraphBuilder {
   // type feedback.
   CompareOperationHint GetCompareOperationHint();
 
+  // Helper function to create for-in mode from the recorded type feedback.
+  ForInMode GetForInMode(int operand_index);
+
   // Helper function to compute call frequency from the recorded type
   // feedback.
   CallFrequency ComputeCallFrequency(int slot_id) const;
+
+  // Helper function to extract the speculation mode from the recorded type
+  // feedback.
+  SpeculationMode GetSpeculationMode(int slot_id) const;
 
   // Control flow plumbing.
   void BuildJump();
@@ -337,6 +356,8 @@ class BytecodeGraphBuilder {
     needs_eager_checkpoint_ = value;
   }
 
+  Handle<Context> native_context() const { return native_context_; }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -387,9 +408,13 @@ class BytecodeGraphBuilder {
 
   SourcePosition const start_position_;
 
+  // The native context for which we optimize.
+  Handle<Context> const native_context_;
+
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;
   static int const kBinaryOperationSmiHintIndex = 1;
+  static int const kUnaryOperationHintIndex = 0;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilder);
 };

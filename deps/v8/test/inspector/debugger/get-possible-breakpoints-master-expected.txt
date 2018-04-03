@@ -95,10 +95,10 @@ function testForLoop() {
 |R|}
 
 function testForOfLoop() {
-  for (var |_|k of |_|[]) {}
-  for (var |_|k of |_|[1]) |_|k;
+  for (var |C|k of |_|[]) {}
+  for (var |C|k of |_|[1]) |_|k;
   var a = |_|[];
-  for (var |_|k of |_|a) {}
+  for (var |C|k of |_|a) {}
 |R|}
 
 function testForInLoop() {
@@ -116,7 +116,7 @@ function testSimpleExpressions() {
   |_|a--;
 |R|}
 
-Object.defineProperty(this, 'getterFoo', {
+|_|Object.|C|defineProperty(this, 'getterFoo', {
   get: () => |_|return42|R|
 });
 
@@ -124,7 +124,7 @@ function testGetter() {
   |C|getterFoo();
 |R|}
 
-var obj = {
+var obj = |_|{
   foo: () => (|_|{
     boo: () => |_|return42|R|
   })|R|
@@ -260,7 +260,7 @@ async function testPromiseComplex() {
 |R|}
 
 function twiceDefined() {
-  return a + b;
+  |_|return a + b;|R|
 }
 
 function twiceDefined() {

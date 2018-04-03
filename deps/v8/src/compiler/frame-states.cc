@@ -63,12 +63,6 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kJavaScriptBuiltinContinuation:
       os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
       break;
-    case FrameStateType::kGetterStub:
-      os << "GETTER_STUB";
-      break;
-    case FrameStateType::kSetterStub:
-      os << "SETTER_STUB";
-      break;
   }
   return os;
 }

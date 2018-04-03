@@ -8,12 +8,12 @@ test (test.js:21:2)
 (anonymous) (expr1.js:0:0)
 
 foo (test.js:10:2)
--- Promise.resolve --
+-- Promise.then --
 test (test.js:19:14)
 (anonymous) (expr1.js:0:0)
 
 foo (test.js:12:2)
--- Promise.resolve --
+-- Promise.then --
 test (test.js:19:14)
 (anonymous) (expr1.js:0:0)
 

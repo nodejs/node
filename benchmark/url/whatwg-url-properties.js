@@ -46,11 +46,9 @@ function getAlternative(prop) {
   return alternatives[prop];
 }
 
-function main(conf) {
-  const n = conf.n | 0;
-  const input = inputs[conf.input];
-  const url = new URL(input);
-  const prop = conf.prop;
+function main({ n, input, prop }) {
+  const value = inputs[input];
+  const url = new URL(value);
 
   switch (prop) {
     case 'protocol':

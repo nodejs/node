@@ -20,68 +20,59 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-let dataWritten = false;
-let connectHappened = false;
-
-const tcp = net.Server(function(s) {
+const tcp = net.Server(common.mustCall((s) => {
   tcp.close();
 
-  console.log('tcp server connection');
-
   let buf = '';
+  s.setEncoding('utf8');
   s.on('data', function(d) {
     buf += d;
   });
 
   s.on('end', function() {
-    console.error('SERVER: end', buf.toString());
+    console.error('SERVER: end', buf);
     assert.strictEqual(buf, "L'État, c'est moi");
-    console.log('tcp socket disconnect');
     s.end();
   });
+}));
 
-  s.on('error', function(e) {
-    console.log(`tcp server-side error: ${e.message}`);
-    process.exit(1);
-  });
-});
-
-tcp.listen(0, function() {
+tcp.listen(0, common.mustCall(function() {
   const socket = net.Stream({ highWaterMark: 0 });
 
-  console.log('Connecting to socket ');
+  let connected = false;
+  socket.connect(this.address().port, common.mustCall(() => connected = true));
 
-  socket.connect(this.address().port, function() {
-    console.log('socket connected');
-    connectHappened = true;
-  });
-
-  console.log(`connecting = ${socket.connecting}`);
-
-  assert.strictEqual('opening', socket.readyState);
+  assert.strictEqual(socket.connecting, true);
+  assert.strictEqual(socket.readyState, 'opening');
 
   // Make sure that anything besides a buffer or a string throws.
-  [null,
-   true,
-   false,
-   undefined,
-   1,
-   1.0,
-   1 / 0,
-   +Infinity,
-   -Infinity,
-   [],
-   {}
-  ].forEach(function(v) {
-    function f() {
-      console.error('write', v);
-      socket.write(v);
-    }
-    assert.throws(f, TypeError);
+  common.expectsError(() => socket.write(null),
+                      {
+                        code: 'ERR_STREAM_NULL_VALUES',
+                        type: TypeError,
+                        message: 'May not write null values to stream'
+                      });
+  [
+    true,
+    false,
+    undefined,
+    1,
+    1.0,
+    +Infinity,
+    -Infinity,
+    [],
+    {}
+  ].forEach((value) => {
+    common.expectsError(() => socket.write(value), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "chunk" argument must be one of type string or Buffer. ' +
+               `Received type ${typeof value}`
+    });
   });
 
   // Write a string that contains a multi-byte character sequence to test that
@@ -92,26 +83,15 @@ tcp.listen(0, function() {
   // We're still connecting at this point so the datagram is first pushed onto
   // the connect queue. Make sure that it's not added to `bytesWritten` again
   // when the actual write happens.
-  const r = socket.write(a, function(er) {
+  const r = socket.write(a, common.mustCall((er) => {
     console.error('write cb');
-    dataWritten = true;
-    assert.ok(connectHappened);
-    console.error('socket.bytesWritten', socket.bytesWritten);
-    //assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
-    console.error('data written');
-  });
-  console.error('socket.bytesWritten', socket.bytesWritten);
-  console.error('write returned', r);
+    assert.ok(connected);
+    assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
+  }));
 
   assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);
-
-  assert.strictEqual(false, r);
+  assert.strictEqual(r, false);
   socket.end(b);
 
-  assert.strictEqual('opening', socket.readyState);
-});
-
-process.on('exit', function() {
-  assert.ok(connectHappened);
-  assert.ok(dataWritten);
-});
+  assert.strictEqual(socket.readyState, 'opening');
+}));

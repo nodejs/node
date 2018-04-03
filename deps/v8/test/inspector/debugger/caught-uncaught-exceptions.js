@@ -7,6 +7,19 @@ let {session, contextGroup, Protocol} = InspectorTest.start("Check that inspecto
 contextGroup.addScript(
 `function throwCaught() { try { throw new Error(); } catch (_) {} }
  function throwUncaught() { throw new Error(); }
+ function throwInPromiseCaught() {
+   var reject;
+   new Promise(function(res, rej) { reject = rej; }).catch(() => {});
+   reject();
+ }
+ function throwInPromiseUncaught() {
+   new Promise(function promiseUncaught() { throw new Error(); });
+ }
+ function throwInMapConstructor() { new Map('a'); }
+ function throwInAsyncIterator() {
+   let it = (async function*() {})();
+   it.next.call({});
+ }
  function schedule(f) { setTimeout(f, 0); }
 `);
 
@@ -22,4 +35,12 @@ Protocol.Debugger.onPaused(message => {
 Protocol.Runtime.evaluate({ "expression": "schedule(throwCaught);" })
   .then(() => Protocol.Runtime.evaluate(
       { "expression": "schedule(throwUncaught);" }))
-  .then(() => InspectorTest.completeTest());
+  .then(() => Protocol.Runtime.evaluate(
+      { "expression": "schedule(throwInPromiseCaught);"}))
+  .then(() => Protocol.Runtime.evaluate(
+      { "expression": "schedule(throwInPromiseUncaught);"}))
+  .then(() => Protocol.Runtime.evaluate(
+      { "expression": "schedule(throwInMapConstructor);"}))
+  .then(() => Protocol.Runtime.evaluate(
+      { "expression": "schedule(throwInAsyncIterator);"}))
+ .then(() => InspectorTest.completeTest());

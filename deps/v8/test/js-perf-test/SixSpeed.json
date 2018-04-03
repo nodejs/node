@@ -258,14 +258,14 @@
         {
           "name": "ES5",
           "main": "run.js",
-          "resources": ["map_set_add/es5.js"],
-          "test_flags": ["map_set_add/es5"]
+          "resources": ["map_string/es5.js"],
+          "test_flags": ["map_string/es5"]
         },
         {
           "name": "ES6",
           "main": "run.js",
-          "resources": ["map_set_add/es6.js"],
-          "test_flags": ["map_set_add/es6"]
+          "resources": ["map_string/es6.js"],
+          "test_flags": ["map_string/es6"]
         }
       ]
     }

@@ -7,10 +7,7 @@ import os
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
-class WasmSpecTestsTestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(WasmSpecTestsTestSuite, self).__init__(name, root)
-
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -21,15 +18,18 @@ class WasmSpecTestsTestSuite(testsuite.TestSuite):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
-          test = testcase.TestCase(self, testname)
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    flags = [] + context.mode_flags
-    flags.append(os.path.join(self.root, testcase.path + self.suffix()))
-    return testcase.flags + flags
+  def _test_class(self):
+    return TestCase
+
+
+class TestCase(testcase.TestCase):
+  def _get_files_params(self, ctx):
+    return [os.path.join(self.suite.root, self.path + self._get_suffix())]
 
 
 def GetSuite(name, root):
-  return WasmSpecTestsTestSuite(name, root)
+  return TestSuite(name, root)

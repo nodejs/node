@@ -39,7 +39,8 @@ function parseState(s) {
 function LogProcessor() {
   LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
+          parsers: [null, parseInt, parseInt, parseInt, parseInt,
+                    null, 'var-args'],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
@@ -55,8 +56,10 @@ function LogProcessor() {
 LogProcessor.prototype.__proto__ = LogReader.prototype;
 
 LogProcessor.prototype.processCodeCreation = function(
-    type, kind, start, size, name, maybe_func) {
-  if (type != "LazyCompile" && type != "Script" && type != "Function") return;
+    type, kind, timestamp, start, size, name, maybe_func) {
+  if (type != "LazyCompile" && type != "Script" && type != "Function") {
+    return;
+  }
   // Scripts will compile into anonymous functions starting at 1:1. Adjust the
   // name here so that it matches corrsponding function's name during the heap
   // traversal.
@@ -66,9 +69,9 @@ LogProcessor.prototype.processCodeCreation = function(
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);
-    this.profile.addFuncCode(type, name, start, size, funcAddr, state);
+    this.profile.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
-    this.profile.addCode(type, name, start, size);
+    this.profile.addCode(type, name, timestamp, start, size);
   }
 };
 
@@ -100,6 +103,7 @@ function RunTest() {
     logging_processor.profile.codeMap_.getAllDynamicEntriesWithAddresses();
   if (logging_entries.length === 0)
     return "logging_entries.length === 0";
+
   var traversal_processor = new LogProcessor();
   for ( ; pos < log_lines_length; ++pos) {
     line = log_lines[pos];
@@ -170,6 +174,7 @@ function RunTest() {
   return [equal, comparison];
 }
 
+
 var result = RunTest();
 if (typeof result !== "string") {
   var out = [];
@@ -182,6 +187,13 @@ if (typeof result !== "string") {
                (c[2] ? c[2] : "---") + " " +
                (c[3] ? c[3] : "---"));
     }
+    out.push("================================================")
+    out.push("MAKE SURE TO USE A CLEAN ISOLATiE!");
+    out.push("Use tools/test.py");
+    out.push("================================================")
+    out.push("*   Lines are the same");
+    out.push("--- Line is missing"
+    out.push("================================================")
   }
   result[0] ? true : out.join("\n");
 } else {

@@ -3075,11 +3075,19 @@ __bn_sqrx8x_internal:
 
 .align	32
 .Lsqrx8x_break:
-	subq	16+8(%rsp),%r8
+	xorq	%rbp,%rbp
+	subq	16+8(%rsp),%rbx
+	adcxq	%rbp,%r8
 	movq	24+8(%rsp),%rcx
+	adcxq	%rbp,%r9
 	movq	0(%rsi),%rdx
-	xorl	%ebp,%ebp
+	adcq	$0,%r10
 	movq	%r8,0(%rdi)
+	adcq	$0,%r11
+	adcq	$0,%r12
+	adcq	$0,%r13
+	adcq	$0,%r14
+	adcq	$0,%r15
 	cmpq	%rcx,%rdi
 	je	.Lsqrx8x_outer_loop
 

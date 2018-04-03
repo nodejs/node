@@ -6,28 +6,29 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-assert.doesNotThrow(() => {
-  fs.access(Buffer.from(common.tmpDir), common.mustCall((err) => {
-    assert.ifError(err);
-  }));
-});
+fs.access(Buffer.from(tmpdir.path), common.mustCall(assert.ifError));
 
-assert.doesNotThrow(() => {
-  const buf = Buffer.from(path.join(common.tmpDir, 'a.txt'));
-  fs.open(buf, 'w+', common.mustCall((err, fd) => {
-    assert.ifError(err);
-    assert(fd);
-    fs.close(fd, common.mustCall((err) => {
-      assert.ifError(err);
-    }));
-  }));
-});
+const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
+fs.open(buf, 'w+', common.mustCall((err, fd) => {
+  assert.ifError(err);
+  assert(fd);
+  fs.close(fd, common.mustCall(assert.ifError));
+}));
 
-assert.throws(() => {
-  fs.accessSync(true);
-}, /path must be a string or Buffer/);
+common.expectsError(
+  () => {
+    fs.accessSync(true);
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
+             ' Received type boolean'
+  }
+);
 
 const dir = Buffer.from(fixtures.fixturesDir);
 fs.readdir(dir, 'hex', common.mustCall((err, hexList) => {

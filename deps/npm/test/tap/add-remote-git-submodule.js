@@ -77,6 +77,9 @@ function bootstrap (t) {
 }
 
 function setup (cb) {
+  rimraf.sync(pkg)
+  rimraf.sync(repos)
+
   mkdirp.sync(topwt)
   fs.writeFileSync(resolve(topwt, 'package.json'), pjChild)
   mkdirp.sync(subwt)
@@ -120,12 +123,14 @@ function setup (cb) {
     var reposopt = { cwd: repos, env: env }
     common.makeGitRepo({
       path: subwt,
+      message: 'subwt repo: ' + subwt,
       added: ['foo.txt'],
       commands: [
         git.chainableExec(['clone', '--bare', subwt, 'sub.git'], reposopt),
         startDaemon,
         [common.makeGitRepo, {
           path: topwt,
+          message: 'topwt repo: ' + topwt,
           commands: [
             git.chainableExec(['submodule', 'add', suburl, 'subpath'], topopt),
             git.chainableExec(['commit', '-m', 'added submodule'], topopt),

@@ -1,8 +1,9 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const net = require('net');
+common.crashOnUnhandledRejection();
 
 // Sets the server's maxConnections property to 1.
 // Open 2 connections (connection 0 and connection 1).

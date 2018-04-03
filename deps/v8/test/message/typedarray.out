@@ -1,9 +1,0 @@
-# Copyright 2017 the V8 project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-*%(basename)s:6: RangeError: Start offset is negative
-a.set([2], -1);
-  ^
-RangeError: Start offset is negative
-    at Uint8Array.set (native)
-    at *%(basename)s:6:3

@@ -203,9 +203,16 @@ ECDSA_DATA *ecdsa_check(EC_KEY *key)
              */
             ecdsa_data_free(ecdsa_data);
             ecdsa_data = (ECDSA_DATA *)data;
+        } else if (EC_KEY_get_key_method_data(key, ecdsa_data_dup,
+                                              ecdsa_data_free,
+                                              ecdsa_data_free) != ecdsa_data) {
+            /* Or an out of memory error in EC_KEY_insert_key_method_data. */
+            ecdsa_data_free(ecdsa_data);
+            return NULL;
         }
-    } else
+    } else {
         ecdsa_data = (ECDSA_DATA *)data;
+    }
 #ifdef OPENSSL_FIPS
     if (FIPS_mode() && !(ecdsa_data->flags & ECDSA_FLAG_FIPS_METHOD)
         && !(EC_KEY_get_flags(key) & EC_FLAG_NON_FIPS_ALLOW)) {

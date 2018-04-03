@@ -30,7 +30,7 @@ switch (process.argv[2]) {
   case undefined:
     return parent();
   default:
-    throw new Error(`wtf? ${process.argv[2]}`);
+    throw new Error(`invalid: ${process.argv[2]}`);
 }
 
 function parent() {
@@ -50,10 +50,10 @@ function parent() {
     console.log('ok - got expected message');
   });
 
-  child.on('exit', function(c) {
+  child.on('exit', common.mustCall(function(c) {
     assert(!c);
     console.log('ok - child exited nicely');
-  });
+  }));
 }
 
 function child() {

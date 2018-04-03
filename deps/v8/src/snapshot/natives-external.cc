@@ -120,23 +120,21 @@ class NativesHolder {
     CHECK(store);
     holder_ = store;
   }
-  static bool empty() { return holder_ == NULL; }
+  static bool empty() { return holder_ == nullptr; }
   static void Dispose() {
     delete holder_;
-    holder_ = NULL;
+    holder_ = nullptr;
   }
 
  private:
   static NativesStore* holder_;
 };
 
-template<NativeType type>
-NativesStore* NativesHolder<type>::holder_ = NULL;
-
+template <NativeType type>
+NativesStore* NativesHolder<type>::holder_ = nullptr;
 
 // The natives blob. Memory is owned by caller.
-static StartupData* natives_blob_ = NULL;
-
+static StartupData* natives_blob_ = nullptr;
 
 /**
  * Read the Natives blob, as previously set by SetNativesFromFile.
@@ -161,7 +159,7 @@ void SetNativesFromFile(StartupData* natives_blob) {
   DCHECK(!natives_blob_);
   DCHECK(natives_blob);
   DCHECK(natives_blob->data);
-  DCHECK(natives_blob->raw_size > 0);
+  DCHECK_GT(natives_blob->raw_size, 0);
 
   natives_blob_ = natives_blob;
   ReadNatives();

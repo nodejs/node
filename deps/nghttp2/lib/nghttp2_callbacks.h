@@ -119,6 +119,7 @@ struct nghttp2_session_callbacks {
   nghttp2_unpack_extension_callback unpack_extension_callback;
   nghttp2_on_extension_chunk_recv_callback on_extension_chunk_recv_callback;
   nghttp2_error_callback error_callback;
+  nghttp2_error_callback2 error_callback2;
 };
 
 #endif /* NGHTTP2_CALLBACKS_H */

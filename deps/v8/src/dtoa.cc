@@ -68,7 +68,6 @@ void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
       break;
     default:
       UNREACHABLE();
-      fast_worked = false;
   }
   if (fast_worked) return;
 

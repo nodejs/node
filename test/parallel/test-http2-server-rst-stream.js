@@ -5,11 +5,9 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
+const Countdown = require('../common/countdown');
 
 const {
-  HTTP2_HEADER_METHOD,
-  HTTP2_HEADER_PATH,
-  HTTP2_METHOD_POST,
   NGHTTP2_CANCEL,
   NGHTTP2_NO_ERROR,
   NGHTTP2_PROTOCOL_ERROR,
@@ -17,63 +15,49 @@ const {
   NGHTTP2_INTERNAL_ERROR
 } = http2.constants;
 
-const errCheck = common.expectsError({ code: 'ERR_HTTP2_STREAM_ERROR' }, 6);
+const tests = [
+  [NGHTTP2_NO_ERROR, false],
+  [NGHTTP2_NO_ERROR, false],
+  [NGHTTP2_PROTOCOL_ERROR, true, 'NGHTTP2_PROTOCOL_ERROR'],
+  [NGHTTP2_CANCEL, false],
+  [NGHTTP2_REFUSED_STREAM, true, 'NGHTTP2_REFUSED_STREAM'],
+  [NGHTTP2_INTERNAL_ERROR, true, 'NGHTTP2_INTERNAL_ERROR']
+];
 
-function checkRstCode(rstMethod, expectRstCode) {
-  const server = http2.createServer();
-  server.on('stream', (stream, headers, flags) => {
-    stream.respond({
-      'content-type': 'text/html',
-      ':status': 200
-    });
-    stream.write('test');
-    if (rstMethod === 'rstStream')
-      stream[rstMethod](expectRstCode);
-    else
-      stream[rstMethod]();
+const server = http2.createServer();
+server.on('stream', (stream, headers) => {
+  const test = tests.find((t) => t[0] === Number(headers.rstcode));
+  if (test[1]) {
+    stream.on('error', common.expectsError({
+      type: Error,
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      message: `Stream closed with error code ${test[2]}`
+    }));
+  }
+  stream.close(headers.rstcode | 0);
+});
 
-    if (expectRstCode !== NGHTTP2_NO_ERROR &&
-        expectRstCode !== NGHTTP2_CANCEL) {
-      stream.on('error', common.mustCall(errCheck));
-    } else {
-      stream.on('error', common.mustNotCall());
-    }
+server.listen(0, common.mustCall(() => {
+  const client = http2.connect(`http://localhost:${server.address().port}`);
+
+  const countdown = new Countdown(tests.length, () => {
+    client.close();
+    server.close();
   });
 
-  server.listen(0, common.mustCall(() => {
-    const port = server.address().port;
-    const client = http2.connect(`http://localhost:${port}`);
-
-    const headers = {
-      [HTTP2_HEADER_PATH]: '/',
-      [HTTP2_HEADER_METHOD]: HTTP2_METHOD_POST
-    };
-    const req = client.request(headers);
-
-    req.setEncoding('utf8');
-    req.on('streamClosed', common.mustCall((actualRstCode) => {
-      assert.strictEqual(
-        expectRstCode, actualRstCode, `${rstMethod} is not match rstCode`);
-      server.close();
-      client.destroy();
+  tests.forEach((test) => {
+    const req = client.request({
+      ':method': 'POST',
+      'rstcode': test[0]
+    });
+    req.on('close', common.mustCall(() => {
+      assert.strictEqual(req.rstCode, test[0]);
+      countdown.dec();
     }));
-    req.on('data', common.mustCall());
     req.on('aborted', common.mustCall());
-    req.on('end', common.mustCall());
-
-    if (expectRstCode !== NGHTTP2_NO_ERROR &&
-        expectRstCode !== NGHTTP2_CANCEL) {
-      req.on('error', common.mustCall(errCheck));
-    } else {
+    if (test[1])
+      req.on('error', common.mustCall());
+    else
       req.on('error', common.mustNotCall());
-    }
-
-  }));
-}
-
-checkRstCode('rstStream', NGHTTP2_NO_ERROR);
-checkRstCode('rstWithNoError', NGHTTP2_NO_ERROR);
-checkRstCode('rstWithProtocolError', NGHTTP2_PROTOCOL_ERROR);
-checkRstCode('rstWithCancel', NGHTTP2_CANCEL);
-checkRstCode('rstWithRefuse', NGHTTP2_REFUSED_STREAM);
-checkRstCode('rstWithInternalError', NGHTTP2_INTERNAL_ERROR);
+  });
+}));

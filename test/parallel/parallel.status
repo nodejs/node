@@ -5,6 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# Postmortem debugging data is prone to accidental removal during V8 updates.
+test-postmortem-metadata: PASS,FLAKY
 
 [$system==win32]
 
@@ -13,7 +15,6 @@ prefix parallel
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-test-npm-install:      PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 

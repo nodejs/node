@@ -21,22 +21,21 @@
 
 #define CARES_STATICLIB
 #include "ares.h"
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
-#include "env.h"
+#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "node.h"
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
-#include "util.h"
+#include "req_wrap-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 
 #include <errno.h>
-#include <stdlib.h>
 #include <string.h>
 #include <vector>
 #include <unordered_set>
+
+#ifdef __POSIX__
+# include <netdb.h>
+#endif  // __POSIX__
 
 #if defined(__ANDROID__) || \
     defined(__MINGW32__) || \
@@ -83,6 +82,7 @@ inline uint32_t cares_get_32bit(const unsigned char* p) {
 
 const int ns_t_cname_or_a = -1;
 
+#define DNS_ESETSRVPENDING -1000
 inline const char* ToErrorCodeString(int status) {
   switch (status) {
 #define V(code) case ARES_##code: return #code;
@@ -150,6 +150,8 @@ class ChannelWrap : public AsyncWrap {
   void EnsureServers();
   void CleanupTimer();
 
+  void ModifyActivityQueryCount(int count);
+
   inline uv_timer_t* timer_handle() { return timer_handle_; }
   inline ares_channel cares_channel() { return channel_; }
   inline bool query_last_ok() const { return query_last_ok_; }
@@ -158,9 +160,10 @@ class ChannelWrap : public AsyncWrap {
   inline void set_is_servers_default(bool is_default) {
     is_servers_default_ = is_default;
   }
+  inline int active_query_count() { return active_query_count_; }
   inline node_ares_task_list* task_list() { return &task_list_; }
 
-  size_t self_size() const override { return sizeof(this); }
+  size_t self_size() const override { return sizeof(*this); }
 
   static void AresTimeout(uv_timer_t* handle);
 
@@ -170,6 +173,7 @@ class ChannelWrap : public AsyncWrap {
   bool query_last_ok_;
   bool is_servers_default_;
   bool library_inited_;
+  int active_query_count_;
   node_ares_task_list task_list_;
 };
 
@@ -180,7 +184,8 @@ ChannelWrap::ChannelWrap(Environment* env,
     channel_(nullptr),
     query_last_ok_(true),
     is_servers_default_(true),
-    library_inited_(false) {
+    library_inited_(false),
+    active_query_count_(0) {
   MakeWeak<ChannelWrap>(this);
 
   Setup();
@@ -361,26 +366,6 @@ void ares_sockstate_cb(void* data,
 }
 
 
-Local<Array> HostentToAddresses(Environment* env,
-                                struct hostent* host,
-                                Local<Array> append_to = Local<Array>()) {
-  EscapableHandleScope scope(env->isolate());
-  auto context = env->context();
-  bool append = !append_to.IsEmpty();
-  Local<Array> addresses = append ? append_to : Array::New(env->isolate());
-  size_t offset = addresses->Length();
-
-  char ip[INET6_ADDRSTRLEN];
-  for (uint32_t i = 0; host->h_addr_list[i] != nullptr; ++i) {
-    uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
-    Local<String> address = OneByteString(env->isolate(), ip);
-    addresses->Set(context, i + offset, address).FromJust();
-  }
-
-  return append ? addresses : scope.Escape(addresses);
-}
-
-
 Local<Array> HostentToNames(Environment* env,
                             struct hostent* host,
                             Local<Array> append_to = Local<Array>()) {
@@ -545,6 +530,11 @@ void ChannelWrap::CleanupTimer() {
   timer_handle_ = nullptr;
 }
 
+void ChannelWrap::ModifyActivityQueryCount(int count) {
+  active_query_count_ += count;
+  if (active_query_count_ < 0) active_query_count_ = 0;
+}
+
 
 /**
  * This function is to check whether current servers are fallback servers
@@ -596,12 +586,6 @@ class QueryWrap : public AsyncWrap {
   QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
       : AsyncWrap(channel->env(), req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP),
         channel_(channel) {
-    if (env()->in_domain()) {
-      req_wrap_obj->Set(env()->domain_string(),
-                        env()->domain_array()->Get(env()->context(), 0)
-                            .ToLocalChecked());
-    }
-
     Wrap(req_wrap_obj, this);
 
     // Make sure the channel object stays alive during the query lifetime.
@@ -613,7 +597,6 @@ class QueryWrap : public AsyncWrap {
   ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
     ClearWrap(object());
-    persistent().Reset();
   }
 
   // Subclasses should implement the appropriate Send method.
@@ -688,6 +671,7 @@ class QueryWrap : public AsyncWrap {
                               CaresAsyncCb));
 
     wrap->channel_->set_query_last_ok(status != ARES_ECONNREFUSED);
+    wrap->channel_->ModifyActivityQueryCount(-1);
     async_handle->data = data;
     uv_async_send(async_handle);
   }
@@ -804,7 +788,7 @@ int ParseGeneralReply(Environment* env,
       status = ares_parse_ns_reply(buf, len, &host);
       break;
     case ns_t_ptr:
-      status = ares_parse_ptr_reply(buf, len, NULL, 0, AF_INET, &host);
+      status = ares_parse_ptr_reply(buf, len, nullptr, 0, AF_INET, &host);
       break;
     default:
       CHECK(0 && "Bad NS type");
@@ -836,13 +820,18 @@ int ParseGeneralReply(Environment* env,
     HostentToNames(env, host, ret);
   } else if (*type == ns_t_ptr) {
     uint32_t offset = ret->Length();
-    for (uint32_t i = 0; host->h_aliases[i] != NULL; i++) {
-      ret->Set(context,
-               i + offset,
-               OneByteString(env->isolate(), host->h_aliases[i])).FromJust();
+    for (uint32_t i = 0; host->h_aliases[i] != nullptr; i++) {
+      auto alias = OneByteString(env->isolate(), host->h_aliases[i]);
+      ret->Set(context, i + offset, alias).FromJust();
     }
   } else {
-    HostentToAddresses(env, host, ret);
+    uint32_t offset = ret->Length();
+    char ip[INET6_ADDRSTRLEN];
+    for (uint32_t i = 0; host->h_addr_list[i] != nullptr; ++i) {
+      uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
+      auto address = OneByteString(env->isolate(), ip);
+      ret->Set(context, i + offset, address).FromJust();
+    }
   }
 
   ares_free_hostent(host);
@@ -1231,7 +1220,9 @@ class QueryAnyWrap: public QueryWrap {
       CHECK_EQ(naddrttls, a_count);
       for (int i = 0; i < a_count; i++) {
         Local<Object> obj = Object::New(env()->isolate());
-        obj->Set(context, env()->address_string(), ret->Get(i)).FromJust();
+        obj->Set(context,
+                 env()->address_string(),
+                 ret->Get(context, i).ToLocalChecked()).FromJust();
         obj->Set(context,
                  env()->ttl_string(),
                  Integer::New(env()->isolate(), addrttls[i].ttl)).FromJust();
@@ -1243,7 +1234,9 @@ class QueryAnyWrap: public QueryWrap {
     } else {
       for (int i = 0; i < a_count; i++) {
         Local<Object> obj = Object::New(env()->isolate());
-        obj->Set(context, env()->value_string(), ret->Get(i)).FromJust();
+        obj->Set(context,
+                 env()->value_string(),
+                 ret->Get(context, i).ToLocalChecked()).FromJust();
         obj->Set(context,
                  env()->type_string(),
                  env()->dns_cname_string()).FromJust();
@@ -1272,7 +1265,9 @@ class QueryAnyWrap: public QueryWrap {
     CHECK_EQ(aaaa_count, naddr6ttls);
     for (uint32_t i = a_count; i < ret->Length(); i++) {
       Local<Object> obj = Object::New(env()->isolate());
-      obj->Set(context, env()->address_string(), ret->Get(i)).FromJust();
+      obj->Set(context,
+               env()->address_string(),
+               ret->Get(context, i).ToLocalChecked()).FromJust();
       obj->Set(context,
                env()->ttl_string(),
                Integer::New(env()->isolate(), addr6ttls[i].ttl)).FromJust();
@@ -1299,7 +1294,9 @@ class QueryAnyWrap: public QueryWrap {
     }
     for (uint32_t i = old_count; i < ret->Length(); i++) {
       Local<Object> obj = Object::New(env()->isolate());
-      obj->Set(context, env()->value_string(), ret->Get(i)).FromJust();
+      obj->Set(context,
+               env()->value_string(),
+               ret->Get(context, i).ToLocalChecked()).FromJust();
       obj->Set(context,
                env()->type_string(),
                env()->dns_ns_string()).FromJust();
@@ -1325,7 +1322,9 @@ class QueryAnyWrap: public QueryWrap {
     status = ParseGeneralReply(env(), buf, len, &type, ret);
     for (uint32_t i = old_count; i < ret->Length(); i++) {
       Local<Object> obj = Object::New(env()->isolate());
-      obj->Set(context, env()->value_string(), ret->Get(i)).FromJust();
+      obj->Set(context,
+               env()->value_string(),
+               ret->Get(context, i).ToLocalChecked()).FromJust();
       obj->Set(context,
                env()->type_string(),
                env()->dns_ptr_string()).FromJust();
@@ -1756,33 +1755,6 @@ class GetHostByAddrWrap: public QueryWrap {
 };
 
 
-class GetHostByNameWrap: public QueryWrap {
- public:
-  explicit GetHostByNameWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
-      : QueryWrap(channel, req_wrap_obj) {
-  }
-
-  int Send(const char* name, int family) override {
-    ares_gethostbyname(channel_->cares_channel(),
-                       name,
-                       family,
-                       Callback,
-                       static_cast<void*>(static_cast<QueryWrap*>(this)));
-    return 0;
-  }
-
- protected:
-  void Parse(struct hostent* host) override {
-    HandleScope scope(env()->isolate());
-
-    Local<Array> addresses = HostentToAddresses(env(), host);
-    Local<Integer> family = Integer::New(env()->isolate(), host->h_addrtype);
-
-    this->CallOnComplete(addresses, family);
-  }
-};
-
-
 template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1798,9 +1770,12 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Wrap* wrap = new Wrap(channel, req_wrap_obj);
 
   node::Utf8Value name(env->isolate(), string);
+  channel->ModifyActivityQueryCount(1);
   int err = wrap->Send(*name);
-  if (err)
+  if (err) {
+    channel->ModifyActivityQueryCount(-1);
     delete wrap;
+  }
 
   args.GetReturnValue().Set(err);
 }
@@ -1899,40 +1874,33 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   delete req_wrap;
 }
 
+using ParseIPResult = decltype(static_cast<ares_addr_port_node*>(0)->addr);
 
-void IsIP(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
-  char address_buffer[sizeof(struct in6_addr)];
-
-  int rc = 0;
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
-    rc = 4;
-  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
-    rc = 6;
-
-  args.GetReturnValue().Set(rc);
-}
-
-void IsIPv4(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
-  char address_buffer[sizeof(struct in_addr)];
-
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
-    args.GetReturnValue().Set(true);
-  } else {
-    args.GetReturnValue().Set(false);
-  }
+int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
+  ParseIPResult tmp;
+  if (result == nullptr) result = &tmp;
+  if (0 == uv_inet_pton(AF_INET, ip, result)) return 4;
+  if (0 == uv_inet_pton(AF_INET6, ip, result)) return 6;
+  return 0;
 }
 
 void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
-  char address_buffer[sizeof(struct in6_addr)];
+  args.GetReturnValue().Set(6 == ParseIP(*ip));
+}
 
-  if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
-    args.GetReturnValue().Set(true);
-  } else {
-    args.GetReturnValue().Set(false);
-  }
+void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+
+  ParseIPResult result;
+  const int rc = ParseIP(*ip, &result);
+  if (rc == 0) return;
+
+  char canonical_ip[INET6_ADDRSTRLEN];
+  const int af = (rc == 4 ? AF_INET : AF_INET6);
+  CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
 }
 
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
@@ -1945,10 +1913,14 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
 
-  int32_t flags = (args[3]->IsInt32()) ? args[3]->Int32Value() : 0;
+  int32_t flags = 0;
+  if (args[3]->IsInt32()) {
+    flags = args[3]->Int32Value(env->context()).FromJust();
+  }
+
   int family;
 
-  switch (args[2]->Int32Value()) {
+  switch (args[2]->Int32Value(env->context()).FromJust()) {
   case 0:
     family = AF_UNSPEC;
     break;
@@ -1992,7 +1964,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip(env->isolate(), args[1]);
-  const unsigned port = args[2]->Uint32Value();
+  const unsigned port = args[2]->Uint32Value(env->context()).FromJust();
   struct sockaddr_storage addr;
 
   CHECK(uv_ip4_addr(*ip, port, reinterpret_cast<sockaddr_in*>(&addr)) == 0 ||
@@ -2052,6 +2024,10 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
 
+  if (channel->active_query_count()) {
+    return args.GetReturnValue().Set(DNS_ESETSRVPENDING);
+  }
+
   CHECK(args[0]->IsArray());
 
   Local<Array> arr = Local<Array>::Cast(args[0]);
@@ -2069,17 +2045,23 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   int err;
 
   for (uint32_t i = 0; i < len; i++) {
-    CHECK(arr->Get(i)->IsArray());
+    CHECK(arr->Get(env->context(), i).ToLocalChecked()->IsArray());
 
-    Local<Array> elm = Local<Array>::Cast(arr->Get(i));
+    Local<Array> elm =
+        Local<Array>::Cast(arr->Get(env->context(), i).ToLocalChecked());
 
-    CHECK(elm->Get(0)->Int32Value());
-    CHECK(elm->Get(1)->IsString());
-    CHECK(elm->Get(2)->Int32Value());
+    CHECK(elm->Get(env->context(),
+                   0).ToLocalChecked()->Int32Value(env->context()).FromJust());
+    CHECK(elm->Get(env->context(), 1).ToLocalChecked()->IsString());
+    CHECK(elm->Get(env->context(),
+                   2).ToLocalChecked()->Int32Value(env->context()).FromJust());
 
-    int fam = elm->Get(0)->Int32Value();
-    node::Utf8Value ip(env->isolate(), elm->Get(1));
-    int port = elm->Get(2)->Int32Value();
+    int fam = elm->Get(env->context(), 0)
+        .ToLocalChecked()->Int32Value(env->context()).FromJust();
+    node::Utf8Value ip(env->isolate(),
+                       elm->Get(env->context(), 1).ToLocalChecked());
+    int port = elm->Get(env->context(), 2)
+        .ToLocalChecked()->Int32Value(env->context()).FromJust();
 
     ares_addr_port_node* cur = &servers[i];
 
@@ -2126,10 +2108,13 @@ void Cancel(const FunctionCallbackInfo<Value>& args) {
   ares_cancel(channel->cares_channel());
 }
 
-
+const char EMSG_ESETSRVPENDING[] = "There are pending queries.";
 void StrError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  const char* errmsg = ares_strerror(args[0]->Int32Value());
+  int code = args[0]->Int32Value(env->context()).FromJust();
+  const char* errmsg = (code == DNS_ESETSRVPENDING) ?
+    EMSG_ESETSRVPENDING :
+    ares_strerror(code);
   args.GetReturnValue().Set(OneByteString(env->isolate(), errmsg));
 }
 
@@ -2141,9 +2126,8 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
-  env->SetMethod(target, "isIP", IsIP);
-  env->SetMethod(target, "isIPv4", IsIPv4);
   env->SetMethod(target, "isIPv6", IsIPv6);
+  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
 
@@ -2222,4 +2206,4 @@ void Initialize(Local<Object> target,
 }  // namespace cares_wrap
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(cares_wrap, node::cares_wrap::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(cares_wrap, node::cares_wrap::Initialize)

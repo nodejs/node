@@ -53,6 +53,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   <script src="./profile.js" type="text/javascript"></script>
   <script src="./profile_view.js" type="text/javascript"></script>
   <script src="./logreader.js" type="text/javascript"></script>
+  <script src="./arguments.js" type="text/javascript"></script>
   <script src="./ic-processor.js" type="text/javascript"></script>
   <script src="./SourceMap.js" type="text/javascript"></script>
 
@@ -254,16 +255,17 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let fragment = document.createDocumentFragment();
 
       function td(tr, content, className) {
-        let td = document.createElement("td");
+        let node = document.createElement("td");
         if (typeof content == "object") {
-          td.appendChild(content);
+          node.appendChild(content);
         } else {
-          td.innerHTML = content;
+          node.innerHTML = content;
         }
-        td.className = className
-        tr.appendChild(td);
-        return td
+        node.className = className
+        tr.appendChild(node);
+        return node
       }
+
       let max = Math.min(1000, entries.length)
       for (let i = 0; i < max; i++) {
         let entry = entries[i];
@@ -278,8 +280,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       let omitted = entries.length - max;
       if (omitted > 0) {
         let tr = document.createElement("tr");
-        let td = td(tr, 'Omitted ' + omitted + " entries.");
-        td.colSpan = 4;
+        let tdNode = td(tr, 'Omitted ' + omitted + " entries.");
+        tdNode.colSpan = 4;
         fragment.appendChild(tr);
       }
       parent.appendChild(fragment);

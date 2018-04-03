@@ -97,9 +97,9 @@ Node.js process and a cluster worker differs:
    port is random the first time, but predictable thereafter. To listen
    on a unique port, generate a port number based on the cluster worker ID.
 
-*Note*: Node.js does not provide routing logic. It is, therefore important to
-design an application such that it does not rely too heavily on in-memory data
-objects for things like sessions and login.
+Node.js does not provide routing logic. It is, therefore important to design an
+application such that it does not rely too heavily on in-memory data objects for
+things like sessions and login.
 
 Because workers are all separate processes, they can be killed or
 re-spawned depending on a program's needs, without affecting other
@@ -109,7 +109,8 @@ will be dropped and new connections will be refused. Node.js does not
 automatically manage the number of workers, however. It is the application's
 responsibility to manage the worker pool based on its own needs.
 
-
+Although a primary use case for the `cluster` module is networking, it can
+also be used for other use cases requiring worker processes.
 
 ## Class: Worker
 <!-- YAML
@@ -266,10 +267,10 @@ changes:
     description: This method now returns a reference to `worker`.
 -->
 
-* Returns: {Worker} A reference to `worker`.
+* Returns: {cluster.Worker} A reference to `worker`.
 
-In a worker, this function will close all servers, wait for the `'close'` event on
-those servers, and then disconnect the IPC channel.
+In a worker, this function will close all servers, wait for the `'close'` event
+on those servers, and then disconnect the IPC channel.
 
 In the master, an internal message is sent to the worker causing it to call
 `.disconnect()` on itself.
@@ -279,8 +280,8 @@ Causes `.exitedAfterDisconnect` to be set.
 Note that after a server is closed, it will no longer accept new connections,
 but connections may be accepted by any other listening worker. Existing
 connections will be allowed to close as usual. When no more connections exist,
-see [`server.close()`][], the IPC channel to the worker will close allowing it to
-die gracefully.
+see [`server.close()`][], the IPC channel to the worker will close allowing it
+to die gracefully.
 
 The above applies *only* to server connections, client connections are not
 automatically closed by workers, and disconnect does not wait for them to close
@@ -464,9 +465,9 @@ Emitted after the worker IPC channel has disconnected. This can occur when a
 worker exits gracefully, is killed, or is disconnected manually (such as with
 worker.disconnect()).
 
-There may be a delay between the `'disconnect'` and `'exit'` events.  These events
-can be used to detect if the process is stuck in a cleanup or if there are
-long-living connections.
+There may be a delay between the `'disconnect'` and `'exit'` events.  These
+events can be used to detect if the process is stuck in a cleanup or if there
+are long-living connections.
 
 ```js
 cluster.on('disconnect', (worker) => {
@@ -638,7 +639,8 @@ Calls `.disconnect()` on each worker in `cluster.workers`.
 When they are disconnected all internal handles will be closed, allowing the
 master process to die gracefully if no other event is waiting.
 
-The method takes an optional callback argument which will be called when finished.
+The method takes an optional callback argument which will be called when
+finished.
 
 This can only be called from the master process.
 
@@ -696,7 +698,13 @@ values are `"rr"` and `"none"`.
 <!-- YAML
 added: v0.7.1
 changes:
-  - version: 8.2.0
+  - version: v9.5.0
+    pr-url: https://github.com/nodejs/node/pull/18399
+    description: The `cwd` option is supported now.
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/17412
+    description: The `windowsHide` option is supported now.
+  - version: v8.2.0
     pr-url: https://github.com/nodejs/node/pull/14140
     description: The `inspectPort` option is supported now.
   - version: v6.4.0
@@ -706,10 +714,12 @@ changes:
 
 * {Object}
   * `execArgv` {Array} List of string arguments passed to the Node.js
-    executable. (Default=`process.execArgv`)
-  * `exec` {string} File path to worker file.  (Default=`process.argv[1]`)
+    executable. **Default:** `process.execArgv`
+  * `exec` {string} File path to worker file. **Default:** `process.argv[1]`
   * `args` {Array} String arguments passed to worker.
     **Default:** `process.argv.slice(2)`
+  * `cwd` {string} Current working directory of the worker process. **Default:**
+    `undefined` (inherits from parent process)
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`
   * `stdio` {Array} Configures the stdio of forked processes. Because the
@@ -717,10 +727,12 @@ changes:
     `'ipc'` entry. When this option is provided, it overrides `silent`.
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
-  * `inspectPort` {number|function} Sets inspector port of worker.
+  * `inspectPort` {number|Function} Sets inspector port of worker.
     This can be a number, or a function that takes no arguments and returns a
     number. By default each worker gets its own port, incremented from the
     master's `process.debugPort`.
+  * `windowsHide` {boolean} Hide the forked processes console window that would
+    normally be created on Windows systems. **Default:** `false`
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.

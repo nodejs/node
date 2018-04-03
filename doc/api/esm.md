@@ -1,6 +1,6 @@
 # ECMAScript Modules
 
-<!--introduced_in=v9.x.x-->
+<!--introduced_in=v8.5.0-->
 
 > Stability: 1 - Experimental
 
@@ -33,16 +33,20 @@ node --experimental-modules my-app.mjs
 ### Supported
 
 Only the CLI argument for the main entry point to the program can be an entry
-point into an ESM graph. In the future `import()` can be used to create entry
-points into ESM graphs at run time.
+point into an ESM graph. Dynamic import can also be used to create entry points
+into ESM graphs at runtime.
+
+#### `import.meta`
+
+The `import.meta` metaproperty is an `Object` that contains the following
+property:
+* `url` {string} The absolute `file:` URL of the module
 
 ### Unsupported
 
 | Feature | Reason |
 | --- | --- |
-| `require('./foo.mjs')` | ES Modules have differing resolution and timing, use language standard `import()` |
-| `import()` | pending newer V8 release used in Node.js |
-| `import.meta` | pending V8 implementation |
+| `require('./foo.mjs')` | ES Modules have differing resolution and timing, use dynamic import |
 
 ## Notable differences between `import` and `require`
 
@@ -102,7 +106,7 @@ fs.readFile('./foo.txt', (err, body) => {
 <!-- type=misc -->
 
 To customize the default module resolution, loader hooks can optionally be
-provided via a `--loader ./loader-name.mjs` argument to Node.
+provided via a `--loader ./loader-name.mjs` argument to Node.js.
 
 When hooks are used they only apply to ES module loading and not to any
 CommonJS modules loaded.
@@ -113,9 +117,12 @@ The resolve hook returns the resolved file URL and module format for a
 given module specifier and parent file URL:
 
 ```js
-import url from 'url';
+const baseURL = new URL('file://');
+baseURL.pathname = `${process.cwd()}/`;
 
-export async function resolve(specifier, parentModuleURL, defaultResolver) {
+export async function resolve(specifier,
+                              parentModuleURL = baseURL,
+                              defaultResolver) {
   return {
     url: new URL(specifier, parentModuleURL).href,
     format: 'esm'
@@ -123,31 +130,42 @@ export async function resolve(specifier, parentModuleURL, defaultResolver) {
 }
 ```
 
-The default NodeJS ES module resolution function is provided as a third
+The parentURL is provided as `undefined` when performing main Node.js load
+itself.
+
+The default Node.js ES module resolution function is provided as a third
 argument to the resolver for easy compatibility workflows.
 
 In addition to returning the resolved file URL value, the resolve hook also
 returns a `format` property specifying the module format of the resolved
-module. This can be one of `"esm"`, `"cjs"`, `"json"`, `"builtin"` or
-`"addon"`.
+module. This can be one of the following:
 
-For example a dummy loader to load JavaScript restricted to browser resolution
-rules with only JS file extension and Node builtin modules support could
+| `format` | Description |
+| --- | --- |
+| `"esm"` | Load a standard JavaScript module |
+| `"cjs"` | Load a node-style CommonJS module |
+| `"builtin"` | Load a node builtin CommonJS module |
+| `"json"` | Load a JSON file |
+| `"addon"` | Load a [C++ Addon][addons] |
+| `"dynamic"` | Use a [dynamic instantiate hook][] |
+
+For example, a dummy loader to load JavaScript restricted to browser resolution
+rules with only JS file extension and Node.js builtin modules support could
 be written:
 
 ```js
-import url from 'url';
 import path from 'path';
 import process from 'process';
+import Module from 'module';
 
-const builtins = new Set(
-  Object.keys(process.binding('natives')).filter((str) =>
-    /^(?!(?:internal|node|v8)\/)/.test(str))
-);
+const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
-export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
-  if (builtins.has(specifier)) {
+const baseURL = new URL('file://');
+baseURL.pathname = `${process.cwd()}/`;
+
+export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
+  if (builtins.includes(specifier)) {
     return {
       url: specifier,
       format: 'builtin'
@@ -159,7 +177,7 @@ export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
     throw new Error(
       `imports must begin with '/', './', or '../'; '${specifier}' does not`);
   }
-  const resolved = new url.URL(specifier, parentModuleURL);
+  const resolved = new URL(specifier, parentModuleURL);
   const ext = path.extname(resolved.pathname);
   if (!JS_EXTENSIONS.has(ext)) {
     throw new Error(
@@ -201,7 +219,9 @@ export async function dynamicInstantiate(url) {
 ```
 
 With the list of module exports provided upfront, the `execute` function will
-then be called at the exact point of module evalutation order for that module
+then be called at the exact point of module evaluation order for that module
 in the import tree.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[addons]: addons.html
+[dynamic instantiate hook]: #esm_dynamic_instantiate_hook

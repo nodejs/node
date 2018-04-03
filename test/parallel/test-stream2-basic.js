@@ -25,67 +25,64 @@ const common = require('../common');
 const R = require('_stream_readable');
 const assert = require('assert');
 
-const util = require('util');
 const EE = require('events').EventEmitter;
 
-function TestReader(n) {
-  R.apply(this);
-  this._buffer = Buffer.alloc(n || 100, 'x');
-  this._pos = 0;
-  this._bufs = 10;
-}
-
-util.inherits(TestReader, R);
-
-TestReader.prototype._read = function(n) {
-  const max = this._buffer.length - this._pos;
-  n = Math.max(n, 0);
-  const toRead = Math.min(n, max);
-  if (toRead === 0) {
-    // simulate the read buffer filling up with some more bytes some time
-    // in the future.
-    setTimeout(function() {
-      this._pos = 0;
-      this._bufs -= 1;
-      if (this._bufs <= 0) {
-        // read them all!
-        if (!this.ended)
-          this.push(null);
-      } else {
-        // now we have more.
-        // kinda cheating by calling _read, but whatever,
-        // it's just fake anyway.
-        this._read(n);
-      }
-    }.bind(this), 10);
-    return;
+class TestReader extends R {
+  constructor(n) {
+    super();
+    this._buffer = Buffer.alloc(n || 100, 'x');
+    this._pos = 0;
+    this._bufs = 10;
   }
 
-  const ret = this._buffer.slice(this._pos, this._pos + toRead);
-  this._pos += toRead;
-  this.push(ret);
-};
+  _read(n) {
+    const max = this._buffer.length - this._pos;
+    n = Math.max(n, 0);
+    const toRead = Math.min(n, max);
+    if (toRead === 0) {
+      // simulate the read buffer filling up with some more bytes some time
+      // in the future.
+      setTimeout(() => {
+        this._pos = 0;
+        this._bufs -= 1;
+        if (this._bufs <= 0) {
+          // read them all!
+          if (!this.ended)
+            this.push(null);
+        } else {
+          // now we have more.
+          // kinda cheating by calling _read, but whatever,
+          // it's just fake anyway.
+          this._read(n);
+        }
+      }, 10);
+      return;
+    }
 
-/////
-
-function TestWriter() {
-  EE.apply(this);
-  this.received = [];
-  this.flush = false;
+    const ret = this._buffer.slice(this._pos, this._pos + toRead);
+    this._pos += toRead;
+    this.push(ret);
+  }
 }
 
-util.inherits(TestWriter, EE);
+class TestWriter extends EE {
+  constructor() {
+    super();
+    this.received = [];
+    this.flush = false;
+  }
 
-TestWriter.prototype.write = function(c) {
-  this.received.push(c.toString());
-  this.emit('write', c);
-  return true;
-};
+  write(c) {
+    this.received.push(c.toString());
+    this.emit('write', c);
+    return true;
+  }
 
-TestWriter.prototype.end = function(c) {
-  if (c) this.write(c);
-  this.emit('end', this.received);
-};
+  end(c) {
+    if (c) this.write(c);
+    this.emit('end', this.received);
+  }
+}
 
 {
   // Test basic functionality

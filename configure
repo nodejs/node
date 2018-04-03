@@ -35,21 +35,23 @@ import subprocess
 import shutil
 import string
 
+# If not run from node/, cd to node/.
+os.chdir(os.path.dirname(__file__) or '.')
+
 # gcc and g++ as defaults matches what GYP's Makefile generator does,
 # except on OS X.
 CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'gcc')
 CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'g++')
 
-root_dir = os.path.dirname(__file__)
-sys.path.insert(0, os.path.join(root_dir, 'tools', 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join('tools', 'gyp', 'pylib'))
 from gyp.common import GetFlavor
 
 # imports in tools/configure.d
-sys.path.insert(0, os.path.join(root_dir, 'tools', 'configure.d'))
+sys.path.insert(0, os.path.join('tools', 'configure.d'))
 import nodedownload
 
 # imports in tools/
-sys.path.insert(0, os.path.join(root_dir, 'tools'))
+sys.path.insert(0, 'tools')
 import getmoduleversion
 from gyp_node import run_gyp
 
@@ -57,9 +59,9 @@ from gyp_node import run_gyp
 parser = optparse.OptionParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
-            'android', 'aix')
+            'android', 'aix', 'cloudabi')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
-              'ppc64', 'x32','x64', 'x86', 's390', 's390x')
+              'ppc64', 'x32','x64', 'x86', 'x86_64', 's390', 's390x')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
@@ -144,17 +146,17 @@ parser.add_option("--partly-static",
 parser.add_option("--enable-vtune-profiling",
     action="store_true",
     dest="enable_vtune_profiling",
-    help="Enable profiling support for Intel VTune profiler to profile"
+    help="Enable profiling support for Intel VTune profiler to profile "
          "JavaScript code executed in nodejs. This feature is only available "
-         "for x32, x86 and x64 architectures.")
+         "for x32, x86, and x64 architectures.")
 
 
 parser.add_option("--link-module",
     action="append",
     dest="linked_module",
-    help="Path to a JS file to be bundled in the binary as a builtin."
-         "This module will be referenced by path without extension."
-         "e.g. /root/x/y.js will be referenced via require('root/x/y')."
+    help="Path to a JS file to be bundled in the binary as a builtin. "
+         "This module will be referenced by path without extension; "
+         "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
 parser.add_option("--openssl-no-asm",
@@ -171,6 +173,12 @@ parser.add_option('--openssl-use-def-ca-store',
     action='store_true',
     dest='use_openssl_ca_store',
     help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
+
+parser.add_option('--openssl-system-ca-path',
+    action='store',
+    dest='openssl_system_ca_path',
+    help='Use the specified path to system CA (PEM format) in addition to '
+         'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
@@ -213,6 +221,27 @@ shared_optgroup.add_option('--shared-libuv-libpath',
     action='store',
     dest='shared_libuv_libpath',
     help='a directory to search for the shared libuv DLL')
+
+shared_optgroup.add_option('--shared-nghttp2',
+    action='store_true',
+    dest='shared_nghttp2',
+    help='link to a shared nghttp2 DLL instead of static linking')
+
+shared_optgroup.add_option('--shared-nghttp2-includes',
+    action='store',
+    dest='shared_nghttp2_includes',
+    help='directory containing nghttp2 header files')
+
+shared_optgroup.add_option('--shared-nghttp2-libname',
+    action='store',
+    dest='shared_nghttp2_libname',
+    default='nghttp2',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-nghttp2-libpath',
+    action='store',
+    dest='shared_nghttp2_libpath',
+    help='a directory to search for the shared nghttp2 DLLs')
 
 shared_optgroup.add_option('--shared-openssl',
     action='store_true',
@@ -354,11 +383,6 @@ parser.add_option('--with-dtrace',
     dest='with_dtrace',
     help='build with DTrace (default is true on sunos and darwin)')
 
-parser.add_option('--with-lttng',
-    action='store_true',
-    dest='with_lttng',
-    help='build with Lttng (Only supported on Linux)')
-
 parser.add_option('--with-etw',
     action='store_true',
     dest='with_etw',
@@ -405,10 +429,15 @@ intl_optgroup.add_option('--download',
 intl_optgroup.add_option('--download-path',
     action='store',
     dest='download_path',
-    default=os.path.join(root_dir, 'deps'),
+    default='deps',
     help='Download directory [default: %default]')
 
 parser.add_option_group(intl_optgroup)
+
+parser.add_option('--debug-lib',
+    action='store_true',
+    dest='node_debug_lib',
+    help='build lib with DCHECK macros')
 
 http2_optgroup.add_option('--debug-http2',
     action='store_true',
@@ -665,8 +694,7 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-  if is_clang:
-    o['variables']['llvm_version'] = get_llvm_version(CC)
+  o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else 0
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
@@ -833,6 +861,9 @@ def configure_node(o):
   # the Makefile resets this to x86 afterward
   if target_arch == 'x86':
     target_arch = 'ia32'
+  # x86_64 is common across linuxes, allow it as an alias for x64
+  if target_arch == 'x86_64':
+    target_arch = 'x64'
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
@@ -850,14 +881,13 @@ def configure_node(o):
     configure_mips(o)
 
   if flavor == 'aix':
-    o['variables']['node_core_target_name'] = 'node_base'
     o['variables']['node_target_type'] = 'static_library'
 
   if target_arch in ('x86', 'x64', 'ia32', 'x32'):
     o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
   elif options.enable_vtune_profiling:
     raise Exception(
-       'The VTune profiler for JavaScript is only supported on x32, x86 and x64 '
+       'The VTune profiler for JavaScript is only supported on x32, x86, and x64 '
        'architectures.')
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
@@ -872,22 +902,11 @@ def configure_node(o):
       if options.systemtap_includes:
         o['include_dirs'] += [options.systemtap_includes]
     o['variables']['node_use_dtrace'] = b(use_dtrace)
-    o['variables']['uv_use_dtrace'] = b(use_dtrace)
-    o['variables']['uv_parent_path'] = '/deps/uv/'
   elif options.with_dtrace:
     raise Exception(
        'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
-
-  # Enable Lttng if --with-lttng was defined. Use logic similar to
-  # ETW for windows. Lttng is only available on the Linux platform.
-  if flavor == 'linux':
-    o['variables']['node_use_lttng'] = b(options.with_lttng)
-  elif options.with_lttng:
-    raise Exception('lttng is only supported on Linux.')
-  else:
-    o['variables']['node_use_lttng'] = 'false'
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
@@ -921,6 +940,8 @@ def configure_node(o):
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
+  o['variables']['node_debug_lib'] = b(options.node_debug_lib)
+
   if options.debug_http2:
     o['variables']['debug_http2'] = 1
   else:
@@ -950,7 +971,6 @@ def configure_node(o):
     o['variables']['library_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
-  o['variables']['debug_devtools'] = 'node'
 
   if options.use_xcode and options.use_ninja:
     raise Exception('--xcode and --ninja cannot be used together.')
@@ -959,6 +979,13 @@ def configure_node(o):
     o['variables']['coverage'] = 'true'
   else:
     o['variables']['coverage'] = 'false'
+
+  if options.shared:
+    o['variables']['node_target_type'] = 'shared_library'
+  elif options.enable_static:
+    o['variables']['node_target_type'] = 'static_library'
+  else:
+    o['variables']['node_target_type'] = 'executable'
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
@@ -1001,6 +1028,10 @@ def configure_v8(o):
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
+  # Unconditionally force typed arrays to allocate outside the v8 heap. This
+  # is to prevent memory pointers from being moved around that are returned by
+  # Buffer::Data().
+  o['variables']['v8_typed_array_max_size_in_heap'] = 0
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8 and options.enable_d8:
@@ -1013,12 +1044,14 @@ def configure_openssl(o):
   o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
+  if options.openssl_system_ca_path:
+    o['variables']['openssl_system_ca_path'] = options.openssl_system_ca_path
   o['variables']['node_without_node_options'] = b(options.without_node_options)
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
   if options.openssl_fips:
     o['variables']['openssl_fips'] = options.openssl_fips
-    fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
+    fips_dir = os.path.join('deps', 'openssl', 'fips')
     fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
     # LINK is for Makefiles, LD/LDXX is for ninja
     o['make_fips_settings'] = [
@@ -1063,7 +1096,7 @@ def configure_static(o):
 
 
 def write(filename, data):
-  filename = os.path.join(root_dir, filename)
+  filename = filename
   print('creating %s' % filename)
   f = open(filename, 'w+')
   f.write(data)
@@ -1092,8 +1125,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/59.1/icu4c-59_1-src.zip',
-      'md5': '29a41f9bb576b06c7eef0487a84a7674',
+      'url': 'https://ssl.icu-project.org/files/icu4c/61.1/icu4c-61_1-src.zip',
+      'md5': '780d8524c8a860ed8d8f6fe75cb7ce3f',
     },
   ]
   def icu_download(path):
@@ -1185,7 +1218,7 @@ def configure_intl(o):
     return
 
   # this is just the 'deps' dir. Used for unpacking.
-  icu_parent_path = os.path.join(root_dir, 'deps')
+  icu_parent_path = 'deps'
 
   # The full path to the ICU source directory. Should not include './'.
   icu_full_path = 'deps/icu'
@@ -1316,8 +1349,6 @@ def configure_intl(o):
   # this is the input '.dat' file to use .. icudt*.dat
   # may be little-endian if from a icu-project.org tarball
   o['variables']['icu_data_in'] = icu_data_in
-  # this is the icudt*.dat file which node will be using (platform endianness)
-  o['variables']['icu_data_file'] = icu_data_file
   if not os.path.isfile(icu_data_path):
     print('Error: ICU prebuilt data file %s does not exist.' % icu_data_path)
     print('See the README.md.')
@@ -1407,6 +1438,7 @@ configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
 configure_library('libcares', output)
+configure_library('nghttp2', output)
 # stay backwards compatible with shared cares builds
 output['variables']['node_shared_cares'] = \
     output['variables'].pop('node_shared_libcares')
@@ -1453,8 +1485,7 @@ config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
-  'NODE_TARGET_TYPE': variables['node_target_type'] if options.enable_static \
-      else '',
+  'NODE_TARGET_TYPE': variables['node_target_type'],
 }
 
 if options.prefix:

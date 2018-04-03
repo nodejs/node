@@ -8,31 +8,21 @@ const h2 = require('http2');
 const server = h2.createServer();
 
 // we use the lower-level API here
-server.on('stream', common.mustCall(onStream));
+server.on('stream', common.mustCall((stream) => {
+  stream.respond();
+  stream.end('ok');
+}));
 
-function onStream(stream, headers, flags) {
-  stream.respond({
-    'content-type': 'text/html',
-    ':status': 200
-  });
-  stream.end('hello world');
-}
-
-server.listen(0);
-
-server.on('listening', common.mustCall(() => {
-
+server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
-
-  const req = client.request({ ':path': '/' });
-  client.priority(req, {});
+  const req = client.request();
+  req.priority({});
 
   req.on('response', common.mustCall());
   req.resume();
-  req.on('end', common.mustCall(() => {
+  req.on('end', common.mustCall());
+  req.on('close', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
-  req.end();
-
 }));

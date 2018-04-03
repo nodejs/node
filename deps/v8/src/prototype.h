@@ -31,7 +31,7 @@ class PrototypeIterator {
                     WhereToStart where_to_start = kStartAtPrototype,
                     WhereToEnd where_to_end = END_AT_NULL)
       : isolate_(isolate),
-        object_(NULL),
+        object_(nullptr),
         handle_(receiver),
         where_to_end_(where_to_end),
         is_at_end_(false),
@@ -68,7 +68,7 @@ class PrototypeIterator {
   explicit PrototypeIterator(Handle<Map> receiver_map,
                              WhereToEnd where_to_end = END_AT_NULL)
       : isolate_(receiver_map->GetIsolate()),
-        object_(NULL),
+        object_(nullptr),
         handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
                 isolate_),
         where_to_end_(where_to_end),
@@ -103,7 +103,7 @@ class PrototypeIterator {
   template <typename T = Object>
   static Handle<T> GetCurrent(const PrototypeIterator& iterator) {
     DCHECK(!iterator.handle_.is_null());
-    DCHECK(iterator.object_ == NULL);
+    DCHECK_NULL(iterator.object_);
     return Handle<T>::cast(iterator.handle_);
   }
 

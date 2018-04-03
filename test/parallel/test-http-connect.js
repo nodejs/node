@@ -30,6 +30,13 @@ server.on('connect', common.mustCall((req, socket, firstBodyChunk) => {
   assert.strictEqual(req.method, 'CONNECT');
   assert.strictEqual(req.url, 'google.com:443');
 
+  // Make sure this socket has detached.
+  assert.strictEqual(socket.listeners('close').length, 0);
+  assert.strictEqual(socket.listeners('drain').length, 0);
+  assert.strictEqual(socket.listeners('data').length, 0);
+  assert.strictEqual(socket.listeners('end').length, 1);
+  assert.strictEqual(socket.listeners('error').length, 0);
+
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
 
   let data = firstBodyChunk.toString();
@@ -42,12 +49,16 @@ server.on('connect', common.mustCall((req, socket, firstBodyChunk) => {
   }));
 }));
 
-server.listen(0, common.mustCall(function() {
+server.listen(0, common.mustCall(() => {
   const req = http.request({
-    port: this.address().port,
+    port: server.address().port,
     method: 'CONNECT',
     path: 'google.com:443'
   }, common.mustNotCall());
+
+  req.on('socket', common.mustCall((socket) => {
+    assert.strictEqual(socket._httpMessage, req);
+  }));
 
   req.on('close', common.mustCall());
 
@@ -60,13 +71,11 @@ server.listen(0, common.mustCall(function() {
     // Make sure this socket has detached.
     assert(!socket.ondata);
     assert(!socket.onend);
+    assert.strictEqual(socket._httpMessage, null);
     assert.strictEqual(socket.listeners('connect').length, 0);
     assert.strictEqual(socket.listeners('data').length, 0);
-
-    // the stream.Duplex onend listener
-    // allow 0 here, so that i can run the same test on streams1 impl
-    assert(socket.listeners('end').length <= 1);
-
+    assert.strictEqual(socket.listeners('drain').length, 0);
+    assert.strictEqual(socket.listeners('end').length, 1);
     assert.strictEqual(socket.listeners('free').length, 0);
     assert.strictEqual(socket.listeners('close').length, 0);
     assert.strictEqual(socket.listeners('error').length, 0);

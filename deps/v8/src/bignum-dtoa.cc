@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 static int NormalizedExponent(uint64_t significand, int exponent) {
-  DCHECK(significand != 0);
+  DCHECK_NE(significand, 0);
   while ((significand & Double::kHiddenBit) == 0) {
     significand = significand << 1;
     exponent = exponent - 1;
@@ -66,7 +66,7 @@ static void GenerateCountedDigits(int count, int* decimal_point,
 
 void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
                 Vector<char> buffer, int* length, int* decimal_point) {
-  DCHECK(v > 0);
+  DCHECK_GT(v, 0);
   DCHECK(!Double(v).IsSpecial());
   uint64_t significand = Double(v).Significand();
   bool is_even = (significand & 1) == 0;
@@ -97,7 +97,7 @@ void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
   // 4e-324. In this case the denominator needs fewer than 324*4 binary digits.
   // The maximum double is 1.7976931348623157e308 which needs fewer than
   // 308*4 binary digits.
-  DCHECK(Bignum::kMaxSignificantBits >= 324*4);
+  DCHECK_GE(Bignum::kMaxSignificantBits, 324 * 4);
   bool need_boundary_deltas = (mode == BIGNUM_DTOA_SHORTEST);
   InitialScaledStartValues(v, estimated_power, need_boundary_deltas,
                            &numerator, &denominator,
@@ -157,7 +157,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
   while (true) {
     uint16_t digit;
     digit = numerator->DivideModuloIntBignum(*denominator);
-    DCHECK(digit <= 9);  // digit is a uint16_t and therefore always positive.
+    DCHECK_LE(digit, 9);  // digit is a uint16_t and therefore always positive.
     // digit = numerator / denominator (integer division).
     // numerator = numerator % denominator.
     buffer[(*length)++] = digit + '0';
@@ -203,7 +203,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
         // loop would have stopped earlier.
         // We still have an assert here in case the preconditions were not
         // satisfied.
-        DCHECK(buffer[(*length) - 1] != '9');
+        DCHECK_NE(buffer[(*length) - 1], '9');
         buffer[(*length) - 1]++;
       } else {
         // Halfway case.
@@ -214,7 +214,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
         if ((buffer[(*length) - 1] - '0') % 2 == 0) {
           // Round down => Do nothing.
         } else {
-          DCHECK(buffer[(*length) - 1] != '9');
+          DCHECK_NE(buffer[(*length) - 1], '9');
           buffer[(*length) - 1]++;
         }
       }
@@ -228,7 +228,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
       // stopped the loop earlier.
       // We still have an DCHECK here, in case the preconditions were not
       // satisfied.
-      DCHECK(buffer[(*length) -1] != '9');
+      DCHECK_NE(buffer[(*length) - 1], '9');
       buffer[(*length) - 1]++;
       return;
     }
@@ -245,11 +245,11 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
 static void GenerateCountedDigits(int count, int* decimal_point,
                                   Bignum* numerator, Bignum* denominator,
                                   Vector<char>(buffer), int* length) {
-  DCHECK(count >= 0);
+  DCHECK_GE(count, 0);
   for (int i = 0; i < count - 1; ++i) {
     uint16_t digit;
     digit = numerator->DivideModuloIntBignum(*denominator);
-    DCHECK(digit <= 9);  // digit is a uint16_t and therefore always positive.
+    DCHECK_LE(digit, 9);  // digit is a uint16_t and therefore always positive.
     // digit = numerator / denominator (integer division).
     // numerator = numerator % denominator.
     buffer[i] = digit + '0';
@@ -381,7 +381,7 @@ static void InitialScaledStartValuesPositiveExponent(
     Bignum* numerator, Bignum* denominator,
     Bignum* delta_minus, Bignum* delta_plus) {
   // A positive exponent implies a positive power.
-  DCHECK(estimated_power >= 0);
+  DCHECK_GE(estimated_power, 0);
   // Since the estimated_power is positive we simply multiply the denominator
   // by 10^estimated_power.
 

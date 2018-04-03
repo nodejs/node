@@ -11,4 +11,4 @@ runBenchmark('misc', [
   'n=1',
   'type=extend',
   'val=magyarország.icom.museum'
-]);
+], { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

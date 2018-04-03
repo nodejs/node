@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/compiler/pipeline.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-generator.h"

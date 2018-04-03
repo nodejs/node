@@ -1015,8 +1015,8 @@ UTS46::checkLabelBiDi(const UChar *label, int32_t labelLength, IDNAInfo &info) c
     ) {
         info.isOkBiDi=FALSE;
     }
-    // Get the directionalities of the intervening characters.
-    uint32_t mask=0;
+    // Add the directionalities of the intervening characters.
+    uint32_t mask=firstMask|lastMask;
     while(i<labelLength) {
         U16_NEXT_UNSAFE(label, i, c);
         mask|=U_MASK(u_charDirection(c));
@@ -1045,7 +1045,7 @@ UTS46::checkLabelBiDi(const UChar *label, int32_t labelLength, IDNAInfo &info) c
     // label. [...]
     // The following rule, consisting of six conditions, applies to labels
     // in BIDI domain names.
-    if(((firstMask|mask|lastMask)&R_AL_AN_MASK)!=0) {
+    if((mask&R_AL_AN_MASK)!=0) {
         info.isBiDi=TRUE;
     }
 }
@@ -1126,7 +1126,6 @@ isASCIIOkBiDi(const char *s, int32_t length) {
 
 UBool
 UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
-    const UBiDiProps *bdp=ubidi_getSingleton();
     // [IDNA2008-Tables]
     // 200C..200D  ; CONTEXTJ    # ZERO WIDTH NON-JOINER..ZERO WIDTH JOINER
     for(int32_t i=0; i<labelLength; ++i) {
@@ -1148,7 +1147,7 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
             }
             // check precontext (Joining_Type:{L,D})(Joining_Type:T)*
             for(;;) {
-                UJoiningType type=ubidi_getJoiningType(bdp, c);
+                UJoiningType type=ubidi_getJoiningType(c);
                 if(type==U_JT_TRANSPARENT) {
                     if(j==0) {
                         return FALSE;
@@ -1166,7 +1165,7 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
                     return FALSE;
                 }
                 U16_NEXT_UNSAFE(label, j, c);
-                UJoiningType type=ubidi_getJoiningType(bdp, c);
+                UJoiningType type=ubidi_getJoiningType(c);
                 if(type==U_JT_TRANSPARENT) {
                     // just skip this character
                 } else if(type==U_JT_RIGHT_JOINING || type==U_JT_DUAL_JOINING) {
@@ -1415,7 +1414,7 @@ uidna_labelToASCII_UTF8(const UIDNA *idna,
     if(!checkArgs(label, length, dest, capacity, pInfo, pErrorCode)) {
         return 0;
     }
-    StringPiece src(label, length<0 ? uprv_strlen(label) : length);
+    StringPiece src(label, length<0 ? static_cast<int32_t>(uprv_strlen(label)) : length);
     CheckedArrayByteSink sink(dest, capacity);
     IDNAInfo info;
     reinterpret_cast<const IDNA *>(idna)->labelToASCII_UTF8(src, sink, info, *pErrorCode);
@@ -1431,7 +1430,7 @@ uidna_labelToUnicodeUTF8(const UIDNA *idna,
     if(!checkArgs(label, length, dest, capacity, pInfo, pErrorCode)) {
         return 0;
     }
-    StringPiece src(label, length<0 ? uprv_strlen(label) : length);
+    StringPiece src(label, length<0 ? static_cast<int32_t>(uprv_strlen(label)) : length);
     CheckedArrayByteSink sink(dest, capacity);
     IDNAInfo info;
     reinterpret_cast<const IDNA *>(idna)->labelToUnicodeUTF8(src, sink, info, *pErrorCode);
@@ -1447,7 +1446,7 @@ uidna_nameToASCII_UTF8(const UIDNA *idna,
     if(!checkArgs(name, length, dest, capacity, pInfo, pErrorCode)) {
         return 0;
     }
-    StringPiece src(name, length<0 ? uprv_strlen(name) : length);
+    StringPiece src(name, length<0 ? static_cast<int32_t>(uprv_strlen(name)) : length);
     CheckedArrayByteSink sink(dest, capacity);
     IDNAInfo info;
     reinterpret_cast<const IDNA *>(idna)->nameToASCII_UTF8(src, sink, info, *pErrorCode);
@@ -1463,7 +1462,7 @@ uidna_nameToUnicodeUTF8(const UIDNA *idna,
     if(!checkArgs(name, length, dest, capacity, pInfo, pErrorCode)) {
         return 0;
     }
-    StringPiece src(name, length<0 ? uprv_strlen(name) : length);
+    StringPiece src(name, length<0 ? static_cast<int32_t>(uprv_strlen(name)) : length);
     CheckedArrayByteSink sink(dest, capacity);
     IDNAInfo info;
     reinterpret_cast<const IDNA *>(idna)->nameToUnicodeUTF8(src, sink, info, *pErrorCode);

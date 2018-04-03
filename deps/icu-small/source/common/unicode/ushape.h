@@ -93,7 +93,7 @@
  *        which must not indicate a failure before the function call.
  *
  * @return The number of UChars written to the destination buffer.
- *         If an error occured, then no output was written, or it may be
+ *         If an error occurred, then no output was written, or it may be
  *         incomplete. If <code>U_BUFFER_OVERFLOW_ERROR</code> is set, then
  *         the return value indicates the necessary destination buffer size.
  * @stable ICU 2.0

@@ -316,13 +316,33 @@ public:
 
 private:
 
-    void inc(void) { ++p; ch = 0xffff; }
-    UBool checkInc(UChar c) { if (p < e && (ch == c || *p == c)) { inc(); return TRUE; } return FALSE; }
-    UBool check(UChar c) { return p < e && (ch == c || *p == c); }
-    void skipWhitespace(void) { while (p < e && PatternProps::isWhiteSpace(ch != 0xffff ? ch : *p)) inc();}
-    UBool inList(UChar c, const UChar* list) const {
-        if (*list == SPACE && PatternProps::isWhiteSpace(c)) return TRUE;
-        while (*list && *list != c) ++list; return *list == c;
+    inline void inc(void) {
+        ++p;
+        ch = 0xffff;
+    }
+    inline UBool checkInc(UChar c) {
+        if (p < e && (ch == c || *p == c)) {
+            inc();
+            return TRUE;
+        }
+        return FALSE;
+    }
+    inline UBool check(UChar c) {
+        return p < e && (ch == c || *p == c);
+    }
+    inline void skipWhitespace(void) {
+        while (p < e && PatternProps::isWhiteSpace(ch != 0xffff ? ch : *p)) {
+            inc();
+        }
+    }
+    inline UBool inList(UChar c, const UChar* list) const {
+        if (*list == SPACE && PatternProps::isWhiteSpace(c)) {
+            return TRUE;
+        }
+        while (*list && *list != c) {
+            ++list;
+        }
+        return *list == c;
     }
     void parseError(const char* msg);
 
@@ -667,6 +687,7 @@ RuleBasedNumberFormat::RuleBasedNumberFormat(const UnicodeString& description,
   , decimalFormatSymbols(NULL)
   , defaultInfinityRule(NULL)
   , defaultNaNRule(NULL)
+  , roundingMode(DecimalFormat::ERoundingMode::kRoundUnnecessary)
   , lenient(FALSE)
   , lenientParseRules(NULL)
   , localizations(NULL)
@@ -691,6 +712,7 @@ RuleBasedNumberFormat::RuleBasedNumberFormat(const UnicodeString& description,
   , decimalFormatSymbols(NULL)
   , defaultInfinityRule(NULL)
   , defaultNaNRule(NULL)
+  , roundingMode(DecimalFormat::ERoundingMode::kRoundUnnecessary)
   , lenient(FALSE)
   , lenientParseRules(NULL)
   , localizations(NULL)
@@ -715,6 +737,7 @@ RuleBasedNumberFormat::RuleBasedNumberFormat(const UnicodeString& description,
   , decimalFormatSymbols(NULL)
   , defaultInfinityRule(NULL)
   , defaultNaNRule(NULL)
+  , roundingMode(DecimalFormat::ERoundingMode::kRoundUnnecessary)
   , lenient(FALSE)
   , lenientParseRules(NULL)
   , localizations(NULL)
@@ -738,6 +761,7 @@ RuleBasedNumberFormat::RuleBasedNumberFormat(const UnicodeString& description,
   , decimalFormatSymbols(NULL)
   , defaultInfinityRule(NULL)
   , defaultNaNRule(NULL)
+  , roundingMode(DecimalFormat::ERoundingMode::kRoundUnnecessary)
   , lenient(FALSE)
   , lenientParseRules(NULL)
   , localizations(NULL)
@@ -762,6 +786,7 @@ RuleBasedNumberFormat::RuleBasedNumberFormat(const UnicodeString& description,
   , decimalFormatSymbols(NULL)
   , defaultInfinityRule(NULL)
   , defaultNaNRule(NULL)
+  , roundingMode(DecimalFormat::ERoundingMode::kRoundUnnecessary)
   , lenient(FALSE)
   , lenientParseRules(NULL)
   , localizations(NULL)
@@ -783,6 +808,7 @@ RuleBasedNumberFormat::RuleBasedNumberFormat(URBNFRuleSetTag tag, const Locale& 
   , decimalFormatSymbols(NULL)
   , defaultInfinityRule(NULL)
   , defaultNaNRule(NULL)
+  , roundingMode(DecimalFormat::ERoundingMode::kRoundUnnecessary)
   , lenient(FALSE)
   , lenientParseRules(NULL)
   , localizations(NULL)
@@ -849,6 +875,7 @@ RuleBasedNumberFormat::RuleBasedNumberFormat(const RuleBasedNumberFormat& rhs)
   , decimalFormatSymbols(NULL)
   , defaultInfinityRule(NULL)
   , defaultNaNRule(NULL)
+  , roundingMode(DecimalFormat::ERoundingMode::kRoundUnnecessary)
   , lenient(FALSE)
   , lenientParseRules(NULL)
   , localizations(NULL)
@@ -878,6 +905,7 @@ RuleBasedNumberFormat::operator=(const RuleBasedNumberFormat& rhs)
     setDecimalFormatSymbols(*rhs.getDecimalFormatSymbols());
     init(rhs.originalDescription, rhs.localizations ? rhs.localizations->ref() : NULL, perror, status);
     setDefaultRuleSet(rhs.getDefaultRuleSetName(), status);
+    setRoundingMode(rhs.getRoundingMode());
 
     capitalizationInfoSet = rhs.capitalizationInfoSet;
     capitalizationForUIListMenu = rhs.capitalizationForUIListMenu;
@@ -1172,12 +1200,11 @@ RuleBasedNumberFormat::format(double number,
                               UnicodeString& toAppendTo,
                               FieldPosition& /* pos */) const
 {
-    int32_t startPos = toAppendTo.length();
     UErrorCode status = U_ZERO_ERROR;
     if (defaultRuleSet) {
-        defaultRuleSet->format(number, toAppendTo, toAppendTo.length(), 0, status);
+        format(number, *defaultRuleSet, toAppendTo, status);
     }
-    return adjustForCapitalizationContext(startPos, toAppendTo, status);
+    return toAppendTo;
 }
 
 
@@ -1228,13 +1255,29 @@ RuleBasedNumberFormat::format(double number,
         } else {
             NFRuleSet *rs = findRuleSet(ruleSetName, status);
             if (rs) {
-                int32_t startPos = toAppendTo.length();
-                rs->format(number, toAppendTo, toAppendTo.length(), 0, status);
-                adjustForCapitalizationContext(startPos, toAppendTo, status);
+                format(number, *rs, toAppendTo, status);
             }
         }
     }
     return toAppendTo;
+}
+
+void
+RuleBasedNumberFormat::format(double number,
+                              NFRuleSet& rs,
+                              UnicodeString& toAppendTo,
+                              UErrorCode& status) const
+{
+    int32_t startPos = toAppendTo.length();
+    if (getRoundingMode() != DecimalFormat::ERoundingMode::kRoundUnnecessary && !uprv_isNaN(number) && !uprv_isInfinite(number)) {
+        DigitList digitList;
+        digitList.set(number);
+        digitList.setRoundingMode(getRoundingMode());
+        digitList.roundFixedPoint(getMaximumFractionDigits());
+        number = digitList.getDouble();
+    }
+    rs.format(number, toAppendTo, toAppendTo.length(), 0, status);
+    adjustForCapitalizationContext(startPos, toAppendTo, status);
 }
 
 /**
@@ -1328,7 +1371,7 @@ RuleBasedNumberFormat::parse(const UnicodeString& text,
             ParsePosition working_pp(0);
             Formattable working_result;
 
-            rp->parse(workingText, working_pp, kMaxDouble, working_result);
+            rp->parse(workingText, working_pp, kMaxDouble, 0, working_result);
             if (working_pp.getIndex() > high_pp.getIndex()) {
                 high_pp = working_pp;
                 high_result = working_result;
@@ -1937,6 +1980,23 @@ RuleBasedNumberFormat::createPluralFormat(UPluralType pluralType,
                                           UErrorCode& status) const
 {
     return new PluralFormat(locale, pluralType, pattern, status);
+}
+
+/**
+ * Get the rounding mode.
+ * @return A rounding mode
+ */
+DecimalFormat::ERoundingMode RuleBasedNumberFormat::getRoundingMode() const {
+    return roundingMode;
+}
+
+/**
+ * Set the rounding mode.  This has no effect unless the rounding
+ * increment is greater than zero.
+ * @param roundingMode A rounding mode
+ */
+void RuleBasedNumberFormat::setRoundingMode(DecimalFormat::ERoundingMode roundingMode) {
+    this->roundingMode = roundingMode;
 }
 
 U_NAMESPACE_END

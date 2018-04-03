@@ -1,5 +1,8 @@
 'use strict';
 require('../common');
+
+// Test fs.readFile using a file descriptor.
+
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');

@@ -18,9 +18,7 @@ BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
       jsgraph_(js_graph),
       node_conditions_(zone, js_graph->graph()->NodeCount()),
       zone_(zone),
-      dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {
-  NodeProperties::SetType(dead_, Type::None());
-}
+      dead_(js_graph->Dead()) {}
 
 BranchElimination::~BranchElimination() {}
 
@@ -105,8 +103,9 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
       // with the {control} node that already contains the right information.
       ReplaceWithValue(node, dead(), effect, control);
     } else {
-      control = graph()->NewNode(common()->Deoptimize(p.kind(), p.reason()),
-                                 frame_state, effect, control);
+      control = graph()->NewNode(
+          common()->Deoptimize(p.kind(), p.reason(), VectorSlotPair()),
+          frame_state, effect, control);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), control);
       Revisit(graph()->end());
@@ -272,7 +271,7 @@ void BranchElimination::ControlPathConditions::Merge(
   // Then we go through both lists in lock-step until we find
   // the common tail.
   while (head_ != other_condition) {
-    DCHECK(condition_count_ > 0);
+    DCHECK_LT(0, condition_count_);
     condition_count_--;
     other_condition = other_condition->next;
     head_ = head_->next;

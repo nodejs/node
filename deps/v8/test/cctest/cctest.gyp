@@ -71,15 +71,17 @@
       'compiler/test-run-load-store.cc',
       'compiler/test-run-machops.cc',
       'compiler/test-run-native-calls.cc',
+      'compiler/test-run-retpoline.cc',
       'compiler/test-run-stackcheck.cc',
       'compiler/test-run-stubs.cc',
+      'compiler/test-run-tail-calls.cc',
       'compiler/test-run-variables.cc',
       'compiler/test-run-wasm-machops.cc',
+      'compiler/value-helper.cc',
       'compiler/value-helper.h',
       'cctest.cc',
       'cctest.h',
       'expression-type-collector-macros.h',
-      'ffi/test-ffi.cc',
       'gay-fixed.cc',
       'gay-fixed.h',
       'gay-precision.cc',
@@ -93,6 +95,7 @@
       'heap/test-array-buffer-tracker.cc',
       'heap/test-compaction.cc',
       'heap/test-concurrent-marking.cc',
+      'heap/test-embedder-tracing.cc',
       'heap/test-heap.cc',
       'heap/test-incremental-marking.cc',
       'heap/test-invalidated-slots.cc',
@@ -137,7 +140,6 @@
       'test-bignum-dtoa.cc',
       'test-bit-vector.cc',
       'test-circular-queue.cc',
-      'test-code-cache.cc',
       'test-code-layout.cc',
       'test-code-stub-assembler.cc',
       'test-compiler.cc',
@@ -168,7 +170,6 @@
       'test-identity-map.cc',
       'test-intl.cc',
       'test-inobject-slack-tracking.cc',
-      'test-list.cc',
       'test-liveedit.cc',
       'test-lockers.cc',
       'test-log.cc',
@@ -209,6 +210,7 @@
       'types-fuzz.h',
       'unicode-helpers.h',
       'wasm/test-c-wasm-entry.cc',
+      'wasm/test-streaming-compilation.cc',
       'wasm/test-run-wasm.cc',
       'wasm/test-run-wasm-64.cc',
       'wasm/test-run-wasm-asmjs.cc',
@@ -219,9 +221,11 @@
       'wasm/test-run-wasm-relocation.cc',
       'wasm/test-run-wasm-simd.cc',
       'wasm/test-wasm-breakpoints.cc',
+      "wasm/test-wasm-codegen.cc",
       'wasm/test-wasm-interpreter-entry.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
+      'wasm/wasm-run-utils.cc',
       'wasm/wasm-run-utils.h',
     ],
     'cctest_sources_ia32': [  ### gcmole(arch:ia32) ###
@@ -244,6 +248,8 @@
       'test-run-wasm-relocation-x64.cc',
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
+      'assembler-helper-arm.cc',
+      'assembler-helper-arm.h',
       'test-assembler-arm.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -251,7 +257,7 @@
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
       'test-run-wasm-relocation-arm.cc',
-      'test-simulator-arm.cc',
+      'test-sync-primitives-arm.cc',
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###
       'test-utils-arm64.cc',
@@ -265,7 +271,7 @@
       'test-javascript-arm64.cc',
       'test-js-arm64-variables.cc',
       'test-run-wasm-relocation-arm64.cc',
-      'test-simulator-arm64.cc',
+      'test-sync-primitives-arm64.cc',
     ],
     'cctest_sources_s390': [  ### gcmole(arch:s390) ###
       'test-assembler-s390.cc',
@@ -395,15 +401,7 @@
             '<@(cctest_sources_mips64el)',
           ],
         }],
-        [ 'OS=="linux" or OS=="qnx"', {
-          'sources': [
-            'test-platform-linux.cc',
-          ],
-        }],
         [ 'OS=="win"', {
-          'sources': [
-            'test-platform-win32.cc',
-          ],
           'msvs_settings': {
             'VCCLCompilerTool': {
               # MSVS wants this for gay-{precision,shortest}.cc.
@@ -432,7 +430,7 @@
           'dependencies': ['../../src/v8.gyp:v8'],
         }],
         ['v8_use_snapshot=="true"', {
-          'dependencies': ['../../src/v8.gyp:v8_builtins_generators'],
+          'dependencies': ['../../src/v8.gyp:v8_initializers'],
         }],
       ],
     },
@@ -447,6 +445,7 @@
            '../../tools/consarray.js',
            '../../tools/profile.js',
            '../../tools/profile_view.js',
+           '../../tools/arguments.js',
            '../../tools/logreader.js',
            'log-eq-of-logging-and-traversal.js',
         ],

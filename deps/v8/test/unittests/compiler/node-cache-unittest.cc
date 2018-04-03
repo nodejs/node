@@ -12,6 +12,7 @@ using testing::Contains;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace node_cache_unittest {
 
 typedef GraphTest NodeCacheTest;
 
@@ -154,6 +155,7 @@ TEST_F(NodeCacheTest, GetCachedNodes_int64) {
   }
 }
 
+}  // namespace node_cache_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

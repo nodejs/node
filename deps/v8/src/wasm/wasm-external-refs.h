@@ -59,7 +59,14 @@ uint32_t word32_popcnt_wrapper(uint32_t* input);
 
 uint32_t word64_popcnt_wrapper(uint64_t* input);
 
+uint32_t word32_rol_wrapper(uint32_t* input_p, uint32_t* shift_p);
+
+uint32_t word32_ror_wrapper(uint32_t* input_p, uint32_t* shift_p);
+
 void float64_pow_wrapper(double* param0, double* param1);
+
+void set_thread_in_wasm_flag();
+void clear_thread_in_wasm_flag();
 
 typedef void (*WasmTrapCallbackForTesting)();
 

@@ -78,7 +78,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
 }
 
 void TaskRunner::QuitMessageLoop() {
-  DCHECK(nested_loop_count_ > 0);
+  DCHECK_LT(0, nested_loop_count_);
   --nested_loop_count_;
 }
 

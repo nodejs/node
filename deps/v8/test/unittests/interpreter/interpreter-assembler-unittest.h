@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 namespace interpreter {
+namespace interpreter_assembler_unittest {
 
 using ::testing::Matcher;
 
@@ -65,6 +66,7 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
   };
 };
 
+}  // namespace interpreter_assembler_unittest
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

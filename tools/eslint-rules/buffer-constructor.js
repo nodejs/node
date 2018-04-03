@@ -10,16 +10,11 @@
 const msg = 'Use of the Buffer() constructor has been deprecated. ' +
             'Please use either Buffer.alloc(), Buffer.allocUnsafe(), ' +
             'or Buffer.from()';
-
-function test(context, node) {
-  if (node.callee.name === 'Buffer') {
-    context.report(node, msg);
-  }
-}
+const astSelector = 'NewExpression[callee.name="Buffer"],' +
+                    'CallExpression[callee.name="Buffer"]';
 
 module.exports = function(context) {
   return {
-    'NewExpression': (node) => test(context, node),
-    'CallExpression': (node) => test(context, node)
+    [astSelector]: (node) => context.report(node, msg)
   };
 };

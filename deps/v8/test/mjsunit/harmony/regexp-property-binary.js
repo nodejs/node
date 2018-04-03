@@ -71,8 +71,8 @@ f(/\p{Dia}/u, "1");
 t(/\p{Emoji}/u, "\u2603");
 f(/\p{Emoji}/u, "x");
 
-// t(/\p{Emoji_Component}/u, "\u2603");
-// f(/\p{Emoji_Component}/u, "x");
+t(/\p{Emoji_Component}/u, "\u{1F1E6}");
+f(/\p{Emoji_Component}/u, "x");
 
 t(/\p{Emoji_Modifier_Base}/u, "\u{1F6CC}");
 f(/\p{Emoji_Modifier_Base}/u, "x");
@@ -136,6 +136,9 @@ f(/\p{QMark}/u, "A");
 
 t(/\p{Radical}/u, "\u2FAD");
 f(/\p{Radical}/u, "A");
+
+t(/\p{Regional_Indicator}/u, "\u{1F1E6}");
+f(/\p{Regional_Indicator}/u, "A");
 
 t(/\p{Sentence_Terminal}/u, "!");
 f(/\p{STerm}/u, "A");

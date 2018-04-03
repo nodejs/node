@@ -9,16 +9,26 @@
 
 #include "unicode/utypes.h"
 #include "unicode/ucasemap.h"
+#include "unicode/uchar.h"
 #include "ucase.h"
 
-#ifndef U_COMPARE_IGNORE_CASE
-/* see also unorm.h */
 /**
- * Option bit for unorm_compare:
- * Perform case-insensitive comparison.
+ * Bit mask for the titlecasing iterator options bit field.
+ * Currently only 3 out of 8 values are used:
+ * 0 (words), U_TITLECASE_WHOLE_STRING, U_TITLECASE_SENTENCES.
+ * See stringoptions.h.
+ * @internal
  */
-#define U_COMPARE_IGNORE_CASE       0x10000
-#endif
+#define U_TITLECASE_ITERATOR_MASK 0xe0
+
+/**
+ * Bit mask for the titlecasing index adjustment options bit set.
+ * Currently two bits are defined:
+ * U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED.
+ * See stringoptions.h.
+ * @internal
+ */
+#define U_TITLECASE_ADJUSTMENT_MASK 0x600
 
 /**
  * Internal API, used by u_strcasecmp() etc.
@@ -32,7 +42,7 @@ u_strcmpFold(const UChar *s1, int32_t length1,
              UErrorCode *pErrorCode);
 
 /**
- * Interanl API, used for detecting length of
+ * Internal API, used for detecting length of
  * shared prefix case-insensitively.
  * @param s1            input string 1
  * @param length1       length of string 1, or -1 (NULL terminated)
@@ -50,16 +60,45 @@ u_caseInsensitivePrefixMatch(const UChar *s1, int32_t length1,
                              int32_t *matchLen1, int32_t *matchLen2,
                              UErrorCode *pErrorCode);
 
-/**
- * Are the Unicode properties loaded?
- * This must be used before internal functions are called that do
- * not perform this check.
- * Generate a debug assertion failure if data is not loaded.
- */
-U_CFUNC UBool
-uprv_haveProperties(UErrorCode *pErrorCode);
-
 #ifdef __cplusplus
+
+U_NAMESPACE_BEGIN
+
+class BreakIterator;        // unicode/brkiter.h
+class ByteSink;
+class Locale;               // unicode/locid.h
+
+/** Returns TRUE if the options are valid. Otherwise FALSE, and sets an error. */
+inline UBool ustrcase_checkTitleAdjustmentOptions(uint32_t options, UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return FALSE; }
+    if ((options & U_TITLECASE_ADJUSTMENT_MASK) == U_TITLECASE_ADJUSTMENT_MASK) {
+        // Both options together.
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return FALSE;
+    }
+    return TRUE;
+}
+
+inline UBool ustrcase_isLNS(UChar32 c) {
+    // Letter, number, symbol,
+    // or a private use code point because those are typically used as letters or numbers.
+    // Consider modifier letters only if they are cased.
+    const uint32_t LNS = (U_GC_L_MASK|U_GC_N_MASK|U_GC_S_MASK|U_GC_CO_MASK) & ~U_GC_LM_MASK;
+    int gc = u_charType(c);
+    return (U_MASK(gc) & LNS) != 0 || (gc == U_MODIFIER_LETTER && ucase_getType(c) != UCASE_NONE);
+}
+
+#if !UCONFIG_NO_BREAK_ITERATION
+
+/** Returns nullptr if error. Pass in either locale or locID, not both. */
+U_CFUNC
+BreakIterator *ustrcase_getTitleBreakIterator(
+        const Locale *locale, const char *locID, uint32_t options, BreakIterator *iter,
+        LocalPointer<BreakIterator> &ownedIter, UErrorCode &errorCode);
+
+#endif
+
+U_NAMESPACE_END
 
 #include "unicode/unistr.h"  // for UStringCaseMapper
 
@@ -163,39 +202,43 @@ ustrcase_mapWithOverlap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITE
  * UTF-8 version of UStringCaseMapper.
  * All error checking must be done.
  * The UCaseMap must be fully initialized, with locale and/or iter set as needed.
- * src and dest must not overlap.
  */
-typedef int32_t U_CALLCONV
+typedef void U_CALLCONV
 UTF8CaseMapper(int32_t caseLocale, uint32_t options,
 #if !UCONFIG_NO_BREAK_ITERATION
                icu::BreakIterator *iter,
 #endif
-               uint8_t *dest, int32_t destCapacity,
                const uint8_t *src, int32_t srcLength,
-               icu::Edits *edits,
+               icu::ByteSink &sink, icu::Edits *edits,
                UErrorCode &errorCode);
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
 /** Implements UTF8CaseMapper. */
-U_CFUNC int32_t U_CALLCONV
+U_CFUNC void U_CALLCONV
 ucasemap_internalUTF8ToTitle(int32_t caseLocale, uint32_t options,
         icu::BreakIterator *iter,
-        uint8_t *dest, int32_t destCapacity,
         const uint8_t *src, int32_t srcLength,
-        icu::Edits *edits,
+        icu::ByteSink &sink, icu::Edits *edits,
         UErrorCode &errorCode);
 
 #endif
+
+void
+ucasemap_mapUTF8(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
+                 const char *src, int32_t srcLength,
+                 UTF8CaseMapper *stringCaseMapper,
+                 icu::ByteSink &sink, icu::Edits *edits,
+                 UErrorCode &errorCode);
 
 /**
  * Implements argument checking and buffer handling
  * for UTF-8 string case mapping as a common function.
  */
-U_CFUNC int32_t
+int32_t
 ucasemap_mapUTF8(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_PARAM
-                 uint8_t *dest, int32_t destCapacity,
-                 const uint8_t *src, int32_t srcLength,
+                 char *dest, int32_t destCapacity,
+                 const char *src, int32_t srcLength,
                  UTF8CaseMapper *stringCaseMapper,
                  icu::Edits *edits,
                  UErrorCode &errorCode);

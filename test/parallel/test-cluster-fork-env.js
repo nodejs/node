@@ -21,13 +21,18 @@
 
 'use strict';
 require('../common');
+
+// This test checks that arguments provided to cluster.fork() will create
+// new environment variables and override existing environment variables
+// in the created worker process.
+
 const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isWorker) {
   const result = cluster.worker.send({
-    prop: process.env['cluster_test_prop'],
-    overwrite: process.env['cluster_test_overwrite']
+    prop: process.env.cluster_test_prop,
+    overwrite: process.env.cluster_test_overwrite
   });
 
   assert.strictEqual(result, true);
@@ -40,7 +45,7 @@ if (cluster.isWorker) {
 
   // To check that the cluster extend on the process.env we will overwrite a
   // property
-  process.env['cluster_test_overwrite'] = 'old';
+  process.env.cluster_test_overwrite = 'old';
 
   // Fork worker
   const worker = cluster.fork({

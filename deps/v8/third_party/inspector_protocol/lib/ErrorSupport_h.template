@@ -17,8 +17,10 @@ public:
     ~ErrorSupport();
 
     void push();
+    void setName(const char*);
     void setName(const String&);
     void pop();
+    void addError(const char*);
     void addError(const String&);
     bool hasErrors();
     String errors();

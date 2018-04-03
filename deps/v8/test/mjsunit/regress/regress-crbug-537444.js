@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --stress-inline
 
 "use strict";
 
@@ -19,8 +19,6 @@ function h(x) {
   return z + 1;
 }
 
-%SetForceInlineFlag(g);
-%SetForceInlineFlag(f);
 
 h(1);
 h(1);

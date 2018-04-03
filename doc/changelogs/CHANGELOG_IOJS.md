@@ -1,5 +1,8 @@
 # io.js ChangeLog
 
+<!--lint disable prohibited-strings-->
+<!--lint disable maximum-line-length-->
+
 <table>
 <tr>
 <th>v3</th>
@@ -60,6 +63,7 @@
 </table>
 
 * Other Versions
+  * [9.x](CHANGELOG_V9.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
@@ -2029,7 +2033,7 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
 
 ### Notable changes
 
-* **tls**: A typo introduced in the TLSWrap changes in [#840](https://github.com/nodejs/node/pull/840) only encountered as a bug on Windows was not caught by the io.js CI system due to problems with the Windows build script and the Windows CI slave configuration, see Known Issues below. Fixed in [#994](https://github.com/nodejs/node/pull/994) & [#1004](https://github.com/nodejs/node/pull/1004). (Fedor Indutny)
+* **tls**: A typo introduced in the TLSWrap changes in [#840](https://github.com/nodejs/node/pull/840) only encountered as a bug on Windows was not caught by the io.js CI system due to problems with the Windows build script and the Windows CI configuration, see Known Issues below. Fixed in [#994](https://github.com/nodejs/node/pull/994) & [#1004](https://github.com/nodejs/node/pull/1004). (Fedor Indutny)
 * **npm**: Upgrade npm to 2.6.1. See [npm CHANGELOG.md](https://github.com/npm/npm/blob/master/CHANGELOG.md#v260-2015-02-12) for details. Summary:
   * [`8b98f0e`](https://github.com/npm/npm/commit/8b98f0e709d77a8616c944aebd48ab726f726f76)
     [#4471](https://github.com/npm/npm/issues/4471) `npm outdated` (and only `npm
@@ -2551,7 +2555,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 <a id="1.0.1"></a>
 ## 2015-01-14, Version 1.0.1, @rvagg
 
-Rebuild due to stale build slave git reflogs for 1.0.0 release
+Rebuild due to stale build worker git reflogs for 1.0.0 release
 
 * doc: improve write style consistency (Rui Marinho)
 * win,msi: correct doc website link (Bert Belder)

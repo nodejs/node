@@ -11,7 +11,6 @@
 #include "src/conversions.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
-#include "src/list-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -171,7 +170,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
       }
 
       base::TimeDelta time_until_timeout = timeout_time - current_time;
-      DCHECK(time_until_timeout.InMicroseconds() >= 0);
+      DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
       bool wait_for_result =
           node->cond_.WaitFor(mutex_.Pointer(), time_until_timeout);
       USE(wait_for_result);

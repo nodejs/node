@@ -61,10 +61,7 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      # PORT should match the definition in test/common/index.js.
-      env = { 'PORT': int(os.getenv('NODE_COMMON_PORT', '12346')) }
-      env['PORT'] += self.thread_id * 100
-      flag = flags_match.group(1).strip().format(**env).split()
+      flag = flags_match.group(1).strip().split()
       # The following block reads config.gypi to extract the v8_enable_inspector
       # value. This is done to check if the inspector is disabled in which case
       # the '--inspect' flag cannot be passed to the node process as it will

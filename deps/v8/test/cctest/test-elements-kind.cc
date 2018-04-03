@@ -18,6 +18,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_elements_kind {
 
 //
 // Helper functions.
@@ -74,7 +75,8 @@ TEST(JSObjectAddingProperties) {
 
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->empty_string());
   Handle<Object> value(Smi::FromInt(42), isolate);
 
   Handle<JSObject> object = factory->NewJSObject(function);
@@ -103,7 +105,8 @@ TEST(JSObjectInObjectAddingProperties) {
 
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->empty_string());
   int nof_inobject_properties = 10;
   // force in object properties by changing the expected_nof_properties
   function->shared()->set_expected_nof_properties(nof_inobject_properties);
@@ -150,7 +153,8 @@ TEST(JSObjectAddingElements) {
   Handle<String> name;
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->empty_string());
   Handle<Object> value(Smi::FromInt(42), isolate);
 
   Handle<JSObject> object = factory->NewJSObject(function);
@@ -479,5 +483,6 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   CHECK_EQ(array->map(), *previous_map);
 }
 
+}  // namespace test_elements_kind
 }  // namespace internal
 }  // namespace v8

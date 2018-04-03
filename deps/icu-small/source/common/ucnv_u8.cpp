@@ -28,9 +28,11 @@
 #include "unicode/utf.h"
 #include "unicode/utf8.h"
 #include "unicode/utf16.h"
+#include "uassert.h"
 #include "ucnv_bld.h"
 #include "ucnv_cnv.h"
 #include "cmemory.h"
+#include "ustr_imp.h"
 
 /* Prototypes --------------------------------------------------------------- */
 
@@ -44,50 +46,12 @@ U_CFUNC void ucnv_fromUnicode_UTF8_OFFSETS_LOGIC(UConverterFromUnicodeArgs *args
 
 /* UTF-8 -------------------------------------------------------------------- */
 
-/* UTF-8 Conversion DATA
- *   for more information see Unicode Standard 2.0, Transformation Formats Appendix A-9
- */
-/*static const uint32_t REPLACEMENT_CHARACTER = 0x0000FFFD;*/
 #define MAXIMUM_UCS2            0x0000FFFF
-#define MAXIMUM_UTF             0x0010FFFF
-#define MAXIMUM_UCS4            0x7FFFFFFF
-#define HALF_SHIFT              10
-#define HALF_BASE               0x0010000
-#define HALF_MASK               0x3FF
-#define SURROGATE_HIGH_START    0xD800
-#define SURROGATE_HIGH_END      0xDBFF
-#define SURROGATE_LOW_START     0xDC00
-#define SURROGATE_LOW_END       0xDFFF
 
-/* -SURROGATE_LOW_START + HALF_BASE */
-#define SURROGATE_LOW_BASE      9216
-
-static const uint32_t offsetsFromUTF8[7] = {0,
+static const uint32_t offsetsFromUTF8[5] = {0,
   (uint32_t) 0x00000000, (uint32_t) 0x00003080, (uint32_t) 0x000E2080,
-  (uint32_t) 0x03C82080, (uint32_t) 0xFA082080, (uint32_t) 0x82082080
+  (uint32_t) 0x03C82080
 };
-
-/* END OF UTF-8 Conversion DATA */
-
-static const int8_t bytesFromUTF8[256] = {
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 0, 0
-};
-
-/*
- * Starting with Unicode 3.0.1:
- * UTF-8 byte sequences of length N _must_ encode code points of or above utf8_minChar32[N];
- * byte sequences with more than 4 bytes are illegal in UTF-8,
- * which is tested with impossible values for them
- */
-static const uint32_t
-utf8_minChar32[7]={ 0, 0, 0x80, 0x800, 0x10000, 0xffffffff, 0xffffffff };
 
 static UBool hasCESU8Data(const UConverter *cnv)
 {
@@ -112,7 +76,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8 (UConverterToUnicodeArgs * args,
     int32_t i, inBytes;
 
     /* Restore size of current sequence */
-    if (cnv->toUnicodeStatus && myTarget < targetLimit)
+    if (cnv->toULength > 0 && myTarget < targetLimit)
     {
         inBytes = cnv->mode;            /* restore # of bytes to consume */
         i = cnv->toULength;             /* restore # of bytes consumed */
@@ -127,7 +91,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8 (UConverterToUnicodeArgs * args,
     while (mySource < sourceLimit && myTarget < targetLimit)
     {
         ch = *(mySource++);
-        if (ch < 0x80)        /* Simple case */
+        if (U8_IS_SINGLE(ch))        /* Simple case */
         {
             *(myTarget++) = (UChar) ch;
         }
@@ -135,7 +99,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8 (UConverterToUnicodeArgs * args,
         {
             /* store the first char */
             toUBytes[0] = (char)ch;
-            inBytes = bytesFromUTF8[ch]; /* lookup current sequence length */
+            inBytes = U8_COUNT_BYTES_NON_ASCII(ch); /* lookup current sequence length */
             i = 1;
 
 morebytes:
@@ -144,7 +108,8 @@ morebytes:
                 if (mySource < sourceLimit)
                 {
                     toUBytes[i] = (char) (ch2 = *mySource);
-                    if (!U8_IS_TRAIL(ch2))
+                    if (!icu::UTF8::isValidTrail(ch, ch2, i, inBytes) &&
+                            !(isCESU8 && i == 1 && ch == 0xed && U8_IS_TRAIL(ch2)))
                     {
                         break; /* i < inBytes */
                     }
@@ -162,24 +127,12 @@ morebytes:
                 }
             }
 
-            /* Remove the accumulated high bits */
-            ch -= offsetsFromUTF8[inBytes];
-
-            /*
-             * Legal UTF-8 byte sequences in Unicode 3.0.1 and up:
-             * - use only trail bytes after a lead byte (checked above)
-             * - use the right number of trail bytes for a given lead byte
-             * - encode a code point <= U+10ffff
-             * - use the fewest possible number of bytes for their code points
-             * - use at most 4 bytes (for i>=5 it is 0x10ffff<utf8_minChar32[])
-             *
-             * Starting with Unicode 3.2, surrogate code points must not be encoded in UTF-8.
-             * There are no irregular sequences any more.
-             * In CESU-8, only surrogates, not supplementary code points, are encoded directly.
-             */
-            if (i == inBytes && ch <= MAXIMUM_UTF && ch >= utf8_minChar32[i] &&
-                (isCESU8 ? i <= 3 : !U_IS_SURROGATE(ch)))
+            // In CESU-8, only surrogates, not supplementary code points, are encoded directly.
+            if (i == inBytes && (!isCESU8 || i <= 3))
             {
+                /* Remove the accumulated high bits */
+                ch -= offsetsFromUTF8[inBytes];
+
                 /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
                 if (ch <= MAXIMUM_UCS2)
                 {
@@ -189,9 +142,8 @@ morebytes:
                 else
                 {
                     /* write out the surrogates */
-                    ch -= HALF_BASE;
-                    *(myTarget++) = (UChar) ((ch >> HALF_SHIFT) + SURROGATE_HIGH_START);
-                    ch = (ch & HALF_MASK) + SURROGATE_LOW_START;
+                    *(myTarget++) = U16_LEAD(ch);
+                    ch = U16_TRAIL(ch);
                     if (myTarget < targetLimit)
                     {
                         *(myTarget++) = (UChar)ch;
@@ -242,7 +194,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8_OFFSETS_LOGIC (UConverterToUnicodeAr
     int32_t i, inBytes;
 
     /* Restore size of current sequence */
-    if (cnv->toUnicodeStatus && myTarget < targetLimit)
+    if (cnv->toULength > 0 && myTarget < targetLimit)
     {
         inBytes = cnv->mode;            /* restore # of bytes to consume */
         i = cnv->toULength;             /* restore # of bytes consumed */
@@ -256,7 +208,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8_OFFSETS_LOGIC (UConverterToUnicodeAr
     while (mySource < sourceLimit && myTarget < targetLimit)
     {
         ch = *(mySource++);
-        if (ch < 0x80)        /* Simple case */
+        if (U8_IS_SINGLE(ch))        /* Simple case */
         {
             *(myTarget++) = (UChar) ch;
             *(myOffsets++) = offsetNum++;
@@ -264,7 +216,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8_OFFSETS_LOGIC (UConverterToUnicodeAr
         else
         {
             toUBytes[0] = (char)ch;
-            inBytes = bytesFromUTF8[ch];
+            inBytes = U8_COUNT_BYTES_NON_ASCII(ch);
             i = 1;
 
 morebytes:
@@ -273,7 +225,8 @@ morebytes:
                 if (mySource < sourceLimit)
                 {
                     toUBytes[i] = (char) (ch2 = *mySource);
-                    if (!U8_IS_TRAIL(ch2))
+                    if (!icu::UTF8::isValidTrail(ch, ch2, i, inBytes) &&
+                            !(isCESU8 && i == 1 && ch == 0xed && U8_IS_TRAIL(ch2)))
                     {
                         break; /* i < inBytes */
                     }
@@ -290,24 +243,12 @@ morebytes:
                 }
             }
 
-            /* Remove the accumulated high bits */
-            ch -= offsetsFromUTF8[inBytes];
-
-            /*
-             * Legal UTF-8 byte sequences in Unicode 3.0.1 and up:
-             * - use only trail bytes after a lead byte (checked above)
-             * - use the right number of trail bytes for a given lead byte
-             * - encode a code point <= U+10ffff
-             * - use the fewest possible number of bytes for their code points
-             * - use at most 4 bytes (for i>=5 it is 0x10ffff<utf8_minChar32[])
-             *
-             * Starting with Unicode 3.2, surrogate code points must not be encoded in UTF-8.
-             * There are no irregular sequences any more.
-             * In CESU-8, only surrogates, not supplementary code points, are encoded directly.
-             */
-            if (i == inBytes && ch <= MAXIMUM_UTF && ch >= utf8_minChar32[i] &&
-                (isCESU8 ? i <= 3 : !U_IS_SURROGATE(ch)))
+            // In CESU-8, only surrogates, not supplementary code points, are encoded directly.
+            if (i == inBytes && (!isCESU8 || i <= 3))
             {
+                /* Remove the accumulated high bits */
+                ch -= offsetsFromUTF8[inBytes];
+
                 /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
                 if (ch <= MAXIMUM_UCS2)
                 {
@@ -318,10 +259,9 @@ morebytes:
                 else
                 {
                     /* write out the surrogates */
-                    ch -= HALF_BASE;
-                    *(myTarget++) = (UChar) ((ch >> HALF_SHIFT) + SURROGATE_HIGH_START);
+                    *(myTarget++) = U16_LEAD(ch);
                     *(myOffsets++) = offsetNum;
-                    ch = (ch & HALF_MASK) + SURROGATE_LOW_START;
+                    ch = U16_TRAIL(ch);
                     if (myTarget < targetLimit)
                     {
                         *(myTarget++) = (UChar)ch;
@@ -616,10 +556,9 @@ static UChar32 U_CALLCONV ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
     UConverter *cnv;
     const uint8_t *sourceInitial;
     const uint8_t *source;
-    uint16_t extraBytesToWrite;
     uint8_t myByte;
     UChar32 ch;
-    int8_t i, isLegalSequence;
+    int8_t i;
 
     /* UTF-8 only here, the framework handles CESU-8 to combine surrogate pairs */
 
@@ -633,14 +572,14 @@ static UChar32 U_CALLCONV ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
     }
 
     myByte = (uint8_t)*(source++);
-    if (myByte < 0x80)
+    if (U8_IS_SINGLE(myByte))
     {
         args->source = (const char *)source;
         return (UChar32)myByte;
     }
 
-    extraBytesToWrite = (uint16_t)bytesFromUTF8[myByte];
-    if (extraBytesToWrite == 0) {
+    uint16_t countTrailBytes = U8_COUNT_TRAIL_BYTES(myByte);
+    if (countTrailBytes == 0) {
         cnv->toUBytes[0] = myByte;
         cnv->toULength = 1;
         *err = U_ILLEGAL_CHAR_FOUND;
@@ -649,15 +588,17 @@ static UChar32 U_CALLCONV ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
     }
 
     /*The byte sequence is longer than the buffer area passed*/
-    if (((const char *)source + extraBytesToWrite - 1) > args->sourceLimit)
+    if (((const char *)source + countTrailBytes) > args->sourceLimit)
     {
         /* check if all of the remaining bytes are trail bytes */
+        uint16_t extraBytesToWrite = countTrailBytes + 1;
         cnv->toUBytes[0] = myByte;
         i = 1;
         *err = U_TRUNCATED_CHAR_FOUND;
         while(source < (const uint8_t *)args->sourceLimit) {
-            if(U8_IS_TRAIL(myByte = *source)) {
-                cnv->toUBytes[i++] = myByte;
+            uint8_t b = *source;
+            if(icu::UTF8::isValidTrail(myByte, b, i, extraBytesToWrite)) {
+                cnv->toUBytes[i++] = b;
                 ++source;
             } else {
                 /* error even before we run out of input */
@@ -670,81 +611,28 @@ static UChar32 U_CALLCONV ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
         return 0xffff;
     }
 
-    isLegalSequence = 1;
     ch = myByte << 6;
-    switch(extraBytesToWrite)
-    {
-      /* note: code falls through cases! (sic)*/
-    case 6:
-        ch += (myByte = *source);
-        ch <<= 6;
-        if (!U8_IS_TRAIL(myByte))
-        {
-            isLegalSequence = 0;
-            break;
+    if(countTrailBytes == 2) {
+        uint8_t t1 = *source, t2;
+        if(U8_IS_VALID_LEAD3_AND_T1(myByte, t1) && U8_IS_TRAIL(t2 = *++source)) {
+            args->source = (const char *)(source + 1);
+            return (((ch + t1) << 6) + t2) - offsetsFromUTF8[3];
         }
-        ++source;
-        U_FALLTHROUGH;
-    case 5:
-        ch += (myByte = *source);
-        ch <<= 6;
-        if (!U8_IS_TRAIL(myByte))
-        {
-            isLegalSequence = 0;
-            break;
+    } else if(countTrailBytes == 1) {
+        uint8_t t1 = *source;
+        if(U8_IS_TRAIL(t1)) {
+            args->source = (const char *)(source + 1);
+            return (ch + t1) - offsetsFromUTF8[2];
         }
-        ++source;
-        U_FALLTHROUGH;
-    case 4:
-        ch += (myByte = *source);
-        ch <<= 6;
-        if (!U8_IS_TRAIL(myByte))
-        {
-            isLegalSequence = 0;
-            break;
+    } else {  // countTrailBytes == 3
+        uint8_t t1 = *source, t2, t3;
+        if(U8_IS_VALID_LEAD4_AND_T1(myByte, t1) && U8_IS_TRAIL(t2 = *++source) &&
+                U8_IS_TRAIL(t3 = *++source)) {
+            args->source = (const char *)(source + 1);
+            return (((((ch + t1) << 6) + t2) << 6) + t3) - offsetsFromUTF8[4];
         }
-        ++source;
-        U_FALLTHROUGH;
-    case 3:
-        ch += (myByte = *source);
-        ch <<= 6;
-        if (!U8_IS_TRAIL(myByte))
-        {
-            isLegalSequence = 0;
-            break;
-        }
-        ++source;
-        U_FALLTHROUGH;
-    case 2:
-        ch += (myByte = *source);
-        if (!U8_IS_TRAIL(myByte))
-        {
-            isLegalSequence = 0;
-            break;
-        }
-        ++source;
-    };
-    ch -= offsetsFromUTF8[extraBytesToWrite];
-    args->source = (const char *)source;
-
-    /*
-     * Legal UTF-8 byte sequences in Unicode 3.0.1 and up:
-     * - use only trail bytes after a lead byte (checked above)
-     * - use the right number of trail bytes for a given lead byte
-     * - encode a code point <= U+10ffff
-     * - use the fewest possible number of bytes for their code points
-     * - use at most 4 bytes (for i>=5 it is 0x10ffff<utf8_minChar32[])
-     *
-     * Starting with Unicode 3.2, surrogate code points must not be encoded in UTF-8.
-     * There are no irregular sequences any more.
-     */
-    if (isLegalSequence &&
-        (uint32_t)ch <= MAXIMUM_UTF &&
-        (uint32_t)ch >= utf8_minChar32[extraBytesToWrite] &&
-        !U_IS_SURROGATE(ch)
-    ) {
-        return ch; /* return the code point */
     }
+    args->source = (const char *)source;
 
     for(i = 0; sourceInitial < source; ++i) {
         cnv->toUBytes[i] = *sourceInitial++;
@@ -756,14 +644,6 @@ static UChar32 U_CALLCONV ucnv_getNextUChar_UTF8(UConverterToUnicodeArgs *args,
 U_CDECL_END
 
 /* UTF-8-from-UTF-8 conversion functions ------------------------------------ */
-
-/* minimum code point values for n-byte UTF-8 sequences, n=0..4 */
-static const UChar32
-utf8_minLegal[5]={ 0, 0, 0x80, 0x800, 0x10000 };
-
-/* offsets for n-byte UTF-8 sequences that were calculated with ((lead<<6)+trail)<<6+trail... */
-static const UChar32
-utf8_offsets[7]={ 0, 0, 0x3080, 0xE2080, 0x3C82080 };
 
 U_CDECL_BEGIN
 /* "Convert" UTF-8 to UTF-8: Validate and copy. Modified from ucnv_DBCSFromUTF8(). */
@@ -790,12 +670,13 @@ ucnv_UTF8FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     targetCapacity=(int32_t)(pFromUArgs->targetLimit-pFromUArgs->target);
 
     /* get the converter state from the UTF-8 UConverter */
-    c=(UChar32)utf8->toUnicodeStatus;
-    if(c!=0) {
+    if(utf8->toULength > 0) {
         toULength=oldToULength=utf8->toULength;
         toULimit=(int8_t)utf8->mode;
+        c=(UChar32)utf8->toUnicodeStatus;
     } else {
         toULength=oldToULength=toULimit=0;
+        c = 0;
     }
 
     count=(int32_t)(sourceLimit-source)+oldToULength;
@@ -812,41 +693,23 @@ ucnv_UTF8FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
         *pErrorCode=U_USING_DEFAULT_WARNING;
         return;
     } else {
-        /*
-         * Use a single counter for source and target, counting the minimum of
-         * the source length and the target capacity.
-         * As a result, the source length is checked only once per multi-byte
-         * character instead of twice.
-         *
-         * Make sure that the last byte sequence is complete, or else
-         * stop just before it.
-         * (The longest legal byte sequence has 3 trail bytes.)
-         * Count oldToULength (number of source bytes from a previous buffer)
-         * into the source length but reduce the source index by toULimit
-         * while going back over trail bytes in order to not go back into
-         * the bytes that will be read for finishing a partial
-         * sequence from the previous buffer.
-         * Let the standard converter handle edge cases.
-         */
-        int32_t i;
-
+        // Use a single counter for source and target, counting the minimum of
+        // the source length and the target capacity.
+        // Let the standard converter handle edge cases.
         if(count>targetCapacity) {
             count=targetCapacity;
         }
 
-        i=0;
-        while(i<3 && i<(count-toULimit)) {
-            b=source[count-oldToULength-i-1];
-            if(U8_IS_TRAIL(b)) {
-                ++i;
-            } else {
-                if(i<U8_COUNT_TRAIL_BYTES(b)) {
-                    /* stop converting before the lead byte if there are not enough trail bytes for it */
-                    count-=i+1;
-                }
-                break;
-            }
-        }
+        // The conversion loop checks count>0 only once per character.
+        // If the buffer ends with a truncated sequence,
+        // then we reduce the count to stop before that,
+        // and collect the remaining bytes after the conversion loop.
+
+        // Do not go back into the bytes that will be read for finishing a partial
+        // sequence from the previous buffer.
+        int32_t length=count-toULimit;
+        U8_TRUNCATE_IF_INCOMPLETE(source, 0, length);
+        count=toULimit+length;
     }
 
     if(c!=0) {
@@ -859,17 +722,17 @@ ucnv_UTF8FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     /* conversion loop */
     while(count>0) {
         b=*source++;
-        if((int8_t)b>=0) {
+        if(U8_IS_SINGLE(b)) {
             /* convert ASCII */
             *target++=b;
             --count;
             continue;
         } else {
-            if(b>0xe0) {
-                if( /* handle U+1000..U+D7FF inline */
-                    (t1=source[0]) >= 0x80 && ((b<0xed && (t1 <= 0xbf)) ||
-                                               (b==0xed && (t1 <= 0x9f))) &&
-                    (t2=source[1]) >= 0x80 && t2 <= 0xbf
+            if(b>=0xe0) {
+                if( /* handle U+0800..U+FFFF inline */
+                    b<0xf0 &&
+                    U8_IS_VALID_LEAD3_AND_T1(b, t1=source[0]) &&
+                    U8_IS_TRAIL(t2=source[1])
                 ) {
                     source+=2;
                     *target++=b;
@@ -878,10 +741,10 @@ ucnv_UTF8FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                     count-=3;
                     continue;
                 }
-            } else if(b<0xe0) {
+            } else {
                 if( /* handle U+0080..U+07FF inline */
                     b>=0xc2 &&
-                    (t1=*source) >= 0x80 && t1 <= 0xbf
+                    U8_IS_TRAIL(t1=*source)
                 ) {
                     ++source;
                     *target++=b;
@@ -889,30 +752,18 @@ ucnv_UTF8FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                     count-=2;
                     continue;
                 }
-            } else if(b==0xe0) {
-                if( /* handle U+0800..U+0FFF inline */
-                    (t1=source[0]) >= 0xa0 && t1 <= 0xbf &&
-                    (t2=source[1]) >= 0x80 && t2 <= 0xbf
-                ) {
-                    source+=2;
-                    *target++=b;
-                    *target++=t1;
-                    *target++=t2;
-                    count-=3;
-                    continue;
-                }
             }
 
             /* handle "complicated" and error cases, and continuing partial characters */
             oldToULength=0;
             toULength=1;
-            toULimit=U8_COUNT_TRAIL_BYTES(b)+1;
+            toULimit=U8_COUNT_BYTES_NON_ASCII(b);
             c=b;
 moreBytes:
             while(toULength<toULimit) {
                 if(source<sourceLimit) {
                     b=*source;
-                    if(U8_IS_TRAIL(b)) {
+                    if(icu::UTF8::isValidTrail(c, b, toULength, toULimit)) {
                         ++source;
                         ++toULength;
                         c=(c<<6)+b;
@@ -934,18 +785,7 @@ moreBytes:
                 }
             }
 
-            if( toULength==toULimit &&      /* consumed all trail bytes */
-                (toULength==3 || toULength==2) &&             /* BMP */
-                (c-=utf8_offsets[toULength])>=utf8_minLegal[toULength] &&
-                (c<=0xd7ff || 0xe000<=c)    /* not a surrogate */
-            ) {
-                /* legal byte sequence for BMP code point */
-            } else if(
-                toULength==toULimit && toULength==4 &&
-                (0x10000<=(c-=utf8_offsets[4]) && c<=0x10ffff)
-            ) {
-                /* legal byte sequence for supplementary code point */
-            } else {
+            if(toULength!=toULimit) {
                 /* error handling: illegal UTF-8 byte sequence */
                 source-=(toULength-oldToULength);
                 while(oldToULength<toULength) {
@@ -973,13 +813,14 @@ moreBytes:
             }
         }
     }
+    U_ASSERT(count>=0);
 
     if(U_SUCCESS(*pErrorCode) && source<sourceLimit) {
         if(target==(const uint8_t *)pFromUArgs->targetLimit) {
             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
         } else {
             b=*source;
-            toULimit=U8_COUNT_TRAIL_BYTES(b)+1;
+            toULimit=U8_COUNT_BYTES(b);
             if(toULimit>(sourceLimit-source)) {
                 /* collect a truncated byte sequence */
                 toULength=0;
@@ -992,8 +833,7 @@ moreBytes:
                         utf8->toULength=toULength;
                         utf8->mode=toULimit;
                         break;
-                    } else if(!U8_IS_TRAIL(b=*source)) {
-                        /* lead byte in trail byte position */
+                    } else if(!icu::UTF8::isValidTrail(c, b=*source, toULength, toULimit)) {
                         utf8->toULength=toULength;
                         *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                         break;

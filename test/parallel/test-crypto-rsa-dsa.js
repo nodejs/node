@@ -153,10 +153,8 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 // Test RSA key signing/verification with encrypted key
 rsaSign = crypto.createSign('SHA1');
 rsaSign.update(rsaPubPem);
-assert.doesNotThrow(() => {
-  const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
-  rsaSignature = rsaSign.sign(signOptions, 'hex');
-});
+const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
+rsaSignature = rsaSign.sign(signOptions, 'hex');
 assert.strictEqual(rsaSignature, expectedSignature);
 
 rsaVerify = crypto.createVerify('SHA1');
@@ -258,12 +256,8 @@ const input = 'I AM THE WALRUS';
   // against
   const sign = crypto.createSign('SHA1');
   sign.update(input);
-
-  let signature;
-  assert.doesNotThrow(() => {
-    const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
-    signature = sign.sign(signOptions, 'hex');
-  });
+  const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
+  const signature = sign.sign(signOptions, 'hex');
 
   const verify = crypto.createVerify('SHA1');
   verify.update(input);

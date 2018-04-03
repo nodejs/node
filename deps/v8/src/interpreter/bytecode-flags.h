@@ -54,6 +54,7 @@ class CreateClosureFlags {
   V(String, string)            \
   V(Symbol, symbol)            \
   V(Boolean, boolean)          \
+  V(BigInt, bigint)            \
   V(Undefined, undefined)      \
   V(Function, function)        \
   V(Object, object)            \
@@ -78,9 +79,10 @@ class TestTypeOfFlags {
 
 class StoreLookupSlotFlags {
  public:
-  class LanguageModeBit : public BitField8<bool, 0, 1> {};
+  class LanguageModeBit : public BitField8<LanguageMode, 0, 1> {};
   class LookupHoistingModeBit
       : public BitField8<bool, LanguageModeBit::kNext, 1> {};
+  STATIC_ASSERT(LanguageModeSize <= LanguageModeBit::kNumValues);
 
   static uint8_t Encode(LanguageMode language_mode,
                         LookupHoistingMode lookup_hoisting_mode);

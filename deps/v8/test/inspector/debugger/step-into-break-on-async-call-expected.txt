@@ -1,0 +1,13 @@
+Test for Debugger.stepInto with breakOnAsyncCall.
+
+Running test: testSetTimeout
+(anonymous) (test.js:0:0)
+asyncCallStackTraceId is set
+setTimeout (test.js:0:11)
+asyncCallStackTraceId is empty
+
+Running test: testPromiseThen
+(anonymous) (test.js:0:2)
+asyncCallStackTraceId is set
+p.then (test.js:0:7)
+asyncCallStackTraceId is empty

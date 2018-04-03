@@ -4,6 +4,8 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <vector>
+
 #include "src/arguments.h"
 #include "src/compiler.h"
 #include "src/debug/debug-coverage.h"
@@ -19,17 +21,23 @@
 #include "src/isolate-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/snapshot/snapshot.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
+  using interpreter::Bytecode;
+  using interpreter::Bytecodes;
+  using interpreter::OperandScale;
+
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   HandleScope scope(isolate);
+  // Return value can be changed by debugger. Last set value will be used as
+  // return value.
   ReturnValueScope result_scope(isolate->debug());
   isolate->debug()->set_return_value(*value);
 
@@ -44,16 +52,22 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SharedFunctionInfo* shared = interpreted_frame->function()->shared();
   BytecodeArray* bytecode_array = shared->bytecode_array();
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
-  interpreter::Bytecode bytecode =
-      interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
-  if (bytecode == interpreter::Bytecode::kReturn) {
+  Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
+  if (bytecode == Bytecode::kReturn) {
     // If we are returning, reset the bytecode array on the interpreted stack
     // frame to the non-debug variant so that the interpreter entry trampoline
     // sees the return bytecode rather than the DebugBreak.
     interpreted_frame->PatchBytecodeArray(bytecode_array);
   }
-  return isolate->interpreter()->GetBytecodeHandler(
-      bytecode, interpreter::OperandScale::kSingle);
+
+  // We do not have to deal with operand scale here. If the bytecode at the
+  // break is prefixed by operand scaling, we would have patched over the
+  // scaling prefix. We now simply dispatch to the handler for the prefix.
+  OperandScale operand_scale = OperandScale::kSingle;
+  Code* code = isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(
+      bytecode, operand_scale);
+
+  return MakePair(isolate->debug()->return_value(), code);
 }
 
 
@@ -95,9 +109,8 @@ RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   return isolate->heap()->undefined_value();
 }
 
-
 static Handle<Object> DebugGetProperty(LookupIterator* it,
-                                       bool* has_caught = NULL) {
+                                       bool* has_caught = nullptr) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
@@ -121,7 +134,7 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
         if (!maybe_result.ToHandle(&result)) {
           result = handle(it->isolate()->pending_exception(), it->isolate());
           it->isolate()->clear_pending_exception();
-          if (has_caught != NULL) *has_caught = true;
+          if (has_caught != nullptr) *has_caught = true;
         }
         return result;
       }
@@ -139,7 +152,7 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
     Isolate* isolate, Handle<IteratorType> object) {
   Factory* factory = isolate->factory();
   Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
-  const char* kind = NULL;
+  const char* kind = nullptr;
   switch (iterator->map()->instance_type()) {
     case JS_MAP_KEY_ITERATOR_TYPE:
       kind = "keys";
@@ -434,7 +447,6 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
   }
 
   std::vector<FrameSummary> frames;
-  frames.reserve(FLAG_max_inlining_levels + 1);
   for (StackTraceFrameIterator it(isolate, id); !it.done(); it.Advance()) {
     frames.clear();
     it.frame()->Summarize(&frames);
@@ -586,13 +598,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     }
   }
 
-  List<Handle<Object>> locals;
+  std::vector<Handle<Object>> locals;
   // Fill in the values of the locals.
   int i = 0;
   for (; i < scope_info->StackLocalCount(); ++i) {
     // Use the value from the stack.
     if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(i))) continue;
-    locals.Add(Handle<String>(scope_info->LocalName(i), isolate));
+    locals.emplace_back(scope_info->LocalName(i), isolate);
     Handle<Object> value =
         frame_inspector.GetExpression(scope_info->StackLocalIndex(i));
     // TODO(yangguo): We convert optimized out values to {undefined} when they
@@ -600,9 +612,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     if (value->IsOptimizedOut(isolate)) {
       value = isolate->factory()->undefined_value();
     }
-    locals.Add(value);
+    locals.push_back(value);
   }
-  if (locals.length() < local_count * 2) {
+  if (static_cast<int>(locals.size()) < local_count * 2) {
     // Get the context containing declarations.
     DCHECK(maybe_context->IsContext());
     Handle<Context> context(Context::cast(*maybe_context)->closure_context());
@@ -613,11 +625,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
       VariableMode mode;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      locals.Add(name);
+      locals.push_back(name);
       int context_slot_index = ScopeInfo::ContextSlotIndex(
           scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
       Object* value = context->get(context_slot_index);
-      locals.Add(Handle<Object>(value, isolate));
+      locals.emplace_back(value, isolate);
     }
   }
 
@@ -641,7 +653,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // information (except for what is collected above) is the same.
   if ((inlined_frame_index == 0) &&
       it.javascript_frame()->has_adapted_arguments()) {
-    it.AdvanceToArgumentsFrame();
+    it.AdvanceOneFrame();
+    DCHECK(it.frame()->is_arguments_adaptor());
     frame_inspector.SetArgumentsFrame(it.frame());
   }
 
@@ -849,17 +862,18 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   }
 
   FrameInspector frame_inspector(frame, inlined_frame_index, isolate);
-  List<Handle<JSObject>> result(4);
+  std::vector<Handle<JSObject>> result;
   ScopeIterator it(isolate, &frame_inspector, option);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
                                        it.MaterializeScopeDetails());
-    result.Add(details);
+    result.push_back(details);
   }
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(result.length());
-  for (int i = 0; i < result.length(); ++i) {
+  int result_size = static_cast<int>(result.size());
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(result_size);
+  for (int i = 0; i < result_size; ++i) {
     array->set(i, *result[i]);
   }
   return *isolate->factory()->NewJSArrayWithElements(array);
@@ -1028,12 +1042,13 @@ RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
 
 #ifdef DEBUG
   // Print the scopes for the top frame.
-  StackFrameLocator locator(isolate);
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  FrameInspector frame_inspector(frame, 0, isolate);
-
-  for (ScopeIterator it(isolate, &frame_inspector); !it.Done(); it.Next()) {
-    it.DebugPrint();
+  JavaScriptFrameIterator it(isolate);
+  if (!it.done()) {
+    JavaScriptFrame* frame = it.frame();
+    FrameInspector frame_inspector(frame, 0, isolate);
+    for (ScopeIterator si(isolate, &frame_inspector); !si.Done(); si.Next()) {
+      si.DebugPrint();
+    }
   }
 #endif
   return isolate->heap()->undefined_value();
@@ -1102,7 +1117,7 @@ RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
-  CHECK(source_position >= 0);
+  CHECK_GE(source_position, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 2);
 
   // Get the script from the script wrapper.
@@ -1296,9 +1311,9 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
   CHECK(filter->IsUndefined(isolate) || filter->IsJSObject());
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
-  CHECK(max_references >= 0);
+  CHECK_GE(max_references, 0);
 
-  List<Handle<JSObject> > instances;
+  std::vector<Handle<JSObject>> instances;
   Heap* heap = isolate->heap();
   {
     HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
@@ -1320,8 +1335,8 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
       if (obj->IsJSGlobalObject()) {
         obj = JSGlobalObject::cast(obj)->global_proxy();
       }
-      instances.Add(Handle<JSObject>(obj));
-      if (instances.length() == max_references) break;
+      instances.emplace_back(obj);
+      if (static_cast<int32_t>(instances.size()) == max_references) break;
     }
     // Iterate the rest of the heap to satisfy HeapIterator constraints.
     while (iterator.next()) {
@@ -1329,15 +1344,16 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   }
 
   Handle<FixedArray> result;
-  if (instances.length() == 1 && instances.last().is_identical_to(target)) {
+  if (instances.size() == 1 && instances.back().is_identical_to(target)) {
     // Check for circular reference only. This can happen when the object is
     // only referenced from mirrors and has a circular reference in which case
     // the object is not really alive and would have been garbage collected if
     // not referenced from the mirror.
     result = isolate->factory()->empty_fixed_array();
   } else {
-    result = isolate->factory()->NewFixedArray(instances.length());
-    for (int i = 0; i < instances.length(); ++i) result->set(i, *instances[i]);
+    int instances_size = static_cast<int>(instances.size());
+    result = isolate->factory()->NewFixedArray(instances_size);
+    for (int i = 0; i < instances_size; ++i) result->set(i, *instances[i]);
   }
   return *isolate->factory()->NewJSArrayWithElements(result);
 }
@@ -1351,9 +1367,9 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
-  CHECK(max_references >= 0);
+  CHECK_GE(max_references, 0);
 
-  List<Handle<JSObject> > instances;
+  std::vector<Handle<JSObject>> instances;
   Heap* heap = isolate->heap();
   {
     HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
@@ -1362,17 +1378,17 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->map()->GetConstructor() != *constructor) continue;
-      instances.Add(Handle<JSObject>(obj));
-      if (instances.length() == max_references) break;
+      instances.emplace_back(obj);
+      if (static_cast<int32_t>(instances.size()) == max_references) break;
     }
     // Iterate the rest of the heap to satisfy HeapIterator constraints.
     while (iterator.next()) {
     }
   }
 
-  Handle<FixedArray> result =
-      isolate->factory()->NewFixedArray(instances.length());
-  for (int i = 0; i < instances.length(); ++i) result->set(i, *instances[i]);
+  int instances_size = static_cast<int>(instances.size());
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(instances_size);
+  for (int i = 0; i < instances_size; ++i) result->set(i, *instances[i]);
   return *isolate->factory()->NewJSArrayWithElements(result);
 }
 
@@ -1464,7 +1480,7 @@ RUNTIME_FUNCTION(Runtime_GetDebugContext) {
 RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+  isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
                                      GarbageCollectionReason::kRuntime);
   return isolate->heap()->undefined_value();
 }
@@ -1496,8 +1512,8 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
   Handle<Script> found;
   {
     Script::Iterator iterator(isolate);
-    Script* script = NULL;
-    while ((script = iterator.Next()) != NULL) {
+    Script* script = nullptr;
+    while ((script = iterator.Next()) != nullptr) {
       if (!script->name()->IsString()) continue;
       String* name = String::cast(script->name());
       if (name->Equals(*script_name)) {
@@ -1538,6 +1554,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 
   if (script->type() == Script::TYPE_WASM) {
     return WasmCompiledModule::cast(script->wasm_compiled_module())
+        ->shared()
         ->GetFunctionOffset(line);
   }
 
@@ -1673,8 +1690,8 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
 // Slow traversal over all scripts on the heap.
 bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
   Script::Iterator iterator(isolate);
-  Script* script = NULL;
-  while ((script = iterator.Next()) != NULL) {
+  Script* script = nullptr;
+  while ((script = iterator.Next()) != nullptr) {
     if (script->id() == needle) {
       *result = handle(script);
       return true;
@@ -1853,9 +1870,9 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   Handle<Symbol> async_stack_id_symbol =
       isolate->factory()->promise_async_stack_id_symbol();
   JSObject::SetProperty(promise, async_stack_id_symbol,
-                        handle(Smi::FromInt(id), isolate), STRICT)
+                        handle(Smi::FromInt(id), isolate),
+                        LanguageMode::kStrict)
       .Assert();
-  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -1869,20 +1886,6 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseReject) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  CONVERT_SMI_ARG_CHECKED(status, 1);
-  if (isolate->debug()->is_active()) {
-    isolate->debug()->OnAsyncTaskEvent(
-        status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
-                                          : debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise), 0);
-  }
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(isolate->debug()->is_active());
@@ -1890,7 +1893,7 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
 
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
-  return NULL;
+  return nullptr;
 }
 
 namespace {
@@ -1919,9 +1922,9 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   // Collect coverage data.
   std::unique_ptr<Coverage> coverage;
   if (isolate->is_best_effort_code_coverage()) {
-    coverage.reset(Coverage::CollectBestEffort(isolate));
+    coverage = Coverage::CollectBestEffort(isolate);
   } else {
-    coverage.reset(Coverage::CollectPrecise(isolate));
+    coverage = Coverage::CollectPrecise(isolate);
   }
   Factory* factory = isolate->factory();
   // Turn the returned data structure into JavaScript.
@@ -1983,8 +1986,6 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   CONVERT_SMI_ARG_CHECKED(coverage_array_slot_index, 1);
-
-  DCHECK(FLAG_block_coverage);
 
   // It's quite possible that a function contains IncBlockCounter bytecodes, but
   // no coverage info exists. This happens e.g. by selecting the best-effort

@@ -5,15 +5,13 @@ const common = require('../common.js');
 const net = require('net');
 
 const bench = common.createBenchmark(main, {
-  len:  [1, 4, 8, 16, 32, 64, 128],
-  n:  [5, 50, 500, 2000],
+  len: [1, 4, 8, 16, 32, 64, 128],
+  n: [5, 50, 500, 2000],
   type: ['send'],
 });
 
 
-function main(conf) {
-  const len = +conf.len;
-  const num = +conf.n;
+function main({ len, n }) {
   var todo = [];
   const headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
@@ -78,7 +76,7 @@ function main(conf) {
       size = (size * mult + add) % mod;
       if (did) {
         count += 1;
-        if (count === num) {
+        if (count === n) {
           bench.end(count);
           process.exit(0);
         } else {

@@ -28,36 +28,36 @@ const Console = require('console').Console;
 const out = new Stream();
 const err = new Stream();
 
-// ensure the Console instance doesn't write to the
-// process' "stdout" or "stderr" streams
+// Ensure the Console instance doesn't write to the
+// process' "stdout" or "stderr" streams.
 process.stdout.write = process.stderr.write = common.mustNotCall();
 
-// make sure that the "Console" function exists
+// Make sure that the "Console" function exists.
 assert.strictEqual('function', typeof Console);
 
-// make sure that the Console constructor throws
-// when not given a writable stream instance
-assert.throws(
+// Make sure that the Console constructor throws
+// when not given a writable stream instance.
+common.expectsError(
   () => { new Console(); },
-  common.expectsError({
+  {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
     type: TypeError,
     message: /stdout/
-  })
+  }
 );
 
-// Console constructor should throw if stderr exists but is not writable
-assert.throws(
+// Console constructor should throw if stderr exists but is not writable.
+common.expectsError(
   () => {
     out.write = () => {};
     err.write = undefined;
     new Console(out, err);
   },
-  common.expectsError({
+  {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
     type: TypeError,
     message: /stderr/
-  })
+  }
 );
 
 out.write = err.write = (d) => {};
@@ -77,7 +77,7 @@ out.write = common.mustCall((d) => {
 
 c.dir({ foo: 1 });
 
-// ensure that the console functions are bound to the console instance
+// Ensure that the console functions are bound to the console instance.
 let called = 0;
 out.write = common.mustCall((d) => {
   called++;
@@ -86,10 +86,8 @@ out.write = common.mustCall((d) => {
 
 [1, 2, 3].forEach(c.log);
 
-// Console() detects if it is called without `new` keyword
-assert.doesNotThrow(() => {
-  Console(out, err);
-});
+// Console() detects if it is called without `new` keyword.
+Console(out, err);
 
 // Instance that does not ignore the stream errors.
 const c2 = new Console(out, err, false);

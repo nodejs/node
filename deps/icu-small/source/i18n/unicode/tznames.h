@@ -291,14 +291,12 @@ public:
     virtual UnicodeString& getDisplayName(const UnicodeString& tzID, UTimeZoneNameType type, UDate date, UnicodeString& name) const;
 
     /**
-     * @internal For specific users only until proposed publicly.
-     * @deprecated This API is ICU internal only.
+     * @internal ICU internal only, for specific users only until proposed publicly.
      */
     virtual void loadAllDisplayNames(UErrorCode& status);
 
     /**
-     * @internal For specific users only until proposed publicly.
-     * @deprecated This API is ICU internal only.
+     * @internal ICU internal only, for specific users only until proposed publicly.
      */
     virtual void getDisplayNames(const UnicodeString& tzID, const UTimeZoneNameType types[], int32_t numTypes, UDate date, UnicodeString dest[], UErrorCode& status) const;
 

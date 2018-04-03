@@ -1,6 +1,7 @@
 # Child Process
 
 <!--introduced_in=v0.10.0-->
+<!--lint disable maximum-line-length-->
 
 > Stability: 2 - Stable
 
@@ -25,11 +26,13 @@ ls.on('close', (code) => {
 });
 ```
 
-By default, pipes for `stdin`, `stdout` and `stderr` are established between
-the parent Node.js process and the spawned child. It is possible to stream data
-through these pipes in a non-blocking way. *Note, however, that some programs
-use line-buffered I/O internally. While that does not affect Node.js, it can
-mean that data sent to the child process may not be immediately consumed.*
+By default, pipes for `stdin`, `stdout`, and `stderr` are established between
+the parent Node.js process and the spawned child. These pipes have
+limited (and platform-specific) capacity. If the child process writes to
+stdout in excess of that limit without the output being captured, the child
+process will block waiting for the pipe buffer to accept more data. This is
+identical to the behavior of pipes in the shell. Use the `{ stdio: 'ignore' }`
+option if the output will not be consumed.
 
 The [`child_process.spawn()`][] method spawns the child process asynchronously,
 without blocking the Node.js event loop. The [`child_process.spawnSync()`][]
@@ -44,7 +47,7 @@ implemented on top of [`child_process.spawn()`][] or [`child_process.spawnSync()
   * [`child_process.exec()`][]: spawns a shell and runs a command within that shell,
     passing the `stdout` and `stderr` to a callback function when complete.
   * [`child_process.execFile()`][]: similar to [`child_process.exec()`][] except that
-    it spawns the command directly without first spawning a shell.
+    it spawns the command directly without first spawning a shell by default.
   * [`child_process.fork()`][]: spawns a new Node.js process and invokes a
     specified module with an IPC communication channel established that allows
     sending messages between parent and child.
@@ -78,7 +81,7 @@ when the child process terminates.
 The importance of the distinction between [`child_process.exec()`][] and
 [`child_process.execFile()`][] can vary based on platform. On Unix-type operating
 systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be more efficient
-because it does not spawn a shell. On Windows, however, `.bat` and `.cmd`
+because it does not spawn a shell by default. On Windows, however, `.bat` and `.cmd`
 files are not executable on their own without a terminal, and therefore cannot
 be launched using [`child_process.execFile()`][]. When running on Windows, `.bat`
 and `.cmd` files can be invoked using [`child_process.spawn()`][] with the `shell`
@@ -163,16 +166,15 @@ directly by the shell and special characters (vary based on
 need to be dealt with accordingly:
 ```js
 exec('"/path/to/test file/test.sh" arg1 arg2');
-//Double quotes are used so that the space in the path is not interpreted as
-//multiple arguments
+// Double quotes are used so that the space in the path is not interpreted as
+// multiple arguments
 
 exec('echo "The \\$HOME variable is $HOME"');
-//The $HOME variable is escaped in the first instance, but not in the second
+// The $HOME variable is escaped in the first instance, but not in the second
 ```
 
-*Note*: Never pass unsanitised user input to this function. Any input
-containing shell metacharacters may be used to trigger arbitrary command
-execution.
+**Never pass unsanitized user input to this function. Any input containing shell
+metacharacters may be used to trigger arbitrary command execution.**
 
 ```js
 const { exec } = require('child_process');
@@ -218,15 +220,14 @@ If `timeout` is greater than `0`, the parent will send the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
 child runs longer than `timeout` milliseconds.
 
-*Note*: Unlike the exec(3) POSIX system call, `child_process.exec()` does not
-replace the existing process and uses a shell to execute the command.
+Unlike the exec(3) POSIX system call, `child_process.exec()` does not replace
+the existing process and uses a shell to execute the command.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a Promise for an object with `stdout` and `stderr` properties. In case of an
-error, a rejected promise is returned, with the same `error` object given in the
-callback, but with an additional two properties `stdout` and `stderr`.
-
-For example:
+error (including any error resulting in an exit code other than 0), a rejected
+promise is returned, with the same `error` object given in the callback, but
+with an additional two properties `stdout` and `stderr`.
 
 ```js
 const util = require('util');
@@ -264,6 +265,12 @@ changes:
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -271,7 +278,7 @@ changes:
 * Returns: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
-except that it does not spawn a shell. Rather, the specified executable `file`
+except that it does not spawn a shell by default. Rather, the specified executable `file`
 is spawned directly as a new process making it slightly more efficient than
 [`child_process.exec()`][].
 
@@ -297,7 +304,8 @@ encoding, `Buffer` objects will be passed to the callback instead.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a Promise for an object with `stdout` and `stderr` properties. In case of an
-error, a rejected promise is returned, with the same `error` object given in the
+error (including any error resulting in an exit code other than 0), a rejected
+promise is returned, with the same `error` object given in the
 callback, but with an additional two properties `stdout` and `stderr`.
 
 ```js
@@ -309,6 +317,10 @@ async function getVersion() {
 }
 getVersion();
 ```
+
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 ### child_process.fork(modulePath[, args][, options])
 <!-- YAML
@@ -338,6 +350,8 @@ changes:
     When this option is provided, it overrides `silent`. If the array variant
     is used, it must contain exactly one item with value `'ipc'` or an error
     will be thrown. For instance `[0, 1, 2, 'ipc']`.
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. **Default:** `false`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
 * Returns: {ChildProcess}
@@ -362,14 +376,13 @@ By default, `child_process.fork()` will spawn new Node.js instances using the
 
 Node.js processes launched with a custom `execPath` will communicate with the
 parent process using the file descriptor (fd) identified using the
-environment variable `NODE_CHANNEL_FD` on the child process. The input and
-output on this fd is expected to be line delimited JSON objects.
+environment variable `NODE_CHANNEL_FD` on the child process.
 
-*Note*: Unlike the fork(2) POSIX system call, `child_process.fork()` does
-not clone the current process.
+Unlike the fork(2) POSIX system call, `child_process.fork()` does not clone the
+current process.
 
-*Note*: The `shell` option available in [`child_process.spawn()`][] is not
-supported by `child_process.fork()` and will be ignored if set.
+The `shell` option available in [`child_process.spawn()`][] is not supported by
+`child_process.fork()` and will be ignored if set.
 
 ### child_process.spawn(command[, args][, options])
 <!-- YAML
@@ -404,6 +417,9 @@ changes:
     `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. This is set to `true` automatically
+    when `shell` is specified. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
 * Returns: {ChildProcess}
@@ -412,9 +428,9 @@ The `child_process.spawn()` method spawns a new process using the given
 `command`, with command line arguments in `args`. If omitted, `args` defaults
 to an empty array.
 
-*Note*: If the `shell` option is enabled, do not pass unsanitised user input to
-this function. Any input containing shell metacharacters may be used to
-trigger arbitrary command execution.
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 A third argument may be used to specify additional options, with these defaults:
 
@@ -430,6 +446,8 @@ If not given, the default is to inherit the current working directory.
 
 Use `env` to specify environment variables that will be visible to the new
 process, the default is [`process.env`][].
+
+`undefined` values in `env` will be ignored.
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the
 exit code:
@@ -501,12 +519,12 @@ subprocess.on('error', (err) => {
 });
 ```
 
-*Note*: Certain platforms (macOS, Linux) will use the value of `argv[0]` for
-the process title while others (Windows, SunOS) will use `command`.
+Certain platforms (macOS, Linux) will use the value of `argv[0]` for the process
+title while others (Windows, SunOS) will use `command`.
 
-*Note*: Node.js currently overwrites `argv[0]` with `process.execPath` on
-startup, so `process.argv[0]` in a Node.js child process will not match the
-`argv0` parameter passed to `spawn` from the parent, retrieve it with the
+Node.js currently overwrites `argv[0]` with `process.execPath` on startup, so
+`process.argv[0]` in a Node.js child process will not match the `argv0`
+parameter passed to `spawn` from the parent, retrieve it with the
 `process.argv0` property instead.
 
 #### options.detached
@@ -602,12 +620,14 @@ pipes between the parent and child. The value is one of the following:
 2. `'ipc'` - Create an IPC channel for passing messages/file descriptors
    between parent and child. A [`ChildProcess`][] may have at most *one* IPC stdio
    file descriptor. Setting this option enables the [`subprocess.send()`][]
-   method. If the child writes JSON messages to this file descriptor, the
-   [`subprocess.on('message')`][`'message'`] event handler will be triggered in
-   the parent. If the child is a Node.js process, the presence of an IPC channel
+   method. If the child is a Node.js process, the presence of an IPC channel
    will enable [`process.send()`][], [`process.disconnect()`][],
    [`process.on('disconnect')`][], and [`process.on('message')`] within the
    child.
+
+   Accessing the IPC channel fd in any way other than [`process.send()`][]
+   or using the IPC channel with a child process that is not a Node.js instance
+   is not supported.
 3. `'ignore'` - Instructs Node.js to ignore the fd in the child. While Node.js
    will always open fds 0 - 2 for the processes it spawns, setting the fd to
    `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
@@ -619,9 +639,9 @@ pipes between the parent and child. The value is one of the following:
    have an underlying descriptor (file streams do not until the `'open'`
    event has occurred).
 5. Positive integer - The integer value is interpreted as a file descriptor
-   that is is currently open in the parent process. It is shared with the child
+   that is currently open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared.
-6. `null`, `undefined` - Use default value. For stdio fds 0, 1 and 2 (in other
+6. `null`, `undefined` - Use default value. For stdio fds 0, 1, and 2 (in other
    words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
    default is `'ignore'`.
 
@@ -657,7 +677,7 @@ The [`child_process.spawnSync()`][], [`child_process.execSync()`][], and
 the Node.js event loop, pausing execution of any additional code until the
 spawned process exits.
 
-Blocking calls like these are mostly useful for simplifying general purpose
+Blocking calls like these are mostly useful for simplifying general-purpose
 scripting tasks and for simplifying the loading/processing of application
 configuration at startup.
 
@@ -699,6 +719,10 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -707,13 +731,17 @@ until the child process has fully closed. When a timeout has been encountered
 and `killSignal` is sent, the method won't return until the process has
 completely exited.
 
-*Note*: If the child process intercepts and handles the `SIGTERM` signal and
+If the child process intercepts and handles the `SIGTERM` signal and
 does not exit, the parent process will still wait until the child process has
 exited.
 
-If the process times out, or has a non-zero exit code, this method ***will***
+If the process times out or has a non-zero exit code, this method ***will***
 throw an [`Error`][] that will include the full result of the underlying
 [`child_process.spawnSync()`][].
+
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 ### child_process.execSync(command[, options])
 <!-- YAML
@@ -763,13 +791,12 @@ exited. *Note that if  the child process intercepts and handles the `SIGTERM`
 signal and doesn't exit, the parent process will wait until the child
 process has exited.*
 
-If the process times out, or has a non-zero exit code, this method ***will***
+If the process times out or has a non-zero exit code, this method ***will***
 throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
-*Note*: Never pass unsanitised user input to this function. Any input
-containing shell metacharacters may be used to trigger arbitrary command
-execution.
+**Never pass unsanitized user input to this function. Any input containing shell
+metacharacters may be used to trigger arbitrary command execution.**
 
 ### child_process.spawnSync(command[, args][, options])
 <!-- YAML
@@ -813,6 +840,9 @@ changes:
     `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. This is set to `true` automatically
+    when `shell` is specified. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
 * Returns: {Object}
@@ -832,9 +862,9 @@ completely exited. Note that if the process intercepts and handles the
 `SIGTERM` signal and doesn't exit, the parent process will wait until the child
 process has exited.
 
-*Note*: If the `shell` option is enabled, do not pass unsanitised user input
-to this function. Any input containing shell metacharacters may be used to
-trigger arbitrary command execution.
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
 
 ## Class: ChildProcess
 <!-- YAML
@@ -882,9 +912,9 @@ The `'error'` event is emitted whenever:
 2. The process could not be killed, or
 3. Sending a message to the child process failed.
 
-*Note*: The `'exit'` event may or may not fire after an error has occurred.
-When listening to both the `'exit'` and `'error'` events, it is important
-to guard against accidentally invoking handler functions multiple times.
+The `'exit'` event may or may not fire after an error has occurred. When
+listening to both the `'exit'` and `'error'` events, it is important to guard
+against accidentally invoking handler functions multiple times.
 
 See also [`subprocess.kill()`][] and [`subprocess.send()`][].
 
@@ -923,9 +953,8 @@ added: v0.5.9
 The `'message'` event is triggered when a child process uses [`process.send()`][]
 to send messages.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 ### subprocess.channel
 <!-- YAML
@@ -974,7 +1003,7 @@ added: v0.1.90
 
 * `signal` {string}
 
-The `subprocess.kill()` methods sends a signal to the child process. If no
+The `subprocess.kill()` method sends a signal to the child process. If no
 argument is given, the process will be sent the `'SIGTERM'` signal. See
 signal(7) for a list of available signals.
 
@@ -1034,10 +1063,11 @@ added: v0.5.10
 -->
 
 * {boolean} Set to `true` after `subprocess.kill()` is used to successfully
-  terminate the child process.
+  send a signal to the child process.
 
-The `subprocess.killed` property indicates whether the child process was
-successfully terminated using `subprocess.kill()`.
+The `subprocess.killed` property indicates whether the child process
+successfully received a signal from `subprocess.kill()`. The `killed` property
+does not indicate that the child process has been terminated.
 
 ### subprocess.pid
 <!-- YAML
@@ -1086,9 +1116,8 @@ be used to send messages to the child process. When the child process is a
 Node.js instance, these messages can be received via the
 [`process.on('message')`][] event.
 
-*Note*: The message goes through JSON serialization and parsing. The resulting
-message might not be the same as what is originally sent. See notes in
-[the `JSON.stringify()` specification][`JSON.stringify` spec].
+The message goes through serialization and parsing. The resulting
+message might not be the same as what is originally sent.
 
 For example, in the parent script:
 
@@ -1118,10 +1147,10 @@ process.send({ foo: 'bar', baz: NaN });
 Child Node.js processes will have a [`process.send()`][] method of their own that
 allows the child to send messages back to the parent.
 
-There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
-containing a `NODE_` prefix in its `cmd` property are considered to be reserved
-for use within Node.js core and will not be emitted in the child's
-[`process.on('message')`][] event. Rather, such messages are emitted using the
+There is a special case when sending a `{cmd: 'NODE_foo'}` message. Messages
+containing a `NODE_` prefix in the `cmd` property are reserved for use within
+Node.js core and will not be emitted in the child's [`process.on('message')`][]
+event. Rather, such messages are emitted using the
 `process.on('internalMessage')` event and are consumed internally by Node.js.
 Applications should avoid using such messages or listening for
 `'internalMessage'` events as it is subject to change without notice.
@@ -1354,11 +1383,9 @@ unavailable.
 
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
-[`'message'`]: #child_process_event_message
 [`ChildProcess`]: #child_process_child_process
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`subprocess.connected`]: #child_process_subprocess_connected
 [`subprocess.disconnect()`]: #child_process_subprocess_disconnect
 [`subprocess.kill()`]: #child_process_subprocess_kill_signal

@@ -24,6 +24,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+// This test ensures that the data received over tls-server after pause
+// is same as what it was sent
+
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
@@ -37,28 +40,27 @@ const bufSize = 1024 * 1024;
 let sent = 0;
 let received = 0;
 
-const server = tls.Server(options, function(socket) {
+const server = tls.Server(options, common.mustCall((socket) => {
   socket.pipe(socket);
-  socket.on('data', function(c) {
+  socket.on('data', (c) => {
     console.error('data', c.length);
   });
-});
+}));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   let resumed = false;
   const client = tls.connect({
-    port: this.address().port,
+    port: server.address().port,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(() => {
     console.error('connected');
     client.pause();
     console.error('paused');
-    send();
-    function send() {
+    const send = (() => {
       console.error('sending');
       const ret = client.write(Buffer.allocUnsafe(bufSize));
-      console.error('write => %j', ret);
-      if (false !== ret) {
+      console.error(`write => ${ret}`);
+      if (ret !== false) {
         console.error('write again');
         sent += bufSize;
         assert.ok(sent < 100 * 1024 * 1024); // max 100MB
@@ -69,9 +71,9 @@ server.listen(0, function() {
       resumed = true;
       client.resume();
       console.error('resumed', client);
-    }
-  });
-  client.on('data', function(data) {
+    })();
+  }));
+  client.on('data', (data) => {
     console.error('data');
     assert.ok(resumed);
     received += data.length;
@@ -83,8 +85,8 @@ server.listen(0, function() {
       server.close();
     }
   });
-});
+}));
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(sent, received);
 });

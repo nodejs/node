@@ -4,8 +4,8 @@ const StringDecoder = require('string_decoder').StringDecoder;
 
 const bench = common.createBenchmark(main, {
   encoding: ['ascii', 'utf8', 'base64-utf8', 'base64-ascii', 'utf16le'],
-  inlen: [32, 128, 1024, 4096],
-  chunk: [16, 64, 256, 1024],
+  inLen: [32, 128, 1024, 4096],
+  chunkLen: [16, 64, 256, 1024],
   n: [25e5]
 });
 
@@ -13,12 +13,7 @@ const UTF8_ALPHA = 'Blåbærsyltetøy';
 const ASC_ALPHA = 'Blueberry jam';
 const UTF16_BUF = Buffer.from('Blåbærsyltetøy', 'utf16le');
 
-function main(conf) {
-  const encoding = conf.encoding;
-  const inLen = conf.inlen | 0;
-  const chunkLen = conf.chunk | 0;
-  const n = conf.n | 0;
-
+function main({ encoding, inLen, chunkLen, n }) {
   var alpha;
   var buf;
   const chunks = [];

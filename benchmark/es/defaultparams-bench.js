@@ -20,37 +20,31 @@ function defaultParams(x = 1, y = 2) {
   assert.strictEqual(y, 2);
 }
 
-function runOldStyleDefaults(n) {
-
-  var i = 0;
+function runOldStyleDefaults(millions) {
   bench.start();
-  for (; i < n; i++)
+  for (var i = 0; i < millions * 1e6; i++)
     oldStyleDefaults();
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function runDefaultParams(n) {
-
-  var i = 0;
+function runDefaultParams(millions) {
   bench.start();
-  for (; i < n; i++)
+  for (var i = 0; i < millions * 1e6; i++)
     defaultParams();
-  bench.end(n / 1e6);
+  bench.end(millions);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
+function main({ millions, method }) {
+  switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'withoutdefaults':
-      runOldStyleDefaults(n);
+      runOldStyleDefaults(millions);
       break;
     case 'withdefaults':
-      runDefaultParams(n);
+      runDefaultParams(millions);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

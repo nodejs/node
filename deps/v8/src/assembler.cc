@@ -52,6 +52,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
+#include "src/elements.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -130,14 +131,14 @@ static struct V8_ALIGNED(16) {
 static struct V8_ALIGNED(16) {
   uint64_t a;
   uint64_t b;
-} double_absolute_constant = {V8_UINT64_C(0x7FFFFFFFFFFFFFFF),
-                              V8_UINT64_C(0x7FFFFFFFFFFFFFFF)};
+} double_absolute_constant = {uint64_t{0x7FFFFFFFFFFFFFFF},
+                              uint64_t{0x7FFFFFFFFFFFFFFF}};
 
 static struct V8_ALIGNED(16) {
   uint64_t a;
   uint64_t b;
-} double_negate_constant = {V8_UINT64_C(0x8000000000000000),
-                            V8_UINT64_C(0x8000000000000000)};
+} double_negate_constant = {uint64_t{0x8000000000000000},
+                            uint64_t{0x8000000000000000}};
 
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
@@ -162,9 +163,9 @@ AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
       predictable_code_size_(false),
       constant_pool_available_(false),
       jump_optimization_info_(nullptr) {
-  own_buffer_ = buffer == NULL;
+  own_buffer_ = buffer == nullptr;
   if (buffer_size == 0) buffer_size = kMinimalBufferSize;
-  DCHECK(buffer_size > 0);
+  DCHECK_GT(buffer_size, 0);
   if (own_buffer_) buffer = NewArray<byte>(buffer_size);
   buffer_ = static_cast<byte*>(buffer);
   buffer_size_ = buffer_size;
@@ -300,14 +301,10 @@ const int kLastChunkTagBits = 1;
 const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
 
-void RelocInfo::update_wasm_memory_reference(
-    Isolate* isolate, Address old_base, Address new_base,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_));
-  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
-  // The reference is not checked here but at runtime. Validity of references
-  // may change over time.
-  set_embedded_address(isolate, updated_reference, icache_flush_mode);
+void RelocInfo::set_wasm_context_reference(Isolate* isolate, Address address,
+                                           ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmContextReference(rmode_));
+  set_embedded_address(isolate, address, icache_flush_mode);
 }
 
 void RelocInfo::set_global_handle(Isolate* isolate, Address address,
@@ -316,34 +313,20 @@ void RelocInfo::set_global_handle(Isolate* isolate, Address address,
   set_embedded_address(isolate, address, icache_flush_mode);
 }
 
+Address RelocInfo::wasm_call_address() const {
+  DCHECK_EQ(rmode_, WASM_CALL);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void RelocInfo::set_wasm_call_address(Isolate* isolate, Address address,
+                                      ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, WASM_CALL);
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
+                                   icache_flush_mode);
+}
+
 Address RelocInfo::global_handle() const {
   DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
-  return embedded_address();
-}
-
-void RelocInfo::update_wasm_memory_size(Isolate* isolate, uint32_t old_size,
-                                        uint32_t new_size,
-                                        ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemorySizeReference(rmode_));
-  uint32_t current_size_reference = wasm_memory_size_reference();
-  uint32_t updated_size_reference =
-      new_size + (current_size_reference - old_size);
-  set_embedded_size(isolate, updated_size_reference, icache_flush_mode);
-}
-
-void RelocInfo::update_wasm_global_reference(
-    Isolate* isolate, Address old_base, Address new_base,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmGlobalReference(rmode_));
-  Address updated_reference;
-  DCHECK_LE(old_base, wasm_global_reference());
-  updated_reference = new_base + (wasm_global_reference() - old_base);
-  DCHECK_LE(new_base, updated_reference);
-  set_embedded_address(isolate, updated_reference, icache_flush_mode);
-}
-
-Address RelocInfo::wasm_global_reference() const {
-  DCHECK(IsWasmGlobalReference(rmode_));
   return embedded_address();
 }
 
@@ -352,13 +335,8 @@ uint32_t RelocInfo::wasm_function_table_size_reference() const {
   return embedded_size();
 }
 
-uint32_t RelocInfo::wasm_memory_size_reference() const {
-  DCHECK(IsWasmMemorySizeReference(rmode_));
-  return embedded_size();
-}
-
-Address RelocInfo::wasm_memory_reference() const {
-  DCHECK(IsWasmMemoryReference(rmode_));
+Address RelocInfo::wasm_context_reference() const {
+  DCHECK(IsWasmContextReference(rmode_));
   return embedded_address();
 }
 
@@ -372,10 +350,10 @@ void RelocInfo::update_wasm_function_table_size_reference(
 void RelocInfo::set_target_address(Isolate* isolate, Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(isolate, pc_, host_, target,
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_, target,
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
       IsCodeTarget(rmode_)) {
     Code* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
@@ -390,7 +368,7 @@ uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   if (is_uintn(pc_delta, kSmallPCDeltaBits)) return pc_delta;
   WriteMode(RelocInfo::PC_JUMP);
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
-  DCHECK(pc_jump > 0);
+  DCHECK_GT(pc_jump, 0);
   // Write kChunkBits size chunks of the pc_jump.
   for (; pc_jump > 0; pc_jump = pc_jump >> kChunkBits) {
     byte b = pc_jump & kChunkMask;
@@ -446,7 +424,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   byte* begin_pos = pos_;
 #endif
   DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
-  DCHECK(rinfo->pc() - last_pc_ >= 0);
+  DCHECK_GE(rinfo->pc() - last_pc_, 0);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
 
@@ -455,7 +433,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteShortTaggedPC(pc_delta, kEmbeddedObjectTag);
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteShortTaggedPC(pc_delta, kCodeTargetTag);
-    DCHECK(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
+    DCHECK_LE(begin_pos - pos_, RelocInfo::kMaxCallSize);
   } else if (rmode == RelocInfo::DEOPT_REASON) {
     DCHECK(rinfo->data() < (1 << kBitsPerByte));
     WriteShortTaggedPC(pc_delta, kLocatableTag);
@@ -466,15 +444,14 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
-               RelocInfo::IsDeoptPosition(rmode) ||
-               RelocInfo::IsWasmProtectedLanding(rmode)) {
+               RelocInfo::IsDeoptPosition(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
   last_pc_ = rinfo->pc();
   last_mode_ = rmode;
 #ifdef DEBUG
-  DCHECK(begin_pos - pos_ <= kMaxSize);
+  DCHECK_LE(begin_pos - pos_, kMaxSize);
 #endif
 }
 
@@ -554,7 +531,7 @@ void RelocIterator::next() {
         return;
       }
     } else {
-      DCHECK(tag == kDefaultTag);
+      DCHECK_EQ(tag, kDefaultTag);
       RelocInfo::Mode rmode = GetMode();
       if (rmode == RelocInfo::PC_JUMP) {
         AdvanceReadLongPCJump();
@@ -569,8 +546,7 @@ void RelocIterator::next() {
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
-                   RelocInfo::IsDeoptPosition(rmode) ||
-                   RelocInfo::IsWasmProtectedLanding(rmode)) {
+                   RelocInfo::IsDeoptPosition(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -589,6 +565,7 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
   rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
+  rinfo_.constant_pool_ = code->constant_pool();
   // Relocation info is read backwards.
   pos_ = code->relocation_start() + code->relocation_size();
   end_ = code->relocation_start();
@@ -604,6 +581,21 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
   // Relocation info is read backwards.
   pos_ = desc.buffer + desc.buffer_size;
   end_ = pos_ - desc.reloc_size;
+  done_ = false;
+  mode_mask_ = mode_mask;
+  if (mode_mask_ == 0) pos_ = end_;
+  next();
+}
+
+RelocIterator::RelocIterator(Vector<byte> instructions,
+                             Vector<const byte> reloc_info, Address const_pool,
+                             int mode_mask) {
+  rinfo_.pc_ = instructions.start();
+  rinfo_.data_ = 0;
+  rinfo_.constant_pool_ = const_pool;
+  // Relocation info is read backwards.
+  pos_ = reloc_info.start() + reloc_info.size();
+  end_ = reloc_info.start();
   done_ = false;
   mode_mask_ = mode_mask;
   if (mode_mask_ == 0) pos_ = end_;
@@ -659,18 +651,16 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "constant pool";
     case VENEER_POOL:
       return "veneer pool";
-    case WASM_MEMORY_REFERENCE:
-      return "wasm memory reference";
-    case WASM_MEMORY_SIZE_REFERENCE:
-      return "wasm memory size reference";
-    case WASM_GLOBAL_REFERENCE:
-      return "wasm global value reference";
+    case WASM_CONTEXT_REFERENCE:
+      return "wasm context reference";
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
       return "wasm function table size reference";
-    case WASM_PROTECTED_INSTRUCTION_LANDING:
-      return "wasm protected instruction landing";
     case WASM_GLOBAL_HANDLE:
       return "global handle";
+    case WASM_CALL:
+      return "internal wasm call";
+    case JS_TO_WASM_CALL:
+      return "js to wasm call";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -699,8 +689,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     os << " (" << Code::Kind2String(code->kind()) << ")  ("
        << static_cast<const void*>(target_address()) << ")";
-  } else if (IsRuntimeEntry(rmode_) &&
-             isolate->deoptimizer_data() != NULL) {
+  } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
         isolate, target_address(), Deoptimizer::EAGER);
@@ -724,7 +713,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
-      CHECK(addr != NULL);
+      CHECK_NOT_NULL(addr);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
       Object* found = isolate->FindCodeObject(addr);
@@ -750,13 +739,11 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_ID:
     case CONST_POOL:
     case VENEER_POOL:
-    case WASM_MEMORY_REFERENCE:
-    case WASM_MEMORY_SIZE_REFERENCE:
-    case WASM_GLOBAL_REFERENCE:
+    case WASM_CONTEXT_REFERENCE:
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case WASM_GLOBAL_HANDLE:
-    case WASM_PROTECTED_INSTRUCTION_LANDING:
-    // TODO(eholk): make sure the protected instruction is in range.
+    case WASM_CALL:
+    case JS_TO_WASM_CALL:
     case NONE32:
     case NONE64:
       break;
@@ -776,8 +763,6 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
       return ExternalReference::BUILTIN_CALL;
     case 2:
       return ExternalReference::BUILTIN_CALL_PAIR;
-    case 3:
-      return ExternalReference::BUILTIN_CALL_TRIPLE;
   }
   UNREACHABLE();
 }
@@ -796,10 +781,9 @@ ExternalReference::ExternalReference(Address address, Isolate* isolate)
     : address_(Redirect(isolate, address)) {}
 
 ExternalReference::ExternalReference(
-    ApiFunction* fun,
-    Type type = ExternalReference::BUILTIN_CALL,
-    Isolate* isolate = NULL)
-  : address_(Redirect(isolate, fun->address(), type)) {}
+    ApiFunction* fun, Type type = ExternalReference::BUILTIN_CALL,
+    Isolate* isolate = nullptr)
+    : address_(Redirect(isolate, fun->address(), type)) {}
 
 ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
     : ExternalReference(Runtime::FunctionForId(id), isolate) {}
@@ -811,6 +795,20 @@ ExternalReference::ExternalReference(const Runtime::Function* f,
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
+}
+
+ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
+  return ExternalReference(isolate->builtins()->builtins_table_address());
+}
+
+ExternalReference ExternalReference::handle_scope_implementer_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->handle_scope_implementer_address());
+}
+
+ExternalReference ExternalReference::pending_microtask_count_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->pending_microtask_count_address());
 }
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -872,13 +870,17 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
 void ExternalReference::set_redirector(
     Isolate* isolate, ExternalReferenceRedirector* redirector) {
   // We can't stack them.
-  DCHECK(isolate->external_reference_redirector() == NULL);
+  DCHECK_NULL(isolate->external_reference_redirector());
   isolate->set_external_reference_redirector(
       reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
 }
 
 ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
   return ExternalReference(isolate->stress_deopt_count_address());
+}
+
+ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {
+  return ExternalReference(isolate->force_slow_path_address());
 }
 
 ExternalReference ExternalReference::new_deoptimizer_function(
@@ -1010,6 +1012,16 @@ ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_word32_rol(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_rol_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word32_ror(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_ror_wrapper)));
+}
+
 static void f64_acos_wrapper(double* param) {
   WriteDoubleValue(param, base::ieee754::acos(ReadDoubleValue(param)));
 }
@@ -1033,9 +1045,21 @@ ExternalReference ExternalReference::wasm_float64_pow(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::float64_pow_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_set_thread_in_wasm_flag(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::set_thread_in_wasm_flag)));
+}
+
+ExternalReference ExternalReference::wasm_clear_thread_in_wasm_flag(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::clear_thread_in_wasm_flag)));
+}
+
 static void f64_mod_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0,
-                   modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
+                   Modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
 }
 
 ExternalReference ExternalReference::f64_mod_wrapper_function(
@@ -1082,11 +1106,6 @@ ExternalReference ExternalReference::address_of_real_stack_limit(
 ExternalReference ExternalReference::address_of_regexp_stack_limit(
     Isolate* isolate) {
   return ExternalReference(isolate->regexp_stack()->limit_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_dotall_flag(
-    Isolate* isolate) {
-  return ExternalReference(&FLAG_harmony_regexp_dotall);
 }
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
@@ -1404,6 +1423,10 @@ ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
 }
 
+ExternalReference ExternalReference::printf_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(std::printf)));
+}
+
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
   auto f = SearchStringRaw<SubjectChar, PatternChar>;
@@ -1420,6 +1443,26 @@ ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
   typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
   GetOrCreateHash f = Object::GetOrCreateHash;
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+ExternalReference ExternalReference::jsreceiver_create_identity_hash(
+    Isolate* isolate) {
+  typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
+  CreateIdentityHash f = JSReceiver::CreateIdentityHash;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+ExternalReference
+ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(CopyFastNumberJSArrayElementsToTypedArray)));
+}
+
+ExternalReference ExternalReference::copy_typed_array_elements_to_typed_array(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(CopyTypedArrayElementsToTypedArray)));
 }
 
 ExternalReference ExternalReference::try_internalize_string_function(
@@ -1491,6 +1534,12 @@ ExternalReference ExternalReference::runtime_function_table_address(
       const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
 }
 
+ExternalReference ExternalReference::invalidate_prototype_chains_function(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
+}
+
 double power_helper(Isolate* isolate, double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {
@@ -1536,6 +1585,8 @@ double power_double_double(double x, double y) {
   return Pow(x, y);
 }
 
+double modulo_double_double(double x, double y) { return Modulo(x, y); }
+
 ExternalReference ExternalReference::power_double_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
@@ -1545,9 +1596,8 @@ ExternalReference ExternalReference::power_double_double_function(
 
 ExternalReference ExternalReference::mod_two_doubles_operation(
     Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(modulo),
-                                    BUILTIN_FP_FP_CALL));
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(modulo_double_double), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::debug_last_step_action_address(
@@ -1679,7 +1729,7 @@ void ConstantPoolBuilder::EmitSharedEntries(Assembler* assm,
   std::vector<ConstantPoolEntry>& shared_entries = info.shared_entries;
   const int entry_size = ConstantPoolEntry::size(type);
   int base = emitted_label_.pos();
-  DCHECK(base > 0);
+  DCHECK_GT(base, 0);
   int shared_end = static_cast<int>(shared_entries.size());
   std::vector<ConstantPoolEntry>::iterator shared_it = shared_entries.begin();
   for (int i = 0; i < shared_end; i++, shared_it++) {
@@ -1707,7 +1757,7 @@ void ConstantPoolBuilder::EmitGroup(Assembler* assm,
   std::vector<ConstantPoolEntry>& shared_entries = info.shared_entries;
   const int entry_size = ConstantPoolEntry::size(type);
   int base = emitted_label_.pos();
-  DCHECK(base > 0);
+  DCHECK_GT(base, 0);
   int begin;
   int end;
 
@@ -1836,7 +1886,7 @@ void SetUpJSCallerSavedCodeData() {
   for (int r = 0; r < kNumRegs; r++)
     if ((kJSCallerSaved & (1 << r)) != 0) caller_saved_codes[i++] = r;
 
-  DCHECK(i == kNumJSCallerSaved);
+  DCHECK_EQ(i, kNumJSCallerSaved);
 }
 
 int JSCallerSavedCode(int n) {

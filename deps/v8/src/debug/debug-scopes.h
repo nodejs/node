@@ -5,6 +5,8 @@
 #ifndef V8_DEBUG_DEBUG_SCOPES_H_
 #define V8_DEBUG_DEBUG_SCOPES_H_
 
+#include <vector>
+
 #include "src/debug/debug-frames.h"
 #include "src/frames.h"
 
@@ -101,7 +103,7 @@ class ScopeIterator {
   FrameInspector* const frame_inspector_ = nullptr;
   Handle<JSGeneratorObject> generator_;
   Handle<Context> context_;
-  List<ExtendedScopeInfo> nested_scope_chain_;
+  std::vector<ExtendedScopeInfo> nested_scope_chain_;
   Handle<StringSet> non_locals_;
   bool seen_script_scope_;
 

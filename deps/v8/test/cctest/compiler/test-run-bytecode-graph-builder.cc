@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "src/api.h"
 #include "src/compilation-info.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug-interface.h"
@@ -118,11 +119,17 @@ class BytecodeGraphTester {
 
     Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared());
-    Handle<Script> script(Script::cast(shared->script()));
-    CompilationInfo compilation_info(&zone, function->GetIsolate(), script,
-                                     shared, function);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(&compilation_info);
-    function->ReplaceCode(*code);
+    CompilationInfo compilation_info(&zone, function->GetIsolate(), shared,
+                                     function);
+
+    // Compiler relies on canonicalized handles, let's create
+    // a canonicalized scope and migrate existing handles there.
+    CanonicalHandleScope canonical(isolate_);
+    compilation_info.ReopenHandlesInNewHandleScope();
+
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+        &compilation_info, function->GetIsolate());
+    function->set_code(*code);
 
     return function;
   }
@@ -2993,6 +3000,19 @@ TEST(BytecodeGraphBuilderDebuggerStatement) {
   CHECK(return_value.is_identical_to(snippet.return_value()));
   CHECK_EQ(2, delegate.debug_break_count);
 }
+
+#undef SHARD_TEST_BY_2
+#undef SHARD_TEST_BY_4
+#undef SPACE
+#undef REPEAT_2
+#undef REPEAT_4
+#undef REPEAT_8
+#undef REPEAT_16
+#undef REPEAT_32
+#undef REPEAT_64
+#undef REPEAT_128
+#undef REPEAT_256
+#undef REPEAT_127
 
 }  // namespace compiler
 }  // namespace internal

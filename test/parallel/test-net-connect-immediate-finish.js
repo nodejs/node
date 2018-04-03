@@ -20,28 +20,35 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
+// This tests that if the socket is still in the 'connecting' state
+// when the user calls socket.end() ('finish'), the socket would emit
+// 'connect' and defer the handling until the 'connect' event is handled.
+
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
+const { addresses } = require('../common/internet');
+const {
+  errorLookupMock,
+  mockedErrorCode,
+  mockedSysCall
+} = require('../common/dns');
+
 const client = net.connect({
-  host: 'this.hostname.is.invalid',
-  port: common.PORT
-});
+  host: addresses.INVALID_HOST,
+  port: 80, // port number doesn't matter because host name is invalid
+  lookup: common.mustCall(errorLookupMock())
+}, common.mustNotCall());
 
 client.once('error', common.mustCall((err) => {
   assert(err);
   assert.strictEqual(err.code, err.errno);
-  // If Name Service Switch is available on the operating system then it
-  // might be configured differently (/etc/nsswitch.conf).
-  // If the system is configured with no dns the error code will be EAI_AGAIN,
-  // but if there are more services after the dns entry, for example some
-  // linux distributions ship a myhostname service by default which would
-  // still produce the ENOTFOUND error.
-  assert.ok(err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN');
+  assert.strictEqual(err.code, mockedErrorCode);
   assert.strictEqual(err.host, err.hostname);
-  assert.strictEqual(err.host, 'this.hostname.is.invalid');
-  assert.strictEqual(err.syscall, 'getaddrinfo');
+  assert.strictEqual(err.host, addresses.INVALID_HOST);
+  assert.strictEqual(err.syscall, mockedSysCall);
 }));
 
 client.end();

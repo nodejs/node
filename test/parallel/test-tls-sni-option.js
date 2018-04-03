@@ -175,7 +175,9 @@ process.on('exit', function() {
   ]);
   assert.deepStrictEqual(clientResults, [true, true, true, false, false]);
   assert.deepStrictEqual(clientErrors, [
-    null, null, null, null, 'socket hang up'
+    null, null, null, null,
+    'Client network socket disconnected before secure TLS ' +
+    'connection was established'
   ]);
   assert.deepStrictEqual(serverErrors, [
     null, null, null, null, 'Invalid SNI context'

@@ -39,40 +39,57 @@
 
 namespace v8 {
 namespace internal {
+
+constexpr MachineType MachineTypeOf<Smi>::value;
+constexpr MachineType MachineTypeOf<Object>::value;
+
 namespace compiler {
+
+static_assert(std::is_convertible<TNode<Number>, TNode<Object>>::value,
+              "test subtyping");
+static_assert(std::is_convertible<TNode<UnionT<Smi, HeapNumber>>,
+                                  TNode<UnionT<Smi, HeapObject>>>::value,
+              "test subtyping");
+static_assert(
+    !std::is_convertible<TNode<UnionT<Smi, HeapObject>>, TNode<Number>>::value,
+    "test subtyping");
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    Code::Flags flags, const char* name, size_t result_size)
+    Code::Kind kind, const char* name, size_t result_size, uint32_t stub_key,
+    int32_t builtin_index)
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetStubCallDescriptor(
               isolate, zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties,
               MachineType::AnyTagged(), result_size),
-          flags, name) {}
+          kind, name, stub_key, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
-                                       int parameter_count, Code::Flags flags,
-                                       const char* name)
-    : CodeAssemblerState(isolate, zone,
-                         Linkage::GetJSCallDescriptor(
-                             zone, false, parameter_count,
-                             Code::ExtractKindFromFlags(flags) == Code::BUILTIN
-                                 ? CallDescriptor::kPushArgumentCount
-                                 : CallDescriptor::kNoFlags),
-                         flags, name) {}
+                                       int parameter_count, Code::Kind kind,
+                                       const char* name, int32_t builtin_index)
+    : CodeAssemblerState(
+          isolate, zone,
+          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
+                                       kind == Code::BUILTIN
+                                           ? CallDescriptor::kPushArgumentCount
+                                           : CallDescriptor::kNoFlags),
+          kind, name, 0, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
-                                       Code::Flags flags, const char* name)
+                                       Code::Kind kind, const char* name,
+                                       uint32_t stub_key, int32_t builtin_index)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements())),
-      flags_(flags),
+      kind_(kind),
       name_(name),
+      stub_key_(stub_key),
+      builtin_index_(builtin_index),
       code_generated_(false),
       variables_(zone) {}
 
@@ -88,6 +105,8 @@ CodeAssembler::~CodeAssembler() {}
 void CodeAssemblerState::PrintCurrentBlock(std::ostream& os) {
   raw_assembler_->PrintCurrentBlock(os);
 }
+
+bool CodeAssemblerState::InsideBlock() { return raw_assembler_->InsideBlock(); }
 #endif
 
 void CodeAssemblerState::SetInitialDebugInformation(const char* msg,
@@ -148,6 +167,10 @@ void CodeAssembler::CallEpilogue() {
   }
 }
 
+bool CodeAssembler::Word32ShiftIsSafe() const {
+  return raw_assembler()->machine()->Word32ShiftIsSafe();
+}
+
 // static
 Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
   DCHECK(!state->code_generated_);
@@ -161,7 +184,8 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
 
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->flags_, state->name_, should_optimize_jumps ? &jump_opt : nullptr);
+      state->kind_, state->name_, state->stub_key_, state->builtin_index_,
+      should_optimize_jumps ? &jump_opt : nullptr);
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
@@ -169,7 +193,8 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
     // Regenerate machine code
     code = Pipeline::GenerateCodeForCodeStub(
         rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-        state->flags_, state->name_, &jump_opt);
+        state->kind_, state->name_, state->stub_key_, state->builtin_index_,
+        &jump_opt);
   }
 
   state->code_generated_ = true;
@@ -219,8 +244,13 @@ TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrConstant(value));
 }
 
-TNode<Object> CodeAssembler::NumberConstant(double value) {
-  return UncheckedCast<Object>(raw_assembler()->NumberConstant(value));
+TNode<Number> CodeAssembler::NumberConstant(double value) {
+  int smi_value;
+  if (DoubleToSmiInteger(value, &smi_value)) {
+    return UncheckedCast<Number>(SmiConstant(smi_value));
+  } else {
+    return UncheckedCast<Number>(raw_assembler()->NumberConstant(value));
+  }
 }
 
 TNode<Smi> CodeAssembler::SmiConstant(Smi* value) {
@@ -281,12 +311,13 @@ bool CodeAssembler::ToInt64Constant(Node* node, int64_t& out_value) {
 bool CodeAssembler::ToSmiConstant(Node* node, Smi*& out_value) {
   if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
     node = node->InputAt(0);
-  } else {
-    return false;
   }
   IntPtrMatcher m(node);
   if (m.HasValue()) {
-    out_value = Smi::cast(bit_cast<Object*>(m.Value()));
+    intptr_t value = m.Value();
+    // Make sure that the value is actually a smi
+    CHECK_EQ(0, value & ((static_cast<intptr_t>(1) << kSmiShiftSize) - 1));
+    out_value = Smi::cast(bit_cast<Object*>(value));
     return true;
   }
   return false;
@@ -438,6 +469,27 @@ TNode<WordT> CodeAssembler::IntPtrSub(SloppyTNode<WordT> left,
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrSub(left, right));
 }
 
+TNode<WordT> CodeAssembler::IntPtrMul(SloppyTNode<WordT> left,
+                                      SloppyTNode<WordT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant * right_constant);
+    }
+    if (base::bits::IsPowerOfTwo(left_constant)) {
+      return WordShl(right, WhichPowerOf2(left_constant));
+    }
+  } else if (is_right_constant) {
+    if (base::bits::IsPowerOfTwo(right_constant)) {
+      return WordShl(left, WhichPowerOf2(right_constant));
+    }
+  }
+  return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrMul(left, right));
+}
+
 TNode<WordT> CodeAssembler::WordShl(SloppyTNode<WordT> value, int shift) {
   return (shift != 0) ? WordShl(value, IntPtrConstant(shift)) : value;
 }
@@ -450,26 +502,341 @@ TNode<Word32T> CodeAssembler::Word32Shr(SloppyTNode<Word32T> value, int shift) {
   return (shift != 0) ? Word32Shr(value, Int32Constant(shift)) : value;
 }
 
+TNode<WordT> CodeAssembler::WordOr(SloppyTNode<WordT> left,
+                                   SloppyTNode<WordT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant | right_constant);
+    }
+    if (left_constant == 0) {
+      return right;
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<WordT>(raw_assembler()->WordOr(left, right));
+}
+
+TNode<WordT> CodeAssembler::WordAnd(SloppyTNode<WordT> left,
+                                    SloppyTNode<WordT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant & right_constant);
+    }
+  }
+  return UncheckedCast<WordT>(raw_assembler()->WordAnd(left, right));
+}
+
+TNode<WordT> CodeAssembler::WordXor(SloppyTNode<WordT> left,
+                                    SloppyTNode<WordT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant ^ right_constant);
+    }
+  }
+  return UncheckedCast<WordT>(raw_assembler()->WordXor(left, right));
+}
+
+TNode<WordT> CodeAssembler::WordShl(SloppyTNode<WordT> left,
+                                    SloppyTNode<IntegralT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant << right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<WordT>(raw_assembler()->WordShl(left, right));
+}
+
+TNode<WordT> CodeAssembler::WordShr(SloppyTNode<WordT> left,
+                                    SloppyTNode<IntegralT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(static_cast<uintptr_t>(left_constant) >>
+                            right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<WordT>(raw_assembler()->WordShr(left, right));
+}
+
+TNode<WordT> CodeAssembler::WordSar(SloppyTNode<WordT> left,
+                                    SloppyTNode<IntegralT> right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant >> right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<WordT>(raw_assembler()->WordSar(left, right));
+}
+
+TNode<Word32T> CodeAssembler::Word32Or(SloppyTNode<Word32T> left,
+                                       SloppyTNode<Word32T> right) {
+  int32_t left_constant;
+  bool is_left_constant = ToInt32Constant(left, left_constant);
+  int32_t right_constant;
+  bool is_right_constant = ToInt32Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int32Constant(left_constant | right_constant);
+    }
+    if (left_constant == 0) {
+      return right;
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word32T>(raw_assembler()->Word32Or(left, right));
+}
+
+TNode<Word32T> CodeAssembler::Word32And(SloppyTNode<Word32T> left,
+                                        SloppyTNode<Word32T> right) {
+  int32_t left_constant;
+  bool is_left_constant = ToInt32Constant(left, left_constant);
+  int32_t right_constant;
+  bool is_right_constant = ToInt32Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int32Constant(left_constant & right_constant);
+    }
+  }
+  return UncheckedCast<Word32T>(raw_assembler()->Word32And(left, right));
+}
+
+TNode<Word32T> CodeAssembler::Word32Xor(SloppyTNode<Word32T> left,
+                                        SloppyTNode<Word32T> right) {
+  int32_t left_constant;
+  bool is_left_constant = ToInt32Constant(left, left_constant);
+  int32_t right_constant;
+  bool is_right_constant = ToInt32Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int32Constant(left_constant ^ right_constant);
+    }
+  }
+  return UncheckedCast<Word32T>(raw_assembler()->Word32Xor(left, right));
+}
+
+TNode<Word32T> CodeAssembler::Word32Shl(SloppyTNode<Word32T> left,
+                                        SloppyTNode<Word32T> right) {
+  int32_t left_constant;
+  bool is_left_constant = ToInt32Constant(left, left_constant);
+  int32_t right_constant;
+  bool is_right_constant = ToInt32Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int32Constant(left_constant << right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word32T>(raw_assembler()->Word32Shl(left, right));
+}
+
+TNode<Word32T> CodeAssembler::Word32Shr(SloppyTNode<Word32T> left,
+                                        SloppyTNode<Word32T> right) {
+  int32_t left_constant;
+  bool is_left_constant = ToInt32Constant(left, left_constant);
+  int32_t right_constant;
+  bool is_right_constant = ToInt32Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int32Constant(static_cast<uint32_t>(left_constant) >>
+                           right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word32T>(raw_assembler()->Word32Shr(left, right));
+}
+
+TNode<Word32T> CodeAssembler::Word32Sar(SloppyTNode<Word32T> left,
+                                        SloppyTNode<Word32T> right) {
+  int32_t left_constant;
+  bool is_left_constant = ToInt32Constant(left, left_constant);
+  int32_t right_constant;
+  bool is_right_constant = ToInt32Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int32Constant(left_constant >> right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word32T>(raw_assembler()->Word32Sar(left, right));
+}
+
+TNode<Word64T> CodeAssembler::Word64Or(SloppyTNode<Word64T> left,
+                                       SloppyTNode<Word64T> right) {
+  int64_t left_constant;
+  bool is_left_constant = ToInt64Constant(left, left_constant);
+  int64_t right_constant;
+  bool is_right_constant = ToInt64Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int64Constant(left_constant | right_constant);
+    }
+    if (left_constant == 0) {
+      return right;
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word64T>(raw_assembler()->Word64Or(left, right));
+}
+
+TNode<Word64T> CodeAssembler::Word64And(SloppyTNode<Word64T> left,
+                                        SloppyTNode<Word64T> right) {
+  int64_t left_constant;
+  bool is_left_constant = ToInt64Constant(left, left_constant);
+  int64_t right_constant;
+  bool is_right_constant = ToInt64Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int64Constant(left_constant & right_constant);
+    }
+  }
+  return UncheckedCast<Word64T>(raw_assembler()->Word64And(left, right));
+}
+
+TNode<Word64T> CodeAssembler::Word64Xor(SloppyTNode<Word64T> left,
+                                        SloppyTNode<Word64T> right) {
+  int64_t left_constant;
+  bool is_left_constant = ToInt64Constant(left, left_constant);
+  int64_t right_constant;
+  bool is_right_constant = ToInt64Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int64Constant(left_constant ^ right_constant);
+    }
+  }
+  return UncheckedCast<Word64T>(raw_assembler()->Word64Xor(left, right));
+}
+
+TNode<Word64T> CodeAssembler::Word64Shl(SloppyTNode<Word64T> left,
+                                        SloppyTNode<Word64T> right) {
+  int64_t left_constant;
+  bool is_left_constant = ToInt64Constant(left, left_constant);
+  int64_t right_constant;
+  bool is_right_constant = ToInt64Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int64Constant(left_constant << right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word64T>(raw_assembler()->Word64Shl(left, right));
+}
+
+TNode<Word64T> CodeAssembler::Word64Shr(SloppyTNode<Word64T> left,
+                                        SloppyTNode<Word64T> right) {
+  int64_t left_constant;
+  bool is_left_constant = ToInt64Constant(left, left_constant);
+  int64_t right_constant;
+  bool is_right_constant = ToInt64Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int64Constant(static_cast<uint64_t>(left_constant) >>
+                           right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word64T>(raw_assembler()->Word64Shr(left, right));
+}
+
+TNode<Word64T> CodeAssembler::Word64Sar(SloppyTNode<Word64T> left,
+                                        SloppyTNode<Word64T> right) {
+  int64_t left_constant;
+  bool is_left_constant = ToInt64Constant(left, left_constant);
+  int64_t right_constant;
+  bool is_right_constant = ToInt64Constant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return Int64Constant(left_constant >> right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return UncheckedCast<Word64T>(raw_assembler()->Word64Sar(left, right));
+}
+
 TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
     return UncheckedCast<UintPtrT>(
         raw_assembler()->ChangeUint32ToUint64(value));
   }
-  return UncheckedCast<UintPtrT>(value);
+  return ReinterpretCast<UintPtrT>(value);
 }
 
 TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(SloppyTNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return UncheckedCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
+    return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
   }
-  return UncheckedCast<IntPtrT>(value);
+  return ReinterpretCast<IntPtrT>(value);
 }
 
-Node* CodeAssembler::ChangeFloat64ToUintPtr(Node* value) {
+TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
+    SloppyTNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return raw_assembler()->ChangeFloat64ToUint64(value);
+    return ReinterpretCast<UintPtrT>(
+        raw_assembler()->ChangeFloat64ToUint64(value));
   }
-  return raw_assembler()->ChangeFloat64ToUint32(value);
+  return ReinterpretCast<UintPtrT>(
+      raw_assembler()->ChangeFloat64ToUint32(value));
 }
 
 Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
@@ -644,7 +1011,7 @@ TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
   int argc = static_cast<int>(sizeof...(args));
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
+      CallDescriptor::kNoFlags);
   int return_count = static_cast<int>(desc->ReturnCount());
 
   Node* centry =
@@ -670,7 +1037,10 @@ Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
                                size_t result_size, Node* target, Node* context,
                                TArgs... args) {
   Node* nodes[] = {target, args..., context};
-  return CallStubN(descriptor, result_size, arraysize(nodes), nodes);
+  int input_count = arraysize(nodes);
+  if (context == nullptr) --input_count;
+  return CallStubN(descriptor, result_size, input_count, nodes,
+                   context != nullptr);
 }
 
 // Instantiate CallStubR() for argument counts used by CSA-generated code.
@@ -682,10 +1052,11 @@ REPEAT_1_TO_11(INSTANTIATE, Node*)
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
                                size_t result_size, int input_count,
-                               Node* const* inputs) {
-  // 2 is for target and context.
-  DCHECK_LE(2, input_count);
-  int argc = input_count - 2;
+                               Node* const* inputs, bool pass_context) {
+  // implicit nodes are target and optionally context.
+  int implicit_nodes = pass_context ? 2 : 1;
+  DCHECK_LE(implicit_nodes, input_count);
+  int argc = input_count - implicit_nodes;
   DCHECK_LE(descriptor.GetParameterCount(), argc);
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
@@ -693,7 +1064,8 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, stack_parameter_count,
       CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
+      MachineType::AnyTagged(), result_size,
+      pass_context ? Linkage::kPassContext : Linkage::kNoContext);
 
   CallPrologue();
   Node* return_value = raw_assembler()->CallN(desc, input_count, inputs);
@@ -709,7 +1081,7 @@ Node* CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
   size_t result_size = 1;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), result_size);
 
   Node* nodes[] = {target, args..., context};
@@ -735,7 +1107,7 @@ Node* CodeAssembler::TailCallStubThenBytecodeDispatch(
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, stack_parameter_count,
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), 0);
 
   Node* nodes[] = {target, args..., context};
@@ -783,11 +1155,11 @@ Node* CodeAssembler::CallCFunction1(MachineType return_type,
 }
 
 Node* CodeAssembler::CallCFunction1WithCallerSavedRegisters(
-    MachineType return_type, MachineType arg0_type, Node* function,
-    Node* arg0) {
+    MachineType return_type, MachineType arg0_type, Node* function, Node* arg0,
+    SaveFPRegsMode mode) {
   DCHECK(return_type.LessThanOrEqualPointerSize());
   return raw_assembler()->CallCFunction1WithCallerSavedRegisters(
-      return_type, arg0_type, function, arg0);
+      return_type, arg0_type, function, arg0, mode);
 }
 
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
@@ -809,10 +1181,31 @@ Node* CodeAssembler::CallCFunction3(MachineType return_type,
 
 Node* CodeAssembler::CallCFunction3WithCallerSavedRegisters(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2) {
+    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+    SaveFPRegsMode mode) {
   DCHECK(return_type.LessThanOrEqualPointerSize());
   return raw_assembler()->CallCFunction3WithCallerSavedRegisters(
-      return_type, arg0_type, arg1_type, arg2_type, function, arg0, arg1, arg2);
+      return_type, arg0_type, arg1_type, arg2_type, function, arg0, arg1, arg2,
+      mode);
+}
+
+Node* CodeAssembler::CallCFunction4(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, Node* function, Node* arg0,
+    Node* arg1, Node* arg2, Node* arg3) {
+  return raw_assembler()->CallCFunction4(return_type, arg0_type, arg1_type,
+                                         arg2_type, arg3_type, function, arg0,
+                                         arg1, arg2, arg3);
+}
+
+Node* CodeAssembler::CallCFunction5(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
+    Node* function, Node* arg0, Node* arg1, Node* arg2, Node* arg3,
+    Node* arg4) {
+  return raw_assembler()->CallCFunction5(
+      return_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
+      function, arg0, arg1, arg2, arg3, arg4);
 }
 
 Node* CodeAssembler::CallCFunction6(
@@ -873,8 +1266,8 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
   for (size_t i = 0; i < case_count; ++i) {
     labels[i] = case_labels[i]->label_;
     case_labels[i]->MergeVariables();
-    default_label->MergeVariables();
   }
+  default_label->MergeVariables();
   return raw_assembler()->Switch(index, default_label->label_, case_values,
                                  labels, case_count);
 }
@@ -967,12 +1360,15 @@ Node* CodeAssemblerVariable::value() const {
   if (!IsBound()) {
     std::stringstream str;
     str << "#Use of unbound variable:"
+        << "#\n    Variable:      " << *this << "#\n    Current Block: ";
+    state_->PrintCurrentBlock(str);
+    FATAL("%s", str.str().c_str());
+  }
+  if (!state_->InsideBlock()) {
+    std::stringstream str;
+    str << "#Accessing variable value outside a block:"
         << "#\n    Variable:      " << *this;
-    if (state_) {
-      str << "#\n    Current Block: ";
-      state_->PrintCurrentBlock(str);
-    }
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 #endif  // DEBUG
   return impl_->value_;
@@ -1065,7 +1461,7 @@ void CodeAssemblerLabel::MergeVariables() {
             }
             str << "\n#    Current Block: ";
             state_->PrintCurrentBlock(str);
-            FATAL(str.str().c_str());
+            FATAL("%s", str.str().c_str());
           }
 #endif  // DEBUG
         }
@@ -1081,7 +1477,7 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
     str << "Cannot bind the same label twice:"
         << "\n#    current:  " << debug_info
         << "\n#    previous: " << *label_->block();
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
   state_->raw_assembler_->Bind(label_, debug_info);
   UpdateVariablesAfterBind();
@@ -1102,7 +1498,7 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
     auto i = variable_merges_.find(var);
     if (i != variable_merges_.end()) {
       for (auto value : i->second) {
-        DCHECK(value != nullptr);
+        DCHECK_NOT_NULL(value);
         if (value != shared_value) {
           if (shared_value == nullptr) {
             shared_value = value;
@@ -1133,7 +1529,7 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
           << " vs. found=" << (not_found ? 0 : i->second.size())
           << "\n# Variable:      " << *var_impl
           << "\n# Current Block: " << *label_->block();
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
 #endif  // DEBUG
     Node* phi = state_->raw_assembler_->Phi(
