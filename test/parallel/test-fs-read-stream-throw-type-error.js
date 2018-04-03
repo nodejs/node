@@ -34,3 +34,11 @@ createReadStreamErr(example, false, 'ERR_INVALID_ARG_TYPE');
 createReadStreamErr(example, { start: NaN }, 'ERR_OUT_OF_RANGE');
 createReadStreamErr(example, { end: NaN }, 'ERR_OUT_OF_RANGE');
 createReadStreamErr(example, { start: NaN, end: NaN }, 'ERR_OUT_OF_RANGE');
+
+// Should also throw on non-integer Numbers and non-numbers
+createReadStreamErr(example, { start: 'a' }, 'ERR_INVALID_ARG_TYPE');
+createReadStreamErr(example, { start: 0.1 }, 'ERR_OUT_OF_RANGE');
+createReadStreamErr(example, { start: 0, end: 'a' }, 'ERR_INVALID_ARG_TYPE');
+createReadStreamErr(example, { start: 0, end: 0.1 }, 'ERR_OUT_OF_RANGE');
+createReadStreamErr(example, { start: 1, end: 0 }, 'ERR_OUT_OF_RANGE');
+createReadStreamErr(example, { end: 0.1 }, 'ERR_OUT_OF_RANGE');
