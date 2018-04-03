@@ -6368,13 +6368,8 @@ Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate) {
     return Smi::cast(hash_obj);
   }
 
-  int masked_hash;
-  // TODO(gsathya): Remove the loop and pass kHashMask directly to
-  // GenerateIdentityHash.
-  do {
-    int hash = isolate->GenerateIdentityHash(Smi::kMaxValue);
-    masked_hash = hash & JSReceiver::kHashMask;
-  } while (masked_hash == PropertyArray::kNoHashSentinel);
+  int masked_hash = isolate->GenerateIdentityHash(JSReceiver::kHashMask);
+  DCHECK_NE(PropertyArray::kNoHashSentinel, masked_hash);
 
   SetIdentityHash(masked_hash);
   return Smi::FromInt(masked_hash);
