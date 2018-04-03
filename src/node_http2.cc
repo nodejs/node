@@ -499,8 +499,8 @@ Http2Session::Http2Session(Environment* env,
 Http2Session::~Http2Session() {
   CHECK_EQ(flags_ & SESSION_STATE_HAS_SCOPE, 0);
   Debug(this, "freeing nghttp2 session");
-  for (const auto& stream : streams_)
-    stream.second->session_ = nullptr;
+  for (const auto& iter : streams_)
+    iter.second->session_ = nullptr;
   nghttp2_session_del(session_);
 }
 
@@ -653,6 +653,8 @@ inline void Http2Session::AddStream(Http2Stream* stream) {
 
 
 inline void Http2Session::RemoveStream(Http2Stream* stream) {
+  if (streams_.empty() || stream == nullptr)
+    return;  // Nothing to remove, item was never added?
   streams_.erase(stream->id());
   DecrementCurrentSessionMemory(stream->self_size());
 }
