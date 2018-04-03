@@ -325,16 +325,19 @@ in the range `0` to `65535` (inclusive). Setting the value to the default port
 of the `URL` objects given `protocol` will result in the `port` value becoming
 the empty string (`''`).
 
-Upon assigning a value to the port, the value will first be converted to a string using `.toString()`.
+Upon assigning a value to the port, the value will first be converted to a
+string using `.toString()`.
 
-If that string is invalid, but it begins with a
-number, the leading number is assigned to `port`.  
-Otherwise, or if the number
-lies outside the range denoted above, it is ignored.  
+If that string is invalid, but it begins with a number, the leading number is
+assigned to `port`.
+Otherwise, or if the number lies outside the range denoted above,
+it is ignored. 
 
-Note that numbers which contain a decimal point,  
-such as floating-point numbers or numbers in scientific notation, are not an exception to this rule.  
-Leading numbers up to the decimal point will be set as the URL's port, assuming they are valid. 
+Note that numbers which contain a decimal point,
+such as floating-point numbers or numbers in scientific notation,
+are not an exception to this rule.
+Leading numbers up to the decimal point will be set as the URL's port,
+assuming they are valid. 
 
 For example:
 
