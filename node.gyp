@@ -149,7 +149,6 @@
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/async_iterator.js',
       'lib/internal/streams/buffer_list.js',
-      'lib/internal/streams/duplex_base.js',
       'lib/internal/streams/duplexpair.js',
       'lib/internal/streams/legacy.js',
       'lib/internal/streams/destroy.js',
