@@ -375,6 +375,11 @@ changes:
   * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
     to the history list duplicates an older one, this removes the older line
     from the list. **Default:** `false`.
+  * `escapeCodeTimeout` {number} The duration `readline` will wait for a
+    character (when reading an ambiguous key sequence in milliseconds one that
+    can both form a complete key sequence using the input read so far and can
+    take additional input to complete a longer key sequence).
+    **Default:** `500`.
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
