@@ -60,7 +60,7 @@ using v8::Value;
 
 #define SLURP_STRING(obj, member, valp)                                    \
   if (!(obj)->IsObject()) {                                                \
-    return env->ThrowError(                                                \
+    return env->THROW_ERR_INVALID_ARG_TYPE(                                \
         "expected object for " #obj " to contain string member " #member); \
   }                                                                        \
   node::Utf8Value _##member(env->isolate(),                                \
@@ -70,7 +70,7 @@ using v8::Value;
 
 #define SLURP_INT(obj, member, valp)                                       \
   if (!(obj)->IsObject()) {                                                \
-    return env->ThrowError(                                                \
+    return env->THROW_ERR_INVALID_ARG_TYPE(                                \
       "expected object for " #obj " to contain integer member " #member);  \
   }                                                                        \
   *valp = obj->Get(OneByteString(env->isolate(), #member))                 \
@@ -78,14 +78,14 @@ using v8::Value;
 
 #define SLURP_OBJECT(obj, member, valp)                                    \
   if (!(obj)->IsObject()) {                                                \
-    return env->ThrowError(                                                \
+    return env->THROW_ERR_INVALID_ARG_TYPE(                                \
       "expected object for " #obj " to contain object member " #member);   \
   }                                                                        \
   *valp = Local<Object>::Cast(obj->Get(OneByteString(env->isolate(), #member)));
 
 #define SLURP_CONNECTION(arg, conn)                                        \
   if (!(arg)->IsObject()) {                                                \
-    return env->ThrowError(                                                \
+    return env->THROW_ERR_INVALID_ARG_TYPE(                                \
       "expected argument " #arg " to be a connection object");             \
   }                                                                        \
   node_dtrace_connection_t conn;                                           \
@@ -103,7 +103,7 @@ using v8::Value;
 
 #define SLURP_CONNECTION_HTTP_CLIENT(arg, conn)                            \
   if (!(arg)->IsObject()) {                                                \
-    return env->ThrowError(                                                \
+    return env->THROW_ERR_INVALID_ARG_TYPE(                                \
       "expected argument " #arg " to be a connection object");             \
   }                                                                        \
   node_dtrace_connection_t conn;                                           \
@@ -115,11 +115,11 @@ using v8::Value;
 
 #define SLURP_CONNECTION_HTTP_CLIENT_RESPONSE(arg0, arg1, conn)            \
   if (!(arg0)->IsObject()) {                                               \
-    return env->ThrowError(                                                \
+    return env->THROW_ERR_INVALID_ARG_TYPE(                                \
       "expected argument " #arg0 " to be a connection object");            \
   }                                                                        \
   if (!(arg1)->IsObject()) {                                               \
-    return env->ThrowError(                                                \
+    return env->THROW_ERR_INVALID_ARG_TYPE(                                \
       "expected argument " #arg1 " to be a connection object");            \
   }                                                                        \
   node_dtrace_connection_t conn;                                           \
@@ -166,7 +166,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   SLURP_OBJECT(arg0, headers, &headers);
 
   if (!(headers)->IsObject()) {
-    return env->ThrowError(
+    return env->THROW_ERR_INVALID_ARG_TYPE(
       "expected object for request to contain string member headers");
   }
 

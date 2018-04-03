@@ -209,7 +209,8 @@ void SerializerContext::TransferArrayBuffer(
   if (id.IsNothing()) return;
 
   if (!args[1]->IsArrayBuffer())
-    return ctx->env()->ThrowTypeError("arrayBuffer must be an ArrayBuffer");
+    return ctx->env()->THROW_ERR_INVALID_ARG_TYPE(
+        "arrayBuffer must be an ArrayBuffer");
 
   Local<ArrayBuffer> ab = args[1].As<ArrayBuffer>();
   ctx->serializer_.TransferArrayBuffer(id.FromJust(), ab);
@@ -255,7 +256,8 @@ void SerializerContext::WriteRawBytes(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
   if (!args[0]->IsUint8Array()) {
-    return ctx->env()->ThrowTypeError("source must be a Uint8Array");
+    return ctx->env()->THROW_ERR_INVALID_ARG_TYPE(
+        "source must be a Uint8Array");
   }
 
   ctx->serializer_.WriteRawBytes(Buffer::Data(args[0]),
@@ -305,7 +307,7 @@ void DeserializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint8Array()) {
-    return env->ThrowTypeError("buffer must be a Uint8Array");
+    return env->THROW_ERR_INVALID_ARG_TYPE("buffer must be a Uint8Array");
   }
 
   new DeserializerContext(env, args.This(), args[0]);
@@ -349,8 +351,8 @@ void DeserializerContext::TransferArrayBuffer(
     return;
   }
 
-  return ctx->env()->ThrowTypeError("arrayBuffer must be an ArrayBuffer or "
-                                    "SharedArrayBuffer");
+  return ctx->env()->THROW_ERR_INVALID_ARG_TYPE(
+      "arrayBuffer must be an ArrayBuffer or SharedArrayBuffer");
 }
 
 void DeserializerContext::GetWireFormatVersion(

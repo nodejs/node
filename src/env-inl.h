@@ -657,6 +657,23 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
+#define V(code, type)                                                         \
+  inline v8::Local<v8::Value> Environment::code(const char* message) const {  \
+    v8::Local<v8::String> js_code = OneByteString(isolate(), #code);          \
+    v8::Local<v8::String> js_msg = OneByteString(isolate(), message);         \
+    v8::Local<v8::Object> e =                                                 \
+        v8::Exception::type(js_msg)->ToObject(                                \
+            isolate()->GetCurrentContext()).ToLocalChecked();                 \
+    e->Set(code_string(), js_code);                                           \
+    return e;                                                                 \
+  }                                                                           \
+                                                                              \
+  inline void Environment::THROW_ ## code(const char* message) const {        \
+    isolate()->ThrowException(code(message));                                 \
+  }
+  ENVIRONMENT_ERROR_HELPERS(V)
+#undef V
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

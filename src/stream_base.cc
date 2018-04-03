@@ -174,7 +174,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[1]->IsUint8Array()) {
-    env->ThrowTypeError("Second argument must be a buffer");
+    env->THROW_ERR_INVALID_ARG_TYPE("Second argument must be a buffer");
     return 0;
   }
 

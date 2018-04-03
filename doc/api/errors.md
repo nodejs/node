@@ -1090,6 +1090,12 @@ A callback function was required but was not been provided to a Node.js API.
 
 Invalid characters were detected in headers.
 
+<a id="ERR_INVALID_CONSTRUCTOR_CALL"></a>
+### ERR_INVALID_CONSTRUCTOR_CALL
+
+A function that should not be invoked as a construcor was invoked with `new`
+or a constructor was invoked without `new`.
+
 <a id="ERR_INVALID_CURSOR_POS"></a>
 ### ERR_INVALID_CURSOR_POS
 
@@ -1342,6 +1348,11 @@ An attempt was made to `require()` an [ES6 module][].
 
 Script execution was interrupted by `SIGINT` (For example, when Ctrl+C was
 pressed).
+
+<a id="ERR_SCRIPT_EXECUTION_TIMEOUT"></a>
+### ERR_SCRIPT_EXECUTION_TIMEOUT
+
+Script execution timed out, possibly due to bugs in the script being executed.
 
 <a id="ERR_SERVER_ALREADY_LISTEN"></a>
 ### ERR_SERVER_ALREADY_LISTEN

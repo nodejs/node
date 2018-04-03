@@ -1577,7 +1577,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 1 || !args[0]->IsString()) {
-    return env->ThrowTypeError("Bad argument.");
+    return env->THROW_ERR_INVALID_ARG_TYPE("Bad argument.");
   }
 
   node::Utf8Value path(args.GetIsolate(), args[0]);
@@ -1619,7 +1619,8 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
     old = umask(0);
     umask(static_cast<mode_t>(old));
   } else if (!args[0]->IsInt32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("argument must be an integer or octal string.");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "argument must be an integer or octal string.");
   } else {
     int oct;
     if (args[0]->IsInt32()) {
@@ -1632,7 +1633,7 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
       for (size_t i = 0; i < str.length(); i++) {
         char c = (*str)[i];
         if (c > '7' || c < '0') {
-          return env->ThrowTypeError("invalid octal string");
+          return env->THROW_ERR_INVALID_ARG_VALUE("invalid octal string");
         }
         oct *= 8;
         oct += c - '0';
@@ -1776,7 +1777,8 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("setgid argument must be a number or a string");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "setgid argument must be a number or a string");
   }
 
   gid_t gid = gid_by_name(env->isolate(), args[0]);
@@ -1795,7 +1797,8 @@ static void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("setegid argument must be a number or string");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "setegid argument must be a number or string");
   }
 
   gid_t gid = gid_by_name(env->isolate(), args[0]);
@@ -1814,7 +1817,8 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("setuid argument must be a number or a string");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "setuid argument must be a number or a string");
   }
 
   uid_t uid = uid_by_name(env->isolate(), args[0]);
@@ -1833,7 +1837,8 @@ static void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("seteuid argument must be a number or string");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "seteuid argument must be a number or string");
   }
 
   uid_t uid = uid_by_name(env->isolate(), args[0]);
@@ -1890,7 +1895,7 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsArray()) {
-    return env->ThrowTypeError("argument 1 must be an array");
+    return env->THROW_ERR_INVALID_ARG_TYPE("argument 1 must be an array");
   }
 
   Local<Array> groups_list = args[0].As<Array>();
@@ -1921,11 +1926,13 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("argument 1 must be a number or a string");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "argument 1 must be a number or a string");
   }
 
   if (!args[1]->IsUint32() && !args[1]->IsString()) {
-    return env->ThrowTypeError("argument 2 must be a number or a string");
+    return env->THROW_ERR_INVALID_ARG_TYPE(
+        "argument 2 must be a number or a string");
   }
 
   node::Utf8Value arg0(env->isolate(), args[0]);
@@ -2040,7 +2047,7 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 2) {
-    return env->ThrowError("Bad argument.");
+    return env->THROW_ERR_MISSING_ARGS("Bad argument.");
   }
 
   int pid = args[0]->Int32Value();
@@ -2238,13 +2245,13 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(modpending, nullptr);
 
   if (args.Length() < 2) {
-    env->ThrowError("process.dlopen needs at least 2 arguments.");
+    env->THROW_ERR_MISSING_ARGS("process.dlopen needs at least 2 arguments.");
     return;
   }
 
   int32_t flags = DLib::kDefaultFlags;
   if (args.Length() > 2 && !args[2]->Int32Value(context).To(&flags)) {
-    return env->ThrowTypeError("flag argument must be an integer.");
+    return env->THROW_ERR_INVALID_ARG_TYPE("flag argument must be an integer.");
   }
 
   Local<Object> module;

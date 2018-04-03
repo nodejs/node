@@ -44,18 +44,18 @@
 #include <memory>
 #include <vector>
 
-#define THROW_AND_RETURN_IF_NOT_BUFFER(val, prefix)           \
-  do {                                                        \
-    if (!Buffer::HasInstance(val)) {                          \
-      return env->ThrowTypeError(prefix " must be a buffer"); \
-    }                                                         \
+#define THROW_AND_RETURN_IF_NOT_BUFFER(val, prefix)                       \
+  do {                                                                    \
+    if (!Buffer::HasInstance(val)) {                                      \
+      return env->THROW_ERR_INVALID_ARG_TYPE(prefix " must be a buffer"); \
+    }                                                                     \
   } while (0)
 
-#define THROW_AND_RETURN_IF_NOT_STRING(val, prefix)           \
-  do {                                                        \
-    if (!val->IsString()) {                                   \
-      return env->ThrowTypeError(prefix " must be a string"); \
-    }                                                         \
+#define THROW_AND_RETURN_IF_NOT_STRING(val, prefix)                       \
+  do {                                                                    \
+    if (!val->IsString()) {                                               \
+      return env->THROW_ERR_INVALID_ARG_TYPE(prefix " must be a string"); \
+    }                                                                     \
   } while (0)
 
 static const char PUBLIC_KEY_PFX[] =  "-----BEGIN PUBLIC KEY-----";
