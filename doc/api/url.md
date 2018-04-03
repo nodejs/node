@@ -331,13 +331,13 @@ string using `.toString()`.
 If that string is invalid, but it begins with a number, the leading number is
 assigned to `port`.
 Otherwise, or if the number lies outside the range denoted above,
-it is ignored. 
+it is ignored.
 
 Note that numbers which contain a decimal point,
 such as floating-point numbers or numbers in scientific notation,
 are not an exception to this rule.
 Leading numbers up to the decimal point will be set as the URL's port,
-assuming they are valid. 
+assuming they are valid.
 
 For example:
 
