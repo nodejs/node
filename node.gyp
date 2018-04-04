@@ -149,6 +149,8 @@
       'lib/internal/streams/buffer_list.js',
       'lib/internal/streams/legacy.js',
       'lib/internal/streams/destroy.js',
+      'lib/internal/streams/pipeline.js',
+      'lib/internal/streams/end-of-stream.js',
       'lib/internal/wrap_js_stream.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
