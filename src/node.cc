@@ -4485,9 +4485,12 @@ int Start(int argc, char** argv) {
 
   CHECK_GT(argc, 0);
 
-  //#ifdef NODE_ENABLE_LARGE_CODE_PAGES
-  node::largepages::map_static_code_to_large_pages();
-  //#endif
+#ifdef NODE_ENABLE_LARGE_CODE_PAGES
+  if (node::largepages::isLargePagesEnabled()) {
+    //    fprintf(stderr, "Mapping static code to large pages\n");
+    node::largepages::map_static_code_to_large_pages();
+  }
+#endif
 
 
   // Hack around with the argv pointer. Used for process.title = "blah".

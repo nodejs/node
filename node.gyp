@@ -302,7 +302,6 @@
         'src/js_stream.cc',
         'src/module_wrap.cc',
         'src/node.cc',
-        'src/node_large_page.cc',
         'src/node_api.cc',
         'src/node_api.h',
         'src/node_api_types.h',
@@ -581,6 +580,19 @@
             'src/tls_wrap.h'
           ],
         }],
+	[ 'node_use_large_pages=="true"', {
+          'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
+          # The current implementation of Large Pages is under Linux.
+	  # Other implementations are possible but not currently supported.
+          #
+          'conditions': [
+            [ 'OS=="linux"', {
+              'sources': [
+	              'src/node_large_page.cc'
+              ],
+            }],
+          ]
+        } ],
       ],
     },
     {

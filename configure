@@ -903,6 +903,9 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
+  if flavor == 'linux':
+    o['variables']['node_use_large_pages'] = 'true'
+       
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
 
