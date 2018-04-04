@@ -1528,6 +1528,18 @@ added: v8.4.0
 The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
 
+#### server.close([callback])
+<!-- YAML
+added: v8.4.0
+-->
+- `callback` {Function}
+
+Stops the server from accepting new connections.  See [`net.Server.close()`][].
+
+Note that this is not analogous to restricting new requests since HTTP/2
+connections are persistent. To achieve a similar graceful shutdown behavior,
+consider also using [`http2session.close()`] on active sessions.
+
 ### Class: Http2SecureServer
 <!-- YAML
 added: v8.4.0
@@ -1634,6 +1646,18 @@ The `'unknownProtocol'` event is emitted when a connecting client fails to
 negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
 the connection is terminated. See the [Compatibility API][].
+
+#### server.close([callback])
+<!-- YAML
+added: v8.4.0
+-->
+- `callback` {Function}
+
+Stops the server from accepting new connections.  See [`tls.Server.close()`][].
+
+Note that this is not analogous to restricting new requests since HTTP/2
+connections are persistent. To achieve a similar graceful shutdown behavior,
+consider also using [`http2session.close()`] on active sessions.
 
 ### http2.createServer(options[, onRequestHandler])
 <!-- YAML
@@ -3107,7 +3131,9 @@ following additional properties:
 [`http2.createSecureServer()`]: #http2_http2_createsecureserver_options_onrequesthandler
 [`http2.Server`]: #http2_class_http2server
 [`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
+[`http2session.close()`]: #http2_http2session_close_callback
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
+[`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.Socket.prototype.ref`]: net.html#net_socket_ref
 [`net.Socket.prototype.unref`]: net.html#net_socket_unref
@@ -3120,6 +3146,7 @@ following additional properties:
 [`response.write(data, encoding)`]: http.html#http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http2_response_writecontinue
 [`response.writeHead()`]: #http2_response_writehead_statuscode_statusmessage_headers
+[`tls.Server.close()`]: tls.html#tls_server_close_callback
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
