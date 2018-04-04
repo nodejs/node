@@ -80,7 +80,7 @@ Since perl is not a build requirement in node, they all should be
 generated in advance and statically stored in the repository. We
 provide two sets of asm files, one is asm_latest(avx2 and addx
 supported) in `deps/openssl/asm` and the other asm_obsolete(without
-avx1/2 and addx) in `deps/openssl/asm_obsolute`, which depends on
+avx1/2 and addx) in `deps/openssl/asm_obsolete`, which depends on
 supported features in assemblers. Each directory has a `Makefile`
 to generate asm files with perl scripts in openssl sources.
 
