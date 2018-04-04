@@ -720,7 +720,7 @@ exports.expectsError = function expectsError(fn, settings, exact) {
     // Check all error properties.
     const keys = Object.keys(settings);
     for (const key of keys) {
-      if (key === 'message' || key === 'type')
+      if (key === 'message' || key === 'type' || key === 'info')
         continue;
       const actual = error[key];
       const expected = settings[key];
