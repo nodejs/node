@@ -25,7 +25,7 @@ common.expectsError(
 
   const suffix = common.isWindows ?
     'EBADF (bad file descriptor)' : 'EINVAL (invalid argument)';
-  const message = `TTY initialization failed: uv_tty_init returns ${suffix}`;
+  const message = `TTY initialization failed: uv_tty_init returned ${suffix}`;
 
   common.expectsError(
     () => {

@@ -34,7 +34,7 @@ const { ERR_TEST } = errors.codes;
     {
       code: 'ERR_TEST',
       type: SystemError,
-      message: 'custom message: syscall_test returns ETEST (code message)' +
+      message: 'custom message: syscall_test returned ETEST (code message)' +
                ' /str => /str2',
       info: ctx
     }
@@ -54,7 +54,7 @@ const { ERR_TEST } = errors.codes;
     {
       code: 'ERR_TEST',
       type: SystemError,
-      message: 'custom message: syscall_test returns ETEST (code message)' +
+      message: 'custom message: syscall_test returned ETEST (code message)' +
                ' /buf => /str2',
       info: ctx
     }
@@ -74,7 +74,7 @@ const { ERR_TEST } = errors.codes;
     {
       code: 'ERR_TEST',
       type: SystemError,
-      message: 'custom message: syscall_test returns ETEST (code message)' +
+      message: 'custom message: syscall_test returned ETEST (code message)' +
                ' /buf => /buf2',
       info: ctx
     }

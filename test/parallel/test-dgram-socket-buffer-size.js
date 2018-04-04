@@ -18,7 +18,7 @@ function getExpectedError(type) {
   const error = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     type: SystemError,
-    message: `Could not get or set buffer size: ${syscall} returns ${suffix}`,
+    message: `Could not get or set buffer size: ${syscall} returned ${suffix}`,
     info: {
       code,
       message,
@@ -112,7 +112,7 @@ function getExpectedError(type) {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     type: SystemError,
     message: 'Could not get or set buffer size: uv_recv_buffer_size ' +
-             'returns EINVAL (invalid argument)',
+             'returned EINVAL (invalid argument)',
     info
   };
   const socket = dgram.createSocket('udp4');
@@ -135,7 +135,7 @@ function getExpectedError(type) {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     type: SystemError,
     message: 'Could not get or set buffer size: uv_send_buffer_size ' +
-             'returns EINVAL (invalid argument)',
+             'returned EINVAL (invalid argument)',
     info
   };
   const socket = dgram.createSocket('udp4');
