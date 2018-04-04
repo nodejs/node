@@ -720,15 +720,19 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   // Buffer, so we need to reorder on BE platforms.  See
   // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
   // encoding specification
-  std::vector<uint16_t> dst;
   if (IsBigEndian()) {
-    dst.assign(buf, buf + buflen);
-    size_t nbytes = buflen * sizeof(dst[0]);
-    SwapBytes16(reinterpret_cast<char*>(&dst[0]), nbytes);
-    buf = &dst[0];
+    uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen);
+    if (dst == nullptr) {
+      *error = SB_MALLOC_FAILED_ERROR;
+      return MaybeLocal<Value>();
+    }
+    size_t nbytes = buflen * sizeof(uint16_t);
+    memcpy(dst, buf, nbytes);
+    SwapBytes16(reinterpret_cast<char*>(dst), nbytes);
+    return ExternTwoByteString::New(isolate, dst, buflen, error);
+  } else {
+    return ExternTwoByteString::NewFromCopy(isolate, buf, buflen, error);
   }
-
-  return ExternTwoByteString::NewFromCopy(isolate, buf, buflen, error);
 }
 
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
