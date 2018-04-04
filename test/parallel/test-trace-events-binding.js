@@ -25,8 +25,7 @@ tmpdir.refresh();
 process.chdir(tmpdir.path);
 
 const proc = cp.spawn(process.execPath,
-                      [ '--trace-events-enabled',
-                        '--trace-event-categories', 'custom',
+                      [ '--trace-event-categories', 'custom',
                         '-e', CODE ]);
 
 proc.once('exit', common.mustCall(() => {

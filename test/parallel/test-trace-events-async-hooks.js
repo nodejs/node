@@ -13,8 +13,7 @@ tmpdir.refresh();
 process.chdir(tmpdir.path);
 
 const proc = cp.spawn(process.execPath,
-                      [ '--trace-events-enabled',
-                        '--trace-event-categories', 'node.async_hooks',
+                      [ '--trace-event-categories', 'node.async_hooks',
                         '-e', CODE ]);
 
 proc.once('exit', common.mustCall(() => {

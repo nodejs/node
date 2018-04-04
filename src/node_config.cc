@@ -56,6 +56,10 @@ static void Initialize(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("hasSmallICU");
 #endif  // NODE_HAVE_SMALL_ICU
 
+#if NODE_USE_V8_PLATFORM
+  READONLY_BOOLEAN_PROPERTY("hasTracing");
+#endif
+
   target->DefineOwnProperty(
       context,
       FIXED_ONE_BYTE_STRING(isolate, "icuDataDir"),

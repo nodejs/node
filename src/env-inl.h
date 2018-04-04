@@ -32,6 +32,7 @@
 #include "v8.h"
 #include "node_perf_common.h"
 #include "node_context_data.h"
+#include "tracing/agent.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -323,6 +324,10 @@ inline Environment* Environment::GetThreadLocalEnv() {
 
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
+}
+
+inline tracing::Agent* Environment::tracing_agent() const {
+  return tracing_agent_;
 }
 
 inline Environment* Environment::from_immediate_check_handle(
