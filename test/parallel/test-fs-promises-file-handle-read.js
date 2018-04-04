@@ -12,10 +12,10 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateRead() {
-  tmpdir.refresh();
-  common.crashOnUnhandledRejection();
+tmpdir.refresh();
+common.crashOnUnhandledRejection();
 
+async function validateRead() {
   const filePath = path.resolve(tmpDir, 'tmp-read-file.txt');
   const fileHandle = await open(filePath, 'w+');
   const buffer = Buffer.from('Hello world', 'utf8');
@@ -29,8 +29,6 @@ async function validateRead() {
 }
 
 async function validateEmptyRead() {
-  common.crashOnUnhandledRejection();
-
   const filePath = path.resolve(tmpDir, 'tmp-read-empty-file.txt');
   const fileHandle = await open(filePath, 'w+');
   const buffer = Buffer.from('', 'utf8');

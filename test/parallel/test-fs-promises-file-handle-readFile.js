@@ -12,10 +12,10 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateReadFile() {
-  tmpdir.refresh();
-  common.crashOnUnhandledRejection();
+tmpdir.refresh();
+common.crashOnUnhandledRejection();
 
+async function validateReadFile() {
   const filePath = path.resolve(tmpDir, 'tmp-read-file.txt');
   const fileHandle = await open(filePath, 'w+');
   const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');

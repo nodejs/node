@@ -12,10 +12,10 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateAppendBuffer() {
-  tmpdir.refresh();
-  common.crashOnUnhandledRejection();
+tmpdir.refresh();
+common.crashOnUnhandledRejection();
 
+async function validateAppendBuffer() {
   const filePath = path.resolve(tmpDir, 'tmp-append-file-buffer.txt');
   const fileHandle = await open(filePath, 'a');
   const buffer = Buffer.from('a&Dp'.repeat(100), 'utf8');
@@ -26,19 +26,14 @@ async function validateAppendBuffer() {
 }
 
 async function validateAppendString() {
-  // don't refresh the directory
-  common.crashOnUnhandledRejection();
-
-  const filePath = path.resolve(tmpDir, 'tmp-append-file-buffer.txt');
+  const filePath = path.resolve(tmpDir, 'tmp-append-file-string.txt');
   const fileHandle = await open(filePath, 'a');
-  const buffer = Buffer.from('a&Dp'.repeat(100), 'utf8');
   const string = 'x~yz'.repeat(100);
 
   await fileHandle.appendFile(string);
   const stringAsBuffer = Buffer.from(string, 'utf8');
   const appendedFileData = fs.readFileSync(filePath);
-  const combinedBuffer = Buffer.concat([buffer, stringAsBuffer]);
-  assert.deepStrictEqual(appendedFileData, combinedBuffer);
+  assert.deepStrictEqual(appendedFileData, stringAsBuffer);
 }
 
 validateAppendBuffer()

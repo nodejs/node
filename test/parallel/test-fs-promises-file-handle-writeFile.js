@@ -12,10 +12,10 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateWriteFile() {
-  tmpdir.refresh();
-  common.crashOnUnhandledRejection();
+tmpdir.refresh();
+common.crashOnUnhandledRejection();
 
+async function validateWriteFile() {
   const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file2.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
   const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');

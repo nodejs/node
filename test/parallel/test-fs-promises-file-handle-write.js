@@ -12,11 +12,11 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateWrite() {
-  tmpdir.refresh();
-  common.crashOnUnhandledRejection();
+tmpdir.refresh();
+common.crashOnUnhandledRejection();
 
-  const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file.txt');
+async function validateWrite() {
+  const filePathForHandle = path.resolve(tmpDir, 'tmp-write.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
   const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');
 
@@ -26,10 +26,7 @@ async function validateWrite() {
 }
 
 async function validateEmptyWrite() {
-  tmpdir.refresh();
-  common.crashOnUnhandledRejection();
-
-  const filePathForHandle = path.resolve(tmpDir, 'tmp-write-file.txt');
+  const filePathForHandle = path.resolve(tmpDir, 'tmp-empty-write.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
   const buffer = Buffer.from(''); // empty buffer
 

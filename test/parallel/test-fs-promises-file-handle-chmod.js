@@ -12,10 +12,10 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function validateFilePermission() {
-  tmpdir.refresh();
-  common.crashOnUnhandledRejection();
+tmpdir.refresh();
+common.crashOnUnhandledRejection();
 
+async function validateFilePermission() {
   const filePath = path.resolve(tmpDir, 'tmp-chmod.txt');
   const fileHandle = await open(filePath, 'w+', 0o444);
   // file created with r--r--r-- 444
@@ -35,7 +35,7 @@ async function validateFilePermission() {
     expectedAccess = newPermissions;
   }
 
-  //change the permissions to rwxr--r-x
+  // change the permissions to rwxr--r-x
   await fileHandle.chmod(newPermissions);
   const statsAfterMod = fs.statSync(filePath);
   assert.deepStrictEqual(statsAfterMod.mode & expectedAccess, expectedAccess);
