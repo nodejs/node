@@ -177,8 +177,8 @@ const {
 
   common.expectsError({
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
-    type: Error,
-    message: 'Header field ":status" must have only a single value'
+    type: TypeError,
+    message: 'Header field ":status" must only have a single value'
   })(mapToHeaders(headers));
 }
 
@@ -223,7 +223,7 @@ const {
   HTTP2_HEADER_USER_AGENT,
   HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS
 ].forEach((name) => {
-  const msg = `Header field "${name}" must have only a single value`;
+  const msg = `Header field "${name}" must only have a single value`;
   common.expectsError({
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     message: msg
