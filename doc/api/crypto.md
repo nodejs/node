@@ -665,7 +665,7 @@ added: REPLACEME
 - `curve` {string}
 - `inputEncoding` {string}
 - `outputEncoding` {string}
-- `format` {string} Defaults to `uncompressed`.
+- `format` {string} **Default:** `uncompressed`
 
 Converts the EC Diffie-Hellman public key specified by `key` and `curve` to the
 format specified by `format`. The `format` argument specifies point encoding
