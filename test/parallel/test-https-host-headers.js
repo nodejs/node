@@ -110,7 +110,7 @@ function testHttps() {
       path: `/${counter++}`,
       host: 'localhost',
       setHost: true,
-      //agent: false,
+      // agent: false,
       port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
