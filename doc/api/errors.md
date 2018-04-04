@@ -1423,6 +1423,12 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
 An attempt was made to call [`stream.write()`][] with a `null` chunk.
 
+<a id="ERR_STREAM_PREMATURE_CLOSE"></a>
+### ERR_STREAM_PREMATURE_CLOSE
+
+An error returned by `stream.onEnd` and `stream.pipeline`, when a stream
+or a pipeline ends non gracefully with no explicit error.
+
 <a id="ERR_STREAM_PUSH_AFTER_EOF"></a>
 ### ERR_STREAM_PUSH_AFTER_EOF
 
