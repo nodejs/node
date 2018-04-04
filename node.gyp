@@ -346,6 +346,7 @@
         'src/tcp_wrap.cc',
         'src/timer_wrap.cc',
         'src/tracing/agent.cc',
+        'src/tracing/node_ldjson_trace_writer.cc',
         'src/tracing/node_trace_buffer.cc',
         'src/tracing/node_trace_writer.cc',
         'src/tracing/trace_event.cc',

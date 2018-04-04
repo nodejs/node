@@ -156,6 +156,9 @@ Enable the collection of trace event tracing information.
 A comma-separated list of categories that should be traced when trace event tracing is enabled using
 .Fl -trace-events-enabled .
 .
+.It Fl --trace-event-format Ar format
+Specifies the trace event output format. The value must be one of: \fBjson\fR (The V8 Trace Events format) or \fBldson\fR (newline-delimited JSON).
+.
 .It Fl -trace-event-file-pattern Ar pattern
 Template string specifying the filepath for the trace event data, it
 supports \fB${rotation}\fR and \fB${pid}\fR.

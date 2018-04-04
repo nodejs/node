@@ -4,13 +4,17 @@
 #include <fcntl.h>
 
 #include "util.h"
+#include "tracing/node_ldjson_trace_writer.h"
 
 namespace node {
 namespace tracing {
 
 NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern,
-                                 uv_loop_t* tracing_loop)
-    : tracing_loop_(tracing_loop), log_file_pattern_(log_file_pattern) {
+                                 uv_loop_t* tracing_loop,
+                                 enum trace_format format)
+    : tracing_loop_(tracing_loop),
+      log_file_pattern_(log_file_pattern),
+      format_(format) {
   flush_signal_.data = this;
   int err = uv_async_init(tracing_loop_, &flush_signal_, FlushSignalCb);
   CHECK_EQ(err, 0);
@@ -81,6 +85,16 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
   uv_fs_req_cleanup(&req);
 }
 
+inline TraceWriter* GetTraceWriter(enum trace_format format,
+                                   std::ostringstream& stream) {
+  switch (format) {
+    case TRACE_FORMAT_LDJSON:
+      return LDJSONTraceWriter::Create(stream);
+    default:
+      return TraceWriter::CreateJSONTraceWriter(stream);
+  }
+}
+
 void NodeTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
   Mutex::ScopedLock scoped_lock(stream_mutex_);
   // If this is the first trace event, open a new file for streaming.
@@ -92,7 +106,7 @@ void NodeTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
     // to a state where we can start writing trace events to it.
     // Repeatedly constructing and destroying json_trace_writer_ allows
     // us to use V8's JSON writer instead of implementing our own.
-    json_trace_writer_ = TraceWriter::CreateJSONTraceWriter(stream_);
+    json_trace_writer_ = GetTraceWriter(format_, stream_);
   }
   ++total_traces_;
   json_trace_writer_->AppendTraceEvent(trace_event);
