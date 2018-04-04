@@ -13,6 +13,7 @@
 namespace node {
 namespace loader {
 
+using node::contextify::ContextifyContext;
 using node::url::URL;
 using node::url::URL_FLAGS_FAILED;
 using v8::Array;
@@ -77,54 +78,58 @@ ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
 
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
-  Isolate* isolate = args.GetIsolate();
+  CHECK(args.IsConstructCall());
+  Local<Object> that = args.This();
 
-  if (!args.IsConstructCall()) {
-    env->ThrowError("constructor must be called using new");
-    return;
-  }
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
 
-  if (!args[0]->IsString()) {
-    env->ThrowError("first argument is not a string");
-    return;
-  }
-
+  CHECK(args[0]->IsString());
   Local<String> source_text = args[0].As<String>();
 
-  if (!args[1]->IsString()) {
-    env->ThrowError("second argument is not a string");
-    return;
-  }
-
+  CHECK(args[1]->IsString());
   Local<String> url = args[1].As<String>();
 
-  Local<Object> that = args.This();
+  Local<Context> context;
+  Local<Integer> line_offset;
+  Local<Integer> column_offset;
+
+  if (argc == 5) {
+    // new ModuleWrap(source, url, context?, lineOffset, columnOffset)
+    if (args[2]->IsUndefined()) {
+      context = that->CreationContext();
+    } else {
+      CHECK(args[2]->IsObject());
+      ContextifyContext* sandbox =
+          ContextifyContext::ContextFromContextifiedSandbox(
+              env, args[2].As<Object>());
+      CHECK_NE(sandbox, nullptr);
+      context = sandbox->context();
+    }
+
+    CHECK(args[3]->IsNumber());
+    line_offset = args[3].As<Integer>();
+
+    CHECK(args[4]->IsNumber());
+    column_offset = args[4].As<Integer>();
+  } else {
+    // new ModuleWrap(source, url)
+    context = that->CreationContext();
+    line_offset = Integer::New(isolate, 0);
+    column_offset = Integer::New(isolate, 0);
+  }
 
   Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   TryCatch try_catch(isolate);
-
-  Local<Value> options = args[2];
-  MaybeLocal<Integer> line_offset = contextify::GetLineOffsetArg(env, options);
-  MaybeLocal<Integer> column_offset =
-      contextify::GetColumnOffsetArg(env, options);
-  MaybeLocal<Context> maybe_context = contextify::GetContextArg(env, options);
-
-
-  if (try_catch.HasCaught()) {
-    no_abort_scope.Close();
-    try_catch.ReThrow();
-    return;
-  }
-
-  Local<Context> context = maybe_context.FromMaybe(that->CreationContext());
   Local<Module> module;
 
   // compile
   {
     ScriptOrigin origin(url,
-                        line_offset.ToLocalChecked(),         // line offset
-                        column_offset.ToLocalChecked(),       // column offset
+                        line_offset,                          // line offset
+                        column_offset,                        // column offset
                         False(isolate),                       // is cross origin
                         Local<Integer>(),                     // script id
                         Local<Value>(),                       // source map URL
@@ -161,10 +166,9 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  if (!args[0]->IsFunction()) {
-    env->ThrowError("first argument is not a function");
-    return;
-  }
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
 
   Local<Object> that = args.This();
 
@@ -239,27 +243,22 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
 
 void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = env->isolate();
   ModuleWrap* obj;
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
 
+  CHECK_EQ(args.Length(), 2);
+
+  CHECK(args[0]->IsNumber());
+  int64_t timeout = args[0]->IntegerValue(env->context()).FromJust();
+
+  CHECK(args[1]->IsBoolean());
+  bool break_on_sigint = args[1]->IsTrue();
+
   Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   TryCatch try_catch(isolate);
-  Maybe<int64_t> maybe_timeout =
-    contextify::GetTimeoutArg(env, args[0]);
-  Maybe<bool> maybe_break_on_sigint =
-    contextify::GetBreakOnSigintArg(env, args[0]);
-
-  if (try_catch.HasCaught()) {
-    no_abort_scope.Close();
-    try_catch.ReThrow();
-    return;
-  }
-
-  int64_t timeout = maybe_timeout.ToChecked();
-  bool break_on_sigint = maybe_break_on_sigint.ToChecked();
 
   bool timed_out = false;
   bool received_signal = false;
@@ -665,26 +664,13 @@ Maybe<URL> Resolve(Environment* env,
 void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.IsConstructCall()) {
-    env->ThrowError("resolve() must not be called as a constructor");
-    return;
-  }
-  if (args.Length() != 2) {
-    env->ThrowError("resolve must have exactly 2 arguments (string, string)");
-    return;
-  }
+  CHECK_EQ(args.Length(), 2);
 
-  if (!args[0]->IsString()) {
-    env->ThrowError("first argument is not a string");
-    return;
-  }
+  CHECK(args[0]->IsString());
   Utf8Value specifier_utf8(env->isolate(), args[0]);
   std::string specifier_std(*specifier_utf8, specifier_utf8.length());
 
-  if (!args[1]->IsString()) {
-    env->ThrowError("second argument is not a string");
-    return;
-  }
+  CHECK(args[1]->IsString());
   Utf8Value url_utf8(env->isolate(), args[1]);
   URL url(*url_utf8, url_utf8.length());
 
@@ -748,11 +734,9 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   Isolate* iso = args.GetIsolate();
   Environment* env = Environment::GetCurrent(args);
   HandleScope handle_scope(iso);
-  if (!args[0]->IsFunction()) {
-    env->ThrowError("first argument is not a function");
-    return;
-  }
 
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
   Local<Function> import_callback = args[0].As<Function>();
   env->set_host_import_module_dynamically_callback(import_callback);
 
@@ -781,11 +765,9 @@ void ModuleWrap::SetInitializeImportMetaObjectCallback(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  if (!args[0]->IsFunction()) {
-    env->ThrowError("first argument is not a function");
-    return;
-  }
 
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
   Local<Function> import_meta_callback = args[0].As<Function>();
   env->set_host_initialize_import_meta_object_callback(import_meta_callback);
 
