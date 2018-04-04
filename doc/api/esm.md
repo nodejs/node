@@ -142,12 +142,12 @@ module. This can be one of the following:
 
 | `format` | Description |
 | --- | --- |
-| `"esm"` | Load a standard JavaScript module |
-| `"cjs"` | Load a node-style CommonJS module |
-| `"builtin"` | Load a node builtin CommonJS module |
-| `"json"` | Load a JSON file |
-| `"addon"` | Load a [C++ Addon][addons] |
-| `"dynamic"` | Use a [dynamic instantiate hook][] |
+| `'esm'` | Load a standard JavaScript module |
+| `'cjs'` | Load a node-style CommonJS module |
+| `'builtin'` | Load a node builtin CommonJS module |
+| `'json'` | Load a JSON file |
+| `'addon'` | Load a [C++ Addon][addons] |
+| `'dynamic'` | Use a [dynamic instantiate hook][] |
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
 rules with only JS file extension and Node.js builtin modules support could
@@ -203,7 +203,7 @@ would load the module `x.js` as an ES module with relative resolution support
 
 To create a custom dynamic module that doesn't correspond to one of the
 existing `format` interpretations, the `dynamicInstantiate` hook can be used.
-This hook is called only for modules that return `format: "dynamic"` from
+This hook is called only for modules that return `format: 'dynamic'` from
 the `resolve` hook.
 
 ```js
