@@ -104,7 +104,7 @@ Environment::Environment(IsolateData* isolate_data,
 #endif
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
-      fs_stats_field_array_(isolate_, kFsStatsFieldsLength),
+      fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());

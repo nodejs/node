@@ -45,42 +45,6 @@
 
 namespace node {
 
-void FillStatsArray(AliasedBuffer<double, v8::Float64Array>* fields_ptr,
-                    const uv_stat_t* s, int offset) {
-  AliasedBuffer<double, v8::Float64Array>& fields = *fields_ptr;
-  fields[offset + 0] = s->st_dev;
-  fields[offset + 1] = s->st_mode;
-  fields[offset + 2] = s->st_nlink;
-  fields[offset + 3] = s->st_uid;
-  fields[offset + 4] = s->st_gid;
-  fields[offset + 5] = s->st_rdev;
-#if defined(__POSIX__)
-  fields[offset + 6] = s->st_blksize;
-#else
-  fields[offset + 6] = -1;
-#endif
-  fields[offset + 7] = s->st_ino;
-  fields[offset + 8] = s->st_size;
-#if defined(__POSIX__)
-  fields[offset + 9] = s->st_blocks;
-#else
-  fields[offset + 9] = -1;
-#endif
-// Dates.
-// NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
-#define X(idx, name)                                                    \
-  /* NOLINTNEXTLINE(runtime/int) */                                     \
-  fields[offset + idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
-  /* NOLINTNEXTLINE(runtime/int) */                                     \
-                ((unsigned long)(s->st_##name.tv_nsec) / 1e6);          \
-
-  X(10, atim)
-  X(11, mtim)
-  X(12, ctim)
-  X(13, birthtim)
-#undef X
-}
-
 namespace fs {
 
 using v8::Array;
@@ -432,12 +396,9 @@ void FSReqWrap::Reject(Local<Value> reject) {
   MakeCallback(env()->oncomplete_string(), 1, &reject);
 }
 
-void FSReqWrap::FillStatsArray(const uv_stat_t* stat) {
-  node::FillStatsArray(env()->fs_stats_field_array(), stat);
-}
-
-void FSReqWrap::ResolveStat() {
-  Resolve(Undefined(env()->isolate()));
+void FSReqWrap::ResolveStat(const uv_stat_t* stat) {
+  node::FillGlobalStatsArray(env(), stat);
+  Resolve(env()->fs_stats_field_array()->GetJSArray());
 }
 
 void FSReqWrap::Resolve(Local<Value> value) {
@@ -452,63 +413,10 @@ void FSReqWrap::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().SetUndefined();
 }
 
-void FSReqPromise::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
-  Local<Context> context = env()->context();
-  args.GetReturnValue().Set(
-    object()->Get(context, env()->promise_string()).ToLocalChecked()
-      .As<Promise::Resolver>()->GetPromise());
-}
-
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   new FSReqWrap(env, args.This());
-}
-
-FSReqPromise::FSReqPromise(Environment* env)
-    : FSReqBase(env,
-                env->fsreqpromise_constructor_template()
-                    ->NewInstance(env->context()).ToLocalChecked(),
-                AsyncWrap::PROVIDER_FSREQPROMISE),
-      stats_field_array_(env->isolate(), 14) {
-  auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
-  object()->Set(env->context(), env->promise_string(),
-                resolver).FromJust();
-}
-
-FSReqPromise::~FSReqPromise() {
-  // Validate that the promise was explicitly resolved or rejected.
-  CHECK(finished_);
-}
-
-void FSReqPromise::Reject(Local<Value> reject) {
-  finished_ = true;
-  HandleScope scope(env()->isolate());
-  InternalCallbackScope callback_scope(this);
-  Local<Value> value =
-      object()->Get(env()->context(),
-                    env()->promise_string()).ToLocalChecked();
-  Local<Promise::Resolver> resolver = value.As<Promise::Resolver>();
-  resolver->Reject(env()->context(), reject).FromJust();
-}
-
-void FSReqPromise::FillStatsArray(const uv_stat_t* stat) {
-  node::FillStatsArray(&stats_field_array_, stat);
-}
-
-void FSReqPromise::ResolveStat() {
-  Resolve(stats_field_array_.GetJSArray());
-}
-
-void FSReqPromise::Resolve(Local<Value> value) {
-  finished_ = true;
-  HandleScope scope(env()->isolate());
-  InternalCallbackScope callback_scope(this);
-  Local<Value> val =
-      object()->Get(env()->context(),
-                    env()->promise_string()).ToLocalChecked();
-  Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
-  resolver->Resolve(env()->context(), value).FromJust();
 }
 
 FSReqAfterScope::FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req)
@@ -563,8 +471,7 @@ void AfterStat(uv_fs_t* req) {
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
-    req_wrap->FillStatsArray(&req->statbuf);
-    req_wrap->ResolveStat();
+    req_wrap->ResolveStat(&req->statbuf);
   }
 }
 
@@ -751,7 +658,7 @@ inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value) {
   if (value->IsObject()) {
     return Unwrap<FSReqBase>(value.As<Object>());
   } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
-    return new FSReqPromise(env);
+    return new FSReqPromise<double, v8::Float64Array>(env);
   }
   return nullptr;
 }
@@ -893,7 +800,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 1);
+  CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
@@ -907,8 +814,8 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     int err = SyncCall(env, args[2], &req_wrap_sync, "stat", uv_fs_stat, *path);
     if (err == 0) {
-      FillStatsArray(env->fs_stats_field_array(),
-                     static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
+      node::FillGlobalStatsArray(env,
+          static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
     }
   }
 }
@@ -917,7 +824,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 1);
+  CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NE(*path, nullptr);
@@ -932,8 +839,8 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
     int err = SyncCall(env, args[2], &req_wrap_sync, "lstat", uv_fs_lstat,
                        *path);
     if (err == 0) {
-      FillStatsArray(env->fs_stats_field_array(),
-                     static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
+      node::FillGlobalStatsArray(env,
+          static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
     }
   }
 }
@@ -942,7 +849,7 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 1);
+  CHECK_GE(argc, 2);
 
   CHECK(args[0]->IsInt32());
   int fd = args[0].As<Int32>()->Value();
@@ -956,8 +863,8 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     int err = SyncCall(env, args[2], &req_wrap_sync, "fstat", uv_fs_fstat, fd);
     if (err == 0) {
-      FillStatsArray(env->fs_stats_field_array(),
-                     static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
+      node::FillGlobalStatsArray(env,
+          static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
     }
   }
 }
@@ -1907,6 +1814,11 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "futimes", FUTimes);
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
+
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "kFsStatsFieldsLength"),
+              Integer::New(env->isolate(), env->kFsStatsFieldsLength))
+        .FromJust();
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "statValues"),
