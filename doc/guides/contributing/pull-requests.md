@@ -74,8 +74,7 @@ $ git remote add upstream https://github.com/nodejs/node.git
 $ git fetch upstream
 ```
 
-It is recommended to configure `git` so that it knows
-who you are:
+It is recommended to configure `git` so that it knows who you are:
 
 ```text
 $ git config user.name "J. Random User"
