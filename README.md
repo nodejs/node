@@ -252,8 +252,6 @@ For more information about the governance of the Node.js project, see
 **James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
 **Joyee Cheung** &lt;joyeec9h3@gmail.com&gt; (she/her)
-* [mafintosh](https://github.com/mafintosh)
-**Mathias Buus** &lt;mathiasbuus@gmail.com&gt; (he/him)
 * [mcollina](https://github.com/mcollina) -
 **Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
@@ -422,6 +420,8 @@ For more information about the governance of the Node.js project, see
 **Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
 * [maclover7](https://github.com/maclover7) -
 **Jon Moss** &lt;me@jonathanmoss.me&gt; (he/him)
+* [mafintosh](https://github.com/mafintosh)
+**Mathias Buus** &lt;mathiasbuus@gmail.com&gt; (he/him)
 * [mcollina](https://github.com/mcollina) -
 **Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
