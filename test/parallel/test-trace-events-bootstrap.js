@@ -32,7 +32,6 @@ if (process.argv[2] === 'child') {
   const proc = cp.fork(__filename,
                        [ 'child' ], {
                          execArgv: [
-                           '--trace-events-enabled',
                            '--trace-event-categories',
                            'node.bootstrap'
                          ]

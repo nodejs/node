@@ -39,7 +39,6 @@ if (process.argv[2] === 'child') {
                          'child'
                        ], {
                          execArgv: [
-                           '--trace-events-enabled',
                            '--trace-event-categories',
                            'node.perf'
                          ]

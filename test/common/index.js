@@ -30,6 +30,7 @@ const { exec, execSync, spawn, spawnSync } = require('child_process');
 const stream = require('stream');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
+const { hasTracing } = process.binding('config');
 const { fixturesDir } = require('./fixtures');
 const tmpdir = require('./tmpdir');
 
@@ -198,6 +199,12 @@ Object.defineProperty(exports, 'opensslCli', { get: function() {
 Object.defineProperty(exports, 'hasCrypto', {
   get: function() {
     return Boolean(process.versions.openssl);
+  }
+});
+
+Object.defineProperty(exports, 'hasTracing', {
+  get: function() {
+    return Boolean(hasTracing);
   }
 });
 
