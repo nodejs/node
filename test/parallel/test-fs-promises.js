@@ -82,24 +82,44 @@ function verifyStatObject(stat) {
     stats = await stat(dest);
     verifyStatObject(stats);
 
+    stats = await handle.stat();
+    verifyStatObject(stats);
+
     await fdatasync(handle);
+    await handle.datasync();
     await fsync(handle);
+    await handle.sync();
 
     const buf = Buffer.from('hello world');
-
     await write(handle, buf);
-
     const ret = await read(handle, Buffer.alloc(11), 0, 11, 0);
     assert.strictEqual(ret.bytesRead, 11);
     assert.deepStrictEqual(ret.buffer, buf);
 
+    const buf2 = Buffer.from('HELLO WORLD');
+    await handle.write(buf2);
+    const ret2 = await handle.read(Buffer.alloc(11), 0, 11, 0);
+    assert.strictEqual(ret2.bytesRead, 11);
+    assert.deepStrictEqual(ret2.buffer, buf);
+
     await chmod(dest, 0o666);
     await fchmod(handle, 0o666);
+    handle.chmod(0o666);
+    try {
+      await fchmod(handle, (0o777 + 1));
+    } catch (err) {
+      // mode can't be > 0o777
+      common.expectsError({
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError
+      })(err);
+    }
 
     await utimes(dest, new Date(), new Date());
 
     try {
       await futimes(handle, new Date(), new Date());
+      await handle.utimes(new Date(), new Date());
     } catch (err) {
       // Some systems do not have futimes. If there is an error,
       // expect it to be ENOSYS
@@ -147,6 +167,16 @@ function verifyStatObject(stat) {
     await rmdir(newdir);
 
     await mkdtemp(path.resolve(tmpDir, 'FOO'));
+    try {
+      await mkdtemp(1);
+    } catch (err) {
+      // mkdtemp() expects to get a string prefix.
+      console.log('err', err);
+      common.expectsError({
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError
+      })(err);
+    }
   }
 
   doTest().then(common.mustCall());
