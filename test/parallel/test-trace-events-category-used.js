@@ -13,7 +13,7 @@ process.chdir(tmpdir.path);
 
 const procEnabled = cp.spawn(
   process.execPath,
-  [ '--trace-events-enabled', '--trace-event-categories', 'custom', '-e', CODE ]
+  [ '--trace-event-categories', 'custom', '-e', CODE ]
 );
 let procEnabledOutput = '';
 
@@ -25,7 +25,7 @@ procEnabled.once('exit', common.mustCall(() => {
 
 const procDisabled = cp.spawn(
   process.execPath,
-  [ '--trace-events-enabled', '--trace-event-categories', 'other', '-e', CODE ]
+  [ '--trace-event-categories', 'other', '-e', CODE ]
 );
 let procDisabledOutput = '';
 

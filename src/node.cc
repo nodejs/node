@@ -191,7 +191,6 @@ static node_module* modlist_builtin;
 static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
-static bool trace_enabled = false;
 static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static std::string trace_file_pattern =  // NOLINT(runtime/string)
   "node_trace.${rotation}.log";
@@ -277,20 +276,12 @@ DebugOptions debug_options;
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
-    if (trace_enabled) {
-      tracing_agent_.reset(new tracing::Agent(trace_file_pattern));
-      platform_ = new NodePlatform(thread_pool_size,
+    tracing_agent_.reset(new tracing::Agent(trace_file_pattern));
+    platform_ = new NodePlatform(thread_pool_size,
         tracing_agent_->GetTracingController());
-      V8::InitializePlatform(platform_);
-      tracing::TraceEventHelper::SetTracingController(
+    V8::InitializePlatform(platform_);
+    tracing::TraceEventHelper::SetTracingController(
         tracing_agent_->GetTracingController());
-    } else {
-      tracing_agent_.reset(nullptr);
-      platform_ = new NodePlatform(thread_pool_size, nullptr);
-      V8::InitializePlatform(platform_);
-      tracing::TraceEventHelper::SetTracingController(
-        new v8::TracingController());
-    }
   }
 
   void Dispose() {
@@ -323,11 +314,15 @@ static struct {
 #endif  // HAVE_INSPECTOR
 
   void StartTracingAgent() {
-    tracing_agent_->Start(trace_enabled_categories);
+    tracing_agent_->Enable(trace_enabled_categories);
   }
 
   void StopTracingAgent() {
     tracing_agent_->Stop();
+  }
+
+  tracing::Agent* GetTracingAgent() const {
+    return tracing_agent_.get();
   }
 
   NodePlatform* Platform() {
@@ -348,10 +343,14 @@ static struct {
   }
 
   void StartTracingAgent() {
-    fprintf(stderr, "Node compiled with NODE_USE_V8_PLATFORM=0, "
-                    "so event tracing is not available.\n");
+    if (!trace_enabled_categories.empty()) {
+      fprintf(stderr, "Node compiled with NODE_USE_V8_PLATFORM=0, "
+                      "so event tracing is not available.\n");
+    }
   }
   void StopTracingAgent() {}
+
+  tracing::Agent* GetTracingAgent() const { return nullptr; }
 
   NodePlatform* Platform() {
     return nullptr;
@@ -1990,9 +1989,7 @@ static void WaitForInspectorDisconnect(Environment* env) {
 
 static void Exit(const FunctionCallbackInfo<Value>& args) {
   WaitForInspectorDisconnect(Environment::GetCurrent(args));
-  if (trace_enabled) {
-    v8_platform.StopTracingAgent();
-  }
+  v8_platform.StopTracingAgent();
   exit(args[0]->Int32Value());
 }
 
@@ -3287,9 +3284,7 @@ void SetupProcessObject(Environment* env,
 
 void SignalExit(int signo) {
   uv_tty_reset_mode();
-  if (trace_enabled) {
-    v8_platform.StopTracingAgent();
-  }
+  v8_platform.StopTracingAgent();
 #ifdef __FreeBSD__
   // FreeBSD has a nasty bug, see RegisterSignalHandler for details
   struct sigaction sa;
@@ -3789,7 +3784,8 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--no-force-async-hooks-checks") == 0) {
       no_force_async_hooks_checks = true;
     } else if (strcmp(arg, "--trace-events-enabled") == 0) {
-      trace_enabled = true;
+      if (trace_enabled_categories.empty())
+        trace_enabled_categories = "v8,node,node.async_hooks";
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
       const char* categories = argv[index + 1];
       if (categories == nullptr) {
@@ -4422,7 +4418,8 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
-  auto env = new Environment(isolate_data, context);
+  auto env = new Environment(isolate_data, context,
+                             v8_platform.GetTracingAgent());
   env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
   return env;
 }
@@ -4471,7 +4468,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
-  Environment env(isolate_data, context);
+  Environment env(isolate_data, context, v8_platform.GetTracingAgent());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
   const char* path = argc > 1 ? argv[1] : nullptr;
@@ -4628,19 +4625,13 @@ int Start(int argc, char** argv) {
 
   v8_platform.Initialize(v8_thread_pool_size);
   // Enable tracing when argv has --trace-events-enabled.
-  if (trace_enabled) {
-    fprintf(stderr, "Warning: Trace event is an experimental feature "
-            "and could change at any time.\n");
-    v8_platform.StartTracingAgent();
-  }
+  v8_platform.StartTracingAgent();
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
-  if (trace_enabled) {
-    v8_platform.StopTracingAgent();
-  }
+  v8_platform.StopTracingAgent();
   v8_initialized = false;
   V8::Dispose();
 

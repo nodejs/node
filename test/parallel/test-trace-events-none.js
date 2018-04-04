@@ -13,7 +13,7 @@ process.chdir(tmpdir.path);
 
 const proc_no_categories = cp.spawn(
   process.execPath,
-  [ '--trace-events-enabled', '--trace-event-categories', '""', '-e', CODE ]
+  [ '--trace-event-categories', '""', '-e', CODE ]
 );
 
 proc_no_categories.once('exit', common.mustCall(() => {

@@ -114,6 +114,8 @@ const customTypesMap = {
   'tls.Server': 'tls.html#tls_class_tls_server',
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
 
+  'Tracing': 'tracing.html#tracing_tracing_object',
+
   'URL': 'url.html#url_the_whatwg_url_api',
   'URLSearchParams': 'url.html#url_class_urlsearchparams'
 };
