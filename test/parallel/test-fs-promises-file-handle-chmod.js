@@ -17,14 +17,28 @@ async function validateFilePermission() {
   common.crashOnUnhandledRejection();
 
   const filePath = path.resolve(tmpDir, 'tmp-chmod.txt');
-  const fileHandle = await open(filePath, 'w+', 0o644);
-  // file created with r/w 644
+  const fileHandle = await open(filePath, 'w+', 0o444);
+  // file created with r--r--r-- 444
   const statsBeforeMod = fs.statSync(filePath);
-  assert.deepStrictEqual(statsBeforeMod.mode & 0o644, 0o644);
-  // change the permissions to 765
-  await fileHandle.chmod(0o765);
+  assert.deepStrictEqual(statsBeforeMod.mode & 0o444, 0o444);
+
+  let expectedAccess;
+  const newPermissions = 0o765;
+
+  if (common.isWindows) {
+    // chmod in Windows will only toggle read only/write access. the
+    // fs.Stats.mode in Windows is computed using read/write
+    // bits (not exec). read only at best returns 444; r/w 666.
+    // refer: /deps/uv/src/win/fs.cfs;
+    expectedAccess = 0o664;
+  } else {
+    expectedAccess = newPermissions;
+  }
+
+  //change the permissions to rwxr--r-x
+  await fileHandle.chmod(newPermissions);
   const statsAfterMod = fs.statSync(filePath);
-  assert.deepStrictEqual(statsAfterMod.mode & 0o765, 0o765);
+  assert.deepStrictEqual(statsAfterMod.mode & expectedAccess, expectedAccess);
 }
 
 validateFilePermission().then(common.mustCall());

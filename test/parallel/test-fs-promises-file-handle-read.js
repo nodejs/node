@@ -29,7 +29,6 @@ async function validateRead() {
 }
 
 async function validateEmptyRead() {
-  tmpdir.refresh();
   common.crashOnUnhandledRejection();
 
   const filePath = path.resolve(tmpDir, 'tmp-read-empty-file.txt');
