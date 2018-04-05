@@ -2,6 +2,7 @@
 #include "node_internals.h"
 #include "base_object-inl.h"
 #include "node_i18n.h"
+#include "node_errors.h"
 
 #include <string>
 #include <vector>
@@ -9,6 +10,8 @@
 #include <cmath>
 
 namespace node {
+
+using errors::NodeTryCatch;
 
 using v8::Array;
 using v8::Context;
@@ -23,7 +26,6 @@ using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
 using v8::String;
-using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -2306,7 +2308,7 @@ const Local<Value> URL::ToObject(Environment* env) const {
 
   MaybeLocal<Value> ret;
   {
-    FatalTryCatch try_catch(env);
+    NodeTryCatch try_catch(env, true);
 
     // The SetURLConstructor method must have been called already to
     // set the constructor function used below. SetURLConstructor is

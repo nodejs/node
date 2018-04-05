@@ -283,24 +283,13 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 
 bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
 
-enum ErrorHandlingMode { CONTEXTIFY_ERROR, FATAL_ERROR, MODULE_ERROR };
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
                          v8::Local<v8::Message> message,
-                         enum ErrorHandlingMode mode);
+                         bool fatal);
 
 NO_RETURN void FatalError(const char* location, const char* message);
 
-// Like a `TryCatch` but exits the process if an exception was caught.
-class FatalTryCatch : public v8::TryCatch {
- public:
-  explicit FatalTryCatch(Environment* env)
-      : TryCatch(env->isolate()), env_(env) {}
-  ~FatalTryCatch();
-
- private:
-  Environment* env_;
-};
 
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,

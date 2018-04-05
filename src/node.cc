@@ -29,6 +29,7 @@
 #include "node_debug_options.h"
 #include "node_perf.h"
 #include "node_context_data.h"
+#include "node_errors.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -163,13 +164,15 @@ using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
 using v8::String;
-using v8::TryCatch;
 using v8::Uint32Array;
 using v8::Undefined;
 using v8::V8;
 using v8::Value;
 
 using AsyncHooks = Environment::AsyncHooks;
+using node::errors::ReportException;
+using node::errors::PrintErrorString;
+using node::errors::NodeTryCatch;
 
 static bool print_eval = false;
 static bool force_repl = false;
@@ -368,41 +371,6 @@ static struct {
 #ifdef __POSIX__
 static const unsigned kMaxSignal = 32;
 #endif
-
-static void PrintErrorString(const char* format, ...) {
-  va_list ap;
-  va_start(ap, format);
-#ifdef _WIN32
-  HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
-
-  // Check if stderr is something other than a tty/console
-  if (stderr_handle == INVALID_HANDLE_VALUE ||
-      stderr_handle == nullptr ||
-      uv_guess_handle(_fileno(stderr)) != UV_TTY) {
-    vfprintf(stderr, format, ap);
-    va_end(ap);
-    return;
-  }
-
-  // Fill in any placeholders
-  int n = _vscprintf(format, ap);
-  std::vector<char> out(n + 1);
-  vsprintf(out.data(), format, ap);
-
-  // Get required wide buffer size
-  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, nullptr, 0);
-
-  std::vector<wchar_t> wbuf(n);
-  MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
-
-  // Don't include the null character in the output
-  CHECK_GT(n, 0);
-  WriteConsoleW(stderr_handle, wbuf.data(), n - 1, nullptr, nullptr);
-#else
-  vfprintf(stderr, format, ap);
-#endif
-  va_end(ap);
-}
 
 const char *signo_string(int signo) {
 #define SIGNO_CASE(e)  case e: return #e;
@@ -1241,21 +1209,10 @@ ssize_t DecodeWrite(Isolate* isolate,
   return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 
-bool IsExceptionDecorated(Environment* env, Local<Value> er) {
-  if (!er.IsEmpty() && er->IsObject()) {
-    Local<Object> err_obj = er.As<Object>();
-    auto maybe_value =
-        err_obj->GetPrivate(env->context(), env->decorated_private_symbol());
-    Local<Value> decorated;
-    return maybe_value.ToLocal(&decorated) && decorated->IsTrue();
-  }
-  return false;
-}
-
 void AppendExceptionLine(Environment* env,
                          Local<Value> er,
                          Local<Message> message,
-                         enum ErrorHandlingMode mode) {
+                         bool fatal) {
   if (message.IsEmpty())
     return;
 
@@ -1351,7 +1308,7 @@ void AppendExceptionLine(Environment* env,
   // it's a fatal exception, also print it out from here.
   // Otherwise, the arrow property will be attached to the object and handled
   // by the caller.
-  if (!can_set_arrow || (mode == FATAL_ERROR && !err_obj->IsNativeError())) {
+  if (!can_set_arrow || (fatal && !err_obj->IsNativeError())) {
     if (env->printed_error())
       return;
     env->set_printed_error(true);
@@ -1361,96 +1318,19 @@ void AppendExceptionLine(Environment* env,
     return;
   }
 
-  CHECK(err_obj->SetPrivate(
-            env->context(),
-            env->arrow_message_private_symbol(),
-            arrow_str).FromMaybe(false));
-}
-
-
-static void ReportException(Environment* env,
-                            Local<Value> er,
-                            Local<Message> message) {
-  CHECK(!er.IsEmpty());
-  CHECK(!message.IsEmpty());
-  HandleScope scope(env->isolate());
-
-  AppendExceptionLine(env, er, message, FATAL_ERROR);
-
-  Local<Value> trace_value;
-  Local<Value> arrow;
-  const bool decorated = IsExceptionDecorated(env, er);
-
-  if (er->IsUndefined() || er->IsNull()) {
-    trace_value = Undefined(env->isolate());
-  } else {
-    Local<Object> err_obj = er->ToObject(env->context()).ToLocalChecked();
-
-    trace_value = err_obj->Get(env->stack_string());
-    arrow =
-        err_obj->GetPrivate(
-            env->context(),
-            env->arrow_message_private_symbol()).ToLocalChecked();
+  Local<Value> stack_str;
+  if (err_obj->Get(env->context(), env->stack_string()).ToLocal(&stack_str)) {
+    if (!stack_str->IsString())
+      return;
+    Local<String> decorated_stack = String::Concat(
+        String::Concat(arrow_str.As<String>(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "\n")),
+        stack_str.As<String>());
+    CHECK(err_obj->Set(
+          env->context(),
+          env->stack_string(),
+          decorated_stack).FromMaybe(false));
   }
-
-  node::Utf8Value trace(env->isolate(), trace_value);
-
-  // range errors have a trace member set to undefined
-  if (trace.length() > 0 && !trace_value->IsUndefined()) {
-    if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
-      PrintErrorString("%s\n", *trace);
-    } else {
-      node::Utf8Value arrow_string(env->isolate(), arrow);
-      PrintErrorString("%s\n%s\n", *arrow_string, *trace);
-    }
-  } else {
-    // this really only happens for RangeErrors, since they're the only
-    // kind that won't have all this info in the trace, or when non-Error
-    // objects are thrown manually.
-    Local<Value> message;
-    Local<Value> name;
-
-    if (er->IsObject()) {
-      Local<Object> err_obj = er.As<Object>();
-      message = err_obj->Get(env->message_string());
-      name = err_obj->Get(FIXED_ONE_BYTE_STRING(env->isolate(), "name"));
-    }
-
-    if (message.IsEmpty() ||
-        message->IsUndefined() ||
-        name.IsEmpty() ||
-        name->IsUndefined()) {
-      // Not an error object. Just print as-is.
-      String::Utf8Value message(env->isolate(), er);
-
-      PrintErrorString("%s\n", *message ? *message :
-                                          "<toString() threw exception>");
-    } else {
-      node::Utf8Value name_string(env->isolate(), name);
-      node::Utf8Value message_string(env->isolate(), message);
-
-      if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
-        PrintErrorString("%s: %s\n", *name_string, *message_string);
-      } else {
-        node::Utf8Value arrow_string(env->isolate(), arrow);
-        PrintErrorString("%s\n%s: %s\n",
-                         *arrow_string,
-                         *name_string,
-                         *message_string);
-      }
-    }
-  }
-
-  fflush(stderr);
-
-#if HAVE_INSPECTOR
-  env->inspector_agent()->FatalException(er, message);
-#endif
-}
-
-
-static void ReportException(Environment* env, const TryCatch& try_catch) {
-  ReportException(env, try_catch.Exception(), try_catch.Message());
 }
 
 
@@ -1459,7 +1339,7 @@ static Local<Value> ExecuteString(Environment* env,
                                   Local<String> source,
                                   Local<String> filename) {
   EscapableHandleScope scope(env->isolate());
-  TryCatch try_catch(env->isolate());
+  NodeTryCatch try_catch(env);
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
@@ -2350,15 +2230,6 @@ NO_RETURN void FatalError(const char* location, const char* message) {
 }
 
 
-FatalTryCatch::~FatalTryCatch() {
-  if (HasCaught()) {
-    HandleScope scope(env_->isolate());
-    ReportException(env_, *this);
-    exit(7);
-  }
-}
-
-
 void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message) {
@@ -2379,7 +2250,7 @@ void FatalException(Isolate* isolate,
   }
 
   if (exit_code == 0) {
-    TryCatch fatal_try_catch(isolate);
+    NodeTryCatch fatal_try_catch(env);
 
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
@@ -2406,7 +2277,7 @@ void FatalException(Isolate* isolate,
 }
 
 
-void FatalException(Isolate* isolate, const TryCatch& try_catch) {
+void FatalException(Isolate* isolate, const v8::TryCatch& try_catch) {
   HandleScope scope(isolate);
   if (!try_catch.IsVerbose()) {
     FatalException(isolate, try_catch.Exception(), try_catch.Message());
@@ -3307,7 +3178,7 @@ static Local<Function> GetBootstrapper(Environment* env, Local<String> source,
                                   Local<String> script_name) {
   EscapableHandleScope scope(env->isolate());
 
-  TryCatch try_catch(env->isolate());
+  NodeTryCatch try_catch(env);
 
   // Disable verbose mode to stop FatalException() handler from trying
   // to handle the exception. Errors this early in the start-up phase
@@ -3351,7 +3222,7 @@ static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
 
-  TryCatch try_catch(env->isolate());
+  NodeTryCatch try_catch(env);
   // Disable verbose mode to stop FatalException() handler from trying
   // to handle the exception. Errors this early in the start-up phase
   // are not safe to ignore.
