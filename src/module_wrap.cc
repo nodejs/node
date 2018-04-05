@@ -139,7 +139,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.Message().IsEmpty());
       CHECK(!try_catch.Exception().IsEmpty());
-      try_catch.ReThrow();
+      try_catch.ReThrow(true);
       return;
     }
   }
@@ -289,7 +289,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (try_catch.HasCaught()) {
-    try_catch.ReThrow();
+    try_catch.ReThrow(true);
     return;
   }
 

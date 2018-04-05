@@ -14,7 +14,7 @@ class NodeTryCatch : public v8::TryCatch {
       v8::TryCatch(env->isolate()), env_(env), fatal_(fatal) {}
   ~NodeTryCatch();
 
-  v8::Local<v8::Value> ReThrow(bool decorate = true);
+  v8::Local<v8::Value> ReThrow(bool decorate = false);
 
  private:
   Environment* env_;

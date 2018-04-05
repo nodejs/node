@@ -961,7 +961,7 @@ class ContextifyScript : public BaseObject {
       // letting try_catch catch it.
       // If execution has been terminated, but not by one of the watchdogs from
       // this invocation, this will re-throw a `null` value.
-      try_catch.ReThrow();
+      try_catch.ReThrow(true);
 
       return false;
     }
