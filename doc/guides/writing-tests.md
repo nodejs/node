@@ -388,3 +388,7 @@ will depend on what is being tested if this is required or not.
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
 [directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
+
+### Test Coverage
+
+Details on generating a test coverage report can be accessed [here].(https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#test-coverage) 
