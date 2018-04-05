@@ -284,7 +284,7 @@ test-check-deopts: all
 benchmark/misc/function_call/build/Release/binding.node: all \
 		benchmark/misc/function_call/binding.cc \
 		benchmark/misc/function_call/binding.gyp
-	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+	$(NODE) deps/npm/node_modules/npm-lifecycle/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/benchmark/misc/function_call" \
 		--nodedir="$(shell pwd)"
@@ -293,7 +293,7 @@ benchmark/misc/function_call/build/Release/binding.node: all \
 # it always triggers a rebuild due to it being a .PHONY rule.  See the comment
 # near the build-addons rule for more background.
 test/gc/build/Release/binding.node: test/gc/binding.cc test/gc/binding.gyp
-	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+	$(NODE) deps/npm/node_modules/npm-lifecycle/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/test/gc" \
 		--nodedir="$(shell pwd)"
@@ -321,7 +321,7 @@ ADDONS_BINDING_SOURCES := \
 # Depends on node-gyp package.json so that build-addons is (re)executed when
 # node-gyp is updated as part of an npm update.
 test/addons/.buildstamp: config.gypi \
-	deps/npm/node_modules/node-gyp/package.json \
+	deps/npm/node_modules/npm-lifecycle/node_modules/node-gyp/package.json \
 	$(ADDONS_BINDING_GYPS) $(ADDONS_BINDING_SOURCES) \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
@@ -334,7 +334,7 @@ test/addons/.buildstamp: config.gypi \
 		if [ ! -f "$$PWD/$${dirname}binding.gyp" ]; then \
 			continue; fi ; \
 		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
+		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/npm-lifecycle/node_modules/node-gyp/bin/node-gyp \
 		        --loglevel=$(LOGLEVEL) rebuild \
 			--python="$(PYTHON)" \
 			--directory="$$PWD/$$dirname" \
@@ -361,7 +361,7 @@ ADDONS_NAPI_BINDING_SOURCES := \
 
 # Implicitly depends on $(NODE_EXE), see the build-addons-napi rule for rationale.
 test/addons-napi/.buildstamp: config.gypi \
-	deps/npm/node_modules/node-gyp/package.json \
+	deps/npm/node_modules/npm-lifecycle/node_modules/node-gyp/package.json \
 	$(ADDONS_NAPI_BINDING_GYPS) $(ADDONS_NAPI_BINDING_SOURCES) \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
@@ -374,7 +374,7 @@ test/addons-napi/.buildstamp: config.gypi \
 		if [ ! -f "$$PWD/$${dirname}binding.gyp" ]; then \
 			continue; fi ; \
 		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
+		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/npm-lifecycle/node_modules/node-gyp/bin/node-gyp \
 		        --loglevel=$(LOGLEVEL) rebuild \
 			--python="$(PYTHON)" \
 			--directory="$$PWD/$$dirname" \
