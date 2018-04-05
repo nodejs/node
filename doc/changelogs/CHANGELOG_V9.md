@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#9.11.1">9.11.1</a><br/>
 <a href="#9.11.0">9.11.0</a><br/>
 <a href="#9.10.1">9.10.1</a><br/>
 <a href="#9.10.0">9.10.0</a><br/>
@@ -39,6 +40,16 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="9.11.1"></a>
+## 2018-04-05, Version 9.11.1 (Current), @MylesBorins
+
+### Notable Changes
+
+No additional commits.
+
+An infrastructure issue caused a non-functioning msi installer for x64 to be promoted.
+The patch release is to ensure that all binaries and installers work as expected.
 
 <a id="9.11.0"></a>
 ## 2018-04-04, Version 9.11.0 (Current), @MylesBorins prepared by @targos
