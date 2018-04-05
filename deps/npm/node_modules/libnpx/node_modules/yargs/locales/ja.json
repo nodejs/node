@@ -35,5 +35,8 @@
   "Path to JSON config file": "JSONの設定ファイルまでのpath",
   "Show help": "ヘルプを表示",
   "Show version number": "バージョンを表示",
-  "Did you mean %s?": "もしかして %s?"
+  "Did you mean %s?": "もしかして %s?",
+  "Arguments %s and %s are mutually exclusive" : "引数 %s と %s は同時に指定できません",
+  "Positionals:": "位置:",
+  "command": "コマンド"
 }

@@ -3,6 +3,7 @@
   - [ ] npm is crashing.
   - [ ] npm is producing an incorrect install.
   - [ ] npm is doing something I don't understand.
+  - [ ] npm is producing incorrect or undesirable behavior.
   - [ ] Other (_see below for feature requests_):
 
 #### What's going wrong?

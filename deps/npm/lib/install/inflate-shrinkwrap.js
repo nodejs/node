@@ -14,6 +14,8 @@ const realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier.js')
 const validate = require('aproba')
 const path = require('path')
 const isRegistry = require('../utils/is-registry.js')
+const hasModernMeta = require('./has-modern-meta.js')
+const ssri = require('ssri')
 
 module.exports = function (tree, sw, opts, finishInflating) {
   if (!fetchPackageMetadata) {
@@ -68,7 +70,7 @@ function normalizePackageDataNoErrors (pkg) {
 
 function inflatableChild (onDiskChild, name, topPath, tree, sw, requested, opts) {
   validate('OSSOOOO|ZSSOOOO', arguments)
-  if (onDiskChild && childIsEquivalent(sw, requested, onDiskChild)) {
+  if (hasModernMeta(onDiskChild) && childIsEquivalent(sw, requested, onDiskChild)) {
     // The version on disk matches the shrinkwrap entry.
     if (!onDiskChild.fromShrinkwrap) onDiskChild.fromShrinkwrap = true
     onDiskChild.package._requested = requested
@@ -106,7 +108,7 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
     name: name,
     version: sw.version,
     _id: name + '@' + sw.version,
-    _resolved: adaptResolved(requested, sw.resolved),
+    _resolved: sw.resolved,
     _requested: requested,
     _optional: sw.optional,
     _development: sw.dev,
@@ -144,23 +146,6 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
   return child
 }
 
-function adaptResolved (requested, resolved) {
-  const registry = requested.scope
-  ? npm.config.get(`${requested.scope}:registry`) || npm.config.get('registry')
-  : npm.config.get('registry')
-  if (!isRegistry(requested) || (resolved && resolved.indexOf(registry) === 0)) {
-    // Nothing to worry about here. Pass it through.
-    return resolved
-  } else {
-    // We could fast-path for registry.npmjs.org here, but if we do, it
-    // would end up getting written back to the `resolved` field. By always
-    // returning `null` for other registries, `pacote.extract()` will take
-    // care of any required metadata fetches internally, without altering
-    // the tree we're going to write out to shrinkwrap/lockfile.
-    return null
-  }
-}
-
 function fetchChild (topPath, tree, sw, requested) {
   return fetchPackageMetadata(requested, topPath).then((pkg) => {
     pkg._from = sw.from || requested.raw
@@ -196,7 +181,11 @@ function fetchChild (topPath, tree, sw, requested) {
 function childIsEquivalent (sw, requested, child) {
   if (!child) return false
   if (child.fromShrinkwrap) return true
-  if (sw.integrity && child.package._integrity === sw.integrity) return true
+  if (
+    sw.integrity &&
+    child.package._integrity &&
+    ssri.parse(sw.integrity).match(child.package._integrity)
+  ) return true
   if (child.isLink && requested.type === 'directory') return path.relative(child.realpath, requested.fetchSpec) === ''
 
   if (sw.resolved) return child.package._resolved === sw.resolved

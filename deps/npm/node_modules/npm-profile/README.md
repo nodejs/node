@@ -16,7 +16,149 @@ The API that this implements is documented here:
 
 ## Functions
 
-### profile.adduser(username, email, password, config) → Promise
+### profile.adduser(opener, prompter, config) → Promise
+
+Tries to create a user new web based login, if that fails it falls back to
+using the legacy CouchDB APIs.
+
+* `opener` Function (url) → Promise, returns a promise that resolves after a browser has been opened for the user at `url`.
+* `prompter` Function (creds) → Promise, returns a promise that resolves to an object with `username`, `email` and `password` properties.
+* `config` Object
+  * `creds` Object, passed through to prompter, common values are:
+    * `username` String, default value for username
+    * `email` String, default value for email
+  * `registry` String (for reference, the npm registry is `https://registry.npmjs.org`)
+  * `opts` Object, [make-fetch-happen options](https://www.npmjs.com/package/make-fetch-happen#extra-options) for setting
+    things like cache, proxy, SSL CA and retry rules.
+
+#### **Promise Value**
+
+An object with the following properties:
+
+* `token` String, to be used to authenticate further API calls
+* `username` String, the username the user authenticated as
+
+#### **Promise Rejection**
+
+An error object indicating what went wrong.
+
+The `headers` property will contain the HTTP headers of the response.
+
+If the action was denied because it came from an IP address that this action
+on this account isn't allowed from then the `code` will be set to `EAUTHIP`.
+
+Otherwise the code will be `'E'` followed by the HTTP response code, for
+example a Forbidden response would be `E403`.
+
+### profile.login(opener, prompter, config) → Promise
+
+Tries to login using new web based login, if that fails it falls back to
+using the legacy CouchDB APIs.
+
+* `opener` Function (url) → Promise, returns a promise that resolves after a browser has been opened for the user at `url`.
+* `prompter` Function (creds) → Promise, returns a promise that resolves to an object with `username`, and `password` properties.
+* `config` Object
+  * `creds` Object, passed through to prompter, common values are:
+    * `name` String, default value for username
+  * `registry` String (for reference, the npm registry is `https://registry.npmjs.org`)
+  * `auth` Object, properties: `otp`
+    the one-time password from a two-factor authentication device.
+  * `opts` Object, [make-fetch-happen options](https://www.npmjs.com/package/make-fetch-happen#extra-options) for setting
+    things like cache, proxy, SSL CA and retry rules.
+
+#### **Promise Value**
+
+An object with the following properties:
+
+* `token` String, to be used to authenticate further API calls
+* `username` String, the username the user authenticated as
+
+#### **Promise Rejection**
+
+An error object indicating what went wrong.
+
+The `headers` property will contain the HTTP headers of the response.
+
+If the action was denied because an OTP is required then `code` will be set
+to `EOTP`.  This error code can only come from a legacy CouchDB login and so
+this should be retried with loginCouch.
+
+If the action was denied because it came from an IP address that this action
+on this account isn't allowed from then the `code` will be set to `EAUTHIP`.
+
+Otherwise the code will be `'E'` followed by the HTTP response code, for
+example a Forbidden response would be `E403`.
+
+### profile.adduserWeb(opener, config) → Promise
+
+Tries to create a user new web based login, if that fails it falls back to
+using the legacy CouchDB APIs.
+
+* `opener` Function (url) → Promise, returns a promise that resolves after a browser has been opened for the user at `url`.
+* `config` Object
+  * `registry` String (for reference, the npm registry is `https://registry.npmjs.org`)
+  * `opts` Object, [make-fetch-happen options](https://www.npmjs.com/package/make-fetch-happen#extra-options) for setting
+    things like cache, proxy, SSL CA and retry rules.
+
+#### **Promise Value**
+
+An object with the following properties:
+
+* `token` String, to be used to authenticate further API calls
+* `username` String, the username the user authenticated as
+
+#### **Promise Rejection**
+
+An error object indicating what went wrong.
+
+The `headers` property will contain the HTTP headers of the response.
+
+If the registry does not support web-login then an error will be thrown with
+its `code` property set to `ENYI` . You should retry with `adduserCouch`.
+If you use `adduser` then this fallback will be done automatically.
+
+If the action was denied because it came from an IP address that this action
+on this account isn't allowed from then the `code` will be set to `EAUTHIP`.
+
+Otherwise the code will be `'E'` followed by the HTTP response code, for
+example a Forbidden response would be `E403`.
+
+### profile.loginWeb(opener, config) → Promise
+
+Tries to login using new web based login, if that fails it falls back to
+using the legacy CouchDB APIs.
+
+* `opener` Function (url) → Promise, returns a promise that resolves after a browser has been opened for the user at `url`.
+* `config` Object
+  * `registry` String (for reference, the npm registry is `https://registry.npmjs.org`)
+  * `opts` Object, [make-fetch-happen options](https://www.npmjs.com/package/make-fetch-happen#extra-options) for setting
+    things like cache, proxy, SSL CA and retry rules.
+
+#### **Promise Value**
+
+An object with the following properties:
+
+* `token` String, to be used to authenticate further API calls
+* `username` String, the username the user authenticated as
+
+#### **Promise Rejection**
+
+An error object indicating what went wrong.
+
+The `headers` property will contain the HTTP headers of the response.
+
+If the registry does not support web-login then an error will be thrown with
+its `code` property set to `ENYI` . You should retry with `loginCouch`.
+If you use `login` then this fallback will be done automatically.
+
+
+If the action was denied because it came from an IP address that this action
+on this account isn't allowed from then the `code` will be set to `EAUTHIP`.
+
+Otherwise the code will be `'E'` followed by the HTTP response code, for
+example a Forbidden response would be `E403`.
+
+### profile.adduserCouch(username, email, password, config) → Promise
 
 ```js
 profile.adduser(username, email, password, {registry}).then(result => {
@@ -41,7 +183,10 @@ this is registry specific and not guaranteed.
 
 #### **Promise Value**
 
-An object with a `token` property that can be passed into future authentication requests.
+An object with the following properties:
+
+* `token` String, to be used to authenticate further API calls
+* `username` String, the username the user authenticated as
 
 #### **Promise Rejection**
 
@@ -58,7 +203,7 @@ on this account isn't allowed from then the `code` will be set to `EAUTHIP`.
 Otherwise the code will be `'E'` followed by the HTTP response code, for
 example a Forbidden response would be `E403`.
 
-### profile.login(username, password, config) → Promise
+### profile.loginCouch(username, password, config) → Promise
 
 ```js
 profile.login(username, password, {registry}).catch(err => {
@@ -88,7 +233,10 @@ future authentication. This is what you use as an `authToken` in an `.npmrc`.
 
 #### **Promise Value**
 
-An object with a `token` property that can be passed into future authentication requests.
+An object with the following properties:
+
+* `token` String, to be used to authenticate further API calls
+* `username` String, the username the user authenticated as
 
 #### **Promise Rejection**
 

@@ -54,6 +54,10 @@ after packing it up into a tarball (b).</p>
 <p>  With the <code>--production</code> flag (or when the <code>NODE_ENV</code> environment variable
   is set to <code>production</code>), npm will not install modules listed in
   <code>devDependencies</code>.</p>
+<blockquote>
+<p>NOTE: The <code>--production</code> flag has no particular meaning when adding a
+  dependency to a project.</p>
+</blockquote>
 </li>
 <li><p><code>npm install &lt;folder&gt;</code>:</p>
 <p>  Install the package in the directory as a symlink in the current project.
@@ -281,7 +285,8 @@ being installed.</p>
 <p>The <code>--no-shrinkwrap</code> argument, which will ignore an available
 package lock or shrinkwrap file and use the package.json instead.</p>
 <p>The <code>--no-package-lock</code> argument will prevent npm from creating a
-<code>package-lock.json</code> file.</p>
+<code>package-lock.json</code> file.  When running with package-lock&#39;s disabled npm
+will not automatically prune your node modules when installing.</p>
 <p>The <code>--nodedir=/path/to/node/source</code> argument will allow npm to find the
 node source code so that npm can compile native modules.</p>
 <p>The <code>--only={prod[uction]|dev[elopment]}</code> argument will cause either only
@@ -369,5 +374,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@5.6.0</p>
+<p id="footer">npm-install &mdash; npm@5.8.0</p>
 

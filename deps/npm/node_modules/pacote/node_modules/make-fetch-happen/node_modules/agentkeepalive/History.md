@@ -1,4 +1,13 @@
 
+3.4.0 / 2018-02-27
+==================
+
+**features**
+  * [[`bc7cadb`](http://github.com/node-modules/agentkeepalive/commit/bc7cadb30ecd2071e2b341ac53ae1a2b8155c43d)] - feat: use socket custom freeSocketKeepAliveTimeout first (#59) (fengmk2 <<fengmk2@gmail.com>>)
+
+**others**
+  * [[`138eda8`](http://github.com/node-modules/agentkeepalive/commit/138eda81e10b632aaa87bea0cb66d8667124c4e8)] - doc: fix `keepAliveMsecs` params description (#55) (Hongcai Deng <<admin@dhchouse.com>>)
+
 3.3.0 / 2017-06-20
 ==================
 

@@ -93,7 +93,7 @@ function apiUri (registryUri) {
 
 function accessAssertions (subcommand, uri, params, cb) {
   assert(subcommands.hasOwnProperty(subcommand),
-         'access subcommand must be one of ' +
+    'access subcommand must be one of ' +
          Object.keys(subcommands).join(', '))
   typeChecks({
     'uri': [uri, 'string'],
@@ -106,7 +106,7 @@ function accessAssertions (subcommand, uri, params, cb) {
   ], subcommand)) {
     typeChecks({ 'package': [params.package, 'string'] })
     assert(!!npa(params.package).scope,
-           'access commands are only accessible for scoped packages')
+      'access commands are only accessible for scoped packages')
   }
   if (contains(['grant', 'revoke', 'ls-packages'], subcommand)) {
     typeChecks({ 'scope': [params.scope, 'string'] })
@@ -118,7 +118,7 @@ function accessAssertions (subcommand, uri, params, cb) {
     typeChecks({ 'permissions': [params.permissions, 'string'] })
     assert(params.permissions === 'read-only' ||
            params.permissions === 'read-write',
-           'permissions must be either read-only or read-write')
+    'permissions must be either read-only or read-write')
   }
 }
 
@@ -127,7 +127,7 @@ function typeChecks (specs) {
     var checks = specs[key]
     /* eslint valid-typeof:0 */
     assert(typeof checks[0] === checks[1],
-           key + ' is required and must be of type ' + checks[1])
+      key + ' is required and must be of type ' + checks[1])
   })
 }
 

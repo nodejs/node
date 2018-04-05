@@ -3,7 +3,7 @@
  * treat as a browser.
  */
 
-if (typeof process !== 'undefined' && process.type === 'renderer') {
+if (typeof process === 'undefined' || process.type === 'renderer') {
   module.exports = require('./browser.js');
 } else {
   module.exports = require('./node.js');

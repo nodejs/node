@@ -68,12 +68,12 @@ function logRequest (uri, res, startTime, opts) {
 
 function getCacheMode (opts) {
   return opts.offline
-  ? 'only-if-cached'
-  : opts.preferOffline
-  ? 'force-cache'
-  : opts.preferOnline
-  ? 'no-cache'
-  : 'default'
+    ? 'only-if-cached'
+    : opts.preferOffline
+      ? 'force-cache'
+      : opts.preferOnline
+        ? 'no-cache'
+        : 'default'
 }
 
 function getHeaders (uri, registry, opts) {

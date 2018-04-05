@@ -33,6 +33,7 @@ var getSaveType = require('./save.js').getSaveType
 var unixFormatPath = require('../utils/unix-format-path.js')
 var isExtraneous = require('./is-extraneous.js')
 var isRegistry = require('../utils/is-registry.js')
+var hasModernMeta = require('./has-modern-meta.js')
 
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
@@ -111,7 +112,7 @@ function computeMetadata (tree, seen) {
   const reqs = tree.swRequires || {}
   for (let name of Object.keys(deps)) {
     if (findChild(name, deps[name])) continue
-    if (findChild(name, reqs[name])) continue
+    if (name in reqs && findChild(name, reqs[name])) continue
     tree.missingDeps[name] = deps[name]
   }
   if (tree.isTop) {
@@ -332,9 +333,21 @@ exports.removeDeps = function (args, tree, saveToDependencies, next) {
       parent.requires = parent.requires.filter((child) => child !== pkgToRemove)
     }
     pkgToRemove.requiredBy = pkgToRemove.requiredBy.filter((parent) => parent !== tree)
+    flagAsRemoving(pkgToRemove)
   }
   next()
 }
+
+function flagAsRemoving (toRemove, seen) {
+  if (!seen) seen = new Set()
+  if (seen.has(toRemove)) return
+  seen.add(toRemove)
+  toRemove.removing = true
+  toRemove.requires.forEach((required) => {
+    flagAsRemoving(required, seen)
+  })
+}
+
 exports.removeExtraneous = function (args, tree, next) {
   for (let pkg of args) {
     var pkgName = moduleName(pkg)
@@ -526,7 +539,7 @@ function addDependency (name, versionSpec, tree, log, done) {
   }
   var child = findRequirement(tree, name, req)
   if (!child && swReq) child = findRequirement(tree, name, swReq)
-  if (child) {
+  if (hasModernMeta(child)) {
     resolveWithExistingModule(child, tree)
     if (child.package._shrinkwrap === undefined) {
       readShrinkwrap.andInflate(child, function (er) { next(er, child, log) })
@@ -534,10 +547,40 @@ function addDependency (name, versionSpec, tree, log, done) {
       next(null, child, log)
     }
   } else {
+    if (child) {
+      if (req.registry) {
+        req = childDependencySpecifier(tree, name, child.package.version)
+      }
+      if (child.fromBundle) reportBundleOverride(child, log)
+      removeObsoleteDep(child, log)
+    }
     fetchPackageMetadata(req, packageRelativePath(tree), {tracker: log.newItem('fetchMetadata')}, iferr(next, function (pkg) {
       resolveWithNewModule(pkg, tree, log, next)
     }))
   }
+}
+
+function getTop (pkg) {
+  const seen = new Set()
+  while (pkg.parent && !seen.has(pkg.parent)) {
+    pkg = pkg.parent
+    seen.add(pkg)
+  }
+  return pkg
+}
+
+function reportBundleOverride (child, log) {
+  const code = 'EBUNDLEOVERRIDE'
+  const top = getTop(child.fromBundle)
+  const bundlerId = packageId(child.fromBundle)
+  if (!top.warnings.some((w) => {
+    return w.code === code
+  })) {
+    const err = new Error(`${bundlerId} had bundled packages that do not match the required version(s). They have been replaced with non-bundled versions.`)
+    err.code = code
+    top.warnings.push(err)
+  }
+  if (log) log.verbose('bundle', `${code}: Replacing ${bundlerId}'s bundled version of ${moduleName(child)} with ${packageId(child)}.`)
 }
 
 function resolveWithExistingModule (child, tree) {
@@ -592,7 +635,7 @@ function resolveWithNewModule (pkg, tree, log, next) {
   return isInstallable(pkg, (err) => {
     let installable = !err
     addBundled(pkg, (bundleErr) => {
-      var parent = earliestInstallable(tree, tree, pkg) || tree
+      var parent = earliestInstallable(tree, tree, pkg, log) || tree
       var isLink = pkg._requested.type === 'directory'
       var child = createChild({
         package: pkg,
@@ -609,7 +652,10 @@ function resolveWithNewModule (pkg, tree, log, next) {
       var hasBundled = child.children.length
 
       var replaced = replaceModuleByName(parent, 'children', child)
-      if (replaced) removeObsoleteDep(replaced)
+      if (replaced) {
+        if (replaced.fromBundle) reportBundleOverride(replaced, log)
+        removeObsoleteDep(replaced)
+      }
       addRequiredDep(tree, child)
       child.location = flatNameFromTree(child)
 
@@ -694,12 +740,25 @@ function preserveSymlinks () {
 // Find the highest level in the tree that we can install this module in.
 // If the module isn't installed above us yet, that'd be the very top.
 // If it is, then it's the level below where its installed.
-var earliestInstallable = exports.earliestInstallable = function (requiredBy, tree, pkg) {
-  validate('OOO', arguments)
+var earliestInstallable = exports.earliestInstallable = function (requiredBy, tree, pkg, log) {
+  validate('OOOO', arguments)
+
   function undeletedModuleMatches (child) {
     return !child.removed && moduleName(child) === pkg.name
   }
-  if (tree.children.some(undeletedModuleMatches)) return null
+  const undeletedMatches = tree.children.filter(undeletedModuleMatches)
+  if (undeletedMatches.length) {
+    // if there's a conflict with another child AT THE SAME level then we're replacing it, so
+    // mark it as removed and continue with resolution normally.
+    if (tree === requiredBy) {
+      undeletedMatches.forEach((pkg) => {
+        if (pkg.fromBundle) reportBundleOverride(pkg, log)
+        removeObsoleteDep(pkg, log)
+      })
+    } else {
+      return null
+    }
+  }
 
   // If any of the children of this tree have conflicting
   // binaries then we need to decline to install this package here.
@@ -738,5 +797,5 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   if (!preserveSymlinks() && /^[.][.][\\/]/.test(path.relative(tree.parent.realpath, tree.realpath))) return tree
 
-  return (earliestInstallable(requiredBy, tree.parent, pkg) || tree)
+  return (earliestInstallable(requiredBy, tree.parent, pkg, log) || tree)
 }

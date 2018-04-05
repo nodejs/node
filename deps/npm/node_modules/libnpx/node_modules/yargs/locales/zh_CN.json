@@ -33,5 +33,9 @@
   "Invalid JSON config file: %s": "无效的 JSON 配置文件：%s",
   "Path to JSON config file": "JSON 配置文件的路径",
   "Show help": "显示帮助信息",
-  "Show version number": "显示版本号"
+  "Show version number": "显示版本号",
+  "Did you mean %s?": "是指 %s?",
+  "Arguments %s and %s are mutually exclusive" : "选项 %s 和 %s 是互斥的",
+  "Positionals:": "位置：",
+  "command": "命令"
 }
