@@ -95,7 +95,7 @@ function putFirst (registry, data, tarbuffer, access, auth, cb) {
   // Legacy shasum support
   data.dist.shasum = integrity['sha1'][0].hexDigest()
   data.dist.tarball = url.resolve(registry, tbURI)
-                         .replace(/^https:\/\//, 'http://')
+    .replace(/^https:\/\//, 'http://')
 
   root._attachments = {}
   root._attachments[ tbName ] = {

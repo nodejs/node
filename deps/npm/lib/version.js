@@ -4,6 +4,7 @@ const BB = require('bluebird')
 const assert = require('assert')
 const chain = require('slide').chain
 const detectIndent = require('detect-indent')
+const detectNewline = require('detect-newline')
 const fs = require('graceful-fs')
 const readFile = BB.promisify(require('graceful-fs').readFile)
 const git = require('./utils/git.js')
@@ -14,6 +15,7 @@ const output = require('./utils/output.js')
 const parseJSON = require('./utils/parse-json.js')
 const path = require('path')
 const semver = require('semver')
+const stringifyPackage = require('./utils/stringify-package')
 const writeFileAtomic = require('write-file-atomic')
 
 version.usage = 'npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]' +
@@ -33,7 +35,7 @@ function version (args, silent, cb_) {
   }
   if (args.length > 1) return cb_(version.usage)
 
-  readPackage(function (er, data, indent) {
+  readPackage(function (er, data, indent, newline) {
     if (!args.length) return dump(data, cb_)
 
     if (er) {
@@ -115,14 +117,16 @@ function readPackage (cb) {
   fs.readFile(packagePath, 'utf8', function (er, data) {
     if (er) return cb(new Error(er))
     var indent
+    var newline
     try {
-      indent = detectIndent(data).indent || '  '
+      indent = detectIndent(data).indent
+      newline = detectNewline(data)
       data = JSON.parse(data)
     } catch (e) {
       er = e
       data = null
     }
-    cb(er, data, indent)
+    cb(er, data, indent, newline)
   })
 }
 
@@ -132,10 +136,10 @@ function updatePackage (newVersion, silent, cb_) {
     cb_(er)
   }
 
-  readPackage(function (er, data, indent) {
+  readPackage(function (er, data, indent, newline) {
     if (er) return cb(new Error(er))
     data.version = newVersion
-    write(data, 'package.json', indent, cb)
+    write(data, 'package.json', indent, newline, cb)
   })
 }
 
@@ -168,15 +172,17 @@ function updateShrinkwrap (newVersion, cb) {
       const file = shrinkwrap ? SHRINKWRAP : PKGLOCK
       let data
       let indent
+      let newline
       try {
         data = parseJSON(shrinkwrap || lockfile)
-        indent = detectIndent(shrinkwrap || lockfile).indent || '  '
+        indent = detectIndent(shrinkwrap || lockfile).indent
+        newline = detectNewline(shrinkwrap || lockfile)
       } catch (err) {
         log.error('version', `Bad ${file} data.`)
         return cb(err)
       }
       data.version = newVersion
-      write(data, file, indent, (err) => {
+      write(data, file, indent, newline, (err) => {
         if (err) {
           log.error('version', `Failed to update version in ${file}`)
           return cb(err)
@@ -321,14 +327,14 @@ function addLocalFile (file, options, ignoreFailure) {
   : p
 }
 
-function write (data, file, indent, cb) {
+function write (data, file, indent, newline, cb) {
   assert(data && typeof data === 'object', 'must pass data to version write')
   assert(typeof file === 'string', 'must pass filename to write to version write')
 
   log.verbose('version.write', 'data', data, 'to', file)
   writeFileAtomic(
     path.join(npm.localPrefix, file),
-    new Buffer(JSON.stringify(data, null, indent || 2) + '\n'),
+    new Buffer(stringifyPackage(data, indent, newline)),
     cb
   )
 }

@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "December 2017" "" ""
+.TH "PACKAGE\.JSON" "5" "April 2018" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -10,11 +10,11 @@ A lot of the behavior described in this document is affected by the config
 settings described in npm help 7 \fBnpm\-config\fP\|\.
 .SH name
 .P
-The \fImost\fR important things in your package\.json are the name and version fields\.
-Those are actually required, and your package won't install without
-them\.  The name and version together form an identifier that is assumed
-to be completely unique\.  Changes to the package should come along with
-changes to the version\.
+If you plan to publish your package, the \fImost\fR important things in your
+package\.json are the name and version fields as they will be required\. The name
+and version together form an identifier that is assumed to be completely unique\.
+Changes to the package should come along with changes to the version\. If you don't
+plan to publish your package, the name and version fields are optional\.
 .P
 The name is what your thing is called\.
 .P
@@ -54,11 +54,11 @@ A name can be optionally prefixed by a scope, e\.g\. \fB@myorg/mypackage\fP\|\. 
 npm help 7 \fBnpm\-scope\fP for more detail\.
 .SH version
 .P
-The \fImost\fR important things in your package\.json are the name and version fields\.
-Those are actually required, and your package won't install without
-them\.  The name and version together form an identifier that is assumed
-to be completely unique\.  Changes to the package should come along with
-changes to the version\.
+If you plan to publish your package, the \fImost\fR important things in your
+package\.json are the name and version fields as they will be required\. The name
+and version together form an identifier that is assumed to be completely unique\.
+Changes to the package should come along with changes to the version\. If you don't
+plan to publish your package, the name and version fields are optional\.
 .P
 Version must be parseable by
 node\-semver \fIhttps://github\.com/isaacs/node\-semver\fR, which is bundled
@@ -76,6 +76,14 @@ discover your package as it's listed in \fBnpm search\fP\|\.
 .SH homepage
 .P
 The url to the project homepage\.
+.P
+Example:
+.P
+.RS 2
+.nf
+"homepage": "https://github\.com/owner/project#readme"
+.fi
+.RE
 .SH bugs
 .P
 The url to your project's issue tracker and / or the email address to which
@@ -207,13 +215,15 @@ Both email and url are optional either way\.
 npm also sets a top\-level "maintainers" field with your npm user info\.
 .SH files
 .P
-The optional "files" field is an array of file patterns that describes
+The optional \fBfiles\fP field is an array of file patterns that describes
 the entries to be included when your package is installed as a
-dependency\. If the files array is omitted, everything except
-automatically\-excluded files will be included in your publish\. If you
-name a folder in the array, then it will also include the files inside
-that folder (unless they would be ignored by another rule in this
-section\.)\.
+dependency\. File patterns follow a similar syntax to \fB\|\.gitignore\fP, but
+reversed: including a file, directory, or glob pattern (\fB*\fP, \fB**/*\fP, and such)
+will make it so that file is included in the tarball when it's packed\. Omitting
+the field will make it default to \fB["*"]\fP, which means it will include all files\.
+.P
+Some special files and directories are also included or excluded regardless of
+whether they exist in the \fBfiles\fP array (see below)\.
 .P
 You can also provide a \fB\|\.npmignore\fP file in the root of your package or
 in subdirectories, which will keep files from being included\. At the
@@ -288,6 +298,11 @@ This should be a module ID relative to the root of your package folder\.
 .P
 For most modules, it makes the most sense to have a main script and often not
 much else\.
+.SH browser
+.P
+If your module is meant to be used client\-side the browser field should be
+used instead of the main field\. This is helpful to hint users that it might
+rely on primitives that aren't available in Node\.js modules\. (e\.g\. \fBwindow\fP)
 .SH bin
 .P
 A lot of packages have one or more executable files that they'd like to

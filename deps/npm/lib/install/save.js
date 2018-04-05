@@ -3,6 +3,7 @@
 const createShrinkwrap = require('../shrinkwrap.js').createShrinkwrap
 const deepSortObject = require('../utils/deep-sort-object.js')
 const detectIndent = require('detect-indent')
+const detectNewline = require('detect-newline')
 const fs = require('graceful-fs')
 const iferr = require('iferr')
 const log = require('npmlog')
@@ -10,6 +11,7 @@ const moduleName = require('../utils/module-name.js')
 const npm = require('../npm.js')
 const parseJSON = require('../utils/parse-json.js')
 const path = require('path')
+const stringifyPackage = require('../utils/stringify-package')
 const validate = require('aproba')
 const without = require('lodash.without')
 const writeFileAtomic = require('write-file-atomic')
@@ -60,7 +62,8 @@ function savePackageJson (tree, next) {
   // don't use readJson, because we don't want to do all the other
   // tricky npm-specific stuff that's in there.
   fs.readFile(saveTarget, 'utf8', iferr(next, function (packagejson) {
-    const indent = detectIndent(packagejson).indent || '  '
+    const indent = detectIndent(packagejson).indent
+    const newline = detectNewline(packagejson)
     try {
       tree.package = parseJSON(packagejson)
     } catch (ex) {
@@ -122,7 +125,7 @@ function savePackageJson (tree, next) {
       tree.package.bundleDependencies = deepSortObject(bundle)
     }
 
-    var json = JSON.stringify(tree.package, null, indent) + '\n'
+    var json = stringifyPackage(tree.package, indent, newline)
     if (json === packagejson) {
       log.verbose('shrinkwrap', 'skipping write for package.json because there were no changes.')
       next()

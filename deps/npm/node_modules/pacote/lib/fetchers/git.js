@@ -135,16 +135,16 @@ function resolve (url, spec, name, opts) {
   const isSemver = !!spec.gitRange
   return git.revs(url, opts).then(remoteRefs => {
     return isSemver
-    ? pickManifest({
-      versions: remoteRefs.versions,
-      'dist-tags': remoteRefs['dist-tags'],
-      name: name
-    }, spec.gitRange, opts)
-    : remoteRefs
-    ? BB.resolve(
-      remoteRefs.refs[spec.gitCommittish] || remoteRefs.refs[remoteRefs.shas[spec.gitCommittish]]
-    )
-    : null
+      ? pickManifest({
+        versions: remoteRefs.versions,
+        'dist-tags': remoteRefs['dist-tags'],
+        name: name
+      }, spec.gitRange, opts)
+      : remoteRefs
+        ? BB.resolve(
+          remoteRefs.refs[spec.gitCommittish] || remoteRefs.refs[remoteRefs.shas[spec.gitCommittish]]
+        )
+        : null
   })
 }
 

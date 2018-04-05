@@ -28,8 +28,8 @@ function manifest (spec, opts) {
 
 function metadataUrl (registry, name) {
   const normalized = registry.slice(-1) !== '/'
-  ? registry + '/'
-  : registry
+    ? registry + '/'
+    : registry
   return url.resolve(normalized, name)
 }
 
