@@ -1,13 +1,14 @@
-var fs = require('fs')
-var path = require('path')
-var assign = require('./assign')
-var YError = require('./yerror')
 
-var previouslyVisitedConfigs = []
+'use strict'
+const fs = require('fs')
+const path = require('path')
+const YError = require('./yerror')
+
+let previouslyVisitedConfigs = []
 
 function checkForCircularExtends (path) {
   if (previouslyVisitedConfigs.indexOf(path) > -1) {
-    throw new YError("Circular extended configurations: '" + path + "'.")
+    throw new YError(`Circular extended configurations: '${path}'.`)
   }
 }
 
@@ -16,12 +17,12 @@ function getPathToDefaultConfig (cwd, pathToExtend) {
 }
 
 function applyExtends (config, cwd) {
-  var defaultConfig = {}
+  let defaultConfig = {}
 
   if (config.hasOwnProperty('extends')) {
     if (typeof config.extends !== 'string') return defaultConfig
-    var isPath = /\.json$/.test(config.extends)
-    var pathToDefault = null
+    const isPath = /\.json$/.test(config.extends)
+    let pathToDefault = null
     if (!isPath) {
       try {
         pathToDefault = require.resolve(config.extends)
@@ -46,7 +47,7 @@ function applyExtends (config, cwd) {
 
   previouslyVisitedConfigs = []
 
-  return assign(defaultConfig, config)
+  return Object.assign({}, defaultConfig, config)
 }
 
 module.exports = applyExtends

@@ -4,6 +4,7 @@
 [![Coverage Status][coveralls-image]][coveralls-url]
 [![NPM version][npm-image]][npm-url]
 [![js-standard-style][standard-image]][standard-url]
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 
 The bare-bones internationalization library used by yargs.
 
@@ -17,6 +18,19 @@ _simple string translation:_
 var __ = require('y18n').__
 
 console.log(__('my awesome string %s', 'foo'))
+```
+
+output:
+
+`my awesome string foo`
+
+_using tagged template literals_
+
+```js
+var __ = require('y18n').__
+var str = 'foo'
+
+console.log(__`my awesome string ${str}`)
 ```
 
 output:
@@ -59,6 +73,10 @@ Create an instance of y18n with the config provided, options include:
 ### y18n.\_\_(str, arg, arg, arg)
 
 Print a localized string, `%s` will be replaced with `arg`s.
+
+This function can also be used as a tag for a template literal. You can use it
+like this: <code>__&#96;hello ${'world'}&#96;</code>. This will be equivalent to
+`__('hello %s', 'world')`.
 
 ### y18n.\_\_n(singularString, pluralString, count, arg, arg, arg)
 

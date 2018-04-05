@@ -75,9 +75,11 @@ HttpProxyAgent.prototype.callback = function connect (req, opts, fn) {
   req.path = absolute;
 
   // inject the `Proxy-Authorization` header if necessary
-  var auth = proxy.auth;
-  if (auth) {
-    req.setHeader('Proxy-Authorization', 'Basic ' + new Buffer(auth).toString('base64'));
+  if (proxy.auth) {
+    req.setHeader(
+      'Proxy-Authorization',
+      'Basic ' + Buffer.from(proxy.auth).toString('base64')
+    );
   }
 
   // create a socket connection to the proxy server

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict'
-var loadFromDir = require('tacks/load-from-dir.js')
+const loadFromDir = require('tacks/load-from-dir.js')
 
 process.exit(main(process.argv.slice(2)))
 
@@ -9,7 +9,7 @@ function main (argv) {
     console.error('Usage: maketest <fixturedir>')
     return 1
   }
-  var fixturedir = process.argv[2]
+  const fixturedir = process.argv[2]
 
   console.log(generateFromDir(fixturedir))
   return 0
@@ -20,25 +20,25 @@ function indent (ind, str) {
 }
 
 function generateFromDir (dir) {
-  var tacks = loadFromDir(dir)
+  const tacks = loadFromDir(dir)
   return `'use strict'
-var path = require('path')
-var test = require('tap').test
-var mr = require('npm-registry-mock')
-var Tacks = require('tacks')
-var File = Tacks.File
-var Symlink = Tacks.Symlink
-var Dir = Tacks.Dir
-var extend = Object.assign || require('util')._extend
-var common = require('../common-tap.js')
+const path = require('path')
+const test = require('tap').test
+const mr = require('npm-registry-mock')
+const Tacks = require('tacks')
+const File = Tacks.File
+const Symlink = Tacks.Symlink
+const Dir = Tacks.Dir
+const extend = Object.assign || require('util')._extend
+const common = require('../common-tap.js')
 
-var basedir = path.join(__dirname, path.basename(__filename, '.js'))
-var testdir = path.join(basedir, 'testdir')
-var cachedir = path.join(basedir, 'cache')
-var globaldir = path.join(basedir, 'global')
-var tmpdir = path.join(basedir, 'tmp')
+const basedir = path.join(__dirname, path.basename(__filename, '.js'))
+const testdir = path.join(basedir, 'testdir')
+const cachedir = path.join(basedir, 'cache')
+const globaldir = path.join(basedir, 'global')
+const tmpdir = path.join(basedir, 'tmp')
 
-var conf = {
+const conf = {
   cwd: testdir,
   env: extend(extend({}, process.env), {
     npm_config_cache: cachedir,
@@ -49,8 +49,8 @@ var conf = {
   })
 }
 
-var server
-var fixture = new Tacks(Dir({
+let server
+const fixture = new Tacks(Dir({
   cache: Dir(),
   global: Dir(),
   tmp: Dir(),

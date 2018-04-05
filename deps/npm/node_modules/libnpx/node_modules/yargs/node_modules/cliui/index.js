@@ -282,6 +282,10 @@ function _minWidth (col) {
   return minWidth
 }
 
+function getWindowWidth () {
+  if (typeof process === 'object' && process.stdout && process.stdout.columns) return process.stdout.columns
+}
+
 function alignRight (str, width) {
   str = str.trim()
   var padding = ''
@@ -310,7 +314,7 @@ module.exports = function (opts) {
   opts = opts || {}
 
   return new UI({
-    width: (opts || {}).width || 80,
+    width: (opts || {}).width || getWindowWidth() || 80,
     wrap: typeof opts.wrap === 'boolean' ? opts.wrap : true
   })
 }

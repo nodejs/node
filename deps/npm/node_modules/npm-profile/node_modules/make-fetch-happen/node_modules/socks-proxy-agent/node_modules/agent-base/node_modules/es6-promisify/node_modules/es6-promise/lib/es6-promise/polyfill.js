@@ -5,15 +5,15 @@ export default function polyfill() {
   let local;
 
   if (typeof global !== 'undefined') {
-      local = global;
+    local = global;
   } else if (typeof self !== 'undefined') {
-      local = self;
+    local = self;
   } else {
-      try {
-          local = Function('return this')();
-      } catch (e) {
-          throw new Error('polyfill failed because global object is unavailable in this environment');
-      }
+    try {
+      local = Function('return this')();
+    } catch (e) {
+      throw new Error('polyfill failed because global object is unavailable in this environment');
+    }
   }
 
   let P = local.Promise;
@@ -21,13 +21,13 @@ export default function polyfill() {
   if (P) {
     var promiseToString = null;
     try {
-        promiseToString = Object.prototype.toString.call(P.resolve());
+      promiseToString = Object.prototype.toString.call(P.resolve());
     } catch(e) {
-        // silently ignored
+      // silently ignored
     }
 
     if (promiseToString === '[object Promise]' && !P.cast){
-        return;
+      return;
     }
   }
 
