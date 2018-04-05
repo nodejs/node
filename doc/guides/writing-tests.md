@@ -380,6 +380,10 @@ and tearing it down after the tests have finished.
 It also contains a helper to create arguments to be passed into Node.js. It
 will depend on what is being tested if this is required or not.
 
+### Test Coverage
+
+Details on generating test coverage report can be accessed in the [test coverage report][].
+
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
 [Web Platform Tests Project]: https://github.com/w3c/web-platform-tests/tree/master/url
@@ -387,8 +391,5 @@ will depend on what is being tested if this is required or not.
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
+[test coverage report]: https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#test-coverage
 [directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
-
-### Test Coverage
-
-Details on generating a test coverage report can be accessed [here].(https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#test-coverage) 
