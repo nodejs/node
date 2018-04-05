@@ -2,17 +2,23 @@
 module.exports = function (argString) {
   if (Array.isArray(argString)) return argString
 
+  argString = argString.trim()
+
   var i = 0
+  var prevC = null
   var c = null
   var opening = null
   var args = []
 
   for (var ii = 0; ii < argString.length; ii++) {
+    prevC = c
     c = argString.charAt(ii)
 
     // split on spaces unless we're in quotes.
     if (c === ' ' && !opening) {
-      i++
+      if (!(prevC === ' ')) {
+        i++
+      }
       continue
     }
 

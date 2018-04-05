@@ -1,4 +1,4 @@
-.TH "NPM\-PACKAGE\-LOCKS" "5" "December 2017" "" ""
+.TH "NPM\-PACKAGE\-LOCKS" "5" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-package-locks\fR \- An explanation of npm lockfiles
 .SH DESCRIPTION
@@ -71,7 +71,7 @@ A@0\.1\.0
 .fi
 .RE
 .P
-However, if B@0\.0\.2 is published, then a fresh \fBnpm install A\fP will
+However, if  is published, then a fresh \fBnpm install A\fP will
 install:
 .P
 .RS 2
@@ -85,7 +85,7 @@ A@0\.1\.0
 assuming the new version did not modify B's dependencies\. Of course,
 the new version of B could include a new version of C and any number
 of new dependencies\. If such changes are undesirable, the author of A
-could specify a dependency on B@0\.0\.1\. However, if A's author and B's
+could specify a dependency on \|\. However, if A's author and B's
 author are not the same person, there's no way for A's author to say
 that he or she does not want to pull in newly published versions of C
 when B hasn't changed at all\.
@@ -167,10 +167,25 @@ package source to get the exact same dependency tree that you were developing
 on\. Additionally, the diffs from these changes are human\-readable and will
 inform you of any changes npm has made to your \fBnode_modules\fP, so you can notice
 if any transitive dependencies were updated, hoisted, etc\.
+.SS Resolving lockfile conflicts
+.P
+Occasionally, two separate npm install will create package locks that cause
+merge conflicts in source control systems\. As of \fB, these conflicts
+can be resolved by manually fixing any\fPpackage\.json\fBconflicts, and then
+running\fPnpm install [\-\-package\-lock\-only]\fBagain\. npm will automatically
+resolve any conflicts for you and write a merged package lock that includes all
+the dependencies from both branches in a reasonable tree\. If\fP\-\-package\-lock\-only\fBis provided, it will do this without also modifying your
+local\fPnode_modules/`\.
+.P
+To make this process seamless on git, consider installing
+\fBnpm\-merge\-driver\fP \fIhttps://npm\.im/npm\-merge\-driver\fR, which will teach git how
+to do this itself without any user interaction\. In short: \fB$ npx
+npm\-merge\-driver install \-g\fP will let you do this, and even works with
+\fBversions of npm 5, albeit a bit more noisily\. Note that if\fPpackage\.json\fBitself conflicts, you will have to resolve that by hand and run\fPnpm install` manually, even with the merge driver\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
-https://medium\.com/@sdboyer/so\-you\-want\-to\-write\-a\-package\-manager\-4ae9c17d9527
+https://
 .IP \(bu 2
 npm help 5 package\.json
 .IP \(bu 2
@@ -181,3 +196,4 @@ npm help 5 shrinkwrap\.json
 npm help shrinkwrap
 
 .RE
+

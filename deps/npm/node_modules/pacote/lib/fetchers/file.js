@@ -52,13 +52,13 @@ Fetcher.impl(fetchFile, {
       } else {
         let integrity
         const cacheWriter = !opts.cache
-        ? BB.resolve(null)
-        : (pipe(
-          fs.createReadStream(src),
-          cacache.put.stream(opts.cache, `pacote:tarball:${src}`, {
-            integrity: opts.integrity
-          }).on('integrity', d => { integrity = d })
-        ))
+          ? BB.resolve(null)
+          : (pipe(
+            fs.createReadStream(src),
+            cacache.put.stream(opts.cache, `pacote:tarball:${src}`, {
+              integrity: opts.integrity
+            }).on('integrity', d => { integrity = d })
+          ))
         return cacheWriter.then(() => {
           if (integrity) { stream.emit('integrity', integrity) }
           return pipe(fs.createReadStream(src), stream)

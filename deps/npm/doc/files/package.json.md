@@ -11,11 +11,11 @@ settings described in `npm-config(7)`.
 
 ## name
 
-The *most* important things in your package.json are the name and version fields.
-Those are actually required, and your package won't install without
-them.  The name and version together form an identifier that is assumed
-to be completely unique.  Changes to the package should come along with
-changes to the version.
+If you plan to publish your package, the *most* important things in your 
+package.json are the name and version fields as they will be required. The name 
+and version together form an identifier that is assumed to be completely unique. 
+Changes to the package should come along with changes to the version. If you don't 
+plan to publish your package, the name and version fields are optional.
 
 The name is what your thing is called.
 
@@ -44,11 +44,11 @@ A name can be optionally prefixed by a scope, e.g. `@myorg/mypackage`. See
 
 ## version
 
-The *most* important things in your package.json are the name and version fields.
-Those are actually required, and your package won't install without
-them.  The name and version together form an identifier that is assumed
-to be completely unique.  Changes to the package should come along with
-changes to the version.
+If you plan to publish your package, the *most* important things in your 
+package.json are the name and version fields as they will be required. The name 
+and version together form an identifier that is assumed to be completely unique. 
+Changes to the package should come along with changes to the version. If you don't 
+plan to publish your package, the name and version fields are optional.
 
 Version must be parseable by
 [node-semver](https://github.com/isaacs/node-semver), which is bundled
@@ -69,6 +69,10 @@ discover your package as it's listed in `npm search`.
 ## homepage
 
 The url to the project homepage.
+
+Example:
+
+    "homepage": "https://github.com/owner/project#readme"
 
 ## bugs
 
@@ -168,13 +172,15 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ## files
 
-The optional "files" field is an array of file patterns that describes
+The optional `files` field is an array of file patterns that describes
 the entries to be included when your package is installed as a
-dependency. If the files array is omitted, everything except
-automatically-excluded files will be included in your publish. If you
-name a folder in the array, then it will also include the files inside
-that folder (unless they would be ignored by another rule in this
-section.).
+dependency. File patterns follow a similar syntax to `.gitignore`, but
+reversed: including a file, directory, or glob pattern (`*`, `**/*`, and such)
+will make it so that file is included in the tarball when it's packed. Omitting
+the field will make it default to `["*"]`, which means it will include all files.
+
+Some special files and directories are also included or excluded regardless of
+whether they exist in the `files` array (see below).
 
 You can also provide a `.npmignore` file in the root of your package or
 in subdirectories, which will keep files from being included. At the
@@ -225,6 +231,12 @@ This should be a module ID relative to the root of your package folder.
 
 For most modules, it makes the most sense to have a main script and often not
 much else.
+
+## browser
+
+If your module is meant to be used client-side the browser field should be
+used instead of the main field. This is helpful to hint users that it might
+rely on primitives that aren't available in Node.js modules. (e.g. `window`)
 
 ## bin
 

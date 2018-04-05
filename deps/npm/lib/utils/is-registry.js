@@ -9,3 +9,4 @@ function isRegistry (req) {
   if (req.type === 'range' || req.type === 'version' || req.type === 'tag') return true
   return false
 }
+

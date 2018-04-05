@@ -1,3 +1,449 @@
+## v5.8.0 (2018-03-08):
+
+Hey again, everyone! While last release was focused largely around PRs from the
+CLI team, this release is mostly pulling in community PRs in npm itself and its
+dependencies! We've got a good chunk of wonderful contributions for y'all, and
+even new features and performance improvements! 🎉
+
+We're hoping to continue our biweekly (as in every-other-week biweekly) release
+schedule from now on, so you should be seeing more steady npm releases from here
+on out. And that's good, 'cause we've got a _ton_ of new stuff on our roadmap
+for this year. Keep an eye out for exciting news. 👀
+
+### FEATURES
+
+* [`2f513fe1c`](https://github.com/npm/npm/commit/2f513fe1ce6db055b04a63fe4360212a83f77b34)
+  [#19904](https://github.com/npm/npm/pull/19904)
+  Make a best-attempt at preserving line ending style when saving
+  `package.json`/`package-lock.json`/`npm-shrinkwrap.json`. This goes
+  hand-in-hand with a previous patch to preserve detected indentation style.
+  ([@tuananh](https://github.com/tuananh))
+* [`d3cfd41a2`](https://github.com/npm/npm/commit/d3cfd41a28253db5a18260f68642513cbbc93e3b)
+  `pacote@7.6.1` ([@zkat](https://github.com/zkat))
+  * Enable `file:`-based `resolved` URIs in `package-lock.json`.
+  * Retry git-based operations on certain types of failure.
+* [`ecfbb16dc`](https://github.com/npm/npm/commit/ecfbb16dc705f28aa61b3223bdbf9e47230a0fa4)
+  [#19929](https://github.com/npm/npm/pull/19929)
+  Add support for the [`NO_COLOR` standard](http://no-color.org). This gives a
+  cross-application, consistent way of disabling ANSI color code output. Note
+  that npm already supported this through `--no-color` or
+  `npm_config_color='false'` configurations, so this is just another way to do
+  it.
+  ([@chneukirchen](https://github.com/chneukirchen))
+* [`fc8761daf`](https://github.com/npm/npm/commit/fc8761daf1e8749481457973890fa516eb96a195)
+  [#19629](https://github.com/npm/npm/pull/19629)
+  Give more detailed, contextual information when npm fails to parse
+  `package-lock.json` and `npm-shrinkwrap.json`, instead of saying `JSON parse
+  error` and leaving you out in the cold.
+  ([@JoshuaKGoldberg](https://github.com/JoshuaKGoldberg))
+* [`1d368e1e6`](https://github.com/npm/npm/commit/1d368e1e63229f236b9dbabf628989fa3aa98bdb)
+  [#19157](https://github.com/npm/npm/pull/19157)
+  Add `--no-proxy` config option. Previously, you needed to use the `NO_PROXY`
+  environment variable to use this feature -- now it's an actual npm option.
+  ([@Saturate](https://github.com/Saturate))
+* [`f0e998daa`](https://github.com/npm/npm/commit/f0e998daa049810d5f928615132250021e46451d)
+  [#18426](https://github.com/npm/npm/pull/18426)
+  Do environment variable replacement in config files even for config keys or
+  fragments of keys.
+  ([@misak113](https://github.com/misak113))
+* [`9847c82a8`](https://github.com/npm/npm/commit/9847c82a8528cfdf5968e9bb00abd8ed47903b5c)
+  [#18384](https://github.com/npm/npm/pull/18384)
+  Better error messaging and suggestions when users get `EPERM`/`EACCES` errors.
+  ([@chrisjpatty](https://github.com/chrisjpatty))
+* [`b9d0c0c01`](https://github.com/npm/npm/commit/b9d0c0c0173542a8d741a9a17b9fb34fbaf5068e)
+  [#19448](https://github.com/npm/npm/pull/19448)
+  Holiday celebrations now include all JavaScripters, not just Node developers.
+  ([@isaacs](https://github.com/isaacs))
+
+### NPM CI
+
+I hope y'all have been having fun with `npm ci` so far! Since this is the first
+release since that went out, we've had a few fixes and improvements now that
+folks have actually gotten their hands on it! Benchmarks have been super
+promising so far, and I've gotten messages from a lot of you saying you've sped
+up your CI work by **2-5x** in some cases! Have a good example? Tell us on
+Twitter!
+
+`npm ci` is, right now, [the fastest
+installer](http://blog.npmjs.org/post/171556855892/introducing-npm-ci-for-faster-more-reliable)
+you can use in CI situations, so go check it out if you haven't already! We'll
+continue doing performance improvements on it, and a lot of those will help make
+`npm install` fast as well. 🏎😎
+
+* [`0d7f203d9`](https://github.com/npm/npm/commit/0d7f203d9e86cc6c8d69107689ea60fc7cbab424)
+  `libcipm@1.6.0`
+  ([@zkat](https://github.com/zkat))
+
+This `libcipm` release includes a number of improvements:
+
+* **PERFORMANCE** Reduce calls to `read-package-json` and separate JSON update phase from man/bin linking phase. `npm ci` should be noticeably faster.
+* **FEATURE** Progress bar now fills up as packages are installed, instead of sitting there doing nothing.
+* **BUGFIX** Add support for `--only` and `--also` options.
+* **BUFGIX** Linking binaries and running scripts in parallel was causing packages to sometimes clobber each other when hoisted, as well as potentially running too many run-scripts in parallel. This is now a serial operation, and it turns out to have had relatively little actual performance impact.
+* **BUGFIX** Stop adding `_from` to directory deps (aka `file:packages/my-dep`).
+
+### BUGFIXES
+
+* [`58d2aa58d`](https://github.com/npm/npm/commit/58d2aa58d5f9c4db49f57a5f33952b3106778669)
+  [#20027](https://github.com/npm/npm/pull/20027)
+  Use a specific mtime when packing tarballs instead of the beginning of epoch
+  time. This should allow `npm pack` to generate tarballs with identical hashes
+  for identical contents, while fixing issues with some `zip` implementations
+  that do not support pre-1980 timestamps.
+  ([@isaacs](https://github.com/isaacs))
+* [`4f319de1d`](https://github.com/npm/npm/commit/4f319de1d6e8aca5fb68f78023425233da4f07f6)
+  Don't fall back to couch adduser if we didn't try couch login.
+  ([@iarna](https://github.com/iarna))
+* [`c8230c9bb`](https://github.com/npm/npm/commit/c8230c9bbd596156a4a8cfe62f2370f81d22bd9f)
+  [#19608](https://github.com/npm/npm/pull/19608)
+  Fix issue where using the npm-bundled `npx` on Windows was invoking `npx
+  prefix` (and downloading that package).
+  ([@laggingreflex](https://github.com/laggingreflex))
+* [`d70c01970`](https://github.com/npm/npm/commit/d70c01970311f4e84b35eef8559c114136a9ebc7)
+  [#18953](https://github.com/npm/npm/pull/18953)
+  Avoid using code that depends on `node@>=4` in the `unsupported` check, so npm
+  can report the issue normally instead of syntax-crashing.
+  ([@deployable](https://github.com/deployable))
+
+### DOCUMENTATION
+
+* [`4477ca2d9`](https://github.com/npm/npm/commit/4477ca2d993088ac40ef5cf39d1f9c68be3d6252)
+  `marked@0.3.17`: Fixes issue preventing correct rendering of backticked
+  strings. man pages should be rendering correctly now instead of having empty
+  spaces wherever backticks were used.
+  ([@joshbruce](https://github.com/joshbruce))
+* [`71076ebda`](https://github.com/npm/npm/commit/71076ebdaddd04f2bf330fe668f15750bcff00ea)
+  [#19950](https://github.com/npm/npm/pull/19950)
+  Add a note to install --production.
+  ([@kyranet](https://github.com/kyranet))
+* [`3a33400b8`](https://github.com/npm/npm/commit/3a33400b89a8dd00fa9a49fcb57a8add36f79fa6)
+  [#19957](https://github.com/npm/npm/pull/19957)
+  nudge around some details in ci docs
+  ([@zkat](https://github.com/zkat))
+* [`06038246a`](https://github.com/npm/npm/commit/06038246a3fa58d6f42bb4ab897aa534ff6ed282)
+  [#19893](https://github.com/npm/npm/pull/19893)
+  Add a common open reason to the issue template.
+  ([@MrStonedOne](https://github.com/MrStonedOne))
+* [`7376dd8af`](https://github.com/npm/npm/commit/7376dd8afb654929adade126b4925461aa52da12)
+  [#19870](https://github.com/npm/npm/pull/19870)
+  Fix typo in `npm-config.md`
+  ([@joebowbeer](https://github.com/joebowbeer))
+* [`5390ed4fa`](https://github.com/npm/npm/commit/5390ed4fa2b480f7c58fff6ee670120149ec2d45)
+  [#19858](https://github.com/npm/npm/pull/19858)
+  Fix documented default value for config save option. It was still documented
+  as `false`, even though `npm@5.0.0` set it to `true` by default.
+  ([@nalinbhardwaj](https://github.com/nalinbhardwaj))
+* [`dc36d850a`](https://github.com/npm/npm/commit/dc36d850a1d763f71a98c99db05ca875dab124ed)
+  [#19552](https://github.com/npm/npm/pull/19552)
+  Rework `npm update` docs now that `--save` is on by default.
+  ([@selbekk](https://github.com/selbekk))
+* [`5ec5dffc8`](https://github.com/npm/npm/commit/5ec5dffc80527d9330388ff82926dd890f4945af)
+  [#19726](https://github.com/npm/npm/pull/19726)
+  Clarify that `name` and `version` fields are optional if your package is not
+  supposed to be installable as a dependency.
+  ([@ngarnier](https://github.com/ngarnier))
+* [`046500994`](https://github.com/npm/npm/commit/0465009942d6423f878c1359e91972fa5990f996)
+  [#19676](https://github.com/npm/npm/pull/19676)
+  Fix documented cache location on Windows.
+  ([@VladRassokhin](https://github.com/VladRassokhin))
+* [`ffa84cd0f`](https://github.com/npm/npm/commit/ffa84cd0f43c07858506764b4151ba6af11ea120)
+  [#19475](https://github.com/npm/npm/pull/19475)
+  Added example for `homepage` field from `package.json`.
+  ([@cg-cnu](https://github.com/cg-cnu))
+* [`de72d9a18`](https://github.com/npm/npm/commit/de72d9a18ae650ebaee0fdd6694fc89b1cbe8e95)
+  [#19307](https://github.com/npm/npm/pull/19307)
+  Document the `requires` field in `npm help package-lock.json`.
+  ([@jcrben](https://github.com/jcrben))
+* [`35c4abded`](https://github.com/npm/npm/commit/35c4abdedfa622f27e8ee47aa6e293f435323623)
+  [#18976](https://github.com/npm/npm/pull/18976)
+  Typo fix in coding style documentation.
+  ([@rinfan](https://github.com/rinfan))
+* [`0616fd22a`](https://github.com/npm/npm/commit/0616fd22a4e4f2b2998bb70d86d269756aab64be)
+  [#19216](https://github.com/npm/npm/pull/19216)
+  Add `edit` section to description in `npm-team.md`.
+  ([@WispProxy](https://github.com/WispProxy))
+* [`c2bbaaa58`](https://github.com/npm/npm/commit/c2bbaaa582d024cc48b410757efbb81d95837d43)
+  [#19194](https://github.com/npm/npm/pull/19194)
+  Tiny style fix in `npm.md`.
+  ([@WispProxy](https://github.com/WispProxy))
+* [`dcdfdcbb0`](https://github.com/npm/npm/commit/dcdfdcbb0035ef3290bd0912f562e26f6fc4ea94)
+  [#19192](https://github.com/npm/npm/pull/19192)
+  Document `--development` flag in `npm-ls.md`.
+  ([@WispProxy](https://github.com/WispProxy))
+* [`d7ff07135`](https://github.com/npm/npm/commit/d7ff07135a685dd89c15e29d6a28fca33cf448b0)
+  [#18514](https://github.com/npm/npm/pull/18514)
+  Make it so `javascript` -> `JavaScript`. This is important.
+  ([@masonpawsey](https://github.com/masonpawsey))
+* [`7a8705113`](https://github.com/npm/npm/commit/7a870511327d31e8921d6afa845ec8065c60064b)
+  [#18407](https://github.com/npm/npm/pull/18407)
+  Clarify the mechanics of the `file` field in `package.json` a bit.
+  ([@bmacnaughton](https://github.com/bmacnaughton))
+* [`b2a1cf084`](https://github.com/npm/npm/commit/b2a1cf0844ceaeb51ed04f3ae81678527ec9ae68)
+  [#18382](https://github.com/npm/npm/pull/18382)
+  Document the [`browser`
+  field](https://github.com/defunctzombie/package-browser-field-spec) in
+  `package.json`.
+  ([@mxstbr](https://github.com/mxstbr))
+
+### MISC
+
+* [`b8a48a959`](https://github.com/npm/npm/commit/b8a48a9595b379cfc2a2c576f61062120ea0caf7)
+  [#19907](https://github.com/npm/npm/pull/19907)
+  Consolidate code for stringifying `package.json` and package locks. Also adds
+  tests have been added to test that `package[-lock].json` files are written to
+  disk with their original line endings.
+  ([@nwoltman](https://github.com/nwoltman))
+* [`b4f707d9f`](https://github.com/npm/npm/commit/b4f707d9f543f0995ed5811827a892fc8b2192b5)
+  [#19879](https://github.com/npm/npm/pull/19879)
+  Remove unused devDependency `nock` from `.gitignore`.
+  ([@watilde](https://github.com/watilde))
+* [`8150dd5f7`](https://github.com/npm/npm/commit/8150dd5f72520eb143f75e44787a5775bd8b8ebc)
+  [#16540](https://github.com/npm/npm/pull/16540)
+  Stop doing an `uninstall` when using `make clean`.
+  ([@metux](https://github.com/metux))
+
+### OTHER DEPENDENCY BUMPS
+
+* [`ab237a2a5`](https://github.com/npm/npm/commit/ab237a2a5dcf70ee490e2f0322dfedb1560251d4)
+  `init-package-json@1.10.3`
+  ([@zkat](https://github.com/zkat))
+* [`f6d668941`](https://github.com/npm/npm/commit/f6d6689414f00a67a1f34afc6791bdc7d7be4d9b)
+  `npm-lifecycle@2.0.1`
+  ([@zkat](https://github.com/zkat))
+* [`882bfbdfa`](https://github.com/npm/npm/commit/882bfbdfaa3eb09b35875e648545cb6967f72562)
+  `npm-registry-client@8.5.1`
+  ([@zkat](https://github.com/zkat))
+* [`6ae38055b`](https://github.com/npm/npm/commit/6ae38055ba69db5785ee6c394372de0333763822)
+  `read-package-json@2.0.1`: Support git packed refs `--all` mode.
+  ([@zkat](https://github.com/zkat))
+* [`89db703ae`](https://github.com/npm/npm/commit/89db703ae4e25b9fb6c9d7c5119520107a23a752)
+  `readable-stream@2.3.5`
+  ([@mcollina](https://github.com/mcollina))
+* [`634dfa5f4`](https://github.com/npm/npm/commit/634dfa5f476b7954b136105a8f9489f5631085a3)
+  `worker-farm@1.5.4`
+  ([@rvagg](https://github.com/rvagg))
+* [`92ad34439`](https://github.com/npm/npm/commit/92ad344399f7a23e308d0f3f02547656a47ae6c5)
+  `hosted-git-info@2.6.0`
+  ([@zkat](https://github.com/zkat))
+* [`75279c488`](https://github.com/npm/npm/commit/75279c4884d02bd7d451b66616e320eb8cb03bcb)
+  `tar@4.4.0`
+  ([@isaacs](https://github.com/isaacs))
+* [`228aba276`](https://github.com/npm/npm/commit/228aba276b19c987cd5989f9bb9ffbe25edb4030)
+  `write-file-atomic@2.3.0`
+  ([@iarna](https://github.com/iarna))
+* [`006e9d272`](https://github.com/npm/npm/commit/006e9d272914fc3ba016f110b1411dd20f8a937d)
+  `libnpx@10.0.1`
+  ([@zkat](https://github.com/zkat))
+* [`9985561e6`](https://github.com/npm/npm/commit/9985561e666473deeb352c1d4252adf17c2fa01d)
+  `mississippi@3.0.0`
+  ([@bcomnes](https://github.com/bcomnes))
+* [`1dc6b3b52`](https://github.com/npm/npm/commit/1dc6b3b525967bc8526aa4765e987136cb570e8e)
+  `tap@11.1.2`
+  ([@isaacs](https://github.com/isaacs))
+
+## v5.7.1 (2018-02-22):
+
+This release reverts a patch that could cause some ownership changes on system
+files when running from some directories when also using `sudo`. 😲
+
+Thankfully, it only affected users running `npm@next`, which is part of our
+staggered release system, which we use to prevent issues like this from going
+out into the wider world before we can catch them. Users on `latest` would have
+never seen this!
+
+The original patch was added to increase consistency and reliability of methods
+npm uses to avoid writing files as `root` in places it shouldn't, but the change
+was applied in places that should have used regular `mkdirp`. This release
+reverts that patch.
+
+* [`74e149da6`](https://github.com/npm/npm/commit/74e149da6efe6ed89477faa81fef08eee7999ad0)
+  [`#19883`](https://github.com/npm/npm/issue/19883)
+  Revert "*: Switch from mkdirp to correctMkdir to preserve perms and owners"
+  This reverts commit [`94227e15`](https://github.com/npm/npm/commit/94227e15eeced836b3d7b3d2b5e5cc41d4959cff).
+  ([@zkat](https://github.com/zkat))
+
+## v5.7.0 (2018-02-20):
+
+Hey y'all, it's been a while.  Expect our release rate to increase back to
+normal here, as we've got a lot in the pipeline.  Right now we've got a
+bunch of things from folks at npm.  In the next release we'll be focusing on
+user contributions and there are a lot of them queued up!
+
+This release brings a bunch of exciting new features and bug fixes.
+
+### PACKAGE-LOCK GIT MERGE CONFLICT RESOLUTION
+
+Allow `npm install` to fix `package-lock.json` and `npm-shrinkwrap.json`
+files that have merge conflicts in them without your having to edit them.
+It works in conjunction with
+[`npm-merge-driver`](https://www.npmjs.com/package/npm-merge-driver) to
+entirely eliminate package-lock merge conflicts.
+
+* [`e27674c22`](https://github.com/npm/npm/commit/e27674c221dc17473f23bffa50123e49a021ae34)
+  Automatically resolve merge conflicts in lock-files.
+  ([@zkat](https://github.com/zkat))
+
+### NPM CI
+
+The new `npm ci` command installs from your lock-file ONLY.  If your
+`package.json` and your lock-file are out of sync then it will report an error.
+
+It works by throwing away your `node_modules` and recreating it from scratch.
+
+Beyond guaranteeing you that you'll only get what is in your lock-file it's
+also much faster (2x-10x!) than `npm install` when you don't start with a
+`node_modules`.
+
+As you may take from the name, we expect it to be a big boon to continuous
+integration environments.  We also expect that folks who do production
+deploys from git tags will see major gains.
+
+* [`5e4de9c99`](https://github.com/npm/npm/commit/5e4de9c99c934e25ef7b9c788244cc3c993da559)
+  Add new `npm ci` installer.
+  ([@zkat](https://github.com/zkat))
+
+### OTHER NEW FEATURES
+
+* [`4d418c21b`](https://github.com/npm/npm/commit/4d418c21b051f23a3b6fb085449fdf4bf4f826f5)
+  [#19817](https://github.com/npm/npm/pull/19817)
+  Include contributor count in installation summary.
+  ([@kemitchell](https://github.com/kemitchell))
+* [`17079c2a8`](https://github.com/npm/npm/commit/17079c2a880d3a6f8a67c8f17eedc7eb51b8f0f8)
+  Require password to change email through `npm profile`.
+  ([@iarna](https://github.com/iarna))
+* [`e7c5d226a`](https://github.com/npm/npm/commit/e7c5d226ac0ad3da0e38f16721c710909d0a9847)
+  [`4f5327c05`](https://github.com/npm/npm/commit/4f5327c0556764aa1bbc9b58b1a8c8a84136c56a)
+  [#19780](https://github.com/npm/npm/pull/19780)
+  Add support for web-based logins. This is not yet available on the registry, however.
+  ([@isaacs](https://github.com/isaacs))
+
+### BIG FIXES TO PRUNING
+
+* [`827951590`](https://github.com/npm/npm/commit/8279515903cfa3026cf7096189485cdf29f74a8f)
+  Handle running `npm install package-name` with a `node_modules` containing
+  packages without sufficient metadata to verify their origin.  The only way
+  to get install packages like this is to use a non-`npm` package manager.
+  Previously `npm` removed any packages that it couldn't verify.  Now it
+  will leave them untouched as long as you're not asking for a full install.
+  On a full install they will be reinstalled (but the same versions will be
+  maintained).
+
+  This will fix problems for folks who are using a third party package
+  manager to install packages that have `postinstall` scripts that run
+  `npm install`.
+  ([@iarna](https://github.com/iarna))
+* [`3b305ee71`](https://github.com/npm/npm/commit/3b305ee71e2bf852ff3037366a1774b8c5fcc0a5)
+  Only auto-prune on installs that will create a lock-file.  This restores
+  `npm@4` compatible behavior when the lock-file is disabled.  When using a
+  lock-file `npm` will continue to remove anything in your `node_modules`
+  that's not in your lock-file.  ([@iarna](https://github.com/iarna))
+* [`cec5be542`](https://github.com/npm/npm/commit/cec5be5427f7f5106a905de8630e1243e9b36ef4)
+  Fix bug where `npm prune --production` would remove dev deps from the lock
+  file.  It will now only remove them from `node_modules` not from your lock
+  file.
+  ([@iarna](https://github.com/iarna))
+* [`857dab03f`](https://github.com/npm/npm/commit/857dab03f2d58586b45d41d3e5af0fb2d4e824d0)
+  Fix bug where git dependencies would be removed or reinstalled when
+  installing other dependencies.
+  ([@iarna](https://github.com/iarna))
+
+### BUG FIXES TO TOKENS AND PROFILES
+
+* [`a66e0cd03`](https://github.com/npm/npm/commit/a66e0cd0314893b745e6b9f6ca1708019b1d7aa3)
+  For CIDR filtered tokens, allow comma separated CIDR ranges, as documented. Previously
+  you could only pass in multiple cidr ranges with multiple `--cidr` command line options.
+  ([@iarna](https://github.com/iarna))
+* [`d259ab014`](https://github.com/npm/npm/commit/d259ab014748634a89cad5b20eb7a40f3223c0d5)
+  Fix token revocation when an OTP is required.  Previously you had to pass
+  it in via `--otp`.  Now it will prompt you for an OTP like other
+  `npm token` commands.
+  ([@iarna](https://github.com/iarna))
+* [`f8b1f6aec`](https://github.com/npm/npm/commit/f8b1f6aecadd3b9953c2b8b05d15f3a9cff67cfd)
+  Update token and profile commands to support legacy (username/password) authentication.
+  (The npm registry uses tokens, not username/password pairs, to authenticate commands.)
+  ([@iarna](https://github.com/iarna))
+
+### OTHER BUG FIXES
+
+* [`6954dfc19`](https://github.com/npm/npm/commit/6954dfc192f88ac263f1fcc66cf820a21f4379f1)
+  Fix a bug where packages would get pushed deeper into the tree when upgrading without
+  an existing copy on disk. Having packages deeper in the tree ordinarily is harmless but
+  is not when peerDependencies are in play.
+  ([@iarna](https://github.com/iarna))
+* [`1ca916a1e`](https://github.com/npm/npm/commit/1ca916a1e9cf94691d1ff2e5e9d0204cfaba39e1)
+  Fix bug where when switching from a linked module to a non-linked module, the dependencies
+  of the module wouldn't be installed on the first run of `npm install`.
+  ([@iarna](https://github.com/iarna))
+* [`8c120ebb2`](https://github.com/npm/npm/commit/8c120ebb28e87bc6fe08a3fad1bb87b50026a33a)
+  Fix integrity matching to eliminate spurious EINTEGRITY errors.
+  ([@zkat](https://github.com/zkat))
+* [`94227e15e`](https://github.com/npm/npm/commit/94227e15eeced836b3d7b3d2b5e5cc41d4959cff)
+  More consistently make directories using perm and ownership preserving features.
+  ([@iarna](https://github.com/iarna))
+
+### DEPENDENCY UPDATES
+
+* [`364b23c7f`](https://github.com/npm/npm/commit/364b23c7f8a231c0df3866d6a8bde4d3f37bbc00)
+  [`f2049f9e7`](https://github.com/npm/npm/commit/f2049f9e7992e6edcfce8619b59746789367150f)
+  `cacache@10.0.4`
+  ([@zkat](https://github.com/zkat))
+* [`d183d7675`](https://github.com/npm/npm/commit/d183d76757e8a29d63a999d7fb4edcc1486c25c1)
+  `find-npm-prefix@1.0.2`:
+  ([@iarna](https://github.com/iarna))
+* [`ffd6ea62c`](https://github.com/npm/npm/commit/ffd6ea62ce583baff38cf4901cf599639bc193c8)
+  `fs-minipass@1.2.5`
+* [`ee63b8a31`](https://github.com/npm/npm/commit/ee63b8a311ac53b0cf2efa79babe61a2c4083ef6)
+  `ini@1.3.5`
+  ([@isaacs](https://github.com/isaacs))
+* [`6f73f5509`](https://github.com/npm/npm/commit/6f73f5509e9e8d606526565c7ceb71c62642466e)
+  `JSONStream@1.3.2`
+  ([@dominictarr](https://github.com/dominictarr))
+* [`26cd64869`](https://github.com/npm/npm/commit/26cd648697c1324979289e381fe837f9837f3874)
+  [`9bc6230cf`](https://github.com/npm/npm/commit/9bc6230cf34a09b7e4358145ff0ac3c69c23c3f6)
+  `libcipm@1.3.3`
+  ([@zkat](https://github.com/zkat))
+* [`21a39be42`](https://github.com/npm/npm/commit/21a39be4241a60a898d11a5967f3fc9868ef70c9)
+  `marked@0.3.1`:5
+  ([@joshbruce](https://github.com/joshbruce))
+* [`dabdf57b2`](https://github.com/npm/npm/commit/dabdf57b2d60d665728894b4c1397b35aa9d41c0)
+  `mississippi@2.0.0`
+* [`2594c5867`](https://github.com/npm/npm/commit/2594c586723023edb1db172779afb2cbf8b30c08)
+  `npm-registry-couchapp@2.7.1`
+  ([@iarna](https://github.com/iarna))
+* [`8abb3f230`](https://github.com/npm/npm/commit/8abb3f230f119fe054353e70cb26248fc05db0b9)
+  `osenv@0.1.5`
+  ([@isaacs](https://github.com/isaacs))
+* [`11a0b00bd`](https://github.com/npm/npm/commit/11a0b00bd3c18625075dcdf4a5cb6500b33c6265)
+  `pacote@7.3.3`
+  ([@zkat](https://github.com/zkat))
+* [`9b6bdb2c7`](https://github.com/npm/npm/commit/9b6bdb2c77e49f6d473e70de4cd83c58d7147965)
+  `query-string@5.1.0`
+  ([@sindresorhus](https://github.com/sindresorhus))
+* [`d6d17d6b5`](https://github.com/npm/npm/commit/d6d17d6b532cf4c3461b1cf2e0404f7c62c47ec4)
+  `readable-stream@2.3.4`
+  ([@mcollina](https://github.com/mcollina))
+* [`51370aad5`](https://github.com/npm/npm/commit/51370aad561b368ccc95c1c935c67c8cd2844d40)
+  `semver@5.5.0`
+  ([@isaacs](https://github.com/isaacs))
+* [`0db14bac7`](https://github.com/npm/npm/commit/0db14bac762dd59c3fe17c20ee96d2426257cdd5)
+  [`81da938ab`](https://github.com/npm/npm/commit/81da938ab6efb881123cdcb44f7f84551924c988)
+  [`9999e83f8`](https://github.com/npm/npm/commit/9999e83f87c957113a12a6bf014a2099d720d716)
+  `ssri@5.2.4`
+  ([@zkat](https://github.com/zkat))
+* [`f526992ab`](https://github.com/npm/npm/commit/f526992ab6f7322a0b3a8d460dc48a2aa4a59a33)
+  `tap@11.1.1`
+  ([@isaacs](https://github.com/isaacs))
+* [`be096b409`](https://github.com/npm/npm/commit/be096b4090e2a33ae057912d28fadc5a53bd3391)
+  [`dc3059522`](https://github.com/npm/npm/commit/dc3059522758470adc225f0651be72c274bd29ef)
+  `tar@4.3.3`
+* [`6b552daac`](https://github.com/npm/npm/commit/6b552daac952f413ed0e2df762024ad219a8dc0a)
+  `uuid@3.2.1`
+  ([@broofa](https://github.com/broofa))
+* [`8c9011b72`](https://github.com/npm/npm/commit/8c9011b724ad96060e7e82d9470e9cc3bb64e9c6)
+  `worker-farm@1.5.2`
+  ([@rvagg](https://github.com/rvagg))
+
+
 ## v5.6.0 (2017-11-27):
 
 ### Features!
@@ -28,11 +474,6 @@ You may have noticed this is a semver-minor bump. Wondering why? This is why!
   also help prevent cache bloat when using git dependencies. In the future, this
   will allow npm to explicitly cache git dependencies.
   ([@isaacs](https://github.com/isaacs))
-
-### Performance
-
-* [`39ba4aa74`](https://github.com/npm/npm/commit/39ba4aa7479220e61573c0c1977124c2199f49d0)
-  `tar@4.1.0`: Reduce number of overall fs operations during packing/unpacking.
 
 ### Node 9
 
@@ -239,7 +680,7 @@ A very quick, record time, patch release, of a bug fix to a (sigh) last minute b
 
 * [`e628e058b`](https://github.com/npm/npm/commit/e628e058b)
   Fix login to properly recognize OTP request and store bearer tokens.
-  ([@Rebecca Turner](https://github.com/Rebecca Turner))
+  ([@iarna](https://github.com/iarna))
 
 ## v5.5.0 (2017-10-04):
 

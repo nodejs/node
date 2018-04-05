@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "December 2017" "" ""
+.TH "NPM\-SCRIPTS" "7" "March 2018" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -78,15 +78,15 @@ names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
 .SH PREPUBLISH AND PREPARE
 .SS DEPRECATION NOTE
 .P
-Since \fBnpm@1\.1\.71\fP, the npm CLI has run the \fBprepublish\fP script for both \fBnpm
-publish\fP and \fBnpm install\fP, because it's a convenient way to prepare a package
+Since \fB, the npm CLI has run the\fPprepublish\fBscript for both\fPnpm
+publish\fBand\fPnpm install\fB, because it's a convenient way to prepare a package
 for use (some common use cases are described in the section below)\.  It has
-also turned out to be, in practice, very
-confusing \fIhttps://github\.com/npm/npm/issues/10074\fR\|\.  As of \fBnpm@4\.0\.0\fP, a new
-event has been introduced, \fBprepare\fP, that preserves this existing behavior\. A
-\fInew\fR event, \fBprepublishOnly\fP has been added as a transitional strategy to
+also turned out to be, in practice, [very
+confusing](https://github\.com/npm/npm/issues/10074)\.  As of\fP\fB, a new
+event has been introduced,\fPprepare\fB, that preserves this existing behavior\. A
+_new_ event,\fPprepublishOnly\fBhas been added as a transitional strategy to
 allow users to avoid the confusing behavior of existing npm versions and only
-run on \fBnpm publish\fP (for instance, running the tests one last time to ensure
+run on\fPnpm publish` (for instance, running the tests one last time to ensure
 they're in good shape)\.
 .P
 See https://github\.com/npm/npm/issues/10074 for a much lengthier

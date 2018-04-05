@@ -48,7 +48,7 @@ module.exports = function (args, cb) {
   w('\n\n')
   log.heading = ''
   log.addLevel('npm', 100000, log.headingStyle)
-  log.npm('loves you', 'Happy Xmas, Noders!')
+  log.npm('loves you', 'Happy Xmas, JavaScripters!')
   cb()
 }
 var dg = false

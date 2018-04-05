@@ -119,7 +119,10 @@ function Agent(options) {
             socket.once('error', freeSocketErrorListener);
           }
           // set free keepalive timer
-          socket.setTimeout(self.freeSocketKeepAliveTimeout);
+          // try to use socket custom freeSocketKeepAliveTimeout first
+          const freeSocketKeepAliveTimeout = socket.freeSocketKeepAliveTimeout || self.freeSocketKeepAliveTimeout;
+          socket.setTimeout(freeSocketKeepAliveTimeout);
+          debug(`push to free socket queue and wait for ${freeSocketKeepAliveTimeout}ms`);
           // [patch end]
         }
       } else {
@@ -179,13 +182,14 @@ function handleSocketCreation(req) {
 }
 // [patch end]
 
-Agent.prototype.addRequest = function addRequest(req, options) {
+Agent.prototype.addRequest = function addRequest(req, options, port/*legacy*/,
+                                                 localAddress/*legacy*/) {
   // Legacy API: addRequest(req, host, port, localAddress)
   if (typeof options === 'string') {
     options = {
       host: options,
-      port: arguments[2],
-      localAddress: arguments[3]
+      port,
+      localAddress
     };
   }
 

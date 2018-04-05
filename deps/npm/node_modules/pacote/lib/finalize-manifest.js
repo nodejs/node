@@ -38,8 +38,8 @@ function finalizeManifest (pkg, spec, opts) {
   opts = optCheck(opts)
 
   const cachedManifest = (opts.cache && key && !opts.preferOnline && !opts.fullMetadata)
-  ? cacache.get.info(opts.cache, key, opts)
-  : BB.resolve(null)
+    ? cacache.get.info(opts.cache, key, opts)
+    : BB.resolve(null)
 
   return cachedManifest.then(cached => {
     if (cached && cached.metadata.manifest) {
@@ -47,8 +47,8 @@ function finalizeManifest (pkg, spec, opts) {
     } else {
       return tarballedProps(pkg, spec, opts).then(props => {
         return pkg && pkg.name
-        ? new Manifest(pkg, props, opts.fullMetadata)
-        : new Manifest(props, null, opts.fullMetadata)
+          ? new Manifest(pkg, props, opts.fullMetadata)
+          : new Manifest(props, null, opts.fullMetadata)
       }).then(manifest => {
         const cacheKey = key || finalKey(manifest, spec)
         if (!opts.cache || !cacheKey) {
@@ -169,8 +169,8 @@ function tarballedProps (pkg, spec, opts) {
         // to add to bin
         if (paths && paths.length) {
           const dirBin = mani
-          ? (mani && mani.directories && mani.directories.bin)
-          : (pkg && pkg.directories && pkg.directories.bin)
+            ? (mani && mani.directories && mani.directories.bin)
+            : (pkg && pkg.directories && pkg.directories.bin)
           if (dirBin) {
             extraProps.bin = {}
             paths.forEach(filePath => {

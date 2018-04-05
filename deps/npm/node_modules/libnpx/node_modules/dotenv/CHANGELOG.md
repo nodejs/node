@@ -4,6 +4,25 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [5.0.0] - 2018-01-29
+
+### Added
+
+- Testing against Node v8 and v9
+- Documentation on trim behavior of values
+- Documentation on how to use with `import`
+
+### Changed 
+
+- *Breaking*: default `path` is now `path.resolve(process.cwd(), '.env')`
+- *Breaking*: does not write over keys already in `process.env` if the key has a falsy value
+- using `const` and `let` instead of `var`
+
+### Removed
+
+- Testing aginst Node v7
+
+
 ## [4.0.0] - 2016-12-23
 ### Changed
 
@@ -67,7 +86,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Removed
 - support for multiple `.env` files. should always use one `.env` file for the current environment
 
-[Unreleased]: https://github.com/motdotla/dotenv/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/motdotla/dotenv/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/motdotla/dotenv/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/motdotla/dotenv/compare/v3.0.0...v4.0.0
 [3.0.0]: https://github.com/motdotla/dotenv/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/motdotla/dotenv/compare/v1.2.0...v2.0.0
