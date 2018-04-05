@@ -249,6 +249,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
 
+  // module.evaluate(timeout, breakOnSigint)
   CHECK_EQ(args.Length(), 2);
 
   CHECK(args[0]->IsNumber());
@@ -664,6 +665,7 @@ Maybe<URL> Resolve(Environment* env,
 void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  // module.resolve(specifier, url)
   CHECK_EQ(args.Length(), 2);
 
   CHECK(args[0]->IsString());
