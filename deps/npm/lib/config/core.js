@@ -331,10 +331,7 @@ Conf.prototype.parse = function (content, file) {
 Conf.prototype.add = function (data, marker) {
   try {
     Object.keys(data).forEach(function (k) {
-      const newKey = envReplace(k)
-      const newField = parseField(data[k], newKey)
-      delete data[k]
-      data[newKey] = newField
+      data[k] = parseField(data[k], k)
     })
   } catch (e) {
     this.emit('error', e)

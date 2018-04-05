@@ -220,8 +220,6 @@ function Installer (where, dryrun, args, opts) {
   this.noPackageJsonOk = !!args.length
   this.topLevelLifecycles = !args.length
 
-  this.autoPrune = npm.config.get('package-lock')
-
   const dev = npm.config.get('dev')
   const only = npm.config.get('only')
   const onlyProd = /^prod(uction)?$/.test(only)
@@ -438,8 +436,8 @@ Installer.prototype.pruneIdealTree = function (cb) {
   // if our lock file didn't have the requires field and there
   // are any fake children then forgo pruning until we have more info.
   if (!this.idealTree.hasRequiresFromLock && this.idealTree.children.some((n) => n.fakeChild)) return cb()
-  const toPrune = this.idealTree.children
-    .filter((child) => isExtraneous(child) && (this.autoPrune || child.removing))
+  var toPrune = this.idealTree.children
+    .filter(isExtraneous)
     .map((n) => ({name: moduleName(n)}))
   return removeExtraneous(toPrune, this.idealTree, cb)
 }
@@ -694,19 +692,27 @@ Installer.prototype.readLocalPackageData = function (cb) {
 Installer.prototype.cloneCurrentTreeToIdealTree = function (cb) {
   validate('F', arguments)
   log.silly('install', 'cloneCurrentTreeToIdealTree')
-
-  this.idealTree = copyTree(this.currentTree)
+  this.idealTree = copyTree(this.currentTree, (child) => {
+    // Filter out any children we didn't install ourselves. They need to be
+    // reinstalled in order for things to be correct.
+    return child.isTop || isLink(child) || (
+      child.package &&
+      child.package._resolved &&
+      (child.package._integrity || child.package._shasum)
+    )
+  })
   this.idealTree.warnings = []
   cb()
+}
+
+function isLink (child) {
+  return child.isLink || (child.parent && isLink(child.parent))
 }
 
 Installer.prototype.loadShrinkwrap = function (cb) {
   validate('F', arguments)
   log.silly('install', 'loadShrinkwrap')
-  readShrinkwrap.andInflate(this.idealTree, iferr(cb, () => {
-    computeMetadata(this.idealTree)
-    cb()
-  }))
+  readShrinkwrap.andInflate(this.idealTree, cb)
 }
 
 Installer.prototype.getInstalledModules = function () {
@@ -768,9 +774,6 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
   var added = 0
   var updated = 0
   var moved = 0
-  // Count the number of contributors to packages added, tracking
-  // contributors we've seen, so we can produce a running unique count.
-  var contributors = new Set()
   diffs.forEach(function (action) {
     var mutation = action[0]
     var pkg = action[1]
@@ -781,26 +784,6 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
       ++moved
     } else if (mutation === 'add') {
       ++added
-      // Count contributors to added packages. Start by combining `author`
-      // and `contributors` data into a single array of contributor-people
-      // for this package.
-      var people = []
-      var meta = pkg.package
-      if (meta.author) people.push(meta.author)
-      if (meta.contributors && Array.isArray(meta.contributors)) {
-        people = people.concat(meta.contributors)
-      }
-      // Make sure a normalized string for every person behind this
-      // package is in `contributors`.
-      people.forEach(function (person) {
-        // Ignore errors from malformed `author` and `contributors`.
-        try {
-          var normalized = normalizePerson(person)
-        } catch (error) {
-          return
-        }
-        if (!contributors.has(normalized)) contributors.add(normalized)
-      })
     } else if (mutation === 'update' || mutation === 'update-linked') {
       ++updated
     }
@@ -812,11 +795,7 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
     }).join('\n') + '\n'
   }
   var actions = []
-  if (added) {
-    var action = 'added ' + packages(added)
-    if (contributors.size) action += from(contributors.size)
-    actions.push(action)
-  }
+  if (added) actions.push('added ' + packages(added))
   if (removed) actions.push('removed ' + packages(removed))
   if (updated) actions.push('updated ' + packages(updated))
   if (moved) actions.push('moved ' + packages(moved))
@@ -835,23 +814,6 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
 
   function packages (num) {
     return num + ' package' + (num > 1 ? 's' : '')
-  }
-
-  function from (num) {
-    return ' from ' + num + ' contributor' + (num > 1 ? 's' : '')
-  }
-
-  // Values of `author` and elements of `contributors` in `package.json`
-  // files can be e-mail style strings or Objects with `name`, `email,
-  // and `url` String properties.  Convert Objects to Strings so that
-  // we can efficiently keep a set of contributors we have already seen.
-  function normalizePerson (argument) {
-    if (typeof argument === 'string') return argument
-    var returned = ''
-    if (argument.name) returned += argument.name
-    if (argument.email) returned += ' <' + argument.email + '>'
-    if (argument.url) returned += ' (' + argument.email + ')'
-    return returned
   }
 }
 

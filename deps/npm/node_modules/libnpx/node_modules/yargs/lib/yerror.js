@@ -1,4 +1,3 @@
-'use strict'
 function YError (msg) {
   this.name = 'YError'
   this.message = msg || 'yargs error'

@@ -142,7 +142,7 @@ function hoistChildren_ (tree, diff, seen, next) {
         [andComputeMetadata(tree)]
       ], done)
     }
-    var hoistTo = earliestInstallable(tree, tree.parent, child.package, log)
+    var hoistTo = earliestInstallable(tree, tree.parent, child.package)
     if (hoistTo) {
       move(child, hoistTo, diff)
       chain([

@@ -41,10 +41,6 @@ REMOVED
 
 Manipulates packages cache
 
-### npm-ci(1)
-
-Install a project with a clean slate
-
 ### npm-completion(1)
 
 Tab Completion for npm

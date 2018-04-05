@@ -10,22 +10,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // levenshtein distance algorithm, pulled from Andrei Mackenzie's MIT licensed.
 // gist, which can be found here: https://gist.github.com/andrei-m/982927
-'use strict'
+
 // Compute the edit distance between the two given strings
-module.exports = function levenshtein (a, b) {
+module.exports = function (a, b) {
   if (a.length === 0) return b.length
   if (b.length === 0) return a.length
 
-  const matrix = []
+  var matrix = []
 
   // increment along the first column of each row
-  let i
+  var i
   for (i = 0; i <= b.length; i++) {
     matrix[i] = [i]
   }
 
   // increment each column in the first row
-  let j
+  var j
   for (j = 0; j <= a.length; j++) {
     matrix[0][j] = j
   }

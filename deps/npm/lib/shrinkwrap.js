@@ -4,7 +4,6 @@ const BB = require('bluebird')
 
 const chain = require('slide').chain
 const detectIndent = require('detect-indent')
-const detectNewline = require('detect-newline')
 const readFile = BB.promisify(require('graceful-fs').readFile)
 const getRequested = require('./install/get-requested.js')
 const id = require('./install/deps.js')
@@ -19,7 +18,6 @@ const npm = require('./npm.js')
 const path = require('path')
 const readPackageTree = BB.promisify(require('read-package-tree'))
 const ssri = require('ssri')
-const stringifyPackage = require('./utils/stringify-package')
 const validate = require('aproba')
 const writeFileAtomic = require('write-file-atomic')
 const unixFormatPath = require('./utils/unix-format-path.js')
@@ -181,12 +179,11 @@ function save (dir, pkginfo, opts, cb) {
         {
           path: path.resolve(dir, opts.defaultFile || PKGLOCK),
           data: '{}',
-          indent: pkg && pkg.indent,
-          newline: pkg && pkg.newline
+          indent: (pkg && pkg.indent) || 2
         }
       )
-      const updated = updateLockfileMetadata(pkginfo, pkg && JSON.parse(pkg.raw))
-      const swdata = stringifyPackage(updated, info.indent, info.newline)
+      const updated = updateLockfileMetadata(pkginfo, pkg && pkg.data)
+      const swdata = JSON.stringify(updated, null, info.indent) + '\n'
       if (swdata === info.raw) {
         // skip writing if file is identical
         log.verbose('shrinkwrap', `skipping write for ${path.basename(info.path)} because there were no changes.`)
@@ -247,8 +244,8 @@ function checkPackageFile (dir, name) {
     return {
       path: file,
       raw: data,
-      indent: detectIndent(data).indent,
-      newline: detectNewline(data)
+      data: JSON.parse(data),
+      indent: detectIndent(data).indent || 2
     }
   }).catch({code: 'ENOENT'}, () => {})
 }

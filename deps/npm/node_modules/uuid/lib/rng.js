@@ -1,8 +1,10 @@
 // Unique ID creation requires a high quality random # generator.  In node.js
 // this is pretty straight-forward - we use the crypto API.
 
-var crypto = require('crypto');
+var rb = require('crypto').randomBytes;
 
-module.exports = function nodeRNG() {
-  return crypto.randomBytes(16);
-};
+function rng() {
+  return rb(16);
+}
+
+module.exports = rng;

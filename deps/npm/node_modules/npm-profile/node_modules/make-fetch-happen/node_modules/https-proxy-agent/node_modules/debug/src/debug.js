@@ -14,11 +14,6 @@ exports.enabled = enabled;
 exports.humanize = require('ms');
 
 /**
- * Active `debug` instances.
- */
-exports.instances = [];
-
-/**
  * The currently active debug mode names, and names to skip.
  */
 
@@ -32,6 +27,12 @@ exports.skips = [];
  */
 
 exports.formatters = {};
+
+/**
+ * Previous log timestamp.
+ */
+
+var prevTime;
 
 /**
  * Select a color.
@@ -60,8 +61,6 @@ function selectColor(namespace) {
  */
 
 function createDebug(namespace) {
-
-  var prevTime;
 
   function debug() {
     // disabled?
@@ -119,26 +118,13 @@ function createDebug(namespace) {
   debug.enabled = exports.enabled(namespace);
   debug.useColors = exports.useColors();
   debug.color = selectColor(namespace);
-  debug.destroy = destroy;
 
   // env-specific initialization logic for debug instances
   if ('function' === typeof exports.init) {
     exports.init(debug);
   }
 
-  exports.instances.push(debug);
-
   return debug;
-}
-
-function destroy () {
-  var index = exports.instances.indexOf(this);
-  if (index !== -1) {
-    exports.instances.splice(index, 1);
-    return true;
-  } else {
-    return false;
-  }
 }
 
 /**
@@ -155,11 +141,10 @@ function enable(namespaces) {
   exports.names = [];
   exports.skips = [];
 
-  var i;
   var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
   var len = split.length;
 
-  for (i = 0; i < len; i++) {
+  for (var i = 0; i < len; i++) {
     if (!split[i]) continue; // ignore empty strings
     namespaces = split[i].replace(/\*/g, '.*?');
     if (namespaces[0] === '-') {
@@ -167,11 +152,6 @@ function enable(namespaces) {
     } else {
       exports.names.push(new RegExp('^' + namespaces + '$'));
     }
-  }
-
-  for (i = 0; i < exports.instances.length; i++) {
-    var instance = exports.instances[i];
-    instance.enabled = exports.enabled(instance.namespace);
   }
 }
 
@@ -194,9 +174,6 @@ function disable() {
  */
 
 function enabled(name) {
-  if (name[name.length - 1] === '*') {
-    return true;
-  }
   var i, len;
   for (i = 0, len = exports.skips.length; i < len; i++) {
     if (exports.skips[i].test(name)) {

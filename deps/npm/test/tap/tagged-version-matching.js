@@ -46,6 +46,24 @@ var fixture = new Tacks(Dir({
         'package.json': File({
           _from: 'npm/example-gitdep',
           _id: 'gitdep@1.0.0',
+          _requested: {
+            raw: 'gitdep@git://github.com/npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+            scope: null,
+            escapedName: 'gitdep',
+            name: 'gitdep',
+            rawSpec: 'git://github.com/npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+            spec: 'git://github.com/npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+            type: 'hosted',
+            hosted: {
+              type: 'github',
+              ssh: 'git@github.com:npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+              sshUrl: 'git+ssh://git@github.com/npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+              httpsUrl: 'git+https://github.com/npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+              gitUrl: 'git://github.com/npm/example-gitdep.git#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+              shortcut: 'github:npm/example-gitdep#da39a3ee5e6b4b0d3255bfef95601890afd80709',
+              directUrl: 'https://raw.githubusercontent.com/npm/example-gitdep/da39a3ee5e6b4b0d3255bfef95601890afd80709/package.json'
+            }
+          },
           _resolved: 'github:npm/example-gitdep#da39a3ee5e6b4b0d3255bfef95601890afd80709',
           name: 'gitdep',
           version: '1.0.0'
@@ -56,7 +74,15 @@ var fixture = new Tacks(Dir({
           _from: 'tagdep@latest',
           _id: 'tagdep@1.0.0',
           _integrity: 'sha1-0EJSKmsdk39848LlrRg/hZQo2B8=',
-          _resolved: 'https://registry.example.com/tagdep/-/tagdep-1.0.0.tgz',
+          _requested: {
+            raw: 'tagdep@https://registry.example.com/tagdep/-/tagdep-1.0.0.tgz',
+            scope: null,
+            escapedName: 'tagdep',
+            name: 'tagdep',
+            rawSpec: 'https://registry.example.com/tagdep/-/tagdep-1.0.0.tgz',
+            spec: 'https://registry.example.com/tagdep/-/tagdep-1.0.0.tgz',
+            type: 'remote'
+          },
           name: 'tagdep',
           version: '1.0.0'
         })
@@ -76,7 +102,7 @@ var fixture = new Tacks(Dir({
         example: {
           version: 'file:example',
           requires: {
-            tagdep: '^1.0.0',
+            tagdep: '1.0.0',
             gitdep: 'github:npm/example-gitdep#da39a3ee5e6b4b0d3255bfef95601890afd80709'
           }
         },

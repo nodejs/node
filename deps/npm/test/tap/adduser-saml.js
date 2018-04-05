@@ -20,11 +20,8 @@ function mocks (server) {
   server.filteringRequestBody(function (r) {
     if (r.match(/"_id":"org\.couchdb\.user:npm_saml_auth_dummy_user"/)) {
       return 'auth'
-    } else {
-      return 'invalid'
     }
   })
-  server.post('/-/v1/login', 'invalid').reply(404, 'not found')
   server.put('/-/user/org.couchdb.user:npm_saml_auth_dummy_user', 'auth')
     .reply(201, { token: 'foo', sso: ssoUri })
 }
