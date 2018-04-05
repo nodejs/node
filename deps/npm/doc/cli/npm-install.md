@@ -55,9 +55,6 @@ after packing it up into a tarball (b).
     is set to `production`), npm will not install modules listed in
     `devDependencies`.
 
-    > NOTE: The `--production` flag has no particular meaning when adding a
-    dependency to a project.
-
 * `npm install <folder>`:
 
     Install the package in the directory as a symlink in the current project.
@@ -350,8 +347,7 @@ The `--no-shrinkwrap` argument, which will ignore an available
 package lock or shrinkwrap file and use the package.json instead.
 
 The `--no-package-lock` argument will prevent npm from creating a
-`package-lock.json` file.  When running with package-lock's disabled npm
-will not automatically prune your node modules when installing.
+`package-lock.json` file.
 
 The `--nodedir=/path/to/node/source` argument will allow npm to find the
 node source code so that npm can compile native modules.

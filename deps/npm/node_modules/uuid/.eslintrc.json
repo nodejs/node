@@ -7,16 +7,16 @@
     "mocha": true
   },
   "extends": ["eslint:recommended"],
+  "installedESLint": true,
   "rules": {
     "array-bracket-spacing": ["warn", "never"],
     "arrow-body-style": ["warn", "as-needed"],
     "arrow-parens": ["warn", "as-needed"],
     "arrow-spacing": "warn",
-    "brace-style": ["warn", "1tbs"],
+    "brace-style": "warn",
     "camelcase": "warn",
     "comma-spacing": ["warn", {"after": true}],
     "dot-notation": "warn",
-    "eqeqeq": ["warn", "smart"],
     "indent": ["warn", 2, {
       "SwitchCase": 1,
       "FunctionDeclaration": {"parameters": 1},
@@ -33,7 +33,6 @@
     "no-trailing-spaces": "warn",
     "no-undef": "error",
     "no-unused-vars": ["warn", {"args": "none"}],
-    "one-var": ["warn", "never"],
     "padded-blocks": ["warn", "never"],
     "object-curly-spacing": ["warn", "never"],
     "quotes": ["warn", "single"],

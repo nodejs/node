@@ -96,7 +96,8 @@ function flush() {
 
 function attemptVertx() {
   try {
-    const vertx = Function('return this')().require('vertx');
+    const r = require;
+    const vertx = r('vertx');
     vertxNext = vertx.runOnLoop || vertx.runOnContext;
     return useVertxTimer();
   } catch(e) {

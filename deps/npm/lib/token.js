@@ -13,8 +13,6 @@ const pulseTillDone = require('./utils/pulse-till-done.js')
 
 module.exports = token
 
-token._validateCIDRList = validateCIDRList
-
 token.usage =
   'npm token list\n' +
   'npm token revoke <tokenKey>\n' +
@@ -83,17 +81,7 @@ function config () {
     registry: npm.config.get('registry'),
     otp: npm.config.get('otp')
   }
-  const creds = npm.config.getCredentialsByURI(conf.registry)
-  if (creds.token) {
-    conf.auth = {token: creds.token}
-  } else if (creds.username) {
-    conf.auth = {basic: {username: creds.username, password: creds.password}}
-  } else if (creds.auth) {
-    const auth = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
-    conf.auth = {basic: {username: auth[0], password: auth[1]}}
-  } else {
-    conf.auth = {}
-  }
+  conf.auth = npm.config.getCredentialsByURI(conf.registry)
   if (conf.otp) conf.auth.otp = conf.otp
   return conf
 }
@@ -161,14 +149,8 @@ function rm (args) {
       }
     })
     return Bluebird.map(toRemove, (key) => {
-      return profile.removeToken(key, conf).catch((ex) => {
-        if (ex.code !== 'EOTP') throw ex
-        log.info('token', 'failed because revoking this token requires OTP')
-        return readUserInfo.otp('Authenticator provided OTP:').then((otp) => {
-          conf.auth.otp = otp
-          return profile.removeToken(key, conf)
-        })
-      })
+      progress.info('token', 'removing', key)
+      profile.removeToken(key, conf).then(() => profile.completeWork(1))
     })
   })).then(() => {
     if (conf.json) {
@@ -223,8 +205,7 @@ function validateCIDR (cidr) {
 }
 
 function validateCIDRList (cidrs) {
-  const maybeList = cidrs ? (Array.isArray(cidrs) ? cidrs : [cidrs]) : []
-  const list = maybeList.length === 1 ? maybeList[0].split(/,\s*/) : maybeList
+  const list = Array.isArray(cidrs) ? cidrs : cidrs ? cidrs.split(/,\s*/) : []
   list.forEach(validateCIDR)
   return list
 }

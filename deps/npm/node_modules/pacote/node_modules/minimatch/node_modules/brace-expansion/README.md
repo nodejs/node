@@ -63,7 +63,7 @@ Valid expansions are:
 // {a,b,...}
 ```
 
-A comma separated list of options, like `{a,b}` or `{a,{b,c}}` or `{,a,}`.
+A comma seperated list of options, like `{a,b}` or `{a,{b,c}}` or `{,a,}`.
 
 ```js
 /^-?\d+\.\.-?\d+(\.\.-?\d+)?$/
@@ -97,12 +97,6 @@ npm install brace-expansion
 
 - [Julian Gruber](https://github.com/juliangruber)
 - [Isaac Z. Schlueter](https://github.com/isaacs)
-
-## Sponsors
-
-This module is proudly supported by my [Sponsors](https://github.com/juliangruber/sponsors)!
-
-Do you want to support modules like this to improve their quality, stability and weigh in on new features? Then please consider donating to my [Patreon](https://www.patreon.com/juliangruber). Not sure how much of my modules you're using? Try [feross/thanks](https://github.com/feross/thanks)!
 
 ## License
 

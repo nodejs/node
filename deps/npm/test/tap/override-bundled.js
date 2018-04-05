@@ -15,7 +15,7 @@ var testtgz = testmod + '-1.0.0.tgz'
 var bundleupdatesrc = path.resolve(testmod, 'bundle-update')
 var bundleupdatetgz = bundleupdatesrc + '-1.0.0.tgz'
 var bundleupdateNEW = path.resolve(bundleupdatesrc, 'NEW')
-var bundleupdateNEWpostinstall = path.resolve(testdir, 'node_modules', 'bundle-update', 'NEW')
+var bundleupdateNEWpostinstall = path.resolve(testdir, 'node_modules', 'top-test', 'node_modules', 'bundle-update', 'NEW')
 var bundleupdatebad = path.resolve(testmod, 'node_modules', 'bundle-update')
 
 var bundlekeepsrc = path.resolve(testmod, 'bundle-keep')
@@ -34,7 +34,8 @@ var bundledeepupdatesrc = path.resolve(testmod, 'bundle-deep-update')
 var bundledeepupdatetgz = bundledeepupdatesrc + '-1.0.0.tgz'
 var bundledeepupdate = path.resolve(bundledeep, 'node_modules', 'bundle-deep-update')
 var bundledeepupdateNEW = path.resolve(bundledeepupdatesrc, 'NEW')
-var bundledeepupdateNEWpostinstall = path.resolve(testdir, 'node_modules', 'bundle-deep-update', 'NEW')
+var bundledeepupdateNEWpostinstall = path.resolve(testdir, 'node_modules', 'top-test',
+  'node_modules', 'bundle-deep', 'node_modules', 'bundle-deep-update', 'NEW')
 
 var testjson = {
   dependencies: {'top-test': 'file:' + testtgz}
@@ -55,6 +56,7 @@ var bundlejson = {
   name: 'bundle-update',
   version: '1.0.0',
   files: ['OLD', 'NEW']
+
 }
 
 var bundlekeepjson = {
@@ -63,8 +65,6 @@ var bundlekeepjson = {
   _requested: {
     rawSpec: bundlekeeptgz
   },
-  _resolved: bundlekeeptgz,
-  _shasum: 'baadf00d',
   files: ['OLD', 'NEW']
 
 }
@@ -77,8 +77,6 @@ var bundledeepjson = {
   _requested: {
     rawSpec: bundledeeptgz
   },
-  _resolved: bundlekeeptgz,
-  _shasum: 'deadbeef',
   files: ['OLD', 'NEW']
 
 }

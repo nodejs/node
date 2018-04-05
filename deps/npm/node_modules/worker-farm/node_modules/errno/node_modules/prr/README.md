@@ -4,7 +4,7 @@ An sensible alternative to `Object.defineProperty()`. Available in npm and Ender
 
 ## Usage
 
-Set the property `'foo'` (`obj.foo`) to have the value `'bar'` with default options (`'enumerable'`, `'configurable'` and `'writable'` are all `false`):
+Set the property `'foo'` (`obj.foo`) to have the value `'bar'` with default options (*enumerable, configurable and writable are all false*):
 
 ```js
 prr(obj, 'foo', 'bar')
@@ -24,9 +24,7 @@ prr(obj, { one: 'one', two: 'two' })
 prr(obj, { one: 'one', two: 'two' }, { enumerable: true, writable: true })
 ```
 
-### Simplify!
-
-But obviously, having to write out the full options object makes it nearly as bad as the original `Object.defineProperty()` so we can simplify.
+But obviously, having to write out the full options object makes it nearly as bad as the original `Object.defineProperty()` so we can **simplify**.
 
 As an alternative method we can use an options string where each character represents a option: `'e'=='enumerable'`, `'c'=='configurable'` and `'w'=='writable'`:
 
@@ -44,4 +42,4 @@ Anywhere! For pre-ES5 environments *prr* will simply fall-back to an `object[pro
 
 ## Licence
 
-prr is Copyright (c) 2013 Rod Vagg [@rvagg](https://twitter.com/rvagg) and licensed under the MIT licence. All rights not explicitly granted in the MIT license are reserved. See the included LICENSE.md file for more details.
+prr is Copyright (c) 2013 Rod Vagg [@rvagg](https://twitter.com/rvagg) and licensed under the MIT licence. All rights not explicitly granted in the MIT license are reserved. See the included LICENSE file for more details.
