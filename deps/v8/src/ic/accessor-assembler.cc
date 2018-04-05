@@ -1091,7 +1091,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   // TODO(gsathya): Clean up the type conversions by creating smarter
   // helpers that do the correct op based on the mode.
   VARIABLE(var_properties, MachineRepresentation::kTaggedPointer);
-  VARIABLE(var_hash, MachineRepresentation::kWord32);
+  VARIABLE(var_encoded_hash, MachineRepresentation::kWord32);
   VARIABLE(var_length, ParameterRepresentation(mode));
 
   Node* properties = LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
@@ -1102,7 +1102,10 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
 
   BIND(&if_smi_hash);
   {
-    var_hash.Bind(SmiToWord32(properties));
+    Node* hash = SmiToWord32(properties);
+    Node* encoded_hash =
+        Word32Shl(hash, Int32Constant(PropertyArray::HashField::kShift));
+    var_encoded_hash.Bind(encoded_hash);
     var_length.Bind(IntPtrOrSmiConstant(0, mode));
     var_properties.Bind(EmptyFixedArrayConstant());
     Goto(&extend_store);
@@ -1112,10 +1115,11 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   {
     Node* length_and_hash_int32 = LoadAndUntagToWord32ObjectField(
         var_properties.value(), PropertyArray::kLengthAndHashOffset);
-    var_hash.Bind(Word32And(length_and_hash_int32,
-                            Int32Constant(PropertyArray::kHashMask)));
-    Node* length_intptr = ChangeInt32ToIntPtr(Word32And(
-        length_and_hash_int32, Int32Constant(PropertyArray::kLengthMask)));
+    var_encoded_hash.Bind(Word32And(
+        length_and_hash_int32, Int32Constant(PropertyArray::HashField::kMask)));
+    Node* length_intptr = ChangeInt32ToIntPtr(
+        Word32And(length_and_hash_int32,
+                  Int32Constant(PropertyArray::LengthField::kMask)));
     Node* length = WordToParameter(length_intptr, mode);
     var_length.Bind(length);
     Goto(&extend_store);
@@ -1161,7 +1165,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     Node* new_capacity_int32 =
         TruncateWordToWord32(ParameterToWord(new_capacity, mode));
     Node* new_length_and_hash_int32 =
-        Word32Or(var_hash.value(), new_capacity_int32);
+        Word32Or(var_encoded_hash.value(), new_capacity_int32);
     StoreObjectField(new_properties, PropertyArray::kLengthAndHashOffset,
                      SmiFromWord32(new_length_and_hash_int32));
     StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
