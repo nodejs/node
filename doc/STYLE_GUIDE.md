@@ -59,9 +59,9 @@
   * Use a capital letter after the "Note:" label.
   * Preferably, make the note a new paragraph for better visual distinction.
 * Function arguments or object properties should use the following format:
-  * <code>* \`name\` {type|type2} Optional description. \*\*Default:\*\* \`defaultValue\`</code>
-  * E.g. <code>* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`</code>
-  * The `type` should refer to a Node.js type or a [JavaScript type][]
+  * <code>* \`name\` {type|type2} Optional description. \*\*Default:\*\* \`defaultValue\`.</code>
+  * E.g. <code>* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.</code>
+  * The `type` should refer to a Node.js type or a [JavaScript type][].
 * Function returns should use the following format:
   * <code>* Returns: {type|type2} Optional description.</code>
   * E.g. <code>* Returns: {AsyncHook} A reference to `asyncHook`.</code>

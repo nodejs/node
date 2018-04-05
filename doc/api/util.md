@@ -107,7 +107,7 @@ const debuglog = util.debuglog('foo-bar');
 debuglog('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
-if it is run with `NODE_DEBUG=foo*` in the environment, then it will output 
+if it is run with `NODE_DEBUG=foo*` in the environment, then it will output
 something like:
 ```txt
 FOO-BAR 3257: hi there, it's foo-bar [2333]
@@ -121,7 +121,7 @@ environment variable: `NODE_DEBUG=fs,net,tls`.
 added: v0.8.0
 -->
 
-The `util.deprecate()` method wraps the given `function` or class in such a way 
+The `util.deprecate()` method wraps the given `function` or class in such a way
 that it is marked as deprecated.
 
 <!-- eslint-disable prefer-rest-params -->
@@ -182,13 +182,13 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, depth: 4, 
-  showProxy: true }`. This will show the full object including non-enumerable 
+  Similar to `util.inspect()` with options `{ showHidden: true, depth: 4,
+  showProxy: true }`. This will show the full object including non-enumerable
   symbols and properties.
 * `%O` - Object. A string representation of an object
   with generic JavaScript object formatting.
   Similar to `util.inspect()` without options.
-  This will show the full object not including non-enumerable symbols and 
+  This will show the full object not including non-enumerable symbols and
   properties.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 * Returns: {string} The formatted string
@@ -343,32 +343,32 @@ changes:
 * `object` {any} Any JavaScript primitive or Object.
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
-    properties will be included in the formatted result. Defaults to `false`.
+    properties will be included in the formatted result. **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
     the `object`. This is useful for inspecting large complicated objects.
     Defaults to `2`. To make it recurse indefinitely pass `null`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
-    codes. Defaults to `false`. Colors are customizable, see
-    [Customizing `util.inspect` colors][].
+    codes. Colors are customizable, see [Customizing `util.inspect` colors][].
+    **Default:** `false`.
   * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
-    functions will not be called. Defaults to `true`.
+    functions will not be called. **Default:** `true`.
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
-    objects. Defaults to `false`.
+    objects. **Default:** `false`.
   * `maxArrayLength` {number} Specifies the maximum number of array and
-    `TypedArray` elements to include when formatting. Defaults to `100`. Set to
-    `null` to show all array elements. Set to `0` or negative to show no array
-    elements.
+    `TypedArray` elements to include when formatting. Set to `null` to show all
+    array elements. Set to `0` or negative to show no array elements.
+    **Default:** `100`.
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
-    line. Defaults to 60 for legacy compatibility.
+    line. **Default:** `60` for legacy compatibility.
   * `compact` {boolean} Setting this to `false` changes the default indentation
     to use a line break for each object key instead of lining up multiple
     properties in one line. It will also break text that is above the
     `breakLength` size into smaller and better readable chunks and indents
     objects the same as arrays. Note that no text will be reduced below 16
     characters, no matter the `breakLength` size. For more information, see the
-    example below. Defaults to `true`.
+    example below. **Default:** `true`.
 
 The `util.inspect()` method returns a string representation of `object` that is
 primarily useful for debugging. Additional `options` may be passed that alter
@@ -646,7 +646,7 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
-For example, with a function that takes in `(foo, onSuccessCallback, 
+For example, with a function that takes in `(foo, onSuccessCallback,
 onErrorCallback)`:
 
 ```js
@@ -757,15 +757,15 @@ is not supported.
 ### new TextDecoder([encoding[, options]])
 
 * `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
-  supports. Defaults to `'utf-8'`.
+  supports. **Default:** `'utf-8'`.
 * `options` {Object}
-  * `fatal` {boolean} `true` if decoding failures are fatal. Defaults to
-    `false`. This option is only supported when ICU is enabled (see
-    [Internationalization][]).
+  * `fatal` {boolean} `true` if decoding failures are fatal. This option is only
+    supported when ICU is enabled (see [Internationalization][]). **Default:**
+    `false`.
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
      order mark in the decoded result. When `false`, the byte order mark will
      be removed from the output. This option is only used when `encoding` is
-     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. Defaults to `false`.
+     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
 
 Creates an new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
@@ -776,7 +776,7 @@ supported encodings or an alias.
   Typed Array instance containing the encoded data.
 * `options` {Object}
   * `stream` {boolean} `true` if additional chunks of data are expected.
-    Defaults to `false`.
+    **Default:** `false`.
 * Returns: {string}
 
 Decodes the `input` and returns a string. If `options.stream` is `true`, any
@@ -821,7 +821,7 @@ const uint8array = encoder.encode('this is some data');
 
 ### textEncoder.encode([input])
 
-* `input` {string} The text to encode. Defaults to an empty string.
+* `input` {string} The text to encode. **Default:** an empty string.
 * Returns: {Uint8Array}
 
 UTF-8 encodes the `input` string and returns a `Uint8Array` containing the

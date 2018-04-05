@@ -427,15 +427,15 @@ changes:
 -->
 
 * `options` {Object|string}
-  * `prompt` {string} The input prompt to display. Defaults to `> `
+  * `prompt` {string} The input prompt to display. **Default:** `> `.
     (with a trailing space).
-  * `input` {stream.Readable} The Readable stream from which REPL input will be 
-    read. Defaults to `process.stdin`.
+  * `input` {stream.Readable} The Readable stream from which REPL input will be
+    read. **Default:** `process.stdin`.
   * `output` {stream.Writable} The Writable stream to which REPL output will be
-    written. Defaults to `process.stdout`.
+    written. **Default:** `process.stdout`.
   * `terminal` {boolean} If `true`, specifies that the `output` should be
     treated as a TTY terminal, and have ANSI/VT100 escape codes written to it.
-    Defaults to checking the value of the `isTTY` property on the `output`
+    **Default:** checking the value of the `isTTY` property on the `output`
     stream upon instantiation.
   * `eval` {Function} The function to be used when evaluating each given line
     of input. **Default:** an async wrapper for the JavaScript `eval()`
@@ -443,17 +443,17 @@ changes:
     the input was incomplete and prompt for additional lines.
   * `useColors` {boolean} If `true`, specifies that the default `writer`
     function should include ANSI color styling to REPL output. If a custom
-    `writer` function is provided then this has no effect. Defaults to the
+    `writer` function is provided then this has no effect. **Default:** the
      REPL instances `terminal` value.
   * `useGlobal` {boolean} If `true`, specifies that the default evaluation
      function will use the JavaScript `global` as the context as opposed to
      creating a new separate context for the REPL instance. The node CLI REPL
-     sets this value to `true`. Defaults to `false`.
+     sets this value to `true`. **Default:** `false`.
   * `ignoreUndefined` {boolean} If `true`, specifies that the default writer
      will not output the return value of a command if it evaluates to
-     `undefined`. Defaults to `false`.
+     `undefined`. **Default:** `false`.
   * `writer` {Function} The function to invoke to format the output of each
-     command before writing to `output`. Defaults to [`util.inspect()`][].
+     command before writing to `output`. **Default:** [`util.inspect()`][].
   * `completer` {Function} An optional function used for custom Tab auto
      completion. See [`readline.InterfaceCompleter`][] for an example.
   * `replMode` {symbol} A flag that specifies whether the default evaluator
@@ -467,7 +467,7 @@ changes:
       equivalent to `repl.REPL_MODE_SLOPPY` (documented above).
   * `breakEvalOnSigint` - Stop evaluating the current piece of code when
     `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
-    with a custom `eval` function. Defaults to `false`.
+    with a custom `eval` function. **Default:** `false`.
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
@@ -510,11 +510,12 @@ environment variables:
    will be saved to the specified file rather than `.node_repl_history` in the
    user's home directory. Setting this value to `''` will disable persistent
    REPL history. Whitespace will be trimmed from the value.
- - `NODE_REPL_HISTORY_SIZE` - Defaults to `1000`. Controls how many lines of
-   history will be persisted if history is available. Must be a positive number.
- - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. Defaults
-   to `sloppy`, which will allow non-strict mode code to be run. `magic` is
-   **deprecated** and treated as an alias of `sloppy`.
+ - `NODE_REPL_HISTORY_SIZE` - Controls how many lines of history will be
+   persisted if history is available. Must be a positive number.
+   **Default:** `1000`.
+ - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. `magic` is
+   **deprecated** and treated as an alias of `sloppy`. **Default:** `sloppy`,
+   which will allow non-strict mode code to be run.
 
 ### Persistent History
 

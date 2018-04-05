@@ -423,7 +423,7 @@ stream.write('data ');
 process.nextTick(() => stream.uncork());
 ```
 
-If the [`writable.cork()`][] method is called multiple times on a stream, the 
+If the [`writable.cork()`][] method is called multiple times on a stream, the
 same number of calls to `writable.uncork()` must be called to flush the buffered
 data.
 
@@ -619,7 +619,7 @@ possible states:
 
 When `readable.readableFlowing` is `null`, no mechanism for consuming the
 streams data is provided so the stream will not generate its data. While in this
-state, attaching a listener for the `'data'` event, calling the 
+state, attaching a listener for the `'data'` event, calling the
 `readable.pipe()` method, or calling the `readable.resume()` method will switch
 `readable.readableFlowing` to `true`, causing the Readable to begin
 actively emitting events as data is generated.
@@ -847,7 +847,7 @@ added: v0.9.4
 
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
-  * `end` {boolean} End the writer when the reader ends. Defaults to `true`.
+  * `end` {boolean} End the writer when the reader ends. **Default:** `true`.
 
 The `readable.pipe()` method attaches a [Writable][] stream to the `readable`,
 causing it to switch automatically into flowing mode and push all of its data
@@ -1268,7 +1268,7 @@ on the type of stream being created, as detailed in the chart below:
     </td>
     <td>
       <p>
-        <code>[_write][stream-_write]</code>, 
+        <code>[_write][stream-_write]</code>,
         <code>[_writev][stream-_writev]</code>,
         <code>[_final][stream-_final]</code>
       </p>
@@ -1283,8 +1283,8 @@ on the type of stream being created, as detailed in the chart below:
     </td>
     <td>
       <p>
-        <code>[_read][stream-_read]</code>, 
-        <code>[_write][stream-_write]</code>, 
+        <code>[_read][stream-_read]</code>,
+        <code>[_write][stream-_write]</code>,
         <code>[_writev][stream-_writev]</code>,
         <code>[_final][stream-_final]</code>
       </p>
@@ -1299,7 +1299,7 @@ on the type of stream being created, as detailed in the chart below:
     </td>
     <td>
       <p>
-        <code>[_transform][stream-_transform]</code>, 
+        <code>[_transform][stream-_transform]</code>,
         <code>[_flush][stream-_flush]</code>,
         <code>[_final][stream-_final]</code>
       </p>
@@ -1344,16 +1344,16 @@ constructor and implement the `writable._write()` method. The
 
 * `options` {Object}
   * `highWaterMark` {number} Buffer level when
-    [`stream.write()`][stream-write] starts returning `false`. Defaults to
+    [`stream.write()`][stream-write] starts returning `false`. **Default:**
     `16384` (16kb), or `16` for `objectMode` streams.
   * `decodeStrings` {boolean} Whether or not to decode strings into
     Buffers before passing them to [`stream._write()`][stream-_write].
-    Defaults to `true`
+    **Default:** `true`.
   * `objectMode` {boolean} Whether or not the
     [`stream.write(anyObj)`][stream-write] is a valid operation. When set,
     it becomes possible to write JavaScript values other than string,
     `Buffer` or `Uint8Array` if supported by the stream implementation.
-    Defaults to `false`
+    **Default:** `false`.
   * `write` {Function} Implementation for the
     [`stream._write()`][stream-_write] method.
   * `writev` {Function} Implementation for the
@@ -1603,15 +1603,15 @@ constructor and implement the `readable._read()` method.
 * `options` {Object}
   * `highWaterMark` {number} The maximum [number of bytes][hwm-gotcha] to store
     in the internal buffer before ceasing to read from the underlying resource.
-    Defaults to `16384` (16kb), or `16` for `objectMode` streams
+    **Default:** `16384` (16kb), or `16` for `objectMode` streams.
   * `encoding` {string} If specified, then buffers will be decoded to
-    strings using the specified encoding. Defaults to `null`
+    strings using the specified encoding. **Default:** `null`.
   * `objectMode` {boolean} Whether this stream should behave
     as a stream of objects. Meaning that [`stream.read(n)`][stream-read] returns
-    a single value instead of a Buffer of size n. Defaults to `false`
+    a single value instead of a Buffer of size n. **Default:** `false`.
   * `read` {Function} Implementation for the [`stream._read()`][stream-_read]
     method.
-  * `destroy` {Function} Implementation for the 
+  * `destroy` {Function} Implementation for the
     [`stream._destroy()`][readable-_destroy] method.
 
 ```js
@@ -1851,15 +1851,13 @@ changes:
 
 * `options` {Object} Passed to both Writable and Readable
   constructors. Also has the following fields:
-  * `allowHalfOpen` {boolean} Defaults to `true`. If set to `false`, then
-    the stream will automatically end the writable side when the
-    readable side ends.
-  * `readableObjectMode` {boolean} Defaults to `false`. Sets `objectMode`
-    for readable side of the stream. Has no effect if `objectMode`
-    is `true`.
-  * `writableObjectMode` {boolean} Defaults to `false`. Sets `objectMode`
-    for writable side of the stream. Has no effect if `objectMode`
-    is `true`.
+  * `allowHalfOpen` {boolean} If set to `false`, then the stream will
+    automatically end the writable side when the readable side ends.
+    **Default:** `true`.
+  * `readableObjectMode` {boolean} Sets `objectMode` for readable side of the
+    stream. Has no effect if `objectMode` is `true`. **Default:** `false`.
+  * `writableObjectMode` {boolean} Sets `objectMode` for writable side of the
+    stream. Has no effect if `objectMode` is `true`. **Default:** `false`.
   * `readableHighWaterMark` {number} Sets `highWaterMark` for the readable side
     of the stream. Has no effect if `highWaterMark` is provided.
   * `writableHighWaterMark` {number} Sets `highWaterMark` for the writable side

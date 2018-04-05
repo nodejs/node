@@ -126,8 +126,8 @@ is updated whenever the `'resize'` event is emitted.
 added: v9.9.0
 -->
 
-* `env` {object} A object containing the environment variables to check.
-  Defaults to `process.env`.
+* `env` {Object} A object containing the environment variables to check.
+  **Default:** `process.env`.
 * Returns: {number}
 
 Returns:

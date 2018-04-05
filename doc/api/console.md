@@ -187,7 +187,7 @@ binary.
 added: v8.3.0
 -->
 
-* `label` {string} The display label for the counter. Defaults to `'default'`.
+* `label` {string} The display label for the counter. **Default:** `'default'`.
 
 Maintains an internal counter specific to `label` and outputs to `stdout` the
 number of times `console.count()` has been called with the given `label`.
@@ -220,7 +220,7 @@ undefined
 added: v8.3.0
 -->
 
-* `label` {string} The display label for the counter. Defaults to `'default'`.
+* `label` {string} The display label for the counter. **Default:** `'default'`.
 
 Resets the internal counter specific to `label`.
 
@@ -256,25 +256,17 @@ added: v0.1.101
 -->
 * `obj` {any}
 * `options` {Object}
-  * `showHidden` {boolean}
-  * `depth` {number}
-  * `colors` {boolean}
+  * `showHidden` {boolean} If `true` then the object's non-enumerable and symbol
+    properties will be shown too. **Default:** `false`.
+  * `depth` {number} Tells [`util.inspect()`][] how many times to recurse while
+    formatting the object. This is useful for inspecting large complicated
+    objects. To make it recurse indefinitely, pass `null`. **Default:** `2`.
+  * `colors` {boolean} If `true`, then the output will be styled with ANSI color
+     codes. Colors are customizable;
+     see [customizing `util.inspect()` colors][]. **Default:** `false`.
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
-This function bypasses any custom `inspect()` function defined on `obj`. An
-optional `options` object may be passed to alter certain aspects of the
-formatted string:
-
-- `showHidden` - if `true` then the object's non-enumerable and symbol
-properties will be shown too. Defaults to `false`.
-
-- `depth` - tells [`util.inspect()`][] how many times to recurse while
-formatting the object. This is useful for inspecting large complicated objects.
-Defaults to `2`. To make it recurse indefinitely, pass `null`.
-
-- `colors` - if `true`, then the output will be styled with ANSI color codes.
-Defaults to `false`. Colors are customizable; see
-[customizing `util.inspect()` colors][].
+This function bypasses any custom `inspect()` function defined on `obj`.
 
 ### console.dirxml(...data)
 <!-- YAML
@@ -374,7 +366,7 @@ See [`util.format()`][] for more information.
 <!-- YAML
 added: v0.1.104
 -->
-* `label` {string} Defaults to `'default'`.
+* `label` {string} **Default:** `'default'`
 
 Starts a timer that can be used to compute the duration of an operation. Timers
 are identified by a unique `label`. Use the same `label` when calling
@@ -390,7 +382,7 @@ changes:
     description: This method no longer supports multiple calls that don’t map
                  to individual `console.time()` calls; see below for details.
 -->
-* `label` {string} Defaults to `'default'`.
+* `label` {string} **Default:** `'default'`
 
 Stops a timer that was previously started by calling [`console.time()`][] and
 prints the result to `stdout`:
@@ -446,7 +438,7 @@ not display anything unless used in conjunction with the [inspector][]
 <!-- YAML
 added: v8.0.0
 -->
-* `label` {string} Defaults to `'default'`.
+* `label` {string} **Default:** `'default'`
 
 This method does not display anything unless used in the inspector. The
 `console.markTimeline()` method is the deprecated form of 
@@ -503,7 +495,7 @@ This method does not display anything unless used in the inspector. The
 <!-- YAML
 added: v8.0.0
 -->
-* `label` {string} Defaults to `'default'`.
+* `label` {string} **Default:** `'default'`
 
 This method does not display anything unless used in the inspector. The
 `console.timeline()` method is the deprecated form of [`console.time()`][].
@@ -512,7 +504,7 @@ This method does not display anything unless used in the inspector. The
 <!-- YAML
 added: v8.0.0
 -->
-* `label` {string} Defaults to `'default'`.
+* `label` {string} **Default:** `'default'`
 
 This method does not display anything unless used in the inspector. The
 `console.timelineEnd()` method is the deprecated form of 
