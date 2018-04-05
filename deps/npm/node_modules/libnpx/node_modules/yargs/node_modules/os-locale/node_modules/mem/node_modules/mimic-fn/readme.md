@@ -8,7 +8,7 @@ Useful when you wrap a function in another function and like to preserve the ori
 ## Install
 
 ```
-$ npm install mimic-fn
+$ npm install --save mimic-fn
 ```
 
 
@@ -42,8 +42,6 @@ console.log(wrapper.unicorn);
 It will copy over the properties `name`, `length`, `displayName`, and any custom properties you may have set.
 
 ### mimicFn(to, from)
-
-It will modify `to` and return it.
 
 #### to
 

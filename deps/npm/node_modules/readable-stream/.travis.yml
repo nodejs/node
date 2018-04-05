@@ -46,8 +46,18 @@ matrix:
     env: TASK=test
   - node_js: 8
     env: TASK=test
-  - node_js: 9
-    env: TASK=test
+  - node_js: 6
+    env: TASK=browser BROWSER_NAME=ie BROWSER_VERSION="9..latest"
+  - node_js: 6
+    env: TASK=browser BROWSER_NAME=opera BROWSER_VERSION="11..latest"
+  - node_js: 6
+    env: TASK=browser BROWSER_NAME=chrome BROWSER_VERSION="-3..latest"
+  - node_js: 6
+    env: TASK=browser BROWSER_NAME=firefox BROWSER_VERSION="-3..latest"
+  - node_js: 6
+    env: TASK=browser BROWSER_NAME=safari BROWSER_VERSION="5..latest"
+  - node_js: 6
+    env: TASK=browser BROWSER_NAME=microsoftedge BROWSER_VERSION=latest
 script: "npm run $TASK"
 env:
   global:

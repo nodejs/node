@@ -4,7 +4,9 @@ const BB = require('bluebird')
 
 const stat = BB.promisify(require('graceful-fs').stat)
 const gentlyRm = BB.promisify(require('../../utils/gently-rm.js'))
+const log = require('npmlog')
 const mkdirp = BB.promisify(require('mkdirp'))
+const moduleName = require('../../utils/module-name.js')
 const moduleStagingPath = require('../module-staging-path.js')
 const move = require('../../utils/move.js')
 const npa = require('npm-package-arg')
@@ -57,11 +59,12 @@ function extract (staging, pkg, log) {
     pacoteOpts = require('../../config/pacote')
   }
   const opts = pacoteOpts({
-    integrity: pkg.package._integrity,
-    resolved: pkg.package._resolved
+    integrity: pkg.package._integrity
   })
   const args = [
-    pkg.package._requested,
+    pkg.package._resolved
+    ? npa.resolve(pkg.package.name, pkg.package._resolved)
+    : pkg.package._requested,
     extractTo,
     opts
   ]
@@ -109,6 +112,18 @@ function readBundled (pkg, staging, extractTo) {
   }, {concurrency: 10})
 }
 
+function getTree (pkg) {
+  while (pkg.parent) pkg = pkg.parent
+  return pkg
+}
+
+function warn (pkg, code, msg) {
+  const tree = getTree(pkg)
+  const err = new Error(msg)
+  err.code = code
+  tree.warnings.push(err)
+}
+
 function stageBundledModule (bundler, child, staging, parentPath) {
   const stageFrom = path.join(parentPath, 'node_modules', child.package.name)
   const stageTo = moduleStagingPath(staging, child)
@@ -131,6 +146,15 @@ function finishModule (bundler, child, stageTo, stageFrom) {
       return move(stageFrom, stageTo)
     })
   } else {
-    return stat(stageFrom).then(() => gentlyRm(stageFrom), () => {})
+    return stat(stageFrom).then(() => {
+      const bundlerId = packageId(bundler)
+      if (!getTree(bundler).warnings.some((w) => {
+        return w.code === 'EBUNDLEOVERRIDE'
+      })) {
+        warn(bundler, 'EBUNDLEOVERRIDE', `${bundlerId} had bundled packages that do not match the required version(s). They have been replaced with non-bundled versions.`)
+      }
+      log.verbose('bundle', `EBUNDLEOVERRIDE: Replacing ${bundlerId}'s bundled version of ${moduleName(child)} with ${packageId(child)}.`)
+      return gentlyRm(stageFrom)
+    }, () => {})
   }
 }

@@ -1,4 +1,3 @@
-'use strict'
 // classic singleton yargs API, to use yargs
 // without running as a singleton do:
 // require('yargs/yargs')(process.argv.slice(2))
@@ -22,7 +21,7 @@ function Argv (processArgs, cwd) {
     to get a parsed version of process.argv.
 */
 function singletonify (inst) {
-  Object.keys(inst).forEach((key) => {
+  Object.keys(inst).forEach(function (key) {
     if (key === 'argv') {
       Argv.__defineGetter__(key, inst.__lookupGetter__(key))
     } else {

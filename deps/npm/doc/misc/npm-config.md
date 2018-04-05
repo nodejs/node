@@ -284,9 +284,6 @@ This is a list of CIDR address to be used when configuring limited access tokens
 If false, never shows colors.  If `"always"` then always shows colors.
 If true, then only prints color codes for tty file descriptors.
 
-This option can also be changed using the environment: colors are
-disabled when the environment variable `NO_COLOR` is set to any value.
-
 ### depth
 
 * Default: Infinity
@@ -675,13 +672,6 @@ impact how lifecycle scripts are called.
 
 The node version to use when checking a package's `engines` map.
 
-### no-proxy
-
-* Default: null
-* Type: String or Array
-
-A comma-separated string or an array of domain extensions that a proxy should not be used for.
-
 ### offline
 
 * Default: false
@@ -741,10 +731,6 @@ when publishing or changing package permissions with `npm access`.
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
 
-When package package-locks are disabled, automatic pruning of extraneous
-modules will also be disabled.  To remove extraneous modules with
-package-locks disabled use `npm prune`.
-
 This option is an alias for `--shrinkwrap`.
 
 ### package-lock-only
@@ -752,7 +738,7 @@ This option is an alias for `--shrinkwrap`.
 * Default: false
 * Type: Boolean
 
-If set to true, it will update only the `package-lock.json`,
+If set to true, it will update only the `package-json`,
 instead of checking `node_modules` and downloading dependencies.
 
 ### parseable
@@ -849,7 +835,7 @@ Remove failed installs.
 
 ### save
 
-* Default: true
+* Default: false
 * Type: Boolean
 
 Save installed packages to a package.json file as dependencies.

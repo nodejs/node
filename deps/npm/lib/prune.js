@@ -26,7 +26,6 @@ function prune (args, cb) {
 
 function Pruner (where, dryrun, args) {
   Installer.call(this, where, dryrun, args)
-  this.autoPrune = true
 }
 util.inherits(Pruner, Installer)
 
@@ -65,4 +64,3 @@ Pruner.prototype.loadAllDepsIntoIdealTree = function (cb) {
 
 Pruner.prototype.runPreinstallTopLevelLifecycles = function (cb) { cb() }
 Pruner.prototype.runPostinstallTopLevelLifecycles = function (cb) { cb() }
-Pruner.prototype.saveToDependencies = function (cb) { cb() }

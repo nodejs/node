@@ -77,11 +77,9 @@ would return `https://raw.githubusercontent.com/npm/hosted-git-info/v1.0.0/packa
 
 eg, `github:npm/hosted-git-info`
 
-* info.browse(path, fragment, opts)
+* info.browse(opts)
 
-eg, `https://github.com/npm/hosted-git-info/tree/v1.2.0`,
-`https://github.com/npm/hosted-git-info/tree/v1.2.0/package.json`,
-`https://github.com/npm/hosted-git-info/tree/v1.2.0/REAMDE.md#supported-hosts`
+eg, `https://github.com/npm/hosted-git-info/tree/v1.2.0`
 
 * info.bugs(opts)
 
@@ -131,3 +129,4 @@ SSH connect strings will be normalized into `git+ssh` URLs.
 
 Currently this supports Github, Bitbucket and Gitlab. Pull requests for
 additional hosts welcome.
+

@@ -118,7 +118,7 @@ function doParallel (type, staging, actionsToRun, log, next) {
     }
     return acc
   }, [])
-  log.silly('doParallel', type + ' ' + acts.length)
+  log.silly('doParallel', type + ' ' + actionsToRun.length)
   time(log)
   if (!acts.length) { return next() }
   return withInit(actions[type], () => {

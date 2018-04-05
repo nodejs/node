@@ -1,4 +1,4 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "April 2018" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "December 2017" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SH SYNOPSIS
@@ -18,7 +18,7 @@ used by the test, start, restart, and stop commands, but can be called
 directly, as well\. When the scripts in the package are printed out, they're
 separated into lifecycle (test, start, restart) and directly\-run scripts\.
 .P
-As of ` \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
+As of \fBnpm@2\.0\.0\fP \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
 use custom arguments when executing scripts\. The special option \fB\-\-\fP is used by
 getopt \fIhttp://goo\.gl/KxMmtG\fR to delimit the end of the options\. npm will pass
 all the arguments after the \fB\-\-\fP directly to your script:
@@ -62,7 +62,7 @@ to run your tests\.
 The actual shell your script is run within is platform dependent\. By default,
 on Unix\-like systems it is the \fB/bin/sh\fP command, on Windows it is the \fBcmd\.exe\fP\|\.
 The actual shell referred to by \fB/bin/sh\fP also depends on the system\.
-As of ` \fIhttps://github\.com/npm/npm/releases/tag/v5\.1\.0\fR you can
+As of \fBnpm@5\.1\.0\fP \fIhttps://github\.com/npm/npm/releases/tag/v5\.1\.0\fR you can
 customize the shell with the \fBscript\-shell\fP configuration\.
 .P
 Scripts are run from the root of the module, regardless of what your current

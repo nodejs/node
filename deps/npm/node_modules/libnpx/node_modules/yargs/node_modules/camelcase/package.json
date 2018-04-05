@@ -1,0 +1,44 @@
+{
+  "_from": "camelcase@^4.1.0",
+  "_id": "camelcase@4.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-1UVjW+HjPFQmScaRc+Xeas+uNN0=",
+  "_location": "/libnpx/yargs/camelcase",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "camelcase@^4.1.0",
+    "name": "camelcase",
+    "escapedName": "camelcase",
+    "rawSpec": "^4.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^4.1.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs",
+    "/libnpx/yargs/yargs-parser"
+  ],
+  "_resolved": "https://registry.npmjs.org/camelcase/-/camelcase-4.1.0.tgz",
+  "_shasum": "d545635be1e33c542649c69173e5de6acfae34dd",
+  "_shrinkwrap": null,
+  "_spec": "camelcase@^4.1.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> Convert a dash/dot/underscore/space separated string to camelCase: `foo-bar` → `fooBar`",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "camelcase",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "4.1.0"
+}

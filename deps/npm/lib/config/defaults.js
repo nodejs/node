@@ -130,7 +130,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
 
     cidr: null,
 
-    color: process.env.NO_COLOR == null,
+    color: true,
     depth: Infinity,
     description: true,
     dev: false,
@@ -193,7 +193,6 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'progress': !process.env.TRAVIS && !process.env.CI,
     proxy: null,
     'https-proxy': null,
-    'no-proxy': null,
     'user-agent': 'npm/{npm-version} ' +
                     'node/{node-version} ' +
                     '{platform} ' +
@@ -313,7 +312,6 @@ exports.types = {
   'metrics-registry': [null, String],
   'node-options': [null, String],
   'node-version': [null, semver],
-  'no-proxy': [null, String, Array],
   offline: Boolean,
   'onload-script': [null, String],
   only: [null, 'dev', 'development', 'prod', 'production'],

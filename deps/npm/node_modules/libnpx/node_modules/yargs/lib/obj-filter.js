@@ -1,8 +1,7 @@
-'use strict'
-module.exports = function objFilter (original, filter) {
+module.exports = function (original, filter) {
   const obj = {}
-  filter = filter || ((k, v) => true)
-  Object.keys(original || {}).forEach((key) => {
+  filter = filter || function (k, v) { return true }
+  Object.keys(original || {}).forEach(function (key) {
     if (filter(key, original[key])) {
       obj[key] = original[key]
     }

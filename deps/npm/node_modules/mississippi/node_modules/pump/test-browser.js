@@ -30,10 +30,7 @@ var rsClosed = false
 var callbackCalled = false
 
 var check = function () {
-  if (wsClosed && rsClosed && callbackCalled) {
-    console.log('test-browser.js passes')
-    clearTimeout(timeout)
-  }
+  if (wsClosed && rsClosed && callbackCalled) console.log('done')
 }
 
 ws.on('finish', function () {
@@ -46,21 +43,16 @@ rs.on('end', function () {
   check()
 })
 
-var res = pump(rs, toHex(), toHex(), toHex(), ws, function () {
+pump(rs, toHex(), toHex(), toHex(), ws, function () {
   callbackCalled = true
   check()
 })
-
-if (res !== ws) {
-  throw new Error('should return last stream')
-}
 
 setTimeout(function () {
   rs.push(null)
   rs.emit('close')
 }, 1000)
 
-var timeout = setTimeout(function () {
-  check()
-  throw new Error('timeout')
+setTimeout(function () {
+  if (!check()) throw new Error('timeout')
 }, 5000)
