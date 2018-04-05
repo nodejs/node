@@ -117,8 +117,7 @@ void ReportException(Environment* env, const NodeTryCatch& try_catch) {
 
 
 Local<Value> NodeTryCatch::ReThrow(bool decorate) {
-  if (decorate && !arrow_added_) {
-    arrow_added_ = true;
+  if (decorate) {
     HandleScope(env_->isolate());
     AppendExceptionLine(env_, Exception(), Message(), fatal_);
   }

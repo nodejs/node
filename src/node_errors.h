@@ -19,7 +19,6 @@ class NodeTryCatch : public v8::TryCatch {
  private:
   Environment* env_;
   bool fatal_;
-  bool arrow_added_ = false;
 };
 
 void ReportException(

@@ -1217,10 +1217,15 @@ void AppendExceptionLine(Environment* env,
     return;
 
   HandleScope scope(env->isolate());
-  Local<Object> err_obj;
-  if (!er.IsEmpty() && er->IsObject()) {
-    err_obj = er.As<Object>();
-  }
+
+  if (er.IsEmpty() || !er->IsObject())
+    return;
+  Local<Object> err_obj = er.As<Object>();
+
+  if (err_obj->HasPrivate(
+        env->context(),
+        env->error_decorated_private_symbol()).FromMaybe(false))
+    return;
 
   // Print (filename):(line number): (message).
   ScriptOrigin origin = message->GetScriptOrigin();
@@ -1317,6 +1322,11 @@ void AppendExceptionLine(Environment* env,
     PrintErrorString("\n%s", arrow);
     return;
   }
+
+  CHECK(err_obj->SetPrivate(
+        env->context(),
+        env->error_decorated_private_symbol(),
+        v8::True(env->isolate())).FromMaybe(false));
 
   Local<Value> stack_str;
   if (err_obj->Get(env->context(), env->stack_string()).ToLocal(&stack_str)) {

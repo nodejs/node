@@ -101,6 +101,7 @@ struct PackageConfig {
   V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
+  V(error_decorated_private_symbol, "node:error_decorated")                   \
   V(napi_env, "node:napi:env")                                                \
   V(napi_wrapper, "node:napi:wrapper")                                        \
 

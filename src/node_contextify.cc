@@ -824,7 +824,7 @@ class ContextifyScript : public BaseObject {
 
     if (v8_script.IsEmpty()) {
       no_abort_scope.Close();
-      try_catch.ReThrow();
+      try_catch.ReThrow(true);
       return;
     }
     contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
