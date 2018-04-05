@@ -1545,8 +1545,8 @@ added: REPLACEME
 
 Perform a SemVer comparison to the release version.
 
-* `major` {string | number} The major version to compare or a string containing
-  the entire version.
+* `major` {number} The major version to compare or a string containing the
+  entire version.
 * `minor` {number} The minor version number to compare.
 * `patch` {number} The patch version to compare.
 * `tag` {string} The pre-release tag to compare.
