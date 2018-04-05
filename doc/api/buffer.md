@@ -1039,8 +1039,8 @@ added: v0.1.90
 
 * `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`] to copy into.
 * `targetStart` {integer} The offset within `target` at which to begin
-  copying to. **Default:** `0`.
-* `sourceStart` {integer} The offset within `buf` at which to begin copying from.
+  writing. **Default:** `0`.
+* `sourceStart` {integer} The offset within `buf` from which to begin copying.
   **Default:** `0`.
 * `sourceEnd` {integer} The offset within `buf` at which to stop copying (not
   inclusive). **Default:** [`buf.length`].
