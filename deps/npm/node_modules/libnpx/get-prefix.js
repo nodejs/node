@@ -6,20 +6,21 @@ const path = require('path')
 const statAsync = promisify(require('fs').stat)
 
 module.exports = getPrefix
-function getPrefix (current, root) {
-  if (!root) {
-    const original = root = path.resolve(current)
-    while (path.basename(root) === 'node_modules') {
-      root = path.dirname(root)
-    }
-    if (original !== root) {
-      return Promise.resolve(root)
-    } else {
-      return getPrefix(root, root)
-    }
+function getPrefix (root) {
+  const original = root = path.resolve(root)
+  while (path.basename(root) === 'node_modules') {
+    root = path.dirname(root)
   }
-  if (isRootPath(current, process.platform)) {
+  if (original !== root) {
     return Promise.resolve(root)
+  } else {
+    return Promise.resolve(getPrefixFromTree(root))
+  }
+}
+
+function getPrefixFromTree (current) {
+  if (isRootPath(current, process.platform)) {
+    return false
   } else {
     return Promise.all([
       fileExists(path.join(current, 'package.json')),
@@ -30,8 +31,7 @@ function getPrefix (current, root) {
       if (hasPkg || hasModules) {
         return current
       } else {
-        const parent = path.dirname(current)
-        return getPrefix(parent, root)
+        return getPrefixFromTree(path.dirname(current))
       }
     })
   }
@@ -49,6 +49,6 @@ function fileExists (f) {
 module.exports._isRootPath = isRootPath
 function isRootPath (p, platform) {
   return platform === 'win32'
-  ? p.match(/^[a-z]+:[/\\]?$/i)
-  : p === '/'
+    ? p.match(/^[a-z]+:[/\\]?$/i)
+    : p === '/'
 }

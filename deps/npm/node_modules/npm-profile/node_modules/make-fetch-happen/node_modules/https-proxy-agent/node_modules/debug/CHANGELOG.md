@@ -1,4 +1,37 @@
 
+3.1.0 / 2017-09-26
+==================
+
+  * Add `DEBUG_HIDE_DATE` env var (#486)
+  * Remove ReDoS regexp in %o formatter (#504)
+  * Remove "component" from package.json
+  * Remove `component.json`
+  * Ignore package-lock.json
+  * Examples: fix colors printout
+  * Fix: browser detection
+  * Fix: spelling mistake (#496, @EdwardBetts)
+
+3.0.1 / 2017-08-24
+==================
+
+  * Fix: Disable colors in Edge and Internet Explorer (#489)
+
+3.0.0 / 2017-08-08
+==================
+
+  * Breaking: Remove DEBUG_FD (#406)
+  * Breaking: Use `Date#toISOString()` instead to `Date#toUTCString()` when output is not a TTY (#418)
+  * Breaking: Make millisecond timer namespace specific and allow 'always enabled' output (#408)
+  * Addition: document `enabled` flag (#465)
+  * Addition: add 256 colors mode (#481)
+  * Addition: `enabled()` updates existing debug instances, add `destroy()` function (#440)
+  * Update: component: update "ms" to v2.0.0
+  * Update: separate the Node and Browser tests in Travis-CI
+  * Update: refactor Readme, fixed documentation, added "Namespace Colors" section, redid screenshots
+  * Update: separate Node.js and web browser examples for organization
+  * Update: update "browserify" to v14.4.0
+  * Fix: fix Readme typo (#473)
+
 2.6.9 / 2017-09-22
 ==================
 
@@ -27,7 +60,7 @@
 2.6.4 / 2017-04-20
 ==================
 
-  * Fix: bug that would occure if process.env.DEBUG is a non-string value. (#444, @LucianBuzzo)
+  * Fix: bug that would occur if process.env.DEBUG is a non-string value. (#444, @LucianBuzzo)
   * Chore: ignore bower.json in npm installations. (#437, @joaovieira)
   * Misc: update "ms" to v0.7.3 (@tootallnate)
 

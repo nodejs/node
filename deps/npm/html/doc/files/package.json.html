@@ -16,11 +16,11 @@ file.  It must be actual JSON, not just a JavaScript object literal.</p>
 <p>A lot of the behavior described in this document is affected by the config
 settings described in <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.</p>
 <h2 id="name">name</h2>
-<p>The <em>most</em> important things in your package.json are the name and version fields.
-Those are actually required, and your package won&#39;t install without
-them.  The name and version together form an identifier that is assumed
-to be completely unique.  Changes to the package should come along with
-changes to the version.</p>
+<p>If you plan to publish your package, the <em>most</em> important things in your
+package.json are the name and version fields as they will be required. The name
+and version together form an identifier that is assumed to be completely unique.
+Changes to the package should come along with changes to the version. If you don&#39;t
+plan to publish your package, the name and version fields are optional.</p>
 <p>The name is what your thing is called.</p>
 <p>Some rules:</p>
 <ul>
@@ -45,11 +45,11 @@ already, before you get too attached to it. <a href="https://www.npmjs.com/">htt
 <p>A name can be optionally prefixed by a scope, e.g. <code>@myorg/mypackage</code>. See
 <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code> for more detail.</p>
 <h2 id="version">version</h2>
-<p>The <em>most</em> important things in your package.json are the name and version fields.
-Those are actually required, and your package won&#39;t install without
-them.  The name and version together form an identifier that is assumed
-to be completely unique.  Changes to the package should come along with
-changes to the version.</p>
+<p>If you plan to publish your package, the <em>most</em> important things in your
+package.json are the name and version fields as they will be required. The name
+and version together form an identifier that is assumed to be completely unique.
+Changes to the package should come along with changes to the version. If you don&#39;t
+plan to publish your package, the name and version fields are optional.</p>
 <p>Version must be parseable by
 <a href="https://github.com/isaacs/node-semver">node-semver</a>, which is bundled
 with npm as a dependency.  (<code>npm install semver</code> to use it yourself.)</p>
@@ -62,7 +62,9 @@ package, as it&#39;s listed in <code>npm search</code>.</p>
 discover your package as it&#39;s listed in <code>npm search</code>.</p>
 <h2 id="homepage">homepage</h2>
 <p>The url to the project homepage.</p>
-<h2 id="bugs">bugs</h2>
+<p>Example:</p>
+<pre><code>&quot;homepage&quot;: &quot;https://github.com/owner/project#readme&quot;
+</code></pre><h2 id="bugs">bugs</h2>
 <p>The url to your project&#39;s issue tracker and / or the email address to which
 issues should be reported. These are helpful for people who encounter issues
 with your package.</p>
@@ -129,13 +131,14 @@ is an object with a &quot;name&quot; field and optionally &quot;url&quot; and &q
 </code></pre><p>Both email and url are optional either way.</p>
 <p>npm also sets a top-level &quot;maintainers&quot; field with your npm user info.</p>
 <h2 id="files">files</h2>
-<p>The optional &quot;files&quot; field is an array of file patterns that describes
+<p>The optional <code>files</code> field is an array of file patterns that describes
 the entries to be included when your package is installed as a
-dependency. If the files array is omitted, everything except
-automatically-excluded files will be included in your publish. If you
-name a folder in the array, then it will also include the files inside
-that folder (unless they would be ignored by another rule in this
-section.).</p>
+dependency. File patterns follow a similar syntax to <code>.gitignore</code>, but
+reversed: including a file, directory, or glob pattern (<code>*</code>, <code>**/*</code>, and such)
+will make it so that file is included in the tarball when it&#39;s packed. Omitting
+the field will make it default to <code>[&quot;*&quot;]</code>, which means it will include all files.</p>
+<p>Some special files and directories are also included or excluded regardless of
+whether they exist in the <code>files</code> array (see below).</p>
 <p>You can also provide a <code>.npmignore</code> file in the root of your package or
 in subdirectories, which will keep files from being included. At the
 root of your package it will not override the &quot;files&quot; field, but in
@@ -179,6 +182,10 @@ That is, if your package is named <code>foo</code>, and a user installs it, and 
 <p>This should be a module ID relative to the root of your package folder.</p>
 <p>For most modules, it makes the most sense to have a main script and often not
 much else.</p>
+<h2 id="browser">browser</h2>
+<p>If your module is meant to be used client-side the browser field should be
+used instead of the main field. This is helpful to hint users that it might
+rely on primitives that aren&#39;t available in Node.js modules. (e.g. <code>window</code>)</p>
 <h2 id="bin">bin</h2>
 <p>A lot of packages have one or more executable files that they&#39;d like to
 install into the PATH. npm makes this pretty easy (in fact, it uses this
@@ -603,5 +610,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@5.6.0</p>
+<p id="footer">package.json &mdash; npm@5.8.0</p>
 

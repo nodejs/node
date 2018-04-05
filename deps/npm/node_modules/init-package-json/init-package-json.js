@@ -116,7 +116,7 @@ function init (dir, input, config, cb) {
           return write(true)
         }
         console.log('About to write to %s:\n\n%s\n', packageFile, d)
-        read({prompt:'Is this ok? ', default: 'yes'}, function (er, ok) {
+        read({prompt:'Is this OK? ', default: 'yes'}, function (er, ok) {
           if (er) {
             return cb(er)
           }

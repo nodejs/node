@@ -24,6 +24,8 @@ semver.clean(&#39;  =v1.2.3   &#39;) // &#39;1.2.3&#39;
 semver.satisfies(&#39;1.2.3&#39;, &#39;1.x || &gt;=2.5.0 || 5.0.0 - 7.2.3&#39;) // true
 semver.gt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // false
 semver.lt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // true
+semver.valid(semver.coerce(&#39;v2&#39;)) // &#39;2.0.0&#39;
+semver.valid(semver.coerce(&#39;42.6.7.9.3-alpha&#39;)) // &#39;42.6.7&#39;
 </code></pre>
 <p>As a command-line utility:</p>
 <pre><code>$ semver -h
@@ -52,6 +54,10 @@ Options:
 
 -l --loose
         Interpret versions and ranges loosely
+
+-c --coerce
+        Coerce a string into SemVer if possible
+        (does not imply --loose)
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions.
@@ -133,7 +139,7 @@ will append the value of the string as a prerelease identifier:</p>
 deterministic ways.</p>
 <p>Advanced ranges may be combined in the same way as primitive
 comparators using white space or <code>||</code>.</p>
-<h4 id="hyphen-ranges-x-y-z-a-b-c-">Hyphen Ranges <code>X.Y.Z - A.B.C</code></h4>
+<h4 id="hyphen-ranges-x-y-z-a-b-c">Hyphen Ranges <code>X.Y.Z - A.B.C</code></h4>
 <p>Specifies an inclusive set.</p>
 <ul>
 <li><code>1.2.3 - 2.3.4</code> := <code>&gt;=1.2.3 &lt;=2.3.4</code></li>
@@ -166,7 +172,7 @@ character is in fact optional.</p>
 <li><code>1</code> := <code>1.x.x</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li>
 <li><code>1.2</code> := <code>1.2.x</code> := <code>&gt;=1.2.0 &lt;1.3.0</code></li>
 </ul>
-<h4 id="tilde-ranges-1-2-3-1-2-1-">Tilde Ranges <code>~1.2.3</code> <code>~1.2</code> <code>~1</code></h4>
+<h4 id="tilde-ranges-1-2-3-1-2-1">Tilde Ranges <code>~1.2.3</code> <code>~1.2</code> <code>~1</code></h4>
 <p>Allows patch-level changes if a minor version is specified on the
 comparator.  Allows minor-level changes if not.</p>
 <ul>
@@ -182,7 +188,7 @@ equal to <code>beta.2</code>.  So, <code>1.2.3-beta.4</code> would be allowed, b
 <code>1.2.4-beta.2</code> would not, because it is a prerelease of a
 different <code>[major, minor, patch]</code> tuple.</li>
 </ul>
-<h4 id="caret-ranges-1-2-3-0-2-5-0-0-4-">Caret Ranges <code>^1.2.3</code> <code>^0.2.5</code> <code>^0.0.4</code></h4>
+<h4 id="caret-ranges-1-2-3-0-2-5-0-0-4">Caret Ranges <code>^1.2.3</code> <code>^0.2.5</code> <code>^0.0.4</code></h4>
 <p>Allows changes that do not modify the left-most non-zero digit in the
 <code>[major, minor, patch]</code> tuple.  In other words, this allows patch and
 minor updates for versions <code>1.0.0</code> and above, patch updates for
@@ -324,6 +330,21 @@ range (since <code>1.2.8</code> satisfies, which is lower), and it also does not
 satisfy the range.</p>
 <p>If you want to know if a version satisfies or does not satisfy a
 range, use the <code>satisfies(version, range)</code> function.</p>
+<h3 id="coercion">Coercion</h3>
+<ul>
+<li><code>coerce(version)</code>: Coerces a string to semver if possible</li>
+</ul>
+<p>This aims to provide a very forgiving translation of a non-semver
+string to semver. It looks for the first digit in a string, and
+consumes all remaining characters which satisfy at least a partial semver
+(e.g., <code>1</code>, <code>1.2</code>, <code>1.2.3</code>) up to the max permitted length (256 characters).
+Longer versions are simply truncated (<code>4.6.3.9.2-alpha2</code> becomes <code>4.6.3</code>).
+All surrounding text is simply ignored (<code>v3.4 replaces v3.3.1</code> becomes <code>3.4.0</code>).
+Only text which lacks digits will fail coercion (<code>version one</code> is not valid).
+The maximum  length for any semver component considered for coercion is 16 characters;
+longer components will be ignored (<code>10000000000000000.4.7.4</code> becomes <code>4.7.4</code>).
+The maximum value for any semver component is <code>Integer.MAX_SAFE_INTEGER || (2**53 - 1)</code>;
+higher value components are invalid (<code>9999999999999999.4.7.4</code> is likely invalid).</p>
 
 </div>
 
@@ -336,5 +357,5 @@ range, use the <code>satisfies(version, range)</code> function.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@5.6.0</p>
+<p id="footer">semver &mdash; npm@5.8.0</p>
 
