@@ -382,7 +382,8 @@ will depend on what is being tested if this is required or not.
 
 ### Test Coverage
 
-Details on generating test coverage report can be accessed in the [test coverage report][].
+Details on generating test coverage report can be accessed
+in the [test coverage report][].
 
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
