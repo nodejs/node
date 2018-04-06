@@ -1673,9 +1673,8 @@ console.log(aliceSecret === bobSecret);
 <!-- YAML
 added: REPLACEME
 -->
-
-Returns `true` if and only if a FIPS compliant crypto provider is
-currently in use.
+- Returns: {boolean} `true` if and only if a FIPS compliant crypto provider is
+  currently in use.
 
 ### crypto.getHashes()
 <!-- YAML
