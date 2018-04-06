@@ -284,7 +284,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
       self.severity = 'fail'
-      self.traceback = output.output.stdout + output.output.stderr
+      self.traceback = "exit code: " + output.output.exit_code + "\n" + output.output.stdout + output.output.stderr
 
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
         status_line = status_line + ' # TODO : Fix flaky test'
