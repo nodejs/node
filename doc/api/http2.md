@@ -321,6 +321,17 @@ added: REPLACEME
 Will be `true` if this `Http2Session` instance has been closed, otherwise
 `false`.
 
+#### http2session.connecting
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Will be `true` if this `Http2Session` instance is still connecting, will be set
+to `false` before emitting `connect` event and/or calling the `http2.connect`
+callback.
+
 #### http2session.destroy([error,][code])
 <!-- YAML
 added: v8.4.0
