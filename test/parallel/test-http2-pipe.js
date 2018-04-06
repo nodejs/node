@@ -33,6 +33,7 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
   const req = client.request({ ':method': 'POST' });
+
   req.on('response', common.mustCall());
   req.resume();
 
