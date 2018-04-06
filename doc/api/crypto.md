@@ -2233,7 +2233,7 @@ const ciphertext = cipher.update(plaintext, 'utf8');
 cipher.final();
 const tag = cipher.getAuthTag();
 
-// Now transmit { ciphertext, tag }.
+// Now transmit { ciphertext, nonce, tag }.
 
 const decipher = crypto.createDecipheriv('aes-192-ccm', key, nonce, {
   authTagLength: 16
