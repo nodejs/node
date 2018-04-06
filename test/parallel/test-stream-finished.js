@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { Writable, Readable, Transform, onEnd } = require('stream');
+const { Writable, Readable, Transform, finished } = require('stream');
 const assert = require('assert');
 const fs = require('fs');
 const { promisify } = require('util');
@@ -13,7 +13,7 @@ common.crashOnUnhandledRejection();
     read() {}
   });
 
-  onEnd(rs, common.mustCall((err) => {
+  finished(rs, common.mustCall((err) => {
     assert(!err, 'no error');
   }));
 
@@ -28,7 +28,7 @@ common.crashOnUnhandledRejection();
     }
   });
 
-  onEnd(ws, common.mustCall((err) => {
+  finished(ws, common.mustCall((err) => {
     assert(!err, 'no error');
   }));
 
@@ -42,7 +42,7 @@ common.crashOnUnhandledRejection();
     }
   });
 
-  let finished = false;
+  let finish = false;
   let ended = false;
 
   tr.on('end', () => {
@@ -50,12 +50,12 @@ common.crashOnUnhandledRejection();
   });
 
   tr.on('finish', () => {
-    finished = true;
+    finish = true;
   });
 
-  onEnd(tr, common.mustCall((err) => {
+  finished(tr, common.mustCall((err) => {
     assert(!err, 'no error');
-    assert(finished);
+    assert(finish);
     assert(ended);
   }));
 
@@ -67,7 +67,7 @@ common.crashOnUnhandledRejection();
   const rs = fs.createReadStream(__filename);
 
   rs.resume();
-  onEnd(rs, common.mustCall());
+  finished(rs, common.mustCall());
 }
 
 {
@@ -93,7 +93,7 @@ common.crashOnUnhandledRejection();
 {
   const rs = fs.createReadStream('file-does-not-exist');
 
-  onEnd(rs, common.mustCall((err) => {
+  finished(rs, common.mustCall((err) => {
     assert.strictEqual(err.code, 'ENOENT');
   }));
 }
@@ -101,7 +101,7 @@ common.crashOnUnhandledRejection();
 {
   const rs = new Readable();
 
-  onEnd(rs, common.mustCall((err) => {
+  finished(rs, common.mustCall((err) => {
     assert(!err, 'no error');
   }));
 
@@ -113,7 +113,7 @@ common.crashOnUnhandledRejection();
 {
   const rs = new Readable();
 
-  onEnd(rs, common.mustCall((err) => {
+  finished(rs, common.mustCall((err) => {
     assert(err, 'premature close error');
   }));
 
