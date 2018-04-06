@@ -34,8 +34,11 @@ server.listen(0, common.mustCall(() => {
   // unref destroyed client
   {
     const client = http2.connect(`http://localhost:${port}`);
-    client.destroy();
-    client.unref();
+
+    client.on('connect', common.mustCall(() => {
+      client.destroy();
+      client.unref();
+    }));
   }
 
   // unref destroyed client
@@ -43,8 +46,11 @@ server.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${port}`, {
       createConnection: common.mustCall(() => clientSide)
     });
-    client.destroy();
-    client.unref();
+
+    client.on('connect', common.mustCall(() => {
+      client.destroy();
+      client.unref();
+    }));
   }
 }));
 server.emit('connection', serverSide);
