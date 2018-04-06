@@ -1512,9 +1512,9 @@ tarball.
   - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
-* `majorVersion` {number} The major version of Node.js.
-* `minorVersion` {number} The minor version of Node.js.
-* `patchVersion` {number} The patch version of Node.js.
+* `majorVersion` {number} The major version of this release.
+* `minorVersion` {number} The minor version of this release.
+* `patchVersion` {number} The patch version of this release.
 * `prereleaseTag` {string} The SemVer pre-release tag for Node.js.
 
 <!-- eslint-skip -->
@@ -1545,14 +1545,13 @@ added: REPLACEME
 
 Perform a SemVer comparison to the release version.
 
-* `major` {number} The major version to compare or a string containing the
-  entire version.
-* `minor` {number} The minor version number to compare.
+* `major` {number} The major version to compare.
+* `minor` {number} The minor version to compare.
 * `patch` {number} The patch version to compare.
 * `tag` {string} The pre-release tag to compare.
-* Returns: {number} `1` if the given version is lower than the release version,
-  `0` if the given version matches the process version, and `-1` if the given
-  version is greater than the release version.
+* Returns: {number} `1` if the given version is lower than the current release
+  version, `0` if the given version matches the process version, and `-1`
+  if the given version is greater than the release version.
 
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML

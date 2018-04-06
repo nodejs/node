@@ -50,7 +50,7 @@ for (const args of [
   [0, 0, 0, 0],
 ]) {
   common.expectsError(() => {
-    compareVersion(args[0], args[1], args[2], args[3]);
+    compareVersion(...args);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
   });
