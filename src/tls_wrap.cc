@@ -29,6 +29,7 @@
 #include "node_counters.h"
 #include "node_internals.h"
 #include "stream_base-inl.h"
+#include "util-inl.h"
 
 namespace node {
 
