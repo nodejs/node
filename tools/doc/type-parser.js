@@ -40,6 +40,12 @@ const customTypesMap = {
 
   'cluster.Worker': 'cluster.html#cluster_class_worker',
 
+  'Cipher': 'crypto.html#crypto_class_cipher',
+  'Decipher': 'crypto.html#crypto_class_decipher',
+  'Hash': 'crypto.html#crypto_class_hash',
+  'Hmac': 'crypto.html#crypto_class_hmac',
+  'Sign': 'crypto.html#crypto_class_sign',
+  'Verify': 'crypto.html#crypto_class_verify',
   'crypto.constants': 'crypto.html#crypto_crypto_constants_1',
 
   'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',

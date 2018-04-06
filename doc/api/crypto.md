@@ -68,8 +68,8 @@ const cert2 = crypto.Certificate();
 added: v0.11.8
 -->
 - `spkac` {string | Buffer | TypedArray | DataView}
-- Returns {Buffer} The challenge component of the `spkac` data structure, which
-includes a public key and a challenge.
+- Returns: {Buffer} The challenge component of the `spkac` data structure, which
+  includes a public key and a challenge.
 
 ```js
 const cert = require('crypto').Certificate();
@@ -84,8 +84,8 @@ console.log(challenge.toString('utf8'));
 added: v0.11.8
 -->
 - `spkac` {string | Buffer | TypedArray | DataView}
-- Returns {Buffer} The public key component of the `spkac` data structure,
-which includes a public key and a challenge.
+- Returns: {Buffer} The public key component of the `spkac` data structure,
+  which includes a public key and a challenge.
 
 ```js
 const cert = require('crypto').Certificate();
@@ -100,8 +100,8 @@ console.log(publicKey);
 added: v0.11.8
 -->
 - `spkac` {Buffer | TypedArray | DataView}
-- Returns {boolean} `true` if the given `spkac` data structure is valid, `false`
-otherwise.
+- Returns: {boolean} `true` if the given `spkac` data structure is valid,
+  `false` otherwise.
 
 ```js
 const cert = require('crypto').Certificate();
@@ -178,10 +178,10 @@ console.log(encrypted);
 added: v0.1.94
 -->
 - `outputEncoding` {string}
-
-Returns any remaining enciphered contents. If `outputEncoding`
-parameter is one of `'latin1'`, `'base64'` or `'hex'`, a string is returned.
-If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
+- Returns: {Buffer | string} Any remaining enciphered contents.
+  If `outputEncoding` parameter is one of `'latin1'`, `'base64'` or `'hex'`,
+  a string is returned. If an `outputEncoding` is not provided, a [`Buffer`][]
+  is returned.
 
 Once the `cipher.final()` method has been called, the `Cipher` object can no
 longer be used to encrypt data. Attempts to call `cipher.final()` more than
@@ -204,10 +204,10 @@ The `cipher.setAAD()` method must be called before [`cipher.update()`][].
 <!-- YAML
 added: v1.0.0
 -->
-
-When using an authenticated encryption mode (only `GCM` is currently
-supported), the `cipher.getAuthTag()` method returns a [`Buffer`][] containing
-the _authentication tag_ that has been computed from the given data.
+- Returns: {Buffer} When using an authenticated encryption mode (only `GCM` is
+  currently supported), the `cipher.getAuthTag()` method returns a [`Buffer`][]
+  containing the _authentication tag_ that has been computed from the given
+  data.
 
 The `cipher.getAuthTag()` method should only be called after encryption has
 been completed using the [`cipher.final()`][] method.
@@ -217,7 +217,7 @@ been completed using the [`cipher.final()`][] method.
 added: v0.7.1
 -->
 - `autoPadding` {boolean} **Default:** `true`
-- Returns the {Cipher} for method chaining.
+- Returns: {Cipher} for method chaining.
 
 When using block encryption algorithms, the `Cipher` class will automatically
 add padding to the input data to the appropriate block size. To disable the
@@ -242,6 +242,7 @@ changes:
 - `data` {string | Buffer | TypedArray | DataView}
 - `inputEncoding` {string}
 - `outputEncoding` {string}
+- Returns: {Buffer | string}
 
 Updates the cipher with `data`. If the `inputEncoding` argument is given,
 its value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
@@ -331,10 +332,10 @@ console.log(decrypted);
 added: v0.1.94
 -->
 - `outputEncoding` {string}
-
-Returns any remaining deciphered contents. If `outputEncoding`
-parameter is one of `'latin1'`, `'ascii'` or `'utf8'`, a string is returned.
-If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
+- Returns: {Buffer | string} Any remaining deciphered contents.
+  If `outputEncoding` parameter is one of `'latin1'`, `'ascii'` or `'utf8'`,
+  a string is returned. If an `outputEncoding` is not provided, a [`Buffer`][]
+  is returned.
 
 Once the `decipher.final()` method has been called, the `Decipher` object can
 no longer be used to decrypt data. Attempts to call `decipher.final()` more
@@ -349,7 +350,7 @@ changes:
     description: This method now returns a reference to `decipher`.
 -->
 - `buffer` {Buffer | TypedArray | DataView}
-- Returns the {Cipher} for method chaining.
+- Returns: {Cipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` is currently
 supported), the `decipher.setAAD()` method sets the value used for the
@@ -366,7 +367,7 @@ changes:
     description: This method now returns a reference to `decipher`.
 -->
 - `buffer` {Buffer | TypedArray | DataView}
-- Returns the {Cipher} for method chaining.
+- Returns: {Cipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` is currently
 supported), the `decipher.setAuthTag()` method is used to pass in the
@@ -390,7 +391,7 @@ The `decipher.setAuthTag()` method must be called before
 added: v0.7.1
 -->
 - `autoPadding` {boolean} **Default:** `true`
-- Returns the {Cipher} for method chaining.
+- Returns: {Cipher} for method chaining.
 
 When data has been encrypted without standard block padding, calling
 `decipher.setAutoPadding(false)` will disable automatic padding to prevent
@@ -413,6 +414,7 @@ changes:
 - `data` {string | Buffer | TypedArray | DataView}
 - `inputEncoding` {string}
 - `outputEncoding` {string}
+- Returns: {Buffer | string}
 
 Updates the decipher with `data`. If the `inputEncoding` argument is given,
 its value must be one of `'latin1'`, `'base64'`, or `'hex'` and the `data`
@@ -467,6 +469,7 @@ added: v0.5.0
 - `otherPublicKey` {string | Buffer | TypedArray | DataView}
 - `inputEncoding` {string}
 - `outputEncoding` {string}
+- Returns: {Buffer | string}
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -484,6 +487,7 @@ If `outputEncoding` is given a string is returned; otherwise, a
 added: v0.5.0
 -->
 - `encoding` {string}
+- Returns: {Buffer | string}
 
 Generates private and public Diffie-Hellman key values, and returns
 the public key in the specified `encoding`. This key should be
@@ -496,6 +500,7 @@ or `'base64'`. If `encoding` is provided a string is returned; otherwise a
 added: v0.5.0
 -->
 - `encoding` {string}
+- Returns: {Buffer | string}
 
 Returns the Diffie-Hellman generator in the specified `encoding`, which can
 be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
@@ -506,6 +511,7 @@ returned; otherwise a [`Buffer`][] is returned.
 added: v0.5.0
 -->
 - `encoding` {string}
+- Returns: {Buffer | string}
 
 Returns the Diffie-Hellman prime in the specified `encoding`, which can
 be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
@@ -516,6 +522,7 @@ returned; otherwise a [`Buffer`][] is returned.
 added: v0.5.0
 -->
 - `encoding` {string}
+- Returns: {Buffer | string}
 
 Returns the Diffie-Hellman private key in the specified `encoding`,
 which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a
@@ -526,6 +533,7 @@ string is returned; otherwise a [`Buffer`][] is returned.
 added: v0.5.0
 -->
 - `encoding` {string}
+- Returns: {Buffer | string}
 
 Returns the Diffie-Hellman public key in the specified `encoding`, which
 can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided a
@@ -613,6 +621,7 @@ changes:
 - `otherPublicKey` {string | Buffer | TypedArray | DataView}
 - `inputEncoding` {string}
 - `outputEncoding` {string}
+- Returns: {Buffer | string}
 
 Computes the shared secret using `otherPublicKey` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -631,6 +640,7 @@ added: v0.11.14
 -->
 - `encoding` {string}
 - `format` {string} **Default:** `uncompressed`
+- Returns: {Buffer | string}
 
 Generates private and public EC Diffie-Hellman key values, and returns
 the public key in the specified `format` and `encoding`. This key should be
@@ -649,10 +659,9 @@ is returned.
 added: v0.11.14
 -->
 - `encoding` {string}
-
-Returns the EC Diffie-Hellman private key in the specified `encoding`,
-which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding` is provided
-a string is returned; otherwise a [`Buffer`][] is returned.
+- Returns: {Buffer | string} The EC Diffie-Hellman private key in the specified
+  `encoding`, which can be `'latin1'`, `'hex'`, or `'base64'`. If `encoding`
+  is provided a string is returned; otherwise a [`Buffer`][] is returned.
 
 ### ecdh.getPublicKey([encoding][, format])
 <!-- YAML
@@ -660,9 +669,8 @@ added: v0.11.14
 -->
 - `encoding` {string}
 - `format` {string} **Default:** `uncompressed`
-
-Returns the EC Diffie-Hellman public key in the specified `encoding` and
-`format`.
+- Returns: {Buffer | string} The EC Diffie-Hellman public key in the specified
+  `encoding` and `format`.
 
 The `format` argument specifies point encoding and can be `'compressed'` or
 `'uncompressed'`. If `format` is not specified the point will be returned in
@@ -798,6 +806,7 @@ console.log(hash.digest('hex'));
 added: v0.1.92
 -->
 - `encoding` {string}
+- Returns: {Buffer | string}
 
 Calculates the digest of all of the data passed to be hashed (using the
 [`hash.update()`][] method). The `encoding` can be `'hex'`, `'latin1'` or
@@ -889,6 +898,7 @@ console.log(hmac.digest('hex'));
 added: v0.1.94
 -->
 - `encoding` {string}
+- Returns: {Buffer | string}
 
 Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
 The `encoding` can be `'hex'`, `'latin1'` or `'base64'`. If `encoding` is
@@ -992,6 +1002,7 @@ changes:
   - `key` {string}
   - `passphrase` {string}
 - `outputFormat` {string}
+- Returns: {Buffer | string}
 
 Calculates the signature on all the data passed through using either
 [`sign.update()`][] or [`sign.write()`][stream-writable-write].
@@ -1115,6 +1126,8 @@ changes:
 - `object` {string | Object}
 - `signature` {string | Buffer | TypedArray | DataView}
 - `signatureFormat` {string}
+- Returns: {boolean} `true` or `false` depending on the validity of the
+  signature for the data and public key.
 
 Verifies the provided data using the given `object` and `signature`.
 The `object` argument can be either a string containing a PEM encoded object,
@@ -1140,9 +1153,6 @@ If a `signatureFormat` is specified, the `signature` is expected to be a
 string; otherwise `signature` is expected to be a [`Buffer`][],
 `TypedArray`, or `DataView`.
 
-Returns `true` or `false` depending on the validity of the signature for
-the data and public key.
-
 The `verify` object can not be used again after `verify.verify()` has been
 called. Multiple calls to `verify.verify()` will result in an error being
 thrown.
@@ -1153,10 +1163,9 @@ thrown.
 <!-- YAML
 added: v6.3.0
 -->
-
-Returns an object containing commonly used constants for crypto and security
-related operations. The specific constants currently defined are described in
-[Crypto Constants][].
+- Returns: {Object} An object containing commonly used constants for crypto and
+  security related operations. The specific constants currently defined are
+  described in [Crypto Constants][].
 
 ### crypto.DEFAULT_ENCODING
 <!-- YAML
@@ -1188,6 +1197,7 @@ added: v0.1.94
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]
+- Returns: {Cipher}
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`. Optional `options` argument controls stream behavior.
@@ -1229,6 +1239,7 @@ changes:
 - `key` {string | Buffer | TypedArray | DataView}
 - `iv` {string | Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]
+- Returns: {Cipher}
 
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
 initialization vector (`iv`). Optional `options` argument controls stream behavior.
@@ -1267,6 +1278,7 @@ added: v0.1.94
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]
+- Returns: {Decipher}
 
 Creates and returns a `Decipher` object that uses the given `algorithm` and
 `password` (key). Optional `options` argument controls stream behavior.
@@ -1296,6 +1308,7 @@ changes:
 - `key` {string | Buffer | TypedArray | DataView}
 - `iv` {string | Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]
+- Returns: {Decipher}
 
 Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`). Optional `options` argument controls stream
@@ -1376,6 +1389,7 @@ added: v0.1.92
 -->
 - `algorithm` {string}
 - `options` {Object} [`stream.transform` options][]
+- Returns: {Hash}
 
 Creates and returns a `Hash` object that can be used to generate hash digests
 using the given `algorithm`. Optional `options` argument controls stream
@@ -1413,6 +1427,7 @@ added: v0.1.94
 - `algorithm` {string}
 - `key` {string | Buffer | TypedArray | DataView}
 - `options` {Object} [`stream.transform` options][]
+- Returns: {Hmac}
 
 Creates and returns an `Hmac` object that uses the given `algorithm` and `key`.
 Optional `options` argument controls stream behavior.
@@ -1450,6 +1465,7 @@ added: v0.1.92
 -->
 - `algorithm` {string}
 - `options` {Object} [`stream.Writable` options][]
+- Returns: {Sign}
 
 Creates and returns a `Sign` object that uses the given `algorithm`.
 Use [`crypto.getHashes()`][] to obtain an array of names of the available
@@ -1462,6 +1478,7 @@ added: v0.1.92
 -->
 - `algorithm` {string}
 - `options` {Object} [`stream.Writable` options][]
+- Returns: {Verify}
 
 Creates and returns a `Verify` object that uses the given algorithm.
 Use [`crypto.getHashes()`][] to obtain an array of names of the available
@@ -1472,8 +1489,8 @@ signing algorithms. Optional `options` argument controls the
 <!-- YAML
 added: v0.9.3
 -->
-
-Returns an array with the names of the supported cipher algorithms.
+- Returns: {string[]} An array with the names of the supported cipher
+  algorithms.
 
 Example:
 
@@ -1486,8 +1503,7 @@ console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
 <!-- YAML
 added: v2.3.0
 -->
-
-Returns an array with the names of the supported elliptic curves.
+- Returns: {string[]} An array with the names of the supported elliptic curves.
 
 Example:
 
@@ -1501,6 +1517,7 @@ console.log(curves); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
 added: v0.7.5
 -->
 - `groupName` {string}
+- Returns: {Object}
 
 Creates a predefined `DiffieHellman` key exchange object. The
 supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
@@ -1534,9 +1551,8 @@ console.log(aliceSecret === bobSecret);
 <!-- YAML
 added: v0.9.3
 -->
-
-Returns an array of the names of the supported hash algorithms,
-such as `RSA-SHA256`.
+- Returns: {string[]} An array of the names of the supported hash algorithms,
+  such as `'RSA-SHA256'`.
 
 Example:
 
@@ -1622,6 +1638,7 @@ changes:
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
+- Returns: {Buffer}
 
 Provides a synchronous Password-Based Key Derivation Function 2 (PBKDF2)
 implementation. A selected HMAC digest algorithm specified by `digest` is
@@ -1737,6 +1754,7 @@ added: v0.5.8
 - `callback` {Function}
   - `err` {Error}
   - `buf` {Buffer}
+- Returns: {Buffer} if the `callback` function is not provided.
 
 Generates cryptographically strong pseudo-random data. The `size` argument
 is a number indicating the number of bytes to generate.
@@ -1789,10 +1807,9 @@ added: v7.10.0
 * `buffer` {Buffer|Uint8Array} Must be supplied.
 * `offset` {number} **Default:** `0`
 * `size` {number} **Default:** `buffer.length - offset`
+* Returns: {Buffer}
 
 Synchronous version of [`crypto.randomFill()`][].
-
-Returns `buffer`
 
 ```js
 const buf = Buffer.alloc(10);
@@ -1885,6 +1902,7 @@ added: v6.6.0
 -->
 - `a` {Buffer | TypedArray | DataView}
 - `b` {Buffer | TypedArray | DataView}
+- Returns: {boolean}
 
 This function is based on a constant-time algorithm.
 Returns true if `a` is equal to `b`, without leaking timing information that
