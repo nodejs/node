@@ -24,9 +24,12 @@
 #include "base_object-inl.h"
 #include "node_contextify.h"
 #include "node_context_data.h"
+#include "node_errors.h"
 
 namespace node {
 namespace contextify {
+
+using errors::NodeTryCatch;
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -58,7 +61,6 @@ using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
 using v8::Symbol;
-using v8::TryCatch;
 using v8::Uint32;
 using v8::Uint8Array;
 using v8::UnboundScript;
@@ -239,7 +241,7 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsBoolean());
   options.allow_code_gen_wasm = args[4].As<Boolean>();
 
-  TryCatch try_catch(env->isolate());
+  NodeTryCatch try_catch(env);
   ContextifyContext* context = new ContextifyContext(env, sandbox, options);
 
   if (try_catch.HasCaught()) {
@@ -811,7 +813,7 @@ class ContextifyScript : public BaseObject {
     if (source.GetCachedData() != nullptr)
       compile_options = ScriptCompiler::kConsumeCodeCache;
 
-    TryCatch try_catch(isolate);
+    NodeTryCatch try_catch(env);
     Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
     Context::Scope scope(parsing_context);
 
@@ -821,9 +823,8 @@ class ContextifyScript : public BaseObject {
         compile_options);
 
     if (v8_script.IsEmpty()) {
-      DecorateErrorStack(env, try_catch);
       no_abort_scope.Close();
-      try_catch.ReThrow();
+      try_catch.ReThrow(true);
       return;
     }
     contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
@@ -907,43 +908,6 @@ class ContextifyScript : public BaseObject {
                 args);
   }
 
-  static void DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
-    Local<Value> exception = try_catch.Exception();
-
-    if (!exception->IsObject())
-      return;
-
-    Local<Object> err_obj = exception.As<Object>();
-
-    if (IsExceptionDecorated(env, err_obj))
-      return;
-
-    AppendExceptionLine(env, exception, try_catch.Message(), CONTEXTIFY_ERROR);
-    Local<Value> stack = err_obj->Get(env->stack_string());
-    MaybeLocal<Value> maybe_value =
-        err_obj->GetPrivate(
-            env->context(),
-            env->arrow_message_private_symbol());
-
-    Local<Value> arrow;
-    if (!(maybe_value.ToLocal(&arrow) && arrow->IsString())) {
-      return;
-    }
-
-    if (stack.IsEmpty() || !stack->IsString()) {
-      return;
-    }
-
-    Local<String> decorated_stack = String::Concat(
-        String::Concat(arrow.As<String>(),
-          FIXED_ONE_BYTE_STRING(env->isolate(), "\n")),
-        stack.As<String>());
-    err_obj->Set(env->stack_string(), decorated_stack);
-    err_obj->SetPrivate(
-        env->context(),
-        env->decorated_private_symbol(),
-        True(env->isolate()));
-  }
 
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,
@@ -955,7 +919,7 @@ class ContextifyScript : public BaseObject {
           "Script methods can only be called on script instances.");
       return false;
     }
-    TryCatch try_catch(env->isolate());
+    NodeTryCatch try_catch(env);
     ContextifyScript* wrapped_script;
     ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
     Local<UnboundScript> unbound_script =
@@ -992,17 +956,12 @@ class ContextifyScript : public BaseObject {
     }
 
     if (try_catch.HasCaught()) {
-      if (!timed_out && !received_signal && display_errors) {
-        // We should decorate non-termination exceptions
-        DecorateErrorStack(env, try_catch);
-      }
-
       // If there was an exception thrown during script execution, re-throw it.
       // If one of the above checks threw, re-throw the exception instead of
       // letting try_catch catch it.
       // If execution has been terminated, but not by one of the watchdogs from
       // this invocation, this will re-throw a `null` value.
-      try_catch.ReThrow();
+      try_catch.ReThrow(true);
 
       return false;
     }

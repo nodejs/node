@@ -22,6 +22,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
+#include "node_errors.h"
 
 #include "v8.h"
 #include "v8-profiler.h"
@@ -46,6 +47,8 @@ using v8::RetainedObjectInfo;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
+
+using node::errors::NodeTryCatch;
 
 using AsyncHooks = node::Environment::AsyncHooks;
 
@@ -135,7 +138,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 static void DestroyAsyncIdsCallback(Environment* env, void* data) {
   Local<Function> fn = env->async_hooks_destroy_function();
 
-  FatalTryCatch try_catch(env);
+  NodeTryCatch try_catch(env, true);
 
   do {
     std::vector<double> destroy_async_id_list;
@@ -169,7 +172,7 @@ void Emit(Environment* env, double async_id, AsyncHooks::Fields type,
     return;
 
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
-  FatalTryCatch try_catch(env);
+  NodeTryCatch try_catch(env, true);
   USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
 }
 
@@ -691,7 +694,7 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
     object,
   };
 
-  FatalTryCatch try_catch(env);
+  NodeTryCatch try_catch(env, true);
   USE(init_fn->Call(env->context(), object, arraysize(argv), argv));
 }
 

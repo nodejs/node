@@ -3,6 +3,7 @@
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
+#include "node_errors.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -374,7 +375,7 @@ void Environment::RunAndClearNativeImmediates() {
     std::vector<NativeImmediateCallback> list;
     native_immediate_callbacks_.swap(list);
     auto drain_list = [&]() {
-      v8::TryCatch try_catch(isolate());
+      errors::NodeTryCatch try_catch(this);
       for (auto it = list.begin(); it != list.end(); ++it) {
 #ifdef DEBUG
         v8::SealHandleScope seal_handle_scope(isolate());

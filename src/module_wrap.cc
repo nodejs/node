@@ -9,9 +9,12 @@
 #include "node_internals.h"
 #include "node_contextify.h"
 #include "node_watchdog.h"
+#include "node_errors.h"
 
 namespace node {
 namespace loader {
+
+using errors::NodeTryCatch;
 
 using node::url::URL;
 using node::url::URL_FLAGS_FAILED;
@@ -36,7 +39,6 @@ using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
-using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -102,7 +104,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   Local<Object> that = args.This();
 
   Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-  TryCatch try_catch(isolate);
+  NodeTryCatch try_catch(env);
 
   Local<Value> options = args[2];
   MaybeLocal<Integer> line_offset = contextify::GetLineOffsetArg(env, options);
@@ -137,9 +139,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       CHECK(try_catch.HasCaught());
       CHECK(!try_catch.Message().IsEmpty());
       CHECK(!try_catch.Exception().IsEmpty());
-      AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
-                          ErrorHandlingMode::MODULE_ERROR);
-      try_catch.ReThrow();
+      try_catch.ReThrow(true);
       return;
     }
   }
@@ -219,7 +219,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
-  TryCatch try_catch(isolate);
+  NodeTryCatch try_catch(env);
   Maybe<bool> ok =
       module->InstantiateModule(context, ModuleWrap::ResolveCallback);
 
@@ -230,8 +230,6 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
     CHECK(try_catch.HasCaught());
     CHECK(!try_catch.Message().IsEmpty());
     CHECK(!try_catch.Exception().IsEmpty());
-    AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
-                        ErrorHandlingMode::MODULE_ERROR);
     try_catch.ReThrow();
     return;
   }
@@ -246,7 +244,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   Local<Module> module = obj->module_.Get(isolate);
 
   Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-  TryCatch try_catch(isolate);
+  NodeTryCatch try_catch(env);
   Maybe<int64_t> maybe_timeout =
     contextify::GetTimeoutArg(env, args[0]);
   Maybe<bool> maybe_break_on_sigint =
@@ -291,7 +289,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (try_catch.HasCaught()) {
-    try_catch.ReThrow();
+    try_catch.ReThrow(true);
     return;
   }
 
