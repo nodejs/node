@@ -313,7 +313,7 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* deprecation_code);
 
 template <typename NativeT, typename V8T>
-void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
+v8::Local<v8::Value> FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
                     const uv_stat_t* s, int offset = 0) {
   AliasedBuffer<NativeT, V8T>& fields = *fields_ptr;
   fields[offset + 0] = s->st_dev;
@@ -347,12 +347,14 @@ void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
   X(12, ctim)
   X(13, birthtim)
 #undef X
+
+  return fields_ptr->GetJSArray();
 }
 
-inline void FillGlobalStatsArray(Environment* env,
-                                 const uv_stat_t* s,
-                                 int offset = 0) {
-  node::FillStatsArray(env->fs_stats_field_array(), s, offset);
+inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
+                                                 const uv_stat_t* s,
+                                                 int offset = 0) {
+  return node::FillStatsArray(env->fs_stats_field_array(), s, offset);
 }
 
 void SetupProcessObject(Environment* env,
