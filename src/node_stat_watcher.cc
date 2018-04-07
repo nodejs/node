@@ -108,12 +108,12 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  node::FillGlobalStatsArray(env, curr);
+  Local<Value> arr = node::FillGlobalStatsArray(env, curr);
   node::FillGlobalStatsArray(env, prev, env->kFsStatsFieldsLength);
 
   Local<Value> argv[2] {
     Integer::New(env->isolate(), status),
-    env->fs_stats_field_array()->GetJSArray()
+    arr
   };
   wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
 }
