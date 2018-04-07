@@ -104,7 +104,7 @@ void PrintDebuggerReadyMessage(const std::string& host,
     fprintf(out, "Debugger listening on %s\n",
             FormatWsAddress(host, port, id, true).c_str());
   }
-  fprintf(out, "For help see %s\n",
+  fprintf(out, "For help, see: %s\n",
           "https://nodejs.org/en/docs/inspector");
   fflush(out);
 }
