@@ -104,9 +104,9 @@ a front-end connected to the Inspector WebSocket port.
 added: v8.0.0
 -->
 
-* method {string}
-* params {Object}
-* callback {Function}
+* `method` {string}
+* `params` {Object}
+* `callback` {Function}
 
 Posts a message to the inspector back-end. `callback` will be notified when
 a response is received. `callback` is a function that accepts two optional

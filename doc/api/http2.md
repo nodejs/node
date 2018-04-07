@@ -288,7 +288,7 @@ session.on('timeout', () => { /** .. **/ });
 added: v9.4.0
 -->
 
-* Value: {string|undefined}
+* {string|undefined}
 
 Value will be `undefined` if the `Http2Session` is not yet connected to a
 socket, `h2c` if the `Http2Session` is not connected to a `TLSSocket`, or
@@ -315,7 +315,7 @@ If specified, the `callback` function is registered as a handler for the
 added: v9.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Will be `true` if this `Http2Session` instance has been closed, otherwise
 `false`.
@@ -346,7 +346,7 @@ If there are any remaining open `Http2Streams` associated with the
 added: v8.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Will be `true` if this `Http2Session` instance has been destroyed and must no
 longer be used, otherwise `false`.
@@ -356,7 +356,7 @@ longer be used, otherwise `false`.
 added: v9.4.0
 -->
 
-* Value: {boolean|undefined}
+* {boolean|undefined}
 
 Value is `undefined` if the `Http2Session` session socket has not yet been
 connected, `true` if the `Http2Session` is connected with a `TLSSocket`,
@@ -381,7 +381,7 @@ Transmits a `GOAWAY` frame to the connected peer *without* shutting down the
 added: v8.4.0
 -->
 
-* Value: {HTTP/2 Settings Object}
+* {HTTP/2 Settings Object}
 
 A prototype-less object describing the current local settings of this
 `Http2Session`. The local settings are local to *this* `Http2Session` instance.
@@ -391,7 +391,7 @@ A prototype-less object describing the current local settings of this
 added: v9.4.0
 -->
 
-* Value: {string[]|undefined}
+* {string[]|undefined}
 
 If the `Http2Session` is connected to a `TLSSocket`, the `originSet` property
 will return an Array of origins for which the `Http2Session` may be
@@ -402,7 +402,7 @@ considered authoritative.
 added: v8.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Indicates whether or not the `Http2Session` is currently waiting for an
 acknowledgment for a sent SETTINGS frame. Will be `true` after calling the
@@ -460,7 +460,7 @@ instance's underlying [`net.Socket`].
 added: v8.4.0
 -->
 
-* Value: {HTTP/2 Settings Object}
+* {HTTP/2 Settings Object}
 
 A prototype-less object describing the current remote settings of this
 `Http2Session`. The remote settings are set by the *connected* HTTP/2 peer.
@@ -482,7 +482,7 @@ registered as a listener on the `'timeout'` event.
 added: v8.4.0
 -->
 
-* Value: {net.Socket|tls.TLSSocket}
+* {net.Socket|tls.TLSSocket}
 
 Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
 limits available methods to ones safe to use with HTTP/2.
@@ -503,7 +503,7 @@ added: v8.4.0
 Provides miscellaneous information about the current state of the
 `Http2Session`.
 
-* Value: {Object}
+* {Object}
   * `effectiveLocalWindowSize` {number} The current local (receive)
     flow control window size for the `Http2Session`.
   * `effectiveRecvDataLength` {number} The current number of bytes
@@ -548,7 +548,7 @@ multiple SETTINGS frames while acknowledgment is still pending.
 added: v8.4.0
 -->
 
-* Value: {number}
+* {number}
 
 The `http2session.type` will be equal to
 `http2.constants.NGHTTP2_SESSION_SERVER` if this `Http2Session` instance is a
@@ -868,7 +868,7 @@ stream.on('trailers', (headers, flags) => {
 added: v8.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Set to `true` if the `Http2Stream` instance was aborted abnormally. When set,
 the `'aborted'` event will have been emitted.
@@ -878,8 +878,8 @@ the `'aborted'` event will have been emitted.
 added: v8.4.0
 -->
 
-* code {number} Unsigned 32-bit integer identifying the error code. **Default:**
-  `http2.constants.NGHTTP2_NO_ERROR` (`0x00`).
+* `code` {number} Unsigned 32-bit integer identifying the error code.
+  **Default:** `http2.constants.NGHTTP2_NO_ERROR` (`0x00`).
 * `callback` {Function} An optional function registered to listen for the
   `'close'` event.
 
@@ -891,7 +891,7 @@ connected HTTP/2 peer.
 added: v9.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Set to `true` if the `Http2Stream` instance has been closed.
 
@@ -900,7 +900,7 @@ Set to `true` if the `Http2Stream` instance has been closed.
 added: v8.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Set to `true` if the `Http2Stream` instance has been destroyed and is no longer
 usable.
@@ -910,7 +910,7 @@ usable.
 added: v9.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Set to `true` if the `Http2Stream` instance has not yet been assigned a
 numeric stream identifier.
@@ -940,7 +940,7 @@ Updates the priority for this `Http2Stream` instance.
 added: v8.4.0
 -->
 
-* Value: {number}
+* {number}
 
 Set to the `RST_STREAM` [error code][] reported when the `Http2Stream` is
 destroyed after either receiving an `RST_STREAM` frame from the connected peer,
@@ -952,7 +952,7 @@ calling `http2stream.close()`, or `http2stream.destroy()`. Will be
 added: v9.5.0
 -->
 
-* Value: {HTTP/2 Headers Object}
+* {HTTP/2 Headers Object}
 
 An object containing the outbound headers sent for this `Http2Stream`.
 
@@ -961,7 +961,7 @@ An object containing the outbound headers sent for this `Http2Stream`.
 added: v9.5.0
 -->
 
-* Value: {HTTP/2 Headers Object[]}
+* {HTTP/2 Headers Object[]}
 
 An array of objects containing the outbound informational (additional) headers
 sent for this `Http2Stream`.
@@ -971,7 +971,7 @@ sent for this `Http2Stream`.
 added: v9.5.0
 -->
 
-* Value: {HTTP/2 Headers Object}
+* {HTTP/2 Headers Object}
 
 An object containing the outbound trailers sent for this this `HttpStream`.
 
@@ -980,7 +980,7 @@ An object containing the outbound trailers sent for this this `HttpStream`.
 added: v8.4.0
 -->
 
-* Value: {Http2Session}
+* {Http2Session}
 
 A reference to the `Http2Session` instance that owns this `Http2Stream`. The
 value will be `undefined` after the `Http2Stream` instance is destroyed.
@@ -1010,7 +1010,7 @@ added: v8.4.0
 Provides miscellaneous information about the current state of the
 `Http2Stream`.
 
-* Value: {Object}
+* {Object}
   * `localWindowSize` {number} The number of bytes the connected peer may send
     for this `Http2Stream` without receiving a `WINDOW_UPDATE`.
   * `state` {number} A flag indicating the low-level current state of the
@@ -1122,7 +1122,7 @@ Sends an additional informational `HEADERS` frame to the connected HTTP/2 peer.
 added: v8.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Boolean (read-only). True if headers were sent, false otherwise.
 
@@ -1131,7 +1131,7 @@ Boolean (read-only). True if headers were sent, false otherwise.
 added: v8.4.0
 -->
 
-* Value: {boolean}
+* {boolean}
 
 Read-only property mapped to the `SETTINGS_ENABLE_PUSH` flag of the remote
 client's most recent `SETTINGS` frame. Will be `true` if the remote peer

@@ -369,7 +369,7 @@ Emitted when the `fs.ReadStream`'s file descriptor has been opened.
 added: v6.4.0
 -->
 
-* Value: {number}
+* {number}
 
 The number of bytes that have been read so far.
 
@@ -378,7 +378,7 @@ The number of bytes that have been read so far.
 added: v0.1.93
 -->
 
-* Value: {string|Buffer}
+* {string|Buffer}
 
 The path to the file the stream is reading from as specified in the first
 argument to `fs.createReadStream()`. If `path` is passed as a string, then
@@ -489,61 +489,61 @@ This method is only valid when using [`fs.lstat()`][]
 
 ### stats.dev
 
-* Value: {number}
+* {number}
 
 The numeric identifier of the device containing the file.
 
 ### stats.ino
 
-* Value: {number}
+* {number}
 
 The file system specific "Inode" number for the file.
 
 ### stats.mode
 
-* Value: {number}
+* {number}
 
 A bit-field describing the file type and mode.
 
 ### stats.nlink
 
-* Value: {number}
+* {number}
 
 The number of hard-links that exist for the file.
 
 ### stats.uid
 
-* Value: {number}
+* {number}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 ### stats.gid
 
-* Value: {number}
+* {number}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 ### stats.rdev
 
-* Value: {number}
+* {number}
 
 A numeric device identifier if the file is considered "special".
 
 ### stats.size
 
-* Value: {number}
+* {number}
 
 The size of the file in bytes.
 
 ### stats.blksize
 
-* Value: {number}
+* {number}
 
 The file system block size for i/o operations.
 
 ### stats.blocks
 
-* Value: {number}
+* {number}
 
 The number of blocks allocated for this file.
 
@@ -552,7 +552,7 @@ The number of blocks allocated for this file.
 added: v8.1.0
 -->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
@@ -562,7 +562,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
@@ -572,7 +572,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
@@ -582,7 +582,7 @@ in milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
@@ -592,7 +592,7 @@ milliseconds since the POSIX Epoch.
 added: v0.11.13
 -->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the last time this file was accessed.
 
@@ -601,7 +601,7 @@ The timestamp indicating the last time this file was accessed.
 added: v0.11.13
 -->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the last time this file was modified.
 
@@ -610,7 +610,7 @@ The timestamp indicating the last time this file was modified.
 added: v0.11.13
 -->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the last time the file status was changed.
 
@@ -619,7 +619,7 @@ The timestamp indicating the last time the file status was changed.
 added: v0.11.13
 -->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the creation time of this file.
 
