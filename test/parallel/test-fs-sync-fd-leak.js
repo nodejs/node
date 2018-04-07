@@ -40,7 +40,7 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
-process.binding('fs').fstat = function(fd, _, ctx) {
+process.binding('fs').fstat = function(fd, bigint, _, ctx) {
   ctx.errno = uv.UV_EBADF;
   ctx.syscall = 'fstat';
 };

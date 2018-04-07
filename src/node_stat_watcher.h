@@ -39,7 +39,7 @@ class StatWatcher : public AsyncWrap {
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
  protected:
-  StatWatcher(Environment* env, v8::Local<v8::Object> wrap);
+  StatWatcher(Environment* env, v8::Local<v8::Object> wrap, bool use_bigint);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -57,6 +57,7 @@ class StatWatcher : public AsyncWrap {
   bool IsActive();
 
   uv_fs_poll_t* watcher_;
+  const bool use_bigint_;
 };
 
 }  // namespace node
