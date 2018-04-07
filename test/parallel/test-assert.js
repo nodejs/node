@@ -836,3 +836,32 @@ common.expectsError(
     }
   );
 }
+
+assert.throws(
+  () => a.throws(
+    // eslint-disable-next-line no-throw-literal
+    () => { throw 'foo'; },
+    'foo'
+  ),
+  {
+    code: 'ERR_AMBIGUOUS_ARGUMENT',
+    message: 'The "error/message" argument is ambiguous. ' +
+             'The error "foo" is identical to the message.'
+  }
+);
+
+assert.throws(
+  () => a.throws(
+    () => { throw new TypeError('foo'); },
+    'foo'
+  ),
+  {
+    code: 'ERR_AMBIGUOUS_ARGUMENT',
+    message: 'The "error/message" argument is ambiguous. ' +
+             'The error message "foo" is identical to the message.'
+  }
+);
+
+// Should not throw.
+// eslint-disable-next-line no-restricted-syntax, no-throw-literal
+assert.throws(() => { throw null; }, 'foo');
