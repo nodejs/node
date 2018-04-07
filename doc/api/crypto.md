@@ -1247,7 +1247,6 @@ changes:
 - Returns: {boolean} `true` or `false` depending on the validity of the
   signature for the data and public key.
 
-
 Verifies the provided data using the given `object` and `signature`.
 The `object` argument can be either a string containing a PEM encoded object,
 which can be an RSA public key, a DSA public key, or an X.509 certificate,
