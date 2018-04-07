@@ -352,9 +352,15 @@ v8::Local<v8::Value> FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
 }
 
 inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
-                                                 const uv_stat_t* s,
-                                                 int offset = 0) {
-  return node::FillStatsArray(env->fs_stats_field_array(), s, offset);
+                                          const uv_stat_t* s,
+                                          bool use_bigint = false,
+                                          int offset = 0) {
+  if (use_bigint) {
+    return node::FillStatsArray(
+        env->fs_stats_field_bigint_array(), s, offset);
+  } else {
+    return node::FillStatsArray(env->fs_stats_field_array(), s, offset);
+  }
 }
 
 void SetupBootstrapObject(Environment* env,
