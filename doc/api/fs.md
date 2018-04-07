@@ -3593,6 +3593,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.access()`]: #fs_fs_access_path_mode_callback
 [`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
+[`fs.copyFile()`]: #fs_fs_copyfile_src_dest_flags_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
