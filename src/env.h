@@ -694,6 +694,8 @@ class Environment {
   void set_debug_categories(const std::string& cats, bool enabled);
 
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
+  inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
+      fs_stats_field_bigint_array();
 
   // stat fields contains twice the number of entries because `fs.StatWatcher`
   // needs room to store data for *two* `fs.Stats` instances.
@@ -914,6 +916,7 @@ class Environment {
   bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
 
   AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
+  AliasedBuffer<uint64_t, v8::BigUint64Array> fs_stats_field_bigint_array_;
 
   std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
       file_handle_read_wrap_freelist_;
