@@ -511,7 +511,7 @@ console.log(util.inspect(o, { compact: false, breakLength: 80 }));
 
 Using the `showHidden` option allows to inspect [`WeakMap`][] and [`WeakSet`][]
 entries. If there are more entries than `maxArrayLength`, there is no guarantee
-which entries are displayed. That means retrieving the same ['WeakSet'][]
+which entries are displayed. That means retrieving the same [`WeakSet`][]
 entries twice might actually result in a different output. Besides this any item
 might be collected at any point of time by the garbage collector if there is no
 strong reference left to that object. Therefore there is no guarantee to get a
