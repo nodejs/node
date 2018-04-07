@@ -833,13 +833,38 @@ common.expectsError(
 
   // eslint-disable-next-line no-throw-literal
   assert.throws(() => { throw undefined; }, /undefined/);
-  common.expectsError(
+  assert.throws(
     // eslint-disable-next-line no-throw-literal
     () => a.doesNotThrow(() => { throw undefined; }),
     {
-      type: assert.AssertionError,
+      name: 'AssertionError [ERR_ASSERTION]',
       code: 'ERR_ASSERTION',
       message: 'Got unwanted exception.\nundefined'
     }
   );
 }
+
+assert.throws(
+  () => a.throws(
+    // eslint-disable-next-line no-throw-literal
+    () => { throw 'foo'; },
+    'foo'
+  ),
+  {
+    code: 'ERR_AMBIGUOUS_ARGUMENT',
+    message: 'The "error/message" argument is ambiguous. ' +
+             'The error "foo" is identical to the message.'
+  }
+);
+
+assert.throws(
+  () => a.throws(
+    () => { throw new TypeError('foo'); },
+    'foo'
+  ),
+  {
+    code: 'ERR_AMBIGUOUS_ARGUMENT',
+    message: 'The "error/message" argument is ambiguous. ' +
+             'The error message "foo" is identical to the message.'
+  }
+);
