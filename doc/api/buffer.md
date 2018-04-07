@@ -1240,10 +1240,10 @@ changes:
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
 * `byteOffset` {integer} Where to begin searching in `buf`. **Default:** `0`.
-* `encoding` {string} If `value` is a string, this is its encoding.
+* `encoding` {string} The encoding of `value` if `value` is a string.
   **Default:** `'utf8'`.
-* Returns: {integer} The index of the first occurrence of `value` in `buf` or `-1`
-  if `buf` does not contain `value`.
+* Returns: {integer} The index of the first occurrence of `value` in `buf` or
+  `-1` if `buf` does not contain `value`.
 
 If `value` is:
 
@@ -1282,9 +1282,9 @@ If `value` is not a string, number, or `Buffer`, this method will throw a
 `TypeError`. If `value` is a number, it will be coerced to a valid byte value,
 an integer between 0 and 255.
 
-If `byteOffset` is not a number, it will be coerced to a number. Any arguments
-that coerce to `NaN` or 0, like `{}`, `[]`, `null` or `undefined`, will search
-the whole buffer. This behavior matches [`String#indexOf()`].
+If `byteOffset` is not a number, it will be coerced to a number. If the result
+of coercion is `NaN` or `0`, then the entire buffer will be searched. This
+behavior matches [`String#indexOf()`].
 
 ```js
 const b = Buffer.from('abcdef');
