@@ -741,8 +741,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "error" argument must be one of type Function or RegExp. ' +
-             'Received type string'
+    message: 'The "error" argument must be one of type Object, Error, ' +
+             'Function, or RegExp. Received type string'
   }
 );
 
