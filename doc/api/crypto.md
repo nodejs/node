@@ -1377,6 +1377,13 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 [Buffers][`Buffer`], `TypedArray`, or `DataView`s. If the cipher does not need
 an initialization vector, `iv` may be `null`.
 
+Initialization vectors should be unpredictable and unique; ideally, they will be
+cryptographically random. They do not have to be secret: IVs are typically just
+added to ciphertext messages unencrypted. It may sound contradictory that
+something has to be unpredictable and unique, but does not have to be secret;
+it is important to remember that an attacker must not be able to predict ahead
+of time what a given IV will be.
+
 ### crypto.createCredentials(details)
 <!-- YAML
 added: v0.1.92
@@ -1457,6 +1464,13 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
 [Buffers][`Buffer`], `TypedArray`, or `DataView`s. If the cipher does not need
 an initialization vector, `iv` may be `null`.
+
+Initialization vectors should be unpredictable and unique; ideally, they will be
+cryptographically random. They do not have to be secret: IVs are typically just
+added to ciphertext messages unencrypted. It may sound contradictory that
+something has to be unpredictable and unique, but does not have to be secret;
+it is important to remember that an attacker must not be able to predict ahead
+of time what a given IV will be.
 
 ### crypto.createDiffieHellman(prime[, primeEncoding][, generator][, generatorEncoding])
 <!-- YAML
