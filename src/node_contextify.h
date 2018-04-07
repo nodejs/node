@@ -98,17 +98,6 @@ class ContextifyContext {
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
 };
 
-v8::Maybe<bool> GetBreakOnSigintArg(
-    Environment* env, v8::Local<v8::Value> options);
-v8::Maybe<int64_t> GetTimeoutArg(
-    Environment* env, v8::Local<v8::Value> options);
-v8::MaybeLocal<v8::Integer> GetLineOffsetArg(
-    Environment* env, v8::Local<v8::Value> options);
-v8::MaybeLocal<v8::Integer> GetColumnOffsetArg(
-    Environment* env, v8::Local<v8::Value> options);
-v8::MaybeLocal<v8::Context> GetContextArg(
-    Environment* env, v8::Local<v8::Value> options);
-
 }  // namespace contextify
 }  // namespace node
 
