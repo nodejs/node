@@ -18,7 +18,7 @@ namespace node {
 
 #define ERRORS_WITH_CODE(V)                                                  \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
-  V(ERR_STRING_TOO_LARGE, Error)                                             \
+  V(ERR_STRING_TOO_LONG, Error)                                             \
   V(ERR_BUFFER_TOO_LARGE, Error)
 
 #define V(code, type)                                                         \
@@ -58,12 +58,12 @@ inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate *isolate) {
   return ERR_BUFFER_TOO_LARGE(isolate, message);
 }
 
-inline v8::Local<v8::Value> ERR_STRING_TOO_LARGE(v8::Isolate *isolate) {
+inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate *isolate) {
   char message[128];
   snprintf(message, sizeof(message),
-      "Cannot create a string larger than 0x%x bytes",
+      "Cannot create a string longer than 0x%x characters",
       v8::String::kMaxLength);
-  return ERR_STRING_TOO_LARGE(isolate, message);
+  return ERR_STRING_TOO_LONG(isolate, message);
 }
 
 }  // namespace node

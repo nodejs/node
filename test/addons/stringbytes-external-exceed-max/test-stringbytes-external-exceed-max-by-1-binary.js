@@ -29,8 +29,9 @@ const stringLengthHex = kStringMaxLength.toString(16);
 common.expectsError(function() {
   buf.toString('latin1');
 }, {
-  message: `Cannot create a string larger than 0x${stringLengthHex} bytes`,
-  code: 'ERR_STRING_TOO_LARGE',
+  message: `Cannot create a string longer than 0x${stringLengthHex} ` +
+           'characters',
+  code: 'ERR_STRING_TOO_LONG',
   type: Error
 });
 

@@ -32,8 +32,9 @@ assert.throws(function() {
 }, function(e) {
   if (e.message !== 'Array buffer allocation failed') {
     common.expectsError({
-      message: `Cannot create a string larger than 0x${stringLengthHex} bytes`,
-      code: 'ERR_STRING_TOO_LARGE',
+      message: `Cannot create a string longer than 0x${stringLengthHex} ` +
+               'characters',
+      code: 'ERR_STRING_TOO_LONG',
       type: Error
     })(e);
     return true;
@@ -45,7 +46,8 @@ assert.throws(function() {
 common.expectsError(function() {
   buf.toString('utf8');
 }, {
-  message: `Cannot create a string larger than 0x${stringLengthHex} bytes`,
-  code: 'ERR_STRING_TOO_LARGE',
+  message: `Cannot create a string longer than 0x${stringLengthHex} ` +
+           'characters',
+  code: 'ERR_STRING_TOO_LONG',
   type: Error
 });

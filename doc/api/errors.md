@@ -1474,8 +1474,8 @@ additional details.
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
 
-<a id="ERR_STRING_TOO_LARGE"></a>
-### ERR_STRING_TOO_LARGE
+<a id="ERR_STRING_TOO_LONG"></a>
+### ERR_STRING_TOO_LONG
 
 An attempt has been made to create a string larger than the maximum allowed
 size.
