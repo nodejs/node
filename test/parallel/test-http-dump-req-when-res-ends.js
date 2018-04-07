@@ -1,25 +1,24 @@
 'use strict';
 
-const common = require('../common');
-const http = require('http');
-const assert = require('assert');
+const { mustCall } = require('../common');
+
 const fs = require('fs');
+const http = require('http');
+const { strictEqual } = require('assert');
 
-let resEnd = null;
-
-const server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(mustCall(function(req, res) {
+  strictEqual(req.socket.listenerCount('data'), 1);
+  req.socket.once('data', mustCall(function() {
+    // Ensure that a chunk of data is received before calling `res.end()`.
+    res.end('hello world');
+  }));
   // This checks if the request gets dumped
   // resume will be triggered by res.end().
-  req.on('resume', common.mustCall(function() {
+  req.on('resume', mustCall(function() {
     // There is no 'data' event handler anymore
     // it gets automatically removed when dumping the request.
-    assert.strictEqual(req.listenerCount('data'), 0);
-
-    req.on('data', common.mustCallAtLeast(function(d) {
-      // Leaving the console.log explicitly, so that
-      // we can know how many chunks we have received.
-      console.log('data', d);
-    }, 1));
+    strictEqual(req.listenerCount('data'), 0);
+    req.on('data', mustCall());
   }));
 
   // We explicitly pause the stream
@@ -30,15 +29,9 @@ const server = http.createServer(common.mustCall(function(req, res) {
 
   // Start sending the response.
   res.flushHeaders();
-
-  resEnd = function() {
-    setImmediate(function() {
-      res.end('hello world');
-    });
-  };
 }));
 
-server.listen(0, common.mustCall(function() {
+server.listen(0, mustCall(function() {
   const req = http.request({
     method: 'POST',
     port: server.address().port
@@ -48,13 +41,10 @@ server.listen(0, common.mustCall(function() {
   // for the body.
   req.flushHeaders();
 
-  req.on('response', common.mustCall(function(res) {
+  req.on('response', mustCall(function(res) {
     // Pipe the body as soon as we get the headers of the
     // response back.
-    const readFileStream = fs.createReadStream(__filename);
-    readFileStream.on('end', resEnd);
-
-    readFileStream.pipe(req);
+    fs.createReadStream(__filename).pipe(req);
 
     res.resume();
 
