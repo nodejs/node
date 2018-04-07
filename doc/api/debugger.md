@@ -14,7 +14,7 @@ prompt will be displayed indicating successful launch of the debugger:
 ```txt
 $ node inspect myscript.js
 < Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
-< For help see https://nodejs.org/en/docs/inspector
+< For help, see: https://nodejs.org/en/docs/inspector
 < Debugger attached.
 Break on start in myscript.js:1
 > 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
@@ -45,7 +45,7 @@ Once the debugger is run, a breakpoint will occur at line 3:
 ```txt
 $ node inspect myscript.js
 < Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
-< For help see https://nodejs.org/en/docs/inspector
+< For help, see: https://nodejs.org/en/docs/inspector
 < Debugger attached.
 Break on start in myscript.js:1
 > 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
@@ -127,7 +127,7 @@ is not loaded yet:
 ```txt
 $ node inspect main.js
 < Debugger listening on ws://127.0.0.1:9229/4e3db158-9791-4274-8909-914f7facf3bd
-< For help see https://nodejs.org/en/docs/inspector
+< For help, see: https://nodejs.org/en/docs/inspector
 < Debugger attached.
 Break on start in main.js:1
 > 1 (function (exports, require, module, __filename, __dirname) { const mod = require('./mod.js');
