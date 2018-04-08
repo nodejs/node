@@ -3445,62 +3445,79 @@ static void PrintHelp() {
          "       node inspect script.js [arguments]\n"
          "\n"
          "Options:\n"
-         "  -v, --version              print Node.js version\n"
-         "  -e, --eval script          evaluate script\n"
-         "  -p, --print                evaluate script and print result\n"
-         "  -c, --check                syntax check script without executing\n"
-         "  -i, --interactive          always enter the REPL even if stdin\n"
-         "                             does not appear to be a terminal\n"
-         "  -r, --require              module to preload (option can be "
-         "repeated)\n"
-         "  -                          script read from stdin (default; "
-         "interactive mode if a tty)\n"
+         "  -                          script read from stdin (default; \n"
+         "                             interactive mode if a tty)\n"
+         "  --                         indicate the end of node options\n"
+         "  --abort-on-uncaught-exception\n"
+         "                             aborting instead of exiting causes a\n"
+         "                             core file to be generated for analysis\n"
+#if HAVE_OPENSSL && NODE_FIPS_MODE
+         "  --enable-fips              enable FIPS crypto at startup\n"
+#endif  // NODE_FIPS_MODE && NODE_FIPS_MODE
+#if defined(NODE_HAVE_I18N_SUPPORT)
+         "  --experimental-modules     experimental ES Module support\n"
+         "                             and caching modules\n"
+         "  --experimental-vm-modules  experimental ES Module support\n"
+         "                             in vm module\n"
+#endif  // defined(NODE_HAVE_I18N_SUPPORT)
+#if HAVE_OPENSSL && NODE_FIPS_MODE
+         "  --force-fips               force FIPS crypto (cannot be disabled)\n"
+#endif  // HAVE_OPENSSL && NODE_FIPS_MODE
+#if defined(NODE_HAVE_I18N_SUPPORT)
+         "  --icu-data-dir=dir         set ICU data load path to dir\n"
+         "                             (overrides NODE_ICU_DATA)\n"
+#if !defined(NODE_HAVE_SMALL_ICU)
+         "                             note: linked-in ICU data is present\n"
+#endif
+#endif  // defined(NODE_HAVE_I18N_SUPPORT)
 #if HAVE_INSPECTOR
-         "  --inspect[=[host:]port]    activate inspector on host:port\n"
-         "                             (default: 127.0.0.1:9229)\n"
          "  --inspect-brk[=[host:]port]\n"
          "                             activate inspector on host:port\n"
          "                             and break at start of user script\n"
          "  --inspect-port=[host:]port\n"
          "                             set host:port for inspector\n"
-#endif
-         "  --no-deprecation           silence deprecation warnings\n"
-         "  --trace-deprecation        show stack traces on deprecations\n"
-         "  --throw-deprecation        throw an exception on deprecations\n"
-         "  --pending-deprecation      emit pending deprecation warnings\n"
-         "  --no-warnings              silence all process warnings\n"
+         "  --inspect[=[host:]port]    activate inspector on host:port\n"
+         "                             (default: 127.0.0.1:9229)\n"
+#endif  // HAVE_INSPECTOR
          "  --napi-modules             load N-API modules (no-op - option\n"
          "                             kept for compatibility)\n"
-         "  --abort-on-uncaught-exception\n"
-         "                             aborting instead of exiting causes a\n"
-         "                             core file to be generated for analysis\n"
-         "  --trace-warnings           show stack traces on process warnings\n"
+         "  --no-deprecation           silence deprecation warnings\n"
+         "  --no-force-async-hooks-checks\n"
+         "                             disable checks for async_hooks\n"
+         "  --no-warnings              silence all process warnings\n"
+#if HAVE_OPENSSL
+         "  --openssl-config=file      load OpenSSL configuration from the\n"
+         "                             specified file (overrides\n"
+         "                             OPENSSL_CONF)\n"
+#endif  // HAVE_OPENSSL
+         "  --pending-deprecation      emit pending deprecation warnings\n"
+#if defined(NODE_HAVE_I18N_SUPPORT)
+         "  --preserve-symlinks        preserve symbolic links when resolving\n"
+#endif
+         "  --prof-process             process v8 profiler output generated\n"
+         "                             using --prof\n"
          "  --redirect-warnings=file\n"
          "                             write warnings to file instead of\n"
          "                             stderr\n"
-         "  --trace-sync-io            show stack trace when use of sync IO\n"
-         "                             is detected after the first tick\n"
-         "  --no-force-async-hooks-checks\n"
-         "                             disable checks for async_hooks\n"
-         "  --trace-events-enabled     track trace events\n"
+         "  --throw-deprecation        throw an exception on deprecations\n"
+#if HAVE_OPENSSL
+         "  --tls-cipher-list=val      use an alternative default TLS cipher "
+         "list\n"
+#endif  // HAVE_OPENSSL
+         "  --trace-deprecation        show stack traces on deprecations\n"
          "  --trace-event-categories   comma separated list of trace event\n"
          "                             categories to record\n"
          "  --trace-event-file-pattern Template string specifying the\n"
          "                             filepath for the trace-events data, it\n"
          "                             supports ${rotation} and ${pid}\n"
          "                             log-rotation id. %%2$u is the pid.\n"
+         "  --trace-events-enabled     track trace events\n"
+         "  --trace-sync-io            show stack trace when use of sync IO\n"
+         "                             is detected after the first tick\n"
+         "  --trace-warnings           show stack traces on process warnings\n"
          "  --track-heap-objects       track heap object allocations for heap "
          "snapshots\n"
-         "  --prof-process             process v8 profiler output generated\n"
-         "                             using --prof\n"
-         "  --zero-fill-buffers        automatically zero-fill all newly "
-         "allocated\n"
-         "                             Buffer and SlowBuffer instances\n"
-         "  --v8-options               print v8 command line options\n"
-         "  --v8-pool-size=num         set v8's thread pool size\n"
 #if HAVE_OPENSSL
-         "  --tls-cipher-list=val      use an alternative default TLS cipher "
-         "list\n"
          "  --use-bundled-ca           use bundled CA store"
 #if !defined(NODE_OPENSSL_CERT_STORE)
          " (default)"
@@ -3510,27 +3527,23 @@ static void PrintHelp() {
 #if defined(NODE_OPENSSL_CERT_STORE)
          " (default)"
 #endif
+#endif  // HAVE_OPENSSL
          "\n"
-#if NODE_FIPS_MODE
-         "  --enable-fips              enable FIPS crypto at startup\n"
-         "  --force-fips               force FIPS crypto (cannot be disabled)\n"
-#endif  /* NODE_FIPS_MODE */
-         "  --openssl-config=file      load OpenSSL configuration from the\n"
-         "                             specified file (overrides\n"
-         "                             OPENSSL_CONF)\n"
-#endif /* HAVE_OPENSSL */
-#if defined(NODE_HAVE_I18N_SUPPORT)
-         "  --icu-data-dir=dir         set ICU data load path to dir\n"
-         "                             (overrides NODE_ICU_DATA)\n"
-#if !defined(NODE_HAVE_SMALL_ICU)
-         "                             note: linked-in ICU data is present\n"
-#endif
-         "  --preserve-symlinks        preserve symbolic links when resolving\n"
-         "  --experimental-modules     experimental ES Module support\n"
-         "                             and caching modules\n"
-         "  --experimental-vm-modules  experimental ES Module support\n"
-         "                             in vm module\n"
-#endif
+         "  --v8-options               print v8 command line options\n"
+         "  --v8-pool-size=num         set v8's thread pool size\n"
+         "  --zero-fill-buffers        automatically zero-fill all newly "
+         "allocated\n"
+         "                             Buffer and SlowBuffer instances\n"
+         "  -c, --check                syntax check script without executing\n"
+         "  -e, --eval script          evaluate script\n"
+         "  -h, --help                 print node command line options\n"
+         "  -i, --interactive          always enter the REPL even if stdin\n"
+         "                             does not appear to be a terminal\n"
+         "  -p, --print                evaluate script and print result\n"
+         "  -r, --require              module to preload (option can be "
+         "repeated)\n"
+         "  -v, --version              print Node.js version\n"
+
          "\n"
          "Environment variables:\n"
          "NODE_DEBUG                   ','-separated list of core modules\n"
@@ -3543,12 +3556,12 @@ static void PrintHelp() {
 #if !defined(NODE_HAVE_SMALL_ICU)
          "                             (will extend linked-in data)\n"
 #endif
-#endif
+#endif  // defined(NODE_HAVE_I18N_SUPPORT)
          "NODE_NO_WARNINGS             set to 1 to silence process warnings\n"
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
          "NODE_OPTIONS                 set CLI options in the environment\n"
          "                             via a space-separated list\n"
-#endif
+#endif  // !defined(NODE_WITHOUT_NODE_OPTIONS)
 #ifdef _WIN32
          "NODE_PATH                    ';'-separated list of directories\n"
 #else
@@ -3557,10 +3570,14 @@ static void PrintHelp() {
          "                             prefixed to the module search path\n"
          "NODE_PENDING_DEPRECATION     set to 1 to emit pending deprecation\n"
          "                             warnings\n"
-         "NODE_REPL_HISTORY            path to the persistent REPL history\n"
-         "                             file\n"
+#if defined(NODE_HAVE_I18N_SUPPORT)
+         "NODE_PRESERVE_SYMLINKS       set to 1 to preserve symbolic links\n"
+         "                             when resolving and caching modules\n"
+#endif
          "NODE_REDIRECT_WARNINGS       write warnings to path instead of\n"
          "                             stderr\n"
+         "NODE_REPL_HISTORY            path to the persistent REPL history\n"
+         "                             file\n"
          "OPENSSL_CONF                 load OpenSSL configuration from file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
@@ -3597,43 +3614,44 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
 
   static const char* whitelist[] = {
     // Node options, sorted in `node --help` order for ease of comparison.
-    "--require", "-r",
+    "--enable-fips",
+    "--experimental-modules",
+    "--experimental-vm-modules",
+    "--expose-http2",   // keep as a non-op through v9.x
+    "--force-fips",
+    "--icu-data-dir",
     "--inspect",
     "--inspect-brk",
     "--inspect-port",
-    "--no-deprecation",
-    "--trace-deprecation",
-    "--throw-deprecation",
-    "--pending-deprecation",
-    "--no-warnings",
-    "--napi-modules",
-    "--expose-http2",   // keep as a non-op through v9.x
-    "--experimental-modules",
-    "--experimental-vm-modules",
     "--loader",
-    "--trace-warnings",
-    "--redirect-warnings",
-    "--trace-sync-io",
+    "--napi-modules",
+    "--no-deprecation",
     "--no-force-async-hooks-checks",
-    "--trace-events-enabled",
+    "--no-warnings",
+    "--openssl-config",
+    "--pending-deprecation",
+    "--redirect-warnings",
+    "--require",
+    "--throw-deprecation",
+    "--tls-cipher-list",
+    "--trace-deprecation",
     "--trace-event-categories",
     "--trace-event-file-pattern",
+    "--trace-events-enabled",
+    "--trace-sync-io",
+    "--trace-warnings",
     "--track-heap-objects",
-    "--zero-fill-buffers",
-    "--v8-pool-size",
-    "--tls-cipher-list",
     "--use-bundled-ca",
     "--use-openssl-ca",
-    "--enable-fips",
-    "--force-fips",
-    "--openssl-config",
-    "--icu-data-dir",
+    "--v8-pool-size",
+    "--zero-fill-buffers",
+    "-r",
 
     // V8 options (define with '_', which allows '-' or '_')
-    "--perf_prof",
-    "--perf_basic_prof",
     "--abort_on_uncaught_exception",
     "--max_old_space_size",
+    "--perf_basic_prof",
+    "--perf_prof",
     "--stack_trace_limit",
   };
 
