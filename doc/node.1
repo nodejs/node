@@ -61,46 +61,41 @@ without arguments to start a REPL.
 .
 .Sh OPTIONS
 .Bl -tag -width 6n
-.It Fl v , Fl -version
-Print node's version.
+.It Sy \-
+Alias for stdin, analogous to the use of - in other command-line utilities.
+The executed script is read from stdin, and remaining arguments are passed to the script.
 .
-.It Fl h , Fl -help
-Print node command line options.
-The output of this option is less detailed than this document.
-.
-.It Fl e , Fl -eval Ar string
-Evaluate
-.Ar string
-as JavaScript.
-.
-.It Fl p , Fl -print Ar string
-Identical to
-.Fl e ,
-but prints the result.
-.
-.It Fl c , Fl -check
-Check the script's syntax without executing it.
-Exits with an error code if script is invalid.
-.
-.It Fl i , Fl -interactive
-Open the REPL even if stdin does not appear to be a terminal.
-.
-.It Fl r , Fl -require Ar module
-Preload the specified
-.Ar module
-at startup.
-Follows `require()`'s module resolution rules.
-.Ar module
-may be either a path to a file, or a node module name.
-.
-.It Fl -inspect Ns = Ns Ar [host:]port
-Activate inspector on
-.Ar host:port .
-Default is
-.Sy 127.0.0.1:9229 .
+.It Fl \-
+Indicate the end of node options.
+Pass the rest of the arguments to the script.
 .Pp
-V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js instances for debugging and profiling.
-It uses the Chrome Debugging Protocol.
+If no script filename or eval/print script is supplied prior to this, then
+the next argument will be used as a script filename.
+.
+.It Fl -abort-on-uncaught-exception
+Aborting instead of exiting causes a core file to be generated for analysis.
+.
+.It Fl -enable-fips
+Enable FIPS-compliant crypto at startup.
+Requires Node.js to be built with
+.Sy ./configure --openssl-fips .
+.
+.It Fl \-experimental-modules
+Enable experimental ES module support and caching modules.
+.
+.It Fl \-experimental-vm-modules
+Enable experimental ES module support in VM module.
+.
+.It Fl -force-fips
+Force FIPS-compliant crypto on startup
+(Cannot be disabled from script code).
+Same requirements as
+.Fl -enable-fips .
+.
+.It Fl -icu-data-dir Ns = Ns Ar file
+Specify ICU data load path.
+Overrides
+.Ev NODE_ICU_DATA .
 .
 .It Fl -inspect-brk Ns = Ns Ar [host:]port
 Activate inspector on
@@ -112,45 +107,58 @@ Set the
 .Ar host:port
 to be used when the inspector is activated.
 .
-.It Fl -no-deprecation
-Silence deprecation warnings.
-.
-.It Fl -trace-deprecation
-Print stack traces for deprecations.
-.
-.It Fl -throw-deprecation
-Throw errors for deprecations.
-.
-.It Fl -pending-deprecation
-Emit pending deprecation warnings.
-.
-.It Fl -no-warnings
-Silence all process warnings (including deprecations).
+.It Fl -inspect Ns = Ns Ar [host:]port
+Activate inspector on
+.Ar host:port .
+Default is
+.Sy 127.0.0.1:9229 .
+.Pp
+V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js instances for debugging and profiling.
+It uses the Chrome Debugging Protocol.
 .
 .It Fl -napi-modules
 Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
 (experimental).
 .
-.It Fl -abort-on-uncaught-exception
-Aborting instead of exiting causes a core file to be generated for analysis.
+.It Fl -no-deprecation
+Silence deprecation warnings.
 .
-.It Fl -trace-warnings
-Print stack traces for process warnings (including deprecations).
+.It Fl -no-force-async-hooks-checks
+Disable runtime checks for `async_hooks`.
+These will still be enabled dynamically when `async_hooks` is enabled.
+.
+.It Fl -no-warnings
+Silence all process warnings (including deprecations).
+.
+.It Fl -openssl-config Ns = Ns Ar file
+Load an OpenSSL configuration file on startup.
+Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is built with
+.Sy ./configure --openssl-fips .
+.
+.It Fl -pending-deprecation
+Emit pending deprecation warnings.
+.
+.It Fl -preserve-symlinks
+Instructs the module loader to preserve symbolic links when resolving and caching modules.
+.
+.It Fl -prof-process
+Process V8 profiler output generated using the V8 option
+.Fl -prof .
 .
 .It Fl -redirect-warnings Ns = Ns Ar file
 Write process warnings to the given
 .Ar file
 instead of printing to stderr.
 .
-.It Fl -trace-sync-io
-Print a stack trace whenever synchronous I/O is detected after the first turn of the event loop.
+.It Fl -throw-deprecation
+Throw errors for deprecations.
 .
-.It Fl -no-force-async-hooks-checks
-Disable runtime checks for `async_hooks`.
-These will still be enabled dynamically when `async_hooks` is enabled.
+.It Fl -tls-cipher-list Ns = Ns Ar list
+Specify an alternative default TLS cipher list.
+Requires Node.js to be built with crypto support. (Default)
 .
-.It Fl -trace-events-enabled
-Enable the collection of trace event tracing information.
+.It Fl -trace-deprecation
+Print stack traces for deprecations.
 .
 .It Fl -trace-event-categories Ar categories
 A comma-separated list of categories that should be traced when trace event tracing is enabled using
@@ -160,18 +168,33 @@ A comma-separated list of categories that should be traced when trace event trac
 Template string specifying the filepath for the trace event data, it
 supports \fB${rotation}\fR and \fB${pid}\fR.
 .
-.It Fl -zero-fill-buffers
-Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
+.It Fl -trace-events-enabled
+Enable the collection of trace event tracing information.
 .
-.It Fl -preserve-symlinks
-Instructs the module loader to preserve symbolic links when resolving and caching modules.
+.It Fl -trace-sync-io
+Print a stack trace whenever synchronous I/O is detected after the first turn of the event loop.
+.
+.It Fl -trace-warnings
+Print stack traces for process warnings (including deprecations).
 .
 .It Fl -track-heap-objects
 Track heap object allocations for heap snapshots.
 .
-.It Fl -prof-process
-Process V8 profiler output generated using the V8 option
-.Fl -prof .
+.It Fl -use-bundled\-ca, Fl -use-openssl-ca
+Use bundled Mozilla CA store as supplied by current Node.js version or use OpenSSL's default CA store.
+The default store is selectable at build-time.
+.Pp
+The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store that is fixed at release time.
+It is identical on all supported platforms.
+.Pp
+Using OpenSSL store allows for external modifications of the store.
+For most Linux and BSD distributions, this store is maintained by the distribution maintainers and system administrators.
+OpenSSL CA store location is dependent on configuration of the OpenSSL library but this can be altered at runtime using environment variables.
+.Pp
+See
+.Ev SSL_CERT_DIR
+and
+.Ev SSL_CERT_FILE .
 .
 .It Fl -v8-options
 Print V8 command-line options.
@@ -188,63 +211,40 @@ Set V8's thread pool size which will be used to allocate background jobs.
 If set to 0 then V8 will choose an appropriate size of the thread pool based on the number of online processors.
 If the value provided is larger than V8's maximum, then the largest value will be chosen.
 .
-.It Fl -tls-cipher-list Ns = Ns Ar list
-Specify an alternative default TLS cipher list.
-Requires Node.js to be built with crypto support. (Default)
+.It Fl -zero-fill-buffers
+Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
 .
-.It Fl -enable-fips
-Enable FIPS-compliant crypto at startup.
-Requires Node.js to be built with
-.Sy ./configure --openssl-fips .
+.It Fl c , Fl -check
+Check the script's syntax without executing it.
+Exits with an error code if script is invalid.
 .
-.It Fl -force-fips
-Force FIPS-compliant crypto on startup
-(Cannot be disabled from script code).
-Same requirements as
-.Fl -enable-fips .
+.It Fl e , Fl -eval Ar string
+Evaluate
+.Ar string
+as JavaScript.
 .
-.It Fl -openssl-config Ns = Ns Ar file
-Load an OpenSSL configuration file on startup.
-Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is built with
-.Sy ./configure --openssl-fips .
+.It Fl h , Fl -help
+Print node command line options.
+The output of this option is less detailed than this document.
 .
-.It Fl -use-openssl-ca , Fl -use-bundled\-ca
-Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by current Node.js version.
-The default store is selectable at build-time.
-.Pp
-Using OpenSSL store allows for external modifications of the store.
-For most Linux and BSD distributions, this store is maintained by the distribution maintainers and system administrators.
-OpenSSL CA store location is dependent on configuration of the OpenSSL library but this can be altered at runtime using environment variables.
-.Pp
-The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store that is fixed at release time.
-It is identical on all supported platforms.
-.Pp
-See
-.Ev SSL_CERT_DIR
-and
-.Ev SSL_CERT_FILE .
+.It Fl i , Fl -interactive
+Open the REPL even if stdin does not appear to be a terminal.
 .
-.It Fl -icu-data-dir Ns = Ns Ar file
-Specify ICU data load path.
-Overrides
-.Ev NODE_ICU_DATA .
+.It Fl p , Fl -print Ar string
+Identical to
+.Fl e ,
+but prints the result.
 .
-.It Fl \-experimental-modules
-Enable experimental ES module support and caching modules.
+.It Fl r , Fl -require Ar module
+Preload the specified
+.Ar module
+at startup.
+Follows `require()`'s module resolution rules.
+.Ar module
+may be either a path to a file, or a node module name.
 .
-.It Fl \-experimental-vm-modules
-Enable experimental ES module support in VM module.
-.
-.It Sy \-
-Alias for stdin, analogous to the use of - in other command-line utilities.
-The executed script is read from stdin, and remaining arguments are passed to the script.
-.
-.It Fl \-
-Indicate the end of node options.
-Pass the rest of the arguments to the script.
-.Pp
-If no script filename or eval/print script is supplied prior to this, then
-the next argument will be used as a script filename.
+.It Fl v , Fl -version
+Print node's version.
 .El
 .
 .\" =====================================================================
@@ -298,6 +298,13 @@ When set to
 .Ar 1 ,
 emit pending deprecation warnings.
 .
+.It Ev NODE_REDIRECT_WARNINGS Ar file
+Write process warnings to the given
+.Ar file
+instead of printing to stderr.
+Equivalent to passing
+.Fl -redirect-warnings Ar file
+on command-line.
 .It Ev NODE_REPL_HISTORY Ar file
 Path to the
 .Ar file
@@ -325,14 +332,6 @@ is enabled, this overrides and sets OpenSSL's directory containing trusted certi
 If
 .Fl -use-openssl-ca
 is enabled, this overrides and sets OpenSSL's file containing trusted certificates.
-.
-.It Ev NODE_REDIRECT_WARNINGS Ar file
-Write process warnings to the given
-.Ar file
-instead of printing to stderr.
-Equivalent to passing
-.Fl -redirect-warnings Ar file
-on command-line.
 .El
 .
 .\"=====================================================================
