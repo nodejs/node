@@ -378,23 +378,24 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: REPLACEME
 -->
-* `block` {Function}
+* `block` {Function|Promise}
 * `error` {RegExp|Function}
 * `message` {any}
 
-Awaits for the promise returned by function `block` to complete and not be
-rejected.
+Awaits the `block` promise or, if `block` is a function, immediately calls the
+function and awaits the returned promise to complete. It will then check that
+the promise is not rejected.
+
+If `block` is a function and it throws an error synchronously,
+`assert.doesNotReject()` will return a rejected Promise with that error without
+checking the error handler.
 
 Please note: Using `assert.doesNotReject()` is actually not useful because there
 is little benefit by catching a rejection and then rejecting it again. Instead,
 consider adding a comment next to the specific code path that should not reject
 and keep error messages as expressive as possible.
 
-When `assert.doesNotReject()` is called, it will immediately call the `block`
-function, and awaits for completion. See [`assert.rejects()`][] for more
-details.
-
-Besides the async nature to await the completion behaves identical to
+Besides the async nature to await the completion behaves identically to
 [`assert.doesNotThrow()`][].
 
 ```js
@@ -409,12 +410,10 @@ Besides the async nature to await the completion behaves identical to
 ```
 
 ```js
-assert.doesNotReject(
-  () => Promise.reject(new TypeError('Wrong value')),
-  SyntaxError
-).then(() => {
-  // ...
-});
+assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
+  .then(() => {
+    // ...
+  });
 ```
 
 ## assert.doesNotThrow(block[, error][, message])
@@ -870,14 +869,17 @@ instead of the `AssertionError`.
 <!-- YAML
 added: REPLACEME
 -->
-* `block` {Function}
+* `block` {Function|Promise}
 * `error` {RegExp|Function|Object}
 * `message` {any}
 
-Awaits for promise returned by function `block` to be rejected.
+Awaits the `block` promise or, if `block` is a function, immediately calls the
+function and awaits the returned promise to complete. It will then check that
+the promise is rejected.
 
-When `assert.rejects()` is called, it will immediately call the `block`
-function, and awaits for completion.
+If `block` is a function and it throws an error synchronously,
+`assert.rejects()` will return a rejected Promise with that error without
+checking the error handler.
 
 Besides the async nature to await the completion behaves identical to
 [`assert.throws()`][].
@@ -892,21 +894,30 @@ the block fails to reject.
 (async () => {
   await assert.rejects(
     async () => {
-      throw new Error('Wrong value');
+      throw new TypeError('Wrong value');
     },
-    Error
+    {
+      name: 'TypeError',
+      message: 'Wrong value'
+    }
   );
 })();
 ```
 
 ```js
 assert.rejects(
-  () => Promise.reject(new Error('Wrong value')),
+  Promise.reject(new Error('Wrong value')),
   Error
 ).then(() => {
   // ...
 });
 ```
+
+Note that `error` cannot be a string. If a string is provided as the second
+argument, then `error` is assumed to be omitted and the string will be used for
+`message` instead. This can lead to easy-to-miss mistakes. Please read the
+example in [`assert.throws()`][] carefully if using a string as the second
+argument gets considered.
 
 ## assert.throws(block[, error][, message])
 <!-- YAML
@@ -989,7 +1000,7 @@ assert.throws(
 );
 ```
 
-Note that `error` can not be a string. If a string is provided as the second
+Note that `error` cannot be a string. If a string is provided as the second
 argument, then `error` is assumed to be omitted and the string will be used for
 `message` instead. This can lead to easy-to-miss mistakes. Please read the
 example below carefully if using a string as the second argument gets
