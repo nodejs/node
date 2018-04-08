@@ -2532,7 +2532,7 @@ authentication details.
 added: v8.4.0
 -->
 
-* {http2.Http2Stream}
+* {Http2Stream}
 
 The [`Http2Stream`][] object backing the request.
 
@@ -2948,7 +2948,7 @@ an empty string.
 added: v8.4.0
 -->
 
-* {http2.Http2Stream}
+* {Http2Stream}
 
 The [`Http2Stream`][] object backing the response.
 

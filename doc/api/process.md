@@ -89,8 +89,8 @@ the child process.
 
 The listener callback is invoked with the following arguments:
 * `message` {Object} a parsed JSON object or primitive value.
-* `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
-  undefined.
+* `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
+  object, or undefined.
 
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
@@ -1531,7 +1531,7 @@ added: v0.5.9
 -->
 
 * `message` {Object}
-* `sendHandle` {Handle object}
+* `sendHandle` {net.Server|net.Socket}
 * `options` {Object}
 * `callback` {Function}
 * Returns: {boolean}

@@ -2,15 +2,15 @@
 
 const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
 
-const jsPrimitiveUrl = `${jsDocPrefix}Data_structures`;
+const jsDataStructuresUrl = `${jsDocPrefix}Data_structures`;
 const jsPrimitives = {
-  'boolean': 'Boolean',
-  'integer': 'Number', // Not a primitive, used for clarification.
-  'null': 'Null',
-  'number': 'Number',
-  'string': 'String',
-  'symbol': 'Symbol',
-  'undefined': 'Undefined'
+  boolean: 'Boolean',
+  integer: 'Number', // Not a primitive, used for clarification.
+  null: 'Null',
+  number: 'Number',
+  string: 'String',
+  symbol: 'Symbol',
+  undefined: 'Undefined'
 };
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
@@ -25,12 +25,14 @@ const jsGlobalTypes = [
 ];
 
 const customTypesMap = {
+  'any': `${jsDataStructuresUrl}#Data_types`,
+
+  'this': `${jsDocPrefix}Reference/Operators/this`,
+
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
   'Iterator':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterator_protocol`,
-
-  'this': `${jsDocPrefix}Reference/Operators/this`,
 
   'AsyncHook': 'async_hooks.html#async_hooks_async_hooks_createhook_callbacks',
 
@@ -63,12 +65,14 @@ const customTypesMap = {
   'http.Server': 'http.html#http_class_http_server',
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
 
+  'ClientHttp2Session': 'http2.html#http2_class_clienthttp2session',
   'ClientHttp2Stream': 'http2.html#http2_class_clienthttp2stream',
   'HTTP/2 Headers Object': 'http2.html#http2_headers_object',
   'HTTP/2 Settings Object': 'http2.html#http2_settings_object',
   'http2.Http2ServerRequest': 'http2.html#http2_class_http2_http2serverrequest',
   'http2.Http2ServerResponse':
     'http2.html#http2_class_http2_http2serverresponse',
+  'Http2SecureServer': 'http2.html#http2_class_http2secureserver',
   'Http2Server': 'http2.html#http2_class_http2server',
   'Http2Session': 'http2.html#http2_class_http2session',
   'Http2Stream': 'http2.html#http2_class_http2stream',
@@ -83,6 +87,8 @@ const customTypesMap = {
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 
   'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
+  'PerformanceNodeTiming':
+    'perf_hooks.html#perf_hooks_class_performancenodetiming_extends_performanceentry', // eslint-disable-line max-len
   'PerformanceObserver':
     'perf_hooks.html#perf_hooks_class_performanceobserver_callback',
   'PerformanceObserverEntryList':
@@ -123,10 +129,10 @@ function toLink(typeInput) {
       const typeTextFull = typeText;
       typeText = typeText.replace(arrayPart, '');
 
-      const primitive = jsPrimitives[typeText.toLowerCase()];
+      const primitive = jsPrimitives[typeText];
 
       if (primitive !== undefined) {
-        typeUrl = `${jsPrimitiveUrl}#${primitive}_type`;
+        typeUrl = `${jsDataStructuresUrl}#${primitive}_type`;
       } else if (jsGlobalTypes.includes(typeText)) {
         typeUrl = `${jsGlobalObjectsUrl}${typeText}`;
       } else if (customTypesMap[typeText]) {
@@ -137,7 +143,10 @@ function toLink(typeInput) {
         typeLinks.push(
           `<a href="${typeUrl}" class="type">&lt;${typeTextFull}&gt;</a>`);
       } else {
-        typeLinks.push(`<span class="type">&lt;${typeTextFull}&gt;</span>`);
+        throw new Error(
+          `Unrecognized type: '${typeTextFull}'.\n` +
+          "Please, edit the type or update the 'tools/doc/type-parser.js'."
+        );
       }
     } else {
       throw new Error(`Empty type slot: ${typeInput}`);
