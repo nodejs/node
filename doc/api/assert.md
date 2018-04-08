@@ -387,8 +387,10 @@ function and awaits the returned promise to complete. It will then check that
 the promise is not rejected.
 
 If `block` is a function and it throws an error synchronously,
-`assert.doesNotReject()` will return a rejected Promise with that error without
-checking the error handler.
+`assert.doesNotReject()` will return a rejected Promise with that error. If the
+function does not return a promise, `assert.doesNotReject()` will return a
+rejected Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the
+error handler is skipped.
 
 Please note: Using `assert.doesNotReject()` is actually not useful because there
 is little benefit by catching a rejection and then rejecting it again. Instead,
@@ -929,8 +931,10 @@ function and awaits the returned promise to complete. It will then check that
 the promise is rejected.
 
 If `block` is a function and it throws an error synchronously,
-`assert.rejects()` will return a rejected Promise with that error without
-checking the error handler.
+`assert.rejects()` will return a rejected Promise with that error. If the
+function does not return a promise, `assert.rejects()` will return a rejected
+Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
+handler is skipped.
 
 Besides the async nature to await the completion behaves identically to
 [`assert.throws()`][].
@@ -1138,6 +1142,7 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing notation, it is recommended not to use a string as the
 second argument. This might lead to difficult-to-spot errors.
 
+[`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Error`]: errors.html#errors_class_error

@@ -1186,6 +1186,12 @@ An invalid `options.protocol` was passed.
 Both `breakEvalOnSigint` and `eval` options were set in the REPL config, which
 is not supported.
 
+<a id="ERR_INVALID_RETURN_VALUE"></a>
+### ERR_INVALID_RETURN_VALUE
+
+Thrown in case a function option does not return an expected value on execution.
+For example when a function is expected to return a promise.
+
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
 
