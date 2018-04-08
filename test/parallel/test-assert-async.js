@@ -29,20 +29,25 @@ const promises = [];
            `${err.name} is not instance of AssertionError`);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
     assert.strictEqual(err.message,
-                       'Missing expected rejection (handler).');
+                       'Missing expected rejection (mustNotCall).');
     assert.strictEqual(err.operator, 'rejects');
     assert.ok(!err.stack.includes('at Function.rejects'));
     return true;
   };
 
-  let promise = assert.rejects(async () => {}, handler);
-  promises.push(assert.rejects(promise, handler));
+  let promise = assert.rejects(async () => {}, common.mustNotCall());
+  promises.push(assert.rejects(promise, common.mustCall(handler)));
 
-  promise = assert.rejects(() => {}, handler);
-  promises.push(assert.rejects(promise, handler));
+  promise = assert.rejects(() => {}, common.mustNotCall());
+  promises.push(assert.rejects(promise, {
+    name: 'TypeError [ERR_INVALID_RETURN_VALUE]',
+    code: 'ERR_INVALID_RETURN_VALUE',
+    message: 'Expected instance of Promise to be returned ' +
+             'from the "block" function but got type undefined.'
+  }));
 
-  promise = assert.rejects(Promise.resolve(), handler);
-  promises.push(assert.rejects(promise, handler));
+  promise = assert.rejects(Promise.resolve(), common.mustNotCall());
+  promises.push(assert.rejects(promise, common.mustCall(handler)));
 }
 
 {
@@ -67,7 +72,13 @@ promises.push(assert.rejects(
 // Check `assert.doesNotReject`.
 {
   // `assert.doesNotReject` accepts a function or a promise as first argument.
-  promises.push(assert.doesNotReject(() => {}));
+  const promise = assert.doesNotReject(() => new Map(), common.mustNotCall());
+  promises.push(assert.rejects(promise, {
+    message: 'Expected instance of Promise to be returned ' +
+             'from the "block" function but got instance of Map.',
+    code: 'ERR_INVALID_RETURN_VALUE',
+    name: 'TypeError [ERR_INVALID_RETURN_VALUE]'
+  }));
   promises.push(assert.doesNotReject(async () => {}));
   promises.push(assert.doesNotReject(Promise.resolve()));
 }
@@ -93,14 +104,14 @@ promises.push(assert.rejects(
 
   const rejectingFn = async () => assert.fail();
 
-  let promise = assert.doesNotReject(rejectingFn, handler1);
-  promises.push(assert.rejects(promise, handler2));
+  let promise = assert.doesNotReject(rejectingFn, common.mustCall(handler1));
+  promises.push(assert.rejects(promise, common.mustCall(handler2)));
 
-  promise = assert.doesNotReject(rejectingFn(), handler1);
-  promises.push(assert.rejects(promise, handler2));
+  promise = assert.doesNotReject(rejectingFn(), common.mustCall(handler1));
+  promises.push(assert.rejects(promise, common.mustCall(handler2)));
 
   promise = assert.doesNotReject(() => assert.fail(), common.mustNotCall());
-  promises.push(assert.rejects(promise, handler1));
+  promises.push(assert.rejects(promise, common.mustCall(handler1)));
 }
 
 promises.push(assert.rejects(
