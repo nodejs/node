@@ -890,12 +890,13 @@ should start using the `async_context` variant of `MakeCallback` or
 `CallbackScope`, or the high-level `AsyncResource` class.
 
 <a id="DEP0098"></a>
-### DEP0098: AsyncHooks Embedder AsyncResource.emit{Before,After} APIs
+### DEP0098: AsyncHooks Embedder AsyncResource.emitBefore and AsyncResource.emitAfter APIs
 
 Type: Runtime
 
-The embedded API provided by AsyncHooks exposes emit{Before,After} methods
-which are very easy to use incorrectly which can lead to unrecoverable errors.
+The embedded API provided by AsyncHooks exposes `.emitBefore()` and
+`.emitAfter()` methods which are very easy to use incorrectly which can lead
+to unrecoverable errors.
 
 Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
