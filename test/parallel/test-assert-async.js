@@ -50,7 +50,7 @@ const promises = [];
 
   promises.push(assert.rejects(() => {
     throw THROWN_ERROR;
-  }).catch(common.mustCall((err) => {
+  }, {}).catch(common.mustCall((err) => {
     assert.strictEqual(err, THROWN_ERROR);
   })));
 }
