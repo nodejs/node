@@ -587,9 +587,11 @@ added: v1.6.0
 -->
 
 * `name` {string}
-* Returns: {string}
+* Returns: {string, string[]} - type as set via `setHeader()`
 
 Reads out a header on the request. Note that the name is case insensitive.
+The return value is that one set via `setHeader()` as coercing to string
+happens during transmission.
 
 Example:
 ```js
@@ -1210,7 +1212,8 @@ added: v0.4.0
 
 Sets a single header value for implicit headers. If this header already exists
 in the to-be-sent headers, its value will be replaced. Use an array of strings
-here to send multiple headers with the same name.
+here to send multiple headers with the same name. Values are coerced to
+strings if needed during transmission.
 
 Example:
 
