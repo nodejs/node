@@ -388,6 +388,11 @@ parser.add_option('--with-etw',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
+parser.add_option('--use-largepages',
+    action='store_true',
+    dest='node_use_large_pages',
+    help='build with Large Pages support (enabled only for Linux).')
+
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
@@ -904,6 +909,7 @@ def configure_node(o):
     o['variables']['node_use_dtrace'] = 'false'
 
   if flavor == 'linux':
+    print(' Large pages is ', options.node_use_large_pages);
     o['variables']['node_use_large_pages'] = 'true'
        
   if options.no_ifaddrs:
