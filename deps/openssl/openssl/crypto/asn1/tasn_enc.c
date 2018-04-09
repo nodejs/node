@@ -1,69 +1,20 @@
-/* tasn_enc.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2000.
- */
-/* ====================================================================
- * Copyright (c) 2000-2004 The OpenSSL Project.  All rights reserved.
+ * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stddef.h>
 #include <string.h>
-#include <limits.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/objects.h>
+#include "internal/asn1_int.h"
+#include "asn1_locl.h"
 
 static int asn1_i2d_ex_primitive(ASN1_VALUE **pval, unsigned char **out,
                                  const ASN1_ITEM *it, int tag, int aclass);
@@ -74,6 +25,8 @@ static int asn1_template_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
                                 const ASN1_TEMPLATE *tt, int tag, int aclass);
 static int asn1_item_flags_i2d(ASN1_VALUE *val, unsigned char **out,
                                const ASN1_ITEM *it, int flags);
+static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
+                       const ASN1_ITEM *it);
 
 /*
  * Top level i2d equivalents: the 'ndef' variant instructs the encoder to use
@@ -108,7 +61,7 @@ static int asn1_item_flags_i2d(ASN1_VALUE *val, unsigned char **out,
         if (len <= 0)
             return len;
         buf = OPENSSL_malloc(len);
-        if (!buf)
+        if (buf == NULL)
             return -1;
         p = buf;
         ASN1_item_ex_i2d(&val, &p, it, -1, flags);
@@ -128,9 +81,7 @@ int ASN1_item_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
                      const ASN1_ITEM *it, int tag, int aclass)
 {
     const ASN1_TEMPLATE *tt = NULL;
-    unsigned char *p = NULL;
     int i, seqcontlen, seqlen, ndef = 1;
-    const ASN1_COMPAT_FUNCS *cf;
     const ASN1_EXTERN_FUNCS *ef;
     const ASN1_AUX *aux = it->funcs;
     ASN1_aux_cb *asn1_cb = 0;
@@ -148,7 +99,6 @@ int ASN1_item_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
             return asn1_template_ex_i2d(pval, out, it->templates,
                                         tag, aclass);
         return asn1_i2d_ex_primitive(pval, out, it, tag, aclass);
-        break;
 
     case ASN1_ITYPE_MSTRING:
         return asn1_i2d_ex_primitive(pval, out, it, -1, aclass);
@@ -173,20 +123,6 @@ int ASN1_item_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
         /* If new style i2d it does all the work */
         ef = it->funcs;
         return ef->asn1_ex_i2d(pval, out, it, tag, aclass);
-
-    case ASN1_ITYPE_COMPAT:
-        /* old style hackery... */
-        cf = it->funcs;
-        if (out)
-            p = *out;
-        i = cf->asn1_i2d(*pval, out);
-        /*
-         * Fixup for IMPLICIT tag: note this messes up for tags > 30, but so
-         * did the old code. Tags > 30 are very rare anyway.
-         */
-        if (out && (tag != -1))
-            *p = aclass | tag | (*p & V_ASN1_CONSTRUCTED);
-        return i;
 
     case ASN1_ITYPE_NDEF_SEQUENCE:
         /* Use indefinite length constructed if requested */
@@ -256,17 +192,21 @@ int ASN1_item_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
     return 0;
 }
 
-int ASN1_template_i2d(ASN1_VALUE **pval, unsigned char **out,
-                      const ASN1_TEMPLATE *tt)
-{
-    return asn1_template_ex_i2d(pval, out, tt, -1, 0);
-}
-
 static int asn1_template_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
                                 const ASN1_TEMPLATE *tt, int tag, int iclass)
 {
     int i, ret, flags, ttag, tclass, ndef;
+    ASN1_VALUE *tval;
     flags = tt->flags;
+
+    /*
+     * If field is embedded then val needs fixing so it is a pointer to
+     * a pointer to a field.
+     */
+    if (flags & ASN1_TFLG_EMBED) {
+        tval = (ASN1_VALUE *)pval;
+        pval = &tval;
+    }
     /*
      * Work out tag and class to use: tagging may come either from the
      * template or the arguments, not both because this would create
@@ -440,10 +380,10 @@ static int asn1_set_seq_out(STACK_OF(ASN1_VALUE) *sk, unsigned char **out,
         else {
             derlst = OPENSSL_malloc(sk_ASN1_VALUE_num(sk)
                                     * sizeof(*derlst));
-            if (!derlst)
+            if (derlst == NULL)
                 return 0;
             tmpdat = OPENSSL_malloc(skcontlen);
-            if (!tmpdat) {
+            if (tmpdat == NULL) {
                 OPENSSL_free(derlst);
                 return 0;
             }
@@ -546,8 +486,8 @@ static int asn1_i2d_ex_primitive(ASN1_VALUE **pval, unsigned char **out,
 
 /* Produce content octets from a structure */
 
-int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
-                const ASN1_ITEM *it)
+static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
+                       const ASN1_ITEM *it)
 {
     ASN1_BOOLEAN *tbool = NULL;
     ASN1_STRING *strtmp;
@@ -616,7 +556,6 @@ int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
     case V_ASN1_BIT_STRING:
         return i2c_ASN1_BIT_STRING((ASN1_BIT_STRING *)*pval,
                                    cout ? &cout : NULL);
-        break;
 
     case V_ASN1_INTEGER:
     case V_ASN1_ENUMERATED:
@@ -624,7 +563,6 @@ int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
          * These are all have the same content format as ASN1_INTEGER
          */
         return i2c_ASN1_INTEGER((ASN1_INTEGER *)*pval, cout ? &cout : NULL);
-        break;
 
     case V_ASN1_OCTET_STRING:
     case V_ASN1_NUMERICSTRING:

@@ -1,0 +1,13 @@
+Intro
+-----
+
+If we find a useful Perl module that isn't one of the core Perl
+modules, we may choose to bundle it with the OpenSSL source.
+
+Here, we simply list those modules and where we downloaded them from.
+
+Downloaded and bundled Perl modules
+-----------------------------------
+
+Text::Template 1.46 was downloaded from
+http://search.cpan.org/CPAN/authors/id/M/MJ/MJD/Text-Template-1.46.tar.gz

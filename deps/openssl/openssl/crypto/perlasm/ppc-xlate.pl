@@ -1,6 +1,10 @@
-#!/usr/bin/env perl
-
-# PowerPC assembler distiller by <appro>.
+#! /usr/bin/env perl
+# Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
 
 my $flavour = shift;
 my $output = shift;
@@ -205,6 +209,21 @@ my $vaddudm	= sub { vcrypto_op(@_, 192);  };
 my $mtsle	= sub {
     my ($f, $arg) = @_;
     "	.long	".sprintf "0x%X",(31<<26)|($arg<<21)|(147*2);
+};
+
+# PowerISA 3.0 stuff
+my $maddhdu = sub {
+    my ($f, $rt, $ra, $rb, $rc) = @_;
+    "	.long	".sprintf "0x%X",(4<<26)|($rt<<21)|($ra<<16)|($rb<<11)|($rc<<6)|49;
+};
+my $maddld = sub {
+    my ($f, $rt, $ra, $rb, $rc) = @_;
+    "	.long	".sprintf "0x%X",(4<<26)|($rt<<21)|($ra<<16)|($rb<<11)|($rc<<6)|51;
+};
+
+my $darn = sub {
+    my ($f, $rt, $l) = @_;
+    "	.long	".sprintf "0x%X",(31<<26)|($rt<<21)|($l<<16)|(755<<1);
 };
 
 while($line=<>) {

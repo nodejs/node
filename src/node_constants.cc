@@ -917,12 +917,8 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RAND);
 # endif
 
-# ifdef ENGINE_METHOD_ECDH
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDH);
-# endif
-
-# ifdef ENGINE_METHOD_ECDSA
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDSA);
+# ifdef ENGINE_METHOD_EC
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_EC);
 # endif
 
 # ifdef ENGINE_METHOD_CIPHERS
@@ -931,10 +927,6 @@ void DefineOpenSSLConstants(Local<Object> target) {
 
 # ifdef ENGINE_METHOD_DIGESTS
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DIGESTS);
-# endif
-
-# ifdef ENGINE_METHOD_STORE
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_STORE);
 # endif
 
 # ifdef ENGINE_METHOD_PKEY_METHS

@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+SSL_CONF_cmd_value_type, SSL_CONF_finish,
 SSL_CONF_cmd - send configuration command
 
 =head1 SYNOPSIS
@@ -101,7 +102,7 @@ are permitted.
 Attempts to use the file B<value> as the private key for the appropriate
 context. This option is only supported if certificate operations
 are permitted. Note: if no B<-key> option is set then a private key is
-not loaded: it does not currently use the B<-cert> file.
+not loaded unless the flag B<SSL_CONF_FLAG_REQUIRE_PRIVATE> is set.
 
 =item B<-dhparam>
 
@@ -109,19 +110,45 @@ Attempts to use the file B<value> as the set of temporary DH parameters for
 the appropriate context. This option is only supported if certificate
 operations are permitted.
 
-=item B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
+=item B<-no_renegotiation>
 
-Disables protocol support for SSLv2, SSLv3, TLSv1.0, TLSv1.1 or TLSv1.2
-by setting the corresponding options B<SSL_OP_NO_SSLv2>, B<SSL_OP_NO_SSLv3>,
-B<SSL_OP_NO_TLSv1>, B<SSL_OP_NO_TLSv1_1> and B<SSL_OP_NO_TLSv1_2> respectively.
+Disables all attempts at renegotiation in TLSv1.2 and earlier, same as setting
+B<SSL_OP_NO_RENEGOTIATION>.
+
+=item B<-min_protocol>, B<-max_protocol>
+
+Sets the minimum and maximum supported protocol.
+Currently supported protocol values are B<SSLv3>, B<TLSv1>,
+B<TLSv1.1>, B<TLSv1.2> for TLS and B<DTLSv1>, B<DTLSv1.2> for DTLS,
+and B<None> for no limit.
+If the either bound is not specified then only the other bound applies,
+if specified.
+To restrict the supported protocol versions use these commands rather
+than the deprecated alternative commands below.
+
+=item B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
+
+Disables protocol support for SSLv3, TLSv1.0, TLSv1.1 or TLSv1.2 by setting the
+corresponding options B<SSL_OP_NO_SSLv3>, B<SSL_OP_NO_TLSv1>, B<SSL_OP_NO_TLSv1_1>
+and B<SSL_OP_NO_TLSv1_2> respectively.
+These options are deprecated, instead use B<-min_protocol> and B<-max_protocol>.
 
 =item B<-bugs>
 
 Various bug workarounds are set, same as setting B<SSL_OP_ALL>.
 
+=item B<-comp>
+
+Enables support for SSL/TLS compression, same as clearing
+B<SSL_OP_NO_COMPRESSION>.
+This command was introduced in OpenSSL 1.1.0.
+As of OpenSSL 1.1.0, compression is off by default.
+
 =item B<-no_comp>
 
-Disables support for SSL/TLS compression, same as setting B<SSL_OP_NO_COMPRESS>.
+Disables support for SSL/TLS compression, same as setting
+B<SSL_OP_NO_COMPRESSION>.
+As of OpenSSL 1.1.0, compression is off by default.
 
 =item B<-no_ticket>
 
@@ -153,20 +180,13 @@ Set by default.
 enables strict mode protocol handling. Equivalent to setting
 B<SSL_CERT_FLAG_TLS_STRICT>.
 
-=item B<-debug_broken_protocol>
-
-disables various checks and permits several kinds of broken protocol behaviour
-for testing purposes: it should B<NEVER> be used in anything other than a test
-environment. Only supported if OpenSSL is configured with
-B<-DOPENSSL_SSL_DEBUG_BROKEN_PROTOCOL>.
-
 =back
 
 =head1 SUPPORTED CONFIGURATION FILE COMMANDS
 
 Currently supported B<cmd> names for configuration files (i.e. when the
 flag B<SSL_CONF_FLAG_FILE> is set) are listed below. All configuration file
-B<cmd> names and are case insensitive so B<signaturealgorithms> is recognised
+B<cmd> names are case insensitive so B<signaturealgorithms> is recognised
 as well as B<SignatureAlgorithms>. Unless otherwise stated the B<value> names
 are also case insensitive.
 
@@ -192,8 +212,14 @@ are permitted.
 
 Attempts to use the file B<value> as the private key for the appropriate
 context. This option is only supported if certificate operations
-are permitted. Note: if no B<-key> option is set then a private key is
-not loaded: it does not currently use the B<Certificate> file.
+are permitted. Note: if no B<PrivateKey> option is set then a private key is
+not loaded unless the B<SSL_CONF_FLAG_REQUIRE_PRIVATE> is set.
+
+=item B<ChainCAFile>, B<ChainCAPath>, B<VerifyCAFile>, B<VerifyCAPath>
+
+These options indicate a file or directory used for building certificate
+chains or verifying certificate chains. These options are only supported
+if certificate operations are permitted.
 
 =item B<ServerInfoFile>
 
@@ -205,6 +231,11 @@ function SSL_CTX_use_serverinfo_file.
 Attempts to use the file B<value> as the set of temporary DH parameters for
 the appropriate context. This option is only supported if certificate
 operations are permitted.
+
+=item B<NoRenegotiation>
+
+Disables all attempts at renegotiation in TLSv1.2 and earlier, same as setting
+B<SSL_OP_NO_RENEGOTIATION>.
 
 =item B<SignatureAlgorithms>
 
@@ -242,33 +273,57 @@ The B<value> argument is a colon separated list of curves. The curve can be
 either the B<NIST> name (e.g. B<P-256>) or an OpenSSL OID name (e.g
 B<prime256v1>). Curve names are case sensitive.
 
-=item B<ECDHParameters>
+=item B<MinProtocol>
 
-This sets the temporary curve used for ephemeral ECDH modes. Only used by
-servers
+This sets the minimum supported SSL, TLS or DTLS version.
 
-The B<value> argument is a curve name or the special value B<Automatic> which
-picks an appropriate curve based on client and server preferences. The curve
-can be either the B<NIST> name (e.g. B<P-256>) or an OpenSSL OID name
-(e.g B<prime256v1>). Curve names are case sensitive.
+Currently supported protocol values are B<SSLv3>, B<TLSv1>, B<TLSv1.1>,
+B<TLSv1.2>, B<DTLSv1> and B<DTLSv1.2>.
+The value B<None> will disable the limit.
+
+=item B<MaxProtocol>
+
+This sets the maximum supported SSL, TLS or DTLS version.
+
+Currently supported protocol values are B<SSLv3>, B<TLSv1>, B<TLSv1.1>,
+B<TLSv1.2>, B<DTLSv1> and B<DTLSv1.2>.
+The value B<None> will disable the limit.
 
 =item B<Protocol>
 
-The supported versions of the SSL or TLS protocol.
+This can be used to enable or disable certain versions of the SSL,
+TLS or DTLS protocol.
 
-The B<value> argument is a comma separated list of supported protocols to
-enable or disable. If an protocol is preceded by B<-> that version is disabled.
-Currently supported protocol values are B<SSLv2>, B<SSLv3>, B<TLSv1>,
-B<TLSv1.1> and B<TLSv1.2>.
-All protocol versions other than B<SSLv2> are enabled by default.
-To avoid inadvertent enabling of B<SSLv2>, when SSLv2 is disabled, it is not
-possible to enable it via the B<Protocol> command.
+The B<value> argument is a comma separated list of supported protocols
+to enable or disable.
+If a protocol is preceded by B<-> that version is disabled.
+
+All protocol versions are enabled by default.
+You need to disable at least one protocol version for this setting have any
+effect.
+Only enabling some protocol versions does not disable the other protocol
+versions.
+
+Currently supported protocol values are B<SSLv3>, B<TLSv1>, B<TLSv1.1>,
+B<TLSv1.2>, B<DTLSv1> and B<DTLSv1.2>.
+The special value B<ALL> refers to all supported versions.
+
+This can't enable protocols that are disabled using B<MinProtocol>
+or B<MaxProtocol>, but can disable protocols that are still allowed
+by them.
+
+The B<Protocol> command is fragile and deprecated; do not use it.
+Use B<MinProtocol> and B<MaxProtocol> instead.
+If you do use B<Protocol>, make sure that the resulting range of enabled
+protocols has no "holes", e.g. if TLS 1.0 and TLS 1.2 are both enabled, make
+sure to also leave TLS 1.1 enabled.
 
 =item B<Options>
 
 The B<value> argument is a comma separated list of various flags to set.
-If a flag string is preceded B<-> it is disabled. See the
-B<SSL_CTX_set_options> function for more details of individual options.
+If a flag string is preceded B<-> it is disabled.
+See the L<SSL_CTX_set_options(3)> function for more details of
+individual options.
 
 Each option is listed below. Where an operation is enabled by default
 the B<-flag> syntax is needed to disable it.
@@ -307,6 +362,27 @@ B<UnsafeLegacyServerConnect> permits the use of unsafe legacy renegotiation
 for OpenSSL clients only. Equivalent to B<SSL_OP_LEGACY_SERVER_CONNECT>.
 Set by default.
 
+=item B<VerifyMode>
+
+The B<value> argument is a comma separated list of flags to set.
+
+B<Peer> enables peer verification: for clients only.
+
+B<Request> requests but does not require a certificate from the client.
+Servers only.
+
+B<Require> requests and requires a certificate from the client: an error
+occurs if the client does not present a certificate. Servers only.
+
+B<Once> requests a certificate from a client only on the initial connection:
+not when renegotiating. Servers only.
+
+=item B<ClientCAFile>, B<ClientCAPath>
+
+A file or directory of certificates in PEM format whose names are used as the
+set of acceptable names for client CAs. Servers only. This option is only
+supported if certificate operations are permitted.
+
 =back
 
 =head1 SUPPORTED COMMAND TYPES
@@ -333,6 +409,11 @@ The value is a file name.
 
 The value is a directory name.
 
+=item B<SSL_CONF_TYPE_NONE>
+
+The value string is not used e.g. a command line option which doesn't take an
+argument.
+
 =back
 
 =head1 NOTES
@@ -349,11 +430,11 @@ however the call sequence is:
  SSL_CONF_cmd(ctx, userparam, uservalue);
  SSL_CONF_cmd(ctx, "Protocol", "-SSLv3");
 
-then SSLv3 is B<always> disabled and attempt to override this by the user are
+SSLv3 is B<always> disabled and attempt to override this by the user are
 ignored.
 
 By checking the return code of SSL_CTX_cmd() it is possible to query if a
-given B<cmd> is recognised, this is useful is SSL_CTX_cmd() values are
+given B<cmd> is recognised, this is useful if SSL_CTX_cmd() values are
 mixed with additional application specific operations.
 
 For example an application might call SSL_CTX_cmd() and if it returns
@@ -385,17 +466,41 @@ Set supported signature algorithms:
 
  SSL_CONF_cmd(ctx, "SignatureAlgorithms", "ECDSA+SHA256:RSA+SHA256:DSA+SHA256");
 
-Enable all protocols except SSLv3 and SSLv2:
+There are various ways to select the supported protocols.
 
- SSL_CONF_cmd(ctx, "Protocol", "ALL,-SSLv3,-SSLv2");
+This set the minimum protocol version to TLSv1, and so disables SSLv3.
+This is the recommended way to disable protocols.
+
+ SSL_CONF_cmd(ctx, "MinProtocol", "TLSv1");
+
+The following also disables SSLv3:
+
+ SSL_CONF_cmd(ctx, "Protocol", "-SSLv3");
+
+The following will first enable all protocols, and then disable
+SSLv3.
+If no protocol versions were disabled before this has the same effect as
+"-SSLv3", but if some versions were disables this will re-enable them before
+disabling SSLv3.
+
+ SSL_CONF_cmd(ctx, "Protocol", "ALL,-SSLv3");
 
 Only enable TLSv1.2:
+
+ SSL_CONF_cmd(ctx, "MinProtocol", "TLSv1.2");
+ SSL_CONF_cmd(ctx, "MaxProtocol", "TLSv1.2");
+
+This also only enables TLSv1.2:
 
  SSL_CONF_cmd(ctx, "Protocol", "-ALL,TLSv1.2");
 
 Disable TLS session tickets:
 
  SSL_CONF_cmd(ctx, "Options", "-SessionTicket");
+
+Enable compression:
+
+ SSL_CONF_cmd(ctx, "Options", "Compression");
 
 Set supported curves to P-256, P-384:
 
@@ -426,14 +531,33 @@ SSL_CONF_finish() returns 1 for success and 0 for failure.
 
 =head1 SEE ALSO
 
-L<SSL_CONF_CTX_new(3)|SSL_CONF_CTX_new(3)>,
-L<SSL_CONF_CTX_set_flags(3)|SSL_CONF_CTX_set_flags(3)>,
-L<SSL_CONF_CTX_set1_prefix(3)|SSL_CONF_CTX_set1_prefix(3)>,
-L<SSL_CONF_CTX_set_ssl_ctx(3)|SSL_CONF_CTX_set_ssl_ctx(3)>,
-L<SSL_CONF_cmd_argv(3)|SSL_CONF_cmd_argv(3)>
+L<SSL_CONF_CTX_new(3)>,
+L<SSL_CONF_CTX_set_flags(3)>,
+L<SSL_CONF_CTX_set1_prefix(3)>,
+L<SSL_CONF_CTX_set_ssl_ctx(3)>,
+L<SSL_CONF_cmd_argv(3)>,
+L<SSL_CTX_set_options(3)>
 
 =head1 HISTORY
 
 SSL_CONF_cmd() was first added to OpenSSL 1.0.2
+
+B<SSL_OP_NO_SSL2> doesn't have effect since 1.1.0, but the macro is retained
+for backwards compatibility.
+
+B<SSL_CONF_TYPE_NONE> was first added to OpenSSL 1.1.0. In earlier versions of
+OpenSSL passing a command which didn't take an argument would return
+B<SSL_CONF_TYPE_UNKNOWN>.
+
+B<MinProtocol> and B<MaxProtocol> where added in OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2012-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

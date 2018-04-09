@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -126,7 +133,7 @@ $fp="%r3";
 $hi1="%r2";
 $hi0="%r1";
 
-$xfer=$n0;	# accomodates [-16..15] offset in fld[dw]s
+$xfer=$n0;	# accommodates [-16..15] offset in fld[dw]s
 
 $fm0="%fr4";	$fti=$fm0;
 $fbi="%fr5L";

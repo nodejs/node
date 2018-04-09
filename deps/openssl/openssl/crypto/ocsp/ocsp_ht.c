@@ -1,60 +1,10 @@
-/* ocsp_ht.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2006.
- */
-/* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
+ * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
@@ -66,9 +16,6 @@
 #include <openssl/ocsp.h>
 #include <openssl/err.h>
 #include <openssl/buffer.h>
-#ifdef OPENSSL_SYS_SUNOS
-# define strtoul (unsigned long)strtol
-#endif                          /* OPENSSL_SYS_SUNOS */
 
 /* Stateful OCSP request code, supporting non-blocking I/O */
 
@@ -116,21 +63,20 @@ static int parse_http_line1(char *line);
 
 OCSP_REQ_CTX *OCSP_REQ_CTX_new(BIO *io, int maxline)
 {
-    OCSP_REQ_CTX *rctx;
-    rctx = OPENSSL_malloc(sizeof(OCSP_REQ_CTX));
-    if (!rctx)
+    OCSP_REQ_CTX *rctx = OPENSSL_zalloc(sizeof(*rctx));
+
+    if (rctx == NULL)
         return NULL;
     rctx->state = OHS_ERROR;
     rctx->max_resp_len = OCSP_MAX_RESP_LENGTH;
     rctx->mem = BIO_new(BIO_s_mem());
     rctx->io = io;
-    rctx->asn1_len = 0;
     if (maxline > 0)
         rctx->iobuflen = maxline;
     else
         rctx->iobuflen = OCSP_MAX_LINE_LEN;
     rctx->iobuf = OPENSSL_malloc(rctx->iobuflen);
-    if (!rctx->iobuf || !rctx->mem) {
+    if (rctx->iobuf == NULL || rctx->mem == NULL) {
         OCSP_REQ_CTX_free(rctx);
         return NULL;
     }
@@ -139,10 +85,10 @@ OCSP_REQ_CTX *OCSP_REQ_CTX_new(BIO *io, int maxline)
 
 void OCSP_REQ_CTX_free(OCSP_REQ_CTX *rctx)
 {
-    if (rctx->mem)
-        BIO_free(rctx->mem);
-    if (rctx->iobuf)
-        OPENSSL_free(rctx->iobuf);
+    if (!rctx)
+        return;
+    BIO_free(rctx->mem);
+    OPENSSL_free(rctx->iobuf);
     OPENSSL_free(rctx);
 }
 
@@ -236,7 +182,7 @@ OCSP_REQ_CTX *OCSP_sendreq_new(BIO *io, const char *path, OCSP_REQUEST *req,
 
     OCSP_REQ_CTX *rctx = NULL;
     rctx = OCSP_REQ_CTX_new(io, maxline);
-    if (!rctx)
+    if (rctx == NULL)
         return NULL;
 
     if (!OCSP_REQ_CTX_http(rctx, "POST", path))
@@ -352,10 +298,12 @@ int OCSP_REQ_CTX_nbio(OCSP_REQ_CTX *rctx)
         }
         rctx->state = OHS_ASN1_WRITE_INIT;
 
+        /* fall thru */
     case OHS_ASN1_WRITE_INIT:
         rctx->asn1_len = BIO_get_mem_data(rctx->mem, NULL);
         rctx->state = OHS_ASN1_WRITE;
 
+        /* fall thru */
     case OHS_ASN1_WRITE:
         n = BIO_get_mem_data(rctx->mem, &p);
 
@@ -377,6 +325,7 @@ int OCSP_REQ_CTX_nbio(OCSP_REQ_CTX *rctx)
 
         (void)BIO_reset(rctx->mem);
 
+        /* fall thru */
     case OHS_ASN1_FLUSH:
 
         i = BIO_flush(rctx->io);
@@ -511,8 +460,6 @@ int OCSP_REQ_CTX_nbio(OCSP_REQ_CTX *rctx)
         rctx->state = OHS_DONE;
         return 1;
 
-        break;
-
     case OHS_DONE:
         return 1;
 
@@ -539,7 +486,7 @@ OCSP_RESPONSE *OCSP_sendreq_bio(BIO *b, const char *path, OCSP_REQUEST *req)
 
     ctx = OCSP_sendreq_new(b, path, req, -1);
 
-    if (!ctx)
+    if (ctx == NULL)
         return NULL;
 
     do {

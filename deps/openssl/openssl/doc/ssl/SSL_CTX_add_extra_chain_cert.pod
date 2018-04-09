@@ -30,7 +30,7 @@ following the end entity certificate.
 
 If no chain is specified, the library will try to complete the chain from the
 available CA certificates in the trusted CA storage, see
-L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)>.
+L<SSL_CTX_load_verify_locations(3)>.
 
 The B<x509> certificate provided to SSL_CTX_add_extra_chain_cert() will be
 freed by the library when the B<SSL_CTX> is destroyed. An application
@@ -53,19 +53,28 @@ reason for failure.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>,
-L<SSL_CTX_use_certificate(3)|SSL_CTX_use_certificate(3)>,
-L<SSL_CTX_set_client_cert_cb(3)|SSL_CTX_set_client_cert_cb(3)>,
-L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)>
-L<SSL_CTX_set0_chain(3)|SSL_CTX_set0_chain(3)>
-L<SSL_CTX_set1_chain(3)|SSL_CTX_set1_chain(3)>
-L<SSL_CTX_add0_chain_cert(3)|SSL_CTX_add0_chain_cert(3)>
-L<SSL_CTX_add1_chain_cert(3)|SSL_CTX_add1_chain_cert(3)>
-L<SSL_set0_chain(3)|SSL_set0_chain(3)>
-L<SSL_set1_chain(3)|SSL_set1_chain(3)>
-L<SSL_add0_chain_cert(3)|SSL_add0_chain_cert(3)>
-L<SSL_add1_chain_cert(3)|SSL_add1_chain_cert(3)>
-L<SSL_CTX_build_cert_chain(3)|SSL_CTX_build_cert_chain(3)>
-L<SSL_build_cert_chain(3)|SSL_build_cert_chain(3)>
+L<ssl(3)>,
+L<SSL_CTX_use_certificate(3)>,
+L<SSL_CTX_set_client_cert_cb(3)>,
+L<SSL_CTX_load_verify_locations(3)>
+L<SSL_CTX_set0_chain(3)>
+L<SSL_CTX_set1_chain(3)>
+L<SSL_CTX_add0_chain_cert(3)>
+L<SSL_CTX_add1_chain_cert(3)>
+L<SSL_set0_chain(3)>
+L<SSL_set1_chain(3)>
+L<SSL_add0_chain_cert(3)>
+L<SSL_add1_chain_cert(3)>
+L<SSL_CTX_build_cert_chain(3)>
+L<SSL_build_cert_chain(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

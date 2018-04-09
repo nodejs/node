@@ -1,55 +1,10 @@
-/* crypto/cms/cms_lib.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project.
- */
-/* ====================================================================
- * Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+ * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/asn1t.h>
@@ -58,18 +13,13 @@
 #include <openssl/pem.h>
 #include <openssl/bio.h>
 #include <openssl/asn1.h>
-#include "cms.h"
+#include <openssl/cms.h>
 #include "cms_lcl.h"
 
 IMPLEMENT_ASN1_FUNCTIONS(CMS_ContentInfo)
 IMPLEMENT_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 
-DECLARE_ASN1_ITEM(CMS_CertificateChoices)
-DECLARE_ASN1_ITEM(CMS_RevocationInfoChoice)
-DECLARE_STACK_OF(CMS_CertificateChoices)
-DECLARE_STACK_OF(CMS_RevocationInfoChoice)
-
-const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms)
+const ASN1_OBJECT *CMS_get0_type(const CMS_ContentInfo *cms)
 {
     return cms->contentType;
 }
@@ -78,7 +28,7 @@ CMS_ContentInfo *cms_Data_create(void)
 {
     CMS_ContentInfo *cms;
     cms = CMS_ContentInfo_new();
-    if (cms) {
+    if (cms != NULL) {
         cms->contentType = OBJ_nid2obj(NID_pkcs7_data);
         /* Never detached */
         CMS_set_detached(cms, 0);
@@ -159,7 +109,7 @@ int CMS_dataFinal(CMS_ContentInfo *cms, BIO *cmsbio)
     ASN1_OCTET_STRING **pos = CMS_get0_content(cms);
     if (!pos)
         return 0;
-    /* If ebmedded content find memory BIO and set content */
+    /* If embedded content find memory BIO and set content */
     if (*pos && ((*pos)->flags & ASN1_STRING_FLAG_CONT)) {
         BIO *mbio;
         unsigned char *cont;
@@ -314,15 +264,13 @@ int CMS_set_detached(CMS_ContentInfo *cms, int detached)
     if (!pos)
         return 0;
     if (detached) {
-        if (*pos) {
-            ASN1_OCTET_STRING_free(*pos);
-            *pos = NULL;
-        }
+        ASN1_OCTET_STRING_free(*pos);
+        *pos = NULL;
         return 1;
     }
-    if (!*pos)
+    if (*pos == NULL)
         *pos = ASN1_OCTET_STRING_new();
-    if (*pos) {
+    if (*pos != NULL) {
         /*
          * NB: special flag to show content is created and not read in.
          */
@@ -333,27 +281,12 @@ int CMS_set_detached(CMS_ContentInfo *cms, int detached)
     return 0;
 }
 
-/* Set up an X509_ALGOR DigestAlgorithmIdentifier from an EVP_MD */
-
-void cms_DigestAlgorithm_set(X509_ALGOR *alg, const EVP_MD *md)
-{
-    int param_type;
-
-    if (md->flags & EVP_MD_FLAG_DIGALGID_ABSENT)
-        param_type = V_ASN1_UNDEF;
-    else
-        param_type = V_ASN1_NULL;
-
-    X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type, NULL);
-
-}
-
 /* Create a digest BIO from an X509_ALGOR structure */
 
 BIO *cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm)
 {
     BIO *mdbio = NULL;
-    ASN1_OBJECT *digestoid;
+    const ASN1_OBJECT *digestoid;
     const EVP_MD *digest;
     X509_ALGOR_get0(&digestoid, NULL, NULL, digestAlgorithm);
     digest = EVP_get_digestbyobj(digestoid);
@@ -363,14 +296,13 @@ BIO *cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm)
         goto err;
     }
     mdbio = BIO_new(BIO_f_md());
-    if (!mdbio || !BIO_set_md(mdbio, digest)) {
+    if (mdbio == NULL || !BIO_set_md(mdbio, digest)) {
         CMSerr(CMS_F_CMS_DIGESTALGORITHM_INIT_BIO, CMS_R_MD_BIO_INIT_ERROR);
         goto err;
     }
     return mdbio;
  err:
-    if (mdbio)
-        BIO_free(mdbio);
+    BIO_free(mdbio);
     return NULL;
 }
 
@@ -380,7 +312,7 @@ int cms_DigestAlgorithm_find_ctx(EVP_MD_CTX *mctx, BIO *chain,
                                  X509_ALGOR *mdalg)
 {
     int nid;
-    ASN1_OBJECT *mdoid;
+    const ASN1_OBJECT *mdoid;
     X509_ALGOR_get0(&mdoid, NULL, NULL, mdalg);
     nid = OBJ_obj2nid(mdoid);
     /* Look for digest type to match signature */
@@ -477,7 +409,7 @@ int CMS_add1_cert(CMS_ContentInfo *cms, X509 *cert)
     int r;
     r = CMS_add0_cert(cms, cert);
     if (r > 0)
-        CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
+        X509_up_ref(cert);
     return r;
 }
 
@@ -539,7 +471,7 @@ int CMS_add1_crl(CMS_ContentInfo *cms, X509_CRL *crl)
     int r;
     r = CMS_add0_crl(cms, crl);
     if (r > 0)
-        CRYPTO_add(&crl->references, 1, CRYPTO_LOCK_X509_CRL);
+        X509_CRL_up_ref(crl);
     return r;
 }
 
@@ -564,7 +496,7 @@ STACK_OF(X509) *CMS_get1_certs(CMS_ContentInfo *cms)
                 sk_X509_pop_free(certs, X509_free);
                 return NULL;
             }
-            CRYPTO_add(&cch->d.certificate->references, 1, CRYPTO_LOCK_X509);
+            X509_up_ref(cch->d.certificate);
         }
     }
     return certs;
@@ -592,7 +524,7 @@ STACK_OF(X509_CRL) *CMS_get1_crls(CMS_ContentInfo *cms)
                 sk_X509_CRL_pop_free(crls, X509_CRL_free);
                 return NULL;
             }
-            CRYPTO_add(&rch->d.crl->references, 1, CRYPTO_LOCK_X509_CRL);
+            X509_CRL_up_ref(rch->d.crl);
         }
     }
     return crls;
@@ -609,10 +541,11 @@ int cms_ias_cert_cmp(CMS_IssuerAndSerialNumber *ias, X509 *cert)
 
 int cms_keyid_cert_cmp(ASN1_OCTET_STRING *keyid, X509 *cert)
 {
-    X509_check_purpose(cert, -1, -1);
-    if (!cert->skid)
+    const ASN1_OCTET_STRING *cert_keyid = X509_get0_subject_key_id(cert);
+
+    if (cert_keyid == NULL)
         return -1;
-    return ASN1_OCTET_STRING_cmp(keyid, cert->skid);
+    return ASN1_OCTET_STRING_cmp(keyid, cert_keyid);
 }
 
 int cms_set1_ias(CMS_IssuerAndSerialNumber **pias, X509 *cert)
@@ -625,13 +558,11 @@ int cms_set1_ias(CMS_IssuerAndSerialNumber **pias, X509 *cert)
         goto err;
     if (!ASN1_STRING_copy(ias->serialNumber, X509_get_serialNumber(cert)))
         goto err;
-    if (*pias)
-        M_ASN1_free_of(*pias, CMS_IssuerAndSerialNumber);
+    M_ASN1_free_of(*pias, CMS_IssuerAndSerialNumber);
     *pias = ias;
     return 1;
  err:
-    if (ias)
-        M_ASN1_free_of(ias, CMS_IssuerAndSerialNumber);
+    M_ASN1_free_of(ias, CMS_IssuerAndSerialNumber);
     CMSerr(CMS_F_CMS_SET1_IAS, ERR_R_MALLOC_FAILURE);
     return 0;
 }
@@ -639,18 +570,18 @@ int cms_set1_ias(CMS_IssuerAndSerialNumber **pias, X509 *cert)
 int cms_set1_keyid(ASN1_OCTET_STRING **pkeyid, X509 *cert)
 {
     ASN1_OCTET_STRING *keyid = NULL;
-    X509_check_purpose(cert, -1, -1);
-    if (!cert->skid) {
+    const ASN1_OCTET_STRING *cert_keyid;
+    cert_keyid = X509_get0_subject_key_id(cert);
+    if (cert_keyid == NULL) {
         CMSerr(CMS_F_CMS_SET1_KEYID, CMS_R_CERTIFICATE_HAS_NO_KEYID);
         return 0;
     }
-    keyid = ASN1_STRING_dup(cert->skid);
+    keyid = ASN1_STRING_dup(cert_keyid);
     if (!keyid) {
         CMSerr(CMS_F_CMS_SET1_KEYID, ERR_R_MALLOC_FAILURE);
         return 0;
     }
-    if (*pkeyid)
-        ASN1_OCTET_STRING_free(*pkeyid);
+    ASN1_OCTET_STRING_free(*pkeyid);
     *pkeyid = keyid;
     return 1;
 }

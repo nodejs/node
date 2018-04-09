@@ -1,68 +1,20 @@
-/* crypto/evp/c_allc.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/evp.h>
+#include <internal/evp_int.h>
 #include <openssl/pkcs12.h>
 #include <openssl/objects.h>
 
-void OpenSSL_add_all_ciphers(void)
+void openssl_add_all_ciphers_int(void)
 {
 
 #ifndef OPENSSL_NO_DES
@@ -92,8 +44,13 @@ void OpenSSL_add_all_ciphers(void)
 
     EVP_add_cipher(EVP_des_ecb());
     EVP_add_cipher(EVP_des_ede());
+    EVP_add_cipher_alias(SN_des_ede_ecb, "DES-EDE-ECB");
+    EVP_add_cipher_alias(SN_des_ede_ecb, "des-ede-ecb");
     EVP_add_cipher(EVP_des_ede3());
+    EVP_add_cipher_alias(SN_des_ede3_ecb, "DES-EDE3-ECB");
+    EVP_add_cipher_alias(SN_des_ede3_ecb, "des-ede3-ecb");
     EVP_add_cipher(EVP_des_ede3_wrap());
+    EVP_add_cipher_alias(SN_id_smime_alg_CMS3DESwrap, "des3-wrap");
 #endif
 
 #ifndef OPENSSL_NO_RC4
@@ -131,6 +88,9 @@ void OpenSSL_add_all_ciphers(void)
     EVP_add_cipher(EVP_rc2_64_cbc());
     EVP_add_cipher_alias(SN_rc2_cbc, "RC2");
     EVP_add_cipher_alias(SN_rc2_cbc, "rc2");
+    EVP_add_cipher_alias(SN_rc2_cbc, "rc2-128");
+    EVP_add_cipher_alias(SN_rc2_64_cbc, "rc2-64");
+    EVP_add_cipher_alias(SN_rc2_40_cbc, "rc2-40");
 #endif
 
 #ifndef OPENSSL_NO_BF
@@ -163,7 +123,6 @@ void OpenSSL_add_all_ciphers(void)
     EVP_add_cipher_alias(SN_rc5_cbc, "RC5");
 #endif
 
-#ifndef OPENSSL_NO_AES
     EVP_add_cipher(EVP_aes_128_ecb());
     EVP_add_cipher(EVP_aes_128_cbc());
     EVP_add_cipher(EVP_aes_128_cfb());
@@ -172,9 +131,14 @@ void OpenSSL_add_all_ciphers(void)
     EVP_add_cipher(EVP_aes_128_ofb());
     EVP_add_cipher(EVP_aes_128_ctr());
     EVP_add_cipher(EVP_aes_128_gcm());
+#ifndef OPENSSL_NO_OCB
+    EVP_add_cipher(EVP_aes_128_ocb());
+#endif
     EVP_add_cipher(EVP_aes_128_xts());
     EVP_add_cipher(EVP_aes_128_ccm());
     EVP_add_cipher(EVP_aes_128_wrap());
+    EVP_add_cipher_alias(SN_id_aes128_wrap, "aes128-wrap");
+    EVP_add_cipher(EVP_aes_128_wrap_pad());
     EVP_add_cipher_alias(SN_aes_128_cbc, "AES128");
     EVP_add_cipher_alias(SN_aes_128_cbc, "aes128");
     EVP_add_cipher(EVP_aes_192_ecb());
@@ -185,8 +149,13 @@ void OpenSSL_add_all_ciphers(void)
     EVP_add_cipher(EVP_aes_192_ofb());
     EVP_add_cipher(EVP_aes_192_ctr());
     EVP_add_cipher(EVP_aes_192_gcm());
+#ifndef OPENSSL_NO_OCB
+    EVP_add_cipher(EVP_aes_192_ocb());
+#endif
     EVP_add_cipher(EVP_aes_192_ccm());
     EVP_add_cipher(EVP_aes_192_wrap());
+    EVP_add_cipher_alias(SN_id_aes192_wrap, "aes192-wrap");
+    EVP_add_cipher(EVP_aes_192_wrap_pad());
     EVP_add_cipher_alias(SN_aes_192_cbc, "AES192");
     EVP_add_cipher_alias(SN_aes_192_cbc, "aes192");
     EVP_add_cipher(EVP_aes_256_ecb());
@@ -197,20 +166,20 @@ void OpenSSL_add_all_ciphers(void)
     EVP_add_cipher(EVP_aes_256_ofb());
     EVP_add_cipher(EVP_aes_256_ctr());
     EVP_add_cipher(EVP_aes_256_gcm());
+#ifndef OPENSSL_NO_OCB
+    EVP_add_cipher(EVP_aes_256_ocb());
+#endif
     EVP_add_cipher(EVP_aes_256_xts());
     EVP_add_cipher(EVP_aes_256_ccm());
     EVP_add_cipher(EVP_aes_256_wrap());
+    EVP_add_cipher_alias(SN_id_aes256_wrap, "aes256-wrap");
+    EVP_add_cipher(EVP_aes_256_wrap_pad());
     EVP_add_cipher_alias(SN_aes_256_cbc, "AES256");
     EVP_add_cipher_alias(SN_aes_256_cbc, "aes256");
-# if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA1)
     EVP_add_cipher(EVP_aes_128_cbc_hmac_sha1());
     EVP_add_cipher(EVP_aes_256_cbc_hmac_sha1());
-# endif
-# if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA256)
     EVP_add_cipher(EVP_aes_128_cbc_hmac_sha256());
     EVP_add_cipher(EVP_aes_256_cbc_hmac_sha256());
-# endif
-#endif
 
 #ifndef OPENSSL_NO_CAMELLIA
     EVP_add_cipher(EVP_camellia_128_ecb());
@@ -237,5 +206,15 @@ void OpenSSL_add_all_ciphers(void)
     EVP_add_cipher(EVP_camellia_256_ofb());
     EVP_add_cipher_alias(SN_camellia_256_cbc, "CAMELLIA256");
     EVP_add_cipher_alias(SN_camellia_256_cbc, "camellia256");
+    EVP_add_cipher(EVP_camellia_128_ctr());
+    EVP_add_cipher(EVP_camellia_192_ctr());
+    EVP_add_cipher(EVP_camellia_256_ctr());
+#endif
+
+#ifndef OPENSSL_NO_CHACHA
+    EVP_add_cipher(EVP_chacha20());
+# ifndef OPENSSL_NO_POLY1305
+    EVP_add_cipher(EVP_chacha20_poly1305());
+# endif
 #endif
 }

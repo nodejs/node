@@ -8,6 +8,7 @@ cms - CMS utility
 =head1 SYNOPSIS
 
 B<openssl> B<cms>
+[B<-help>]
 [B<-encrypt>]
 [B<-decrypt>]
 [B<-sign>]
@@ -36,7 +37,36 @@ B<openssl> B<cms>
 [B<-print>]
 [B<-CAfile file>]
 [B<-CApath dir>]
+[B<-no-CAfile>]
+[B<-no-CApath>]
+[B<-attime timestamp>]
+[B<-check_ss_sig>]
+[B<-crl_check>]
+[B<-crl_check_all>]
+[B<-explicit_policy>]
+[B<-extended_crl>]
+[B<-ignore_critical>]
+[B<-inhibit_any>]
+[B<-inhibit_map>]
+[B<-no_check_time>]
+[B<-partial_chain>]
+[B<-policy arg>]
+[B<-policy_check>]
+[B<-policy_print>]
+[B<-purpose purpose>]
+[B<-suiteB_128>]
+[B<-suiteB_128_only>]
+[B<-suiteB_192>]
+[B<-trusted_first>]
 [B<-no_alt_chains>]
+[B<-use_deltas>]
+[B<-auth_level num>]
+[B<-verify_depth num>]
+[B<-verify_email email>]
+[B<-verify_hostname hostname>]
+[B<-verify_ip ip>]
+[B<-verify_name name>]
+[B<-x509_strict>]
 [B<-md digest>]
 [B<-[cipher]>]
 [B<-nointern>]
@@ -45,6 +75,8 @@ B<openssl> B<cms>
 [B<-noattr>]
 [B<-nosmimecap>]
 [B<-binary>]
+[B<-crlfeol>]
+[B<-asciicrlf>]
 [B<-nodetach>]
 [B<-certfile file>]
 [B<-certsout file>]
@@ -73,13 +105,17 @@ B<openssl> B<cms>
 The B<cms> command handles S/MIME v3.1 mail. It can encrypt, decrypt, sign and
 verify, compress and uncompress S/MIME messages.
 
-=head1 COMMAND OPTIONS
+=head1 OPTIONS
 
 There are fourteen operation options that set the type of operation to be
 performed. The meaning of the other options varies according to the operation
 type.
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-encrypt>
 
@@ -150,17 +186,17 @@ output an error.
 =item B<-EncryptedData_encrypt>
 
 Encrypt content using supplied symmetric key and algorithm using a CMS
-B<EncrytedData> type and output the content.
+B<EncryptedData> type and output the content.
 
 =item B<-sign_receipt>
 
-Generate and output a signed receipt for the supplied message. The input 
+Generate and output a signed receipt for the supplied message. The input
 message B<must> contain a signed receipt request. Functionality is otherwise
 similar to the B<-sign> operation.
 
 =item B<-verify_receipt receipt>
 
-Verify a signed receipt in filename B<receipt>. The input message B<must> 
+Verify a signed receipt in filename B<receipt>. The input message B<must>
 contain the original receipt request. Functionality is otherwise similar
 to the B<-verify> operation.
 
@@ -224,7 +260,7 @@ is S/MIME and it uses the multipart/signed MIME content type.
 
 this option adds plain text (text/plain) MIME headers to the supplied
 message if encrypting or signing. If decrypting or verifying it strips
-off text headers: if the decrypted or verified message is not of MIME 
+off text headers: if the decrypted or verified message is not of MIME
 type text/plain then an error occurs.
 
 =item B<-noout>
@@ -249,6 +285,14 @@ B<-verify>. This directory must be a standard certificate directory: that
 is a hash of each subject name (using B<x509 -hash>) should be linked
 to each certificate.
 
+=item B<-no-CAfile>
+
+Do not load the trusted CA certificates from the default file location
+
+=item B<-no-CApath>
+
+Do not load the trusted CA certificates from the default directory location
+
 =item B<-md digest>
 
 digest algorithm to use when signing or resigning. If not present then the
@@ -258,11 +302,11 @@ default digest algorithm for the signing key will be used (usually SHA1).
 
 the encryption algorithm to use. For example triple DES (168 bits) - B<-des3>
 or 256 bit AES - B<-aes256>. Any standard algorithm name (as used by the
-EVP_get_cipherbyname() function) can also be used preceded by a dash, for 
-example B<-aes_128_cbc>. See L<B<enc>|enc(1)> for a list of ciphers
+EVP_get_cipherbyname() function) can also be used preceded by a dash, for
+example B<-aes-128-cbc>. See L<B<enc>|enc(1)> for a list of ciphers
 supported by your version of OpenSSL.
 
-If not specified triple DES is used. Only used with B<-encrypt> and 
+If not specified triple DES is used. Only used with B<-encrypt> and
 B<-EncryptedData_create> commands.
 
 =item B<-nointern>
@@ -300,6 +344,20 @@ normally the input message is converted to "canonical" format which is
 effectively using CR and LF as end of line: as required by the S/MIME
 specification. When this option is present no translation occurs. This
 is useful when handling binary data which may not be in MIME format.
+
+=item B<-crlfeol>
+
+normally the output file uses a single B<LF> as end of line. When this
+option is present B<CRLF> is used instead.
+
+=item B<-asciicrlf>
+
+when signing use ASCII CRLF format canonicalisation. This strips trailing
+whitespace from all lines, deletes trailing blank lines at EOF and sets
+the encapsulated content type. This option is normally used with detached
+content and an output signature format of DER. This option is not normally
+needed when verifying as it is enabled automatically if the encapsulated
+content format is detected.
 
 =item B<-nodetach>
 
@@ -344,7 +402,7 @@ identifier extension. Supported by B<-sign> and B<-encrypt> options.
 =item B<-receipt_request_all -receipt_request_first>
 
 for B<-sign> option include a signed receipt request. Indicate requests should
-be provided by all receipient or first tier recipients (those mailed directly
+be provided by all recipient or first tier recipients (those mailed directly
 and not from a mailing list). Ignored it B<-receipt_request_from> is included.
 
 =item B<-receipt_request_from emailaddress>
@@ -354,7 +412,7 @@ address where receipts should be supplied.
 
 =item B<-receipt_request_to emailaddress>
 
-Add an explicit email address where signed receipts should be sent to. This 
+Add an explicit email address where signed receipts should be sent to. This
 option B<must> but supplied if a signed receipt it requested.
 
 =item B<-receipt_request_print>
@@ -366,7 +424,7 @@ requests.
 
 specify symmetric key to use. The key must be supplied in hex format and be
 consistent with the algorithm used. Supported by the B<-EncryptedData_encrypt>
-B<-EncrryptedData_decrypt>, B<-encrypt> and B<-decrypt> options. When used
+B<-EncryptedData_decrypt>, B<-encrypt> and B<-decrypt> options. When used
 with B<-encrypt> or B<-decrypt> the supplied key is used to wrap or unwrap the
 content encryption key using an AES key in the B<KEKRecipientInfo> type.
 
@@ -382,7 +440,7 @@ B<KEKRecipientInfo> structures.
 
 set the encapsulated content type to B<type> if not supplied the B<Data> type
 is used. The B<type> argument can be any valid OID name in either text or
-numerical format. 
+numerical format.
 
 =item B<-inkey file>
 
@@ -402,20 +460,20 @@ or to modify default parameters for ECDH.
 =item B<-passin arg>
 
 the private key password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-rand file(s)>
 
 a file or files containing random data used to seed the random number
-generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
-Multiple files can be specified separated by a OS-dependent character.
+generator, or an EGD socket (see L<RAND_egd(3)>).
+Multiple files can be specified separated by an OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
 
 =item B<cert.pem...>
 
 one or more certificates of message recipients: used when encrypting
-a message. 
+a message.
 
 =item B<-to, -from, -subject>
 
@@ -424,10 +482,16 @@ portion of a message so they may be included manually. If signing
 then many S/MIME mail clients check the signers certificate's email
 address matches that specified in the From: address.
 
-=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig -no_alt_chains>
+=item B<-attime>, B<-check_ss_sig>, B<-crl_check>, B<-crl_check_all>,
+B<-explicit_policy>, B<-extended_crl>, B<-ignore_critical>, B<-inhibit_any>,
+B<-inhibit_map>, B<-no_alt_chains>, B<-no_check_time>, B<-partial_chain>, B<-policy>,
+B<-policy_check>, B<-policy_print>, B<-purpose>, B<-suiteB_128>,
+B<-suiteB_128_only>, B<-suiteB_192>, B<-trusted_first>, B<-use_deltas>,
+B<-auth_level>, B<-verify_depth>, B<-verify_email>, B<-verify_hostname>,
+B<-verify_ip>, B<-verify_name>, B<-x509_strict>
 
-Set various certificate chain valiadition option. See the
-L<B<verify>|verify(1)> manual page for details.
+Set various certificate chain validation options. See the
+L<verify(1)> manual page for details.
 
 =back
 
@@ -439,7 +503,7 @@ a blank line. Piping the mail directly to sendmail is one way to
 achieve the correct format.
 
 The supplied message to be signed or encrypted must include the
-necessary MIME headers or many S/MIME clients wont display it
+necessary MIME headers or many S/MIME clients won't display it
 properly (if at all). You can use the B<-text> option to automatically
 add plain text headers.
 
@@ -460,7 +524,7 @@ The B<-resign> option uses an existing message digest when adding a new
 signer. This means that attributes must be present in at least one existing
 signer using the same message digest or this operation will fail.
 
-The B<-stream> and B<-indef> options enable experimental streaming I/O support.
+The B<-stream> and B<-indef> options enable streaming I/O support.
 As a result the encoding is BER using indefinite length constructed encoding
 and no longer DER. Streaming is supported for the B<-encrypt> operation and the
 B<-sign> operation if the content is not detached.
@@ -474,10 +538,10 @@ attempt is made to locate the recipient by trying each potential recipient
 in turn using the supplied private key. To thwart the MMA attack
 (Bleichenbacher's attack on PKCS #1 v1.5 RSA padding) all recipients are
 tried whether they succeed or not and if no recipients match the message
-is "decrypted" using a random key which will typically output garbage. 
+is "decrypted" using a random key which will typically output garbage.
 The B<-debug_decrypt> option can be used to disable the MMA attack protection
 and return an error if no recipient can be found: this option should be used
-with caution. For a fuller description see L<CMS_decrypt(3)|CMS_decrypt(3)>).
+with caution. For a fuller description see L<CMS_decrypt(3)>).
 
 =head1 EXIT CODES
 
@@ -538,29 +602,29 @@ be processed by the older B<smime> command.
 Create a cleartext signed message:
 
  openssl cms -sign -in message.txt -text -out mail.msg \
-	-signer mycert.pem
+        -signer mycert.pem
 
 Create an opaque signed message
 
  openssl cms -sign -in message.txt -text -out mail.msg -nodetach \
-	-signer mycert.pem
+        -signer mycert.pem
 
 Create a signed message, include some additional certificates and
 read the private key from another file:
 
  openssl cms -sign -in in.txt -text -out mail.msg \
-	-signer mycert.pem -inkey mykey.pem -certfile mycerts.pem
+        -signer mycert.pem -inkey mykey.pem -certfile mycerts.pem
 
 Create a signed message with two signers, use key identifier:
 
  openssl cms -sign -in message.txt -text -out mail.msg \
-	-signer mycert.pem -signer othercert.pem -keyid
+        -signer mycert.pem -signer othercert.pem -keyid
 
 Send a signed message under Unix directly to sendmail, including headers:
 
  openssl cms -sign -in in.txt -text -signer mycert.pem \
-	-from steve@openssl.org -to someone@somewhere \
-	-subject "Signed message" | sendmail someone@somewhere
+        -from steve@openssl.org -to someone@somewhere \
+        -subject "Signed message" | sendmail someone@somewhere
 
 Verify a message and extract the signer's certificate if successful:
 
@@ -569,15 +633,15 @@ Verify a message and extract the signer's certificate if successful:
 Send encrypted mail using triple DES:
 
  openssl cms -encrypt -in in.txt -from steve@openssl.org \
-	-to someone@somewhere -subject "Encrypted message" \
-	-des3 user.pem -out mail.msg
+        -to someone@somewhere -subject "Encrypted message" \
+        -des3 user.pem -out mail.msg
 
 Sign and encrypt mail:
 
  openssl cms -sign -in ml.txt -signer my.pem -text \
-	| openssl cms -encrypt -out mail.msg \
-	-from steve@openssl.org -to someone@somewhere \
-	-subject "Signed and Encrypted message" -des3 user.pem
+        | openssl cms -encrypt -out mail.msg \
+        -from steve@openssl.org -to someone@somewhere \
+        -subject "Signed and Encrypted message" -des3 user.pem
 
 Note: the encryption command does not include the B<-text> option because the
 message being encrypted already has MIME headers.
@@ -594,7 +658,7 @@ it with:
  -----BEGIN PKCS7-----
  -----END PKCS7-----
 
-and using the command, 
+and using the command,
 
  openssl cms -verify -inform PEM -in signature.pem -content content.txt
 
@@ -613,17 +677,17 @@ Add a signer to an existing message:
 Sign mail using RSA-PSS:
 
  openssl cms -sign -in message.txt -text -out mail.msg \
-	-signer mycert.pem -keyopt rsa_padding_mode:pss
+        -signer mycert.pem -keyopt rsa_padding_mode:pss
 
 Create encrypted mail using RSA-OAEP:
 
  openssl cms -encrypt -in plain.txt -out mail.msg \
-	-recip cert.pem -keyopt rsa_padding_mode:oaep
+        -recip cert.pem -keyopt rsa_padding_mode:oaep
 
 Use SHA256 KDF with an ECDH certificate:
 
  openssl cms -encrypt -in plain.txt -out mail.msg \
-	-recip ecdhcert.pem -keyopt ecdh_kdf_md:sha256
+        -recip ecdhcert.pem -keyopt ecdh_kdf_md:sha256
 
 =head1 BUGS
 
@@ -655,11 +719,20 @@ The B<keyopt> option was first added in OpenSSL 1.1.0
 The use of B<-recip> to specify the recipient when encrypting mail was first
 added to OpenSSL 1.1.0
 
-Support for RSA-OAEP and RSA-PSS was first added to OpenSSL 1.1.0. 
+Support for RSA-OAEP and RSA-PSS was first added to OpenSSL 1.1.0.
 
 The use of non-RSA keys with B<-encrypt> and B<-decrypt> was first added
 to OpenSSL 1.1.0.
 
-The -no_alt_chains options was first added to OpenSSL 1.0.2b.
+The -no_alt_chains options was first added to OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

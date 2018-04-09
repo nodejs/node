@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,13 +8,9 @@
  */
 
 #include <string.h>
-#include <openssl/safestack.h>
 
+#include "e_os.h"
 #include "ssltestlib.h"
-
-#define SSL_IS_DTLS(s)  (s->method->version == DTLS_ANY_VERSION \
-    || s->method->version == DTLS1_2_VERSION \
-    || s->method->version == DTLS1_VERSION)
 
 static int tls_dump_new(BIO *bi);
 static int tls_dump_free(BIO *a);
@@ -29,32 +25,42 @@ static int tls_dump_puts(BIO *bp, const char *str);
 
 # define BIO_TYPE_MEMPACKET_TEST      0x81
 
-static BIO_METHOD method_tls_dump = {
-    BIO_TYPE_TLS_DUMP_FILTER,
-    "TLS dump filter",
-    tls_dump_write,
-    tls_dump_read,
-    tls_dump_puts,
-    tls_dump_gets,
-    tls_dump_ctrl,
-    tls_dump_new,
-    tls_dump_free
-};
+static BIO_METHOD *method_tls_dump = NULL;
+static BIO_METHOD *method_mempacket_test = NULL;
 
-BIO_METHOD *bio_f_tls_dump_filter(void)
+/* Note: Not thread safe! */
+const BIO_METHOD *bio_f_tls_dump_filter(void)
 {
-    return &method_tls_dump;
+    if (method_tls_dump == NULL) {
+        method_tls_dump = BIO_meth_new(BIO_TYPE_TLS_DUMP_FILTER,
+                                        "TLS dump filter");
+        if (   method_tls_dump == NULL
+            || !BIO_meth_set_write(method_tls_dump, tls_dump_write)
+            || !BIO_meth_set_read(method_tls_dump, tls_dump_read)
+            || !BIO_meth_set_puts(method_tls_dump, tls_dump_puts)
+            || !BIO_meth_set_gets(method_tls_dump, tls_dump_gets)
+            || !BIO_meth_set_ctrl(method_tls_dump, tls_dump_ctrl)
+            || !BIO_meth_set_create(method_tls_dump, tls_dump_new)
+            || !BIO_meth_set_destroy(method_tls_dump, tls_dump_free))
+            return NULL;
+    }
+    return method_tls_dump;
+}
+
+void bio_f_tls_dump_filter_free(void)
+{
+    BIO_meth_free(method_tls_dump);
 }
 
 static int tls_dump_new(BIO *bio)
 {
-    bio->init = 1;
+    BIO_set_init(bio, 1);
     return 1;
 }
 
 static int tls_dump_free(BIO *bio)
 {
-    bio->init = 0;
+    BIO_set_init(bio, 0);
 
     return 1;
 }
@@ -226,39 +232,12 @@ static int tls_dump_puts(BIO *bio, const char *str)
 }
 
 
-typedef struct mempacket_st {
+struct mempacket_st {
     unsigned char *data;
     int len;
     unsigned int num;
     unsigned int type;
-} MEMPACKET;
-
-/*
- * These defines would normally be auto-generated and in safestack.h...but this
- * is just for tests so its probably not an appropriate place
- */
-# define sk_MEMPACKET_new(cmp) SKM_sk_new(MEMPACKET, (cmp))
-# define sk_MEMPACKET_new_null() SKM_sk_new_null(MEMPACKET)
-# define sk_MEMPACKET_free(st) SKM_sk_free(MEMPACKET, (st))
-# define sk_MEMPACKET_num(st) SKM_sk_num(MEMPACKET, (st))
-# define sk_MEMPACKET_value(st, i) SKM_sk_value(MEMPACKET, (st), (i))
-# define sk_MEMPACKET_set(st, i, val) SKM_sk_set(MEMPACKET, (st), (i), (val))
-# define sk_MEMPACKET_zero(st) SKM_sk_zero(MEMPACKET, (st))
-# define sk_MEMPACKET_push(st, val) SKM_sk_push(MEMPACKET, (st), (val))
-# define sk_MEMPACKET_unshift(st, val) SKM_sk_unshift(MEMPACKET, (st), (val))
-# define sk_MEMPACKET_find(st, val) SKM_sk_find(MEMPACKET, (st), (val))
-# define sk_MEMPACKET_find_ex(st, val) SKM_sk_find_ex(MEMPACKET, (st), (val))
-# define sk_MEMPACKET_delete(st, i) SKM_sk_delete(MEMPACKET, (st), (i))
-# define sk_MEMPACKET_delete_ptr(st, ptr) SKM_sk_delete_ptr(MEMPACKET, (st), (ptr))
-# define sk_MEMPACKET_insert(st, val, i) SKM_sk_insert(MEMPACKET, (st), (val), (i))
-# define sk_MEMPACKET_set_cmp_func(st, cmp) SKM_sk_set_cmp_func(MEMPACKET, (st), (cmp))
-# define sk_MEMPACKET_dup(st) SKM_sk_dup(MEMPACKET, st)
-# define sk_MEMPACKET_pop_free(st, free_func) SKM_sk_pop_free(MEMPACKET, (st), (free_func))
-# define sk_MEMPACKET_deep_copy(st, copy_func, free_func) SKM_sk_deep_copy(MEMPACKET, (st), (copy_func), (free_func))
-# define sk_MEMPACKET_shift(st) SKM_sk_shift(MEMPACKET, (st))
-# define sk_MEMPACKET_pop(st) SKM_sk_pop(MEMPACKET, (st))
-# define sk_MEMPACKET_sort(st) SKM_sk_sort(MEMPACKET, (st))
-# define sk_MEMPACKET_is_sorted(st) SKM_sk_is_sorted(MEMPACKET, (st))
+};
 
 static void mempacket_free(MEMPACKET *pkt)
 {
@@ -284,48 +263,52 @@ static long mempacket_test_ctrl(BIO *b, int cmd, long num, void *ptr);
 static int mempacket_test_gets(BIO *bp, char *buf, int size);
 static int mempacket_test_puts(BIO *bp, const char *str);
 
-static BIO_METHOD method_mempacket_test = {
-    BIO_TYPE_MEMPACKET_TEST,
-    "Mem Packet Test",
-    mempacket_test_write,
-    mempacket_test_read,
-    mempacket_test_puts,
-    mempacket_test_gets,
-    mempacket_test_ctrl,
-    mempacket_test_new,
-    mempacket_test_free
-};
-
-BIO_METHOD *bio_s_mempacket_test(void)
+const BIO_METHOD *bio_s_mempacket_test(void)
 {
-    return &method_mempacket_test;
+    if (method_mempacket_test == NULL) {
+        method_mempacket_test = BIO_meth_new(BIO_TYPE_MEMPACKET_TEST,
+                                             "Mem Packet Test");
+        if (   method_mempacket_test == NULL
+            || !BIO_meth_set_write(method_mempacket_test, mempacket_test_write)
+            || !BIO_meth_set_read(method_mempacket_test, mempacket_test_read)
+            || !BIO_meth_set_puts(method_mempacket_test, mempacket_test_puts)
+            || !BIO_meth_set_gets(method_mempacket_test, mempacket_test_gets)
+            || !BIO_meth_set_ctrl(method_mempacket_test, mempacket_test_ctrl)
+            || !BIO_meth_set_create(method_mempacket_test, mempacket_test_new)
+            || !BIO_meth_set_destroy(method_mempacket_test, mempacket_test_free))
+            return NULL;
+    }
+    return method_mempacket_test;
+}
+
+void bio_s_mempacket_test_free(void)
+{
+    BIO_meth_free(method_mempacket_test);
 }
 
 static int mempacket_test_new(BIO *bio)
 {
-    MEMPACKET_TEST_CTX *ctx = OPENSSL_malloc(sizeof(*ctx));
+    MEMPACKET_TEST_CTX *ctx = OPENSSL_zalloc(sizeof(*ctx));
     if (ctx == NULL)
         return 0;
-    memset(ctx, 0, sizeof(*ctx));
-
     ctx->pkts = sk_MEMPACKET_new_null();
     if (ctx->pkts == NULL) {
         OPENSSL_free(ctx);
         return 0;
     }
-    bio->init = 1;
-    bio->ptr = ctx;
+    BIO_set_init(bio, 1);
+    BIO_set_data(bio, ctx);
     return 1;
 }
 
 static int mempacket_test_free(BIO *bio)
 {
-    MEMPACKET_TEST_CTX *ctx = bio->ptr;
+    MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
 
     sk_MEMPACKET_pop_free(ctx->pkts, mempacket_free);
     OPENSSL_free(ctx);
-    bio->ptr = NULL;
-    bio->init = 0;
+    BIO_set_data(bio, NULL);
+    BIO_set_init(bio, 0);
 
     return 1;
 }
@@ -341,7 +324,7 @@ static int mempacket_test_free(BIO *bio)
 
 static int mempacket_test_read(BIO *bio, char *out, int outl)
 {
-    MEMPACKET_TEST_CTX *ctx = bio->ptr;
+    MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
     MEMPACKET *thispkt;
     unsigned char *rec;
     int rem;
@@ -406,7 +389,7 @@ static int mempacket_test_read(BIO *bio, char *out, int outl)
 int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
                           int type)
 {
-    MEMPACKET_TEST_CTX *ctx = bio->ptr;
+    MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
     MEMPACKET *thispkt, *looppkt, *nextpkt;
     int i;
 
@@ -492,7 +475,7 @@ static int mempacket_test_write(BIO *bio, const char *in, int inl)
 static long mempacket_test_ctrl(BIO *bio, int cmd, long num, void *ptr)
 {
     long ret = 1;
-    MEMPACKET_TEST_CTX *ctx = bio->ptr;
+    MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
     MEMPACKET *thispkt;
 
     switch (cmd) {
@@ -500,10 +483,10 @@ static long mempacket_test_ctrl(BIO *bio, int cmd, long num, void *ptr)
         ret = (long)(sk_MEMPACKET_num(ctx->pkts) == 0);
         break;
     case BIO_CTRL_GET_CLOSE:
-        ret = bio->shutdown;
+        ret = BIO_get_shutdown(bio);
         break;
     case BIO_CTRL_SET_CLOSE:
-        bio->shutdown = (int)num;
+        BIO_set_shutdown(bio, (int)num);
         break;
     case BIO_CTRL_WPENDING:
         ret = 0L;
@@ -541,6 +524,7 @@ static int mempacket_test_puts(BIO *bio, const char *str)
 }
 
 int create_ssl_ctx_pair(const SSL_METHOD *sm, const SSL_METHOD *cm,
+                        int min_proto_version, int max_proto_version,
                         SSL_CTX **sctx, SSL_CTX **cctx, char *certfile,
                         char *privkeyfile)
 {
@@ -548,10 +532,35 @@ int create_ssl_ctx_pair(const SSL_METHOD *sm, const SSL_METHOD *cm,
     SSL_CTX *clientctx = NULL;
 
     serverctx = SSL_CTX_new(sm);
-    clientctx = SSL_CTX_new(cm);
-    if (serverctx == NULL || clientctx == NULL) {
+    if (cctx != NULL)
+        clientctx = SSL_CTX_new(cm);
+    if (serverctx == NULL || (cctx != NULL && clientctx == NULL)) {
         printf("Failed to create SSL_CTX\n");
         goto err;
+    }
+
+    if (min_proto_version > 0
+        && !SSL_CTX_set_min_proto_version(serverctx, min_proto_version)) {
+        printf("Unable to set server min protocol versions\n");
+        goto err;
+    }
+    if (max_proto_version > 0
+        && !SSL_CTX_set_max_proto_version(serverctx, max_proto_version)) {
+        printf("Unable to set server max protocol versions\n");
+        goto err;
+    }
+
+    if (clientctx != NULL) {
+        if (min_proto_version > 0
+            && !SSL_CTX_set_max_proto_version(clientctx, max_proto_version)) {
+            printf("Unable to set client max protocol versions\n");
+            goto err;
+        }
+        if (max_proto_version > 0
+            && !SSL_CTX_set_min_proto_version(clientctx, min_proto_version)) {
+            printf("Unable to set client min protocol versions\n");
+            goto err;
+        }
     }
 
     if (SSL_CTX_use_certificate_file(serverctx, certfile,
@@ -568,8 +577,13 @@ int create_ssl_ctx_pair(const SSL_METHOD *sm, const SSL_METHOD *cm,
         goto err;
     }
 
+#ifndef OPENSSL_NO_DH
+    SSL_CTX_set_dh_auto(serverctx, 1);
+#endif
+
     *sctx = serverctx;
-    *cctx = clientctx;
+    if (cctx != NULL)
+        *cctx = clientctx;
 
     return 1;
  err:
@@ -589,17 +603,23 @@ int create_ssl_objects(SSL_CTX *serverctx, SSL_CTX *clientctx, SSL **sssl,
     SSL *serverssl, *clientssl;
     BIO *s_to_c_bio = NULL, *c_to_s_bio = NULL;
 
-    serverssl = SSL_new(serverctx);
-    clientssl = SSL_new(clientctx);
+    if (*sssl == NULL)
+        serverssl = SSL_new(serverctx);
+    else
+        serverssl = *sssl;
+    if (*cssl == NULL)
+        clientssl = SSL_new(clientctx);
+    else
+        clientssl = *cssl;
 
     if (serverssl == NULL || clientssl == NULL) {
         printf("Failed to create SSL object\n");
         goto error;
     }
 
-    if (SSL_IS_DTLS(clientssl)) {
+    if (SSL_is_dtls(clientssl)) {
         s_to_c_bio = BIO_new(bio_s_mempacket_test());
-        c_to_s_bio = BIO_new(bio_s_mempacket_test());;
+        c_to_s_bio = BIO_new(bio_s_mempacket_test());
     } else {
         s_to_c_bio = BIO_new(BIO_s_mem());
         c_to_s_bio = BIO_new(BIO_s_mem());
@@ -623,8 +643,8 @@ int create_ssl_objects(SSL_CTX *serverctx, SSL_CTX *clientctx, SSL **sssl,
     BIO_set_mem_eof_return(c_to_s_bio, -1);
 
     /* Up ref these as we are passing them to two SSL objects */
-    CRYPTO_add(&s_to_c_bio->references, 1, CRYPTO_LOCK_BIO);
-    CRYPTO_add(&c_to_s_bio->references, 1, CRYPTO_LOCK_BIO);
+    BIO_up_ref(s_to_c_bio);
+    BIO_up_ref(c_to_s_bio);
 
     SSL_set_bio(serverssl, c_to_s_bio, s_to_c_bio);
     SSL_set_bio(clientssl, s_to_c_bio, c_to_s_bio);
@@ -652,31 +672,34 @@ int create_ssl_objects(SSL_CTX *serverctx, SSL_CTX *clientctx, SSL **sssl,
 int create_ssl_connection(SSL *serverssl, SSL *clientssl)
 {
     int retc = -1, rets = -1, err, abortctr = 0;
+    int clienterr = 0, servererr = 0;
 
     do {
         err = SSL_ERROR_WANT_WRITE;
-        while (retc <= 0 && err == SSL_ERROR_WANT_WRITE) {
+        while (!clienterr && retc <= 0 && err == SSL_ERROR_WANT_WRITE) {
             retc = SSL_connect(clientssl);
             if (retc <= 0)
                 err = SSL_get_error(clientssl, retc);
         }
 
-        if (retc <= 0 && err != SSL_ERROR_WANT_READ) {
+        if (!clienterr && retc <= 0 && err != SSL_ERROR_WANT_READ) {
             printf("SSL_connect() failed %d, %d\n", retc, err);
-            return 0;
+            clienterr = 1;
         }
 
         err = SSL_ERROR_WANT_WRITE;
-        while (rets <= 0 && err == SSL_ERROR_WANT_WRITE) {
+        while (!servererr && rets <= 0 && err == SSL_ERROR_WANT_WRITE) {
             rets = SSL_accept(serverssl);
             if (rets <= 0)
                 err = SSL_get_error(serverssl, rets);
         }
 
-        if (rets <= 0 && err != SSL_ERROR_WANT_READ) {
+        if (!servererr && rets <= 0 && err != SSL_ERROR_WANT_READ) {
             printf("SSL_accept() failed %d, %d\n", retc, err);
-            return 0;
+            servererr = 1;
         }
+        if (clienterr && servererr)
+            return 0;
         if (++abortctr == MAXLOOPS) {
             printf("No progress made\n");
             return 0;

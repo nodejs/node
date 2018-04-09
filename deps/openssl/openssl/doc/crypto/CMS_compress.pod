@@ -63,11 +63,19 @@ occurred. The error can be obtained from ERR_get_error(3).
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)|ERR_get_error(3)>, L<CMS_uncompress(3)|CMS_uncompress(3)>
+L<ERR_get_error(3)>, L<CMS_uncompress(3)>
 
 =head1 HISTORY
 
-CMS_compress() was added to OpenSSL 0.9.8
-The B<CMS_STREAM> flag was first supported in OpenSSL 1.0.0.
+The B<CMS_STREAM> flag was added in OpenSSL 1.0.0.
+
+=head1 COPYRIGHT
+
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

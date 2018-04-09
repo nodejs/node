@@ -88,6 +88,23 @@ Depending on host platform, the selection of toolchains may vary.
 
 * Visual Studio 2017 or the Build Tools thereof
 
+#### OpenSSL asm support
+
+OpenSSL-1.1.0 requires the following asssembler version for use of asm
+support.
+
+* gas (GNU assembler) version 2.23 or higher
+* xcode version 5.0 or higher
+* llvm version 3.3 or higher
+* nasm version 2.10 or higher in Windows
+
+Otherwise, `--openssl-no-asm` is added with warning in configure.
+
+*Note:* The forthcoming OpenSSL-1.1.1 will require higher
+ version. Please refer
+ https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html for
+ details.
+
 ## Building Node.js on supported platforms
 
 *Note:* All prerequisites can be easily installed by following
@@ -241,6 +258,9 @@ Prerequisites:
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
+* **Optional** (for OpenSSL assembler modules): the [NetWide Assembler](http://www.nasm.us/),
+  if not installed in the default location it needs to be manually added
+  to `PATH`.
 * **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
   and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
 
@@ -377,44 +397,7 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ## Building Node.js with FIPS-compliant OpenSSL
 
-It is possible to build Node.js with the
-[OpenSSL FIPS module](https://www.openssl.org/docs/fipsnotes.html) on POSIX
-systems. Windows is not supported.
-
-Building in this way does not mean the runtime is FIPS 140-2 validated, but
-rather that the runtime uses a validated module. In addition, the validation for
-the underlying module is only valid if it is deployed in accordance with its
-[security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
-If you need FIPS validated cryptography it is recommended that you read both
-the [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
-and [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
-
-### Instructions
-
-1. Obtain a copy of openssl-fips-x.x.x.tar.gz.
-   To comply with the security policy you must ensure the path
-   through which you get the file complies with the requirements
-   for a "secure installation" as described in section 6.6 in
-   the [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
-   For evaluation/experimentation, you can simply download and verify
-   `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
-2. Extract source to `openssl-fips` folder and `cd openssl-fips`
-3. `./config`
-4. `make`
-5. `make install`
-   (NOTE: to comply with the security policy you must use the exact
-   commands in steps 3-5 without any additional options as per
-   Appendix A in the [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
-   The only exception is that `./config no-asm` can be
-   used in place of `./config`, and the FIPSDIR environment variable
-   may be used to specify a non-standard install folder for the
-   validated module, as per User Guide sections 4.2.1, 4.2.2, and 4.2.3.
-6. Get into Node.js checkout folder
-7. `./configure --openssl-fips=/path/to/openssl-fips/installdir`
-   For example on ubuntu 12 the installation directory was
-   `/usr/local/ssl/fips-2.0`
-8. Build Node.js with `make -j`
-9. Verify with `node -p "process.versions.openssl"` (for example `1.0.2a-fips`)
+This version of Node.js does not support FIPS.
 
 ## Building Node.js with external core modules
 

@@ -1,3 +1,12 @@
+/*
+ * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,9 +69,18 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
         if ((OPENSSL_sparcv9cap_P[0] & SPARCV9_VIS3))
             return bn_mul_mont_vis3(rp, ap, bp, np, n0, num);
         else if (num >= 8 &&
-                 (OPENSSL_sparcv9cap_P[0] &
-                  (SPARCV9_PREFER_FPU | SPARCV9_VIS1)) ==
-                 (SPARCV9_PREFER_FPU | SPARCV9_VIS1))
+                 /*
+                  * bn_mul_mont_fpu doesn't use FMADD, we just use the
+                  * flag to detect when FPU path is preferable in cases
+                  * when current heuristics is unreliable. [it works
+                  * out because FMADD-capable processors where FPU
+                  * code path is undesirable are also VIS3-capable and
+                  * VIS3 code path takes precedence.]
+                  */
+                 ( (OPENSSL_sparcv9cap_P[0] & SPARCV9_FMADD) ||
+                   (OPENSSL_sparcv9cap_P[0] &
+                    (SPARCV9_PREFER_FPU | SPARCV9_VIS1)) ==
+                   (SPARCV9_PREFER_FPU | SPARCV9_VIS1) ))
             return bn_mul_mont_fpu(rp, ap, bp, np, n0, num);
     }
     return bn_mul_mont_int(rp, ap, bp, np, n0, num);
@@ -75,6 +93,7 @@ void _sparcv9_vis2_probe(void);
 void _sparcv9_fmadd_probe(void);
 unsigned long _sparcv9_rdcfr(void);
 void _sparcv9_vis3_probe(void);
+void _sparcv9_fjaesx_probe(void);
 unsigned long _sparcv9_random(void);
 size_t _sparcv9_vis1_instrument_bus(unsigned int *, size_t);
 size_t _sparcv9_vis1_instrument_bus2(unsigned int *, size_t, size_t);
@@ -108,128 +127,6 @@ size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
     else
         return 0;
 }
-
-#if 0 && defined(__sun) && defined(__SVR4)
-/*
- * This code path is disabled, because of incompatibility of libdevinfo.so.1
- * and libmalloc.so.1 (see below for details)
- */
-# include <malloc.h>
-# include <dlfcn.h>
-# include <libdevinfo.h>
-# include <sys/systeminfo.h>
-
-typedef di_node_t(*di_init_t) (const char *, uint_t);
-typedef void (*di_fini_t) (di_node_t);
-typedef char *(*di_node_name_t) (di_node_t);
-typedef int (*di_walk_node_t) (di_node_t, uint_t, di_node_name_t,
-                               int (*)(di_node_t, di_node_name_t));
-
-# define DLLINK(h,name) (name=(name##_t)dlsym((h),#name))
-
-static int walk_nodename(di_node_t node, di_node_name_t di_node_name)
-{
-    char *name = (*di_node_name) (node);
-
-    /* This is expected to catch all UltraSPARC flavors prior T1 */
-    if (!strcmp(name, "SUNW,UltraSPARC") ||
-        /* covers II,III,IV */
-        !strncmp(name, "SUNW,UltraSPARC-I", 17)) {
-        OPENSSL_sparcv9cap_P[0] |= SPARCV9_PREFER_FPU | SPARCV9_VIS1;
-
-        /* %tick is privileged only on UltraSPARC-I/II, but not IIe */
-        if (name[14] != '\0' && name[17] != '\0' && name[18] != '\0')
-            OPENSSL_sparcv9cap_P[0] &= ~SPARCV9_TICK_PRIVILEGED;
-
-        return DI_WALK_TERMINATE;
-    }
-    /* This is expected to catch remaining UltraSPARCs, such as T1 */
-    else if (!strncmp(name, "SUNW,UltraSPARC", 15)) {
-        OPENSSL_sparcv9cap_P[0] &= ~SPARCV9_TICK_PRIVILEGED;
-
-        return DI_WALK_TERMINATE;
-    }
-
-    return DI_WALK_CONTINUE;
-}
-
-void OPENSSL_cpuid_setup(void)
-{
-    void *h;
-    char *e, si[256];
-    static int trigger = 0;
-
-    if (trigger)
-        return;
-    trigger = 1;
-
-    if ((e = getenv("OPENSSL_sparcv9cap"))) {
-        OPENSSL_sparcv9cap_P[0] = strtoul(e, NULL, 0);
-        return;
-    }
-
-    if (sysinfo(SI_MACHINE, si, sizeof(si)) > 0) {
-        if (strcmp(si, "sun4v"))
-            /* FPU is preferred for all CPUs, but US-T1/2 */
-            OPENSSL_sparcv9cap_P[0] |= SPARCV9_PREFER_FPU;
-    }
-
-    if (sysinfo(SI_ISALIST, si, sizeof(si)) > 0) {
-        if (strstr(si, "+vis"))
-            OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS1 | SPARCV9_BLK;
-        if (strstr(si, "+vis2")) {
-            OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS2;
-            OPENSSL_sparcv9cap_P[0] &= ~SPARCV9_TICK_PRIVILEGED;
-            return;
-        }
-    }
-# ifdef M_KEEP
-    /*
-     * Solaris libdevinfo.so.1 is effectively incomatible with
-     * libmalloc.so.1. Specifically, if application is linked with
-     * -lmalloc, it crashes upon startup with SIGSEGV in
-     * free(3LIBMALLOC) called by di_fini. Prior call to
-     * mallopt(M_KEEP,0) somehow helps... But not always...
-     */
-    if ((h = dlopen(NULL, RTLD_LAZY))) {
-        union {
-            void *p;
-            int (*f) (int, int);
-        } sym;
-        if ((sym.p = dlsym(h, "mallopt")))
-            (*sym.f) (M_KEEP, 0);
-        dlclose(h);
-    }
-# endif
-    if ((h = dlopen("libdevinfo.so.1", RTLD_LAZY)))
-        do {
-            di_init_t di_init;
-            di_fini_t di_fini;
-            di_walk_node_t di_walk_node;
-            di_node_name_t di_node_name;
-            di_node_t root_node;
-
-            if (!DLLINK(h, di_init))
-                break;
-            if (!DLLINK(h, di_fini))
-                break;
-            if (!DLLINK(h, di_walk_node))
-                break;
-            if (!DLLINK(h, di_node_name))
-                break;
-
-            if ((root_node = (*di_init) ("/", DINFOSUBTREE)) != DI_NODE_NIL) {
-                (*di_walk_node) (root_node, DI_WALK_SIBFIRST,
-                                 di_node_name, walk_nodename);
-                (*di_fini) (root_node);
-            }
-        } while (0);
-
-    if (h)
-        dlclose(h);
-}
-
-#else
 
 static sigjmp_buf common_jmp;
 static void common_handler(int sig)
@@ -268,19 +165,27 @@ void OPENSSL_cpuid_setup(void)
 
 #if defined(__sun) && defined(__SVR4)
     if (getisax != NULL) {
-        unsigned int vec[1];
+        unsigned int vec[2] = { 0, 0 };
 
-        if (getisax (vec,1)) {
-            if (vec[0]&0x0020) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS1;
-            if (vec[0]&0x0040) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS2;
-            if (vec[0]&0x0080) OPENSSL_sparcv9cap_P[0] |= SPARCV9_BLK;
-            if (vec[0]&0x0100) OPENSSL_sparcv9cap_P[0] |= SPARCV9_FMADD;
-            if (vec[0]&0x0400) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS3;
+        if (getisax (vec,2)) {
+            if (vec[0]&0x00020) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS1;
+            if (vec[0]&0x00040) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS2;
+            if (vec[0]&0x00080) OPENSSL_sparcv9cap_P[0] |= SPARCV9_BLK;
+            if (vec[0]&0x00100) OPENSSL_sparcv9cap_P[0] |= SPARCV9_FMADD;
+            if (vec[0]&0x00400) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS3;
+            if (vec[0]&0x01000) OPENSSL_sparcv9cap_P[0] |= SPARCV9_FJHPCACE;
+            if (vec[0]&0x02000) OPENSSL_sparcv9cap_P[0] |= SPARCV9_FJDESX;
+            if (vec[0]&0x08000) OPENSSL_sparcv9cap_P[0] |= SPARCV9_IMA;
+            if (vec[0]&0x10000) OPENSSL_sparcv9cap_P[0] |= SPARCV9_FJAESX;
+            if (vec[1]&0x00008) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS4;
 
             /* reconstruct %cfr copy */
             OPENSSL_sparcv9cap_P[1] = (vec[0]>>17)&0x3ff;
             OPENSSL_sparcv9cap_P[1] |= (OPENSSL_sparcv9cap_P[1]&CFR_MONTMUL)<<1;
             if (vec[0]&0x20000000) OPENSSL_sparcv9cap_P[1] |= CFR_CRC32C;
+            if (vec[1]&0x00000020) OPENSSL_sparcv9cap_P[1] |= CFR_XMPMUL;
+            if (vec[1]&0x00000040)
+                OPENSSL_sparcv9cap_P[1] |= CFR_XMONTMUL|CFR_XMONTSQR;
 
             /* Some heuristics */
             /* all known VIS2-capable CPUs have unprivileged tick counter */
@@ -354,13 +259,11 @@ void OPENSSL_cpuid_setup(void)
         _sparcv9_vis3_probe();
         OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS3;
     }
-# if 0                          /* was planned at some point but never
-                                 * implemented in hardware */
+
     if (sigsetjmp(common_jmp, 1) == 0) {
-        (void)_sparcv9_random();
-        OPENSSL_sparcv9cap_P[0] |= SPARCV9_RANDOM;
+        _sparcv9_fjaesx_probe();
+        OPENSSL_sparcv9cap_P[0] |= SPARCV9_FJAESX;
     }
-# endif
 
     /*
      * In wait for better solution _sparcv9_rdcfr is masked by
@@ -389,5 +292,3 @@ void OPENSSL_cpuid_setup(void)
     }
 # endif
 }
-
-#endif
