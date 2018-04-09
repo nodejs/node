@@ -130,7 +130,7 @@ punycode.ucs2.decode('\uD834\uDF06'); // [0x1D306]
 added: v0.7.0
 -->
 
-* `codePoints` {Array}
+* `codePoints` {integer[]}
 
 The `punycode.ucs2.encode()` method returns a string based on an array of
 numeric code point values.
