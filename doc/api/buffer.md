@@ -304,6 +304,10 @@ It can be constructed in a variety of ways.
 <!-- YAML
 deprecated: v6.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19524
+    description: Calling this constructor emits a deprecation warning when
+                 run from code outside the `node_modules` directory.
   - version: v7.2.1
     pr-url: https://github.com/nodejs/node/pull/9529
     description: Calling this constructor no longer emits a deprecation warning.
@@ -328,6 +332,10 @@ const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 added: v3.0.0
 deprecated: v6.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19524
+    description: Calling this constructor emits a deprecation warning when
+                 run from code outside the `node_modules` directory.
   - version: v7.2.1
     pr-url: https://github.com/nodejs/node/pull/9529
     description: Calling this constructor no longer emits a deprecation warning.
@@ -380,6 +388,10 @@ console.log(buf);
 <!-- YAML
 deprecated: v6.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19524
+    description: Calling this constructor emits a deprecation warning when
+                 run from code outside the `node_modules` directory.
   - version: v7.2.1
     pr-url: https://github.com/nodejs/node/pull/9529
     description: Calling this constructor no longer emits a deprecation warning.
@@ -410,6 +422,10 @@ console.log(buf2.toString());
 <!-- YAML
 deprecated: v6.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19524
+    description: Calling this constructor emits a deprecation warning when
+                 run from code outside the `node_modules` directory.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12141
     description: new Buffer(size) will return zero-filled memory by default.
@@ -447,6 +463,10 @@ console.log(buf);
 <!-- YAML
 deprecated: v6.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19524
+    description: Calling this constructor emits a deprecation warning when
+                 run from code outside the `node_modules` directory.
   - version: v7.2.1
     pr-url: https://github.com/nodejs/node/pull/9529
     description: Calling this constructor no longer emits a deprecation warning.
