@@ -909,9 +909,11 @@ def configure_node(o):
     o['variables']['node_use_dtrace'] = 'false'
 
   if flavor == 'linux':
-    print(' Large pages is ', options.node_use_large_pages);
-    o['variables']['node_use_large_pages'] = 'true'
-       
+    if options.node_use_large_pages:
+      o['variables']['node_use_large_pages'] = 'true'
+    else:
+      o['variables']['node_use_large_pages'] = 'false'
+
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
 
