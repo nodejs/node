@@ -1240,9 +1240,10 @@ changes:
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
 * `byteOffset` {integer} Where to begin searching in `buf`. **Default:** `0`.
-* `encoding` {string} The encoding of `value` if `value` is a string.
-  **Default:** `'utf8'`.
-* Returns: {integer} The index of the first occurrence of `value` in `buf` or
+* `encoding` {string} If `value` is a string, this is the encoding used to
+  determine the binary representation of the string that will be searched for in
+  `buf`. **Default:** `'utf8'`.
+* Returns: {integer} The index of the first occurrence of `value` in `buf`, or
   `-1` if `buf` does not contain `value`.
 
 If `value` is:
