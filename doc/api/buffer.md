@@ -1325,11 +1325,12 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. **Default:** `0`
-* `encoding` {string} If `value` is a string, this is its encoding.
-  **Default:** `'utf8'`
-* Returns: {integer} The index of the first occurrence of `value` in `buf` or `-1`
-  if `buf` does not contain `value`.
+* `byteOffset` {integer} Where to begin searching in `buf`. **Default:** `0`.
+* `encoding` {string} If `value` is a string, this is the encoding used to
+  determine the binary representation of the string that will be searched for in
+  `buf`. **Default:** `'utf8'`.
+* Returns: {integer} The index of the first occurrence of `value` in `buf`, or
+  `-1` if `buf` does not contain `value`.
 
 If `value` is:
 
@@ -1438,14 +1439,15 @@ changes:
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
 * `byteOffset` {integer} Where to begin searching in `buf`.
-  **Default:** [`buf.length`]` - 1`
-* `encoding` {string} If `value` is a string, this is its encoding.
-  **Default:** `'utf8'`
-* Returns: {integer} The index of the last occurrence of `value` in `buf` or `-1`
-  if `buf` does not contain `value`.
+  **Default:** [`buf.length`]` - 1`.
+* `encoding` {string} If `value` is a string, this is the encoding used to
+  determine the binary representation of the string that will be searched for in
+  `buf`. **Default:** `'utf8'`.
+* Returns: {integer} The index of the last occurrence of `value` in `buf`, or
+  `-1` if `buf` does not contain `value`.
 
-Identical to [`buf.indexOf()`], except `buf` is searched from back to front
-instead of front to back.
+Identical to [`buf.indexOf()`], except the last occurrence of `value` is found
+rather than the first occurrence.
 
 Examples:
 
