@@ -144,7 +144,7 @@ exports.obsoleteFunction = util.deprecate(() => {
 ```
 
 When called, `util.deprecate()` will return a function that will emit a
-`DeprecationWarning` using the `process.on('warning')` event. The warning will
+`DeprecationWarning` using the `'warning'` event. The warning will
 be emitted and printed to `stderr` the first time the returned function is
 called. After the warning is emitted, the wrapped function is called without
 emitting a warning.

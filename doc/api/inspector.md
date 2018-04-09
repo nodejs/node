@@ -81,7 +81,7 @@ added: v8.0.0
 Emitted when an inspector notification is received that has its method field set
 to the `<inspector-protocol-method>` value.
 
-The following snippet installs a listener on the [`Debugger.paused`][]
+The following snippet installs a listener on the [`'Debugger.paused'`][]
 event, and prints the reason for program suspension whenever program
 execution is suspended (through breakpoints, for example):
 
@@ -167,8 +167,8 @@ session.post('Profiler.enable', () => {
 ```
 
 
-[`session.connect()`]: #inspector_session_connect
-[`Debugger.paused`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger/#event-paused
+[`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger/#event-paused
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`session.connect()`]: #inspector_session_connect
 [Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
 [CPU Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/Profiler
