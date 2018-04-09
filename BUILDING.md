@@ -378,43 +378,46 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 ## Building Node.js with FIPS-compliant OpenSSL
 
 It is possible to build Node.js with the
-[OpenSSL FIPS module](https://www.openssl.org/docs/fipsnotes.html) on POSIX
-systems. Windows is not supported.
+[OpenSSL FIPS Object Module 2.0](https://www.openssl.org/docs/fips.html) on
+POSIX systems. Windows is not supported.
 
 Building in this way does not mean the runtime is FIPS 140-2 validated, but
-rather that the runtime uses a validated module. In addition, the validation for
-the underlying module is only valid if it is deployed in accordance with its
-[security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
+rather that the runtime uses a validated module. In addition, the validation
+for the underlying module is only valid if it is deployed in accordance with
+the
+[OpenSSL FIPS 140-2 Security Policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
 If you need FIPS validated cryptography it is recommended that you read both
-the [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
-and [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
+the Security Policy and the
+[OpenSSL FIPS Object Module 2.0 User Guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
 
 ### Instructions
 
-1. Obtain a copy of openssl-fips-x.x.x.tar.gz.
-   To comply with the security policy you must ensure the path
-   through which you get the file complies with the requirements
-   for a "secure installation" as described in section 6.6 in
-   the [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
+1. Obtain a copy of `openssl-fips-x.x.x.tar.gz`, where x.x.x is the most recent
+   version, e.g. `openssl-fips-2.0.16.tar.gz`.
+   To comply with the Security Policy you must ensure the path through which
+   you get the file complies with the requirements for a "secure
+   installation" as described in section 6.6 in the User Guide.
    For evaluation/experimentation, you can simply download and verify
    `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
-2. Extract source to `openssl-fips` folder and `cd openssl-fips`
+2. Extract the contents of the `openssl-fips-x.x.x.tar.gz` to an `openssl-fips`
+   directory and `cd openssl-fips`.
 3. `./config`
 4. `make`
 5. `make install`
-   (NOTE: to comply with the security policy you must use the exact
-   commands in steps 3-5 without any additional options as per
-   Appendix A in the [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
-   The only exception is that `./config no-asm` can be
-   used in place of `./config`, and the FIPSDIR environment variable
-   may be used to specify a non-standard install folder for the
-   validated module, as per User Guide sections 4.2.1, 4.2.2, and 4.2.3.
-6. Get into Node.js checkout folder
-7. `./configure --openssl-fips=/path/to/openssl-fips/installdir`
-   For example on ubuntu 12 the installation directory was
-   `/usr/local/ssl/fips-2.0`
-8. Build Node.js with `make -j`
-9. Verify with `node -p "process.versions.openssl"` (for example `1.0.2a-fips`)
+   NOTE: to comply with the Security Policy you must use the **exact commands
+   in steps 3-5** without modification as per Appendix A of the security
+   policy. The only exception is that `./config no-asm` may be used in place of
+   `./config`, and the `FIPSDIR` environment variable may be used to specify a
+   non-standard install folder for the validated module, as per User Guide
+   sections 4.2.1, 4.2.2, and 4.2.3.
+6. Change directory to the Node.js source.
+7. `./configure --openssl-fips=/path/to/openssl-fips/installdir` where
+   `/path/to/openssl-fips` is the directory you extracted the openssl-fips
+   source in step 2.
+8. Build Node.js, e.g. with `make -j`.
+9. Verify that the OpenSSL FIPS Object Module has been linked to Node.js with
+   `node -p process.versions.openssl`. The output of this command will contain
+   a `-fips` suffix, for example: `1.0.2a-fips`.
 
 ## Building Node.js with external core modules
 
