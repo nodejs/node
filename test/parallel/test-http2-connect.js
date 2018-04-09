@@ -4,6 +4,9 @@ const { mustCall, hasCrypto, skip, expectsError } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
 const { createServer, connect } = require('http2');
+const { connect: netConnect } = require('net');
+
+// check for session connect callback and event
 {
   const server = createServer();
   server.listen(0, mustCall(() => {
@@ -27,6 +30,28 @@ const { createServer, connect } = require('http2');
         }
       }));
     }
+  }));
+}
+
+// check for session connect callback on already connected socket
+{
+  const server = createServer();
+  server.listen(0, mustCall(() => {
+    const { port } = server.address();
+
+    const onSocketConnect = () => {
+      const authority = `http://localhost:${port}`;
+      const createConnection = mustCall(() => socket);
+      const options = { createConnection };
+      connect(authority, options, mustCall(onSessionConnect));
+    };
+
+    const onSessionConnect = (session) => {
+      session.close();
+      server.close();
+    };
+
+    const socket = netConnect(port, mustCall(onSocketConnect));
   }));
 }
 
