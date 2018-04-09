@@ -34,7 +34,8 @@ common.crashOnUnhandledRejection();
         assert(err instanceof assert.AssertionError,
                `${err.name} is not instance of AssertionError`);
         assert.strictEqual(err.code, 'ERR_ASSERTION');
-        assert(/^Got unwanted rejection\.\n$/.test(err.message));
+        assert.strictEqual(err.message,
+                           'Got unwanted rejection.\nActual message: ""');
         assert.strictEqual(err.operator, 'doesNotReject');
         assert.ok(!err.stack.includes('at Function.doesNotReject'));
         return true;
