@@ -124,29 +124,22 @@ assert.throws(() => thrower(TypeError));
   assert.ok(threw, 'a.doesNotThrow is not catching type matching errors');
 }
 
-common.expectsError(
+assert.throws(
   () => a.doesNotThrow(() => thrower(Error), 'user message'),
   {
-    type: a.AssertionError,
+    name: 'AssertionError [ERR_ASSERTION]',
     code: 'ERR_ASSERTION',
     operator: 'doesNotThrow',
-    message: 'Got unwanted exception: user message\n[object Object]'
+    message: 'Got unwanted exception: user message\n' +
+             'Actual message: "[object Object]"'
   }
 );
 
-common.expectsError(
-  () => a.doesNotThrow(() => thrower(Error), 'user message'),
-  {
-    code: 'ERR_ASSERTION',
-    message: /Got unwanted exception: user message\n\[object Object\]/
-  }
-);
-
-common.expectsError(
+assert.throws(
   () => a.doesNotThrow(() => thrower(Error)),
   {
     code: 'ERR_ASSERTION',
-    message: /Got unwanted exception\.\n\[object Object\]/
+    message: 'Got unwanted exception.\nActual message: "[object Object]"'
   }
 );
 
@@ -833,13 +826,13 @@ common.expectsError(
 
   // eslint-disable-next-line no-throw-literal
   assert.throws(() => { throw undefined; }, /undefined/);
-  common.expectsError(
+  assert.throws(
     // eslint-disable-next-line no-throw-literal
     () => a.doesNotThrow(() => { throw undefined; }),
     {
-      type: assert.AssertionError,
+      name: 'AssertionError [ERR_ASSERTION]',
       code: 'ERR_ASSERTION',
-      message: 'Got unwanted exception.\nundefined'
+      message: 'Got unwanted exception.\nActual message: "undefined"'
     }
   );
 }
