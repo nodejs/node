@@ -1823,9 +1823,9 @@ changes:
 -->
 
 * `options` {Object | string | URL}
-  * `protocol` {string} Protocol to use. **Default:** `http:`.
+  * `protocol` {string} Protocol to use. **Default:** `'http:'`.
   * `host` {string} A domain name or IP address of the server to issue the
-    request to. **Default:** `localhost`.
+    request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` is preferred over `host`.
   * `family` {number} IP address family to use when resolving `host` and
