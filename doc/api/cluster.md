@@ -192,7 +192,7 @@ added: v0.7.0
 * `message` {Object}
 * `handle` {undefined|Object}
 
-Similar to the `cluster.on('message')` event, but specific to this worker.
+Similar to the `'message'` event of `cluster`, but specific to this worker.
 
 Within a worker, `process.on('message')` may also be used.
 
@@ -463,7 +463,7 @@ added: v0.7.9
 
 Emitted after the worker IPC channel has disconnected. This can occur when a
 worker exits gracefully, is killed, or is disconnected manually (such as with
-worker.disconnect()).
+`worker.disconnect()`).
 
 There may be a delay between the `'disconnect'` and `'exit'` events. These
 events can be used to detect if the process is stuck in a cleanup or if there
@@ -497,7 +497,7 @@ cluster.on('exit', (worker, code, signal) => {
 });
 ```
 
-See [child_process event: 'exit'][].
+See [child_process event: `'exit'`][].
 
 ## Event: 'fork'
 <!-- YAML
@@ -573,7 +573,7 @@ changes:
 
 Emitted when the cluster master receives a message from any worker.
 
-See [child_process event: 'message'][].
+See [child_process event: `'message'`][].
 
 Before Node.js v6.0, this event emitted only the message and the handle,
 but not the worker object, contrary to what the documentation stated.
@@ -603,7 +603,7 @@ added: v0.7.0
 After forking a new worker, the worker should respond with an online message.
 When the master receives an online message it will emit this event.
 The difference between `'fork'` and `'online'` is that fork is emitted when the
-master forks a worker, and 'online' is emitted when the worker is running.
+master forks a worker, and `'online'` is emitted when the worker is running.
 
 ```js
 cluster.on('online', (worker) => {
@@ -846,6 +846,6 @@ socket.on('data', (id) => {
 [`server.close()`]: net.html#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
-[child_process event: 'exit']: child_process.html#child_process_event_exit
-[child_process event: 'message']: child_process.html#child_process_event_message
+[child_process event: `'exit'`]: child_process.html#child_process_event_exit
+[child_process event: `'message'`]: child_process.html#child_process_event_message
 [`cluster.settings`]: #cluster_cluster_settings

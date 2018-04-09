@@ -15,9 +15,9 @@ const async_hooks = require('async_hooks');
 ## Terminology
 
 An asynchronous resource represents an object with an associated callback.
-This callback may be called multiple times, for example, the `connection` event
-in `net.createServer`, or just a single time like in `fs.open`. A resource
-can also be closed before the callback is called. AsyncHook does not
+This callback may be called multiple times, for example, the `'connection'`
+event in `net.createServer()`, or just a single time like in `fs.open()`.
+A resource can also be closed before the callback is called. AsyncHook does not
 explicitly distinguish between these different cases but will represent them
 as the abstract concept that is a resource.
 
@@ -128,7 +128,7 @@ const asyncHook = async_hooks.createHook(new MyAddedCallbacks());
 
 If any `AsyncHook` callbacks throw, the application will print the stack trace
 and exit. The exit path does follow that of an uncaught exception, but
-all `uncaughtException` listeners are removed, thus forcing the process to
+all `'uncaughtException'` listeners are removed, thus forcing the process to
 exit. The `'exit'` callbacks will still be called unless the application is run
 with `--abort-on-uncaught-exception`, in which case a stack trace will be
 printed and the application exits, leaving a core file.

@@ -116,13 +116,24 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable: `NODE_DEBUG=fs,net,tls`.
 
-## util.deprecate(function, string)
+## util.deprecate(function, string[, code])
 <!-- YAML
 added: v0.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16393
+    description: Deprecation warnings are only emitted once for each code.
 -->
 
-The `util.deprecate()` method wraps the given `function` or class in such a way
-that it is marked as deprecated.
+* `fn` {Function} The function that is being deprecated.
+* `msg` {string} A warning message to display when the deprecated function is
+  invoked.
+* `code` {string} A deprecation code. See the [list of deprecated APIs][] for a
+  list of codes.
+* Returns: {Function} The deprecated function wrapped to emit a warning.
+
+The `util.deprecate()` method wraps `fn` (which may be a function or class) in
+such a way that it is marked as deprecated.
 
 <!-- eslint-disable prefer-rest-params -->
 ```js
@@ -134,10 +145,22 @@ exports.obsoleteFunction = util.deprecate(() => {
 ```
 
 When called, `util.deprecate()` will return a function that will emit a
-`DeprecationWarning` using the `process.on('warning')` event. By default,
-this warning will be emitted and printed to `stderr` exactly once, the first
-time it is called. After the warning is emitted, the wrapped `function`
-is called.
+`DeprecationWarning` using the [`'warning'`][] event. The warning will
+be emitted and printed to `stderr` the first time the returned function is
+called. After the warning is emitted, the wrapped function is called without
+emitting a warning.
+
+If the same optional `code` is supplied in multiple calls to `util.deprecate()`,
+the warning will be emitted only once for that `code`.
+
+```js
+const util = require('util');
+
+const fn1 = util.deprecate(someFunction, someMessage, 'DEP0001');
+const fn2 = util.deprecate(someOtherFunction, someOtherMessage, 'DEP0001');
+fn1(); // emits a deprecation warning with code DEP0001
+fn2(); // does not emit a deprecation warning because it has the same code
+```
 
 If either the `--no-deprecation` or `--no-warnings` command line flags are
 used, or if the `process.noDeprecation` property is set to `true` *prior* to
@@ -1945,6 +1968,7 @@ deprecated: v0.11.3
 Deprecated predecessor of `console.log`.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
+[`'warning'`]: process.html#process_event_warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView

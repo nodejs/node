@@ -149,8 +149,8 @@ added: v0.1.90
 * Returns: {net.Server}
 
 Stops the server from accepting new connections and keeps existing
-connections. This function is asynchronous, the server is finally
-closed when all connections are ended and the server emits a [`'close'`][] event.
+connections. This function is asynchronous, the server is finally closed
+when all connections are ended and the server emits a [`'close'`][] event.
 The optional `callback` will be called once the `'close'` event occurs. Unlike
 that event, it will be called with an Error as its only argument if the server
 was not open when it was closed.
@@ -206,9 +206,9 @@ on Linux. The default value of this parameter is 511 (not 512).
 
 All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for details).
 
-The `server.listen()` method can be called again if and only if there was an error
-during the first `server.listen()` call or `server.close()` has been called.
-Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
+The `server.listen()` method can be called again if and only if there was an
+error during the first `server.listen()` call or `server.close()` has been
+called. Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 One of the most common errors raised when listening is `EADDRINUSE`.
 This happens when another server is already listening on the requested
@@ -346,9 +346,9 @@ added: v0.9.1
 
 * Returns: {net.Server}
 
-Opposite of `unref`, calling `ref` on a previously `unref`d server will *not*
-let the program exit if it's the only server left (the default behavior). If
-the server is `ref`d calling `ref` again will have no effect.
+Opposite of `unref()`, calling `ref()` on a previously `unref`ed server will
+*not* let the program exit if it's the only server left (the default behavior).
+If the server is `ref`ed calling `ref()` again will have no effect.
 
 ### server.unref()
 <!-- YAML
@@ -357,9 +357,9 @@ added: v0.9.1
 
 * Returns: {net.Server}
 
-Calling `unref` on a server will allow the program to exit if this is the only
-active server in the event system. If the server is already `unref`d calling
-`unref` again will have no effect.
+Calling `unref()` on a server will allow the program to exit if this is the only
+active server in the event system. If the server is already `unref`ed calling
+`unref()` again will have no effect.
 
 ## Class: net.Socket
 <!-- YAML
@@ -407,9 +407,9 @@ endpoint, depending on what it [`connect()`][`socket.connect()`] to.
 added: v0.1.90
 -->
 
-* `had_error` {boolean} `true` if the socket had a transmission error.
+* `hadError` {boolean} `true` if the socket had a transmission error.
 
-Emitted once the socket is fully closed. The argument `had_error` is a boolean
+Emitted once the socket is fully closed. The argument `hadError` is a boolean
 which says if the socket was closed due to a transmission error.
 
 ### Event: 'connect'
@@ -425,7 +425,7 @@ See [`net.createConnection()`][].
 added: v0.1.90
 -->
 
-* {Buffer}
+* {Buffer|string}
 
 Emitted when data is received. The argument `data` will be a `Buffer` or
 `String`. Encoding of data is set by [`socket.setEncoding()`][].
@@ -642,7 +642,7 @@ added: v6.1.0
 If `true` -
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 was called and haven't yet finished. Will be set to `false` before emitting
-`connect` event and/or calling
+`'connect'` event and/or calling
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]'s
 callback.
 
@@ -709,9 +709,9 @@ added: v0.9.1
 
 * Returns: {net.Socket} The socket itself.
 
-Opposite of `unref`, calling `ref` on a previously `unref`d socket will *not*
-let the program exit if it's the only socket left (the default behavior). If
-the socket is `ref`d calling `ref` again will have no effect.
+Opposite of `unref()`, calling `ref()` on a previously `unref`ed socket will
+*not* let the program exit if it's the only socket left (the default behavior).
+If the socket is `ref`ed calling `ref` again will have no effect.
 
 ### socket.remoteAddress
 <!-- YAML
@@ -816,9 +816,9 @@ added: v0.9.1
 
 * Returns: {net.Socket} The socket itself.
 
-Calling `unref` on a socket will allow the program to exit if this is the only
-active socket in the event system. If the socket is already `unref`d calling
-`unref` again will have no effect.
+Calling `unref()` on a socket will allow the program to exit if this is the only
+active socket in the event system. If the socket is already `unref`ed calling
+`unref()` again will have no effect.
 
 ### socket.write(data[, encoding][, callback])
 <!-- YAML

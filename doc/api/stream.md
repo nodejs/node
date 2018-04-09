@@ -128,7 +128,7 @@ const server = http.createServer((req, res) => {
     body += chunk;
   });
 
-  // the end event indicates that the entire body has been received
+  // the 'end' event indicates that the entire body has been received
   req.on('end', () => {
     try {
       const data = JSON.parse(body);
@@ -354,6 +354,17 @@ buffered writes in a more optimized manner.
 
 See also: [`writable.uncork()`][].
 
+##### writable.destroy([error])
+<!-- YAML
+added: v8.0.0
+-->
+
+* Returns: {this}
+
+Destroy the stream, and emit the passed `'error'`. After this call, the
+writable stream has ended. Implementors should not override this method,
+but instead implement [`writable._destroy`][writable-_destroy].
+
 ##### writable.end([chunk][, encoding][, callback])
 <!-- YAML
 added: v0.9.4
@@ -534,17 +545,6 @@ write('hello', () => {
 ```
 
 A Writable stream in object mode will always ignore the `encoding` argument.
-
-##### writable.destroy([error])
-<!-- YAML
-added: v8.0.0
--->
-
-* Returns: {this}
-
-Destroy the stream, and emit the passed error. After this call, the
-writable stream has ended. Implementors should not override this method,
-but instead implement [`writable._destroy`][writable-_destroy].
 
 ### Readable Streams
 
@@ -796,6 +796,19 @@ end
 In general, the `readable.pipe()` and `'data'` event mechanisms are easier to
 understand than the `'readable'` event. However, handling `'readable'` might
 result in increased throughput.
+
+##### readable.destroy([error])
+<!-- YAML
+added: v8.0.0
+-->
+
+* `error` {Error} Error which will be passed as payload in `'error'` event
+* Returns: {this}
+
+Destroy the stream, and emit `'error'`. After this call, the
+readable stream will release any internal resources.
+Implementors should not override this method, but instead implement
+[`readable._destroy`][readable-_destroy].
 
 ##### readable.isPaused()
 <!-- YAML
@@ -1096,7 +1109,7 @@ function parseHeader(stream, callback) {
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
         stream.removeListener('error', callback);
-        // remove the readable listener before unshifting
+        // remove the 'readable' listener before unshifting
         stream.removeListener('readable', onReadable);
         if (buf.length)
           stream.unshift(buf);
@@ -1151,16 +1164,6 @@ myReader.on('readable', () => {
 });
 ```
 
-##### readable.destroy([error])
-<!-- YAML
-added: v8.0.0
--->
-
-Destroy the stream, and emit `'error'`. After this call, the
-readable stream will release any internal resources.
-Implementors should not override this method, but instead implement
-[`readable._destroy`][readable-_destroy].
-
 ### Duplex and Transform Streams
 
 #### Class: stream.Duplex
@@ -1208,8 +1211,8 @@ added: v8.0.0
 Destroy the stream, and emit `'error'`. After this call, the
 transform stream would release any internal resources.
 implementors should not override this method, but instead implement
-[`readable._destroy`][readable-_destroy].
-The default implementation of `_destroy` for `Transform` also emit `'close'`.
+[`readable._destroy()`][readable-_destroy].
+The default implementation of `_destroy()` for `Transform` also emit `'close'`.
 
 ## API for Stream Implementers
 
@@ -1496,7 +1499,7 @@ by child classes, and if so, will be called by the internal Writable
 class methods only.
 
 This optional function will be called before the stream closes, delaying the
-`finish` event until `callback` is called. This is useful to close resources
+`'finish'` event until `callback` is called. This is useful to close resources
 or write buffered data before a stream ends.
 
 #### Errors While Writing
@@ -2192,7 +2195,7 @@ For example, consider the following code:
 // WARNING!  BROKEN!
 net.createServer((socket) => {
 
-  // we add an 'end' method, but never consume the data
+  // we add an 'end' listener, but never consume the data
   socket.on('end', () => {
     // It will never get here.
     socket.end('The message was received but was not processed.\n');
