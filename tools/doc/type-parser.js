@@ -78,8 +78,11 @@ const customTypesMap = {
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
 
+  'module': 'modules.html#modules_the_module_object',
+
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 
+  'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
   'PerformanceObserver':
     'perf_hooks.html#perf_hooks_class_performanceobserver_callback',
   'PerformanceObserverEntryList':

@@ -432,7 +432,7 @@ console.log(`This processor architecture is ${process.arch}`);
 added: v0.1.27
 -->
 
-* {Array}
+* {string[]}
 
 The `process.argv` property returns an array containing the command line
 arguments passed when the Node.js process was launched. The first element will
@@ -923,7 +923,7 @@ console.log(process.env.test);
 added: v0.7.7
 -->
 
-* {Array}
+* {string[]}
 
 The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
@@ -1106,7 +1106,7 @@ Android).
 added: v0.9.4
 -->
 
-* Returns: {Array}
+* Returns: {integer[]}
 
 The `process.getgroups()` method returns an array with the supplementary group
 IDs. POSIX leaves it unspecified if the effective group ID is included but
@@ -1149,8 +1149,8 @@ Indicates whether a callback has been set using
 added: v0.7.6
 -->
 
-* `time` {Array} The result of a previous call to `process.hrtime()`
-* Returns: {Array}
+* `time` {integer[]} The result of a previous call to `process.hrtime()`
+* Returns: {integer[]}
 
 The `process.hrtime()` method returns the current high-resolution real time
 in a `[seconds, nanoseconds]` tuple Array, where `nanoseconds` is the
@@ -1633,7 +1633,7 @@ Android).
 added: v0.9.4
 -->
 
-* `groups` {Array}
+* `groups` {integer[]}
 
 The `process.setgroups()` method sets the supplementary group IDs for the
 Node.js process. This is a privileged operation that requires the Node.js

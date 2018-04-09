@@ -1534,7 +1534,7 @@ user programs.
 
 #### writable.\_writev(chunks, callback)
 
-* `chunks` {Array} The chunks to be written. Each chunk has following
+* `chunks` {Object[]} The chunks to be written. Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
 * `callback` {Function} A callback function (optionally with an error
   argument) to be invoked when processing is complete for the supplied chunks.

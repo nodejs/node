@@ -712,7 +712,8 @@ changes:
     description: The elements of `list` can now be `Uint8Array`s.
 -->
 
-* `list` {Array} List of `Buffer` or [`Uint8Array`] instances to concat.
+* `list` {Buffer[] | Uint8Array[]} List of `Buffer` or [`Uint8Array`] instances
+  to concat.
 * `totalLength` {integer} Total length of the `Buffer` instances in `list`
   when concatenated.
 * Returns: {Buffer}
@@ -756,7 +757,7 @@ console.log(bufA.length);
 added: v5.10.0
 -->
 
-* `array` {Array}
+* `array` {integer[]}
 
 Allocates a new `Buffer` using an `array` of octets.
 
