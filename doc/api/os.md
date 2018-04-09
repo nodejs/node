@@ -54,7 +54,7 @@ defined are described in [OS Constants](#os_os_constants_1).
 added: v0.3.3
 -->
 
-* Returns: {Array}
+* Returns: {Object[]}
 
 The `os.cpus()` method returns an array of objects containing information about
 each logical CPU core.
@@ -217,7 +217,7 @@ string.
 added: v0.3.3
 -->
 
-* Returns: {Array}
+* Returns: {number[]}
 
 The `os.loadavg()` method returns an array containing the 1, 5, and 15 minute
 load averages.

@@ -479,7 +479,8 @@ the report to the **Profiles** panel of the inspector. See
 added: v8.0.0
 -->
 * `array` {Array|Object}
-* `columns` {Array}
+* `columns` {string[]} Display only selected properties of objects in the
+  `array`.
 
 This method does not display anything unless used in the inspector. Prints to
 `stdout` the array `array` formatted as a table.

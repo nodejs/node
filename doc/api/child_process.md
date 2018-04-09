@@ -322,12 +322,12 @@ changes:
 -->
 
 * `modulePath` {string} The module to run in the child.
-* `args` {Array} List of string arguments.
+* `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs.
   * `execPath` {string} Executable used to create the child process.
-  * `execArgv` {Array} List of string arguments passed to the executable.
+  * `execArgv` {string[]} List of string arguments passed to the executable.
     **Default:** `process.execArgv`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
@@ -387,7 +387,7 @@ changes:
 -->
 
 * `command` {string} The command to run.
-* `args` {Array} List of string arguments.
+* `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs.
@@ -803,7 +803,7 @@ changes:
 -->
 
 * `command` {string} The command to run.
-* `args` {Array} List of string arguments.
+* `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
   * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin

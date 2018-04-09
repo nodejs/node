@@ -636,7 +636,7 @@ are no such pairs, `null` is returned.
 #### urlSearchParams.getAll(name)
 
 * `name` {string}
-* Returns: {Array}
+* Returns: {string[]}
 
 Returns the values of all name-value pairs whose name is `name`. If there are
 no such pairs, an empty array is returned.

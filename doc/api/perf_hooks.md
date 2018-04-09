@@ -396,7 +396,7 @@ The `PerformanceObserverEntryList` class is used to provide access to the
 added: v8.5.0
 -->
 
-* Returns: {Array}
+* Returns: {PerformanceEntry[]}
 
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime`.
@@ -408,7 +408,7 @@ added: v8.5.0
 
 * `name` {string}
 * `type` {string}
-* Returns: {Array}
+* Returns: {PerformanceEntry[]}
 
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.name` is
@@ -421,7 +421,7 @@ added: v8.5.0
 -->
 
 * `type` {string}
-* Returns: {Array}
+* Returns: {PerformanceEntry[]}
 
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
@@ -438,7 +438,7 @@ Disconnects the `PerformanceObserver` instance from all notifications.
 added: v8.5.0
 -->
 * `options` {Object}
-  * `entryTypes` {Array} An array of strings identifying the types of
+  * `entryTypes` {string[]} An array of strings identifying the types of
     `PerformanceEntry` instances the observer is interested in. If not
     provided an error will be thrown.
   * `buffered` {boolean} If true, the notification callback will be
