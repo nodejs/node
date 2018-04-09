@@ -54,6 +54,7 @@ for (const testCase of cases) {
     }
     assert.fail(err);
   });
+  watcher.on('close', common.mustCall());
   watcher.on('change', common.mustCall(function(eventType, argFilename) {
     if (interval) {
       clearInterval(interval);
