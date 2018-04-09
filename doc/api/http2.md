@@ -2428,7 +2428,7 @@ The request method as a string. Read-only. Example:
 added: v8.4.0
 -->
 
-* {Array}
+* {string[]}
 
 The raw request/response headers list exactly as they were received.
 
@@ -2457,7 +2457,7 @@ console.log(request.rawHeaders);
 added: v8.4.0
 -->
 
-* {Array}
+* {string[]}
 
 The raw request/response trailer keys and values exactly as they were
 received. Only populated at the `'end'` event.
@@ -2696,7 +2696,7 @@ const contentType = response.getHeader('content-type');
 added: v8.4.0
 -->
 
-* Returns: {Array}
+* Returns: {string[]}
 
 Returns an array containing the unique names of the current outgoing headers.
 All header names are lowercase.

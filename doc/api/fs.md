@@ -2247,7 +2247,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Array} An array of filenames
+* Returns: {string[]} An array of filenames
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 `'..'`.

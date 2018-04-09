@@ -648,7 +648,7 @@ changes:
 
 * `request` {string} The module path to resolve.
 * `options` {Object}
-  * `paths` {Array} Paths to resolve module location from. If present, these
+  * `paths` {string[]} Paths to resolve module location from. If present, these
     paths are used instead of the default resolution paths. Note that each of
     these paths is used as a starting point for the module resolution algorithm,
     meaning that the `node_modules` hierarchy is checked from this location.
@@ -663,7 +663,7 @@ added: v8.9.0
 -->
 
 * `request` {string} The module path whose lookup paths are being retrieved.
-* Returns: {Array|null}
+* Returns: {string[]|null}
 
 Returns an array containing the paths searched during resolution of `request` or
 null if the `request` string references a core module, for example `http` or
@@ -689,7 +689,7 @@ a global but rather local to each module.
 added: v0.1.16
 -->
 
-* {Array}
+* {module[]}
 
 The module objects required by this one.
 
