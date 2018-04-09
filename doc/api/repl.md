@@ -427,7 +427,7 @@ changes:
 -->
 
 * `options` {Object|string}
-  * `prompt` {string} The input prompt to display. **Default:** `> `.
+  * `prompt` {string} The input prompt to display. **Default:** `'> '`
     (with a trailing space).
   * `input` {stream.Readable} The Readable stream from which REPL input will be
     read. **Default:** `process.stdin`.
@@ -513,9 +513,9 @@ environment variables:
  - `NODE_REPL_HISTORY_SIZE` - Controls how many lines of history will be
    persisted if history is available. Must be a positive number.
    **Default:** `1000`.
- - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. `magic` is
-   **deprecated** and treated as an alias of `sloppy`. **Default:** `sloppy`,
-   which will allow non-strict mode code to be run.
+ - `NODE_REPL_MODE` - May be any of `'sloppy'`, `'strict'`, or `'magic'`.
+   `'magic'` is **deprecated** and treated as an alias of `'sloppy'`.
+   **Default:** `'sloppy'`, which will allow non-strict mode code to be run.
 
 ### Persistent History
 

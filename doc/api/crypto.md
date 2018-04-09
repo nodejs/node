@@ -673,7 +673,7 @@ added: REPLACEME
 - `curve` {string}
 - `inputEncoding` {string}
 - `outputEncoding` {string}
-- `format` {string} **Default:** `uncompressed`
+- `format` {string} **Default:** `'uncompressed'`
 - Returns: {Buffer | string}
 
 Converts the EC Diffie-Hellman public key specified by `key` and `curve` to the
@@ -742,7 +742,7 @@ If `outputEncoding` is given a string will be returned; otherwise a
 added: v0.11.14
 -->
 - `encoding` {string}
-- `format` {string} **Default:** `uncompressed`
+- `format` {string} **Default:** `'uncompressed'`
 - Returns: {Buffer | string}
 
 Generates private and public EC Diffie-Hellman key values, and returns
@@ -771,7 +771,7 @@ added: v0.11.14
 added: v0.11.14
 -->
 - `encoding` {string}
-- `format` {string} **Default:** `uncompressed`
+- `format` {string} **Default:** `'uncompressed'`
 - Returns: {Buffer | string} The EC Diffie-Hellman public key in the specified
   `encoding` and `format`.
 
