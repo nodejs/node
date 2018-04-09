@@ -113,7 +113,7 @@ class ExternString: public ResourceType {
 
     if (str.IsEmpty()) {
       delete h_str;
-      *error = node::ERR_STRING_TOO_LARGE(isolate);
+      *error = node::ERR_STRING_TOO_LONG(isolate);
       return MaybeLocal<Value>();
     }
 
@@ -170,7 +170,7 @@ MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
                              v8::NewStringType::kNormal,
                              length);
   if (str.IsEmpty()) {
-    *error = node::ERR_STRING_TOO_LARGE(isolate);
+    *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
   return str.ToLocalChecked();
@@ -188,7 +188,7 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
                              v8::NewStringType::kNormal,
                              length);
   if (str.IsEmpty()) {
-    *error = node::ERR_STRING_TOO_LARGE(isolate);
+    *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
   return str.ToLocalChecked();
@@ -657,7 +657,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                 v8::NewStringType::kNormal,
                                 buflen);
       if (val.IsEmpty()) {
-        *error = node::ERR_STRING_TOO_LARGE(isolate);
+        *error = node::ERR_STRING_TOO_LONG(isolate);
         return MaybeLocal<Value>();
       }
       return val.ToLocalChecked();
