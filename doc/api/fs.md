@@ -311,7 +311,7 @@ support. If `filename` is provided, it will be provided as a `Buffer` if
 `filename` will be a UTF-8 string.
 
 ```js
-// Example when handled through fs.watch listener
+// Example when handled through fs.watch() listener
 fs.watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
   if (filename) {
     console.log(filename);
@@ -1323,7 +1323,7 @@ to [`net.Socket`][].
 If `autoClose` is false, then the file descriptor won't be closed, even if
 there's an error. It is the application's responsibility to close it and make
 sure there's no file descriptor leak. If `autoClose` is set to true (default
-behavior), on `error` or `end` the file descriptor will be closed
+behavior), on `'error'` or `'end'` the file descriptor will be closed
 automatically.
 
 `mode` sets the file mode (permission and sticky bits), but only if the
@@ -1386,7 +1386,7 @@ than replacing it may require a `flags` mode of `r+` rather than the
 default mode `w`. The `encoding` can be any one of those accepted by
 [`Buffer`][].
 
-If `autoClose` is set to true (default behavior) on `error` or `end`
+If `autoClose` is set to true (default behavior) on `'error'` or `'finish'`
 the file descriptor will be closed automatically. If `autoClose` is false,
 then the file descriptor won't be closed, even if there's an error.
 It is the application's responsibility to close it and make sure there's no
