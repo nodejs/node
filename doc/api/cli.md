@@ -66,6 +66,22 @@ Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 `./configure --openssl-fips`)
 
 
+### `--experimental-modules`
+<!-- YAML
+added: v8.5.0
+-->
+
+Enable experimental ES module support and caching modules.
+
+
+### `--experimental-vm-modules`
+<!-- YAML
+added: v9.6.0
+-->
+
+Enable experimental ES Module support in the `vm` module.
+
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
@@ -113,6 +129,15 @@ Activate inspector on host:port. Default is 127.0.0.1:9229.
 V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome Debugging Protocol][].
+
+
+### `--napi-modules`
+<!-- YAML
+added: v7.10.0
+-->
+
+Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
+(experimental).
 
 
 ### `--no-deprecation`
@@ -301,7 +326,7 @@ added: v2.4.0
 Track heap object allocations for heap snapshots.
 
 
-### `--use-openssl-ca`, `--use-bundled-ca`
+### `--use-bundled-ca`, `--use-openssl-ca`
 <!-- YAML
 added: v6.11.0
 -->
@@ -332,6 +357,20 @@ V8 options allow words to be separated by both dashes (`-`) or
 underscores (`_`).
 
 For example, `--stack-trace-limit` is equivalent to `--stack_trace_limit`.
+
+
+### `--v8-pool-size=num`
+<!-- YAML
+added: v5.10.0
+-->
+
+Set V8's thread pool size which will be used to allocate background jobs.
+
+If set to `0` then V8 will choose an appropriate size of the thread pool based
+on the number of online processors.
+
+If the value provided is larger than V8's maximum, then the largest value
+will be chosen.
 
 
 ### `--zero-fill-buffers`
