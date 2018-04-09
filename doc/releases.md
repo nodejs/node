@@ -92,7 +92,7 @@ commit metadata, as well as the `semver-minor` and `semver-major` GitHub labels.
 One drawback is that when the `PR-URL` metadata is accidentally omitted from a
 commit, the commit will show up because it's unsure if it's a duplicate or not.
 
-For a list of commits that could be landed in a patch release on v5.x
+For a list of commits that could be landed in a patch release on v5.x:
 
 ```console
 $ branch-diff v5.x master --exclude-label=semver-major,semver-minor,dont-land-on-v5.x --filter-release --format=simple
@@ -147,8 +147,8 @@ Commits may need to be reverted or a major version bump may need to happen.
 
 #### Step 1: Collecting the formatted list of changes:
 
-Collect a formatted list of commits since the last release. Use
-[`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this.
+Collect a formatted list of commits since the last release.
+Use [`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this:
 
 ```console
 $ changelog-maker --group
@@ -216,7 +216,7 @@ doc/api/*.md`, and substitute this node version with `sed -i
 "s/REPLACEME/$VERSION/g" doc/api/*.md` or `perl -pi -e "s/REPLACEME/$VERSION/g"
 doc/api/*.md`.
 
-*Note*: `$VERSION` should be prefixed with a `v`
+*Note*: `$VERSION` should be prefixed with a `v`.
 
 If this release includes any new deprecations it is necessary to ensure that
 those are assigned a proper static deprecation code. These are listed in the
