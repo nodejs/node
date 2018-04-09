@@ -109,7 +109,7 @@ For *all* [`EventEmitter`][] objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
 unhandled exception and crash unless either: The [`domain`][domains] module is
 used appropriately or a handler has been registered for the
-[`process.on('uncaughtException')`][] event.
+[`'uncaughtException'`][] event.
 
 ```js
 const EventEmitter = require('events');
@@ -1438,7 +1438,7 @@ An attempt was made to use a readable stream that did not implement
 <a id="ERR_STREAM_UNSHIFT_AFTER_END_EVENT"></a>
 ### ERR_STREAM_UNSHIFT_AFTER_END_EVENT
 
-An attempt was made to call [`stream.unshift()`][] after the `end` event was
+An attempt was made to call [`stream.unshift()`][] after the `'end'` event was
 emitted.
 
 <a id="ERR_STREAM_WRAP"></a>
@@ -1656,6 +1656,7 @@ meaning of the error depends on the specific function.
 
 Creation of a [`zlib`][] object failed due to incorrect configuration.
 
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--force-fips`]: cli.html#cli_force_fips
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
@@ -1687,7 +1688,6 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`net`]: net.html
 [`new URL(input)`]: url.html#url_constructor_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
-[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags

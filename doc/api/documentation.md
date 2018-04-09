@@ -63,7 +63,7 @@ failures or behavior changes when API modifications occur. To help avoid such
 surprises, `Experimental` features may require a command-line flag to
 explicitly enable them, or may cause a process warning to be emitted.
 By default, such warnings are printed to [`stderr`][] and may be handled by
-attaching a listener to the [`process.on('warning')`][] event.
+attaching a listener to the [`'warning'`][] event.
 
 ## JSON Output
 <!-- YAML
@@ -94,9 +94,9 @@ relative to Linux and macOS. For an example of the subtle ways in which it's
 sometimes impossible to replace Unix syscall semantics on Windows, see [Node
 issue 4760](https://github.com/nodejs/node/issues/4760).
 
-[submit an issue]: https://github.com/nodejs/node/issues/new
-[the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+[`'warning'`]: process.html#process_event_warning
 [`stderr`]: process.html#process_process_stderr
-[`process.on('warning')`]: process.html#process_event_warning
 [`fs.open()`]: fs.html#fs_fs_open_path_flags_mode_callback
 [`fs.lchown()`]: fs.html#fs_fs_lchown_path_uid_gid_callback
+[submit an issue]: https://github.com/nodejs/node/issues/new
+[the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md

@@ -561,8 +561,8 @@ added: v0.1.21
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18418
-    description: Calling `assert.fail` with more than one argument is deprecated
-                 and emits a warning.
+    description: Calling `assert.fail()` with more than one argument is
+                 deprecated and emits a warning.
 -->
 * `actual` {any}
 * `expected` {any}

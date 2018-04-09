@@ -56,7 +56,7 @@ The `'close'` event is emitted when one of the following occur:
 * The `input` stream receives its `'end'` event;
 * The `input` stream receives `<ctrl>-D` to signal end-of-transmission (EOT);
 * The `input` stream receives `<ctrl>-C` to signal `SIGINT` and there is no
-  `SIGINT` event listener registered on the `readline.Interface` instance.
+  `'SIGINT'` event listener registered on the `readline.Interface` instance.
 
 The listener function is called without passing any arguments.
 
@@ -89,8 +89,8 @@ added: v0.7.5
 The `'pause'` event is emitted when one of the following occur:
 
 * The `input` stream is paused.
-* The `input` stream is not paused and receives the `SIGCONT` event. (See
-  events [`SIGTSTP`][] and [`SIGCONT`][])
+* The `input` stream is not paused and receives the `'SIGCONT'` event. (See
+  events [`'SIGTSTP'`][] and [`'SIGCONT'`][])
 
 The listener function is called without passing any arguments.
 
@@ -164,11 +164,11 @@ added: v0.7.5
 -->
 
 The `'SIGTSTP'` event is emitted when the `input` stream receives a `<ctrl>-Z`
-input, typically known as `SIGTSTP`. If there are no `SIGTSTP` event listeners
+input, typically known as `SIGTSTP`. If there are no `'SIGTSTP'` event listeners
 registered when the `input` stream receives a `SIGTSTP`, the Node.js process
 will be sent to the background.
 
-When the program is resumed using fg(1p), the `'pause'` and `SIGCONT` events
+When the program is resumed using fg(1p), the `'pause'` and `'SIGCONT'` events
 will be emitted. These can be used to resume the `input` stream.
 
 The `'pause'` and `'SIGCONT'` events will not be emitted if the `input` was
@@ -529,8 +529,8 @@ rl.on('line', (line) => {
 });
 ```
 
-[`SIGCONT`]: readline.html#readline_event_sigcont
-[`SIGTSTP`]: readline.html#readline_event_sigtstp
+[`'SIGCONT'`]: readline.html#readline_event_sigcont
+[`'SIGTSTP'`]: readline.html#readline_event_sigtstp
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
 [Readable]: stream.html#stream_readable_streams

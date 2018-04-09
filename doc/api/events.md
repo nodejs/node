@@ -522,9 +522,9 @@ server.on('connection', callback);
 server.removeListener('connection', callback);
 ```
 
-`removeListener` will remove, at most, one instance of a listener from the
+`removeListener()` will remove, at most, one instance of a listener from the
 listener array. If any single listener has been added multiple times to the
-listener array for the specified `eventName`, then `removeListener` must be
+listener array for the specified `eventName`, then `removeListener()` must be
 called multiple times to remove each instance.
 
 Note that once an event has been emitted, all listeners attached to it at the
@@ -596,7 +596,7 @@ added: v9.4.0
 - Returns: {Function[]}
 
 Returns a copy of the array of listeners for the event named `eventName`,
-including any wrappers (such as those created by `.once`).
+including any wrappers (such as those created by `.once()`).
 
 ```js
 const emitter = new EventEmitter();
@@ -614,7 +614,7 @@ logFnWrapper.listener();
 logFnWrapper();
 
 emitter.on('log', () => console.log('log persistently'));
-// will return a new Array with a single function bound by `on` above
+// will return a new Array with a single function bound by `.on()` above
 const newListeners = emitter.rawListeners('log');
 
 // logs "log persistently" twice
