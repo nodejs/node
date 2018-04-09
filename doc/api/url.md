@@ -100,6 +100,8 @@ return `true`.
 Creates a new `URL` object by parsing the `input` relative to the `base`. If
 `base` is passed as a string, it will be parsed equivalent to `new URL(base)`.
 
+The `base` is ignored if the `input` is an absolute URL.
+
 ```js
 const myURL = new URL('/foo', 'https://example.org/');
 // https://example.org/foo
