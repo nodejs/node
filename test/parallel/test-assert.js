@@ -131,7 +131,7 @@ assert.throws(
     code: 'ERR_ASSERTION',
     operator: 'doesNotThrow',
     message: 'Got unwanted exception: user message\n' +
-             'Actual message: [object Object]'
+             'Actual message: "[object Object]"'
   }
 );
 
@@ -139,7 +139,7 @@ assert.throws(
   () => a.doesNotThrow(() => thrower(Error)),
   {
     code: 'ERR_ASSERTION',
-    message: 'Got unwanted exception.\nActual message: [object Object]'
+    message: 'Got unwanted exception.\nActual message: "[object Object]"'
   }
 );
 
@@ -832,7 +832,7 @@ common.expectsError(
     {
       name: 'AssertionError [ERR_ASSERTION]',
       code: 'ERR_ASSERTION',
-      message: 'Got unwanted exception.\nActual message: undefined'
+      message: 'Got unwanted exception.\nActual message: "undefined"'
     }
   );
 }
