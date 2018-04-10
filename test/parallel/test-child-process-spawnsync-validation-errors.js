@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
-const rootUser = process.getuid() === 0;
+const rootUser = common.isWindows ? false : process.getuid() === 0;
 
 const invalidArgTypeError = common.expectsError(
   { code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
