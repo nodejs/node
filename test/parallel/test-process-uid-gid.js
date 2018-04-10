@@ -66,9 +66,8 @@ try {
 } catch (err) {
   if (err.message !== 'setgid group id does not exist') {
     throw err;
-  } else {
-    process.setgid('nogroup');
   }
+  process.setgid('nogroup');
 }
 const newgid = process.getgid();
 assert.notStrictEqual(newgid, oldgid);
