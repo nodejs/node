@@ -236,6 +236,11 @@ bool trace_warnings = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
 
+// Set in node.cc by ParseArgs when --preserve-symlinks-main is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/module.js
+bool config_preserve_symlinks_main = false;
+
 // Set in node.cc by ParseArgs when --experimental-modules is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
@@ -3519,6 +3524,8 @@ static void PrintHelp() {
          "  --pending-deprecation      emit pending deprecation warnings\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --preserve-symlinks        preserve symbolic links when resolving\n"
+         "  --preserve-symlinks-main   preserve symbolic links when resolving\n"
+         "                             the main module\n"
 #endif
          "  --prof-process             process v8 profiler output generated\n"
          "                             using --prof\n"
@@ -3569,7 +3576,6 @@ static void PrintHelp() {
          "  -r, --require              module to preload (option can be "
          "repeated)\n"
          "  -v, --version              print Node.js version\n"
-
          "\n"
          "Environment variables:\n"
          "NODE_DEBUG                   ','-separated list of core modules\n"
@@ -3832,6 +3838,8 @@ static void ParseArgs(int* argc,
       Revert(cve);
     } else if (strcmp(arg, "--preserve-symlinks") == 0) {
       config_preserve_symlinks = true;
+    } else if (strcmp(arg, "--preserve-symlinks-main") == 0) {
+      config_preserve_symlinks_main = true;
     } else if (strcmp(arg, "--experimental-modules") == 0) {
       config_experimental_modules = true;
       new_v8_argv[new_v8_argc] = "--harmony-dynamic-import";
@@ -4274,6 +4282,12 @@ void Init(int* argc,
     std::string text;
     config_preserve_symlinks =
         SafeGetenv("NODE_PRESERVE_SYMLINKS", &text) && text[0] == '1';
+  }
+
+  {
+    std::string text;
+    config_preserve_symlinks_main =
+        SafeGetenv("NODE_PRESERVE_SYMLINKS_MAIN", &text) && text[0] == '1';
   }
 
   if (config_warning_file.empty())

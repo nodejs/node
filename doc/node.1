@@ -143,7 +143,10 @@ Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is
 Emit pending deprecation warnings.
 .
 .It Fl -preserve-symlinks
-Instructs the module loader to preserve symbolic links when resolving and caching modules.
+Instructs the module loader to preserve symbolic links when resolving and caching modules other than the main module.
+.
+.It F1 -preserve-symlinks-main
+Instructs the module loader to preserve symbolic links when resolving and caching the main module.
 .
 .It Fl -prof-process
 Process V8 profiler output generated using the V8 option
