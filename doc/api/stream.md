@@ -46,6 +46,8 @@ There are four fundamental stream types within Node.js:
 * [Transform][] - Duplex streams that can modify or transform the data as it
   is written and read (for example [`zlib.createDeflate()`][]).
 
+Additionally this module includes the utility function [pump][].
+
 ### Object Mode
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
@@ -89,7 +91,7 @@ total size of the internal write buffer is below the threshold set by
 the size of the internal buffer reaches or exceeds the `highWaterMark`, `false`
 will be returned.
 
-A key goal of the `stream` API, particularly the [`stream.pipe()`] method,
+A key goal of the `stream` API, particularly the [`stream.pump()`] function,
 is to limit the buffering of data to acceptable levels such that sources and
 destinations of differing speeds will not overwhelm the available memory.
 
@@ -1283,6 +1285,18 @@ implementors should not override this method, but instead implement
 [`readable._destroy`][readable-_destroy].
 The default implementation of `_destroy` for `Transform` also emit `'close'`.
 
+#### Class Method: stream.pump(...streams[, callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `...streams` {Stream} Two or more streams to pipe between.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+
+A class method to pipe between streams forwarding errors and properly cleaning
+up.
+
 ## API for Stream Implementers
 
 <!--type=misc-->
@@ -2386,14 +2400,15 @@ contain multi-byte characters.
 [TCP sockets]: net.html#net_class_net_socket
 [Transform]: #stream_class_stream_transform
 [Writable]: #stream_class_stream_writable
+[async-iterator]: https://github.com/tc39/proposal-async-iteration
 [child process stdin]: child_process.html#child_process_subprocess_stdin
 [child process stdout and stderr]: child_process.html#child_process_subprocess_stdout
 [crypto]: crypto.html
 [fs read streams]: fs.html#fs_class_fs_readstream
 [fs write streams]: fs.html#fs_class_fs_writestream
 [http-incoming-message]: http.html#http_class_http_incomingmessage
-[zlib]: zlib.html
 [hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
+[pump]: #stream_class_method_pump
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
@@ -2410,4 +2425,4 @@ contain multi-byte characters.
 [readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
-[async-iterator]: https://github.com/tc39/proposal-async-iteration
+[zlib]: zlib.html
