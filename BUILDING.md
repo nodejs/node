@@ -128,16 +128,16 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 If the path to your build directory contains a space, the build will likely
 fail.
 
-After building, setting up [filewall rules](tools/macosx-firewall.sh) can avoid popups
-asking to accept incoming network connections when running tests.
+After building, setting up [firewall rules](tools/macosx-firewall.sh) can avoid
+popups asking to accept incoming network connections when running tests.
 
-Running this script on macOS
+Running the following script on macOS will add the firewall rules for the
+executable `node` in the `out` directory and the symbolic `node` link in the
+project's root directory.
 
 ```console
 $ sudo ./tools/macosx-firewall.sh
 ```
-will add the firewall rules for the executable `node` in the `out` directory and
-the symbolic `node` link in the project's root directory.
 
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
