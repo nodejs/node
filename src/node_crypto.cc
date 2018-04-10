@@ -27,6 +27,7 @@
 #include "node_crypto_groups.h"
 #include "node_crypto_clienthello-inl.h"
 #include "node_mutex.h"
+#include "node_internals.h"
 #include "tls_wrap.h"  // TLSWrap
 
 #include "async_wrap-inl.h"
