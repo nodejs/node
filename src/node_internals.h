@@ -172,6 +172,11 @@ extern std::string openssl_config;
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
 
+// Set in node.cc by ParseArgs when --preserve-symlinks-main is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/module.js
+extern bool config_preserve_symlinks_main;
+
 // Set in node.cc by ParseArgs when --experimental-modules is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
