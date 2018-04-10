@@ -281,7 +281,7 @@ Compression strategy.
 * `zlib.constants.Z_FIXED`
 * `zlib.constants.Z_DEFAULT_STRATEGY`
 
-## Class Options
+## Class: Options
 <!-- YAML
 added: v0.11.1
 changes:
@@ -473,14 +473,14 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
-Creates and returns a new [Deflate][] object with the given [options][].
+Creates and returns a new [Deflate][] object with the given [`options`][].
 
 ## zlib.createDeflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [DeflateRaw][] object with the given [options][].
+Creates and returns a new [DeflateRaw][] object with the given [`options`][].
 
 An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when windowBits
 is set to 8 for raw deflate streams. zlib would automatically set windowBits
@@ -494,35 +494,35 @@ that effectively uses an 8-bit window only.
 added: v0.5.8
 -->
 
-Creates and returns a new [Gunzip][] object with the given [options][].
+Creates and returns a new [Gunzip][] object with the given [`options`][].
 
 ## zlib.createGzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Gzip][] object with the given [options][].
+Creates and returns a new [Gzip][] object with the given [`options`][].
 
 ## zlib.createInflate([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Inflate][] object with the given [options][].
+Creates and returns a new [Inflate][] object with the given [`options`][].
 
 ## zlib.createInflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [InflateRaw][] object with the given [options][].
+Creates and returns a new [InflateRaw][] object with the given [`options`][].
 
 ## zlib.createUnzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Unzip][] object with the given [options][].
+Creates and returns a new [Unzip][] object with the given [`options`][].
 
 ## Convenience Methods
 
@@ -771,6 +771,7 @@ Decompress a chunk of data with [Unzip][].
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`options`]: #zlib_class_options
 [DeflateRaw]: #zlib_class_zlib_deflateraw
 [Deflate]: #zlib_class_zlib_deflate
 [Gunzip]: #zlib_class_zlib_gunzip
@@ -778,7 +779,6 @@ Decompress a chunk of data with [Unzip][].
 [InflateRaw]: #zlib_class_zlib_inflateraw
 [Inflate]: #zlib_class_zlib_inflate
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
-[options]: #zlib_class_options
 [Unzip]: #zlib_class_zlib_unzip
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
