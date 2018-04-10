@@ -3,6 +3,7 @@
 #include "async_wrap.h"
 #include "env-inl.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 #include "stream_base-inl.h"
 #include "v8.h"
 
