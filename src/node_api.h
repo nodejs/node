@@ -1,12 +1,3 @@
-/******************************************************************************
- * Experimental prototype for demonstrating VM agnostic and ABI stable API
- * for native modules to use instead of using Nan and V8 APIs directly.
- *
- * The current status is "Experimental" and should not be used for
- * production applications.  The API is still subject to change
- * and as an experimental feature is NOT subject to semver.
- *
- ******************************************************************************/
 #ifndef SRC_NODE_API_H_
 #define SRC_NODE_API_H_
 

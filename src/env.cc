@@ -61,10 +61,4 @@ void Environment::PrintSyncTrace() const {
   fflush(stderr);
 }
 
-bool Environment::EmitNapiWarning() {
-  bool current_value = emit_napi_warning_;
-  emit_napi_warning_ = false;
-  return current_value;
-}
-
 }  // namespace node

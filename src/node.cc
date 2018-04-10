@@ -2500,12 +2500,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     env->ThrowError("Module did not self-register.");
     return;
   }
-  if (mp->nm_version == -1) {
-    if (env->EmitNapiWarning()) {
-      ProcessEmitWarning(env, "N-API is an experimental feature and could "
-                         "change at any time.");
-    }
-  } else if (mp->nm_version != NODE_MODULE_VERSION) {
+
+  // -1 is used for N-API modules
+  if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
