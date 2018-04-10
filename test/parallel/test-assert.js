@@ -868,3 +868,7 @@ assert.throws(
              'The error message "foo" is identical to the message.'
   }
 );
+
+// Should not throw.
+// eslint-disable-next-line no-restricted-syntax, no-throw-literal
+assert.throws(() => { throw null; }, 'foo');
