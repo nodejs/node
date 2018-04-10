@@ -55,7 +55,7 @@ search these unofficial resources:
 * [Questions tagged 'node.js' on StackOverflow][]
 * [#node.js channel on chat.freenode.net][]. See <http://nodeirc.info/> for more
   information.
-* [Node.js Slack Community](http://node-js.slack.com): Visit
+* [Node.js Slack Community](https://node-js.slack.com/): Visit
   [nodeslackers.com](http://www.nodeslackers.com/) to register.
 
 GitHub issues are meant for tracking enhancements and bugs, not general support.
