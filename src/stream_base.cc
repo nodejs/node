@@ -3,6 +3,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 #include "env-inl.h"
 #include "js_stream.h"
 #include "string_bytes.h"
