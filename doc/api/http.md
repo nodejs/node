@@ -587,15 +587,21 @@ added: v1.6.0
 -->
 
 * `name` {string}
-* Returns: {string, string[]} - type as set via `setHeader()`
+* Returns: {string|string[]}
 
 Reads out a header on the request. Note that the name is case insensitive.
-The return value is that one set via `setHeader()` as coercing to string
-happens during transmission.
+The type of the return value depends on the arguments provided to
+[`response.setHeader()`][].
 
 Example:
 ```js
-const contentType = request.getHeader('Content-Type');
+request.setHeader('content-type', 'text/html');
+request.setHeader('Content-Length': Buffer.byteLength(body));
+request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript'])
+const contentType = request.getHeader('Content-Type');      // contentType is 'text/html'
+const contentLength = request.getHeader('Content-Length');  // contentLength is of type number
+const setCookie = request.getHeader('set-cookie');          // setCookie is of type string[]
+
 ```
 
 ### request.removeHeader(name)
@@ -1212,8 +1218,8 @@ added: v0.4.0
 
 Sets a single header value for implicit headers. If this header already exists
 in the to-be-sent headers, its value will be replaced. Use an array of strings
-here to send multiple headers with the same name. Values are coerced to
-strings if needed during transmission.
+here to send multiple headers with the same name. Non-string values will be
+coerced to strings.
 
 Example:
 
