@@ -225,7 +225,8 @@ added: v0.11.4
 -->
 
 * `options` {Object} A set of options providing information for name generation
-  * `host` {string} A domain name or IP address of the server to issue the request to
+  * `host` {string} A domain name or IP address of the server to issue the 
+    request to
   * `port` {number} Port of remote server
   * `localAddress` {string} Local interface to bind for network connections
     when issuing the request
@@ -330,9 +331,9 @@ added: v0.7.0
 * `socket` {net.Socket}
 * `head` {Buffer}
 
-Emitted each time a server responds to a request with a `CONNECT` method. If this
-event is not being listened for, clients receiving a `CONNECT` method will have
-their connections closed.
+Emitted each time a server responds to a request with a `CONNECT` method. If 
+this event is not being listened for, clients receiving a `CONNECT` method will 
+have their connections closed.
 
 A client and server pair demonstrating how to listen for the `'connect'` event:
 
@@ -623,7 +624,8 @@ added: v0.5.9
 -->
 
 * `timeout` {number} Milliseconds before a request times out.
-* `callback` {Function} Optional function to be called when a timeout occurs. Same as binding to the `timeout` event.
+* `callback` {Function} Optional function to be called when a timeout occurs. 
+  Same as binding to the `timeout` event.
 
 Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
@@ -688,7 +690,8 @@ Returns `request`.
 added: v0.1.17
 -->
 
-This class inherits from [`net.Server`][] and has the following additional events:
+This class inherits from [`net.Server`][] and has the following additional 
+events:
 
 ### Event: 'checkContinue'
 <!-- YAML
@@ -702,10 +705,10 @@ Emitted each time a request with an HTTP `Expect: 100-continue` is received.
 If this event is not listened for, the server will automatically respond
 with a `100 Continue` as appropriate.
 
-Handling this event involves calling [`response.writeContinue()`][] if the client
-should continue to send the request body, or generating an appropriate HTTP
-response (e.g. 400 Bad Request) if the client should not continue to send the
-request body.
+Handling this event involves calling [`response.writeContinue()`][] if the 
+client should continue to send the request body, or generating an appropriate 
+HTTP response (e.g. 400 Bad Request) if the client should not continue to send 
+the request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
@@ -929,9 +932,10 @@ will be destroyed. If the server receives new data before the keep-alive
 timeout has fired, it will reset the regular inactivity timeout, i.e.,
 [`server.timeout`][].
 
-A value of `0` will disable the keep-alive timeout behavior on incoming connections.
-A value of `0` makes the http server behave similarly to Node.js versions prior to 8.0.0,
-which did not have a keep-alive timeout.
+A value of `0` will disable the keep-alive timeout behavior on incoming 
+connections.
+A value of `0` makes the http server behave similarly to Node.js versions prior 
+to 8.0.0, which did not have a keep-alive timeout.
 
 *Note*: The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
@@ -1180,9 +1184,9 @@ response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-When headers have been set with [`response.setHeader()`][], they will be merged with
-any headers passed to [`response.writeHead()`][], with the headers passed to
-[`response.writeHead()`][] given precedence.
+When headers have been set with [`response.setHeader()`][], they will be merged 
+with any headers passed to [`response.writeHead()`][], with the headers passed 
+to [`response.writeHead()`][] given precedence.
 
 ```js
 // returns content-type = text/plain
@@ -1264,10 +1268,10 @@ added: v0.11.8
 
 * {string}
 
-When using implicit headers (not calling [`response.writeHead()`][] explicitly), this property
-controls the status message that will be sent to the client when the headers get
-flushed. If this is left as `undefined` then the standard message for the status
-code will be used.
+When using implicit headers (not calling [`response.writeHead()`][] explicitly),
+this property controls the status message that will be sent to the client when 
+the headers get flushed. If this is left as `undefined` then the standard 
+message for the status code will be used.
 
 Example:
 
@@ -1322,7 +1326,8 @@ added: v0.3.0
 -->
 
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
-the request body should be sent. See the [`'checkContinue'`][] event on `Server`.
+the request body should be sent. See the [`'checkContinue'`][] event on 
+`Server`.
 
 ### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
@@ -1358,9 +1363,9 @@ be called before [`response.end()`][] is called.
 If [`response.write()`][] or [`response.end()`][] are called before calling
 this, the implicit/mutable headers will be calculated and call this function.
 
-When headers have been set with [`response.setHeader()`][], they will be merged with
-any headers passed to [`response.writeHead()`][], with the headers passed to
-[`response.writeHead()`][] given precedence.
+When headers have been set with [`response.setHeader()`][], they will be merged 
+with any headers passed to [`response.writeHead()`][], with the headers passed 
+to [`response.writeHead()`][] given precedence.
 
 ```js
 // returns content-type = text/plain
@@ -1389,8 +1394,8 @@ added: v0.1.17
 
 An `IncomingMessage` object is created by [`http.Server`][] or
 [`http.ClientRequest`][] and passed as the first argument to the [`'request'`][]
-and [`'response'`][] event respectively. It may be used to access response status,
-headers and data.
+and [`'response'`][] event respectively. It may be used to access response 
+status, headers and data.
 
 It implements the [Readable Stream][] interface, as well as the
 following additional events, methods, and properties.
@@ -1561,7 +1566,8 @@ added: v0.11.10
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
-The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server Error`.
+The HTTP response status message (reason phrase). E.G. `OK` or 
+`Internal Server Error`.
 
 ### message.trailers
 <!-- YAML
@@ -1777,7 +1783,8 @@ changes:
   * `headers` {Object} An object containing request headers.
   * `auth` {string} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
-  * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible values:
+  * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible 
+    values:
    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
    * `Agent` object: explicitly use the passed in `Agent`.
    * `false`: causes a new `Agent` with default values to be used.

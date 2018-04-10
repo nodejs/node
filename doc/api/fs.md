@@ -225,8 +225,8 @@ added: v0.5.8
 
 Objects returned from [`fs.watch()`][] are of this type.
 
-The `listener` callback provided to `fs.watch()` receives the returned FSWatcher's
-`change` events.
+The `listener` callback provided to `fs.watch()` receives the returned 
+FSWatcher's `change` events.
 
 The object itself emits these events:
 
@@ -2288,8 +2288,8 @@ changes:
 
 Synchronous rmdir(2). Returns `undefined`.
 
-*Note*: Using `fs.rmdirSync()` on a file (not a directory) results in an `ENOENT`
-error on Windows and an `ENOTDIR` error on POSIX.
+*Note*: Using `fs.rmdirSync()` on a file (not a directory) results in an 
+`ENOENT` error on Windows and an `ENOTDIR` error on POSIX.
 
 ## fs.stat(path, callback)
 <!-- YAML
@@ -2564,9 +2564,9 @@ directory.  The returned object is a [`fs.FSWatcher`][].
 The second argument is optional. If `options` is provided as a string, it
 specifies the `encoding`. Otherwise `options` should be passed as an object.
 
-The listener callback gets two arguments `(eventType, filename)`.  `eventType` is either
-`'rename'` or `'change'`, and `filename` is the name of the file which triggered
-the event.
+The listener callback gets two arguments `(eventType, filename)`.  `eventType` 
+is either `'rename'` or `'change'`, and `filename` is the name of the file 
+which triggered the event.
 
 Note that on most platforms, `'rename'` is emitted whenever a filename appears
 or disappears in the directory.

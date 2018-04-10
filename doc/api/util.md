@@ -113,8 +113,8 @@ environment variable. For example: `NODE_DEBUG=fs,net,tls`.
 added: v0.8.0
 -->
 
-The `util.deprecate()` method wraps the given `function` or class in such a way that
-it is marked as deprecated.
+The `util.deprecate()` method wraps the given `function` or class in such a way 
+that it is marked as deprecated.
 
 <!-- eslint-disable prefer-rest-params -->
 ```js
@@ -176,12 +176,14 @@ corresponding argument. Supported placeholders are:
 contains circular references.
 * `%o` - Object. A string representation of an object
   with generic JavaScript object formatting.
-  Similar to `util.inspect()` with options `{ showHidden: true, depth: 4, showProxy: true }`.
-  This will show the full object including non-enumerable symbols and properties.
+  Similar to `util.inspect()` with options 
+  `{ showHidden: true, depth: 4, showProxy: true }`. This will show the full 
+  object including non-enumerable symbols and properties.
 * `%O` - Object. A string representation of an object
   with generic JavaScript object formatting.
   Similar to `util.inspect()` without options.
-  This will show the full object not including non-enumerable symbols and properties.
+  This will show the full object not including non-enumerable symbols and 
+  properties.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
 If the placeholder does not have a corresponding argument, the placeholder is
@@ -529,7 +531,8 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
-For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
+For example, with a function that takes in 
+`(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
 doSomething[util.promisify.custom] = (foo) => {

@@ -308,8 +308,8 @@ ignored by the decompression classes.
 * `level` {integer} (compression only)
 * `memLevel` {integer} (compression only)
 * `strategy` {integer} (compression only)
-* `dictionary` {Buffer|TypedArray|DataView} (deflate/inflate only, empty dictionary by
-  default)
+* `dictionary` {Buffer|TypedArray|DataView} (deflate/inflate only, empty 
+  dictionary by default)
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`)
 
 See the description of `deflateInit2` and `inflateInit2` at

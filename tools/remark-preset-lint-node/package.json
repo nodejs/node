@@ -19,6 +19,7 @@
     "remark-lint-first-heading-level": "^1.0.0",
     "remark-lint-hard-break-spaces": "^1.0.1",
     "remark-lint-heading-style": "^1.0.0",
+    "remark-lint-maximum-line-length": "^1.0.2",
     "remark-lint-no-auto-link-without-protocol": "^1.0.0",
     "remark-lint-no-blockquote-without-caret": "^1.0.0",
     "remark-lint-no-duplicate-definitions": "^1.0.0",
