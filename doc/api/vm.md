@@ -630,7 +630,7 @@ Returns `true` if the given `sandbox` object has been [contextified][] using
 * `code` {string} The JavaScript code to compile and run.
 * `contextifiedSandbox` {Object} The [contextified][] object that will be used
   as the `global` when the `code` is compiled and run.
-* `options`
+* `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script.
   * `lineOffset` {number} Specifies the line number offset that is displayed
@@ -648,6 +648,8 @@ The `vm.runInContext()` method compiles `code`, runs it within the context of
 the `contextifiedSandbox`, then returns the result. Running code does not have
 access to the local scope. The `contextifiedSandbox` object *must* have been
 previously [contextified][] using the [`vm.createContext()`][] method.
+
+If `options` is a string, then it specifies the filename.
 
 The following example compiles and executes different scripts using a single
 [contextified][] object:
@@ -705,7 +707,7 @@ added: v0.3.1
 * `code` {string} The JavaScript code to compile and run.
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
   new object will be created.
-* `options`
+* `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script.
   * `lineOffset` {number} Specifies the line number offset that is displayed
@@ -733,6 +735,8 @@ creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
 within the context of the created context, then returns the result. Running code
 does not have access to the local scope.
 
+If `options` is a string, then it specifies the filename.
+
 The following example compiles and executes code that increments a global
 variable and sets a new one. These globals are contained in the `sandbox`.
 
@@ -757,7 +761,7 @@ added: v0.3.1
 -->
 
 * `code` {string} The JavaScript code to compile and run.
-* `options`
+* `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script.
   * `lineOffset` {number} Specifies the line number offset that is displayed
@@ -774,6 +778,8 @@ added: v0.3.1
 `vm.runInThisContext()` compiles `code`, runs it within the context of the
 current `global` and returns the result. Running code does not have access to
 local scope, but does have access to the current `global` object.
+
+If `options` is a string, then it specifies the filename.
 
 The following example illustrates using both `vm.runInThisContext()` and
 the JavaScript [`eval()`][] function to run the same code:
