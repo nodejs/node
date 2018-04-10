@@ -596,11 +596,14 @@ The type of the return value depends on the arguments provided to
 Example:
 ```js
 request.setHeader('content-type', 'text/html');
-request.setHeader('Content-Length': Buffer.byteLength(body));
-request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript'])
-const contentType = request.getHeader('Content-Type');      // contentType is 'text/html'
-const contentLength = request.getHeader('Content-Length');  // contentLength is of type number
-const setCookie = request.getHeader('set-cookie');          // setCookie is of type string[]
+request.setHeader('Content-Length', Buffer.byteLength(body));
+request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
+const contentType = request.getHeader('Content-Type');
+// contentType is 'text/html'
+const contentLength = request.getHeader('Content-Length');
+// contentLength is of type number
+const setCookie = request.getHeader('set-cookie');
+// setCookie is of type string[]
 
 ```
 
