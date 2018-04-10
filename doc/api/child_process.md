@@ -1393,7 +1393,7 @@ unavailable.
 [`process.on('message')`]: process.html#process_event_message
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
-[`util.promisify()`]: util.html#util_util_promisify_original
+[`util.promisify()`]: util.html#util_util_promisify_original_options
 [Default Windows Shell]: #child_process_default_windows_shell
 [Shell Requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation

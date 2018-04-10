@@ -237,5 +237,5 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 [`setImmediate()`]: timers.html#timers_setimmediate_callback_args
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
-[`util.promisify()`]: util.html#util_util_promisify_original
+[`util.promisify()`]: util.html#util_util_promisify_original_options
 [the Node.js Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick
