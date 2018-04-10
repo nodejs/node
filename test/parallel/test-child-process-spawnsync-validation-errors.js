@@ -5,17 +5,9 @@ const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
 const rootUser = process.getuid() === 0;
 
-let invalidArgTypeError;
-let invalidArgTypeErrorCount = 62;
-
-if (common.isWindows || rootUser) {
-  invalidArgTypeError =
-    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 42);
-} else {
-  invalidArgTypeError =
-    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
-                        invalidArgTypeErrorCount);
-}
+const invalidArgTypeError = common.expectsError(
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
+  common.isWindows || rootUser ? 42 : 62);
 
 const invalidRangeError =
   common.expectsError({ code: 'ERR_OUT_OF_RANGE', type: RangeError }, 20);
@@ -79,9 +71,6 @@ if (!common.isWindows) {
       fail('uid', Infinity, invalidArgTypeError);
       fail('uid', 3.1, invalidArgTypeError);
       fail('uid', -3.1, invalidArgTypeError);
-    } else {
-      // Decrement invalidArgTypeErrorCount if validation isn't possible
-      invalidArgTypeErrorCount -= 10;
     }
   }
 
@@ -101,9 +90,6 @@ if (!common.isWindows) {
       fail('gid', Infinity, invalidArgTypeError);
       fail('gid', 3.1, invalidArgTypeError);
       fail('gid', -3.1, invalidArgTypeError);
-    } else {
-      // Decrement invalidArgTypeErrorCount if validation isn't possible
-      invalidArgTypeErrorCount -= 10;
     }
   }
 }
