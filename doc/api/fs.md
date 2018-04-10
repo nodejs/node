@@ -329,6 +329,13 @@ added: v0.5.8
 
 Emitted when an error occurs while watching the file.
 
+### Event: 'close'
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the watcher stops watching for changes.
+
 ### watcher.close()
 <!-- YAML
 added: v0.5.8
