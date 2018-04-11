@@ -3495,8 +3495,8 @@ static void PrintHelp() {
          "  --pending-deprecation      emit pending deprecation warnings\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --preserve-symlinks        preserve symbolic links when resolving\n"
-         "  --preserve-symlinks-main   preserve symbolic links when resolving "
-         "the main module\n"
+         "  --preserve-symlinks-main   preserve symbolic links when resolving\n"
+         "                             the main module\n"
 #endif
          "  --prof-process             process v8 profiler output generated\n"
          "                             using --prof\n"
