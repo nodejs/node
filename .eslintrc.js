@@ -129,7 +129,7 @@ module.exports = {
     // Variables
     // http://eslint.org/docs/rules/#variables
     'no-delete-var': 'error',
-    'no-undef': 'error',
+    'no-undef': ['error', { typeof: true }],
     'no-unused-vars': ['error', { args: 'none' }],
     'no-use-before-define': ['error', {
       classes: true,
