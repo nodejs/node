@@ -3,6 +3,7 @@
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
+#include "node_context_data.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -194,6 +195,10 @@ void Environment::Start(int argc,
   set_process_object(process_object);
 
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
+
+  // Used by EnvPromiseHook to know that we are on a node context.
+  context()->SetAlignedPointerInEmbedderData(kContextTag, (void *)kNodeContextTag);
+
   LoadAsyncWrapperInfo(this);
 
   static uv_once_t init_once = UV_ONCE_INIT;
@@ -363,7 +368,18 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
-  Environment* env = Environment::GetCurrent(promise->CreationContext());
+  Local<v8::Context> context = promise->CreationContext();
+
+  // Grow the embedder data if necessary to make sure we are not out of bounds
+  // when reading the magic number.
+  context->SetAlignedPointerInEmbedderData(kContextTagBoundary, nullptr);
+  int magicNumber = (int)context->GetAlignedPointerFromEmbedderData(kContextTag);
+  if (magicNumber != kNodeContextTag) {
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(context);
+
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
   }
