@@ -1,16 +1,15 @@
 'use strict';
-// Flags: --expose-internals
 
 const common = require('../common');
 const tty = require('tty');
-const { SystemError } = require('internal/errors');
 const uv = process.binding('uv');
+const assert = require('assert');
 
-common.expectsError(
+assert.throws(
   () => new tty.WriteStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    type: RangeError,
+    name: 'RangeError [ERR_INVALID_FD]',
     message: '"fd" must be a positive integer: -1'
   }
 );
@@ -27,37 +26,37 @@ common.expectsError(
     'EBADF (bad file descriptor)' : 'EINVAL (invalid argument)';
   const message = `TTY initialization failed: uv_tty_init returned ${suffix}`;
 
-  common.expectsError(
+  assert.throws(
     () => {
       common.runWithInvalidFD((fd) => {
         new tty.WriteStream(fd);
       });
     }, {
       code: 'ERR_TTY_INIT_FAILED',
-      type: SystemError,
+      name: 'SystemError [ERR_TTY_INIT_FAILED]',
       message,
       info
     }
   );
 
-  common.expectsError(
+  assert.throws(
     () => {
       common.runWithInvalidFD((fd) => {
         new tty.ReadStream(fd);
       });
     }, {
       code: 'ERR_TTY_INIT_FAILED',
-      type: SystemError,
+      name: 'SystemError [ERR_TTY_INIT_FAILED]',
       message,
       info
     });
 }
 
-common.expectsError(
+assert.throws(
   () => new tty.ReadStream(-1),
   {
     code: 'ERR_INVALID_FD',
-    type: RangeError,
+    name: 'RangeError [ERR_INVALID_FD]',
     message: '"fd" must be a positive integer: -1'
   }
 );
