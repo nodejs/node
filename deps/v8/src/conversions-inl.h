@@ -72,8 +72,10 @@ inline double DoubleToInteger(double x) {
 
 
 int32_t DoubleToInt32(double x) {
-  int32_t i = FastD2I(x);
-  if (FastI2D(i) == x) return i;
+  if ((std::isfinite(x)) && (x <= INT_MAX) && (x >= INT_MIN)) {
+    int32_t i = static_cast<int32_t>(x);
+    if (FastI2D(i) == x) return i;
+  }
   Double d(x);
   int exponent = d.Exponent();
   if (exponent < 0) {
@@ -94,14 +96,15 @@ bool DoubleToSmiInteger(double value, int* smi_int_value) {
 }
 
 bool IsSmiDouble(double value) {
-  return !IsMinusZero(value) && value >= Smi::kMinValue &&
-         value <= Smi::kMaxValue && value == FastI2D(FastD2I(value));
+  return std::isfinite(value) && !IsMinusZero(value) &&
+         value >= Smi::kMinValue && value <= Smi::kMaxValue &&
+         value == FastI2D(FastD2I(value));
 }
 
 
 bool IsInt32Double(double value) {
-  return !IsMinusZero(value) && value >= kMinInt && value <= kMaxInt &&
-         value == FastI2D(FastD2I(value));
+  return std::isfinite(value) && !IsMinusZero(value) && value >= kMinInt &&
+         value <= kMaxInt && value == FastI2D(FastD2I(value));
 }
 
 

@@ -38,7 +38,7 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 # TODO (machenbach): Share commonalities with mjstest.
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:
@@ -90,9 +90,9 @@ class TestCase(testcase.TestCase):
     files.append(os.path.join(self.suite.root, "resources/standalone-post.js"))
     return files
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     files = self._source_files
-    if ctx.isolates:
+    if self._test_config.isolates:
       files = files + ['--isolate'] + files
     return files
 
@@ -109,5 +109,5 @@ class TestCase(testcase.TestCase):
         os.path.join(self.suite.root, self.path) + '-expected.txt')
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

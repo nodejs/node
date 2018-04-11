@@ -157,6 +157,21 @@ void FlipBytes(uint8_t* target, uint8_t const* source) {
   }
 }
 
+template <typename T>
+MaybeHandle<Object> AllocateResult(Isolate* isolate, T value) {
+  return isolate->factory()->NewNumber(value);
+}
+
+template <>
+MaybeHandle<Object> AllocateResult(Isolate* isolate, int64_t value) {
+  return BigInt::FromInt64(isolate, value);
+}
+
+template <>
+MaybeHandle<Object> AllocateResult(Isolate* isolate, uint64_t value) {
+  return BigInt::FromUint64(isolate, value);
+}
+
 // ES6 section 24.2.1.1 GetViewValue (view, requestIndex, isLittleEndian, type)
 template <typename T>
 MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
@@ -196,50 +211,78 @@ MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
   } else {
     CopyBytes<sizeof(T)>(v.bytes, source);
   }
-  return isolate->factory()->NewNumber(v.data);
+  return AllocateResult<T>(isolate, v.data);
 }
 
 template <typename T>
-T DataViewConvertValue(double value);
-
-template <>
-int8_t DataViewConvertValue<int8_t>(double value) {
-  return static_cast<int8_t>(DoubleToInt32(value));
+MaybeHandle<Object> DataViewConvertInput(Isolate* isolate,
+                                         Handle<Object> input) {
+  return Object::ToNumber(input);
 }
 
 template <>
-int16_t DataViewConvertValue<int16_t>(double value) {
-  return static_cast<int16_t>(DoubleToInt32(value));
+MaybeHandle<Object> DataViewConvertInput<int64_t>(Isolate* isolate,
+                                                  Handle<Object> input) {
+  return BigInt::FromObject(isolate, input);
 }
 
 template <>
-int32_t DataViewConvertValue<int32_t>(double value) {
-  return DoubleToInt32(value);
+MaybeHandle<Object> DataViewConvertInput<uint64_t>(Isolate* isolate,
+                                                   Handle<Object> input) {
+  return BigInt::FromObject(isolate, input);
+}
+
+template <typename T>
+T DataViewConvertValue(Handle<Object> value);
+
+template <>
+int8_t DataViewConvertValue<int8_t>(Handle<Object> value) {
+  return static_cast<int8_t>(DoubleToInt32(value->Number()));
 }
 
 template <>
-uint8_t DataViewConvertValue<uint8_t>(double value) {
-  return static_cast<uint8_t>(DoubleToUint32(value));
+int16_t DataViewConvertValue<int16_t>(Handle<Object> value) {
+  return static_cast<int16_t>(DoubleToInt32(value->Number()));
 }
 
 template <>
-uint16_t DataViewConvertValue<uint16_t>(double value) {
-  return static_cast<uint16_t>(DoubleToUint32(value));
+int32_t DataViewConvertValue<int32_t>(Handle<Object> value) {
+  return DoubleToInt32(value->Number());
 }
 
 template <>
-uint32_t DataViewConvertValue<uint32_t>(double value) {
-  return DoubleToUint32(value);
+uint8_t DataViewConvertValue<uint8_t>(Handle<Object> value) {
+  return static_cast<uint8_t>(DoubleToUint32(value->Number()));
 }
 
 template <>
-float DataViewConvertValue<float>(double value) {
-  return static_cast<float>(value);
+uint16_t DataViewConvertValue<uint16_t>(Handle<Object> value) {
+  return static_cast<uint16_t>(DoubleToUint32(value->Number()));
 }
 
 template <>
-double DataViewConvertValue<double>(double value) {
-  return value;
+uint32_t DataViewConvertValue<uint32_t>(Handle<Object> value) {
+  return DoubleToUint32(value->Number());
+}
+
+template <>
+float DataViewConvertValue<float>(Handle<Object> value) {
+  return static_cast<float>(value->Number());
+}
+
+template <>
+double DataViewConvertValue<double>(Handle<Object> value) {
+  return value->Number();
+}
+
+template <>
+int64_t DataViewConvertValue<int64_t>(Handle<Object> value) {
+  return BigInt::cast(*value)->AsInt64();
+}
+
+template <>
+uint64_t DataViewConvertValue<uint64_t>(Handle<Object> value) {
+  return BigInt::cast(*value)->AsUint64();
 }
 
 // ES6 section 24.2.1.2 SetViewValue (view, requestIndex, isLittleEndian, type,
@@ -253,7 +296,8 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
       Object::ToIndex(isolate, request_index,
                       MessageTemplate::kInvalidDataViewAccessorOffset),
       Object);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::ToNumber(value), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                             DataViewConvertInput<T>(isolate, value), Object);
   size_t get_index = 0;
   if (!TryNumberToSize(*request_index, &get_index)) {
     THROW_NEW_ERROR(
@@ -274,7 +318,7 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
     T data;
     uint8_t bytes[sizeof(T)];
   } v;
-  v.data = DataViewConvertValue<T>(value->Number());
+  v.data = DataViewConvertValue<T>(value);
   size_t const buffer_offset = data_view_byte_offset + get_index;
   DCHECK(NumberToSize(buffer->byte_length()) >= buffer_offset + sizeof(T));
   uint8_t* const target =
@@ -310,6 +354,8 @@ DATA_VIEW_PROTOTYPE_GET(Int32, int32_t)
 DATA_VIEW_PROTOTYPE_GET(Uint32, uint32_t)
 DATA_VIEW_PROTOTYPE_GET(Float32, float)
 DATA_VIEW_PROTOTYPE_GET(Float64, double)
+DATA_VIEW_PROTOTYPE_GET(BigInt64, int64_t)
+DATA_VIEW_PROTOTYPE_GET(BigUint64, uint64_t)
 #undef DATA_VIEW_PROTOTYPE_GET
 
 #define DATA_VIEW_PROTOTYPE_SET(Type, type)                                \
@@ -334,6 +380,8 @@ DATA_VIEW_PROTOTYPE_SET(Int32, int32_t)
 DATA_VIEW_PROTOTYPE_SET(Uint32, uint32_t)
 DATA_VIEW_PROTOTYPE_SET(Float32, float)
 DATA_VIEW_PROTOTYPE_SET(Float64, double)
+DATA_VIEW_PROTOTYPE_SET(BigInt64, int64_t)
+DATA_VIEW_PROTOTYPE_SET(BigUint64, uint64_t)
 #undef DATA_VIEW_PROTOTYPE_SET
 
 }  // namespace internal

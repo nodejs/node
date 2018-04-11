@@ -33,7 +33,7 @@ Node* UndefinedConstant(CodeAssembler& m) {
   return m.LoadRoot(Heap::kUndefinedValueRootIndex);
 }
 
-Node* SmiFromWord32(CodeAssembler& m, Node* value) {
+Node* SmiFromInt32(CodeAssembler& m, Node* value) {
   value = m.ChangeInt32ToIntPtr(value);
   return m.BitcastWordToTaggedSigned(
       m.WordShl(value, kSmiShiftSize + kSmiTagSize));
@@ -505,7 +505,7 @@ TEST(GotoIfExceptionMultiple) {
   error.Bind(UndefinedConstant(m));
   string = m.CallStub(to_string, context, second_value);
   m.GotoIfException(string, &exception_handler2, &error);
-  m.Return(SmiFromWord32(m, return_value.value()));
+  m.Return(SmiFromInt32(m, return_value.value()));
 
   // try { ToString(param3); return 7 & ~2; } catch (e) { return e; }
   m.Bind(&exception_handler2);
@@ -513,7 +513,7 @@ TEST(GotoIfExceptionMultiple) {
   error.Bind(UndefinedConstant(m));
   string = m.CallStub(to_string, context, third_value);
   m.GotoIfException(string, &exception_handler3, &error);
-  m.Return(SmiFromWord32(
+  m.Return(SmiFromInt32(
       m, m.Word32And(return_value.value(),
                      m.Word32Xor(m.Int32Constant(2), m.Int32Constant(-1)))));
 

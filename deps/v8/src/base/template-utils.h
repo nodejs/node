@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BASE_TEMPLATE_UTILS_H
-#define V8_BASE_TEMPLATE_UTILS_H
+#ifndef V8_BASE_TEMPLATE_UTILS_H_
+#define V8_BASE_TEMPLATE_UTILS_H_
 
 #include <array>
 #include <memory>
@@ -131,4 +131,4 @@ constexpr auto fold(Func func, Ts&&... more) ->
 }  // namespace base
 }  // namespace v8
 
-#endif  // V8_BASE_TEMPLATE_UTILS_H
+#endif  // V8_BASE_TEMPLATE_UTILS_H_

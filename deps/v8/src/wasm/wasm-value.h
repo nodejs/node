@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_VALUE_H_
-#define V8_WASM_VALUE_H_
+#ifndef V8_WASM_WASM_VALUE_H_
+#define V8_WASM_WASM_VALUE_H_
 
 #include "src/boxed-float.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -84,4 +84,4 @@ FOREACH_WASMVAL_TYPE(DECLARE_CAST)
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_VALUE_H_
+#endif  // V8_WASM_WASM_VALUE_H_

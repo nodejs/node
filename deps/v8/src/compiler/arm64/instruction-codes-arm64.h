@@ -67,6 +67,8 @@ namespace compiler {
   V(Arm64Mov32)                    \
   V(Arm64Sxtb32)                   \
   V(Arm64Sxth32)                   \
+  V(Arm64Sxtb)                     \
+  V(Arm64Sxth)                     \
   V(Arm64Sxtw)                     \
   V(Arm64Sbfx32)                   \
   V(Arm64Ubfx)                     \
@@ -155,6 +157,7 @@ namespace compiler {
   V(Arm64StrW)                     \
   V(Arm64Ldr)                      \
   V(Arm64Str)                      \
+  V(Arm64DsbIsb)                   \
   V(Arm64F32x4Splat)               \
   V(Arm64F32x4ExtractLane)         \
   V(Arm64F32x4ReplaceLane)         \

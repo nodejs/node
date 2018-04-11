@@ -36,7 +36,6 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
 
-  parser.SetCachedData(info);
   result = parser.ParseProgram(isolate, info);
   info->set_literal(result);
   if (result == nullptr) {
@@ -45,6 +44,9 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   } else {
     result->scope()->AttachOuterScopeInfo(info, isolate);
     info->set_language_mode(info->literal()->language_mode());
+    if (info->is_eval()) {
+      info->set_allow_eval_cache(parser.allow_eval_cache());
+    }
   }
   parser.UpdateStatistics(isolate, info->script());
   return (result != nullptr);
@@ -79,6 +81,9 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
                                                 info->ast_value_factory());
   } else {
     result->scope()->AttachOuterScopeInfo(info, isolate);
+    if (info->is_eval()) {
+      info->set_allow_eval_cache(parser.allow_eval_cache());
+    }
   }
   parser.UpdateStatistics(isolate, info->script());
   return (result != nullptr);

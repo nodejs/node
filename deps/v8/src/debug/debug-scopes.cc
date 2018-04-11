@@ -121,10 +121,11 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
       CollectNonLocals(info.get(), scope);
     }
     if (!ignore_nested_scopes) {
-      DeclarationScope::Analyze(info.get());
-      DeclarationScope::AllocateScopeInfos(info.get(), isolate_,
-                                           AnalyzeMode::kDebugger);
-      RetrieveScopeChain(scope);
+      if (DeclarationScope::Analyze(info.get())) {
+        DeclarationScope::AllocateScopeInfos(info.get(), isolate_,
+                                             AnalyzeMode::kDebugger);
+        RetrieveScopeChain(scope);
+      }
     }
   } else {
     // A failed reparse indicates that the preparser has diverged from the

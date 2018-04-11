@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8PROFILERAGENTIMPL_H_
-#define V8_INSPECTOR_V8PROFILERAGENTIMPL_H_
+#ifndef V8_INSPECTOR_V8_PROFILER_AGENT_IMPL_H_
+#define V8_INSPECTOR_V8_PROFILER_AGENT_IMPL_H_
 
 #include <vector>
 
@@ -85,4 +85,4 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8PROFILERAGENTIMPL_H_
+#endif  // V8_INSPECTOR_V8_PROFILER_AGENT_IMPL_H_

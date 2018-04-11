@@ -103,7 +103,8 @@ class FixedArray : public FixedArrayBase {
 
   // Return a grown copy if the index is bigger than the array's length.
   static Handle<FixedArray> SetAndGrow(Handle<FixedArray> array, int index,
-                                       Handle<Object> value);
+                                       Handle<Object> value,
+                                       PretenureFlag pretenure = NOT_TENURED);
 
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
@@ -466,16 +467,18 @@ class PodArray : public ByteArray {
 };
 
 // V has parameters (Type, type, TYPE, C type, element_size)
-#define TYPED_ARRAYS(V)                   \
-  V(Uint8, uint8, UINT8, uint8_t, 1)      \
-  V(Int8, int8, INT8, int8_t, 1)          \
-  V(Uint16, uint16, UINT16, uint16_t, 2)  \
-  V(Int16, int16, INT16, int16_t, 2)      \
-  V(Uint32, uint32, UINT32, uint32_t, 4)  \
-  V(Int32, int32, INT32, int32_t, 4)      \
-  V(Float32, float32, FLOAT32, float, 4)  \
-  V(Float64, float64, FLOAT64, double, 8) \
-  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1)
+#define TYPED_ARRAYS(V)                                     \
+  V(Uint8, uint8, UINT8, uint8_t, 1)                        \
+  V(Int8, int8, INT8, int8_t, 1)                            \
+  V(Uint16, uint16, UINT16, uint16_t, 2)                    \
+  V(Int16, int16, INT16, int16_t, 2)                        \
+  V(Uint32, uint32, UINT32, uint32_t, 4)                    \
+  V(Int32, int32, INT32, int32_t, 4)                        \
+  V(Float32, float32, FLOAT32, float, 4)                    \
+  V(Float64, float64, FLOAT64, double, 8)                   \
+  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1) \
+  V(BigUint64, biguint64, BIGUINT64, uint64_t, 8)           \
+  V(BigInt64, bigint64, BIGINT64, int64_t, 8)
 
 class FixedTypedArrayBase : public FixedArrayBase {
  public:
@@ -548,6 +551,11 @@ class FixedTypedArray : public FixedTypedArrayBase {
   static inline ElementType from(int value);
   static inline ElementType from(uint32_t value);
   static inline ElementType from(double value);
+  static inline ElementType from(int64_t value);
+  static inline ElementType from(uint64_t value);
+
+  static inline ElementType FromHandle(Handle<Object> value,
+                                       bool* lossless = nullptr);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.

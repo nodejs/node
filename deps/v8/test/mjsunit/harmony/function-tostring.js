@@ -122,3 +122,25 @@ testDynamicFunction("a,   b", "return a");
 testDynamicFunction("a,/*A*/b", "return a");
 testDynamicFunction("/*A*/a,b", "return a");
 testDynamicFunction("a,b", "return a/*A*/");
+
+// Proxies of functions should not throw, but return a NativeFunction.
+assertEquals("function () { [native code] }",
+             new Proxy(function () { hidden }, {}).toString());
+assertEquals("function () { [native code] }",
+             new Proxy(() => { hidden }, {}).toString());
+assertEquals("function () { [native code] }",
+             new Proxy(class {}, {}).toString());
+assertEquals("function () { [native code] }",
+             new Proxy(function() { hidden }.bind({}), {}).toString());
+assertEquals("function () { [native code] }",
+             new Proxy(function*() { hidden }, {}).toString());
+assertEquals("function () { [native code] }",
+             new Proxy(async function() { hidden }, {}).toString());
+assertEquals("function () { [native code] }",
+             new Proxy(async function*() { hidden }, {}).toString());
+assertEquals("function () { [native code] }",
+             new Proxy({ method() { hidden } }.method, {}).toString());
+
+// Non-callable proxies still throw.
+assertThrows(() => Function.prototype.toString.call(new Proxy({}, {})),
+             TypeError);

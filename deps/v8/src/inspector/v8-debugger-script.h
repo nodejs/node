@@ -27,8 +27,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
-#define V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
+#ifndef V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
+#define V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
@@ -111,4 +111,4 @@ class V8DebuggerScript {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
+#endif  // V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_

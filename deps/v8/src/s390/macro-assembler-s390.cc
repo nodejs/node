@@ -15,6 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
@@ -1049,7 +1050,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   // Clear top frame.
   mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
                                     isolate())));
-  StoreP(MemOperand(ip), Operand(0, kRelocInfo_NONEPTR), r0);
+  StoreP(MemOperand(ip), Operand(0, RelocInfo::NONE), r0);
 
   // Restore current context from top and clear it in debug mode.
   mov(ip,
@@ -1215,13 +1216,29 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook;
+  Label skip_hook, call_hook;
+
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  mov(r6, Operand(debug_is_active));
+  tm(MemOperand(r6), Operand::Zero());
+  bne(&skip_hook);
+
   ExternalReference debug_hook_avtive =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   mov(r6, Operand(debug_hook_avtive));
-  LoadB(r6, MemOperand(r6));
-  CmpP(r6, Operand::Zero());
+  tm(MemOperand(r6), Operand::Zero());
+  beq(&call_hook);
+
+  LoadP(r6, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
+  LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kDebugInfoOffset));
+  JumpIfSmi(r6, &skip_hook);
+  LoadP(r6, FieldMemOperand(r6, DebugInfo::kFlagsOffset));
+  SmiUntag(r0, r6);
+  tmll(r0, Operand(DebugInfo::kBreakAtEntry));
   beq(&skip_hook);
+
+  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -1279,7 +1296,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // We call indirectly through the code field in the function to
     // allow recompilation to take effect without changing any of the
     // call sites.
-    Register code = ip;
+    Register code = kJavaScriptCallCodeStartRegister;
     LoadP(code, FieldMemOperand(function, JSFunction::kCodeOffset));
     AddP(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {
@@ -1330,14 +1347,6 @@ void MacroAssembler::InvokeFunction(Register function,
   LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
 
   InvokeFunctionCode(r3, no_reg, expected, actual, flag);
-}
-
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  Move(r3, function);
-  InvokeFunction(r3, expected, actual, flag);
 }
 
 void MacroAssembler::MaybeDropFrames() {
@@ -1527,6 +1536,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
                   builtin_exit_frame);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  intptr_t bytes_address = reinterpret_cast<intptr_t>(stream->bytes());
+  mov(kOffHeapTrampolineRegister, Operand(bytes_address));
+  Jump(kOffHeapTrampolineRegister);
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
@@ -1947,7 +1962,7 @@ void TurboAssembler::mov(Register dst, const Operand& src) {
     value = src.immediate();
   }
 
-  if (src.rmode() != kRelocInfo_NONEPTR) {
+  if (src.rmode() != RelocInfo::NONE) {
     // some form of relocation needed
     RecordRelocInfo(src.rmode(), value);
   }
@@ -3166,7 +3181,7 @@ void TurboAssembler::CmpP(Register src1, Register src2) {
 // Compare 32-bit Register vs Immediate
 // This helper will set up proper relocation entries if required.
 void TurboAssembler::Cmp32(Register dst, const Operand& opnd) {
-  if (opnd.rmode() == kRelocInfo_NONEPTR) {
+  if (opnd.rmode() == RelocInfo::NONE) {
     intptr_t value = opnd.immediate();
     if (is_int16(value))
       chi(dst, opnd);
@@ -3183,7 +3198,7 @@ void TurboAssembler::Cmp32(Register dst, const Operand& opnd) {
 // This helper will set up proper relocation entries if required.
 void TurboAssembler::CmpP(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
-  if (opnd.rmode() == kRelocInfo_NONEPTR) {
+  if (opnd.rmode() == RelocInfo::NONE) {
     cgfi(dst, opnd);
   } else {
     mov(r0, opnd);  // Need to generate 64-bit relocation
@@ -3470,7 +3485,7 @@ void TurboAssembler::StoreP(Register src, const MemOperand& mem,
 void TurboAssembler::StoreP(const MemOperand& mem, const Operand& opnd,
                             Register scratch) {
   // Relocations not supported
-  DCHECK_EQ(opnd.rmode(), kRelocInfo_NONEPTR);
+  DCHECK_EQ(opnd.rmode(), RelocInfo::NONE);
 
   // Try to use MVGHI/MVHI
   if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_uint12(mem.offset()) &&
@@ -4268,6 +4283,10 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2, DoubleRegister reg3,
   return n_of_valid_regs != n_of_non_aliasing_regs;
 }
 #endif
+
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  mov(kSpeculationPoisonRegister, Operand(-1));
+}
 
 }  // namespace internal
 }  // namespace v8

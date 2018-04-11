@@ -288,7 +288,7 @@ class PlatformCodeStub : public CodeStub {
   virtual void Generate(MacroAssembler* masm) = 0;
 
   // Generates the exception handler table for the stub.
-  virtual Handle<HandlerTable> GenerateHandlerTable();
+  virtual int GenerateHandlerTable(MacroAssembler* masm);
 
   DEFINE_CODE_STUB_BASE(PlatformCodeStub, CodeStub);
 };
@@ -692,7 +692,7 @@ class JSEntryStub : public PlatformCodeStub {
   }
 
  private:
-  Handle<HandlerTable> GenerateHandlerTable() override;
+  int GenerateHandlerTable(MacroAssembler* masm) override;
 
   void PrintName(std::ostream& os) const override {  // NOLINT
     os << (type() == StackFrame::ENTRY ? "JSEntryStub"

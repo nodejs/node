@@ -54,6 +54,9 @@ ADD_TO_GITIGNORE = [ "/testing/gtest/*",
                      "!/third_party/jinja2",
                      "!/third_party/markupsafe" ]
 
+# Node.js owns deps/v8/gypfiles in their downstream repository.
+FILES_TO_KEEP = [ "gypfiles" ]
+
 def RunGclient(path):
   assert os.path.isdir(path)
   print ">> Running gclient sync"
@@ -73,7 +76,7 @@ def CommitPatch(options):
       cwd=options.v8_path,
   )
 
-def UpdateTarget(repository, options):
+def UpdateTarget(repository, options, files_to_keep):
   source = os.path.join(options.v8_path, *repository)
   target = os.path.join(options.node_path, TARGET_SUBDIR, *repository)
   print ">> Updating target directory %s" % target
@@ -83,16 +86,24 @@ def UpdateTarget(repository, options):
   # Remove possible remnants of previous incomplete runs.
   node_common.UninitGit(target)
 
-  git_commands = [
-    ["git", "init"],                             # initialize target repo
-    ["git", "remote", "add", "origin", source],  # point to the source repo
-    ["git", "fetch", "origin", "HEAD"],          # sync to the current branch
-    ["git", "reset", "--hard", "FETCH_HEAD"],    # reset to the current branch
-    ["git", "clean", "-fd"],                     # delete removed files
-  ]
+  git_args = []
+  git_args.append(["init"])                       # initialize target repo
+
+  if files_to_keep:
+    git_args.append(["add"] + files_to_keep)            # add and commit
+    git_args.append(["commit", "-m", "keep files"])     # files we want to keep
+
+  git_args.append(["remote", "add", "source", source])  # point to source repo
+  git_args.append(["fetch", "source", "HEAD"])          # sync to current branch
+  git_args.append(["checkout", "-f", "FETCH_HEAD"])     # switch to that branch
+  git_args.append(["clean", "-fd"])                     # delete removed files
+
+  if files_to_keep:
+    git_args.append(["cherry-pick", "master"])    # restore kept files
+
   try:
-    for command in git_commands:
-      subprocess.check_call(command, cwd=target)
+    for args in git_args:
+      subprocess.check_call(["git"] + args, cwd=target)
   except:
     raise
   finally:
@@ -155,11 +166,11 @@ def Main(args):
   if options.with_patch:
     CommitPatch(options)
   # Update main V8 repository.
-  UpdateTarget([""], options)
+  UpdateTarget([""], options, FILES_TO_KEEP)
   # Patch .gitignore before updating sub-repositories.
   UpdateGitIgnore(options)
   for repo in SUB_REPOSITORIES:
-    UpdateTarget(repo, options)
+    UpdateTarget(repo, options, None)
   if options.commit:
     CreateCommit(options)
 

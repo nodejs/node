@@ -216,35 +216,16 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
                              isolate->factory()->undefined_value());
 }
 
-RUNTIME_FUNCTION(Runtime_SubString) {
+RUNTIME_FUNCTION(Runtime_StringSubstring) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
-  int start, end;
-  // We have a fast integer-only case here to avoid a conversion to double in
-  // the common case where from and to are Smis.
-  if (args[1]->IsSmi() && args[2]->IsSmi()) {
-    CONVERT_SMI_ARG_CHECKED(from_number, 1);
-    CONVERT_SMI_ARG_CHECKED(to_number, 2);
-    start = from_number;
-    end = to_number;
-  } else if (args[1]->IsNumber() && args[2]->IsNumber()) {
-    CONVERT_DOUBLE_ARG_CHECKED(from_number, 1);
-    CONVERT_DOUBLE_ARG_CHECKED(to_number, 2);
-    start = FastD2IChecked(from_number);
-    end = FastD2IChecked(to_number);
-  } else {
-    return isolate->ThrowIllegalOperation();
-  }
-  // The following condition is intentionally robust because the SubString
-  // builtin delegates here and we test this in
-  // cctest/test-strings/RobustSubStringStub.
-  if (end < start || start < 0 || end > string->length()) {
-    return isolate->ThrowIllegalOperation();
-  }
+  CONVERT_INT32_ARG_CHECKED(start, 1);
+  CONVERT_INT32_ARG_CHECKED(end, 2);
+  DCHECK_LE(0, start);
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, string->length());
   isolate->counters()->sub_string_runtime()->Increment();
-
   return *isolate->factory()->NewSubString(string, start, end);
 }
 

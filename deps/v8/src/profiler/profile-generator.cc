@@ -85,16 +85,6 @@ CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
                        CodeEntry::kUnresolvedFunctionName);
 }
 
-CodeEntry::~CodeEntry() {
-  delete line_info_;
-  for (auto location : inline_locations_) {
-    for (auto entry : location.second) {
-      delete entry;
-    }
-  }
-}
-
-
 uint32_t CodeEntry::GetHash() const {
   uint32_t hash = ComputeIntegerHash(tag());
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
@@ -137,12 +127,13 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
   return v8::CpuProfileNode::kNoLineNumberInfo;
 }
 
-void CodeEntry::AddInlineStack(int pc_offset,
-                               std::vector<CodeEntry*> inline_stack) {
+void CodeEntry::AddInlineStack(
+    int pc_offset, std::vector<std::unique_ptr<CodeEntry>> inline_stack) {
   inline_locations_.insert(std::make_pair(pc_offset, std::move(inline_stack)));
 }
 
-const std::vector<CodeEntry*>* CodeEntry::GetInlineStack(int pc_offset) const {
+const std::vector<std::unique_ptr<CodeEntry>>* CodeEntry::GetInlineStack(
+    int pc_offset) const {
   auto it = inline_locations_.find(pc_offset);
   return it != inline_locations_.end() ? &it->second : nullptr;
 }
@@ -528,9 +519,9 @@ void CodeMap::MoveCode(Address from, Address to) {
 }
 
 void CodeMap::Print() {
-  for (auto it = code_map_.begin(); it != code_map_.end(); ++it) {
-    base::OS::Print("%p %5d %s\n", static_cast<void*>(it->first),
-                    it->second.size, it->second.entry->name());
+  for (const auto& pair : code_map_) {
+    base::OS::Print("%p %5d %s\n", static_cast<void*>(pair.first),
+                    pair.second.size, pair.second.entry->name());
   }
 }
 
@@ -539,12 +530,6 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
       profiler_(nullptr),
       current_profiles_semaphore_(1) {}
 
-CpuProfilesCollection::~CpuProfilesCollection() {
-  for (CpuProfile* profile : finished_profiles_) delete profile;
-  for (CpuProfile* profile : current_profiles_) delete profile;
-}
-
-
 bool CpuProfilesCollection::StartProfiling(const char* title,
                                            bool record_samples) {
   current_profiles_semaphore_.Wait();
@@ -552,7 +537,7 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
     current_profiles_semaphore_.Signal();
     return false;
   }
-  for (CpuProfile* profile : current_profiles_) {
+  for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
     if (strcmp(profile->title(), title) == 0) {
       // Ignore attempts to start profile with the same title...
       current_profiles_semaphore_.Signal();
@@ -560,7 +545,8 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
       return true;
     }
   }
-  current_profiles_.push_back(new CpuProfile(profiler_, title, record_samples));
+  current_profiles_.emplace_back(
+      new CpuProfile(profiler_, title, record_samples));
   current_profiles_semaphore_.Signal();
   return true;
 }
@@ -570,19 +556,22 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
   const int title_len = StrLength(title);
   CpuProfile* profile = nullptr;
   current_profiles_semaphore_.Wait();
-  for (size_t i = current_profiles_.size(); i != 0; --i) {
-    CpuProfile* current_profile = current_profiles_[i - 1];
-    if (title_len == 0 || strcmp(current_profile->title(), title) == 0) {
-      profile = current_profile;
-      current_profiles_.erase(current_profiles_.begin() + i - 1);
-      break;
-    }
-  }
-  current_profiles_semaphore_.Signal();
 
-  if (!profile) return nullptr;
-  profile->FinishProfile();
-  finished_profiles_.push_back(profile);
+  auto it =
+      std::find_if(current_profiles_.rbegin(), current_profiles_.rend(),
+                   [&](const std::unique_ptr<CpuProfile>& p) {
+                     return title_len == 0 || strcmp(p->title(), title) == 0;
+                   });
+
+  if (it != current_profiles_.rend()) {
+    (*it)->FinishProfile();
+    profile = it->get();
+    finished_profiles_.push_back(std::move(*it));
+    // Convert reverse iterator to matching forward iterator.
+    current_profiles_.erase(--(it.base()));
+  }
+
+  current_profiles_semaphore_.Signal();
   return profile;
 }
 
@@ -599,7 +588,10 @@ bool CpuProfilesCollection::IsLastProfile(const char* title) {
 void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
   // Called from VM thread for a completed profile.
   auto pos =
-      std::find(finished_profiles_.begin(), finished_profiles_.end(), profile);
+      std::find_if(finished_profiles_.begin(), finished_profiles_.end(),
+                   [&](const std::unique_ptr<CpuProfile>& finished_profile) {
+                     return finished_profile.get() == profile;
+                   });
   DCHECK(pos != finished_profiles_.end());
   finished_profiles_.erase(pos);
 }
@@ -611,7 +603,7 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
-  for (CpuProfile* profile : current_profiles_) {
+  for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
     profile->AddPath(timestamp, path, src_line, update_stats);
   }
   current_profiles_semaphore_.Signal();
@@ -684,11 +676,13 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset =
             static_cast<int>(stack_pos - entry->instruction_start());
-        const std::vector<CodeEntry*>* inline_stack =
+        const std::vector<std::unique_ptr<CodeEntry>>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
-          entries.insert(entries.end(), inline_stack->rbegin(),
-                         inline_stack->rend());
+          std::transform(
+              inline_stack->rbegin(), inline_stack->rend(),
+              std::back_inserter(entries),
+              [](const std::unique_ptr<CodeEntry>& ptr) { return ptr.get(); });
         }
         // Skip unresolved frames (e.g. internal frame) and get source line of
         // the first JS caller.

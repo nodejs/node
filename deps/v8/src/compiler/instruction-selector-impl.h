@@ -206,6 +206,15 @@ class OperandGenerator {
     return op;
   }
 
+  InstructionOperand TempSimd128Register() {
+    UnallocatedOperand op = UnallocatedOperand(
+        UnallocatedOperand::MUST_HAVE_REGISTER,
+        UnallocatedOperand::USED_AT_START, sequence()->NextVirtualRegister());
+    sequence()->MarkAsRepresentation(MachineRepresentation::kSimd128,
+                                     op.virtual_register());
+    return op;
+  }
+
   InstructionOperand TempRegister(Register reg) {
     return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER, reg.code(),
                               InstructionOperand::kInvalidVirtualRegister);
@@ -353,14 +362,21 @@ class FlagsContinuation final {
 
   // Creates a new flags continuation from the given condition and true/false
   // blocks.
-  FlagsContinuation(FlagsCondition condition, BasicBlock* true_block,
-                    BasicBlock* false_block)
-      : mode_(kFlags_branch),
-        condition_(condition),
-        true_block_(true_block),
-        false_block_(false_block) {
-    DCHECK_NOT_NULL(true_block);
-    DCHECK_NOT_NULL(false_block);
+  static FlagsContinuation ForBranch(FlagsCondition condition,
+                                     BasicBlock* true_block,
+                                     BasicBlock* false_block,
+                                     LoadPoisoning masking) {
+    FlagsMode mode = masking == LoadPoisoning::kDoPoison
+                         ? kFlags_branch_and_poison
+                         : kFlags_branch;
+    return FlagsContinuation(mode, condition, true_block, false_block);
+  }
+
+  static FlagsContinuation ForBranchAndPoison(FlagsCondition condition,
+                                              BasicBlock* true_block,
+                                              BasicBlock* false_block) {
+    return FlagsContinuation(kFlags_branch_and_poison, condition, true_block,
+                             false_block);
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
@@ -368,8 +384,13 @@ class FlagsContinuation final {
                                          DeoptimizeKind kind,
                                          DeoptimizeReason reason,
                                          VectorSlotPair const& feedback,
-                                         Node* frame_state) {
-    return FlagsContinuation(condition, kind, reason, feedback, frame_state);
+                                         Node* frame_state,
+                                         LoadPoisoning masking) {
+    FlagsMode mode = masking == LoadPoisoning::kDoPoison
+                         ? kFlags_deoptimize_and_poison
+                         : kFlags_deoptimize;
+    return FlagsContinuation(mode, condition, kind, reason, feedback,
+                             frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -384,8 +405,16 @@ class FlagsContinuation final {
   }
 
   bool IsNone() const { return mode_ == kFlags_none; }
-  bool IsBranch() const { return mode_ == kFlags_branch; }
-  bool IsDeoptimize() const { return mode_ == kFlags_deoptimize; }
+  bool IsBranch() const {
+    return mode_ == kFlags_branch || mode_ == kFlags_branch_and_poison;
+  }
+  bool IsDeoptimize() const {
+    return mode_ == kFlags_deoptimize || mode_ == kFlags_deoptimize_and_poison;
+  }
+  bool IsPoisoned() const {
+    return mode_ == kFlags_branch_and_poison ||
+           mode_ == kFlags_deoptimize_and_poison;
+  }
   bool IsSet() const { return mode_ == kFlags_set; }
   bool IsTrap() const { return mode_ == kFlags_trap; }
   FlagsCondition condition() const {
@@ -473,17 +502,30 @@ class FlagsContinuation final {
   }
 
  private:
-  FlagsContinuation(FlagsCondition condition, DeoptimizeKind kind,
-                    DeoptimizeReason reason, VectorSlotPair const& feedback,
-                    Node* frame_state)
-      : mode_(kFlags_deoptimize),
+  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
+                    BasicBlock* true_block, BasicBlock* false_block)
+      : mode_(mode),
+        condition_(condition),
+        true_block_(true_block),
+        false_block_(false_block) {
+    DCHECK(mode == kFlags_branch || mode == kFlags_branch_and_poison);
+    DCHECK_NOT_NULL(true_block);
+    DCHECK_NOT_NULL(false_block);
+  }
+
+  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
+                    DeoptimizeKind kind, DeoptimizeReason reason,
+                    VectorSlotPair const& feedback, Node* frame_state)
+      : mode_(mode),
         condition_(condition),
         kind_(kind),
         reason_(reason),
         feedback_(feedback),
         frame_state_or_result_(frame_state) {
+    DCHECK(mode == kFlags_deoptimize || mode == kFlags_deoptimize_and_poison);
     DCHECK_NOT_NULL(frame_state);
   }
+
   FlagsContinuation(FlagsCondition condition, Node* result)
       : mode_(kFlags_set),
         condition_(condition),
@@ -502,13 +544,13 @@ class FlagsContinuation final {
 
   FlagsMode const mode_;
   FlagsCondition condition_;
-  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize
-  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize
-  VectorSlotPair feedback_;      // Only valid if mode_ == kFlags_deoptimize
-  Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize
+  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize*
+  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize*
+  VectorSlotPair feedback_;      // Only valid if mode_ == kFlags_deoptimize*
+  Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize*
                                  // or mode_ == kFlags_set.
-  BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch.
-  BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch.
+  BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
+  BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch*.
   Runtime::FunctionId trap_id_;  // Only valid if mode_ == kFlags_trap.
 };
 

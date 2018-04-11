@@ -41,21 +41,6 @@ RUNTIME_FUNCTION(Runtime_InterpreterDeserializeLazy) {
       bytecode, operand_scale);
 }
 
-RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 1);
-  CONVERT_SMI_ARG_CHECKED(index, 2);
-  CONVERT_SMI_ARG_CHECKED(pretenured_flag, 3);
-  Handle<Context> context(isolate->context(), isolate);
-  FeedbackSlot slot = FeedbackVector::ToSlot(index);
-  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
-  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared, context, vector_cell,
-      static_cast<PretenureFlag>(pretenured_flag));
-}
-
 #ifdef V8_TRACE_IGNITION
 
 namespace {

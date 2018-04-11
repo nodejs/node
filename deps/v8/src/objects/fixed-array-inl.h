@@ -496,6 +496,16 @@ inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(int value) {
   return static_cast<uint8_t>(value);
 }
 
+template <>
+inline int64_t FixedTypedArray<BigInt64ArrayTraits>::from(int value) {
+  UNREACHABLE();
+}
+
+template <>
+inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::from(int value) {
+  UNREACHABLE();
+}
+
 template <class Traits>
 typename Traits::ElementType FixedTypedArray<Traits>::from(uint32_t value) {
   return static_cast<ElementType>(value);
@@ -507,6 +517,16 @@ inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(uint32_t value) {
   // Uint32 values will be negative as an int, clamping to 0, rather than 255.
   if (value > 0xFF) return 0xFF;
   return static_cast<uint8_t>(value);
+}
+
+template <>
+inline int64_t FixedTypedArray<BigInt64ArrayTraits>::from(uint32_t value) {
+  UNREACHABLE();
+}
+
+template <>
+inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::from(uint32_t value) {
+  UNREACHABLE();
 }
 
 template <class Traits>
@@ -523,6 +543,16 @@ inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(double value) {
 }
 
 template <>
+inline int64_t FixedTypedArray<BigInt64ArrayTraits>::from(double value) {
+  UNREACHABLE();
+}
+
+template <>
+inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::from(double value) {
+  UNREACHABLE();
+}
+
+template <>
 inline float FixedTypedArray<Float32ArrayTraits>::from(double value) {
   return static_cast<float>(value);
 }
@@ -530,6 +560,60 @@ inline float FixedTypedArray<Float32ArrayTraits>::from(double value) {
 template <>
 inline double FixedTypedArray<Float64ArrayTraits>::from(double value) {
   return value;
+}
+
+template <class Traits>
+typename Traits::ElementType FixedTypedArray<Traits>::from(int64_t value) {
+  UNREACHABLE();
+}
+
+template <class Traits>
+typename Traits::ElementType FixedTypedArray<Traits>::from(uint64_t value) {
+  UNREACHABLE();
+}
+
+template <>
+inline int64_t FixedTypedArray<BigInt64ArrayTraits>::from(int64_t value) {
+  return value;
+}
+
+template <>
+inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::from(uint64_t value) {
+  return value;
+}
+
+template <>
+inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::from(int64_t value) {
+  return static_cast<uint64_t>(value);
+}
+
+template <>
+inline int64_t FixedTypedArray<BigInt64ArrayTraits>::from(uint64_t value) {
+  return static_cast<int64_t>(value);
+}
+
+template <class Traits>
+typename Traits::ElementType FixedTypedArray<Traits>::FromHandle(
+    Handle<Object> value, bool* lossless) {
+  if (value->IsSmi()) {
+    return from(Smi::ToInt(*value));
+  }
+  DCHECK(value->IsHeapNumber());
+  return from(HeapNumber::cast(*value)->value());
+}
+
+template <>
+inline int64_t FixedTypedArray<BigInt64ArrayTraits>::FromHandle(
+    Handle<Object> value, bool* lossless) {
+  DCHECK(value->IsBigInt());
+  return BigInt::cast(*value)->AsInt64(lossless);
+}
+
+template <>
+inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::FromHandle(
+    Handle<Object> value, bool* lossless) {
+  DCHECK(value->IsBigInt());
+  return BigInt::cast(*value)->AsUint64(lossless);
 }
 
 template <class Traits>
@@ -553,6 +637,20 @@ void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
     DCHECK(value->IsUndefined(GetIsolate()));
   }
   set(index, cast_value);
+}
+
+template <>
+inline void FixedTypedArray<BigInt64ArrayTraits>::SetValue(uint32_t index,
+                                                           Object* value) {
+  DCHECK(value->IsBigInt());
+  set(index, BigInt::cast(value)->AsInt64());
+}
+
+template <>
+inline void FixedTypedArray<BigUint64ArrayTraits>::SetValue(uint32_t index,
+                                                            Object* value) {
+  DCHECK(value->IsBigInt());
+  set(index, BigInt::cast(value)->AsUint64());
 }
 
 Handle<Object> Uint8ArrayTraits::ToHandle(Isolate* isolate, uint8_t scalar) {
@@ -590,6 +688,15 @@ Handle<Object> Float32ArrayTraits::ToHandle(Isolate* isolate, float scalar) {
 
 Handle<Object> Float64ArrayTraits::ToHandle(Isolate* isolate, double scalar) {
   return isolate->factory()->NewNumber(scalar);
+}
+
+Handle<Object> BigInt64ArrayTraits::ToHandle(Isolate* isolate, int64_t scalar) {
+  return BigInt::FromInt64(isolate, scalar);
+}
+
+Handle<Object> BigUint64ArrayTraits::ToHandle(Isolate* isolate,
+                                              uint64_t scalar) {
+  return BigInt::FromUint64(isolate, scalar);
 }
 
 // static

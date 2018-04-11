@@ -6,6 +6,7 @@
 #define V8_COMPILER_JS_CALL_REDUCER_H_
 
 #include "src/base/flags.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
 
@@ -28,7 +29,7 @@ class SimplifiedOperatorBuilder;
 
 // Performs strength reduction on {JSConstruct} and {JSCall} nodes,
 // which might allow inlining or other optimizations to be performed afterwards.
-class JSCallReducer final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
  public:
   // Flags that control the mode of operation.
   enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 0 };
@@ -54,7 +55,8 @@ class JSCallReducer final : public AdvancedReducer {
  private:
   Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceBooleanConstructor(Node* node);
-  Reduction ReduceCallApiFunction(Node* node, Handle<JSFunction> function);
+  Reduction ReduceCallApiFunction(Node* node,
+                                  Handle<SharedFunctionInfo> shared);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
@@ -71,16 +73,17 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReflectGet(Node* node);
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceReflectHas(Node* node);
-  Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayReduce(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayReduceRight(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayMap(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayFilter(Handle<JSFunction> function, Node* node);
-  enum class ArrayFindVariant : uint8_t { kFind, kFindIndex };
-  Reduction ReduceArrayFind(ArrayFindVariant variant,
-                            Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayEvery(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArraySome(Handle<JSFunction> function, Node* node);
+  Reduction ReduceArrayForEach(Node* node, Handle<SharedFunctionInfo> shared);
+  enum class ArrayReduceDirection { kLeft, kRight };
+  Reduction ReduceArrayReduce(Node* node, ArrayReduceDirection direction,
+                              Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArrayMap(Node* node, Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArrayFilter(Node* node, Handle<SharedFunctionInfo> shared);
+  enum class ArrayFindVariant { kFind, kFindIndex };
+  Reduction ReduceArrayFind(Node* node, ArrayFindVariant variant,
+                            Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArrayEvery(Node* node, Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArraySome(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
@@ -91,15 +94,45 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
   Reduction ReduceJSCall(Node* node);
+  Reduction ReduceJSCall(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
-  Reduction ReduceStringPrototypeIndexOf(Handle<JSFunction> function,
-                                         Node* node);
-  Reduction ReduceStringPrototypeCharAt(Node* node);
-  Reduction ReduceStringPrototypeCharCodeAt(Node* node);
+  Reduction ReduceStringPrototypeIndexOf(Node* node);
+  Reduction ReduceStringPrototypeSubstring(Node* node);
+  Reduction ReduceStringPrototypeSlice(Node* node);
+  Reduction ReduceStringPrototypeStringAt(
+      const Operator* string_access_operator, Node* node);
+
+#ifdef V8_INTL_SUPPORT
+  Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
+  Reduction ReduceStringPrototypeToUpperCaseIntl(Node* node);
+#endif  // V8_INTL_SUPPORT
+
+  Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceStringPrototypeIterator(Node* node);
+  Reduction ReduceStringIteratorPrototypeNext(Node* node);
+
+  Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
+  Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
+  Reduction ReducePromiseCapabilityDefaultReject(Node* node);
+  Reduction ReducePromiseCapabilityDefaultResolve(Node* node);
+  Reduction ReducePromiseConstructor(Node* node);
+  Reduction ReducePromiseInternalConstructor(Node* node);
+  Reduction ReducePromiseInternalReject(Node* node);
+  Reduction ReducePromiseInternalResolve(Node* node);
+  Reduction ReducePromisePrototypeCatch(Node* node);
+  Reduction ReducePromisePrototypeFinally(Node* node);
+  Reduction ReducePromisePrototypeThen(Node* node);
+  Reduction ReducePromiseResolveTrampoline(Node* node);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
+
+  Reduction ReduceMathUnary(Node* node, const Operator* op);
+  Reduction ReduceMathBinary(Node* node, const Operator* op);
+  Reduction ReduceMathImul(Node* node);
+  Reduction ReduceMathClz32(Node* node);
+  Reduction ReduceMathMinMax(Node* node, const Operator* op, Node* empty_value);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.
@@ -134,6 +167,11 @@ class JSCallReducer final : public AdvancedReducer {
   Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
                         Node** effect, Node** k,
                         const VectorSlotPair& feedback);
+
+  Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
+                                   int parameter_count, BailoutId bailout_id,
+                                   FrameStateType frame_state_type,
+                                   Handle<SharedFunctionInfo> shared);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

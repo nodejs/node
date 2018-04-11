@@ -44,11 +44,11 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 //
 // We make sure CHECK et al. always evaluates their arguments, as
 // doing CHECK(FunctionWithSideEffect()) is a common idiom.
-#define CHECK_WITH_MSG(condition, message)                        \
-  do {                                                            \
-    if (V8_UNLIKELY(!(condition))) {                              \
-      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", message); \
-    }                                                             \
+#define CHECK_WITH_MSG(condition, message) \
+  do {                                     \
+    if (V8_UNLIKELY(!(condition))) {       \
+      FATAL("Check failed: %s.", message); \
+    }                                      \
   } while (0)
 #define CHECK(condition) CHECK_WITH_MSG(condition, #condition)
 
@@ -70,7 +70,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
             typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,  \
             typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>( \
             (lhs), (rhs), #lhs " " #op " " #rhs)) {                       \
-      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str());   \
+      FATAL("Check failed: %s.", _msg->c_str());                          \
       delete _msg;                                                        \
     }                                                                     \
   } while (0)

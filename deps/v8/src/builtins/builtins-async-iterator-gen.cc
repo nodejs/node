@@ -28,12 +28,28 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
   typedef std::function<void(Node* const context, Node* const promise,
                              Label* if_exception)>
       UndefinedMethodHandler;
+  typedef std::function<Node*(Node*)> SyncIteratorNodeGenerator;
   void Generate_AsyncFromSyncIteratorMethod(
       Node* const context, Node* const iterator, Node* const sent_value,
-      Handle<Name> method_name, UndefinedMethodHandler&& if_method_undefined,
+      const SyncIteratorNodeGenerator& get_method,
+      const UndefinedMethodHandler& if_method_undefined,
       const char* operation_name,
       Label::Type reject_label_type = Label::kDeferred,
       Node* const initial_exception_value = nullptr);
+
+  void Generate_AsyncFromSyncIteratorMethod(
+      Node* const context, Node* const iterator, Node* const sent_value,
+      Handle<String> name, const UndefinedMethodHandler& if_method_undefined,
+      const char* operation_name,
+      Label::Type reject_label_type = Label::kDeferred,
+      Node* const initial_exception_value = nullptr) {
+    auto get_method = [=](Node* const sync_iterator) {
+      return GetProperty(context, sync_iterator, name);
+    };
+    return Generate_AsyncFromSyncIteratorMethod(
+        context, iterator, sent_value, get_method, if_method_undefined,
+        operation_name, reject_label_type, initial_exception_value);
+  }
 
   // Load "value" and "done" from an iterator result object. If an exception
   // is thrown at any point, jumps to te `if_exception` label with exception
@@ -79,7 +95,8 @@ void AsyncFromSyncBuiltinsAssembler::ThrowIfNotAsyncFromSyncIterator(
 
 void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     Node* const context, Node* const iterator, Node* const sent_value,
-    Handle<Name> method_name, UndefinedMethodHandler&& if_method_undefined,
+    const SyncIteratorNodeGenerator& get_method,
+    const UndefinedMethodHandler& if_method_undefined,
     const char* operation_name, Label::Type reject_label_type,
     Node* const initial_exception_value) {
   Node* const native_context = LoadNativeContext(context);
@@ -96,7 +113,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   Node* const sync_iterator =
       LoadObjectField(iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset);
 
-  Node* const method = GetProperty(context, sync_iterator, method_name);
+  Node* const method = get_method(sync_iterator);
 
   if (if_method_undefined) {
     Label if_isnotundefined(this);
@@ -119,7 +136,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // Perform ! Call(valueWrapperCapability.[[Resolve]], undefined, «
   // throwValue »).
-  CallBuiltin(Builtins::kResolveNativePromise, context, wrapper, value);
+  CallBuiltin(Builtins::kResolvePromise, context, wrapper, value);
 
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
@@ -128,13 +145,13 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // Perform ! PerformPromiseThen(valueWrapperCapability.[[Promise]],
   //     onFulfilled, undefined, promiseCapability).
-  Return(CallBuiltin(Builtins::kPerformNativePromiseThen, context, wrapper,
+  Return(CallBuiltin(Builtins::kPerformPromiseThen, context, wrapper,
                      on_fulfilled, UndefinedConstant(), promise));
 
   BIND(&reject_promise);
   {
     Node* const exception = var_exception.value();
-    CallBuiltin(Builtins::kRejectNativePromise, context, promise, exception,
+    CallBuiltin(Builtins::kRejectPromise, context, promise, exception,
                 TrueConstant());
     Return(promise);
   }
@@ -211,6 +228,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   BIND(&done);
   return std::make_pair(var_value.value(), var_done.value());
 }
+
 }  // namespace
 
 // https://tc39.github.io/proposal-async-iteration/
@@ -220,9 +238,12 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
 
+  auto get_method = [=](Node* const unused) {
+    return LoadObjectField(iterator, JSAsyncFromSyncIterator::kNextOffset);
+  };
   Generate_AsyncFromSyncIteratorMethod(
-      context, iterator, value, factory()->next_string(),
-      UndefinedMethodHandler(), "[Async-from-Sync Iterator].prototype.next");
+      context, iterator, value, get_method, UndefinedMethodHandler(),
+      "[Async-from-Sync Iterator].prototype.next");
 }
 
 // https://tc39.github.io/proposal-async-iteration/
@@ -243,7 +264,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
     // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iterResult »).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
     // Return promiseCapability.[[Promise]].
-    PromiseFulfill(context, promise, iter_result, v8::Promise::kFulfilled);
+    CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
     Return(promise);
   };
 

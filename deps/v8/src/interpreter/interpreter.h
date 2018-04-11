@@ -27,6 +27,8 @@ class FunctionLiteral;
 class ParseInfo;
 class RootVisitor;
 class SetupIsolateDelegate;
+template <typename>
+class ZoneVector;
 
 namespace interpreter {
 
@@ -37,10 +39,16 @@ class Interpreter {
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() {}
 
+  // Returns the interrupt budget which should be used for the profiler counter.
+  static int InterruptBudget();
+
   // Creates a compilation job which will generate bytecode for |literal|.
-  static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
-                                           FunctionLiteral* literal,
-                                           AccountingAllocator* allocator);
+  // Additionally, if |eager_inner_literals| is not null, adds any eagerly
+  // compilable inner FunctionLiterals to this list.
+  static CompilationJob* NewCompilationJob(
+      ParseInfo* parse_info, FunctionLiteral* literal,
+      AccountingAllocator* allocator,
+      ZoneVector<FunctionLiteral*>* eager_inner_literals);
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
@@ -71,9 +79,6 @@ class Interpreter {
   Address bytecode_dispatch_counters_table() {
     return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
-
-  // The interrupt budget which should be used for the profiler counter.
-  static const int kInterruptBudget = 144 * KB;
 
  private:
   friend class SetupInterpreter;

@@ -58,6 +58,9 @@
     # Similar to the ARM hard float ABI but on MIPS.
     'v8_use_mips_abi_hardfloat%': 'true',
 
+    # MIPS MSA support
+    'mips_use_msa%': 0,
+
     # Print to stdout on Android.
     'v8_android_log_stdout%': 0,
 
@@ -439,6 +442,9 @@
                     'cflags': ['-mips32r6'],
                     'ldflags': ['-mips32r6'],
                   }],
+                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                    'defines': [ '_MIPS_MSA' ],
+                  }],
                   ['mips_arch_variant=="r2"', {
                     'conditions': [
                       [ 'mips_fpu_mode=="fp64"', {
@@ -507,6 +513,9 @@
                       'FPU_MODE_FP64',
                     ],
                   }],
+                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                    'defines': [ '_MIPS_MSA' ],
+                  }],
                   ['mips_arch_variant=="r2"', {
                     'conditions': [
                       [ 'mips_fpu_mode=="fp64"', {
@@ -557,6 +566,9 @@
                   '_MIPS_ARCH_MIPS32R6',
                   'FPU_MODE_FP64',
                 ],
+              }],
+              ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                'defines': [ '_MIPS_MSA' ],
               }],
               ['mips_arch_variant=="r2"', {
                 'conditions': [
@@ -640,6 +652,9 @@
                     'cflags': ['-mips32r6'],
                     'ldflags': ['-mips32r6'],
                   }],
+                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                    'defines': [ '_MIPS_MSA' ],
+                  }],
                   ['mips_arch_variant=="r2"', {
                     'conditions': [
                       [ 'mips_fpu_mode=="fp64"', {
@@ -721,6 +736,9 @@
                       'FPU_MODE_FP64',
                     ],
                   }],
+                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                    'defines': [ '_MIPS_MSA' ],
+                  }],
                   ['mips_arch_variant=="r2"', {
                     'conditions': [
                       [ 'mips_fpu_mode=="fp64"', {
@@ -777,6 +795,9 @@
                   '_MIPS_ARCH_MIPS32R6',
                   'FPU_MODE_FP64',
                 ],
+              }],
+              ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                'defines': [ '_MIPS_MSA' ],
               }],
               ['mips_arch_variant=="r2"', {
                 'conditions': [
@@ -877,6 +898,9 @@
                     'cflags': ['-mips64r6', '-mabi=64'],
                     'ldflags': ['-mips64r6', '-mabi=64'],
                   }],
+                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                    'defines': [ '_MIPS_MSA' ],
+                  }],
                   ['mips_arch_variant=="r2"', {
                     'defines': ['_MIPS_ARCH_MIPS64R2',],
                     'conditions': [
@@ -895,6 +919,9 @@
                   ['mips_arch_variant=="r6"', {
                     'defines': ['_MIPS_ARCH_MIPS64R6',],
                   }],
+                  ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                    'defines': [ '_MIPS_MSA' ],
+                  }],
                   ['mips_arch_variant=="r2"', {
                     'defines': ['_MIPS_ARCH_MIPS64R2',],
                   }],
@@ -906,6 +933,9 @@
             'conditions': [
               ['mips_arch_variant=="r6"', {
                 'defines': ['_MIPS_ARCH_MIPS64R6',],
+              }],
+              ['mips_arch_variant=="r6" and mips_use_msa==1', {
+                'defines': [ '_MIPS_MSA' ],
               }],
               ['mips_arch_variant=="r2"', {
                 'defines': ['_MIPS_ARCH_MIPS64R2',],
@@ -1225,7 +1255,9 @@
           'OBJECT_PRINT',
           'VERIFY_HEAP',
           'DEBUG',
-          'V8_TRACE_MAPS'
+          'V8_TRACE_MAPS',
+          'V8_ENABLE_ALLOCATION_TIMEOUT',
+          'V8_ENABLE_FORCE_SLOW_PATH',
         ],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \

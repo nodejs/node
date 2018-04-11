@@ -197,12 +197,6 @@ class SerializationData {
     return shared_array_buffer_contents_;
   }
 
-  void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
-    to->insert(to->end(),
-               std::make_move_iterator(externalized_contents_.begin()),
-               std::make_move_iterator(externalized_contents_.end()));
-    externalized_contents_.clear();
-  }
 
  private:
   struct DataDeleter {
@@ -213,7 +207,6 @@ class SerializationData {
   size_t size_;
   std::vector<ArrayBuffer::Contents> array_buffer_contents_;
   std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
-  std::vector<ExternalizedContents> externalized_contents_;
 
  private:
   friend class Serializer;
@@ -358,6 +351,7 @@ class ShellOptions {
   int read_from_tcp_port;
   bool enable_os_system = false;
   bool quiet_load = false;
+  int thread_pool_size = 0;
 };
 
 class Shell : public i::AllStatic {

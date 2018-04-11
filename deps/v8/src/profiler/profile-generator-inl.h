@@ -13,7 +13,8 @@ namespace internal {
 CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
                      const char* name_prefix, const char* resource_name,
                      int line_number, int column_number,
-                     JITLineInfoTable* line_info, Address instruction_start)
+                     std::unique_ptr<JITLineInfoTable> line_info,
+                     Address instruction_start)
     : bit_field_(TagField::encode(tag) |
                  BuiltinIdField::encode(Builtins::builtin_count)),
       name_prefix_(name_prefix),
@@ -26,7 +27,7 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
       bailout_reason_(kEmptyBailoutReason),
       deopt_reason_(kNoDeoptReason),
       deopt_id_(kNoDeoptimizationId),
-      line_info_(line_info),
+      line_info_(std::move(line_info)),
       instruction_start_(instruction_start) {}
 
 ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,

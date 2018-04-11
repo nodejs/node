@@ -5,13 +5,13 @@
     <link rel="stylesheet" href="turbo-visualizer.css" />
   </head>
   <body>
-    <div id="left">
+    <div id="left" class="viewpane">
       <div id='source-text'>
         <pre id='source-text-pre'\>
       </div>
     </div>
     <div class="resizer-left"></div>
-    <div id="middle" class="resizable-pane">
+    <div id="middle" class="viewpane">
       <div id="graph-toolbox-anchor">
         <span id="graph-toolbox">
           <input id="layout" type="image" title="layout graph" src="layout-icon.png"
@@ -55,7 +55,7 @@
       </text></svg></div>
     </div>
     <div class="resizer-right"></div>
-    <div id="right">
+    <div id="right" class="viewpane">
       <div id='disassembly'>
         <pre id='disassembly-text-pre' class='prettyprint prettyprinted'>
           <ul id='disassembly-list' class='nolinenums noindent'>

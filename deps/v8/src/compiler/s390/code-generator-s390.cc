@@ -260,28 +260,28 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       // unsigned number never less than 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return CC_NOP;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedLessThan:
       return lt;
     case kUnsignedGreaterThanOrEqual:
       // unsigned number always greater than or equal 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return CC_ALWAYS;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedGreaterThanOrEqual:
       return ge;
     case kUnsignedLessThanOrEqual:
       // unsigned number never less than 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return CC_EQ;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedLessThanOrEqual:
       return le;
     case kUnsignedGreaterThan:
       // unsigned number always greater than or equal 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return ne;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedGreaterThan:
       return gt;
     case kOverflow:
@@ -984,6 +984,16 @@ void AdjustStackPointerForTailCall(
   }
 }
 
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
+                                   S390OperandConverter& i) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
+  if (access_mode == kMemoryAccessPoisoned) {
+    Register value = i.OutputRegister();
+    codegen->tasm()->AndP(value, kSpeculationPoisonRegister);
+  }
+}
+
 }  // namespace
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
@@ -1028,27 +1038,70 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                 first_unused_stack_slot);
 }
 
+// Check that {kJavaScriptCallCodeStartRegister} is correct.
+void CodeGenerator::AssembleCodeStartRegisterCheck() {
+  Register scratch = r1;
+  int pc_offset = __ pc_offset();
+  __ larl(scratch, Operand(-pc_offset/2));
+  __ CmpP(scratch, kJavaScriptCallCodeStartRegister);
+  __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
+}
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
-//    1. load the address of the current instruction;
-//    2. read from memory the word that contains that bit, which can be found in
+//    1. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
-//    3. test kMarkedForDeoptimizationBit in those flags; and
-//    4. if it is not zero then it jumps to the builtin.
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  Label current;
-  __ larl(r1, &current);
-  int pc_offset = __ pc_offset();
-  __ bind(&current);
-  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc_offset);
-  __ LoadP(ip, MemOperand(r1, offset));
+  if (FLAG_debug_code) {
+    // Check that {kJavaScriptCallCodeStartRegister} is correct.
+    int pc_offset = __ pc_offset();
+    __ larl(ip, Operand(-pc_offset/2));
+    __ CmpP(ip, kJavaScriptCallCodeStartRegister);
+    __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
+  }
+
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  __ LoadP(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ LoadW(ip,
            FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ Jump(code, RelocInfo::CODE_TARGET, ne);
+}
+
+void CodeGenerator::GenerateSpeculationPoison() {
+  Register scratch = r1;
+
+  Label current_pc;
+  __ larl(scratch, &current_pc);
+
+  __ bind(&current_pc);
+  __ SubP(scratch, Operand(__ pc_offset()));
+
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong PC.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ LoadRR(kSpeculationPoisonRegister, scratch);
+  __ SubP(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+          kJavaScriptCallCodeStartRegister);
+  __ SubP(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
+          scratch);
+  __ OrP(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kJavaScriptCallCodeStartRegister);
+  __ ShiftRightArithP(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+                      Operand(kBitsPerPointer - 1));
+  __ NotP(kSpeculationPoisonRegister, kSpeculationPoisonRegister);
+}
+
+void CodeGenerator::AssembleRegisterArgumentPoisoning() {
+  __ AndP(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
+  __ AndP(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
+  __ AndP(sp, sp, kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -1155,9 +1208,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ CmpP(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
-      __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ AddP(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(ip);
+      static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
+      __ LoadP(r4, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
+      __ Call(r4);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1925,15 +1979,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kS390_ExtendSignWord8:
+    case kS390_SignExtendWord8ToInt32:
       __ lbr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
-    case kS390_ExtendSignWord16:
+    case kS390_SignExtendWord16ToInt32:
       __ lhr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
-    case kS390_ExtendSignWord32:
+    case kS390_SignExtendWord8ToInt64:
+      __ lgbr(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kS390_SignExtendWord16ToInt64:
+      __ lghr(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kS390_SignExtendWord32ToInt64:
       __ lgfr(i.OutputRegister(), i.InputRegister(0));
       break;
     case kS390_Uint32ToUint64:
@@ -2106,6 +2166,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_LoadWordS8:
       ASSEMBLE_LOAD_INTEGER(LoadB);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_BitcastFloat32ToInt32:
       ASSEMBLE_UNARY_OP(R_DInstr(MovFloatToInt), R_MInstr(LoadlW), nullInstr);
@@ -2123,27 +2184,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kS390_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(LoadlB);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU16:
       ASSEMBLE_LOAD_INTEGER(LoadLogicalHalfWordP);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS16:
       ASSEMBLE_LOAD_INTEGER(LoadHalfWordP);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU32:
       ASSEMBLE_LOAD_INTEGER(LoadlW);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS32:
       ASSEMBLE_LOAD_INTEGER(LoadW);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16:
       ASSEMBLE_LOAD_INTEGER(lrvh);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse32:
       ASSEMBLE_LOAD_INTEGER(lrv);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse64:
       ASSEMBLE_LOAD_INTEGER(lrvg);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16RR:
       __ lrvr(i.OutputRegister(), i.InputRegister(0));
@@ -2157,6 +2226,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_LoadWord64:
       ASSEMBLE_LOAD_INTEGER(lg);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadAndTestWord32: {
       ASSEMBLE_LOADANDTEST32(ltr, lt_z);
@@ -2204,28 +2274,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Lay:
       __ lay(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadInt8:
+    case kWord32AtomicLoadInt8:
       __ LoadB(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadUint8:
+    case kWord32AtomicLoadUint8:
       __ LoadlB(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadInt16:
+    case kWord32AtomicLoadInt16:
       __ LoadHalfWordP(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadUint16:
+    case kWord32AtomicLoadUint16:
       __ LoadLogicalHalfWordP(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadWord32:
+    case kWord32AtomicLoadWord32:
       __ LoadlW(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicStoreWord8:
+    case kWord32AtomicStoreWord8:
       __ StoreByte(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
-    case kAtomicStoreWord16:
+    case kWord32AtomicStoreWord16:
       __ StoreHalfWord(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
-    case kAtomicStoreWord32:
+    case kWord32AtomicStoreWord32:
       __ StoreW(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
 //         0x aa bb cc dd
@@ -2281,8 +2351,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ATOMIC_EXCHANGE(start, end, shift_amount, -idx * 2);         \
   }
 #endif
-    case kAtomicExchangeInt8:
-    case kAtomicExchangeUint8: {
+    case kWord32AtomicExchangeInt8:
+    case kWord32AtomicExchangeUint8: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -2313,15 +2383,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_EXCHANGE_BYTE(3);
 
       __ bind(&done);
-      if (opcode == kAtomicExchangeInt8) {
+      if (opcode == kWord32AtomicExchangeInt8) {
         __ lbr(output, output);
       } else {
         __ llcr(output, output);
       }
       break;
     }
-    case kAtomicExchangeInt16:
-    case kAtomicExchangeUint16: {
+    case kWord32AtomicExchangeInt16:
+    case kWord32AtomicExchangeUint16: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -2340,14 +2410,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_EXCHANGE_HALFWORD(1);
 
       __ bind(&done);
-      if (opcode == kAtomicExchangeInt8) {
+      if (opcode == kWord32AtomicExchangeInt8) {
         __ lhr(output, output);
       } else {
         __ llhr(output, output);
       }
       break;
     }
-    case kAtomicExchangeWord32: {
+    case kWord32AtomicExchangeWord32: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -2387,6 +2457,19 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   }
   __ b(cond, tlabel);
   if (!branch->fallthru) __ b(flabel);  // no fallthru to flabel.
+}
+
+void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
+                                            Instruction* instr) {
+  // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+    return;
+  }
+
+  condition = NegateFlagsCondition(condition);
+  __ XorP(r0, r0);
+  __ LoadOnConditionP(FlagsConditionToCondition(condition, kArchNop),
+                      kSpeculationPoisonRegister, r0);
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -2436,8 +2519,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count = static_cast<int>(descriptor->StackParameterCount());
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count =
+            static_cast<int>(call_descriptor->StackParameterCount());
         __ Drop(pop_count);
         __ Ret();
       } else {
@@ -2537,8 +2621,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
 
   // Save callee-saved Double registers.
   if (double_saves != 0) {
@@ -2549,7 +2633,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
                                             (kDoubleSize / kPointerSize));
   }
   // Save callee-saved registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // register save area does not include the fp or constant pool pointer.
     const int num_saves = kNumCalleeSaved - 1;
@@ -2559,15 +2643,15 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   if (frame_access_state()->has_frame()) {
-    if (descriptor->IsCFunctionCall()) {
+    if (call_descriptor->IsCFunctionCall()) {
       __ Push(r14, fp);
       __ LoadRR(fp, sp);
-    } else if (descriptor->IsJSFunctionCall()) {
+    } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue(ip);
-      if (descriptor->PushArgumentCount()) {
+      if (call_descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
     } else {
@@ -2578,8 +2662,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
@@ -2591,9 +2675,10 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    InitializePoisonForLoadsIfNeeded();
   }
 
-  const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
   if (shrink_slots > 0) {
     __ lay(sp, MemOperand(sp, -shrink_slots * kPointerSize));
   }
@@ -2606,7 +2691,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   // Save callee-saved registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ MultiPush(saves);
     // register save area does not include the fp or constant pool pointer.
@@ -2614,23 +2699,23 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int pop_count = static_cast<int>(descriptor->StackParameterCount());
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
 
   // Restore registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ MultiPop(saves);
   }
 
   // Restore double registers.
-  const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
   if (double_saves != 0) {
     __ MultiPopDoubles(double_saves);
   }
 
   S390OperandConverter g(this, nullptr);
-  if (descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now unless they have an variable

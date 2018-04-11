@@ -547,8 +547,7 @@ void ArmDebugger::Debug() {
 #undef XSTR
 }
 
-
-static bool ICacheMatch(void* one, void* two) {
+bool Simulator::ICacheMatch(void* one, void* two) {
   DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
   DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
@@ -645,11 +644,6 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
-  i_cache_ = isolate_->simulator_i_cache();
-  if (i_cache_ == nullptr) {
-    i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
-    isolate_->set_simulator_i_cache(i_cache_);
-  }
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   size_t stack_size = 1 * 1024*1024;  // allocate 1MB for stack
@@ -2314,8 +2308,15 @@ void Simulator::DecodeType01(Instruction* instr) {
       PrintF("%08x\n", instr->InstructionBits());
       UNIMPLEMENTED();
     }
-  } else if ((type == 1) && instr->IsNopType1()) {
-    // NOP.
+  } else if ((type == 1) && instr->IsNopLikeType1()) {
+    if (instr->BitField(7, 0) == 0) {
+      // NOP.
+    } else if (instr->BitField(7, 0) == 20) {
+      // CSDB.
+    } else {
+      PrintF("%08x\n", instr->InstructionBits());
+      UNIMPLEMENTED();
+    }
   } else {
     int rd = instr->RdValue();
     int rn = instr->RnValue();
@@ -5640,7 +5641,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
-    CheckICache(isolate_->simulator_i_cache(), instr);
+    CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
   if (::v8::internal::FLAG_trace_sim) {
@@ -5822,7 +5823,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(r0);
 }
 
-int32_t Simulator::CallFPImpl(byte* entry, double d0, double d1) {
+intptr_t Simulator::CallFPImpl(byte* entry, double d0, double d1) {
   if (use_eabi_hardfloat()) {
     set_d_register_from_double(0, d0);
     set_d_register_from_double(1, d1);

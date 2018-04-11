@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_CODE_SPECIALIZATION_H_
-#define V8_WASM_CODE_SPECIALIZATION_H_
+#ifndef V8_WASM_WASM_CODE_SPECIALIZATION_H_
+#define V8_WASM_WASM_CODE_SPECIALIZATION_H_
 
 #include "src/assembler.h"
 #include "src/identity-map.h"
@@ -47,19 +47,18 @@ class CodeSpecialization {
                        ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
 
  private:
-  Isolate* isolate_;
-  Address new_wasm_context_address = 0;
+  Address new_wasm_context_address_ = 0;
 
-  uint32_t old_function_table_size = 0;
-  uint32_t new_function_table_size = 0;
+  uint32_t old_function_table_size_ = 0;
+  uint32_t new_function_table_size_ = 0;
 
-  Handle<WasmInstanceObject> relocate_direct_calls_instance;
+  Handle<WasmInstanceObject> relocate_direct_calls_instance_;
 
-  std::map<Address, Address> pointers_to_relocate;
+  std::unordered_map<Address, Address> pointers_to_relocate_;
 };
 
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_CODE_SPECIALIZATION_H_
+#endif  // V8_WASM_WASM_CODE_SPECIALIZATION_H_

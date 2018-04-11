@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SSE_INSTR_H_
-#define V8_SSE_INSTR_H_
+#ifndef V8_IA32_SSE_INSTR_H_
+#define V8_IA32_SSE_INSTR_H_
 
 #define SSE2_INSTRUCTION_LIST(V) \
   V(paddb, 66, 0F, FC)           \
@@ -60,4 +60,4 @@
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
 
-#endif  // V8_SSE_INSTR_H_
+#endif  // V8_IA32_SSE_INSTR_H_

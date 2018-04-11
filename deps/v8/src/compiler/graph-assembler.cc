@@ -244,10 +244,10 @@ Operator const* GraphAssembler::ToNumberOperator() {
     Callable callable =
         Builtins::CallableFor(jsgraph()->isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         jsgraph()->isolate(), graph()->zone(), callable.descriptor(), 0, flags,
         Operator::kEliminatable);
-    to_number_operator_.set(common()->Call(desc));
+    to_number_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_operator_.get();
 }

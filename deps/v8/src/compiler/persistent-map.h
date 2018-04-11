@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_PERSISTENT_H_
-#define V8_COMPILER_PERSISTENT_H_
+#ifndef V8_COMPILER_PERSISTENT_MAP_H_
+#define V8_COMPILER_PERSISTENT_MAP_H_
 
 #include <array>
-#include <bitset>
 #include <tuple>
 
 #include "src/base/functional.h"
@@ -74,8 +73,7 @@ class PersistentMap {
   }
 
   // Add or overwrite an existing key-value pair.
-  PersistentMap Add(Key key, Value value) const;
-  void Set(Key key, Value value) { *this = Add(key, value); }
+  void Set(Key key, Value value);
 
   bool operator==(const PersistentMap& other) const {
     if (tree_ == other.tree_) return true;
@@ -202,17 +200,16 @@ struct PersistentMap<Key, Value, Hasher>::FocusedTree {
 template <class Key, class Value, class Hasher>
 class PersistentMap<Key, Value, Hasher>::HashValue {
  public:
-  explicit HashValue(size_t hash) : bits_(hash) {}
-  explicit HashValue(std::bitset<kHashBits> hash) : bits_(hash) {}
+  explicit HashValue(size_t hash) : bits_(static_cast<uint32_t>(hash)) {}
 
   Bit operator[](int pos) const {
-    return bits_[kHashBits - pos - 1] ? kRight : kLeft;
+    DCHECK_LT(pos, kHashBits);
+    return bits_ & (static_cast<decltype(bits_)>(1) << (kHashBits - pos - 1))
+               ? kRight
+               : kLeft;
   }
 
-  bool operator<(HashValue other) const {
-    static_assert(sizeof(*this) <= sizeof(unsigned long), "");  // NOLINT
-    return bits_.to_ulong() < other.bits_.to_ulong();
-  }
+  bool operator<(HashValue other) const { return bits_ < other.bits_; }
   bool operator==(HashValue other) const { return bits_ == other.bits_; }
   bool operator!=(HashValue other) const { return bits_ != other.bits_; }
   HashValue operator^(HashValue other) const {
@@ -220,7 +217,8 @@ class PersistentMap<Key, Value, Hasher>::HashValue {
   }
 
  private:
-  std::bitset<kHashBits> bits_;
+  static_assert(sizeof(uint32_t) * 8 == kHashBits, "wrong type for bits_");
+  uint32_t bits_;
 };
 
 template <class Key, class Value, class Hasher>
@@ -263,7 +261,7 @@ class PersistentMap<Key, Value, Hasher>::iterator {
       if (current_->more) {
         more_iter_ = current_->more->begin();
       }
-    } while ((**this).second == def_value());
+    } while (!((**this).second != def_value()));
     return *this;
   }
 
@@ -281,12 +279,10 @@ class PersistentMap<Key, Value, Hasher>::iterator {
   bool operator<(const iterator& other) const {
     if (is_end()) return false;
     if (other.is_end()) return true;
-    if (current_->key_hash < other.current_->key_hash) {
-      return true;
-    } else if (current_->key_hash == other.current_->key_hash) {
+    if (current_->key_hash == other.current_->key_hash) {
       return (**this).first < (*other).first;
     } else {
-      return false;
+      return current_->key_hash < other.current_->key_hash;
     }
   }
 
@@ -300,6 +296,9 @@ class PersistentMap<Key, Value, Hasher>::iterator {
     if (i.current_->more) {
       i.more_iter_ = i.current_->more->begin();
     }
+    // Skip entries with default value. PersistentMap iterators must never point
+    // to a default value.
+    while (!i.is_end() && !((*i).second != def_value)) ++i;
     return i;
   }
 
@@ -333,8 +332,18 @@ class PersistentMap<Key, Value, Hasher>::double_iterator {
   }
 
   double_iterator& operator++() {
-    if (first_current_) ++first_;
-    if (second_current_) ++second_;
+#ifdef DEBUG
+    iterator old_first = first_;
+    iterator old_second = second_;
+#endif
+    if (first_current_) {
+      ++first_;
+      DCHECK(old_first < first_);
+    }
+    if (second_current_) {
+      ++second_;
+      DCHECK(old_second < second_);
+    }
     return *this = double_iterator(first_, second_);
   }
 
@@ -346,6 +355,7 @@ class PersistentMap<Key, Value, Hasher>::double_iterator {
       first_current_ = true;
       second_current_ = false;
     } else {
+      DCHECK(second_ < first_);
       first_current_ = false;
       second_current_ = true;
     }
@@ -365,14 +375,13 @@ class PersistentMap<Key, Value, Hasher>::double_iterator {
 };
 
 template <class Key, class Value, class Hasher>
-PersistentMap<Key, Value, Hasher> PersistentMap<Key, Value, Hasher>::Add(
-    Key key, Value value) const {
+void PersistentMap<Key, Value, Hasher>::Set(Key key, Value value) {
   HashValue key_hash = HashValue(Hasher()(key));
   std::array<const FocusedTree*, kHashBits> path;
   int length = 0;
   const FocusedTree* old = FindHash(key_hash, &path, &length);
   ZoneMap<Key, Value>* more = nullptr;
-  if (GetFocusedValue(old, key) == value) return *this;
+  if (!(GetFocusedValue(old, key) != value)) return;
   if (old && !(old->more == nullptr && old->key_value.key() == key)) {
     more = new (zone_->New(sizeof(*more))) ZoneMap<Key, Value>(zone_);
     if (old->more) {
@@ -393,7 +402,7 @@ PersistentMap<Key, Value, Hasher> PersistentMap<Key, Value, Hasher>::Add(
   for (int i = 0; i < length; ++i) {
     tree->path(i) = path[i];
   }
-  return PersistentMap(tree, zone_, def_value_);
+  *this = PersistentMap(tree, zone_, def_value_);
 }
 
 template <class Key, class Value, class Hasher>

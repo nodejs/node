@@ -79,12 +79,15 @@ std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
 }
 
 namespace {
+
 Node* CreateBuiltinContinuationFrameStateCommon(
-    JSGraph* js_graph, Builtins::Name name, Node* context, Node** parameters,
-    int parameter_count, Node* outer_frame_state, Handle<JSFunction> function) {
-  Isolate* isolate = js_graph->isolate();
-  Graph* graph = js_graph->graph();
-  CommonOperatorBuilder* common = js_graph->common();
+    JSGraph* jsgraph, FrameStateType frame_type, Builtins::Name name,
+    Node* closure, Node* context, Node** parameters, int parameter_count,
+    Node* outer_frame_state,
+    Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>()) {
+  Isolate* const isolate = jsgraph->isolate();
+  Graph* const graph = jsgraph->graph();
+  CommonOperatorBuilder* const common = jsgraph->common();
 
   BailoutId bailout_id = Builtins::GetContinuationBailoutId(name);
   Callable callable = Builtins::CallableFor(isolate, name);
@@ -93,35 +96,26 @@ Node* CreateBuiltinContinuationFrameStateCommon(
       common->StateValues(parameter_count, SparseInputMask::Dense());
   Node* params_node = graph->NewNode(op_param, parameter_count, parameters);
 
-  FrameStateType frame_type =
-      function.is_null() ? FrameStateType::kBuiltinContinuation
-                         : FrameStateType::kJavaScriptBuiltinContinuation;
   const FrameStateFunctionInfo* state_info =
-      common->CreateFrameStateFunctionInfo(
-          frame_type, parameter_count, 0,
-          function.is_null() ? Handle<SharedFunctionInfo>()
-                             : Handle<SharedFunctionInfo>(function->shared()));
+      common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
+                                           shared);
   const Operator* op = common->FrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
 
-  Node* function_node = function.is_null() ? js_graph->UndefinedConstant()
-                                           : js_graph->HeapConstant(function);
-
   Node* frame_state = graph->NewNode(
-      op, params_node, js_graph->EmptyStateValues(),
-      js_graph->EmptyStateValues(), context, function_node, outer_frame_state);
+      op, params_node, jsgraph->EmptyStateValues(), jsgraph->EmptyStateValues(),
+      context, closure, outer_frame_state);
 
   return frame_state;
 }
+
 }  // namespace
 
-Node* CreateStubBuiltinContinuationFrameState(JSGraph* js_graph,
-                                              Builtins::Name name,
-                                              Node* context, Node** parameters,
-                                              int parameter_count,
-                                              Node* outer_frame_state,
-                                              ContinuationFrameStateMode mode) {
-  Isolate* isolate = js_graph->isolate();
+Node* CreateStubBuiltinContinuationFrameState(
+    JSGraph* jsgraph, Builtins::Name name, Node* context,
+    Node* const* parameters, int parameter_count, Node* outer_frame_state,
+    ContinuationFrameStateMode mode) {
+  Isolate* isolate = jsgraph->isolate();
   Callable callable = Builtins::CallableFor(isolate, name);
   CallInterfaceDescriptor descriptor = callable.descriptor();
 
@@ -142,18 +136,18 @@ Node* CreateStubBuiltinContinuationFrameState(JSGraph* js_graph,
   }
 
   return CreateBuiltinContinuationFrameStateCommon(
-      js_graph, name, context, actual_parameters.data(),
-      static_cast<int>(actual_parameters.size()), outer_frame_state,
-      Handle<JSFunction>());
+      jsgraph, FrameStateType::kBuiltinContinuation, name,
+      jsgraph->UndefinedConstant(), context, actual_parameters.data(),
+      static_cast<int>(actual_parameters.size()), outer_frame_state);
 }
 
 Node* CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* js_graph, Handle<JSFunction> function, Builtins::Name name,
-    Node* target, Node* context, Node** stack_parameters,
+    JSGraph* jsgraph, Handle<SharedFunctionInfo> shared, Builtins::Name name,
+    Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode) {
-  Isolate* isolate = js_graph->isolate();
-  Callable callable = Builtins::CallableFor(isolate, name);
+  Isolate* const isolate = jsgraph->isolate();
+  Callable const callable = Builtins::CallableFor(isolate, name);
 
   // Lazy deopt points where the frame state is assocated with a call get an
   // additional parameter for the return result from the call that's added by
@@ -165,8 +159,8 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
                 (mode == ContinuationFrameStateMode::EAGER ? 0 : 1));
 
   Node* argc =
-      js_graph->Constant(stack_parameter_count -
-                         (mode == ContinuationFrameStateMode::EAGER ? 1 : 0));
+      jsgraph->Constant(stack_parameter_count -
+                        (mode == ContinuationFrameStateMode::EAGER ? 1 : 0));
 
   // Stack parameters first. They must be first because the receiver is expected
   // to be the second value in the translation when creating stack crawls
@@ -179,12 +173,13 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
   // Register parameters follow stack paraemters. The context will be added by
   // instruction selector during FrameState translation.
   actual_parameters.push_back(target);
-  actual_parameters.push_back(js_graph->UndefinedConstant());
+  actual_parameters.push_back(jsgraph->UndefinedConstant());
   actual_parameters.push_back(argc);
 
   return CreateBuiltinContinuationFrameStateCommon(
-      js_graph, name, context, &actual_parameters[0],
-      static_cast<int>(actual_parameters.size()), outer_frame_state, function);
+      jsgraph, FrameStateType::kJavaScriptBuiltinContinuation, name, target,
+      context, &actual_parameters[0],
+      static_cast<int>(actual_parameters.size()), outer_frame_state, shared);
 }
 
 }  // namespace compiler

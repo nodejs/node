@@ -18,6 +18,7 @@
 #include "src/double.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -241,22 +242,6 @@ void TurboAssembler::Ret(int drop, Condition cond) {
   Ret(cond);
 }
 
-
-void MacroAssembler::Swap(Register reg1,
-                          Register reg2,
-                          Register scratch,
-                          Condition cond) {
-  if (scratch == no_reg) {
-    eor(reg1, reg1, Operand(reg2), LeaveCC, cond);
-    eor(reg2, reg2, Operand(reg1), LeaveCC, cond);
-    eor(reg1, reg1, Operand(reg2), LeaveCC, cond);
-  } else {
-    mov(scratch, reg1, LeaveCC, cond);
-    mov(reg1, reg2, LeaveCC, cond);
-    mov(reg2, scratch, LeaveCC, cond);
-  }
-}
-
 void TurboAssembler::Call(Label* target) { bl(target); }
 
 void TurboAssembler::Push(Handle<HeapObject> handle) {
@@ -305,27 +290,34 @@ void TurboAssembler::Move(QwNeonRegister dst, QwNeonRegister src) {
   }
 }
 
-void TurboAssembler::Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
-  if (srcdst0 == srcdst1) return;  // Swapping aliased registers emits nothing.
+void TurboAssembler::Swap(Register srcdst0, Register srcdst1) {
+  DCHECK(srcdst0 != srcdst1);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  mov(scratch, srcdst0);
+  mov(srcdst0, srcdst1);
+  mov(srcdst1, scratch);
+}
 
+void TurboAssembler::Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
+  DCHECK(srcdst0 != srcdst1);
   DCHECK(VfpRegisterIsAvailable(srcdst0));
   DCHECK(VfpRegisterIsAvailable(srcdst1));
 
   if (CpuFeatures::IsSupported(NEON)) {
     vswp(srcdst0, srcdst1);
   } else {
-    DCHECK_NE(srcdst0, kScratchDoubleReg);
-    DCHECK_NE(srcdst1, kScratchDoubleReg);
-    vmov(kScratchDoubleReg, srcdst0);
+    UseScratchRegisterScope temps(this);
+    DwVfpRegister scratch = temps.AcquireD();
+    vmov(scratch, srcdst0);
     vmov(srcdst0, srcdst1);
-    vmov(srcdst1, kScratchDoubleReg);
+    vmov(srcdst1, scratch);
   }
 }
 
 void TurboAssembler::Swap(QwNeonRegister srcdst0, QwNeonRegister srcdst1) {
-  if (srcdst0 != srcdst1) {
-    vswp(srcdst0, srcdst1);
-  }
+  DCHECK(srcdst0 != srcdst1);
+  vswp(srcdst0, srcdst1);
 }
 
 void MacroAssembler::Mls(Register dst, Register src1, Register src2,
@@ -817,11 +809,14 @@ void TurboAssembler::VmovExtended(int dst_code, int src_code) {
   int dst_offset = dst_code & 1;
   int src_offset = src_code & 1;
   if (CpuFeatures::IsSupported(NEON)) {
+    UseScratchRegisterScope temps(this);
+    DwVfpRegister scratch = temps.AcquireD();
     // On Neon we can shift and insert from d-registers.
     if (src_offset == dst_offset) {
       // Offsets are the same, use vdup to copy the source to the opposite lane.
-      vdup(Neon32, kScratchDoubleReg, src_d_reg, src_offset);
-      src_d_reg = kScratchDoubleReg;
+      vdup(Neon32, scratch, src_d_reg, src_offset);
+      // Here we are extending the lifetime of scratch.
+      src_d_reg = scratch;
       src_offset = dst_offset ^ 1;
     }
     if (dst_offset) {
@@ -842,27 +837,30 @@ void TurboAssembler::VmovExtended(int dst_code, int src_code) {
 
   // Without Neon, use the scratch registers to move src and/or dst into
   // s-registers.
-  int scratchSCode = kScratchDoubleReg.low().code();
-  int scratchSCode2 = kScratchDoubleReg2.low().code();
+  UseScratchRegisterScope temps(this);
+  LowDwVfpRegister d_scratch = temps.AcquireLowD();
+  LowDwVfpRegister d_scratch2 = temps.AcquireLowD();
+  int s_scratch_code = d_scratch.low().code();
+  int s_scratch_code2 = d_scratch2.low().code();
   if (src_code < SwVfpRegister::kNumRegisters) {
     // src is an s-register, dst is not.
-    vmov(kScratchDoubleReg, dst_d_reg);
-    vmov(SwVfpRegister::from_code(scratchSCode + dst_offset),
+    vmov(d_scratch, dst_d_reg);
+    vmov(SwVfpRegister::from_code(s_scratch_code + dst_offset),
          SwVfpRegister::from_code(src_code));
-    vmov(dst_d_reg, kScratchDoubleReg);
+    vmov(dst_d_reg, d_scratch);
   } else if (dst_code < SwVfpRegister::kNumRegisters) {
     // dst is an s-register, src is not.
-    vmov(kScratchDoubleReg, src_d_reg);
+    vmov(d_scratch, src_d_reg);
     vmov(SwVfpRegister::from_code(dst_code),
-         SwVfpRegister::from_code(scratchSCode + src_offset));
+         SwVfpRegister::from_code(s_scratch_code + src_offset));
   } else {
     // Neither src or dst are s-registers. Both scratch double registers are
     // available when there are 32 VFP registers.
-    vmov(kScratchDoubleReg, src_d_reg);
-    vmov(kScratchDoubleReg2, dst_d_reg);
-    vmov(SwVfpRegister::from_code(scratchSCode + dst_offset),
-         SwVfpRegister::from_code(scratchSCode2 + src_offset));
-    vmov(dst_d_reg, kScratchQuadReg.high());
+    vmov(d_scratch, src_d_reg);
+    vmov(d_scratch2, dst_d_reg);
+    vmov(SwVfpRegister::from_code(s_scratch_code + dst_offset),
+         SwVfpRegister::from_code(s_scratch_code2 + src_offset));
+    vmov(dst_d_reg, d_scratch2);
   }
 }
 
@@ -870,11 +868,13 @@ void TurboAssembler::VmovExtended(int dst_code, const MemOperand& src) {
   if (dst_code < SwVfpRegister::kNumRegisters) {
     vldr(SwVfpRegister::from_code(dst_code), src);
   } else {
+    UseScratchRegisterScope temps(this);
+    LowDwVfpRegister scratch = temps.AcquireLowD();
     // TODO(bbudge) If Neon supported, use load single lane form of vld1.
-    int dst_s_code = kScratchDoubleReg.low().code() + (dst_code & 1);
-    vmov(kScratchDoubleReg, DwVfpRegister::from_code(dst_code / 2));
+    int dst_s_code = scratch.low().code() + (dst_code & 1);
+    vmov(scratch, DwVfpRegister::from_code(dst_code / 2));
     vldr(SwVfpRegister::from_code(dst_s_code), src);
-    vmov(DwVfpRegister::from_code(dst_code / 2), kScratchDoubleReg);
+    vmov(DwVfpRegister::from_code(dst_code / 2), scratch);
   }
 }
 
@@ -883,8 +883,10 @@ void TurboAssembler::VmovExtended(const MemOperand& dst, int src_code) {
     vstr(SwVfpRegister::from_code(src_code), dst);
   } else {
     // TODO(bbudge) If Neon supported, use store single lane form of vst1.
-    int src_s_code = kScratchDoubleReg.low().code() + (src_code & 1);
-    vmov(kScratchDoubleReg, DwVfpRegister::from_code(src_code / 2));
+    UseScratchRegisterScope temps(this);
+    LowDwVfpRegister scratch = temps.AcquireLowD();
+    int src_s_code = scratch.low().code() + (src_code & 1);
+    vmov(scratch, DwVfpRegister::from_code(src_code / 2));
     vstr(SwVfpRegister::from_code(src_s_code), dst);
   }
 }
@@ -938,9 +940,11 @@ void TurboAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
 
 void TurboAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register scratch, Register shift) {
+                             Register shift) {
   DCHECK(!AreAliased(dst_high, src_low));
   DCHECK(!AreAliased(dst_high, shift));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   Label less_than_32;
   Label done;
@@ -984,9 +988,11 @@ void TurboAssembler::LslPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register scratch, Register shift) {
+                             Register shift) {
   DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_low, shift));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   Label less_than_32;
   Label done;
@@ -1031,9 +1037,11 @@ void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register scratch, Register shift) {
+                             Register shift) {
   DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_low, shift));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   Label less_than_32;
   Label done;
@@ -1362,13 +1370,30 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook;
+  Label skip_hook, call_hook;
+
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  mov(r4, Operand(debug_is_active));
+  ldrsb(r4, MemOperand(r4));
+  cmp(r4, Operand(0));
+  b(eq, &skip_hook);
+
   ExternalReference debug_hook_avtive =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   mov(r4, Operand(debug_hook_avtive));
   ldrsb(r4, MemOperand(r4));
   cmp(r4, Operand(0));
+  b(ne, &call_hook);
+
+  ldr(r4, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
+  ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kDebugInfoOffset));
+  JumpIfSmi(r4, &skip_hook);
+  ldr(r4, FieldMemOperand(r4, DebugInfo::kFlagsOffset));
+  tst(r4, Operand(Smi::FromInt(DebugInfo::kBreakAtEntry)));
   b(eq, &skip_hook);
+
+  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -1426,7 +1451,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // We call indirectly through the code field in the function to
     // allow recompilation to take effect without changing any of the
     // call sites.
-    Register code = r4;
+    Register code = kJavaScriptCallCodeStartRegister;
     ldr(code, FieldMemOperand(function, JSFunction::kCodeOffset));
     add(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {
@@ -1478,14 +1503,6 @@ void MacroAssembler::InvokeFunction(Register function,
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   InvokeFunctionCode(r1, no_reg, expected, actual, flag);
-}
-
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  Move(r1, function);
-  InvokeFunction(r1, expected, actual, flag);
 }
 
 void MacroAssembler::MaybeDropFrames() {
@@ -1615,13 +1632,22 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DwVfpRegister double_input,
                                                 Label* done) {
-  LowDwVfpRegister double_scratch = kScratchDoubleReg;
-  vcvt_s32_f64(double_scratch.low(), double_input);
-  vmov(result, double_scratch.low());
-
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  SwVfpRegister single_scratch = SwVfpRegister::no_reg();
+  if (temps.CanAcquireVfp<SwVfpRegister>()) {
+    single_scratch = temps.AcquireS();
+  } else {
+    // Re-use the input as a scratch register. However, we can only do this if
+    // the input register is d0-d15 as there are no s32+ registers.
+    DCHECK_LT(double_input.code(), LowDwVfpRegister::kNumRegisters);
+    LowDwVfpRegister double_scratch =
+        LowDwVfpRegister::from_code(double_input.code());
+    single_scratch = double_scratch.low();
+  }
+  vcvt_s32_f64(single_scratch, double_input);
+  vmov(result, single_scratch);
 
+  Register scratch = temps.Acquire();
   // If result is not saturated (0x7FFFFFFF or 0x80000000), we are done.
   sub(scratch, result, Operand(1));
   cmp(scratch, Operand(0x7FFFFFFE));
@@ -1702,6 +1728,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
                   builtin_exit_frame);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  int32_t bytes_address = reinterpret_cast<int32_t>(stream->bytes());
+  mov(kOffHeapTrampolineRegister, Operand(bytes_address, RelocInfo::NONE));
+  Jump(kOffHeapTrampolineRegister);
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
@@ -2274,6 +2306,15 @@ bool AreAliased(Register reg1,
   return n_of_valid_regs != n_of_non_aliasing_regs;
 }
 #endif
+
+void TurboAssembler::ComputeCodeStartAddress(Register dst) {
+  // We can use the register pc - 8 for the address of the current instruction.
+  sub(dst, pc, Operand(pc_offset() + TurboAssembler::kPcLoadDelta));
+}
+
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  mov(kSpeculationPoisonRegister, Operand(-1));
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -643,7 +643,7 @@ void DeclarationScope::AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate) {
   }
 }
 
-void DeclarationScope::Analyze(ParseInfo* info) {
+bool DeclarationScope::Analyze(ParseInfo* info) {
   RuntimeCallTimerScope runtimeTimer(
       info->runtime_call_stats(),
       info->on_background_thread()
@@ -681,7 +681,7 @@ void DeclarationScope::Analyze(ParseInfo* info) {
     info->consumed_preparsed_scope_data()->RestoreScopeAllocationData(scope);
   }
 
-  scope->AllocateVariables(info);
+  if (!scope->AllocateVariables(info)) return false;
 
 #ifdef DEBUG
   if (info->is_native() ? FLAG_print_builtin_scopes : FLAG_print_scopes) {
@@ -691,6 +691,8 @@ void DeclarationScope::Analyze(ParseInfo* info) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
+
+  return true;
 }
 
 void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
@@ -1342,13 +1344,18 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
   return nullptr;
 }
 
-void DeclarationScope::AllocateVariables(ParseInfo* info) {
+bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   // Module variables must be allocated before variable resolution
   // to ensure that UpdateNeedsHoleCheck() can detect import variables.
   if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
 
-  ResolveVariablesRecursively(info);
+  if (!ResolveVariablesRecursively(info)) {
+    DCHECK(info->pending_error_handler()->has_pending_error());
+    return false;
+  }
   AllocateVariablesRecursively();
+
+  return true;
 }
 
 bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
@@ -1811,7 +1818,8 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   return var;
 }
 
-Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
+Variable* Scope::LookupRecursive(ParseInfo* info, VariableProxy* proxy,
+                                 Scope* outer_scope_end) {
   DCHECK_NE(outer_scope_end, this);
   // Short-cut: whenever we find a debug-evaluate scope, just look everything up
   // dynamically. Debug-evaluate doesn't properly create scope info for the
@@ -1834,6 +1842,15 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
     // We may just be trying to find all free variables. In that case, don't
     // declare them in the outer scope.
     if (!is_script_scope()) return nullptr;
+
+    if (proxy->is_private_field()) {
+      info->pending_error_handler()->ReportMessageAt(
+          proxy->position(), proxy->position() + 1,
+          MessageTemplate::kInvalidPrivateFieldAccess, proxy->raw_name(),
+          kSyntaxError);
+      return nullptr;
+    }
+
     // No binding has been found. Declare a variable on the global object.
     return AsDeclarationScope()->DeclareDynamicGlobal(proxy->raw_name(),
                                                       NORMAL_VARIABLE);
@@ -1841,7 +1858,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
 
   DCHECK(!is_script_scope());
 
-  var = outer_scope_->LookupRecursive(proxy, outer_scope_end);
+  var = outer_scope_->LookupRecursive(info, proxy, outer_scope_end);
 
   // The variable could not be resolved statically.
   if (var == nullptr) return var;
@@ -1899,11 +1916,16 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
   return var;
 }
 
-void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
+bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(info->script_scope()->is_script_scope());
   DCHECK(!proxy->is_resolved());
-  Variable* var = LookupRecursive(proxy, nullptr);
+  Variable* var = LookupRecursive(info, proxy, nullptr);
+  if (var == nullptr) {
+    DCHECK(proxy->is_private_field());
+    return false;
+  }
   ResolveTo(info, proxy, var);
+  return true;
 }
 
 namespace {
@@ -1983,8 +2005,8 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
       // The following variable name may be minified. If so, disable
       // minification in js2c.py for better output.
       Handle<String> name = proxy->raw_name()->string();
-      V8_Fatal(__FILE__, __LINE__, "Unbound variable: '%s' in native script.",
-               name->ToCString().get());
+      FATAL("Unbound variable: '%s' in native script.",
+            name->ToCString().get());
     }
     VariableLocation location = var->location();
     DCHECK(location == VariableLocation::LOCAL ||
@@ -1999,7 +2021,7 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
   proxy->BindTo(var);
 }
 
-void Scope::ResolveVariablesRecursively(ParseInfo* info) {
+bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   DCHECK(info->script_scope()->is_script_scope());
   // Lazy parsed declaration scopes are already partially analyzed. If there are
   // unresolved references remaining, they just need to be resolved in outer
@@ -2008,7 +2030,11 @@ void Scope::ResolveVariablesRecursively(ParseInfo* info) {
     DCHECK_EQ(variables_.occupancy(), 0);
     for (VariableProxy* proxy = unresolved_; proxy != nullptr;
          proxy = proxy->next_unresolved()) {
-      Variable* var = outer_scope()->LookupRecursive(proxy, nullptr);
+      Variable* var = outer_scope()->LookupRecursive(info, proxy, nullptr);
+      if (var == nullptr) {
+        DCHECK(proxy->is_private_field());
+        return false;
+      }
       if (!var->is_dynamic()) {
         var->set_is_used();
         var->ForceContextAllocation();
@@ -2019,15 +2045,16 @@ void Scope::ResolveVariablesRecursively(ParseInfo* info) {
     // Resolve unresolved variables for this scope.
     for (VariableProxy* proxy = unresolved_; proxy != nullptr;
          proxy = proxy->next_unresolved()) {
-      ResolveVariable(info, proxy);
+      if (!ResolveVariable(info, proxy)) return false;
     }
 
     // Resolve unresolved variables for inner scopes.
     for (Scope* scope = inner_scope_; scope != nullptr;
          scope = scope->sibling_) {
-      scope->ResolveVariablesRecursively(info);
+      if (!scope->ResolveVariablesRecursively(info)) return false;
     }
   }
+  return true;
 }
 
 VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
@@ -2050,7 +2077,7 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
     next = proxy->next_unresolved();
     DCHECK(!proxy->is_resolved());
     Variable* var =
-        lookup->LookupRecursive(proxy, max_outer_scope->outer_scope());
+        lookup->LookupRecursive(info, proxy, max_outer_scope->outer_scope());
     if (var == nullptr) {
       proxy->set_next_unresolved(stack);
       stack = proxy;

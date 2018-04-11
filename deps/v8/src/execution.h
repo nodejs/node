@@ -5,11 +5,8 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
-#include "src/allocation.h"
 #include "src/base/atomicops.h"
 #include "src/globals.h"
-#include "src/objects/code.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

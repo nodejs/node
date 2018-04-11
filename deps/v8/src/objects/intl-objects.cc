@@ -12,6 +12,7 @@
 
 #include "src/api.h"
 #include "src/factory.h"
+#include "src/global-handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/property-descriptor.h"

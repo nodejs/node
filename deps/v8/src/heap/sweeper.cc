@@ -279,8 +279,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
         memset(free_start, 0xCC, size);
       }
       if (free_list_mode == REBUILD_FREE_LIST) {
-        freed_bytes = reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(
-            free_start, size);
+        freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
+            free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
         max_freed_bytes = Max(freed_bytes, max_freed_bytes);
       } else {
         p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
@@ -318,8 +318,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
       memset(free_start, 0xCC, size);
     }
     if (free_list_mode == REBUILD_FREE_LIST) {
-      freed_bytes = reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(
-          free_start, size);
+      freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
+          free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
       max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     } else {
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),

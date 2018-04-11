@@ -37,14 +37,14 @@ SHELL = 'cctest'
 
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, SHELL))
+  def ListTests(self):
+    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
     cmd = command.Command(
-        cmd_prefix=context.command_prefix,
+        cmd_prefix=self.test_config.command_prefix,
         shell=shell,
-        args=["--list"] + context.extra_flags)
+        args=["--list"] + self.test_config.extra_flags)
     output = cmd.execute()
     if output.exit_code != 0:
       print cmd
@@ -63,9 +63,9 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return SHELL
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return [self.path]
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

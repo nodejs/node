@@ -11,7 +11,7 @@ namespace internal {
 static const int kX0DwarfCode = 0;
 static const int kFpDwarfCode = 29;
 static const int kLrDwarfCode = 30;
-static const int kCSpDwarfCode = 31;
+static const int kSpDwarfCode = 31;
 
 const int EhFrameConstants::kCodeAlignmentFactor = 4;
 const int EhFrameConstants::kDataAlignmentFactor = -8;
@@ -33,7 +33,7 @@ int EhFrameWriter::RegisterToDwarfCode(Register name) {
     case kRegCode_x30:
       return kLrDwarfCode;
     case kSPRegInternalCode:
-      return kCSpDwarfCode;
+      return kSpDwarfCode;
     case kRegCode_x0:
       return kX0DwarfCode;
     default:
@@ -51,8 +51,8 @@ const char* EhFrameDisassembler::DwarfRegisterCodeToString(int code) {
       return "fp";
     case kLrDwarfCode:
       return "lr";
-    case kCSpDwarfCode:
-      return "csp";  // This could be zr as well
+    case kSpDwarfCode:
+      return "sp";  // This could be zr as well
     default:
       UNIMPLEMENTED();
       return nullptr;

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_INTERPRETER_H_
-#define V8_WASM_INTERPRETER_H_
+#ifndef V8_WASM_WASM_INTERPRETER_H_
+#define V8_WASM_WASM_INTERPRETER_H_
 
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-value.h"
@@ -215,6 +215,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // Manually adds code to the interpreter for the given function.
   void SetFunctionCodeForTesting(const WasmFunction* function,
                                  const byte* start, const byte* end);
+  void SetCallIndirectTestMode();
 
   // Computes the control transfers for the given bytecode. Used internally in
   // the interpreter, but exposed for testing.
@@ -230,4 +231,4 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_INTERPRETER_H_
+#endif  // V8_WASM_WASM_INTERPRETER_H_

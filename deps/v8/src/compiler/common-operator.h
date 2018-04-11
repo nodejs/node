@@ -45,6 +45,31 @@ inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
+enum class IsSafetyCheck : uint8_t { kSafetyCheck, kNoSafetyCheck };
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IsSafetyCheck);
+inline size_t hash_value(IsSafetyCheck is_safety_check) {
+  return static_cast<size_t>(is_safety_check);
+}
+
+struct BranchOperatorInfo {
+  BranchHint hint;
+  IsSafetyCheck is_safety_check;
+};
+
+inline size_t hash_value(const BranchOperatorInfo& info) {
+  return base::hash_combine(info.hint, info.is_safety_check);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchOperatorInfo);
+
+inline bool operator==(const BranchOperatorInfo& a,
+                       const BranchOperatorInfo& b) {
+  return a.hint == b.hint && a.is_safety_check == b.is_safety_check;
+}
+
+V8_EXPORT_PRIVATE const BranchOperatorInfo& BranchOperatorInfoOf(
+    const Operator* const);
 V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const);
 
 // Helper function for return nodes, because returns have a hidden value input.
@@ -54,17 +79,23 @@ int ValueInputCountOfReturn(Operator const* const op);
 class DeoptimizeParameters final {
  public:
   DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
-                       VectorSlotPair const& feedback)
-      : kind_(kind), reason_(reason), feedback_(feedback) {}
+                       VectorSlotPair const& feedback,
+                       IsSafetyCheck is_safety_check)
+      : kind_(kind),
+        reason_(reason),
+        feedback_(feedback),
+        is_safety_check_(is_safety_check) {}
 
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
   const VectorSlotPair& feedback() const { return feedback_; }
+  IsSafetyCheck is_safety_check() const { return is_safety_check_; }
 
  private:
   DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
   VectorSlotPair const feedback_;
+  IsSafetyCheck is_safety_check_;
 };
 
 bool operator==(DeoptimizeParameters, DeoptimizeParameters);
@@ -76,6 +107,7 @@ std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
 
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const);
 
+IsSafetyCheck IsSafetyCheckOf(const Operator* op);
 
 class SelectParameters final {
  public:
@@ -355,7 +387,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
   const Operator* End(size_t control_input_count);
-  const Operator* Branch(BranchHint = BranchHint::kNone);
+  const Operator* Branch(
+      BranchHint = BranchHint::kNone,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* IfSuccess();
@@ -366,10 +400,14 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                              VectorSlotPair const& feedback);
-  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
-                               VectorSlotPair const& feedback);
-  const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
-                                   VectorSlotPair const& feedback);
+  const Operator* DeoptimizeIf(
+      DeoptimizeKind kind, DeoptimizeReason reason,
+      VectorSlotPair const& feedback,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  const Operator* DeoptimizeUnless(
+      DeoptimizeKind kind, DeoptimizeReason reason,
+      VectorSlotPair const& feedback,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   const Operator* TrapIf(int32_t trap_id);
   const Operator* TrapUnless(int32_t trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -421,10 +459,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* FrameState(BailoutId bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);
-  const Operator* Call(const CallDescriptor* descriptor);
+  const Operator* Call(const CallDescriptor* call_descriptor);
   const Operator* CallWithCallerSavedRegisters(
-      const CallDescriptor* descriptor);
-  const Operator* TailCall(const CallDescriptor* descriptor);
+      const CallDescriptor* call_descriptor);
+  const Operator* TailCall(const CallDescriptor* call_descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
   const Operator* TypeGuard(Type* type);
@@ -438,6 +476,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       FrameStateType type, int parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info);
 
+  const Operator* MarkAsSafetyCheck(const Operator* op);
+
  private:
   Zone* zone() const { return zone_; }
 
@@ -446,6 +486,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
+
+// This should go into some common compiler header, but we do not have such a
+// thing at the moment.
+enum class LoadPoisoning { kDoPoison, kDontPoison };
 
 }  // namespace compiler
 }  // namespace internal

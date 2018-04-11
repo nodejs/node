@@ -20,15 +20,12 @@ All arguments are optional. Most combinations should work, e.g.:
 
 from __future__ import print_function
 import errno
-import multiprocessing
 import os
 import pty
 import re
 import subprocess
 import sys
 
-BUILD_OPTS_DEFAULT = ""
-BUILD_OPTS_GOMA = "-j1000 -l%d" % (multiprocessing.cpu_count() + 2)
 BUILD_TARGETS_TEST = ["d8", "cctest", "unittests"]
 BUILD_TARGETS_ALL = ["all"]
 
@@ -231,11 +228,6 @@ class Config(object):
     arch_specific = self.GetTargetCpu() + self.GetV8TargetCpu()
     return template % arch_specific
 
-  def WantsGoma(self):
-    output = _CallWithOutputNoTerminal(
-        "gn args --short --list=use_goma %s" % (GetPath(self.arch, self.mode)))
-    return "true" in output
-
   def Build(self):
     path = GetPath(self.arch, self.mode)
     args_gn = os.path.join(path, "args.gn")
@@ -247,14 +239,13 @@ class Config(object):
       code = _Call("gn gen %s" % path)
       if code != 0: return code
     targets = " ".join(self.targets)
-    build_opts = BUILD_OPTS_GOMA if self.WantsGoma() else BUILD_OPTS_DEFAULT
     # The implementation of mksnapshot failure detection relies on
     # the "pty" module and GDB presence, so skip it on non-Linux.
     if "linux" not in sys.platform:
-      return _Call("ninja -C %s %s %s" % (path, build_opts, targets))
+      return _Call("autoninja -C %s %s" % (path, targets))
 
-    return_code, output = _CallWithOutput("ninja -C %s %s %s" %
-                                          (path, build_opts, targets))
+    return_code, output = _CallWithOutput("autoninja -C %s %s" %
+                                          (path, targets))
     if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
       csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
       match = csa_trap.search(output)

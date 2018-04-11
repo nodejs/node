@@ -28,8 +28,9 @@ class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
-  explicit BytecodeGenerator(CompilationInfo* info,
-                             const AstStringConstants* ast_string_constants);
+  explicit BytecodeGenerator(
+      CompilationInfo* info, const AstStringConstants* ast_string_constants,
+      ZoneVector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,
@@ -126,7 +127,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildVariableAssignment(
       Variable* variable, Token::Value op, HoleCheckMode hole_check_mode,
       LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
-  void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
+  void BuildLiteralCompareNil(Token::Value compare_op,
+                              BytecodeArrayBuilder::NilValue nil);
   void BuildReturn(int source_position = kNoSourcePosition);
   void BuildAsyncReturn(int source_position = kNoSourcePosition);
   void BuildAsyncGeneratorReturn();
@@ -146,9 +148,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalWithContext(Scope* scope);
 
   void BuildGeneratorPrologue();
-  void BuildSuspendPoint(int suspend_id);
+  void BuildSuspendPoint(Expression* suspend_expr);
 
-  void BuildAwait(int suspend_id);
+  void BuildAwait(Expression* await_expr);
 
   void BuildGetIterator(Expression* iterable, IteratorType hint);
 
@@ -164,7 +166,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   IteratorRecord BuildGetIteratorRecord(Expression* iterable,
                                         IteratorType hint);
   void BuildIteratorNext(const IteratorRecord& iterator, Register next_result);
-  void BuildIteratorClose(const IteratorRecord& iterator, int suspend_id = -1);
+  void BuildIteratorClose(const IteratorRecord& iterator,
+                          Expression* expr = nullptr);
   void BuildCallIteratorMethod(Register iterator, const AstRawString* method,
                                RegisterList receiver_and_args,
                                BytecodeLabel* if_called,
@@ -212,11 +215,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                     BytecodeLabels* end_labels,
                                     int coverage_slot);
 
-  // Visit the header/body of a loop iteration.
-  void VisitIterationHeader(IterationStatement* stmt,
-                            LoopBuilder* loop_builder);
-  void VisitIterationHeader(int first_suspend_id, int suspend_count,
-                            LoopBuilder* loop_builder);
+  // Visit the body of a loop iteration.
   void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop_builder);
 
   // Visit a statement and switch scopes, the context is in the accumulator.
@@ -262,6 +261,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   FeedbackSlot GetCachedLoadGlobalICSlot(TypeofMode typeof_mode,
                                          Variable* variable);
   FeedbackSlot GetCachedCreateClosureSlot(FunctionLiteral* literal);
+
+  void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
 
   static constexpr ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint) {
     return type_hint == TypeHint::kBoolean ? ToBooleanMode::kAlreadyBoolean
@@ -324,6 +325,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   DeclarationScope* closure_scope_;
   Scope* current_scope_;
 
+  // External vector of literals to be eagerly compiled.
+  ZoneVector<FunctionLiteral*>* eager_inner_literals_;
+
   FeedbackSlotCache* feedback_slot_cache_;
 
   GlobalDeclarationsBuilder* globals_builder_;
@@ -344,7 +348,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Register incoming_new_target_or_generator_;
 
   BytecodeJumpTable* generator_jump_table_;
-  Register generator_state_;
+  int suspend_count_;
   int loop_depth_;
 
   HandlerTable::CatchPrediction catch_prediction_;

@@ -20,11 +20,13 @@ constexpr Register kReturnRegister2 = r8;
 constexpr Register kJSFunctionRegister = rdi;
 constexpr Register kContextRegister = rsi;
 constexpr Register kAllocateSizeRegister = rdx;
+constexpr Register kSpeculationPoisonRegister = r9;
 constexpr Register kInterpreterAccumulatorRegister = rax;
 constexpr Register kInterpreterBytecodeOffsetRegister = r12;
 constexpr Register kInterpreterBytecodeArrayRegister = r14;
 constexpr Register kInterpreterDispatchTableRegister = r15;
 constexpr Register kJavaScriptCallArgCountRegister = rax;
+constexpr Register kJavaScriptCallCodeStartRegister = rcx;
 constexpr Register kJavaScriptCallNewTargetRegister = rdx;
 constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;
@@ -38,6 +40,7 @@ constexpr Register kRootRegister = r13;  // callee save
 // Actual value of root register is offset from the root array's start
 // to take advantage of negitive 8-bit displacement values.
 constexpr int kRootRegisterBias = 128;
+constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
@@ -133,51 +136,83 @@ class TurboAssembler : public Assembler {
     return code_object_;
   }
 
-#define AVX_OP2_WITH_TYPE(macro_name, name, src_type) \
-  void macro_name(XMMRegister dst, src_type src) {    \
-    if (CpuFeatures::IsSupported(AVX)) {              \
-      CpuFeatureScope scope(this, AVX);               \
-      v##name(dst, dst, src);                         \
-    } else {                                          \
-      name(dst, src);                                 \
-    }                                                 \
+  template <typename Dst, typename... Args>
+  struct AvxHelper {
+    Assembler* assm;
+    // Call an method where the AVX version expects the dst argument to be
+    // duplicated.
+    template <void (Assembler::*avx)(Dst, Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
+    }
+
+    // Call an method where the AVX version expects no duplicated dst argument.
+    template <void (Assembler::*avx)(Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
+    }
+  };
+
+#define AVX_OP(macro_name, name)                                             \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this}                                            \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
   }
-#define AVX_OP2_X(macro_name, name) \
-  AVX_OP2_WITH_TYPE(macro_name, name, XMMRegister)
-#define AVX_OP2_O(macro_name, name) \
-  AVX_OP2_WITH_TYPE(macro_name, name, const Operand&)
-#define AVX_OP2_XO(macro_name, name) \
-  AVX_OP2_X(macro_name, name)        \
-  AVX_OP2_O(macro_name, name)
 
-  AVX_OP2_XO(Subsd, subsd)
-  AVX_OP2_XO(Divss, divss)
-  AVX_OP2_XO(Divsd, divsd)
-  AVX_OP2_XO(Xorpd, xorpd)
-  AVX_OP2_X(Pcmpeqd, pcmpeqd)
-  AVX_OP2_WITH_TYPE(Psllq, psllq, byte)
-  AVX_OP2_WITH_TYPE(Psrlq, psrlq, byte)
+  AVX_OP(Subsd, subsd)
+  AVX_OP(Divss, divss)
+  AVX_OP(Divsd, divsd)
+  AVX_OP(Xorps, xorps)
+  AVX_OP(Xorpd, xorpd)
+  AVX_OP(Movd, movd)
+  AVX_OP(Movq, movq)
+  AVX_OP(Movaps, movaps)
+  AVX_OP(Movapd, movapd)
+  AVX_OP(Movups, movups)
+  AVX_OP(Movmskps, movmskps)
+  AVX_OP(Movmskpd, movmskpd)
+  AVX_OP(Movss, movss)
+  AVX_OP(Movsd, movsd)
+  AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP(Psllq, psllq)
+  AVX_OP(Psrlq, psrlq)
+  AVX_OP(Addsd, addsd)
+  AVX_OP(Mulsd, mulsd)
+  AVX_OP(Andps, andps)
+  AVX_OP(Andpd, andpd)
+  AVX_OP(Orpd, orpd)
+  AVX_OP(Cmpeqps, cmpeqps)
+  AVX_OP(Cmpltps, cmpltps)
+  AVX_OP(Cmpleps, cmpleps)
+  AVX_OP(Cmpneqps, cmpneqps)
+  AVX_OP(Cmpnltps, cmpnltps)
+  AVX_OP(Cmpnleps, cmpnleps)
+  AVX_OP(Cmpeqpd, cmpeqpd)
+  AVX_OP(Cmpltpd, cmpltpd)
+  AVX_OP(Cmplepd, cmplepd)
+  AVX_OP(Cmpneqpd, cmpneqpd)
+  AVX_OP(Cmpnltpd, cmpnltpd)
+  AVX_OP(Cmpnlepd, cmpnlepd)
+  AVX_OP(Roundss, roundss)
+  AVX_OP(Roundsd, roundsd)
+  AVX_OP(Sqrtsd, sqrtsd)
+  AVX_OP(Ucomiss, ucomiss)
+  AVX_OP(Ucomisd, ucomisd)
 
-#undef AVX_OP2_O
-#undef AVX_OP2_X
-#undef AVX_OP2_XO
-#undef AVX_OP2_WITH_TYPE
-
-  void Xorps(XMMRegister dst, XMMRegister src);
-  void Xorps(XMMRegister dst, const Operand& src);
-
-  void Movd(XMMRegister dst, Register src);
-  void Movd(XMMRegister dst, const Operand& src);
-  void Movd(Register dst, XMMRegister src);
-  void Movq(XMMRegister dst, Register src);
-  void Movq(Register dst, XMMRegister src);
-
-  void Movsd(XMMRegister dst, XMMRegister src);
-  void Movsd(XMMRegister dst, const Operand& src);
-  void Movsd(const Operand& dst, XMMRegister src);
-  void Movss(XMMRegister dst, XMMRegister src);
-  void Movss(XMMRegister dst, const Operand& src);
-  void Movss(const Operand& dst, XMMRegister src);
+#undef AVX_OP
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -190,25 +225,17 @@ class TurboAssembler : public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
-  void Set(const Operand& dst, intptr_t x);
+  void Set(Operand dst, intptr_t x);
 
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
-  void LoadRoot(const Operand& destination, Heap::RootListIndex index) {
+  void LoadRoot(Operand destination, Heap::RootListIndex index) {
     LoadRoot(kScratchRegister, index);
     movp(destination, kScratchRegister);
   }
 
-  void Movups(XMMRegister dst, XMMRegister src);
-  void Movups(XMMRegister dst, const Operand& src);
-  void Movups(const Operand& dst, XMMRegister src);
-  void Movapd(XMMRegister dst, XMMRegister src);
-  void Movaps(XMMRegister dst, XMMRegister src);
-  void Movmskpd(Register dst, XMMRegister src);
-  void Movmskps(Register dst, XMMRegister src);
-
   void Push(Register src);
-  void Push(const Operand& src);
+  void Push(Operand src);
   void Push(Immediate value);
   void Push(Smi* smi);
   void Push(Handle<HeapObject> source);
@@ -239,23 +266,23 @@ class TurboAssembler : public Assembler {
                      Label::Distance condition_met_distance = Label::kFar);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
-  void Cvtss2sd(XMMRegister dst, const Operand& src);
+  void Cvtss2sd(XMMRegister dst, Operand src);
   void Cvtsd2ss(XMMRegister dst, XMMRegister src);
-  void Cvtsd2ss(XMMRegister dst, const Operand& src);
+  void Cvtsd2ss(XMMRegister dst, Operand src);
   void Cvttsd2si(Register dst, XMMRegister src);
-  void Cvttsd2si(Register dst, const Operand& src);
+  void Cvttsd2si(Register dst, Operand src);
   void Cvttsd2siq(Register dst, XMMRegister src);
-  void Cvttsd2siq(Register dst, const Operand& src);
+  void Cvttsd2siq(Register dst, Operand src);
   void Cvttss2si(Register dst, XMMRegister src);
-  void Cvttss2si(Register dst, const Operand& src);
+  void Cvttss2si(Register dst, Operand src);
   void Cvttss2siq(Register dst, XMMRegister src);
-  void Cvttss2siq(Register dst, const Operand& src);
+  void Cvttss2siq(Register dst, Operand src);
   void Cvtqsi2ss(XMMRegister dst, Register src);
-  void Cvtqsi2ss(XMMRegister dst, const Operand& src);
+  void Cvtqsi2ss(XMMRegister dst, Operand src);
   void Cvtqsi2sd(XMMRegister dst, Register src);
-  void Cvtqsi2sd(XMMRegister dst, const Operand& src);
+  void Cvtqsi2sd(XMMRegister dst, Operand src);
   void Cvtlsi2ss(XMMRegister dst, Register src);
-  void Cvtlsi2ss(XMMRegister dst, const Operand& src);
+  void Cvtlsi2ss(XMMRegister dst, Operand src);
   void Cvtqui2ss(XMMRegister dst, Register src, Register tmp);
   void Cvtqui2sd(XMMRegister dst, Register src, Register tmp);
 
@@ -263,35 +290,24 @@ class TurboAssembler : public Assembler {
   // hinders register renaming and makes dependence chains longer. So we use
   // xorpd to clear the dst register before cvtsi2sd to solve this issue.
   void Cvtlsi2sd(XMMRegister dst, Register src);
-  void Cvtlsi2sd(XMMRegister dst, const Operand& src);
-
-  void Roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
-  void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
-
-  void Sqrtsd(XMMRegister dst, XMMRegister src);
-  void Sqrtsd(XMMRegister dst, const Operand& src);
-
-  void Ucomiss(XMMRegister src1, XMMRegister src2);
-  void Ucomiss(XMMRegister src1, const Operand& src2);
-  void Ucomisd(XMMRegister src1, XMMRegister src2);
-  void Ucomisd(XMMRegister src1, const Operand& src2);
+  void Cvtlsi2sd(XMMRegister dst, Operand src);
 
   void Lzcntq(Register dst, Register src);
-  void Lzcntq(Register dst, const Operand& src);
+  void Lzcntq(Register dst, Operand src);
   void Lzcntl(Register dst, Register src);
-  void Lzcntl(Register dst, const Operand& src);
+  void Lzcntl(Register dst, Operand src);
   void Tzcntq(Register dst, Register src);
-  void Tzcntq(Register dst, const Operand& src);
+  void Tzcntq(Register dst, Operand src);
   void Tzcntl(Register dst, Register src);
-  void Tzcntl(Register dst, const Operand& src);
+  void Tzcntl(Register dst, Operand src);
   void Popcntl(Register dst, Register src);
-  void Popcntl(Register dst, const Operand& src);
+  void Popcntl(Register dst, Operand src);
   void Popcntq(Register dst, Register src);
-  void Popcntq(Register dst, const Operand& src);
+  void Popcntq(Register dst, Operand src);
 
   // Is the value a tagged smi.
   Condition CheckSmi(Register src);
-  Condition CheckSmi(const Operand& src);
+  Condition CheckSmi(Operand src);
 
   // Jump to label if the value is a tagged smi.
   void JumpIfSmi(Register src, Label* on_smi,
@@ -299,7 +315,7 @@ class TurboAssembler : public Assembler {
 
   void Move(Register dst, Smi* source);
 
-  void Move(const Operand& dst, Smi* source) {
+  void Move(Operand dst, Smi* source) {
     Register constant = GetSmiConstant(source);
     movp(dst, constant);
   }
@@ -319,7 +335,7 @@ class TurboAssembler : public Assembler {
 
   void Move(Register dst, Handle<HeapObject> source,
             RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
-  void Move(const Operand& dst, Handle<HeapObject> source,
+  void Move(Operand dst, Handle<HeapObject> source,
             RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
   // Loads a pointer into a register with a relocation mode.
@@ -333,13 +349,13 @@ class TurboAssembler : public Assembler {
   // Convert smi to 32-bit integer. I.e., not sign extended into
   // high 32 bits of destination.
   void SmiToInteger32(Register dst, Register src);
-  void SmiToInteger32(Register dst, const Operand& src);
+  void SmiToInteger32(Register dst, Operand src);
 
   // Loads the address of the external reference into the destination
   // register.
   void LoadAddress(Register destination, ExternalReference source);
 
-  void Call(const Operand& op);
+  void Call(Operand op);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
@@ -365,7 +381,7 @@ class TurboAssembler : public Assembler {
     // Opcode: REX_opt FF /2 m64
     return (target.high_bit() != 0) ? 3 : 2;
   }
-  int CallSize(const Operand& target) {
+  int CallSize(Operand target) {
     // Opcode: REX_opt FF /2 m64
     return (target.requires_rex() ? 2 : 1) + target.operand_size();
   }
@@ -377,10 +393,10 @@ class TurboAssembler : public Assembler {
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8);
 
   void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(const Operand& with, Heap::RootListIndex index);
+  void CompareRoot(Operand with, Heap::RootListIndex index);
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
@@ -476,6 +492,12 @@ class TurboAssembler : public Assembler {
                      Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
+  void ResetSpeculationPoisonRegister();
+
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   int smi_count = 0;
@@ -551,8 +573,7 @@ class MacroAssembler : public TurboAssembler {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
   }
-  void JumpIfRoot(const Operand& with, Heap::RootListIndex index,
-                  Label* if_equal,
+  void JumpIfRoot(Operand with, Heap::RootListIndex index, Label* if_equal,
                   Label::Distance if_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
@@ -565,7 +586,7 @@ class MacroAssembler : public TurboAssembler {
     CompareRoot(with, index);
     j(not_equal, if_not_equal, if_not_equal_distance);
   }
-  void JumpIfNotRoot(const Operand& with, Heap::RootListIndex index,
+  void JumpIfNotRoot(Operand with, Heap::RootListIndex index,
                      Label* if_not_equal,
                      Label::Distance if_not_equal_distance = Label::kFar) {
     CompareRoot(with, index);
@@ -649,10 +670,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 
@@ -668,9 +685,9 @@ class MacroAssembler : public TurboAssembler {
   // otherwise use Cmp.
   void SmiCompare(Register smi1, Register smi2);
   void SmiCompare(Register dst, Smi* src);
-  void SmiCompare(Register dst, const Operand& src);
-  void SmiCompare(const Operand& dst, Register src);
-  void SmiCompare(const Operand& dst, Smi* src);
+  void SmiCompare(Register dst, Operand src);
+  void SmiCompare(Operand dst, Register src);
+  void SmiCompare(Operand dst, Smi* src);
 
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
@@ -694,7 +711,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result.
   // No overflow testing on the result is done.
-  void SmiAddConstant(const Operand& dst, Smi* constant);
+  void SmiAddConstant(Operand dst, Smi* constant);
 
   // Specialized operations
 
@@ -712,13 +729,13 @@ class MacroAssembler : public TurboAssembler {
   // Macro instructions.
 
   // Load/store with specific representation.
-  void Load(Register dst, const Operand& src, Representation r);
-  void Store(const Operand& dst, Register src, Representation r);
+  void Load(Register dst, Operand src, Representation r);
+  void Store(Operand dst, Register src, Representation r);
 
   void Cmp(Register dst, Handle<Object> source);
-  void Cmp(const Operand& dst, Handle<Object> source);
+  void Cmp(Operand dst, Handle<Object> source);
   void Cmp(Register dst, Smi* src);
-  void Cmp(const Operand& dst, Smi* src);
+  void Cmp(Operand dst, Smi* src);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the rsp register.
@@ -729,51 +746,11 @@ class MacroAssembler : public TurboAssembler {
   void DropUnderReturnAddress(int stack_elements,
                               Register scratch = kScratchRegister);
 
-  void PushQuad(const Operand& src);
+  void PushQuad(Operand src);
   void PushImm32(int32_t imm32);
   void Pop(Register dst);
-  void Pop(const Operand& dst);
-  void PopQuad(const Operand& dst);
-
-#define AVX_OP2_WITH_TYPE(macro_name, name, src_type) \
-  void macro_name(XMMRegister dst, src_type src) {    \
-    if (CpuFeatures::IsSupported(AVX)) {              \
-      CpuFeatureScope scope(this, AVX);               \
-      v##name(dst, dst, src);                         \
-    } else {                                          \
-      name(dst, src);                                 \
-    }                                                 \
-  }
-#define AVX_OP2_X(macro_name, name) \
-  AVX_OP2_WITH_TYPE(macro_name, name, XMMRegister)
-#define AVX_OP2_O(macro_name, name) \
-  AVX_OP2_WITH_TYPE(macro_name, name, const Operand&)
-#define AVX_OP2_XO(macro_name, name) \
-  AVX_OP2_X(macro_name, name)        \
-  AVX_OP2_O(macro_name, name)
-
-  AVX_OP2_XO(Addsd, addsd)
-  AVX_OP2_XO(Mulsd, mulsd)
-  AVX_OP2_XO(Andps, andps)
-  AVX_OP2_XO(Andpd, andpd)
-  AVX_OP2_XO(Orpd, orpd)
-  AVX_OP2_XO(Cmpeqps, cmpeqps)
-  AVX_OP2_XO(Cmpltps, cmpltps)
-  AVX_OP2_XO(Cmpleps, cmpleps)
-  AVX_OP2_XO(Cmpneqps, cmpneqps)
-  AVX_OP2_XO(Cmpnltps, cmpnltps)
-  AVX_OP2_XO(Cmpnleps, cmpnleps)
-  AVX_OP2_XO(Cmpeqpd, cmpeqpd)
-  AVX_OP2_XO(Cmpltpd, cmpltpd)
-  AVX_OP2_XO(Cmplepd, cmplepd)
-  AVX_OP2_XO(Cmpneqpd, cmpneqpd)
-  AVX_OP2_XO(Cmpnltpd, cmpnltpd)
-  AVX_OP2_XO(Cmpnlepd, cmpnlepd)
-
-#undef AVX_OP2_O
-#undef AVX_OP2_X
-#undef AVX_OP2_XO
-#undef AVX_OP2_WITH_TYPE
+  void Pop(Operand dst);
+  void PopQuad(Operand dst);
 
   // ---------------------------------------------------------------------------
   // SIMD macros.
@@ -785,8 +762,11 @@ class MacroAssembler : public TurboAssembler {
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
-  void Jump(const Operand& op);
+  void Jump(Operand op);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
@@ -806,8 +786,7 @@ class MacroAssembler : public TurboAssembler {
   void CmpInstanceType(Register map, InstanceType type);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
-                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
-                 Label* lost_precision, Label* is_nan, Label* minus_zero,
+                 XMMRegister scratch, Label* lost_precision, Label* is_nan,
                  Label::Distance dst = Label::kFar);
 
   template<typename Field>
@@ -825,7 +804,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a smi, enabled via --debug-code.
   void AssertSmi(Register object);
-  void AssertSmi(const Operand& object);
+  void AssertSmi(Operand object);
 
   // Abort execution if argument is not a FixedArray, enabled via --debug-code.
   void AssertFixedArray(Register object);

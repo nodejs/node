@@ -73,22 +73,57 @@ Node* ProxiesCodeStubAssembler::AllocateProxy(Node* target, Node* handler,
 
 Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
     Node* context, CodeStubArguments& args, Node* argc, ParameterMode mode) {
+  Comment("AllocateJSArrayForCodeStubArguments");
+
+  Label if_empty_array(this), allocate_js_array(this);
+  // Do not use AllocateJSArray since {elements} might end up in LOS.
+  VARIABLE(elements, MachineRepresentation::kTagged);
+
+  TNode<Smi> length = ParameterToTagged(argc, mode);
+  GotoIf(SmiEqual(length, SmiConstant(0)), &if_empty_array);
+  {
+    Label if_large_object(this, Label::kDeferred);
+    Node* allocated_elements = AllocateFixedArray(PACKED_ELEMENTS, argc, mode,
+                                                  kAllowLargeObjectAllocation);
+    elements.Bind(allocated_elements);
+
+    VARIABLE(index, MachineType::PointerRepresentation(),
+             IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
+    VariableList list({&index}, zone());
+
+    GotoIf(SmiGreaterThan(length, SmiConstant(FixedArray::kMaxRegularLength)),
+           &if_large_object);
+    args.ForEach(list, [=, &index](Node* arg) {
+      StoreNoWriteBarrier(MachineRepresentation::kTagged, allocated_elements,
+                          index.value(), arg);
+      Increment(&index, kPointerSize);
+    });
+    Goto(&allocate_js_array);
+
+    BIND(&if_large_object);
+    {
+      args.ForEach(list, [=, &index](Node* arg) {
+        Store(allocated_elements, index.value(), arg);
+        Increment(&index, kPointerSize);
+      });
+      Goto(&allocate_js_array);
+    }
+  }
+
+  BIND(&if_empty_array);
+  {
+    elements.Bind(EmptyFixedArrayConstant());
+    Goto(&allocate_js_array);
+  }
+
+  BIND(&allocate_js_array);
+  // Allocate the result JSArray.
   Node* native_context = LoadNativeContext(context);
   Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-  Node* argc_smi = ParameterToTagged(argc, mode);
+  Node* array = AllocateUninitializedJSArrayWithoutElements(array_map, length);
+  StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset,
+                                 elements.value());
 
-  Node* array = AllocateJSArray(PACKED_ELEMENTS, array_map, argc, argc_smi,
-                                nullptr, mode);
-  Node* elements = LoadElements(array);
-
-  VARIABLE(index, MachineType::PointerRepresentation(),
-           IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
-  VariableList list({&index}, zone());
-  args.ForEach(list, [=, &index](Node* arg) {
-    StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, index.value(),
-                        arg);
-    Increment(&index, kPointerSize);
-  });
   return array;
 }
 

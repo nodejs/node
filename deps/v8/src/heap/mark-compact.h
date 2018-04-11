@@ -8,6 +8,7 @@
 #include <deque>
 #include <vector>
 
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/marking.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
@@ -649,7 +650,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // choosing spaces to compact.
   void Prepare();
 
-  void FinishConcurrentMarking();
+  // Stop concurrent marking (either by preempting it right away or waiting for
+  // it to complete as requested by |stop_request|).
+  void FinishConcurrentMarking(ConcurrentMarking::StopRequest stop_request);
 
   bool StartCompaction();
 

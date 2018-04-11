@@ -615,3 +615,45 @@ TEST(TerminateConsole) {
   CHECK(try_catch.HasCaught());
   CHECK(!isolate->IsExecutionTerminating());
 }
+
+class TerminatorSleeperThread : public v8::base::Thread {
+ public:
+  explicit TerminatorSleeperThread(v8::Isolate* isolate, int sleep_ms)
+      : Thread(Options("TerminatorSlepperThread")),
+        isolate_(isolate),
+        sleep_ms_(sleep_ms) {}
+  void Run() {
+    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(sleep_ms_));
+    CHECK(!isolate_->IsExecutionTerminating());
+    isolate_->TerminateExecution();
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  int sleep_ms_;
+};
+
+TEST(TerminateRegExp) {
+// regexp interpreter does not support preemption.
+#ifndef V8_INTERPRETED_REGEXP
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  ConsoleImpl console;
+  v8::debug::SetConsoleDelegate(isolate, &console);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!isolate->IsExecutionTerminating());
+  v8::TryCatch try_catch(isolate);
+  CHECK(!isolate->IsExecutionTerminating());
+  CHECK(!CompileRun("var re = /(x+)+y$/; re.test('x');").IsEmpty());
+  TerminatorSleeperThread terminator(isolate, 100);
+  terminator.Start();
+  CHECK(CompileRun("re.test('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); fail();")
+            .IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(!isolate->IsExecutionTerminating());
+#endif  // V8_INTERPRETED_REGEXP
+}

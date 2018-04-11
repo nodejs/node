@@ -96,6 +96,26 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
   return false;
 }
 
+bool LocationOperand::IsCompatible(LocationOperand* op) {
+  if (IsRegister() || IsStackSlot()) {
+    return op->IsRegister() || op->IsStackSlot();
+  } else if (kSimpleFPAliasing) {
+    // A backend may choose to generate the same instruction sequence regardless
+    // of the FP representation. As a result, we can relax the compatibility and
+    // allow a Double to be moved in a Float for example. However, this is only
+    // allowed if registers do not overlap.
+    return (IsFPRegister() || IsFPStackSlot()) &&
+           (op->IsFPRegister() || op->IsFPStackSlot());
+  } else if (IsFloatRegister() || IsFloatStackSlot()) {
+    return op->IsFloatRegister() || op->IsFloatStackSlot();
+  } else if (IsDoubleRegister() || IsDoubleStackSlot()) {
+    return op->IsDoubleRegister() || op->IsDoubleStackSlot();
+  } else {
+    return (IsSimd128Register() || IsSimd128StackSlot()) &&
+           (op->IsSimd128Register() || op->IsSimd128StackSlot());
+  }
+}
+
 void InstructionOperand::Print(const RegisterConfiguration* config) const {
   OFStream os(stdout);
   PrintableInstructionOperand wrapper;
@@ -426,8 +446,12 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os;
     case kFlags_branch:
       return os << "branch";
+    case kFlags_branch_and_poison:
+      return os << "branch_and_poison";
     case kFlags_deoptimize:
       return os << "deoptimize";
+    case kFlags_deoptimize_and_poison:
+      return os << "deoptimize_and_poison";
     case kFlags_set:
       return os << "set";
     case kFlags_trap:

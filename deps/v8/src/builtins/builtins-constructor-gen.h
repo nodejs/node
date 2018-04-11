@@ -15,8 +15,6 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   explicit ConstructorBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* EmitFastNewClosure(Node* shared_info, Node* feedback_vector, Node* slot,
-                           Node* context);
   Node* EmitFastNewFunctionContext(Node* closure, Node* slots, Node* context,
                                    ScopeType scope_type);
 

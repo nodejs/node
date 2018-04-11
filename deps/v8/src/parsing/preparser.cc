@@ -11,7 +11,6 @@
 #include "src/globals.h"
 #include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/parsing/preparser.h"
@@ -50,6 +49,8 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
       return PreParserIdentifier::Await();
     case Token::ASYNC:
       return PreParserIdentifier::Async();
+    case Token::PRIVATE_NAME:
+      return PreParserIdentifier::PrivateName();
     default:
       break;
   }

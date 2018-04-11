@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_REMOTEOBJECTID_H_
-#define V8_INSPECTOR_REMOTEOBJECTID_H_
+#ifndef V8_INSPECTOR_REMOTE_OBJECT_ID_H_
+#define V8_INSPECTOR_REMOTE_OBJECT_ID_H_
 
 #include "src/inspector/protocol/Forward.h"
 
@@ -54,4 +54,4 @@ class RemoteCallFrameId final : public RemoteObjectIdBase {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_REMOTEOBJECTID_H_
+#endif  // V8_INSPECTOR_REMOTE_OBJECT_ID_H_

@@ -70,8 +70,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
 
-  // Provides access to JSFunction::feedback_vector() field.
-  static FieldAccess ForJSFunctionFeedbackVector();
+  // Provides access to JSFunction::feedback_cell() field.
+  static FieldAccess ForJSFunctionFeedbackCell();
 
   // Provides access to JSFunction::code() field.
   static FieldAccess ForJSFunctionCode();
@@ -109,8 +109,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSAsyncGeneratorObject::queue() field.
   static FieldAccess ForJSAsyncGeneratorObjectQueue();
 
-  // Provides access to JSAsyncGeneratorObject::awaited_promise() field.
-  static FieldAccess ForJSAsyncGeneratorObjectAwaitedPromise();
+  // Provides access to JSAsyncGeneratorObject::is_awaiting() field.
+  static FieldAccess ForJSAsyncGeneratorObjectIsAwaiting();
 
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);

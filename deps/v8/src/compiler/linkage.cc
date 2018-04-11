@@ -179,10 +179,8 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
       return false;
 
     // Some inline intrinsics are also safe to call without a FrameState.
-    case Runtime::kInlineClassOf:
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineGeneratorClose:
-    case Runtime::kInlineGeneratorGetContext:
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:
@@ -462,6 +460,8 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   // The target for interpreter dispatches is a code entry address.
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+  const CallDescriptor::Flags kFlags =
+      CallDescriptor::kCanUseRoots | CallDescriptor::kFixedTargetRegister;
   return new (zone) CallDescriptor(  // --
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
@@ -471,7 +471,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
       Operator::kNoProperties,       // properties
       kNoCalleeSaved,                // callee-saved registers
       kNoCalleeSaved,                // callee-saved fp
-      CallDescriptor::kCanUseRoots,  // flags
+      kFlags,                        // flags
       descriptor.DebugName(isolate));
 }
 

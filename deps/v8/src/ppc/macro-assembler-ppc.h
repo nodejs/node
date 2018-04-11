@@ -15,20 +15,23 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = r3;
-const Register kReturnRegister1 = r4;
-const Register kReturnRegister2 = r5;
-const Register kJSFunctionRegister = r4;
-const Register kContextRegister = r30;
-const Register kAllocateSizeRegister = r4;
-const Register kInterpreterAccumulatorRegister = r3;
-const Register kInterpreterBytecodeOffsetRegister = r15;
-const Register kInterpreterBytecodeArrayRegister = r16;
-const Register kInterpreterDispatchTableRegister = r17;
-const Register kJavaScriptCallArgCountRegister = r3;
-const Register kJavaScriptCallNewTargetRegister = r6;
-const Register kRuntimeCallFunctionRegister = r4;
-const Register kRuntimeCallArgCountRegister = r3;
+constexpr Register kReturnRegister0 = r3;
+constexpr Register kReturnRegister1 = r4;
+constexpr Register kReturnRegister2 = r5;
+constexpr Register kJSFunctionRegister = r4;
+constexpr Register kContextRegister = r30;
+constexpr Register kAllocateSizeRegister = r4;
+constexpr Register kSpeculationPoisonRegister = r14;
+constexpr Register kInterpreterAccumulatorRegister = r3;
+constexpr Register kInterpreterBytecodeOffsetRegister = r15;
+constexpr Register kInterpreterBytecodeArrayRegister = r16;
+constexpr Register kInterpreterDispatchTableRegister = r17;
+constexpr Register kJavaScriptCallArgCountRegister = r3;
+constexpr Register kJavaScriptCallNewTargetRegister = r6;
+constexpr Register kJavaScriptCallCodeStartRegister = r5;
+constexpr Register kOffHeapTrampolineRegister = ip;
+constexpr Register kRuntimeCallFunctionRegister = r4;
+constexpr Register kRuntimeCallArgCountRegister = r3;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -172,9 +175,8 @@ class TurboAssembler : public Assembler {
   void PushCommonFrame(Register marker_reg = no_reg);
 
   // Generates function and stub prologue code.
-  void StubPrologue(StackFrame::Type type, Register base = no_reg,
-                    int prologue_offset = 0);
-  void Prologue(Register base, int prologue_offset = 0);
+  void StubPrologue(StackFrame::Type type);
+  void Prologue();
 
   // Push a standard frame, consisting of lr, fp, constant pool,
   // context and JS function
@@ -639,13 +641,14 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub);
 
   void LoadConstantPoolPointerRegister();
-  void LoadConstantPoolPointerRegister(Register base, int code_entry_delta = 0);
   void AbortConstantPoolBuilding() {
 #ifdef DEBUG
     // Avoid DCHECK(!is_linked()) failure in ~Label()
     bind(ConstantPoolPosition());
 #endif
   }
+
+  void ResetSpeculationPoisonRegister();
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -829,10 +832,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   void DebugBreak();
   // Frame restart support
   void MaybeDropFrames();
@@ -932,6 +931,9 @@ class MacroAssembler : public TurboAssembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

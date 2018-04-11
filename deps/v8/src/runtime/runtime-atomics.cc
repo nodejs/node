@@ -249,30 +249,6 @@ inline Object* DoXor(Isolate* isolate, void* buffer, size_t index,
   V(Uint32, uint32, UINT32, uint32_t, 4) \
   V(Int32, int32, INT32, int32_t, 4)
 
-RUNTIME_FUNCTION(Runtime_ThrowNotIntegerSharedTypedArrayError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError(MessageTemplate::kNotIntegerSharedTypedArray, value));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowNotInt32SharedTypedArrayError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNotInt32SharedTypedArray, value));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowInvalidAtomicAccessIndexError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewRangeError(MessageTemplate::kInvalidAtomicAccessIndex));
-}
-
 RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

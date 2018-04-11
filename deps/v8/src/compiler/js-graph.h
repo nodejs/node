@@ -217,4 +217,4 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILER_JS_GRAPH_H_

@@ -76,11 +76,20 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifndef __mips__
   // For the simulator build, use FPU.
   supported_ |= 1u << FPU;
+#if defined(_MIPS_ARCH_MIPS64R6) && defined(_MIPS_MSA)
+  supported_ |= 1u << MIPS_SIMD;
+#endif
 #else
   // Probe for additional features at runtime.
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
+#if defined(_MIPS_ARCH_MIPS64R6)
+#if defined(_MIPS_MSA)
+  supported_ |= 1u << MIPS_SIMD;
+#else
   if (cpu.has_msa()) supported_ |= 1u << MIPS_SIMD;
+#endif
+#endif
 #endif
 }
 
@@ -178,22 +187,20 @@ uint32_t RelocInfo::embedded_size() const {
       (Assembler::target_address_at(pc_, constant_pool_))));
 }
 
-void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
+void RelocInfo::set_embedded_address(Address address,
                                      ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
-                                   flush_mode);
+  Assembler::set_target_address_at(pc_, constant_pool_, address, flush_mode);
 }
 
-void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
-                                  ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_,
+void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(pc_, constant_pool_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
-void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(isolate, address, icache_flush_mode);
+  set_embedded_address(address, icache_flush_mode);
 }
 
 Address RelocInfo::js_to_wasm_address() const {
@@ -251,8 +258,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = buffer_ + request.offset();
-    set_target_value_at(isolate, pc,
-                        reinterpret_cast<uint64_t>(object.location()));
+    set_target_value_at(pc, reinterpret_cast<uint64_t>(object.location()));
   }
 }
 
@@ -2893,15 +2899,6 @@ void Assembler::cfc1(Register rt, FPUControlRegister fs) {
 }
 
 
-void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
-  uint64_t i;
-  memcpy(&i, &d, 8);
-
-  *lo = i & 0xFFFFFFFF;
-  *hi = i >> 32;
-}
-
-
 void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
                     FPURegister ft) {
   DCHECK_EQ(kArchVariant, kMips64r6);
@@ -4217,8 +4214,7 @@ void Assembler::QuietNaN(HeapObject* object) {
 // There is an optimization below, which emits a nop when the address
 // fits in just 16 bits. This is unlikely to help, and should be benchmarked,
 // and possibly removed.
-void Assembler::set_target_value_at(Isolate* isolate, Address pc,
-                                    uint64_t target,
+void Assembler::set_target_value_at(Address pc, uint64_t target,
                                     ICacheFlushMode icache_flush_mode) {
   // There is an optimization where only 4 instructions are used to load address
   // in code on MIP64 because only 48-bits of address is effectively used.
@@ -4249,7 +4245,7 @@ void Assembler::set_target_value_at(Isolate* isolate, Address pc,
              (target & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate, pc, 4 * Assembler::kInstrSize);
+    Assembler::FlushICache(pc, 4 * Assembler::kInstrSize);
   }
 }
 

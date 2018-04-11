@@ -395,31 +395,6 @@ BUILTIN(ObjectIsSealed) {
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
-BUILTIN(ObjectValues) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-  Handle<FixedArray> values;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, values, JSReceiver::GetOwnValues(receiver, ENUMERABLE_STRINGS));
-  return *isolate->factory()->NewJSArrayWithElements(values);
-}
-
-BUILTIN(ObjectEntries) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-  Handle<FixedArray> entries;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, entries,
-      JSReceiver::GetOwnEntries(receiver, ENUMERABLE_STRINGS));
-  return *isolate->factory()->NewJSArrayWithElements(entries);
-}
-
 BUILTIN(ObjectGetOwnPropertyDescriptors) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);

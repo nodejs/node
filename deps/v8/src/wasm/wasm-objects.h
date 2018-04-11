@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_OBJECTS_H_
-#define V8_WASM_OBJECTS_H_
+#ifndef V8_WASM_WASM_OBJECTS_H_
+#define V8_WASM_WASM_OBJECTS_H_
 
 #include "src/base/bits.h"
 #include "src/debug/debug.h"
@@ -38,6 +38,8 @@ class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
 
+#define WASM_CONTEXT_TABLES FLAG_wasm_jit_to_native
+
 #define DECL_OOL_QUERY(type) static bool Is##type(Object* object);
 #define DECL_OOL_CAST(type) static type* cast(Object* object);
 
@@ -55,6 +57,15 @@ class WasmInstanceObject;
   static const int k##name##Offset = \
       kSize + (k##name##Index - kFieldCount) * kPointerSize;
 
+// An entry in an indirect dispatch table.
+struct IndirectFunctionTableEntry {
+  int32_t sig_id = 0;
+  WasmContext* context = nullptr;
+  Address target = nullptr;
+
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(IndirectFunctionTableEntry)
+};
+
 // Wasm context used to store the mem_size and mem_start address of the linear
 // memory. These variables can be accessed at C++ level at graph build time
 // (e.g., initialized during instance building / changed at runtime by
@@ -67,13 +78,26 @@ struct WasmContext {
   uint32_t mem_size = 0;  // TODO(titzer): uintptr_t?
   uint32_t mem_mask = 0;  // TODO(titzer): uintptr_t?
   byte* globals_start = nullptr;
+  // TODO(wasm): pad these entries to a power of two.
+  IndirectFunctionTableEntry* table = nullptr;
+  uint32_t table_size = 0;
 
-  inline void SetRawMemory(void* mem_start, size_t mem_size) {
+  void SetRawMemory(void* mem_start, size_t mem_size) {
     DCHECK_LE(mem_size, wasm::kV8MaxWasmMemoryPages * wasm::kWasmPageSize);
     this->mem_start = static_cast<byte*>(mem_start);
     this->mem_size = static_cast<uint32_t>(mem_size);
     this->mem_mask = base::bits::RoundUpToPowerOfTwo32(this->mem_size) - 1;
     DCHECK_LE(mem_size, this->mem_mask + 1);
+  }
+
+  ~WasmContext() {
+    if (table) free(table);
+    mem_start = nullptr;
+    mem_size = 0;
+    mem_mask = 0;
+    globals_start = nullptr;
+    table = nullptr;
+    table_size = 0;
   }
 };
 
@@ -137,9 +161,13 @@ class WasmTableObject : public JSObject {
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
                   int32_t index, Handle<JSFunction> function);
 
-  static void UpdateDispatchTables(Handle<WasmTableObject> table, int index,
-                                   wasm::FunctionSig* sig,
-                                   Handle<Object> code_or_foreign);
+  static void UpdateDispatchTables(Isolate* isolate,
+                                   Handle<WasmTableObject> table,
+                                   int table_index, wasm::FunctionSig* sig,
+                                   Handle<WasmInstanceObject> from_instance,
+                                   WasmCodeWrapper wasm_code, int func_index);
+
+  static void ClearDispatchTables(Handle<WasmTableObject> table, int index);
 };
 
 // Representation of a WebAssembly.Memory JavaScript-level object.
@@ -249,6 +277,9 @@ class WasmInstanceObject : public JSObject {
 
   static void ValidateOrphanedInstanceForTesting(
       Isolate* isolate, Handle<WasmInstanceObject> instance);
+
+  static void InstallFinalizer(Isolate* isolate,
+                               Handle<WasmInstanceObject> instance);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.
@@ -306,7 +337,7 @@ class WasmSharedModuleData : public FixedArray {
                                                Handle<WasmSharedModuleData>);
 
   static void AddBreakpoint(Handle<WasmSharedModuleData>, int position,
-                            Handle<Object> break_point_object);
+                            Handle<BreakPoint> break_point);
 
   static void SetBreakpointsOnNewInstance(Handle<WasmSharedModuleData>,
                                           Handle<WasmInstanceObject>);
@@ -468,7 +499,6 @@ class WasmCompiledModule : public FixedArray {
   MACRO(WASM_OBJECT, WasmCompiledModule, prev_instance) \
   MACRO(WEAK_LINK, WasmInstanceObject, owning_instance) \
   MACRO(WEAK_LINK, WasmModuleObject, wasm_module)       \
-  MACRO(OBJECT, FixedArray, handler_table)              \
   MACRO(OBJECT, FixedArray, source_positions)           \
   MACRO(OBJECT, Foreign, native_module)                 \
   MACRO(OBJECT, FixedArray, lazy_compile_data)          \
@@ -478,9 +508,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
   MACRO(CONST_OBJECT, FixedArray, code_table)                 \
   MACRO(OBJECT, FixedArray, function_tables)                  \
-  MACRO(OBJECT, FixedArray, signature_tables)                 \
-  MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
-  MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)
+  MACRO(CONST_OBJECT, FixedArray, empty_function_tables)
 
 // TODO(mtrofin): this is unnecessary when we stop needing
 // FLAG_wasm_jit_to_native, because we have instance_id on NativeModule.
@@ -516,9 +544,6 @@ class WasmCompiledModule : public FixedArray {
                                           Handle<WasmCompiledModule> module);
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
 
-  // TODO(mtrofin): delete this when we don't need FLAG_wasm_jit_to_native
-  static void ResetGCModel(Isolate* isolate, WasmCompiledModule* module);
-
   wasm::NativeModule* GetNativeModule() const;
   void InsertInChain(WasmModuleObject*);
   void RemoveFromChain();
@@ -543,7 +568,7 @@ class WasmCompiledModule : public FixedArray {
   // If it points outside a function, or behind the last breakable location,
   // this function returns false and does not set any breakpoint.
   static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
-                            Handle<Object> break_point_object);
+                            Handle<BreakPoint> break_point);
 
   inline void ReplaceCodeTableForTesting(
       std::vector<wasm::WasmCode*>&& testing_table);
@@ -555,6 +580,8 @@ class WasmCompiledModule : public FixedArray {
   static void UpdateTableValue(FixedArray* table, int index, Address value);
   static Address GetTableValue(FixedArray* table, int index);
   inline void ReplaceCodeTableForTesting(Handle<FixedArray> testing_table);
+
+  void LogWasmCodes(Isolate* isolate);
 
  private:
   void InitId();
@@ -692,4 +719,4 @@ WasmFunctionInfo GetWasmFunctionInfo(Isolate*, Handle<Code>);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_OBJECTS_H_
+#endif  // V8_WASM_WASM_OBJECTS_H_

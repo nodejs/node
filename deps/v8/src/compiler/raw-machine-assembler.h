@@ -162,15 +162,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Atomic memory operations.
   Node* AtomicLoad(MachineType type, Node* base, Node* index) {
-    return AddNode(machine()->AtomicLoad(type), base, index);
+    return AddNode(machine()->Word32AtomicLoad(type), base, index);
   }
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value) {
-    return AddNode(machine()->AtomicStore(rep), base, index, value);
+    return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
 #define ATOMIC_FUNCTION(name)                                                 \
   Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value) { \
-    return AddNode(machine()->Atomic##name(rep), base, index, value);         \
+    return AddNode(machine()->Word32Atomic##name(rep), base, index, value);   \
   }
   ATOMIC_FUNCTION(Exchange);
   ATOMIC_FUNCTION(Add);
@@ -182,7 +182,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   Node* AtomicCompareExchange(MachineType rep, Node* base, Node* index,
                               Node* old_value, Node* new_value) {
-    return AddNode(machine()->AtomicCompareExchange(rep), base, index,
+    return AddNode(machine()->Word32AtomicCompareExchange(rep), base, index,
                    old_value, new_value);
   }
 
@@ -744,19 +744,24 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
+  Node* SpeculationPoison() {
+    return AddNode(machine()->SpeculationPoison(), graph()->start());
+  }
 
   // Call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
-  Node* CallN(CallDescriptor* desc, int input_count, Node* const* inputs);
+  Node* CallN(CallDescriptor* call_descriptor, int input_count,
+              Node* const* inputs);
 
   // Call a given call descriptor and the given arguments and frame-state.
   // The call target and frame state are passed as part of the {inputs} array.
-  Node* CallNWithFrameState(CallDescriptor* desc, int input_count,
+  Node* CallNWithFrameState(CallDescriptor* call_descriptor, int input_count,
                             Node* const* inputs);
 
   // Tail call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
-  Node* TailCallN(CallDescriptor* desc, int input_count, Node* const* inputs);
+  Node* TailCallN(CallDescriptor* call_descriptor, int input_count,
+                  Node* const* inputs);
 
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
@@ -903,6 +908,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   CommonOperatorBuilder common_;
   CallDescriptor* call_descriptor_;
   NodeVector parameters_;
+  Node* speculation_poison_;
   BasicBlock* current_block_;
 
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);

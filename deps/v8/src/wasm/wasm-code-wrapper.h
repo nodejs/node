@@ -1,8 +1,8 @@
 // Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#ifndef V8_WASM_CODE_WRAPPER_H_
-#define V8_WASM_CODE_WRAPPER_H_
+#ifndef V8_WASM_WASM_CODE_WRAPPER_H_
+#define V8_WASM_WASM_CODE_WRAPPER_H_
 
 #include "src/handles.h"
 
@@ -13,6 +13,7 @@ class WasmCode;
 }  // namespace wasm
 
 class Code;
+struct WasmContext;
 class WasmInstanceObject;
 
 // TODO(mtrofin): remove once we remove FLAG_wasm_jit_to_native
@@ -30,7 +31,8 @@ class WasmCodeWrapper {
 
   Vector<uint8_t> instructions() const;
 
-  Handle<WasmInstanceObject> wasm_instance() const;
+  WasmInstanceObject* wasm_instance() const;
+  WasmContext* wasm_context() const;
 
 #ifdef ENABLE_DISASSEMBLER
   void Disassemble(const char* name, Isolate* isolate, std::ostream& os) const;
@@ -45,4 +47,4 @@ class WasmCodeWrapper {
 
 }  // namespace internal
 }  // namespace v8
-#endif  // V8_WASM_CODE_WRAPPER_H_
+#endif  // V8_WASM_WASM_CODE_WRAPPER_H_

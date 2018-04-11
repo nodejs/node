@@ -850,3 +850,38 @@ TEST(Regress609134) {
       "var a = 42;"
       "for (var i = 0; i<3; i++) { a.foo; }");
 }
+
+TEST(ObjectSetLazyDataProperty) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Despite getting the property multiple times, the getter should only be
+  // called once and data property reads should continue to produce the same
+  // value.
+  static int getter_call_count;
+  getter_call_count = 0;
+  auto result = obj->SetLazyDataProperty(
+      env.local(), v8_str("foo"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        getter_call_count++;
+        info.GetReturnValue().Set(getter_call_count);
+      });
+  CHECK(result.FromJust());
+  CHECK_EQ(0, getter_call_count);
+  for (int i = 0; i < 2; i++) {
+    ExpectInt32("obj.foo", 1);
+    CHECK_EQ(1, getter_call_count);
+  }
+
+  // Setting should overwrite the data property.
+  result = obj->SetLazyDataProperty(
+      env.local(), v8_str("bar"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        CHECK(false);
+      });
+  CHECK(result.FromJust());
+  ExpectInt32("obj.bar = -1; obj.bar;", -1);
+}

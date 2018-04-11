@@ -22,8 +22,31 @@ ALL_VARIANT_FLAGS = {
   # Trigger stress sampling allocation profiler with sample interval = 2^14
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "trusted": [["--no-untrusted-code-mitigations"]],
-  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
+  "wasm_traps": [["--wasm-trap-handler", "--invoke-weak-callbacks"]],
   "wasm_no_native": [["--no-wasm-jit-to-native"]],
 }
 
-ALL_VARIANTS = set(ALL_VARIANT_FLAGS.keys())
+SLOW_VARIANTS = set([
+  'stress',
+  'nooptimization',
+])
+
+FAST_VARIANTS = set([
+  'default'
+])
+
+
+def _variant_order_key(v):
+  if v in SLOW_VARIANTS:
+    return 0
+  if v in FAST_VARIANTS:
+    return 100
+  return 50
+
+ALL_VARIANTS = sorted(ALL_VARIANT_FLAGS.keys(),
+                      key=_variant_order_key)
+
+# Check {SLOW,FAST}_VARIANTS entries
+for variants in [SLOW_VARIANTS, FAST_VARIANTS]:
+  for v in variants:
+    assert v in ALL_VARIANT_FLAGS

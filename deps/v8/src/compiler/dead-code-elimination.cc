@@ -139,17 +139,25 @@ Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
   if (live_input_count == 0) {
     return Replace(dead());
   } else if (live_input_count == 1) {
+    NodeVector loop_exits(zone_);
     // Due to compaction above, the live input is at offset 0.
     for (Node* const use : node->uses()) {
       if (NodeProperties::IsPhi(use)) {
         Replace(use, use->InputAt(0));
       } else if (use->opcode() == IrOpcode::kLoopExit &&
                  use->InputAt(1) == node) {
-        RemoveLoopExit(use);
+        // Remember the loop exits so that we can mark their loop input dead.
+        // This has to be done after the use list iteration so that we do
+        // not mutate the use list while it is being iterated.
+        loop_exits.push_back(use);
       } else if (use->opcode() == IrOpcode::kTerminate) {
         DCHECK_EQ(IrOpcode::kLoop, node->opcode());
         Replace(use, dead());
       }
+    }
+    for (Node* loop_exit : loop_exits) {
+      loop_exit->ReplaceInput(1, dead());
+      Revisit(loop_exit);
     }
     return Replace(node->InputAt(0));
   }

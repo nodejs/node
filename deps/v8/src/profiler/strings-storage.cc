@@ -80,7 +80,7 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
 const char* StringsStorage::GetName(Name* name) {
   if (name->IsString()) {
     String* str = String::cast(name);
-    int length = Min(kMaxNameSize, str->length());
+    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);

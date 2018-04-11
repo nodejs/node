@@ -48,7 +48,7 @@ class JSRegExp : public JSObject {
   };
   typedef base::Flags<Flag> Flags;
 
-  static int FlagCount() { return 6; }
+  static constexpr int FlagCount() { return 6; }
 
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)

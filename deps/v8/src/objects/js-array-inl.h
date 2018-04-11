@@ -204,15 +204,6 @@ void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
 }
 
-bool JSTypedArray::HasJSTypedArrayPrototype(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
-  Object* proto = map()->prototype();
-  if (!proto->IsJSObject()) return false;
-
-  JSObject* proto_obj = JSObject::cast(proto);
-  return proto_obj->map()->prototype() == *isolate->typed_array_prototype();
-}
-
 // static
 MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
                                                  Handle<Object> receiver,
@@ -234,26 +225,6 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
   // spec describes to return `buffer`, but it may disrupt current
   // implementations, and it's much useful to return array for now.
   return array;
-}
-
-// static
-Handle<JSFunction> JSTypedArray::DefaultConstructor(
-    Isolate* isolate, Handle<JSTypedArray> exemplar) {
-  Handle<JSFunction> default_ctor = isolate->uint8_array_fun();
-  switch (exemplar->type()) {
-#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array: {                        \
-    default_ctor = isolate->type##_array_fun();         \
-    break;                                              \
-  }
-
-    TYPED_ARRAYS(TYPED_ARRAY_CTOR)
-#undef TYPED_ARRAY_CTOR
-    default:
-      UNREACHABLE();
-  }
-
-  return default_ctor;
 }
 
 #ifdef VERIFY_HEAP

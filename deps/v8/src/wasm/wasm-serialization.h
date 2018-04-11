@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_SERIALIZATION_H_
-#define V8_WASM_SERIALIZATION_H_
+#ifndef V8_WASM_WASM_SERIALIZATION_H_
+#define V8_WASM_WASM_SERIALIZATION_H_
 
 #include "src/wasm/wasm-objects.h"
 
@@ -21,4 +21,4 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_WASM_WASM_SERIALIZATION_H_

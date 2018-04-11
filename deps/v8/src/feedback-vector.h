@@ -85,6 +85,10 @@ inline bool IsStoreOwnICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreOwnNamed;
 }
 
+inline bool IsStoreDataPropertyInLiteralKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kStoreDataPropertyInLiteral;
+}
+
 inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreKeyedSloppy ||
          kind == FeedbackSlotKind::kStoreKeyedStrict;
@@ -202,8 +206,8 @@ class FeedbackVector : public HeapObject {
 
   FeedbackSlot GetTypeProfileSlot() const;
 
-  static Handle<FeedbackVector> New(Isolate* isolate,
-                                    Handle<SharedFunctionInfo> shared);
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
   static Handle<FeedbackVector> Copy(Isolate* isolate,
                                      Handle<FeedbackVector> vector);
@@ -293,15 +297,28 @@ class FeedbackVector : public HeapObject {
   static void AddToVectorsForProfilingTools(Isolate* isolate,
                                             Handle<FeedbackVector> vector);
 
-  void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot,
-                         FeedbackSlotKind kind);  // NOLINT
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackVector);
 };
 
-template <typename Derived>
-class V8_EXPORT_PRIVATE FeedbackVectorSpecBase {
+class V8_EXPORT_PRIVATE FeedbackVectorSpec {
  public:
+  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
+    slot_kinds_.reserve(16);
+  }
+
+  int slots() const { return static_cast<int>(slot_kinds_.size()); }
+
+  FeedbackSlotKind GetKind(FeedbackSlot slot) const {
+    return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
+  }
+
+  bool HasTypeProfileSlot() const;
+
+  // If used, the TypeProfileSlot is always added as the first slot and its
+  // index is constant. If other slots are added before the TypeProfileSlot,
+  // this number changes.
+  static const int kTypeProfileSlotIndex = 0;
+
   FeedbackSlot AddCallICSlot() { return AddSlot(FeedbackSlotKind::kCall); }
 
   FeedbackSlot AddLoadICSlot() {
@@ -379,58 +396,6 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpecBase {
  private:
   FeedbackSlot AddSlot(FeedbackSlotKind kind);
 
-  Derived* This() { return static_cast<Derived*>(this); }
-};
-
-class StaticFeedbackVectorSpec
-    : public FeedbackVectorSpecBase<StaticFeedbackVectorSpec> {
- public:
-  StaticFeedbackVectorSpec() : slot_count_(0) {}
-
-  int slots() const { return slot_count_; }
-
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const {
-    DCHECK(slot.ToInt() >= 0 && slot.ToInt() < slot_count_);
-    return kinds_[slot.ToInt()];
-  }
-
- private:
-  friend class FeedbackVectorSpecBase<StaticFeedbackVectorSpec>;
-
-  void append(FeedbackSlotKind kind) {
-    DCHECK_LT(slot_count_, kMaxLength);
-    kinds_[slot_count_++] = kind;
-  }
-
-  static const int kMaxLength = 12;
-
-  int slot_count_;
-  FeedbackSlotKind kinds_[kMaxLength];
-};
-
-class V8_EXPORT_PRIVATE FeedbackVectorSpec
-    : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
- public:
-  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
-    slot_kinds_.reserve(16);
-  }
-
-  int slots() const { return static_cast<int>(slot_kinds_.size()); }
-
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const {
-    return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
-  }
-
-  bool HasTypeProfileSlot() const;
-
-  // If used, the TypeProfileSlot is always added as the first slot and its
-  // index is constant. If other slots are added before the TypeProfileSlot,
-  // this number changes.
-  static const int kTypeProfileSlotIndex = 0;
-
- private:
-  friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
-
   void append(FeedbackSlotKind kind) {
     slot_kinds_.push_back(static_cast<unsigned char>(kind));
   }
@@ -465,8 +430,9 @@ class FeedbackMetadata : public FixedArray {
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
-  template <typename Spec>
-  static Handle<FeedbackMetadata> New(Isolate* isolate, const Spec* spec);
+  // If {spec} is null, then it is considered empty.
+  V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
+      Isolate* isolate, const FeedbackVectorSpec* spec = nullptr);
 
 #ifdef OBJECT_PRINT
   // For gdb debugging.
@@ -551,14 +517,15 @@ class FeedbackMetadataIterator {
 };
 
 // A FeedbackNexus is the combination of a FeedbackVector and a slot.
-// Derived classes customize the update and retrieval of feedback.
-class FeedbackNexus {
+class FeedbackNexus final {
  public:
   FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : vector_handle_(vector), vector_(nullptr), slot_(slot) {}
+      : vector_handle_(vector),
+        vector_(nullptr),
+        slot_(slot),
+        kind_(vector->GetKind(slot)) {}
   FeedbackNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : vector_(vector), slot_(slot) {}
-  virtual ~FeedbackNexus() {}
+      : vector_(vector), slot_(slot), kind_(vector->GetKind(slot)) {}
 
   Handle<FeedbackVector> vector_handle() const {
     DCHECK_NULL(vector_);
@@ -568,12 +535,20 @@ class FeedbackNexus {
     return vector_handle_.is_null() ? vector_ : *vector_handle_;
   }
   FeedbackSlot slot() const { return slot_; }
-  FeedbackSlotKind kind() const { return vector()->GetKind(slot()); }
+  FeedbackSlotKind kind() const { return kind_; }
+
+  inline LanguageMode GetLanguageMode() const {
+    return vector()->GetLanguageMode(slot());
+  }
 
   InlineCacheState ic_state() const { return StateFromFeedback(); }
   bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
   bool IsMegamorphic() const { return StateFromFeedback() == MEGAMORPHIC; }
   bool IsGeneric() const { return StateFromFeedback() == GENERIC; }
+
+  void Print(std::ostream& os);  // NOLINT
+
+  // For map-based ICs (load, keyed-load, store, keyed-store).
   Map* FindFirstMap() const {
     MapHandles maps;
     ExtractMaps(&maps);
@@ -581,19 +556,19 @@ class FeedbackNexus {
     return nullptr;
   }
 
-  virtual InlineCacheState StateFromFeedback() const = 0;
-  virtual int ExtractMaps(MapHandles* maps) const;
-  virtual MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
-  virtual bool FindHandlers(ObjectHandles* code_list, int length = -1) const;
-  virtual Name* FindFirstName() const { return nullptr; }
+  InlineCacheState StateFromFeedback() const;
+  int ExtractMaps(MapHandles* maps) const;
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
+  bool FindHandlers(ObjectHandles* code_list, int length = -1) const;
 
-  bool IsCleared() {
+  bool IsCleared() const {
     InlineCacheState state = StateFromFeedback();
     return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
-  virtual void Clear() { ConfigureUninitialized(); }
-  virtual void ConfigureUninitialized();
+  // Clear() returns true if the state of the underlying vector was changed.
+  bool Clear();
+  void ConfigureUninitialized();
   void ConfigurePremonomorphic();
   bool ConfigureMegamorphic(IcCheckType property_type);
 
@@ -607,6 +582,67 @@ class FeedbackNexus {
 
   void ConfigurePolymorphic(Handle<Name> name, MapHandles const& maps,
                             ObjectHandles* handlers);
+
+  BinaryOperationHint GetBinaryOperationFeedback() const;
+  CompareOperationHint GetCompareOperationFeedback() const;
+  ForInHint GetForInFeedback() const;
+
+  // For KeyedLoad ICs.
+  KeyedAccessLoadMode GetKeyedAccessLoadMode() const;
+
+  // For KeyedStore ICs.
+  KeyedAccessStoreMode GetKeyedAccessStoreMode() const;
+
+  // For KeyedLoad and KeyedStore ICs.
+  IcCheckType GetKeyType() const;
+  Name* FindFirstName() const;
+
+  // For Call ICs.
+  int GetCallCount();
+  void SetSpeculationMode(SpeculationMode mode);
+  SpeculationMode GetSpeculationMode();
+
+  // Compute the call frequency based on the call count and the invocation
+  // count (taken from the type feedback vector).
+  float ComputeCallFrequency();
+
+  typedef BitField<SpeculationMode, 0, 1> SpeculationModeField;
+  typedef BitField<uint32_t, 1, 31> CallCountField;
+
+  // For CreateClosure ICs.
+  Handle<FeedbackCell> GetFeedbackCell() const;
+
+  // For InstanceOf ICs.
+  MaybeHandle<JSObject> GetConstructorFeedback() const;
+
+  // For Global Load and Store ICs.
+  void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
+  // Returns false if given combination of indices is not allowed.
+  bool ConfigureLexicalVarMode(int script_context_index,
+                               int context_slot_index);
+  void ConfigureHandlerMode(Handle<Object> handler);
+
+// Bit positions in a smi that encodes lexical environment variable access.
+#define LEXICAL_MODE_BIT_FIELDS(V, _)  \
+  V(ContextIndexBits, unsigned, 12, _) \
+  V(SlotIndexBits, unsigned, 19, _)
+
+  DEFINE_BIT_FIELDS(LEXICAL_MODE_BIT_FIELDS)
+#undef LEXICAL_MODE_BIT_FIELDS
+
+  // Make sure we don't overflow the smi.
+  STATIC_ASSERT(LEXICAL_MODE_BIT_FIELDS_Ranges::kBitsCount <= kSmiValueSize);
+
+  // For TypeProfile feedback vector slots.
+  // ResetTypeProfile will always reset type profile information.
+  void ResetTypeProfile();
+
+  // Add a type to the list of types for source position <position>.
+  void Collect(Handle<String> type, int position);
+  JSObject* GetTypeProfile() const;
+
+  std::vector<int> GetSourcePositions() const;
+  std::vector<Handle<String>> GetTypesForSourcePositions(uint32_t pos) const;
 
  protected:
   inline void SetFeedback(Object* feedback,
@@ -625,331 +661,7 @@ class FeedbackNexus {
   Handle<FeedbackVector> vector_handle_;
   FeedbackVector* vector_;
   FeedbackSlot slot_;
-};
-
-class CallICNexus final : public FeedbackNexus {
- public:
-  CallICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsCallIC(slot));
-  }
-  CallICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsCallIC(slot));
-  }
-
-  void ConfigureUninitialized() final;
-
-  InlineCacheState StateFromFeedback() const final;
-
-  int ExtractMaps(MapHandles* maps) const final {
-    // CallICs don't record map feedback.
-    return 0;
-  }
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
-    return MaybeHandle<Code>();
-  }
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
-    return length == 0;
-  }
-
-  int GetCallCount();
-  void SetSpeculationMode(SpeculationMode mode);
-  SpeculationMode GetSpeculationMode();
-
-  // Compute the call frequency based on the call count and the invocation
-  // count (taken from the type feedback vector).
-  float ComputeCallFrequency();
-
-  typedef BitField<SpeculationMode, 0, 1> SpeculationModeField;
-  typedef BitField<uint32_t, 1, 31> CallCountField;
-};
-
-class LoadICNexus : public FeedbackNexus {
- public:
-  LoadICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsLoadIC(slot));
-  }
-  LoadICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsLoadIC(slot));
-  }
-
-  void Clear() override { ConfigurePremonomorphic(); }
-
-  InlineCacheState StateFromFeedback() const override;
-};
-
-class KeyedLoadICNexus : public FeedbackNexus {
- public:
-  KeyedLoadICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsKeyedLoadIC(slot));
-  }
-  KeyedLoadICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsKeyedLoadIC(slot));
-  }
-
-  void Clear() override { ConfigurePremonomorphic(); }
-
-  KeyedAccessLoadMode GetKeyedAccessLoadMode() const;
-  IcCheckType GetKeyType() const;
-  InlineCacheState StateFromFeedback() const override;
-  Name* FindFirstName() const override;
-};
-
-class StoreICNexus : public FeedbackNexus {
- public:
-  StoreICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
-  }
-  StoreICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
-  }
-
-  void Clear() override { ConfigurePremonomorphic(); }
-
-  InlineCacheState StateFromFeedback() const override;
-};
-
-// Base class for LoadGlobalICNexus and StoreGlobalICNexus.
-class GlobalICNexus : public FeedbackNexus {
- public:
-  GlobalICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsGlobalIC(slot));
-  }
-  GlobalICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsGlobalIC(slot));
-  }
-
-  int ExtractMaps(MapHandles* maps) const final {
-    // Load/StoreGlobalICs don't record map feedback.
-    return 0;
-  }
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
-    return MaybeHandle<Code>();
-  }
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
-    return length == 0;
-  }
-
-  void ConfigureUninitialized() override;
-  void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
-  // Returns false if given combination of indices is not allowed.
-  bool ConfigureLexicalVarMode(int script_context_index,
-                               int context_slot_index);
-  void ConfigureHandlerMode(Handle<Object> handler);
-
-  InlineCacheState StateFromFeedback() const override;
-
-// Bit positions in a smi that encodes lexical environment variable access.
-#define LEXICAL_MODE_BIT_FIELDS(V, _)  \
-  V(ContextIndexBits, unsigned, 12, _) \
-  V(SlotIndexBits, unsigned, 19, _)
-
-  DEFINE_BIT_FIELDS(LEXICAL_MODE_BIT_FIELDS)
-#undef LEXICAL_MODE_BIT_FIELDS
-
-  // Make sure we don't overflow the smi.
-  STATIC_ASSERT(LEXICAL_MODE_BIT_FIELDS_Ranges::kBitsCount <= kSmiValueSize);
-};
-
-class LoadGlobalICNexus : public GlobalICNexus {
- public:
-  LoadGlobalICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : GlobalICNexus(vector, slot) {
-    DCHECK(vector->IsLoadGlobalIC(slot));
-  }
-  LoadGlobalICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : GlobalICNexus(vector, slot) {
-    DCHECK(vector->IsLoadGlobalIC(slot));
-  }
-};
-
-class StoreGlobalICNexus : public GlobalICNexus {
- public:
-  StoreGlobalICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : GlobalICNexus(vector, slot) {
-    DCHECK(vector->IsStoreGlobalIC(slot));
-  }
-  StoreGlobalICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : GlobalICNexus(vector, slot) {
-    DCHECK(vector->IsStoreGlobalIC(slot));
-  }
-};
-
-// TODO(ishell): Currently we use StoreOwnIC only for storing properties that
-// already exist in the boilerplate therefore we can use StoreIC.
-typedef StoreICNexus StoreOwnICNexus;
-
-class KeyedStoreICNexus : public FeedbackNexus {
- public:
-  KeyedStoreICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsKeyedStoreIC(slot));
-  }
-  KeyedStoreICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsKeyedStoreIC(slot));
-  }
-
-  void Clear() override { ConfigurePremonomorphic(); }
-
-  KeyedAccessStoreMode GetKeyedAccessStoreMode() const;
-  IcCheckType GetKeyType() const;
-
-  InlineCacheState StateFromFeedback() const override;
-  Name* FindFirstName() const override;
-};
-
-class BinaryOpICNexus final : public FeedbackNexus {
- public:
-  BinaryOpICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kBinaryOp, vector->GetKind(slot));
-  }
-  BinaryOpICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kBinaryOp, vector->GetKind(slot));
-  }
-
-  InlineCacheState StateFromFeedback() const final;
-  BinaryOperationHint GetBinaryOperationFeedback() const;
-
-  int ExtractMaps(MapHandles* maps) const final {
-    // BinaryOpICs don't record map feedback.
-    return 0;
-  }
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
-    return MaybeHandle<Code>();
-  }
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
-    return length == 0;
-  }
-};
-
-class CompareICNexus final : public FeedbackNexus {
- public:
-  CompareICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kCompareOp, vector->GetKind(slot));
-  }
-  CompareICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kCompareOp, vector->GetKind(slot));
-  }
-
-  InlineCacheState StateFromFeedback() const final;
-  CompareOperationHint GetCompareOperationFeedback() const;
-
-  int ExtractMaps(MapHandles* maps) const final {
-    // CompareICs don't record map feedback.
-    return 0;
-  }
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
-    return MaybeHandle<Code>();
-  }
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
-    return length == 0;
-  }
-};
-
-class ForInICNexus final : public FeedbackNexus {
- public:
-  ForInICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kForIn, vector->GetKind(slot));
-  }
-  ForInICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kForIn, vector->GetKind(slot));
-  }
-
-  InlineCacheState StateFromFeedback() const final;
-  ForInHint GetForInFeedback() const;
-
-  int ExtractMaps(MapHandles* maps) const final { return 0; }
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
-    return MaybeHandle<Code>();
-  }
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
-    return length == 0;
-  }
-};
-
-class InstanceOfICNexus final : public FeedbackNexus {
- public:
-  InstanceOfICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kInstanceOf, vector->GetKind(slot));
-  }
-  InstanceOfICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kInstanceOf, vector->GetKind(slot));
-  }
-
-  void ConfigureUninitialized() final;
-
-  InlineCacheState StateFromFeedback() const final;
-  MaybeHandle<JSObject> GetConstructorFeedback() const;
-
-  int ExtractMaps(MapHandles* maps) const final { return 0; }
-  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
-    return MaybeHandle<Code>();
-  }
-  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
-    return length == 0;
-  }
-};
-
-class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
- public:
-  StoreDataPropertyInLiteralICNexus(Handle<FeedbackVector> vector,
-                                    FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kStoreDataPropertyInLiteral,
-              vector->GetKind(slot));
-  }
-  StoreDataPropertyInLiteralICNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kStoreDataPropertyInLiteral,
-              vector->GetKind(slot));
-  }
-
-  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map);
-
-  InlineCacheState StateFromFeedback() const override;
-};
-
-// For each assignment, store the type of the value in the collection of types
-// in the feedback vector.
-class CollectTypeProfileNexus : public FeedbackNexus {
- public:
-  CollectTypeProfileNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kTypeProfile, vector->GetKind(slot));
-  }
-  CollectTypeProfileNexus(FeedbackVector* vector, FeedbackSlot slot)
-      : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kTypeProfile, vector->GetKind(slot));
-  }
-
-  // Add a type to the list of types for source position <position>.
-  void Collect(Handle<String> type, int position);
-  JSObject* GetTypeProfile() const;
-
-  std::vector<int> GetSourcePositions() const;
-  std::vector<Handle<String>> GetTypesForSourcePositions(uint32_t pos) const;
-
-  void Clear() override;
-
-  InlineCacheState StateFromFeedback() const override;
+  FeedbackSlotKind kind_;
 };
 
 inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);

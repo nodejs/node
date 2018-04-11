@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_STRINGUTIL_H_
-#define V8_INSPECTOR_STRINGUTIL_H_
+#ifndef V8_INSPECTOR_STRING_UTIL_H_
+#define V8_INSPECTOR_STRING_UTIL_H_
 
 #include <memory>
 
@@ -92,4 +92,4 @@ String16 stackTraceIdToString(uintptr_t id);
 
 }  //  namespace v8_inspector
 
-#endif  // V8_INSPECTOR_STRINGUTIL_H_
+#endif  // V8_INSPECTOR_STRING_UTIL_H_

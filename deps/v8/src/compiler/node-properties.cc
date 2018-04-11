@@ -516,6 +516,27 @@ MaybeHandle<Map> NodeProperties::GetMapWitness(Node* node) {
 }
 
 // static
+bool NodeProperties::HasInstanceTypeWitness(Node* receiver, Node* effect,
+                                            InstanceType instance_type) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  switch (result) {
+    case NodeProperties::kUnreliableReceiverMaps:
+    case NodeProperties::kReliableReceiverMaps:
+      DCHECK_NE(0, receiver_maps.size());
+      for (size_t i = 0; i < receiver_maps.size(); ++i) {
+        if (receiver_maps[i]->instance_type() != instance_type) return false;
+      }
+      return true;
+
+    case NodeProperties::kNoReceiverMaps:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+// static
 bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
                                                    Node* dominator) {
   while (effect != dominator) {

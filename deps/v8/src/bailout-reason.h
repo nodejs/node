@@ -26,6 +26,7 @@ namespace internal {
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kInputStringTooLong, "Input string too long")                              \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
+  V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")              \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                 \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")           \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
@@ -55,8 +56,6 @@ namespace internal {
     "Should not directly enter OSR-compiled function")                         \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
-  V(kTheCurrentStackPointerIsBelowCsp,                                         \
-    "The current stack pointer is below csp")                                  \
   V(kTheStackWasCorruptedByMacroAssemblerCall,                                 \
     "The stack was corrupted by MacroAssembler::Call()")                       \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
@@ -89,6 +88,7 @@ namespace internal {
     "Wrong address or value passed to RecordWrite")                            \
   V(kWrongArgumentCountForInvokeIntrinsic,                                     \
     "Wrong number of arguments for intrinsic")                                 \
+  V(kWrongFunctionCodeStart, "Wrong value in code start register passed")      \
   V(kWrongFunctionContext, "Wrong context passed to function")
 
 #define BAILOUT_MESSAGES_LIST(V)                                            \
@@ -100,6 +100,7 @@ namespace internal {
     "Cyclic object state detected by escape analysis")                      \
   V(kFunctionBeingDebugged, "Function is being debugged")                   \
   V(kGraphBuildingFailed, "Optimized graph construction failed")            \
+  V(kFunctionTooBig, "Function is too big to be optimized")                 \
   V(kLiveEdit, "LiveEdit")                                                  \
   V(kNativeFunctionLiteral, "Native function literal")                      \
   V(kNotEnoughVirtualRegistersRegalloc,                                     \

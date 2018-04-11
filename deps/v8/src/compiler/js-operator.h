@@ -18,6 +18,7 @@ namespace internal {
 class AllocationSite;
 class BoilerplateDescription;
 class ConstantElementsPair;
+class FeedbackCell;
 class SharedFunctionInfo;
 
 namespace compiler {
@@ -533,18 +534,23 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
-                          VectorSlotPair const& feedback,
+                          Handle<FeedbackCell> feedback_cell, Handle<Code> code,
                           PretenureFlag pretenure)
-      : shared_info_(shared_info), feedback_(feedback), pretenure_(pretenure) {}
+      : shared_info_(shared_info),
+        feedback_cell_(feedback_cell),
+        code_(code),
+        pretenure_(pretenure) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  Handle<FeedbackCell> feedback_cell() const { return feedback_cell_; }
+  Handle<Code> code() const { return code_; }
   PretenureFlag pretenure() const { return pretenure_; }
 
  private:
-  const Handle<SharedFunctionInfo> shared_info_;
-  VectorSlotPair const feedback_;
-  const PretenureFlag pretenure_;
+  Handle<SharedFunctionInfo> const shared_info_;
+  Handle<FeedbackCell> const feedback_cell_;
+  Handle<Code> const code_;
+  PretenureFlag const pretenure_;
 };
 
 bool operator==(CreateClosureParameters const&, CreateClosureParameters const&);
@@ -652,10 +658,13 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
-                                VectorSlotPair const& feedback,
-                                PretenureFlag pretenure);
+                                Handle<FeedbackCell> feedback_cell,
+                                Handle<Code> code,
+                                PretenureFlag pretenure = NOT_TENURED);
   const Operator* CreateIterResultObject();
+  const Operator* CreateStringIterator();
   const Operator* CreateKeyValueArray();
+  const Operator* CreatePromise();
   const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
                                      VectorSlotPair const& feedback,
                                      int literal_flags, int number_of_elements);
@@ -675,12 +684,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       size_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
-      SpeculationMode speculation_mode = SpeculationMode::kAllowSpeculation);
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
   const Operator* CallWithArrayLike(CallFrequency frequency);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
-      SpeculationMode speculation_mode = SpeculationMode::kAllowSpeculation);
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
@@ -727,7 +736,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LoadModule(int32_t cell_index);
   const Operator* StoreModule(int32_t cell_index);
 
-  const Operator* ClassOf();
   const Operator* HasInPrototypeChain();
   const Operator* InstanceOf(const VectorSlotPair& feedback);
   const Operator* OrdinaryHasInstance();
@@ -742,14 +750,22 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   // Used to implement Ignition's SuspendGenerator bytecode.
   const Operator* GeneratorStore(int register_count);
 
-  // Used to implement Ignition's RestoreGeneratorState bytecode.
+  // Used to implement Ignition's SwitchOnGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();
+  const Operator* GeneratorRestoreContext();
+
   // Used to implement Ignition's ResumeGenerator bytecode.
   const Operator* GeneratorRestoreRegister(int index);
   const Operator* GeneratorRestoreInputOrDebugPos();
 
   const Operator* StackCheck();
   const Operator* Debugger();
+
+  const Operator* FulfillPromise();
+  const Operator* PerformPromiseThen();
+  const Operator* PromiseResolve();
+  const Operator* RejectPromise();
+  const Operator* ResolvePromise();
 
   const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
   const Operator* CreateCatchContext(const Handle<String>& name,

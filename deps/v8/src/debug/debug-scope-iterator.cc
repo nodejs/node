@@ -176,8 +176,7 @@ v8::debug::ScopeIterator::ScopeType DebugWasmScopeIterator::GetType() {
 v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
   DCHECK(!Done());
   Handle<WasmDebugInfo> debug_info(
-      WasmInterpreterEntryFrame::cast(frame_)->wasm_instance()->debug_info(),
-      isolate_);
+      WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
   switch (type_) {
     case debug::ScopeIterator::ScopeTypeGlobal:
       return Utils::ToLocal(WasmDebugInfo::GetGlobalScopeObject(

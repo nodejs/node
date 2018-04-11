@@ -139,6 +139,8 @@ enum FreeListCategoryType {
 
 enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 
+enum class SpaceAccountingMode { kSpaceAccounted, kSpaceUnaccounted };
+
 enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_OLD,
@@ -148,15 +150,10 @@ enum RememberedSetType {
 // A free list category maintains a linked list of free memory blocks.
 class FreeListCategory {
  public:
-  static const int kSize = kIntSize +      // FreeListCategoryType type_
-                           kIntSize +      // padding for type_
-                           kSizetSize +    // size_t available_
-                           kPointerSize +  // FreeSpace* top_
-                           kPointerSize +  // FreeListCategory* prev_
-                           kPointerSize;   // FreeListCategory* next_
-
-  FreeListCategory()
-      : type_(kInvalidCategory),
+  FreeListCategory(FreeList* free_list, Page* page)
+      : free_list_(free_list),
+        page_(page),
+        type_(kInvalidCategory),
         available_(0),
         top_(nullptr),
         prev_(nullptr),
@@ -180,7 +177,7 @@ class FreeListCategory {
   // category is currently unlinked.
   void Relink();
 
-  void Free(FreeSpace* node, size_t size_in_bytes, FreeMode mode);
+  void Free(Address address, size_t size_in_bytes, FreeMode mode);
 
   // Picks a node from the list and stores its size in |node_size|. Returns
   // nullptr if the category is empty.
@@ -196,10 +193,12 @@ class FreeListCategory {
   FreeSpace* SearchForNodeInList(size_t minimum_size, size_t* node_size);
 
   inline FreeList* owner();
-  inline Page* page() const;
+  inline Page* page() const { return page_; }
   inline bool is_linked();
   bool is_empty() { return top() == nullptr; }
   size_t available() const { return available_; }
+
+  void set_free_list(FreeList* free_list) { free_list_ = free_list; }
 
 #ifdef DEBUG
   size_t SumFreeList();
@@ -218,6 +217,12 @@ class FreeListCategory {
   FreeListCategory* next() { return next_; }
   void set_next(FreeListCategory* next) { next_ = next; }
 
+  // This FreeListCategory is owned by the given free_list_.
+  FreeList* free_list_;
+
+  // This FreeListCategory holds free list entries of the given page_.
+  Page* const page_;
+
   // |type_|: The type of this free list category.
   FreeListCategoryType type_;
 
@@ -233,6 +238,8 @@ class FreeListCategory {
 
   friend class FreeList;
   friend class PagedSpace;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeListCategory);
 };
 
 // MemoryChunk represents a memory region owned by a specific space.
@@ -370,7 +377,7 @@ class MemoryChunk {
       + kSizetSize    // size_t wasted_memory_
       + kPointerSize  // AtomicValue next_chunk_
       + kPointerSize  // AtomicValue prev_chunk_
-      + FreeListCategory::kSize * kNumberOfCategories
+      + kPointerSize * kNumberOfCategories
       // FreeListCategory categories_[kNumberOfCategories]
       + kPointerSize   // LocalArrayBufferTracker* local_tracker_
       + kIntptrSize    // intptr_t young_generation_live_byte_count_
@@ -610,6 +617,8 @@ class MemoryChunk {
 
   void set_owner(Space* space) { owner_.SetValue(space); }
 
+  bool IsPagedSpace() const;
+
   void InsertAfter(MemoryChunk* other);
   void Unlink();
 
@@ -619,8 +628,6 @@ class MemoryChunk {
 
   void SetReadAndExecutable();
   void SetReadAndWritable();
-
-  inline void InitializeFreeListCategories();
 
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
@@ -699,7 +706,7 @@ class MemoryChunk {
   // prev_chunk_ holds a pointer of type MemoryChunk
   base::AtomicValue<MemoryChunk*> prev_chunk_;
 
-  FreeListCategory categories_[kNumberOfCategories];
+  FreeListCategory* categories_[kNumberOfCategories];
 
   LocalArrayBufferTracker* local_tracker_;
 
@@ -788,7 +795,7 @@ class Page : public MemoryChunk {
   template <typename Callback>
   inline void ForAllFreeListCategories(Callback callback) {
     for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-      callback(&categories_[i]);
+      callback(categories_[i]);
     }
   }
 
@@ -820,7 +827,7 @@ class Page : public MemoryChunk {
   }
 
   FreeListCategory* free_list_category(FreeListCategoryType type) {
-    return &categories_[type];
+    return categories_[type];
   }
 
   bool is_anchor() { return IsFlagSet(Page::ANCHOR); }
@@ -844,6 +851,10 @@ class Page : public MemoryChunk {
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
   void DestroyBlackArea(Address start, Address end);
+
+  void InitializeFreeListCategories();
+  void AllocateFreeListCategories();
+  void ReleaseFreeListCategories();
 
 #ifdef DEBUG
   void Print();
@@ -1170,14 +1181,14 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
         : heap_(heap),
           allocator_(allocator),
           pending_unmapping_tasks_semaphore_(0),
-          concurrent_unmapping_tasks_active_(0) {
+          pending_unmapping_tasks_(0),
+          active_unmapping_tasks_(0) {
       chunks_[kRegular].reserve(kReservedQueueingSlots);
       chunks_[kPooled].reserve(kReservedQueueingSlots);
     }
 
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
-      if ((chunk->size() == Page::kPageSize) &&
-          (chunk->executable() != EXECUTABLE)) {
+      if (chunk->IsPagedSpace() && chunk->executable() != EXECUTABLE) {
         AddMemoryChunkSafe<kRegular>(chunk);
       } else {
         AddMemoryChunkSafe<kNonRegular>(chunk);
@@ -1238,6 +1249,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
       return chunk;
     }
 
+    bool MakeRoomForNewTasks();
+
     template <FreeMode mode>
     void PerformFreeMemoryOnQueuedChunks();
 
@@ -1247,7 +1260,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
     CancelableTaskManager::Id task_ids_[kMaxUnmapperTasks];
     base::Semaphore pending_unmapping_tasks_semaphore_;
-    intptr_t concurrent_unmapping_tasks_active_;
+    intptr_t pending_unmapping_tasks_;
+    base::AtomicNumber<intptr_t> active_unmapping_tasks_;
 
     friend class MemoryAllocator;
   };
@@ -1359,6 +1373,12 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // and false otherwise.
   bool CommitBlock(Address start, size_t size, Executability executable);
 
+  // Checks if an allocated MemoryChunk was intended to be used for executable
+  // memory.
+  bool IsMemoryChunkExecutable(MemoryChunk* chunk) {
+    return executable_memory_.find(chunk) != executable_memory_.end();
+  }
+
   // Uncommit a contiguous block of memory [start..(start+size)[.
   // start is not nullptr, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
@@ -1409,6 +1429,17 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     } while ((high > ptr) && !highest_ever_allocated_.TrySetValue(ptr, high));
   }
 
+  void RegisterExecutableMemoryChunk(MemoryChunk* chunk) {
+    DCHECK(chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+    DCHECK_EQ(executable_memory_.find(chunk), executable_memory_.end());
+    executable_memory_.insert(chunk);
+  }
+
+  void UnregisterExecutableMemoryChunk(MemoryChunk* chunk) {
+    DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
+    executable_memory_.erase(chunk);
+  }
+
   Isolate* isolate_;
   CodeRange* code_range_;
 
@@ -1430,6 +1461,9 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
   VirtualMemory last_chunk_;
   Unmapper unmapper_;
+
+  // Data structure to remember allocated executable memory chunks.
+  std::unordered_set<MemoryChunk*> executable_memory_;
 
   friend class heap::TestCodeRangeScope;
 
@@ -1731,7 +1765,7 @@ class V8_EXPORT_PRIVATE FreeList {
     return kHuge;
   }
 
-  explicit FreeList(PagedSpace* owner);
+  FreeList();
 
   // Adds a node on the free list. The block of size {size_in_bytes} starting
   // at {start} is placed on the free list. The return value is the number of
@@ -1779,7 +1813,6 @@ class V8_EXPORT_PRIVATE FreeList {
   size_t EvictFreeListItems(Page* page);
   bool ContainsPageFreeListItems(Page* page);
 
-  PagedSpace* owner() { return owner_; }
   size_t wasted_bytes() { return wasted_bytes_.Value(); }
 
   template <typename Callback>
@@ -1874,13 +1907,10 @@ class V8_EXPORT_PRIVATE FreeList {
     return categories_[type];
   }
 
-  PagedSpace* owner_;
   base::AtomicNumber<size_t> wasted_bytes_;
   FreeListCategory* categories_[kNumberOfCategories];
 
   friend class FreeListCategory;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
 
 // LocalAllocationBuffer represents a linear allocation area that is created
@@ -2086,11 +2116,22 @@ class V8_EXPORT_PRIVATE PagedSpace
   MUST_USE_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationAlignment alignment);
 
+  size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
+    if (size_in_bytes == 0) return 0;
+    heap_->CreateFillerObjectAt(start, static_cast<int>(size_in_bytes),
+                                ClearRecordedSlots::kNo);
+    if (mode == SpaceAccountingMode::kSpaceAccounted) {
+      return AccountedFree(start, size_in_bytes);
+    } else {
+      return UnaccountedFree(start, size_in_bytes);
+    }
+  }
+
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
   // If add_to_freelist is false then just accounting stats are updated and
   // no attempt to add area to free list is made.
-  size_t Free(Address start, size_t size_in_bytes) {
+  size_t AccountedFree(Address start, size_t size_in_bytes) {
     size_t wasted = free_list_.Free(start, size_in_bytes, kLinkCategory);
     Page* page = Page::FromAddress(start);
     accounting_stats_.DecreaseAllocatedBytes(size_in_bytes, page);
