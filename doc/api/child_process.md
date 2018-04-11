@@ -1094,7 +1094,7 @@ changes:
 * `options` {Object} The `options` argument, if present, is an object used to
   parameterize the sending of certain types of handles. `options` supports
   the following properties:
-  * `keepOpen` - A Boolean value that can be used when passing instances of
+  * `keepOpen` {boolean} A value that can be used when passing instances of
     `net.Socket`. When `true`, the socket is kept open in the sending process.
     **Default:** `false`.
 * `callback` {Function}
