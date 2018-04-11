@@ -192,32 +192,40 @@ a.throws(() => thrower(TypeError), (err) => {
   const noop = () => {};
   assert.throws(
     () => { a.throws((noop)); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception\.$/,
-      operator: 'throws'
-    }));
+      message: 'Missing expected exception.',
+      operator: 'throws',
+      actual: undefined,
+      expected: undefined
+    });
 
   assert.throws(
     () => { a.throws(noop, TypeError); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception \(TypeError\)\.$/
-    }));
+      message: 'Missing expected exception (TypeError).',
+      actual: undefined,
+      expected: TypeError
+    });
 
   assert.throws(
     () => { a.throws(noop, 'fhqwhgads'); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception: fhqwhgads$/
-    }));
+      message: 'Missing expected exception: fhqwhgads',
+      actual: undefined,
+      expected: undefined
+    });
 
   assert.throws(
     () => { a.throws(noop, TypeError, 'fhqwhgads'); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception \(TypeError\): fhqwhgads$/
-    }));
+      message: 'Missing expected exception (TypeError): fhqwhgads',
+      actual: undefined,
+      expected: TypeError
+    });
 
   let threw = false;
   try {
