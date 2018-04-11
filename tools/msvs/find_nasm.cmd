@@ -16,4 +16,4 @@ IF EXIST "%ProgramFiles(x86)%\NASM\nasm.exe" (
   EXIT /B 0
 )
 
-EXIT /B 1
+EXIT /B 0
