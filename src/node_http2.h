@@ -581,6 +581,10 @@ class Http2Stream : public AsyncWrap,
   // Submit informational headers for this stream
   int SubmitInfo(nghttp2_nv* nva, size_t len);
 
+  // Submit trailing headers for this stream
+  int SubmitTrailers(nghttp2_nv* nva, size_t len);
+  void OnTrailers();
+
   // Submit a PRIORITY frame for this stream
   int SubmitPriority(nghttp2_priority_spec* prispec, bool silent = false);
 
@@ -670,25 +674,6 @@ class Http2Stream : public AsyncWrap,
 
   size_t self_size() const override { return sizeof(*this); }
 
-  // Handling Trailer Headers
-  class SubmitTrailers {
-   public:
-    void Submit(nghttp2_nv* trailers, size_t length) const;
-
-    SubmitTrailers(Http2Session* sesion,
-                   Http2Stream* stream,
-                   uint32_t* flags);
-
-   private:
-    Http2Session* const session_;
-    Http2Stream* const stream_;
-    uint32_t* const flags_;
-
-    friend class Http2Stream;
-  };
-
-  void OnTrailers(const SubmitTrailers& submit_trailers);
-
   // JavaScript API
   static void GetID(const FunctionCallbackInfo<Value>& args);
   static void Destroy(const FunctionCallbackInfo<Value>& args);
@@ -697,6 +682,7 @@ class Http2Stream : public AsyncWrap,
   static void PushPromise(const FunctionCallbackInfo<Value>& args);
   static void RefreshState(const FunctionCallbackInfo<Value>& args);
   static void Info(const FunctionCallbackInfo<Value>& args);
+  static void Trailers(const FunctionCallbackInfo<Value>& args);
   static void Respond(const FunctionCallbackInfo<Value>& args);
   static void RstStream(const FunctionCallbackInfo<Value>& args);
 
@@ -858,8 +844,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
   ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
 
   size_t self_size() const override { return sizeof(*this); }
-
-  void GetTrailers(Http2Stream* stream, uint32_t* flags);
 
   // Handle reads/writes from the underlying network transport.
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
