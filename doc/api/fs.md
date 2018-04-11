@@ -360,7 +360,7 @@ Emitted when the `fs.ReadStream`'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the ReadStream.
+* `fd` {integer} Integer file descriptor used by the `ReadStream`.
 
 Emitted when the `fs.ReadStream`'s file descriptor has been opened.
 
@@ -675,9 +675,9 @@ Emitted when the `WriteStream`'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the WriteStream.
+* `fd` {integer} Integer file descriptor used by the `WriteStream`.
 
-Emitted when the WriteStream's file is opened.
+Emitted when the `WriteStream`'s file is opened.
 
 ### writeStream.bytesWritten
 <!-- YAML
