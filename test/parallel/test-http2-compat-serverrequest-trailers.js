@@ -50,15 +50,18 @@ server.listen(0, common.mustCall(function() {
       ':scheme': 'http',
       ':authority': `localhost:${port}`
     };
-    const request = client.request(headers, {
-      getTrailers(trailers) {
-        trailers['x-fOo'] = 'xOxOxOx';
-        trailers['x-foO'] = 'OxOxOxO';
-        trailers['X-fOo'] = 'xOxOxOx';
-        trailers['X-foO'] = 'OxOxOxO';
-        trailers['x-foo-test'] = 'test, test';
-      }
+    const request = client.request(headers, { waitForTrailers: true });
+
+    request.on('wantTrailers', () => {
+      request.sendTrailers({
+        'x-fOo': 'xOxOxOx',
+        'x-foO': 'OxOxOxO',
+        'X-fOo': 'xOxOxOx',
+        'X-foO': 'OxOxOxO',
+        'x-foo-test': 'test, test'
+      });
     });
+
     request.resume();
     request.on('end', common.mustCall(function() {
       server.close();
