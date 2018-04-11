@@ -35,7 +35,15 @@ async function doRead() {
   assert.deepStrictEqual(buf, data);
 }
 
+async function doReadWithEncoding() {
+  const data = await fsPromises.readFile(dest, 'utf-8');
+  const syncData = fs.readFileSync(dest, 'utf-8');
+  assert.strictEqual(typeof data, 'string');
+  assert.deepStrictEqual(data, syncData);
+}
+
 doWrite()
   .then(doAppend)
   .then(doRead)
+  .then(doReadWithEncoding)
   .then(common.mustCall());

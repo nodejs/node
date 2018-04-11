@@ -54,8 +54,9 @@
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
   type* holder::name() const {                                        \
+    type* value = type::cast(READ_FIELD(this, offset));               \
     DCHECK(get_condition);                                            \
-    return type::cast(READ_FIELD(this, offset));                      \
+    return value;                                                     \
   }                                                                   \
   void holder::set_##name(type* value, WriteBarrierMode mode) {       \
     DCHECK(set_condition);                                            \

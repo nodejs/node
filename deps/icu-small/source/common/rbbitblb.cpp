@@ -22,6 +22,7 @@
 #include "rbbidata.h"
 #include "cstring.h"
 #include "uassert.h"
+#include "uvectr32.h"
 #include "cmemory.h"
 
 U_NAMESPACE_BEGIN
@@ -761,7 +762,7 @@ void     RBBITableBuilder::flagAcceptingStates() {
                 // if sd->fAccepting already had a value other than 0 or -1, leave it be.
 
                 // If the end marker node is from a look-ahead rule, set
-                //   the fLookAhead field or this state also.
+                //   the fLookAhead field for this state also.
                 if (endMarker->fLookAheadEnd) {
                     // TODO:  don't change value if already set?
                     // TODO:  allow for more than one active look-ahead rule in engine.
@@ -1077,7 +1078,128 @@ void RBBITableBuilder::printPosSets(RBBINode *n) {
 }
 #endif
 
+//
+//    findDuplCharClassFrom()
+//
+bool RBBITableBuilder::findDuplCharClassFrom(int32_t &baseCategory, int32_t &duplCategory) {
+    int32_t numStates = fDStates->size();
+    int32_t numCols = fRB->fSetBuilder->getNumCharCategories();
 
+    uint16_t table_base;
+    uint16_t table_dupl;
+    for (; baseCategory < numCols-1; ++baseCategory) {
+        for (duplCategory=baseCategory+1; duplCategory < numCols; ++duplCategory) {
+             for (int32_t state=0; state<numStates; state++) {
+                 RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(state);
+                 table_base = (uint16_t)sd->fDtran->elementAti(baseCategory);
+                 table_dupl = (uint16_t)sd->fDtran->elementAti(duplCategory);
+                 if (table_base != table_dupl) {
+                     break;
+                 }
+             }
+             if (table_base == table_dupl) {
+                 return true;
+             }
+        }
+    }
+    return false;
+}
+
+
+//
+//    removeColumn()
+//
+void RBBITableBuilder::removeColumn(int32_t column) {
+    int32_t numStates = fDStates->size();
+    for (int32_t state=0; state<numStates; state++) {
+        RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(state);
+        U_ASSERT(column < sd->fDtran->size());
+        sd->fDtran->removeElementAt(column);
+    }
+}
+
+/*
+ * findDuplicateState
+ */
+bool RBBITableBuilder::findDuplicateState(int32_t &firstState, int32_t &duplState) {
+    int32_t numStates = fDStates->size();
+    int32_t numCols = fRB->fSetBuilder->getNumCharCategories();
+
+    for (; firstState<numStates-1; ++firstState) {
+        RBBIStateDescriptor *firstSD = (RBBIStateDescriptor *)fDStates->elementAt(firstState);
+        for (duplState=firstState+1; duplState<numStates; ++duplState) {
+            RBBIStateDescriptor *duplSD = (RBBIStateDescriptor *)fDStates->elementAt(duplState);
+            if (firstSD->fAccepting != duplSD->fAccepting ||
+                firstSD->fLookAhead != duplSD->fLookAhead ||
+                firstSD->fTagsIdx   != duplSD->fTagsIdx) {
+                continue;
+            }
+            bool rowsMatch = true;
+            for (int32_t col=0; col < numCols; ++col) {
+                int32_t firstVal = firstSD->fDtran->elementAti(col);
+                int32_t duplVal = duplSD->fDtran->elementAti(col);
+                if (!((firstVal == duplVal) ||
+                        ((firstVal == firstState || firstVal == duplState) &&
+                        (duplVal  == firstState || duplVal  == duplState)))) {
+                    rowsMatch = false;
+                    break;
+                }
+            }
+            if (rowsMatch) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void RBBITableBuilder::removeState(int32_t keepState, int32_t duplState) {
+    U_ASSERT(keepState < duplState);
+    U_ASSERT(duplState < fDStates->size());
+
+    RBBIStateDescriptor *duplSD = (RBBIStateDescriptor *)fDStates->elementAt(duplState);
+    fDStates->removeElementAt(duplState);
+    delete duplSD;
+
+    int32_t numStates = fDStates->size();
+    int32_t numCols = fRB->fSetBuilder->getNumCharCategories();
+    for (int32_t state=0; state<numStates; ++state) {
+        RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(state);
+        for (int32_t col=0; col<numCols; col++) {
+            int32_t existingVal = sd->fDtran->elementAti(col);
+            int32_t newVal = existingVal;
+            if (existingVal == duplState) {
+                newVal = keepState;
+            } else if (existingVal > duplState) {
+                newVal = existingVal - 1;
+            }
+            sd->fDtran->setElementAt(newVal, col);
+        }
+        if (sd->fAccepting == duplState) {
+            sd->fAccepting = keepState;
+        } else if (sd->fAccepting > duplState) {
+            sd->fAccepting--;
+        }
+        if (sd->fLookAhead == duplState) {
+            sd->fLookAhead = keepState;
+        } else if (sd->fLookAhead > duplState) {
+            sd->fLookAhead--;
+        }
+    }
+}
+
+
+/*
+ * RemoveDuplicateStates
+ */
+void RBBITableBuilder::removeDuplicateStates() {
+    int32_t firstState = 3;
+    int32_t duplicateState = 0;
+    while (findDuplicateState(firstState, duplicateState)) {
+        // printf("Removing duplicate states (%d, %d)\n", firstState, duplicateState);
+        removeState(firstState, duplicateState);
+    }
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -1095,19 +1217,15 @@ int32_t  RBBITableBuilder::getTableSize() const {
         return 0;
     }
 
-    size    = sizeof(RBBIStateTable) - 4;    // The header, with no rows to the table.
+    size    = offsetof(RBBIStateTable, fTableData);    // The header, with no rows to the table.
 
     numRows = fDStates->size();
     numCols = fRB->fSetBuilder->getNumCharCategories();
 
-    //  Note  The declaration of RBBIStateTableRow is for a table of two columns.
-    //        Therefore we subtract two from numCols when determining
-    //        how much storage to add to a row for the total columns.
-    rowSize = sizeof(RBBIStateTableRow) + sizeof(uint16_t)*(numCols-2);
+    rowSize = offsetof(RBBIStateTableRow, fNextState) + sizeof(uint16_t)*numCols;
     size   += numRows * rowSize;
     return size;
 }
-
 
 
 //-----------------------------------------------------------------------------
@@ -1126,14 +1244,14 @@ void RBBITableBuilder::exportTable(void *where) {
         return;
     }
 
-    if (fRB->fSetBuilder->getNumCharCategories() > 0x7fff ||
+    int32_t catCount = fRB->fSetBuilder->getNumCharCategories();
+    if (catCount > 0x7fff ||
         fDStates->size() > 0x7fff) {
         *fStatus = U_BRK_INTERNAL_ERROR;
         return;
     }
 
-    table->fRowLen    = sizeof(RBBIStateTableRow) +
-                            sizeof(uint16_t) * (fRB->fSetBuilder->getNumCharCategories() - 2);
+    table->fRowLen    = offsetof(RBBIStateTableRow, fNextState) + sizeof(uint16_t) * catCount;
     table->fNumStates = fDStates->size();
     table->fFlags     = 0;
     if (fRB->fLookAheadHardBreak) {
@@ -1152,7 +1270,7 @@ void RBBITableBuilder::exportTable(void *where) {
         row->fAccepting = (int16_t)sd->fAccepting;
         row->fLookAhead = (int16_t)sd->fLookAhead;
         row->fTagIdx    = (int16_t)sd->fTagsIdx;
-        for (col=0; col<fRB->fSetBuilder->getNumCharCategories(); col++) {
+        for (col=0; col<catCount; col++) {
             row->fNextState[col] = (uint16_t)sd->fDtran->elementAti(col);
         }
     }
@@ -1259,7 +1377,7 @@ RBBIStateDescriptor::RBBIStateDescriptor(int lastInputSymbol, UErrorCode *fStatu
     fPositions = NULL;
     fDtran     = NULL;
 
-    fDtran     = new UVector(lastInputSymbol+1, *fStatus);
+    fDtran     = new UVector32(lastInputSymbol+1, *fStatus);
     if (U_FAILURE(*fStatus)) {
         return;
     }
@@ -1267,7 +1385,7 @@ RBBIStateDescriptor::RBBIStateDescriptor(int lastInputSymbol, UErrorCode *fStatu
         *fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
-    fDtran->setSize(lastInputSymbol+1, *fStatus);    // fDtran needs to be pre-sized.
+    fDtran->setSize(lastInputSymbol+1);    // fDtran needs to be pre-sized.
                                            //   It is indexed by input symbols, and will
                                            //   hold  the next state number for each
                                            //   symbol.

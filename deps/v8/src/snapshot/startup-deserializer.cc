@@ -37,7 +37,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     isolate->heap()->IterateSmiRoots(this);
     isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
     isolate->heap()->RepairFreeListsAfterDeserialization();
-    isolate->heap()->IterateWeakRoots(this, VISIT_ALL);
+    isolate->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
     DeserializeDeferredObjects();
     RestoreExternalReferenceRedirectors(accessor_infos());
     RestoreExternalReferenceRedirectors(call_handler_infos());

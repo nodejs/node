@@ -114,14 +114,14 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
-  String::Utf8Value flags(args[0]);
+  String::Utf8Value flags(args.GetIsolate(), args[0]);
   V8::SetFlagsFromString(*flags, flags.length());
 }
 
 
-void InitializeV8Bindings(Local<Object> target,
-                          Local<Value> unused,
-                          Local<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "cachedDataVersionTag", CachedDataVersionTag);
@@ -201,4 +201,4 @@ void InitializeV8Bindings(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(v8, node::InitializeV8Bindings)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(v8, node::Initialize)

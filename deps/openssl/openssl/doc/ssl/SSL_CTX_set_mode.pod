@@ -52,7 +52,7 @@ non-blocking write().
 
 Never bother the application with retries if the transport is blocking.
 If a renegotiation take place during normal operation, a
-L<SSL_read(3)|SSL_read(3)> or L<SSL_write(3)|SSL_write(3)> would return
+L<SSL_read(3)> or L<SSL_write(3)> would return
 with -1 and indicate the need to retry with SSL_ERROR_WANT_READ.
 In a non-blocking environment applications must be prepared to handle
 incomplete read/write operations.
@@ -64,10 +64,8 @@ return after the handshake and successful completion.
 =item SSL_MODE_RELEASE_BUFFERS
 
 When we no longer need a read buffer or a write buffer for a given SSL,
-then release the memory we were using to hold it.  Released memory is
-either appended to a list of unused RAM chunks on the SSL_CTX, or simply
-freed if the list of unused chunks would become longer than 
-SSL_CTX->freelist_max_len, which defaults to 32.  Using this flag can
+then release the memory we were using to hold it.
+Using this flag can
 save around 34k per idle SSL connection.
 This flag has no effect on SSL v2 connections, or on DTLS connections.
 
@@ -81,6 +79,12 @@ DO NOT ENABLE THIS if your application attempts a normal handshake.
 Only use this in explicit fallback retries, following the guidance
 in draft-ietf-tls-downgrade-scsv-00.
 
+=item SSL_MODE_ASYNC
+
+Enable asynchronous processing. TLS I/O operations may indicate a retry with
+SSL_ERROR_WANT_ASYNC with this mode set if an asynchronous capable engine is
+used to perform cryptographic operations. See L<SSL_get_error(3)>.
+
 =back
 
 =head1 RETURN VALUES
@@ -92,10 +96,19 @@ SSL_CTX_get_mode() and SSL_get_mode() return the current bitmask.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<SSL_read(3)|SSL_read(3)>, L<SSL_write(3)|SSL_write(3)>
+L<ssl(3)>, L<SSL_read(3)>, L<SSL_write(3)>, L<SSL_get_error(3)>
 
 =head1 HISTORY
 
-SSL_MODE_AUTO_RETRY as been added in OpenSSL 0.9.6.
+SSL_MODE_ASYNC was first added to OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

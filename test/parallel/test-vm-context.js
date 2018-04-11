@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const vm = require('vm');
@@ -44,9 +44,12 @@ assert.strictEqual(3, context.foo);
 assert.strictEqual('lala', context.thing);
 
 // Issue GH-227:
-assert.throws(() => {
+common.expectsError(() => {
   vm.runInNewContext('', null, 'some.js');
-}, /^TypeError: sandbox must be an object$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError
+});
 
 // Issue GH-1140:
 // Test runInContext signature
@@ -61,19 +64,25 @@ try {
 // This is outside of catch block to confirm catch block ran.
 assert.strictEqual(gh1140Exception.toString(), 'Error');
 
-// GH-558, non-context argument segfaults / raises assertion
-const nonContextualSandboxErrorMsg =
-  /^TypeError: contextifiedSandbox argument must be an object\.$/;
-const contextifiedSandboxErrorMsg =
-    /^TypeError: sandbox argument must have been converted to a context\.$/;
+const nonContextualSandboxError = {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: /must be of type Object/
+};
+const contextifiedSandboxError = {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: /must be of type vm\.Context/
+};
+
 [
-  [undefined, nonContextualSandboxErrorMsg],
-  [null, nonContextualSandboxErrorMsg], [0, nonContextualSandboxErrorMsg],
-  [0.0, nonContextualSandboxErrorMsg], ['', nonContextualSandboxErrorMsg],
-  [{}, contextifiedSandboxErrorMsg], [[], contextifiedSandboxErrorMsg]
+  [undefined, nonContextualSandboxError],
+  [null, nonContextualSandboxError], [0, nonContextualSandboxError],
+  [0.0, nonContextualSandboxError], ['', nonContextualSandboxError],
+  [{}, contextifiedSandboxError], [[], contextifiedSandboxError]
 ].forEach((e) => {
-  assert.throws(() => { script.runInContext(e[0]); }, e[1]);
-  assert.throws(() => { vm.runInContext('', e[0]); }, e[1]);
+  common.expectsError(() => { script.runInContext(e[0]); }, e[1]);
+  common.expectsError(() => { vm.runInContext('', e[0]); }, e[1]);
 });
 
 // Issue GH-693:

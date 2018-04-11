@@ -54,13 +54,13 @@ Notation Notation::simple() {
 
 ScientificNotation
 ScientificNotation::withMinExponentDigits(int32_t minExponentDigits) const {
-    if (minExponentDigits >= 0 && minExponentDigits < kMaxIntFracSig) {
+    if (minExponentDigits >= 1 && minExponentDigits <= kMaxIntFracSig) {
         ScientificSettings settings = fUnion.scientific;
-        settings.fMinExponentDigits = (int8_t) minExponentDigits;
+        settings.fMinExponentDigits = static_cast<digits_t>(minExponentDigits);
         NotationUnion union_ = {settings};
         return {NTN_SCIENTIFIC, union_};
     } else {
-        return {U_NUMBER_DIGIT_WIDTH_OUTOFBOUNDS_ERROR};
+        return {U_NUMBER_ARG_OUTOFBOUNDS_ERROR};
     }
 }
 

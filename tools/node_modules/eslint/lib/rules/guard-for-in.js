@@ -26,16 +26,44 @@ module.exports = {
         return {
 
             ForInStatement(node) {
+                const body = node.body;
 
-                /*
-                 * If the for-in statement has {}, then the real body is the body
-                 * of the BlockStatement. Otherwise, just use body as provided.
-                 */
-                const body = node.body.type === "BlockStatement" ? node.body.body[0] : node.body;
-
-                if (body && body.type !== "IfStatement") {
-                    context.report({ node, message: "The body of a for-in should be wrapped in an if statement to filter unwanted properties from the prototype." });
+                // empty statement
+                if (body.type === "EmptyStatement") {
+                    return;
                 }
+
+                // if statement
+                if (body.type === "IfStatement") {
+                    return;
+                }
+
+                // empty block
+                if (body.type === "BlockStatement" && body.body.length === 0) {
+                    return;
+                }
+
+                // block with just if statement
+                if (body.type === "BlockStatement" && body.body.length === 1 && body.body[0].type === "IfStatement") {
+                    return;
+                }
+
+                // block that starts with if statement
+                if (body.type === "BlockStatement" && body.body.length >= 1 && body.body[0].type === "IfStatement") {
+                    const i = body.body[0];
+
+                    // ... whose consequent is a continue
+                    if (i.consequent.type === "ContinueStatement") {
+                        return;
+                    }
+
+                    // ... whose consequent is a block that contains only a continue
+                    if (i.consequent.type === "BlockStatement" && i.consequent.body.length === 1 && i.consequent.body[0].type === "ContinueStatement") {
+                        return;
+                    }
+                }
+
+                context.report({ node, message: "The body of a for-in should be wrapped in an if statement to filter unwanted properties from the prototype." });
             }
         };
 

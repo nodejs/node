@@ -67,7 +67,8 @@ class InspectorSocketServer {
 
   // Session connection lifecycle
   void Accept(int server_port, uv_stream_t* server_socket);
-  bool HandleGetRequest(int session_id, const std::string& path);
+  bool HandleGetRequest(int session_id, const std::string& host,
+                        const std::string& path);
   void SessionStarted(int session_id, const std::string& target_id,
                       const std::string& ws_id);
   void SessionTerminated(int session_id);
@@ -77,7 +78,8 @@ class InspectorSocketServer {
   SocketSession* Session(int session_id);
 
  private:
-  void SendListResponse(InspectorSocket* socket, SocketSession* session);
+  void SendListResponse(InspectorSocket* socket, const std::string& host,
+                        SocketSession* session);
   bool TargetExists(const std::string& id);
 
   enum class ServerState {kNew, kRunning, kStopping, kStopped};

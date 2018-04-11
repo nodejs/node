@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2010-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -42,8 +49,8 @@
 # below and combine it with reduction algorithm from x86 module.
 # Performance improvement over previous version varies from 65% on
 # Snapdragon S4 to 110% on Cortex A9. In absolute terms Cortex A8
-# processes one byte in 8.45 cycles, A9 - in 10.2, Snapdragon S4 -
-# in 9.33.
+# processes one byte in 8.45 cycles, A9 - in 10.2, A15 - in 7.63,
+# Snapdragon S4 - in 9.33.
 #
 # Câmara, D.; Gouvêa, C. P. L.; López, J. & Dahab, R.: Fast Software
 # Polynomial Multiplication on ARM Processors using the NEON Engine.
@@ -71,8 +78,20 @@
 # *native* byte order on current platform. See gcm128.c for working
 # example...
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
-open STDOUT,">$output";
+$flavour = shift;
+if ($flavour=~/\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
+else { while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {} }
+
+if ($flavour && $flavour ne "void") {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+    die "can't locate arm-xlate.pl";
+
+    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+} else {
+    open STDOUT,">$output";
+}
 
 $Xi="r0";	# argument block
 $Htbl="r1";
@@ -124,11 +143,18 @@ $code=<<___;
 #include "arm_arch.h"
 
 .text
+#if defined(__thumb2__) || defined(__clang__)
+.syntax	unified
+#endif
+#if defined(__thumb2__)
+.thumb
+#else
 .code	32
+#endif
 
-#ifdef __clang__
-#define ldrplb	ldrbpl
-#define ldrneb	ldrbne
+#ifdef  __clang__
+#define ldrplb  ldrbpl
+#define ldrneb  ldrbne
 #endif
 
 .type	rem_4bit,%object
@@ -142,19 +168,27 @@ rem_4bit:
 
 .type	rem_4bit_get,%function
 rem_4bit_get:
-	sub	$rem_4bit,pc,#8
-	sub	$rem_4bit,$rem_4bit,#32	@ &rem_4bit
+#if defined(__thumb2__)
+	adr	$rem_4bit,rem_4bit
+#else
+	sub	$rem_4bit,pc,#8+32	@ &rem_4bit
+#endif
 	b	.Lrem_4bit_got
+	nop
 	nop
 .size	rem_4bit_get,.-rem_4bit_get
 
 .global	gcm_ghash_4bit
 .type	gcm_ghash_4bit,%function
+.align	4
 gcm_ghash_4bit:
-	sub	r12,pc,#8
+#if defined(__thumb2__)
+	adr	r12,rem_4bit
+#else
+	sub	r12,pc,#8+48		@ &rem_4bit
+#endif
 	add	$len,$inp,$len		@ $len to point at the end
 	stmdb	sp!,{r3-r11,lr}		@ save $len/end too
-	sub	r12,r12,#48		@ &rem_4bit
 
 	ldmia	r12,{r4-r11}		@ copy rem_4bit ...
 	stmdb	sp!,{r4-r11}		@ ... to stack
@@ -201,6 +235,9 @@ gcm_ghash_4bit:
 	eor	$Zlh,$Zlh,$Zhl,lsl#28
 	ldrh	$Tll,[sp,$nlo]		@ rem_4bit[rem]
 	eor	$Zhl,$Thl,$Zhl,lsr#4
+#ifdef	__thumb2__
+	it	pl
+#endif
 	ldrplb	$nlo,[$inp,$cnt]
 	eor	$Zhl,$Zhl,$Zhh,lsl#28
 	eor	$Zhh,$Thh,$Zhh,lsr#4
@@ -211,6 +248,9 @@ gcm_ghash_4bit:
 	add	$nhi,$nhi,$nhi
 	ldmia	$Thh,{$Tll-$Thh}	@ load Htbl[nhi]
 	eor	$Zll,$Tll,$Zll,lsr#4
+#ifdef	__thumb2__
+	it	pl
+#endif
 	ldrplb	$Tll,[$Xi,$cnt]
 	eor	$Zll,$Zll,$Zlh,lsl#28
 	eor	$Zlh,$Tlh,$Zlh,lsr#4
@@ -218,8 +258,14 @@ gcm_ghash_4bit:
 	eor	$Zlh,$Zlh,$Zhl,lsl#28
 	eor	$Zhl,$Thl,$Zhl,lsr#4
 	eor	$Zhl,$Zhl,$Zhh,lsl#28
+#ifdef	__thumb2__
+	it	pl
+#endif
 	eorpl	$nlo,$nlo,$Tll
 	eor	$Zhh,$Thh,$Zhh,lsr#4
+#ifdef	__thumb2__
+	itt	pl
+#endif
 	andpl	$nhi,$nlo,#0xf0
 	andpl	$nlo,$nlo,#0x0f
 	eor	$Zhh,$Zhh,$Tlh,lsl#16	@ ^= rem_4bit[rem]
@@ -229,7 +275,11 @@ gcm_ghash_4bit:
 	add	$inp,$inp,#16
 	mov	$nhi,$Zll
 ___
-	&Zsmash("cmp\t$inp,$len","ldrneb\t$nlo,[$inp,#15]");
+	&Zsmash("cmp\t$inp,$len","\n".
+				 "#ifdef __thumb2__\n".
+				 "	it	ne\n".
+				 "#endif\n".
+				 "	ldrneb	$nlo,[$inp,#15]");
 $code.=<<___;
 	bne	.Louter
 
@@ -287,6 +337,9 @@ gcm_gmult_4bit:
 	eor	$Zlh,$Zlh,$Zhl,lsl#28
 	ldrh	$Tll,[$rem_4bit,$nlo]	@ rem_4bit[rem]
 	eor	$Zhl,$Thl,$Zhl,lsr#4
+#ifdef	__thumb2__
+	it	pl
+#endif
 	ldrplb	$nlo,[$Xi,$cnt]
 	eor	$Zhl,$Zhl,$Zhh,lsl#28
 	eor	$Zhh,$Thh,$Zhh,lsr#4
@@ -304,6 +357,9 @@ gcm_gmult_4bit:
 	eor	$Zhl,$Thl,$Zhl,lsr#4
 	eor	$Zhl,$Zhl,$Zhh,lsl#28
 	eor	$Zhh,$Thh,$Zhh,lsr#4
+#ifdef	__thumb2__
+	itt	pl
+#endif
 	andpl	$nhi,$nlo,#0xf0
 	andpl	$nlo,$nlo,#0x0f
 	eor	$Zhh,$Zhh,$Tll,lsl#16	@ ^= rem_4bit[rem]
@@ -378,9 +434,9 @@ $code.=<<___;
 .type	gcm_init_neon,%function
 .align	4
 gcm_init_neon:
-	vld1.64		$IN#hi,[r1,:64]!	@ load H
+	vld1.64		$IN#hi,[r1]!		@ load H
 	vmov.i8		$t0,#0xe1
-	vld1.64		$IN#lo,[r1,:64]
+	vld1.64		$IN#lo,[r1]
 	vshl.i64	$t0#hi,#57
 	vshr.u64	$t0#lo,#63		@ t0=0xc2....01
 	vdup.8		$t1,$IN#hi[7]
@@ -399,8 +455,8 @@ gcm_init_neon:
 .type	gcm_gmult_neon,%function
 .align	4
 gcm_gmult_neon:
-	vld1.64		$IN#hi,[$Xi,:64]!	@ load Xi
-	vld1.64		$IN#lo,[$Xi,:64]!
+	vld1.64		$IN#hi,[$Xi]!		@ load Xi
+	vld1.64		$IN#lo,[$Xi]!
 	vmov.i64	$k48,#0x0000ffffffffffff
 	vldmia		$Htbl,{$Hlo-$Hhi}	@ load twisted H
 	vmov.i64	$k32,#0x00000000ffffffff
@@ -417,8 +473,8 @@ gcm_gmult_neon:
 .type	gcm_ghash_neon,%function
 .align	4
 gcm_ghash_neon:
-	vld1.64		$Xl#hi,[$Xi,:64]!	@ load Xi
-	vld1.64		$Xl#lo,[$Xi,:64]!
+	vld1.64		$Xl#hi,[$Xi]!		@ load Xi
+	vld1.64		$Xl#lo,[$Xi]!
 	vmov.i64	$k48,#0x0000ffffffffffff
 	vldmia		$Htbl,{$Hlo-$Hhi}	@ load twisted H
 	vmov.i64	$k32,#0x00000000ffffffff
@@ -473,8 +529,8 @@ $code.=<<___;
 	vrev64.8	$Xl,$Xl
 #endif
 	sub		$Xi,#16	
-	vst1.64		$Xl#hi,[$Xi,:64]!	@ write out Xi
-	vst1.64		$Xl#lo,[$Xi,:64]
+	vst1.64		$Xl#hi,[$Xi]!		@ write out Xi
+	vst1.64		$Xl#lo,[$Xi]
 
 	ret					@ bx lr
 .size	gcm_ghash_neon,.-gcm_ghash_neon

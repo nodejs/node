@@ -134,6 +134,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
     BIND(&cell_done);
   }
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
                                  literals_cell);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
@@ -457,10 +458,10 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   VARIABLE(var_properties, MachineRepresentation::kTagged);
   {
     Node* bit_field_3 = LoadMapBitField3(boilerplate_map);
-    GotoIf(IsSetWord32<Map::Deprecated>(bit_field_3), call_runtime);
+    GotoIf(IsSetWord32<Map::IsDeprecatedBit>(bit_field_3), call_runtime);
     // Directly copy over the property store for dict-mode boilerplates.
     Label if_dictionary(this), if_fast(this), done(this);
-    Branch(IsSetWord32<Map::DictionaryMap>(bit_field_3), &if_dictionary,
+    Branch(IsSetWord32<Map::IsDictionaryMapBit>(bit_field_3), &if_dictionary,
            &if_fast);
     BIND(&if_dictionary);
     {
@@ -636,8 +637,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
   CSA_ASSERT(this, IsMap(map));
   // Ensure that slack tracking is disabled for the map.
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  CSA_ASSERT(this,
-             IsClearWord32<Map::ConstructionCounter>(LoadMapBitField3(map)));
+  CSA_ASSERT(
+      this, IsClearWord32<Map::ConstructionCounterBits>(LoadMapBitField3(map)));
   Node* empty_fixed_array = EmptyFixedArrayConstant();
   Node* result =
       AllocateJSObjectFromMap(map, empty_fixed_array, empty_fixed_array);

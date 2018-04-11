@@ -37,15 +37,10 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
   global_template->SetAccessCheckCallback(AccessCheck);
 
   Local<FunctionTemplate> getter_template = FunctionTemplate::New(
-      isolate(), [](const FunctionCallbackInfo<Value>& info) {
-        FAIL() << "This should never be called.";
-        info.GetReturnValue().Set(42);
-      });
+      isolate(), [](const FunctionCallbackInfo<Value>& info) { FAIL(); });
   getter_template->SetAcceptAnyReceiver(false);
   Local<FunctionTemplate> setter_template = FunctionTemplate::New(
-      isolate(), [](const FunctionCallbackInfo<v8::Value>& info) {
-        FAIL() << "This should never be called.";
-      });
+      isolate(), [](const FunctionCallbackInfo<v8::Value>& info) { FAIL(); });
   setter_template->SetAcceptAnyReceiver(false);
   global_template->SetAccessorProperty(
       String::NewFromUtf8(isolate(), "property", NewStringType::kNormal)

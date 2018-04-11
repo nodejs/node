@@ -167,6 +167,74 @@ class TracingController {
 };
 
 /**
+ * A V8 memory page allocator.
+ *
+ * Can be implemented by an embedder to manage large host OS allocations.
+ */
+class PageAllocator {
+ public:
+  virtual ~PageAllocator() = default;
+
+  /**
+   * Gets the page granularity for AllocatePages and FreePages. Addresses and
+   * lengths for those calls should be multiples of AllocatePageSize().
+   */
+  virtual size_t AllocatePageSize() = 0;
+
+  /**
+   * Gets the page granularity for SetPermissions and ReleasePages. Addresses
+   * and lengths for those calls should be multiples of CommitPageSize().
+   */
+  virtual size_t CommitPageSize() = 0;
+
+  /**
+   * Sets the random seed so that GetRandomMmapAddr() will generate repeatable
+   * sequences of random mmap addresses.
+   */
+  virtual void SetRandomMmapSeed(int64_t seed) = 0;
+
+  /**
+   * Returns a randomized address, suitable for memory allocation under ASLR.
+   * The address will be aligned to AllocatePageSize.
+   */
+  virtual void* GetRandomMmapAddr() = 0;
+
+  /**
+   * Memory permissions.
+   */
+  enum Permission {
+    kNoAccess,
+    kReadWrite,
+    // TODO(hpayer): Remove this flag. Memory should never be rwx.
+    kReadWriteExecute,
+    kReadExecute
+  };
+
+  /**
+   * Allocates memory in range with the given alignment and permission.
+   */
+  virtual void* AllocatePages(void* address, size_t length, size_t alignment,
+                              Permission permissions) = 0;
+
+  /**
+   * Frees memory in a range that was allocated by a call to AllocatePages.
+   */
+  virtual bool FreePages(void* address, size_t length) = 0;
+
+  /**
+   * Releases memory in a range that was allocated by a call to AllocatePages.
+   */
+  virtual bool ReleasePages(void* address, size_t length,
+                            size_t new_length) = 0;
+
+  /**
+   * Sets permissions on pages in an allocated range.
+   */
+  virtual bool SetPermissions(void* address, size_t length,
+                              Permission permissions) = 0;
+};
+
+/**
  * V8 Platform abstraction layer.
  *
  * The embedder has to provide an implementation of this interface before
@@ -187,13 +255,35 @@ class Platform {
   virtual ~Platform() = default;
 
   /**
+   * Allows the embedder to manage memory page allocations.
+   */
+  virtual PageAllocator* GetPageAllocator() {
+    // TODO(bbudge) Make this abstract after all embedders implement this.
+    return nullptr;
+  }
+
+  /**
    * Enables the embedder to respond in cases where V8 can't allocate large
    * blocks of memory. V8 retries the failed allocation once after calling this
    * method. On success, execution continues; otherwise V8 exits with a fatal
    * error.
    * Embedder overrides of this function must NOT call back into V8.
    */
-  virtual void OnCriticalMemoryPressure() {}
+  virtual void OnCriticalMemoryPressure() {
+    // TODO(bbudge) Remove this when embedders override the following method.
+    // See crbug.com/634547.
+  }
+
+  /**
+   * Enables the embedder to respond in cases where V8 can't allocate large
+   * memory regions. The |length| parameter is the amount of memory needed.
+   * Returns true if memory is now available. Returns false if no memory could
+   * be made available. V8 will retry allocations until this method returns
+   * false.
+   *
+   * Embedder overrides of this function must NOT call back into V8.
+   */
+  virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
    * Gets the number of threads that are used to execute background tasks. Is

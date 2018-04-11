@@ -104,7 +104,7 @@ TEST(BinopShiftRightLogical) {
   FunctionTester T("(function(a,b) { return a >>> b; })");
 
   T.CheckCall(4, 8, 1);
-  T.CheckCall(0x7ffffffc, -8, 1);
+  T.CheckCall(0x7FFFFFFC, -8, 1);
   T.CheckCall(T.Val(4), T.Val("8"), T.Val(1));
   T.CheckCall(T.Val(4), T.Val(8), T.Val("1"));
 }

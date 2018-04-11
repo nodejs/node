@@ -71,6 +71,12 @@ class InterpretedFrame {
   WasmValue GetLocalValue(int index) const;
   WasmValue GetStackValue(int index) const;
 
+  // Deleter struct to delete the underlying InterpretedFrameImpl without
+  // violating language specifications.
+  struct Deleter {
+    void operator()(InterpretedFrame* ptr);
+  };
+
  private:
   friend class WasmInterpreter;
   // Don't instante InterpretedFrames; they will be allocated as
@@ -113,6 +119,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     AfterCall = 1 << 1
   };
 
+  using FramePtr = std::unique_ptr<InterpretedFrame, InterpretedFrame::Deleter>;
+
   // Representation of a thread in the interpreter.
   class V8_EXPORT_PRIVATE Thread {
     // Don't instante Threads; they will be allocated as ThreadImpl in the
@@ -139,7 +147,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     // TODO(clemensh): Make this uint32_t.
     int GetFrameCount();
     // The InterpretedFrame is only valid as long as the Thread is paused.
-    std::unique_ptr<InterpretedFrame> GetFrame(int index);
+    FramePtr GetFrame(int index);
     WasmValue GetReturnValue(int index = 0);
     TrapReason GetTrapReason();
 

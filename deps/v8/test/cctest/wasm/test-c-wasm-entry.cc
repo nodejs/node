@@ -71,6 +71,9 @@ class CWasmEntryArgTester {
     static_assert(
         arraysize(call_args) == compiler::CWasmEntryParameters::kNumParameters,
         "adapt this test");
+    if (FLAG_wasm_jit_to_native) {
+      wasm_code_.GetWasmCode()->owner()->SetExecutable(true);
+    }
     MaybeHandle<Object> return_obj = Execution::Call(
         isolate_, c_wasm_entry_fn_, receiver, arraysize(call_args), call_args);
     CHECK(!return_obj.is_null());

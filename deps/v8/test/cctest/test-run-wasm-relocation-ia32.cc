@@ -40,7 +40,7 @@ TEST(WasmRelocationIa32ContextReference) {
   __ nop();
   __ ret(0);
 
-  compiler::CSignature0<int32_t> csig;
+  compiler::CSignatureOf<int32_t> csig;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =

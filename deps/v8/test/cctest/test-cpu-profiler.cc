@@ -476,6 +476,13 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
   return profile;
 }
 
+static unsigned TotalHitCount(const v8::CpuProfileNode* node) {
+  unsigned hit_count = node->GetHitCount();
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i)
+    hit_count += TotalHitCount(node->GetChild(i));
+  return hit_count;
+}
+
 static const v8::CpuProfileNode* FindChild(v8::Local<v8::Context> context,
                                            const v8::CpuProfileNode* node,
                                            const char* name) {
@@ -490,16 +497,22 @@ static const v8::CpuProfileNode* FindChild(v8::Local<v8::Context> context,
   return nullptr;
 }
 
+static const v8::CpuProfileNode* FindChild(const v8::CpuProfileNode* node,
+                                           const char* name) {
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::CpuProfileNode* child = node->GetChild(i);
+    if (strcmp(child->GetFunctionNameStr(), name) == 0) {
+      return child;
+    }
+  }
+  return nullptr;
+}
 
 static const v8::CpuProfileNode* GetChild(v8::Local<v8::Context> context,
                                           const v8::CpuProfileNode* node,
                                           const char* name) {
   const v8::CpuProfileNode* result = FindChild(context, node, name);
-  if (!result) {
-    char buffer[100];
-    i::SNPrintF(i::ArrayVector(buffer), "Failed to GetChild: %s", name);
-    FATAL(buffer);
-  }
+  if (!result) FATAL("Failed to GetChild: %s", name);
   return result;
 }
 
@@ -1941,7 +1954,7 @@ TEST(CollectDeoptEvents) {
         GetBranchDeoptReason(env, iprofile, branch, arraysize(branch));
     if (deopt_reason != reason(i::DeoptimizeReason::kNotAHeapNumber) &&
         deopt_reason != reason(i::DeoptimizeReason::kNotASmi)) {
-      FATAL(deopt_reason);
+      FATAL("%s", deopt_reason);
     }
   }
   {
@@ -1951,7 +1964,7 @@ TEST(CollectDeoptEvents) {
     if (deopt_reason != reason(i::DeoptimizeReason::kNaN) &&
         deopt_reason != reason(i::DeoptimizeReason::kLostPrecisionOrNaN) &&
         deopt_reason != reason(i::DeoptimizeReason::kNotASmi)) {
-      FATAL(deopt_reason);
+      FATAL("%s", deopt_reason);
     }
   }
   {
@@ -2372,6 +2385,53 @@ TEST(CodeEntriesMemoryLeak) {
       CcTest::i_isolate()->logger()->profiler_listener();
 
   CHECK_GE(10000ul, profiler_listener->entries_count_for_test());
+}
+
+TEST(NativeFrameStackTrace) {
+  // A test for issue https://crbug.com/768540
+  // When a sample lands in a native function which has not EXIT frame
+  // stack frame iterator used to bail out and produce an empty stack trace.
+  // The source code below makes v8 call the
+  // v8::internal::StringTable::LookupStringIfExists_NoAllocate native function
+  // without producing an EXIT frame.
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+
+  const char* source = R"(
+      function jsFunction() {
+        var s = {};
+        for (var i = 0; i < 1e4; ++i) {
+          for (var j = 0; j < 100; j++) {
+            s['item' + j] = 'alph';
+          }
+        }
+      })";
+
+  CompileRun(source);
+  v8::Local<v8::Function> function = GetFunction(env, "jsFunction");
+
+  ProfilerHelper helper(env);
+
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0, true);
+
+  // Count the fraction of samples landing in 'jsFunction' (valid stack)
+  // vs '(program)' (no stack captured).
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* js_function = FindChild(root, "jsFunction");
+  const v8::CpuProfileNode* program = FindChild(root, "(program)");
+  if (program) {
+    unsigned js_function_samples = TotalHitCount(js_function);
+    unsigned program_samples = TotalHitCount(program);
+    double valid_samples_ratio =
+        1. * js_function_samples / (js_function_samples + program_samples);
+    i::PrintF("Ratio: %f\n", valid_samples_ratio);
+    // TODO(alph): Investigate other causes of dropped frames. The ratio
+    // should be close to 99%.
+    CHECK_GE(valid_samples_ratio, 0.3);
+  }
+
+  profile->Delete();
 }
 
 }  // namespace test_cpu_profiler

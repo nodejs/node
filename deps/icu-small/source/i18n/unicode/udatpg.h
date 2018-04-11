@@ -95,6 +95,21 @@ typedef enum UDateTimePatternField {
     UDATPG_FIELD_COUNT
 } UDateTimePatternField;
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Field display name width constants for udatpg_getFieldDisplayName().
+ * @draft ICU 61
+ */
+typedef enum UDateTimePGDisplayWidth {
+    /** @draft ICU 61 */
+    UDATPG_WIDE,
+    /** @draft ICU 61 */
+    UDATPG_ABBREVIATED,
+    /** @draft ICU 61 */
+    UDATPG_NARROW
+} UDateTimePGDisplayWidth;
+#endif  // U_HIDE_DRAFT_API
+
 /**
  * Masks to control forcing the length of specified fields in the returned
  * pattern to match those in the skeleton (when this would not happen
@@ -410,18 +425,54 @@ udatpg_setAppendItemName(UDateTimePatternGenerator *dtpg,
 
 /**
  * Getter corresponding to setAppendItemNames. Values below 0 or at or above
- * UDATPG_FIELD_COUNT are illegal arguments.
+ * UDATPG_FIELD_COUNT are illegal arguments. Note: The more general function
+ * for getting date/time field display names is udatpg_getFieldDisplayName.
  *
  * @param dtpg   a pointer to UDateTimePatternGenerator.
  * @param field  UDateTimePatternField, such as UDATPG_ERA_FIELD
  * @param pLength A pointer that will receive the length of the name for field.
  * @return name for field
+ * @see udatpg_getFieldDisplayName
  * @stable ICU 3.8
  */
 U_STABLE const UChar * U_EXPORT2
 udatpg_getAppendItemName(const UDateTimePatternGenerator *dtpg,
                          UDateTimePatternField field,
                          int32_t *pLength);
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * The general interface to get a display name for a particular date/time field,
+ * in one of several possible display widths.
+ *
+ * @param dtpg
+ *          A pointer to the UDateTimePatternGenerator object with the localized
+ *          display names.
+ * @param field
+ *          The desired UDateTimePatternField, such as UDATPG_ERA_FIELD.
+ * @param width
+ *          The desired UDateTimePGDisplayWidth, such as UDATPG_ABBREVIATED.
+ * @param fieldName
+ *          A pointer to a buffer to receive the NULL-terminated display name. If the name
+ *          fits into fieldName but cannot be  NULL-terminated (length == capacity) then
+ *          the error code is set to U_STRING_NOT_TERMINATED_WARNING. If the name doesn't
+ *          fit into fieldName then the error code is set to U_BUFFER_OVERFLOW_ERROR.
+ * @param capacity
+ *          The size of fieldName (in UChars).
+ * @param pErrorCode
+ *          A pointer to a UErrorCode to receive any errors
+ * @return
+ *         The full length of the name; if greater than capacity, fieldName contains a
+ *         truncated result.
+ * @draft ICU 61
+ */
+U_DRAFT int32_t U_EXPORT2
+udatpg_getFieldDisplayName(const UDateTimePatternGenerator *dtpg,
+                           UDateTimePatternField field,
+                           UDateTimePGDisplayWidth width,
+                           UChar *fieldName, int32_t capacity,
+                           UErrorCode *pErrorCode);
+#endif  // U_HIDE_DRAFT_API
 
 /**
  * The DateTimeFormat is a message format pattern used to compose date and

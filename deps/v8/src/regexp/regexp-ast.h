@@ -306,11 +306,17 @@ class RegExpCharacterClass final : public RegExpTree {
   typedef base::Flags<Flag> CharacterClassFlags;
 
   RegExpCharacterClass(
-      ZoneList<CharacterRange>* ranges, JSRegExp::Flags flags,
+      Zone* zone, ZoneList<CharacterRange>* ranges, JSRegExp::Flags flags,
       CharacterClassFlags character_class_flags = CharacterClassFlags())
       : set_(ranges),
         flags_(flags),
-        character_class_flags_(character_class_flags) {}
+        character_class_flags_(character_class_flags) {
+    // Convert the empty set of ranges to the negated Everything() range.
+    if (ranges->is_empty()) {
+      ranges->Add(CharacterRange::Everything(), zone);
+      character_class_flags_ ^= NEGATED;
+    }
+  }
   RegExpCharacterClass(uc16 type, JSRegExp::Flags flags)
       : set_(type),
         flags_(flags),
@@ -352,7 +358,7 @@ class RegExpCharacterClass final : public RegExpTree {
  private:
   CharacterSet set_;
   const JSRegExp::Flags flags_;
-  const CharacterClassFlags character_class_flags_;
+  CharacterClassFlags character_class_flags_;
 };
 
 

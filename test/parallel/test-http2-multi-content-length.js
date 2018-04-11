@@ -31,8 +31,8 @@ server.listen(0, common.mustCall(() => {
       });
     }, {
       code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
-      type: Error,
-      message: 'Header field "content-length" must have only a single value'
+      type: TypeError,
+      message: 'Header field "content-length" must only have a single value'
     }
   );
 

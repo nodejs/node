@@ -165,9 +165,7 @@ appendResult(int32_t cpLength, int32_t result, const UChar *s,
 inline uint8_t getTwoByteLead(UChar32 c) { return (uint8_t)((c >> 6) | 0xc0); }
 inline uint8_t getTwoByteTrail(UChar32 c) { return (uint8_t)((c & 0x3f) | 0x80); }
 
-}  // namespace
-
-static UChar32 U_CALLCONV
+UChar32 U_CALLCONV
 utf8_caseContextIterator(void *context, int8_t dir) {
     UCaseContext *csc=(UCaseContext *)context;
     UChar32 c;
@@ -199,35 +197,226 @@ utf8_caseContextIterator(void *context, int8_t dir) {
     return U_SENTINEL;
 }
 
-/*
- * Case-maps [srcStart..srcLimit[ but takes
- * context [0..srcLength[ into account.
+/**
+ * caseLocale >= 0: Lowercases [srcStart..srcLimit[ but takes context [0..srcLength[ into account.
+ * caseLocale < 0: Case-folds [srcStart..srcLimit[.
  */
-static void
-_caseMap(int32_t caseLocale, uint32_t options, UCaseMapFull *map,
-         const uint8_t *src, UCaseContext *csc,
-         int32_t srcStart, int32_t srcLimit,
-         icu::ByteSink &sink, icu::Edits *edits,
-         UErrorCode &errorCode) {
-    /* case mapping loop */
-    int32_t srcIndex=srcStart;
-    while (U_SUCCESS(errorCode) && srcIndex<srcLimit) {
+void toLower(int32_t caseLocale, uint32_t options,
+             const uint8_t *src, UCaseContext *csc, int32_t srcStart, int32_t srcLimit,
+             icu::ByteSink &sink, icu::Edits *edits, UErrorCode &errorCode) {
+    const int8_t *latinToLower;
+    if (caseLocale == UCASE_LOC_ROOT ||
+            (caseLocale >= 0 ?
+                !(caseLocale == UCASE_LOC_TURKISH || caseLocale == UCASE_LOC_LITHUANIAN) :
+                (options & _FOLD_CASE_OPTIONS_MASK) == U_FOLD_CASE_DEFAULT)) {
+        latinToLower = LatinCase::TO_LOWER_NORMAL;
+    } else {
+        latinToLower = LatinCase::TO_LOWER_TR_LT;
+    }
+    const UTrie2 *trie = ucase_getTrie();
+    int32_t prev = srcStart;
+    int32_t srcIndex = srcStart;
+    for (;;) {
+        // fast path for simple cases
         int32_t cpStart;
-        csc->cpStart=cpStart=srcIndex;
         UChar32 c;
-        U8_NEXT(src, srcIndex, srcLimit, c);
-        csc->cpLimit=srcIndex;
-        if(c<0) {
-            // Malformed UTF-8.
-            ByteSinkUtil::appendUnchanged(src+cpStart, srcIndex-cpStart,
+        for (;;) {
+            if (U_FAILURE(errorCode) || srcIndex >= srcLimit) {
+                c = U_SENTINEL;
+                break;
+            }
+            uint8_t lead = src[srcIndex++];
+            if (lead <= 0x7f) {
+                int8_t d = latinToLower[lead];
+                if (d == LatinCase::EXC) {
+                    cpStart = srcIndex - 1;
+                    c = lead;
+                    break;
+                }
+                if (d == 0) { continue; }
+                ByteSinkUtil::appendUnchanged(src + prev, srcIndex - 1 - prev,
+                                              sink, options, edits, errorCode);
+                char ascii = (char)(lead + d);
+                sink.Append(&ascii, 1);
+                if (edits != nullptr) {
+                    edits->addReplace(1, 1);
+                }
+                prev = srcIndex;
+                continue;
+            } else if (lead < 0xe3) {
+                uint8_t t;
+                if (0xc2 <= lead && lead <= 0xc5 && srcIndex < srcLimit &&
+                        (t = src[srcIndex] - 0x80) <= 0x3f) {
+                    // U+0080..U+017F
+                    ++srcIndex;
+                    c = ((lead - 0xc0) << 6) | t;
+                    int8_t d = latinToLower[c];
+                    if (d == LatinCase::EXC) {
+                        cpStart = srcIndex - 2;
+                        break;
+                    }
+                    if (d == 0) { continue; }
+                    ByteSinkUtil::appendUnchanged(src + prev, srcIndex - 2 - prev,
+                                                  sink, options, edits, errorCode);
+                    ByteSinkUtil::appendTwoBytes(c + d, sink);
+                    if (edits != nullptr) {
+                        edits->addReplace(2, 2);
+                    }
+                    prev = srcIndex;
+                    continue;
+                }
+            } else if ((lead <= 0xe9 || lead == 0xeb || lead == 0xec) &&
+                    (srcIndex + 2) <= srcLimit &&
+                    U8_IS_TRAIL(src[srcIndex]) && U8_IS_TRAIL(src[srcIndex + 1])) {
+                // most of CJK: no case mappings
+                srcIndex += 2;
+                continue;
+            }
+            cpStart = --srcIndex;
+            U8_NEXT(src, srcIndex, srcLimit, c);
+            if (c < 0) {
+                // ill-formed UTF-8
+                continue;
+            }
+            uint16_t props = UTRIE2_GET16(trie, c);
+            if (UCASE_HAS_EXCEPTION(props)) { break; }
+            int32_t delta;
+            if (!UCASE_IS_UPPER_OR_TITLE(props) || (delta = UCASE_GET_DELTA(props)) == 0) {
+                continue;
+            }
+            ByteSinkUtil::appendUnchanged(src + prev, cpStart - prev,
                                           sink, options, edits, errorCode);
+            ByteSinkUtil::appendCodePoint(srcIndex - cpStart, c + delta, sink, edits);
+            prev = srcIndex;
+        }
+        if (c < 0) {
+            break;
+        }
+        // slow path
+        const UChar *s;
+        if (caseLocale >= 0) {
+            csc->cpStart = cpStart;
+            csc->cpLimit = srcIndex;
+            c = ucase_toFullLower(c, utf8_caseContextIterator, csc, &s, caseLocale);
         } else {
-            const UChar *s;
-            c=map(c, utf8_caseContextIterator, csc, &s, caseLocale);
+            c = ucase_toFullFolding(c, &s, options);
+        }
+        if (c >= 0) {
+            ByteSinkUtil::appendUnchanged(src + prev, cpStart - prev,
+                                          sink, options, edits, errorCode);
             appendResult(srcIndex - cpStart, c, s, sink, options, edits, errorCode);
+            prev = srcIndex;
         }
     }
+    ByteSinkUtil::appendUnchanged(src + prev, srcIndex - prev,
+                                  sink, options, edits, errorCode);
 }
+
+void toUpper(int32_t caseLocale, uint32_t options,
+             const uint8_t *src, UCaseContext *csc, int32_t srcLength,
+             icu::ByteSink &sink, icu::Edits *edits, UErrorCode &errorCode) {
+    const int8_t *latinToUpper;
+    if (caseLocale == UCASE_LOC_TURKISH) {
+        latinToUpper = LatinCase::TO_UPPER_TR;
+    } else {
+        latinToUpper = LatinCase::TO_UPPER_NORMAL;
+    }
+    const UTrie2 *trie = ucase_getTrie();
+    int32_t prev = 0;
+    int32_t srcIndex = 0;
+    for (;;) {
+        // fast path for simple cases
+        int32_t cpStart;
+        UChar32 c;
+        for (;;) {
+            if (U_FAILURE(errorCode) || srcIndex >= srcLength) {
+                c = U_SENTINEL;
+                break;
+            }
+            uint8_t lead = src[srcIndex++];
+            if (lead <= 0x7f) {
+                int8_t d = latinToUpper[lead];
+                if (d == LatinCase::EXC) {
+                    cpStart = srcIndex - 1;
+                    c = lead;
+                    break;
+                }
+                if (d == 0) { continue; }
+                ByteSinkUtil::appendUnchanged(src + prev, srcIndex - 1 - prev,
+                                              sink, options, edits, errorCode);
+                char ascii = (char)(lead + d);
+                sink.Append(&ascii, 1);
+                if (edits != nullptr) {
+                    edits->addReplace(1, 1);
+                }
+                prev = srcIndex;
+                continue;
+            } else if (lead < 0xe3) {
+                uint8_t t;
+                if (0xc2 <= lead && lead <= 0xc5 && srcIndex < srcLength &&
+                        (t = src[srcIndex] - 0x80) <= 0x3f) {
+                    // U+0080..U+017F
+                    ++srcIndex;
+                    c = ((lead - 0xc0) << 6) | t;
+                    int8_t d = latinToUpper[c];
+                    if (d == LatinCase::EXC) {
+                        cpStart = srcIndex - 2;
+                        break;
+                    }
+                    if (d == 0) { continue; }
+                    ByteSinkUtil::appendUnchanged(src + prev, srcIndex - 2 - prev,
+                                                  sink, options, edits, errorCode);
+                    ByteSinkUtil::appendTwoBytes(c + d, sink);
+                    if (edits != nullptr) {
+                        edits->addReplace(2, 2);
+                    }
+                    prev = srcIndex;
+                    continue;
+                }
+            } else if ((lead <= 0xe9 || lead == 0xeb || lead == 0xec) &&
+                    (srcIndex + 2) <= srcLength &&
+                    U8_IS_TRAIL(src[srcIndex]) && U8_IS_TRAIL(src[srcIndex + 1])) {
+                // most of CJK: no case mappings
+                srcIndex += 2;
+                continue;
+            }
+            cpStart = --srcIndex;
+            U8_NEXT(src, srcIndex, srcLength, c);
+            if (c < 0) {
+                // ill-formed UTF-8
+                continue;
+            }
+            uint16_t props = UTRIE2_GET16(trie, c);
+            if (UCASE_HAS_EXCEPTION(props)) { break; }
+            int32_t delta;
+            if (UCASE_GET_TYPE(props) != UCASE_LOWER || (delta = UCASE_GET_DELTA(props)) == 0) {
+                continue;
+            }
+            ByteSinkUtil::appendUnchanged(src + prev, cpStart - prev,
+                                          sink, options, edits, errorCode);
+            ByteSinkUtil::appendCodePoint(srcIndex - cpStart, c + delta, sink, edits);
+            prev = srcIndex;
+        }
+        if (c < 0) {
+            break;
+        }
+        // slow path
+        csc->cpStart = cpStart;
+        csc->cpLimit = srcIndex;
+        const UChar *s;
+        c = ucase_toFullUpper(c, utf8_caseContextIterator, csc, &s, caseLocale);
+        if (c >= 0) {
+            ByteSinkUtil::appendUnchanged(src + prev, cpStart - prev,
+                                          sink, options, edits, errorCode);
+            appendResult(srcIndex - cpStart, c, s, sink, options, edits, errorCode);
+            prev = srcIndex;
+        }
+    }
+    ByteSinkUtil::appendUnchanged(src + prev, srcIndex - prev,
+                                  sink, options, edits, errorCode);
+}
+
+}  // namespace
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
@@ -335,10 +524,9 @@ ucasemap_internalUTF8ToTitle(
                 if(titleLimit<index) {
                     if((options&U_TITLECASE_NO_LOWERCASE)==0) {
                         /* Normal operation: Lowercase the rest of the word. */
-                        _caseMap(caseLocale, options, ucase_toFullLower,
-                                 src, &csc,
-                                 titleLimit, index,
-                                 sink, edits, errorCode);
+                        toLower(caseLocale, options,
+                                src, &csc, titleLimit, index,
+                                sink, edits, errorCode);
                         if(U_FAILURE(errorCode)) {
                             return;
                         }
@@ -538,8 +726,8 @@ ucasemap_internalUTF8ToLower(int32_t caseLocale, uint32_t options, UCASEMAP_BREA
     UCaseContext csc=UCASECONTEXT_INITIALIZER;
     csc.p=(void *)src;
     csc.limit=srcLength;
-    _caseMap(
-        caseLocale, options, ucase_toFullLower,
+    toLower(
+        caseLocale, options,
         src, &csc, 0, srcLength,
         sink, edits, errorCode);
 }
@@ -555,9 +743,9 @@ ucasemap_internalUTF8ToUpper(int32_t caseLocale, uint32_t options, UCASEMAP_BREA
         UCaseContext csc=UCASECONTEXT_INITIALIZER;
         csc.p=(void *)src;
         csc.limit=srcLength;
-        _caseMap(
-            caseLocale, options, ucase_toFullUpper,
-            src, &csc, 0, srcLength,
+        toUpper(
+            caseLocale, options,
+            src, &csc, srcLength,
             sink, edits, errorCode);
     }
 }
@@ -567,22 +755,10 @@ ucasemap_internalUTF8Fold(int32_t /* caseLocale */, uint32_t options, UCASEMAP_B
                           const uint8_t *src, int32_t srcLength,
                           icu::ByteSink &sink, icu::Edits *edits,
                           UErrorCode &errorCode) {
-    /* case mapping loop */
-    int32_t srcIndex = 0;
-    while (U_SUCCESS(errorCode) && srcIndex < srcLength) {
-        int32_t cpStart = srcIndex;
-        UChar32 c;
-        U8_NEXT(src, srcIndex, srcLength, c);
-        if(c<0) {
-            // Malformed UTF-8.
-            ByteSinkUtil::appendUnchanged(src+cpStart, srcIndex-cpStart,
-                                          sink, options, edits, errorCode);
-        } else {
-            const UChar *s;
-            c = ucase_toFullFolding(c, &s, options);
-            appendResult(srcIndex - cpStart, c, s, sink, options, edits, errorCode);
-        }
-    }
+    toLower(
+        -1, options,
+        src, nullptr, 0, srcLength,
+        sink, edits, errorCode);
 }
 
 void

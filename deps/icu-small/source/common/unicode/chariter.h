@@ -569,7 +569,7 @@ public:
      * Returns the numeric index in the underlying text-storage
      * object of the character the iterator currently refers to
      * (i.e., the character returned by current()).
-     * @return the numberic index in the text-storage object of
+     * @return the numeric index in the text-storage object of
      * the character the iterator currently refers to
      * @stable ICU 2.0
      */

@@ -34,6 +34,9 @@ const { writeFileSync, unlinkSync } = require('fs');
 const { inspect } = require('util');
 const a = assert;
 
+const start = 'Input A expected to deepStrictEqual input B:';
+const actExp = '+ expected - actual';
+
 assert.ok(a.AssertionError.prototype instanceof Error,
           'a.AssertionError instanceof Error');
 
@@ -116,6 +119,7 @@ assert.throws(() => thrower(TypeError));
   } catch (e) {
     threw = true;
     assert.ok(e instanceof a.AssertionError);
+    assert.ok(!e.stack.includes('at Function.doesNotThrow'));
   }
   assert.ok(threw, 'a.doesNotThrow is not catching type matching errors');
 }
@@ -221,6 +225,16 @@ a.throws(() => thrower(TypeError), (err) => {
       code: 'ERR_ASSERTION',
       message: /^Missing expected exception \(TypeError\): fhqwhgads$/
     }));
+
+  let threw = false;
+  try {
+    a.throws(noop);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof a.AssertionError);
+    assert.ok(!e.stack.includes('at Function.throws'));
+  }
+  assert.ok(threw);
 }
 
 const circular = { y: 1 };
@@ -306,10 +320,6 @@ try {
 
 {
   // Verify that throws() and doesNotThrow() throw on non-function block.
-  function typeName(value) {
-    return value === null ? 'null' : typeof value;
-  }
-
   const testBlockTypeError = (method, block) => {
     common.expectsError(
       () => method(block),
@@ -317,7 +327,7 @@ try {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "block" argument must be of type Function. Received ' +
-                `type ${typeName(block)}`
+                 `type ${typeof block}`
       }
     );
   };
@@ -358,15 +368,15 @@ assert.throws(() => {
 {
   // Bad args to AssertionError constructor should throw TypeError.
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
-  const re = /^The "options" argument must be of type Object$/;
   args.forEach((input) => {
     assert.throws(
       () => new assert.AssertionError(input),
-      common.expectsError({
+      {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: re
-      }));
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "options" argument must be of type Object. ' +
+                 `Received type ${typeof input}`
+      });
   });
 }
 
@@ -429,13 +439,6 @@ common.expectsError(
   Error.stackTraceLimit = tmpLimit;
 
   // Test error diffs.
-  const colors = process.stdout.isTTY && process.stdout.getColorDepth() > 1;
-  const start = 'Input A expected to deepStrictEqual input B:';
-  const actExp = colors ?
-    '\u001b[32m+ expected\u001b[39m \u001b[31m- actual\u001b[39m' :
-    '+ expected - actual';
-  const plus = colors ? '\u001b[32m+\u001b[39m' : '+';
-  const minus = colors ? '\u001b[31m-\u001b[39m' : '-';
   let message = [
     start,
     `${actExp} ... Lines skipped`,
@@ -444,8 +447,8 @@ common.expectsError(
     '    [',
     '...',
     '        2,',
-    `${minus}       3`,
-    `${plus}       '3'`,
+    '-       3',
+    "+       '3'",
     '      ]',
     '...',
     '    5',
@@ -462,7 +465,7 @@ common.expectsError(
     '    1,',
     '...',
     '    0,',
-    `${plus}   1,`,
+    '+   1,',
     '    1,',
     '...',
     '    1',
@@ -482,7 +485,7 @@ common.expectsError(
     '    1,',
     '...',
     '    0,',
-    `${minus}   1,`,
+    '-   1,',
     '    1,',
     '...',
     '    1',
@@ -500,12 +503,12 @@ common.expectsError(
     '',
     '  [',
     '    1,',
-    `${minus}   2,`,
-    `${plus}   1,`,
+    '-   2,',
+    '+   1,',
     '    1,',
     '    1,',
     '    0,',
-    `${minus}   1,`,
+    '-   1,',
     '    1',
     '  ]'
   ].join('\n');
@@ -519,12 +522,12 @@ common.expectsError(
     start,
     actExp,
     '',
-    `${minus} [`,
-    `${minus}   1,`,
-    `${minus}   2,`,
-    `${minus}   1`,
-    `${minus} ]`,
-    `${plus} undefined`,
+    '- [',
+    '-   1,',
+    '-   2,',
+    '-   1',
+    '- ]',
+    '+ undefined',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual([1, 2, 1]),
@@ -535,7 +538,7 @@ common.expectsError(
     actExp,
     '',
     '  [',
-    `${minus}   1,`,
+    '-   1,',
     '    2,',
     '    1',
     '  ]'
@@ -548,9 +551,9 @@ common.expectsError(
     `${actExp} ... Lines skipped\n` +
     '\n' +
     '  [\n' +
-    `${minus}   1,\n`.repeat(10) +
+    '-   1,\n'.repeat(10) +
     '...\n' +
-    `${plus}   2,\n`.repeat(10) +
+    '+   2,\n'.repeat(10) +
     '...';
   assert.throws(
     () => assert.deepEqual(Array(12).fill(1), Array(12).fill(2)),
@@ -564,11 +567,11 @@ common.expectsError(
     message: `${start}\n` +
     `${actExp}\n` +
     '\n' +
-    `${minus} {}\n` +
-    `${plus} {\n` +
-    `${plus}   loop: 'forever',\n` +
-    `${plus}   [Symbol(util.inspect.custom)]: [Function]\n` +
-    `${plus} }`
+    '- {}\n' +
+    '+ {\n' +
+    "+   loop: 'forever',\n" +
+    '+   [Symbol(util.inspect.custom)]: [Function]\n' +
+    '+ }'
   });
 
   // notDeepEqual tests
@@ -738,8 +741,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "error" argument must be one of type Function or RegExp. ' +
-             'Received type string'
+    message: 'The "error" argument must be one of type Object, Error, ' +
+             'Function, or RegExp. Received type string'
   }
 );
 
@@ -758,24 +761,32 @@ common.expectsError(
   errObj.code = 404;
   assert.throws(errFn, errObj);
 
-  errObj.code = '404';
-  common.expectsError(
+  // Fail in case a expected property is undefined and not existent on the
+  // error.
+  errObj.foo = undefined;
+  assert.throws(
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
-      type: assert.AssertionError,
-      message: 'code: expected \'404\', not 404'
+      name: 'AssertionError [ERR_ASSERTION]',
+      message: `${start}\n${actExp}\n\n` +
+               "  Comparison {\n    name: 'TypeError',\n" +
+               "    message: 'Wrong value',\n-   code: 404\n" +
+               '+   code: 404,\n+   foo: undefined\n  }'
     }
   );
 
-  errObj.code = 404;
-  errObj.foo = 'bar';
-  common.expectsError(
+  // Show multiple wrong properties at the same time.
+  errObj.code = '404';
+  assert.throws(
     () => assert.throws(errFn, errObj),
     {
       code: 'ERR_ASSERTION',
-      type: assert.AssertionError,
-      message: 'foo: expected \'bar\', not undefined'
+      name: 'AssertionError [ERR_ASSERTION]',
+      message: `${start}\n${actExp}\n\n` +
+               "  Comparison {\n    name: 'TypeError',\n" +
+               "    message: 'Wrong value',\n-   code: 404\n" +
+               "+   code: '404',\n+   foo: undefined\n  }"
     }
   );
 
@@ -799,20 +810,24 @@ common.expectsError(
   );
 
   assert.throws(() => { throw new Error('e'); }, new Error('e'));
-  common.expectsError(
+  assert.throws(
     () => assert.throws(() => { throw new TypeError('e'); }, new Error('e')),
     {
-      type: assert.AssertionError,
+      name: 'AssertionError [ERR_ASSERTION]',
       code: 'ERR_ASSERTION',
-      message: "name: expected 'Error', not 'TypeError'"
+      message: `${start}\n${actExp}\n\n` +
+               "  Comparison {\n-   name: 'TypeError',\n+   name: 'Error'," +
+               "\n    message: 'e'\n  }"
     }
   );
-  common.expectsError(
+  assert.throws(
     () => assert.throws(() => { throw new Error('foo'); }, new Error('')),
     {
-      type: assert.AssertionError,
+      name: 'AssertionError [ERR_ASSERTION]',
       code: 'ERR_ASSERTION',
-      message: "message: expected '', not 'foo'"
+      message: `${start}\n${actExp}\n\n` +
+               "  Comparison {\n    name: 'Error',\n-   message: 'foo'" +
+               "\n+   message: ''\n  }"
     }
   );
 

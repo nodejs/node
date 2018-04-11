@@ -243,6 +243,7 @@ void AstTraversalVisitor<Subclass>::VisitForStatement(ForStatement* stmt) {
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitForInStatement(ForInStatement* stmt) {
   PROCESS_NODE(stmt);
+  RECURSE(Visit(stmt->each()));
   RECURSE(Visit(stmt->enumerable()));
   RECURSE(Visit(stmt->body()));
 }
@@ -389,6 +390,14 @@ void AstTraversalVisitor<Subclass>::VisitProperty(Property* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->obj()));
   RECURSE_EXPRESSION(Visit(expr->key()));
+}
+
+template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitResolvedProperty(
+    ResolvedProperty* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->object()));
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->property()));
 }
 
 template <class Subclass>

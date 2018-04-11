@@ -256,27 +256,26 @@ void DisassemblingDecoder::VisitLogicalImmediate(Instruction* instr) {
 
 bool DisassemblingDecoder::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
   DCHECK((reg_size == kXRegSizeInBits) ||
-         ((reg_size == kWRegSizeInBits) && (value <= 0xffffffff)));
+         ((reg_size == kWRegSizeInBits) && (value <= 0xFFFFFFFF)));
 
   // Test for movz: 16-bits set at positions 0, 16, 32 or 48.
-  if (((value & 0xffffffffffff0000UL) == 0UL) ||
-      ((value & 0xffffffff0000ffffUL) == 0UL) ||
-      ((value & 0xffff0000ffffffffUL) == 0UL) ||
-      ((value & 0x0000ffffffffffffUL) == 0UL)) {
+  if (((value & 0xFFFFFFFFFFFF0000UL) == 0UL) ||
+      ((value & 0xFFFFFFFF0000FFFFUL) == 0UL) ||
+      ((value & 0xFFFF0000FFFFFFFFUL) == 0UL) ||
+      ((value & 0x0000FFFFFFFFFFFFUL) == 0UL)) {
     return true;
   }
 
   // Test for movn: NOT(16-bits set at positions 0, 16, 32 or 48).
   if ((reg_size == kXRegSizeInBits) &&
-      (((value & 0xffffffffffff0000UL) == 0xffffffffffff0000UL) ||
-       ((value & 0xffffffff0000ffffUL) == 0xffffffff0000ffffUL) ||
-       ((value & 0xffff0000ffffffffUL) == 0xffff0000ffffffffUL) ||
-       ((value & 0x0000ffffffffffffUL) == 0x0000ffffffffffffUL))) {
+      (((value & 0xFFFFFFFFFFFF0000UL) == 0xFFFFFFFFFFFF0000UL) ||
+       ((value & 0xFFFFFFFF0000FFFFUL) == 0xFFFFFFFF0000FFFFUL) ||
+       ((value & 0xFFFF0000FFFFFFFFUL) == 0xFFFF0000FFFFFFFFUL) ||
+       ((value & 0x0000FFFFFFFFFFFFUL) == 0x0000FFFFFFFFFFFFUL))) {
     return true;
   }
-  if ((reg_size == kWRegSizeInBits) &&
-      (((value & 0xffff0000) == 0xffff0000) ||
-       ((value & 0x0000ffff) == 0x0000ffff))) {
+  if ((reg_size == kWRegSizeInBits) && (((value & 0xFFFF0000) == 0xFFFF0000) ||
+                                        ((value & 0x0000FFFF) == 0x0000FFFF))) {
     return true;
   }
   return false;
@@ -3332,8 +3331,6 @@ void DisassemblingDecoder::AppendRegisterNameToOutput(const CPURegister& reg) {
     // Filter special registers
     if (reg.IsX() && (reg.code() == 27)) {
       AppendToOutput("cp");
-    } else if (reg.IsX() && (reg.code() == 28)) {
-      AppendToOutput("jssp");
     } else if (reg.IsX() && (reg.code() == 29)) {
       AppendToOutput("fp");
     } else if (reg.IsX() && (reg.code() == 30)) {
@@ -3469,7 +3466,7 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
     case 'e':
       // This is register Rm, but using a 4-bit specifier. Used in NEON
       // by-element instructions.
-      reg_num = (instr->Rm() & 0xf);
+      reg_num = (instr->Rm() & 0xF);
       break;
     case 'a':
       reg_num = instr->Ra();
@@ -3545,8 +3542,6 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
       return field_len;
     default:
       UNREACHABLE();
-      reg_type = CPURegister::kRegister;
-      reg_size = kXRegSizeInBits;
   }
 
   if ((reg_type == CPURegister::kRegister) && (reg_num == kZeroRegCode) &&
@@ -3569,7 +3564,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
         uint64_t imm = static_cast<uint64_t>(instr->ImmMoveWide())
                        << (16 * instr->ShiftMoveWide());
         if (format[5] == 'N') imm = ~imm;
-        if (!instr->SixtyFourBits()) imm &= UINT64_C(0xffffffff);
+        if (!instr->SixtyFourBits()) imm &= UINT64_C(0xFFFFFFFF);
         AppendToOutput("#0x%" PRIx64, imm);
       } else {
         DCHECK_EQ(format[5], 'L');
@@ -3696,7 +3691,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             vm_index = (vm_index << 1) | instr->NEONM();
           }
           AppendToOutput("%d", vm_index);
-          return strlen("IVByElemIndex");
+          return static_cast<int>(strlen("IVByElemIndex"));
         }
         case 'I': {  // INS element.
           if (strncmp(format, "IVInsIndex", strlen("IVInsIndex")) == 0) {
@@ -3709,11 +3704,11 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
               rn_index = imm4 >> tz;
               if (strncmp(format, "IVInsIndex1", strlen("IVInsIndex1")) == 0) {
                 AppendToOutput("%d", rd_index);
-                return strlen("IVInsIndex1");
+                return static_cast<int>(strlen("IVInsIndex1"));
               } else if (strncmp(format, "IVInsIndex2",
                                  strlen("IVInsIndex2")) == 0) {
                 AppendToOutput("%d", rn_index);
-                return strlen("IVInsIndex2");
+                return static_cast<int>(strlen("IVInsIndex2"));
               }
             }
             return 0;
@@ -3728,38 +3723,38 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
               0) {
             AppendToOutput("#0x%" PRIx32 " (%.4f)", instr->ImmNEONabcdefgh(),
                            instr->ImmNEONFP32());
-            return strlen("IVMIImmFPSingle");
+            return static_cast<int>(strlen("IVMIImmFPSingle"));
           } else if (strncmp(format, "IVMIImmFPDouble",
                              strlen("IVMIImmFPDouble")) == 0) {
             AppendToOutput("#0x%" PRIx32 " (%.4f)", instr->ImmNEONabcdefgh(),
                            instr->ImmNEONFP64());
-            return strlen("IVMIImmFPDouble");
+            return static_cast<int>(strlen("IVMIImmFPDouble"));
           } else if (strncmp(format, "IVMIImm8", strlen("IVMIImm8")) == 0) {
             uint64_t imm8 = instr->ImmNEONabcdefgh();
             AppendToOutput("#0x%" PRIx64, imm8);
-            return strlen("IVMIImm8");
+            return static_cast<int>(strlen("IVMIImm8"));
           } else if (strncmp(format, "IVMIImm", strlen("IVMIImm")) == 0) {
             uint64_t imm8 = instr->ImmNEONabcdefgh();
             uint64_t imm = 0;
             for (int i = 0; i < 8; ++i) {
               if (imm8 & (1 << i)) {
-                imm |= (UINT64_C(0xff) << (8 * i));
+                imm |= (UINT64_C(0xFF) << (8 * i));
               }
             }
             AppendToOutput("#0x%" PRIx64, imm);
-            return strlen("IVMIImm");
+            return static_cast<int>(strlen("IVMIImm"));
           } else if (strncmp(format, "IVMIShiftAmt1",
                              strlen("IVMIShiftAmt1")) == 0) {
             int cmode = instr->NEONCmode();
             int shift_amount = 8 * ((cmode >> 1) & 3);
             AppendToOutput("#%d", shift_amount);
-            return strlen("IVMIShiftAmt1");
+            return static_cast<int>(strlen("IVMIShiftAmt1"));
           } else if (strncmp(format, "IVMIShiftAmt2",
                              strlen("IVMIShiftAmt2")) == 0) {
             int cmode = instr->NEONCmode();
             int shift_amount = 8 << (cmode & 1);
             AppendToOutput("#%d", shift_amount);
-            return strlen("IVMIShiftAmt2");
+            return static_cast<int>(strlen("IVMIShiftAmt2"));
           } else {
             UNIMPLEMENTED();
             return 0;

@@ -18,6 +18,13 @@ Add tests when:
 - Fixing regressions and bugs.
 - Expanding test coverage.
 
+## Test directory structure
+
+See [directory structure overview][] for outline of existing test & locations.
+When deciding on whether to expand an existing test file or create a new one,
+consider going through the files related to the subsystem.
+For example, look for `test-streams` when writing a test for `lib/streams.js`.
+
 ## Test structure
 
 Let's analyze this basic test from the Node.js test suite:
@@ -365,13 +372,18 @@ The test can be executed by running the `cctest` target:
 $ make cctest
 ```
 
-### Node test fixture
+### Node.js test fixture
 There is a [test fixture][] named `node_test_fixture.h` which can be included by
 unit tests. The fixture takes care of setting up the Node.js environment
 and tearing it down after the tests have finished.
 
 It also contains a helper to create arguments to be passed into Node.js. It
 will depend on what is being tested if this is required or not.
+
+### Test Coverage
+
+To generate a test coverage report, see the
+[Test Coverage section of the Pull Requests guide][].
 
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
@@ -380,3 +392,5 @@ will depend on what is being tested if this is required or not.
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests
+[Test Coverage section of the Pull Requests guide]: https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#test-coverage
+[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories

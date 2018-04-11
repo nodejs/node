@@ -490,7 +490,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   int last_array_index = static_cast<int>(array_length - 1);
   // Array length must be representable as a signed 32-bit number,
   // otherwise the total string length would have been too large.
-  DCHECK_LE(array_length, 0x7fffffff);  // Is int32_t.
+  DCHECK_LE(array_length, 0x7FFFFFFF);  // Is int32_t.
   int repeat = last_array_index - previous_separator_position;
   WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat, separator_length);
   cursor += repeat * separator_length;
@@ -537,7 +537,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
 
   int separator_length = separator->length();
   if (!overflow && separator_length > 0) {
-    if (array_length <= 0x7fffffffu) {
+    if (array_length <= 0x7FFFFFFFu) {
       int separator_count = static_cast<int>(array_length) - 1;
       int remaining_length = String::kMaxLength - string_length;
       if ((remaining_length / separator_length) >= separator_count) {
@@ -549,7 +549,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     } else {
       // Nonempty separator and at least 2^31-1 separators necessary
       // means that the string is too large to create.
-      STATIC_ASSERT(String::kMaxLength < 0x7fffffff);
+      STATIC_ASSERT(String::kMaxLength < 0x7FFFFFFF);
       overflow = true;
     }
   }
@@ -730,7 +730,7 @@ RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
   DCHECK_EQ(1, args.length());
   if (args[0]->IsNumber()) {
     CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
-    code &= 0xffff;
+    code &= 0xFFFF;
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
   }
   return isolate->heap()->empty_string();

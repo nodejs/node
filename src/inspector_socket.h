@@ -17,8 +17,10 @@ class InspectorSocket {
  public:
   class Delegate {
    public:
-    virtual void OnHttpGet(const std::string& path) = 0;
-    virtual void OnSocketUpgrade(const std::string& path,
+    virtual void OnHttpGet(const std::string& host,
+                           const std::string& path) = 0;
+    virtual void OnSocketUpgrade(const std::string& host,
+                                 const std::string& path,
                                  const std::string& accept_key) = 0;
     virtual void OnWsFrame(const std::vector<char>& frame) = 0;
     virtual ~Delegate() {}

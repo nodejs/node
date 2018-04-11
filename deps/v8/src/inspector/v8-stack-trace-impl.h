@@ -120,6 +120,7 @@ class AsyncStackTrace {
   const String16& description() const;
   std::weak_ptr<AsyncStackTrace> parent() const;
   bool isEmpty() const;
+  const V8StackTraceId& externalParent() const { return m_externalParent; }
 
   const std::vector<std::shared_ptr<StackFrame>>& frames() const {
     return m_frames;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-bigint --noopt
+// Flags: --harmony-bigint
 
 var a = 5n;
 var b = a / -1n;
@@ -16,3 +16,5 @@ assertEquals(0n, 5n % 1n);
 assertEquals(0n, -5n % 1n);
 assertEquals(0n, 5n % -1n);
 assertEquals(0n, -5n % -1n);
+
+assertTrue(0n === 0n);

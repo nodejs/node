@@ -262,7 +262,7 @@ class GlobalHandles::Node {
     }
 
     // Zap with something dangerous.
-    *location() = reinterpret_cast<Object*>(0x6057ca11);
+    *location() = reinterpret_cast<Object*>(0x6057CA11);
 
     typedef v8::WeakCallbackInfo<void> Data;
     auto callback = reinterpret_cast<Data::Callback>(weak_callback_);

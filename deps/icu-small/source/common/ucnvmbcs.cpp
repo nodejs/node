@@ -5064,12 +5064,13 @@ ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     hasSupplementary=(UBool)(cnv->sharedData->mbcs.unicodeMask&UCNV_HAS_SUPPLEMENTARY);
 
     /* get the converter state from the UTF-8 UConverter */
-    c=(UChar32)utf8->toUnicodeStatus;
-    if(c!=0) {
+    if(utf8->toULength > 0) {
         toULength=oldToULength=utf8->toULength;
         toULimit=(int8_t)utf8->mode;
+        c=(UChar32)utf8->toUnicodeStatus;
     } else {
         toULength=oldToULength=toULimit=0;
+        c = 0;
     }
 
     // The conversion loop checks source<sourceLimit only once per 1/2/3-byte character.
@@ -5359,12 +5360,13 @@ ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     hasSupplementary=(UBool)(cnv->sharedData->mbcs.unicodeMask&UCNV_HAS_SUPPLEMENTARY);
 
     /* get the converter state from the UTF-8 UConverter */
-    c=(UChar32)utf8->toUnicodeStatus;
-    if(c!=0) {
+    if(utf8->toULength > 0) {
         toULength=oldToULength=utf8->toULength;
         toULimit=(int8_t)utf8->mode;
+        c=(UChar32)utf8->toUnicodeStatus;
     } else {
         toULength=oldToULength=toULimit=0;
+        c = 0;
     }
 
     // The conversion loop checks source<sourceLimit only once per 1/2/3-byte character.

@@ -6,7 +6,7 @@ const { ChildProcess } = require('child_process');
 assert.strictEqual(typeof ChildProcess, 'function');
 
 function typeName(value) {
-  return value === null ? 'null' : typeof value;
+  return typeof value;
 }
 
 {

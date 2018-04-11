@@ -84,11 +84,10 @@ function isES5Constructor(node) {
  * @returns {Node|null} A found function node.
  */
 function getUpperFunction(node) {
-    while (node) {
-        if (anyFunctionPattern.test(node.type)) {
-            return node;
+    for (let currentNode = node; currentNode; currentNode = currentNode.parent) {
+        if (anyFunctionPattern.test(currentNode.type)) {
+            return currentNode;
         }
-        node = node.parent;
     }
     return null;
 }
@@ -132,12 +131,10 @@ function isLoop(node) {
  * @returns {boolean} `true` if the node is in a loop.
  */
 function isInLoop(node) {
-    while (node && !isFunction(node)) {
-        if (isLoop(node)) {
+    for (let currentNode = node; currentNode && !isFunction(currentNode); currentNode = currentNode.parent) {
+        if (isLoop(currentNode)) {
             return true;
         }
-
-        node = node.parent;
     }
 
     return false;
@@ -204,16 +201,14 @@ function isArrayFromMethod(node) {
  * @returns {boolean} Whether or not the node is a method which has `thisArg`.
  */
 function isMethodWhichHasThisArg(node) {
-    while (node) {
-        if (node.type === "Identifier") {
-            return arrayMethodPattern.test(node.name);
+    for (
+        let currentNode = node;
+        currentNode.type === "MemberExpression" && !currentNode.computed;
+        currentNode = currentNode.property
+    ) {
+        if (currentNode.property.type === "Identifier") {
+            return arrayMethodPattern.test(currentNode.property.name);
         }
-        if (node.type === "MemberExpression" && !node.computed) {
-            node = node.property;
-            continue;
-        }
-
-        break;
     }
 
     return false;
@@ -631,9 +626,10 @@ module.exports = {
             return false;
         }
         const isAnonymous = node.id === null;
+        let currentNode = node;
 
-        while (node) {
-            const parent = node.parent;
+        while (currentNode) {
+            const parent = currentNode.parent;
 
             switch (parent.type) {
 
@@ -643,7 +639,7 @@ module.exports = {
                  */
                 case "LogicalExpression":
                 case "ConditionalExpression":
-                    node = parent;
+                    currentNode = parent;
                     break;
 
                 /*
@@ -663,14 +659,14 @@ module.exports = {
                     if (func === null || !isCallee(func)) {
                         return true;
                     }
-                    node = func.parent;
+                    currentNode = func.parent;
                     break;
                 }
                 case "ArrowFunctionExpression":
-                    if (node !== parent.body || !isCallee(parent)) {
+                    if (currentNode !== parent.body || !isCallee(parent)) {
                         return true;
                     }
-                    node = parent.parent;
+                    currentNode = parent.parent;
                     break;
 
                 /*
@@ -685,7 +681,7 @@ module.exports = {
                  */
                 case "Property":
                 case "MethodDefinition":
-                    return parent.value !== node;
+                    return parent.value !== currentNode;
 
                 /*
                  * e.g.
@@ -715,7 +711,7 @@ module.exports = {
                 case "VariableDeclarator":
                     return !(
                         isAnonymous &&
-                        parent.init === node &&
+                        parent.init === currentNode &&
                         parent.id.type === "Identifier" &&
                         startsWithUpperCase(parent.id.name)
                     );
@@ -728,7 +724,7 @@ module.exports = {
                  */
                 case "MemberExpression":
                     return (
-                        parent.object !== node ||
+                        parent.object !== currentNode ||
                         parent.property.type !== "Identifier" ||
                         !bindOrCallOrApplyPattern.test(parent.property.name) ||
                         !isCallee(parent) ||
@@ -746,21 +742,21 @@ module.exports = {
                     if (isReflectApply(parent.callee)) {
                         return (
                             parent.arguments.length !== 3 ||
-                            parent.arguments[0] !== node ||
+                            parent.arguments[0] !== currentNode ||
                             isNullOrUndefined(parent.arguments[1])
                         );
                     }
                     if (isArrayFromMethod(parent.callee)) {
                         return (
                             parent.arguments.length !== 3 ||
-                            parent.arguments[1] !== node ||
+                            parent.arguments[1] !== currentNode ||
                             isNullOrUndefined(parent.arguments[2])
                         );
                     }
                     if (isMethodWhichHasThisArg(parent.callee)) {
                         return (
                             parent.arguments.length !== 2 ||
-                            parent.arguments[0] !== node ||
+                            parent.arguments[0] !== currentNode ||
                             isNullOrUndefined(parent.arguments[1])
                         );
                     }

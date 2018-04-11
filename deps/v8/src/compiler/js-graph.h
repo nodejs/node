@@ -155,9 +155,6 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Create a control node that serves as dependency for dead nodes.
   Node* Dead();
 
-  // Sentinel for a value resulting from unreachable computations.
-  Node* DeadValue();
-
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   SimplifiedOperatorBuilder* simplified() const { return simplified_; }
@@ -199,7 +196,6 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
     kEmptyStateValues,
     kSingleDeadTypedStateValues,
     kDead,
-    kDeadValue,
     kNumCachedNodes  // Must remain last.
   };
 

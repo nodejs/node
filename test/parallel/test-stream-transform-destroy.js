@@ -11,9 +11,9 @@ const assert = require('assert');
 
   transform.resume();
 
-  transform.on('end', common.mustCall());
+  transform.on('end', common.mustNotCall());
   transform.on('close', common.mustCall());
-  transform.on('finish', common.mustCall());
+  transform.on('finish', common.mustNotCall());
 
   transform.destroy();
 }
@@ -26,8 +26,8 @@ const assert = require('assert');
 
   const expected = new Error('kaboom');
 
-  transform.on('end', common.mustCall());
-  transform.on('finish', common.mustCall());
+  transform.on('end', common.mustNotCall());
+  transform.on('finish', common.mustNotCall());
   transform.on('close', common.mustCall());
   transform.on('error', common.mustCall((err) => {
     assert.strictEqual(err, expected);
@@ -49,7 +49,7 @@ const assert = require('assert');
   const expected = new Error('kaboom');
 
   transform.on('finish', common.mustNotCall('no finish event'));
-  transform.on('close', common.mustNotCall('no close event'));
+  transform.on('close', common.mustCall());
   transform.on('error', common.mustCall((err) => {
     assert.strictEqual(err, expected);
   }));
@@ -69,7 +69,7 @@ const assert = require('assert');
   transform.resume();
 
   transform.on('end', common.mustNotCall('no end event'));
-  transform.on('close', common.mustNotCall('no close event'));
+  transform.on('close', common.mustCall());
   transform.on('finish', common.mustNotCall('no finish event'));
 
   // error is swallowed by the custom _destroy
@@ -110,7 +110,7 @@ const assert = require('assert');
 
   transform.on('finish', fail);
   transform.on('end', fail);
-  transform.on('close', fail);
+  transform.on('close', common.mustCall());
 
   transform.destroy();
 
@@ -132,7 +132,7 @@ const assert = require('assert');
     cb(expected);
   }, 1);
 
-  transform.on('close', common.mustNotCall('no close event'));
+  transform.on('close', common.mustCall());
   transform.on('finish', common.mustNotCall('no finish event'));
   transform.on('end', common.mustNotCall('no end event'));
   transform.on('error', common.mustCall((err) => {

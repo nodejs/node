@@ -56,12 +56,14 @@ function isRemovable(node) {
  * @returns {boolean} `true` if the node is in a `finally` block.
  */
 function isInFinally(node) {
-    while (node && node.parent && !astUtils.isFunction(node)) {
-        if (node.parent.type === "TryStatement" && node.parent.finalizer === node) {
+    for (
+        let currentNode = node;
+        currentNode && currentNode.parent && !astUtils.isFunction(currentNode);
+        currentNode = currentNode.parent
+    ) {
+        if (currentNode.parent.type === "TryStatement" && currentNode.parent.finalizer === currentNode) {
             return true;
         }
-
-        node = node.parent;
     }
 
     return false;
@@ -116,13 +118,12 @@ module.exports = {
          *
          * @param {ASTNode[]} uselessReturns - The collected return statements.
          * @param {CodePathSegment[]} prevSegments - The previous segments to traverse.
-         * @param {WeakSet<CodePathSegment>} [traversedSegments] A set of segments that have already been traversed in this call
+         * @param {WeakSet<CodePathSegment>} [providedTraversedSegments] A set of segments that have already been traversed in this call
          * @returns {ASTNode[]} `uselessReturns`.
          */
-        function getUselessReturns(uselessReturns, prevSegments, traversedSegments) {
-            if (!traversedSegments) {
-                traversedSegments = new WeakSet();
-            }
+        function getUselessReturns(uselessReturns, prevSegments, providedTraversedSegments) {
+            const traversedSegments = providedTraversedSegments || new WeakSet();
+
             for (const segment of prevSegments) {
                 if (!segment.reachable) {
                     if (!traversedSegments.has(segment)) {

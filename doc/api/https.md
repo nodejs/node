@@ -12,7 +12,7 @@ separate module.
 added: v0.4.5
 -->
 
-An [`Agent`][] object for HTTPS similar to [`http.Agent`][].  See
+An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
 ## Class: https.Server
@@ -40,7 +40,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 <!-- YAML
 added: v0.11.2
 -->
-- `msecs` {number} Defaults to 120000 (2 minutes).
+- `msecs` {number} **Default:** `120000` (2 minutes)
 - `callback` {Function}
 
 See [`http.Server#setTimeout()`][].
@@ -49,7 +49,7 @@ See [`http.Server#setTimeout()`][].
 <!-- YAML
 added: v0.11.2
 -->
-- {number} Defaults to 120000 (2 minutes).
+- {number} **Default:** `120000` (2 minutes)
 
 See [`http.Server#timeout`][].
 
@@ -57,7 +57,7 @@ See [`http.Server#timeout`][].
 <!-- YAML
 added: v8.0.0
 -->
-- {number} Defaults to 5000 (5 seconds).
+- {number} **Default:** `5000` (5 seconds)
 
 See [`http.Server#keepAliveTimeout`][].
 
@@ -160,9 +160,9 @@ changes:
 -->
 - `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
-  - `protocol` Defaults to `https:`
-  - `port` Defaults to `443`.
-  - `agent` Defaults to `https.globalAgent`.
+  - `protocol` **Default:** `'https:'`
+  - `port` **Default:** `443`
+  - `agent` **Default:** `https.globalAgent`
 - `callback` {Function}
 
 

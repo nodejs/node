@@ -17,6 +17,7 @@
 #include "unicode/ustring.h"
 #include "unicode/parsepos.h"
 #include "ustr_imp.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "uassert.h"
@@ -28,8 +29,11 @@
 #include "uinvchar.h"
 #include "uresimp.h"
 #include "ulist.h"
+#include "uresimp.h"
 #include "ureslocs.h"
 #include "ulocimp.h"
+
+using namespace icu;
 
 //#define UCURR_DEBUG_EQUIV 1
 #ifdef UCURR_DEBUG_EQUIV
@@ -104,6 +108,7 @@ static const char VAR_DELIM_STR[] = "_";
 
 // Tag for localized display names (symbols) of currencies
 static const char CURRENCIES[] = "Currencies";
+static const char CURRENCIES_NARROW[] = "Currencies%narrow";
 static const char CURRENCYPLURALS[] = "CurrencyPlurals";
 
 static const UChar EUR_STR[] = {0x0045,0x0055,0x0052,0};
@@ -698,7 +703,7 @@ ucurr_getName(const UChar* currency,
     }
 
     int32_t choice = (int32_t) nameStyle;
-    if (choice < 0 || choice > 1) {
+    if (choice < 0 || choice > 2) {
         *ec = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -731,15 +736,19 @@ ucurr_getName(const UChar* currency,
 
     const UChar* s = NULL;
     ec2 = U_ZERO_ERROR;
-    UResourceBundle* rb = ures_open(U_ICUDATA_CURR, loc, &ec2);
+    LocalUResourceBundlePointer rb(ures_open(U_ICUDATA_CURR, loc, &ec2));
 
-    rb = ures_getByKey(rb, CURRENCIES, rb, &ec2);
-
-    // Fetch resource with multi-level resource inheritance fallback
-    rb = ures_getByKeyWithFallback(rb, buf, rb, &ec2);
-
-    s = ures_getStringByIndex(rb, choice, len, &ec2);
-    ures_close(rb);
+    if (nameStyle == UCURR_NARROW_SYMBOL_NAME) {
+        CharString key;
+        key.append(CURRENCIES_NARROW, ec2);
+        key.append("/", ec2);
+        key.append(buf, ec2);
+        s = ures_getStringByKeyWithFallback(rb.getAlias(), key.data(), len, &ec2);
+    } else {
+        ures_getByKey(rb.getAlias(), CURRENCIES, rb.getAlias(), &ec2);
+        ures_getByKeyWithFallback(rb.getAlias(), buf, rb.getAlias(), &ec2);
+        s = ures_getStringByIndex(rb.getAlias(), choice, len, &ec2);
+    }
 
     // If we've succeeded we're done.  Otherwise, try to fallback.
     // If that fails (because we are already at root) then exit.

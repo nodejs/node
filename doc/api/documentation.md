@@ -80,7 +80,8 @@ wish to do programmatic things with the documentation.
 ## Syscalls and man pages
 
 System calls like open(2) and read(2) define the interface between user programs
-and the underlying operating system. Node functions which simply wrap a syscall,
+and the underlying operating system. Node.js functions
+which simply wrap a syscall,
 like [`fs.open()`][], will document that. The docs link to the corresponding man
 pages (short for manual pages) which describe how the syscalls work.
 

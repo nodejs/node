@@ -46,19 +46,15 @@ function isReachable(segment) {
 function makeSegments(context, begin, end, create) {
     const list = context.segmentsList;
 
-    if (begin < 0) {
-        begin = list.length + begin;
-    }
-    if (end < 0) {
-        end = list.length + end;
-    }
+    const normalizedBegin = begin >= 0 ? begin : list.length + begin;
+    const normalizedEnd = end >= 0 ? end : list.length + end;
 
     const segments = [];
 
     for (let i = 0; i < context.count; ++i) {
         const allPrevSegments = [];
 
-        for (let j = begin; j <= end; ++j) {
+        for (let j = normalizedBegin; j <= normalizedEnd; ++j) {
             allPrevSegments.push(list[j][i]);
         }
 
@@ -79,18 +75,20 @@ function makeSegments(context, begin, end, create) {
  * @returns {CodePathSegment[]} The merged segments.
  */
 function mergeExtraSegments(context, segments) {
-    while (segments.length > context.count) {
+    let currentSegments = segments;
+
+    while (currentSegments.length > context.count) {
         const merged = [];
 
-        for (let i = 0, length = segments.length / 2 | 0; i < length; ++i) {
+        for (let i = 0, length = currentSegments.length / 2 | 0; i < length; ++i) {
             merged.push(CodePathSegment.newNext(
                 context.idGenerator.next(),
-                [segments[i], segments[i + length]]
+                [currentSegments[i], currentSegments[i + length]]
             ));
         }
-        segments = merged;
+        currentSegments = merged;
     }
-    return segments;
+    return currentSegments;
 }
 
 //------------------------------------------------------------------------------

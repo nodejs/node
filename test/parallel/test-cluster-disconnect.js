@@ -86,11 +86,11 @@ if (cluster.isWorker) {
   };
 
   const test = (again) => {
-    //1. start cluster
+    // 1. start cluster
     startCluster(common.mustCall(() => {
-      //2. test cluster
+      // 2. test cluster
       testCluster(common.mustCall(() => {
-        //3. disconnect cluster
+        // 3. disconnect cluster
         cluster.disconnect(common.mustCall(() => {
           // run test again to confirm cleanup
           if (again) {

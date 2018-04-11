@@ -25,7 +25,11 @@ module.exports = {
 
         schema: [],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpected: "The function binding is unnecessary."
+        }
     },
 
     create(context) {
@@ -41,7 +45,7 @@ module.exports = {
         function report(node) {
             context.report({
                 node: node.parent.parent,
-                message: "The function binding is unnecessary.",
+                messageId: "unexpected",
                 loc: node.parent.property.loc.start,
                 fix(fixer) {
                     const firstTokenToRemove = context.getSourceCode()

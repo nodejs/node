@@ -21,10 +21,8 @@ DeadCodeElimination::DeadCodeElimination(Editor* editor, Graph* graph,
       graph_(graph),
       common_(common),
       dead_(graph->NewNode(common->Dead())),
-      dead_value_(graph->NewNode(common->DeadValue())),
       zone_(temp_zone) {
   NodeProperties::SetType(dead_, Type::None());
-  NodeProperties::SetType(dead_value_, Type::None());
 }
 
 namespace {
@@ -38,11 +36,11 @@ bool NoReturn(Node* node) {
          NodeProperties::GetTypeOrAny(node)->IsNone();
 }
 
-bool HasDeadInput(Node* node) {
+Node* FindDeadInput(Node* node) {
   for (Node* input : node->inputs()) {
-    if (NoReturn(input)) return true;
+    if (NoReturn(input)) return input;
   }
-  return false;
+  return nullptr;
 }
 
 }  // namespace
@@ -209,17 +207,27 @@ Reduction DeadCodeElimination::ReducePhi(Node* node) {
   DCHECK_EQ(IrOpcode::kPhi, node->opcode());
   Reduction reduction = PropagateDeadControl(node);
   if (reduction.Changed()) return reduction;
-  if (PhiRepresentationOf(node->op()) == MachineRepresentation::kNone ||
+  MachineRepresentation rep = PhiRepresentationOf(node->op());
+  if (rep == MachineRepresentation::kNone ||
       NodeProperties::GetTypeOrAny(node)->IsNone()) {
-    return Replace(dead_value());
+    return Replace(DeadValue(node, rep));
+  }
+  int input_count = node->op()->ValueInputCount();
+  for (int i = 0; i < input_count; ++i) {
+    Node* input = NodeProperties::GetValueInput(node, i);
+    if (input->opcode() == IrOpcode::kDeadValue &&
+        DeadValueRepresentationOf(input->op()) != rep) {
+      NodeProperties::ReplaceValueInput(node, DeadValue(input, rep), i);
+    }
   }
   return NoChange();
 }
 
 Reduction DeadCodeElimination::ReducePureNode(Node* node) {
   DCHECK_EQ(0, node->op()->EffectInputCount());
-  if (HasDeadInput(node)) {
-    return Replace(dead_value());
+  if (node->opcode() == IrOpcode::kDeadValue) return NoChange();
+  if (Node* input = FindDeadInput(node)) {
+    return Replace(DeadValue(input));
   }
   return NoChange();
 }
@@ -234,8 +242,7 @@ Reduction DeadCodeElimination::ReduceUnreachableOrIfException(Node* node) {
     return Replace(effect);
   }
   if (effect->opcode() == IrOpcode::kUnreachable) {
-    RelaxEffectsAndControls(node);
-    return Replace(dead_value());
+    return Replace(effect);
   }
   return NoChange();
 }
@@ -246,10 +253,10 @@ Reduction DeadCodeElimination::ReduceEffectNode(Node* node) {
   if (effect->opcode() == IrOpcode::kDead) {
     return Replace(effect);
   }
-  if (HasDeadInput(node)) {
+  if (Node* input = FindDeadInput(node)) {
     if (effect->opcode() == IrOpcode::kUnreachable) {
       RelaxEffectsAndControls(node);
-      return Replace(dead_value());
+      return Replace(DeadValue(input));
     }
 
     Node* control = node->op()->ControlInputCount() == 1
@@ -257,7 +264,8 @@ Reduction DeadCodeElimination::ReduceEffectNode(Node* node) {
                         : graph()->start();
     Node* unreachable =
         graph()->NewNode(common()->Unreachable(), effect, control);
-    ReplaceWithValue(node, dead_value(), node, control);
+    NodeProperties::SetType(unreachable, Type::None());
+    ReplaceWithValue(node, DeadValue(input), node, control);
     return Replace(unreachable);
   }
 
@@ -270,11 +278,12 @@ Reduction DeadCodeElimination::ReduceDeoptimizeOrReturnOrTerminate(Node* node) {
          node->opcode() == IrOpcode::kTerminate);
   Reduction reduction = PropagateDeadControl(node);
   if (reduction.Changed()) return reduction;
-  if (HasDeadInput(node)) {
+  if (FindDeadInput(node) != nullptr) {
     Node* effect = NodeProperties::GetEffectInput(node, 0);
     Node* control = NodeProperties::GetControlInput(node, 0);
     if (effect->opcode() != IrOpcode::kUnreachable) {
       effect = graph()->NewNode(common()->Unreachable(), effect, control);
+      NodeProperties::SetType(effect, Type::None());
     }
     node->TrimInputCount(2);
     node->ReplaceInput(0, effect);
@@ -320,6 +329,16 @@ void DeadCodeElimination::TrimMergeOrPhi(Node* node, int size) {
   const Operator* const op = common()->ResizeMergeOrPhi(node->op(), size);
   node->TrimInputCount(OperatorProperties::GetTotalInputCount(op));
   NodeProperties::ChangeOp(node, op);
+}
+
+Node* DeadCodeElimination::DeadValue(Node* node, MachineRepresentation rep) {
+  if (node->opcode() == IrOpcode::kDeadValue) {
+    if (rep == DeadValueRepresentationOf(node->op())) return node;
+    node = NodeProperties::GetValueInput(node, 0);
+  }
+  Node* dead_value = graph()->NewNode(common()->DeadValue(rep), node);
+  NodeProperties::SetType(dead_value, Type::None());
+  return dead_value;
 }
 
 }  // namespace compiler

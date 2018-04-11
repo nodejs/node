@@ -12,6 +12,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 #include "src/profiler/strings-storage.h"
 #include "src/string-hasher.h"
 #include "src/visitors.h"
@@ -26,6 +27,8 @@ class HeapIterator;
 class HeapProfiler;
 class HeapSnapshot;
 class JSArrayBuffer;
+class JSCollection;
+class JSWeakCollection;
 class SnapshotFiller;
 
 class HeapGraphEdge BASE_EMBEDDED {

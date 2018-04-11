@@ -45,6 +45,20 @@ function testBlackboxedCreatePromise() {
   debugger;
   createPromise().then(v => v * 2);
 }
+
+async function testAsyncFunction() {
+  debugger;
+  foo();
+  await foo();
+  foo().then(boo);
+
+  async function foo() {
+    return 42;
+  }
+
+  function boo() {
+  }
+}
 //# sourceURL=test.js`);
 
 contextGroup.addScript(`
@@ -167,6 +181,52 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
+    await Protocol.Debugger.resume();
+  },
+
+  async function testWithBlackboxedCode() {
+    Protocol.Runtime.evaluate({expression: 'testBlackboxedCreatePromise()'});
+    await waitPauseAndDumpLocation();
+    Protocol.Debugger.stepOver();
+    await waitPauseAndDumpLocation();
+    await Protocol.Debugger.setBlackboxPatterns({patterns: ['framework\.js']});
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
+    Protocol.Debugger.resume();
+    await waitPauseAndDumpLocation();
+    await Protocol.Debugger.resume();
+  },
+
+  async function testAsyncFunction() {
+    Protocol.Runtime.evaluate({expression: 'testAsyncFunction()'});
+    await waitPauseAndDumpLocation();
+    Protocol.Debugger.stepOver();
+    await waitPauseAndDumpLocation();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    if (parentStackTraceId)
+      InspectorTest.log(
+          'ERROR: we should not report parent stack trace id on async call');
+    Protocol.Debugger.stepOut();
+    await waitPauseAndDumpLocation();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    parentStackTraceId = await waitPauseAndDumpLocation();
+    if (parentStackTraceId)
+      InspectorTest.log(
+          'ERROR: we should not report parent stack trace id on async call');
+    Protocol.Debugger.stepOut();
+    await waitPauseAndDumpLocation();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    await waitPauseAndDumpLocation();
+    Protocol.Debugger.stepOut();
+    await waitPauseAndDumpLocation();
+    Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
+    Protocol.Debugger.resume();
+    await waitPauseAndDumpLocation();
+
     await Protocol.Debugger.resume();
   }
 ]);

@@ -31,6 +31,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "node_perf_common.h"
+#include "node_context_data.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -111,8 +112,7 @@ inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
 }
 
 inline void Environment::AsyncHooks::no_force_checks() {
-  // fields_ does not have the -= operator defined
-  fields_[kCheck] = fields_[kCheck] - 1;
+  fields_[kCheck] -= 1;
 }
 
 inline Environment* Environment::AsyncHooks::env() {
@@ -121,7 +121,7 @@ inline Environment* Environment::AsyncHooks::env() {
 
 // Remember to keep this code aligned with pushAsyncIds() in JS.
 inline void Environment::AsyncHooks::push_async_ids(double async_id,
-                                              double trigger_async_id) {
+                                                    double trigger_async_id) {
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -134,7 +134,7 @@ inline void Environment::AsyncHooks::push_async_ids(double async_id,
     grow_async_ids_stack();
   async_ids_stack_[2 * offset] = async_id_fields_[kExecutionAsyncId];
   async_ids_stack_[2 * offset + 1] = async_id_fields_[kTriggerAsyncId];
-  fields_[kStackLength] = fields_[kStackLength] + 1;
+  fields_[kStackLength] += 1;
   async_id_fields_[kExecutionAsyncId] = async_id;
   async_id_fields_[kTriggerAsyncId] = trigger_async_id;
 }
@@ -178,6 +178,9 @@ inline void Environment::AsyncHooks::clear_async_id_stack() {
   async_id_fields_[kTriggerAsyncId] = 0;
   fields_[kStackLength] = 0;
 }
+
+// The DefaultTriggerAsyncIdScope(AsyncWrap*) constructor is defined in
+// async_wrap-inl.h to avoid a circular dependency.
 
 inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
   ::DefaultTriggerAsyncIdScope(Environment* env,
@@ -239,19 +242,19 @@ inline bool Environment::ImmediateInfo::has_outstanding() const {
 }
 
 inline void Environment::ImmediateInfo::count_inc(uint32_t increment) {
-  fields_[kCount] = fields_[kCount] + increment;
+  fields_[kCount] += increment;
 }
 
 inline void Environment::ImmediateInfo::count_dec(uint32_t decrement) {
-  fields_[kCount] = fields_[kCount] - decrement;
+  fields_[kCount] -= decrement;
 }
 
 inline void Environment::ImmediateInfo::ref_count_inc(uint32_t increment) {
-  fields_[kRefCount] = fields_[kRefCount] + increment;
+  fields_[kRefCount] += increment;
 }
 
 inline void Environment::ImmediateInfo::ref_count_dec(uint32_t decrement) {
-  fields_[kRefCount] = fields_[kRefCount] - decrement;
+  fields_[kRefCount] -= decrement;
 }
 
 inline Environment::TickInfo::TickInfo(v8::Isolate* isolate)
@@ -283,7 +286,8 @@ inline void Environment::TickInfo::set_has_thrown(bool state) {
 
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,
                                          const ContextInfo& info) {
-  context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, this);
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kEnvironment, this);
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
 #endif  // HAVE_INSPECTOR
@@ -295,7 +299,8 @@ inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
 
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   return static_cast<Environment*>(
-      context->GetAlignedPointerFromEmbedderData(kContextEmbedderDataIndex));
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kEnvironment));
 }
 
 inline Environment* Environment::GetCurrent(
@@ -314,66 +319,6 @@ inline Environment* Environment::GetCurrent(
 
 inline Environment* Environment::GetThreadLocalEnv() {
   return static_cast<Environment*>(uv_key_get(&thread_local_env));
-}
-
-inline Environment::Environment(IsolateData* isolate_data,
-                                v8::Local<v8::Context> context)
-    : isolate_(context->GetIsolate()),
-      isolate_data_(isolate_data),
-      immediate_info_(context->GetIsolate()),
-      tick_info_(context->GetIsolate()),
-      timer_base_(uv_now(isolate_data->event_loop())),
-      printed_error_(false),
-      trace_sync_io_(false),
-      abort_on_uncaught_exception_(false),
-      emit_napi_warning_(true),
-      makecallback_cntr_(0),
-      should_abort_on_uncaught_toggle_(isolate_, 1),
-#if HAVE_INSPECTOR
-      inspector_agent_(new inspector::Agent(this)),
-#endif
-      handle_cleanup_waiting_(0),
-      http_parser_buffer_(nullptr),
-      fs_stats_field_array_(isolate_, kFsStatsFieldsLength),
-      context_(context->GetIsolate(), context) {
-  // We'll be creating new objects so make sure we've entered the context.
-  v8::HandleScope handle_scope(isolate());
-  v8::Context::Scope context_scope(context);
-  set_as_external(v8::External::New(isolate(), this));
-
-  AssignToContext(context, ContextInfo(""));
-
-  destroy_async_id_list_.reserve(512);
-  performance_state_.reset(new performance::performance_state(isolate()));
-  performance_state_->milestones[
-      performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT] =
-          PERFORMANCE_NOW();
-  performance_state_->milestones[
-    performance::NODE_PERFORMANCE_MILESTONE_NODE_START] =
-        performance::performance_node_start;
-  performance_state_->milestones[
-    performance::NODE_PERFORMANCE_MILESTONE_V8_START] =
-        performance::performance_v8_start;
-
-  // By default, always abort when --abort-on-uncaught-exception was passed.
-  should_abort_on_uncaught_toggle_[0] = 1;
-}
-
-inline Environment::~Environment() {
-  v8::HandleScope handle_scope(isolate());
-
-#if HAVE_INSPECTOR
-  // Destroy inspector agent before erasing the context. The inspector
-  // destructor depends on the context still being accessible.
-  inspector_agent_.reset();
-#endif
-
-  context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
-                                             nullptr);
-
-  delete[] heap_statistics_buffer_;
-  delete[] heap_space_statistics_buffer_;
-  delete[] http_parser_buffer_;
 }
 
 inline v8::Isolate* Environment::isolate() const {
@@ -396,7 +341,7 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
                                                HandleCleanupCb cb,
                                                void *arg) {
-  handle_cleanup_queue_.PushBack(new HandleCleanup(handle, cb, arg));
+  handle_cleanup_queue_.push_back(HandleCleanup{handle, cb, arg});
 }
 
 inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
@@ -474,8 +419,7 @@ inline std::vector<double>* Environment::destroy_async_id_list() {
 }
 
 inline double Environment::new_async_id() {
-  async_hooks()->async_id_fields()[AsyncHooks::kAsyncIdCounter] =
-    async_hooks()->async_id_fields()[AsyncHooks::kAsyncIdCounter] + 1;
+  async_hooks()->async_id_fields()[AsyncHooks::kAsyncIdCounter] += 1;
   return async_hooks()->async_id_fields()[AsyncHooks::kAsyncIdCounter];
 }
 
@@ -525,6 +469,14 @@ inline void Environment::set_http_parser_buffer(char* buffer) {
   http_parser_buffer_ = buffer;
 }
 
+inline bool Environment::http_parser_buffer_in_use() const {
+  return http_parser_buffer_in_use_;
+}
+
+inline void Environment::set_http_parser_buffer_in_use(bool in_use) {
+  http_parser_buffer_in_use_ = in_use;
+}
+
 inline http2::http2_state* Environment::http2_state() const {
   return http2_state_.get();
 }
@@ -540,10 +492,15 @@ Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
 }
 
+inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
+Environment::file_handle_read_wrap_freelist() {
+  return file_handle_read_wrap_freelist_;
+}
+
 void Environment::CreateImmediate(native_immediate_callback cb,
-                               void* data,
-                               v8::Local<v8::Object> obj,
-                               bool ref) {
+                                  void* data,
+                                  v8::Local<v8::Object> obj,
+                                  bool ref) {
   native_immediate_callbacks_.push_back({
     cb,
     data,
@@ -574,7 +531,8 @@ inline performance::performance_state* Environment::performance_state() {
   return performance_state_.get();
 }
 
-inline std::map<std::string, uint64_t>* Environment::performance_marks() {
+inline std::unordered_map<std::string, uint64_t>*
+    Environment::performance_marks() {
   return &performance_marks_;
 }
 

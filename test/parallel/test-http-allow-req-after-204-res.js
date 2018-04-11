@@ -48,8 +48,9 @@ function nextRequest() {
       if (countdown.dec()) {
         // throws error:
         nextRequest();
+        // TODO: investigate why this does not work fine even though it should.
         // works just fine:
-        //process.nextTick(nextRequest);
+        // process.nextTick(nextRequest);
       }
     }));
     response.resume();

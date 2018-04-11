@@ -33,8 +33,5 @@ assert.throws(() => {
   assert.fail(new TypeError('custom message'));
 }, {
   name: 'TypeError',
-  message: 'custom message',
-  operator: undefined,
-  actual: undefined,
-  expected: undefined
+  message: 'custom message'
 });

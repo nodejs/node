@@ -159,7 +159,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 
 * `code` {string} JavaScript Module code to parse
 * `options`
-  * `url` {string} URL used in module resolution and stack traces. **Default**:
+  * `url` {string} URL used in module resolution and stack traces. **Default:**
     `'vm:module(i)'` where `i` is a context-specific ascending index.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this Module in.
@@ -167,8 +167,48 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
     in stack traces produced by this Module.
   * `columnOffset` {integer} Spcifies the column number offset that is displayed
     in stack traces produced by this Module.
+  * `initalizeImportMeta` {Function} Called during evaluation of this Module to
+    initialize the `import.meta`. This function has the signature `(meta,
+    module)`, where `meta` is the `import.meta` object in the Module, and
+    `module` is this `vm.Module` object.
 
 Creates a new ES `Module` object.
+
+*Note*: Properties assigned to the `import.meta` object that are objects may
+allow the Module to access information outside the specified `context`, if the
+object is created in the top level context. Use `vm.runInContext()` to create
+objects in a specific context.
+
+```js
+const vm = require('vm');
+
+const contextifiedSandbox = vm.createContext({ secret: 42 });
+
+(async () => {
+  const module = new vm.Module(
+    'Object.getPrototypeOf(import.meta.prop).secret = secret;',
+    {
+      initializeImportMeta(meta) {
+        // Note: this object is created in the top context. As such,
+        // Object.getPrototypeOf(import.meta.prop) points to the
+        // Object.prototype in the top context rather than that in
+        // the sandbox.
+        meta.prop = {};
+      }
+    });
+  // Since module has no dependencies, the linker function will never be called.
+  await module.link(() => {});
+  module.initialize();
+  await module.evaluate();
+
+  // Now, Object.prototype.secret will be equal to 42.
+  //
+  // To fix this problem, replace
+  //     meta.prop = {};
+  // above with
+  //     meta.prop = vm.runInContext('{}', contextifiedSandbox);
+})();
+```
 
 ### module.dependencySpecifiers
 
@@ -267,7 +307,7 @@ The URL of the current module, as set in the constructor.
     will be thrown.
   * `breakOnSigint` {boolean} If `true`, the execution will be terminated when
     `SIGINT` (Ctrl+C) is received. Existing handlers for the event that have
-    been attached via `process.on("SIGINT")` will be disabled during script
+    been attached via `process.on('SIGINT')` will be disabled during script
     execution, but will continue to work after that. If execution is
     interrupted, an [`Error`][] will be thrown.
 * Returns: {Promise}
@@ -428,7 +468,7 @@ changes:
     will be thrown.
   * `breakOnSigint`: if `true`, the execution will be terminated when
     `SIGINT` (Ctrl+C) is received. Existing handlers for the
-    event that have been attached via `process.on("SIGINT")` will be disabled
+    event that have been attached via `process.on('SIGINT')` will be disabled
     during script execution, but will continue to work after that.
     If execution is terminated, an [`Error`][] will be thrown.
 
@@ -469,6 +509,10 @@ overhead.
 ### script.runInNewContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19016
+    description: The `contextCodeGeneration` option is supported now.
 -->
 
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
@@ -495,6 +539,12 @@ added: v0.3.1
     value of the [`url.origin`][] property of a [`URL`][] object. Most notably,
     this string should omit the trailing slash, as that denotes a path.
     **Default:** `''`.
+  * `contextCodeGeneration` {Object}
+    * `strings` {boolean} If set to false any calls to `eval` or function
+      constructors (`Function`, `GeneratorFunction`, etc) will throw an
+      `EvalError`. **Default:** `true`.
+    * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
+      module will throw a `WebAssembly.CompileError`. **Default:** `true`.
 
 First contextifies the given `sandbox`, runs the compiled code contained by
 the `vm.Script` object within the created sandbox, and returns the result.
@@ -565,6 +615,13 @@ console.log(globalVar);
 ## vm.createContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19398
+    description: The `sandbox` option can no longer be a function.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19016
+    description: The `codeGeneration` option is supported now.
 -->
 
 * `sandbox` {Object}
@@ -578,6 +635,12 @@ added: v0.3.1
     the [`url.origin`][] property of a [`URL`][] object. Most notably, this
     string should omit the trailing slash, as that denotes a path.
     **Default:** `''`.
+  * `codeGeneration` {Object}
+    * `strings` {boolean} If set to false any calls to `eval` or function
+      constructors (`Function`, `GeneratorFunction`, etc) will throw an
+      `EvalError`. **Default:** `true`.
+    * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
+      module will throw a `WebAssembly.CompileError`. **Default:** `true`.
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
 that sandbox][contextified] so that it can be used in calls to
@@ -826,7 +889,7 @@ associating it with the `sandbox` object is what this document refers to as
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
-[`url.origin`]: https://nodejs.org/api/url.html#url_url_origin
+[`url.origin`]: url.html#url_url_origin
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
@@ -835,9 +898,9 @@ associating it with the `sandbox` object is what this document refers to as
 [Evaluate() concrete method]: https://tc39.github.io/ecma262/#sec-moduleevaluation
 [HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
 [Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation
+[Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
-[Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records

@@ -121,7 +121,9 @@ function eachSelfAssignment(left, right, props, report) {
         let startJ = 0;
 
         for (let i = right.properties.length - 1; i >= 0; --i) {
-            if (right.properties[i].type === "ExperimentalSpreadProperty") {
+            const propType = right.properties[i].type;
+
+            if (propType === "SpreadElement" || propType === "ExperimentalSpreadProperty") {
                 startJ = i + 1;
                 break;
             }

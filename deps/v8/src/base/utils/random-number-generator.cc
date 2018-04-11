@@ -213,9 +213,9 @@ void RandomNumberGenerator::SetSeed(int64_t seed) {
 
 uint64_t RandomNumberGenerator::MurmurHash3(uint64_t h) {
   h ^= h >> 33;
-  h *= V8_UINT64_C(0xFF51AFD7ED558CCD);
+  h *= uint64_t{0xFF51AFD7ED558CCD};
   h ^= h >> 33;
-  h *= V8_UINT64_C(0xC4CEB9FE1A85EC53);
+  h *= uint64_t{0xC4CEB9FE1A85EC53};
   h ^= h >> 33;
   return h;
 }

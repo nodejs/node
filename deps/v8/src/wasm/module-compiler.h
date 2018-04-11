@@ -23,9 +23,6 @@ namespace wasm {
 class ModuleCompiler;
 class WasmCode;
 
-V8_EXPORT_PRIVATE bool SyncValidate(Isolate* isolate,
-                                    const ModuleWireBytes& bytes);
-
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
@@ -43,7 +40,8 @@ V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncCompileAndInstantiate(
     MaybeHandle<JSReceiver> imports, MaybeHandle<JSArrayBuffer> memory);
 
 V8_EXPORT_PRIVATE void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                                    const ModuleWireBytes& bytes);
+                                    const ModuleWireBytes& bytes,
+                                    bool is_shared);
 
 V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
                                         Handle<JSPromise> promise,
@@ -95,6 +93,20 @@ class LazyCompilationOrchestrator {
   const wasm::WasmCode* CompileIndirectCall(Isolate*,
                                             Handle<WasmInstanceObject>,
                                             uint32_t func_index);
+
+#ifdef DEBUG
+  // Call this method in tests to disallow any further lazy compilation; then
+  // call into the wasm instance again to verify that no lazy compilation is
+  // triggered.
+  void FreezeLazyCompilationForTesting() { frozen_ = true; }
+  bool IsFrozenForTesting() const { return frozen_; }
+
+ private:
+  bool frozen_;
+#else
+  void FreezeLazyCompilationForTesting() {}
+  bool IsFrozenForTesting() { return false; }
+#endif
 };
 
 // Encapsulates all the state and steps of an asynchronous compilation.

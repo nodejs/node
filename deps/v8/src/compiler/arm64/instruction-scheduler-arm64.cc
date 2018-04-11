@@ -128,6 +128,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float64ExtractHighWord32:
     case kArm64Float64InsertLowWord32:
     case kArm64Float64InsertHighWord32:
+    case kArm64Float64Mod:
     case kArm64Float64MoveU64:
     case kArm64U64MoveFloat64:
     case kArm64Float64SilenceNaN:
@@ -292,14 +293,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ldrsw:
     case kArm64LdrW:
     case kArm64Ldr:
+    case kArm64Peek:
       return kIsLoadOperation;
 
-    case kArm64Float64Mod:  // This opcode will call a C Function which can
-                            // alter CSP. TODO(arm64): Remove once JSSP is gone.
-    case kArm64ClaimCSP:
-    case kArm64ClaimJSSP:
-    case kArm64PokeCSP:
-    case kArm64PokeJSSP:
+    case kArm64Claim:
+    case kArm64Poke:
     case kArm64PokePair:
     case kArm64StrS:
     case kArm64StrD:
@@ -387,30 +385,12 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64Ldrsw:
       return 11;
 
-    case kCheckedLoadInt8:
-    case kCheckedLoadUint8:
-    case kCheckedLoadInt16:
-    case kCheckedLoadUint16:
-    case kCheckedLoadWord32:
-    case kCheckedLoadWord64:
-    case kCheckedLoadFloat32:
-    case kCheckedLoadFloat64:
-      return 5;
-
     case kArm64Str:
     case kArm64StrD:
     case kArm64StrS:
     case kArm64StrW:
     case kArm64Strb:
     case kArm64Strh:
-      return 1;
-
-    case kCheckedStoreWord8:
-    case kCheckedStoreWord16:
-    case kCheckedStoreWord32:
-    case kCheckedStoreWord64:
-    case kCheckedStoreFloat32:
-    case kCheckedStoreFloat64:
       return 1;
 
     case kArm64Madd32:

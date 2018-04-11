@@ -19,7 +19,8 @@ if (process.argv[2] === 'child') {
     }
 
     if (!common.isWindows) {
-      if (!frames.some((frame) => frame.includes(`[${process.execPath}]`))) {
+      const { getBinaryPath } = require('../common/shared-lib-util');
+      if (!frames.some((frame) => frame.includes(`[${getBinaryPath()}]`))) {
         assert.fail(`Some frames should include the binary name:\n${stderr}`);
       }
     }

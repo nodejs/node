@@ -84,6 +84,8 @@ struct U_I18N_API ParsedPatternInfo : public AffixPatternProvider, public UMemor
 
     bool containsSymbolType(AffixPatternType type, UErrorCode &status) const U_OVERRIDE;
 
+    bool hasBody() const U_OVERRIDE;
+
   private:
     struct U_I18N_API ParserState {
         const UnicodeString &pattern; // reference to the parent

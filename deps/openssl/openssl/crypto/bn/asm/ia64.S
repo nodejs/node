@@ -3,6 +3,13 @@
 .ident	"ia64.S, Version 2.1"
 .ident	"IA-64 ISA artwork by Andy Polyakov <appro@fy.chalmers.se>"
 
+// Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+//
+// Licensed under the OpenSSL license (the "License").  You may not use
+// this file except in compliance with the License.  You can obtain a copy
+// in the file LICENSE in the source distribution or at
+// https://www.openssl.org/source/license.html
+
 //
 // ====================================================================
 // Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
@@ -22,7 +29,7 @@
 // ports is the same, i.e. 2, while I need 4. In other words, to this
 // module Itanium2 remains effectively as "wide" as Itanium. Yet it's
 // essentially different in respect to this module, and a re-tune was
-// required. Well, because some intruction latencies has changed. Most
+// required. Well, because some instruction latencies has changed. Most
 // noticeably those intensively used:
 //
 //			Itanium	Itanium2
@@ -363,7 +370,7 @@ bn_mul_words:
 // The loop therefore spins at the latency of xma minus 1, or in other
 // words at 6*(n+4) ticks:-( Compare to the "production" loop above
 // that runs in 2*(n+11) where the low latency problem is worked around
-// by moving the dependency to one-tick latent interger ALU. Note that
+// by moving the dependency to one-tick latent integer ALU. Note that
 // "distance" between ldf8 and xma is not latency of ldf8, but the
 // *difference* between xma and ldf8 latencies.
 .L_bn_mul_words_ctop:
@@ -425,7 +432,7 @@ bn_mul_add_words:
 // version was performing *all* additions in IALU and was starving
 // for those even on Itanium 2. In this version one addition is
 // moved to FPU and is folded with multiplication. This is at cost
-// of propogating the result from previous call to this subroutine
+// of propagating the result from previous call to this subroutine
 // to L2 cache... In other words negligible even for shorter keys.
 // *Overall* performance improvement [over previous version] varies
 // from 11 to 22 percent depending on key length.
@@ -495,7 +502,7 @@ bn_sqr_words:
 // scalability. The decision will very likely be reconsidered after the
 // benchmark program is profiled. I.e. if perfomance gain on Itanium
 // will appear larger than loss on "wider" IA-64, then the loop should
-// be explicitely split and the epilogue compressed.
+// be explicitly split and the epilogue compressed.
 .L_bn_sqr_words_ctop:
 { .mfi;	(p16)	ldf8		f32=[r33],8
 	(p25)	xmpy.lu		f42=f41,f41

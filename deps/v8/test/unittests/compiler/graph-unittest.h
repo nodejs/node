@@ -6,6 +6,7 @@
 #define V8_UNITTESTS_COMPILER_GRAPH_UNITTEST_H_
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/typer.h"
 #include "test/unittests/test-utils.h"
@@ -58,10 +59,12 @@ class GraphTest : public virtual TestWithNativeContext,
 
   CommonOperatorBuilder* common() { return &common_; }
   Graph* graph() { return &graph_; }
+  SourcePositionTable* source_positions() { return &source_positions_; }
 
  private:
   CommonOperatorBuilder common_;
   Graph graph_;
+  SourcePositionTable source_positions_;
 };
 
 

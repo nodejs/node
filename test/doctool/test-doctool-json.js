@@ -1,9 +1,9 @@
 'use strict';
 
 const common = require('../common');
-// The doctool currently uses js-yaml from the tool/eslint/ tree.
+// The doctool currently uses js-yaml from the tool/node_modules/eslint/ tree.
 try {
-  require('../../tools/eslint/node_modules/js-yaml');
+  require('../../tools/node_modules/eslint/node_modules/js-yaml');
 } catch (e) {
   common.skip('missing js-yaml (eslint not present)');
 }
@@ -102,9 +102,9 @@ const testData = [
               meta: {
                 added: ['v5.3.0', 'v4.2.0'],
                 changes: [
-                  { version: 'v4.2.0',
+                  { 'version': 'v4.2.0',
                     'pr-url': 'https://github.com/nodejs/node/pull/3276',
-                    description: 'The `error` parameter can now be ' +
+                    'description': 'The `error` parameter can now be ' +
                       'an arrow function.'
                   }
                 ]

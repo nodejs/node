@@ -96,8 +96,7 @@ namespace internal {
  *              bool direct_call = false,
  *              Isolate* isolate);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
- * (in regexp-macro-assembler.cc) via the CALL_GENERATED_REGEXP_CODE macro
- * in arm64/simulator-arm64.h.
+ * (in regexp-macro-assembler.cc) via the GeneratedCode wrapper.
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -116,7 +115,6 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
       success_label_(),
       backtrack_label_(),
       exit_label_() {
-  __ SetStackPointer(csp);
   DCHECK_EQ(0, registers_to_save % 2);
   // We can cache at most 16 W registers in x0-x7.
   STATIC_ASSERT(kNumCachedRegisters <= 16);
@@ -366,7 +364,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
       __ Cmp(current_input_offset().X(), Operand(current_input_offset(), SXTW));
       __ Ccmp(current_input_offset(), 0, NoFlag, eq);
       // The current input offset should be <= 0, and fit in a W register.
-      __ Check(le, kOffsetOutOfRange);
+      __ Check(le, AbortReason::kOffsetOutOfRange);
     }
   } else {
     DCHECK(mode_ == UC16);
@@ -503,7 +501,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReference(int start_reg,
     __ Cmp(current_input_offset().X(), Operand(current_input_offset(), SXTW));
     __ Ccmp(current_input_offset(), 0, NoFlag, eq);
     // The current input offset should be <= 0, and fit in a W register.
-    __ Check(le, kOffsetOutOfRange);
+    __ Check(le, AbortReason::kOffsetOutOfRange);
   }
   __ Bind(&fallthrough);
 }
@@ -588,11 +586,11 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     if (mode_ == LATIN1) {
       // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
-      // Check for ' ' or 0x00a0.
+      // Check for ' ' or 0x00A0.
       __ Cmp(current_character(), ' ');
-      __ Ccmp(current_character(), 0x00a0, ZFlag, ne);
+      __ Ccmp(current_character(), 0x00A0, ZFlag, ne);
       __ B(eq, &success);
-      // Check range 0x09..0x0d.
+      // Check range 0x09..0x0D.
       __ Sub(w10, current_character(), '\t');
       CompareAndBranchOrBacktrack(w10, '\r' - '\t', hi, on_no_match);
       __ Bind(&success);
@@ -613,12 +611,12 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     CompareAndBranchOrBacktrack(w10, '9' - '0', ls, on_no_match);
     return true;
   case '.': {
-    // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
     // Here we emit the conditional branch only once at the end to make branch
     // prediction more efficient, even though we could branch out of here
     // as soon as a character matches.
-    __ Cmp(current_character(), 0x0a);
-    __ Ccmp(current_character(), 0x0d, ZFlag, ne);
+    __ Cmp(current_character(), 0x0A);
+    __ Ccmp(current_character(), 0x0D, ZFlag, ne);
     if (mode_ == UC16) {
       __ Sub(w10, current_character(), 0x2028);
       // If the Z flag was set we clear the flags to force a branch.
@@ -631,11 +629,11 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'n': {
-    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
     // We have to check all 4 newline characters before emitting
     // the conditional branch.
-    __ Cmp(current_character(), 0x0a);
-    __ Ccmp(current_character(), 0x0d, ZFlag, ne);
+    __ Cmp(current_character(), 0x0A);
+    __ Ccmp(current_character(), 0x0D, ZFlag, ne);
     if (mode_ == UC16) {
       __ Sub(w10, current_character(), 0x2028);
       // If the Z flag was set we clear the flags to force a fall-through.
@@ -791,7 +789,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     // Check that the size of the input string chars is in range.
     __ Neg(x11, x10);
     __ Cmp(x11, SeqTwoByteString::kMaxCharsSize);
-    __ Check(ls, kInputStringTooLong);
+    __ Check(ls, AbortReason::kInputStringTooLong);
   }
   __ Mov(current_input_offset(), w10);
 
@@ -855,7 +853,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
       if (masm_->emit_debug_code()) {
         // Check that the size of the input string chars is in range.
         __ Cmp(x10, SeqTwoByteString::kMaxCharsSize);
-        __ Check(ls, kInputStringTooLong);
+        __ Check(ls, AbortReason::kInputStringTooLong);
       }
       // input_start has a start_offset offset on entry. We need to include
       // it when computing the length of the whole string.
@@ -1158,7 +1156,7 @@ void RegExpMacroAssemblerARM64::PushBacktrack(Label* label) {
     if (masm_->emit_debug_code()) {
       __ Cmp(x10, kWRegMask);
       // The code offset has to fit in a W register.
-      __ Check(ls, kOffsetOutOfRange);
+      __ Check(ls, AbortReason::kOffsetOutOfRange);
     }
   }
   Push(w10);
@@ -1314,7 +1312,7 @@ void RegExpMacroAssemblerARM64::WriteStackPointerToRegister(int reg) {
   if (masm_->emit_debug_code()) {
     __ Cmp(x10, Operand(w10, SXTW));
     // The stack offset needs to fit in a W register.
-    __ Check(eq, kOffsetOutOfRange);
+    __ Check(eq, AbortReason::kOffsetOutOfRange);
   }
   StoreRegister(reg, w10);
 }
@@ -1623,7 +1621,7 @@ void RegExpMacroAssemblerARM64::LoadCurrentCharacterUnchecked(int cp_offset,
       __ Add(x10, x10, Operand(current_input_offset(), SXTW));
       __ Cmp(x10, Operand(w10, SXTW));
       // The offset needs to fit in a W register.
-      __ Check(eq, kOffsetOutOfRange);
+      __ Check(eq, AbortReason::kOffsetOutOfRange);
     } else {
       __ Add(w10, current_input_offset(), cp_offset * char_size());
     }

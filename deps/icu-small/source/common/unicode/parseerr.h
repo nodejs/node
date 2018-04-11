@@ -58,9 +58,9 @@ enum { U_PARSE_CONTEXT_LEN = 16 };
 typedef struct UParseError {
 
     /**
-     * The line on which the error occured.  If the parser uses this
+     * The line on which the error occurred.  If the parser uses this
      * field, it sets it to the line number of the source text line on
-     * which the error appears, which will be be a value >= 1.  If the
+     * which the error appears, which will be a value >= 1.  If the
      * parse does not support line numbers, the value will be <= 0.
      * @stable ICU 2.0
      */

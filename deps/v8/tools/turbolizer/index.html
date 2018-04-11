@@ -4,13 +4,14 @@
     <title>Turbolizer</title>
     <link rel="stylesheet" href="turbo-visualizer.css" />
   </head>
-  <body width="100%">
+  <body>
     <div id="left">
       <div id='source-text'>
         <pre id='source-text-pre'\>
       </div>
     </div>
-    <div id="middle">
+    <div class="resizer-left"></div>
+    <div id="middle" class="resizable-pane">
       <div id="graph-toolbox-anchor">
         <span id="graph-toolbox">
           <input id="layout" type="image" title="layout graph" src="layout-icon.png"
@@ -47,12 +48,13 @@
         <pre id="schedule-text-pre" class='prettyprint prettyprinted'>
           <ul id="schedule-list" class='nolinenums noindent'>
           </ul>
-        </pre>        
+        </pre>
       </div>
       <div id='text-placeholder' width="0px" height="0px" style="position: absolute; top:100000px;" ><svg><text text-anchor="right">
           <tspan white-space="inherit" id="text-measure"/>
       </text></svg></div>
     </div>
+    <div class="resizer-right"></div>
     <div id="right">
       <div id='disassembly'>
         <pre id='disassembly-text-pre' class='prettyprint prettyprinted'>
@@ -63,15 +65,15 @@
     </div>
     <div id="source-collapse" class="collapse-pane">
       <input id="source-expand" type="image" title="show source"
-             src="right-arrow.png" class="button-input-invisible">
+             src="right-arrow.png" class="button-input invisible">
       <input id="source-shrink" type="image" title="hide source"
              src="left-arrow.png" class="button-input">
     </div>
     <div id="disassembly-collapse" class="collapse-pane">
       <input id="disassembly-expand" type="image" title="show disassembly"
-             src="left-arrow.png" class="button-input">
-      <input id="disassembly-shrink" type="image" title="hide disassembly" 
-             src="right-arrow.png" class="button-input-invisible">
+             src="left-arrow.png" class="button-input invisible">
+      <input id="disassembly-shrink" type="image" title="hide disassembly"
+             src="right-arrow.png" class="button-input">
     </div>
     <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
     <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>

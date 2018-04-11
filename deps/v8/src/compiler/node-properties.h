@@ -8,6 +8,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/types.h"
 #include "src/globals.h"
+#include "src/objects/map.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -152,6 +153,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   };
   static InferReceiverMapsResult InferReceiverMaps(
       Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return);
+
+  static MaybeHandle<Map> GetMapWitness(Node* node);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join

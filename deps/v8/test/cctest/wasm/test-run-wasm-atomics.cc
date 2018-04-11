@@ -234,7 +234,7 @@ WASM_COMPILED_EXEC_TEST(I32AtomicCompareExchange8U) {
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicLoad) {
+WASM_EXEC_TEST(I32AtomicLoad) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_mode);
   r.builder().SetHasSharedMemory();
@@ -249,7 +249,7 @@ WASM_COMPILED_EXEC_TEST(I32AtomicLoad) {
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicLoad16U) {
+WASM_EXEC_TEST(I32AtomicLoad16U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_mode);
   r.builder().SetHasSharedMemory();
@@ -264,7 +264,7 @@ WASM_COMPILED_EXEC_TEST(I32AtomicLoad16U) {
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicLoad8U) {
+WASM_EXEC_TEST(I32AtomicLoad8U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_mode);
   r.builder().SetHasSharedMemory();
@@ -279,7 +279,7 @@ WASM_COMPILED_EXEC_TEST(I32AtomicLoad8U) {
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicStoreLoad) {
+WASM_EXEC_TEST(I32AtomicStoreLoad) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(execution_mode);
   r.builder().SetHasSharedMemory();
@@ -298,7 +298,7 @@ WASM_COMPILED_EXEC_TEST(I32AtomicStoreLoad) {
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicStoreLoad16U) {
+WASM_EXEC_TEST(I32AtomicStoreLoad16U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(execution_mode);
   r.builder().SetHasSharedMemory();
@@ -318,7 +318,7 @@ WASM_COMPILED_EXEC_TEST(I32AtomicStoreLoad16U) {
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicStoreLoad8U) {
+WASM_EXEC_TEST(I32AtomicStoreLoad8U) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint32_t> r(execution_mode);
   r.builder().SetHasSharedMemory();

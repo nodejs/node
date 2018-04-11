@@ -93,7 +93,7 @@ Node.js process and a cluster worker differs:
    process.
 3. `server.listen(0)` Normally, this will cause servers to listen on a
    random port.  However, in a cluster, each worker will receive the
-   same "random" port each time they do `listen(0)`.  In essence, the
+   same "random" port each time they do `listen(0)`. In essence, the
    port is random the first time, but predictable thereafter. To listen
    on a unique port, generate a port number based on the cluster worker ID.
 
@@ -103,8 +103,8 @@ things like sessions and login.
 
 Because workers are all separate processes, they can be killed or
 re-spawned depending on a program's needs, without affecting other
-workers.  As long as there are some workers still alive, the server will
-continue to accept connections.  If no workers are alive, existing connections
+workers. As long as there are some workers still alive, the server will
+continue to accept connections. If no workers are alive, existing connections
 will be dropped and new connections will be refused. Node.js does not
 automatically manage the number of workers, however. It is the application's
 responsibility to manage the worker pool based on its own needs.
@@ -465,7 +465,7 @@ Emitted after the worker IPC channel has disconnected. This can occur when a
 worker exits gracefully, is killed, or is disconnected manually (such as with
 worker.disconnect()).
 
-There may be a delay between the `'disconnect'` and `'exit'` events.  These
+There may be a delay between the `'disconnect'` and `'exit'` events. These
 events can be used to detect if the process is stuck in a cleanup or if there
 are long-living connections.
 
@@ -556,7 +556,7 @@ The `addressType` is one of:
 * `4` (TCPv4)
 * `6` (TCPv6)
 * `-1` (unix domain socket)
-* `"udp4"` or `"udp6"` (UDP v4 or v6)
+* `'udp4'` or `'udp6'` (UDP v4 or v6)
 
 ## Event: 'message'
 <!-- YAML
@@ -692,13 +692,19 @@ distribute IOCP handles without incurring a large performance hit.
 
 `cluster.schedulingPolicy` can also be set through the
 `NODE_CLUSTER_SCHED_POLICY` environment variable. Valid
-values are `"rr"` and `"none"`.
+values are `'rr'` and `'none'`.
 
 ## cluster.settings
 <!-- YAML
 added: v0.7.1
 changes:
-  - version: 8.2.0
+  - version: v9.5.0
+    pr-url: https://github.com/nodejs/node/pull/18399
+    description: The `cwd` option is supported now.
+  - version: v9.4.0
+    pr-url: https://github.com/nodejs/node/pull/17412
+    description: The `windowsHide` option is supported now.
+  - version: v8.2.0
     pr-url: https://github.com/nodejs/node/pull/14140
     description: The `inspectPort` option is supported now.
   - version: v6.4.0
@@ -707,15 +713,15 @@ changes:
 -->
 
 * {Object}
-  * `execArgv` {Array} List of string arguments passed to the Node.js
-    executable. **Default:** `process.execArgv`
-  * `exec` {string} File path to worker file. **Default:** `process.argv[1]`
-  * `args` {Array} String arguments passed to worker.
-    **Default:** `process.argv.slice(2)`
+  * `execArgv` {string[]} List of string arguments passed to the Node.js
+    executable. **Default:** `process.execArgv`.
+  * `exec` {string} File path to worker file. **Default:** `process.argv[1]`.
+  * `args` {string[]} String arguments passed to worker.
+    **Default:** `process.argv.slice(2)`.
   * `cwd` {string} Current working directory of the worker process. **Default:**
-    `undefined` (inherits from parent process)
+    `undefined` (inherits from parent process).
   * `silent` {boolean} Whether or not to send output to parent's stdio.
-    **Default:** `false`
+    **Default:** `false`.
   * `stdio` {Array} Configures the stdio of forked processes. Because the
     cluster module relies on IPC to function, this configuration must contain an
     `'ipc'` entry. When this option is provided, it overrides `silent`.
@@ -726,7 +732,7 @@ changes:
     number. By default each worker gets its own port, incremented from the
     master's `process.debugPort`.
   * `windowsHide` {boolean} Hide the forked processes console window that would
-    normally be created on Windows systems. **Default:** `false`
+    normally be created on Windows systems. **Default:** `false`.
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.

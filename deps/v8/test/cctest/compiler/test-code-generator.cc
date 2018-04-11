@@ -49,8 +49,10 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
 // arguments:
 // ~~~
 // FixedArray setup(CodeObject* test, FixedArray state_in) {
+//   FixedArray state_out = AllocateFixedArray(state_in.length());
 //   // `test` will tail-call to its first parameter which will be `teardown`.
-//   return test(teardown, state_in[0], state_in[1], state_in[2], ...);
+//   return test(teardown, state_out, state_in[0], state_in[1],
+//               state_in[2], ...);
 // }
 // ~~~
 //
@@ -58,11 +60,14 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
 // values to pass to the `test` function. The array will have been created using
 // `GenerateInitialState()` and needs to be converted in the following way:
 //
-// | Parameter type | FixedArray element | Conversion                         |
-// |----------------+--------------------+------------------------------------|
-// | kTagged        | Smi                | None.                              |
-// | kFloat32       | HeapNumber         | Load value and convert to Float32. |
-// | kFloat64       | HeapNumber         | Load value.                        |
+// | Parameter type | FixedArray element  | Conversion                         |
+// |----------------+---------------------+------------------------------------|
+// | kTagged        | Smi                 | None.                              |
+// | kFloat32       | HeapNumber          | Load value and convert to Float32. |
+// | kFloat64       | HeapNumber          | Load value.                        |
+// | kSimd128       | FixedArray<Smi>[4]  | Untag each Smi and write the       |
+// |                |                     | results into lanes of a new        |
+// |                |                     | 128-bit vector.                    |
 //
 Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
                                 std::vector<AllocatedOperand> parameters) {
@@ -73,6 +78,32 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
   params.push_back(__ Parameter(0));
   params.push_back(
       __ HeapConstant(BuildTeardownFunction(isolate, descriptor, parameters)));
+  // First allocate the FixedArray which will hold the final results. Here we
+  // should take care of all allocations, meaning we allocate HeapNumbers and
+  // FixedArrays representing Simd128 values.
+  Node* state_out = __ AllocateFixedArray(PACKED_ELEMENTS,
+                                          __ IntPtrConstant(parameters.size()));
+  for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
+    switch (parameters[i].representation()) {
+      case MachineRepresentation::kTagged:
+        break;
+      case MachineRepresentation::kFloat32:
+      case MachineRepresentation::kFloat64:
+        __ StoreFixedArrayElement(state_out, i, __ AllocateHeapNumber());
+        break;
+      case MachineRepresentation::kSimd128: {
+        __ StoreFixedArrayElement(
+            state_out, i,
+            __ AllocateFixedArray(PACKED_SMI_ELEMENTS, __ IntPtrConstant(4)));
+        break;
+      }
+      default:
+        UNREACHABLE();
+        break;
+    }
+  }
+  params.push_back(state_out);
+  // Then take each element of the initial state and pass them as arguments.
   Node* state_in = __ Parameter(1);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
@@ -87,6 +118,21 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
       case MachineRepresentation::kFloat64:
         element = __ LoadHeapNumberValue(element);
         break;
+      case MachineRepresentation::kSimd128: {
+        Node* vector = tester.raw_assembler_for_testing()->AddNode(
+            tester.raw_assembler_for_testing()->machine()->I32x4Splat(),
+            __ Int32Constant(0));
+        for (int lane = 0; lane < 4; lane++) {
+          Node* lane_value = __ SmiToWord32(
+              __ LoadFixedArrayElement(element, __ IntPtrConstant(lane)));
+          vector = tester.raw_assembler_for_testing()->AddNode(
+              tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
+                  lane),
+              vector, lane_value);
+        }
+        element = vector;
+        break;
+      }
       default:
         UNREACHABLE();
         break;
@@ -99,45 +145,59 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
   return tester.GenerateCodeCloseAndEscape();
 }
 
-// Build the `teardown` function. It allocates and fills a FixedArray with all
-// its parameters. The parameters need to be consistent with `parameters`.
+// Build the `teardown` function. It takes a FixedArray as argument, fills it
+// with the rest of its parameters and returns it. The parameters need to be
+// consistent with `parameters`.
 // ~~~
-// FixedArray teardown(CodeObject* /* unused  */,
+// FixedArray teardown(CodeObject* /* unused  */, FixedArray result,
 //                     // Tagged registers.
 //                     Object* r0, Object* r1, ...,
 //                     // FP registers.
 //                     Float32 s0, Float64 d1, ...,
 //                     // Mixed stack slots.
 //                     Float64 mem0, Object* mem1, Float32 mem2, ...) {
-//   return new FixedArray(r0, r1, ..., s0, d1, ..., mem0, mem1, mem2, ...);
+//   result[0] = r0;
+//   result[1] = r1;
+//   ...
+//   result[..] = s0;
+//   ...
+//   result[..] = mem0;
+//   ...
+//   return result;
 // }
 // ~~~
 //
 // This function needs to convert its parameters into values fit for a
 // FixedArray, essentially reverting what the `setup` function did:
 //
-// | Parameter type | Parameter value   | Conversion                 |
-// |----------------+-------------------+----------------------------|
-// | kTagged        | Smi or HeapNumber | None.                      |
-// | kFloat32       | Raw Float32       | Convert to Float64 and     |
-// |                |                   | allocate a new HeapNumber. |
-// | kFloat64       | Raw Float64       | Allocate a new HeapNumber. |
+// | Parameter type | Parameter value   | Conversion                           |
+// |----------------+-------------------+--------------------------------------|
+// | kTagged        | Smi or HeapNumber | None.                                |
+// | kFloat32       | Raw Float32       | Convert to Float64.                  |
+// | kFloat64       | Raw Float64       | None.                                |
+// | kSimd128       | Raw Simd128       | Split into 4 Word32 values and tag   |
+// |                |                   | them.                                |
 //
 // Note that it is possible for a `kTagged` value to go from a Smi to a
 // HeapNumber. This is because `AssembleMove` will allocate a new HeapNumber if
 // it is asked to move a FP constant to a tagged register or slot.
 //
+// Finally, it is important that this function does not call `RecordWrite` which
+// is why "setup" is in charge of all allocations and we are using
+// SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may clobber the
+// top 64 bits of Simd128 registers. This is the case on x64, ia32 and Arm64 for
+// example.
 Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
                                    std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, descriptor);
   CodeStubAssembler assembler(tester.state());
-  Node* result_array = __ AllocateFixedArray(
-      PACKED_ELEMENTS, __ IntPtrConstant(parameters.size()));
+  Node* result_array = __ Parameter(1);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
-    // The first argument is not used.
-    Node* param = __ Parameter(i + 1);
+    // The first argument is not used and the second is "result_array".
+    Node* param = __ Parameter(i + 2);
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
+        __ StoreFixedArrayElement(result_array, i, param, SKIP_WRITE_BARRIER);
         break;
       // Box FP values into HeapNumbers.
       case MachineRepresentation::kFloat32:
@@ -145,13 +205,28 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
       // Fallthrough
       case MachineRepresentation::kFloat64:
-        param = __ AllocateHeapNumberWithValue(param);
+        __ StoreObjectFieldNoWriteBarrier(
+            __ LoadFixedArrayElement(result_array, i), HeapNumber::kValueOffset,
+            param, MachineRepresentation::kFloat64);
         break;
+      case MachineRepresentation::kSimd128: {
+        Node* vector = __ LoadFixedArrayElement(result_array, i);
+        for (int lane = 0; lane < 4; lane++) {
+          Node* lane_value =
+              __ SmiFromWord32(tester.raw_assembler_for_testing()->AddNode(
+                  tester.raw_assembler_for_testing()
+                      ->machine()
+                      ->I32x4ExtractLane(lane),
+                  param));
+          __ StoreFixedArrayElement(vector, lane, lane_value,
+                                    SKIP_WRITE_BARRIER);
+        }
+        break;
+      }
       default:
         UNREACHABLE();
         break;
     }
-    __ StoreFixedArrayElement(result_array, i, param);
   }
   __ Return(result_array);
   return tester.GenerateCodeCloseAndEscape();
@@ -159,7 +234,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
 
 // Print the content of `value`, representing the register or stack slot
 // described by `operand`.
-void PrintStateValue(std::ostream& os, Handle<Object> value,
+void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
                      AllocatedOperand operand) {
   switch (operand.representation()) {
     case MachineRepresentation::kTagged:
@@ -173,6 +248,18 @@ void PrintStateValue(std::ostream& os, Handle<Object> value,
     case MachineRepresentation::kFloat64:
       os << value->Number();
       break;
+    case MachineRepresentation::kSimd128: {
+      FixedArray* vector = FixedArray::cast(*value);
+      os << "[";
+      for (int lane = 0; lane < 4; lane++) {
+        os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();
+        if (lane < 3) {
+          os << ", ";
+        }
+      }
+      os << "]";
+      break;
+    }
     default:
       UNREACHABLE();
       break;
@@ -187,6 +274,16 @@ void PrintStateValue(std::ostream& os, Handle<Object> value,
   os << ")";
 }
 
+bool TestSimd128Moves() {
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+  // TODO(mips): Implement support for the kSimd128 representation in
+  // AssembleMove and AssembleSwap on MIPS.
+  return false;
+#else
+  return CpuFeatures::SupportsWasmSimd128();
+#endif
+}
+
 }  // namespace
 
 #undef __
@@ -196,11 +293,11 @@ void PrintStateValue(std::ostream& os, Handle<Object> value,
 // with. It has the ability to randomly generate lists of moves and run the code
 // generated by the CodeGeneratorTester.
 //
-// At the moment, only the following representations are tested:
+// The following representations are tested:
 //   - kTagged
 //   - kFloat32
 //   - kFloat64
-//   - TODO(planglois): Add support for kSimd128.
+//   - kSimd128 (if supported)
 // There is no need to test using Word32 or Word64 as they are the same as
 // Tagged as far as the code generator is concerned.
 //
@@ -215,43 +312,49 @@ void PrintStateValue(std::ostream& os, Handle<Object> value,
 //
 //   - The `setup` function receives a FixedArray as the initial state. It
 //     unpacks it and passes each element as arguments to the generated code
-//     `test`. We also pass the `teardown` function as a first argument. Thanks
-//     to the custom CallDescriptor, registers and stack slots get initialised
-//     according to the content of the FixedArray.
+//     `test`. We also pass the `teardown` function as a first argument as well
+//     as a newly allocated FixedArray as a second argument which will hold the
+//     final results. Thanks to the custom CallDescriptor, registers and stack
+//     slots get initialised according to the content of the initial FixedArray.
 //
 //   - The `test` function performs the list of moves on its parameters and
 //     eventually tail-calls to its first parameter, which is the `teardown`
 //     function.
 //
-//   - The `teardown` function allocates a new FixedArray and fills it with all
-//     its parameters. Thanks to the tail-call, this is as if the `setup`
-//     function called `teardown` directly, except now moves were performed!
+//   - The `teardown` function receives the final results as a FixedArray, fills
+//     it with the rest of its arguments and returns it. Thanks to the
+//     tail-call, this is as if the `setup` function called `teardown` directly,
+//     except now moves were performed!
 //
 // .----------------setup--------------------------.
 // | Take a FixedArray as parameters with          |
 // | all the initial values of registers           |
 // | and stack slots.                              | <- CodeStubAssembler
 // |                                               |
-// | Call test(teardown, state[0], state[1], ...); |
+// | Allocate a new FixedArray `result` with       |
+// | initial values.                               |
+// |                                               |
+// | Call test(teardown, result, state[0],         |
+// |           state[1], state[2], ...);           |
 // '-----------------------------------------------'
 //   |
 //   V
-// .----------------test-----------------------------.
-// | - Move(param3, param42);                        |
-// | - Swap(param64, param1);                        |
-// | - Move(param2, param6);                         | <- CodeGeneratorTester
-// | ...                                             |
-// |                                                 |
-// | // "teardown" is the first parameter as well as |
-// | // the callee.                                  |
-// | TailCall param0(param0, param1, param2, ...);   |
-// '-------------------------------------------------'
+// .----------------test-------------------------------.
+// | - Move(param3, param42);                          |
+// | - Swap(param64, param4);                          |
+// | - Move(param2, param6);                           | <- CodeGeneratorTester
+// | ...                                               |
+// |                                                   |
+// | // "teardown" is the first parameter as well as   |
+// | // the callee.                                    |
+// | TailCall teardown(teardown, result, param2, ...); |
+// '---------------------------------------------------'
 //   |
 //   V
-// .----------------teardown--------------.
-// | Create a FixedArray with all         |
-// | parameters and return it.            | <- CodeStubAssembler
-// '--------------------------------------'
+// .----------------teardown---------------------------.
+// | Fill in the incoming `result` FixedArray with all |
+// | parameters and return it.                         | <- CodeStubAssembler
+// '---------------------------------------------------'
 
 class TestEnvironment : public HandleAndZoneScope {
  public:
@@ -263,8 +366,7 @@ class TestEnvironment : public HandleAndZoneScope {
   static constexpr int kTaggedSlotCount = 64;
   static constexpr int kFloat32SlotCount = 64;
   static constexpr int kFloat64SlotCount = 64;
-  static constexpr int kStackParameterCount =
-      kTaggedSlotCount + kFloat32SlotCount + kFloat64SlotCount;
+  static constexpr int kSimd128SlotCount = 16;
 
   // TODO(all): Test all types of constants (e.g. ExternalReference and
   // HeapObject).
@@ -273,35 +375,65 @@ class TestEnvironment : public HandleAndZoneScope {
   static constexpr int kDoubleConstantCount = 4;
 
   TestEnvironment()
-      : blocks_(main_zone()),
+      : blocks_(1, main_zone()),
         code_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
-        // TODO(planglois): Support kSimd128.
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
                          MachineRepresentation::kFloat64}) {
+    // Create and initialize a single empty block in blocks_.
+    InstructionBlock* block = new (main_zone()) InstructionBlock(
+        main_zone(), RpoNumber::FromInt(0), RpoNumber::Invalid(),
+        RpoNumber::Invalid(), false, false);
+    block->set_ao_number(RpoNumber::FromInt(0));
+    blocks_[0] = block;
+
+    int stack_slot_count =
+        kTaggedSlotCount + kFloat32SlotCount + kFloat64SlotCount;
+    if (TestSimd128Moves()) {
+      stack_slot_count += kSimd128SlotCount;
+      supported_reps_.push_back(MachineRepresentation::kSimd128);
+    }
     // The "teardown" and "test" functions share the same descriptor with the
     // following signature:
     // ~~~
-    // FixedArray f(CodeObject* teardown,
+    // FixedArray f(CodeObject* teardown, FixedArray preallocated_result,
     //              // Tagged registers.
     //              Object*, Object*, ...,
     //              // FP registers.
-    //              Float32, Float64, ...,
+    //              Float32, Float64, Simd128, ...,
     //              // Mixed stack slots.
-    //              Float64, Object*, Float32, ...);
+    //              Float64, Object*, Float32, Simd128, ...);
     // ~~~
-    LocationSignature::Builder test_signature(main_zone(), 1,
-                                              1 + kGeneralRegisterCount +
-                                                  kDoubleRegisterCount +
-                                                  kStackParameterCount);
+    LocationSignature::Builder test_signature(
+        main_zone(), 1,
+        2 + kGeneralRegisterCount + kDoubleRegisterCount + stack_slot_count);
 
     // The first parameter will be the code object of the "teardown"
     // function. This way, the "test" function can tail-call to it.
     test_signature.AddParam(LinkageLocation::ForRegister(
         kReturnRegister0.code(), MachineType::AnyTagged()));
 
+    // The second parameter will be a pre-allocated FixedArray that the
+    // "teardown" function will fill with result and then return. We place this
+    // parameter on the first stack argument slot which is always -1. And
+    // therefore slots to perform moves on start at -2.
+    test_signature.AddParam(
+        LinkageLocation::ForCallerFrameSlot(-1, MachineType::AnyTagged()));
+    int slot_parameter_n = -2;
+    const int kTotalStackParameterCount = stack_slot_count + 1;
+
     // Initialise registers.
+
+    // Make sure that the target has enough general purpose registers to
+    // generate a call to a CodeObject using this descriptor. We have reserved
+    // kReturnRegister0 as the first parameter, and the call will need a
+    // register to hold the CodeObject address. So the maximum number of
+    // registers left to test with is the number of available registers minus 2.
+    DCHECK_LE(
+        kGeneralRegisterCount,
+        RegisterConfiguration::Default()->num_allocatable_general_registers() -
+            2);
 
     int32_t general_mask =
         RegisterConfiguration::Default()->allocatable_general_codes_mask();
@@ -309,43 +441,72 @@ class TestEnvironment : public HandleAndZoneScope {
     // generate moves using it.
     std::unique_ptr<const RegisterConfiguration> registers(
         RegisterConfiguration::RestrictGeneralRegisters(
-            general_mask & ~(1 << kReturnRegister0.code())));
+            general_mask & ~kReturnRegister0.bit()));
 
     for (int i = 0; i < kGeneralRegisterCount; i++) {
       int code = registers->GetAllocatableGeneralCode(i);
       AddRegister(&test_signature, MachineRepresentation::kTagged, code);
     }
-    // We assume that Double and Float registers alias, depending on
-    // kSimpleFPAliasing. For this reason, we allocate a Float and a Double in
-    // pairs.
-    static_assert((kDoubleRegisterCount % 2) == 0,
-                  "kDoubleRegisterCount should be a multiple of two.");
+    // We assume that Double, Float and Simd128 registers alias, depending on
+    // kSimpleFPAliasing. For this reason, we allocate a Float, Double and
+    // Simd128 together, hence the reason why `kDoubleRegisterCount` should be a
+    // multiple of 3 and 2 in case Simd128 is not supported.
+    static_assert(
+        ((kDoubleRegisterCount % 2) == 0) && ((kDoubleRegisterCount % 3) == 0),
+        "kDoubleRegisterCount should be a multiple of two and three.");
     for (int i = 0; i < kDoubleRegisterCount; i += 2) {
-      // Make sure we do not allocate FP registers which alias. We double the
-      // index for Float registers if the aliasing is not "Simple":
-      //   Simple      -> s0, d1, s2, d3, s4, d5, ...
-      //   Arm32-style -> s0, d1, s4, d3, s8, d5, ...
-      // This isn't space-efficient at all but suits our need.
-      static_assert(kDoubleRegisterCount < 16,
-                    "Arm has a d16 register but no overlapping s32 register.");
-      int float_code =
-          registers->GetAllocatableFloatCode(kSimpleFPAliasing ? i : i * 2);
-      int double_code = registers->GetAllocatableDoubleCode(i + 1);
-      AddRegister(&test_signature, MachineRepresentation::kFloat32, float_code);
-      AddRegister(&test_signature, MachineRepresentation::kFloat64,
-                  double_code);
+      if (kSimpleFPAliasing) {
+        // Allocate three registers at once if kSimd128 is supported, else
+        // allocate in pairs.
+        AddRegister(&test_signature, MachineRepresentation::kFloat32,
+                    registers->GetAllocatableFloatCode(i));
+        AddRegister(&test_signature, MachineRepresentation::kFloat64,
+                    registers->GetAllocatableDoubleCode(i + 1));
+        if (TestSimd128Moves()) {
+          AddRegister(&test_signature, MachineRepresentation::kSimd128,
+                      registers->GetAllocatableSimd128Code(i + 2));
+          i++;
+        }
+      } else {
+        // Make sure we do not allocate FP registers which alias. To do this, we
+        // allocate three 128-bit registers and then convert two of them to a
+        // float and a double. With this aliasing scheme, a Simd128 register
+        // aliases two Double registers and four Float registers, so we need to
+        // scale indexes accordingly:
+        //
+        //   Simd128 register: q0, q1, q2, q3,  q4, q5
+        //                      |   |       |    |
+        //                      V   V       V    V
+        //   Aliases:          s0, d2, q2, s12, d8, q5
+        //
+        // This isn't space efficient at all but suits our need.
+        static_assert(
+            kDoubleRegisterCount < 8,
+            "Arm has a q8 and a d16 register but no overlapping s32 register.");
+        int first_simd128 = registers->GetAllocatableSimd128Code(i);
+        int second_simd128 = registers->GetAllocatableSimd128Code(i + 1);
+        AddRegister(&test_signature, MachineRepresentation::kFloat32,
+                    first_simd128 * 4);
+        AddRegister(&test_signature, MachineRepresentation::kFloat64,
+                    second_simd128 * 2);
+        if (TestSimd128Moves()) {
+          int third_simd128 = registers->GetAllocatableSimd128Code(i + 2);
+          AddRegister(&test_signature, MachineRepresentation::kSimd128,
+                      third_simd128);
+          i++;
+        }
+      }
     }
 
     // Initialise stack slots.
 
-    // Stack parameters start at -1.
-    int slot_parameter_n = -1;
-
-    // TODO(planglois): Support kSimd128 stack slots.
     std::map<MachineRepresentation, int> slots = {
         {MachineRepresentation::kTagged, kTaggedSlotCount},
         {MachineRepresentation::kFloat32, kFloat32SlotCount},
         {MachineRepresentation::kFloat64, kFloat64SlotCount}};
+    if (TestSimd128Moves()) {
+      slots.emplace(MachineRepresentation::kSimd128, kSimd128SlotCount);
+    }
 
     // Allocate new slots until we run out of them.
     while (std::any_of(slots.cbegin(), slots.cend(),
@@ -408,7 +569,7 @@ class TestEnvironment : public HandleAndZoneScope {
                        LinkageLocation::ForAnyRegister(
                            MachineType::AnyTagged()),  // target location
                        test_signature.Build(),         // location_sig
-                       kStackParameterCount,           // stack_parameter_count
+                       kTotalStackParameterCount,      // stack_parameter_count
                        Operator::kNoProperties,        // properties
                        kNoCalleeSaved,                 // callee-saved registers
                        kNoCalleeSaved,                 // callee-saved fp
@@ -489,6 +650,15 @@ class TestEnvironment : public HandleAndZoneScope {
           state->set(
               i, *main_isolate()->factory()->NewHeapNumber(rng_->NextDouble()));
           break;
+        case MachineRepresentation::kSimd128: {
+          Handle<FixedArray> vector =
+              main_isolate()->factory()->NewFixedArray(4);
+          for (int lane = 0; lane < 4; lane++) {
+            vector->set(lane, Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
+          }
+          state->set(i, *vector);
+          break;
+        }
         default:
           UNREACHABLE();
           break;
@@ -611,14 +781,42 @@ class TestEnvironment : public HandleAndZoneScope {
           actual->GetValueChecked<Object>(main_isolate(), i);
       Handle<Object> expected_value =
           expected->GetValueChecked<Object>(main_isolate(), i);
-      if (!actual_value->StrictEquals(*expected_value)) {
+      if (!CompareValues(actual_value, expected_value,
+                         layout_[i].representation())) {
         std::ostringstream expected_str;
-        PrintStateValue(expected_str, expected_value, layout_[i]);
+        PrintStateValue(expected_str, main_isolate(), expected_value,
+                        layout_[i]);
         std::ostringstream actual_str;
-        PrintStateValue(actual_str, actual_value, layout_[i]);
+        PrintStateValue(actual_str, main_isolate(), actual_value, layout_[i]);
         V8_Fatal(__FILE__, __LINE__, "Expected: '%s' but got '%s'",
                  expected_str.str().c_str(), actual_str.str().c_str());
       }
+    }
+  }
+
+  bool CompareValues(Handle<Object> actual, Handle<Object> expected,
+                     MachineRepresentation rep) {
+    switch (rep) {
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kFloat32:
+      case MachineRepresentation::kFloat64:
+        return actual->StrictEquals(*expected);
+      case MachineRepresentation::kSimd128:
+        for (int lane = 0; lane < 4; lane++) {
+          Handle<Smi> actual_lane =
+              FixedArray::cast(*actual)->GetValueChecked<Smi>(main_isolate(),
+                                                              lane);
+          Handle<Smi> expected_lane =
+              FixedArray::cast(*expected)->GetValueChecked<Smi>(main_isolate(),
+                                                                lane);
+          if (!actual_lane->StrictEquals(*expected_lane)) {
+            return false;
+          }
+        }
+        return true;
+      default:
+        UNREACHABLE();
+        break;
     }
   }
 
@@ -741,7 +939,7 @@ constexpr int TestEnvironment::kDoubleRegisterCount;
 constexpr int TestEnvironment::kTaggedSlotCount;
 constexpr int TestEnvironment::kFloat32SlotCount;
 constexpr int TestEnvironment::kFloat64SlotCount;
-constexpr int TestEnvironment::kStackParameterCount;
+constexpr int TestEnvironment::kSimd128SlotCount;
 constexpr int TestEnvironment::kSmiConstantCount;
 constexpr int TestEnvironment::kFloatConstantCount;
 constexpr int TestEnvironment::kDoubleConstantCount;
@@ -770,6 +968,16 @@ class CodeGeneratorTester {
     generator_.AssembleConstructFrame();
     // TODO(all): Generate a stack check here so that we fail gracefully if the
     // frame is too big.
+  }
+
+  Instruction* CreateTailCall(int stack_slot_delta) {
+    int optional_padding_slot = stack_slot_delta;
+    InstructionOperand callee[] = {
+        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
+    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
+                                              nullptr, 2, callee, 0, nullptr);
+    return tail_call;
   }
 
   enum PushTypeFlag {
@@ -819,32 +1027,39 @@ class CodeGeneratorTester {
   }
 
   Handle<Code> Finalize() {
-    // The environment expects this code to tail-call to it's first parameter
-    // placed in `kReturnRegister0`.
-    generator_.AssembleArchInstruction(
-        Instruction::New(zone_, kArchPrepareTailCall));
-
-    InstructionOperand callee[] = {
-        AllocatedOperand(LocationOperand::REGISTER,
-                         MachineRepresentation::kTagged,
-                         kReturnRegister0.code()),
-        ImmediateOperand(
-            ImmediateOperand::INLINE,
-            V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0)};
-    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 2, callee, 0, nullptr);
-    int first_unused_stack_slot;
-    if (generator_.GetSlotAboveSPBeforeTailCall(tail_call,
-                                                &first_unused_stack_slot)) {
-      generator_.AssembleTailCallBeforeGap(tail_call, first_unused_stack_slot);
-      generator_.AssembleTailCallAfterGap(tail_call, first_unused_stack_slot);
-    }
-    generator_.AssembleArchInstruction(tail_call);
-
     generator_.FinishCode();
     generator_.safepoints()->Emit(generator_.tasm(),
                                   frame_.GetTotalFrameSlotCount());
     return generator_.FinalizeCode();
+  }
+
+  Handle<Code> FinalizeForExecuting() {
+    InstructionSequence* sequence = generator_.code();
+
+    sequence->StartBlock(RpoNumber::FromInt(0));
+    // The environment expects this code to tail-call to it's first parameter
+    // placed in `kReturnRegister0`.
+    sequence->AddInstruction(Instruction::New(zone_, kArchPrepareTailCall));
+
+    // We use either zero or one slots.
+    int first_unused_stack_slot =
+        V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
+    int optional_padding_slot = first_unused_stack_slot;
+    InstructionOperand callee[] = {
+        AllocatedOperand(LocationOperand::REGISTER,
+                         MachineRepresentation::kTagged,
+                         kReturnRegister0.code()),
+        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
+        ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
+    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
+                                              nullptr, 3, callee, 0, nullptr);
+    sequence->AddInstruction(tail_call);
+    sequence->EndBlock(RpoNumber::FromInt(0));
+
+    generator_.AssembleBlock(
+        sequence->InstructionBlockAt(RpoNumber::FromInt(0)));
+
+    return Finalize();
   }
 
  private:
@@ -890,7 +1105,7 @@ TEST(FuzzAssembleMove) {
     c.CheckAssembleMove(&m->source(), &m->destination());
   }
 
-  Handle<Code> test = c.Finalize();
+  Handle<Code> test = c.FinalizeForExecuting();
   if (FLAG_print_code) {
     test->Print();
   }
@@ -911,7 +1126,7 @@ TEST(FuzzAssembleSwap) {
     c.CheckAssembleSwap(&s->source(), &s->destination());
   }
 
-  Handle<Code> test = c.Finalize();
+  Handle<Code> test = c.FinalizeForExecuting();
   if (FLAG_print_code) {
     test->Print();
   }
@@ -943,7 +1158,7 @@ TEST(FuzzAssembleMoveAndSwap) {
     }
   }
 
-  Handle<Code> test = c.Finalize();
+  Handle<Code> test = c.FinalizeForExecuting();
   if (FLAG_print_code) {
     test->Print();
   }
@@ -1003,7 +1218,7 @@ TEST(AssembleTailCallGap) {
   {
     // Generate a series of register pushes only.
     CodeGeneratorTester c(&env);
-    Instruction* instr = Instruction::New(env.main_zone(), kArchNop);
+    Instruction* instr = c.CreateTailCall(first_slot + 4);
     instr
         ->GetOrCreateParallelMove(Instruction::FIRST_GAP_POSITION,
                                   env.main_zone())
@@ -1032,7 +1247,7 @@ TEST(AssembleTailCallGap) {
   {
     // Generate a series of stack pushes only.
     CodeGeneratorTester c(&env);
-    Instruction* instr = Instruction::New(env.main_zone(), kArchNop);
+    Instruction* instr = c.CreateTailCall(first_slot + 4);
     instr
         ->GetOrCreateParallelMove(Instruction::FIRST_GAP_POSITION,
                                   env.main_zone())
@@ -1061,7 +1276,7 @@ TEST(AssembleTailCallGap) {
   {
     // Generate a mix of stack and register pushes.
     CodeGeneratorTester c(&env);
-    Instruction* instr = Instruction::New(env.main_zone(), kArchNop);
+    Instruction* instr = c.CreateTailCall(first_slot + 4);
     instr
         ->GetOrCreateParallelMove(Instruction::FIRST_GAP_POSITION,
                                   env.main_zone())

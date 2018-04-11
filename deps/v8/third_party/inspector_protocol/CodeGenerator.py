@@ -325,6 +325,7 @@ class Protocol(object):
         self.patch_full_qualified_refs()
         self.create_notification_types()
         self.create_type_definitions()
+        self.generate_used_types()
 
 
     def read_protocol_file(self, file_name):
@@ -360,6 +361,56 @@ class Protocol(object):
 
         for domain in self.json_api["domains"]:
             patch_full_qualified_refs_in_domain(domain, domain["domain"])
+
+
+    def all_references(self, json):
+        refs = set()
+        if isinstance(json, list):
+            for item in json:
+                refs |= self.all_references(item)
+        if not isinstance(json, dict):
+            return refs
+        for key in json:
+            if key != "$ref":
+                refs |= self.all_references(json[key])
+            else:
+                refs.add(json["$ref"])
+        return refs
+
+    def generate_used_types(self):
+        all_refs = set()
+        for domain in self.json_api["domains"]:
+            domain_name = domain["domain"]
+            if "commands" in domain:
+                for command in domain["commands"]:
+                    if self.generate_command(domain_name, command["name"]):
+                        all_refs |= self.all_references(command)
+            if "events" in domain:
+                for event in domain["events"]:
+                    if self.generate_event(domain_name, event["name"]):
+                        all_refs |= self.all_references(event)
+                        all_refs.add(domain_name + "." + to_title_case(event["name"]) + "Notification")
+
+        dependencies = self.generate_type_dependencies()
+        queue = set(all_refs)
+        while len(queue):
+            ref = queue.pop()
+            if ref in dependencies:
+                queue |= dependencies[ref] - all_refs
+                all_refs |= dependencies[ref]
+        self.used_types = all_refs
+
+
+    def generate_type_dependencies(self):
+        dependencies = dict()
+        domains_with_types = (x for x in self.json_api["domains"] if "types" in x)
+        for domain in domains_with_types:
+            domain_name = domain["domain"]
+            for type in domain["types"]:
+                related_types = self.all_references(type)
+                if len(related_types):
+                    dependencies[domain_name + "." + type["id"]] = related_types
+        return dependencies
 
 
     def create_notification_types(self):
@@ -444,9 +495,7 @@ class Protocol(object):
 
 
     def generate_type(self, domain, typename):
-        if not self.config.protocol.options:
-            return domain in self.generate_domains
-        return self.check_options(self.config.protocol.options, domain, typename, "include_types", "exclude_types", True)
+        return domain + "." + typename in self.used_types
 
 
     def is_async_command(self, domain, command):

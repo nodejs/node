@@ -9,7 +9,7 @@ function testMemory() {
   const server = repl.start({ prompt: '> ' });
   const warn = 'REPLServer.memory() is deprecated';
 
-  common.expectWarning('DeprecationWarning', warn);
+  common.expectWarning('DeprecationWarning', warn, 'DEP0082');
   assert.strictEqual(server.memory(), undefined);
   server.close();
 }

@@ -92,8 +92,6 @@ class Scavenger {
 
   void IterateAndScavengePromotedObject(HeapObject* target, int size);
 
-  void RecordCopiedObject(HeapObject* obj);
-
   static inline bool ContainsOnlyData(VisitorId visitor_id);
 
   Heap* const heap_;

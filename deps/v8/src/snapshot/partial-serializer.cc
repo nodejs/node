@@ -17,7 +17,8 @@ PartialSerializer::PartialSerializer(
     : Serializer(isolate),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),
-      can_be_rehashed_(true) {
+      can_be_rehashed_(true),
+      context_(nullptr) {
   InitializeCodeAddressMap();
 }
 
@@ -25,24 +26,23 @@ PartialSerializer::~PartialSerializer() {
   OutputStatistics("PartialSerializer");
 }
 
-void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
-  DCHECK((*o)->IsNativeContext());
-
-  Context* context = Context::cast(*o);
-  reference_map()->AddAttachedReference(context->global_proxy());
+void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
+  context_ = *o;
+  DCHECK(context_->IsNativeContext());
+  reference_map()->AddAttachedReference(context_->global_proxy());
   // The bootstrap snapshot has a code-stub context. When serializing the
   // partial snapshot, it is chained into the weak context list on the isolate
   // and it's next context pointer may point to the code-stub context.  Clear
   // it before serializing, it will get re-added to the context list
   // explicitly when it's loaded.
-  context->set(Context::NEXT_CONTEXT_LINK,
-               isolate()->heap()->undefined_value());
-  DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
+  context_->set(Context::NEXT_CONTEXT_LINK,
+                isolate()->heap()->undefined_value());
+  DCHECK(!context_->global_object()->IsUndefined(context_->GetIsolate()));
   // Reset math random cache to get fresh random numbers.
-  context->set_math_random_index(Smi::kZero);
-  context->set_math_random_cache(isolate()->heap()->undefined_value());
+  context_->set_math_random_index(Smi::kZero);
+  context_->set_math_random_cache(isolate()->heap()->undefined_value());
 
-  VisitRootPointer(Root::kPartialSnapshotCache, o);
+  VisitRootPointer(Root::kPartialSnapshotCache, reinterpret_cast<Object**>(o));
   SerializeDeferredObjects();
   SerializeEmbedderFields();
   Pad();
@@ -87,6 +87,8 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   DCHECK(!obj->IsInternalizedString());
   // Function and object templates are not context specific.
   DCHECK(!obj->IsTemplateInfo());
+  // We should not end up at another native context.
+  DCHECK_IMPLIES(obj != context_, !obj->IsNativeContext());
 
   FlushSkip(skip);
 

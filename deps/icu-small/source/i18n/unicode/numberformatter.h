@@ -88,10 +88,6 @@
  * </ul>
  *
  * <p>
- * * The narrow format for currencies is not currently supported; this is a known issue that will be fixed in a
- * future version. See #11666 for more information.
- *
- * <p>
  * This enum is similar to {@link com.ibm.icu.text.MeasureFormat.FormatWidth}.
  *
  * @draft ICU 60
@@ -155,27 +151,122 @@ typedef enum UNumberUnitWidth {
      *
      * @draft ICU 60
      */
-            UNUM_UNIT_WIDTH_HIDDEN,
+            UNUM_UNIT_WIDTH_HIDDEN
 
+#ifndef U_HIDE_INTERNAL_API
+    ,
     /**
      * One more than the highest UNumberUnitWidth value.
      *
      * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
      */
             UNUM_UNIT_WIDTH_COUNT
+#endif  // U_HIDE_INTERNAL_API
 } UNumberUnitWidth;
 
 /**
- * An enum declaring how to denote positive and negative numbers. Example outputs when formatting 123 and -123 in
- * <em>en-US</em>:
+ * An enum declaring the strategy for when and how to display grouping separators (i.e., the
+ * separator, often a comma or period, after every 2-3 powers of ten). The choices are several
+ * pre-built strategies for different use cases that employ locale data whenever possible. Example
+ * outputs for 1234 and 1234567 in <em>en-IN</em>:
+ *
+ * <ul>
+ * <li>OFF: 1234 and 12345
+ * <li>MIN2: 1234 and 12,34,567
+ * <li>AUTO: 1,234 and 12,34,567
+ * <li>ON_ALIGNED: 1,234 and 12,34,567
+ * <li>THOUSANDS: 1,234 and 1,234,567
+ * </ul>
  *
  * <p>
+ * The default is AUTO, which displays grouping separators unless the locale data says that grouping
+ * is not customary. To force grouping for all numbers greater than 1000 consistently across locales,
+ * use ON_ALIGNED. On the other hand, to display grouping less frequently than the default, use MIN2
+ * or OFF. See the docs of each option for details.
+ *
+ * <p>
+ * Note: This enum specifies the strategy for grouping sizes. To set which character to use as the
+ * grouping separator, use the "symbols" setter.
+ *
+ * @draft ICU 61
+ */
+typedef enum UGroupingStrategy {
+    /**
+     * Do not display grouping separators in any locale.
+     *
+     * @draft ICU 61
+     */
+    UNUM_GROUPING_OFF,
+
+    /**
+     * Display grouping using locale defaults, except do not show grouping on values smaller than
+     * 10000 (such that there is a <em>minimum of two digits</em> before the first separator).
+     *
+     * <p>
+     * Note that locales may restrict grouping separators to be displayed only on 1 million or
+     * greater (for example, ee and hu) or disable grouping altogether (for example, bg currency).
+     *
+     * <p>
+     * Locale data is used to determine whether to separate larger numbers into groups of 2
+     * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
+     *
+     * @draft ICU 61
+     */
+    UNUM_GROUPING_MIN2,
+
+    /**
+     * Display grouping using the default strategy for all locales. This is the default behavior.
+     *
+     * <p>
+     * Note that locales may restrict grouping separators to be displayed only on 1 million or
+     * greater (for example, ee and hu) or disable grouping altogether (for example, bg currency).
+     *
+     * <p>
+     * Locale data is used to determine whether to separate larger numbers into groups of 2
+     * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
+     *
+     * @draft ICU 61
+     */
+    UNUM_GROUPING_AUTO,
+
+    /**
+     * Always display the grouping separator on values of at least 1000.
+     *
+     * <p>
+     * This option ignores the locale data that restricts or disables grouping, described in MIN2 and
+     * AUTO. This option may be useful to normalize the alignment of numbers, such as in a
+     * spreadsheet.
+     *
+     * <p>
+     * Locale data is used to determine whether to separate larger numbers into groups of 2
+     * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
+     *
+     * @draft ICU 61
+     */
+    UNUM_GROUPING_ON_ALIGNED,
+
+    /**
+     * Use the Western defaults: groups of 3 and enabled for all numbers 1000 or greater. Do not use
+     * locale data for determining the grouping strategy.
+     *
+     * @draft ICU 61
+     */
+    UNUM_GROUPING_THOUSANDS
+
+} UGroupingStrategy;
+
+/**
+ * An enum declaring how to denote positive and negative numbers. Example outputs when formatting
+ * 123, 0, and -123 in <em>en-US</em>:
+ *
  * <ul>
- * <li>AUTO: "123", "-123"
- * <li>ALWAYS: "+123", "-123"
- * <li>NEVER: "123", "123"
- * <li>ACCOUNTING: "$123", "($123)"
- * <li>ACCOUNTING_ALWAYS: "+$123", "($123)"
+ * <li>AUTO: "123", "0", and "-123"
+ * <li>ALWAYS: "+123", "+0", and "-123"
+ * <li>NEVER: "123", "0", and "123"
+ * <li>ACCOUNTING: "$123", "$0", and "($123)"
+ * <li>ACCOUNTING_ALWAYS: "+$123", "+$0", and "($123)"
+ * <li>EXCEPT_ZERO: "+123", "0", and "-123"
+ * <li>ACCOUNTING_EXCEPT_ZERO: "+$123", "$0", and "($123)"
  * </ul>
  *
  * <p>
@@ -190,21 +281,22 @@ typedef enum UNumberSignDisplay {
      *
      * @draft ICU 60
      */
-            UNUM_SIGN_AUTO,
+    UNUM_SIGN_AUTO,
 
     /**
-     * Show the minus sign on negative numbers and the plus sign on positive numbers.
+     * Show the minus sign on negative numbers and the plus sign on positive numbers, including zero.
+     * To hide the sign on zero, see {@link UNUM_SIGN_EXCEPT_ZERO}.
      *
      * @draft ICU 60
      */
-            UNUM_SIGN_ALWAYS,
+    UNUM_SIGN_ALWAYS,
 
     /**
      * Do not show the sign on positive or negative numbers.
      *
      * @draft ICU 60
      */
-            UNUM_SIGN_NEVER,
+    UNUM_SIGN_NEVER,
 
     /**
      * Use the locale-dependent accounting format on negative numbers, and do not show the sign on positive numbers.
@@ -220,22 +312,44 @@ typedef enum UNumberSignDisplay {
      *
      * @draft ICU 60
      */
-            UNUM_SIGN_ACCOUNTING,
+    UNUM_SIGN_ACCOUNTING,
 
     /**
-     * Use the locale-dependent accounting format on negative numbers, and show the plus sign on positive numbers.
-     * For more information on the accounting format, see the ACCOUNTING sign display strategy.
+     * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
+     * positive numbers, including zero. For more information on the accounting format, see the
+     * ACCOUNTING sign display strategy. To hide the sign on zero, see
+     * {@link UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO}.
      *
      * @draft ICU 60
      */
-            UNUM_SIGN_ACCOUNTING_ALWAYS,
+    UNUM_SIGN_ACCOUNTING_ALWAYS,
 
+    /**
+     * Show the minus sign on negative numbers and the plus sign on positive numbers. Do not show a
+     * sign on zero.
+     *
+     * @draft ICU 61
+     */
+    UNUM_SIGN_EXCEPT_ZERO,
+
+    /**
+     * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
+     * positive numbers. Do not show a sign on zero. For more information on the accounting format,
+     * see the ACCOUNTING sign display strategy.
+     *
+     * @draft ICU 61
+     */
+    UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO
+
+#ifndef U_HIDE_INTERNAL_API
+    ,
     /**
      * One more than the highest UNumberSignDisplay value.
      *
      * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
      */
-            UNUM_SIGN_COUNT
+    UNUM_SIGN_COUNT
+#endif  // U_HIDE_INTERNAL_API
 } UNumberSignDisplay;
 
 /**
@@ -261,14 +375,17 @@ typedef enum UNumberDecimalSeparatorDisplay {
      *
      * @draft ICU 60
      */
-            UNUM_DECIMAL_SEPARATOR_ALWAYS,
+            UNUM_DECIMAL_SEPARATOR_ALWAYS
 
+#ifndef U_HIDE_INTERNAL_API
+    ,
     /**
      * One more than the highest UNumberDecimalSeparatorDisplay value.
      *
      * @internal ICU 60: The numeric value may change over time; see ICU ticket #12420.
      */
             UNUM_DECIMAL_SEPARATOR_COUNT
+#endif  // U_HIDE_INTERNAL_API
 } UNumberDecimalMarkDisplay;
 
 U_NAMESPACE_BEGIN namespace number {  // icu::number
@@ -283,10 +400,26 @@ class Rounder;
 class FractionRounder;
 class CurrencyRounder;
 class IncrementRounder;
-class Grouper;
 class IntegerWidth;
 
 namespace impl {
+
+#ifndef U_HIDE_INTERNAL_API
+/**
+ * Datatype for minimum/maximum fraction digits. Must be able to hold kMaxIntFracSig.
+ *
+ * @internal
+ */
+typedef int16_t digits_t;
+
+/**
+ * Use a default threshold of 3. This means that the third time .format() is called, the data structures get built
+ * using the "safe" code path. The first two calls to .format() will trigger the unsafe code path.
+ *
+ * @internal
+ */
+static constexpr int32_t DEFAULT_THRESHOLD = 3;
+#endif  // U_HIDE_INTERNAL_API
 
 // Forward declarations:
 class Padder;
@@ -471,7 +604,7 @@ class U_I18N_API Notation : public UMemory {
         struct ScientificSettings {
             int8_t fEngineeringInterval;
             bool fRequireMinInt;
-            int8_t fMinExponentDigits;
+            impl::digits_t fMinExponentDigits;
             UNumberSignDisplay fExponentSignDisplay;
         } scientific;
 
@@ -786,14 +919,14 @@ class U_I18N_API Rounder : public UMemory {
     union RounderUnion {
         struct FractionSignificantSettings {
             // For RND_FRACTION, RND_SIGNIFICANT, and RND_FRACTION_SIGNIFICANT
-            int8_t fMinFrac;
-            int8_t fMaxFrac;
-            int8_t fMinSig;
-            int8_t fMaxSig;
+            impl::digits_t fMinFrac;
+            impl::digits_t fMaxFrac;
+            impl::digits_t fMinSig;
+            impl::digits_t fMaxSig;
         } fracSig;
         struct IncrementSettings {
             double fIncrement;
-            int32_t fMinFrac;
+            impl::digits_t fMinFrac;
         } increment; // For RND_INCREMENT
         UCurrencyUsage currencyUsage; // For RND_CURRENCY
         UErrorCode errorCode; // For RND_ERROR
@@ -836,6 +969,20 @@ class U_I18N_API Rounder : public UMemory {
     /** Version of {@link #apply} that obeys minInt constraints. Used for scientific notation compatibility mode. */
     void apply(impl::DecimalQuantity &value, int32_t minInt, UErrorCode status);
 
+    /**
+     * Rounding endpoint used by Engineering and Compact notation. Chooses the most appropriate multiplier (magnitude
+     * adjustment), applies the adjustment, rounds, and returns the chosen multiplier.
+     *
+     * <p>
+     * In most cases, this is simple. However, when rounding the number causes it to cross a multiplier boundary, we
+     * need to re-do the rounding. For example, to display 999,999 in Engineering notation with 2 sigfigs, first you
+     * guess the multiplier to be -3. However, then you end up getting 1000E3, which is not the correct output. You then
+     * change your multiplier to be -6, and you get 1.0E6, which is correct.
+     *
+     * @param input The quantity to process.
+     * @param producer Function to call to return a multiplier based on a magnitude.
+     * @return The number of orders of magnitude the input was adjusted by this method.
+     */
     int32_t
     chooseMultiplierAndApply(impl::DecimalQuantity &input, const impl::MultiplierProducer &producer,
                              UErrorCode &status);
@@ -1003,53 +1150,6 @@ class U_I18N_API IncrementRounder : public Rounder {
 };
 
 /**
- * @internal This API is a technical preview.  It is likely to change in an upcoming release.
- */
-class U_I18N_API Grouper : public UMemory {
-  public:
-    /**
-     * @internal This API is a technical preview.  It is likely to change in an upcoming release.
-     */
-    static Grouper defaults();
-
-    /**
-     * @internal This API is a technical preview.  It is likely to change in an upcoming release.
-     */
-    static Grouper minTwoDigits();
-
-    /**
-     * @internal This API is a technical preview.  It is likely to change in an upcoming release.
-     */
-    static Grouper none();
-
-  private:
-    int8_t fGrouping1; // -3 means "bogus"; -2 means "needs locale data"; -1 means "no grouping"
-    int8_t fGrouping2;
-    bool fMin2;
-
-    Grouper(int8_t grouping1, int8_t grouping2, bool min2)
-            : fGrouping1(grouping1), fGrouping2(grouping2), fMin2(min2) {}
-
-    Grouper() : fGrouping1(-3) {};
-
-    bool isBogus() const {
-        return fGrouping1 == -3;
-    }
-
-    /** NON-CONST: mutates the current instance. */
-    void setLocaleData(const impl::ParsedPatternInfo &patternInfo);
-
-    bool groupAtPosition(int32_t position, const impl::DecimalQuantity &value) const;
-
-    // To allow MacroProps/MicroProps to initialize empty instances:
-    friend struct impl::MacroProps;
-    friend struct impl::MicroProps;
-
-    // To allow NumberFormatterImpl to access isBogus() and perform other operations:
-    friend class impl::NumberFormatterImpl;
-};
-
-/**
  * A class that defines the strategy for padding and truncating integers before the decimal separator.
  *
  * <p>
@@ -1080,7 +1180,8 @@ class U_I18N_API IntegerWidth : public UMemory {
      * For example, with maxInt=3, the number 1234 will get printed as "234".
      *
      * @param maxInt
-     *            The maximum number of places before the decimal separator.
+     *            The maximum number of places before the decimal separator. maxInt == -1 means no
+     *            truncation.
      * @return An IntegerWidth for passing to the NumberFormatter integerWidth() setter.
      * @draft ICU 60
      * @see NumberFormatter
@@ -1090,14 +1191,14 @@ class U_I18N_API IntegerWidth : public UMemory {
   private:
     union {
         struct {
-            int8_t fMinInt;
-            int8_t fMaxInt;
+            impl::digits_t fMinInt;
+            impl::digits_t fMaxInt;
         } minMaxInt;
         UErrorCode errorCode;
     } fUnion;
     bool fHasError = false;
 
-    IntegerWidth(int8_t minInt, int8_t maxInt);
+    IntegerWidth(impl::digits_t minInt, impl::digits_t maxInt);
 
     IntegerWidth(UErrorCode errorCode) { // NOLINT
         fUnion.errorCode = errorCode;
@@ -1132,14 +1233,7 @@ class U_I18N_API IntegerWidth : public UMemory {
 
 namespace impl {
 
-/**
- * Use a default threshold of 3. This means that the third time .format() is called, the data structures get built
- * using the "safe" code path. The first two calls to .format() will trigger the unsafe code path.
- *
- * @internal
- */
-static constexpr int32_t DEFAULT_THRESHOLD = 3;
-
+// Do not enclose entire SymbolsWrapper with #ifndef U_HIDE_INTERNAL_API, needed for a protected field
 /** @internal */
 class U_I18N_API SymbolsWrapper : public UMemory {
   public:
@@ -1155,6 +1249,7 @@ class U_I18N_API SymbolsWrapper : public UMemory {
     /** @internal */
     SymbolsWrapper &operator=(const SymbolsWrapper &other);
 
+#ifndef U_HIDE_INTERNAL_API
     /**
      * The provided object is copied, but we do not adopt it.
      * @internal
@@ -1202,6 +1297,7 @@ class U_I18N_API SymbolsWrapper : public UMemory {
         }
         return FALSE;
     }
+#endif  // U_HIDE_INTERNAL_API
 
   private:
     enum SymbolsPointerType {
@@ -1218,14 +1314,72 @@ class U_I18N_API SymbolsWrapper : public UMemory {
     void doCleanup();
 };
 
+// Do not enclose entire Grouper with #ifndef U_HIDE_INTERNAL_API, needed for a protected field
+/** @internal */
+class U_I18N_API Grouper : public UMemory {
+  public:
+#ifndef U_HIDE_INTERNAL_API
+    /** @internal */
+    static Grouper forStrategy(UGroupingStrategy grouping);
+
+    // Future: static Grouper forProperties(DecimalFormatProperties& properties);
+
+    /** @internal */
+    Grouper(int16_t grouping1, int16_t grouping2, int16_t minGrouping)
+            : fGrouping1(grouping1), fGrouping2(grouping2), fMinGrouping(minGrouping) {}
+#endif  // U_HIDE_INTERNAL_API
+
+  private:
+    /**
+     * The grouping sizes, with the following special values:
+     * <ul>
+     * <li>-1 = no grouping
+     * <li>-2 = needs locale data
+     * <li>-4 = fall back to Western grouping if not in locale
+     * </ul>
+     */
+    int16_t fGrouping1;
+    int16_t fGrouping2;
+
+    /**
+     * The minimum gropuing size, with the following special values:
+     * <ul>
+     * <li>-2 = needs locale data
+     * <li>-3 = no less than 2
+     * </ul>
+     */
+    int16_t fMinGrouping;
+
+    Grouper() : fGrouping1(-3) {};
+
+    bool isBogus() const {
+        return fGrouping1 == -3;
+    }
+
+    /** NON-CONST: mutates the current instance. */
+    void setLocaleData(const impl::ParsedPatternInfo &patternInfo, const Locale& locale);
+
+    bool groupAtPosition(int32_t position, const impl::DecimalQuantity &value) const;
+
+    // To allow MacroProps/MicroProps to initialize empty instances:
+    friend struct MacroProps;
+    friend struct MicroProps;
+
+    // To allow NumberFormatterImpl to access isBogus() and perform other operations:
+    friend class NumberFormatterImpl;
+};
+
+// Do not enclose entire Padder with #ifndef U_HIDE_INTERNAL_API, needed for a protected field
 /** @internal */
 class U_I18N_API Padder : public UMemory {
   public:
+#ifndef U_HIDE_INTERNAL_API
     /** @internal */
     static Padder none();
 
     /** @internal */
     static Padder codePoints(UChar32 cp, int32_t targetWidth, UNumberFormatPadPosition position);
+#endif  // U_HIDE_INTERNAL_API
 
   private:
     UChar32 fWidth;  // -3 = error; -2 = bogus; -1 = no padding
@@ -1275,6 +1429,7 @@ class U_I18N_API Padder : public UMemory {
     friend class impl::NumberFormatterImpl;
 };
 
+// Do not enclose entire MacroProps with #ifndef U_HIDE_INTERNAL_API, needed for a protected field
 /** @internal */
 struct U_I18N_API MacroProps : public UMemory {
     /** @internal */
@@ -1282,6 +1437,9 @@ struct U_I18N_API MacroProps : public UMemory {
 
     /** @internal */
     MeasureUnit unit; // = NoUnit::base();
+
+    /** @internal */
+    MeasureUnit perUnit; // = NoUnit::base();
 
     /** @internal */
     Rounder rounder;  // = Rounder();  (bogus)
@@ -1375,28 +1533,29 @@ class U_I18N_API NumberFormatterSettings {
      * <li>Percent: "12.3%"
      * </ul>
      *
-     * <p>
      * All units will be properly localized with locale data, and all units are compatible with notation styles,
      * rounding strategies, and other number formatter settings.
      *
-     * <p>
-     * Pass this method any instance of {@link MeasureUnit}. For units of measure:
+     * Pass this method any instance of {@link MeasureUnit}. For units of measure (which often involve the
+     * factory methods that return a pointer):
      *
      * <pre>
-     * NumberFormatter.with().adoptUnit(MeasureUnit::createMeter(status))
+     * NumberFormatter::with().adoptUnit(MeasureUnit::createMeter(status))
      * </pre>
      *
      * Currency:
      *
      * <pre>
-     * NumberFormatter.with()::unit(CurrencyUnit(u"USD", status))
+     * NumberFormatter::with().unit(CurrencyUnit(u"USD", status))
      * </pre>
      *
      * Percent:
      *
      * <pre>
-     * NumberFormatter.with()::unit(NoUnit.percent())
+     * NumberFormatter::with().unit(NoUnit.percent())
      * </pre>
+     *
+     * See {@link #perUnit} for information on how to format strings like "5 meters per second".
      *
      * The default is to render without units (equivalent to NoUnit.base()).
      *
@@ -1406,22 +1565,65 @@ class U_I18N_API NumberFormatterSettings {
      * @see MeasureUnit
      * @see Currency
      * @see NoUnit
+     * @see #perUnit
      * @draft ICU 60
      */
     Derived unit(const icu::MeasureUnit &unit) const;
 
     /**
      * Like unit(), but takes ownership of a pointer.  Convenient for use with the MeasureFormat factory
-     * methods, which return pointers that need ownership.
+     * methods, which return pointers that need ownership.  Example:
+     *
+     * <pre>
+     * NumberFormatter::with().adoptUnit(MeasureUnit::createMeter(status))
+     * </pre>
      *
      * @param unit
-     * The unit to render.
+     *            The unit to render.
      * @return The fluent chain.
      * @see #unit
      * @see MeasureUnit
      * @draft ICU 60
      */
-    Derived adoptUnit(const icu::MeasureUnit *unit) const;
+    Derived adoptUnit(icu::MeasureUnit *unit) const;
+
+    /**
+     * Sets a unit to be used in the denominator. For example, to format "3 m/s", pass METER to the unit and SECOND to
+     * the perUnit.
+     *
+     * Pass this method any instance of {@link MeasureUnit}.  Since MeasureUnit factory methods return pointers, the
+     * {@link #adoptPerUnit} version of this method is often more useful.
+     *
+     * The default is not to display any unit in the denominator.
+     *
+     * If a per-unit is specified without a primary unit via {@link #unit}, the behavior is undefined.
+     *
+     * @param perUnit
+     *            The unit to render in the denominator.
+     * @return The fluent chain
+     * @see #unit
+     * @draft ICU 61
+     */
+    Derived perUnit(const icu::MeasureUnit &perUnit) const;
+
+    /**
+     * Like perUnit(), but takes ownership of a pointer.  Convenient for use with the MeasureFormat factory
+     * methods, which return pointers that need ownership.  Example:
+     *
+     * <pre>
+     * NumberFormatter::with()
+     *      .adoptUnit(MeasureUnit::createMeter(status))
+     *      .adoptPerUnit(MeasureUnit::createSecond(status))
+     * </pre>
+     *
+     * @param perUnit
+     *            The unit to render in the denominator.
+     * @return The fluent chain.
+     * @see #perUnit
+     * @see MeasureUnit
+     * @draft ICU 61
+     */
+    Derived adoptPerUnit(icu::MeasureUnit *perUnit) const;
 
     /**
      * Specifies the rounding strategy to use when formatting numbers.
@@ -1456,8 +1658,6 @@ class U_I18N_API NumberFormatterSettings {
      */
     Derived rounding(const Rounder &rounder) const;
 
-#ifndef U_HIDE_INTERNAL_API
-
     /**
      * Specifies the grouping strategy to use when formatting numbers.
      *
@@ -1471,25 +1671,21 @@ class U_I18N_API NumberFormatterSettings {
      * The exact grouping widths will be chosen based on the locale.
      *
      * <p>
-     * Pass this method the return value of one of the factory methods on {@link Grouper}. For example:
+     * Pass this method an element from the {@link UGroupingStrategy} enum. For example:
      *
      * <pre>
-     * NumberFormatter::with().grouping(Grouper::min2())
+     * NumberFormatter::with().grouping(UNUM_GROUPING_MIN2)
      * </pre>
      *
-     * The default is to perform grouping without concern for the minimum grouping digits.
+     * The default is to perform grouping according to locale data; most locales, but not all locales,
+     * enable it by default.
      *
-     * @param grouper
+     * @param strategy
      *            The grouping strategy to use.
      * @return The fluent chain.
-     * @see Grouper
-     * @see Notation
-     * @internal
-     * @internal ICU 60: This API is technical preview.
+     * @draft ICU 61
      */
-    Derived grouping(const Grouper &grouper) const;
-
-#endif  /* U_HIDE_INTERNAL_API */
+    Derived grouping(const UGroupingStrategy &strategy) const;
 
     /**
      * Specifies the minimum and maximum number of digits to render before the decimal mark.
@@ -1592,7 +1788,7 @@ class U_I18N_API NumberFormatterSettings {
      * @see NumberingSystem
      * @draft ICU 60
      */
-    Derived adoptSymbols(const NumberingSystem *symbols) const;
+    Derived adoptSymbols(NumberingSystem *symbols) const;
 
     /**
      * Sets the width of the unit (measure unit or currency).  Most common values:

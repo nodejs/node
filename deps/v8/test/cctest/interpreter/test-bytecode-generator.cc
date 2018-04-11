@@ -2244,6 +2244,62 @@ TEST(ClassFields) {
       "  class A {\n"
       "    a;\n"
       "    ['b'];\n"
+      "  }\n"
+      "\n"
+      "  class B {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "  }\n"
+      "  new A;\n"
+      "  new B;\n"
+      "}\n",
+
+      "{\n"
+      "  class A extends class {} {\n"
+      "    a;\n"
+      "    ['b'];\n"
+      "  }\n"
+      "\n"
+      "  class B extends class {} {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "    foo() { return 1; }\n"
+      "    constructor() {\n"
+      "      super();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  class C extends B {\n"
+      "    a = 1;\n"
+      "    ['b'] = this.a;\n"
+      "    constructor() {\n"
+      "      (() => super())();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "  new B;\n"
+      "  new C;\n"
+      "}\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ClassFields.golden")));
+  i::FLAG_harmony_public_fields = old_flag;
+}
+
+TEST(StaticClassFields) {
+  bool old_flag = i::FLAG_harmony_public_fields;
+  bool old_static_flag = i::FLAG_harmony_static_fields;
+  i::FLAG_harmony_public_fields = true;
+  i::FLAG_harmony_static_fields = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A {\n"
+      "    a;\n"
+      "    ['b'];\n"
       "    static c;\n"
       "    static ['d'];\n"
       "  }\n"
@@ -2293,8 +2349,9 @@ TEST(ClassFields) {
       "}\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("ClassFields.golden")));
+                     LoadGolden("StaticClassFields.golden")));
   i::FLAG_harmony_public_fields = old_flag;
+  i::FLAG_harmony_static_fields = old_static_flag;
 }
 
 TEST(Generators) {
@@ -2323,8 +2380,6 @@ TEST(Generators) {
 }
 
 TEST(AsyncGenerators) {
-  bool old_flag = i::FLAG_harmony_async_iteration;
-  i::FLAG_harmony_async_iteration = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2347,7 +2402,6 @@ TEST(AsyncGenerators) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("AsyncGenerators.golden")));
-  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(Modules) {
@@ -2465,8 +2519,6 @@ TEST(NewAndSpread) {
 }
 
 TEST(ForAwaitOf) {
-  bool old_flag = i::FLAG_harmony_async_iteration;
-  i::FLAG_harmony_async_iteration = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2499,8 +2551,6 @@ TEST(ForAwaitOf) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("ForAwaitOf.golden")));
-
-  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(StandardForLoop) {

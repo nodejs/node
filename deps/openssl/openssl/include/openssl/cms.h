@@ -1,69 +1,23 @@
-/* crypto/cms/cms.h */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project.
- */
-/* ====================================================================
- * Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+ * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #ifndef HEADER_CMS_H
 # define HEADER_CMS_H
 
+# include <openssl/opensslconf.h>
+
+# ifndef OPENSSL_NO_CMS
 # include <openssl/x509.h>
-
-# ifdef OPENSSL_NO_CMS
-#  error CMS is disabled.
-# endif
-
-#ifdef __cplusplus
+# include <openssl/x509v3.h>
+# ifdef __cplusplus
 extern "C" {
-#endif
+# endif
 
 typedef struct CMS_ContentInfo_st CMS_ContentInfo;
 typedef struct CMS_SignerInfo_st CMS_SignerInfo;
@@ -75,9 +29,10 @@ typedef struct CMS_Receipt_st CMS_Receipt;
 typedef struct CMS_RecipientEncryptedKey_st CMS_RecipientEncryptedKey;
 typedef struct CMS_OtherKeyAttribute_st CMS_OtherKeyAttribute;
 
-DECLARE_STACK_OF(CMS_SignerInfo)
-DECLARE_STACK_OF(GENERAL_NAMES)
-DECLARE_STACK_OF(CMS_RecipientEncryptedKey)
+DEFINE_STACK_OF(CMS_SignerInfo)
+DEFINE_STACK_OF(CMS_RecipientEncryptedKey)
+DEFINE_STACK_OF(CMS_RecipientInfo)
+DEFINE_STACK_OF(CMS_RevocationInfoChoice)
 DECLARE_ASN1_FUNCTIONS(CMS_ContentInfo)
 DECLARE_ASN1_FUNCTIONS(CMS_ReceiptRequest)
 DECLARE_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
@@ -116,8 +71,9 @@ DECLARE_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 # define CMS_USE_KEYID                   0x10000
 # define CMS_DEBUG_DECRYPT               0x20000
 # define CMS_KEY_PARAM                   0x40000
+# define CMS_ASCIICRLF                   0x80000
 
-const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms);
+const ASN1_OBJECT *CMS_get0_type(const CMS_ContentInfo *cms);
 
 BIO *CMS_dataInit(CMS_ContentInfo *cms, BIO *icont);
 int CMS_dataFinal(CMS_ContentInfo *cms, BIO *bio);
@@ -188,7 +144,7 @@ int CMS_decrypt(CMS_ContentInfo *cms, EVP_PKEY *pkey, X509 *cert,
 int CMS_decrypt_set1_pkey(CMS_ContentInfo *cms, EVP_PKEY *pk, X509 *cert);
 int CMS_decrypt_set1_key(CMS_ContentInfo *cms,
                          unsigned char *key, size_t keylen,
-                         unsigned char *id, size_t idlen);
+                         const unsigned char *id, size_t idlen);
 int CMS_decrypt_set1_password(CMS_ContentInfo *cms,
                               unsigned char *pass, ossl_ssize_t passlen);
 
@@ -290,7 +246,7 @@ int CMS_add_standard_smimecap(STACK_OF(X509_ALGOR) **smcap);
 int CMS_signed_get_attr_count(const CMS_SignerInfo *si);
 int CMS_signed_get_attr_by_NID(const CMS_SignerInfo *si, int nid,
                                int lastpos);
-int CMS_signed_get_attr_by_OBJ(const CMS_SignerInfo *si, ASN1_OBJECT *obj,
+int CMS_signed_get_attr_by_OBJ(const CMS_SignerInfo *si, const ASN1_OBJECT *obj,
                                int lastpos);
 X509_ATTRIBUTE *CMS_signed_get_attr(const CMS_SignerInfo *si, int loc);
 X509_ATTRIBUTE *CMS_signed_delete_attr(CMS_SignerInfo *si, int loc);
@@ -304,14 +260,14 @@ int CMS_signed_add1_attr_by_NID(CMS_SignerInfo *si,
 int CMS_signed_add1_attr_by_txt(CMS_SignerInfo *si,
                                 const char *attrname, int type,
                                 const void *bytes, int len);
-void *CMS_signed_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
+void *CMS_signed_get0_data_by_OBJ(CMS_SignerInfo *si, const ASN1_OBJECT *oid,
                                   int lastpos, int type);
 
 int CMS_unsigned_get_attr_count(const CMS_SignerInfo *si);
 int CMS_unsigned_get_attr_by_NID(const CMS_SignerInfo *si, int nid,
                                  int lastpos);
-int CMS_unsigned_get_attr_by_OBJ(const CMS_SignerInfo *si, ASN1_OBJECT *obj,
-                                 int lastpos);
+int CMS_unsigned_get_attr_by_OBJ(const CMS_SignerInfo *si,
+                                 const ASN1_OBJECT *obj, int lastpos);
 X509_ATTRIBUTE *CMS_unsigned_get_attr(const CMS_SignerInfo *si, int loc);
 X509_ATTRIBUTE *CMS_unsigned_delete_attr(CMS_SignerInfo *si, int loc);
 int CMS_unsigned_add1_attr(CMS_SignerInfo *si, X509_ATTRIBUTE *attr);
@@ -378,7 +334,8 @@ int CMS_SharedInfo_encode(unsigned char **pder, X509_ALGOR *kekalg,
  * The following lines are auto generated by the script mkerr.pl. Any changes
  * made after this point may be overwritten when the script is next run.
  */
-void ERR_load_CMS_strings(void);
+
+int ERR_load_CMS_strings(void);
 
 /* Error codes for the CMS functions. */
 
@@ -483,7 +440,6 @@ void ERR_load_CMS_strings(void);
 # define CMS_R_CTRL_ERROR                                 110
 # define CMS_R_CTRL_FAILURE                               111
 # define CMS_R_DECRYPT_ERROR                              112
-# define CMS_R_DIGEST_ERROR                               161
 # define CMS_R_ERROR_GETTING_PUBLIC_KEY                   113
 # define CMS_R_ERROR_READING_MESSAGEDIGEST_ATTRIBUTE      114
 # define CMS_R_ERROR_SETTING_KEY                          115
@@ -549,7 +505,8 @@ void ERR_load_CMS_strings(void);
 # define CMS_R_VERIFICATION_FAILURE                       158
 # define CMS_R_WRAP_ERROR                                 159
 
-#ifdef  __cplusplus
+#  ifdef  __cplusplus
 }
-#endif
+#  endif
+# endif
 #endif

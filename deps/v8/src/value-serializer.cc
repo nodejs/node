@@ -214,11 +214,11 @@ void ValueSerializer::WriteVarint(T value) {
   uint8_t stack_buffer[sizeof(T) * 8 / 7 + 1];
   uint8_t* next_byte = &stack_buffer[0];
   do {
-    *next_byte = (value & 0x7f) | 0x80;
+    *next_byte = (value & 0x7F) | 0x80;
     next_byte++;
     value >>= 7;
   } while (value);
-  *(next_byte - 1) &= 0x7f;
+  *(next_byte - 1) &= 0x7F;
   WriteRawBytes(stack_buffer, next_byte - stack_buffer);
 }
 
@@ -848,7 +848,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
 
-  Handle<String> wire_bytes(compiled_part->module_bytes(), isolate_);
+  Handle<String> wire_bytes(compiled_part->shared()->module_bytes(), isolate_);
   int wire_bytes_length = wire_bytes->length();
   WriteVarint<uint32_t>(wire_bytes_length);
   uint8_t* destination;
@@ -856,20 +856,10 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
   }
 
-  if (FLAG_wasm_jit_to_native) {
-    std::pair<std::unique_ptr<byte[]>, size_t> serialized_module =
-        wasm::NativeModuleSerializer::SerializeWholeModule(isolate_,
-                                                           compiled_part);
-    WriteVarint<uint32_t>(static_cast<uint32_t>(serialized_module.second));
-    WriteRawBytes(serialized_module.first.get(), serialized_module.second);
-  } else {
-    std::unique_ptr<ScriptData> script_data =
-        WasmCompiledModuleSerializer::SerializeWasmModule(isolate_,
-                                                          compiled_part);
-    int script_data_length = script_data->length();
-    WriteVarint<uint32_t>(script_data_length);
-    WriteRawBytes(script_data->data(), script_data_length);
-  }
+  std::pair<std::unique_ptr<const byte[]>, size_t> serialized_module =
+      wasm::SerializeNativeModule(isolate_, compiled_part);
+  WriteVarint<uint32_t>(static_cast<uint32_t>(serialized_module.second));
+  WriteRawBytes(serialized_module.first.get(), serialized_module.second);
   return ThrowIfOutOfMemory();
 }
 
@@ -1032,7 +1022,7 @@ Maybe<T> ValueDeserializer::ReadVarint() {
     if (position_ >= end_) return Nothing<T>();
     uint8_t byte = *position_;
     if (V8_LIKELY(shift < sizeof(T) * 8)) {
-      value |= static_cast<T>(byte & 0x7f) << shift;
+      value |= static_cast<T>(byte & 0x7F) << shift;
       shift += 7;
     }
     has_another_byte = byte & 0x80;
@@ -1716,23 +1706,11 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   }
 
   // Try to deserialize the compiled module first.
-  Handle<FixedArray> compiled_part;
+  Handle<WasmCompiledModule> compiled_module;
   MaybeHandle<JSObject> result;
-  if (FLAG_wasm_jit_to_native) {
-    if (wasm::NativeModuleDeserializer::DeserializeFullBuffer(
-            isolate_, compiled_bytes, wire_bytes)
-            .ToHandle(&compiled_part)) {
-      result = WasmModuleObject::New(
-          isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
-    }
-  } else {
-    ScriptData script_data(compiled_bytes.start(), compiled_bytes.length());
-    if (WasmCompiledModuleSerializer::DeserializeWasmModule(
-            isolate_, &script_data, wire_bytes)
-            .ToHandle(&compiled_part)) {
-      result = WasmModuleObject::New(
-          isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
-    }
+  if (wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes)
+          .ToHandle(&compiled_module)) {
+    result = WasmModuleObject::New(isolate_, compiled_module);
   }
   if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");

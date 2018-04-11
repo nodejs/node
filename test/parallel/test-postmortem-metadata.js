@@ -26,6 +26,11 @@ const nm = spawnSync('nm', args);
 if (nm.error && nm.error.errno === 'ENOENT')
   common.skip('nm not found on system');
 
+const stderr = nm.stderr.toString();
+if (stderr.length > 0) {
+  common.skip(`Failed to execute nm: ${stderr}`);
+}
+
 const symbolRe = /\s_?(v8dbg_.+)$/;
 const symbols = nm.stdout.toString().split('\n').reduce((filtered, line) => {
   const match = line.match(symbolRe);
@@ -50,7 +55,7 @@ function getExpectedSymbols() {
     // should only consist of postmortem constants, and some of them can be
     // relatively long.
     /* eslint-disable max-len */
-    'v8dbg_bit_field3_dictionary_map_shift',
+    'v8dbg_bit_field3_is_dictionary_map_shift',
     'v8dbg_bit_field3_number_of_own_descriptors_shift',
     'v8dbg_class_Code__instruction_size__int',
     'v8dbg_class_Code__instruction_start__uintptr_t',

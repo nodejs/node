@@ -9,6 +9,7 @@ namespace node {
 namespace inspector {
 namespace {
 
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -78,7 +79,11 @@ class JSBindingsConnection : public AsyncWrap {
 
     Agent* inspector = env->inspector_agent();
     if (inspector->delegate() != nullptr) {
-      env->ThrowTypeError("Session is already attached");
+      // This signals JS code that it has to throw an error.
+      Local<String> session_attached =
+          FIXED_ONE_BYTE_STRING(env->isolate(), "sessionAttached");
+      wrap->Set(env->context(), session_attached,
+                Boolean::New(env->isolate(), true)).ToChecked();
       return;
     }
     inspector->Connect(&delegate_);
@@ -95,10 +100,7 @@ class JSBindingsConnection : public AsyncWrap {
 
   static void New(const FunctionCallbackInfo<Value>& info) {
     Environment* env = Environment::GetCurrent(info);
-    if (!info[0]->IsFunction()) {
-      env->ThrowTypeError("Message callback is required");
-      return;
-    }
+    CHECK(info[0]->IsFunction());
     Local<Function> callback = info[0].As<Function>();
     new JSBindingsConnection(env, info.This(), callback);
   }
@@ -121,10 +123,7 @@ class JSBindingsConnection : public AsyncWrap {
     Environment* env = Environment::GetCurrent(info);
     JSBindingsConnection* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, info.Holder());
-    if (!info[0]->IsString()) {
-      env->ThrowTypeError("Inspector message must be a string");
-      return;
-    }
+    CHECK(info[0]->IsString());
 
     session->CheckIsCurrent();
     Agent* inspector = env->inspector_agent();
@@ -143,10 +142,9 @@ void AddCommandLineAPI(const FunctionCallbackInfo<Value>& info) {
   auto env = Environment::GetCurrent(info);
   Local<Context> context = env->context();
 
-  if (info.Length() != 2 || !info[0]->IsString()) {
-    return env->ThrowTypeError("inspector.addCommandLineAPI takes "
-        "exactly 2 arguments: a string and a value.");
-  }
+  // inspector.addCommandLineAPI takes 2 arguments: a string and a value.
+  CHECK_EQ(info.Length(), 2);
+  CHECK(info[0]->IsString());
 
   Local<Object> console_api = env->inspector_console_api_object();
   console_api->Set(context, info[0], info[1]).FromJust();
@@ -232,7 +230,7 @@ static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());
   Local<String> task_name = args[0].As<String>();
-  String::Value task_name_value(task_name);
+  String::Value task_name_value(args.GetIsolate(), task_name);
   StringView task_name_view(*task_name_value, task_name_value.length());
 
   CHECK(args[1]->IsNumber());
@@ -298,8 +296,8 @@ void Url(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), url.c_str()));
 }
 
-void InitInspectorBindings(Local<Object> target, Local<Value> unused,
-                           Local<Context> context, void* priv) {
+void Initialize(Local<Object> target, Local<Value> unused,
+                Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
   {
     auto obj = Object::New(env->isolate());
@@ -343,4 +341,4 @@ void InitInspectorBindings(Local<Object> target, Local<Value> unused,
 }  // namespace node
 
 NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector,
-                                  node::inspector::InitInspectorBindings);
+                                  node::inspector::Initialize);

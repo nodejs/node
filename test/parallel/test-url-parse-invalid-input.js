@@ -6,7 +6,7 @@ const url = require('url');
 // https://github.com/joyent/node/issues/568
 [
   [undefined, 'undefined'],
-  [null, 'null'],
+  [null, 'object'],
   [true, 'boolean'],
   [false, 'boolean'],
   [0.0, 'number'],

@@ -20,7 +20,7 @@ Float64 Instruction::DoubleImmedVmov() const {
   // where B = ~b. Only the high 16 bits are affected.
   uint64_t high16;
   high16  = (Bits(17, 16) << 4) | Bits(3, 0);   // xxxxxxxx,xxcdefgh.
-  high16 |= (0xff * Bit(18)) << 6;              // xxbbbbbb,bbxxxxxx.
+  high16 |= (0xFF * Bit(18)) << 6;              // xxbbbbbb,bbxxxxxx.
   high16 |= (Bit(18) ^ 1) << 14;                // xBxxxxxx,xxxxxxxx.
   high16 |= Bit(19) << 15;                      // axxxxxxx,xxxxxxxx.
 

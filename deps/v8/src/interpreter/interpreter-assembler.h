@@ -225,10 +225,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Dispatch bytecode as wide operand variant.
   void DispatchWide(OperandScale operand_scale);
 
-  // Abort with the given bailout reason.
-  void Abort(BailoutReason bailout_reason);
+  // Abort with the given abort reason.
+  void Abort(AbortReason abort_reason);
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
-                           BailoutReason bailout_reason);
+                           AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
   void AbortIfRegisterCountInvalid(compiler::Node* register_file,
                                    compiler::Node* register_count);

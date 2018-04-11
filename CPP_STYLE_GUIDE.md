@@ -256,13 +256,13 @@ env->SetMethod(target, "foo", Foo);
 exports.foo = function(str) {
   // Prefer doing the type-checks in JavaScript
   if (typeof str !== 'string') {
-    throw new errors.TypeError('ERR_INVALID_ARG_TYPE', 'str', 'string');
+    throw new errors.codes.ERR_INVALID_ARG_TYPE('str', 'string');
   }
 
   const ctx = {};
   const result = binding.foo(str, ctx);
   if (ctx.code !== undefined) {
-    throw new errors.Error('ERR_ERROR_NAME', ctx.code);
+    throw new errors.codes.ERR_ERROR_NAME(ctx.code);
   }
   return result;
 };

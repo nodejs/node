@@ -144,13 +144,20 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 // After creation the result must be treated as a JSArray in all regards.
 class JSRegExpResult : public JSArray {
  public:
-  // Offsets of object fields.
-  static const int kIndexOffset = JSArray::kSize;
-  static const int kInputOffset = kIndexOffset + kPointerSize;
-  static const int kSize = kInputOffset + kPointerSize;
+#define REG_EXP_RESULT_FIELDS(V) \
+  V(kIndexOffset, kPointerSize)  \
+  V(kInputOffset, kPointerSize)  \
+  V(kGroupsOffset, kPointerSize) \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize, REG_EXP_RESULT_FIELDS)
+#undef REG_EXP_RESULT_FIELDS
+
   // Indices of in-object properties.
   static const int kIndexIndex = 0;
   static const int kInputIndex = 1;
+  static const int kGroupsIndex = 2;
+  static const int kInObjectPropertyCount = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSRegExpResult);

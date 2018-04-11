@@ -1,0 +1,72 @@
+<!-- Copyright 2018 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+<template id="details-selection-template">
+<style>
+.box {
+  border-left: dashed 1px #666666;
+  border-right: dashed 1px #666666;
+  border-bottom: dashed 1px #666666;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.box:nth-of-type(1) {
+  border-top: dashed 1px #666666;
+  border-radius: 5px 5px 0px 0px;
+}
+
+.box:last-of-type {
+    border-radius: 0px 0px 5px 5px;
+}
+
+span {
+  display: block;
+  padding: 5px;
+  font-weight: bold;
+}
+
+.boxDiv {
+  padding: 3px;
+  float: left;
+}
+
+.boxDiv > label {
+  font-size: xx-small;
+}
+
+#categories {
+  margin-top: 10px;
+}
+</style>
+<h2>Data selection</h2>
+<ul>
+  <li>
+    <label for="isolate-select">
+      Isolate
+    </label>
+    <select id="isolate-select">
+      <option>No data</option>
+    </select>
+  </li>
+  <li>
+    <label for="dataset-select">
+      Data set
+    </label>
+    <select id="dataset-select">
+      <option>No data</option>
+    </select>
+  </li>
+  <li>
+    <input type="checkbox" id="merge-categories" checked=checked />
+    <label for="merge-categories">
+      Merge categories
+    </label>
+  </li>
+</ul>
+
+
+<div id="categories"></div>
+</template>
+<script type="text/javascript" src="categories.js"></script>
+<script type="text/javascript" src="details-selection.js"></script>

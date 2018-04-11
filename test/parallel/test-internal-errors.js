@@ -5,15 +5,12 @@ const common = require('../common');
 const assert = require('assert');
 const errors = require('internal/errors');
 
-function invalidKey(key) {
-  return new RegExp(`^An invalid error message key was used: ${key}\\.$`);
-}
-
-errors.E('TEST_ERROR_1', 'Error for testing purposes: %s');
-errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
+errors.E('TEST_ERROR_1', 'Error for testing purposes: %s',
+         Error, TypeError, RangeError);
+errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
 
 {
-  const err = new errors.Error('TEST_ERROR_1', 'test');
+  const err = new errors.codes.TEST_ERROR_1('test');
   assert(err instanceof Error);
   assert.strictEqual(err.name, 'Error [TEST_ERROR_1]');
   assert.strictEqual(err.message, 'Error for testing purposes: test');
@@ -21,7 +18,7 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
 }
 
 {
-  const err = new errors.TypeError('TEST_ERROR_1', 'test');
+  const err = new errors.codes.TEST_ERROR_1.TypeError('test');
   assert(err instanceof TypeError);
   assert.strictEqual(err.name, 'TypeError [TEST_ERROR_1]');
   assert.strictEqual(err.message, 'Error for testing purposes: test');
@@ -29,7 +26,7 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
 }
 
 {
-  const err = new errors.RangeError('TEST_ERROR_1', 'test');
+  const err = new errors.codes.TEST_ERROR_1.RangeError('test');
   assert(err instanceof RangeError);
   assert.strictEqual(err.name, 'RangeError [TEST_ERROR_1]');
   assert.strictEqual(err.message, 'Error for testing purposes: test');
@@ -37,7 +34,7 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
 }
 
 {
-  const err = new errors.Error('TEST_ERROR_2', 'abc', 'xyz');
+  const err = new errors.codes.TEST_ERROR_2('abc', 'xyz');
   assert(err instanceof Error);
   assert.strictEqual(err.name, 'Error [TEST_ERROR_2]');
   assert.strictEqual(err.message, 'abc xyz');
@@ -45,113 +42,27 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`);
 }
 
 {
-  const err = new errors.Error('TEST_ERROR_1');
+  const err = new errors.codes.TEST_ERROR_1();
   assert(err instanceof Error);
   assert.strictEqual(err.name, 'Error [TEST_ERROR_1]');
   assert.strictEqual(err.message, 'Error for testing purposes: %s');
   assert.strictEqual(err.code, 'TEST_ERROR_1');
 }
 
-common.expectsError(
-  () => new errors.Error('TEST_FOO_KEY'),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('TEST_FOO_KEY')
-  });
-// Calling it twice yields same result (using the key does not create it)
-common.expectsError(
-  () => new errors.Error('TEST_FOO_KEY'),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('TEST_FOO_KEY')
-  });
-common.expectsError(
-  () => new errors.Error(1),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey(1)
-  });
-common.expectsError(
-  () => new errors.Error({}),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('\\[object Object\\]')
-  });
-common.expectsError(
-  () => new errors.Error([]),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('')
-  });
-common.expectsError(
-  () => new errors.Error(true),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('true')
-  });
-common.expectsError(
-  () => new errors.TypeError(1),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey(1)
-  });
-common.expectsError(
-  () => new errors.TypeError({}),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('\\[object Object\\]')
-  });
-common.expectsError(
-  () => new errors.TypeError([]),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('')
-  });
-common.expectsError(
-  () => new errors.TypeError(true),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('true')
-  });
-common.expectsError(
-  () => new errors.RangeError(1),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey(1)
-  });
-common.expectsError(
-  () => new errors.RangeError({}),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('\\[object Object\\]')
-  });
-common.expectsError(
-  () => new errors.RangeError([]),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('')
-  });
-common.expectsError(
-  () => new errors.RangeError(true),
-  {
-    code: 'ERR_ASSERTION',
-    message: invalidKey('true')
-  });
-
 // Tests for common.expectsError
 common.expectsError(() => {
-  throw new errors.TypeError('TEST_ERROR_1', 'a');
+  throw new errors.codes.TEST_ERROR_1.TypeError('a');
 }, { code: 'TEST_ERROR_1' });
 common.expectsError(() => {
-  throw new errors.TypeError('TEST_ERROR_1', 'a');
+  throw new errors.codes.TEST_ERROR_1.TypeError('a');
 }, { code: 'TEST_ERROR_1',
      type: TypeError,
      message: /^Error for testing/ });
 common.expectsError(() => {
-  throw new errors.TypeError('TEST_ERROR_1', 'a');
+  throw new errors.codes.TEST_ERROR_1.TypeError('a');
 }, { code: 'TEST_ERROR_1', type: TypeError });
 common.expectsError(() => {
-  throw new errors.TypeError('TEST_ERROR_1', 'a');
+  throw new errors.codes.TEST_ERROR_1.TypeError('a');
 }, {
   code: 'TEST_ERROR_1',
   type: TypeError,
@@ -160,7 +71,7 @@ common.expectsError(() => {
 
 common.expectsError(() => {
   common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
+    throw new errors.codes.TEST_ERROR_1.TypeError('a');
   }, { code: 'TEST_ERROR_1', type: RangeError });
 }, {
   code: 'ERR_ASSERTION',
@@ -169,7 +80,7 @@ common.expectsError(() => {
 
 common.expectsError(() => {
   common.expectsError(() => {
-    throw new errors.TypeError('TEST_ERROR_1', 'a');
+    throw new errors.codes.TEST_ERROR_1.TypeError('a');
   }, { code: 'TEST_ERROR_1',
        type: TypeError,
        message: /^Error for testing 2/ });
@@ -178,36 +89,6 @@ common.expectsError(() => {
   type: assert.AssertionError,
   message: /.+ does not match \S/
 });
-
-// // Test ERR_INVALID_ARG_TYPE
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
-                   'The "a" argument must be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b']]),
-                   'The "a" argument must be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b', 'c']]),
-                   'The "a" argument must be one of type b or c');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', ['b', 'c', 'd']]),
-                   'The "a" argument must be one of type b, c, or d');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b', 'c']),
-                   'The "a" argument must be of type b. Received type string');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', 'b', undefined]),
-                   'The "a" argument must be of type b. Received type ' +
-                   'undefined');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
-                                  ['a', 'b', null]),
-                   'The "a" argument must be of type b. Received type null');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'not b']),
-                   'The "a" argument must not be of type b');
-assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a.b', 'not c']),
-                   'The "a.b" property must not be of type c');
-assert.strictEqual(
-  errors.message('ERR_INVALID_ARG_TYPE', ['first argument', 'c']),
-  'The first argument must be of type c');
-assert.strictEqual(
-  errors.message('ERR_INVALID_ARG_TYPE', [['a', 'b', 'c'], 'not d']),
-  'The "a", "b", "c" arguments must not be of type d');
 
 // Test ERR_INVALID_FD_TYPE
 assert.strictEqual(errors.message('ERR_INVALID_FD_TYPE', ['a']),
@@ -318,7 +199,7 @@ assert.strictEqual(
 
 {
   const { kMaxLength } = process.binding('buffer');
-  const error = new errors.Error('ERR_BUFFER_TOO_LARGE');
+  const error = new errors.codes.ERR_BUFFER_TOO_LARGE();
   assert.strictEqual(
     error.message,
     `Cannot create a Buffer larger than 0x${kMaxLength.toString(16)} bytes`
@@ -326,7 +207,7 @@ assert.strictEqual(
 }
 
 {
-  const error = new errors.Error('ERR_INVALID_ARG_VALUE', 'foo', '\u0000bar');
+  const error = new errors.codes.ERR_INVALID_ARG_VALUE('foo', '\u0000bar');
   assert.strictEqual(
     error.message,
     'The argument \'foo\' is invalid. Received \'\\u0000bar\''
@@ -334,9 +215,9 @@ assert.strictEqual(
 }
 
 {
-  const error = new errors.Error(
-    'ERR_INVALID_ARG_VALUE',
-    'foo', { a: 1 }, 'must have property \'b\'');
+  const error = new errors.codes.ERR_INVALID_ARG_VALUE(
+    'foo', { a: 1 }, 'must have property \'b\''
+  );
   assert.strictEqual(
     error.message,
     'The argument \'foo\' must have property \'b\'. Received { a: 1 }'
@@ -346,7 +227,7 @@ assert.strictEqual(
 // Test that `code` property is mutable and that changing it does not change the
 // name.
 {
-  const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
+  const myError = new errors.codes.ERR_TLS_HANDSHAKE_TIMEOUT();
   assert.strictEqual(myError.code, 'ERR_TLS_HANDSHAKE_TIMEOUT');
   assert.strictEqual(myError.hasOwnProperty('code'), false);
   assert.strictEqual(myError.hasOwnProperty('name'), false);
@@ -364,7 +245,7 @@ assert.strictEqual(
 // `console.log()` results, which is the behavior of `Error` objects in the
 // browser. Note that `name` becomes enumerable after being assigned.
 {
-  const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
+  const myError = new errors.codes.ERR_TLS_HANDSHAKE_TIMEOUT();
   assert.deepStrictEqual(Object.keys(myError), []);
   const initialToString = myError.toString();
 
@@ -379,7 +260,7 @@ assert.strictEqual(
 {
   let initialConsoleLog = '';
   common.hijackStdout((data) => { initialConsoleLog += data; });
-  const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
+  const myError = new errors.codes.ERR_TLS_HANDSHAKE_TIMEOUT();
   assert.deepStrictEqual(Object.keys(myError), []);
   const initialToString = myError.toString();
   console.log(myError);

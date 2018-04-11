@@ -417,7 +417,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
     InterpreterAssemblerForTest m(&state, bytecode);
-    Node* store_value = m.Int32Constant(0xdeadbeef);
+    Node* store_value = m.Int32Constant(0xDEADBEEF);
     Node* reg_index_node = m.Parameter(0);
     Node* store_reg_node = m.StoreRegister(store_value, reg_index_node);
     EXPECT_THAT(store_reg_node,
@@ -471,7 +471,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
     InterpreterAssemblerForTest m(&state, bytecode);
-    Node* object = m.IntPtrConstant(0xdeadbeef);
+    Node* object = m.IntPtrConstant(0xDEADBEEF);
     int offset = 16;
     Node* load_field = m.LoadObjectField(object, offset);
     EXPECT_THAT(load_field,

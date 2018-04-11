@@ -97,7 +97,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       if (reg != destination_reg) {
         __ ldr(ip, MemOperand(sp, 0));
         __ cmp(reg, ip);
-        __ Assert(eq, kRegisterWasClobbered);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
         __ add(sp, sp, Operand(kPointerSize));
       }
     }
@@ -115,6 +115,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   Assembler::FlushICache(isolate, buffer, allocated);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
@@ -131,7 +132,8 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
-  return CALL_GENERATED_FP_INT(CcTest::i_isolate(), func, from, 0);
+  return Simulator::current(CcTest::i_isolate())
+      ->CallFP<int32_t>(FUNCTION_ADDR(func), from, 0);
 #else
   return (*func)(from);
 #endif

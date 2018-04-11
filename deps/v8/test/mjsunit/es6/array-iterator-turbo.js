@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbo-escape --allow-natives-syntax --no-always-opt
-// Flags: --opt --turbo-filter=*
+// Flags: --opt --turbo-filter=* --no-force-slow-path
 
 "use strict";
 

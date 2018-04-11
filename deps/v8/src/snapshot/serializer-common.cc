@@ -55,6 +55,17 @@ ExternalReferenceEncoder::~ExternalReferenceEncoder() {
 #endif  // DEBUG
 }
 
+Maybe<ExternalReferenceEncoder::Value> ExternalReferenceEncoder::TryEncode(
+    Address address) {
+  Maybe<uint32_t> maybe_index = map_->Get(address);
+  if (maybe_index.IsNothing()) return Nothing<Value>();
+  Value result(maybe_index.FromJust());
+#ifdef DEBUG
+  if (result.is_from_api()) count_[result.index()]++;
+#endif  // DEBUG
+  return Just<Value>(result);
+}
+
 ExternalReferenceEncoder::Value ExternalReferenceEncoder::Encode(
     Address address) {
   Maybe<uint32_t> maybe_index = map_->Get(address);

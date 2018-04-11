@@ -22,13 +22,14 @@ class PlatformInterfaceDescriptor;
   V(Load)                             \
   V(LoadWithVector)                   \
   V(LoadField)                        \
-  V(LoadICProtoArray)                 \
   V(LoadGlobal)                       \
   V(LoadGlobalWithVector)             \
   V(Store)                            \
   V(StoreWithVector)                  \
   V(StoreNamedTransition)             \
   V(StoreTransition)                  \
+  V(StoreGlobal)                      \
+  V(StoreGlobalWithVector)            \
   V(FastNewClosure)                   \
   V(FastNewFunctionContext)           \
   V(FastNewObject)                    \
@@ -50,6 +51,7 @@ class PlatformInterfaceDescriptor;
   V(ConstructWithArrayLike)           \
   V(ConstructTrampoline)              \
   V(TransitionElementsKind)           \
+  V(AbortJS)                          \
   V(AllocateHeapNumber)               \
   V(Builtin)                          \
   V(ArrayConstructor)                 \
@@ -60,8 +62,7 @@ class PlatformInterfaceDescriptor;
   V(Compare)                          \
   V(BinaryOp)                         \
   V(StringAdd)                        \
-  V(StringCharAt)                     \
-  V(StringCharCodeAt)                 \
+  V(StringAt)                         \
   V(ForInPrepare)                     \
   V(GetProperty)                      \
   V(ArgumentAdaptor)                  \
@@ -78,6 +79,7 @@ class PlatformInterfaceDescriptor;
   V(ResumeGenerator)                  \
   V(FrameDropperTrampoline)           \
   V(WasmRuntimeCall)                  \
+  V(RunMicrotasks)                    \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -454,6 +456,44 @@ class StoreWithVectorDescriptor : public StoreDescriptor {
   static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
 };
 
+class StoreGlobalDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kName, kValue, kSlot)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const bool kPassLastArgsOnStack =
+      StoreDescriptor::kPassLastArgsOnStack;
+  // Pass value and slot through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 2 : 0;
+
+  static const Register NameRegister() {
+    return StoreDescriptor::NameRegister();
+  }
+
+  static const Register ValueRegister() {
+    return StoreDescriptor::ValueRegister();
+  }
+
+  static const Register SlotRegister() {
+    return StoreDescriptor::SlotRegister();
+  }
+};
+
+class StoreGlobalWithVectorDescriptor : public StoreGlobalDescriptor {
+ public:
+  DEFINE_PARAMETERS(kName, kValue, kSlot, kVector)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalWithVectorDescriptor,
+                                               StoreGlobalDescriptor)
+
+  static const Register VectorRegister() {
+    return StoreWithVectorDescriptor::VectorRegister();
+  }
+
+  // Pass value, slot and vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
+};
+
 class LoadWithVectorDescriptor : public LoadDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
@@ -461,15 +501,6 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
                                                LoadDescriptor)
 
   static const Register VectorRegister();
-};
-
-class LoadICProtoArrayDescriptor : public LoadWithVectorDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector, kHandler)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadICProtoArrayDescriptor,
-                                               LoadWithVectorDescriptor)
-
-  static const Register HandlerRegister();
 };
 
 class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
@@ -650,6 +681,11 @@ class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(TransitionElementsKindDescriptor, CallInterfaceDescriptor)
 };
 
+class AbortJSDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kObject)
+  DECLARE_DESCRIPTOR(AbortJSDescriptor, CallInterfaceDescriptor)
+};
 
 class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
@@ -725,17 +761,12 @@ class StringAddDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(StringAddDescriptor, CallInterfaceDescriptor)
 };
 
-class StringCharAtDescriptor final : public CallInterfaceDescriptor {
+// This desciptor is shared among String.p.charAt/charCodeAt/codePointAt
+// as they all have the same interface.
+class StringAtDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kPosition)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringCharAtDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-class StringCharCodeAtDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kPosition)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringCharCodeAtDescriptor,
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringAtDescriptor,
                                                CallInterfaceDescriptor)
 };
 
@@ -843,6 +874,13 @@ class WasmRuntimeCallDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_EMPTY_PARAMETERS()
   DECLARE_DEFAULT_DESCRIPTOR(WasmRuntimeCallDescriptor, CallInterfaceDescriptor,
+                             0)
+};
+
+class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_EMPTY_PARAMETERS()
+  DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor,
                              0)
 };
 

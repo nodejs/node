@@ -204,7 +204,8 @@
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_shared_compile_rel': 'gn_release_x86_shared_verify_heap',
       'v8_linux64_gcc_compile_dbg': 'gn_debug_x64_gcc',
-      'v8_linux64_rel_ng': 'gn_release_x64_trybot',
+      'v8_linux64_fyi_rel_ng': 'gn_release_x64_test_features_trybot',
+      'v8_linux64_rel_ng': 'gn_release_x64_test_features_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_asan_rel_ng': 'gn_release_x64_asan_minimal_symbols',
@@ -428,6 +429,8 @@
       'gn', 'release_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_release_x64_trybot': [
       'gn', 'release_trybot', 'x64', 'swarming'],
+    'gn_release_x64_test_features_trybot': [
+      'gn', 'release_trybot', 'x64', 'swarming', 'v8_enable_test_features'],
     'gn_release_x64_tsan': [
       'gn', 'release_bot', 'x64', 'tsan', 'swarming'],
     'gn_release_x64_tsan_concurrent_marking': [
@@ -555,6 +558,7 @@
     },
 
     'asan': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_asan=true',
       'gyp_defines': 'clang=1 asan=1',
     },
@@ -565,12 +569,14 @@
     },
 
     'cfi': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
                   'use_cfi_recover=false'),
       'gyp_defines': 'cfi_vptr=1 cfi_diag=1',
     },
 
     'cfi_clusterfuzz': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': ('is_cfi=true use_cfi_cast=true use_cfi_diag=true '
                   'use_cfi_recover=true'),
       'gyp_defines': 'cfi_vptr=1 cfi_diag=1',
@@ -647,6 +653,7 @@
     },
 
     'lsan': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_lsan=true',
       'gyp_defines': 'lsan=1',
     },
@@ -662,11 +669,13 @@
     },
 
     'msan': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': ('is_msan=true msan_track_origins=2 '
                   'use_prebuilt_instrumented_libraries=true'),
     },
 
     'msan_no_origins': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': ('is_msan=true msan_track_origins=0 '
                   'use_prebuilt_instrumented_libraries=true'),
     },
@@ -756,11 +765,13 @@
     },
 
     'tsan': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_tsan=true',
       'gyp_defines': 'clang=1 tsan=1',
     },
 
     'ubsan_vptr': {
+      'mixins': ['v8_enable_test_features'],
       # TODO(krasin): Remove is_ubsan_no_recover=true when
       # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
       # ubsan_vptr instead.
@@ -768,6 +779,7 @@
     },
 
     'ubsan_vptr_recover': {
+      'mixins': ['v8_enable_test_features'],
       # Ubsan vptr with recovery.
       'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=false',
     },
@@ -782,6 +794,7 @@
     },
 
     'v8_correctness_fuzzer': {
+      'mixins': ['v8_enable_test_features'],
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
     },
 
@@ -793,6 +806,10 @@
     'v8_enable_slow_dchecks': {
       'gn_args': 'v8_enable_slow_dchecks=true',
       'gyp_defines': 'v8_enable_slow_dchecks=1',
+    },
+
+    'v8_enable_test_features': {
+      'gn_args': 'v8_enable_test_features=true',
     },
 
     'v8_enable_verify_predictable': {

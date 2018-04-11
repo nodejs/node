@@ -41,7 +41,8 @@ const ciphers = 'DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
 
 // Test will emit a warning because the DH parameter size is < 2048 bits
 common.expectWarning('SecurityWarning',
-                     'DH parameter is less than 2048 bits');
+                     'DH parameter is less than 2048 bits',
+                     common.noWarnCode);
 
 function loadDHParam(n) {
   const params = [`dh${n}.pem`];
@@ -70,10 +71,6 @@ function test(keylen, expectedCipher, cb) {
   server.listen(0, '127.0.0.1', function() {
     const args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`,
                   '-cipher', ciphers];
-
-    // for the performance and stability issue in s_client on Windows
-    if (common.isWindows)
-      args.push('-no_rand_screen');
 
     const client = spawn(common.opensslCli, args);
     let out = '';

@@ -22,6 +22,8 @@ const failureTests = tests.filter((test) => test.failure).concat([
   { input: null },
   { input: new Date() },
   { input: new RegExp() },
+  { input: 'test', base: null },
+  { input: 'http://nodejs.org', base: null },
   { input: () => {} }
 ]);
 

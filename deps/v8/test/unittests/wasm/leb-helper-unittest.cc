@@ -119,7 +119,7 @@ TEST_F(LEBHelperTest, WriteAndDecode_u32v) {
   CheckEncodeDecode_u32v(87348723);
   CheckEncodeDecode_u32v(77777);
 
-  for (uint32_t val = 0x3a; val != 0; val = val << 1) {
+  for (uint32_t val = 0x3A; val != 0; val = val << 1) {
     CheckEncodeDecode_u32v(val);
   }
 }
@@ -141,7 +141,7 @@ TEST_F(LEBHelperTest, WriteAndDecode_i32v) {
   CheckEncodeDecode_i32v(-87328723);
   CheckEncodeDecode_i32v(-77377);
 
-  for (uint32_t val = 0x3a; val != 0; val = val << 1) {
+  for (uint32_t val = 0x3A; val != 0; val = val << 1) {
     CheckEncodeDecode_i32v(bit_cast<int32_t>(val));
   }
 
@@ -159,7 +159,7 @@ TEST_F(LEBHelperTest, WriteAndDecode_u64v) {
   CheckEncodeDecode_u64v(87348723);
   CheckEncodeDecode_u64v(77777);
 
-  for (uint64_t val = 0x3a; val != 0; val = val << 1) {
+  for (uint64_t val = 0x3A; val != 0; val = val << 1) {
     CheckEncodeDecode_u64v(val);
   }
 }
@@ -180,7 +180,7 @@ TEST_F(LEBHelperTest, WriteAndDecode_i64v) {
   CheckEncodeDecode_i64v(-87648723);
   CheckEncodeDecode_i64v(-77377);
 
-  for (uint64_t val = 0x3a; val != 0; val = val << 1) {
+  for (uint64_t val = 0x3A; val != 0; val = val << 1) {
     CheckEncodeDecode_i64v(bit_cast<int64_t>(val));
   }
 

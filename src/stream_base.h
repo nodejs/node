@@ -23,6 +23,7 @@ struct StreamWriteResult {
   bool async;
   int err;
   WriteWrap* wrap;
+  size_t bytes;
 };
 
 
@@ -46,6 +47,13 @@ class StreamReq {
 
   static StreamReq* FromObject(v8::Local<v8::Object> req_wrap_obj);
 
+  // Sets all internal fields of `req_wrap_obj` to `nullptr`.
+  // This is what the `WriteWrap` and `ShutdownWrap` JS constructors do,
+  // and what we use in C++ after creating these objects from their
+  // v8::ObjectTemplates, to avoid the overhead of calling the
+  // constructor explicitly.
+  static inline void ResetObject(v8::Local<v8::Object> req_wrap_obj);
+
  protected:
   virtual void OnDone(int status) = 0;
 
@@ -61,7 +69,8 @@ class ShutdownWrap : public StreamReq {
                v8::Local<v8::Object> req_wrap_obj)
     : StreamReq(stream, req_wrap_obj) { }
 
-  void OnDone(int status) override;  // Just calls stream()->AfterShutdown()
+  // Call stream()->EmitAfterShutdown() and dispose of this request wrap.
+  void OnDone(int status) override;
 };
 
 class WriteWrap : public StreamReq {
@@ -78,7 +87,8 @@ class WriteWrap : public StreamReq {
     free(storage_);
   }
 
-  void OnDone(int status) override;  // Just calls stream()->AfterWrite()
+  // Call stream()->EmitAfterWrite() and dispose of this request wrap.
+  void OnDone(int status) override;
 
  private:
   char* storage_ = nullptr;
@@ -93,7 +103,7 @@ class StreamListener {
  public:
   virtual ~StreamListener();
 
-  // This is called when a stream wants to allocate memory immediately before
+  // This is called when a stream wants to allocate memory before
   // reading data into the freshly allocated buffer (i.e. it is always followed
   // by a `OnStreamRead()` call).
   // This memory may be statically or dynamically allocated; for example,
@@ -103,6 +113,9 @@ class StreamListener {
   // The returned buffer does not need to contain `suggested_size` bytes.
   // The default implementation of this method returns a buffer that has exactly
   // the suggested size and is allocated using malloc().
+  // It is not valid to return a zero-length buffer from this method.
+  // It is not guaranteed that the corresponding `OnStreamRead()` call
+  // happens in the same event loop turn as this call.
   virtual uv_buf_t OnStreamAlloc(size_t suggested_size);
 
   // `OnStreamRead()` is called when data is available on the socket and has
@@ -126,8 +139,18 @@ class StreamListener {
   // (and raises an assertion if there is none).
   virtual void OnStreamAfterShutdown(ShutdownWrap* w, int status);
 
+  // This is called by the stream if it determines that it wants more data
+  // to be written to it. Not all streams support this.
+  // This callback will not be called as long as there are active writes.
+  // It is not supported by all streams; `stream->HasWantsWrite()` returns
+  // true if it is supported by a stream.
+  virtual void OnStreamWantsWrite(size_t suggested_size) {}
+
   // This is called immediately before the stream is destroyed.
   virtual void OnStreamDestroy() {}
+
+  // The stream this is currently associated with, or nullptr if there is none.
+  inline StreamResource* stream() { return stream_; }
 
  protected:
   // Pass along a read error to the `StreamListener` instance that was active
@@ -194,13 +217,16 @@ class StreamResource {
                       size_t count,
                       uv_stream_t* send_handle) = 0;
 
+  // Returns true if the stream supports the `OnStreamWantsWrite()` interface.
+  virtual bool HasWantsWrite() const { return false; }
+
   // Optionally, this may provide an error message to be used for
   // failing writes.
   virtual const char* Error() const;
   // Clear the current error (i.e. that would be returned by Error()).
   virtual void ClearError();
 
-  // Transfer ownership of this tream to `listener`. The previous listener
+  // Transfer ownership of this stream to `listener`. The previous listener
   // will not receive any more callbacks while the new listener was active.
   void PushStreamListener(StreamListener* listener);
   // Remove a listener, and, if this was the currently active one,
@@ -217,9 +243,12 @@ class StreamResource {
   void EmitAfterWrite(WriteWrap* w, int status);
   // Call the current listener's OnStreamAfterShutdown() method.
   void EmitAfterShutdown(ShutdownWrap* w, int status);
+  // Call the current listener's OnStreamWantsWrite() method.
+  void EmitWantsWrite(size_t suggested_size);
 
   StreamListener* listener_ = nullptr;
   uint64_t bytes_read_ = 0;
+  uint64_t bytes_written_ = 0;
 
   friend class StreamListener;
 };
@@ -297,6 +326,9 @@ class StreamBase : public StreamResource {
   template <class Base>
   static void GetBytesRead(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  template <class Base>
+  static void GetBytesWritten(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   template <class Base,
             int (StreamBase::*Method)(
       const v8::FunctionCallbackInfo<v8::Value>& args)>
@@ -305,13 +337,6 @@ class StreamBase : public StreamResource {
  private:
   Environment* env_;
   EmitToJSStreamListener default_listener_;
-
-  // These are called by the respective {Write,Shutdown}Wrap class.
-  void AfterShutdown(ShutdownWrap* req, int status);
-  void AfterWrite(WriteWrap* req, int status);
-
-  template <typename Wrap, typename EmitEvent>
-  void AfterRequest(Wrap* req_wrap, EmitEvent emit);
 
   friend class WriteWrap;
   friend class ShutdownWrap;

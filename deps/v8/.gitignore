@@ -50,9 +50,6 @@
 /test/fuzzer/wasm_corpus
 /test/fuzzer/wasm_corpus.tar.gz
 /test/mozilla/data
-/test/promises-aplus/promises-tests
-/test/promises-aplus/promises-tests.tar.gz
-/test/promises-aplus/sinon
 /test/test262/data
 /test/test262/data.tar
 /test/test262/harness
@@ -94,6 +91,7 @@ TAGS
 bsuite
 compile_commands.json
 d8
+!/test/mjsunit/d8
 d8_g
 gccauses
 gcsuspects

@@ -69,8 +69,9 @@ bool PropertyAccessBuilder::TryBuildStringCheck(MapHandles const& maps,
     } else {
       // Monormorphic string access (ignoring the fact that there are multiple
       // String maps).
-      *receiver = *effect = graph()->NewNode(simplified()->CheckString(),
-                                             *receiver, *effect, control);
+      *receiver = *effect =
+          graph()->NewNode(simplified()->CheckString(VectorSlotPair()),
+                           *receiver, *effect, control);
     }
     return true;
   }
@@ -82,8 +83,9 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(MapHandles const& maps,
                                                 Node* control) {
   if (HasOnlyNumberMaps(maps)) {
     // Monomorphic number access (we also deal with Smis here).
-    *receiver = *effect = graph()->NewNode(simplified()->CheckNumber(),
-                                           *receiver, *effect, control);
+    *receiver = *effect =
+        graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), *receiver,
+                         *effect, control);
     return true;
   }
   return false;
@@ -175,8 +177,9 @@ Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
   Node* expected = jsgraph()->HeapConstant(value);
   Node* check =
       graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
-  *effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
-                             check, *effect, control);
+  *effect =
+      graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongValue),
+                       check, *effect, control);
   return expected;
 }
 

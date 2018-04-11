@@ -103,8 +103,9 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
       // with the {control} node that already contains the right information.
       ReplaceWithValue(node, dead(), effect, control);
     } else {
-      control = graph()->NewNode(common()->Deoptimize(p.kind(), p.reason()),
-                                 frame_state, effect, control);
+      control = graph()->NewNode(
+          common()->Deoptimize(p.kind(), p.reason(), VectorSlotPair()),
+          frame_state, effect, control);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), control);
       Revisit(graph()->end());

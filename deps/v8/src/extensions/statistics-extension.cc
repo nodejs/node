@@ -86,24 +86,6 @@ void StatisticsExtension::GetCounters(
 
       STATS_COUNTER_LIST_1(ADD_COUNTER) STATS_COUNTER_LIST_2(ADD_COUNTER)
 #undef ADD_COUNTER
-#define ADD_COUNTER(name)                            \
-  { counters->count_of_##name(), "count_of_" #name } \
-  , {counters->size_of_##name(), "size_of_" #name},
-
-          INSTANCE_TYPE_LIST(ADD_COUNTER)
-#undef ADD_COUNTER
-#define ADD_COUNTER(name)                                                \
-  { counters->count_of_CODE_TYPE_##name(), "count_of_CODE_TYPE_" #name } \
-  , {counters->size_of_CODE_TYPE_##name(), "size_of_CODE_TYPE_" #name},
-
-              CODE_KIND_LIST(ADD_COUNTER)
-#undef ADD_COUNTER
-#define ADD_COUNTER(name)                                                    \
-  { counters->count_of_FIXED_ARRAY_##name(), "count_of_FIXED_ARRAY_" #name } \
-  , {counters->size_of_FIXED_ARRAY_##name(), "size_of_FIXED_ARRAY_" #name},
-
-                  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADD_COUNTER)
-#undef ADD_COUNTER
   };  // End counter_list array.
 
   for (size_t i = 0; i < arraysize(counter_list); i++) {

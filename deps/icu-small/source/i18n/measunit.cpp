@@ -1211,8 +1211,8 @@ int32_t MeasureUnit::internalGetIndexForTypeAndSubtype(const char *type, const c
     return gIndexes[t] + st - gOffsets[t];
 }
 
-MeasureUnit *MeasureUnit::resolveUnitPerUnit(
-        const MeasureUnit &unit, const MeasureUnit &perUnit) {
+MeasureUnit MeasureUnit::resolveUnitPerUnit(
+        const MeasureUnit &unit, const MeasureUnit &perUnit, bool* isResolved) {
     int32_t unitOffset = unit.getOffset();
     int32_t perUnitOffset = perUnit.getOffset();
 
@@ -1233,10 +1233,13 @@ MeasureUnit *MeasureUnit::resolveUnitPerUnit(
         } else {
             // We found a resolution for our unit / per-unit combo
             // return it.
-            return new MeasureUnit(midRow[2], midRow[3]);
+            *isResolved = true;
+            return MeasureUnit(midRow[2], midRow[3]);
         }
     }
-    return NULL;
+
+    *isResolved = false;
+    return MeasureUnit();
 }
 
 MeasureUnit *MeasureUnit::create(int typeId, int subTypeId, UErrorCode &status) {

@@ -353,7 +353,7 @@ public:
      * the default locale ID of the runtime environment.
      *
      * @param newLocale Locale to set to.  If NULL, set to the value obtained
-     *                  from the runtime environement.
+     *                  from the runtime environment.
      * @param success The error code.
      * @system
      * @stable ICU 2.0
@@ -629,7 +629,7 @@ public:
 
     /**
      * Fills in "name" with the name of this locale in a format suitable for user display
-     * in the locale specfied by "displayLocale".  This function uses getDisplayLanguage(),
+     * in the locale specified by "displayLocale".  This function uses getDisplayLanguage(),
      * getDisplayCountry(), and getDisplayVariant() to do its work, and outputs the display
      * name in the format "language (country[,variant])".  For example, if displayLocale is
      * fr_FR, then en_US's display name would be "Anglais (&Eacute;tats-Unis)", and no_NO_NY's

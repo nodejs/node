@@ -112,11 +112,11 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
     delegate = nullptr;
   }
 
-  void OnHttpGet(const std::string& path) override {
+  void OnHttpGet(const std::string& host, const std::string& path) override {
     process(kInspectorHandshakeHttpGet, path);
   }
 
-  void OnSocketUpgrade(const std::string& path,
+  void OnSocketUpgrade(const std::string& host, const std::string& path,
                        const std::string& ws_key) override {
     ws_key_ = ws_key;
     process(kInspectorHandshakeUpgraded, path);
@@ -205,7 +205,7 @@ struct read_expects {
 };
 
 static const char HANDSHAKE_REQ[] = "GET /ws/path HTTP/1.1\r\n"
-                                    "Host: localhost:9222\r\n"
+                                    "Host: localhost:9229\r\n"
                                     "Upgrade: websocket\r\n"
                                     "Connection: Upgrade\r\n"
                                     "Sec-WebSocket-Key: aaa==\r\n"
@@ -504,7 +504,7 @@ TEST_F(InspectorSocketTest, ExtraTextBeforeRequest) {
 
 TEST_F(InspectorSocketTest, RequestWithoutKey) {
   const char BROKEN_REQUEST[] = "GET / HTTP/1.1\r\n"
-                                "Host: localhost:9222\r\n"
+                                "Host: localhost:9229\r\n"
                                 "Upgrade: websocket\r\n"
                                 "Connection: Upgrade\r\n"
                                 "Sec-WebSocket-Version: 13\r\n\r\n";
@@ -619,24 +619,23 @@ TEST_F(InspectorSocketTest, ReportsHttpGet) {
   delegate->SetDelegate(ReportsHttpGet_handshake);
 
   const char GET_REQ[] = "GET /some/path HTTP/1.1\r\n"
-                         "Host: localhost:9222\r\n"
+                         "Host: localhost:9229\r\n"
                          "Sec-WebSocket-Key: aaa==\r\n"
                          "Sec-WebSocket-Version: 13\r\n\r\n";
   send_in_chunks(GET_REQ, sizeof(GET_REQ) - 1);
 
   expect_nothing_on_client();
-
   const char WRITE_REQUEST[] = "GET /respond/withtext HTTP/1.1\r\n"
-                               "Host: localhost:9222\r\n\r\n";
+                               "Host: localhost:9229\r\n\r\n";
   send_in_chunks(WRITE_REQUEST, sizeof(WRITE_REQUEST) - 1);
 
   expect_on_client(TEST_SUCCESS, sizeof(TEST_SUCCESS) - 1);
   const char GET_REQS[] = "GET /some/path2 HTTP/1.1\r\n"
-                          "Host: localhost:9222\r\n"
+                          "Host: localhost:9229\r\n"
                           "Sec-WebSocket-Key: aaa==\r\n"
                           "Sec-WebSocket-Version: 13\r\n\r\n"
                           "GET /close HTTP/1.1\r\n"
-                          "Host: localhost:9222\r\n"
+                          "Host: localhost:9229\r\n"
                           "Sec-WebSocket-Key: aaa==\r\n"
                           "Sec-WebSocket-Version: 13\r\n\r\n";
   send_in_chunks(GET_REQS, sizeof(GET_REQS) - 1);
@@ -696,7 +695,7 @@ static void GetThenHandshake_handshake(enum inspector_handshake_event state,
 TEST_F(InspectorSocketTest, GetThenHandshake) {
   delegate->SetDelegate(GetThenHandshake_handshake);
   const char WRITE_REQUEST[] = "GET /respond/withtext HTTP/1.1\r\n"
-                               "Host: localhost:9222\r\n\r\n";
+                               "Host: localhost:9229\r\n\r\n";
   send_in_chunks(WRITE_REQUEST, sizeof(WRITE_REQUEST) - 1);
 
   expect_on_client(TEST_SUCCESS, sizeof(TEST_SUCCESS) - 1);
@@ -824,6 +823,38 @@ TEST_F(InspectorSocketTest, NoCloseResponseFromClient) {
   GTEST_ASSERT_EQ(0, uv_is_active(
                   reinterpret_cast<uv_handle_t*>(&client_socket)));
   delegate->WaitForDispose();
+}
+
+static bool delegate_called = false;
+
+void shouldnt_be_called(enum inspector_handshake_event state,
+                        const std::string& path, bool* cont) {
+  delegate_called = true;
+}
+
+void expect_failure_no_delegate(const std::string& request) {
+  delegate->SetDelegate(shouldnt_be_called);
+  delegate_called = false;
+  send_in_chunks(request.c_str(), request.length());
+  expect_handshake_failure();
+  SPIN_WHILE(delegate != nullptr);
+  ASSERT_FALSE(delegate_called);
+}
+
+TEST_F(InspectorSocketTest, HostCheckedForGET) {
+  const char GET_REQUEST[] = "GET /respond/withtext HTTP/1.1\r\n"
+                             "Host: notlocalhost:9229\r\n\r\n";
+  expect_failure_no_delegate(GET_REQUEST);
+}
+
+TEST_F(InspectorSocketTest, HostCheckedForUPGRADE) {
+  const char UPGRADE_REQUEST[] = "GET /ws/path HTTP/1.1\r\n"
+                                 "Host: nonlocalhost:9229\r\n"
+                                 "Upgrade: websocket\r\n"
+                                 "Connection: Upgrade\r\n"
+                                 "Sec-WebSocket-Key: aaa==\r\n"
+                                 "Sec-WebSocket-Version: 13\r\n\r\n";
+  expect_failure_no_delegate(UPGRADE_REQUEST);
 }
 
 }  // anonymous namespace

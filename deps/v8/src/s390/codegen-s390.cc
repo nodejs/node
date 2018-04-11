@@ -20,8 +20,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   return nullptr;
 #else
   size_t allocated = 0;
-  byte* buffer =
-      AllocateSystemPage(isolate->heap()->GetRandomMmapAddr(), &allocated);
+  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
@@ -38,8 +37,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
          !RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, allocated);
-  CHECK(base::OS::SetPermissions(buffer, allocated,
-                                 base::OS::MemoryPermission::kReadExecute));
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
 }

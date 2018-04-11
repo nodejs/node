@@ -37,17 +37,17 @@ INLINE static void uv_stream_init(uv_loop_t* loop,
   handle->write_queue_size = 0;
   handle->activecnt = 0;
   handle->stream.conn.shutdown_req = NULL;
-}
-
-
-INLINE static void uv_connection_init(uv_stream_t* handle) {
-  handle->flags |= UV_HANDLE_CONNECTION;
   handle->stream.conn.write_reqs_pending = 0;
 
   UV_REQ_INIT(&handle->read_req, UV_READ);
   handle->read_req.event_handle = NULL;
   handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
   handle->read_req.data = handle;
+}
+
+
+INLINE static void uv_connection_init(uv_stream_t* handle) {
+  handle->flags |= UV_HANDLE_CONNECTION;
 }
 
 

@@ -75,7 +75,7 @@ static int DumpHeapConstants(const char* argv0) {
     for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
       i::Map* m = i::Map::cast(o);
       const char* n = NULL;
-      intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7ffff;
+      intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7FFFF;
       int t = m->instance_type();
       ROOT_LIST(ROOT_LIST_CASE)
       STRUCT_LIST(STRUCT_LIST_CASE)
@@ -93,17 +93,18 @@ static int DumpHeapConstants(const char* argv0) {
     n = #camel_name;                           \
     i = i::Heap::k##camel_name##RootIndex;     \
   }
-    i::OldSpaces spit(heap);
+    i::PagedSpaces spit(heap);
     i::PrintF("KNOWN_OBJECTS = {\n");
     for (i::PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
       i::HeapObjectIterator it(s);
       // Code objects are generally platform-dependent.
-      if (s->identity() == i::CODE_SPACE) continue;
+      if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
+        continue;
       const char* sname = AllocationSpaceName(s->identity());
       for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
         const char* n = NULL;
         i::Heap::RootListIndex i = i::Heap::kStrongRootListLength;
-        intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7ffff;
+        intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
         ROOT_LIST(ROOT_LIST_CASE)
         if (n == NULL) continue;
         if (!i::Heap::RootIsImmortalImmovable(i)) continue;

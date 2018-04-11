@@ -10,16 +10,16 @@
 #ifndef __NOUNIT_H__
 #define __NOUNIT_H__
 
+#include "unicode/utypes.h"
+
+#if !UCONFIG_NO_FORMATTING
+
+#include "unicode/measunit.h"
 
 /**
  * \file
  * \brief C++ API: units for percent and permille
  */
-
-
-#include "unicode/measunit.h"
-
-#if !UCONFIG_NO_FORMATTING
 
 U_NAMESPACE_BEGIN
 

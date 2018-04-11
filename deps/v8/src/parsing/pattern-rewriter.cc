@@ -445,6 +445,11 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   auto iterator = CreateTempVar(factory()->NewGetIterator(
       factory()->NewVariableProxy(temp), current_value_, IteratorType::kNormal,
       current_value_->position()));
+  auto next = CreateTempVar(factory()->NewProperty(
+      factory()->NewVariableProxy(iterator),
+      factory()->NewStringLiteral(ast_value_factory()->next_string(),
+                                  kNoSourcePosition),
+      kNoSourcePosition));
   auto done =
       CreateTempVar(factory()->NewBooleanLiteral(false, kNoSourcePosition));
   auto result = CreateTempVar();
@@ -525,7 +530,8 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
       next_block->statements()->Add(
           factory()->NewExpressionStatement(
               parser_->BuildIteratorNextResult(
-                  factory()->NewVariableProxy(iterator), result,
+                  factory()->NewVariableProxy(iterator),
+                  factory()->NewVariableProxy(next), result,
                   IteratorType::kNormal, kNoSourcePosition),
               kNoSourcePosition),
           zone());
@@ -599,6 +605,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // result = IteratorNext(iterator);
     Statement* get_next = factory()->NewExpressionStatement(
         parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
+                                         factory()->NewVariableProxy(next),
                                          result, IteratorType::kNormal, nopos),
         nopos);
 
@@ -756,6 +763,7 @@ NOT_A_PATTERN(ImportCallExpression)
 NOT_A_PATTERN(Literal)
 NOT_A_PATTERN(NativeFunctionLiteral)
 NOT_A_PATTERN(RegExpLiteral)
+NOT_A_PATTERN(ResolvedProperty)
 NOT_A_PATTERN(ReturnStatement)
 NOT_A_PATTERN(SloppyBlockFunctionStatement)
 NOT_A_PATTERN(Spread)

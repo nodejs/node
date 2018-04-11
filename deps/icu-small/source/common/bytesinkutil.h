@@ -43,11 +43,19 @@ public:
 
     static UBool appendUnchanged(const uint8_t *s, int32_t length,
                                  ByteSink &sink, uint32_t options, Edits *edits,
-                                 UErrorCode &errorCode);
+                                 UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) { return FALSE; }
+        if (length > 0) { appendNonEmptyUnchanged(s, length, sink, options, edits); }
+        return TRUE;
+    }
 
     static UBool appendUnchanged(const uint8_t *s, const uint8_t *limit,
                                  ByteSink &sink, uint32_t options, Edits *edits,
                                  UErrorCode &errorCode);
+
+private:
+    static void appendNonEmptyUnchanged(const uint8_t *s, int32_t length,
+                                        ByteSink &sink, uint32_t options, Edits *edits);
 };
 
 U_NAMESPACE_END

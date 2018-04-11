@@ -31,7 +31,7 @@ class SnapshotData : public SerializedData {
       : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
   }
 
-  Vector<const Reservation> Reservations() const;
+  std::vector<Reservation> Reservations() const;
   virtual Vector<const byte> Payload() const;
 
   Vector<const byte> RawData() const {

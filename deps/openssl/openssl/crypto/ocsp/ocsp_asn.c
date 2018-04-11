@@ -1,67 +1,19 @@
-/* ocsp_asn.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2000.
+ * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/ocsp.h>
+#include "ocsp_lcl.h"
 
 ASN1_SEQUENCE(OCSP_SIGNATURE) = {
-        ASN1_SIMPLE(OCSP_SIGNATURE, signatureAlgorithm, X509_ALGOR),
+        ASN1_EMBED(OCSP_SIGNATURE, signatureAlgorithm, X509_ALGOR),
         ASN1_SIMPLE(OCSP_SIGNATURE, signature, ASN1_BIT_STRING),
         ASN1_EXP_SEQUENCE_OF_OPT(OCSP_SIGNATURE, certs, X509, 0)
 } ASN1_SEQUENCE_END(OCSP_SIGNATURE)
@@ -69,10 +21,10 @@ ASN1_SEQUENCE(OCSP_SIGNATURE) = {
 IMPLEMENT_ASN1_FUNCTIONS(OCSP_SIGNATURE)
 
 ASN1_SEQUENCE(OCSP_CERTID) = {
-        ASN1_SIMPLE(OCSP_CERTID, hashAlgorithm, X509_ALGOR),
-        ASN1_SIMPLE(OCSP_CERTID, issuerNameHash, ASN1_OCTET_STRING),
-        ASN1_SIMPLE(OCSP_CERTID, issuerKeyHash, ASN1_OCTET_STRING),
-        ASN1_SIMPLE(OCSP_CERTID, serialNumber, ASN1_INTEGER)
+        ASN1_EMBED(OCSP_CERTID, hashAlgorithm, X509_ALGOR),
+        ASN1_EMBED(OCSP_CERTID, issuerNameHash, ASN1_OCTET_STRING),
+        ASN1_EMBED(OCSP_CERTID, issuerKeyHash, ASN1_OCTET_STRING),
+        ASN1_EMBED(OCSP_CERTID, serialNumber, ASN1_INTEGER)
 } ASN1_SEQUENCE_END(OCSP_CERTID)
 
 IMPLEMENT_ASN1_FUNCTIONS(OCSP_CERTID)
@@ -94,7 +46,7 @@ ASN1_SEQUENCE(OCSP_REQINFO) = {
 IMPLEMENT_ASN1_FUNCTIONS(OCSP_REQINFO)
 
 ASN1_SEQUENCE(OCSP_REQUEST) = {
-        ASN1_SIMPLE(OCSP_REQUEST, tbsRequest, OCSP_REQINFO),
+        ASN1_EMBED(OCSP_REQUEST, tbsRequest, OCSP_REQINFO),
         ASN1_EXP_OPT(OCSP_REQUEST, optionalSignature, OCSP_SIGNATURE, 0)
 } ASN1_SEQUENCE_END(OCSP_REQUEST)
 
@@ -150,7 +102,7 @@ IMPLEMENT_ASN1_FUNCTIONS(OCSP_SINGLERESP)
 
 ASN1_SEQUENCE(OCSP_RESPDATA) = {
            ASN1_EXP_OPT(OCSP_RESPDATA, version, ASN1_INTEGER, 0),
-           ASN1_SIMPLE(OCSP_RESPDATA, responderId, OCSP_RESPID),
+           ASN1_EMBED(OCSP_RESPDATA, responderId, OCSP_RESPID),
            ASN1_SIMPLE(OCSP_RESPDATA, producedAt, ASN1_GENERALIZEDTIME),
            ASN1_SEQUENCE_OF(OCSP_RESPDATA, responses, OCSP_SINGLERESP),
            ASN1_EXP_SEQUENCE_OF_OPT(OCSP_RESPDATA, responseExtensions, X509_EXTENSION, 1)
@@ -159,8 +111,8 @@ ASN1_SEQUENCE(OCSP_RESPDATA) = {
 IMPLEMENT_ASN1_FUNCTIONS(OCSP_RESPDATA)
 
 ASN1_SEQUENCE(OCSP_BASICRESP) = {
-           ASN1_SIMPLE(OCSP_BASICRESP, tbsResponseData, OCSP_RESPDATA),
-           ASN1_SIMPLE(OCSP_BASICRESP, signatureAlgorithm, X509_ALGOR),
+           ASN1_EMBED(OCSP_BASICRESP, tbsResponseData, OCSP_RESPDATA),
+           ASN1_EMBED(OCSP_BASICRESP, signatureAlgorithm, X509_ALGOR),
            ASN1_SIMPLE(OCSP_BASICRESP, signature, ASN1_BIT_STRING),
            ASN1_EXP_SEQUENCE_OF_OPT(OCSP_BASICRESP, certs, X509, 0)
 } ASN1_SEQUENCE_END(OCSP_BASICRESP)

@@ -207,12 +207,12 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   if (!IsArrowFunction(kind) && track_unresolved_variables_ &&
       result == kLazyParsingComplete) {
-    DeclareFunctionNameVar(function_name, function_type, function_scope);
-
     // Declare arguments after parsing the function since lexical 'arguments'
     // masks the arguments object. Declare arguments before declaring the
     // function var since the arguments object masks 'function arguments'.
     function_scope->DeclareArguments(ast_value_factory());
+
+    DeclareFunctionNameVar(function_name, function_type, function_scope);
   }
 
   use_counts_ = nullptr;
@@ -266,14 +266,18 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    LanguageMode language_mode, bool* ok) {
+    LanguageMode language_mode,
+    ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok) {
+  // Wrapped functions are not parsed in the preparser.
+  DCHECK_NULL(arguments_for_wrapped_function);
+  DCHECK_NE(FunctionLiteral::kWrapped, function_type);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  const RuntimeCallStats::CounterId counters[2][2] = {
-      {&RuntimeCallStats::PreParseBackgroundNoVariableResolution,
-       &RuntimeCallStats::PreParseNoVariableResolution},
-      {&RuntimeCallStats::PreParseBackgroundWithVariableResolution,
-       &RuntimeCallStats::PreParseWithVariableResolution}};
+  const RuntimeCallCounterId counters[2][2] = {
+      {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
+       RuntimeCallCounterId::kPreParseNoVariableResolution},
+      {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
+       RuntimeCallCounterId::kPreParseWithVariableResolution}};
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);

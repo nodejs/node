@@ -432,8 +432,7 @@ InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
     default:
       break;
   }
-  CHECK(false);
-  return InstructionOperand();
+  UNREACHABLE();
 }
 
 
@@ -468,8 +467,7 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
     default:
       break;
   }
-  CHECK(false);
-  return InstructionOperand();
+  UNREACHABLE();
 }
 
 

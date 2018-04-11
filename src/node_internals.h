@@ -120,12 +120,14 @@ struct sockaddr;
     V(serdes)                                                                 \
     V(signal_wrap)                                                            \
     V(spawn_sync)                                                             \
+    V(stream_pipe)                                                            \
     V(stream_wrap)                                                            \
     V(string_decoder)                                                         \
     V(tcp_wrap)                                                               \
     V(timer_wrap)                                                             \
     V(trace_events)                                                           \
     V(tty_wrap)                                                               \
+    V(types)                                                                  \
     V(udp_wrap)                                                               \
     V(url)                                                                    \
     V(util)                                                                   \
@@ -181,13 +183,13 @@ extern bool config_experimental_vm_modules;
 
 // Set in node.cc by ParseArgs when --loader is used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 extern std::string config_userland_loader;
 
 // Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
 // used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 extern bool config_expose_internals;
 
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
@@ -249,6 +251,11 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void FatalException(v8::Isolate* isolate,
+                    v8::Local<v8::Value> error,
+                    v8::Local<v8::Message> message);
+
+
 void SignalExit(int signo);
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,
@@ -300,8 +307,48 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
-void FillStatsArray(AliasedBuffer<double, v8::Float64Array>* fields_ptr,
-                    const uv_stat_t* s, int offset = 0);
+template <typename NativeT, typename V8T>
+void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
+                    const uv_stat_t* s, int offset = 0) {
+  AliasedBuffer<NativeT, V8T>& fields = *fields_ptr;
+  fields[offset + 0] = s->st_dev;
+  fields[offset + 1] = s->st_mode;
+  fields[offset + 2] = s->st_nlink;
+  fields[offset + 3] = s->st_uid;
+  fields[offset + 4] = s->st_gid;
+  fields[offset + 5] = s->st_rdev;
+#if defined(__POSIX__)
+  fields[offset + 6] = s->st_blksize;
+#else
+  fields[offset + 6] = -1;
+#endif
+  fields[offset + 7] = s->st_ino;
+  fields[offset + 8] = s->st_size;
+#if defined(__POSIX__)
+  fields[offset + 9] = s->st_blocks;
+#else
+  fields[offset + 9] = -1;
+#endif
+// Dates.
+// NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
+#define X(idx, name)                                                    \
+  /* NOLINTNEXTLINE(runtime/int) */                                     \
+  fields[offset + idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
+  /* NOLINTNEXTLINE(runtime/int) */                                     \
+                ((unsigned long)(s->st_##name.tv_nsec) / 1e6);          \
+
+  X(10, atim)
+  X(11, mtim)
+  X(12, ctim)
+  X(13, birthtim)
+#undef X
+}
+
+inline void FillGlobalStatsArray(Environment* env,
+                                 const uv_stat_t* s,
+                                 int offset = 0) {
+  node::FillStatsArray(env->fs_stats_field_array(), s, offset);
+}
 
 void SetupProcessObject(Environment* env,
                         int argc,
@@ -774,6 +821,15 @@ static inline const char *errno_string(int errorno) {
 
 #define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                  \
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
+
+#define TRACING_CATEGORY_NODE "node"
+#define TRACING_CATEGORY_NODE1(one)                                           \
+    TRACING_CATEGORY_NODE ","                                                 \
+    TRACING_CATEGORY_NODE "." #one
+#define TRACING_CATEGORY_NODE2(one, two)                                      \
+    TRACING_CATEGORY_NODE ","                                                 \
+    TRACING_CATEGORY_NODE "." #one ","                                        \
+    TRACING_CATEGORY_NODE "." #one "." #two
 
 }  // namespace node
 

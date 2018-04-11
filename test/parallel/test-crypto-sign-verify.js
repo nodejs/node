@@ -65,7 +65,7 @@ common.expectsError(
                          .update('Test')
                          .update('123')
                          .verify(certPem, s1, 'base64');
-  assert.strictEqual(verified, true, 'sign and verify (base 64)');
+  assert.strictEqual(verified, true);
 }
 
 {
@@ -81,14 +81,14 @@ common.expectsError(
                        .update('Test')
                        .update('123')
                        .verify(certPem, s2, 'latin1');
-  assert.strictEqual(verified, true, 'sign and verify (latin1)');
+  assert.strictEqual(verified, true);
 
   const verStream = crypto.createVerify('SHA256');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
   verified = verStream.verify(certPem, s2, 'latin1');
-  assert.strictEqual(verified, true, 'sign and verify (stream)');
+  assert.strictEqual(verified, true);
 }
 
 {
@@ -99,14 +99,14 @@ common.expectsError(
                        .update('Test')
                        .update('123')
                        .verify(certPem, s3);
-  assert.strictEqual(verified, true, 'sign and verify (buffer)');
+  assert.strictEqual(verified, true);
 
   const verStream = crypto.createVerify('SHA1');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
   verified = verStream.verify(certPem, s3);
-  assert.strictEqual(verified, true, 'sign and verify (stream)');
+  assert.strictEqual(verified, true);
 }
 
 // Special tests for RSA_PKCS1_PSS_PADDING
@@ -177,7 +177,7 @@ common.expectsError(
                            }, s4);
           const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ===
                                     getEffectiveSaltLength(verifySaltLength);
-          assert.strictEqual(verified, saltLengthCorrect, 'verify (PSS)');
+          assert.strictEqual(verified, saltLengthCorrect);
         });
 
         // Verification using RSA_PSS_SALTLEN_AUTO should always work
@@ -188,7 +188,7 @@ common.expectsError(
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
                          }, s4);
-        assert.strictEqual(verified, true, 'verify (PSS with SALTLEN_AUTO)');
+        assert.strictEqual(verified, true);
 
         // Verifying an incorrect message should never work
         verified = crypto.createVerify(algo)
@@ -198,7 +198,7 @@ common.expectsError(
                            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                            saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
                          }, s4);
-        assert.strictEqual(verified, false, 'verify (PSS, incorrect)');
+        assert.strictEqual(verified, false);
       }
     });
   }
@@ -219,7 +219,7 @@ common.expectsError(
                             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                             saltLength: vector.salt.length / 2
                           }, vector.signature, 'hex');
-    assert.strictEqual(verified, true, 'verify (PSS)');
+    assert.strictEqual(verified, true);
   }
 
   const examples = JSON.parse(fixtures.readSync('pss-vectors.json', 'utf8'));
@@ -315,105 +315,51 @@ common.expectsError(
   }));
 }
 
-[1, [], {}, undefined, null, true, Infinity].forEach((i) => {
-  common.expectsError(
-    () => crypto.createSign(),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "algorithm" argument must be of type string'
-    }
-  );
-  common.expectsError(
-    () => crypto.createVerify(),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "algorithm" argument must be of type string'
-    }
-  );
-});
-
 {
   const sign = crypto.createSign('SHA1');
   const verify = crypto.createVerify('SHA1');
 
-  [1, [], {}, undefined, null, true, Infinity].forEach((i) => {
-    common.expectsError(
-      () => sign.update(i),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
-      }
-    );
-    common.expectsError(
-      () => verify.update(i),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
-      }
-    );
-    common.expectsError(
-      () => sign._write(i, 'utf8', () => {}),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
-      }
-    );
-    common.expectsError(
-      () => verify._write(i, 'utf8', () => {}),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "data" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
-      }
-    );
+  [1, [], {}, undefined, null, true, Infinity].forEach((input) => {
+    const type = typeof input;
+    const errObj = {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      message: 'The "algorithm" argument must be of type string. ' +
+               `Received type ${type}`
+    };
+    assert.throws(() => crypto.createSign(input), errObj);
+    assert.throws(() => crypto.createVerify(input), errObj);
+
+    errObj.message = 'The "data" argument must be one of type string, ' +
+                     `Buffer, TypedArray, or DataView. Received type ${type}`;
+    assert.throws(() => sign.update(input), errObj);
+    assert.throws(() => verify.update(input), errObj);
+    assert.throws(() => sign._write(input, 'utf8', () => {}), errObj);
+    assert.throws(() => verify._write(input, 'utf8', () => {}), errObj);
   });
 
   [
     Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
-  ].forEach((i) => {
+  ].forEach((clazz) => {
     // These should all just work
-    sign.update(new i());
-    verify.update(new i());
+    sign.update(new clazz());
+    verify.update(new clazz());
   });
 
-  [1, {}, [], Infinity].forEach((i) => {
-    common.expectsError(
-      () => sign.sign(i),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "key" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
-      }
-    );
+  [1, {}, [], Infinity].forEach((input) => {
+    const type = typeof input;
+    const errObj = {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+      message: 'The "key" argument must be one of type string, Buffer, ' +
+               `TypedArray, or DataView. Received type ${type}`
+    };
 
-    common.expectsError(
-      () => verify.verify(i),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "key" argument must be one of type string, Buffer, ' +
-                 'TypedArray, or DataView'
-      }
-    );
+    assert.throws(() => sign.sign(input), errObj);
+    assert.throws(() => verify.verify(input), errObj);
 
-    common.expectsError(
-      () => verify.verify('test', i),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "signature" argument must be one of type string, ' +
-                 'Buffer, TypedArray, or DataView'
-      }
-    );
+    errObj.message = 'The "signature" argument must be one of type string, ' +
+                     `Buffer, TypedArray, or DataView. Received type ${type}`;
+    assert.throws(() => verify.verify('test', input), errObj);
   });
 }

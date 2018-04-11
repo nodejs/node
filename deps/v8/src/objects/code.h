@@ -6,6 +6,7 @@
 #define V8_OBJECTS_CODE_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -138,7 +139,8 @@ class Code : public HeapObject {
 #endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 #ifdef ENABLE_DISASSEMBLER
-  void Disassemble(const char* name, std::ostream& os);  // NOLINT
+  void Disassemble(const char* name, std::ostream& os,
+                   void* current_pc = nullptr);  // NOLINT
 #endif
 
   // [instruction_size]: Size of the native instructions
@@ -232,14 +234,16 @@ class Code : public HeapObject {
   inline void set_builtin_index(int id);
   inline bool is_builtin() const;
 
-  // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
-  // reserved in the code prologue.
-  inline unsigned stack_slots() const;
+  inline bool has_safepoint_info() const;
 
-  // [safepoint_table_start]: For kind OPTIMIZED_FUNCTION, the offset in
-  // the instruction stream where the safepoint table starts.
-  inline unsigned safepoint_table_offset() const;
-  inline void set_safepoint_table_offset(unsigned offset);
+  // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
+  // reserved in the code prologue.
+  inline int stack_slots() const;
+
+  // [safepoint_table_offset]: If {has_safepoint_info()}, the offset in the
+  // instruction stream where the safepoint table starts.
+  inline int safepoint_table_offset() const;
+  inline void set_safepoint_table_offset(int offset);
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized because of dead embedded maps.
@@ -386,7 +390,7 @@ class Code : public HeapObject {
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
-  void PrintDeoptLocation(FILE* out, Address pc);
+  void PrintDeoptLocation(FILE* out, const char* str, Address pc);
   bool CanDeoptAt(Address pc);
 
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();
@@ -790,6 +794,7 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(source_position_table, Object)
 
   inline ByteArray* SourcePositionTable();
+  inline void ClearFrameCacheFromSourcePositionTable();
 
   DECL_CAST(BytecodeArray)
 

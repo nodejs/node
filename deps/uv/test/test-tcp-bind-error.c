@@ -214,3 +214,45 @@ TEST_IMPL(tcp_listen_without_bind) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+TEST_IMPL(tcp_bind_writable_flags) {
+  struct sockaddr_in addr;
+  uv_tcp_t server;
+  uv_buf_t buf;
+  uv_write_t write_req;
+  uv_shutdown_t shutdown_req;
+  int r;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+  r = uv_tcp_init(uv_default_loop(), &server);
+  ASSERT(r == 0);
+  r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
+  ASSERT(r == 0);
+  r = uv_listen((uv_stream_t*)&server, 128, NULL);
+  ASSERT(r == 0);
+
+  ASSERT(0 == uv_is_writable((uv_stream_t*) &server));
+  ASSERT(0 == uv_is_readable((uv_stream_t*) &server));
+
+  buf = uv_buf_init("PING", 4);
+  r = uv_write(&write_req, (uv_stream_t*) &server, &buf, 1, NULL);
+  ASSERT(r == UV_EPIPE);
+  r = uv_shutdown(&shutdown_req, (uv_stream_t*) &server, NULL);
+#ifdef _WIN32
+  ASSERT(r == UV_EPIPE);
+#else
+  ASSERT(r == UV_ENOTCONN);
+#endif
+  r = uv_read_start((uv_stream_t*) &server, NULL, NULL);
+  ASSERT(r == UV_ENOTCONN);
+
+  uv_close((uv_handle_t*)&server, close_cb);
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  ASSERT(close_cb_called == 1);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

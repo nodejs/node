@@ -26,7 +26,11 @@ module.exports = {
         },
 
         fixable: "code",
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unnecessary semicolon."
+        }
     },
 
     create(context) {
@@ -40,7 +44,7 @@ module.exports = {
         function report(nodeOrToken) {
             context.report({
                 node: nodeOrToken,
-                message: "Unnecessary semicolon.",
+                messageId: "unexpected",
                 fix(fixer) {
 
                     /*

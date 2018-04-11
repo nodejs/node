@@ -1,8 +1,7 @@
 // Flags: --experimental-modules
-/* eslint-disable node-core/required-modules */
-import '../common/index';
-import './esm-snapshot-mutator';
-import one from './esm-snapshot';
+import '../common';
+import '../fixtures/es-modules/esm-snapshot-mutator';
+import one from '../fixtures/es-modules/esm-snapshot';
 import assert from 'assert';
 
 assert.strictEqual(one, 1);

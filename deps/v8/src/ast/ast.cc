@@ -514,18 +514,17 @@ bool ArrayLiteral::is_empty() const {
 }
 
 int ArrayLiteral::InitDepthAndFlags() {
-  DCHECK_LT(first_spread_index_, 0);
   if (is_initialized()) return depth();
 
-  int constants_length = values()->length();
+  int constants_length =
+      first_spread_index_ >= 0 ? first_spread_index_ : values()->length();
 
   // Fill in the literals.
-  bool is_simple = true;
+  bool is_simple = first_spread_index_ < 0;
   int depth_acc = 1;
   int array_index = 0;
   for (; array_index < constants_length; array_index++) {
     Expression* element = values()->at(array_index);
-    DCHECK(!element->IsSpread());
     MaterializedLiteral* literal = element->AsMaterializedLiteral();
     if (literal != nullptr) {
       int subliteral_depth = literal->InitDepthAndFlags() + 1;
@@ -546,11 +545,10 @@ int ArrayLiteral::InitDepthAndFlags() {
 }
 
 void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
-  DCHECK_LT(first_spread_index_, 0);
-
   if (!constant_elements_.is_null()) return;
 
-  int constants_length = values()->length();
+  int constants_length =
+      first_spread_index_ >= 0 ? first_spread_index_ : values()->length();
   ElementsKind kind = FIRST_FAST_ELEMENTS_KIND;
   Handle<FixedArray> fixed_array =
       isolate->factory()->NewFixedArrayWithHoles(constants_length);
@@ -612,11 +610,6 @@ bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
          values()->length() <=
              ConstructorBuiltins::kMaximumClonedShallowArrayElements;
-}
-
-void ArrayLiteral::RewindSpreads() {
-  values_->Rewind(first_spread_index_);
-  first_spread_index_ = -1;
 }
 
 bool MaterializedLiteral::IsSimple() const {
@@ -810,6 +803,10 @@ Call::CallType Call::GetCallType() const {
     } else {
       return is_super ? KEYED_SUPER_PROPERTY_CALL : KEYED_PROPERTY_CALL;
     }
+  }
+
+  if (expression()->IsResolvedProperty()) {
+    return RESOLVED_PROPERTY_CALL;
   }
 
   return OTHER_CALL;

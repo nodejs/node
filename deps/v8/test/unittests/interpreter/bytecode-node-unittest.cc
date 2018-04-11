@@ -52,7 +52,7 @@ TEST_F(BytecodeNodeTest, Constructor4) {
 }
 
 TEST_F(BytecodeNodeTest, Constructor5) {
-  uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
+  uint32_t operands[] = {0x71, 0xA5, 0x5A, 0xFC};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
                     operands[3]);
   CHECK_EQ(node.operand_count(), 4);
@@ -65,7 +65,7 @@ TEST_F(BytecodeNodeTest, Constructor5) {
 }
 
 TEST_F(BytecodeNodeTest, Equality) {
-  uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
+  uint32_t operands[] = {0x71, 0xA5, 0x5A, 0xFC};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
                     operands[3]);
   CHECK_EQ(node, node);
@@ -75,7 +75,7 @@ TEST_F(BytecodeNodeTest, Equality) {
 }
 
 TEST_F(BytecodeNodeTest, EqualityWithSourceInfo) {
-  uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
+  uint32_t operands[] = {0x71, 0xA5, 0x5A, 0xFC};
   BytecodeSourceInfo first_source_info(3, true);
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
                     operands[3], first_source_info);
@@ -87,7 +87,7 @@ TEST_F(BytecodeNodeTest, EqualityWithSourceInfo) {
 }
 
 TEST_F(BytecodeNodeTest, NoEqualityWithDifferentSourceInfo) {
-  uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
+  uint32_t operands[] = {0x71, 0xA5, 0x5A, 0xFC};
   BytecodeSourceInfo source_info(77, true);
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
                     operands[3], source_info);

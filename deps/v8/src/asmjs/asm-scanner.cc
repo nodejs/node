@@ -15,7 +15,7 @@ namespace internal {
 namespace {
 // Cap number of identifiers to ensure we can assign both global and
 // local ones a token id in the range of an int32_t.
-static const int kMaxIdentifierCount = 0xf000000;
+static const int kMaxIdentifierCount = 0xF000000;
 };
 
 AsmJsScanner::AsmJsScanner(Utf16CharacterStream* stream)

@@ -123,12 +123,12 @@ the version that is symlinked into
 
 Furthermore, to make the module lookup process even more optimal, rather
 than putting packages directly in `/usr/lib/node`, we could put them in
-`/usr/lib/node_modules/<name>/<version>`.  Then Node.js will not bother
+`/usr/lib/node_modules/<name>/<version>`. Then Node.js will not bother
 looking for missing dependencies in `/usr/node_modules` or `/node_modules`.
 
 In order to make modules available to the Node.js REPL, it might be useful to
 also add the `/usr/lib/node_modules` folder to the `$NODE_PATH` environment
-variable.  Since the module lookups using `node_modules` folders are all
+variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
@@ -196,12 +196,12 @@ NODE_MODULES_PATHS(START)
 
 <!--type=misc-->
 
-Modules are cached after the first time they are loaded.  This means
+Modules are cached after the first time they are loaded. This means
 (among other things) that every call to `require('foo')` will get
 exactly the same object returned, if it would resolve to the same file.
 
 Multiple calls to `require('foo')` may not cause the module code to be
-executed multiple times.  This is an important feature.  With it,
+executed multiple times.  This is an important feature. With it,
 "partially done" objects can be returned, thus allowing transitive
 dependencies to be loaded even when they would cause cycles.
 
@@ -212,7 +212,7 @@ that function.
 
 <!--type=misc-->
 
-Modules are cached based on their resolved filename.  Since modules may
+Modules are cached based on their resolved filename. Since modules may
 resolve to a different filename based on the location of the calling
 module (loading from `node_modules` folders), it is not a *guarantee*
 that `require('foo')` will always return the exact same object, if it
@@ -228,14 +228,14 @@ irrespective of whether or not `./foo` and `./FOO` are the same file.
 
 <!--type=misc-->
 
-Node.js has several modules compiled into the binary.  These modules are
+Node.js has several modules compiled into the binary. These modules are
 described in greater detail elsewhere in this documentation.
 
 The core modules are defined within Node.js's source and are located in the
 `lib/` folder.
 
 Core modules are always preferentially loaded if their identifier is
-passed to `require()`.  For instance, `require('http')` will always
+passed to `require()`. For instance, `require('http')` will always
 return the built in HTTP module, even if there is a file by that name.
 
 ## Cycles
@@ -275,13 +275,13 @@ console.log('b done');
 console.log('main starting');
 const a = require('./a.js');
 const b = require('./b.js');
-console.log('in main, a.done=%j, b.done=%j', a.done, b.done);
+console.log('in main, a.done = %j, b.done = %j', a.done, b.done);
 ```
 
-When `main.js` loads `a.js`, then `a.js` in turn loads `b.js`.  At that
-point, `b.js` tries to load `a.js`.  In order to prevent an infinite
+When `main.js` loads `a.js`, then `a.js` in turn loads `b.js`. At that
+point, `b.js` tries to load `a.js`. In order to prevent an infinite
 loop, an **unfinished copy** of the `a.js` exports object is returned to the
-`b.js` module.  `b.js` then finishes loading, and its `exports` object is
+`b.js` module. `b.js` then finishes loading, and its `exports` object is
 provided to the `a.js` module.
 
 By the time `main.js` has loaded both modules, they're both finished.
@@ -296,7 +296,7 @@ in b, a.done = false
 b done
 in a, b.done = true
 a done
-in main, a.done=true, b.done=true
+in main, a.done = true, b.done = true
 ```
 
 Careful planning is required to allow cyclic module dependencies to work
@@ -314,7 +314,7 @@ required filename with the added extensions: `.js`, `.json`, and finally
 parsed as JSON text files. `.node` files are interpreted as compiled addon
 modules loaded with `dlopen`.
 
-A required module prefixed with `'/'` is an absolute path to the file.  For
+A required module prefixed with `'/'` is an absolute path to the file. For
 example, `require('/home/marco/foo.js')` will load the file at
 `/home/marco/foo.js`.
 
@@ -338,7 +338,7 @@ There are three ways in which a folder may be passed to `require()` as
 an argument.
 
 The first is to create a `package.json` file in the root of the folder,
-which specifies a `main` module.  An example package.json file might
+which specifies a `main` module. An example package.json file might
 look like this:
 
 ```json
@@ -352,7 +352,7 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of Node.js's awareness of package.json files.
 
-If the file specified by the `"main"` entry of `package.json` is missing and
+If the file specified by the `'main'` entry of `package.json` is missing and
 can not be resolved, Node.js will report the entire module as missing with the
 default error:
 
@@ -362,7 +362,7 @@ Error: Cannot find module 'some-library'
 
 If there is no package.json file present in the directory, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
-directory.  For example, if there was no package.json file in the above
+directory. For example, if there was no package.json file in the above
 example, then `require('./some-library')` would attempt to load:
 
 * `./some-library/index.js`
@@ -415,7 +415,7 @@ varying paths before the current [module resolution][] algorithm was frozen.
 `NODE_PATH` is still supported, but is less necessary now that the Node.js
 ecosystem has settled on a convention for locating dependent modules.
 Sometimes deployments that rely on `NODE_PATH` show surprising behavior
-when people are unaware that `NODE_PATH` must be set.  Sometimes a
+when people are unaware that `NODE_PATH` must be set. Sometimes a
 module's dependencies change, causing a different version (or even a
 different module) to be loaded as the `NODE_PATH` is searched.
 
@@ -583,14 +583,14 @@ Process files with the extension `.sjs` as `.js`:
 require.extensions['.sjs'] = require.extensions['.js'];
 ```
 
-**Deprecated**  In the past, this list has been used to load
+**Deprecated** In the past, this list has been used to load
 non-JavaScript modules into Node.js by compiling them on-demand.
 However, in practice, there are much better ways to do this, such as
 loading modules via some other Node.js program, or compiling them to
 JavaScript ahead of time.
 
 Since the module system is locked, this feature will probably never go
-away.  However, it may have subtle bugs and complexities that are best
+away. However, it may have subtle bugs and complexities that are best
 left untouched.
 
 Note that the number of file system operations that the module system
@@ -599,6 +599,43 @@ filename scales linearly with the number of registered extensions.
 
 In other words, adding extensions slows down the module loader and
 should be discouraged.
+
+#### require.main
+<!-- YAML
+added: v0.1.17
+-->
+
+* {Object}
+
+The `Module` object representing the entry script loaded when the Node.js
+process launched.
+See ["Accessing the main module"](#modules_accessing_the_main_module).
+
+In `entry.js` script:
+
+```js
+console.log(require.main);
+```
+
+```sh
+node entry.js
+```
+
+<!-- eslint-skip -->
+```js
+Module {
+  id: '.',
+  exports: {},
+  parent: null,
+  filename: '/absolute/path/to/entry.js',
+  loaded: false,
+  children: [],
+  paths:
+   [ '/absolute/path/to/node_modules',
+     '/absolute/path/node_modules',
+     '/absolute/node_modules',
+     '/node_modules' ] }
+```
 
 #### require.resolve(request[, options])
 <!-- YAML
@@ -611,7 +648,7 @@ changes:
 
 * `request` {string} The module path to resolve.
 * `options` {Object}
-  * `paths` {Array} Paths to resolve module location from. If present, these
+  * `paths` {string[]} Paths to resolve module location from. If present, these
     paths are used instead of the default resolution paths. Note that each of
     these paths is used as a starting point for the module resolution algorithm,
     meaning that the `node_modules` hierarchy is checked from this location.
@@ -626,7 +663,7 @@ added: v8.9.0
 -->
 
 * `request` {string} The module path whose lookup paths are being retrieved.
-* Returns: {Array|null}
+* Returns: {string[]|null}
 
 Returns an array containing the paths searched during resolution of `request` or
 null if the `request` string references a core module, for example `http` or
@@ -643,7 +680,7 @@ added: v0.1.16
 * {Object}
 
 In each module, the `module` free variable is a reference to the object
-representing the current module.  For convenience, `module.exports` is
+representing the current module. For convenience, `module.exports` is
 also accessible via the `exports` module-global. `module` is not actually
 a global but rather local to each module.
 
@@ -652,7 +689,7 @@ a global but rather local to each module.
 added: v0.1.16
 -->
 
-* {Array}
+* {module[]}
 
 The module objects required by this one.
 
@@ -694,7 +731,7 @@ a.on('ready', () => {
 
 
 Note that assignment to `module.exports` must be done immediately. It cannot be
-done in any callbacks.  This does not work:
+done in any callbacks. This does not work:
 
 x.js:
 
@@ -774,7 +811,7 @@ added: v0.1.16
 
 * {string}
 
-The identifier for the module.  Typically this is the fully resolved
+The identifier for the module. Typically this is the fully resolved
 filename.
 
 ### module.loaded
@@ -830,7 +867,7 @@ added: v0.3.7
 * {Object}
 
 Provides general utility methods when interacting with instances of
-`Module` -- the `module` variable often seen in file modules. Accessed
+`Module` — the `module` variable often seen in file modules. Accessed
 via `require('module')`.
 
 ### module.builtinModules

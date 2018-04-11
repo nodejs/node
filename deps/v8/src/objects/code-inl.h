@@ -290,14 +290,14 @@ Code::Kind Code::kind() const {
 
 void Code::initialize_flags(Kind kind, bool has_unwinding_info,
                             bool is_turbofanned, int stack_slots) {
-  CHECK_LE(stack_slots, StackSlotsField::kMax);
-  DCHECK_IMPLIES(stack_slots != 0, is_turbofanned);
+  CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
   static_assert(Code::NUMBER_OF_KINDS <= KindField::kMax + 1, "field overflow");
   uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
                    KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots);
   WRITE_UINT32_FIELD(this, kFlagsOffset, flags);
+  DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
 }
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
@@ -411,21 +411,25 @@ void Code::set_builtin_index(int index) {
 
 bool Code::is_builtin() const { return builtin_index() != -1; }
 
-unsigned Code::stack_slots() const {
-  DCHECK(is_turbofanned());
+bool Code::has_safepoint_info() const {
+  return is_turbofanned() || is_wasm_code();
+}
+
+int Code::stack_slots() const {
+  DCHECK(has_safepoint_info());
   return StackSlotsField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
-unsigned Code::safepoint_table_offset() const {
-  DCHECK(is_turbofanned());
-  return READ_UINT32_FIELD(this, kSafepointTableOffsetOffset);
+int Code::safepoint_table_offset() const {
+  DCHECK(has_safepoint_info());
+  return READ_INT32_FIELD(this, kSafepointTableOffsetOffset);
 }
 
-void Code::set_safepoint_table_offset(unsigned offset) {
-  CHECK(offset <= std::numeric_limits<uint32_t>::max());
-  DCHECK(is_turbofanned() || offset == 0);  // Allow zero initialization.
+void Code::set_safepoint_table_offset(int offset) {
+  CHECK_LE(0, offset);
+  DCHECK(has_safepoint_info() || offset == 0);  // Allow zero initialization.
   DCHECK(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  WRITE_UINT32_FIELD(this, kSafepointTableOffsetOffset, offset);
+  WRITE_INT32_FIELD(this, kSafepointTableOffsetOffset, offset);
 }
 
 bool Code::marked_for_deoptimization() const {
@@ -633,6 +637,14 @@ ByteArray* BytecodeArray::SourcePositionTable() {
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
       ->source_position_table();
+}
+
+void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
+  Object* maybe_table = source_position_table();
+  if (maybe_table->IsByteArray()) return;
+  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
+  set_source_position_table(SourcePositionTableWithFrameCache::cast(maybe_table)
+                                ->source_position_table());
 }
 
 int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }

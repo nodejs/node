@@ -52,6 +52,13 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
+#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)  \
+  Map* Heap::name##_map() {                                \
+    return Map::cast(roots_[k##Name##Size##MapRootIndex]); \
+  }
+DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
+#undef DATA_HANDLER_MAP_ACCESSOR
+
 #define STRING_ACCESSOR(name, str) \
   String* Heap::name() { return String::cast(roots_[k##name##RootIndex]); }
 INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
@@ -243,11 +250,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(gc_state_ == NOT_IN_GC);
-#ifdef DEBUG
-  if (FLAG_gc_interval >= 0 && !always_allocate() &&
-      Heap::allocation_timeout_-- <= 0) {
-    return AllocationResult::Retry(space);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
+    if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
+      return AllocationResult::Retry(space);
+    }
   }
+#endif
+#ifdef DEBUG
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
@@ -314,10 +324,10 @@ void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
       PrintAllocationsHash();
     }
-  }
-
-  if (FLAG_trace_allocation_stack_interval > 0) {
-    if (!FLAG_verify_predictable) ++allocations_count_;
+  } else if (FLAG_fuzzer_gc_analysis) {
+    ++allocations_count_;
+  } else if (FLAG_trace_allocation_stack_interval > 0) {
+    ++allocations_count_;
     if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
       isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
     }
@@ -349,9 +359,10 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
     if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
       PrintAllocationsHash();
     }
+  } else if (FLAG_fuzzer_gc_analysis) {
+    ++allocations_count_;
   }
 }
-
 
 void Heap::UpdateAllocationsHash(HeapObject* object) {
   Address object_address = object->address();

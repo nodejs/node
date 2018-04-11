@@ -218,6 +218,15 @@ base.SwitchStatement = function (node, st, c) {
     }
   }
 };
+base.SwitchCase = function (node, st, c) {
+  if (node.test) { c(node.test, st, "Expression"); }
+  for (var i = 0, list = node.consequent; i < list.length; i += 1)
+    {
+    var cons = list[i];
+
+    c(cons, st, "Statement");
+  }
+};
 base.ReturnStatement = base.YieldExpression = base.AwaitExpression = function (node, st, c) {
   if (node.argument) { c(node.argument, st, "Expression"); }
 };
@@ -301,10 +310,10 @@ base.ArrayPattern = function (node, st, c) {
   }
 };
 base.ObjectPattern = function (node, st, c) {
-  for (var i = 0, list = node.properties; i < list.length; i += 1)
-    {
+  for (var i = 0, list = node.properties; i < list.length; i += 1) {
     var prop = list[i];
 
+    if (prop.computed) { c(prop.key, st, "Expression"); }
     c(prop.value, st, "Pattern");
   }
 };
@@ -386,17 +395,20 @@ base.ImportSpecifier = base.ImportDefaultSpecifier = base.ImportNamespaceSpecifi
 
 base.TaggedTemplateExpression = function (node, st, c) {
   c(node.tag, st, "Expression");
-  c(node.quasi, st);
+  c(node.quasi, st, "Expression");
 };
 base.ClassDeclaration = base.ClassExpression = function (node, st, c) { return c(node, st, "Class"); };
 base.Class = function (node, st, c) {
   if (node.id) { c(node.id, st, "Pattern"); }
   if (node.superClass) { c(node.superClass, st, "Expression"); }
-  for (var i = 0, list = node.body.body; i < list.length; i += 1)
+  c(node.body, st);
+};
+base.ClassBody = function (node, st, c) {
+  for (var i = 0, list = node.body; i < list.length; i += 1)
     {
-    var item = list[i];
+    var elt = list[i];
 
-    c(item, st);
+    c(elt, st);
   }
 };
 base.MethodDefinition = base.Property = function (node, st, c) {

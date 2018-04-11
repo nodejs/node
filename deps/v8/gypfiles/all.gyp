@@ -33,6 +33,7 @@
             '../test/benchmarks/benchmarks.gyp:*',
             '../test/debugger/debugger.gyp:*',
             '../test/default.gyp:*',
+            '../test/d8_default.gyp:*',
             '../test/intl/intl.gyp:*',
             '../test/message/message.gyp:*',
             '../test/mjsunit/mjsunit.gyp:*',

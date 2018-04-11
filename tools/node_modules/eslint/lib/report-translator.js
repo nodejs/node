@@ -28,6 +28,22 @@ const interpolate = require("./util/interpolate");
  * @property {Function} [fix] The function to call that creates a fix command.
  */
 
+/**
+ * Information about the report
+ * @typedef {Object} ReportInfo
+ * @property {string} ruleId
+ * @property {(0|1|2)} severity
+ * @property {(string|undefined)} message
+ * @property {(string|undefined)} messageId
+ * @property {number} line
+ * @property {number} column
+ * @property {(number|undefined)} endLine
+ * @property {(number|undefined)} endColumn
+ * @property {(string|null)} nodeType
+ * @property {string} source
+ * @property {({text: string, range: (number[]|null)}|null)} fix
+ */
+
 //------------------------------------------------------------------------------
 // Module Definition
 //------------------------------------------------------------------------------
@@ -121,7 +137,7 @@ function compareFixesByRange(a, b) {
  * Merges the given fixes array into one.
  * @param {Fix[]} fixes The fixes to merge.
  * @param {SourceCode} sourceCode The source code object to get the text between fixes.
- * @returns {{text: string, range: [number, number]}} The merged fixes
+ * @returns {{text: string, range: number[]}} The merged fixes
  */
 function mergeFixes(fixes, sourceCode) {
     if (fixes.length === 0) {
@@ -158,7 +174,7 @@ function mergeFixes(fixes, sourceCode) {
  * If the descriptor retrieves multiple fixes, this merges those to one.
  * @param {MessageDescriptor} descriptor The report descriptor.
  * @param {SourceCode} sourceCode The source code object to get text between fixes.
- * @returns {({text: string, range: [number, number]}|null)} The fix for the descriptor
+ * @returns {({text: string, range: number[]}|null)} The fix for the descriptor
  */
 function normalizeFixes(descriptor, sourceCode) {
     if (typeof descriptor.fix !== "function") {
@@ -177,27 +193,15 @@ function normalizeFixes(descriptor, sourceCode) {
 
 /**
  * Creates information about the report from a descriptor
- * @param {{
- *     ruleId: string,
- *     severity: (0|1|2),
- *     node: (ASTNode|null),
- *     message: string,
- *     loc: {start: SourceLocation, end: (SourceLocation|null)},
- *     fix: ({text: string, range: [number, number]}|null),
- *     sourceLines: string[]
- * }} options Information about the problem
- * @returns {function(...args): {
- *      ruleId: string,
- *      severity: (0|1|2),
- *      message: string,
- *      line: number,
- *      column: number,
- *      endLine: (number|undefined),
- *      endColumn: (number|undefined),
- *      nodeType: (string|null),
- *      source: string,
- *      fix: ({text: string, range: [number, number]}|null)
- * }} Information about the report
+ * @param {Object} options Information about the problem
+ * @param {string} options.ruleId Rule ID
+ * @param {(0|1|2)} options.severity Rule severity
+ * @param {(ASTNode|null)} options.node Node
+ * @param {string} options.message Error message
+ * @param {{start: SourceLocation, end: (SourceLocation|null)}} options.loc Start and end location
+ * @param {{text: string, range: (number[]|null)}} options.fix The fix object
+ * @param {string[]} options.sourceLines Source lines
+ * @returns {function(...args): ReportInfo} Function that returns information about the report
  */
 function createProblem(options) {
     const problem = {
@@ -235,20 +239,7 @@ function createProblem(options) {
  * problem for the Node.js API.
  * @param {{ruleId: string, severity: number, sourceCode: SourceCode, messageIds: Object}} metadata Metadata for the reported problem
  * @param {SourceCode} sourceCode The `SourceCode` instance for the text being linted
- * @returns {function(...args): {
- *      ruleId: string,
- *      severity: (0|1|2),
- *      message: (string|undefined),
- *      messageId: (string|undefined),
- *      line: number,
- *      column: number,
- *      endLine: (number|undefined),
- *      endColumn: (number|undefined),
- *      nodeType: (string|null),
- *      source: string,
- *      fix: ({text: string, range: [number, number]}|null)
- * }}
- * Information about the report
+ * @returns {function(...args): ReportInfo} Function that returns information about the report
  */
 
 module.exports = function createReportTranslator(metadata) {

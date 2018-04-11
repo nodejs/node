@@ -95,6 +95,8 @@
   'built-ins/TypedArrays/internals/HasProperty/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Set/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Set/tonumber-value-detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
@@ -221,9 +223,6 @@
   'language/eval-code/indirect/non-definable-function-with-variable': [FAIL],
   'language/global-code/script-decl-func-err-non-configurable': [FAIL],
   'language/global-code/script-decl-var-collision': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4124
-  'built-ins/Simd/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4958
   'built-ins/Function/prototype/toString/*': ['--harmony-function-tostring'],
@@ -424,15 +423,33 @@
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6861
-  'language/statements/for-of/iterator-next-reference': [FAIL],
-  'language/expressions/async-generator/named-yield-star-async-next': [FAIL],
-  'language/expressions/async-generator/yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-async-next': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-star-async-next': [FAIL],
-  'language/statements/async-generator/yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-async-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-async-next': [FAIL],
+  'language/expressions/object/method-definition/async-gen-yield-star-sync-next': [FAIL],
+  'language/expressions/class/async-gen-method-static-yield-star-sync-next': [FAIL],
+  'language/expressions/async-generator/yield-star-sync-next': [FAIL],
+  'language/statements/class/async-gen-method-static-yield-star-sync-next': [FAIL],
+  'language/expressions/async-generator/named-yield-star-sync-next': [FAIL],
+  'language/expressions/class/async-gen-method-yield-star-sync-next': [FAIL],
+  'language/statements/class/async-gen-method-yield-star-sync-next': [FAIL],
+  'language/statements/async-generator/yield-star-sync-next': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6791
+  'built-ins/BigInt/prototype/Symbol.toStringTag': [SKIP],
+  'built-ins/DataView/prototype/getBigInt64/*': [SKIP],
+  'built-ins/DataView/prototype/getBigUint64/*': [SKIP],
+  'built-ins/DataView/prototype/setBigInt64/*': [SKIP],
+  'built-ins/DataView/prototype/setBigUint64/*': [SKIP],
+  'built-ins/TypedArrays/BigInt64Array/*': [SKIP],
+  'built-ins/TypedArrays/BigUint64Array/*': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7184
+  'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
+  'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
+  'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7186
+  'language/statements/class/fields-indirect-eval-err-contains-arguments': [FAIL],
+  'language/expressions/class/fields-indirect-eval-err-contains-arguments': [FAIL],
+
 
 ######################## NEEDS INVESTIGATION ###########################
 
@@ -446,7 +463,6 @@
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
-  'intl402/Intl/getCanonicalLocales/success_cases': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
@@ -513,6 +529,11 @@
   # Test against internals of harness; we plug in differently
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
+
+  # https://github.com/tc39/test262/pull/1371
+  'language/expressions/bitwise-and/bigint-non-primitive': ['--harmony-bigint'],
+  'language/expressions/bitwise-or/bigint-non-primitive': ['--harmony-bigint'],
+  'language/expressions/bitwise-xor/bigint-non-primitive': ['--harmony-bigint'],
 
   ############################ SKIPPED TESTS #############################
 

@@ -1,70 +1,26 @@
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2010.
- */
-/* ====================================================================
- * Copyright (c) 2010 The OpenSSL Project.  All rights reserved.
+ * Copyright 2010-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/evp.h>
 #include <openssl/cmac.h>
-#include "evp_locl.h"
+#include "internal/evp_int.h"
 
 /* The context structure and "key" is simply a CMAC_CTX */
 
 static int pkey_cmac_init(EVP_PKEY_CTX *ctx)
 {
     ctx->data = CMAC_CTX_new();
-    if (!ctx->data)
+    if (ctx->data == NULL)
         return 0;
     ctx->keygen_info_count = 0;
     return 1;
@@ -88,7 +44,7 @@ static int pkey_cmac_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 {
     CMAC_CTX *cmkey = CMAC_CTX_new();
     CMAC_CTX *cmctx = ctx->data;
-    if (!cmkey)
+    if (cmkey == NULL)
         return 0;
     if (!CMAC_CTX_copy(cmkey, cmctx)) {
         CMAC_CTX_free(cmkey);
@@ -101,7 +57,7 @@ static int pkey_cmac_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 
 static int int_update(EVP_MD_CTX *ctx, const void *data, size_t count)
 {
-    if (!CMAC_Update(ctx->pctx->data, data, count))
+    if (!CMAC_Update(EVP_MD_CTX_pkey_ctx(ctx)->data, data, count))
         return 0;
     return 1;
 }
@@ -109,7 +65,7 @@ static int int_update(EVP_MD_CTX *ctx, const void *data, size_t count)
 static int cmac_signctx_init(EVP_PKEY_CTX *ctx, EVP_MD_CTX *mctx)
 {
     EVP_MD_CTX_set_flags(mctx, EVP_MD_CTX_FLAG_NO_INIT);
-    mctx->update = int_update;
+    EVP_MD_CTX_set_update_fn(mctx, int_update);
     return 1;
 }
 
@@ -157,28 +113,17 @@ static int pkey_cmac_ctrl_str(EVP_PKEY_CTX *ctx,
     if (!value) {
         return 0;
     }
-    if (!strcmp(type, "key")) {
-        void *p = (void *)value;
-        return pkey_cmac_ctrl(ctx, EVP_PKEY_CTRL_SET_MAC_KEY, strlen(p), p);
-    }
-    if (!strcmp(type, "cipher")) {
+    if (strcmp(type, "cipher") == 0) {
         const EVP_CIPHER *c;
         c = EVP_get_cipherbyname(value);
         if (!c)
             return 0;
         return pkey_cmac_ctrl(ctx, EVP_PKEY_CTRL_CIPHER, -1, (void *)c);
     }
-    if (!strcmp(type, "hexkey")) {
-        unsigned char *key;
-        int r;
-        long keylen;
-        key = string_to_hex(value, &keylen);
-        if (!key)
-            return 0;
-        r = pkey_cmac_ctrl(ctx, EVP_PKEY_CTRL_SET_MAC_KEY, keylen, key);
-        OPENSSL_free(key);
-        return r;
-    }
+    if (strcmp(type, "key") == 0)
+        return EVP_PKEY_CTX_str2ctrl(ctx, EVP_PKEY_CTRL_SET_MAC_KEY, value);
+    if (strcmp(type, "hexkey") == 0)
+        return EVP_PKEY_CTX_hex2ctrl(ctx, EVP_PKEY_CTRL_SET_MAC_KEY, value);
     return -2;
 }
 

@@ -1,61 +1,64 @@
+# This Makefile is confirmed to be run only on Linux (CentOS and
+# Ubuntu). perl5 and gas(>=2.26) are needed.
+
+UNAME_S := $(shell uname -s)
+ifneq ($(UNAME_S),Linux)
+  $(error This can be run only on Linux)
+endif
+
 PERL    = perl
-CONFIGURE = ./Configure
-COPT = no-shared no-symlinks
 
-ARCHS = aix-gcc aix64-gcc BSD-x86 BSD-x86_64 VC-WIN32 \
-VC-WIN64A darwin64-x86_64-cc darwin-i386-cc linux-aarch64 \
+# Supported architecture list
+ARCHS = aix-gcc aix64-gcc BSD-x86_64 \
+darwin64-x86_64-cc darwin-i386-cc linux-aarch64 \
 linux-armv4 linux-elf linux-x32 linux-x86_64 linux-ppc \
-linux-ppc64 linux32-s390x linux64-s390x solaris-x86-gcc \
-solaris64-x86_64-gcc
+linux-ppc64 linux-ppc64le linux32-s390x linux64-s390x \
+solaris-x86-gcc solaris64-x86_64-gcc VC-WIN64A VC-WIN32
 
+CONFIGURE = ./Configure
+# no-comp: against CRIME attack
+# no-shared: openssl-cli needs static link
+# no-afalgeng: old Linux kernel < 4.0 does not support it
+COPTS =  no-comp no-shared no-afalgeng
+
+# disable platform check in Configure
+NO_WARN_ENV = CONFIGURE_CHECKER_WARN=1
+
+GITIGNORE = $(OPSSL_SRC)/.gitignore
+GENERATE = ./generate_gypi.pl
+
+OPSSL_SRC = ../openssl
+
+# Header files generated with Configure
 CFG = opensslconf.h
-SRC_CFG = ../openssl/crypto/$(CFG)
-BACKUP_FILES = ../openssl/Makefile ../openssl/Makefile.bak $(SRC_CFG)
-BACKUP_EXT = nodebackup
+SRC_CFG = $(OPSSL_SRC)/include/openssl/$(CFG)
+INT_CFGS = bn_conf.h dso_conf.h
+INT_CFG_DIR = $(OPSSL_SRC)/crypto/include/internal
 
-# OPENSSL_CPUID_OBJ is defined in openssl.gypi for use --openssl-no-asm
-CPUIDFIX = 's/\#define OPENSSL_CPUID_OBJ$$//;'
-
-MACFIX ='s/define RC4_INT unsigned char$$/define RC4_INT unsigned int/;'
-
-PHONY = all clean backup restore
+PHONY = all clean replace
 .PHONY: $(PHONY)
 
-all: backup $(ARCHS) cleanconf fixdarwin64 restore
+all: $(ARCHS) replace
 
+# Configure and generate openssl asm files for each archs
 $(ARCHS):
-	cd ../openssl; $(PERL) $(CONFIGURE) $(COPT) $@ > /dev/null
-	$(PERL) -p -e $(CPUIDFIX) $(SRC_CFG) > ./archs/$@/$(CFG)
+# Remove openssl .gitignore to follow nodejs .gitignore
+	if [ -e $(GITIGNORE) ]; then rm $(GITIGNORE); fi
+# Confgure asm and generate asm sources
+	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) $@;
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) asm $@
+# Confgure no-asm and generate no-asm sources
+	cd $(OPSSL_SRC); $(NO_WARN_ENV) $(PERL) $(CONFIGURE) $(COPTS) \
+	no-asm $@;
+	$(PERL) -w -I$(OPSSL_SRC) $(GENERATE) no-asm $@
 
-# The current openssl release does not use RC4 asm since it explicitly
-# specified as `$asm=~s/rc4\-[^:]+//;` in
-# https://github.com/openssl/openssl/blob/OpenSSL_1_0_1-stable/Configure#L584
-# But node has used RC4 asm on MacOS for long time. Fix type of RC4_INT
-# into `unsigned int` in opensslconf.h of darwin64-x86_64-cc to work on
-# the RC4 asm.
-fixdarwin64:
-	$(PERL) -pi -e $(MACFIX) ./archs/darwin64-x86_64-cc/$(CFG)
-
-# backup files to avoid to be overwritten
-backup:
-	@for f in $(BACKUP_FILES); do \
-	    mv $$f $$f.$(BACKUP_EXT); \
+# Replace and copy arch dependent headers
+replace:
+	cp ./$(CFG).tmpl $(SRC_CFG)
+	@for c in $(INT_CFGS); do \
+	    cp ./$$c.tmpl $(INT_CFG_DIR)/$$c; \
 	done
-
-restore:
-	@for f in $(BACKUP_FILES); do \
-	    mv $$f.$(BACKUP_EXT) $$f ; \
-	done
-
-# remove unnecessary files create by Configure
-cleanconf:
-	@rm ../openssl/crypto/$(CFG)
-	@rm ../openssl/Makefile
-	@rm ../openssl/apps/CA.pl.bak
-	@rm ../openssl/crypto/buildinf.h
-	@rm ../openssl/crypto/$(CFG).bak
-	@rm ../openssl/ms/version32.rc
-	@rm ../openssl/tools/c_rehash.bak
 
 clean:
-	find archs -name $(CFG) -exec rm "{}" \;
+	find archs \( -name \*.S -o -name \*.s -o -name \*.asm -o \
+	-name \*.gypi -o -name \*.h -o -name \*.pm \) -exec rm "{}" \;

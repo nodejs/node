@@ -486,12 +486,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // pop the faked function when we return. Notice that we cannot store a
   // reference to the trampoline code directly in this stub, because the
   // builtin stubs may not have been generated yet.
-  if (type() == StackFrame::CONSTRUCT_ENTRY) {
-    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
-            RelocInfo::CODE_TARGET);
-  } else {
-    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
-  }
+  __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();
@@ -588,7 +583,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
   } else {
     UNREACHABLE();
   }
@@ -632,7 +627,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       Handle<Map> allocation_site_map =
           masm->isolate()->factory()->allocation_site_map();
       __ cmp(FieldOperand(ebx, 0), Immediate(allocation_site_map));
-      __ Assert(equal, kExpectedAllocationSite);
+      __ Assert(equal, AbortReason::kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store r3
@@ -657,7 +652,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
   } else {
     UNREACHABLE();
   }
@@ -731,9 +726,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ mov(ecx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a nullptr and a Smi.
     __ test(ecx, Immediate(kSmiTagMask));
-    __ Assert(not_zero, kUnexpectedInitialMapForArrayFunction);
+    __ Assert(not_zero, AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(ecx, MAP_TYPE, ecx);
-    __ Assert(equal, kUnexpectedInitialMapForArrayFunction);
+    __ Assert(equal, AbortReason::kUnexpectedInitialMapForArrayFunction);
 
     // We should either have undefined in ebx or a valid AllocationSite
     __ AssertUndefinedOrAllocationSite(ebx);
@@ -828,9 +823,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ mov(ecx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a nullptr and a Smi.
     __ test(ecx, Immediate(kSmiTagMask));
-    __ Assert(not_zero, kUnexpectedInitialMapForArrayFunction);
+    __ Assert(not_zero, AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(ecx, MAP_TYPE, ecx);
-    __ Assert(equal, kUnexpectedInitialMapForArrayFunction);
+    __ Assert(equal, AbortReason::kUnexpectedInitialMapForArrayFunction);
   }
 
   // Figure out the right elements kind
@@ -847,8 +842,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ cmp(ecx, Immediate(PACKED_ELEMENTS));
     __ j(equal, &done);
     __ cmp(ecx, Immediate(HOLEY_ELEMENTS));
-    __ Assert(equal,
-              kInvalidElementsKindForInternalArrayOrInternalPackedArray);
+    __ Assert(
+        equal,
+        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
     __ bind(&done);
   }
 
@@ -959,7 +955,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // previous handle scope.
   __ mov(Operand::StaticVariable(next_address), ebx);
   __ sub(Operand::StaticVariable(level_address), Immediate(1));
-  __ Assert(above_equal, kInvalidHandleScopeLevel);
+  __ Assert(above_equal, AbortReason::kInvalidHandleScopeLevel);
   __ cmp(edi, Operand::StaticVariable(limit_address));
   __ j(not_equal, &delete_allocated_handles);
 
@@ -1007,7 +1003,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ cmp(return_value, isolate->factory()->null_value());
   __ j(equal, &ok, Label::kNear);
 
-  __ Abort(kAPICallReturnedInvalidObject);
+  __ Abort(AbortReason::kAPICallReturnedInvalidObject);
 
   __ bind(&ok);
 #endif

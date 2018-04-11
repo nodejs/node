@@ -25,7 +25,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "aliased_buffer.h"
-#include "ares.h"
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
 #endif
@@ -39,7 +38,6 @@
 #include "node_http2_state.h"
 
 #include <list>
-#include <map>
 #include <stdint.h>
 #include <vector>
 #include <unordered_map>
@@ -47,6 +45,10 @@
 struct nghttp2_rcbuf;
 
 namespace node {
+
+namespace fs {
+class FileHandleReadWrap;
+}
 
 namespace performance {
 class performance_state;
@@ -75,14 +77,6 @@ struct PackageConfig {
 };
 }  // namespace loader
 
-// Pick an index that's hopefully out of the way when we're embedded inside
-// another application. Performance-wise or memory-wise it doesn't matter:
-// Context::SetAlignedPointerInEmbedderData() is backed by a FixedArray,
-// worst case we pay a one-time penalty for resizing the array.
-#ifndef NODE_CONTEXT_EMBEDDER_DATA_INDEX
-#define NODE_CONTEXT_EMBEDDER_DATA_INDEX 32
-#endif
-
 // The number of items passed to push_values_to_array_function has diminishing
 // returns around 8. This should be used at all call sites using said function.
 #ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
@@ -109,8 +103,6 @@ struct PackageConfig {
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
-  V(npn_buffer_private_symbol, "node:npnBuffer")                              \
-  V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
   V(napi_env, "node:napi:env")                                                \
   V(napi_wrapper, "node:napi:wrapper")                                        \
 
@@ -125,6 +117,7 @@ struct PackageConfig {
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(bytes_read_string, "bytesRead")                                           \
+  V(bytes_written_string, "bytesWritten")                                     \
   V(cached_data_string, "cachedData")                                         \
   V(cached_data_produced_string, "cachedDataProduced")                        \
   V(cached_data_rejected_string, "cachedDataRejected")                        \
@@ -172,11 +165,13 @@ struct PackageConfig {
   V(fingerprint_string, "fingerprint")                                        \
   V(fingerprint256_string, "fingerprint256")                                  \
   V(flags_string, "flags")                                                    \
+  V(fragment_string, "fragment")                                              \
   V(get_data_clone_error_string, "_getDataCloneError")                        \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
   V(homedir_string, "homedir")                                                \
+  V(host_string, "host")                                                      \
   V(hostmaster_string, "hostmaster")                                          \
   V(ignore_string, "ignore")                                                  \
   V(infoaccess_string, "infoAccess")                                          \
@@ -226,23 +221,27 @@ struct PackageConfig {
   V(onstop_string, "onstop")                                                  \
   V(onstreamclose_string, "onstreamclose")                                    \
   V(ontrailers_string, "ontrailers")                                          \
+  V(onunpipe_string, "onunpipe")                                              \
   V(onwrite_string, "onwrite")                                                \
   V(openssl_error_stack, "opensslErrorStack")                                 \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
   V(owner_string, "owner")                                                    \
   V(parse_error_string, "Parse Error")                                        \
+  V(password_string, "password")                                              \
   V(path_string, "path")                                                      \
   V(pending_handle_string, "pendingHandle")                                   \
   V(pbkdf2_error_string, "PBKDF2 Error")                                      \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
+  V(pipe_target_string, "pipeTarget")                                         \
+  V(pipe_source_string, "pipeSource")                                         \
   V(port_string, "port")                                                      \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
-  V(produce_cached_data_string, "produceCachedData")                          \
   V(promise_string, "promise")                                                \
   V(pubkey_string, "pubkey")                                                  \
+  V(query_string, "query")                                                    \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
@@ -251,6 +250,7 @@ struct PackageConfig {
   V(rename_string, "rename")                                                  \
   V(replacement_string, "replacement")                                        \
   V(retry_string, "retry")                                                    \
+  V(scheme_string, "scheme")                                                  \
   V(serial_string, "serial")                                                  \
   V(scopeid_string, "scopeid")                                                \
   V(serial_number_string, "serialNumber")                                     \
@@ -259,9 +259,11 @@ struct PackageConfig {
   V(session_id_string, "sessionId")                                           \
   V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
+  V(sink_string, "sink")                                                      \
   V(size_string, "size")                                                      \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
+  V(source_string, "source")                                                  \
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
@@ -295,23 +297,25 @@ struct PackageConfig {
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
   V(as_external, v8::External)                                                \
+  V(async_hooks_after_function, v8::Function)                                 \
+  V(async_hooks_before_function, v8::Function)                                \
+  V(async_hooks_binding, v8::Object)                                          \
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_before_function, v8::Function)                                \
-  V(async_hooks_after_function, v8::Function)                                 \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
-  V(async_hooks_binding, v8::Object)                                          \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \
-  V(fd_constructor_template, v8::ObjectTemplate)                              \
-  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
   V(fdclose_constructor_template, v8::ObjectTemplate)                         \
+  V(fd_constructor_template, v8::ObjectTemplate)                              \
+  V(filehandlereadwrap_template, v8::ObjectTemplate)                          \
+  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
+  V(fs_use_promises_symbol, v8::Symbol)                                       \
   V(host_import_module_dynamically_callback, v8::Function)                    \
   V(host_initialize_import_meta_object_callback, v8::Function)                \
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
-  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(http2settings_constructor_template, v8::ObjectTemplate)                   \
+  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
@@ -327,7 +331,7 @@ struct PackageConfig {
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \
-  V(shutdown_wrap_constructor_function, v8::Function)                         \
+  V(shutdown_wrap_template, v8::ObjectTemplate)                               \
   V(tcp_constructor_template, v8::FunctionTemplate)                           \
   V(tick_callback_function, v8::Function)                                     \
   V(timers_callback_function, v8::Function)                                   \
@@ -336,8 +340,7 @@ struct PackageConfig {
   V(udp_constructor_function, v8::Function)                                   \
   V(vm_parsing_context_symbol, v8::Symbol)                                    \
   V(url_constructor_function, v8::Function)                                   \
-  V(write_wrap_constructor_function, v8::Function)                            \
-  V(fs_use_promises_symbol, v8::Symbol)
+  V(write_wrap_template, v8::ObjectTemplate)
 
 class Environment;
 
@@ -439,6 +442,7 @@ class Environment {
       DefaultTriggerAsyncIdScope() = delete;
       explicit DefaultTriggerAsyncIdScope(Environment* env,
                                           double init_trigger_async_id);
+      explicit DefaultTriggerAsyncIdScope(AsyncWrap* async_wrap);
       ~DefaultTriggerAsyncIdScope();
 
      private:
@@ -537,26 +541,6 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
-  typedef void (*HandleCleanupCb)(Environment* env,
-                                  uv_handle_t* handle,
-                                  void* arg);
-
-  class HandleCleanup {
-   private:
-    friend class Environment;
-
-    HandleCleanup(uv_handle_t* handle, HandleCleanupCb cb, void* arg)
-        : handle_(handle),
-          cb_(cb),
-          arg_(arg) {
-    }
-
-    uv_handle_t* handle_;
-    HandleCleanupCb cb_;
-    void* arg_;
-    ListNode<HandleCleanup> handle_cleanup_queue_;
-  };
-
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
   static inline Environment* GetCurrent(
@@ -569,15 +553,30 @@ class Environment {
   static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();
 
-  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
-  inline ~Environment();
+  Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
+  ~Environment();
 
   void Start(int argc,
              const char* const* argv,
              int exec_argc,
              const char* const* exec_argv,
              bool start_profiler_idle_notifier);
+
+  typedef void (*HandleCleanupCb)(Environment* env,
+                                  uv_handle_t* handle,
+                                  void* arg);
+  struct HandleCleanup {
+    uv_handle_t* handle_;
+    HandleCleanupCb cb_;
+    void* arg_;
+  };
+
+  void RegisterHandleCleanups();
   void CleanupHandles();
+  inline void RegisterHandleCleanup(uv_handle_t* handle,
+                                    HandleCleanupCb cb,
+                                    void *arg);
+  inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline void AssignToContext(v8::Local<v8::Context> context,
                               const ContextInfo& info);
@@ -592,12 +591,6 @@ class Environment {
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
-
-  // Register clean-up cb to be called on environment destruction.
-  inline void RegisterHandleCleanup(uv_handle_t* handle,
-                                    HandleCleanupCb cb,
-                                    void *arg);
-  inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline AsyncHooks* async_hooks();
   inline ImmediateInfo* immediate_info();
@@ -643,14 +636,23 @@ class Environment {
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
+  inline bool http_parser_buffer_in_use() const;
+  inline void set_http_parser_buffer_in_use(bool in_use);
 
   inline http2::http2_state* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::http2_state> state);
 
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
 
+  // stat fields contains twice the number of entries because `fs.StatWatcher`
+  // needs room to store data for *two* `fs.Stats` instances.
+  static const int kFsStatsFieldsLength = 14;
+
+  inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
+      file_handle_read_wrap_freelist();
+
   inline performance::performance_state* performance_state();
-  inline std::map<std::string, uint64_t>* performance_marks();
+  inline std::unordered_map<std::string, uint64_t>* performance_marks();
 
   void CollectExceptionInfo(v8::Local<v8::Value> context,
                             int errorno,
@@ -730,11 +732,13 @@ class Environment {
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
-  static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
-
   void AddPromiseHook(promise_hook_func fn, void* arg);
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
-  bool EmitNapiWarning();
+  inline bool EmitProcessEnvWarning() {
+    bool current_value = emit_env_nonstring_warning_;
+    emit_env_nonstring_warning_ = false;
+    return current_value;
+  }
 
   typedef void (*native_immediate_callback)(Environment* env, void* data);
   // cb will be called as cb(env, data) on the next event loop iteration.
@@ -788,7 +792,7 @@ class Environment {
   bool printed_error_;
   bool trace_sync_io_;
   bool abort_on_uncaught_exception_;
-  bool emit_napi_warning_;
+  bool emit_env_nonstring_warning_;
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 
@@ -797,7 +801,7 @@ class Environment {
   int should_not_abort_scope_counter_ = 0;
 
   std::unique_ptr<performance::performance_state> performance_state_;
-  std::map<std::string, uint64_t> performance_marks_;
+  std::unordered_map<std::string, uint64_t> performance_marks_;
 
 #if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;
@@ -812,32 +816,28 @@ class Environment {
   friend int GenDebugSymbols();
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
-  ListHead<HandleCleanup,
-           &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
+  std::list<HandleCleanup> handle_cleanup_queue_;
   int handle_cleanup_waiting_;
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
+  bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::http2_state> http2_state_;
 
-  // stat fields contains twice the number of entries because `fs.StatWatcher`
-  // needs room to store data for *two* `fs.Stats` instances.
-  static const int kFsStatsFieldsLength = 2 * 14;
   AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
 
-  struct BeforeExitCallback {
-    void (*cb_)(void* arg);
-    void* arg_;
-  };
-  std::list<BeforeExitCallback> before_exit_functions_;
+  std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
+      file_handle_read_wrap_freelist_;
 
-  struct AtExitCallback {
+  struct ExitCallback {
     void (*cb_)(void* arg);
     void* arg_;
   };
-  std::list<AtExitCallback> at_exit_functions_;
+  std::list<ExitCallback> before_exit_functions_;
+
+  std::list<ExitCallback> at_exit_functions_;
 
   struct PromiseHookCallback {
     promise_hook_func cb_;

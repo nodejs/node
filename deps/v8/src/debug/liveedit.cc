@@ -840,7 +840,7 @@ void LiveEdit::ReplaceFunctionCode(
     }
     shared_info->set_scope_info(new_shared_info->scope_info());
     shared_info->set_outer_scope_info(new_shared_info->outer_scope_info());
-    shared_info->DisableOptimization(kLiveEdit);
+    shared_info->DisableOptimization(BailoutReason::kLiveEdit);
     // Update the type feedback vector, if needed.
     Handle<FeedbackMetadata> new_feedback_metadata(
         new_shared_info->feedback_metadata());
@@ -898,7 +898,7 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
   Isolate* isolate = function_wrapper->GetIsolate();
   CHECK(script_handle->IsScript() || script_handle->IsUndefined(isolate));
   SharedFunctionInfo::SetScript(shared_info, script_handle);
-  shared_info->DisableOptimization(kLiveEdit);
+  shared_info->DisableOptimization(BailoutReason::kLiveEdit);
 
   function_wrapper->GetIsolate()->compilation_cache()->Remove(shared_info);
 }
@@ -1009,7 +1009,8 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   copy->set_column_offset(original->column_offset());
   copy->set_type(original->type());
   copy->set_context_data(original->context_data());
-  copy->set_eval_from_shared(original->eval_from_shared());
+  copy->set_eval_from_shared_or_wrapped_arguments(
+      original->eval_from_shared_or_wrapped_arguments());
   copy->set_eval_from_position(original->eval_from_position());
 
   Handle<FixedArray> infos(isolate->factory()->NewFixedArray(

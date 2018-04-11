@@ -2,6 +2,7 @@
 #include "async_wrap.h"
 #include "node_buffer.h"
 #include "node_platform.h"
+#include "node_file.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -85,6 +86,65 @@ void InitThreadLocalOnce() {
   CHECK_EQ(0, uv_key_create(&Environment::thread_local_env));
 }
 
+Environment::Environment(IsolateData* isolate_data,
+                         Local<Context> context)
+    : isolate_(context->GetIsolate()),
+      isolate_data_(isolate_data),
+      immediate_info_(context->GetIsolate()),
+      tick_info_(context->GetIsolate()),
+      timer_base_(uv_now(isolate_data->event_loop())),
+      printed_error_(false),
+      trace_sync_io_(false),
+      abort_on_uncaught_exception_(false),
+      emit_env_nonstring_warning_(true),
+      makecallback_cntr_(0),
+      should_abort_on_uncaught_toggle_(isolate_, 1),
+#if HAVE_INSPECTOR
+      inspector_agent_(new inspector::Agent(this)),
+#endif
+      handle_cleanup_waiting_(0),
+      http_parser_buffer_(nullptr),
+      fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
+      context_(context->GetIsolate(), context) {
+  // We'll be creating new objects so make sure we've entered the context.
+  v8::HandleScope handle_scope(isolate());
+  v8::Context::Scope context_scope(context);
+  set_as_external(v8::External::New(isolate(), this));
+
+  AssignToContext(context, ContextInfo(""));
+
+  destroy_async_id_list_.reserve(512);
+  performance_state_.reset(new performance::performance_state(isolate()));
+  performance_state_->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
+  performance_state_->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
+      performance::performance_node_start);
+  performance_state_->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_V8_START,
+      performance::performance_v8_start);
+
+  // By default, always abort when --abort-on-uncaught-exception was passed.
+  should_abort_on_uncaught_toggle_[0] = 1;
+}
+
+Environment::~Environment() {
+  v8::HandleScope handle_scope(isolate());
+
+#if HAVE_INSPECTOR
+  // Destroy inspector agent before erasing the context. The inspector
+  // destructor depends on the context still being accessible.
+  inspector_agent_.reset();
+#endif
+
+  context()->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kEnvironment, nullptr);
+
+  delete[] heap_statistics_buffer_;
+  delete[] heap_space_statistics_buffer_;
+  delete[] http_parser_buffer_;
+}
+
 void Environment::Start(int argc,
                         const char* const* argv,
                         int exec_argc,
@@ -114,7 +174,34 @@ void Environment::Start(int argc,
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
+  // Register clean-up cb to be called to clean up the handles
+  // when the environment is freed, note that they are not cleaned in
+  // the one environment per process setup, but will be called in
+  // FreeEnvironment.
+  RegisterHandleCleanups();
+
+  if (start_profiler_idle_notifier) {
+    StartProfilerIdleNotifier();
+  }
+
+  auto process_template = FunctionTemplate::New(isolate());
+  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
+
+  auto process_object =
+      process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
+  set_process_object(process_object);
+
+  SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
+  LoadAsyncWrapperInfo(this);
+
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitThreadLocalOnce);
+  uv_key_set(&thread_local_env, this);
+}
+
+void Environment::RegisterHandleCleanups() {
+  HandleCleanupCb close_and_finish = [](Environment* env, uv_handle_t* handle,
+                                        void* arg) {
     handle->data = env;
 
     uv_close(handle, [](uv_handle_t* handle) {
@@ -138,32 +225,14 @@ void Environment::Start(int argc,
       reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
       close_and_finish,
       nullptr);
-
-  if (start_profiler_idle_notifier) {
-    StartProfilerIdleNotifier();
-  }
-
-  auto process_template = FunctionTemplate::New(isolate());
-  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate(), "process"));
-
-  auto process_object =
-      process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
-  set_process_object(process_object);
-
-  SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
-  LoadAsyncWrapperInfo(this);
-
-  static uv_once_t init_once = UV_ONCE_INIT;
-  uv_once(&init_once, InitThreadLocalOnce);
-  uv_key_set(&thread_local_env, this);
 }
 
 void Environment::CleanupHandles() {
-  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
+  for (HandleCleanup& hc : handle_cleanup_queue_) {
     handle_cleanup_waiting_++;
-    hc->cb_(this, hc->handle_, hc->arg_);
-    delete hc;
+    hc.cb_(this, hc.handle_, hc.arg_);
   }
+  handle_cleanup_queue_.clear();
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
@@ -232,25 +301,25 @@ void Environment::PrintSyncTrace() const {
 }
 
 void Environment::RunBeforeExitCallbacks() {
-  for (BeforeExitCallback before_exit : before_exit_functions_) {
+  for (ExitCallback before_exit : before_exit_functions_) {
     before_exit.cb_(before_exit.arg_);
   }
   before_exit_functions_.clear();
 }
 
 void Environment::BeforeExit(void (*cb)(void* arg), void* arg) {
-  before_exit_functions_.push_back(BeforeExitCallback{cb, arg});
+  before_exit_functions_.push_back(ExitCallback{cb, arg});
 }
 
 void Environment::RunAtExitCallbacks() {
-  for (AtExitCallback at_exit : at_exit_functions_) {
+  for (ExitCallback at_exit : at_exit_functions_) {
     at_exit.cb_(at_exit.arg_);
   }
   at_exit_functions_.clear();
 }
 
 void Environment::AtExit(void (*cb)(void* arg), void* arg) {
-  at_exit_functions_.push_back(AtExitCallback{cb, arg});
+  at_exit_functions_.push_back(ExitCallback{cb, arg});
 }
 
 void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
@@ -289,12 +358,6 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
   return true;
 }
 
-bool Environment::EmitNapiWarning() {
-  bool current_value = emit_napi_warning_;
-  emit_napi_warning_ = false;
-  return current_value;
-}
-
 void Environment::EnvPromiseHook(v8::PromiseHookType type,
                                  v8::Local<v8::Promise> promise,
                                  v8::Local<v8::Value> parent) {
@@ -313,6 +376,9 @@ void Environment::RunAndClearNativeImmediates() {
     auto drain_list = [&]() {
       v8::TryCatch try_catch(isolate());
       for (auto it = list.begin(); it != list.end(); ++it) {
+#ifdef DEBUG
+        v8::SealHandleScope seal_handle_scope(isolate());
+#endif
         it->cb_(this, it->data_);
         if (it->refed_)
           ref_count++;

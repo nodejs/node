@@ -37,7 +37,7 @@ namespace internal {
 //
 // --log-all
 // Log all events to the file, default is off.  This is the same as combining
-// --log-api, --log-code, --log-gc, and --log-regexp.
+// --log-api, --log-code, and --log-regexp.
 //
 // --log-api
 // Log API events to the logfile, default is off.  --log-api implies --log.
@@ -45,10 +45,6 @@ namespace internal {
 // --log-code
 // Log code (create, move, and delete) events to the logfile, default is off.
 // --log-code implies --log.
-//
-// --log-gc
-// Log GC heap samples after each GC that can be processed by hp2ps, default
-// is off.  --log-gc implies --log.
 //
 // --log-regexp
 // Log creation and use of regular expressions, Default is off.
@@ -205,21 +201,9 @@ class Logger : public CodeEventListener {
   void MapEvent(const char* type, Map* from, Map* to,
                 const char* reason = nullptr,
                 HeapObject* name_or_sfi = nullptr);
+  void MapCreate(Map* map);
   void MapDetails(Map* map);
 
-  // ==== Events logged by --log-gc. ====
-  // Heap sampling events: start, end, and individual types.
-  void HeapSampleBeginEvent(const char* space, const char* kind);
-  void HeapSampleEndEvent(const char* space, const char* kind);
-  void HeapSampleItemEvent(const char* type, int number, int bytes);
-  void HeapSampleJSConstructorEvent(const char* constructor,
-                                    int number, int bytes);
-  void HeapSampleJSRetainersEvent(const char* constructor,
-                                         const char* event);
-  void HeapSampleJSProducerEvent(const char* constructor,
-                                 Address* stack);
-  void HeapSampleStats(const char* space, const char* kind,
-                       intptr_t capacity, intptr_t used);
 
   void SharedLibraryEvent(const std::string& library_path, uintptr_t start,
                           uintptr_t end, intptr_t aslr_slide);
@@ -258,6 +242,8 @@ class Logger : public CodeEventListener {
   void LogCodeObjects();
   // Used for logging bytecode handlers found in the snapshot.
   void LogBytecodeHandlers();
+  void LogBytecodeHandler(interpreter::Bytecode bytecode,
+                          interpreter::OperandScale operand_scale, Code* code);
   // Logs all Mpas foind in the heap.
   void LogMaps();
 

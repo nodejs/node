@@ -18,6 +18,7 @@ class Node;
 class InductionVariable : public ZoneObject {
  public:
   Node* phi() const { return phi_; }
+  Node* effect_phi() const { return effect_phi_; }
   Node* arith() const { return arith_; }
   Node* increment() const { return increment_; }
   Node* init_value() const { return init_value_; }
@@ -39,9 +40,10 @@ class InductionVariable : public ZoneObject {
  private:
   friend class LoopVariableOptimizer;
 
-  InductionVariable(Node* phi, Node* arith, Node* increment, Node* init_value,
-                    Zone* zone, ArithmeticType arithmeticType)
+  InductionVariable(Node* phi, Node* effect_phi, Node* arith, Node* increment,
+                    Node* init_value, Zone* zone, ArithmeticType arithmeticType)
       : phi_(phi),
+        effect_phi_(effect_phi),
         arith_(arith),
         increment_(increment),
         init_value_(init_value),
@@ -53,6 +55,7 @@ class InductionVariable : public ZoneObject {
   void AddLowerBound(Node* bound, ConstraintKind kind);
 
   Node* phi_;
+  Node* effect_phi_;
   Node* arith_;
   Node* increment_;
   Node* init_value_;

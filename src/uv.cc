@@ -50,9 +50,9 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void InitializeUV(Local<Object> target,
-                  Local<Value> unused,
-                  Local<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "errname"),
@@ -82,4 +82,4 @@ void InitializeUV(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(uv, node::InitializeUV)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(uv, node::Initialize)

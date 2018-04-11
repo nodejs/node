@@ -60,7 +60,7 @@ const listenOnPort = [
     common.expectsError(block,
                         {
                           code: 'ERR_INVALID_OPT_VALUE',
-                          type: Error,
+                          type: TypeError,
                           message: /^The value "{.*}" is invalid for option "options"$/
                         });
   }

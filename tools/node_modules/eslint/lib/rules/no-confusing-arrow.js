@@ -42,7 +42,11 @@ module.exports = {
                 allowParens: { type: "boolean" }
             },
             additionalProperties: false
-        }]
+        }],
+
+        messages: {
+            confusing: "Arrow function used ambiguously with a conditional expression."
+        }
     },
 
     create(context) {
@@ -60,7 +64,7 @@ module.exports = {
             if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(sourceCode, body))) {
                 context.report({
                     node,
-                    message: "Arrow function used ambiguously with a conditional expression.",
+                    messageId: "confusing",
                     fix(fixer) {
 
                         // if `allowParens` is not set to true dont bother wrapping in parens

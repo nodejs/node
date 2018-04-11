@@ -9,6 +9,7 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/ast/scopes.h"
+#include "src/bootstrapper.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
@@ -726,6 +727,9 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   Handle<JSFunction> closure(function->shared()->IsUserJavaScript()
                                  ? native_context->closure()
                                  : *function);
+
+  // We do not need script contexts here during bootstrap.
+  DCHECK(!isolate->bootstrapper()->IsActive());
   Handle<Context> result =
       isolate->factory()->NewScriptContext(closure, scope_info);
 

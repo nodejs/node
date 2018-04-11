@@ -2,36 +2,35 @@
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  millions: [4]
+  n: [4e6]
 });
 
-function main({ millions }) {
-  const N = millions * 1e6;
-  var n = 0;
+function main({ n }) {
+  var j = 0;
 
   function cb1(arg1) {
-    n++;
-    if (n === N)
-      bench.end(n / 1e6);
+    j++;
+    if (j === n)
+      bench.end(n);
   }
   function cb2(arg1, arg2) {
-    n++;
-    if (n === N)
-      bench.end(n / 1e6);
+    j++;
+    if (j === n)
+      bench.end(n);
   }
   function cb3(arg1, arg2, arg3) {
-    n++;
-    if (n === N)
-      bench.end(n / 1e6);
+    j++;
+    if (j === n)
+      bench.end(n);
   }
   function cb4(arg1, arg2, arg3, arg4) {
-    n++;
-    if (n === N)
-      bench.end(n / 1e6);
+    j++;
+    if (j === n)
+      bench.end(n);
   }
 
   bench.start();
-  for (var i = 0; i < N; i++) {
+  for (var i = 0; i < n; i++) {
     if (i % 4 === 0)
       process.nextTick(cb4, 3.14, 1024, true, false);
     else if (i % 3 === 0)

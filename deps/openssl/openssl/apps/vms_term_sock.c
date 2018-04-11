@@ -143,7 +143,7 @@ int main (int argc, char *argv[], char *envp[])
         ** Process the terminal input
         */
         LogMessage ("Waiting on terminal I/O ...\n");
-        len = recv (TermSock, TermBuff, sizeof (TermBuff), 0) ;
+        len = recv (TermSock, TermBuff, sizeof(TermBuff), 0) ;
         TermBuff[len] = '\0';
         LogMessage ("Received terminal I/O [%s]", TermBuff);
 
@@ -209,7 +209,7 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
                           TerminalDeviceAst,
                           0,
                           TerminalDeviceBuff,
-                          sizeof (TerminalDeviceBuff) - 2,
+                          sizeof(TerminalDeviceBuff) - 2,
                           0, 0, 0, 0);
         if (! (status & 1)) {
             LogMessage ("TerminalSocket: SYS$QIO () - %08X", status);
@@ -317,7 +317,7 @@ static int CreateSocketPair (int SocketFamily,
     /*
     ** Initialize the socket information
     */
-    slen = sizeof (sin);
+    slen = sizeof(sin);
     memset ((char *) &sin, 0, slen);
     sin.sin_family = SocketFamily;
     sin.sin_addr.s_addr = inet_addr (LocalHostAddr);
@@ -434,12 +434,12 @@ static int CreateSocketPair (int SocketFamily,
     /*
     ** Now issue the connect
     */
-    memset ((char *) &sin, 0, sizeof (sin)) ;
+    memset ((char *) &sin, 0, sizeof(sin)) ;
     sin.sin_family = SocketFamily;
     sin.sin_addr.s_addr = inet_addr (LocalHostAddr) ;
     sin.sin_port = LocalHostPort ;
 
-    status = connect (SockDesc2, (struct sockaddr *) &sin, sizeof (sin));
+    status = connect (SockDesc2, (struct sockaddr *) &sin, sizeof(sin));
     if (status < 0 ) {
         LogMessage ("CreateSocketPair: connect () - %d", errno);
         sys$cantim (&sptb, 0);
@@ -528,7 +528,7 @@ static int TerminalDeviceAst (int astparm)
                       TerminalDeviceAst,
                       0,
                       TerminalDeviceBuff,
-                      sizeof (TerminalDeviceBuff) - 1,
+                      sizeof(TerminalDeviceBuff) - 1,
                       0, 0, 0, 0);
 
     /*

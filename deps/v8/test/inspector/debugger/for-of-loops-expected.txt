@@ -9,10 +9,10 @@ function testFunction() {
   var arr = |_|[1];
   var all = |_|[];
   for (var |_|k in |_|arr) { all.|C|push(k); }
-  for (var |_|k of |_|arr) { all.|C|push(k); }
+  for (var |C|k of |_|arr) { all.|C|push(k); }
   for (var |_|k in |_|obj) { all.|C|push(k); }
   for (let |_|k in |_|arr) { all.|C|push(k); }
-  for (let |_|k of |_|arr) { all.|C|push(k); }
+  for (let |C|k of |_|arr) { all.|C|push(k); }
   for (let |_|k in |_|obj) { all.|C|push(k); }
 
   var iterable = |_|{
@@ -28,9 +28,9 @@ function testFunction() {
       };|R|
     }
   };
-  for (var |_|k of |_|iterable) { all.|C|push(k); }
+  for (var |C|k of |_|iterable) { all.|C|push(k); }
   |_|iterable.i = 0;
-  for (let |_|k of |_|iterable) { all.|C|push(k); }
+  for (let |C|k of |_|iterable) { all.|C|push(k); }
 |R|}
 
 (anonymous) (expr.js:0:0)

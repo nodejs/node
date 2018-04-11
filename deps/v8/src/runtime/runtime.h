@@ -120,6 +120,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COMPILER(F)    \
   F(CompileLazy, 1, 1)                    \
   F(CompileOptimized_Concurrent, 1, 1)    \
+  F(FunctionFirstExecution, 1, 1)         \
   F(CompileOptimized_NotConcurrent, 1, 1) \
   F(EvictOptimizedCodeSlot, 1, 1)         \
   F(NotifyDeoptimized, 0, 1)              \
@@ -338,7 +339,8 @@ namespace internal {
   F(Typeof, 1, 1)                                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)                             \
   F(AllowDynamicFunction, 1, 1)                                      \
-  F(GetTemplateObject, 1, 1)
+  F(GetTemplateObject, 1, 1)                                         \
+  F(ReportMessage, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
   F(CreateRegExpLiteral, 4, 1)         \
@@ -373,7 +375,6 @@ namespace internal {
   F(StringToNumber, 1, 1)              \
   F(StringParseInt, 2, 1)              \
   F(StringParseFloat, 1, 1)            \
-  F(NumberToString, 1, 1)              \
   F(NumberToStringSkipCache, 1, 1)     \
   F(NumberToSmi, 1, 1)                 \
   F(SmiLexicographicCompare, 2, 1)     \
@@ -461,26 +462,23 @@ namespace internal {
   F(GreaterThanOrEqual, 2, 1)           \
   F(InstanceOf, 2, 1)
 
-#define FOR_EACH_INTRINSIC_PROMISE(F)       \
-  F(EnqueueMicrotask, 1, 1)                 \
-  F(EnqueuePromiseReactionJob, 1, 1)        \
-  F(EnqueuePromiseResolveThenableJob, 1, 1) \
-  F(PromiseHookInit, 2, 1)                  \
-  F(PromiseHookResolve, 1, 1)               \
-  F(PromiseHookBefore, 1, 1)                \
-  F(PromiseHookAfter, 1, 1)                 \
-  F(PromiseMarkAsHandled, 1, 1)             \
-  F(PromiseRejectEventFromStack, 2, 1)      \
-  F(PromiseRevokeReject, 1, 1)              \
-  F(PromiseResult, 1, 1)                    \
-  F(PromiseStatus, 1, 1)                    \
+#define FOR_EACH_INTRINSIC_PROMISE(F)  \
+  F(EnqueueMicrotask, 1, 1)            \
+  F(PromiseHookInit, 2, 1)             \
+  F(PromiseHookResolve, 1, 1)          \
+  F(PromiseHookBefore, 1, 1)           \
+  F(PromiseHookAfter, 1, 1)            \
+  F(PromiseMarkAsHandled, 1, 1)        \
+  F(PromiseRejectEventFromStack, 2, 1) \
+  F(PromiseRevokeReject, 1, 1)         \
+  F(PromiseResult, 1, 1)               \
+  F(PromiseStatus, 1, 1)               \
   F(ReportPromiseReject, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F) \
   F(IsJSProxy, 1, 1)                \
   F(JSProxyGetTarget, 1, 1)         \
   F(JSProxyGetHandler, 1, 1)        \
-  F(JSProxyRevoke, 1, 1)            \
   F(GetPropertyWithReceiver, 2, 1)  \
   F(CheckProxyHasTrap, 2, 1)        \
   F(SetPropertyWithReceiver, 5, 1)  \
@@ -629,9 +627,10 @@ namespace internal {
   F(HeapObjectVerify, 1, 1)                   \
   F(WasmNumInterpretedCalls, 1, 1)            \
   F(RedirectToWasmInterpreter, 2, 1)          \
-  F(WasmTraceMemory, 4, 1)                    \
+  F(WasmTraceMemory, 1, 1)                    \
   F(CompleteInobjectSlackTracking, 1, 1)      \
-  F(IsLiftoffFunction, 1, 1)
+  F(IsLiftoffFunction, 1, 1)                  \
+  F(FreezeWasmLazyCompilation, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
   F(ArrayBufferGetByteLength, 1, 1)      \
@@ -681,6 +680,7 @@ namespace internal {
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadPropertyWithInterceptor, 5, 1)       \
   F(StoreCallbackProperty, 6, 1)             \
+  F(StoreGlobalIC_Miss, 4, 1)                \
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
   F(StorePropertyWithInterceptor, 5, 1)      \

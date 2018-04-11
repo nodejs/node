@@ -18,7 +18,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-dupe-class-members"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Duplicate name '{{name}}'."
+        }
     },
 
     create(context) {
@@ -102,7 +106,7 @@ module.exports = {
                 }
 
                 if (isDuplicate) {
-                    context.report({ node, message: "Duplicate name '{{name}}'.", data: { name } });
+                    context.report({ node, messageId: "unexpected", data: { name } });
                 }
             }
         };

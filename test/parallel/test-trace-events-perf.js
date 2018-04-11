@@ -26,12 +26,12 @@ if (process.argv[2] === 'child') {
 
   const expectedMarks = ['A', 'B'];
   const expectedBegins = [
-    { cat: 'node.perf,node.perf.timerify', name: 'f' },
-    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node,node.perf,node.perf.timerify', name: 'f' },
+    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' }
   ];
   const expectedEnds = [
-    { cat: 'node.perf,node.perf.timerify', name: 'f' },
-    { cat: 'node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node,node.perf,node.perf.timerify', name: 'f' },
+    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' }
   ];
 
   const proc = cp.fork(__filename,
@@ -60,8 +60,10 @@ if (process.argv[2] === 'child') {
         assert.strictEqual(trace.pid, proc.pid);
         switch (trace.ph) {
           case 'R':
-            assert.strictEqual(trace.cat, 'node.perf,node.perf.usertiming');
-            assert.strictEqual(trace.name, expectedMarks.shift());
+            assert.strictEqual(trace.cat,
+                               'node,node.perf,node.perf.usertiming');
+            assert.strictEqual(trace.name,
+                               expectedMarks.shift());
             break;
           case 'b':
             const expectedBegin = expectedBegins.shift();

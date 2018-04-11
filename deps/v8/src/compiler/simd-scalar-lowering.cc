@@ -19,8 +19,8 @@ namespace {
 static const int kNumLanes32 = 4;
 static const int kNumLanes16 = 8;
 static const int kNumLanes8 = 16;
-static const int32_t kMask16 = 0xffff;
-static const int32_t kMask8 = 0xff;
+static const int32_t kMask16 = 0xFFFF;
+static const int32_t kMask8 = 0xFF;
 static const int32_t kShift16 = 16;
 static const int32_t kShift8 = 24;
 }  // anonymous
@@ -595,7 +595,7 @@ void SimdScalarLowering::LowerConvertFromFloat(Node* node, bool is_signed) {
   Node* min = graph()->NewNode(
       common()->Float64Constant(static_cast<double>(is_signed ? kMinInt : 0)));
   Node* max = graph()->NewNode(common()->Float64Constant(
-      static_cast<double>(is_signed ? kMaxInt : 0xffffffffu)));
+      static_cast<double>(is_signed ? kMaxInt : 0xFFFFFFFFu)));
   for (int i = 0; i < kNumLanes32; ++i) {
     Node* double_rep =
         graph()->NewNode(machine()->ChangeFloat32ToFloat64(), rep[i]);
@@ -913,7 +913,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       DCHECK_EQ(1, node->InputCount());
       Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
       Node* rep_node[kNumLanes32];
-      Node* mask = graph()->NewNode(common()->Int32Constant(0xffffffff));
+      Node* mask = graph()->NewNode(common()->Int32Constant(0xFFFFFFFF));
       for (int i = 0; i < kNumLanes32; ++i) {
         rep_node[i] = graph()->NewNode(machine()->Word32Xor(), rep[i], mask);
       }

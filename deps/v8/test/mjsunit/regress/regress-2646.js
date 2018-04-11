@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --heap-stats
-
 var expectedItemsCount = 10000,
     itemSize = 5,
     heap = new ArrayBuffer(expectedItemsCount * itemSize * 8),

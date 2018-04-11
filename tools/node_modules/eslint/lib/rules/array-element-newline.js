@@ -41,7 +41,12 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedLineBreak: "There should be no linebreak here.",
+            missingLineBreak: "There should be a linebreak after this element."
+        }
     },
 
     create(context) {
@@ -54,16 +59,16 @@ module.exports = {
         /**
          * Normalizes a given option value.
          *
-         * @param {string|Object|undefined} option - An option value to parse.
+         * @param {string|Object|undefined} providedOption - An option value to parse.
          * @returns {{multiline: boolean, minItems: number}} Normalized option object.
          */
-        function normalizeOptionValue(option) {
+        function normalizeOptionValue(providedOption) {
             let multiline = false;
             let minItems;
 
-            option = option || "always";
+            const option = providedOption || "always";
 
-            if (option === "always" || option.minItems === 0) {
+            if (!option || option === "always" || option.minItems === 0) {
                 minItems = 0;
             } else if (option === "never") {
                 minItems = Number.POSITIVE_INFINITY;
@@ -100,7 +105,7 @@ module.exports = {
                     start: tokenBefore.loc.end,
                     end: token.loc.start
                 },
-                message: "There should be no linebreak here.",
+                messageId: "unexpectedLineBreak",
                 fix(fixer) {
                     if (astUtils.isCommentToken(tokenBefore)) {
                         return null;
@@ -149,7 +154,7 @@ module.exports = {
                     start: tokenBefore.loc.end,
                     end: token.loc.start
                 },
-                message: "There should be a linebreak after this element.",
+                messageId: "missingLineBreak",
                 fix(fixer) {
                     return fixer.replaceTextRange([tokenBefore.range[1], token.range[0]], "\n");
                 }

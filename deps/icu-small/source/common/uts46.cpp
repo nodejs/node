@@ -1126,7 +1126,6 @@ isASCIIOkBiDi(const char *s, int32_t length) {
 
 UBool
 UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
-    const UBiDiProps *bdp=ubidi_getSingleton();
     // [IDNA2008-Tables]
     // 200C..200D  ; CONTEXTJ    # ZERO WIDTH NON-JOINER..ZERO WIDTH JOINER
     for(int32_t i=0; i<labelLength; ++i) {
@@ -1148,7 +1147,7 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
             }
             // check precontext (Joining_Type:{L,D})(Joining_Type:T)*
             for(;;) {
-                UJoiningType type=ubidi_getJoiningType(bdp, c);
+                UJoiningType type=ubidi_getJoiningType(c);
                 if(type==U_JT_TRANSPARENT) {
                     if(j==0) {
                         return FALSE;
@@ -1166,7 +1165,7 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
                     return FALSE;
                 }
                 U16_NEXT_UNSAFE(label, j, c);
-                UJoiningType type=ubidi_getJoiningType(bdp, c);
+                UJoiningType type=ubidi_getJoiningType(c);
                 if(type==U_JT_TRANSPARENT) {
                     // just skip this character
                 } else if(type==U_JT_RIGHT_JOINING || type==U_JT_DUAL_JOINING) {

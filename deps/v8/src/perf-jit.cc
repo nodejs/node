@@ -87,7 +87,7 @@ struct PerfJitDebugEntry {
   uint64_t address_;
   int line_number_;
   int column_;
-  // Followed by null-terminated name or \0xff\0 if same as previous.
+  // Followed by null-terminated name or \0xFF\0 if same as previous.
 };
 
 struct PerfJitCodeDebugInfo : PerfJitBase {
@@ -396,7 +396,7 @@ void PerfJitLogger::LogWriteHeader() {
   header.version_ = PerfJitHeader::kVersion;
   header.size_ = sizeof(header);
   header.elf_mach_target_ = GetElfMach();
-  header.reserved_ = 0xdeadbeef;
+  header.reserved_ = 0xDEADBEEF;
   header.process_id_ = base::OS::GetCurrentProcessId();
   header.time_stamp_ =
       static_cast<uint64_t>(V8::GetCurrentPlatform()->CurrentClockTimeMillis() *

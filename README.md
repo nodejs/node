@@ -48,12 +48,13 @@ When looking for support, please first search for your question in these venues:
 * [Node.js Website][]
 * [Node.js Help][]
 * [Open or closed issues in the Node.js GitHub organization](https://github.com/issues?utf8=%E2%9C%93&q=sort%3Aupdated-desc+org%3Anodejs+is%3Aissue)
+
+If you didn't find an answer in one of the official resources above, you can
+search these unofficial resources:
+
 * [Questions tagged 'node.js' on StackOverflow][]
-
-If you didn't find an answer in one of the venues above, you can:
-
-* Join the **unofficial** [#node.js channel on chat.freenode.net][]. See
-<http://nodeirc.info/> for more information.
+* [#node.js channel on chat.freenode.net][]. See <http://nodeirc.info/> for more
+  information.
 
 GitHub issues are meant for tracking enhancements and bugs, not general support.
 
@@ -295,8 +296,6 @@ For more information about the governance of the Node.js project, see
 
 ### Collaborators
 
-* [abouthiroppy](https://github.com/abouthiroppy) -
-**Yuta Hiroto** &lt;hello@about-hiroppy.com&gt; (he/him)
 * [addaleax](https://github.com/addaleax) -
 **Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [ak239](https://github.com/ak239) -
@@ -315,6 +314,8 @@ For more information about the governance of the Node.js project, see
 **Bryan English** &lt;bryan@bryanenglish.com&gt; (he/him)
 * [benjamingr](https://github.com/benjamingr) -
 **Benjamin Gruenbaum** &lt;benjamingr@gmail.com&gt;
+* [BethGriggs](https://github.com/BethGriggs) -
+**Beth Griggs** &lt;Bethany.Griggs@uk.ibm.com&gt; (she/her)
 * [bmeck](https://github.com/bmeck) -
 **Bradley Farias** &lt;bradley.meck@gmail.com&gt;
 * [bmeurer](https://github.com/bmeurer) -
@@ -371,6 +372,8 @@ For more information about the governance of the Node.js project, see
 **Guy Bedford** &lt;guybedford@gmail.com&gt; (he/him)
 * [hashseed](https://github.com/hashseed) -
 **Yang Guo** &lt;yangguo@chromium.org&gt; (he/him)
+* [hiroppy](https://github.com/hiroppy) -
+**Yuta Hiroto** &lt;hello@hiroppy.me&gt; (he/him)
 * [iarna](https://github.com/iarna) -
 **Rebecca Turner** &lt;me@re-becca.org&gt;
 * [imran-iq](https://github.com/imran-iq) -
@@ -417,6 +420,8 @@ For more information about the governance of the Node.js project, see
 **Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
 * [maclover7](https://github.com/maclover7) -
 **Jon Moss** &lt;me@jonathanmoss.me&gt; (he/him)
+* [mafintosh](https://github.com/mafintosh)
+**Mathias Buus** &lt;mathiasbuus@gmail.com&gt; (he/him)
 * [mcollina](https://github.com/mcollina) -
 **Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
@@ -501,6 +506,8 @@ For more information about the governance of the Node.js project, see
 **Tobias Nießen** &lt;tniessen@tnie.de&gt;
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
+* [trivikr](https://github.com/trivikr) -
+**Trivikram Kamat** &lt;trivikr.dev@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 * [tunniclm](https://github.com/tunniclm) -
@@ -513,6 +520,8 @@ For more information about the governance of the Node.js project, see
 **Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
 * [watilde](https://github.com/watilde) -
 **Daijiro Wachi** &lt;daijiro.wachi@gmail.com&gt; (he/him)
+* [watson](https://github.com/watson) -
+**Thomas Watson** &lt;w@tson.dk&gt;
 * [whitlockjc](https://github.com/whitlockjc) -
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 * [XadillaX](https://github.com/XadillaX) -

@@ -27,16 +27,16 @@ module.exports = optionator({
             heading: "Basic configuration"
         },
         {
-            option: "config",
-            alias: "c",
-            type: "path::String",
-            description: "Use configuration from this file or shareable config"
-        },
-        {
             option: "eslintrc",
             type: "Boolean",
             default: "true",
-            description: "Disable use of configuration from .eslintrc"
+            description: "Disable use of configuration from .eslintrc.*"
+        },
+        {
+            option: "config",
+            alias: "c",
+            type: "path::String",
+            description: "Use this configuration, overriding .eslintrc.* config options if present"
         },
         {
             option: "env",

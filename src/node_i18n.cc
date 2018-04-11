@@ -852,10 +852,10 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(width);
 }
 
-void Init(Local<Object> target,
-          Local<Value> unused,
-          Local<Context> context,
-          void* priv) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "toUnicode", ToUnicode);
   env->SetMethod(target, "toASCII", ToASCII);
@@ -875,6 +875,6 @@ void Init(Local<Object> target,
 }  // namespace i18n
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(icu, node::i18n::Init)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(icu, node::i18n::Initialize)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

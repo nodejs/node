@@ -90,6 +90,36 @@
       ],
     },
     {
+      'target_name': 'v8_simple_multi_return_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'multi_return_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'multi_return_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        '../../src/v8.gyp:v8_libplatform',
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        '../compiler/c-signature.h',
+        '../compiler/call-helper.h',
+        '../compiler/raw-machine-assembler-tester.h',
+        'multi-return.cc',
+      ],
+    },
+    {
       'target_name': 'v8_simple_wasm_fuzzer',
       'type': 'executable',
       'dependencies': [

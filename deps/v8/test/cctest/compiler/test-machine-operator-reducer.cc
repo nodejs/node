@@ -447,12 +447,12 @@ static void CheckJsShift(ReducerTester* R) {
 
   Node* x = R->Parameter(0);
   Node* y = R->Parameter(1);
-  Node* thirty_one = R->Constant<int32_t>(0x1f);
+  Node* thirty_one = R->Constant<int32_t>(0x1F);
   Node* y_and_thirty_one =
       R->graph.NewNode(R->machine.Word32And(), y, thirty_one);
 
   // If the underlying machine shift instructions 'and' their right operand
-  // with 0x1f then:  x << (y & 0x1f) => x << y
+  // with 0x1F then:  x << (y & 0x1F) => x << y
   R->CheckFoldBinop(x, y, x, y_and_thirty_one);
 }
 

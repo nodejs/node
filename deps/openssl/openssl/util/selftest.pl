@@ -1,7 +1,12 @@
-#!/usr/local/bin/perl -w
+#! /usr/bin/env perl
+# Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 # Run the test suite and generate a report
-#
 
 if (! -f "Configure") {
     print "Please run perl util/selftest.pl in the OpenSSL directory.\n";
@@ -54,7 +59,7 @@ $cversion=`$cc -V |head -1` if $cversion =~ "Error";
 $cversion=`$cc --version` if $cversion eq "";
 $cversion =~ s/Reading specs.*\n//;
 $cversion =~ s/usage.*\n//;
-chomp $cversion;
+$cversion =~ s|\R$||;
 
 if (open(IN,"<CHANGES")) {
     while(<IN>) {

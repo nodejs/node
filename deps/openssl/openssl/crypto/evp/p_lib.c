@@ -1,92 +1,43 @@
-/* crypto/evp/p_lib.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
-#include <openssl/asn1_mac.h>
 #include <openssl/x509.h>
-#ifndef OPENSSL_NO_RSA
-# include <openssl/rsa.h>
-#endif
-#ifndef OPENSSL_NO_DSA
-# include <openssl/dsa.h>
-#endif
-#ifndef OPENSSL_NO_DH
-# include <openssl/dh.h>
-#endif
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
+#include <openssl/dh.h>
+#include <openssl/engine.h>
 
-#ifndef OPENSSL_NO_ENGINE
-# include <openssl/engine.h>
-#endif
-
-#include "asn1_locl.h"
+#include "internal/asn1_int.h"
+#include "internal/evp_int.h"
 
 static void EVP_PKEY_free_it(EVP_PKEY *x);
 
-int EVP_PKEY_bits(EVP_PKEY *pkey)
+int EVP_PKEY_bits(const EVP_PKEY *pkey)
 {
     if (pkey && pkey->ameth && pkey->ameth->pkey_bits)
         return pkey->ameth->pkey_bits(pkey);
     return 0;
+}
+
+int EVP_PKEY_security_bits(const EVP_PKEY *pkey)
+{
+    if (pkey == NULL)
+        return 0;
+    if (!pkey->ameth || !pkey->ameth->pkey_security_bits)
+        return -2;
+    return pkey->ameth->pkey_security_bits(pkey);
 }
 
 int EVP_PKEY_size(EVP_PKEY *pkey)
@@ -121,7 +72,10 @@ int EVP_PKEY_save_parameters(EVP_PKEY *pkey, int mode)
 
 int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from)
 {
-    if (to->type != from->type) {
+    if (to->type == EVP_PKEY_NONE) {
+        if (EVP_PKEY_set_type(to, from->type) == 0)
+            return 0;
+    } else if (to->type != from->type) {
         EVPerr(EVP_F_EVP_PKEY_COPY_PARAMETERS, EVP_R_DIFFERENT_KEY_TYPES);
         goto err;
     }
@@ -183,22 +137,35 @@ int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b)
 
 EVP_PKEY *EVP_PKEY_new(void)
 {
-    EVP_PKEY *ret;
+    EVP_PKEY *ret = OPENSSL_zalloc(sizeof(*ret));
 
-    ret = (EVP_PKEY *)OPENSSL_malloc(sizeof(EVP_PKEY));
     if (ret == NULL) {
         EVPerr(EVP_F_EVP_PKEY_NEW, ERR_R_MALLOC_FAILURE);
-        return (NULL);
+        return NULL;
     }
     ret->type = EVP_PKEY_NONE;
     ret->save_type = EVP_PKEY_NONE;
     ret->references = 1;
-    ret->ameth = NULL;
-    ret->engine = NULL;
-    ret->pkey.ptr = NULL;
-    ret->attributes = NULL;
     ret->save_parameters = 1;
-    return (ret);
+    ret->lock = CRYPTO_THREAD_lock_new();
+    if (ret->lock == NULL) {
+        EVPerr(EVP_F_EVP_PKEY_NEW, ERR_R_MALLOC_FAILURE);
+        OPENSSL_free(ret);
+        return NULL;
+    }
+    return ret;
+}
+
+int EVP_PKEY_up_ref(EVP_PKEY *pkey)
+{
+    int i;
+
+    if (CRYPTO_atomic_add(&pkey->references, 1, &i, pkey->lock) <= 0)
+        return 0;
+
+    REF_PRINT_COUNT("EVP_PKEY", pkey);
+    REF_ASSERT_ISNT(i < 2);
+    return ((i > 1) ? 1 : 0);
 }
 
 /*
@@ -220,11 +187,11 @@ static int pkey_set_type(EVP_PKEY *pkey, int type, const char *str, int len)
         if ((type == pkey->save_type) && pkey->ameth)
             return 1;
 #ifndef OPENSSL_NO_ENGINE
-        /* If we have an ENGINE release it */
-        if (pkey->engine) {
-            ENGINE_finish(pkey->engine);
-            pkey->engine = NULL;
-        }
+        /* If we have ENGINEs release them */
+        ENGINE_finish(pkey->engine);
+        pkey->engine = NULL;
+        ENGINE_finish(pkey->pmeth_engine);
+        pkey->pmeth_engine = NULL;
 #endif
     }
     if (str)
@@ -232,10 +199,10 @@ static int pkey_set_type(EVP_PKEY *pkey, int type, const char *str, int len)
     else
         ameth = EVP_PKEY_asn1_find(&e, type);
 #ifndef OPENSSL_NO_ENGINE
-    if (!pkey && e)
+    if (pkey == NULL)
         ENGINE_finish(e);
 #endif
-    if (!ameth) {
+    if (ameth == NULL) {
         EVPerr(EVP_F_PKEY_SET_TYPE, EVP_R_UNSUPPORTED_ALGORITHM);
         return 0;
     }
@@ -258,7 +225,25 @@ int EVP_PKEY_set_type_str(EVP_PKEY *pkey, const char *str, int len)
 {
     return pkey_set_type(pkey, EVP_PKEY_NONE, str, len);
 }
-
+#ifndef OPENSSL_NO_ENGINE
+int EVP_PKEY_set1_engine(EVP_PKEY *pkey, ENGINE *e)
+{
+    if (e != NULL) {
+        if (!ENGINE_init(e)) {
+            EVPerr(EVP_F_EVP_PKEY_SET1_ENGINE, ERR_R_ENGINE_LIB);
+            return 0;
+        }
+        if (ENGINE_get_pkey_meth(e, pkey->type) == NULL) {
+            ENGINE_finish(e);
+            EVPerr(EVP_F_EVP_PKEY_SET1_ENGINE, EVP_R_UNSUPPORTED_ALGORITHM);
+            return 0;
+        }
+    }
+    ENGINE_finish(pkey->pmeth_engine);
+    pkey->pmeth_engine = e;
+    return 1;
+}
+#endif
 int EVP_PKEY_assign(EVP_PKEY *pkey, int type, void *key)
 {
     if (pkey == NULL || !EVP_PKEY_set_type(pkey, type))
@@ -267,9 +252,21 @@ int EVP_PKEY_assign(EVP_PKEY *pkey, int type, void *key)
     return (key != NULL);
 }
 
-void *EVP_PKEY_get0(EVP_PKEY *pkey)
+void *EVP_PKEY_get0(const EVP_PKEY *pkey)
 {
     return pkey->pkey.ptr;
+}
+
+const unsigned char *EVP_PKEY_get0_hmac(const EVP_PKEY *pkey, size_t *len)
+{
+    ASN1_OCTET_STRING *os = NULL;
+    if (pkey->type != EVP_PKEY_HMAC) {
+        EVPerr(EVP_F_EVP_PKEY_GET0_HMAC, EVP_R_EXPECTING_AN_HMAC_KEY);
+        return NULL;
+    }
+    os = EVP_PKEY_get0(pkey);
+    *len = os->length;
+    return os->data;
 }
 
 #ifndef OPENSSL_NO_RSA
@@ -281,14 +278,21 @@ int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key)
     return ret;
 }
 
-RSA *EVP_PKEY_get1_RSA(EVP_PKEY *pkey)
+RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_RSA) {
-        EVPerr(EVP_F_EVP_PKEY_GET1_RSA, EVP_R_EXPECTING_AN_RSA_KEY);
+        EVPerr(EVP_F_EVP_PKEY_GET0_RSA, EVP_R_EXPECTING_AN_RSA_KEY);
         return NULL;
     }
-    RSA_up_ref(pkey->pkey.rsa);
     return pkey->pkey.rsa;
+}
+
+RSA *EVP_PKEY_get1_RSA(EVP_PKEY *pkey)
+{
+    RSA *ret = EVP_PKEY_get0_RSA(pkey);
+    if (ret != NULL)
+        RSA_up_ref(ret);
+    return ret;
 }
 #endif
 
@@ -301,14 +305,21 @@ int EVP_PKEY_set1_DSA(EVP_PKEY *pkey, DSA *key)
     return ret;
 }
 
-DSA *EVP_PKEY_get1_DSA(EVP_PKEY *pkey)
+DSA *EVP_PKEY_get0_DSA(EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_DSA) {
-        EVPerr(EVP_F_EVP_PKEY_GET1_DSA, EVP_R_EXPECTING_A_DSA_KEY);
+        EVPerr(EVP_F_EVP_PKEY_GET0_DSA, EVP_R_EXPECTING_A_DSA_KEY);
         return NULL;
     }
-    DSA_up_ref(pkey->pkey.dsa);
     return pkey->pkey.dsa;
+}
+
+DSA *EVP_PKEY_get1_DSA(EVP_PKEY *pkey)
+{
+    DSA *ret = EVP_PKEY_get0_DSA(pkey);
+    if (ret != NULL)
+        DSA_up_ref(ret);
+    return ret;
 }
 #endif
 
@@ -322,14 +333,21 @@ int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key)
     return ret;
 }
 
-EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey)
+EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_EC) {
-        EVPerr(EVP_F_EVP_PKEY_GET1_EC_KEY, EVP_R_EXPECTING_A_EC_KEY);
+        EVPerr(EVP_F_EVP_PKEY_GET0_EC_KEY, EVP_R_EXPECTING_A_EC_KEY);
         return NULL;
     }
-    EC_KEY_up_ref(pkey->pkey.ec);
     return pkey->pkey.ec;
+}
+
+EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey)
+{
+    EC_KEY *ret = EVP_PKEY_get0_EC_KEY(pkey);
+    if (ret != NULL)
+        EC_KEY_up_ref(ret);
+    return ret;
 }
 #endif
 
@@ -343,14 +361,21 @@ int EVP_PKEY_set1_DH(EVP_PKEY *pkey, DH *key)
     return ret;
 }
 
-DH *EVP_PKEY_get1_DH(EVP_PKEY *pkey)
+DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_DH && pkey->type != EVP_PKEY_DHX) {
-        EVPerr(EVP_F_EVP_PKEY_GET1_DH, EVP_R_EXPECTING_A_DH_KEY);
+        EVPerr(EVP_F_EVP_PKEY_GET0_DH, EVP_R_EXPECTING_A_DH_KEY);
         return NULL;
     }
-    DH_up_ref(pkey->pkey.dh);
     return pkey->pkey.dh;
+}
+
+DH *EVP_PKEY_get1_DH(EVP_PKEY *pkey)
+{
+    DH *ret = EVP_PKEY_get0_DH(pkey);
+    if (ret != NULL)
+        DH_up_ref(ret);
+    return ret;
 }
 #endif
 
@@ -365,8 +390,7 @@ int EVP_PKEY_type(int type)
     else
         ret = NID_undef;
 #ifndef OPENSSL_NO_ENGINE
-    if (e)
-        ENGINE_finish(e);
+    ENGINE_finish(e);
 #endif
     return ret;
 }
@@ -388,35 +412,29 @@ void EVP_PKEY_free(EVP_PKEY *x)
     if (x == NULL)
         return;
 
-    i = CRYPTO_add(&x->references, -1, CRYPTO_LOCK_EVP_PKEY);
-#ifdef REF_PRINT
-    REF_PRINT("EVP_PKEY", x);
-#endif
+    CRYPTO_atomic_add(&x->references, -1, &i, x->lock);
+    REF_PRINT_COUNT("EVP_PKEY", x);
     if (i > 0)
         return;
-#ifdef REF_CHECK
-    if (i < 0) {
-        fprintf(stderr, "EVP_PKEY_free, bad reference count\n");
-        abort();
-    }
-#endif
+    REF_ASSERT_ISNT(i < 0);
     EVP_PKEY_free_it(x);
-    if (x->attributes)
-        sk_X509_ATTRIBUTE_pop_free(x->attributes, X509_ATTRIBUTE_free);
+    CRYPTO_THREAD_lock_free(x->lock);
+    sk_X509_ATTRIBUTE_pop_free(x->attributes, X509_ATTRIBUTE_free);
     OPENSSL_free(x);
 }
 
 static void EVP_PKEY_free_it(EVP_PKEY *x)
 {
+    /* internal function; x is never NULL */
     if (x->ameth && x->ameth->pkey_free) {
         x->ameth->pkey_free(x);
         x->pkey.ptr = NULL;
     }
 #ifndef OPENSSL_NO_ENGINE
-    if (x->engine) {
-        ENGINE_finish(x->engine);
-        x->engine = NULL;
-    }
+    ENGINE_finish(x->engine);
+    x->engine = NULL;
+    ENGINE_finish(x->pmeth_engine);
+    x->pmeth_engine = NULL;
 #endif
 }
 
@@ -455,10 +473,34 @@ int EVP_PKEY_print_params(BIO *out, const EVP_PKEY *pkey,
     return unsup_alg(out, pkey, indent, "Parameters");
 }
 
+static int evp_pkey_asn1_ctrl(EVP_PKEY *pkey, int op, int arg1, void *arg2)
+{
+    if (pkey->ameth == NULL || pkey->ameth->pkey_ctrl == NULL)
+        return -2;
+    return pkey->ameth->pkey_ctrl(pkey, op, arg1, arg2);
+}
+
 int EVP_PKEY_get_default_digest_nid(EVP_PKEY *pkey, int *pnid)
 {
-    if (!pkey->ameth || !pkey->ameth->pkey_ctrl)
-        return -2;
-    return pkey->ameth->pkey_ctrl(pkey, ASN1_PKEY_CTRL_DEFAULT_MD_NID,
-                                  0, pnid);
+    return evp_pkey_asn1_ctrl(pkey, ASN1_PKEY_CTRL_DEFAULT_MD_NID, 0, pnid);
+}
+
+int EVP_PKEY_set1_tls_encodedpoint(EVP_PKEY *pkey,
+                               const unsigned char *pt, size_t ptlen)
+{
+    if (ptlen > INT_MAX)
+        return 0;
+    if (evp_pkey_asn1_ctrl(pkey, ASN1_PKEY_CTRL_SET1_TLS_ENCPT, ptlen,
+                           (void *)pt) <= 0)
+        return 0;
+    return 1;
+}
+
+size_t EVP_PKEY_get1_tls_encodedpoint(EVP_PKEY *pkey, unsigned char **ppt)
+{
+    int rv;
+    rv = evp_pkey_asn1_ctrl(pkey, ASN1_PKEY_CTRL_GET1_TLS_ENCPT, 0, ppt);
+    if (rv <= 0)
+        return 0;
+    return rv;
 }

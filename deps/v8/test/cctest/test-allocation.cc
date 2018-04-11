@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if V8_OS_POSIX
+#include <setjmp.h>
+#include <signal.h>
+#include <unistd.h>  // NOLINT
+#endif
+
 #include "src/v8.h"
 
 #include "test/cctest/cctest.h"
@@ -35,6 +41,11 @@ class AllocationPlatform : public TestPlatform {
 
   void OnCriticalMemoryPressure() override { oom_callback_called = true; }
 
+  bool OnCriticalMemoryPressure(size_t length) override {
+    oom_callback_called = true;
+    return true;
+  }
+
   static AllocationPlatform* current_platform;
   bool oom_callback_called = false;
 };
@@ -54,7 +65,7 @@ size_t GetHugeMemoryAmount() {
   static size_t huge_memory = 0;
   if (!huge_memory) {
     for (int i = 0; i < 100; i++) {
-      huge_memory |= bit_cast<size_t>(v8::base::OS::GetRandomMmapAddr());
+      huge_memory |= bit_cast<size_t>(v8::internal::GetRandomMmapAddr());
     }
     // Make it larger than the available address space.
     huge_memory *= 2;
@@ -122,7 +133,7 @@ TEST(AlignedAllocOOM) {
   // On failure, this won't return, since an AlignedAlloc failure is fatal.
   // In that case, behavior is checked in OnAlignedAllocOOM before exit.
   void* result = v8::internal::AlignedAlloc(GetHugeMemoryAmount(),
-                                            v8::base::OS::AllocatePageSize());
+                                            v8::internal::AllocatePageSize());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
@@ -143,7 +154,7 @@ TEST(AlignedAllocVirtualMemoryOOM) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result;
   bool success = v8::internal::AlignedAllocVirtualMemory(
-      GetHugeMemoryAmount(), v8::base::OS::AllocatePageSize(), nullptr,
+      GetHugeMemoryAmount(), v8::internal::AllocatePageSize(), nullptr,
       &result);
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(success, result.IsReserved());

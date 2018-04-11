@@ -811,12 +811,12 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
 }
 
 Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
-  GrowFastElementsMode mode = GrowFastElementsModeOf(node->op());
+  GrowFastElementsParameters params = GrowFastElementsParametersOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (mode == GrowFastElementsMode::kDoubleElements) {
+  if (params.mode() == GrowFastElementsMode::kDoubleElements) {
     // We know that the resulting elements have the fixed double array map.
     state = state->SetMaps(
         node, ZoneHandleSet<Map>(factory()->fixed_double_array_map()), zone());

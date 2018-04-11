@@ -9,7 +9,7 @@ function testParseREPLKeyword() {
   const server = repl.start({ prompt: '> ' });
   const warn = 'REPLServer.parseREPLKeyword() is deprecated';
 
-  common.expectWarning('DeprecationWarning', warn);
+  common.expectWarning('DeprecationWarning', warn, 'DEP0075');
   assert.ok(server.parseREPLKeyword('clear'));
   assert.ok(!server.parseREPLKeyword('tacos'));
   server.close();

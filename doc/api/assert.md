@@ -1,6 +1,6 @@
 # Assert
 
-<!--introduced_in=v0.10.0-->
+<!--introduced_in=v0.1.21-->
 
 > Stability: 2 - Stable
 
@@ -13,14 +13,78 @@ A `strict` and a `legacy` mode exist, while it is recommended to only use
 For more information about the used equality comparisons see
 [MDN's guide on equality comparisons and sameness][mdn-equality-guide].
 
+## Class: assert.AssertionError
+
+A subclass of `Error` that indicates the failure of an assertion. All errors
+thrown by the `assert` module will be instances of the `AssertionError` class.
+
+### new assert.AssertionError(options)
+<!-- YAML
+added: v0.1.21
+-->
+* `options` {Object}
+  * `message` {string} If provided, the error message is going to be set to this
+    value.
+  * `actual` {any} The `actual` property on the error instance is going to
+    contain this value. Internally used for the `actual` error input in case
+    e.g., [`assert.strictEqual()`] is used.
+  * `expected` {any} The `expected` property on the error instance is going to
+    contain this value. Internally used for the `expected` error input in case
+    e.g., [`assert.strictEqual()`] is used.
+  * `operator` {string} The `operator` property on the error instance is going
+    to contain this value. Internally used to indicate what operation was used
+    for comparison (or what assertion function triggered the error).
+  * `stackStartFn` {Function} If provided, the generated stack trace is going to
+    remove all frames up to the provided function.
+
+A subclass of `Error` that indicates the failure of an assertion.
+
+All instances contain the built-in `Error` properties (`message` and `name`)
+and:
+
+* `actual` {any} Set to the actual value in case e.g.,
+  [`assert.strictEqual()`] is used.
+* `expected` {any} Set to the expected value in case e.g.,
+  [`assert.strictEqual()`] is used.
+* `generatedMessage` {boolean} Indicates if the message was auto-generated
+  (`true`) or not.
+* `code` {string} This is always set to the string `ERR_ASSERTION` to indicate
+  that the error is actually an assertion error.
+* `operator` {string} Set to the passed in operator value.
+
+```js
+const assert = require('assert');
+
+// Generate an AssertionError to compare the error message later:
+const { message } = new assert.AssertionError({
+  actual: 1,
+  expected: 2,
+  operator: 'strictEqual'
+});
+
+// Verify error output:
+try {
+  assert.strictEqual(1, 2);
+} catch (err) {
+  assert(err instanceof assert.AssertionError);
+  assert.strictEqual(err.message, message);
+  assert.strictEqual(err.name, 'AssertionError [ERR_ASSERTION]');
+  assert.strictEqual(err.actual, 1);
+  assert.strictEqual(err.expected, 2);
+  assert.strictEqual(err.code, 'ERR_ASSERTION');
+  assert.strictEqual(err.operator, 'strictEqual');
+  assert.strictEqual(err.generatedMessage, true);
+}
+```
+
 ## Strict mode
 <!-- YAML
-added: REPLACEME
+added: v9.9.0
 changes:
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17615
     description: Added error diffs to the strict mode
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17002
     description: Added strict mode to the assert module.
 -->
@@ -73,8 +137,8 @@ Please note that this will also deactivate the colors in the REPL.
 > Stability: 0 - Deprecated: Use strict mode instead.
 
 When accessing `assert` directly instead of using the `strict` property, the
-[Abstract Equality Comparison][] will be used for any function without a
-"strict" in its name (e.g. [`assert.deepEqual()`][]).
+[Abstract Equality Comparison][] will be used for any function without "strict"
+in its name, such as [`assert.deepEqual()`][].
 
 It can be accessed using:
 
@@ -83,11 +147,9 @@ const assert = require('assert');
 ```
 
 It is recommended to use the [`strict mode`][] instead as the
-[Abstract Equality Comparison][] can often have surprising results. Especially
-in case of [`assert.deepEqual()`][] as the used comparison rules there are very
-lax.
-
-E.g.
+[Abstract Equality Comparison][] can often have surprising results. This is
+especially true for [`assert.deepEqual()`][], where the comparison rules are
+lax:
 
 ```js
 // WARNING: This does not throw an AssertionError!
@@ -312,6 +374,49 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
+## assert.doesNotReject(block[, error][, message])
+<!-- YAML
+added: REPLACEME
+-->
+* `block` {Function}
+* `error` {RegExp|Function}
+* `message` {any}
+
+Awaits for the promise returned by function `block` to complete and not be
+rejected.
+
+Please note: Using `assert.doesNotReject()` is actually not useful because there
+is little benefit by catching a rejection and then rejecting it again. Instead,
+consider adding a comment next to the specific code path that should not reject
+and keep error messages as expressive as possible.
+
+When `assert.doesNotReject()` is called, it will immediately call the `block`
+function, and awaits for completion. See [`assert.rejects()`][] for more
+details.
+
+Besides the async nature to await the completion behaves identically to
+[`assert.doesNotThrow()`][].
+
+```js
+(async () => {
+  await assert.doesNotReject(
+    async () => {
+      throw new TypeError('Wrong value');
+    },
+    SyntaxError
+  );
+})();
+```
+
+```js
+assert.doesNotReject(
+  () => Promise.reject(new TypeError('Wrong value')),
+  SyntaxError
+).then(() => {
+  // ...
+});
+```
+
 ## assert.doesNotThrow(block[, error][, message])
 <!-- YAML
 added: v0.1.21
@@ -329,6 +434,11 @@ changes:
 
 Asserts that the function `block` does not throw an error. See
 [`assert.throws()`][] for more details.
+
+Please note: Using `assert.doesNotThrow()` is actually not useful because there
+is no benefit by catching an error and then rethrowing it. Instead, consider
+adding a comment next to the specific code path that should not throw and keep
+error messages as expressive as possible.
 
 When `assert.doesNotThrow()` is called, it will immediately call the `block`
 function.
@@ -410,7 +520,7 @@ assert.equal(1, '1');
 assert.equal(1, 2);
 // AssertionError: 1 == 2
 assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
-//AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
+// AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -457,7 +567,7 @@ changes:
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
-* `operator` {string} **Default:** '!='
+* `operator` {string} **Default:** `'!='`
 * `stackStartFunction` {Function} **Default:** `assert.fail`
 
 > Stability: 0 - Deprecated: Use `assert.fail([message])` or other assert
@@ -802,6 +912,48 @@ assert(0);
 //   assert(0)
 ```
 
+## assert.rejects(block[, error][, message])
+<!-- YAML
+added: REPLACEME
+-->
+* `block` {Function}
+* `error` {RegExp|Function|Object}
+* `message` {any}
+
+Awaits for promise returned by function `block` to be rejected.
+
+When `assert.rejects()` is called, it will immediately call the `block`
+function, and awaits for completion.
+
+Besides the async nature to await the completion behaves identically to
+[`assert.throws()`][].
+
+If specified, `error` can be a constructor, [`RegExp`][], a validation
+function, or an object where each property will be tested for.
+
+If specified, `message` will be the message provided by the `AssertionError` if
+the block fails to reject.
+
+```js
+(async () => {
+  await assert.rejects(
+    async () => {
+      throw new Error('Wrong value');
+    },
+    Error
+  );
+})();
+```
+
+```js
+assert.rejects(
+  () => Promise.reject(new Error('Wrong value')),
+  Error
+).then(() => {
+  // ...
+});
+```
+
 ## assert.strictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
@@ -840,7 +992,7 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17584
     description: The `error` parameter can now be an object as well.
   - version: v4.2.0
@@ -967,9 +1119,11 @@ second argument. This might lead to difficult-to-spot errors.
 [`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
+[`assert.doesNotThrow()`]: #assert_assert_doesnotthrow_block_error_message
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
 [`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
+[`assert.rejects()`]: #assert_assert_rejects_block_error_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
 [`strict mode`]: #assert_strict_mode

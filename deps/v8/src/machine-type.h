@@ -39,7 +39,7 @@ static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
                   kIntSize * kBitsPerByte,
               "Bit masks of MachineRepresentation should fit in an int");
 
-const char* MachineReprToString(MachineRepresentation);
+V8_EXPORT_PRIVATE const char* MachineReprToString(MachineRepresentation);
 
 enum class MachineSemantic : uint8_t {
   kNone,

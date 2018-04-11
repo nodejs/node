@@ -249,7 +249,7 @@ class SSLWrap {
   static const int64_t kExternalSize = 4448 + 1024 + 42 * 1024;
 #endif
 
-  static void InitNPN(SecureContext* sc);
+  static void ConfigureSecureContext(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -269,6 +269,8 @@ class SSLWrap {
 
   static void GetPeerCertificate(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPeerFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -292,22 +294,6 @@ class SSLWrap {
   static void SetMaxSendFragment(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // SSL_set_max_send_fragment
-
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  static void GetNegotiatedProto(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static int AdvertiseNextProtoCallback(SSL* s,
-                                        const unsigned char** data,
-                                        unsigned int* len,
-                                        void* arg);
-  static int SelectNextProtoCallback(SSL* s,
-                                     unsigned char** out,
-                                     unsigned char* outlen,
-                                     const unsigned char* in,
-                                     unsigned int inlen,
-                                     void* arg);
-#endif  // OPENSSL_NO_NEXTPROTONEG
 
   static void GetALPNNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -368,19 +354,31 @@ class CipherBase : public BaseObject {
     kCipher,
     kDecipher
   };
+  enum UpdateResult {
+    kSuccess,
+    kErrorMessageSize,
+    kErrorState
+  };
 
-  void Init(const char* cipher_type, const char* key_buf, int key_buf_len);
+  void Init(const char* cipher_type,
+            const char* key_buf,
+            int key_buf_len,
+            int auth_tag_len);
   void InitIv(const char* cipher_type,
               const char* key,
               int key_len,
               const char* iv,
-              int iv_len);
-  bool Update(const char* data, int len, unsigned char** out, int* out_len);
+              int iv_len,
+              int auth_tag_len);
+  bool InitAuthenticated(const char *cipher_type, int iv_len, int auth_tag_len);
+  bool CheckCCMMessageLength(int message_len);
+  UpdateResult Update(const char* data, int len, unsigned char** out,
+                      int* out_len);
   bool Final(unsigned char** out, int *out_len);
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
-  bool SetAAD(const char* data, unsigned int len);
+  bool SetAAD(const char* data, unsigned int len, int plaintext_len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -399,15 +397,20 @@ class CipherBase : public BaseObject {
       : BaseObject(env, wrap),
         ctx_(nullptr),
         kind_(kind),
-        auth_tag_len_(0) {
+        auth_tag_set_(false),
+        auth_tag_len_(0),
+        pending_auth_failed_(false) {
     MakeWeak<CipherBase>(this);
   }
 
  private:
   EVP_CIPHER_CTX* ctx_;
   const CipherKind kind_;
+  bool auth_tag_set_;
   unsigned int auth_tag_len_;
   char auth_tag_[EVP_GCM_TLS_TAG_LEN];
+  bool pending_auth_failed_;
+  int max_message_size_;
 };
 
 class Hmac : public BaseObject {
@@ -625,6 +628,10 @@ class ECDH : public BaseObject {
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static EC_POINT* BufferToPoint(Environment* env,
+                                 const EC_GROUP* group,
+                                 char* data,
+                                 size_t len);
 
  protected:
   ECDH(Environment* env, v8::Local<v8::Object> wrap, EC_KEY* key)
@@ -642,8 +649,6 @@ class ECDH : public BaseObject {
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  EC_POINT* BufferToPoint(char* data, size_t len);
 
   bool IsKeyPairValid();
   bool IsKeyValidForCurve(const BIGNUM* private_key);

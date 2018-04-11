@@ -36,10 +36,11 @@ class CodeAssemblerTester {
         scope_(isolate),
         state_(isolate, &zone_, 0, kind, "test") {}
 
-  CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor)
+  CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor,
+                      const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, call_descriptor, Code::STUB, "test", 0, -1) {}
+        state_(isolate, &zone_, call_descriptor, Code::STUB, name, 0, -1) {}
 
   CodeAssemblerState* state() { return &state_; }
 

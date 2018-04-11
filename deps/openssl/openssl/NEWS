@@ -5,43 +5,98 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
-  Major changes between OpenSSL 1.0.2m and OpenSSL 1.0.2n [7 Dec 2017]
+  Major changes between OpenSSL 1.1.0g and OpenSSL 1.1.0h [27 Mar 2018]
 
-      o Read/write after SSL object in error state (CVE-2017-3737)
+      o Constructed ASN.1 types with a recursive definition could exceed the
+        stack (CVE-2018-0739)
+      o Incorrect CRYPTO_memcmp on HP-UX PA-RISC (CVE-2018-0733)
       o rsaz_1024_mul_avx2 overflow bug on x86_64 (CVE-2017-3738)
 
-  Major changes between OpenSSL 1.0.2l and OpenSSL 1.0.2m [2 Nov 2017]
+  Major changes between OpenSSL 1.1.0f and OpenSSL 1.1.0g [2 Nov 2017]
 
       o bn_sqrx8x_internal carry bug on x86_64 (CVE-2017-3736)
       o Malformed X.509 IPAddressFamily could cause OOB read (CVE-2017-3735)
 
-  Major changes between OpenSSL 1.0.2k and OpenSSL 1.0.2l [25 May 2017]
+  Major changes between OpenSSL 1.1.0e and OpenSSL 1.1.0f [25 May 2017]
 
       o config now recognises 64-bit mingw and chooses mingw64 instead of mingw
 
-  Major changes between OpenSSL 1.0.2j and OpenSSL 1.0.2k [26 Jan 2017]
+  Major changes between OpenSSL 1.1.0d and OpenSSL 1.1.0e [16 Feb 2017]
+
+      o Encrypt-Then-Mac renegotiation crash (CVE-2017-3733)
+
+  Major changes between OpenSSL 1.1.0c and OpenSSL 1.1.0d [26 Jan 2017]
 
       o Truncated packet could crash via OOB read (CVE-2017-3731)
+      o Bad (EC)DHE parameters cause a client crash (CVE-2017-3730)
       o BN_mod_exp may produce incorrect results on x86_64 (CVE-2017-3732)
+
+  Major changes between OpenSSL 1.1.0b and OpenSSL 1.1.0c [10 Nov 2016]
+
+      o ChaCha20/Poly1305 heap-buffer-overflow (CVE-2016-7054)
+      o CMS Null dereference (CVE-2016-7053)
       o Montgomery multiplication may produce incorrect results (CVE-2016-7055)
 
-  Major changes between OpenSSL 1.0.2i and OpenSSL 1.0.2j [26 Sep 2016]
+  Major changes between OpenSSL 1.1.0a and OpenSSL 1.1.0b [26 Sep 2016]
 
-      o Missing CRL sanity check (CVE-2016-7052)
+      o Fix Use After Free for large message sizes (CVE-2016-6309)
 
-  Major changes between OpenSSL 1.0.2h and OpenSSL 1.0.2i [22 Sep 2016]
+  Major changes between OpenSSL 1.1.0 and OpenSSL 1.1.0a [22 Sep 2016]
 
       o OCSP Status Request extension unbounded memory growth (CVE-2016-6304)
-      o SWEET32 Mitigation (CVE-2016-2183)
-      o OOB write in MDC2_Update() (CVE-2016-6303)
-      o Malformed SHA512 ticket DoS (CVE-2016-6302)
-      o OOB write in BN_bn2dec() (CVE-2016-2182)
-      o OOB read in TS_OBJ_print_bio() (CVE-2016-2180)
-      o Pointer arithmetic undefined behaviour (CVE-2016-2177)
-      o Constant time flag not preserved in DSA signing (CVE-2016-2178)
-      o DTLS buffered message DoS (CVE-2016-2179)
-      o DTLS replay protection DoS (CVE-2016-2181)
-      o Certificate message OOB reads (CVE-2016-6306)
+      o SSL_peek() hang on empty record (CVE-2016-6305)
+      o Excessive allocation of memory in tls_get_message_header()
+       (CVE-2016-6307)
+      o Excessive allocation of memory in dtls1_preprocess_fragment()
+       (CVE-2016-6308)
+
+  Major changes between OpenSSL 1.0.2h and OpenSSL 1.1.0 [25 Aug 2016]
+
+      o Copyright text was shrunk to a boilerplate that points to the license
+      o "shared" builds are now the default when possible
+      o Added support for "pipelining"
+      o Added the AFALG engine
+      o New threading API implemented
+      o Support for ChaCha20 and Poly1305 added to libcrypto and libssl
+      o Support for extended master secret
+      o CCM ciphersuites
+      o Reworked test suite, now based on perl, Test::Harness and Test::More
+      o *Most* libcrypto and libssl public structures were made opaque,
+        including:
+        BIGNUM and associated types, EC_KEY and EC_KEY_METHOD,
+        DH and DH_METHOD, DSA and DSA_METHOD, RSA and RSA_METHOD,
+        BIO and BIO_METHOD, EVP_MD_CTX, EVP_MD, EVP_CIPHER_CTX,
+        EVP_CIPHER, EVP_PKEY and associated types, HMAC_CTX,
+        X509, X509_CRL, X509_OBJECT, X509_STORE_CTX, X509_STORE,
+        X509_LOOKUP, X509_LOOKUP_METHOD
+      o libssl internal structures made opaque
+      o SSLv2 support removed
+      o Kerberos ciphersuite support removed
+      o RC4 removed from DEFAULT ciphersuites in libssl
+      o 40 and 56 bit cipher support removed from libssl
+      o All public header files moved to include/openssl, no more symlinking
+      o SSL/TLS state machine, version negotiation and record layer rewritten
+      o EC revision: now operations use new EC_KEY_METHOD.
+      o Support for OCB mode added to libcrypto
+      o Support for asynchronous crypto operations added to libcrypto and libssl
+      o Deprecated interfaces can now be disabled at build time either
+        relative to the latest release via the "no-deprecated" Configure
+        argument, or via the "--api=1.1.0|1.0.0|0.9.8" option.
+      o Application software can be compiled with -DOPENSSL_API_COMPAT=version
+        to ensure that features deprecated in that version are not exposed.
+      o Support for RFC6698/RFC7671 DANE TLSA peer authentication
+      o Change of Configure to use --prefix as the main installation
+        directory location rather than --openssldir.  The latter becomes
+        the directory for certs, private key and openssl.cnf exclusively.
+      o Reworked BIO networking library, with full support for IPv6.
+      o New "unified" build system
+      o New security levels
+      o Support for scrypt algorithm
+      o Support for X25519
+      o Extended SSL_CONF support using configuration files
+      o KDF algorithm support. Implement TLS PRF as a KDF.
+      o Support for Certificate Transparency
+      o HKDF support.
 
   Major changes between OpenSSL 1.0.2g and OpenSSL 1.0.2h [3 May 2016]
 
@@ -343,7 +398,7 @@
   Major changes between OpenSSL 0.9.8e and OpenSSL 0.9.8f [11 Oct 2007]:
 
       o Add gcc 4.2 support.
-      o Add support for AES and SSE2 assembly lanugauge optimization
+      o Add support for AES and SSE2 assembly language optimization
         for VC++ build.
       o Support for RFC4507bis and server name extensions if explicitly 
         selected at compile time.
@@ -426,8 +481,8 @@
       o New STORE structure and library to provide an interface to all
         sorts of data repositories.  Supports storage of public and
         private keys, certificates, CRLs, numbers and arbitrary blobs.
-	This library is unfortunately unfinished and unused withing
-	OpenSSL.
+        This library is unfortunately unfinished and unused within
+        OpenSSL.
       o New control functions for the error stack.
       o Changed the PKCS#7 library to support one-pass S/MIME
         processing.
@@ -443,7 +498,7 @@
       o Major overhaul of RC4 performance on Intel P4, IA-64 and
         AMD64.
       o Changed the Configure script to have some algorithms disabled
-        by default.  Those can be explicitely enabled with the new
+        by default.  Those can be explicitly enabled with the new
         argument form 'enable-xxx'.
       o Change the default digest in 'openssl' commands from MD5 to
         SHA-1.

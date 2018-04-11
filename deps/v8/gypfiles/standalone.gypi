@@ -296,7 +296,7 @@
           'variables': {
             # The Android toolchain needs to use the absolute path to the NDK
             # because it is used at different levels in the GYP files.
-            'android_ndk_root%': '<(base_dir)/third_party/android_tools/ndk/',
+            'android_ndk_root%': '<(base_dir)/third_party/android_ndk/',
             'android_host_arch%': "<!(uname -m | sed -e 's/i[3456]86/x86/')",
             # Version of the NDK. Used to ensure full rebuilds on NDK rolls.
             'android_ndk_version%': 'r12b',

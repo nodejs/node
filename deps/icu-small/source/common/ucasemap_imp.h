@@ -60,15 +60,6 @@ u_caseInsensitivePrefixMatch(const UChar *s1, int32_t length1,
                              int32_t *matchLen1, int32_t *matchLen2,
                              UErrorCode *pErrorCode);
 
-/**
- * Are the Unicode properties loaded?
- * This must be used before internal functions are called that do
- * not perform this check.
- * Generate a debug assertion failure if data is not loaded.
- */
-U_CFUNC UBool
-uprv_haveProperties(UErrorCode *pErrorCode);
-
 #ifdef __cplusplus
 
 U_NAMESPACE_BEGIN

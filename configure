@@ -434,6 +434,11 @@ intl_optgroup.add_option('--download-path',
 
 parser.add_option_group(intl_optgroup)
 
+parser.add_option('--debug-lib',
+    action='store_true',
+    dest='node_debug_lib',
+    help='build lib with DCHECK macros')
+
 http2_optgroup.add_option('--debug-http2',
     action='store_true',
     dest='debug_http2',
@@ -634,6 +639,25 @@ def get_version_helper(cc, regexp):
   else:
     return 0
 
+def get_nasm_version(asm):
+  try:
+    proc = subprocess.Popen(shlex.split(asm) + ['-v'],
+                            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+  except OSError:
+    warn('''No acceptable ASM compiler found!
+         Please make sure you have installed nasm from http://www.nasm.us
+         and refer BUILDING.md.''')
+    return 0
+
+  match = re.match(r"NASM version ([2-9]\.[0-9][0-9]+)",
+                   proc.communicate()[0])
+
+  if match:
+    return match.group(1)
+  else:
+    return 0
+
 def get_llvm_version(cc):
   return get_version_helper(
     cc, r"(^(?:FreeBSD )?clang version|based on LLVM) ([3-9]\.[0-9]+)")
@@ -672,6 +696,11 @@ def get_gas_version(cc):
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
+    if not options.openssl_no_asm:
+      nasm_version = get_nasm_version('nasm')
+      o['variables']['nasm_version'] = nasm_version
+      if nasm_version == 0:
+        o['variables']['openssl_no_asm'] = 1
     return
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
@@ -935,6 +964,8 @@ def configure_node(o):
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
+  o['variables']['node_debug_lib'] = b(options.node_debug_lib)
+
   if options.debug_http2:
     o['variables']['debug_http2'] = 1
   else:
@@ -1032,32 +1063,35 @@ def configure_v8(o):
 
 
 def configure_openssl(o):
-  o['variables']['node_use_openssl'] = b(not options.without_ssl)
-  o['variables']['node_shared_openssl'] = b(options.shared_openssl)
-  o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
+  variables = o['variables']
+  variables['node_use_openssl'] = b(not options.without_ssl)
+  variables['node_shared_openssl'] = b(options.shared_openssl)
+  variables['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
   if options.openssl_system_ca_path:
-    o['variables']['openssl_system_ca_path'] = options.openssl_system_ca_path
-  o['variables']['node_without_node_options'] = b(options.without_node_options)
+    variables['openssl_system_ca_path'] = options.openssl_system_ca_path
+  variables['node_without_node_options'] = b(options.without_node_options)
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
+
+  # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
+  # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
+  openssl110_asm_supported = \
+  ('gas_version' in variables and variables['gas_version'] >= '2.23') or \
+  ('xcode_version' in variables and variables['xcode_version'] >= '5.0') or \
+  ('llvm_version' in variables and variables['llvm_version'] >= '3.3') or \
+  ('nasm_version' in variables and variables['nasm_version'] >= '2.10')
+
+  if not openssl110_asm_supported and variables['openssl_no_asm'] == 0:
+    warn('''openssl_no_asm is enabled due to missed or old assembler.
+            Please refer BUILDING.md''')
+    variables['openssl_no_asm'] = 1
+
   if options.openssl_fips:
-    o['variables']['openssl_fips'] = options.openssl_fips
-    fips_dir = os.path.join('deps', 'openssl', 'fips')
-    fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
-    # LINK is for Makefiles, LD/LDXX is for ninja
-    o['make_fips_settings'] = [
-      ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
-      ['LD', fips_ld + ' <(openssl_fips)/bin/fipsld'],
-      ['LDXX', fips_ld + ' <(openssl_fips)/bin/fipsld'],
-    ]
-  else:
-    o['variables']['openssl_fips'] = ''
-    try:
-      os.remove('config_fips.gypi')
-    except OSError:
-      pass
+     print('Error: FIPS is not supported yet in this version')
+     exit(1)
+  variables['openssl_fips'] = ''
 
   if options.without_ssl:
     def without_ssl_error(option):
@@ -1118,8 +1152,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/60.2/icu4c-60_2-src.zip',
-      'md5': '115908818fd0324530b2acb1b029738d',
+      'url': 'https://ssl.icu-project.org/files/icu4c/61.1/icu4c-61_1-src.zip',
+      'md5': '780d8524c8a860ed8d8f6fe75cb7ce3f',
     },
   ]
   def icu_download(path):

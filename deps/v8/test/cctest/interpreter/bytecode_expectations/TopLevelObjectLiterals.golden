@@ -25,7 +25,7 @@ bytecodes: [
                 B(CreateClosure), U8(2), U8(3), U8(0),
                 B(StaNamedOwnProperty), R(1), U8(3), U8(4),
                 B(Ldar), R(1),
-  /*    8 E> */ B(StaGlobalSloppy), U8(4), U8(6),
+  /*    8 E> */ B(StaGlobal), U8(4), U8(6),
                 B(LdaUndefined),
   /*   33 S> */ B(Return),
 ]

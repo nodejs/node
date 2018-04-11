@@ -2,14 +2,12 @@
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  millions: [12]
+  n: [12e6]
 });
 
 process.maxTickDepth = Infinity;
 
-function main({ millions }) {
-  var n = millions * 1e6;
-
+function main({ n }) {
   function cb4(arg1, arg2, arg3, arg4) {
     if (--n) {
       if (n % 4 === 0)
@@ -21,7 +19,7 @@ function main({ millions }) {
       else
         process.nextTick(cb1, 0);
     } else
-      bench.end(millions);
+      bench.end(n);
   }
   function cb3(arg1, arg2, arg3) {
     if (--n) {
@@ -34,7 +32,7 @@ function main({ millions }) {
       else
         process.nextTick(cb1, 0);
     } else
-      bench.end(millions);
+      bench.end(n);
   }
   function cb2(arg1, arg2) {
     if (--n) {
@@ -47,7 +45,7 @@ function main({ millions }) {
       else
         process.nextTick(cb1, 0);
     } else
-      bench.end(millions);
+      bench.end(n);
   }
   function cb1(arg1) {
     if (--n) {
@@ -60,7 +58,7 @@ function main({ millions }) {
       else
         process.nextTick(cb1, 0);
     } else
-      bench.end(millions);
+      bench.end(n);
   }
   bench.start();
   process.nextTick(cb1, true);

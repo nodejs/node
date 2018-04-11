@@ -47,7 +47,7 @@ function once(fn) {
 }
 
 function verifyFiles(files, blockName, onprogress, ondone) {
-  // must have a .cc and a .js to be a valid test
+  // Must have a .cc and a .js to be a valid test.
   if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
       !Object.keys(files).some((name) => /\.js$/.test(name))) {
     return;
@@ -95,7 +95,7 @@ ${files[name].replace(
   });
 
   fs.mkdir(dir, function() {
-    // Ignore errors
+    // Ignore errors.
 
     const done = once(ondone);
     var waiting = files.length;

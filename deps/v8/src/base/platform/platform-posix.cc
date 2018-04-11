@@ -89,6 +89,7 @@ const char* g_gc_fake_mmap = nullptr;
 
 static LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
+static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 #if !V8_OS_FUCHSIA
 #if V8_OS_MACOSX
@@ -130,11 +131,9 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access) {
 }
 
 void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
-  const size_t actual_size = RoundUp(size, OS::AllocatePageSize());
   int prot = GetProtectionFromMemoryPermission(access);
   int flags = GetFlagsForMemoryPermission(access);
-  void* result =
-      mmap(address, actual_size, prot, flags, kMmapFd, kMmapFdOffset);
+  void* result = mmap(address, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
   return result;
 }
@@ -167,11 +166,7 @@ int ReclaimInaccessibleMemory(void* address, size_t size) {
 
 }  // namespace
 
-void OS::Initialize(int64_t random_seed, bool hard_abort,
-                    const char* const gc_fake_mmap) {
-  if (random_seed) {
-    platform_random_number_generator.Pointer()->SetSeed(random_seed);
-  }
+void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   g_gc_fake_mmap = gc_fake_mmap;
 }
@@ -207,45 +202,60 @@ size_t OS::CommitPageSize() {
 }
 
 // static
+void OS::SetRandomMmapSeed(int64_t seed) {
+  if (seed) {
+    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    platform_random_number_generator.Pointer()->SetSeed(seed);
+  }
+}
+
+// static
 void* OS::GetRandomMmapAddr() {
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER)
-  // Dynamic tools do not support custom mmap addresses.
-  return nullptr;
-#endif
   uintptr_t raw_addr;
-  platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
-                                                        sizeof(raw_addr));
+  {
+    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
+                                                          sizeof(raw_addr));
+  }
+#if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER)
+  // If random hint addresses interfere with address ranges hard coded in
+  // sanitizers, bad things happen. This address range is copied from TSAN
+  // source but works with all tools.
+  // See crbug.com/539863.
+  raw_addr &= 0x007fffff0000ULL;
+  raw_addr += 0x7e8000000000ULL;
+#else
 #if V8_TARGET_ARCH_X64
   // Currently available CPUs have 48 bits of virtual addressing.  Truncate
   // the hint address to 46 bits to give the kernel a fighting chance of
   // fulfilling our placement request.
-  raw_addr &= V8_UINT64_C(0x3ffffffff000);
+  raw_addr &= uint64_t{0x3FFFFFFFF000};
 #elif V8_TARGET_ARCH_PPC64
 #if V8_OS_AIX
   // AIX: 64 bits of virtual addressing, but we limit address range to:
   //   a) minimize Segment Lookaside Buffer (SLB) misses and
-  raw_addr &= V8_UINT64_C(0x3ffff000);
+  raw_addr &= uint64_t{0x3FFFF000};
   // Use extra address space to isolate the mmap regions.
-  raw_addr += V8_UINT64_C(0x400000000000);
+  raw_addr += uint64_t{0x400000000000};
 #elif V8_TARGET_BIG_ENDIAN
   // Big-endian Linux: 44 bits of virtual addressing.
-  raw_addr &= V8_UINT64_C(0x03fffffff000);
+  raw_addr &= uint64_t{0x03FFFFFFF000};
 #else
   // Little-endian Linux: 48 bits of virtual addressing.
-  raw_addr &= V8_UINT64_C(0x3ffffffff000);
+  raw_addr &= uint64_t{0x3FFFFFFFF000};
 #endif
 #elif V8_TARGET_ARCH_S390X
   // Linux on Z uses bits 22-32 for Region Indexing, which translates to 42 bits
   // of virtual addressing.  Truncate to 40 bits to allow kernel chance to
   // fulfill request.
-  raw_addr &= V8_UINT64_C(0xfffffff000);
+  raw_addr &= uint64_t{0xFFFFFFF000};
 #elif V8_TARGET_ARCH_S390
   // 31 bits of virtual addressing.  Truncate to 29 bits to allow kernel chance
   // to fulfill request.
-  raw_addr &= 0x1ffff000;
+  raw_addr &= 0x1FFFF000;
 #else
-  raw_addr &= 0x3ffff000;
+  raw_addr &= 0x3FFFF000;
 
 #ifdef __sun
   // For our Solaris/illumos mmap hint, we pick a random address in the bottom
@@ -269,6 +279,7 @@ void* OS::GetRandomMmapAddr() {
   raw_addr += 0x20000000;
 #endif
 #endif
+#endif
   return reinterpret_cast<void*>(raw_addr);
 }
 
@@ -283,6 +294,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   address = AlignedAddress(address, alignment);
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t request_size = size + (alignment - page_size);
+  request_size = RoundUp(request_size, OS::AllocatePageSize());
   void* result = base::Allocate(address, request_size, access);
   if (result == nullptr) return nullptr;
 

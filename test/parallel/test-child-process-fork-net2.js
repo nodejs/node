@@ -130,6 +130,7 @@ if (process.argv[2] === 'child') {
         console.error('[m] CLIENT: close event');
         disconnected += 1;
       });
+      client.resume();
     }
   });
 

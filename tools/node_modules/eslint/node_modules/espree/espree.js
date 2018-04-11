@@ -318,7 +318,7 @@ acorn.plugins.espree = function(instance) {
 
     instance.extend("toAssignable", function(toAssignable) {
 
-        return /** @this acorn.Parser */ function(node, isBinding) {
+        return /** @this acorn.Parser */ function(node, isBinding, refDestructuringErrors) {
 
             if (extra.ecmaFeatures.experimentalObjectRestSpread &&
                     node.type === "ObjectExpression"
@@ -339,7 +339,7 @@ acorn.plugins.espree = function(instance) {
 
                 return node;
             } else {
-                return toAssignable.call(this, node, isBinding);
+                return toAssignable.call(this, node, isBinding, refDestructuringErrors);
             }
         };
 
@@ -393,14 +393,15 @@ acorn.plugins.espree = function(instance) {
          * Override `checkPropClash` method to avoid clash on rest/spread properties.
          * @param {ASTNode} prop A property node to check.
          * @param {Object} propHash Names map.
+         * @param {Object} refDestructuringErrors Destructuring error information.
          * @returns {void}
          * @this acorn.Parser
          */
-        return function(prop, propHash) {
+        return function(prop, propHash, refDestructuringErrors) {
             if (prop.type === "ExperimentalRestProperty" || prop.type === "ExperimentalSpreadProperty") {
                 return;
             }
-            checkPropClash.call(this, prop, propHash);
+            checkPropClash.call(this, prop, propHash, refDestructuringErrors);
         };
     });
 

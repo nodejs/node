@@ -18,14 +18,18 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-continue"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Unexpected use of continue statement."
+        }
     },
 
     create(context) {
 
         return {
             ContinueStatement(node) {
-                context.report({ node, message: "Unexpected use of continue statement." });
+                context.report({ node, messageId: "unexpected" });
             }
         };
 

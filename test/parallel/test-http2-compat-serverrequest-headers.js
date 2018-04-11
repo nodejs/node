@@ -41,24 +41,25 @@ server.listen(0, common.mustCall(function() {
     request.url = '/one';
     assert.strictEqual(request.url, '/one');
 
-    // third-party plugins for packages like express use query params to
+    // Third-party plugins for packages like express use query params to
     // change the request method
     request.method = 'POST';
     assert.strictEqual(request.method, 'POST');
-    common.expectsError(
+    assert.throws(
       () => request.method = '   ',
       {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "method" argument must be of type string'
+        code: 'ERR_INVALID_ARG_VALUE',
+        name: 'TypeError [ERR_INVALID_ARG_VALUE]',
+        message: "The argument 'method' is invalid. Received '   '"
       }
     );
-    common.expectsError(
+    assert.throws(
       () => request.method = true,
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "method" argument must be of type string'
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "method" argument must be of type string. ' +
+                 'Received type boolean'
       }
     );
 

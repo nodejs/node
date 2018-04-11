@@ -3986,9 +3986,9 @@ T Simulator::FPRecipEstimate(T op, FPRounding rounding) {
     } else {
       // Return FPMaxNormal(sign).
       if (sizeof(T) == sizeof(float)) {
-        return float_pack(sign, 0xfe, 0x07fffff);
+        return float_pack(sign, 0xFE, 0x07FFFFF);
       } else {
-        return double_pack(sign, 0x7fe, 0x0fffffffffffffl);
+        return double_pack(sign, 0x7FE, 0x0FFFFFFFFFFFFFl);
       }
     }
   } else {

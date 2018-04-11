@@ -7,6 +7,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects-inl.h"
+#include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -33,8 +34,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
-  RegisterList pair(0, 2);
-  RegisterList triple(0, 3);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;

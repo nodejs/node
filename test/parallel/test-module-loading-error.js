@@ -74,7 +74,7 @@ const re = /^The "id" argument must be of type string\. Received type \w+$/;
 common.expectsError(
   () => { require(''); },
   {
-    type: Error,
+    type: TypeError,
     code: 'ERR_INVALID_ARG_VALUE',
     message: 'The argument \'id\' must be a non-empty string. Received \'\''
   });

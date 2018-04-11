@@ -10,6 +10,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction-scheduler.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/globals.h"
@@ -30,17 +31,13 @@ class StateObjectDeduplicator;
 
 // This struct connects nodes of parameters which are going to be pushed on the
 // call stack with their parameter index in the call descriptor of the callee.
-class PushParameter {
- public:
-  PushParameter() : node_(nullptr), type_(MachineType::None()) {}
-  PushParameter(Node* node, MachineType type) : node_(node), type_(type) {}
+struct PushParameter {
+  PushParameter(Node* n = nullptr,
+                LinkageLocation l = LinkageLocation::ForAnyRegister())
+      : node(n), location(l) {}
 
-  Node* node() const { return node_; }
-  MachineType type() const { return type_; }
-
- private:
-  Node* node_;
-  MachineType type_;
+  Node* node;
+  LinkageLocation location;
 };
 
 enum class FrameStateInputKind { kAny, kStackSlot };
@@ -115,15 +112,20 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
                               InstructionOperand a, DeoptimizeKind kind,
-                              DeoptimizeReason reason, Node* frame_state);
+                              DeoptimizeReason reason,
+                              VectorSlotPair const& feedback,
+                              Node* frame_state);
   Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
                               InstructionOperand a, InstructionOperand b,
                               DeoptimizeKind kind, DeoptimizeReason reason,
+                              VectorSlotPair const& feedback,
                               Node* frame_state);
   Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
                               InstructionOperand* outputs, size_t input_count,
                               InstructionOperand* inputs, DeoptimizeKind kind,
-                              DeoptimizeReason reason, Node* frame_state);
+                              DeoptimizeReason reason,
+                              VectorSlotPair const& feedback,
+                              Node* frame_state);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -345,14 +347,17 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                       Node* value);
+                       VectorSlotPair const& feedback, Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
   void VisitUnreachable(Node* node);
+  void VisitDeadValue(Node* node);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);
+  void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
+                          const CallDescriptor* descriptor, Node* node);
 
   void EmitIdentity(Node* node);
   bool CanProduceSignalingNaN(Node* node);

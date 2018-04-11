@@ -36,6 +36,9 @@ class ArrayBufferCollector::FreeingTask final : public CancelableTask {
 
  private:
   void RunInternal() final {
+    TRACE_BACKGROUND_GC(
+        heap_->tracer(),
+        GCTracer::BackgroundScope::BACKGROUND_ARRAY_BUFFER_FREE);
     heap_->array_buffer_collector()->FreeAllocations();
   }
 

@@ -165,13 +165,16 @@ void ProfilerEventsProcessor::Run() {
 
     if (nextSampleTime > now) {
 #if V8_OS_WIN
-      // Do not use Sleep on Windows as it is very imprecise.
-      // Could be up to 16ms jitter, which is unacceptable for the purpose.
-      while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
-      }
-#else
-      base::OS::Sleep(nextSampleTime - now);
+      if (nextSampleTime - now < base::TimeDelta::FromMilliseconds(100)) {
+        // Do not use Sleep on Windows as it is very imprecise, with up to 16ms
+        // jitter, which is unacceptable for short profile intervals.
+        while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
+        }
+      } else  // NOLINT
 #endif
+      {
+        base::OS::Sleep(nextSampleTime - now);
+      }
     }
 
     // Schedule next sample. sampler_ is nullptr in tests.
@@ -322,8 +325,8 @@ void CpuProfiler::CreateEntriesForRuntimeCallStats() {
   static_entries_.clear();
   RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
   CodeMap* code_map = generator_->code_map();
-  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
-    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
+  for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
+    RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
     std::unique_ptr<CodeEntry> entry(
         new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),

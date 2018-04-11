@@ -64,9 +64,10 @@ function getVariableOfArguments(scope) {
  */
 function getCallbackInfo(node) {
     const retv = { isCallback: false, isLexicalThis: false };
+    let currentNode = node;
     let parent = node.parent;
 
-    while (node) {
+    while (currentNode) {
         switch (parent.type) {
 
             // Checks parents recursively.
@@ -77,7 +78,7 @@ function getCallbackInfo(node) {
 
             // Checks whether the parent node is `.bind(this)` call.
             case "MemberExpression":
-                if (parent.object === node &&
+                if (parent.object === currentNode &&
                     !parent.property.computed &&
                     parent.property.type === "Identifier" &&
                     parent.property.name === "bind" &&
@@ -97,7 +98,7 @@ function getCallbackInfo(node) {
             // Checks whether the node is a callback.
             case "CallExpression":
             case "NewExpression":
-                if (parent.callee !== node) {
+                if (parent.callee !== currentNode) {
                     retv.isCallback = true;
                 }
                 return retv;
@@ -106,7 +107,7 @@ function getCallbackInfo(node) {
                 return retv;
         }
 
-        node = parent;
+        currentNode = parent;
         parent = parent.parent;
     }
 

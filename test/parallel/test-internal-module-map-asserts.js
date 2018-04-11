@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const ModuleMap = require('internal/loader/ModuleMap');
+const ModuleMap = require('internal/modules/esm/module_map');
 
 // ModuleMap.get, ModuleMap.has and ModuleMap.set should only accept string
 // values as url argument.

@@ -293,7 +293,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           // (x >> K) < C => x < (C << K)
           // when C < (M >> K)
           const uint32_t c = m.right().Value();
-          const uint32_t k = mleft.right().Value() & 0x1f;
+          const uint32_t k = mleft.right().Value() & 0x1F;
           if (c < static_cast<uint32_t>(kMaxInt >> k)) {
             node->ReplaceInput(0, mleft.left().node());
             node->ReplaceInput(1, Uint32Constant(c << k));
@@ -684,7 +684,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       return ReduceFloat64InsertHighWord32(node);
     case IrOpcode::kStore:
     case IrOpcode::kUnalignedStore:
-    case IrOpcode::kCheckedStore:
       return ReduceStore(node);
     case IrOpcode::kFloat64Equal:
     case IrOpcode::kFloat64LessThan:
@@ -923,10 +922,7 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
   NodeMatcher nm(node);
   MachineRepresentation rep;
   int value_input;
-  if (nm.IsCheckedStore()) {
-    rep = CheckedStoreRepresentationOf(node->op());
-    value_input = 3;
-  } else if (nm.IsStore()) {
+  if (nm.IsStore()) {
     rep = StoreRepresentationOf(node->op()).representation();
     value_input = 2;
   } else {
@@ -941,9 +937,9 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
     case IrOpcode::kWord32And: {
       Uint32BinopMatcher m(value);
       if (m.right().HasValue() && ((rep == MachineRepresentation::kWord8 &&
-                                    (m.right().Value() & 0xff) == 0xff) ||
+                                    (m.right().Value() & 0xFF) == 0xFF) ||
                                    (rep == MachineRepresentation::kWord16 &&
-                                    (m.right().Value() & 0xffff) == 0xffff))) {
+                                    (m.right().Value() & 0xFFFF) == 0xFFFF))) {
         node->ReplaceInput(value_input, m.left().node());
         return Changed(node);
       }
@@ -1029,12 +1025,12 @@ Reduction MachineOperatorReducer::ReduceWord32Shifts(Node* node) {
          (node->opcode() == IrOpcode::kWord32Shr) ||
          (node->opcode() == IrOpcode::kWord32Sar));
   if (machine()->Word32ShiftIsSafe()) {
-    // Remove the explicit 'and' with 0x1f if the shift provided by the machine
+    // Remove the explicit 'and' with 0x1F if the shift provided by the machine
     // instruction matches that required by JavaScript.
     Int32BinopMatcher m(node);
     if (m.right().IsWord32And()) {
       Int32BinopMatcher mright(m.right().node());
-      if (mright.right().Is(0x1f)) {
+      if (mright.right().Is(0x1F)) {
         node->ReplaceInput(1, mright.left().node());
         return Changed(node);
       }
@@ -1088,7 +1084,7 @@ Reduction MachineOperatorReducer::ReduceWord32Shr(Node* node) {
   if (m.left().IsWord32And() && m.right().HasValue()) {
     Uint32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
-      uint32_t shift = m.right().Value() & 0x1f;
+      uint32_t shift = m.right().Value() & 0x1F;
       uint32_t mask = mleft.right().Value();
       if ((mask >> shift) == 0) {
         // (m >>> s) == 0 implies ((x & m) >>> s) == 0
@@ -1180,7 +1176,7 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
     if (m.left().IsWord32Shl()) {
       Uint32BinopMatcher mleft(m.left().node());
       if (mleft.right().HasValue() &&
-          (mleft.right().Value() & 0x1f) >=
+          (mleft.right().Value() & 0x1F) >=
               base::bits::CountTrailingZeros(mask)) {
         // (x << L) & (-1 << K) => x << L iff L >= K
         return Replace(mleft.node());
@@ -1344,7 +1340,7 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertLowWord32(Node* node) {
   Uint32Matcher mrhs(node->InputAt(1));
   if (mlhs.HasValue() && mrhs.HasValue()) {
     return ReplaceFloat64(bit_cast<double>(
-        (bit_cast<uint64_t>(mlhs.Value()) & V8_UINT64_C(0xFFFFFFFF00000000)) |
+        (bit_cast<uint64_t>(mlhs.Value()) & uint64_t{0xFFFFFFFF00000000}) |
         mrhs.Value()));
   }
   return NoChange();
@@ -1357,7 +1353,7 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertHighWord32(Node* node) {
   Uint32Matcher mrhs(node->InputAt(1));
   if (mlhs.HasValue() && mrhs.HasValue()) {
     return ReplaceFloat64(bit_cast<double>(
-        (bit_cast<uint64_t>(mlhs.Value()) & V8_UINT64_C(0xFFFFFFFF)) |
+        (bit_cast<uint64_t>(mlhs.Value()) & uint64_t{0xFFFFFFFF}) |
         (static_cast<uint64_t>(mrhs.Value()) << 32)));
   }
   return NoChange();

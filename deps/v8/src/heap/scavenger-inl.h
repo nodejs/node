@@ -58,8 +58,6 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
   }
 
   if (V8_UNLIKELY(is_logging_)) {
-    // Update NewSpace stats if necessary.
-    RecordCopiedObject(target);
     heap()->OnMoveEvent(target, source, size);
   }
 

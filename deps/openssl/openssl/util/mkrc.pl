@@ -1,6 +1,18 @@
-#!/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
-open FD,"crypto/opensslv.h";
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+use lib ".";
+use configdata;
+use File::Spec::Functions;
+
+my $versionfile = catfile($config{sourcedir},"include/openssl/opensslv.h");
+
+open FD, $versionfile or die "Couldn't open include/openssl/opensslv.h: $!\n";
 while(<FD>) {
     if (/OPENSSL_VERSION_NUMBER\s+(0x[0-9a-f]+)/i) {
 	$ver = hex($1);
@@ -57,7 +69,7 @@ BEGIN
             VALUE "ProductVersion", "$version\\0"
             // Optional:
             //VALUE "Comments", "\\0"
-            VALUE "LegalCopyright", "Copyright © 1998-2006 The OpenSSL Project. Copyright © 1995-1998 Eric A. Young, Tim J. Hudson. All rights reserved.\\0"
+            VALUE "LegalCopyright", "Copyright 1998-2016 The OpenSSL Authors. All rights reserved.\\0"
             //VALUE "LegalTrademarks", "\\0"
             //VALUE "PrivateBuild", "\\0"
             //VALUE "SpecialBuild", "\\0"

@@ -29,24 +29,21 @@ U_NAMESPACE_BEGIN
  ******************************************************************
  */
 
-DictionaryBreakEngine::DictionaryBreakEngine(uint32_t breakTypes) {
-    fTypes = breakTypes;
+DictionaryBreakEngine::DictionaryBreakEngine() {
 }
 
 DictionaryBreakEngine::~DictionaryBreakEngine() {
 }
 
 UBool
-DictionaryBreakEngine::handles(UChar32 c, int32_t breakType) const {
-    return (breakType >= 0 && breakType < 32 && (((uint32_t)1 << breakType) & fTypes)
-            && fSet.contains(c));
+DictionaryBreakEngine::handles(UChar32 c) const {
+    return fSet.contains(c);
 }
 
 int32_t
 DictionaryBreakEngine::findBreaks( UText *text,
                                  int32_t startPos,
                                  int32_t endPos,
-                                 int32_t breakType,
                                  UVector32 &foundBreaks ) const {
     (void)startPos;            // TODO: remove this param?
     int32_t result = 0;
@@ -66,10 +63,8 @@ DictionaryBreakEngine::findBreaks( UText *text,
     }
     rangeStart = start;
     rangeEnd = current;
-    if (breakType >= 0 && breakType < 32 && (((uint32_t)1 << breakType) & fTypes)) {
-        result = divideUpDictionaryRange(text, rangeStart, rangeEnd, foundBreaks);
-        utext_setNativeIndex(text, current);
-    }
+    result = divideUpDictionaryRange(text, rangeStart, rangeEnd, foundBreaks);
+    utext_setNativeIndex(text, current);
 
     return result;
 }
@@ -194,7 +189,7 @@ static const int32_t THAI_MIN_WORD = 2;
 static const int32_t THAI_MIN_WORD_SPAN = THAI_MIN_WORD * 2;
 
 ThaiBreakEngine::ThaiBreakEngine(DictionaryMatcher *adoptDictionary, UErrorCode &status)
-    : DictionaryBreakEngine((1<<UBRK_WORD) | (1<<UBRK_LINE)),
+    : DictionaryBreakEngine(),
       fDictionary(adoptDictionary)
 {
     fThaiWordSet.applyPattern(UNICODE_STRING_SIMPLE("[[:Thai:]&[:LineBreak=SA:]]"), status);
@@ -436,7 +431,7 @@ static const int32_t LAO_MIN_WORD = 2;
 static const int32_t LAO_MIN_WORD_SPAN = LAO_MIN_WORD * 2;
 
 LaoBreakEngine::LaoBreakEngine(DictionaryMatcher *adoptDictionary, UErrorCode &status)
-    : DictionaryBreakEngine((1<<UBRK_WORD) | (1<<UBRK_LINE)),
+    : DictionaryBreakEngine(),
       fDictionary(adoptDictionary)
 {
     fLaoWordSet.applyPattern(UNICODE_STRING_SIMPLE("[[:Laoo:]&[:LineBreak=SA:]]"), status);
@@ -632,7 +627,7 @@ static const int32_t BURMESE_MIN_WORD = 2;
 static const int32_t BURMESE_MIN_WORD_SPAN = BURMESE_MIN_WORD * 2;
 
 BurmeseBreakEngine::BurmeseBreakEngine(DictionaryMatcher *adoptDictionary, UErrorCode &status)
-    : DictionaryBreakEngine((1<<UBRK_WORD) | (1<<UBRK_LINE)),
+    : DictionaryBreakEngine(),
       fDictionary(adoptDictionary)
 {
     fBurmeseWordSet.applyPattern(UNICODE_STRING_SIMPLE("[[:Mymr:]&[:LineBreak=SA:]]"), status);
@@ -825,7 +820,7 @@ static const int32_t KHMER_MIN_WORD = 2;
 static const int32_t KHMER_MIN_WORD_SPAN = KHMER_MIN_WORD * 2;
 
 KhmerBreakEngine::KhmerBreakEngine(DictionaryMatcher *adoptDictionary, UErrorCode &status)
-    : DictionaryBreakEngine((1 << UBRK_WORD) | (1 << UBRK_LINE)),
+    : DictionaryBreakEngine(),
       fDictionary(adoptDictionary)
 {
     fKhmerWordSet.applyPattern(UNICODE_STRING_SIMPLE("[[:Khmr:]&[:LineBreak=SA:]]"), status);
@@ -1047,7 +1042,7 @@ foundBest:
  */
 static const uint32_t kuint32max = 0xFFFFFFFF;
 CjkBreakEngine::CjkBreakEngine(DictionaryMatcher *adoptDictionary, LanguageType type, UErrorCode &status)
-: DictionaryBreakEngine(1 << UBRK_WORD), fDictionary(adoptDictionary) {
+: DictionaryBreakEngine(), fDictionary(adoptDictionary) {
     // Korean dictionary only includes Hangul syllables
     fHangulWordSet.applyPattern(UNICODE_STRING_SIMPLE("[\\uac00-\\ud7a3]"), status);
     fHanWordSet.applyPattern(UNICODE_STRING_SIMPLE("[:Han:]"), status);
@@ -1324,8 +1319,8 @@ CjkBreakEngine::divideUpDictionaryRange( UText *inText,
             }
             if (katakanaRunLength < kMaxKatakanaGroupLength) {
                 uint32_t newSnlp = bestSnlp.elementAti(i) + getKatakanaCost(katakanaRunLength);
-                if (newSnlp < (uint32_t)bestSnlp.elementAti(j)) {
-                    bestSnlp.setElementAt(newSnlp, j);
+                if (newSnlp < (uint32_t)bestSnlp.elementAti(i+katakanaRunLength)) {
+                    bestSnlp.setElementAt(newSnlp, i+katakanaRunLength);
                     prev.setElementAt(i, i+katakanaRunLength);  // prev[j] = i;
                 }
             }

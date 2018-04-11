@@ -6,6 +6,11 @@
 #define V8_UNITTESTS_INTERPRETER_BYTECODE_UTILS_H_
 
 #include "src/frames.h"
+#include "src/interpreter/bytecode-register.h"
+
+namespace v8 {
+namespace internal {
+namespace interpreter {
 
 #if V8_TARGET_LITTLE_ENDIAN
 
@@ -32,5 +37,20 @@
 #define R8(i) static_cast<uint8_t>(REG_OPERAND(i))
 #define R16(i) U16(REG_OPERAND(i))
 #define R32(i) U32(REG_OPERAND(i))
+
+class BytecodeUtils {
+ public:
+  // Expose raw RegisterList construction to tests.
+  static RegisterList NewRegisterList(int first_reg_index, int register_count) {
+    return RegisterList(first_reg_index, register_count);
+  }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeUtils);
+};
+
+}  // namespace interpreter
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_UNITTESTS_INTERPRETER_BYTECODE_UTILS_H_

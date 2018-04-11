@@ -10,6 +10,9 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.14.1">6.14.1</a><br/>
+<a href="#6.14.0">6.14.0</a><br/>
+<a href="#6.13.1">6.13.1</a><br/>
 <a href="#6.13.0">6.13.0</a><br/>
 <a href="#6.12.3">6.12.3</a><br/>
 <a href="#6.12.2">6.12.2</a><br/>
@@ -64,6 +67,87 @@
 *Note*: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.14.1"></a>
+## 2018-03-29, Version 6.14.1 'Boron' (LTS), @MylesBorins
+
+### Notable Changes
+
+No additional commits.
+
+Due to incorrect staging of the upgrade to the GCC 4.9.X compiler, the latest releases for PPC little
+endian were built using GCC 4.9.X instead of GCC 4.8.X. This caused an ABI breakage on PPCLE based
+environments. This has been fixed in our infrastructure and we are doing this release to ensure that
+the hosted binaries are adhering to our platform support contract.
+
+<a id="6.14.0"></a>
+## 2018-03-28, Version 6.14.0 'Boron' (LTS), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/march-2018-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2018-7158
+* CVE-2018-7159
+* CVE-2018-7160
+
+### Notable Changes
+
+* **Upgrade to OpenSSL 1.0.2o**: Does not contain any security fixes that are known to impact Node.js.
+* **Fix for inspector DNS rebinding vulnerability (CVE-2018-7160)**: A malicious website could use a DNS rebinding attack to trick a web browser to bypass same-origin-policy checks and allow HTTP connections to localhost or to hosts on the local network, potentially to an open inspector port as a debugger, therefore gaining full code execution access. The inspector now only allows connections that have a browser `Host` value of `localhost` or `localhost6`.
+* **Fix for `'path'` module regular expression denial of service (CVE-2018-7158)**: A regular expression used for parsing POSIX paths could be used to cause a denial of service if an attacker were able to have a specially crafted path string passed through one of the impacted `'path'` module functions.
+* **Reject spaces in HTTP `Content-Length` header values (CVE-2018-7159)**: The Node.js HTTP parser allowed for spaces inside `Content-Length` header values. Such values now lead to rejected connections in the same way as non-numeric values.
+* **Update root certificates**: 5 additional root certificates have been added to the Node.js binary and 30 have been removed.
+
+### Commits
+
+* [[`ac21bdc149`](https://github.com/nodejs/node/commit/ac21bdc149)] - **crypto**: update root certificates (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`3c99e41427`](https://github.com/nodejs/node/commit/3c99e41427)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`d775057090`](https://github.com/nodejs/node/commit/d775057090)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`982012b96d`](https://github.com/nodejs/node/commit/982012b96d)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`1aa83f7707`](https://github.com/nodejs/node/commit/1aa83f7707)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`05de6f4af7`](https://github.com/nodejs/node/commit/05de6f4af7)] - **deps**: upgrade openssl sources to 1.0.2o (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
+* [[`ed64cc2be7`](https://github.com/nodejs/node/commit/ed64cc2be7)] - **deps**: reject interior blanks in Content-Length (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`d786d21f92`](https://github.com/nodejs/node/commit/d786d21f92)] - **deps**: upgrade http-parser to v2.8.0 (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
+* [[`4947b0e26e`](https://github.com/nodejs/node/commit/4947b0e26e)] - **inspector**: minor adjustments (Eugene Ostroukhov)
+* [[`e3950d1a40`](https://github.com/nodejs/node/commit/e3950d1a40)] - **inspector**: check Host header (Ali Ijaz Sheikh)
+* [[`ef32e06a6e`](https://github.com/nodejs/node/commit/ef32e06a6e)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`1dba2f4950`](https://github.com/nodejs/node/commit/1dba2f4950)] - **src**: drop CNNIC+StartCom certificate whitelisting (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+* [[`bdfeb1c739`](https://github.com/nodejs/node/commit/bdfeb1c739)] - **tools**: update certdata.txt (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
+
+<a id="6.13.1"></a>
+## 2018-03-06, Version 6.13.1 'Boron' (LTS), @MylesBorins
+
+### Notable Changes
+
+* **http, tls**:
+  - better support for IPv6 addresses (Mattias Holmlund) [#14772](https://github.com/nodejs/node/pull/14772)
+
+### Commits
+
+* [[`d333ba5e2a`](https://github.com/nodejs/node/commit/d333ba5e2a)] - **doc**: add vdeturckheim as collaborator (vdeturckheim) [#18432](https://github.com/nodejs/node/pull/18432)
+* [[`7fc5c69a4a`](https://github.com/nodejs/node/commit/7fc5c69a4a)] - **doc**: use PBKDF2 in text (Tobias Nießen) [#18279](https://github.com/nodejs/node/pull/18279)
+* [[`1e8d1200ce`](https://github.com/nodejs/node/commit/1e8d1200ce)] - **doc**: Add example of null to assert.ifError (Leko) [#18236](https://github.com/nodejs/node/pull/18236)
+* [[`46e43111af`](https://github.com/nodejs/node/commit/46e43111af)] - **doc**: V8 branch used in 8.x not active anymore (Franziska Hinkelmann) [#18155](https://github.com/nodejs/node/pull/18155)
+* [[`b83b104c17`](https://github.com/nodejs/node/commit/b83b104c17)] - **doc**: add builtin module in building.md (Suixinlei) [#17705](https://github.com/nodejs/node/pull/17705)
+* [[`2e76df5b4e`](https://github.com/nodejs/node/commit/2e76df5b4e)] - **doc**: warn users about non-ASCII paths on build (Matheus Marchini) [#16735](https://github.com/nodejs/node/pull/16735)
+* [[`2c21421092`](https://github.com/nodejs/node/commit/2c21421092)] - **doc**: simplify sentences that use "considered" (Rich Trott) [#18095](https://github.com/nodejs/node/pull/18095)
+* [[`8f9362d6e8`](https://github.com/nodejs/node/commit/8f9362d6e8)] - **doc**: add documentation for deprecation properties (Jon Moss) [#16539](https://github.com/nodejs/node/pull/16539)
+* [[`1505b71dab`](https://github.com/nodejs/node/commit/1505b71dab)] - **doc**: add Leko to collaborators (Leko) [#18117](https://github.com/nodejs/node/pull/18117)
+* [[`838f7bdb6e`](https://github.com/nodejs/node/commit/838f7bdb6e)] - **doc**: be less tentative about undefined behavior (Rich Trott) [#18091](https://github.com/nodejs/node/pull/18091)
+* [[`17c88c4c18`](https://github.com/nodejs/node/commit/17c88c4c18)] - **doc**: examples for fast-tracking regression fixes (Refael Ackermann) [#17379](https://github.com/nodejs/node/pull/17379)
+* [[`e021fb73d2`](https://github.com/nodejs/node/commit/e021fb73d2)] - **doc,test**: mention Duplex support for TLS (Anna Henningsen) [#17599](https://github.com/nodejs/node/pull/17599)
+* [[`df038ad90f`](https://github.com/nodejs/node/commit/df038ad90f)] - **fs**: fix options.end of fs.ReadStream() (陈刚) [#18121](https://github.com/nodejs/node/pull/18121)
+* [[`8e7ac25aa6`](https://github.com/nodejs/node/commit/8e7ac25aa6)] - **http, tls**: better support for IPv6 addresses (Mattias Holmlund) [#14772](https://github.com/nodejs/node/pull/14772)
+* [[`969c39eb3a`](https://github.com/nodejs/node/commit/969c39eb3a)] - **lib**: enable dot-notation eslint rule (Anatoli Papirovski) [#18007](https://github.com/nodejs/node/pull/18007)
+* [[`37071b8dda`](https://github.com/nodejs/node/commit/37071b8dda)] - **path**: fix path.normalize for relative paths (Weijia Wang) [#17974](https://github.com/nodejs/node/pull/17974)
+* [[`fdf73b110f`](https://github.com/nodejs/node/commit/fdf73b110f)] - **test**: preserve env in test cases (Beth Griggs) [#14822](https://github.com/nodejs/node/pull/14822)
+* [[`bb2d292562`](https://github.com/nodejs/node/commit/bb2d292562)] - **test**: change assert message to default (ryanmahan) [#18259](https://github.com/nodejs/node/pull/18259)
+* [[`27107b957c`](https://github.com/nodejs/node/commit/27107b957c)] - **test**: use countdown timer (Mandeep Singh) [#17326](https://github.com/nodejs/node/pull/17326)
+* [[`eaa30e4947`](https://github.com/nodejs/node/commit/eaa30e4947)] - **test**: simplify loadDHParam in TLS test (Tobias Nießen) [#18103](https://github.com/nodejs/node/pull/18103)
+* [[`2004efded8`](https://github.com/nodejs/node/commit/2004efded8)] - **test**: improve to use template string (sreepurnajasti) [#18097](https://github.com/nodejs/node/pull/18097)
+* [[`16ef24bccf`](https://github.com/nodejs/node/commit/16ef24bccf)] - **test**: use smaller input file for test-zlib.js (Rich Trott) [#17988](https://github.com/nodejs/node/pull/17988)
+* [[`48790382f1`](https://github.com/nodejs/node/commit/48790382f1)] - **tools**: add number-isnan rule (Jon Moss) [#17556](https://github.com/nodejs/node/pull/17556)
 
 <a id="6.13.0"></a>
 ## 2018-02-13, Version 6.13.0 'Boron' (LTS), @MylesBorins

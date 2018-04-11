@@ -1,4 +1,3 @@
-
 =pod
 
 =head1 NAME
@@ -9,11 +8,13 @@ ca - sample minimal CA application
 =head1 SYNOPSIS
 
 B<openssl> B<ca>
+[B<-help>]
 [B<-verbose>]
 [B<-config filename>]
 [B<-name section>]
 [B<-gencrl>]
 [B<-revoke file>]
+[B<-valid file>]
 [B<-status serial>]
 [B<-updatedb>]
 [B<-crl_reason reason>]
@@ -50,6 +51,7 @@ B<openssl> B<ca>
 [B<-engine id>]
 [B<-subj arg>]
 [B<-utf8>]
+[B<-create_serial>]
 [B<-multivalue-rdn>]
 
 =head1 DESCRIPTION
@@ -61,13 +63,23 @@ and their status.
 
 The options descriptions will be divided into each purpose.
 
-=head1 CA OPTIONS
+=head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-verbose>
+
+this prints extra details about the operations being performed.
 
 =item B<-config filename>
 
 specifies the configuration file to use.
+Optional; for a description of the default value,
+see L<openssl(1)/COMMAND SUMMARY>.
 
 =item B<-name section>
 
@@ -81,7 +93,7 @@ signed by the CA.
 
 =item B<-ss_cert filename>
 
-a single self signed certificate to be signed by the CA.
+a single self-signed certificate to be signed by the CA.
 
 =item B<-spkac filename>
 
@@ -92,7 +104,7 @@ section for information on the required input and output format.
 =item B<-infiles>
 
 if present this should be the last option, all subsequent arguments
-are assumed to the the names of files containing certificate requests. 
+are taken as the names of files containing certificate requests.
 
 =item B<-out filename>
 
@@ -129,7 +141,7 @@ the 'ps' utility) this option should be used with caution.
 
 indicates the issued certificates are to be signed with the key
 the certificate requests were signed with (given with B<-keyfile>).
-Cerificate requests signed with a different key are ignored.  If
+Certificate requests signed with a different key are ignored.  If
 B<-spkac>, B<-ss_cert> or B<-gencrl> are given, B<-selfsign> is
 ignored.
 
@@ -142,11 +154,7 @@ self-signed certificate.
 =item B<-passin arg>
 
 the key password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
-
-=item B<-verbose>
-
-this prints extra details about the operations being performed.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-notext>
 
@@ -168,7 +176,8 @@ the number of days to certify the certificate for.
 
 =item B<-md alg>
 
-the message digest to use. Possible values include md5, sha1 and mdc2.
+the message digest to use.
+Any digest supported by the OpenSSL B<dgst> command can be used.
 This option also applies to CRLs.
 
 =item B<-policy arg>
@@ -189,7 +198,7 @@ need this option.
 =item B<-preserveDN>
 
 Normally the DN order of a certificate is the same as the order of the
-fields in the relevant policy section. When this option is set the order 
+fields in the relevant policy section. When this option is set the order
 is the same as the request. This is largely for compatibility with the
 older IE enrollment control which would only accept certificates if their
 DNs match the order of the request. This is not needed for Xenroll.
@@ -215,7 +224,7 @@ to be added when a certificate is issued (defaults to B<x509_extensions>
 unless the B<-extfile> option is used). If no extension section is
 present then, a V1 certificate is created. If the extension section
 is present (even if it is empty), then a V3 certificate is created. See the:w
-L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
+L<x509v3_config(5)> manual page for details of the
 extension section format.
 
 =item B<-extfile file>
@@ -239,14 +248,20 @@ characters may be escaped by \ (backslash), no spaces are skipped.
 
 =item B<-utf8>
 
-this option causes field values to be interpreted as UTF8 strings, by 
+this option causes field values to be interpreted as UTF8 strings, by
 default they are interpreted as ASCII. This means that the field
 values, whether prompted from a terminal or obtained from a
 configuration file, must be valid UTF8 strings.
 
+=item B<-create_serial>
+
+if reading serial from the text file as specified in the configuration
+fails, specifying this option creates a new random serial to be used as next
+serial number.
+
 =item B<-multivalue-rdn>
 
-this option causes the -subj argument to be interpretedt with full
+This option causes the -subj argument to be interpreted with full
 support for multivalued RDNs. Example:
 
 I</DC=org/DC=OpenSSL/DC=users/UID=123456+CN=John Doe>
@@ -276,6 +291,10 @@ the number of hours before the next CRL is due.
 
 a filename containing a certificate to revoke.
 
+=item B<-valid filename>
+
+a filename containing a certificate to add a Valid certificate entry.
+
 =item B<-status serial>
 
 displays the revocation status of the certificate with the specified
@@ -292,7 +311,7 @@ B<CACompromise>, B<affiliationChanged>, B<superseded>, B<cessationOfOperation>,
 B<certificateHold> or B<removeFromCRL>. The matching of B<reason> is case
 insensitive. Setting any revocation reason will make the CRL v2.
 
-In practive B<removeFromCRL> is not particularly useful because it is only used
+In practice B<removeFromCRL> is not particularly useful because it is only used
 in delta CRLs which are not currently implemented.
 
 =item B<-crl_hold instruction>
@@ -320,7 +339,7 @@ created, if the CRL extension section is present (even if it is
 empty) then a V2 CRL is created. The CRL extensions specified are
 CRL extensions and B<not> CRL entry extensions.  It should be noted
 that some software (for example Netscape) can't handle V2 CRLs. See
-L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
+L<x509v3_config(5)> manual page for details of the
 extension section format.
 
 =back
@@ -354,7 +373,7 @@ any) used.
 This specifies a file containing additional B<OBJECT IDENTIFIERS>.
 Each line of the file should consist of the numerical form of the
 object identifier followed by white space then the short name followed
-by white space and finally the long name. 
+by white space and finally the long name.
 
 =item B<oid_section>
 
@@ -381,12 +400,12 @@ CA private key. Mandatory.
 =item B<RANDFILE>
 
 a file used to read and write random number seed information, or
-an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
+an EGD socket (see L<RAND_egd(3)>).
 
 =item B<default_days>
 
 the same as the B<-days> option. The number of days to certify
-a certificate for. 
+a certificate for.
 
 =item B<default_startdate>
 
@@ -407,7 +426,7 @@ least one of these must be present to generate a CRL.
 
 =item B<default_md>
 
-the same as the B<-md> option. The message digest to use. Mandatory.
+the same as the B<-md> option. Mandatory.
 
 =item B<database>
 
@@ -423,6 +442,10 @@ The default value is B<yes>, to be compatible with older (pre 0.9.8)
 versions of OpenSSL.  However, to make CA certificate roll-over easier,
 it's recommended to use the value B<no>, especially if combined with
 the B<-selfsign> command line option.
+
+Note that it is valid in some circumstances for certificates to be created
+without any subject. In the case where there are multiple certificates without
+subjects this does not count as a duplicate.
 
 =item B<serial>
 
@@ -509,7 +532,7 @@ this can be regarded more of a quirk than intended behaviour.
 
 The input to the B<-spkac> command line option is a Netscape
 signed public key and challenge. This will usually come from
-the B<KEYGEN> tag in an HTML form to create a new private key. 
+the B<KEYGEN> tag in an HTML form to create a new private key.
 It is however possible to create SPKACs using the B<spkac> utility.
 
 The file should contain the variable SPKAC set to the value of
@@ -569,18 +592,18 @@ A sample configuration file with the relevant sections for B<ca>:
 
  [ ca ]
  default_ca      = CA_default            # The default ca section
- 
+
  [ CA_default ]
 
  dir            = ./demoCA              # top dir
  database       = $dir/index.txt        # index file.
- new_certs_dir	= $dir/newcerts         # new certs dir
- 
+ new_certs_dir  = $dir/newcerts         # new certs dir
+
  certificate    = $dir/cacert.pem       # The CA cert
  serial         = $dir/serial           # serial no file
  private_key    = $dir/private/cakey.pem# CA private key
  RANDFILE       = $dir/private/.rand    # random number file
- 
+
  default_days   = 365                   # how long to certify for
  default_crl_days= 30                   # how long before next CRL
  default_md     = md5                   # md to use
@@ -588,9 +611,9 @@ A sample configuration file with the relevant sections for B<ca>:
  policy         = policy_any            # default policy
  email_in_dn    = no                    # Don't add the email into cert DN
 
- name_opt	= ca_default		# Subject name display option
- cert_opt	= ca_default		# Certificate display option
- copy_extensions = none			# Don't copy extensions from request
+ name_opt       = ca_default            # Subject name display option
+ cert_opt       = ca_default            # Certificate display option
+ copy_extensions = none                 # Don't copy extensions from request
 
  [ policy_any ]
  countryName            = supplied
@@ -617,14 +640,9 @@ The values below reflect the default values.
  ./demoCA/certs                 - certificate output file
  ./demoCA/.rnd                  - CA random seed information
 
-=head1 ENVIRONMENT VARIABLES
-
-B<OPENSSL_CONF> reflects the location of master configuration file it can
-be overridden by the B<-config> command line option.
-
 =head1 RESTRICTIONS
 
-The text database index file is a critical part of the process and 
+The text database index file is a critical part of the process and
 if corrupted it can be difficult to fix. It is theoretically possible
 to rebuild the index file from all the issued certificates and a current
 CRL: however there is no option to do this.
@@ -632,18 +650,18 @@ CRL: however there is no option to do this.
 V2 CRL features like delta CRLs are not currently supported.
 
 Although several requests can be input and handled at once it is only
-possible to include one SPKAC or self signed certificate.
+possible to include one SPKAC or self-signed certificate.
 
 =head1 BUGS
 
-The use of an in memory text database can cause problems when large
+The use of an in-memory text database can cause problems when large
 numbers of certificates are present because, as the name implies
 the database has to be kept in memory.
 
 The B<ca> command really needs rewriting or the required functionality
 exposed at either a command or interface level so a more friendly utility
-(perl script or GUI) can handle things properly. The scripts B<CA.sh> and
-B<CA.pl> help a little but not very much.
+(perl script or GUI) can handle things properly. The script
+B<CA.pl> helps a little but not very much.
 
 Any fields in a request that are not present in a policy are silently
 deleted. This does not happen if the B<-preserveDN> option is used. To
@@ -652,7 +670,7 @@ RFCs, regardless the contents of the request' subject the B<-noemailDN>
 option can be used. The behaviour should be more friendly and
 configurable.
 
-Cancelling some commands by refusing to certify a certificate can
+Canceling some commands by refusing to certify a certificate can
 create an empty file.
 
 =head1 WARNINGS
@@ -671,7 +689,7 @@ The B<copy_extensions> option should be used with caution. If care is
 not taken then it can be a security risk. For example if a certificate
 request contains a basicConstraints extension with CA:TRUE and the
 B<copy_extensions> value is set to B<copyall> and the user does not spot
-this when the certificate is displayed then this will hand the requestor
+this when the certificate is displayed then this will hand the requester
 a valid CA certificate.
 
 This situation can be avoided by setting B<copy_extensions> to B<copy>
@@ -691,7 +709,16 @@ then even if a certificate is issued with CA:TRUE it will not be valid.
 
 =head1 SEE ALSO
 
-L<req(1)|req(1)>, L<spkac(1)|spkac(1)>, L<x509(1)|x509(1)>, L<CA.pl(1)|CA.pl(1)>,
-L<config(5)|config(5)>, L<x509v3_config(5)|x509v3_config(5)> 
+L<req(1)>, L<spkac(1)>, L<x509(1)>, L<CA.pl(1)>,
+L<config(5)>, L<x509v3_config(5)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

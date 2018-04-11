@@ -207,3 +207,33 @@ TEST_F(AliasBufferTest, SharedArrayBuffer4) {
       int8_t, v8::Int8Array,
       int32_t, v8::Int32Array>(isolate_, 1, 3, 1);
 }
+
+TEST_F(AliasBufferTest, OperatorOverloads) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = v8::Context::New(isolate_);
+  v8::Context::Scope context_scope(context);
+  const size_t size = 10;
+  AliasedBuffer<uint32_t, v8::Uint32Array> ab{isolate_, size};
+
+  EXPECT_EQ(static_cast<uint32_t>(1), ab[0] = 1);
+  EXPECT_EQ(static_cast<uint32_t>(4), ab[0] += 3);
+  EXPECT_EQ(static_cast<uint32_t>(2), ab[0] -= 2);
+  EXPECT_EQ(static_cast<uint32_t>(-2), -ab[0]);
+}
+
+TEST_F(AliasBufferTest, OperatorOverloadsRefs) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = v8::Context::New(isolate_);
+  v8::Context::Scope context_scope(context);
+  AliasedBuffer<uint32_t, v8::Uint32Array> ab{isolate_, 2};
+  using Reference = AliasedBuffer<uint32_t, v8::Uint32Array>::Reference;
+  Reference ref = ab[0];
+  Reference ref_value = ab[1] = 2;
+
+  EXPECT_EQ(static_cast<uint32_t>(2), ref = ref_value);
+  EXPECT_EQ(static_cast<uint32_t>(4), ref += ref_value);
+  EXPECT_EQ(static_cast<uint32_t>(2), ref -= ref_value);
+  EXPECT_EQ(static_cast<uint32_t>(-2), -ref);
+}

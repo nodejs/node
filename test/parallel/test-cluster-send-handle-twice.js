@@ -40,10 +40,10 @@ if (cluster.isMaster) {
     }));
   }
 } else {
-  const server = net.createServer(function(socket) {
+  const server = net.createServer(common.mustCall((socket) => {
     process.send('send-handle-1', socket);
     process.send('send-handle-2', socket);
-  });
+  }));
 
   server.listen(0, function() {
     const client = net.connect({
@@ -51,10 +51,9 @@ if (cluster.isMaster) {
       port: server.address().port
     });
     client.on('close', common.mustCall(() => { cluster.worker.disconnect(); }));
-    setTimeout(function() { client.end(); }, 50);
+    client.on('connect', () => { client.end(); });
   }).on('error', function(e) {
     console.error(e);
     assert.fail('server.listen failed');
-    cluster.worker.disconnect();
   });
 }

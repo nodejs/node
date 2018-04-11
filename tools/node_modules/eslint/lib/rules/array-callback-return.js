@@ -71,8 +71,10 @@ function isTargetMethod(node) {
  * @returns {boolean} `true` if the node is the callback of an array method.
  */
 function isCallbackOfArrayMethod(node) {
-    while (node) {
-        const parent = node.parent;
+    let currentNode = node;
+
+    while (currentNode) {
+        const parent = currentNode.parent;
 
         switch (parent.type) {
 
@@ -82,7 +84,7 @@ function isCallbackOfArrayMethod(node) {
              */
             case "LogicalExpression":
             case "ConditionalExpression":
-                node = parent;
+                currentNode = parent;
                 break;
 
             /*
@@ -99,7 +101,7 @@ function isCallbackOfArrayMethod(node) {
                 if (func === null || !astUtils.isCallee(func)) {
                     return false;
                 }
-                node = func.parent;
+                currentNode = func.parent;
                 break;
             }
 
@@ -112,13 +114,13 @@ function isCallbackOfArrayMethod(node) {
                 if (astUtils.isArrayFromMethod(parent.callee)) {
                     return (
                         parent.arguments.length >= 2 &&
-                        parent.arguments[1] === node
+                        parent.arguments[1] === currentNode
                     );
                 }
                 if (isTargetMethod(parent.callee)) {
                     return (
                         parent.arguments.length >= 1 &&
-                        parent.arguments[0] === node
+                        parent.arguments[0] === currentNode
                     );
                 }
                 return false;
@@ -156,7 +158,13 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            expectedAtEnd: "Expected to return a value at the end of {{name}}.",
+            expectedInside: "Expected to return a value in {{name}}.",
+            expectedReturnValue: "{{name}} expected a return value."
+        }
     },
 
     create(context) {
@@ -188,9 +196,9 @@ module.exports = {
                 context.report({
                     node,
                     loc: getLocation(node, context.getSourceCode()).loc.start,
-                    message: funcInfo.hasReturn
-                        ? "Expected to return a value at the end of {{name}}."
-                        : "Expected to return a value in {{name}}.",
+                    messageId: funcInfo.hasReturn
+                        ? "expectedAtEnd"
+                        : "expectedInside",
                     data: {
                         name: astUtils.getFunctionNameWithKind(funcInfo.node)
                     }
@@ -230,7 +238,7 @@ module.exports = {
                     if (!options.allowImplicit && !node.argument) {
                         context.report({
                             node,
-                            message: "{{name}} expected a return value.",
+                            messageId: "expectedReturnValue",
                             data: {
                                 name: lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
                             }

@@ -147,10 +147,10 @@ unintentional side effects.
 Because printing to the console is an asynchronous operation, `console.log()`
 will cause the AsyncHooks callbacks to be called. Using `console.log()` or
 similar asynchronous operations inside an AsyncHooks callback function will thus
-cause an infinite recursion. An easily solution to this when debugging is
-to use a synchronous logging operation such as `fs.writeSync(1, msg)`. This
-will print to stdout because `1` is the file descriptor for stdout and will
-not invoke AsyncHooks recursively because it is synchronous.
+cause an infinite recursion. An easy solution to this when debugging is to use a
+synchronous logging operation such as `fs.writeSync(1, msg)`. This will print to
+stdout because `1` is the file descriptor for stdout and will not invoke
+AsyncHooks recursively because it is synchronous.
 
 ```js
 const fs = require('fs');
@@ -246,9 +246,9 @@ instances and asynchronous work scheduled by them.
 
 Users are able to define their own `type` when using the public embedder API.
 
-*Note:* It is possible to have type name collisions. Embedders are encouraged
-to use unique prefixes, such as the npm package name, to prevent collisions
-when listening to the hooks.
+It is possible to have type name collisions. Embedders are encouraged to use
+unique prefixes, such as the npm package name, to prevent collisions when
+listening to the hooks.
 
 ###### `triggerId`
 
@@ -282,10 +282,10 @@ TCPWRAP(4): trigger: 2 execution: 0
 The `TCPSERVERWRAP` is the server which receives the connections.
 
 The `TCPWRAP` is the new connection from the client. When a new
-connection is made the `TCPWrap` instance is immediately constructed. This
-happens outside of any JavaScript stack (side note: a `executionAsyncId()` of
-`0` means it's being executed from C++, with no JavaScript stack above it).
-With only that information, it would be impossible to link resources together in
+connection is made, the `TCPWrap` instance is immediately constructed. This
+happens outside of any JavaScript stack. (An `executionAsyncId()` of `0` means
+that it is being executed from C++ with no JavaScript stack above it.) With only
+that information, it would be impossible to link resources together in
 terms of what caused them to be created, so `triggerAsyncId` is given the task
 of propagating what resource is responsible for the new resource's existence.
 
@@ -420,9 +420,9 @@ it only once.
 
 Called immediately after the callback specified in `before` is completed.
 
-*Note:* If an uncaught exception occurs during execution of the callback, then
-`after` will run *after* the `'uncaughtException'` event is emitted or a
-`domain`'s handler runs.
+If an uncaught exception occurs during execution of the callback, then `after`
+will run *after* the `'uncaughtException'` event is emitted or a `domain`'s
+handler runs.
 
 
 ##### `destroy(asyncId)`
@@ -432,11 +432,10 @@ Called immediately after the callback specified in `before` is completed.
 Called after the resource corresponding to `asyncId` is destroyed. It is also
 called asynchronously from the embedder API `emitDestroy()`.
 
-*Note:* Some resources depend on garbage collection for cleanup, so if a
-reference is made to the `resource` object passed to `init` it is possible that
-`destroy` will never be called, causing a memory leak in the application. If
-the resource does not depend on garbage collection, then this will not be an
-issue.
+Some resources depend on garbage collection for cleanup, so if a reference is
+made to the `resource` object passed to `init` it is possible that `destroy`
+will never be called, causing a memory leak in the application. If the resource
+does not depend on garbage collection, then this will not be an issue.
 
 ##### `promiseResolve(asyncId)`
 
@@ -447,9 +446,8 @@ invoked (either directly or through other means of resolving a promise).
 
 Note that `resolve()` does not do any observable synchronous work.
 
-*Note:* This does not necessarily mean that the `Promise` is fulfilled or
-rejected at this point, if the `Promise` was resolved by assuming the state
-of another `Promise`.
+The `Promise` is not necessarily fulfilled or rejected at this point if the
+`Promise` was resolved by assuming the state of another `Promise`.
 
 ```js
 new Promise((resolve) => resolve(true)).then((a) => {});
@@ -587,8 +585,8 @@ like I/O, connection pooling, or managing callback queues may use the
 
 ### `class AsyncResource()`
 
-The class `AsyncResource` was designed to be extended by the embedder's async
-resources. Using this users can easily trigger the lifetime events of their
+The class `AsyncResource` is designed to be extended by the embedder's async
+resources. Using this, users can easily trigger the lifetime events of their
 own resources.
 
 The `init` hook will trigger when an `AsyncResource` is instantiated.
@@ -636,12 +634,11 @@ asyncResource.emitAfter();
 * `type` {string} The type of async event.
 * `options` {Object}
   * `triggerAsyncId` {number} The ID of the execution context that created this
-  async event.  **Default:** `executionAsyncId()`
+  async event. **Default:** `executionAsyncId()`.
   * `requireManualDestroy` {boolean} Disables automatic `emitDestroy` when the
   object is garbage collected. This usually does not need to be set (even if
   `emitDestroy` is called manually), unless the resource's asyncId is retrieved
-  and the sensitive API's `emitDestroy` is called with it.
-  **Default:** `false`
+  and the sensitive API's `emitDestroy` is called with it. **Default:** `false`.
 
 Example usage:
 

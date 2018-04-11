@@ -251,32 +251,17 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   const StoreGlobalParameters& p = StoreGlobalParametersOf(node->op());
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  // Load global object from the context.
-  Node* native_context = effect =
-      graph()->NewNode(machine()->Load(MachineType::AnyTagged()), context,
-                       jsgraph()->IntPtrConstant(
-                           Context::SlotOffset(Context::NATIVE_CONTEXT_INDEX)),
-                       effect, control);
-  Node* global = effect = graph()->NewNode(
-      machine()->Load(MachineType::AnyTagged()), native_context,
-      jsgraph()->IntPtrConstant(Context::SlotOffset(Context::EXTENSION_INDEX)),
-      effect, control);
-  NodeProperties::ReplaceEffectInput(node, effect);
-  node->InsertInput(zone(), 0, global);
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable =
-        CodeFactory::StoreGlobalIC(isolate(), p.language_mode());
+        Builtins::CallableFor(isolate(), Builtins::kStoreGlobalICTrampoline);
     ReplaceWithStubCall(node, callable, flags);
   } else {
     Callable callable =
-        CodeFactory::StoreGlobalICInOptimizedCode(isolate(), p.language_mode());
+        Builtins::CallableFor(isolate(), Builtins::kStoreGlobalIC);
     Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-    node->InsertInput(zone(), 4, vector);
+    node->InsertInput(zone(), 3, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
 }
@@ -705,6 +690,10 @@ void JSGenericLowering::LowerJSGeneratorStore(Node* node) {
 }
 
 void JSGenericLowering::LowerJSGeneratorRestoreContinuation(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
+void JSGenericLowering::LowerJSGeneratorRestoreInputOrDebugPos(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 

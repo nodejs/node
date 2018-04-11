@@ -139,7 +139,7 @@ Code* Snapshot::DeserializeHandler(Isolate* isolate,
   }
 
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    isolate->logger()->LogCodeObject(code);
+    isolate->logger()->LogBytecodeHandler(bytecode, operand_scale, code);
   }
 
   return code;
@@ -358,10 +358,12 @@ SnapshotData::SnapshotData(const Serializer<AllocatorT>* serializer) {
 template SnapshotData::SnapshotData(
     const Serializer<DefaultSerializerAllocator>* serializer);
 
-Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
-  return Vector<const Reservation>(
-      reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
-      GetHeaderValue(kNumReservationsOffset));
+std::vector<SerializedData::Reservation> SnapshotData::Reservations() const {
+  uint32_t size = GetHeaderValue(kNumReservationsOffset);
+  std::vector<SerializedData::Reservation> reservations(size);
+  memcpy(reservations.data(), data_ + kHeaderSize,
+         size * sizeof(SerializedData::Reservation));
+  return reservations;
 }
 
 Vector<const byte> SnapshotData::Payload() const {

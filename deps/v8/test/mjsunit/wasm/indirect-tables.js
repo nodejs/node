@@ -602,6 +602,47 @@ function js_div(a, b) { return (a / b) | 0; }
       /signature mismatch/);
 })();
 
+(function IndirectCallIntoOtherInstance() {
+  print("IndirectCallIntoOtherInstance...");
+  var mem_1 = new WebAssembly.Memory({initial: 1});
+  var mem_2 = new WebAssembly.Memory({initial: 1});
+  var view_1 = new Int32Array(mem_1.buffer);
+  var view_2 = new Int32Array(mem_2.buffer);
+  view_1[0] = 1;
+  view_2[0] = 1000;
+
+  let builder = new WasmModuleBuilder();
+  let sig = builder.addType(kSig_i_v);
+  builder.addFunction('main', kSig_i_i)
+    .addBody([kExprGetLocal, 0, kExprCallIndirect, sig, kTableZero])
+    .exportAs('main');
+  builder.addImportedMemory('', 'memory', 1);
+
+  builder.setFunctionTableBounds(1, 1);
+  builder.addExportOfKind('table', kExternalTable);
+
+  let module1 = new WebAssembly.Module(builder.toBuffer());
+  let instance1 = new WebAssembly.Instance(module1, {'':{memory:mem_1}});
+
+  builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_i_v).addBody([kExprI32Const, 0, kExprI32LoadMem, 0, 0]);
+  builder.addImportedTable('', 'table');
+  builder.addFunctionTableInit(0, false, [0], true);
+  builder.addImportedMemory('', 'memory', 1);
+
+
+  let module2 = new WebAssembly.Module(builder.toBuffer());
+  let instance2 = new WebAssembly.Instance(module2, {
+    '': {
+      table: instance1.exports.table,
+      memory: mem_2
+    }
+  });
+
+  assertEquals(instance1.exports.main(0), 1000);
+})();
+
+
 (function ImportedFreestandingTable() {
   print("ImportedFreestandingTable...");
 
@@ -665,42 +706,40 @@ function js_div(a, b) { return (a / b) | 0; }
   test(1, 3);
 })();
 
-(function IndirectCallIntoOtherInstance() {
-  print("IndirectCallIntoOtherInstance...");
-  var mem_1 = new WebAssembly.Memory({initial: 1});
-  var mem_2 = new WebAssembly.Memory({initial: 1});
-  var view_1 = new Int32Array(mem_1.buffer);
-  var view_2 = new Int32Array(mem_2.buffer);
-  view_1[0] = 1;
-  view_2[0] = 1000;
+
+// Remove this test when v8:7232 is addressed comprehensively.
+(function TablesAreImmutableInWasmCallstacks() {
+  print('TablesAreImmutableInWasmCallstacks...');
+  let table = new WebAssembly.Table({initial:2, element:'anyfunc'});
 
   let builder = new WasmModuleBuilder();
-  let sig = builder.addType(kSig_i_v);
-  builder.addFunction('main', kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprCallIndirect, sig, kTableZero])
-    .exportAs('main');
-  builder.addImportedMemory('', 'memory', 1);
+  builder.addImport('', 'mutator', kSig_v_v);
+  builder.addFunction('main', kSig_v_v)
+    .addBody([
+      kExprCallFunction, 0
+    ]).exportAs('main');
 
-  builder.setFunctionTableBounds(1, 1);
-  builder.addExportOfKind('table', kExternalTable);
-
-  let module1 = new WebAssembly.Module(builder.toBuffer());
-  let instance1 = new WebAssembly.Instance(module1, {'':{memory:mem_1}});
-
-  builder = new WasmModuleBuilder();
-  builder.addFunction('main', kSig_i_v).addBody([kExprI32Const, 0, kExprI32LoadMem, 0, 0]);
-  builder.addImportedTable('', 'table');
-  builder.addFunctionTableInit(0, false, [0], true);
-  builder.addImportedMemory('', 'memory', 1);
-
-
-  let module2 = new WebAssembly.Module(builder.toBuffer());
-  let instance2 = new WebAssembly.Instance(module2, {
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module, {
     '': {
-      table: instance1.exports.table,
-      memory: mem_2
+      'mutator': () => {table.set(0, null);}
     }
   });
 
-  assertEquals(instance1.exports.main(0), 1000);
+  table.set(0, instance.exports.main);
+
+  try {
+    instance.exports.main();
+    assertUnreached();
+  } catch (e) {
+    assertTrue(e instanceof RangeError);
+  }
+  try {
+    instance.exports.main();
+    assertUnreached();
+  } catch (e) {
+    assertTrue(e instanceof RangeError);
+  }
+  table.set(0, null);
+  assertEquals(null, table.get(0));
 })();

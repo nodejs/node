@@ -3,12 +3,15 @@ set noparent
 bmeurer@chromium.org
 jarin@chromium.org
 mstarzinger@chromium.org
-mtrofin@chromium.org
 titzer@chromium.org
 danno@chromium.org
 tebbi@chromium.org
 neis@chromium.org
 mvstanton@chromium.org
+
+# For backend
+bbudge@chromium.org
+mtrofin@chromium.org
 
 per-file wasm-*=ahaas@chromium.org
 per-file wasm-*=bbudge@chromium.org

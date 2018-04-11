@@ -114,7 +114,8 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "mode" argument must be of type integer'
+        message: 'The "mode" argument must be of type number. ' +
+                 'Received type object'
       }
     );
 
@@ -146,40 +147,26 @@ if (fs.lchmod) {
   }));
 }
 
-['', false, null, undefined, {}, []].forEach((i) => {
-  common.expectsError(
-    () => fs.fchmod(i, 0o000),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
-  common.expectsError(
-    () => fs.fchmodSync(i, 0o000),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
+['', false, null, undefined, {}, []].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "fd" argument must be of type number. ' +
+             `Received type ${typeof input}`
+  };
+  assert.throws(() => fs.fchmod(input, 0o000), errObj);
+  assert.throws(() => fs.fchmodSync(input, 0o000), errObj);
 });
 
-[false, 1, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
-    () => fs.chmod(i, 1, common.mustNotCall()),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
-    }
-  );
-  common.expectsError(
-    () => fs.chmodSync(i, 1),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
-    }
-  );
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
+             ` Received type ${typeof input}`
+  };
+  assert.throws(() => fs.chmod(input, 1, common.mustNotCall()), errObj);
+  assert.throws(() => fs.chmodSync(input, 1), errObj);
 });
 
 process.on('exit', function() {

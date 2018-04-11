@@ -8,6 +8,7 @@
   'variables': {
     'v8_code': 1,
     'unittests_sources': [  ### gcmole(all) ###
+      'allocation-unittest.cc',
       'api/access-check-unittest.cc',
       'api/exception-unittest.cc',
       'api/interceptor-unittest.cc',
@@ -90,6 +91,7 @@
       'compiler/schedule-unittest.cc',
       'compiler/scheduler-unittest.cc',
       'compiler/scheduler-rpo-unittest.cc',
+      'compiler/simplified-lowering-unittest.cc',
       'compiler/simplified-operator-reducer-unittest.cc',
       'compiler/simplified-operator-unittest.cc',
       'compiler/state-values-utils-unittest.cc',
@@ -158,7 +160,7 @@
       'wasm/control-transfer-unittest.cc',
       'wasm/decoder-unittest.cc',
       'wasm/function-body-decoder-unittest.cc',
-      'wasm/wasm-heap-unittest.cc',
+      'wasm/wasm-code-manager-unittest.cc',
       'wasm/leb-helper-unittest.cc',
       'wasm/loop-assignment-analysis-unittest.cc',
       'wasm/module-decoder-unittest.cc',

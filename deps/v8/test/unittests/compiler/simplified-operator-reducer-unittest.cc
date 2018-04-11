@@ -92,11 +92,10 @@ const int32_t kInt32Values[] = {
     1062628108, 1087581664, 1488498068, 1534668023, 1661587028, 1696896187,
     1866841746, 2032089723, 2147483647};
 
-
 const double kNaNs[] = {-std::numeric_limits<double>::quiet_NaN(),
                         std::numeric_limits<double>::quiet_NaN(),
-                        bit_cast<double>(V8_UINT64_C(0x7FFFFFFFFFFFFFFF)),
-                        bit_cast<double>(V8_UINT64_C(0xFFFFFFFFFFFFFFFF))};
+                        bit_cast<double>(uint64_t{0x7FFFFFFFFFFFFFFF}),
+                        bit_cast<double>(uint64_t{0xFFFFFFFFFFFFFFFF})};
 
 const CheckForMinusZeroMode kCheckForMinusZeroModes[] = {
     CheckForMinusZeroMode::kDontCheckForMinusZero,
@@ -357,10 +356,10 @@ TEST_F(SimplifiedOperatorReducerTest, CheckedFloat64ToInt32WithConstant) {
   Node* effect = graph()->start();
   Node* control = graph()->start();
   TRACED_FOREACH(int32_t, n, kInt32Values) {
-    Reduction r = Reduce(
-        graph()->NewNode(simplified()->CheckedFloat64ToInt32(
-                             CheckForMinusZeroMode::kDontCheckForMinusZero),
-                         Float64Constant(n), effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        simplified()->CheckedFloat64ToInt32(
+            CheckForMinusZeroMode::kDontCheckForMinusZero, VectorSlotPair()),
+        Float64Constant(n), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsInt32Constant(n));
   }
@@ -416,8 +415,8 @@ TEST_F(SimplifiedOperatorReducerTest, CheckSmiWithChangeInt31ToTaggedSigned) {
   Node* control = graph()->start();
   Node* value =
       graph()->NewNode(simplified()->ChangeInt31ToTaggedSigned(), param0);
-  Reduction reduction = Reduce(
-      graph()->NewNode(simplified()->CheckSmi(), value, effect, control));
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->CheckSmi(VectorSlotPair()), value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }
@@ -426,8 +425,8 @@ TEST_F(SimplifiedOperatorReducerTest, CheckSmiWithNumberConstant) {
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* value = NumberConstant(1.0);
-  Reduction reduction = Reduce(
-      graph()->NewNode(simplified()->CheckSmi(), value, effect, control));
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->CheckSmi(VectorSlotPair()), value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }
@@ -436,10 +435,10 @@ TEST_F(SimplifiedOperatorReducerTest, CheckSmiWithCheckSmi) {
   Node* param0 = Parameter(0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  Node* value = effect =
-      graph()->NewNode(simplified()->CheckSmi(), param0, effect, control);
-  Reduction reduction = Reduce(
-      graph()->NewNode(simplified()->CheckSmi(), value, effect, control));
+  Node* value = effect = graph()->NewNode(
+      simplified()->CheckSmi(VectorSlotPair()), param0, effect, control);
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->CheckSmi(VectorSlotPair()), value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }

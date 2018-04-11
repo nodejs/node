@@ -156,7 +156,7 @@ decompressed result is valid.
 
 <!--type=misc-->
 
-From `zlib/zconf.h`, modified to node.js's usage:
+From `zlib/zconf.h`, modified to Node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
@@ -165,7 +165,7 @@ The memory requirements for deflate are (in bytes):
 (1 << (windowBits + 2)) + (1 << (memLevel + 9))
 ```
 
-That is: 128K for windowBits=15  +  128K for memLevel = 8
+That is: 128K for windowBits = 15 + 128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
 
 For example, to reduce the default memory requirements from 256K to 128K, the
@@ -178,20 +178,20 @@ const options = { windowBits: 14, memLevel: 7 };
 This will, however, generally degrade compression.
 
 The memory requirements for inflate are (in bytes) `1 << windowBits`.
-That is, 32K for windowBits=15 (default value) plus a few kilobytes
+That is, 32K for windowBits = 15 (default value) plus a few kilobytes
 for small objects.
 
 This is in addition to a single internal output slab buffer of size
 `chunkSize`, which defaults to 16K.
 
 The speed of `zlib` compression is affected most dramatically by the
-`level` setting.  A higher level will result in better compression, but
-will take longer to complete.  A lower level will result in less
+`level` setting. A higher level will result in better compression, but
+will take longer to complete. A lower level will result in less
 compression, but will be much faster.
 
 In general, greater memory usage options will mean that Node.js has to make
 fewer calls to `zlib` because it will be able to process more data on
-each `write` operation.  So, this is another factor that affects the
+each `write` operation. So, this is another factor that affects the
 speed, at the cost of memory usage.
 
 ## Flushing
@@ -233,9 +233,9 @@ added: v0.5.8
 
 All of the constants defined in `zlib.h` are also defined on
 `require('zlib').constants`. In the normal course of operations, it will not be
-necessary to use these  constants. They are documented so that their presence is
+necessary to use these constants. They are documented so that their presence is
 not surprising. This section is taken almost directly from the
-[zlib documentation][].  See <https://zlib.net/manual.html#Constants> for more
+[zlib documentation][]. See <https://zlib.net/manual.html#Constants> for more
 details.
 
 Previously, the constants were available directly from `require('zlib')`, for
@@ -281,7 +281,7 @@ Compression strategy.
 * `zlib.constants.Z_FIXED`
 * `zlib.constants.Z_DEFAULT_STRATEGY`
 
-## Class Options
+## Class: Options
 <!-- YAML
 added: v0.11.1
 changes:
@@ -298,14 +298,14 @@ changes:
 
 <!--type=misc-->
 
-Each class takes an `options` object.  All options are optional.
+Each class takes an `options` object. All options are optional.
 
 Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
 
-* `flush` {integer} (default: `zlib.constants.Z_NO_FLUSH`)
-* `finishFlush` {integer} (default: `zlib.constants.Z_FINISH`)
-* `chunkSize` {integer} (default: 16\*1024)
+* `flush` {integer} **Default:** `zlib.constants.Z_NO_FLUSH`
+* `finishFlush` {integer} **Default:** `zlib.constants.Z_FINISH`
+* `chunkSize` {integer} **Default:** `16 * 1024`
 * `windowBits` {integer}
 * `level` {integer} (compression only)
 * `memLevel` {integer} (compression only)
@@ -400,13 +400,28 @@ class of the compressor/decompressor classes.
 ### zlib.bytesRead
 <!-- YAML
 added: v8.1.0
+deprecated: REPLACEME
+-->
+
+> Stability: 0 - Deprecated: Use [`zlib.bytesWritten`][] instead.
+
+* {number}
+
+Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
+because it also made sense to interpret the value as the number of bytes
+read by the engine, but is inconsistent with other streams in Node.js that
+expose values under these names.
+
+### zlib.bytesWritten
+<!-- YAML
+added: REPLACEME
 -->
 
 * {number}
 
-The `zlib.bytesRead` property specifies the number of bytes read by the engine
-before the bytes are processed (compressed or decompressed, as appropriate for
-the derived class).
+The `zlib.bytesWritten` property specifies the number of bytes written to
+the engine, before the bytes are processed (compressed or decompressed,
+as appropriate for the derived class).
 
 ### zlib.close([callback])
 <!-- YAML
@@ -420,7 +435,7 @@ Close the underlying handle.
 added: v0.5.8
 -->
 
-`kind` defaults to `zlib.constants.Z_FULL_FLUSH`.
+* `kind` **Default:** `zlib.constants.Z_FULL_FLUSH`
 
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
@@ -458,14 +473,14 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
-Creates and returns a new [Deflate][] object with the given [options][].
+Creates and returns a new [Deflate][] object with the given [`options`][].
 
 ## zlib.createDeflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [DeflateRaw][] object with the given [options][].
+Creates and returns a new [DeflateRaw][] object with the given [`options`][].
 
 An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when windowBits
 is set to 8 for raw deflate streams. zlib would automatically set windowBits
@@ -479,35 +494,35 @@ that effectively uses an 8-bit window only.
 added: v0.5.8
 -->
 
-Creates and returns a new [Gunzip][] object with the given [options][].
+Creates and returns a new [Gunzip][] object with the given [`options`][].
 
 ## zlib.createGzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Gzip][] object with the given [options][].
+Creates and returns a new [Gzip][] object with the given [`options`][].
 
 ## zlib.createInflate([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Inflate][] object with the given [options][].
+Creates and returns a new [Inflate][] object with the given [`options`][].
 
 ## zlib.createInflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [InflateRaw][] object with the given [options][].
+Creates and returns a new [InflateRaw][] object with the given [`options`][].
 
 ## zlib.createUnzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Unzip][] object with the given [options][].
+Creates and returns a new [Unzip][] object with the given [`options`][].
 
 ## Convenience Methods
 
@@ -756,6 +771,7 @@ Decompress a chunk of data with [Unzip][].
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`options`]: #zlib_class_options
 [DeflateRaw]: #zlib_class_zlib_deflateraw
 [Deflate]: #zlib_class_zlib_deflate
 [Gunzip]: #zlib_class_zlib_gunzip
@@ -765,5 +781,5 @@ Decompress a chunk of data with [Unzip][].
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [Unzip]: #zlib_class_zlib_unzip
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
-[options]: #zlib_class_options
+[`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [zlib documentation]: https://zlib.net/manual.html#Constants

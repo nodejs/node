@@ -156,6 +156,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*);
   std::unique_ptr<protocol::Runtime::StackTrace> currentAsyncStackTrace();
   std::unique_ptr<protocol::Runtime::StackTraceId> currentExternalStackTrace();
+  std::unique_ptr<protocol::Runtime::StackTraceId> currentScheduledAsyncCall();
 
   void setPauseOnExceptionsImpl(int);
 

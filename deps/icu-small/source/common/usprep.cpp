@@ -347,10 +347,6 @@ usprep_getProfile(const char* path,
         newProfile->doNFKC = (UBool)((newProfile->indexes[_SPREP_OPTIONS] & _SPREP_NORMALIZATION_ON) > 0);
         newProfile->checkBiDi = (UBool)((newProfile->indexes[_SPREP_OPTIONS] & _SPREP_CHECK_BIDI_ON) > 0);
 
-        if(newProfile->checkBiDi) {
-            newProfile->bdp = ubidi_getSingleton();
-        }
-
         LocalMemory<UStringPrepKey> key;
         LocalMemory<char> keyName;
         LocalMemory<char> keyPath;
@@ -735,7 +731,7 @@ usprep_prepare(   const UStringPrepProfile* profile,
         }
 
         if(profile->checkBiDi) {
-            direction = ubidi_getClass(profile->bdp, ch);
+            direction = ubidi_getClass(ch);
             if(firstCharDir == U_CHAR_DIRECTION_COUNT){
                 firstCharDir = direction;
             }

@@ -301,13 +301,9 @@ InspectorTest.Session = class {
 
   logAsyncStackTrace(asyncStackTrace) {
     while (asyncStackTrace) {
-      if (asyncStackTrace.promiseCreationFrame) {
-        var frame = asyncStackTrace.promiseCreationFrame;
-        InspectorTest.log(`-- ${asyncStackTrace.description} (${frame.url}:${frame.lineNumber}:${frame.columnNumber})--`);
-      } else {
-        InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-      }
+      InspectorTest.log(`-- ${asyncStackTrace.description || '<empty>'} --`);
       this.logCallFrames(asyncStackTrace.callFrames);
+      if (asyncStackTrace.parentId) InspectorTest.log('  <external stack>');
       asyncStackTrace = asyncStackTrace.parent;
     }
   }

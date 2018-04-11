@@ -86,6 +86,8 @@ Indicates if there is more than 1gb of total memory.
     regular expression must match the `message` property of the expected error.
   * `name` [&lt;string>]
     expected error must have this value for its `name` property.
+  * `info` &lt;Object> expected error must have the same `info` property
+    that is deeply equal to this value.
   * `generatedMessage` [&lt;string>]
     (`AssertionError` only) expected error must have this value for its
     `generatedMessage` property.
@@ -108,11 +110,17 @@ Indicates if there is more than 1gb of total memory.
   returned function has not been called exactly `exact` number of times when the
   test is complete, then the test will fail.
 
-### expectWarning(name, expected)
+### expectWarning(name, expected, code)
 * `name` [&lt;string>]
 * `expected` [&lt;string>] | [&lt;Array>]
+* `code` [&lt;string>]
 
-Tests whether `name` and `expected` are part of a raised warning.
+Tests whether `name`, `expected`, and `code` are part of a raised warning. If
+an expected warning does not have a code then `common.noWarnCode` can be used
+to indicate this.
+
+### noWarnCode
+See `common.expectWarning()` for usage.
 
 ### fileExists(pathname)
 * pathname [&lt;string>]

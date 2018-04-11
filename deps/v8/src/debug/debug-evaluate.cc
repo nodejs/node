@@ -16,6 +16,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -57,13 +58,6 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   StackTraceFrameIterator it(isolate, frame_id);
   if (!it.is_javascript()) return isolate->factory()->undefined_value();
   JavaScriptFrame* frame = it.javascript_frame();
-
-  // Traverse the saved contexts chain to find the active context for the
-  // selected frame.
-  SaveContext* save =
-      DebugFrameHelper::FindSavedContextForFrame(isolate, frame);
-  SaveContext savex(isolate);
-  isolate->set_context(*(save->context()));
 
   // This is not a lot different than DebugEvaluate::Global, except that
   // variables accessible by the function we are evaluating from are
@@ -284,7 +278,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToString)                            \
   V(ToLength)                            \
   V(ToNumber)                            \
-  V(NumberToString)                      \
+  V(NumberToStringSkipCache)             \
   /* Type checks */                      \
   V(IsJSReceiver)                        \
   V(IsSmi)                               \
@@ -361,6 +355,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowRangeError)                     \
   V(ToName)                              \
   V(GetOwnPropertyDescriptor)            \
+  V(StackGuard)                          \
   /* Misc. */                            \
   V(Call)                                \
   V(MaxSmi)                              \
@@ -522,6 +517,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayPrototypeValues:
     case Builtins::kArrayIncludes:
     case Builtins::kArrayPrototypeEntries:
+    case Builtins::kArrayPrototypeFind:
+    case Builtins::kArrayPrototypeFindIndex:
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayForEach:
     case Builtins::kArrayEvery:
@@ -751,16 +748,29 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
                             ? info->lazy_deserialization_builtin_id()
                             : info->code()->builtin_index();
     DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
-    if (builtin_index >= 0 && builtin_index < Builtins::builtin_count &&
+    if (Builtins::IsBuiltinId(builtin_index) &&
         BuiltinHasNoSideEffect(static_cast<Builtins::Name>(builtin_index))) {
 #ifdef DEBUG
-      if (info->code()->builtin_index() == Builtins::kDeserializeLazy) {
-        return true;  // Target builtin is not yet deserialized.
+      Isolate* isolate = info->GetIsolate();
+      Code* code = isolate->builtins()->builtin(builtin_index);
+      if (code->builtin_index() == Builtins::kDeserializeLazy) {
+        // Target builtin is not yet deserialized. Deserialize it now.
+
+        DCHECK(Builtins::IsLazy(builtin_index));
+        DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_index));
+
+        if (FLAG_trace_lazy_deserialization) {
+          PrintF("Lazy-deserializing builtin %s\n",
+                 Builtins::name(builtin_index));
+        }
+
+        code = Snapshot::DeserializeBuiltin(isolate, builtin_index);
+        DCHECK_NE(Builtins::kDeserializeLazy, code->builtin_index());
       }
       // TODO(yangguo): Check builtin-to-builtin calls too.
       int mode = RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
       bool failed = false;
-      for (RelocIterator it(info->code(), mode); !it.done(); it.next()) {
+      for (RelocIterator it(code, mode); !it.done(); it.next()) {
         RelocInfo* rinfo = it.rinfo();
         Address address = rinfo->target_external_reference();
         const Runtime::Function* function = Runtime::FunctionForEntry(address);

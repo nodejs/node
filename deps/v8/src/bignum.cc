@@ -278,7 +278,7 @@ void Bignum::MultiplyByUInt64(uint64_t factor) {
 
 
 void Bignum::MultiplyByPowerOfTen(int exponent) {
-  const uint64_t kFive27 = V8_2PART_UINT64_C(0x6765c793, fa10079d);
+  const uint64_t kFive27 = V8_2PART_UINT64_C(0x6765C793, fa10079d);
   const uint16_t kFive1 = 5;
   const uint16_t kFive2 = kFive1 * 5;
   const uint16_t kFive3 = kFive2 * 5;

@@ -50,14 +50,14 @@ OFStream::~OFStream() {}
 namespace {
 
 // Locale-independent predicates.
-bool IsPrint(uint16_t c) { return 0x20 <= c && c <= 0x7e; }
-bool IsSpace(uint16_t c) { return (0x9 <= c && c <= 0xd) || c == 0x20; }
+bool IsPrint(uint16_t c) { return 0x20 <= c && c <= 0x7E; }
+bool IsSpace(uint16_t c) { return (0x9 <= c && c <= 0xD) || c == 0x20; }
 bool IsOK(uint16_t c) { return (IsPrint(c) || IsSpace(c)) && c != '\\'; }
 
 
 std::ostream& PrintUC16(std::ostream& os, uint16_t c, bool (*pred)(uint16_t)) {
   char buf[10];
-  const char* format = pred(c) ? "%c" : (c <= 0xff) ? "\\x%02x" : "\\u%04x";
+  const char* format = pred(c) ? "%c" : (c <= 0xFF) ? "\\x%02x" : "\\u%04x";
   snprintf(buf, sizeof(buf), format, c);
   return os << buf;
 }
@@ -124,7 +124,7 @@ std::ostream& operator<<(std::ostream& os, const AsHexBytes& hex) {
     if (b) os << " ";
     uint8_t printed_byte =
         hex.byte_order == AsHexBytes::kLittleEndian ? b : bytes - b - 1;
-    os << AsHex((hex.value >> (8 * printed_byte)) & 0xff, 2);
+    os << AsHex((hex.value >> (8 * printed_byte)) & 0xFF, 2);
   }
   return os;
 }

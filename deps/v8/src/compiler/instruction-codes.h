@@ -68,20 +68,6 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchParentFramePointer)               \
   V(ArchTruncateDoubleToI)                \
   V(ArchStoreWithWriteBarrier)            \
-  V(CheckedLoadInt8)                      \
-  V(CheckedLoadUint8)                     \
-  V(CheckedLoadInt16)                     \
-  V(CheckedLoadUint16)                    \
-  V(CheckedLoadWord32)                    \
-  V(CheckedLoadWord64)                    \
-  V(CheckedLoadFloat32)                   \
-  V(CheckedLoadFloat64)                   \
-  V(CheckedStoreWord8)                    \
-  V(CheckedStoreWord16)                   \
-  V(CheckedStoreWord32)                   \
-  V(CheckedStoreWord64)                   \
-  V(CheckedStoreFloat32)                  \
-  V(CheckedStoreFloat64)                  \
   V(ArchStackSlot)                        \
   V(AtomicLoadInt8)                       \
   V(AtomicLoadUint8)                      \

@@ -124,12 +124,11 @@ bool OS::HasLazyCommits() {
 }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
-  CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
-  return std::vector<SharedLibraryAddress>();
+  UNREACHABLE();  // TODO(scottmg): Port, https://crbug.com/731217.
 }
 
 void OS::SignalCodeMovingGC() {
-  CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
+  UNREACHABLE();  // TODO(scottmg): Port, https://crbug.com/731217.
 }
 
 }  // namespace base

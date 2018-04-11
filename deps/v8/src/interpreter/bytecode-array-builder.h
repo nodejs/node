@@ -85,8 +85,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(const AstRawString* name, int feedback_slot,
                                    TypeofMode typeof_mode);
-  BytecodeArrayBuilder& StoreGlobal(const AstRawString* name, int feedback_slot,
-                                    LanguageMode language_mode);
+  BytecodeArrayBuilder& StoreGlobal(const AstRawString* name,
+                                    int feedback_slot);
 
   // Load the object at |slot_index| at |depth| in the context chain starting
   // with |context| into the accumulator.
@@ -404,7 +404,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();
-  BytecodeArrayBuilder& Abort(BailoutReason reason);
+  BytecodeArrayBuilder& Abort(AbortReason reason);
   BytecodeArrayBuilder& Return();
   BytecodeArrayBuilder& ThrowReferenceErrorIfHole(const AstRawString* name);
   BytecodeArrayBuilder& ThrowSuperNotCalledIfHole();
@@ -431,8 +431,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                          RegisterList registers,
                                          int suspend_id);
   BytecodeArrayBuilder& RestoreGeneratorState(Register generator);
-  BytecodeArrayBuilder& RestoreGeneratorRegisters(Register generator,
-                                                  RegisterList registers);
+  BytecodeArrayBuilder& ResumeGenerator(Register generator,
+                                        Register generator_state,
+                                        RegisterList registers);
 
   // Exception handling.
   BytecodeArrayBuilder& MarkHandler(int handler_id,

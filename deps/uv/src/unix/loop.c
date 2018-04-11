@@ -38,13 +38,14 @@ int uv_loop_init(uv_loop_t* loop) {
 
   heap_init((struct heap*) &loop->timer_heap);
   QUEUE_INIT(&loop->wq);
-  QUEUE_INIT(&loop->active_reqs);
   QUEUE_INIT(&loop->idle_handles);
   QUEUE_INIT(&loop->async_handles);
   QUEUE_INIT(&loop->check_handles);
   QUEUE_INIT(&loop->prepare_handles);
   QUEUE_INIT(&loop->handle_queue);
 
+  loop->active_handles = 0;
+  loop->active_reqs.count = 0;
   loop->nfds = 0;
   loop->watchers = NULL;
   loop->nwatchers = 0;

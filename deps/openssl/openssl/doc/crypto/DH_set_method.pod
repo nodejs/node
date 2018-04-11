@@ -8,7 +8,6 @@ DH_set_method, DH_new_method, DH_OpenSSL - select DH method
 =head1 SYNOPSIS
 
  #include <openssl/dh.h>
- #include <openssl/engine.h>
 
  void DH_set_default_method(const DH_METHOD *meth);
 
@@ -32,8 +31,11 @@ Initially, the default DH_METHOD is the OpenSSL internal implementation, as
 returned by DH_OpenSSL().
 
 DH_set_default_method() makes B<meth> the default method for all DH
-structures created later. B<NB>: This is true only whilst no ENGINE has been set
+structures created later.
+B<NB>: This is true only whilst no ENGINE has been set
 as a default for DH, so this function is no longer recommended.
+This function is not thread-safe and should not be called at the same time
+as other OpenSSL functions.
 
 DH_get_default_method() returns a pointer to the current default DH_METHOD.
 However, the meaningfulness of this result is dependent on whether the ENGINE
@@ -52,35 +54,8 @@ be used for the DH operations. If B<engine> is NULL, the default ENGINE for DH
 operations is used, and if no default ENGINE is set, the DH_METHOD controlled by
 DH_set_default_method() is used.
 
-=head1 THE DH_METHOD STRUCTURE
-
- typedef struct dh_meth_st
- {
-     /* name of the implementation */
-	const char *name;
-
-     /* generate private and public DH values for key agreement */
-        int (*generate_key)(DH *dh);
-
-     /* compute shared secret */
-        int (*compute_key)(unsigned char *key, BIGNUM *pub_key, DH *dh);
-
-     /* compute r = a ^ p mod m (May be NULL for some implementations) */
-        int (*bn_mod_exp)(DH *dh, BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-                                const BIGNUM *m, BN_CTX *ctx,
-                                BN_MONT_CTX *m_ctx);
-
-     /* called at DH_new */
-        int (*init)(DH *dh);
-
-     /* called at DH_free */
-        int (*finish)(DH *dh);
-
-        int flags;
-
-        char *app_data; /* ?? */
-
- } DH_METHOD;
+A new DH_METHOD object may be constructed using DH_meth_new() (see
+L<DH_meth_new(3)>).
 
 =head1 RETURN VALUES
 
@@ -94,36 +69,20 @@ the method for B<dh> (including unloading the ENGINE handle if the previous
 method was supplied by an ENGINE).
 
 DH_new_method() returns NULL and sets an error code that can be obtained by
-L<ERR_get_error(3)|ERR_get_error(3)> if the allocation fails. Otherwise it
+L<ERR_get_error(3)> if the allocation fails. Otherwise it
 returns a pointer to the newly allocated structure.
-
-=head1 NOTES
-
-As of version 0.9.7, DH_METHOD implementations are grouped together with other
-algorithmic APIs (eg. RSA_METHOD, EVP_CIPHER, etc) in B<ENGINE> modules. If a
-default ENGINE is specified for DH functionality using an ENGINE API function,
-that will override any DH defaults set using the DH API (ie.
-DH_set_default_method()). For this reason, the ENGINE API is the recommended way
-to control default implementations for use in DH and other cryptographic
-algorithms.
 
 =head1 SEE ALSO
 
-L<dh(3)|dh(3)>, L<DH_new(3)|DH_new(3)>
+L<dh(3)>, L<DH_new(3)>, L<DH_meth_new(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-DH_set_default_method(), DH_get_default_method(), DH_set_method(),
-DH_new_method() and DH_OpenSSL() were added in OpenSSL 0.9.4.
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
 
-DH_set_default_openssl_method() and DH_get_default_openssl_method() replaced
-DH_set_default_method() and DH_get_default_method() respectively, and
-DH_set_method() and DH_new_method() were altered to use B<ENGINE>s rather than
-B<DH_METHOD>s during development of the engine version of OpenSSL 0.9.6. For
-0.9.7, the handling of defaults in the ENGINE API was restructured so that this
-change was reversed, and behaviour of the other functions resembled more closely
-the previous behaviour. The behaviour of defaults in the ENGINE API now
-transparently overrides the behaviour of defaults in the DH API without
-requiring changing these function prototypes.
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

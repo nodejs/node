@@ -3,14 +3,13 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  millions: [5],
+  n: [5e6],
 });
 
-function main({ millions }) {
-  const iterations = millions * 1e6;
+function main({ n }) {
 
   var timer = setTimeout(() => {}, 1);
-  for (var i = 0; i < iterations; i++) {
+  for (var i = 0; i < n; i++) {
     setTimeout(cb, 1);
   }
   var next = timer._idlePrev;
@@ -18,13 +17,13 @@ function main({ millions }) {
 
   bench.start();
 
-  for (var j = 0; j < iterations; j++) {
+  for (var j = 0; j < n; j++) {
     timer = next;
     next = timer._idlePrev;
     clearTimeout(timer);
   }
 
-  bench.end(iterations / 1e6);
+  bench.end(n);
 }
 
 function cb() {

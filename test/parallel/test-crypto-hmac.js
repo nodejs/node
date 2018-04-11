@@ -18,7 +18,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "hmac" argument must be of type string'
+    message: 'The "hmac" argument must be of type string. Received type object'
   });
 
 common.expectsError(
@@ -27,7 +27,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "key" argument must be one of type string, TypedArray, or ' +
-             'DataView'
+             'DataView. Received type object'
   });
 
 {
@@ -269,7 +269,12 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
       expected,
       `Test HMAC-${hash} rfc 4231 case ${i + 1}: ${actual} must be ${expected}`
     );
-    assert.strictEqual(actual, strRes, 'Should get same result from stream');
+    assert.strictEqual(
+      actual,
+      strRes,
+      `Should get same result from stream (hash: ${hash} and case: ${i + 1})` +
+      ` => ${actual} must be ${strRes}`
+    );
   }
 }
 

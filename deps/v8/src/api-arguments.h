@@ -99,6 +99,54 @@ class PropertyCallbackArguments
     DCHECK(values[T::kIsolateIndex]->IsSmi());
   }
 
+  // -------------------------------------------------------------------------
+  // Accessor Callbacks
+  // Also used for AccessorSetterCallback.
+  inline void CallAccessorSetter(Handle<AccessorInfo> info, Handle<Name> name,
+                                 Handle<Object> value);
+  // Also used for AccessorGetterCallback, AccessorNameGetterCallback.
+  inline Handle<Object> CallAccessorGetter(Handle<AccessorInfo> info,
+                                           Handle<Name> name);
+
+  // -------------------------------------------------------------------------
+  // Named Interceptor Callbacks
+  inline Handle<Object> CallNamedQuery(Handle<InterceptorInfo> interceptor,
+                                       Handle<Name> name);
+  inline Handle<Object> CallNamedGetter(Handle<InterceptorInfo> interceptor,
+                                        Handle<Name> name);
+  inline Handle<Object> CallNamedSetter(Handle<InterceptorInfo> interceptor,
+                                        Handle<Name> name,
+                                        Handle<Object> value);
+  inline Handle<Object> CallNamedSetterCallback(
+      GenericNamedPropertySetterCallback callback, Handle<Name> name,
+      Handle<Object> value);
+  inline Handle<Object> CallNamedDefiner(Handle<InterceptorInfo> interceptor,
+                                         Handle<Name> name,
+                                         const v8::PropertyDescriptor& desc);
+  inline Handle<Object> CallNamedDeleter(Handle<InterceptorInfo> interceptor,
+                                         Handle<Name> name);
+  inline Handle<Object> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
+                                            Handle<Name> name);
+  Handle<JSObject> CallNamedEnumerator(Handle<InterceptorInfo> interceptor);
+
+  // -------------------------------------------------------------------------
+  // Indexed Interceptor Callbacks
+  inline Handle<Object> CallIndexedQuery(Handle<InterceptorInfo> interceptor,
+                                         uint32_t index);
+  inline Handle<Object> CallIndexedGetter(Handle<InterceptorInfo> interceptor,
+                                          uint32_t index);
+  inline Handle<Object> CallIndexedSetter(Handle<InterceptorInfo> interceptor,
+                                          uint32_t index, Handle<Object> value);
+  inline Handle<Object> CallIndexedDefiner(Handle<InterceptorInfo> interceptor,
+                                           uint32_t index,
+                                           const v8::PropertyDescriptor& desc);
+  inline Handle<Object> CallIndexedDeleter(Handle<InterceptorInfo> interceptor,
+                                           uint32_t index);
+  inline Handle<Object> CallIndexedDescriptor(
+      Handle<InterceptorInfo> interceptor, uint32_t index);
+  Handle<JSObject> CallIndexedEnumerator(Handle<InterceptorInfo> interceptor);
+
+ private:
   /*
    * The following Call functions wrap the calling of all callbacks to handle
    * calling either the old or the new style callbacks depending on which one
@@ -107,35 +155,14 @@ class PropertyCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  Handle<JSObject> Call(IndexedPropertyEnumeratorCallback f);
+  inline Handle<JSObject> CallPropertyEnumerator(
+      Handle<InterceptorInfo> interceptor);
 
-  inline Handle<Object> Call(AccessorNameGetterCallback f, Handle<Name> name);
-  inline Handle<Object> Call(GenericNamedPropertyQueryCallback f,
-                             Handle<Name> name);
-  inline Handle<Object> Call(GenericNamedPropertyDeleterCallback f,
-                             Handle<Name> name);
+  inline Handle<Object> BasicCallIndexedGetterCallback(
+      IndexedPropertyGetterCallback f, uint32_t index);
+  inline Handle<Object> BasicCallNamedGetterCallback(
+      GenericNamedPropertyGetterCallback f, Handle<Name> name);
 
-  inline Handle<Object> Call(IndexedPropertyGetterCallback f, uint32_t index);
-  inline Handle<Object> Call(IndexedPropertyQueryCallback f, uint32_t index);
-  inline Handle<Object> Call(IndexedPropertyDeleterCallback f, uint32_t index);
-
-  inline Handle<Object> Call(GenericNamedPropertySetterCallback f,
-                             Handle<Name> name, Handle<Object> value);
-
-  inline Handle<Object> Call(GenericNamedPropertyDefinerCallback f,
-                             Handle<Name> name,
-                             const v8::PropertyDescriptor& desc);
-
-  inline Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
-                             Handle<Object> value);
-
-  inline Handle<Object> Call(IndexedPropertyDefinerCallback f, uint32_t index,
-                             const v8::PropertyDescriptor& desc);
-
-  inline void Call(AccessorNameSetterCallback f, Handle<Name> name,
-                   Handle<Object> value);
-
- private:
   inline JSObject* holder() {
     return JSObject::cast(this->begin()[T::kHolderIndex]);
   }

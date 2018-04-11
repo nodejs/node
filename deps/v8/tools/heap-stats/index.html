@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<!-- Copyright 2018 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>V8 Heap Statistics</title>
+  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <link rel="import" href="details-selection.html">
+  <link rel="import" href="global-timeline.html">
+  <link rel="import" href="trace-file-reader.html">
+
+  <style type="text/css">
+
+body {
+  font-family: 'Roboto', sans-serif;
+  margin-left: 5%;
+  margin-right: 5%;
+}
+
+  </style>
+  <script type="text/javascript">
+
+'use strict';
+
+google.charts.load('current', {'packages':['line', 'corechart']});
+
+function $(id) { return document.querySelector(id); }
+
+function removeAllChildren(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+let state = Object.create(null);
+
+function globalDataChanged(e) {
+  state.data = e.detail;
+  // Emit one entry with the whole model for debugging purposes.
+  console.log(state.data);
+  state.selection = null;
+  $('#global-timeline').selection = state.selection;
+  $('#global-timeline').data = state.data;
+  $('#type-details').selection = state.selection;
+  $('#type-details').data = state.data;
+  $('#details-selection').data = state.data;
+}
+
+function globalSelectionChangedA(e) {
+  state.selection = e.detail;
+  $('#global-timeline').selection = state.selection;
+  $('#type-details').selection = state.selection;
+}
+
+  </script>
+</head>
+
+<body>
+  <trace-file-reader onchange="globalDataChanged(event)"></trace-file-reader>
+  <h1>V8 Heap Statistics</h1>
+  <p>Visualize object statistics that have been gathered using</p>
+  <ul>
+    <li><code>--trace-gc-object-stats on V8</code></li>
+    <li>
+      <a
+        href="https://www.chromium.org/developers/how-tos/trace-event-profiling-tool">Chrome's
+        tracing infrastructure</a> collecting data for the category
+      <code>v8.gc_stats</code>. The trace file needs to be unpacked (e.g. using
+      <code>gunzip</code>).
+    </li>
+  </ul>
+  <p>
+    Note that the visualizer needs to run on a web server due to HTML imports
+    requiring <a
+         href="https://en.wikipedia.org/wiki/Cross-origin_resource_sharing">CORS</a>.
+  </p>
+  <details-selection id="details-selection" onchange="globalSelectionChangedA(event)"></details-selection>
+  <global-timeline id="global-timeline"></global-timeline>
+  <type-details id="type-details"></type-details>
+</body>
+
+</html>

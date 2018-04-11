@@ -14,7 +14,7 @@ function loadPEM(n) {
 }
 
 const testCases = [
-  { // Test 0: for the check of a cert not existed in the whitelist.
+  { // Test 0: for the check of a cert not in the whitelist.
     // agent7-cert.pem is issued by the fake CNNIC root CA so that its
     // hash is not listed in the whitelist.
     // fake-cnnic-root-cert has the same subject name as the original
@@ -28,7 +28,7 @@ const testCases = [
       rejectUnauthorized: true,
       ca: [loadPEM('fake-cnnic-root-cert')]
     },
-    errorCode: 'CERT_REVOKED'
+    errorCode: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
   },
   // Test 1: for the fix of node#2061
   // agent6-cert.pem is signed by intermediate cert of ca3.
