@@ -262,10 +262,10 @@ The `cipher.setAAD()` method must be called before [`cipher.update()`][].
 <!-- YAML
 added: v1.0.0
 -->
-- Returns: {Buffer} When using an authenticated encryption mode (only `GCM` is
-  currently supported), the `cipher.getAuthTag()` method returns a [`Buffer`][]
-  containing the _authentication tag_ that has been computed from the given
-  data.
+- Returns: {Buffer} When using an authenticated encryption mode (only `GCM` and
+  `CCM` are currently supported), the `cipher.getAuthTag()` method returns a
+  [`Buffer`][] containing the _authentication tag_ that has been computed from
+  the given data.
 
 The `cipher.getAuthTag()` method should only be called after encryption has
 been completed using the [`cipher.final()`][] method.
@@ -409,7 +409,7 @@ changes:
 - `buffer` {Buffer | TypedArray | DataView}
 - Returns: {Cipher} for method chaining.
 
-When using an authenticated encryption mode (only `GCM` is currently
+When using an authenticated encryption mode (only `GCM` and `CCM` are currently
 supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
@@ -426,7 +426,7 @@ changes:
 - `buffer` {Buffer | TypedArray | DataView}
 - Returns: {Cipher} for method chaining.
 
-When using an authenticated encryption mode (only `GCM` is currently
+When using an authenticated encryption mode (only `GCM` and `CCM` are currently
 supported), the `decipher.setAuthTag()` method is used to pass in the
 received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] will throw, indicating that the
