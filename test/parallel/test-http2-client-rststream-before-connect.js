@@ -18,12 +18,13 @@ server.listen(0, common.mustCall(() => {
   const req = client.request();
   const closeCode = 1;
 
-  common.expectsError(
+  assert.throws(
     () => req.close(2 ** 32),
     {
-      type: RangeError,
+      name: 'RangeError [ERR_OUT_OF_RANGE]',
       code: 'ERR_OUT_OF_RANGE',
-      message: 'The value of "code" is out of range.'
+      message: 'The value of "code" is out of range. It must be ' +
+               '>= 0 && <= 4294967295. Received 4294967296'
     }
   );
   assert.strictEqual(req.closed, false);

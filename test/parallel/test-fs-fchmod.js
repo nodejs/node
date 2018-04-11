@@ -70,19 +70,19 @@ fs.fchmodSync(1, modeUpperBoundaryValue);
 
 // umask of 0o777 is equal to 775
 const modeOutsideUpperBoundValue = 776;
-common.expectsError(
+assert.throws(
   () => fs.fchmod(1, modeOutsideUpperBoundValue),
   {
     code: 'ERR_OUT_OF_RANGE',
-    type: RangeError,
-    message: 'The value of "mode" is out of range.'
+    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    message: 'The value of "mode" is out of range. Received 776'
   }
 );
-common.expectsError(
+assert.throws(
   () => fs.fchmodSync(1, modeOutsideUpperBoundValue),
   {
     code: 'ERR_OUT_OF_RANGE',
-    type: RangeError,
-    message: 'The value of "mode" is out of range.'
+    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    message: 'The value of "mode" is out of range. Received 776'
   }
 );
