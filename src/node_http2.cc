@@ -1117,36 +1117,6 @@ inline int Http2Session::OnNghttpError(nghttp2_session* handle,
   return 0;
 }
 
-// Once all of the DATA frames for a Stream have been sent, the GetTrailers
-// method calls out to JavaScript to fetch the trailing headers that need
-// to be sent.
-inline void Http2Session::GetTrailers(Http2Stream* stream, uint32_t* flags) {
-  if (!stream->IsDestroyed() && stream->HasTrailers()) {
-    Http2Stream::SubmitTrailers submit_trailers{this, stream, flags};
-    stream->OnTrailers(submit_trailers);
-  }
-}
-
-
-Http2Stream::SubmitTrailers::SubmitTrailers(
-    Http2Session* session,
-    Http2Stream* stream,
-    uint32_t* flags)
-  : session_(session), stream_(stream), flags_(flags) { }
-
-
-inline void Http2Stream::SubmitTrailers::Submit(nghttp2_nv* trailers,
-                                                size_t length) const {
-  Http2Scope h2scope(session_);
-  if (length == 0)
-    return;
-  DEBUG_HTTP2SESSION2(session_, "sending trailers for stream %d, count: %d",
-                      stream_->id(), length);
-  *flags_ |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
-  CHECK_EQ(
-      nghttp2_submit_trailer(**session_, stream_->id(), trailers, length), 0);
-}
-
 
 // Called by OnFrameReceived to notify JavaScript land that a complete
 // HEADERS frame has been received and processed. This method converts the
@@ -1808,29 +1778,6 @@ nghttp2_stream* Http2Stream::operator*() {
 }
 
 
-// Calls out to JavaScript land to fetch the actual trailer headers to send
-// for this stream.
-void Http2Stream::OnTrailers(const SubmitTrailers& submit_trailers) {
-  DEBUG_HTTP2STREAM(this, "prompting for trailers");
-  CHECK(!this->IsDestroyed());
-  Isolate* isolate = env()->isolate();
-  HandleScope scope(isolate);
-  Local<Context> context = env()->context();
-  Context::Scope context_scope(context);
-
-  Local<Value> ret =
-      MakeCallback(env()->ontrailers_string(), 0, nullptr).ToLocalChecked();
-  if (!ret.IsEmpty() && !IsDestroyed()) {
-    if (ret->IsArray()) {
-      Local<Array> headers = ret.As<Array>();
-      if (headers->Length() > 0) {
-        Headers trailers(isolate, context, headers);
-        submit_trailers.Submit(*trailers, trailers.length());
-      }
-    }
-  }
-}
-
 inline void Http2Stream::Close(int32_t code) {
   CHECK(!this->IsDestroyed());
   flags_ |= NGHTTP2_STREAM_FLAG_CLOSED;
@@ -1948,6 +1895,26 @@ inline int Http2Stream::SubmitInfo(nghttp2_nv* nva, size_t len) {
                                    NGHTTP2_FLAG_NONE,
                                    id_, nullptr,
                                    nva, len, nullptr);
+  CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
+  return ret;
+}
+
+void Http2Stream::OnTrailers() {
+  DEBUG_HTTP2STREAM(this, "let javascript know we are ready for trailers");
+  CHECK(!this->IsDestroyed());
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  Context::Scope context_scope(context);
+  MakeCallback(env()->ontrailers_string(), 0, nullptr);
+}
+
+// Submit informational headers for a stream.
+int Http2Stream::SubmitTrailers(nghttp2_nv* nva, size_t len) {
+  CHECK(!this->IsDestroyed());
+  Http2Scope h2scope(this);
+  DEBUG_HTTP2STREAM2(this, "sending %d trailers", len);
+  int ret = nghttp2_submit_trailer(**session_, id_, nva, len);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -2184,13 +2151,6 @@ ssize_t Http2Stream::Provider::FD::OnRead(nghttp2_session* handle,
   if (static_cast<size_t>(numchars) < length || length <= 0) {
     DEBUG_HTTP2SESSION2(session, "no more data for stream %d", id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
-    session->GetTrailers(stream, flags);
-    // If the stream or session gets destroyed during the GetTrailers
-    // callback, check that here and close down the stream
-    if (stream->IsDestroyed())
-      return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
-    if (session->IsDestroyed())
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
 
   stream->statistics_.sent_bytes += numchars;
@@ -2258,13 +2218,10 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   if (stream->queue_.empty() && !stream->IsWritable()) {
     DEBUG_HTTP2SESSION2(session, "no more data for stream %d", id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
-    session->GetTrailers(stream, flags);
-    // If the stream or session gets destroyed during the GetTrailers
-    // callback, check that here and close down the stream
-    if (stream->IsDestroyed())
-      return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
-    if (session->IsDestroyed())
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
+    if (stream->HasTrailers()) {
+      *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
+      stream->OnTrailers();
+    }
   }
 
   stream->statistics_.sent_bytes += amount;
@@ -2572,6 +2529,21 @@ void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(stream->SubmitInfo(*list, list.length()));
   DEBUG_HTTP2STREAM2(stream, "%d informational headers sent",
                      headers->Length());
+}
+
+// Submits trailing headers on the Http2Stream
+void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+  Http2Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+
+  Local<Array> headers = args[0].As<Array>();
+
+  Headers list(isolate, context, headers);
+  args.GetReturnValue().Set(stream->SubmitTrailers(*list, list.length()));
+  DEBUG_HTTP2STREAM2(stream, "%d trailing headers sent", headers->Length());
 }
 
 // Grab the numeric id of the Http2Stream
@@ -2921,6 +2893,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(stream, "priority", Http2Stream::Priority);
   env->SetProtoMethod(stream, "pushPromise", Http2Stream::PushPromise);
   env->SetProtoMethod(stream, "info", Http2Stream::Info);
+  env->SetProtoMethod(stream, "trailers", Http2Stream::Trailers);
   env->SetProtoMethod(stream, "respondFD", Http2Stream::RespondFD);
   env->SetProtoMethod(stream, "respond", Http2Stream::Respond);
   env->SetProtoMethod(stream, "rstStream", Http2Stream::RstStream);

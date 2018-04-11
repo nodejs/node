@@ -9,8 +9,7 @@ const http2 = require('http2');
 const optionsWithTypeError = {
   offset: 'number',
   length: 'number',
-  statCheck: 'function',
-  getTrailers: 'function'
+  statCheck: 'function'
 };
 
 const types = {
