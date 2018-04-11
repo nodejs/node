@@ -19,3 +19,6 @@ choco install python2 -y
 # Installs VS 2017 Build Tools
 choco install visualstudio2017buildtools -y
 choco install visualstudio2017-workload-vctools -y
+
+# NASM
+choco install nasm -y

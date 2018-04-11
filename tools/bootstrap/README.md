@@ -8,6 +8,7 @@ the following [Chocolatey] packages:
   * [Git for Windows][] with the `git` and Unix tools added to the `PATH`
   * [Python 2.x][]
   * [Visual Studio 2017 Build Tools][] with [Visual C++ workload][]
+  * [NetWide Assembler][]
 
 To install Node.js prerequisites using [Boxstarter WebLauncher][], just open
 [this link](http://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter)
@@ -52,4 +53,4 @@ xcode-select --install
 [Python 2.x]: https://chocolatey.org/packages/python2
 [Visual Studio 2017 Build Tools]: https://chocolatey.org/packages/visualstudio2017buildtools
 [Visual C++ workload]: https://chocolatey.org/packages/visualstudio2017-workload-vctools
-
+[NetWide Assembler]: https://chocolatey.org/packages/nasm
