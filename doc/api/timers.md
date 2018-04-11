@@ -52,8 +52,8 @@ Returns a reference to the `Immediate`.
 ## Class: Timeout
 
 This object is created internally and is returned from [`setTimeout()`][] and
-[`setInterval()`][]. It can be passed to [`clearTimeout()`][] or
-[`clearInterval()`][] (respectively) in order to cancel the scheduled actions.
+[`setInterval()`][]. It can be passed to either [`clearTimeout()`][] or
+[`clearInterval()`][] in order to cancel the scheduled actions.
 
 By default, when a timer is scheduled using either [`setTimeout()`][] or
 [`setInterval()`][], the Node.js event loop will continue running as long as the
