@@ -268,7 +268,7 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
 
     BIND(&if_xissmi);
     {
-      var_clz32_x.Bind(SmiToWord32(x));
+      var_clz32_x.Bind(SmiToInt32(x));
       Goto(&do_clz32);
     }
 

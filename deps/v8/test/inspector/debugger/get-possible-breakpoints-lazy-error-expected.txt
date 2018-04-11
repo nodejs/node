@@ -6,7 +6,7 @@ getPossibleBreakpoints should not crash during lazy compilation (crbug.com/71533
         endLine : 2
         executionContextId : <executionContextId>
         hasSourceURL : true
-        hash : FA2A959297747012766FE9C5006E7F522D88FA72
+        hash : 720BC4212F9AA3E834D156055BEFEDC32027C816
         isLiveEdit : false
         isModule : false
         length : 52

@@ -168,7 +168,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Node* elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(WordEqual(length, elements_length), &if_runtime);
     var_elements.Bind(elements);
-    var_length.Bind(SmiToWord32(length));
+    var_length.Bind(SmiToInt32(length));
     Goto(&if_done);
   }
 
@@ -289,12 +289,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
       &if_runtime);
 
   // Check that the map of the initial array iterator hasn't changed.
-  Node* native_context = LoadNativeContext(context);
-  Node* arr_it_proto_map = LoadMap(CAST(LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)));
-  Node* initial_map = LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX);
-  GotoIfNot(WordEqual(arr_it_proto_map, initial_map), &if_runtime);
+  TNode<Context> native_context = LoadNativeContext(context);
+  GotoIfNot(HasInitialArrayIteratorPrototypeMap(native_context), &if_runtime);
 
   Node* kind = LoadMapElementsKind(spread_map);
 

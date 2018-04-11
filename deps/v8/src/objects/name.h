@@ -44,6 +44,10 @@ class Name : public HeapObject {
   // If the name is private, it can only name own properties.
   inline bool IsPrivate();
 
+  // If the name is a private field, it should behave like a private
+  // symbol but also throw on property access miss.
+  inline bool IsPrivateField();
+
   inline bool IsUniqueName() const;
 
   static inline bool ContainsCachedArrayIndex(uint32_t hash);
@@ -160,6 +164,14 @@ class Symbol : public Name {
   // Symbol.keyFor on such a symbol simply needs to return the attached name.
   DECL_BOOLEAN_ACCESSORS(is_public)
 
+  // [is_private_field]: Whether this is a private field.  Private fields
+  // are the same as private symbols except they throw on missing
+  // property access.
+  //
+  // This also sets the is_private bit.
+  inline bool is_private_field() const;
+  inline void set_is_private_field();
+
   DECL_CAST(Symbol)
 
   // Dispatched behavior.
@@ -176,6 +188,7 @@ class Symbol : public Name {
   static const int kWellKnownSymbolBit = 1;
   static const int kPublicBit = 2;
   static const int kInterestingSymbolBit = 3;
+  static const int kPrivateFieldBit = 4;
 
   typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
   // No weak fields.

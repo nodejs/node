@@ -42,7 +42,8 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   context_->set_math_random_index(Smi::kZero);
   context_->set_math_random_cache(isolate()->heap()->undefined_value());
 
-  VisitRootPointer(Root::kPartialSnapshotCache, reinterpret_cast<Object**>(o));
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+                   reinterpret_cast<Object**>(o));
   SerializeDeferredObjects();
   SerializeEmbedderFields();
   Pad();

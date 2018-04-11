@@ -20,12 +20,15 @@ constexpr Register kReturnRegister2 = r2;
 constexpr Register kJSFunctionRegister = r1;
 constexpr Register kContextRegister = r7;
 constexpr Register kAllocateSizeRegister = r1;
+constexpr Register kSpeculationPoisonRegister = r9;
 constexpr Register kInterpreterAccumulatorRegister = r0;
 constexpr Register kInterpreterBytecodeOffsetRegister = r5;
 constexpr Register kInterpreterBytecodeArrayRegister = r6;
 constexpr Register kInterpreterDispatchTableRegister = r8;
 constexpr Register kJavaScriptCallArgCountRegister = r0;
+constexpr Register kJavaScriptCallCodeStartRegister = r2;
 constexpr Register kJavaScriptCallNewTargetRegister = r3;
+constexpr Register kOffHeapTrampolineRegister = r4;
 constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
 
@@ -305,15 +308,15 @@ class TurboAssembler : public Assembler {
   inline bool AllowThisStubCall(CodeStub* stub);
 
   void LslPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
   void LsrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void LsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
 
@@ -481,7 +484,8 @@ class TurboAssembler : public Assembler {
   void VmovExtended(int dst_code, const MemOperand& src);
   void VmovExtended(const MemOperand& dst, int src_code);
 
-  // Register swap.
+  // Register swap. Note that the register operands should be distinct.
+  void Swap(Register srcdst0, Register srcdst1);
   void Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
   void Swap(QwNeonRegister srcdst0, QwNeonRegister srcdst1);
 
@@ -529,6 +533,12 @@ class TurboAssembler : public Assembler {
     return false;
 #endif
   }
+
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
+  void ResetSpeculationPoisonRegister();
 
  private:
   bool has_frame_ = false;
@@ -578,11 +588,6 @@ class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
-
-  // Swap two registers.  If the scratch register is omitted then a slightly
-  // less efficient form using xor instead of mov is emitted.
-  void Swap(Register reg1, Register reg2, Register scratch = no_reg,
-            Condition cond = al);
 
   void Mls(Register dst, Register src1, Register src2, Register srcA,
            Condition cond = al);
@@ -694,10 +699,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   // Frame restart support
   void MaybeDropFrames();
 
@@ -796,6 +797,9 @@ class MacroAssembler : public TurboAssembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

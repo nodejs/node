@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_MEMORY_H_
-#define V8_WASM_MEMORY_H_
+#ifndef V8_WASM_WASM_MEMORY_H_
+#define V8_WASM_WASM_MEMORY_H_
 
 #include "src/flags.h"
 #include "src/handles.h"
@@ -49,4 +49,4 @@ void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_MODULE_H_
+#endif  // V8_WASM_WASM_MEMORY_H_

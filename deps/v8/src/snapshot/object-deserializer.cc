@@ -76,7 +76,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     Object* root;
-    VisitRootPointer(Root::kPartialSnapshotCache, &root);
+    VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
     DeserializeDeferredObjects();
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
     result = Handle<HeapObject>(HeapObject::cast(root));
@@ -93,8 +93,7 @@ void ObjectDeserializer::
   for (Code* code : new_code_objects()) {
     // Record all references to embedded objects in the new code object.
     isolate()->heap()->RecordWritesIntoCode(code);
-    Assembler::FlushICache(isolate(), code->instruction_start(),
-                           code->instruction_size());
+    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
   }
 }
 

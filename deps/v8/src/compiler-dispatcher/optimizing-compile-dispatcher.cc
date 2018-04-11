@@ -25,10 +25,10 @@ void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
     if (function->IsInOptimizationQueue()) {
       function->ClearOptimizationMarker();
     }
-    // TODO(mvstanton): We can't call EnsureLiterals here due to allocation,
-    // but we probably shouldn't call set_code either, as this
+    // TODO(mvstanton): We can't call EnsureFeedbackVector here due to
+    // allocation, but we probably shouldn't call set_code either, as this
     // sometimes runs on the worker thread!
-    // JSFunction::EnsureLiterals(function);
+    // JSFunction::EnsureFeedbackVector(function);
   }
   delete job;
 }

@@ -15,15 +15,12 @@
 namespace v8 {
 namespace internal {
 
-bool CpuFeatures::SupportsCrankshaft() { return true; }
+bool CpuFeatures::SupportsOptimizer() { return true; }
 
 bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
-
-
-static const byte kCallOpcode = 0xE8;
 
 
 void Assembler::emitl(uint32_t x) {
@@ -95,14 +92,12 @@ void Assembler::emit_rex_64(Register reg, XMMRegister rm_reg) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
-
-void Assembler::emit_rex_64(Register reg, const Operand& op) {
-  emit(0x48 | reg.high_bit() << 2 | op.rex_);
+void Assembler::emit_rex_64(Register reg, Operand op) {
+  emit(0x48 | reg.high_bit() << 2 | op.data().rex);
 }
 
-
-void Assembler::emit_rex_64(XMMRegister reg, const Operand& op) {
-  emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
+void Assembler::emit_rex_64(XMMRegister reg, Operand op) {
+  emit(0x48 | (reg.code() & 0x8) >> 1 | op.data().rex);
 }
 
 
@@ -111,19 +106,14 @@ void Assembler::emit_rex_64(Register rm_reg) {
   emit(0x48 | rm_reg.high_bit());
 }
 
-
-void Assembler::emit_rex_64(const Operand& op) {
-  emit(0x48 | op.rex_);
-}
-
+void Assembler::emit_rex_64(Operand op) { emit(0x48 | op.data().rex); }
 
 void Assembler::emit_rex_32(Register reg, Register rm_reg) {
   emit(0x40 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
 
-
-void Assembler::emit_rex_32(Register reg, const Operand& op) {
-  emit(0x40 | reg.high_bit() << 2  | op.rex_);
+void Assembler::emit_rex_32(Register reg, Operand op) {
+  emit(0x40 | reg.high_bit() << 2 | op.data().rex);
 }
 
 
@@ -131,26 +121,20 @@ void Assembler::emit_rex_32(Register rm_reg) {
   emit(0x40 | rm_reg.high_bit());
 }
 
-
-void Assembler::emit_rex_32(const Operand& op) {
-  emit(0x40 | op.rex_);
-}
-
+void Assembler::emit_rex_32(Operand op) { emit(0x40 | op.data().rex); }
 
 void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
   byte rex_bits = reg.high_bit() << 2 | rm_reg.high_bit();
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
-
-void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
-  byte rex_bits =  reg.high_bit() << 2 | op.rex_;
+void Assembler::emit_optional_rex_32(Register reg, Operand op) {
+  byte rex_bits = reg.high_bit() << 2 | op.data().rex;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
-
-void Assembler::emit_optional_rex_32(XMMRegister reg, const Operand& op) {
-  byte rex_bits =  (reg.code() & 0x8) >> 1 | op.rex_;
+void Assembler::emit_optional_rex_32(XMMRegister reg, Operand op) {
+  byte rex_bits = (reg.code() & 0x8) >> 1 | op.data().rex;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
@@ -181,8 +165,8 @@ void Assembler::emit_optional_rex_32(XMMRegister rm_reg) {
   if (rm_reg.high_bit()) emit(0x41);
 }
 
-void Assembler::emit_optional_rex_32(const Operand& op) {
-  if (op.rex_ != 0) emit(0x40 | op.rex_);
+void Assembler::emit_optional_rex_32(Operand op) {
+  if (op.data().rex != 0) emit(0x40 | op.data().rex);
 }
 
 
@@ -195,9 +179,8 @@ void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
 
 
 // byte 1 of 3-byte VEX
-void Assembler::emit_vex3_byte1(XMMRegister reg, const Operand& rm,
-                                LeadingOpcode m) {
-  byte rxb = ~((reg.high_bit() << 2) | rm.rex_) << 5;
+void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
+  byte rxb = ~((reg.high_bit() << 2) | rm.data().rex) << 5;
   emit(rxb | m);
 }
 
@@ -240,11 +223,10 @@ void Assembler::emit_vex_prefix(Register reg, Register vreg, Register rm,
   emit_vex_prefix(ireg, ivreg, irm, l, pp, mm, w);
 }
 
-
-void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
-                                const Operand& rm, VectorLength l,
-                                SIMDPrefix pp, LeadingOpcode mm, VexW w) {
-  if (rm.rex_ || mm != k0F || w != kW0) {
+void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg, Operand rm,
+                                VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
+                                VexW w) {
+  if (rm.data().rex || mm != k0F || w != kW0) {
     emit_vex3_byte0();
     emit_vex3_byte1(reg, rm, mm);
     emit_vex3_byte2(w, vreg, l, pp);
@@ -254,8 +236,7 @@ void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
   }
 }
 
-
-void Assembler::emit_vex_prefix(Register reg, Register vreg, const Operand& rm,
+void Assembler::emit_vex_prefix(Register reg, Register vreg, Operand rm,
                                 VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
                                 VexW w) {
   XMMRegister ireg = XMMRegister::from_code(reg.code());
@@ -268,19 +249,17 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
   return Memory::int32_at(pc) + pc + 4;
 }
 
-
-void Assembler::set_target_address_at(Isolate* isolate, Address pc,
-                                      Address constant_pool, Address target,
+void Assembler::set_target_address_at(Address pc, Address constant_pool,
+                                      Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_IMPLIES(isolate == nullptr, icache_flush_mode == SKIP_ICACHE_FLUSH);
   Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate, pc, sizeof(int32_t));
+    Assembler::FlushICache(pc, sizeof(int32_t));
   }
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
+    Address pc, Address target, RelocInfo::Mode mode) {
   Memory::Address_at(pc) = target;
 }
 
@@ -290,8 +269,8 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
-  set_target_address_at(isolate, instruction_payload,
+    Address instruction_payload, Code* code, Address target) {
+  set_target_address_at(instruction_payload,
                         code ? code->constant_pool() : nullptr, target);
 }
 
@@ -380,7 +359,7 @@ void RelocInfo::set_target_object(HeapObject* target,
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Memory::Object_at(pc_) = target;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(target->GetIsolate(), pc_, sizeof(Address));
+    Assembler::FlushICache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
@@ -395,22 +374,22 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
   return origin->runtime_entry_at(pc_);
 }
 
-void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
+void RelocInfo::set_target_runtime_entry(Address target,
                                          WriteBarrierMode write_barrier_mode,
                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsRuntimeEntry(rmode_));
   if (target_address() != target) {
-    set_target_address(isolate, target, write_barrier_mode, icache_flush_mode);
+    set_target_address(target, write_barrier_mode, icache_flush_mode);
   }
 }
 
-void RelocInfo::WipeOut(Isolate* isolate) {
+void RelocInfo::WipeOut() {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
     Memory::Address_at(pc_) = nullptr;
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(isolate, pc_, constant_pool_,
+    Assembler::set_target_address_at(pc_, constant_pool_,
                                      pc_ + sizeof(int32_t));
   } else {
     UNREACHABLE();
@@ -418,11 +397,11 @@ void RelocInfo::WipeOut(Isolate* isolate) {
 }
 
 template <typename ObjectVisitor>
-void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
+void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);
-    Assembler::FlushICache(isolate, pc_, sizeof(Address));
+    Assembler::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
@@ -434,49 +413,6 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   }
 }
 
-// -----------------------------------------------------------------------------
-// Implementation of Operand
-
-void Operand::set_modrm(int mod, Register rm_reg) {
-  DCHECK(is_uint2(mod));
-  buf_[0] = mod << 6 | rm_reg.low_bits();
-  // Set REX.B to the high bit of rm.code().
-  rex_ |= rm_reg.high_bit();
-}
-
-
-void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
-  DCHECK_EQ(len_, 1);
-  DCHECK(is_uint2(scale));
-  // Use SIB with no index register only for base rsp or r12. Otherwise we
-  // would skip the SIB byte entirely.
-  DCHECK(index != rsp || base == rsp || base == r12);
-  buf_[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
-  rex_ |= index.high_bit() << 1 | base.high_bit();
-  len_ = 2;
-}
-
-void Operand::set_disp8(int disp) {
-  DCHECK(is_int8(disp));
-  DCHECK(len_ == 1 || len_ == 2);
-  int8_t* p = reinterpret_cast<int8_t*>(&buf_[len_]);
-  *p = disp;
-  len_ += sizeof(int8_t);
-}
-
-void Operand::set_disp32(int disp) {
-  DCHECK(len_ == 1 || len_ == 2);
-  int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
-  *p = disp;
-  len_ += sizeof(int32_t);
-}
-
-void Operand::set_disp64(int64_t disp) {
-  DCHECK_EQ(1, len_);
-  int64_t* p = reinterpret_cast<int64_t*>(&buf_[len_]);
-  *p = disp;
-  len_ += sizeof(disp);
-}
 }  // namespace internal
 }  // namespace v8
 

@@ -336,7 +336,7 @@ TEST_F(CompilerDispatcherTest, IsEnqueued) {
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
-  dispatcher.AbortAll(CompilerDispatcher::BlockingBehavior::kBlock);
+  dispatcher.AbortAll(BlockingBehavior::kBlock);
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
@@ -640,7 +640,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   ASSERT_TRUE(platform.BackgroundTasksPending());
 
   // The background task hasn't yet started, so we can just cancel it.
-  dispatcher.AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+  dispatcher.AbortAll(BlockingBehavior::kDontBlock);
   ASSERT_FALSE(platform.ForegroundTasksPending());
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
@@ -692,7 +692,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   // Busy loop until the background task started running.
   while (dispatcher.block_for_testing_.Value()) {
   }
-  dispatcher.AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+  dispatcher.AbortAll(BlockingBehavior::kDontBlock);
   ASSERT_TRUE(platform.ForegroundTasksPending());
 
   // We can't schedule new tasks while we're aborting.
@@ -768,7 +768,7 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   // Busy loop until the background task started running.
   while (dispatcher.block_for_testing_.Value()) {
   }
-  dispatcher.AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+  dispatcher.AbortAll(BlockingBehavior::kDontBlock);
   ASSERT_TRUE(platform.ForegroundTasksPending());
 
   // Run the first AbortTask. Since the background job is still pending, it

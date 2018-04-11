@@ -218,9 +218,8 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
       if (const VirtualObject* vobject =
               analysis_result().GetVirtualObject(node)) {
         if (!vobject->HasEscaped()) {
-          V8_Fatal(__FILE__, __LINE__,
-                   "Escape analysis failed to remove node %s#%d\n",
-                   node->op()->mnemonic(), node->id());
+          FATAL("Escape analysis failed to remove node %s#%d\n",
+                node->op()->mnemonic(), node->id());
         }
       }
     }

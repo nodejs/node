@@ -177,24 +177,13 @@ extrasUtils.createPrivateSymbol = function createPrivateSymbol(name) {
 //
 // Technically they could all be derived from combinations of
 // Function.prototype.{bind,call,apply} but that introduces lots of layers of
-// indirection and slowness given how un-optimized bind is.
-
-extrasUtils.simpleBind = function simpleBind(func, thisArg) {
-  return function(...args) {
-    return %reflect_apply(func, thisArg, args);
-  };
-};
+// indirection.
 
 extrasUtils.uncurryThis = function uncurryThis(func) {
   return function(thisArg, ...args) {
     return %reflect_apply(func, thisArg, args);
   };
 };
-
-// We pass true to trigger the debugger's on exception handler.
-extrasUtils.rejectPromise = function rejectPromise(promise, reason) {
-  %promise_internal_reject(promise, reason, true);
-}
 
 extrasUtils.markPromiseAsHandled = function markPromiseAsHandled(promise) {
   %PromiseMarkAsHandled(promise);

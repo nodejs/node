@@ -23,7 +23,7 @@
 
   // Exercise all of the extras utils:
   // - v8.createPrivateSymbol
-  // - v8.simpleBind, v8.uncurryThis
+  // - v8.uncurryThis
   // - v8.InternalPackedArray
   // - v8.createPromise, v8.resolvePromise, v8.rejectPromise
 
@@ -35,7 +35,7 @@
   const apply = v8.uncurryThis(Function.prototype.apply);
 
   const Promise = global.Promise;
-  const Promise_resolve = v8.simpleBind(Promise.resolve, Promise);
+  const Promise_resolve = Promise.resolve.bind(Promise);
 
   const arrayToTest = new v8.InternalPackedArray();
   arrayToTest.push(1);
@@ -48,6 +48,22 @@
   const arraysOK = arrayToTest.length === 2 && arrayToTest[0] === "c" &&
       arrayToTest[1] === 1 && slicedArray.length === 2 &&
       slicedArray[0] === "c" && slicedArray[1] === 1;
+
+  binding.testCreatePromise = function() {
+    return v8.createPromise();
+  }
+
+  binding.testCreatePromiseWithParent = function(parent) {
+    return v8.createPromise(parent);
+  }
+
+  binding.testRejectPromise = function(promise, reason) {
+    return v8.rejectPromise(promise, reason);
+  }
+
+  binding.testResolvePromise = function(promise, resolution) {
+    return v8.resolvePromise(promise, resolution);
+  }
 
   binding.testExtraCanUseUtils = function() {
     const fulfilledPromise = v8.createPromise();

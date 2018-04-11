@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8DEBUGGER_H_
-#define V8_INSPECTOR_V8DEBUGGER_H_
+#ifndef V8_INSPECTOR_V8_DEBUGGER_H_
+#define V8_INSPECTOR_V8_DEBUGGER_H_
 
 #include <list>
 #include <unordered_map>
@@ -169,7 +169,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
                       bool has_compile_error) override;
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context, v8::Local<v8::Object>,
-      v8::Local<v8::Value>,
       const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Object>, v8::Local<v8::Value> exception,
@@ -240,4 +239,4 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8DEBUGGER_H_
+#endif  // V8_INSPECTOR_V8_DEBUGGER_H_

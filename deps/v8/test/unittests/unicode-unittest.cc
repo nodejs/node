@@ -8,6 +8,7 @@
 
 #include "src/unicode-decoder.h"
 #include "src/unicode-inl.h"
+#include "src/vector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -15,22 +16,34 @@ namespace internal {
 
 namespace {
 
-using Utf8Decoder = unibrow::Utf8Decoder<512>;
-
-void Decode(Utf8Decoder* decoder, const std::string& str) {
-  // Put the string in its own buffer on the heap to make sure that
-  // AddressSanitizer's heap-buffer-overflow logic can see what's going on.
-  std::unique_ptr<char[]> buffer(new char[str.length()]);
-  memcpy(buffer.get(), str.data(), str.length());
-  decoder->Reset(buffer.get(), str.length());
-}
-
 void DecodeNormally(const std::vector<byte>& bytes,
                     std::vector<unibrow::uchar>* output) {
   size_t cursor = 0;
   while (cursor < bytes.size()) {
     output->push_back(
         unibrow::Utf8::ValueOf(bytes.data() + cursor, bytes.size(), &cursor));
+  }
+}
+
+template <size_t kBufferSize>
+void DecodeUtf16(unibrow::Utf8Decoder<kBufferSize>* decoder,
+                 const std::vector<byte>& bytes,
+                 std::vector<unibrow::uchar>* output) {
+  const char* bytes_begin = reinterpret_cast<const char*>(&(*bytes.begin()));
+  auto vector = Vector<const char>(bytes_begin, bytes.size());
+  decoder->Reset(vector);
+
+  std::vector<uint16_t> utf16(decoder->Utf16Length());
+  decoder->WriteUtf16(&(*utf16.begin()), decoder->Utf16Length(), vector);
+
+  // Decode back into code points
+  for (size_t i = 0; i < utf16.size(); i++) {
+    uint16_t b = utf16[i];
+    if (unibrow::Utf16::IsLeadSurrogate(b)) {
+      output->push_back(unibrow::Utf16::CombineSurrogatePair(b, utf16[++i]));
+    } else {
+      output->push_back(b);
+    }
   }
 }
 
@@ -53,14 +66,52 @@ void DecodeIncrementally(const std::vector<byte>& bytes,
 
 }  // namespace
 
-TEST(UnicodeTest, ReadOffEndOfUtf8String) {
-  Utf8Decoder decoder;
+TEST(UnicodeTest, Utf16BufferReuse) {
+  unibrow::Utf8Decoder<4> utf16_decoder;
 
   // Not enough continuation bytes before string ends.
-  Decode(&decoder, "\xE0");
-  Decode(&decoder, "\xED");
-  Decode(&decoder, "\xF0");
-  Decode(&decoder, "\xF4");
+  typedef struct {
+    std::vector<byte> bytes;
+    std::vector<unibrow::uchar> unicode_expected;
+  } TestCase;
+
+  TestCase data[] = {
+      {{0x00}, {0x0}},
+      {{0xC2, 0x80}, {0x80}},
+      {{0xE0, 0xA0, 0x80}, {0x800}},
+      {{0xF0, 0x90, 0x80, 0x80}, {0x10000}},
+      {{0xE0, 0xA0, 0x80}, {0x800}},
+      {{0xC2, 0x80}, {0x80}},
+      {{0x00}, {0x0}},
+  };
+  for (auto test : data) {
+    // For figuring out which test fails:
+    fprintf(stderr, "test: ");
+    for (auto b : test.bytes) {
+      fprintf(stderr, "%x ", b);
+    }
+    fprintf(stderr, "\n");
+
+    std::vector<unibrow::uchar> output_utf16;
+    DecodeUtf16(&utf16_decoder, test.bytes, &output_utf16);
+
+    CHECK_EQ(output_utf16.size(), test.unicode_expected.size());
+    for (size_t i = 0; i < output_utf16.size(); ++i) {
+      CHECK_EQ(output_utf16[i], test.unicode_expected[i]);
+    }
+  }
+}
+
+TEST(UnicodeTest, SurrogateOverrunsBuffer) {
+  unibrow::Utf8Decoder<2> utf16_decoder;
+
+  std::vector<unibrow::uchar> output_utf16;
+  // Not enough continuation bytes before string ends.
+  DecodeUtf16(&utf16_decoder, {0x00, 0xF0, 0x90, 0x80, 0x80, 0x00},
+              &output_utf16);
+  CHECK_EQ(output_utf16[0], 0x00);
+  CHECK_EQ(output_utf16[1], 0x10000);
+  CHECK_EQ(output_utf16[0], 0x00);
 }
 
 TEST(UnicodeTest, IncrementalUTF8DecodingVsNonIncrementalUtf8Decoding) {
@@ -414,6 +465,8 @@ TEST(UnicodeTest, IncrementalUTF8DecodingVsNonIncrementalUtf8Decoding) {
         0x8FFFF}},
   };
 
+  unibrow::Utf8Decoder<50> utf16_decoder;
+
   for (auto test : data) {
     // For figuring out which test fails:
     fprintf(stderr, "test: ");
@@ -436,6 +489,14 @@ TEST(UnicodeTest, IncrementalUTF8DecodingVsNonIncrementalUtf8Decoding) {
     CHECK_EQ(output_incremental.size(), test.unicode_expected.size());
     for (size_t i = 0; i < output_incremental.size(); ++i) {
       CHECK_EQ(output_incremental[i], test.unicode_expected[i]);
+    }
+
+    std::vector<unibrow::uchar> output_utf16;
+    DecodeUtf16(&utf16_decoder, test.bytes, &output_utf16);
+
+    CHECK_EQ(output_utf16.size(), test.unicode_expected.size());
+    for (size_t i = 0; i < output_utf16.size(); ++i) {
+      CHECK_EQ(output_utf16[i], test.unicode_expected[i]);
     }
   }
 }

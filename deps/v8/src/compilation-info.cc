@@ -16,12 +16,9 @@
 namespace v8 {
 namespace internal {
 
-// TODO(mvstanton): the Code::OPTIMIZED_FUNCTION constant below is
-// bogus, it's just that I've eliminated Code::FUNCTION and there isn't
-// a "better" value to put in this place.
 CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
                                  FunctionLiteral* literal)
-    : CompilationInfo({}, Code::OPTIMIZED_FUNCTION, BASE, zone) {
+    : CompilationInfo({}, AbstractCode::INTERPRETED_FUNCTION, zone) {
   // NOTE: The parse_info passed here represents the global information gathered
   // during parsing, but does not represent specific details of the actual
   // function literal being compiled for this CompilationInfo. As such,
@@ -39,7 +36,7 @@ CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
                                  Handle<SharedFunctionInfo> shared,
                                  Handle<JSFunction> closure)
-    : CompilationInfo({}, Code::OPTIMIZED_FUNCTION, OPTIMIZE, zone) {
+    : CompilationInfo({}, AbstractCode::OPTIMIZED_FUNCTION, zone) {
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
@@ -47,6 +44,8 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
+  if (!FLAG_turbo_disable_switch_jump_table) SetFlag(kSwitchJumpTableEnabled);
+  if (FLAG_untrusted_code_mitigations) MarkAsPoisoningRegisterArguments();
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -58,24 +57,27 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name, Zone* zone,
                                  Code::Kind code_kind)
-    : CompilationInfo(debug_name, code_kind, STUB, zone) {}
+    : CompilationInfo(debug_name, static_cast<AbstractCode::Kind>(code_kind),
+                      zone) {
+  if (code_kind == Code::BYTECODE_HANDLER && has_untrusted_code_mitigations()) {
+    SetFlag(CompilationInfo::kGenerateSpeculationPoisonOnEntry);
+  }
+}
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,
-                                 Code::Kind code_kind, Mode mode, Zone* zone)
+                                 AbstractCode::Kind code_kind, Zone* zone)
     : literal_(nullptr),
       source_range_map_(nullptr),
       flags_(FLAG_untrusted_code_mitigations ? kUntrustedCodeMitigations : 0),
       code_kind_(code_kind),
       stub_key_(0),
       builtin_index_(Builtins::kNoBuiltinId),
-      mode_(mode),
       osr_offset_(BailoutId::None()),
       feedback_vector_spec_(zone),
       zone_(zone),
       deferred_handles_(nullptr),
       dependencies_(nullptr),
       bailout_reason_(BailoutReason::kNoReason),
-      parameter_count_(0),
       optimization_id_(-1),
       debug_name_(debug_name) {}
 
@@ -94,14 +96,14 @@ DeclarationScope* CompilationInfo::scope() const {
 }
 
 int CompilationInfo::num_parameters() const {
-  return !IsStub() ? scope()->num_parameters() : parameter_count_;
+  DCHECK(!IsStub());
+  return scope()->num_parameters();
 }
 
 int CompilationInfo::num_parameters_including_this() const {
-  return num_parameters() + (is_this_defined() ? 1 : 0);
+  DCHECK(!IsStub());
+  return scope()->num_parameters() + 1;
 }
-
-bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 
 void CompilationInfo::set_deferred_handles(
     std::shared_ptr<DeferredHandles> deferred_handles) {

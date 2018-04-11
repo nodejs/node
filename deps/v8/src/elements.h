@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class JSTypedArray;
+
 // Abstract base class for handles that can operate on objects with differing
 // ElementsKinds.
 class ElementsAccessor {
@@ -141,9 +143,6 @@ class ElementsAccessor {
   virtual Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
                                  uint32_t end) = 0;
 
-  virtual Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
-                                 uint32_t end, Handle<JSObject> result) = 0;
-
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
                                  uint32_t start, uint32_t delete_count,
                                  Arguments* args, uint32_t add_count) = 0;
@@ -185,13 +184,17 @@ class ElementsAccessor {
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 
-  virtual Object* CopyElements(Handle<JSReceiver> source,
+  virtual Object* CopyElements(Handle<Object> source,
                                Handle<JSObject> destination, size_t length,
                                uint32_t offset = 0) = 0;
 
   virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
                                                      Handle<JSObject> object,
                                                      uint32_t length) = 0;
+
+  virtual void CopyTypedArrayElementsSlice(JSTypedArray* source,
+                                           JSTypedArray* destination,
+                                           size_t start, size_t end) = 0;
 
  protected:
   friend class LookupIterator;
@@ -241,7 +244,6 @@ MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Arguments* args);
 
 // Called directly from CSA.
-class JSTypedArray;
 void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
                                                JSArray* source,
                                                JSTypedArray* destination,
@@ -250,6 +252,9 @@ void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
 void CopyTypedArrayElementsToTypedArray(JSTypedArray* source,
                                         JSTypedArray* destination,
                                         uintptr_t length, uintptr_t offset);
+void CopyTypedArrayElementsSlice(JSTypedArray* source,
+                                 JSTypedArray* destination, uintptr_t start,
+                                 uintptr_t end);
 
 }  // namespace internal
 }  // namespace v8

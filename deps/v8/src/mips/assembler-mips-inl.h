@@ -46,8 +46,7 @@
 namespace v8 {
 namespace internal {
 
-
-bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
+bool CpuFeatures::SupportsOptimizer() { return IsSupported(FPU); }
 
 bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
 
@@ -126,16 +125,14 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
+    Address instruction_payload, Code* code, Address target) {
   if (IsMipsArchVariant(kMips32r6)) {
     // On R6 the address location is shifted by one instruction
     set_target_address_at(
-        isolate,
         instruction_payload - (kInstructionsFor32BitConstant - 1) * kInstrSize,
         code ? code->constant_pool() : nullptr, target);
   } else {
     set_target_address_at(
-        isolate,
         instruction_payload - kInstructionsFor32BitConstant * kInstrSize,
         code ? code->constant_pool() : nullptr, target);
   }
@@ -172,9 +169,8 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
   // after complete deserialization, no need to flush on each reference.
 }
 
-
 void Assembler::deserialization_set_target_internal_reference_at(
-    Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
+    Address pc, Address target, RelocInfo::Mode mode) {
   if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
     DCHECK(IsLui(instr_at(pc)));
     set_target_internal_reference_encoded_at(pc, target);
@@ -200,7 +196,7 @@ void RelocInfo::set_target_object(HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(target->GetIsolate(), pc_, constant_pool_,
+  Assembler::set_target_address_at(pc_, constant_pool_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
@@ -250,15 +246,15 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
   return target_address();
 }
 
-void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
+void RelocInfo::set_target_runtime_entry(Address target,
                                          WriteBarrierMode write_barrier_mode,
                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsRuntimeEntry(rmode_));
   if (target_address() != target)
-    set_target_address(isolate, target, write_barrier_mode, icache_flush_mode);
+    set_target_address(target, write_barrier_mode, icache_flush_mode);
 }
 
-void RelocInfo::WipeOut(Isolate* isolate) {
+void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
@@ -267,12 +263,12 @@ void RelocInfo::WipeOut(Isolate* isolate) {
   } else if (IsInternalReferenceEncoded(rmode_)) {
     Assembler::set_target_internal_reference_encoded_at(pc_, nullptr);
   } else {
-    Assembler::set_target_address_at(isolate, pc_, constant_pool_, nullptr);
+    Assembler::set_target_address_at(pc_, constant_pool_, nullptr);
   }
 }
 
 template <typename ObjectVisitor>
-void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
+void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);

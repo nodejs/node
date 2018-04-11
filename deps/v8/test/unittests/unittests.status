@@ -3,4 +3,8 @@
 # found in the LICENSE file.
 
 [
+['system == windows', {
+  # BUG(7492).
+  'ThreadTicks.ThreadNow': [SKIP],
+}],  # 'system == windows'
 ]

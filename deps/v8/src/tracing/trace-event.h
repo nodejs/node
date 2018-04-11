@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef SRC_TRACING_TRACE_EVENT_H_
-#define SRC_TRACING_TRACE_EVENT_H_
+#ifndef V8_TRACING_TRACE_EVENT_H_
+#define V8_TRACING_TRACE_EVENT_H_
 
 #include <stddef.h>
 #include <memory>
@@ -686,4 +686,4 @@ class CallStatsScopedTracer {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // SRC_TRACING_TRACE_EVENT_H_
+#endif  // V8_TRACING_TRACE_EVENT_H_

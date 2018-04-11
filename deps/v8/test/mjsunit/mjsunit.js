@@ -55,6 +55,9 @@ MjsUnitAssertionError.prototype.toString = function () {
 // For known primitive values, please use assertEquals.
 var assertSame;
 
+// Inverse of assertSame.
+var assertNotSame;
+
 // Expected and found values are identical primitive values or functions
 // or similarly structured objects (checking internal properties
 // of, e.g., Number and Date objects, the elements of arrays
@@ -166,9 +169,6 @@ var isInterpreted;
 // Returns true if given function is optimized.
 var isOptimized;
 
-// Returns true if given function is compiled by Crankshaft.
-var isCrankshafted;
-
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
 
@@ -178,6 +178,8 @@ var testAsync;
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
 
+// Returns a pretty-printed string representation of the passed value.
+var prettyPrinted;
 
 (function () {  // Scope for utility functions.
 
@@ -224,7 +226,7 @@ var failWithMessage;
   }
 
 
-  function PrettyPrint(value) {
+  prettyPrinted = function prettyPrinted(value) {
     switch (typeof value) {
       case "string":
         return JSON.stringify(value);
@@ -247,11 +249,12 @@ var failWithMessage;
           case "String":
           case "Boolean":
           case "Date":
-            return objectClass + "(" + PrettyPrint(ValueOf(value)) + ")";
+            return objectClass + "(" + prettyPrinted(ValueOf(value)) + ")";
           case "RegExp":
             return RegExpPrototypeToString.call(value);
           case "Array":
-            var mapped = ArrayPrototypeMap.call(value, PrettyPrintArrayElement);
+            var mapped = ArrayPrototypeMap.call(
+                value, prettyPrintedArrayElement);
             var joined = ArrayPrototypeJoin.call(mapped, ",");
             return "[" + joined + "]";
           case "Uint8Array":
@@ -279,9 +282,9 @@ var failWithMessage;
   }
 
 
-  function PrettyPrintArrayElement(value, index, array) {
+  function prettyPrintedArrayElement(value, index, array) {
     if (value === undefined && !(index in array)) return "";
-    return PrettyPrint(value);
+    return prettyPrinted(value);
   }
 
 
@@ -296,7 +299,7 @@ var failWithMessage;
       message += " (" + name_opt + ")";
     }
 
-    var foundText = PrettyPrint(found);
+    var foundText = prettyPrinted(found);
     if (expectedText.length <= 40 && foundText.length <= 40) {
       message += ": expected <" + expectedText + "> found <" + foundText + ">";
     } else {
@@ -372,19 +375,29 @@ var failWithMessage;
     } else if ((expected !== expected) && (found !== found)) {
       return;
     }
-    fail(PrettyPrint(expected), found, name_opt);
+    fail(prettyPrinted(expected), found, name_opt);
   };
 
+  assertNotSame = function assertNotSame(expected, found, name_opt) {
+    // TODO(mstarzinger): We should think about using Harmony's egal operator
+    // or the function equivalent Object.is() here.
+    if (found !== expected) {
+      if (expected === 0 || (1 / expected) !== (1 / found)) return;
+    } else if (!((expected !== expected) && (found !== found))) {
+      return;
+    }
+    fail(prettyPrinted(expected), found, name_opt);
+  }
 
   assertEquals = function assertEquals(expected, found, name_opt) {
     if (!deepEquals(found, expected)) {
-      fail(PrettyPrint(expected), found, name_opt);
+      fail(prettyPrinted(expected), found, name_opt);
     }
   };
 
   assertNotEquals = function assertNotEquals(expected, found, name_opt) {
     if (deepEquals(found, expected)) {
-      fail("not equals to " + PrettyPrint(expected), found, name_opt);
+      fail("not equals to " + prettyPrinted(expected), found, name_opt);
     }
   };
 
@@ -392,7 +405,7 @@ var failWithMessage;
   assertEqualsDelta =
       function assertEqualsDelta(expected, found, delta, name_opt) {
     if (Math.abs(expected - found) > delta) {
-      fail(PrettyPrint(expected) + " +- " + PrettyPrint(delta), found, name_opt);
+      fail(prettyPrinted(expected) + " +- " + prettyPrinted(delta), found, name_opt);
     }
   };
 
@@ -499,7 +512,7 @@ var failWithMessage;
       if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      failWithMessage("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
+      failWithMessage("Object <" + prettyPrinted(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
                (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
     }
@@ -657,14 +670,6 @@ var failWithMessage;
     return (opt_status & V8OptimizationStatus.kOptimized) !== 0;
   }
 
-  isCrankshafted = function isCrankshafted(fun) {
-    var opt_status = OptimizationStatus(fun, "");
-    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
-               "not a function");
-    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
-           (opt_status & V8OptimizationStatus.kTurboFanned) === 0;
-  }
-
   isTurboFanned = function isTurboFanned(fun) {
     var opt_status = OptimizationStatus(fun, "");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
@@ -779,7 +784,7 @@ var failWithMessage;
     equals(expected, found, name_opt) {
       this.actualAsserts_++;
       if (!deepEquals(expected, found)) {
-        this.fail(PrettyPrint(expected), found, name_opt);
+        this.fail(prettyPrinted(expected), found, name_opt);
       }
     }
 

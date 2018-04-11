@@ -30,6 +30,8 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case PACKED_DOUBLE_ELEMENTS:
     case HOLEY_DOUBLE_ELEMENTS:
     case FLOAT64_ELEMENTS:
+    case BIGINT64_ELEMENTS:
+    case BIGUINT64_ELEMENTS:
       return 3;
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
@@ -153,6 +155,92 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
   return false;
 }
 
+bool UnionElementsKindUptoSize(ElementsKind* a_out, ElementsKind b) {
+  // Assert that the union of two ElementKinds can be computed via std::max.
+  static_assert(PACKED_SMI_ELEMENTS < HOLEY_SMI_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(HOLEY_SMI_ELEMENTS < PACKED_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(PACKED_ELEMENTS < HOLEY_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(PACKED_DOUBLE_ELEMENTS < HOLEY_DOUBLE_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  ElementsKind a = *a_out;
+  switch (a) {
+    case PACKED_SMI_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case HOLEY_SMI_ELEMENTS:
+        case PACKED_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = b;
+          return true;
+        default:
+          return false;
+      }
+    case HOLEY_SMI_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case HOLEY_SMI_ELEMENTS:
+          *a_out = HOLEY_SMI_ELEMENTS;
+          return true;
+        case PACKED_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = HOLEY_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+    case PACKED_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case PACKED_ELEMENTS:
+          *a_out = PACKED_ELEMENTS;
+          return true;
+        case HOLEY_SMI_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = HOLEY_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+    case HOLEY_ELEMENTS:
+      switch (b) {
+        case PACKED_SMI_ELEMENTS:
+        case HOLEY_SMI_ELEMENTS:
+        case PACKED_ELEMENTS:
+        case HOLEY_ELEMENTS:
+          *a_out = HOLEY_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+      break;
+    case PACKED_DOUBLE_ELEMENTS:
+      switch (b) {
+        case PACKED_DOUBLE_ELEMENTS:
+        case HOLEY_DOUBLE_ELEMENTS:
+          *a_out = b;
+          return true;
+        default:
+          return false;
+      }
+    case HOLEY_DOUBLE_ELEMENTS:
+      switch (b) {
+        case PACKED_DOUBLE_ELEMENTS:
+        case HOLEY_DOUBLE_ELEMENTS:
+          *a_out = HOLEY_DOUBLE_ELEMENTS;
+          return true;
+        default:
+          return false;
+      }
+
+      break;
+    default:
+      break;
+  }
+  return false;
+}
 
 }  // namespace internal
 }  // namespace v8

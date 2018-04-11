@@ -57,14 +57,11 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class InstructionStream;
 class Isolate;
+class SCTableReference;
 class SourcePosition;
 class StatsCounter;
-
-void SetUpJSCallerSavedCodeData();
-
-// Return the code of the n-th saved register available to JavaScript.
-int JSCallerSavedCode(int n);
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -162,7 +159,7 @@ class AssemblerBase: public Malloced {
 
   static const int kMinimalBufferSize = 4*KB;
 
-  static void FlushICache(Isolate* isolate, void* start, size_t size);
+  static void FlushICache(void* start, size_t size);
 
  protected:
   // The buffer into which code and relocation info are generated. It could
@@ -220,16 +217,14 @@ class DontEmitDebugCodeScope BASE_EMBEDDED {
 // snapshot and the running VM.
 class PredictableCodeSizeScope {
  public:
-  explicit PredictableCodeSizeScope(AssemblerBase* assembler);
   PredictableCodeSizeScope(AssemblerBase* assembler, int expected_size);
   ~PredictableCodeSizeScope();
-  void ExpectSize(int expected_size) { expected_size_ = expected_size; }
 
  private:
-  AssemblerBase* assembler_;
-  int expected_size_;
-  int start_offset_;
-  bool old_value_;
+  AssemblerBase* const assembler_;
+  int const expected_size_;
+  int const start_offset_;
+  bool const old_value_;
 };
 
 
@@ -252,6 +247,8 @@ class CpuFeatureScope BASE_EMBEDDED {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
+  // Define a destructor to avoid unused variable warnings.
+  ~CpuFeatureScope() {}
 #endif
 };
 
@@ -283,7 +280,7 @@ class CpuFeatures : public AllStatic {
     return (supported_ & (1u << f)) != 0;
   }
 
-  static inline bool SupportsCrankshaft();
+  static inline bool SupportsOptimizer();
 
   static inline bool SupportsWasmSimd128();
 
@@ -341,6 +338,12 @@ enum ICacheFlushMode { FLUSH_ICACHE_IF_NEEDED, SKIP_ICACHE_FLUSH };
 
 class RelocInfo {
  public:
+  enum Flag : uint8_t {
+    kNoFlags = 0,
+    kInNativeWasmCode = 1u << 0,  // Reloc info belongs to native wasm code.
+  };
+  typedef base::Flags<Flag> Flags;
+
   // This string is used to add padding comments to the reloc info in cases
   // where we are not sure to have enough space for patching in during
   // lazy deoptimization. This is the case if we have indirect calls for which
@@ -357,7 +360,7 @@ class RelocInfo {
   // The maximum pc delta that will use the short encoding.
   static const int kMaxSmallPCDelta;
 
-  enum Mode {
+  enum Mode : int8_t {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CODE_TARGET,
     EMBEDDED_OBJECT,
@@ -395,8 +398,7 @@ class RelocInfo {
 
     // Pseudo-types
     NUMBER_OF_MODES,
-    NONE32,  // never recorded 32-bit value
-    NONE64,  // never recorded 64-bit value
+    NONE,  // never recorded value
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
@@ -456,9 +458,7 @@ class RelocInfo {
   static inline bool IsInternalReferenceEncoded(Mode mode) {
     return mode == INTERNAL_REFERENCE_ENCODED;
   }
-  static inline bool IsNone(Mode mode) {
-    return mode == NONE32 || mode == NONE64;
-  }
+  static inline bool IsNone(Mode mode) { return mode == NONE; }
   static inline bool IsWasmContextReference(Mode mode) {
     return mode == WASM_CONTEXT_REFERENCE;
   }
@@ -476,7 +476,7 @@ class RelocInfo {
            mode == WASM_CALL || mode == JS_TO_WASM_CALL;
   }
 
-  static inline int ModeMask(Mode mode) { return 1 << mode; }
+  static constexpr int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
   byte* pc() const { return pc_; }
@@ -485,6 +485,9 @@ class RelocInfo {
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
   Address constant_pool() const { return constant_pool_; }
+  void set_constant_pool(Address constant_pool) {
+    constant_pool_ = constant_pool;
+  }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
@@ -508,25 +511,22 @@ class RelocInfo {
   Address wasm_call_address() const;
 
   void set_wasm_context_reference(
-      Isolate* isolate, Address address,
+      Address address,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_function_table_size_reference(
-      Isolate* isolate, uint32_t old_base, uint32_t new_base,
+      uint32_t old_base, uint32_t new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_target_address(
-      Isolate* isolate, Address target,
+      Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  void set_global_handle(
-      Isolate* isolate, Address address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_global_handle(Address address, ICacheFlushMode icache_flush_mode =
+                                              FLUSH_ICACHE_IF_NEEDED);
   void set_wasm_call_address(
-      Isolate*, Address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_js_to_wasm_address(
-      Isolate*, Address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -539,7 +539,7 @@ class RelocInfo {
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));
   INLINE(void set_target_runtime_entry(
-      Isolate* isolate, Address target,
+      Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Cell* target_cell());
@@ -585,15 +585,15 @@ class RelocInfo {
 
   // Wipe out a relocation to a fixed value, used for making snapshots
   // reproducible.
-  INLINE(void WipeOut(Isolate* isolate));
+  INLINE(void WipeOut());
 
   template <typename ObjectVisitor>
-  inline void Visit(Isolate* isolate, ObjectVisitor* v);
+  inline void Visit(ObjectVisitor* v);
 
 #ifdef DEBUG
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
-  static bool RequiresRelocation(Isolate* isolate, const CodeDesc& desc);
+  static bool RequiresRelocation(const CodeDesc& desc);
 #endif
 
 #ifdef ENABLE_DISASSEMBLER
@@ -609,10 +609,8 @@ class RelocInfo {
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
-  void set_embedded_address(Isolate* isolate, Address address,
-                            ICacheFlushMode flush_mode);
-  void set_embedded_size(Isolate* isolate, uint32_t size,
-                         ICacheFlushMode flush_mode);
+  void set_embedded_address(Address address, ICacheFlushMode flush_mode);
+  void set_embedded_size(uint32_t size, ICacheFlushMode flush_mode);
 
   uint32_t embedded_size() const;
   Address embedded_address() const;
@@ -623,9 +621,10 @@ class RelocInfo {
   // comment).
   byte* pc_;
   Mode rmode_;
-  intptr_t data_;
+  intptr_t data_ = 0;
   Code* host_;
   Address constant_pool_ = nullptr;
+  Flags flags_;
   friend class RelocIterator;
 };
 
@@ -635,7 +634,6 @@ class RelocInfo {
 class RelocInfoWriter BASE_EMBEDDED {
  public:
   RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
-  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -651,10 +649,7 @@ class RelocInfoWriter BASE_EMBEDDED {
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
-  // On ia32 and arm this is 1 + 4 + 1 + 1 + 4 = 11.
-  // On x64 this is 1 + 4 + 1 + 1 + 8 == 15;
-  // Here we use the maximum of the two.
-  static const int kMaxSize = 15;
+  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kPointerSize;
 
  private:
   inline uint32_t WriteLongPCJump(uint32_t pc_delta);
@@ -669,7 +664,6 @@ class RelocInfoWriter BASE_EMBEDDED {
 
   byte* pos_;
   byte* last_pc_;
-  RelocInfo::Mode last_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
@@ -733,19 +727,14 @@ class RelocIterator: public Malloced {
   const byte* pos_;
   const byte* end_;
   RelocInfo rinfo_;
-  bool done_;
-  int mode_mask_;
+  bool done_ = false;
+  const int mode_mask_;
+
   DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
-
 //------------------------------------------------------------------------------
-// External function
-
-//----------------------------------------------------------------------------
-class SCTableReference;
-class Debug_Address;
-
+// External references
 
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated in
@@ -800,9 +789,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static void SetUp();
 
-  // These functions must use the isolate in a thread-safe way.
-  typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
-                                            Type type);
+  typedef void* ExternalReferenceRedirector(void* original, Type type);
 
   ExternalReference() : address_(nullptr) {}
 
@@ -999,6 +986,7 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference copy_typed_array_elements_to_typed_array(
       Isolate* isolate);
+  static ExternalReference copy_typed_array_elements_slice(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 
@@ -1073,9 +1061,8 @@ class ExternalReference BASE_EMBEDDED {
         reinterpret_cast<ExternalReferenceRedirector*>(
             isolate->external_reference_redirector());
     void* address = reinterpret_cast<void*>(address_arg);
-    void* answer = (redirector == nullptr)
-                       ? address
-                       : (*redirector)(isolate, address, type);
+    void* answer =
+        (redirector == nullptr) ? address : (*redirector)(address, type);
     return answer;
   }
 

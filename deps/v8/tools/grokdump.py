@@ -185,6 +185,10 @@ MAGIC_MARKER_PAIRS = (
     (0xbbbbbbbb, 0xbbbbbbbb),
     (0xfefefefe, 0xfefefeff),
 )
+# See StackTraceFailureMessage in isolate.h
+STACK_TRACE_MARKER = 0xdecade30
+# See FailureMessage in logging.cc
+ERROR_MESSAGE_MARKER = 0xdecade10
 
 # Set of structures and constants that describe the layout of minidump
 # files. Based on MSDN and Google Breakpad.
@@ -2105,11 +2109,9 @@ class InspectionPadawan(object):
     """
     # Only look at the first 1k words on the stack
     ptr_size = self.reader.PointerSize()
-    if start is None:
-      start = self.reader.ExceptionSP()
+    if start is None: start = self.reader.ExceptionSP()
     if not self.reader.IsValidAddress(start): return start
     end = start + ptr_size * 1024 * 4
-    message_start = 0
     magic1 = None
     for slot in xrange(start, end, ptr_size):
       if not self.reader.IsValidAddress(slot + ptr_size): break
@@ -2117,10 +2119,64 @@ class InspectionPadawan(object):
       magic2 = self.reader.ReadUIntPtr(slot + ptr_size)
       pair = (magic1 & 0xFFFFFFFF, magic2 & 0xFFFFFFFF)
       if pair in MAGIC_MARKER_PAIRS:
-        message_slot = slot + ptr_size * 4
-        message_start = self.reader.ReadUIntPtr(message_slot)
-        break
-    if message_start == 0:
+        return self.TryExtractOldStyleStackTrace(slot, start, end,
+                                                 print_message)
+      if pair[0] == STACK_TRACE_MARKER:
+        return self.TryExtractStackTrace(slot, start, end, print_message)
+      elif pair[0] == ERROR_MESSAGE_MARKER:
+        return self.TryExtractErrorMessage(slot, start, end, print_message)
+    # Simple fallback in case not stack trace object was found
+    return self.TryExtractOldStyleStackTrace(0, start, end,
+                                             print_message)
+
+  def TryExtractStackTrace(self, slot, start, end, print_message):
+    ptr_size = self.reader.PointerSize()
+    assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
+    end_marker = STACK_TRACE_MARKER + 1;
+    header_size = 10
+    # Look for the end marker after the fields and the message buffer.
+    end_search = start + (32 * 1024) + (header_size * ptr_size);
+    end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
+    if not end_slot: return start
+    print "Stack Message (start=%s):" % self.heap.FormatIntPtr(slot)
+    slot += ptr_size
+    for name in ("isolate","ptr1", "ptr2", "ptr3", "ptr4", "codeObject1",
+                 "codeObject2", "codeObject3", "codeObject4"):
+      value = self.reader.ReadUIntPtr(slot)
+      print " %s: %s" % (name.rjust(14), self.heap.FormatIntPtr(value))
+      slot += ptr_size
+    print "  message start: %s" % self.heap.FormatIntPtr(slot)
+    stack_start = end_slot + ptr_size
+    print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start)
+    (message_start, message) = self.FindFirstAsciiString(slot)
+    self.FormatStackTrace(message, print_message)
+    return stack_start
+
+  def FindPtr(self, expected_value, start, end):
+    ptr_size = self.reader.PointerSize()
+    for slot in xrange(start, end, ptr_size):
+      if not self.reader.IsValidAddress(slot): return None
+      value = self.reader.ReadUIntPtr(slot)
+      if value == expected_value: return slot
+    return None
+
+  def TryExtractErrorMessage(self, slot, start, end, print_message):
+    end_marker = ERROR_MESSAGE_MARKER + 1;
+    header_size = 1
+    end_search = start + 1024 + (header_size * ptr_size);
+    end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
+    if not end_slot: return start
+    print "Error Message (start=%s):" % self.heap.FormatIntPtr(slot)
+    slot += ptr_size
+    (message_start, message) = self.FindFirstAsciiString(slot)
+    self.FormatStackTrace(message, print_message)
+    stack_start = end_slot + ptr_size
+    return stack_start
+
+  def TryExtractOldStyleStackTrace(self, message_slot, start, end,
+                                   print_message):
+    ptr_size = self.reader.PointerSize()
+    if message_slot == 0:
       """
       On Mac we don't always get proper magic markers, so just try printing
       the first long ascii string found on the stack.
@@ -2130,6 +2186,7 @@ class InspectionPadawan(object):
       message_start, message = self.FindFirstAsciiString(start, end, 128)
       if message_start is None: return start
     else:
+      message_start = self.reader.ReadUIntPtr(message_slot + ptr_size * 4)
       message = self.reader.ReadAsciiString(message_start)
     stack_start = message_start + len(message) + 1
     # Make sure the address is word aligned
@@ -2149,10 +2206,15 @@ class InspectionPadawan(object):
       print "  message start: %s" % self.heap.FormatIntPtr(message_start)
       print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start )
       print ""
+    self.FormatStackTrace(message, print_message)
+    return stack_start
+
+  def FormatStackTrace(self, message, print_message):
     if not print_message:
       print "  Use `dsa` to print the message with annotated addresses."
       print ""
-      return stack_start
+      return
+    ptr_size = self.reader.PointerSize()
     # Annotate all addresses in the dumped message
     prog = re.compile("[0-9a-fA-F]{%s}" % ptr_size*2)
     addresses = list(set(prog.findall(message)))
@@ -2166,7 +2228,7 @@ class InspectionPadawan(object):
     print message
     print "="*80
     print ""
-    return stack_start
+
 
   def TryInferFramePointer(self, slot, address):
     """ Assume we have a framepointer if we find 4 consecutive links """

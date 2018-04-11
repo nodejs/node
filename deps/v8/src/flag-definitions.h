@@ -9,6 +9,8 @@
 // This include does not have a guard, because it is a template-style include,
 // which can be included multiple times in different modes.  It expects to have
 // a mode defined before it's included.  The modes are FLAG_MODE_... below:
+//
+// PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD
 
 #define DEFINE_IMPLICATION(whenflag, thenflag)              \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, true)
@@ -203,33 +205,36 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_public_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_static_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
+// Update bootstrapper.cc whenever adding a new feature flag.
+
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
-  V(harmony_import_meta, "harmony import.meta property")              \
   V(harmony_array_prototype_values, "harmony Array.prototype.values") \
-  V(harmony_function_sent, "harmony function.sent")                   \
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony fields in class literals")         \
   V(harmony_static_fields, "harmony static fields in class literals") \
-  V(harmony_bigint, "harmony arbitrary precision integers")           \
-  V(harmony_private_fields, "harmony private fields in class literals")
+  V(harmony_bigint, "harmony arbitrary precision integers")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
-  V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
-  V(harmony_dynamic_import, "harmony dynamic import")                   \
   V(harmony_public_fields, "harmony public fields in class literals")   \
-  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks")
+  V(harmony_private_fields, "harmony private fields in class literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                        \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")     \
-  V(harmony_regexp_property, "harmony Unicode regexp property classes") \
-  V(harmony_promise_finally, "harmony Promise.prototype.finally")
+#define HARMONY_SHIPPING_BASE(V)                                              \
+  V(harmony_subsume_json, "harmony subsume JSON")                             \
+  V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}")      \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                   \
+  V(harmony_regexp_named_captures, "harmony regexp named captures")           \
+  V(harmony_regexp_property, "harmony Unicode regexp property classes")       \
+  V(harmony_function_tostring, "harmony Function.prototype.toString")         \
+  V(harmony_promise_finally, "harmony Promise.prototype.finally")             \
+  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks") \
+  V(harmony_import_meta, "harmony import.meta property")                      \
+  V(harmony_dynamic_import, "harmony dynamic import")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                      \
@@ -278,7 +283,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_IMPLICATION(future, background_compile)
 DEFINE_IMPLICATION(future, write_protect_code_memory)
 
 // Flags for experimental implementation features.
@@ -319,6 +323,18 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
+
+// Flags for Ignition for no-snapshot builds.
+#undef FLAG
+#ifndef V8_USE_SNAPSHOT
+#define FLAG FLAG_FULL
+#else
+#define FLAG FLAG_READONLY
+#endif
+DEFINE_INT(interrupt_budget, 144 * KB,
+           "interrupt budget which should be used for the profiler counter")
+#undef FLAG
+#define FLAG FLAG_FULL
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
@@ -470,6 +486,8 @@ DEFINE_BOOL(turbo_store_elimination, true,
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
+DEFINE_BOOL(experimental_inline_promise_constructor, false,
+            "inline the Promise constructor in TurboFan")
 
 #ifdef DISABLE_UNTRUSTED_CODE_MITIGATIONS
 #define V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS false
@@ -479,6 +497,11 @@ DEFINE_BOOL(turbo_rewrite_far_jumps, true,
 DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
             "Enable mitigations for executing untrusted code")
 #undef V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS
+
+DEFINE_BOOL(turbo_disable_switch_jump_table, false,
+            "do not emit jump-tables in Turbofan")
+DEFINE_IMPLICATION(untrusted_code_mitigations, turbo_disable_switch_jump_table)
+DEFINE_BOOL(branch_load_poisoning, false, "Mask loads with branch conditions.")
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,
@@ -562,6 +585,8 @@ DEFINE_BOOL(experimental_wasm_threads, false,
             "enable prototype threads for wasm")
 DEFINE_BOOL(experimental_wasm_sat_f2i_conversions, false,
             "enable non-trapping float-to-int conversions for wasm")
+DEFINE_BOOL(experimental_wasm_se, false,
+            "enable prototype sign extension opcodes for wasm")
 
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,
@@ -632,6 +657,9 @@ DEFINE_BOOL(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_INT(trace_allocation_stack_interval, -1,
            "print stack trace after <n> free-list allocations")
+DEFINE_INT(trace_duplicate_threshold_kb, 0,
+           "print duplicate objects in the heap if their size is more than "
+           "given threshold")
 DEFINE_BOOL(trace_fragmentation, false, "report fragmentation for old space")
 DEFINE_BOOL(trace_fragmentation_verbose, false,
             "report fragmentation for old space (detailed)")
@@ -641,6 +669,7 @@ DEFINE_BOOL(trace_mutator_utilization, false,
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
+DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_BOOL(write_protect_code_memory, false, "write protect code memory")
@@ -732,6 +761,8 @@ DEFINE_INT(stress_scavenge, 0,
            "percent of the new space capacity")
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_marking)
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge)
+
+DEFINE_BOOL(disable_abortjs, false, "disables AbortJS runtime function")
 
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "
@@ -894,7 +925,10 @@ DEFINE_INT(histogram_interval, 600000,
 // heap-snapshot-generator.cc
 DEFINE_BOOL(heap_profiler_trace_objects, false,
             "Dump heap object allocations/movements/size_updates")
-
+DEFINE_BOOL(heap_profiler_use_embedder_graph, true,
+            "Use the new EmbedderGraph API to get embedder nodes")
+DEFINE_INT(heap_snapshot_string_limit, 1024,
+           "truncate strings to this length in the heap snapshot")
 
 // sampling-heap-profiler.cc
 DEFINE_BOOL(sampling_heap_profiler_suppress_randomness, false,
@@ -941,7 +975,7 @@ DEFINE_BOOL(preparser_scope_analysis, true,
 DEFINE_IMPLICATION(preparser_scope_analysis, aggressive_lazy_inner_functions)
 
 // compiler.cc
-DEFINE_BOOL(background_compile, false, "enable background compilation")
+DEFINE_BOOL(background_compile, true, "enable background compilation")
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")
@@ -995,6 +1029,13 @@ DEFINE_INT(fuzzer_random_seed, 0,
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
 DEFINE_BOOL(print_all_exceptions, false,
             "print exception object and stack trace on each thrown exception")
+#ifdef V8_EMBEDDED_BUILTINS
+DEFINE_BOOL(stress_off_heap_code, false,
+            "Move code objects off-heap for testing.")
+#else
+FLAG_READONLY(BOOL, bool, stress_off_heap_code, false,
+              "Move code objects off-heap for testing.")
+#endif
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
@@ -1277,6 +1318,7 @@ DEFINE_BOOL(predictable, false, "enable predictable mode")
 DEFINE_IMPLICATION(predictable, single_threaded)
 DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
+DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 
 //
 // Threading related flags.

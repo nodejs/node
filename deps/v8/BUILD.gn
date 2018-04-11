@@ -64,6 +64,10 @@ declare_args() {
   # Enable fast mksnapshot runs.
   v8_enable_fast_mksnapshot = false
 
+  # Enable embedded builtins.
+  # TODO(jgruber,v8:6666): Support ia32.
+  v8_enable_embedded_builtins = false
+
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
@@ -319,6 +323,9 @@ config("features") {
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
+  if (v8_enable_embedded_builtins) {
+    defines += [ "V8_EMBEDDED_BUILTINS" ]
+  }
 }
 
 config("toolchain") {
@@ -387,6 +394,9 @@ config("toolchain") {
         "_MIPS_ARCH_MIPS32R6",
         "FPU_MODE_FP64",
       ]
+      if (mips_use_msa) {
+        defines += [ "_MIPS_MSA" ]
+      }
     } else if (mips_arch_variant == "r2") {
       defines += [ "_MIPS_ARCH_MIPS32R2" ]
       if (mips_fpu_mode == "fp64") {
@@ -424,6 +434,9 @@ config("toolchain") {
     }
     if (mips_arch_variant == "r6") {
       defines += [ "_MIPS_ARCH_MIPS64R6" ]
+      if (mips_use_msa) {
+        defines += [ "_MIPS_MSA" ]
+      }
     } else if (mips_arch_variant == "r2") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
@@ -514,8 +527,6 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [
-      "-Wsign-compare",
-
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]
@@ -883,6 +894,14 @@ action("v8_dump_build_config") {
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
   ]
+
+  if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    args += [
+      "mips_arch_variant=\"$mips_arch_variant\"",
+      "mips_use_msa=$mips_use_msa",
+    ]
+  }
 }
 
 ###############################################################################
@@ -1018,6 +1037,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-arguments-gen.cc",
     "src/builtins/builtins-arguments-gen.h",
     "src/builtins/builtins-array-gen.cc",
+    "src/builtins/builtins-array-gen.h",
     "src/builtins/builtins-async-function-gen.cc",
     "src/builtins/builtins-async-gen.cc",
     "src/builtins/builtins-async-gen.h",
@@ -1060,8 +1080,11 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-string-gen.h",
     "src/builtins/builtins-symbol-gen.cc",
     "src/builtins/builtins-typedarray-gen.cc",
+    "src/builtins/builtins-typedarray-gen.h",
     "src/builtins/builtins-utils-gen.h",
     "src/builtins/builtins-wasm-gen.cc",
+    "src/builtins/growable-fixed-array-gen.cc",
+    "src/builtins/growable-fixed-array-gen.h",
     "src/builtins/setup-builtins-internal.cc",
     "src/heap/setup-heap-internal.cc",
     "src/ic/accessor-assembler.cc",
@@ -1193,7 +1216,6 @@ v8_source_set("v8_base") {
     "//base/trace_event/common/trace_event_common.h",
 
     ### gcmole(all) ###
-    "include/v8-debug.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
     "include/v8-platform.h",
@@ -1236,8 +1258,6 @@ v8_source_set("v8_base") {
     "src/assert-scope.h",
     "src/ast/ast-function-literal-id-reindexer.cc",
     "src/ast/ast-function-literal-id-reindexer.h",
-    "src/ast/ast-numbering.cc",
-    "src/ast/ast-numbering.h",
     "src/ast/ast-source-ranges.h",
     "src/ast/ast-traversal-visitor.h",
     "src/ast/ast-value-factory.cc",
@@ -1304,6 +1324,8 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-utils.h",
     "src/builtins/builtins.cc",
     "src/builtins/builtins.h",
+    "src/builtins/constants-table-builder.cc",
+    "src/builtins/constants-table-builder.h",
     "src/cached-powers.cc",
     "src/cached-powers.h",
     "src/callable.h",
@@ -1396,6 +1418,7 @@ v8_source_set("v8_base") {
     "src/compiler/frame-states.h",
     "src/compiler/frame.cc",
     "src/compiler/frame.h",
+    "src/compiler/functional-list.h",
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
     "src/compiler/graph-assembler.cc",
@@ -1639,6 +1662,8 @@ v8_source_set("v8_base") {
     "src/global-handles.cc",
     "src/global-handles.h",
     "src/globals.h",
+    "src/handler-table.cc",
+    "src/handler-table.h",
     "src/handles-inl.h",
     "src/handles.cc",
     "src/handles.h",
@@ -1670,6 +1695,7 @@ v8_source_set("v8_base") {
     "src/heap/invalidated-slots-inl.h",
     "src/heap/invalidated-slots.cc",
     "src/heap/invalidated-slots.h",
+    "src/heap/item-parallel-job.cc",
     "src/heap/item-parallel-job.h",
     "src/heap/local-allocator.h",
     "src/heap/mark-compact-inl.h",
@@ -1719,6 +1745,8 @@ v8_source_set("v8_base") {
     "src/icu_util.h",
     "src/identity-map.cc",
     "src/identity-map.h",
+    "src/instruction-stream.cc",
+    "src/instruction-stream.h",
     "src/interface-descriptors.cc",
     "src/interface-descriptors.h",
     "src/interpreter/block-coverage-builder.h",
@@ -1835,6 +1863,8 @@ v8_source_set("v8_base") {
     "src/objects/js-array.h",
     "src/objects/js-collection-inl.h",
     "src/objects/js-collection.h",
+    "src/objects/js-promise-inl.h",
+    "src/objects/js-promise.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp.h",
     "src/objects/literal-objects-inl.h",
@@ -1842,6 +1872,8 @@ v8_source_set("v8_base") {
     "src/objects/literal-objects.h",
     "src/objects/map-inl.h",
     "src/objects/map.h",
+    "src/objects/microtask-inl.h",
+    "src/objects/microtask.h",
     "src/objects/module-inl.h",
     "src/objects/module.cc",
     "src/objects/module.h",
@@ -1849,6 +1881,8 @@ v8_source_set("v8_base") {
     "src/objects/name.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
+    "src/objects/promise-inl.h",
+    "src/objects/promise.h",
     "src/objects/property-descriptor-object-inl.h",
     "src/objects/property-descriptor-object.h",
     "src/objects/regexp-match-info.h",
@@ -1865,8 +1899,6 @@ v8_source_set("v8_base") {
     "src/objects/template-objects.h",
     "src/ostreams.cc",
     "src/ostreams.h",
-    "src/parsing/background-parsing-task.cc",
-    "src/parsing/background-parsing-task.h",
     "src/parsing/duplicate-finder.h",
     "src/parsing/expression-classifier.h",
     "src/parsing/expression-scope-reparenter.cc",
@@ -2126,8 +2158,6 @@ v8_source_set("v8_base") {
     "src/wasm/signature-map.h",
     "src/wasm/streaming-decoder.cc",
     "src/wasm/streaming-decoder.h",
-    "src/wasm/wasm-api.cc",
-    "src/wasm/wasm-api.h",
     "src/wasm/wasm-code-manager.cc",
     "src/wasm/wasm-code-manager.h",
     "src/wasm/wasm-code-specialization.cc",
@@ -2570,11 +2600,15 @@ v8_component("v8_libbase") {
 
   if (is_posix) {
     sources += [
-      "src/base/platform/platform-posix-time.cc",
-      "src/base/platform/platform-posix-time.h",
       "src/base/platform/platform-posix.cc",
       "src/base/platform/platform-posix.h",
     ]
+    if (current_os != "aix") {
+      sources += [
+        "src/base/platform/platform-posix-time.cc",
+        "src/base/platform/platform-posix-time.h",
+      ]
+    }
   }
 
   if (is_linux) {
@@ -2824,7 +2858,7 @@ group("v8_clusterfuzz") {
 
   if (v8_test_isolation_mode != "noop") {
     deps += [
-      "tools:run-deopt-fuzzer_run",
+      "test:d8_default_run",
       "tools:run-num-fuzzer_run",
     ]
   }
@@ -2842,9 +2876,9 @@ group("v8_fuzzers") {
     ":v8_simple_json_fuzzer",
     ":v8_simple_multi_return_fuzzer",
     ":v8_simple_parser_fuzzer",
+    ":v8_simple_regexp_builtins_fuzzer",
     ":v8_simple_regexp_fuzzer",
     ":v8_simple_wasm_async_fuzzer",
-    ":v8_simple_wasm_call_fuzzer",
     ":v8_simple_wasm_code_fuzzer",
     ":v8_simple_wasm_compile_fuzzer",
     ":v8_simple_wasm_data_section_fuzzer",
@@ -2952,7 +2986,7 @@ v8_executable("d8") {
   }
 
   if (v8_correctness_fuzzer) {
-    deps += [ "tools/foozzie:v8_correctness_fuzzer_resources" ]
+    deps += [ "tools/clusterfuzz:v8_correctness_fuzzer_resources" ]
   }
 
   defines = []
@@ -3127,6 +3161,25 @@ v8_source_set("parser_fuzzer") {
 v8_fuzzer("parser_fuzzer") {
 }
 
+v8_source_set("regexp_builtins_fuzzer") {
+  sources = [
+    "test/fuzzer/regexp-builtins.cc",
+    "test/fuzzer/regexp_builtins/mjsunit.js.h",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("regexp_builtins_fuzzer") {
+}
+
 v8_source_set("regexp_fuzzer") {
   sources = [
     "test/fuzzer/regexp.cc",
@@ -3216,27 +3269,6 @@ v8_source_set("wasm_code_fuzzer") {
 }
 
 v8_fuzzer("wasm_code_fuzzer") {
-}
-
-v8_source_set("wasm_call_fuzzer") {
-  sources = [
-    "test/common/wasm/test-signatures.h",
-    "test/fuzzer/wasm-call.cc",
-  ]
-
-  deps = [
-    ":fuzzer_support",
-    ":lib_wasm_fuzzer_common",
-    ":wasm_module_runner",
-  ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
-
-v8_fuzzer("wasm_call_fuzzer") {
 }
 
 v8_source_set("lib_wasm_fuzzer_common") {

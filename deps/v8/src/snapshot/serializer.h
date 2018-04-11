@@ -7,6 +7,7 @@
 
 #include <map>
 
+#include "src/instruction-stream.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects.h"
@@ -116,6 +117,15 @@ class CodeAddressMap : public CodeEventLogger {
                          const char* name, int length) override {
     address_to_name_map_.Insert(code->address(), name, length);
   }
+  void LogRecordedBuffer(const InstructionStream* stream, const char* name,
+                         int length) override {
+    address_to_name_map_.Insert(stream->bytes(), name, length);
+  }
+
+  void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+                         int length) override {
+    UNREACHABLE();
+  }
 
   NameMap address_to_name_map_;
   Isolate* isolate_;
@@ -162,7 +172,8 @@ class Serializer : public SerializerDeserializer {
 
   virtual bool MustBeDeferred(HeapObject* object);
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);

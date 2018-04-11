@@ -15,6 +15,7 @@
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/factory.h"
+#include "src/global-handles.h"
 #include "src/intl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -626,7 +627,8 @@ RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
   icu::UnicodeString result = plural_rules->select(rounded);
   return *isolate->factory()
               ->NewStringFromTwoByte(Vector<const uint16_t>(
-                  reinterpret_cast<const uint16_t*>(result.getBuffer()),
+                  reinterpret_cast<const uint16_t*>(
+                      icu::toUCharPtr(result.getBuffer())),
                   result.length()))
               .ToHandleChecked();
 }

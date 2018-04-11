@@ -33,7 +33,7 @@ void CopyRegListToFrame(MacroAssembler* masm, const Register& dst,
   // up a temp with an offset for accesses out of the range of the addressing
   // mode.
   Register src = temps.AcquireX();
-  masm->Add(src, masm->StackPointer(), src_offset);
+  masm->Add(src, sp, src_offset);
   masm->Add(dst, dst, dst_offset);
 
   // Write reg_list into the frame pointed to by dst.
@@ -140,8 +140,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Mov(code_object, lr);
   // Compute the fp-to-sp delta, adding two words for alignment padding and
   // bailout id.
-  __ Add(fp_to_sp, __ StackPointer(),
-         kSavedRegistersAreaSize + (2 * kPointerSize));
+  __ Add(fp_to_sp, sp, kSavedRegistersAreaSize + (2 * kPointerSize));
   __ Sub(fp_to_sp, fp, fp_to_sp);
 
   // Allocate a new deoptimizer object.
@@ -222,7 +221,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.AcquireX();
     __ Ldr(scratch, MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
-    __ Mov(__ StackPointer(), scratch);
+    __ Mov(sp, scratch);
   }
 
   // Replace the current (input) frame with the output frames.

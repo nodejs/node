@@ -84,15 +84,18 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     allocator_->Free(data, length);
   }
 
-  void* Reserve(size_t length) override { return allocator_->Reserve(length); }
+  void* Reserve(size_t length) override {
+    UNIMPLEMENTED();
+    return nullptr;
+  }
 
   void Free(void* data, size_t length, AllocationMode mode) override {
-    allocator_->Free(data, length, mode);
+    UNIMPLEMENTED();
   }
 
   void SetProtection(void* data, size_t length,
                      Protection protection) override {
-    allocator_->SetProtection(data, length, protection);
+    UNIMPLEMENTED();
   }
 
  private:
@@ -119,18 +122,6 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     } else {
       ArrayBufferAllocatorBase::Free(data, length);
     }
-  }
-
-  void* Reserve(size_t length) override {
-    // |length| must be over the threshold so we can distinguish VM from
-    // malloced memory.
-    DCHECK_LE(kVMThreshold, length);
-    return ArrayBufferAllocatorBase::Reserve(length);
-  }
-
-  void Free(void* data, size_t length, AllocationMode) override {
-    // Ignore allocation mode; the appropriate action is determined by |length|.
-    Free(data, length);
   }
 
  private:
@@ -170,14 +161,6 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void Free(void* data, size_t length) override {
     return ArrayBufferAllocatorBase::Free(data, Adjust(length));
-  }
-
-  void* Reserve(size_t length) override {
-    return ArrayBufferAllocatorBase::Reserve(Adjust(length));
-  }
-
-  void Free(void* data, size_t length, AllocationMode mode) override {
-    return ArrayBufferAllocatorBase::Free(data, Adjust(length), mode);
   }
 
  private:
@@ -621,8 +604,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(name);
 
-    if (options.compile_options == ScriptCompiler::kConsumeCodeCache ||
-        options.compile_options == ScriptCompiler::kConsumeParserCache) {
+    DCHECK(options.compile_options != ScriptCompiler::kProduceParserCache);
+    DCHECK(options.compile_options != ScriptCompiler::kConsumeParserCache);
+    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
       ScriptCompiler::CachedData* cached_code =
           LookupCodeCache(isolate, source);
       if (cached_code != nullptr) {
@@ -656,9 +640,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       ScriptCompiler::Source script_source(source, origin);
       maybe_script = ScriptCompiler::Compile(context, &script_source,
                                              options.compile_options);
-      if (options.compile_options == ScriptCompiler::kProduceParserCache) {
-        StoreInCodeCache(isolate, source, script_source.GetCachedData());
-      }
     }
 
     Local<Script> script;
@@ -957,9 +938,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   std::string source_url = ToSTLString(isolate, referrer);
   std::string dir_name =
-      DirName(IsAbsolutePath(source_url)
-                  ? source_url
-                  : NormalizePath(source_url, GetWorkingDirectory()));
+      DirName(NormalizePath(source_url, GetWorkingDirectory()));
   std::string file_name = ToSTLString(isolate, specifier);
   std::string absolute_path = NormalizePath(file_name, dir_name);
 
@@ -2576,7 +2555,11 @@ void SourceGroup::JoinThread() {
 
 ExternalizedContents::~ExternalizedContents() {
   if (base_ != nullptr) {
-    Shell::array_buffer_allocator->Free(base_, length_, mode_);
+    if (mode_ == ArrayBuffer::Allocator::AllocationMode::kReservation) {
+      CHECK(i::FreePages(base_, length_));
+    } else {
+      Shell::array_buffer_allocator->Free(base_, length_);
+    }
   }
 }
 
@@ -2852,8 +2835,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
             ShellOptions::CodeCacheOptions::kProduceCache;
-      } else if (strncmp(value, "=parse", 7) == 0) {
-        options.compile_options = v8::ScriptCompiler::kProduceParserCache;
       } else if (strncmp(value, "=none", 6) == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
@@ -2899,6 +2880,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--quiet-load") == 0) {
       options.quiet_load = true;
+      argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--thread-pool-size=", 19) == 0) {
+      options.thread_pool_size = atoi(argv[i] + 19);
       argv[i] = nullptr;
     }
   }
@@ -3085,6 +3069,13 @@ class Serializer : public ValueSerializer::Delegate {
 
   std::unique_ptr<SerializationData> Release() { return std::move(data_); }
 
+  void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
+    to->insert(to->end(),
+               std::make_move_iterator(externalized_contents_.begin()),
+               std::make_move_iterator(externalized_contents_.end()));
+    externalized_contents_.clear();
+  }
+
  protected:
   // Implements ValueSerializer::Delegate.
   void ThrowDataCloneError(Local<String> message) override {
@@ -3102,6 +3093,8 @@ class Serializer : public ValueSerializer::Delegate {
 
     size_t index = shared_array_buffers_.size();
     shared_array_buffers_.emplace_back(isolate_, shared_array_buffer);
+    data_->shared_array_buffer_contents_.push_back(
+        MaybeExternalize(shared_array_buffer));
     return Just<uint32_t>(static_cast<uint32_t>(index));
   }
 
@@ -3155,7 +3148,7 @@ class Serializer : public ValueSerializer::Delegate {
       return array_buffer->GetContents();
     } else {
       typename T::Contents contents = array_buffer->Externalize();
-      data_->externalized_contents_.emplace_back(contents);
+      externalized_contents_.emplace_back(contents);
       return contents;
     }
   }
@@ -3174,13 +3167,6 @@ class Serializer : public ValueSerializer::Delegate {
       data_->array_buffer_contents_.push_back(contents);
     }
 
-    for (const auto& global_shared_array_buffer : shared_array_buffers_) {
-      Local<SharedArrayBuffer> shared_array_buffer =
-          Local<SharedArrayBuffer>::New(isolate_, global_shared_array_buffer);
-      data_->shared_array_buffer_contents_.push_back(
-          MaybeExternalize(shared_array_buffer));
-    }
-
     return Just(true);
   }
 
@@ -3189,6 +3175,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
+  std::vector<ExternalizedContents> externalized_contents_;
   size_t current_memory_usage_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
@@ -3216,14 +3203,19 @@ class Deserializer : public ValueDeserializer::Delegate {
       deserializer_.TransferArrayBuffer(index++, array_buffer);
     }
 
-    index = 0;
-    for (const auto& contents : data_->shared_array_buffer_contents()) {
-      Local<SharedArrayBuffer> shared_array_buffer = SharedArrayBuffer::New(
-          isolate_, contents.Data(), contents.ByteLength());
-      deserializer_.TransferSharedArrayBuffer(index++, shared_array_buffer);
-    }
-
     return deserializer_.ReadValue(context);
+  }
+
+  MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
+      Isolate* isolate, uint32_t clone_id) override {
+    DCHECK_NOT_NULL(data_);
+    if (clone_id < data_->shared_array_buffer_contents().size()) {
+      SharedArrayBuffer::Contents contents =
+          data_->shared_array_buffer_contents().at(clone_id);
+      return SharedArrayBuffer::New(isolate_, contents.Data(),
+                                    contents.ByteLength());
+    }
+    return MaybeLocal<SharedArrayBuffer>();
   }
 
  private:
@@ -3242,9 +3234,11 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     std::unique_ptr<SerializationData> data = serializer.Release();
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    data->AppendExternalizedContentsTo(&externalized_contents_);
+    serializer.AppendExternalizedContentsTo(&externalized_contents_);
     return data;
   }
+  // Append externalized contents even when WriteValue fails.
+  serializer.AppendExternalizedContentsTo(&externalized_contents_);
   return nullptr;
 }
 
@@ -3318,8 +3312,8 @@ int Shell::Main(int argc, char* argv[]) {
 
   platform::tracing::TracingController* tracing_controller = tracing.get();
   g_platform = v8::platform::NewDefaultPlatform(
-      0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping,
-      std::move(tracing));
+      options.thread_pool_size, v8::platform::IdleTaskSupport::kEnabled,
+      in_process_stack_dumping, std::move(tracing));
   if (i::FLAG_verify_predictable) {
     g_platform.reset(new PredictablePlatform(std::move(g_platform)));
   }
@@ -3422,14 +3416,9 @@ int Shell::Main(int argc, char* argv[]) {
       result = RunMain(isolate, argc, argv, false);
 
       // Change the options to consume cache
-      if (options.compile_options == v8::ScriptCompiler::kProduceParserCache) {
-        options.compile_options = v8::ScriptCompiler::kConsumeParserCache;
-      } else {
-        DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
-               options.compile_options ==
-                   v8::ScriptCompiler::kNoCompileOptions);
-        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-      }
+      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
+             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
+      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
 
       printf("============ Run: Consume code cache ============\n");
       // Second run to consume the cache in new isolate

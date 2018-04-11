@@ -429,7 +429,7 @@ TEST(SignednessInWord32) {
   CheckChange(IrOpcode::kCheckedTruncateTaggedToWord32,
               MachineRepresentation::kTagged, Type::NonInternal(),
               MachineRepresentation::kWord32,
-              UseInfo::CheckedNumberOrOddballAsWord32());
+              UseInfo::CheckedNumberOrOddballAsWord32(VectorSlotPair()));
 
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,
@@ -452,11 +452,13 @@ static void TestMinusZeroCheck(IrOpcode::Value expected, Type* from_type) {
       expected, MachineRepresentation::kFloat64, from_type,
       UseInfo::CheckedSignedSmallAsWord32(kIdentifyZeros, VectorSlotPair()));
 
-  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSigned32AsWord32(kDistinguishZeros));
+  CheckChange(
+      expected, MachineRepresentation::kFloat64, from_type,
+      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, VectorSlotPair()));
 
-  CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSigned32AsWord32(kDistinguishZeros));
+  CheckChange(
+      expected, MachineRepresentation::kFloat64, from_type,
+      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, VectorSlotPair()));
 }
 
 TEST(MinusZeroCheck) {

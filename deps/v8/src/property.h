@@ -7,7 +7,11 @@
 
 #include <iosfwd>
 
-#include "src/factory.h"
+#include "src/globals.h"
+#include "src/handles.h"
+#include "src/objects.h"
+#include "src/objects/name.h"
+#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {

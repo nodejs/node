@@ -25,7 +25,11 @@ bool CanInlineElementAccess(Handle<Map> map) {
   if (map->has_indexed_interceptor()) return false;
   ElementsKind const elements_kind = map->elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
-  if (IsFixedTypedArrayElementsKind(elements_kind)) return true;
+  if (IsFixedTypedArrayElementsKind(elements_kind) &&
+      elements_kind != BIGUINT64_ELEMENTS &&
+      elements_kind != BIGINT64_ELEMENTS) {
+    return true;
+  }
   return false;
 }
 
@@ -530,6 +534,18 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
     map = handle(map_prototype->map(), isolate());
     holder = map_prototype;
   } while (CanInlinePropertyAccess(map));
+  return false;
+}
+
+bool AccessInfoFactory::ComputePropertyAccessInfo(
+    MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
+    PropertyAccessInfo* access_info) {
+  ZoneVector<PropertyAccessInfo> access_infos(zone());
+  if (ComputePropertyAccessInfos(maps, name, access_mode, &access_infos) &&
+      access_infos.size() == 1) {
+    *access_info = access_infos.front();
+    return true;
+  }
   return false;
 }
 

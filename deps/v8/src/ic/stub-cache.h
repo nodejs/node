@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STUB_CACHE_H_
-#define V8_STUB_CACHE_H_
+#ifndef V8_IC_STUB_CACHE_H_
+#define V8_IC_STUB_CACHE_H_
 
 #include "src/macro-assembler.h"
 #include "src/objects/name.h"
@@ -140,4 +140,4 @@ class StubCache {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STUB_CACHE_H_
+#endif  // V8_IC_STUB_CACHE_H_

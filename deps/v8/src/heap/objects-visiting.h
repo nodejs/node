@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_VISITING_H_
-#define V8_OBJECTS_VISITING_H_
+#ifndef V8_HEAP_OBJECTS_VISITING_H_
+#define V8_HEAP_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
 #include "src/layout-descriptor.h"
@@ -31,6 +31,7 @@ class JSWeakCollection;
   V(Code)                        \
   V(CodeDataContainer)           \
   V(ConsString)                  \
+  V(FeedbackCell)                \
   V(FeedbackVector)              \
   V(FixedArray)                  \
   V(FixedDoubleArray)            \
@@ -132,4 +133,4 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_OBJECTS_VISITING_H_
+#endif  // V8_HEAP_OBJECTS_VISITING_H_

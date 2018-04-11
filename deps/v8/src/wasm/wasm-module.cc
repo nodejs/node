@@ -18,7 +18,6 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8.h"
 #include "src/wasm/compilation-manager.h"
-#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-specialization.h"
@@ -157,7 +156,7 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate,
 
 Handle<Object> GetOrCreateIndirectCallWrapper(
     Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
-    WasmCodeWrapper wasm_code, uint32_t index, FunctionSig* sig) {
+    WasmCodeWrapper wasm_code, uint32_t func_index, FunctionSig* sig) {
   Address new_context_address =
       reinterpret_cast<Address>(owning_instance->wasm_context()->get());
   if (!wasm_code.IsCodeObject()) {
@@ -173,6 +172,8 @@ Handle<Object> GetOrCreateIndirectCallWrapper(
     wasm::WasmCode* exported_wrapper =
         native_module->GetExportedWrapper(wasm_code.GetWasmCode()->index());
     if (exported_wrapper == nullptr) {
+      wasm::NativeModuleModificationScope native_modification_scope(
+          native_module);
       Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
           isolate, wasm_code, sig, new_context_address);
       exported_wrapper = native_module->AddExportedWrapper(
@@ -181,10 +182,11 @@ Handle<Object> GetOrCreateIndirectCallWrapper(
     Address target = exported_wrapper->instructions().start();
     return isolate->factory()->NewForeign(target, TENURED);
   }
+  CodeSpaceMemoryModificationScope gc_modification_scope(isolate->heap());
   Handle<Code> code = compiler::CompileWasmToWasmWrapper(
       isolate, wasm_code, sig, new_context_address);
   AttachWasmFunctionInfo(isolate, code, owning_instance,
-                         static_cast<int>(index));
+                         static_cast<int>(func_index));
   return code;
 }
 

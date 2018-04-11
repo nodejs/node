@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8CONSOLE_H_
-#define V8_INSPECTOR_V8CONSOLE_H_
+#ifndef V8_INSPECTOR_V8_CONSOLE_H_
+#define V8_INSPECTOR_V8_CONSOLE_H_
 
 #include "src/base/macros.h"
 
@@ -172,4 +172,4 @@ class V8Console : public v8::debug::ConsoleDelegate {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8CONSOLE_H_
+#endif  // V8_INSPECTOR_V8_CONSOLE_H_

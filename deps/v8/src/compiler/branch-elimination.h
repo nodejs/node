@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_BRANCH_CONDITION_ELIMINATION_H_
-#define V8_COMPILER_BRANCH_CONDITION_ELIMINATION_H_
+#ifndef V8_COMPILER_BRANCH_ELIMINATION_H_
+#define V8_COMPILER_BRANCH_ELIMINATION_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/compiler/functional-list.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/node-aux-data.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -30,56 +32,27 @@ class V8_EXPORT_PRIVATE BranchElimination final
  private:
   struct BranchCondition {
     Node* condition;
+    Node* branch;
     bool is_true;
-    BranchCondition* next;
 
-    BranchCondition(Node* condition, bool is_true, BranchCondition* next)
-        : condition(condition), is_true(is_true), next(next) {}
+    bool operator==(BranchCondition other) const {
+      return condition == other.condition && branch == other.branch &&
+             is_true == other.is_true;
+    }
+    bool operator!=(BranchCondition other) const { return !(*this == other); }
   };
 
   // Class for tracking information about branch conditions.
   // At the moment it is a linked list of conditions and their values
   // (true or false).
-  class ControlPathConditions {
+  class ControlPathConditions : public FunctionalList<BranchCondition> {
    public:
-    Maybe<bool> LookupCondition(Node* condition) const;
-
-    const ControlPathConditions* AddCondition(Zone* zone, Node* condition,
-                                              bool is_true) const;
-    static const ControlPathConditions* Empty(Zone* zone);
-    void Merge(const ControlPathConditions& other);
-
-    bool IsSamePath(BranchCondition* first, BranchCondition* second) const;
-    bool EqualsAfterAddingCondition(const ControlPathConditions* other,
-                                    const Node* new_condition,
-                                    bool new_branch_condition) const;
-    bool operator==(const ControlPathConditions& other) const;
-    bool operator!=(const ControlPathConditions& other) const {
-      return !(*this == other);
-    }
+    bool LookupCondition(Node* condition, Node** branch, bool* is_true) const;
+    void AddCondition(Zone* zone, Node* condition, Node* branch, bool is_true,
+                      ControlPathConditions hint);
 
    private:
-    ControlPathConditions(BranchCondition* head, size_t condition_count)
-        : head_(head), condition_count_(condition_count) {}
-
-    BranchCondition* head_;
-    // We keep track of the list length so that we can find the longest
-    // common tail easily.
-    size_t condition_count_;
-  };
-
-  // Maps each control node to the condition information known about the node.
-  // If the information is nullptr, then we have not calculated the information
-  // yet.
-  class PathConditionsForControlNodes {
-   public:
-    PathConditionsForControlNodes(Zone* zone, size_t size_hint)
-        : info_for_node_(size_hint, nullptr, zone) {}
-    const ControlPathConditions* Get(Node* node) const;
-    void Set(Node* node, const ControlPathConditions* conditions);
-
-   private:
-    ZoneVector<const ControlPathConditions*> info_for_node_;
+    using FunctionalList<BranchCondition>::PushFront;
   };
 
   Reduction ReduceBranch(Node* node);
@@ -91,11 +64,10 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction ReduceOtherControl(Node* node);
 
   Reduction TakeConditionsFromFirstControl(Node* node);
-  Reduction UpdateConditions(Node* node,
-                             const ControlPathConditions* conditions);
-  Reduction UpdateConditions(Node* node,
-                             const ControlPathConditions* prev_conditions,
-                             Node* current_condition, bool is_true_branch);
+  Reduction UpdateConditions(Node* node, ControlPathConditions conditions);
+  Reduction UpdateConditions(Node* node, ControlPathConditions prev_conditions,
+                             Node* current_condition, Node* current_branch,
+                             bool is_true_branch);
 
   Node* dead() const { return dead_; }
   Graph* graph() const;
@@ -103,7 +75,12 @@ class V8_EXPORT_PRIVATE BranchElimination final
   CommonOperatorBuilder* common() const;
 
   JSGraph* const jsgraph_;
-  PathConditionsForControlNodes node_conditions_;
+
+  // Maps each control node to the condition information known about the node.
+  // If the information is nullptr, then we have not calculated the information
+  // yet.
+  NodeAuxData<ControlPathConditions> node_conditions_;
+  NodeAuxData<bool> reduced_;
   Zone* zone_;
   Node* dead_;
 };
@@ -112,4 +89,4 @@ class V8_EXPORT_PRIVATE BranchElimination final
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_BRANCH_CONDITION_ELIMINATION_H_
+#endif  // V8_COMPILER_BRANCH_ELIMINATION_H_

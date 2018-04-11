@@ -87,28 +87,29 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Get/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Get/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Get/infinity-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/enumerate-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/HasProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/infinity-with-detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/Set/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrays/internals/Set/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-detached-when-species-retrieved-different-type': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-detached-when-species-retrieved-same-type': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/find/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/findIndex/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/forEach/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/map/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduce/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduceRight/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-other-targettype': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-same-targettype': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-get-ctor': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/sort/detached-buffer-comparefn': [FAIL],
   # DataView functions should also throw on detached buffers
@@ -267,7 +268,15 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4698
   'language/expressions/call/tco-call-args': [SKIP],
+  'language/expressions/call/tco-cross-realm-class-construct': [SKIP],
+  'language/expressions/call/tco-cross-realm-class-derived-construct': [SKIP],
+  'language/expressions/call/tco-cross-realm-fun-call': [SKIP],
+  'language/expressions/call/tco-cross-realm-fun-construct': [SKIP],
   'language/expressions/call/tco-member-args': [SKIP],
+  'language/expressions/call/tco-non-eval-function': [SKIP],
+  'language/expressions/call/tco-non-eval-function-dynamic': [SKIP],
+  'language/expressions/call/tco-non-eval-global': [SKIP],
+  'language/expressions/call/tco-non-eval-with': [SKIP],
   'language/expressions/comma/tco-final': [SKIP],
   'language/expressions/conditional/tco-cond': [SKIP],
   'language/expressions/conditional/tco-pos': [SKIP],
@@ -410,10 +419,6 @@
   'built-ins/TypedArrays/buffer-arg-use-default-proto-if-custom-proto-is-not-object-sab': ['--harmony-sharedarraybuffer'],
   'built-ins/TypedArrays/internals/Get/indexed-value-sab': ['--harmony-sharedarraybuffer'],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6045
-  'intl402/NumberFormat/prototype/format/11.3.2_TRF': [FAIL],
-  'intl402/NumberFormat/prototype/format/11.3.2_TRP': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
@@ -421,16 +426,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=6776
   'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6861
-  'language/expressions/object/method-definition/async-gen-yield-star-sync-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-sync-next': [FAIL],
-  'language/expressions/async-generator/yield-star-sync-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-sync-next': [FAIL],
-  'language/expressions/async-generator/named-yield-star-sync-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-sync-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-sync-next': [FAIL],
-  'language/statements/async-generator/yield-star-sync-next': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6791
   'built-ins/BigInt/prototype/Symbol.toStringTag': [SKIP],
@@ -440,6 +435,8 @@
   'built-ins/DataView/prototype/setBigUint64/*': [SKIP],
   'built-ins/TypedArrays/BigInt64Array/*': [SKIP],
   'built-ins/TypedArrays/BigUint64Array/*': [SKIP],
+  # The current version of test262 still uses parseInt.
+  'built-ins/BigInt/parseInt/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
@@ -450,6 +447,59 @@
   'language/statements/class/fields-indirect-eval-err-contains-arguments': [FAIL],
   'language/expressions/class/fields-indirect-eval-err-contains-arguments': [FAIL],
 
+  # https://github.com/tc39/test262/pull/1452
+  'built-ins/Object/setPrototypeOf/bigint': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7468
+  'language/statements/class/privatename-not-valid-earlyerr-script-8': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5690
+  'language/expressions/call/eval-spread': [FAIL],
+  'language/expressions/call/eval-spread-empty-leading': [FAIL],
+  'language/expressions/call/eval-spread-empty-trailing': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7470
+  'language/module-code/namespace/internals/enumerate-binding-uninit': [FAIL],
+  'language/module-code/namespace/internals/object-keys-binding-uninit': [FAIL],
+  'language/module-code/namespace/internals/object-propertyIsEnumerable-binding-uninit': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7471
+  'intl402/DateTimeFormat/prototype/format/time-clip-near-time-boundaries': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/time-clip-to-integer': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/time-clip-near-time-boundaries': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/time-clip-to-integer': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7472
+  'intl402/NumberFormat/currency-digits': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7473
+  'intl402/language-tags-canonicalized': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7474
+  'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7475
+  'built-ins/Date/UTC/non-integer-values': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7480
+  'intl402/Collator/unicode-ext-seq-in-private-tag': [FAIL],
+  'intl402/Collator/unicode-ext-seq-with-attribute': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7481
+  'intl402/NumberFormat/ignore-invalid-unicode-ext-values': [FAIL],
+  'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7482
+  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-locale-with-hc-unicode': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7483
+  'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5012
+  'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
 
 ######################## NEEDS INVESTIGATION ###########################
 
@@ -457,17 +507,7 @@
   # to be either marked as bugs with issues filed for them or as deliberate
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   # Some of these are related to v8:4361 in being visible side effects from Intl.
-  'intl402/6.2.3_a': [FAIL],
-  'intl402/Collator/10.1.2_a': [PASS, FAIL],
-  'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
-  'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
-  'intl402/DateTimeFormat/12.2.3_b': [FAIL],
-  'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
-  'intl402/NumberFormat/11.1.1_20_c': [FAIL],
-  'intl402/NumberFormat/11.1.2': [PASS, FAIL],
-  'intl402/NumberFormat/11.2.3_b': [FAIL],
-  'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
@@ -514,6 +554,10 @@
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7418
+  'language/line-terminators/S7.3_A2.3': [FAIL],
+  'language/line-terminators/S7.3_A2.4': [FAIL],
+
   # https://github.com/tc39/test262/pull/688#pullrequestreview-14025354
   'built-ins/Function/internals/Construct/derived-this-uninitialized-realm': [FAIL],
 
@@ -548,7 +592,6 @@
   'built-ins/decodeURIComponent/S15.1.3.2_A1.12_T1': [SKIP],
   'built-ins/decodeURIComponent/S15.1.3.2_A2.5_T1': [SKIP],
   'built-ins/RegExp/S15.10.2.12_A3_T1': [SKIP],
-  'intl402/9.2.6_4_b': [SKIP],
   'language/literals/regexp/S7.8.5_A1.1_T2': [SKIP],
   'language/literals/regexp/S7.8.5_A1.4_T2': [SKIP],
   'language/literals/regexp/S7.8.5_A2.1_T2': [SKIP],

@@ -11,6 +11,12 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_IsJSGeneratorObject) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  return isolate->heap()->ToBoolean(args[0]->IsJSGeneratorObject());
+}
+
 RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -30,6 +36,9 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   generator->set_receiver(*receiver);
   generator->set_register_file(*register_file);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
+  if (generator->IsJSAsyncGeneratorObject()) {
+    Handle<JSAsyncGeneratorObject>::cast(generator)->set_is_awaiting(0);
+  }
   return *generator;
 }
 
@@ -55,13 +64,31 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
   return generator->receiver();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
+RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
+RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitCaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitUncaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitCaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitUncaught) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();
@@ -126,12 +153,11 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
 
   SharedFunctionInfo* shared = generator->function()->shared();
   DCHECK(shared->HasBytecodeArray());
-  HandlerTable* handler_table =
-      HandlerTable::cast(shared->bytecode_array()->handler_table());
+  HandlerTable handler_table(shared->bytecode_array());
 
   int pc = Smi::cast(generator->input_or_debug_pos())->value();
   HandlerTable::CatchPrediction catch_prediction = HandlerTable::ASYNC_AWAIT;
-  handler_table->LookupRange(pc, nullptr, &catch_prediction);
+  handler_table.LookupRange(pc, nullptr, &catch_prediction);
   return isolate->heap()->ToBoolean(catch_prediction == HandlerTable::CAUGHT);
 }
 

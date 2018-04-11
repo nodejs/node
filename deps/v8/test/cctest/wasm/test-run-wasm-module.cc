@@ -9,8 +9,8 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/version.h"
-#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -26,6 +26,8 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+using testing::CompileAndInstantiateForTesting;
 
 namespace {
 void Cleanup(Isolate* isolate = nullptr) {
@@ -283,9 +285,11 @@ class WasmSerializationTest {
           0);
     }
     Handle<WasmInstanceObject> instance =
-        SyncInstantiate(current_isolate(), &thrower, module_object,
-                        Handle<JSReceiver>::null(),
-                        MaybeHandle<JSArrayBuffer>())
+        current_isolate()
+            ->wasm_engine()
+            ->SyncInstantiate(current_isolate(), &thrower, module_object,
+                              Handle<JSReceiver>::null(),
+                              MaybeHandle<JSArrayBuffer>())
             .ToHandleChecked();
     Handle<Object> params[1] = {
         Handle<Object>(Smi::FromInt(41), current_isolate())};
@@ -330,8 +334,9 @@ class WasmSerializationTest {
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
       MaybeHandle<WasmModuleObject> module_object =
-          SyncCompile(serialization_isolate, &thrower,
-                      ModuleWireBytes(buffer.begin(), buffer.end()));
+          serialization_isolate->wasm_engine()->SyncCompile(
+              serialization_isolate, &thrower,
+              ModuleWireBytes(buffer.begin(), buffer.end()));
 
       MaybeHandle<WasmCompiledModule> compiled_module(
           module_object.ToHandleChecked()->compiled_module(),
@@ -440,67 +445,6 @@ TEST(DeserializeWireBytesAndSerializedDataInvalid) {
   Cleanup();
 }
 
-std::unique_ptr<const uint8_t[]> CreatePayload(const uint8_t* start,
-                                               size_t size) {
-  uint8_t* ret = new uint8_t[size];
-  memcpy(ret, start, size);
-  return std::unique_ptr<const uint8_t[]>(const_cast<const uint8_t*>(ret));
-}
-
-TEST(ModuleBuilder) {
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  ZoneBuffer buffer(&zone);
-  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
-  CHECK_GT(buffer.size(), 0);
-  size_t third = buffer.size() / 3;
-  size_t first_mark = third - 2;
-  size_t second_mark = buffer.size() - 2 - third;
-  CHECK_LT(0, first_mark);
-  CHECK(first_mark < second_mark);
-  CHECK(second_mark < buffer.size());
-  Isolate* i_isolate = CcTest::InitIsolateOnce();
-  v8::WasmModuleObjectBuilder builder(CcTest::isolate());
-  std::unique_ptr<const uint8_t[]> first_part =
-      CreatePayload(buffer.begin(), first_mark);
-  std::unique_ptr<const uint8_t[]> second_part =
-      CreatePayload(buffer.begin() + first_mark, second_mark - first_mark);
-  std::unique_ptr<const uint8_t[]> third_part =
-      CreatePayload(buffer.begin() + second_mark, buffer.size() - second_mark);
-  builder.OnBytesReceived(first_part.get(), first_mark);
-  builder.OnBytesReceived(second_part.get(), second_mark - first_mark);
-  builder.OnBytesReceived(third_part.get(), buffer.size() - second_mark);
-  {
-    HandleScope scope(i_isolate);
-    v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();
-    CHECK(!maybe_module.IsEmpty());
-  }
-}
-
-TEST(FailingModuleBuilder) {
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  ZoneBuffer buffer(&zone);
-  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
-  CHECK_GT(buffer.size(), 0);
-  size_t third = buffer.size() / 3;
-  size_t first_mark = third - 2;
-  size_t second_mark = buffer.size() - 2 - third;
-  CHECK_LT(0, first_mark);
-  CHECK(first_mark < second_mark);
-  CHECK(second_mark < buffer.size());
-  Isolate* i_isolate = CcTest::InitIsolateOnce();
-  v8::WasmModuleObjectBuilder builder(CcTest::isolate());
-  std::unique_ptr<const uint8_t[]> first_part =
-      CreatePayload(buffer.begin(), first_mark);
-  builder.OnBytesReceived(first_part.get(), first_mark);
-  {
-    HandleScope scope(i_isolate);
-    v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();
-    CHECK(maybe_module.IsEmpty());
-  }
-}
-
 bool False(v8::Local<v8::Context> context, v8::Local<v8::String> source) {
   return false;
 }
@@ -531,8 +475,10 @@ TEST(TransferrableWasmModules) {
     HandleScope scope(from_isolate);
     testing::SetupIsolateForWasmModule(from_isolate);
 
-    MaybeHandle<WasmModuleObject> module_object = SyncCompile(
-        from_isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    MaybeHandle<WasmModuleObject> module_object =
+        from_isolate->wasm_engine()->SyncCompile(
+            from_isolate, &thrower,
+            ModuleWireBytes(buffer.begin(), buffer.end()));
     v8::Local<v8::WasmCompiledModule> v8_module =
         v8::Local<v8::WasmCompiledModule>::Cast(v8::Utils::ToLocal(
             Handle<JSObject>::cast(module_object.ToHandleChecked())));
@@ -685,9 +631,8 @@ TEST(TestInterruptLoop) {
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const Handle<WasmInstanceObject> instance =
-        SyncCompileAndInstantiate(isolate, &thrower,
-                                  ModuleWireBytes(buffer.begin(), buffer.end()),
-                                  {}, {})
+        CompileAndInstantiateForTesting(
+            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
             .ToHandleChecked();
 
     Handle<JSArrayBuffer> memory(instance->memory_object()->array_buffer(),
@@ -768,9 +713,8 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
 
     ErrorThrower thrower(isolate, "Test");
     Handle<WasmInstanceObject> instance =
-        SyncCompileAndInstantiate(isolate, &thrower,
-                                  ModuleWireBytes(buffer.begin(), buffer.end()),
-                                  {}, {})
+        CompileAndInstantiateForTesting(
+            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
             .ToHandleChecked();
 
     // Initial memory size is 16 pages, should trap till index > MemSize on
@@ -816,9 +760,8 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
 
     ErrorThrower thrower(isolate, "Test");
     Handle<WasmInstanceObject> instance =
-        SyncCompileAndInstantiate(isolate, &thrower,
-                                  ModuleWireBytes(buffer.begin(), buffer.end()),
-                                  {}, {})
+        CompileAndInstantiateForTesting(
+            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
             .ToHandleChecked();
 
     // Initial memory size is 16 pages, should trap till index > MemSize on
@@ -945,9 +888,8 @@ TEST(InitDataAtTheUpperLimit) {
         'c'         // data bytes
     };
 
-    SyncCompileAndInstantiate(isolate, &thrower,
-                              ModuleWireBytes(data, data + arraysize(data)), {},
-                              {});
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
     if (thrower.error()) {
       thrower.Reify()->Print();
       FATAL("compile or instantiate error");
@@ -982,9 +924,8 @@ TEST(EmptyMemoryNonEmptyDataSegment) {
         'c'         // data bytes
     };
 
-    SyncCompileAndInstantiate(isolate, &thrower,
-                              ModuleWireBytes(data, data + arraysize(data)), {},
-                              {});
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
     // It should not be possible to instantiate this module.
     CHECK(thrower.error());
   }
@@ -1016,9 +957,8 @@ TEST(EmptyMemoryEmptyDataSegment) {
         U32V_1(0),  // source size
     };
 
-    SyncCompileAndInstantiate(isolate, &thrower,
-                              ModuleWireBytes(data, data + arraysize(data)), {},
-                              {});
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
     // It should be possible to instantiate this module.
     CHECK(!thrower.error());
   }
@@ -1050,9 +990,8 @@ TEST(MemoryWithOOBEmptyDataSegment) {
         U32V_1(0),  // source size
     };
 
-    SyncCompileAndInstantiate(isolate, &thrower,
-                              ModuleWireBytes(data, data + arraysize(data)), {},
-                              {});
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
     // It should not be possible to instantiate this module.
     CHECK(thrower.error());
   }
@@ -1078,8 +1017,13 @@ struct ManuallyExternalizedBuffer {
   }
   ~ManuallyExternalizedBuffer() {
     if (!buffer_->has_guard_region()) {
-      isolate_->array_buffer_allocator()->Free(
-          allocation_base_, allocation_length_, buffer_->allocation_mode());
+      if (buffer_->allocation_mode() ==
+          ArrayBuffer::Allocator::AllocationMode::kReservation) {
+        CHECK(v8::internal::FreePages(allocation_base_, allocation_length_));
+      } else {
+        isolate_->array_buffer_allocator()->Free(allocation_base_,
+                                                 allocation_length_);
+      }
     }
   }
 };
@@ -1104,9 +1048,8 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const Handle<WasmInstanceObject> instance =
-        SyncCompileAndInstantiate(isolate, &thrower,
-                                  ModuleWireBytes(buffer.begin(), buffer.end()),
-                                  {}, {})
+        CompileAndInstantiateForTesting(
+            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
             .ToHandleChecked();
     Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
 
@@ -1172,6 +1115,28 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
   Cleanup();
 }
 
+TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
+  // Regresion test for https://crbug.com/813876
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+#if V8_TARGET_ARCH_64_BIT
+  const bool require_guard_regions = trap_handler::IsTrapHandlerEnabled();
+#else
+  constexpr bool require_guard_regions = false;
+#endif
+  Handle<JSArrayBuffer> buffer =
+      wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions);
+  CHECK(!buffer.is_null());
+  Handle<WasmMemoryObject> mem = WasmMemoryObject::New(isolate, buffer, 128);
+  auto contents = v8::Utils::ToLocal(buffer)->Externalize();
+  WasmMemoryObject::Grow(isolate, mem, 0);
+  CHECK(FreePages(contents.AllocationBase(), contents.AllocationLength()));
+  // Make sure we can write to the buffer without crashing
+  uint32_t* int_buffer =
+      reinterpret_cast<uint32_t*>(mem->array_buffer()->backing_store());
+  int_buffer[0] = 0;
+}
+
 TEST(AtomicOpDisassembly) {
   {
     EXPERIMENTAL_FLAG_SCOPE(threads);
@@ -1198,8 +1163,9 @@ TEST(AtomicOpDisassembly) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
-    MaybeHandle<WasmModuleObject> module_object = SyncCompile(
-        isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    MaybeHandle<WasmModuleObject> module_object =
+        isolate->wasm_engine()->SyncCompile(
+            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
 
     Handle<WasmCompiledModule> compiled_module(
         module_object.ToHandleChecked()->compiled_module(), isolate);

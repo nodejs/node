@@ -63,6 +63,12 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
                                 value_matcher, _, _);
 }
 
+Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsWordNot(
+    const Matcher<Node*>& value_matcher) {
+  return kPointerSize == 8 ? IsWord64Xor(value_matcher, c::IsInt64Constant(-1))
+                           : IsWord32Xor(value_matcher, c::IsInt32Constant(-1));
+}
+
 Matcher<Node*>
 InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedByteOperand(
     int offset) {
@@ -231,9 +237,8 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedQuadOperand(
   }
 }
 
-Matcher<Node*>
-InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedOperand(
-    int offset, OperandSize operand_size) {
+Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
+    IsUnpoisonedSignedOperand(int offset, OperandSize operand_size) {
   switch (operand_size) {
     case OperandSize::kByte:
       return IsSignedByteOperand(offset);
@@ -247,9 +252,8 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedOperand(
   return nullptr;
 }
 
-Matcher<Node*>
-InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedOperand(
-    int offset, OperandSize operand_size) {
+Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
+    IsUnpoisonedUnsignedOperand(int offset, OperandSize operand_size) {
   switch (operand_size) {
     case OperandSize::kByte:
       return IsUnsignedByteOperand(offset);
@@ -261,6 +265,50 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedOperand(
       UNREACHABLE();
   }
   return nullptr;
+}
+
+Matcher<compiler::Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsPoisonTagged(
+    const Matcher<compiler::Node*> value_matcher) {
+  return IsBitcastWordToTagged(IsWordAnd(c::IsSpeculationPoison(),
+                                         IsBitcastTaggedToWord(value_matcher)));
+}
+
+Matcher<compiler::Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsPoisonWord(
+    const Matcher<compiler::Node*> value_matcher) {
+  return IsWordAnd(c::IsSpeculationPoison(), value_matcher);
+}
+
+Matcher<compiler::Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsPoisonInt32(
+    const Matcher<compiler::Node*> value_matcher) {
+  Matcher<compiler::Node*> truncated_speculation_poison =
+      Is64() ? c::IsTruncateInt64ToInt32(c::IsSpeculationPoison())
+             : c::IsSpeculationPoison();
+  return IsWord32And(truncated_speculation_poison, value_matcher);
+}
+
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedOperand(
+    int offset, OperandSize operand_size) {
+  return IsPoisonInt32(IsUnpoisonedSignedOperand(offset, operand_size));
+}
+
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedOperand(
+    int offset, OperandSize operand_size) {
+  return IsPoisonInt32(IsUnpoisonedUnsignedOperand(offset, operand_size));
+}
+
+Matcher<compiler::Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoadRegisterOperand(
+    int offset, OperandSize operand_size) {
+  Matcher<compiler::Node*> reg_operand =
+      IsChangeInt32ToIntPtr(IsUnpoisonedSignedOperand(offset, operand_size));
+  return IsPoisonTagged(
+      IsLoad(MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
+             c::IsWordShl(reg_operand, c::IsIntPtrConstant(kPointerSizeLog2))));
 }
 
 TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
@@ -345,17 +393,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
                         m.IsSignedOperand(offset, operand_size));
             break;
           }
-          case interpreter::OperandType::kRegList:
-          case interpreter::OperandType::kReg:
-          case interpreter::OperandType::kRegOut:
-          case interpreter::OperandType::kRegOutList:
-          case interpreter::OperandType::kRegOutPair:
-          case interpreter::OperandType::kRegOutTriple:
-          case interpreter::OperandType::kRegPair:
-            EXPECT_THAT(m.BytecodeOperandReg(i),
-                        c::IsChangeInt32ToIntPtr(
-                            m.IsSignedOperand(offset, operand_size)));
-            break;
           case interpreter::OperandType::kRuntimeId:
             EXPECT_THAT(m.BytecodeOperandRuntimeId(i),
                         m.IsUnsignedOperand(offset, operand_size));
@@ -363,6 +400,16 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           case interpreter::OperandType::kIntrinsicId:
             EXPECT_THAT(m.BytecodeOperandIntrinsicId(i),
                         m.IsUnsignedOperand(offset, operand_size));
+            break;
+          case interpreter::OperandType::kRegList:
+          case interpreter::OperandType::kReg:
+          case interpreter::OperandType::kRegPair:
+          case interpreter::OperandType::kRegOut:
+          case interpreter::OperandType::kRegOutList:
+          case interpreter::OperandType::kRegOutPair:
+          case interpreter::OperandType::kRegOutTriple:
+            EXPECT_THAT(m.LoadRegisterAtOperandIndex(i),
+                        m.IsLoadRegisterOperand(offset, operand_size));
             break;
           case interpreter::OperandType::kNone:
             UNREACHABLE();
@@ -385,51 +432,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetContext) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, RegisterLocation) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    Node* reg_index_node = m.Parameter(0);
-    Node* reg_location_node = m.RegisterLocation(reg_index_node);
-    EXPECT_THAT(
-        reg_location_node,
-        c::IsIntPtrAdd(c::IsLoadParentFramePointer(),
-                       c::IsWordShl(reg_index_node,
-                                    c::IsIntPtrConstant(kPointerSizeLog2))));
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, LoadRegister) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    Node* reg_index_node = m.Parameter(0);
-    Node* load_reg_node = m.LoadRegister(reg_index_node);
-    EXPECT_THAT(
-        load_reg_node,
-        m.IsLoad(MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
-                 c::IsWordShl(reg_index_node,
-                              c::IsIntPtrConstant(kPointerSizeLog2))));
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    Node* store_value = m.Int32Constant(0xDEADBEEF);
-    Node* reg_index_node = m.Parameter(0);
-    Node* store_reg_node = m.StoreRegister(store_value, reg_index_node);
-    EXPECT_THAT(store_reg_node,
-                m.IsStore(c::StoreRepresentation(MachineRepresentation::kTagged,
-                                                 kNoWriteBarrier),
-                          c::IsLoadParentFramePointer(),
-                          c::IsWordShl(reg_index_node,
-                                       c::IsIntPtrConstant(kPointerSizeLog2)),
-                          store_value));
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
@@ -442,11 +444,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
           c::IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           c::IsIntPtrConstant(BytecodeArray::kConstantPoolOffset -
                               kHeapObjectTag));
-      EXPECT_THAT(
-          load_constant,
-          m.IsLoad(MachineType::AnyTagged(), constant_pool_matcher,
-                   c::IsIntPtrConstant(FixedArray::OffsetOfElementAt(2) -
-                                       kHeapObjectTag)));
+      EXPECT_THAT(load_constant,
+                  m.IsPoisonTagged(m.IsLoad(
+                      MachineType::AnyTagged(), constant_pool_matcher,
+                      c::IsIntPtrConstant(FixedArray::OffsetOfElementAt(2) -
+                                          kHeapObjectTag))));
     }
     {
       Node* index = m.Parameter(2);
@@ -458,11 +460,12 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
                               kHeapObjectTag));
       EXPECT_THAT(
           load_constant,
-          m.IsLoad(
+          m.IsPoisonTagged(m.IsLoad(
               MachineType::AnyTagged(), constant_pool_matcher,
               c::IsIntPtrAdd(
                   c::IsIntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
-                  c::IsWordShl(index, c::IsIntPtrConstant(kPointerSizeLog2)))));
+                  c::IsWordShl(index,
+                               c::IsIntPtrConstant(kPointerSizeLog2))))));
     }
   }
 }
@@ -504,8 +507,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
             CodeFactory::InterpreterCEntry(isolate(), result_size);
 
         Node* function_id = m.Int32Constant(0);
-        Node* first_arg = m.IntPtrConstant(1);
-        Node* arg_count = m.Int32Constant(2);
+        InterpreterAssembler::RegListNodePair registers(m.IntPtrConstant(1),
+                                                        m.Int32Constant(2));
         Node* context = m.IntPtrConstant(4);
 
         Matcher<Node*> function_table = c::IsExternalConstant(
@@ -518,11 +521,13 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
             m.IsLoad(MachineType::Pointer(), function,
                      c::IsIntPtrConstant(offsetof(Runtime::Function, entry)));
 
-        Node* call_runtime = m.CallRuntimeN(function_id, context, first_arg,
-                                            arg_count, result_size);
-        EXPECT_THAT(call_runtime,
-                    c::IsCall(_, c::IsHeapConstant(builtin.code()), arg_count,
-                              first_arg, function_entry, context, _, _));
+        Node* call_runtime =
+            m.CallRuntimeN(function_id, context, registers, result_size);
+        EXPECT_THAT(
+            call_runtime,
+            c::IsCall(_, c::IsHeapConstant(builtin.code()),
+                      registers.reg_count(), registers.base_reg_location(),
+                      function_entry, context, _, _));
       }
     }
   }
@@ -538,10 +543,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
         m.IsLoad(MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
                  c::IsIntPtrConstant(Register::function_closure().ToOperand()
                                      << kPointerSizeLog2));
-    Matcher<Node*> load_vector_cell_matcher =
-        m.IsLoad(MachineType::AnyTagged(), load_function_matcher,
-                 c::IsIntPtrConstant(JSFunction::kFeedbackVectorOffset -
-                                     kHeapObjectTag));
+    Matcher<Node*> load_vector_cell_matcher = m.IsLoad(
+        MachineType::AnyTagged(), load_function_matcher,
+        c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));
     EXPECT_THAT(
         feedback_vector,
         m.IsLoad(MachineType::AnyTagged(), load_vector_cell_matcher,

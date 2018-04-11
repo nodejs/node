@@ -14,17 +14,19 @@ namespace interpreter {
 // List of supported intrisics, with upper case name, lower case name and
 // expected number of arguments (-1 denoting argument count is variable).
 #define INTRINSICS_LIST(V)                                            \
+  V(AsyncFunctionAwaitCaught, async_function_await_caught, 3)         \
+  V(AsyncFunctionAwaitUncaught, async_function_await_uncaught, 3)     \
+  V(AsyncGeneratorAwaitCaught, async_generator_await_caught, 2)       \
+  V(AsyncGeneratorAwaitUncaught, async_generator_await_uncaught, 2)   \
   V(AsyncGeneratorReject, async_generator_reject, 2)                  \
   V(AsyncGeneratorResolve, async_generator_resolve, 3)                \
   V(AsyncGeneratorYield, async_generator_yield, 3)                    \
   V(CreateJSGeneratorObject, create_js_generator_object, 2)           \
-  V(GeneratorGetContext, generator_get_context, 1)                    \
   V(GeneratorGetResumeMode, generator_get_resume_mode, 1)             \
   V(GeneratorGetInputOrDebugPos, generator_get_input_or_debug_pos, 1) \
   V(GeneratorClose, generator_close, 1)                               \
   V(GetImportMetaObject, get_import_meta_object, 0)                   \
   V(Call, call, -1)                                                   \
-  V(ClassOf, class_of, 1)                                             \
   V(CreateIterResultObject, create_iter_result_object, 2)             \
   V(CreateAsyncFromSyncIterator, create_async_from_sync_iterator, 1)  \
   V(HasProperty, has_property, 2)                                     \
@@ -37,6 +39,8 @@ namespace interpreter {
   V(IsJSWeakSet, is_js_weak_set, 1)                                   \
   V(IsSmi, is_smi, 1)                                                 \
   V(IsTypedArray, is_typed_array, 1)                                  \
+  V(RejectPromise, reject_promise, 3)                                 \
+  V(ResolvePromise, resolve_promise, 2)                               \
   V(ToString, to_string, 1)                                           \
   V(ToLength, to_length, 1)                                           \
   V(ToInteger, to_integer, 1)                                         \
@@ -65,4 +69,4 @@ class IntrinsicsHelper {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_INTERPRETER_INTERPRETER_INTRINSICS_H_

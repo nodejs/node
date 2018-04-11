@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PARSING_EXPRESSION_CLASSIFIER_H
-#define V8_PARSING_EXPRESSION_CLASSIFIER_H
+#ifndef V8_PARSING_EXPRESSION_CLASSIFIER_H_
+#define V8_PARSING_EXPRESSION_CLASSIFIER_H_
 
 #include "src/messages.h"
 #include "src/parsing/scanner.h"
@@ -433,4 +433,4 @@ class ExpressionClassifier {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PARSING_EXPRESSION_CLASSIFIER_H
+#endif  // V8_PARSING_EXPRESSION_CLASSIFIER_H_

@@ -407,12 +407,13 @@ enum Extend {
 };
 
 enum SystemHint {
-  NOP   = 0,
+  NOP = 0,
   YIELD = 1,
-  WFE   = 2,
-  WFI   = 3,
-  SEV   = 4,
-  SEVL  = 5
+  WFE = 2,
+  WFI = 3,
+  SEV = 4,
+  SEVL = 5,
+  CSDB = 20
 };
 
 enum BarrierDomain {

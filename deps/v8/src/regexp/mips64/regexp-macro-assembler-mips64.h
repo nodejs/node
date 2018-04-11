@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
-#define V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
+#ifndef V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_
+#define V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_
 
 #include "src/macro-assembler.h"
 #include "src/mips64/assembler-mips64.h"
@@ -228,4 +228,4 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
+#endif  // V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_

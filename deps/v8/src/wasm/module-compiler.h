@@ -23,34 +23,20 @@ namespace wasm {
 class ModuleCompiler;
 class WasmCode;
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
+MaybeHandle<WasmModuleObject> CompileToModuleObject(
+    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
+    Vector<const byte> asm_js_offset_table_bytes);
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompile(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
-
-V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncInstantiate(
+MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
     MaybeHandle<JSArrayBuffer> memory);
 
-V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncCompileAndInstantiate(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    MaybeHandle<JSReceiver> imports, MaybeHandle<JSArrayBuffer> memory);
-
-V8_EXPORT_PRIVATE void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                                    const ModuleWireBytes& bytes,
-                                    bool is_shared);
-
-V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
-                                        Handle<JSPromise> promise,
-                                        Handle<WasmModuleObject> module_object,
-                                        MaybeHandle<JSReceiver> imports);
-
-V8_EXPORT_PRIVATE void CompileJsToWasmWrappers(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-    Counters* counters);
+V8_EXPORT_PRIVATE
+void CompileJsToWasmWrappers(Isolate* isolate,
+                             Handle<WasmCompiledModule> compiled_module,
+                             Counters* counters);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes);

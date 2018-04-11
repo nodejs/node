@@ -149,6 +149,9 @@ class AccessInfoFactory final {
   bool ComputePropertyAccessInfo(Handle<Map> map, Handle<Name> name,
                                  AccessMode access_mode,
                                  PropertyAccessInfo* access_info);
+  bool ComputePropertyAccessInfo(MapHandles const& maps, Handle<Name> name,
+                                 AccessMode access_mode,
+                                 PropertyAccessInfo* access_info);
   bool ComputePropertyAccessInfos(MapHandles const& maps, Handle<Name> name,
                                   AccessMode access_mode,
                                   ZoneVector<PropertyAccessInfo>* access_infos);

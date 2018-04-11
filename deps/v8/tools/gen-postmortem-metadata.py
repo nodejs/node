@@ -226,6 +226,11 @@ consts_misc = [
         'value': 'NumberDictionaryShape::kPrefixSize' },
     { 'name': 'numberdictionaryshape_entry_size',
         'value': 'NumberDictionaryShape::kEntrySize' },
+
+    { 'name': 'simplenumberdictionaryshape_prefix_size',
+        'value': 'SimpleNumberDictionaryShape::kPrefixSize' },
+    { 'name': 'simplenumberdictionaryshape_entry_size',
+        'value': 'SimpleNumberDictionaryShape::kEntrySize' },
 ];
 
 #

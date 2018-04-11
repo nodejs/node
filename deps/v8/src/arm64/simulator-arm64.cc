@@ -626,16 +626,15 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 }
 
 const char* Simulator::xreg_names[] = {
-    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",
-    "x9",  "x10", "x11", "x12", "x13", "x14", "x15", "ip0", "ip1",
-    "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
-    "cp",  "x28", "fp",  "lr",  "xzr", "csp"};
+    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",  "x10",
+    "x11", "x12", "x13", "x14", "x15", "ip0", "ip1", "x18", "x19", "x20", "x21",
+    "x22", "x23", "x24", "x25", "x26", "cp",  "x28", "fp",  "lr",  "xzr", "sp"};
 
 const char* Simulator::wreg_names[] = {
     "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",  "w8",
     "w9",  "w10", "w11", "w12", "w13", "w14", "w15", "w16", "w17",
     "w18", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26",
-    "wcp", "w28", "wfp", "wlr", "wzr", "wcsp"};
+    "wcp", "w28", "wfp", "wlr", "wzr", "wsp"};
 
 const char* Simulator::sreg_names[] = {
 "s0",  "s1",  "s2",  "s3",  "s4",  "s5",  "s6",  "s7",
@@ -768,7 +767,7 @@ int Simulator::CodeFromName(const char* name) {
       return i;
     }
   }
-  if ((strcmp("csp", name) == 0) || (strcmp("wcsp", name) == 0)) {
+  if ((strcmp("sp", name) == 0) || (strcmp("wsp", name) == 0)) {
     return kSPRegInternalCode;
   }
   return -1;
@@ -1450,7 +1449,7 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
   switch (instr->Mask(UnconditionalBranchMask)) {
     case BL:
       set_lr(instr->following());
-      // Fall through.
+      V8_FALLTHROUGH;
     case B:
       set_pc(instr->ImmPCOffsetTarget());
       break;
@@ -1478,7 +1477,7 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
         // this, but if we do trap to allow debugging.
         Debug();
       }
-      // Fall through.
+      V8_FALLTHROUGH;
     }
     case BR:
     case RET: set_pc(target); break;
@@ -1630,7 +1629,7 @@ void Simulator::LogicalHelper(Instruction* instr, T op2) {
   // Switch on the logical operation, stripping out the NOT bit, as it has a
   // different meaning for logical immediate instructions.
   switch (instr->Mask(LogicalOpMask & ~NOT)) {
-    case ANDS: update_flags = true;  // Fall through.
+    case ANDS: update_flags = true; V8_FALLTHROUGH;
     case AND: result = op1 & op2; break;
     case ORR: result = op1 | op2; break;
     case EOR: result = op1 ^ op2; break;
@@ -2956,7 +2955,9 @@ void Simulator::VisitSystem(Instruction* instr) {
   } else if (instr->Mask(SystemHintFMask) == SystemHintFixed) {
     DCHECK(instr->Mask(SystemHintMask) == HINT);
     switch (instr->ImmHint()) {
-      case NOP: break;
+      case NOP:
+      case CSDB:
+        break;
       default: UNIMPLEMENTED();
     }
   } else if (instr->Mask(MemBarrierFMask) == MemBarrierFixed) {
@@ -2996,15 +2997,15 @@ bool Simulator::GetValue(const char* desc, int64_t* value) {
 
 
 bool Simulator::PrintValue(const char* desc) {
-  if (strcmp(desc, "csp") == 0) {
+  if (strcmp(desc, "sp") == 0) {
     DCHECK(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF(stream_, "%s csp:%s 0x%016" PRIx64 "%s\n",
-        clr_reg_name, clr_reg_value, xreg(31, Reg31IsStackPointer), clr_normal);
+    PrintF(stream_, "%s sp:%s 0x%016" PRIx64 "%s\n", clr_reg_name,
+           clr_reg_value, xreg(31, Reg31IsStackPointer), clr_normal);
     return true;
-  } else if (strcmp(desc, "wcsp") == 0) {
+  } else if (strcmp(desc, "wsp") == 0) {
     DCHECK(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF(stream_, "%s wcsp:%s 0x%08" PRIx32 "%s\n",
-        clr_reg_name, clr_reg_value, wreg(31, Reg31IsStackPointer), clr_normal);
+    PrintF(stream_, "%s wsp:%s 0x%08" PRIx32 "%s\n", clr_reg_name,
+           clr_reg_value, wreg(31, Reg31IsStackPointer), clr_normal);
     return true;
   }
 
@@ -4396,15 +4397,18 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     case NEON_LD1_4v:
     case NEON_LD1_4v_post:
       ld1(vf, vreg(reg[3]), addr[3]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_LD1_3v:
     case NEON_LD1_3v_post:
       ld1(vf, vreg(reg[2]), addr[2]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_LD1_2v:
     case NEON_LD1_2v_post:
       ld1(vf, vreg(reg[1]), addr[1]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_LD1_1v:
     case NEON_LD1_1v_post:
       ld1(vf, vreg(reg[0]), addr[0]);
@@ -4412,15 +4416,18 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     case NEON_ST1_4v:
     case NEON_ST1_4v_post:
       st1(vf, vreg(reg[3]), addr[3]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_ST1_3v:
     case NEON_ST1_3v_post:
       st1(vf, vreg(reg[2]), addr[2]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_ST1_2v:
     case NEON_ST1_2v_post:
       st1(vf, vreg(reg[1]), addr[1]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_ST1_1v:
     case NEON_ST1_1v_post:
       st1(vf, vreg(reg[0]), addr[0]);
@@ -4533,7 +4540,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD3_b_post:
     case NEON_LD4_b:
     case NEON_LD4_b_post:
-      do_load = true;  // Fall through.
+      do_load = true;
+      V8_FALLTHROUGH;
     case NEON_ST1_b:
     case NEON_ST1_b_post:
     case NEON_ST2_b:
@@ -4552,7 +4560,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD3_h_post:
     case NEON_LD4_h:
     case NEON_LD4_h_post:
-      do_load = true;  // Fall through.
+      do_load = true;
+      V8_FALLTHROUGH;
     case NEON_ST1_h:
     case NEON_ST1_h_post:
     case NEON_ST2_h:
@@ -4572,7 +4581,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD3_s_post:
     case NEON_LD4_s:
     case NEON_LD4_s_post:
-      do_load = true;  // Fall through.
+      do_load = true;
+      V8_FALLTHROUGH;
     case NEON_ST1_s:
     case NEON_ST1_s_post:
     case NEON_ST2_s:

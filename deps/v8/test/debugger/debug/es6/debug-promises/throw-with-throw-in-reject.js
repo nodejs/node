@@ -3,15 +3,13 @@
 // found in the LICENSE file.
 
 
-// Test debug events when an exception is thrown inside a Promise, which is
-// caught by a custom promise, which throws a new exception in its reject
-// handler. We expect two Exception debug events:
-//  1) when the exception is thrown in the promise q.
-//  2) when the custom reject closure in MyPromise throws an exception.
+// Test debug events when an exception is thrown inside a Promise,
+// which is caught by a custom promise, which throws a new exception
+// in its reject handler. We expect no Exception debug events.
 
 Debug = debug.Debug;
 
-var expected_events = 1;
+var expected_events = 0;
 var log = [];
 
 var p = new Promise(function(resolve, reject) {
@@ -21,11 +19,9 @@ var p = new Promise(function(resolve, reject) {
 
 function MyPromise(resolver) {
   var reject = function() {
-    log.push("throw in reject");
     throw new Error("reject");  // event
   };
   var resolve = function() { };
-  log.push("construct");
   resolver(resolve, reject);
 };
 
@@ -42,16 +38,7 @@ var q = p.then(
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Exception) {
-      expected_events--;
-      assertTrue(expected_events >= 0);
-      if (expected_events == 0) {
-        assertEquals(["resolve", "construct", "end main",
-                      "throw caught"], log);
-        assertEquals("caught", event_data.exception().message);
-      } else {
-        assertUnreachable();
-      }
-      assertTrue(exec_state.frame(0).sourceLineText().indexOf('// event') > 0);
+      assertUnreachable();
     }
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);
@@ -68,8 +55,8 @@ function testDone(iteration) {
     try {
       assertTrue(iteration < 10);
       if (expected_events === 0) {
-        assertEquals(["resolve", "construct", "end main",
-                      "throw caught", "throw in reject"], log);
+        assertEquals(["resolve", "end main",
+                      "throw caught"], log);
       } else {
         testDone(iteration + 1);
       }

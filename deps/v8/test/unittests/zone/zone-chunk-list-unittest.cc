@@ -202,5 +202,83 @@ TEST(ZoneChunkList, BigCopyToTest) {
   }
 }
 
+void TestForwardIterationOfConstList(
+    const ZoneChunkList<uintptr_t>& zone_chunk_list) {
+  size_t count = 0;
+
+  for (uintptr_t item : zone_chunk_list) {
+    EXPECT_EQ(static_cast<size_t>(item), count);
+    count++;
+  }
+
+  EXPECT_EQ(count, kItemCount);
+}
+
+TEST(ZoneChunkList, ConstForwardIterationTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  TestForwardIterationOfConstList(zone_chunk_list);
+}
+
+TEST(ZoneChunkList, RewindAndIterate) {
+  // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7478
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+
+  // Fill the list enough so that it will contain 2 chunks.
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  // Rewind and fill the first chunk again.
+  zone_chunk_list.Rewind();
+  for (int i = 0; i < chunk_size; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  std::vector<int> expected;
+  for (int i = 0; i < chunk_size; ++i) {
+    expected.push_back(i);
+  }
+  std::vector<int> got;
+
+  // Iterate. This used to not yield the expected result, since the end iterator
+  // was in a weird state, and the running iterator didn't reach it after the
+  // first chunk.
+  auto it = zone_chunk_list.begin();
+  while (it != zone_chunk_list.end()) {
+    int value = *it;
+    got.push_back(value);
+    ++it;
+  }
+  CHECK_EQ(expected.size(), got.size());
+  for (size_t i = 0; i < expected.size(); ++i) {
+    CHECK_EQ(expected[i], got[i]);
+  }
+}
+
+TEST(ZoneChunkList, PushBackPopBackSize) {
+  // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7489
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+  CHECK_EQ(size_t(0), zone_chunk_list.size());
+  zone_chunk_list.push_back(1);
+  CHECK_EQ(size_t(1), zone_chunk_list.size());
+  zone_chunk_list.pop_back();
+  CHECK_EQ(size_t(0), zone_chunk_list.size());
+}
+
 }  // namespace internal
 }  // namespace v8

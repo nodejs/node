@@ -77,6 +77,8 @@ class GlobalHandles {
 
   static void MakeWeak(Object*** location_addr);
 
+  static void AnnotateStrongRetainer(Object** location, const char* label);
+
   void RecordStats(HeapStats* stats);
 
   // Returns the current number of handles to global objects.
@@ -108,10 +110,10 @@ class GlobalHandles {
   int PostGarbageCollectionProcessing(
       GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
 
-  // Iterates over all strong handles.
   void IterateStrongRoots(RootVisitor* v);
 
-  // Iterates over all handles.
+  void IterateWeakRoots(RootVisitor* v);
+
   void IterateAllRoots(RootVisitor* v);
 
   void IterateAllNewSpaceRoots(RootVisitor* v);

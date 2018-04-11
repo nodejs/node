@@ -15,6 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
@@ -832,40 +833,28 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
   add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
 }
 
-void TurboAssembler::LoadConstantPoolPointerRegister(Register base,
-                                                     int code_start_delta) {
-  add_label_offset(kConstantPoolRegister, base, ConstantPoolPosition(),
-                   code_start_delta);
-}
-
 void TurboAssembler::LoadConstantPoolPointerRegister() {
   mov_label_addr(kConstantPoolRegister, ConstantPoolPosition());
 }
 
-void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
-                                  int prologue_offset) {
+void TurboAssembler::StubPrologue(StackFrame::Type type) {
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(this);
     mov(r11, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(r11);
   }
   if (FLAG_enable_embedded_constant_pool) {
-    if (base != no_reg) {
-      // base contains prologue address
-      LoadConstantPoolPointerRegister(base, -prologue_offset);
-    } else {
-      LoadConstantPoolPointerRegister();
-    }
+    LoadConstantPoolPointerRegister();
     set_constant_pool_available(true);
   }
 }
 
-void TurboAssembler::Prologue(Register base, int prologue_offset) {
+void TurboAssembler::Prologue() {
   DCHECK(base != no_reg);
   PushStandardFrame(r4);
   if (FLAG_enable_embedded_constant_pool) {
     // base contains prologue address
-    LoadConstantPoolPointerRegister(base, -prologue_offset);
+    LoadConstantPoolPointerRegister();
     set_constant_pool_available(true);
   }
 }
@@ -1189,14 +1178,33 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook;
+  Label skip_hook, call_hook;
+
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  mov(r7, Operand(debug_is_active));
+  LoadByte(r7, MemOperand(r7), r0);
+  extsb(r7, r7);
+  CmpSmiLiteral(r7, Smi::kZero, r0);
+  beq(&skip_hook);
+
   ExternalReference debug_hook_avtive =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   mov(r7, Operand(debug_hook_avtive));
   LoadByte(r7, MemOperand(r7), r0);
   extsb(r7, r7);
   CmpSmiLiteral(r7, Smi::kZero, r0);
-  beq(&skip_hook);
+  bne(&call_hook);
+
+  LoadP(r7, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
+  LoadP(r7, FieldMemOperand(r7, SharedFunctionInfo::kDebugInfoOffset));
+  JumpIfSmi(r7, &skip_hook);
+  LoadP(r7, FieldMemOperand(r7, DebugInfo::kFlagsOffset));
+  SmiUntag(r0, r7);
+  andi(r0, r0, Operand(DebugInfo::kBreakAtEntry));
+  beq(&skip_hook, cr0);
+
+  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -1253,7 +1261,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // We call indirectly through the code field in the function to
     // allow recompilation to take effect without changing any of the
     // call sites.
-    Register code = ip;
+    Register code = kJavaScriptCallCodeStartRegister;
     LoadP(code, FieldMemOperand(function, JSFunction::kCodeOffset));
     addi(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {
@@ -1305,14 +1313,6 @@ void MacroAssembler::InvokeFunction(Register function,
   LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
 
   InvokeFunctionCode(r4, no_reg, expected, actual, flag);
-}
-
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  Move(r4, function);
-  InvokeFunction(r4, expected, actual, flag);
 }
 
 void MacroAssembler::MaybeDropFrames() {
@@ -1626,6 +1626,11 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  intptr_t bytes_address = reinterpret_cast<intptr_t>(stream->bytes());
+  mov(kOffHeapTrampolineRegister, Operand(bytes_address, RelocInfo::NONE));
+  Jump(kOffHeapTrampolineRegister);
+}
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
@@ -1667,7 +1672,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
 #ifdef DEBUG
-  const char* msg = GetBailoutReason(reason);
+  const char* msg = GetAbortReason(reason);
   if (msg != nullptr) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -2922,6 +2927,9 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2, DoubleRegister reg3,
 }
 #endif
 
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  mov(kSpeculationPoisonRegister, Operand(-1));
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -32,6 +32,8 @@ TestWithIsolate::~TestWithIsolate() {}
 void TestWithIsolate::SetUpTestCase() {
   Test::SetUpTestCase();
   EXPECT_EQ(NULL, isolate_);
+  // Make BigInt64Array / BigUint64Array available for testing.
+  i::FLAG_harmony_bigint = true;
   v8::Isolate::CreateParams create_params;
   array_buffer_allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   create_params.array_buffer_allocator = array_buffer_allocator_;

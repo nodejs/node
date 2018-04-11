@@ -2564,6 +2564,11 @@ int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
   return d.InstructionDecode(buffer, instruction);
 }
 
+int Disassembler::InstructionDecodeForTesting(v8::internal::Vector<char> buffer,
+                                              byte* instruction) {
+  DisassemblerIA32 d(converter_, true /*crash if unimplemented*/);
+  return d.InstructionDecode(buffer, instruction);
+}
 
 // The IA-32 assembler does not currently use constant pools.
 int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }

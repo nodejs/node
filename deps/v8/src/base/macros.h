@@ -338,4 +338,4 @@ bool is_inbounds(float_t v) {
          (kUpperBoundIsMax ? (v <= kUpperBound) : (v < kUpperBound));
 }
 
-#endif   // V8_BASE_MACROS_H_
+#endif  // V8_BASE_MACROS_H_

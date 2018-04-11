@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DATAFLOW_H_
-#define V8_DATAFLOW_H_
+#ifndef V8_BIT_VECTOR_H_
+#define V8_BIT_VECTOR_H_
 
 #include "src/allocation.h"
 #include "src/zone/zone.h"
@@ -370,4 +370,4 @@ class GrowableBitVector BASE_EMBEDDED {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DATAFLOW_H_
+#endif  // V8_BIT_VECTOR_H_

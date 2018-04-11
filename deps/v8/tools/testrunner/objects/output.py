@@ -27,8 +27,10 @@
 
 
 import signal
+import copy
 
 from ..local import utils
+
 
 class Output(object):
 
@@ -39,6 +41,13 @@ class Output(object):
     self.stderr = stderr
     self.pid = pid
     self.duration = duration
+
+  def without_text(self):
+    """Returns copy of the output without stdout and stderr."""
+    other = copy.copy(self)
+    other.stdout = None
+    other.stderr = None
+    return other
 
   def HasCrashed(self):
     if utils.IsWindows():

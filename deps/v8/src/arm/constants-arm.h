@@ -641,8 +641,8 @@ class Instruction {
                                            && (Bit(20) == 0)
                                            && ((Bit(7) == 0)); }
 
-  // Test for a nop instruction, which falls under type 1.
-  inline bool IsNopType1() const { return Bits(24, 0) == 0x0120F000; }
+  // Test for nop-like instructions which fall under type 1.
+  inline bool IsNopLikeType1() const { return Bits(24, 8) == 0x120F0; }
 
   // Test for a stop instruction.
   inline bool IsStop() const {

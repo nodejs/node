@@ -16,7 +16,6 @@
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-tracker-inl.h"
-#include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/invalidated-slots-inl.h"
@@ -72,7 +71,8 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     VerifyPointers(start, end);
   }
 
@@ -240,7 +240,8 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     VerifyPointers(start, end);
   }
 
@@ -369,12 +370,14 @@ class RootMarkingVisitorSeedOnly : public RootVisitor {
     buffered_objects_.reserve(kBufferSize);
   }
 
-  void VisitRootPointer(Root root, Object** p) override {
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
     if (!(*p)->IsHeapObject()) return;
     AddObject(*p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) {
       if (!(*p)->IsHeapObject()) continue;
       AddObject(*p);
@@ -404,13 +407,21 @@ class RootMarkingVisitorSeedOnly : public RootVisitor {
   std::vector<Object*> buffered_objects_;
 };
 
-}  // namespace
-
-static int NumberOfAvailableCores() {
-  return Max(
-      1, static_cast<int>(
-             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
+int NumberOfAvailableCores() {
+  static int num_cores =
+      static_cast<int>(
+          V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()) +
+      1;
+  // This number of cores should be greater than zero and never change.
+  DCHECK_GE(num_cores, 1);
+  DCHECK_EQ(
+      num_cores,
+      1 + static_cast<int>(
+              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
+  return num_cores;
 }
+
+}  // namespace
 
 int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
   DCHECK_GT(pages, 0);
@@ -855,7 +866,7 @@ void MarkCompactCollector::Prepare() {
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
     heap()->incremental_marking()->Stop();
     heap()->incremental_marking()->AbortBlackAllocation();
-    FinishConcurrentMarking();
+    FinishConcurrentMarking(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
     heap()->incremental_marking()->Deactivate();
     ClearMarkbits();
     AbortWeakCollections();
@@ -891,9 +902,10 @@ void MarkCompactCollector::Prepare() {
 #endif
 }
 
-void MarkCompactCollector::FinishConcurrentMarking() {
+void MarkCompactCollector::FinishConcurrentMarking(
+    ConcurrentMarking::StopRequest stop_request) {
   if (FLAG_concurrent_marking) {
-    heap()->concurrent_marking()->EnsureCompleted();
+    heap()->concurrent_marking()->Stop(stop_request);
     heap()->concurrent_marking()->FlushLiveBytes(non_atomic_marking_state());
   }
 }
@@ -965,11 +977,12 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   explicit RootMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitRootPointer(Root root, Object** p) final {
+  void VisitRootPointer(Root root, const char* description, Object** p) final {
     MarkObjectByPointer(root, p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) final {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) final {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(root, p);
   }
 
@@ -1058,7 +1071,8 @@ class ExternalStringTableCleaner : public RootVisitor {
  public:
   explicit ExternalStringTableCleaner(Heap* heap) : heap_(heap) {}
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
@@ -1093,7 +1107,8 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
       : heap_(collector->heap()),
         marking_state_(collector->non_atomic_marking_state()) {}
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     DCHECK_EQ(static_cast<int>(root),
               static_cast<int>(Root::kExternalStringsTable));
     // Visit all HeapObject pointers in [start, end).
@@ -1391,7 +1406,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #ifdef VERIFY_HEAP
     if (AbortCompactionForTesting(object)) return false;
 #endif  // VERIFY_HEAP
-    AllocationAlignment alignment = object->RequiredAlignment();
+    AllocationAlignment alignment =
+        HeapObject::RequiredAlignment(object->map());
     AllocationResult allocation =
         local_allocator_->Allocate(target_space, size, alignment);
     if (allocation.To(target_object)) {
@@ -1496,7 +1512,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
   inline AllocationSpace AllocateTargetObject(HeapObject* old_object, int size,
                                               HeapObject** target_object) {
-    AllocationAlignment alignment = old_object->RequiredAlignment();
+    AllocationAlignment alignment =
+        HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
     AllocationResult allocation =
         local_allocator_->Allocate(NEW_SPACE, size, alignment);
@@ -1758,11 +1775,13 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
       : collector_(collector),
         marking_state_(collector_->non_atomic_marking_state()) {}
 
-  void VisitRootPointer(Root root, Object** p) override {
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
     MarkObjectByPointer(p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
@@ -1883,6 +1902,8 @@ class BatchedRootMarkingItem : public MarkingItem {
   virtual ~BatchedRootMarkingItem() {}
 
   void Process(YoungGenerationMarkingTask* task) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "BatchedRootMarkingItem::Process");
     for (Object* object : objects_) {
       task->MarkObject(object);
     }
@@ -1900,6 +1921,8 @@ class PageMarkingItem : public MarkingItem {
   virtual ~PageMarkingItem() { global_slots_->Increment(slots_); }
 
   void Process(YoungGenerationMarkingTask* task) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "PageMarkingItem::Process");
     base::LockGuard<base::Mutex> guard(chunk_->mutex());
     MarkUntypedPointers(task);
     MarkTypedPointers(task);
@@ -1956,6 +1979,8 @@ class GlobalHandlesMarkingItem : public MarkingItem {
   virtual ~GlobalHandlesMarkingItem() {}
 
   void Process(YoungGenerationMarkingTask* task) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "GlobalHandlesMarkingItem::Process");
     GlobalHandlesRootMarkingVisitor visitor(task);
     global_handles_
         ->IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
@@ -1968,12 +1993,14 @@ class GlobalHandlesMarkingItem : public MarkingItem {
     explicit GlobalHandlesRootMarkingVisitor(YoungGenerationMarkingTask* task)
         : task_(task) {}
 
-    void VisitRootPointer(Root root, Object** p) override {
+    void VisitRootPointer(Root root, const char* description,
+                          Object** p) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
       task_->MarkObject(*p);
     }
 
-    void VisitRootPointers(Root root, Object** start, Object** end) override {
+    void VisitRootPointers(Root root, const char* description, Object** start,
+                           Object** end) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
       for (Object** p = start; p < end; p++) {
         task_->MarkObject(*p);
@@ -2061,7 +2088,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
         job.AddTask(
             new YoungGenerationMarkingTask(isolate(), this, worklist(), i));
       }
-      job.Run();
+      job.Run(isolate()->async_counters());
       DCHECK(worklist()->IsGlobalEmpty());
     }
   }
@@ -2336,7 +2363,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     }
     ProcessMarkingWorklist();
 
-    FinishConcurrentMarking();
+    FinishConcurrentMarking(
+        ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
     ProcessMarkingWorklist();
   }
 
@@ -2849,11 +2877,13 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
     for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
   }
 
-  void VisitRootPointer(Root root, Object** p) override {
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
     UpdateSlotInternal(p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
   }
 
@@ -3009,6 +3039,7 @@ class Evacuator : public Malloced {
 };
 
 void Evacuator::EvacuatePage(Page* page) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Evacuator::EvacuatePage");
   DCHECK(page->SweepingDone());
   intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
@@ -3066,11 +3097,15 @@ class FullEvacuator : public Evacuator {
 };
 
 void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
+  const EvacuationMode evacuation_mode = ComputeEvacuationMode(page);
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "FullEvacuator::RawEvacuatePage", "evacuation_mode",
+               evacuation_mode);
   MarkCompactCollector::NonAtomicMarkingState* marking_state =
       collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(page);
   HeapObject* failed_object = nullptr;
-  switch (ComputeEvacuationMode(page)) {
+  switch (evacuation_mode) {
     case kObjectsNewToOld:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
           page, marking_state, &new_space_visitor_,
@@ -3127,6 +3162,8 @@ class YoungGenerationEvacuator : public Evacuator {
 
 void YoungGenerationEvacuator::RawEvacuatePage(Page* page,
                                                intptr_t* live_bytes) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "YoungGenerationEvacuator::RawEvacuatePage");
   MinorMarkCompactCollector::NonAtomicMarkingState* marking_state =
       collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(page);
@@ -3241,7 +3278,7 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
       evacuators[i]->AddObserver(migration_observer);
     job->AddTask(new PageEvacuationTask(heap()->isolate(), evacuators[i]));
   }
-  job->Run();
+  job->Run(isolate()->async_counters());
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i]->Finalize();
     delete evacuators[i];
@@ -3249,15 +3286,16 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
   delete[] evacuators;
 
   if (FLAG_trace_evacuation) {
-    PrintIsolate(isolate(),
-                 "%8.0f ms: evacuation-summary: parallel=%s pages=%d "
-                 "wanted_tasks=%d tasks=%d cores=%" PRIuS
-                 " live_bytes=%" V8PRIdPTR " compaction_speed=%.f\n",
-                 isolate()->time_millis_since_init(),
-                 FLAG_parallel_compaction ? "yes" : "no", job->NumberOfItems(),
-                 wanted_num_tasks, job->NumberOfTasks(),
-                 V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
-                 live_bytes, compaction_speed);
+    PrintIsolate(
+        isolate(),
+        "%8.0f ms: evacuation-summary: parallel=%s pages=%d "
+        "wanted_tasks=%d tasks=%d cores=%" PRIuS " live_bytes=%" V8PRIdPTR
+        " compaction_speed=%.f\n",
+        isolate()->time_millis_since_init(),
+        FLAG_parallel_compaction ? "yes" : "no", job->NumberOfItems(),
+        wanted_num_tasks, job->NumberOfTasks(),
+        V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads() + 1,
+        live_bytes, compaction_speed);
   }
 }
 
@@ -3365,6 +3403,8 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
                                           Visitor* visitor,
                                           IterationMode iteration_mode,
                                           HeapObject** failed_object) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitBlackObjects");
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject* const object = object_and_size.first;
@@ -3389,6 +3429,8 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
                                                 MarkingState* marking_state,
                                                 Visitor* visitor,
                                                 IterationMode iteration_mode) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitBlackObjectsNoFail");
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject* const object = object_and_size.first;
@@ -3407,6 +3449,8 @@ void LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
                                                MarkingState* marking_state,
                                                Visitor* visitor,
                                                IterationMode iteration_mode) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitGreyObjectsNoFail");
   for (auto object_and_size :
        LiveObjectRange<kGreyObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject* const object = object_and_size.first;
@@ -3553,6 +3597,8 @@ class ToSpaceUpdatingItem : public UpdatingItem {
 
  private:
   void ProcessVisitAll() {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "ToSpaceUpdatingItem::ProcessVisitAll");
     PointersUpdatingVisitor visitor;
     for (Address cur = start_; cur < end_;) {
       HeapObject* object = HeapObject::FromAddress(cur);
@@ -3564,6 +3610,8 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   }
 
   void ProcessVisitLive() {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "ToSpaceUpdatingItem::ProcessVisitLive");
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
     PointersUpdatingVisitor visitor;
@@ -3592,13 +3640,14 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   virtual ~RememberedSetUpdatingItem() {}
 
   void Process() override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "RememberedSetUpdatingItem::Process");
     base::LockGuard<base::Mutex> guard(chunk_->mutex());
     UpdateUntypedPointers();
     UpdateTypedPointers();
   }
 
  private:
-  template <AccessMode access_mode>
   inline SlotCallbackResult CheckAndUpdateOldToNewSlot(Address slot_address) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     if (heap_->InFromSpace(*slot)) {
@@ -3606,13 +3655,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       DCHECK(heap_object->IsHeapObject());
       MapWord map_word = heap_object->map_word();
       if (map_word.IsForwardingAddress()) {
-        if (access_mode == AccessMode::ATOMIC) {
-          HeapObject** heap_obj_slot = reinterpret_cast<HeapObject**>(slot);
-          base::AsAtomicPointer::Relaxed_Store(heap_obj_slot,
-                                               map_word.ToForwardingAddress());
-        } else {
-          *slot = map_word.ToForwardingAddress();
-        }
+        *slot = map_word.ToForwardingAddress();
       }
       // If the object was in from space before and is after executing the
       // callback in to space, the object is still live.
@@ -3648,12 +3691,10 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   void UpdateUntypedPointers() {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
-        RememberedSet<OLD_TO_NEW>::Iterate(
-            chunk_,
-            [this](Address slot) {
-              return CheckAndUpdateOldToNewSlot<AccessMode::NON_ATOMIC>(slot);
-            },
-            SlotSet::PREFREE_EMPTY_BUCKETS);
+      RememberedSet<OLD_TO_NEW>::Iterate(
+          chunk_,
+          [this](Address slot) { return CheckAndUpdateOldToNewSlot(slot); },
+          SlotSet::PREFREE_EMPTY_BUCKETS);
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
@@ -3692,7 +3733,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           [isolate, this](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
                 isolate, slot_type, slot, [this](Object** slot) {
-                  return CheckAndUpdateOldToNewSlot<AccessMode::NON_ATOMIC>(
+                  return CheckAndUpdateOldToNewSlot(
                       reinterpret_cast<Address>(slot));
                 });
           });
@@ -3748,6 +3789,8 @@ class GlobalHandlesUpdatingItem : public UpdatingItem {
   virtual ~GlobalHandlesUpdatingItem() {}
 
   void Process() override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "GlobalHandlesUpdatingItem::Process");
     PointersUpdatingVisitor updating_visitor;
     global_handles_->IterateNewSpaceRoots(&updating_visitor, start_, end_);
   }
@@ -3772,6 +3815,9 @@ class ArrayBufferTrackerUpdatingItem : public UpdatingItem {
   virtual ~ArrayBufferTrackerUpdatingItem() {}
 
   void Process() override {
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "ArrayBufferTrackerUpdatingItem::Process", "EvacuationState",
+                 state_);
     switch (state_) {
       case EvacuationState::kRegular:
         ArrayBufferTracker::ProcessBuffers(
@@ -3922,7 +3968,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
           isolate(),
           GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
     }
-    updating_job.Run();
+    updating_job.Run(isolate()->async_counters());
   }
 
   {
@@ -3954,7 +4000,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
             isolate(),
             GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
       }
-      updating_job.Run();
+      updating_job.Run(isolate()->async_counters());
       heap()->array_buffer_collector()->FreeAllocationsOnBackgroundThread();
     }
   }
@@ -4016,7 +4062,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS);
-    updating_job.Run();
+    updating_job.Run(isolate()->async_counters());
     heap()->array_buffer_collector()->FreeAllocationsOnBackgroundThread();
   }
 

@@ -71,7 +71,7 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
 bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
                                     HeapObject* object, int object_size) {
   DCHECK(heap()->AllowedToBeMigrated(object, NEW_SPACE));
-  AllocationAlignment alignment = object->RequiredAlignment();
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
   AllocationResult allocation =
       allocator_.Allocate(NEW_SPACE, object_size, alignment);
 
@@ -97,7 +97,7 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
 
 bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
                               int object_size) {
-  AllocationAlignment alignment = object->RequiredAlignment();
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
   AllocationResult allocation =
       allocator_.Allocate(OLD_SPACE, object_size, alignment);
 
@@ -228,9 +228,8 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
   // If the first word is a forwarding address, the object has already been
   // copied.
   if (first_word.IsForwardingAddress()) {
-    HeapObject* dest = first_word.ToForwardingAddress();
-    DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
-    base::AsAtomicPointer::Relaxed_Store(p, dest);
+    DCHECK(heap()->InFromSpace(*p));
+    *p = first_word.ToForwardingAddress();
     return;
   }
 

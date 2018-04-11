@@ -298,4 +298,4 @@ class EhFrameDisassembler final {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_EH_FRAME_H_

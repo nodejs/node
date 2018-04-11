@@ -17,13 +17,37 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/microtask-inl.h"
 #include "src/objects/module.h"
+#include "src/objects/promise-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions.h"
 
 namespace v8 {
 namespace internal {
+
+// Heap Verification Overview
+// --------------------------
+// - Each InstanceType has a separate XXXVerify method which checks an object's
+//   integrity in isolation.
+// - --verify-heap will iterate over all gc spaces and call ObjectVerify() on
+//   every encountered tagged pointer.
+// - Verification should be pushed down to the specific instance type if its
+//   integrity is independent of an outer object.
+// - In cases where the InstanceType is too genernic (e.g. FixedArray) the
+//   XXXVerify of the outer method has to do recursive verification.
+// - If the corresponding objects have inheritence the parent's Verify method
+//   is called as well.
+// - For any field containing pointes VerifyPointer(...) should be called.
+//
+// Caveats
+// -------
+// - Assume that any of the verify methods is incomplete!
+// - Some integrity checks are only partially done due to objects being in
+//   partially initialized states when a gc happens, for instance when outer
+//   objects are allocted before inner ones.
+//
 
 #ifdef VERIFY_HEAP
 
@@ -65,12 +89,13 @@ void HeapObject::HeapObjectVerify() {
   CHECK(map()->IsMap());
   InstanceType instance_type = map()->instance_type();
 
-  if (instance_type < FIRST_NONSTRING_TYPE) {
-    String::cast(this)->StringVerify();
-    return;
-  }
 
   switch (instance_type) {
+#define STRING_TYPE_CASE(TYPE, size, name, camel_name) case TYPE:
+    STRING_TYPE_LIST(STRING_TYPE_CASE)
+#undef STRING_TYPE_CASE
+    String::cast(this)->StringVerify();
+    break;
     case SYMBOL_TYPE:
       Symbol::cast(this)->SymbolVerify();
       break;
@@ -86,6 +111,7 @@ void HeapObject::HeapObjectVerify() {
       break;
     case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
+    case SCOPE_INFO_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -108,6 +134,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
+      break;
+    case FEEDBACK_CELL_TYPE:
+      FeedbackCell::cast(this)->FeedbackCellVerify();
       break;
     case FEEDBACK_VECTOR_TYPE:
       FeedbackVector::cast(this)->FeedbackVectorVerify();
@@ -267,10 +296,6 @@ void HeapObject::HeapObjectVerify() {
     case STORE_HANDLER_TYPE:
       StoreHandler::cast(this)->StoreHandlerVerify();
       break;
-
-    default:
-      UNREACHABLE();
-      break;
   }
 }
 
@@ -287,6 +312,7 @@ void Symbol::SymbolVerify() {
   CHECK(HasHashCode());
   CHECK_GT(Hash(), 0);
   CHECK(name()->IsUndefined(GetIsolate()) || name()->IsString());
+  CHECK_IMPLIES(IsPrivateField(), IsPrivate());
 }
 
 
@@ -313,6 +339,13 @@ void BytecodeArray::BytecodeArrayVerify() {
 
 void FreeSpace::FreeSpaceVerify() {
   CHECK(IsFreeSpace());
+}
+
+void FeedbackCell::FeedbackCellVerify() {
+  CHECK(IsFeedbackCell());
+  Isolate* const isolate = GetIsolate();
+  VerifyHeapPointer(value());
+  CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector());
 }
 
 void FeedbackVector::FeedbackVectorVerify() { CHECK(IsFeedbackVector()); }
@@ -742,6 +775,9 @@ void JSBoundFunction::JSBoundFunctionVerify() {
 
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
+  JSObjectVerify();
+  VerifyHeapPointer(feedback_cell());
+  CHECK(feedback_cell()->IsFeedbackCell());
   CHECK(code()->IsCode());
   CHECK(map()->is_callable());
   if (has_prototype_slot()) {
@@ -758,7 +794,6 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kFeedbackMetadataOffset);
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kFunctionIdentifierOffset);
-  VerifyObjectField(kInstanceClassNameOffset);
   VerifyObjectField(kNameOffset);
   VerifyObjectField(kOuterScopeInfoOffset);
   VerifyObjectField(kScopeInfoOffset);
@@ -1041,33 +1076,102 @@ void JSWeakSet::JSWeakSetVerify() {
   CHECK(table()->IsHashTable() || table()->IsUndefined(GetIsolate()));
 }
 
+void Microtask::MicrotaskVerify() { CHECK(IsMicrotask()); }
+
+void CallableTask::CallableTaskVerify() {
+  CHECK(IsCallableTask());
+  MicrotaskVerify();
+  VerifyHeapPointer(callable());
+  CHECK(callable()->IsCallable());
+  VerifyHeapPointer(context());
+  CHECK(context()->IsContext());
+}
+
+void CallbackTask::CallbackTaskVerify() {
+  CHECK(IsCallbackTask());
+  MicrotaskVerify();
+  VerifyHeapPointer(callback());
+  VerifyHeapPointer(data());
+}
+
+void PromiseReactionJobTask::PromiseReactionJobTaskVerify() {
+  CHECK(IsPromiseReactionJobTask());
+  MicrotaskVerify();
+  Isolate* isolate = GetIsolate();
+  VerifyPointer(argument());
+  VerifyHeapPointer(context());
+  CHECK(context()->IsContext());
+  VerifyHeapPointer(handler());
+  VerifyHeapPointer(payload());
+  if (handler()->IsCode()) {
+    CHECK(payload()->IsJSReceiver());
+  } else {
+    CHECK(handler()->IsUndefined(isolate) || handler()->IsCallable());
+    CHECK(payload()->IsJSPromise() || payload()->IsPromiseCapability());
+  }
+}
+
+void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskVerify() {
+  CHECK(IsPromiseFulfillReactionJobTask());
+  PromiseReactionJobTaskVerify();
+}
+
+void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskVerify() {
+  CHECK(IsPromiseRejectReactionJobTask());
+  PromiseReactionJobTaskVerify();
+}
+
+void PromiseResolveThenableJobTask::PromiseResolveThenableJobTaskVerify() {
+  CHECK(IsPromiseResolveThenableJobTask());
+  MicrotaskVerify();
+  VerifyHeapPointer(context());
+  CHECK(context()->IsContext());
+  VerifyHeapPointer(promise_to_resolve());
+  CHECK(promise_to_resolve()->IsJSPromise());
+  VerifyHeapPointer(then());
+  CHECK(then()->IsCallable());
+  CHECK(then()->IsJSReceiver());
+  VerifyHeapPointer(thenable());
+  CHECK(thenable()->IsJSReceiver());
+}
+
 void PromiseCapability::PromiseCapabilityVerify() {
   CHECK(IsPromiseCapability());
-  VerifyPointer(promise());
+  Isolate* isolate = GetIsolate();
+  VerifyHeapPointer(promise());
+  CHECK(promise()->IsJSReceiver() || promise()->IsUndefined(isolate));
   VerifyPointer(resolve());
   VerifyPointer(reject());
+}
+
+void PromiseReaction::PromiseReactionVerify() {
+  CHECK(IsPromiseReaction());
+  Isolate* isolate = GetIsolate();
+  VerifyPointer(next());
+  CHECK(next()->IsSmi() || next()->IsPromiseReaction());
+  VerifyHeapPointer(reject_handler());
+  VerifyHeapPointer(fulfill_handler());
+  VerifyHeapPointer(payload());
+  if (reject_handler()->IsCode()) {
+    CHECK(fulfill_handler()->IsCode());
+    CHECK(payload()->IsJSReceiver());
+  } else {
+    CHECK(reject_handler()->IsUndefined(isolate) ||
+          reject_handler()->IsCallable());
+    CHECK(fulfill_handler()->IsUndefined(isolate) ||
+          fulfill_handler()->IsCallable());
+    CHECK(payload()->IsJSPromise() || payload()->IsPromiseCapability());
+  }
 }
 
 void JSPromise::JSPromiseVerify() {
   CHECK(IsJSPromise());
   JSObjectVerify();
-  Isolate* isolate = GetIsolate();
-  CHECK(result()->IsUndefined(isolate) || result()->IsObject());
-  CHECK(deferred_promise()->IsUndefined(isolate) ||
-        deferred_promise()->IsJSReceiver() ||
-        deferred_promise()->IsFixedArray());
-  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
-        deferred_on_resolve()->IsCallable() ||
-        deferred_on_resolve()->IsFixedArray());
-  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
-        deferred_on_reject()->IsCallable() ||
-        deferred_on_reject()->IsFixedArray());
-  CHECK(fulfill_reactions()->IsUndefined(isolate) ||
-        fulfill_reactions()->IsCallable() || fulfill_reactions()->IsSymbol() ||
-        fulfill_reactions()->IsFixedArray());
-  CHECK(reject_reactions()->IsUndefined(isolate) ||
-        reject_reactions()->IsSymbol() || reject_reactions()->IsCallable() ||
-        reject_reactions()->IsFixedArray());
+  VerifyPointer(reactions_or_result());
+  VerifySmiField(kFlagsOffset);
+  if (status() == Promise::kPending) {
+    CHECK(reactions()->IsSmi() || reactions()->IsPromiseReaction());
+  }
 }
 
 template <typename Derived>
@@ -1214,33 +1318,6 @@ void Foreign::ForeignVerify() {
 }
 
 
-void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
-  CHECK(IsPromiseResolveThenableJobInfo());
-  CHECK(thenable()->IsJSReceiver());
-  CHECK(then()->IsJSReceiver());
-  CHECK(resolve()->IsJSFunction());
-  CHECK(reject()->IsJSFunction());
-  CHECK(context()->IsContext());
-}
-
-void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
-  Isolate* isolate = GetIsolate();
-  CHECK(IsPromiseReactionJobInfo());
-  CHECK(value()->IsObject());
-  CHECK(tasks()->IsFixedArray() || tasks()->IsCallable() ||
-        tasks()->IsSymbol());
-  CHECK(deferred_promise()->IsUndefined(isolate) ||
-        deferred_promise()->IsJSReceiver() ||
-        deferred_promise()->IsFixedArray());
-  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
-        deferred_on_resolve()->IsCallable() ||
-        deferred_on_resolve()->IsFixedArray());
-  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
-        deferred_on_reject()->IsCallable() ||
-        deferred_on_reject()->IsFixedArray());
-  CHECK(context()->IsContext());
-}
-
 void AsyncGeneratorRequest::AsyncGeneratorRequestVerify() {
   CHECK(IsAsyncGeneratorRequest());
   VerifySmiField(kResumeModeOffset);
@@ -1256,8 +1333,6 @@ void BigInt::BigIntVerify() {
   CHECK(IsBigInt());
   CHECK_GE(length(), 0);
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
-  // TODO(neis): Somewhere check that MSD is non-zero. Doesn't hold during some
-  // operations that allocate which is why we can't test it here.
 }
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {
@@ -1298,7 +1373,7 @@ void Module::ModuleVerify() {
 
   CHECK((status() >= kEvaluating && code()->IsModuleInfo()) ||
         (status() == kInstantiated && code()->IsJSGeneratorObject()) ||
-        (status() >= kInstantiating && code()->IsJSFunction()) ||
+        (status() == kInstantiating && code()->IsJSFunction()) ||
         (code()->IsSharedFunctionInfo()));
 
   CHECK_EQ(status() == kErrored, !exception()->IsTheHole(GetIsolate()));

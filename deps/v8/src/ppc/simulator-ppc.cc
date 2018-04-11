@@ -639,8 +639,7 @@ void PPCDebugger::Debug() {
 #undef XSTR
 }
 
-
-static bool ICacheMatch(void* one, void* two) {
+bool Simulator::ICacheMatch(void* one, void* two) {
   DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
   DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
@@ -738,11 +737,6 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
-  i_cache_ = isolate_->simulator_i_cache();
-  if (i_cache_ == nullptr) {
-    i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
-    isolate_->set_simulator_i_cache(i_cache_);
-  }
 // Set up simulator support first. Some of this information is needed to
 // setup the architecture state.
 #if V8_TARGET_ARCH_PPC64
@@ -2161,50 +2155,50 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
-    case STFSUX: {
-      case STFSX:
-        int frs = instr->RSValue();
-        int ra = instr->RAValue();
-        int rb = instr->RBValue();
-        intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
-        intptr_t rb_val = get_register(rb);
-        float frs_val = static_cast<float>(get_double_from_d_register(frs));
-        int32_t* p = reinterpret_cast<int32_t*>(&frs_val);
+    case STFSUX: V8_FALLTHROUGH;
+    case STFSX: {
+      int frs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      float frs_val = static_cast<float>(get_double_from_d_register(frs));
+      int32_t* p = reinterpret_cast<int32_t*>(&frs_val);
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-        // Conversion using double changes sNan to qNan on ia32/x64
-        int32_t sval = 0;
-        int64_t dval = get_d_register(frs);
-        if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
-          sval = ((dval & 0xC000000000000000) >> 32) |
-                 ((dval & 0x07FFFFFFE0000000) >> 29);
-          p = &sval;
-        } else {
-          p = reinterpret_cast<int32_t*>(&frs_val);
-        }
-#else
+      // Conversion using double changes sNan to qNan on ia32/x64
+      int32_t sval = 0;
+      int64_t dval = get_d_register(frs);
+      if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+        sval = ((dval & 0xC000000000000000) >> 32) |
+               ((dval & 0x07FFFFFFE0000000) >> 29);
+        p = &sval;
+      } else {
         p = reinterpret_cast<int32_t*>(&frs_val);
+      }
+#else
+      p = reinterpret_cast<int32_t*>(&frs_val);
 #endif
-        WriteW(ra_val + rb_val, *p, instr);
-        if (opcode == STFSUX) {
-          DCHECK_NE(ra, 0);
-          set_register(ra, ra_val + rb_val);
-        }
-        break;
+      WriteW(ra_val + rb_val, *p, instr);
+      if (opcode == STFSUX) {
+        DCHECK_NE(ra, 0);
+        set_register(ra, ra_val + rb_val);
+      }
+      break;
     }
-    case STFDUX: {
-      case STFDX:
-        int frs = instr->RSValue();
-        int ra = instr->RAValue();
-        int rb = instr->RBValue();
-        intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
-        intptr_t rb_val = get_register(rb);
-        int64_t frs_val = get_d_register(frs);
-        WriteDW(ra_val + rb_val, frs_val);
-        if (opcode == STFDUX) {
-          DCHECK_NE(ra, 0);
-          set_register(ra, ra_val + rb_val);
-        }
-        break;
+    case STFDUX: V8_FALLTHROUGH;
+    case STFDX: {
+      int frs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      int64_t frs_val = get_d_register(frs);
+      WriteDW(ra_val + rb_val, frs_val);
+      if (opcode == STFDUX) {
+        DCHECK_NE(ra, 0);
+        set_register(ra, ra_val + rb_val);
+      }
+      break;
     }
     case POPCNTW: {
       int rs = instr->RSValue();
@@ -3220,36 +3214,35 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 
-    case STFSU: {
-      case STFS:
-        int frs = instr->RSValue();
-        int ra = instr->RAValue();
-        int32_t offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
-        intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
-        float frs_val = static_cast<float>(get_double_from_d_register(frs));
-        int32_t* p;
+    case STFSU: V8_FALLTHROUGH;
+    case STFS: {
+      int frs = instr->RSValue();
+      int ra = instr->RAValue();
+      int32_t offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      float frs_val = static_cast<float>(get_double_from_d_register(frs));
+      int32_t* p;
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
-        // Conversion using double changes sNan to qNan on ia32/x64
-        int32_t sval = 0;
-        int64_t dval = get_d_register(frs);
-        if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
-          sval = ((dval & 0xC000000000000000) >> 32) |
-                 ((dval & 0x07FFFFFFE0000000) >> 29);
-          p = &sval;
-        } else {
-          p = reinterpret_cast<int32_t*>(&frs_val);
-        }
-#else
+      // Conversion using double changes sNan to qNan on ia32/x64
+      int32_t sval = 0;
+      int64_t dval = get_d_register(frs);
+      if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+        sval = ((dval & 0xC000000000000000) >> 32) |
+               ((dval & 0x07FFFFFFE0000000) >> 29);
+        p = &sval;
+      } else {
         p = reinterpret_cast<int32_t*>(&frs_val);
+      }
+#else
+      p = reinterpret_cast<int32_t*>(&frs_val);
 #endif
-        WriteW(ra_val + offset, *p, instr);
-        if (opcode == STFSU) {
-          DCHECK_NE(ra, 0);
-          set_register(ra, ra_val + offset);
-        }
-        break;
+      WriteW(ra_val + offset, *p, instr);
+      if (opcode == STFSU) {
+        DCHECK_NE(ra, 0);
+        set_register(ra, ra_val + offset);
+      }
+      break;
     }
-
     case STFDU:
     case STFD: {
       int frs = instr->RSValue();
@@ -3916,7 +3909,7 @@ void Simulator::Trace(Instruction* instr) {
 // Executes the current instruction.
 void Simulator::ExecuteInstruction(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
-    CheckICache(isolate_->simulator_i_cache(), instr);
+    CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
   if (::v8::internal::FLAG_trace_sim) {

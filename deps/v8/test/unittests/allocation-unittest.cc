@@ -112,6 +112,7 @@ TEST_F(MemoryAllocationPermissionsTest, DoTest) {
   TestPermissions(PageAllocator::Permission::kNoAccess, false, false);
   TestPermissions(PageAllocator::Permission::kReadWrite, true, true);
   TestPermissions(PageAllocator::Permission::kReadWriteExecute, true, true);
+  TestPermissions(PageAllocator::Permission::kReadExecute, true, false);
 }
 #endif  // V8_OS_POSIX
 
@@ -134,8 +135,8 @@ TEST(AllocationTest, AllocateAndFree) {
   // A large allocation, aligned significantly beyond native granularity.
   const size_t kBigAlignment = 64 * v8::internal::MB;
   void* aligned_mem_addr = v8::internal::AllocatePages(
-      v8::internal::GetRandomMmapAddr(), kAllocationSize, kBigAlignment,
-      PageAllocator::Permission::kReadWrite);
+      AlignedAddress(v8::internal::GetRandomMmapAddr(), kBigAlignment),
+      kAllocationSize, kBigAlignment, PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(aligned_mem_addr);
   CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
   CHECK(v8::internal::FreePages(aligned_mem_addr, kAllocationSize));

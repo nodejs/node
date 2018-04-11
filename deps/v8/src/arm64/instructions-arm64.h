@@ -258,7 +258,7 @@ class Instruction {
   // Indicate whether Rd can be the stack pointer or the zero register. This
   // does not check that the instruction actually has an Rd field.
   Reg31Mode RdMode() const {
-    // The following instructions use csp or wsp as Rd:
+    // The following instructions use sp or wsp as Rd:
     //  Add/sub (immediate) when not setting the flags.
     //  Add/sub (extended) when not setting the flags.
     //  Logical (immediate) when not setting the flags.
@@ -272,7 +272,7 @@ class Instruction {
     }
     if (IsLogicalImmediate()) {
       // Of the logical (immediate) instructions, only ANDS (and its aliases)
-      // can set the flags. The others can all write into csp.
+      // can set the flags. The others can all write into sp.
       // Note that some logical operations are not available to
       // immediate-operand instructions, so we have to combine two masks here.
       if (Mask(LogicalImmediateMask & LogicalOpMask) == ANDS) {
@@ -287,7 +287,7 @@ class Instruction {
   // Indicate whether Rn can be the stack pointer or the zero register. This
   // does not check that the instruction actually has an Rn field.
   Reg31Mode RnMode() const {
-    // The following instructions use csp or wsp as Rn:
+    // The following instructions use sp or wsp as Rn:
     //  All loads and stores.
     //  Add/sub (immediate).
     //  Add/sub (extended).

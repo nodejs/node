@@ -39,7 +39,6 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/parsing/scanner-character-streams.h"
@@ -59,9 +58,9 @@ class StringResource8 : public v8::String::ExternalOneByteStringResource {
   int length_;
 };
 
-std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
-    const char* fname, Encoding encoding, int repeat, v8::Isolate* isolate,
-    v8::Local<v8::Context> context) {
+v8::base::TimeDelta RunBaselineParser(const char* fname, Encoding encoding,
+                                      int repeat, v8::Isolate* isolate,
+                                      v8::Local<v8::Context> context) {
   int length = 0;
   const byte* source = ReadFileAndRepeat(fname, &length, repeat);
   v8::Local<v8::String> source_handle;
@@ -87,42 +86,21 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
       break;
     }
   }
-  v8::base::TimeDelta parse_time1, parse_time2;
+  v8::base::TimeDelta parse_time1;
   Handle<Script> script =
       reinterpret_cast<i::Isolate*>(isolate)->factory()->NewScript(
           v8::Utils::OpenHandle(*source_handle));
-  i::ScriptData* cached_data_impl = NULL;
-  // First round of parsing (produce data to cache).
-  {
-    ParseInfo info(script);
-    info.set_cached_data(&cached_data_impl);
-    info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
-    v8::base::ElapsedTimer timer;
-    timer.Start();
-    bool success =
-        parsing::ParseProgram(&info, reinterpret_cast<i::Isolate*>(isolate));
-    parse_time1 = timer.Elapsed();
-    if (!success) {
-      fprintf(stderr, "Parsing failed\n");
-      return std::make_pair(v8::base::TimeDelta(), v8::base::TimeDelta());
-    }
+  ParseInfo info(script);
+  v8::base::ElapsedTimer timer;
+  timer.Start();
+  bool success =
+      parsing::ParseProgram(&info, reinterpret_cast<i::Isolate*>(isolate));
+  parse_time1 = timer.Elapsed();
+  if (!success) {
+    fprintf(stderr, "Parsing failed\n");
+    return v8::base::TimeDelta();
   }
-  // Second round of parsing (consume cached data).
-  {
-    ParseInfo info(script);
-    info.set_cached_data(&cached_data_impl);
-    info.set_compile_options(v8::ScriptCompiler::kConsumeParserCache);
-    v8::base::ElapsedTimer timer;
-    timer.Start();
-    bool success =
-        parsing::ParseProgram(&info, reinterpret_cast<i::Isolate*>(isolate));
-    parse_time2 = timer.Elapsed();
-    if (!success) {
-      fprintf(stderr, "Parsing failed\n");
-      return std::make_pair(v8::base::TimeDelta(), v8::base::TimeDelta());
-    }
-  }
-  return std::make_pair(parse_time1, parse_time2);
+  return parse_time1;
 }
 
 
@@ -167,19 +145,14 @@ int main(int argc, char* argv[]) {
     {
       v8::Context::Scope scope(context);
       double first_parse_total = 0;
-      double second_parse_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
-        std::pair<v8::base::TimeDelta, v8::base::TimeDelta> time =
-            RunBaselineParser(fnames[i].c_str(), encoding, repeat, isolate,
-                              context);
-        first_parse_total += time.first.InMillisecondsF();
-        second_parse_total += time.second.InMillisecondsF();
+        v8::base::TimeDelta time = RunBaselineParser(
+            fnames[i].c_str(), encoding, repeat, isolate, context);
+        first_parse_total += time.InMillisecondsF();
       }
       if (benchmark.empty()) benchmark = "Baseline";
-      printf("%s(FirstParseRunTime): %.f ms\n", benchmark.c_str(),
+      printf("%s(ParseRunTime): %.f ms\n", benchmark.c_str(),
              first_parse_total);
-      printf("%s(SecondParseRunTime): %.f ms\n", benchmark.c_str(),
-             second_parse_total);
     }
   }
   v8::V8::Dispose();

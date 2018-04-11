@@ -201,6 +201,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
 
 
 void MemoryReducer::ScheduleTimer(double time_ms, double delay_ms) {
+  if (!heap()->use_tasks()) return;
   DCHECK_LT(0, delay_ms);
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;

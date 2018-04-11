@@ -87,6 +87,8 @@ TEST(AllocateNotExternal) {
 
 void TestSpeciesProtector(char* code,
                           bool invalidates_species_protector = true) {
+  // Make BigInt64Array/BigUint64Array available for testing.
+  FLAG_harmony_bigint = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   std::string typed_array_constructors[] = {
@@ -108,22 +110,24 @@ void TestSpeciesProtector(char* code,
       CompileRun(("let constructor = " + constructor + ";").c_str());
       v8::Local<v8::Value> constructor_obj = CompileRun(constructor.c_str());
       CHECK_EQ(constructor_obj, CompileRun("x.slice().constructor"));
+      CHECK_EQ(constructor_obj, CompileRun("x.subarray().constructor"));
       CHECK_EQ(constructor_obj, CompileRun("x.map(()=>{}).constructor"));
       std::string decl = "class MyTypedArray extends " + constructor + " { }";
       CompileRun(decl.c_str());
 
       v8::internal::Isolate* i_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
-      CHECK(i_isolate->IsArraySpeciesLookupChainIntact());
+      CHECK(i_isolate->IsSpeciesLookupChainIntact());
       CompileRun(code);
       if (invalidates_species_protector) {
-        CHECK(!i_isolate->IsArraySpeciesLookupChainIntact());
+        CHECK(!i_isolate->IsSpeciesLookupChainIntact());
       } else {
-        CHECK(i_isolate->IsArraySpeciesLookupChainIntact());
+        CHECK(i_isolate->IsSpeciesLookupChainIntact());
       }
 
       v8::Local<v8::Value> my_typed_array = CompileRun("MyTypedArray");
       CHECK_EQ(my_typed_array, CompileRun("x.slice().constructor"));
+      CHECK_EQ(my_typed_array, CompileRun("x.subarray().constructor"));
       CHECK_EQ(my_typed_array, CompileRun("x.map(()=>{}).constructor"));
     }
     isolate->Exit();

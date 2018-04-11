@@ -75,6 +75,13 @@ RUNTIME_FUNCTION(Runtime_BigIntToNumber) {
   return *BigInt::ToNumber(x);
 }
 
+RUNTIME_FUNCTION(Runtime_ToBigInt) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, x));
+}
+
 RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
