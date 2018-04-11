@@ -823,14 +823,13 @@ same as the legacy assert but it will always use strict equality checks.
 <a id="DEP0090"></a>
 ### DEP0090: Invalid GCM authentication tag lengths
 
-Type: Runtime
+Type: End-of-Life
 
-Node.js supports all GCM authentication tag lengths which are accepted by
-OpenSSL when calling [`decipher.setAuthTag()`][]. This behavior will change in
-a future version at which point only authentication tag lengths of 128, 120,
-112, 104, 96, 64, and 32 bits will be allowed. Authentication tags whose length
-is not included in this list will be considered invalid in compliance with
-[NIST SP 800-38D][].
+Node.js used to support all GCM authentication tag lengths which are accepted by
+OpenSSL when calling [`decipher.setAuthTag()`][]. Beginning with node REPLACEME,
+only authentication tag lengths of 128, 120, 112, 104, 96, 64, and 32 bits are
+allowed. Authentication tags whose length is not included in this list are
+considered invalid in compliance with [NIST SP 800-38D][].
 
 <a id="DEP0091"></a>
 ### DEP0091: crypto.DEFAULT_ENCODING
