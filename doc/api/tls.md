@@ -365,6 +365,8 @@ the client request's SNI hostname matches the supplied `hostname` (or wildcard).
 added: v0.6.0
 -->
 
+* Returns: {Object}
+
 Returns the bound address, the address family name, and port of the
 server as reported by the operating system. See [`net.Server.address()`][] for
 more information.
@@ -390,12 +392,16 @@ deprecated: v0.9.7
 
 > Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
 
+* {number}
+
 Returns the current number of concurrent connections on the server.
 
 ### server.getTicketKeys()
 <!-- YAML
 added: v3.0.0
 -->
+
+* Returns: {Buffer}
 
 Returns a `Buffer` instance holding the keys currently used for
 encryption/decryption of the [TLS Session Tickets][]
@@ -509,6 +515,8 @@ protocol.
 added: v0.11.4
 -->
 
+* Returns: {Object}
+
 Returns the bound address, the address family name, and port of the
 underlying socket as reported by the operating system. Returns an
 object with three properties, e.g.
@@ -526,6 +534,8 @@ property is set only when `tlsSocket.authorized === false`.
 <!-- YAML
 added: v0.11.4
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the peer certificate was signed by one of the CAs specified
 when creating the `tls.TLSSocket` instance, otherwise `false`.
@@ -551,6 +561,8 @@ Always returns `true`. This may be used to distinguish TLS sockets from regular
 added: v0.11.4
 -->
 
+* Returns: {Object}
+
 Returns an object representing the cipher name. The `version` key is a legacy
 field which always contains the value `'TLSv1/SSLv3'`.
 
@@ -564,6 +576,8 @@ information.
 <!-- YAML
 added: v5.0.0
 -->
+
+* Returns: {Object}
 
 Returns an object representing the type, name, and size of parameter of
 an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
@@ -598,6 +612,7 @@ added: v0.11.4
 
 * `detailed` {boolean} Include the full certificate chain if `true`, otherwise
   include just the peer's certificate.
+* Returns: {Object}
 
 Returns an object representing the peer's certificate. The returned object has
 some properties corresponding to the fields of the certificate.
@@ -658,6 +673,8 @@ to implement the `tls-unique` channel binding from [RFC 5929][].
 added: v5.7.0
 -->
 
+* Returns: {string}
+
 Returns a string containing the negotiated SSL/TLS protocol version of the
 current connection. The value `'unknown'` will be returned for connected
 sockets that have not completed the handshaking process. The value `null` will
@@ -698,6 +715,8 @@ reuse provide `session` option to [`tls.connect()`][].
 added: v0.11.4
 -->
 
+* {string}
+
 Returns the string representation of the local IP address.
 
 ### tlsSocket.localPort
@@ -705,12 +724,16 @@ Returns the string representation of the local IP address.
 added: v0.11.4
 -->
 
+* {number}
+
 Returns the numeric representation of the local port.
 
 ### tlsSocket.remoteAddress
 <!-- YAML
 added: v0.11.4
 -->
+
+* {string}
 
 Returns the string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
@@ -720,12 +743,16 @@ Returns the string representation of the remote IP address. For example,
 added: v0.11.4
 -->
 
+* {string}
+
 Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
 ### tlsSocket.remotePort
 <!-- YAML
 added: v0.11.4
 -->
+
+* {number}
 
 Returns the numeric representation of the remote port. For example, `443`.
 
@@ -760,6 +787,7 @@ added: v0.11.11
 
 * `size` {number} The maximum TLS fragment size. The maximum value is `16384`.
   **Default:** `16384`.
+* Returns: {boolean}
 
 The `tlsSocket.setMaxSendFragment()` method sets the maximum TLS fragment size.
 Returns `true` if setting the limit succeeded; `false` otherwise.
@@ -779,6 +807,7 @@ added: v0.8.4
 * `host` {string} The hostname to verify the certificate against
 * `cert` {Object} An object representing the peer's certificate. The returned
   object has some properties corresponding to the fields of the certificate.
+* Returns: {Error|undefined}
 
 Verifies the certificate `cert` is issued to host `host`.
 
@@ -1215,6 +1244,8 @@ openssl s_client -connect 127.0.0.1:8000
 <!-- YAML
 added: v0.10.2
 -->
+
+* Returns: {string[]}
 
 Returns an array with the names of the supported SSL ciphers.
 

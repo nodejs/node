@@ -34,6 +34,8 @@ Deactivate the inspector. Blocks until there are no active connections.
 
 ### inspector.url()
 
+* Returns: {string|undefined}
+
 Return the URL of the active inspector, or `undefined` if there is none.
 
 ## Class: inspector.Session
