@@ -33,11 +33,14 @@ namespace heap {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform() : task_(nullptr) {
+  MockPlatform() : task_(nullptr), old_platform_(i::V8::GetCurrentPlatform()) {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~MockPlatform() { delete task_; }
+  virtual ~MockPlatform() {
+    delete task_;
+    i::V8::SetPlatformForTesting(old_platform_);
+  }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     task_ = task;
@@ -56,6 +59,7 @@ class MockPlatform : public TestPlatform {
 
  private:
   Task* task_;
+  v8::Platform* old_platform_;
 };
 
 TEST(IncrementalMarkingUsingTasks) {

@@ -191,6 +191,43 @@ inline ElementsKind GetHoleyElementsKind(ElementsKind packed_kind) {
   return packed_kind;
 }
 
+inline bool UnionElementsKindUptoPackedness(ElementsKind* a_out,
+                                            ElementsKind b) {
+  // Assert that the union of two ElementKinds can be computed via std::max.
+  static_assert(PACKED_SMI_ELEMENTS < HOLEY_SMI_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(PACKED_ELEMENTS < HOLEY_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  static_assert(PACKED_DOUBLE_ELEMENTS < HOLEY_DOUBLE_ELEMENTS,
+                "ElementsKind union not computable via std::max.");
+  ElementsKind a = *a_out;
+  switch (a) {
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_SMI_ELEMENTS:
+      if (b == PACKED_SMI_ELEMENTS || b == HOLEY_SMI_ELEMENTS) {
+        *a_out = std::max(a, b);
+        return true;
+      }
+      break;
+    case PACKED_ELEMENTS:
+    case HOLEY_ELEMENTS:
+      if (b == PACKED_ELEMENTS || b == HOLEY_ELEMENTS) {
+        *a_out = std::max(a, b);
+        return true;
+      }
+      break;
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS:
+      if (b == PACKED_DOUBLE_ELEMENTS || b == HOLEY_DOUBLE_ELEMENTS) {
+        *a_out = std::max(a, b);
+        return true;
+      }
+      break;
+    default:
+      break;
+  }
+  return false;
+}
 
 inline ElementsKind FastSmiToObjectElementsKind(ElementsKind from_kind) {
   DCHECK(IsSmiElementsKind(from_kind));

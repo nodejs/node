@@ -39,7 +39,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "Unexpected console statement."
+        }
     },
 
     create(context) {
@@ -102,7 +106,7 @@ module.exports = {
             context.report({
                 node,
                 loc: node.loc,
-                message: "Unexpected console statement."
+                messageId: "unexpected"
             });
         }
 

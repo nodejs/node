@@ -90,7 +90,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       Register reg = Register::from_code(reg_num);
       if (reg != esp && reg != ebp && reg != destination_reg) {
         __ cmp(reg, MemOperand(esp, 0));
-        __ Assert(equal, kRegisterWasClobbered);
+        __ Assert(equal, AbortReason::kRegisterWasClobbered);
         __ add(esp, Immediate(kPointerSize));
       }
     }
@@ -108,6 +108,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   return reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer));
 }

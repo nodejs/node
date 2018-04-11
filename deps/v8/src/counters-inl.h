@@ -15,7 +15,7 @@ void RuntimeCallTimer::Start(RuntimeCallCounter* counter,
   DCHECK(!IsStarted());
   counter_ = counter;
   parent_.SetValue(parent);
-  if (FLAG_runtime_stats ==
+  if (base::AsAtomic32::Relaxed_Load(&FLAG_runtime_stats) ==
       v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
     return;
   }
@@ -57,8 +57,8 @@ void RuntimeCallTimer::CommitTimeToCounter() {
 
 bool RuntimeCallTimer::IsStarted() { return start_ticks_ != base::TimeTicks(); }
 
-RuntimeCallTimerScope::RuntimeCallTimerScope(
-    HeapObject* heap_object, RuntimeCallStats::CounterId counter_id)
+RuntimeCallTimerScope::RuntimeCallTimerScope(HeapObject* heap_object,
+                                             RuntimeCallCounterId counter_id)
     : RuntimeCallTimerScope(heap_object->GetIsolate(), counter_id) {}
 
 }  // namespace internal

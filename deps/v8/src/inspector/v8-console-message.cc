@@ -528,6 +528,11 @@ double V8ConsoleMessageStorage::timeEnd(int contextId, const String16& id) {
   return elapsed;
 }
 
+bool V8ConsoleMessageStorage::hasTimer(int contextId, const String16& id) {
+  const std::map<String16, double>& time = m_data[contextId].m_time;
+  return time.find(id) != time.end();
+}
+
 void V8ConsoleMessageStorage::contextDestroyed(int contextId) {
   m_estimatedSize = 0;
   for (size_t i = 0; i < m_messages.size(); ++i) {

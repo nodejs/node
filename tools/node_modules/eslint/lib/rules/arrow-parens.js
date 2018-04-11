@@ -38,15 +38,19 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedParens: "Unexpected parentheses around single function argument.",
+            expectedParens: "Expected parentheses around arrow function argument.",
+
+            unexpectedParensInline: "Unexpected parentheses around single function argument having a body with no curly braces.",
+            expectedParensBlock: "Expected parentheses around arrow function argument having a body with curly braces."
+        }
     },
 
     create(context) {
-        const message = "Expected parentheses around arrow function argument.";
-        const asNeededMessage = "Unexpected parentheses around single function argument.";
         const asNeeded = context.options[0] === "as-needed";
-        const requireForBlockBodyMessage = "Unexpected parentheses around single function argument having a body with no curly braces";
-        const requireForBlockBodyNoParensMessage = "Expected parentheses around arrow function argument having a body with curly braces.";
         const requireForBlockBody = asNeeded && context.options[1] && context.options[1].requireForBlockBody === true;
 
         const sourceCode = context.getSourceCode();
@@ -94,7 +98,7 @@ module.exports = {
                 if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
                     context.report({
                         node,
-                        message: requireForBlockBodyMessage,
+                        messageId: "unexpectedParensInline",
                         fix: fixParamsWithParenthesis
                     });
                 }
@@ -108,7 +112,7 @@ module.exports = {
                 if (!astUtils.isOpeningParenToken(firstTokenOfParam)) {
                     context.report({
                         node,
-                        message: requireForBlockBodyNoParensMessage,
+                        messageId: "expectedParensBlock",
                         fix(fixer) {
                             return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
                         }
@@ -127,7 +131,7 @@ module.exports = {
                 if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
                     context.report({
                         node,
-                        message: asNeededMessage,
+                        messageId: "unexpectedParens",
                         fix: fixParamsWithParenthesis
                     });
                 }
@@ -141,7 +145,7 @@ module.exports = {
                 if (after.value !== ")") {
                     context.report({
                         node,
-                        message,
+                        messageId: "expectedParens",
                         fix(fixer) {
                             return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
                         }

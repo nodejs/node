@@ -36,7 +36,7 @@ using v8::Value;
                            value, ReadOnly).FromJust();                       \
   } while (0)
 
-static void InitConfig(Local<Object> target,
+static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
@@ -138,4 +138,4 @@ static void InitConfig(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(config, node::InitConfig)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(config, node::Initialize)

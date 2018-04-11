@@ -3,16 +3,11 @@ const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
+const rootUser = common.isWindows ? false : process.getuid() === 0;
 
-let invalidArgTypeError;
-
-if (common.isWindows) {
-  invalidArgTypeError =
-    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 36);
-} else {
-  invalidArgTypeError =
-    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 56);
-}
+const invalidArgTypeError = common.expectsError(
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
+  common.isWindows || rootUser ? 42 : 62);
 
 const invalidRangeError =
   common.expectsError({ code: 'ERR_OUT_OF_RANGE', type: RangeError }, 20);
@@ -62,7 +57,7 @@ function fail(option, value, message) {
 if (!common.isWindows) {
   {
     // Validate the uid option
-    if (process.getuid() !== 0) {
+    if (!rootUser) {
       pass('uid', undefined);
       pass('uid', null);
       pass('uid', process.getuid());
@@ -127,18 +122,16 @@ if (!common.isWindows) {
 
 {
   // Validate the windowsHide option
-  const err = /^TypeError: "windowsHide" must be a boolean$/;
-
   pass('windowsHide', undefined);
   pass('windowsHide', null);
   pass('windowsHide', true);
   pass('windowsHide', false);
-  fail('windowsHide', 0, err);
-  fail('windowsHide', 1, err);
-  fail('windowsHide', __dirname, err);
-  fail('windowsHide', [], err);
-  fail('windowsHide', {}, err);
-  fail('windowsHide', common.mustNotCall(), err);
+  fail('windowsHide', 0, invalidArgTypeError);
+  fail('windowsHide', 1, invalidArgTypeError);
+  fail('windowsHide', __dirname, invalidArgTypeError);
+  fail('windowsHide', [], invalidArgTypeError);
+  fail('windowsHide', {}, invalidArgTypeError);
+  fail('windowsHide', common.mustNotCall(), invalidArgTypeError);
 }
 
 {

@@ -170,7 +170,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ Push(Operand(rbx, rcx, times_pointer_size, 0));
     __ bind(&entry);
     __ decp(rcx);
-    __ j(greater_equal, &loop);
+    __ j(greater_equal, &loop, Label::kNear);
 
     // Call the function.
     // rax: number of arguments (untagged)
@@ -217,19 +217,21 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ Push(rsi);
     __ Push(rcx);
     __ Push(rdi);
+    __ PushRoot(Heap::kTheHoleValueRootIndex);
     __ Push(rdx);
 
     // ----------- S t a t e -------------
     //  --         sp[0*kPointerSize]: new target
-    //  -- rdi and sp[1*kPointerSize]: constructor function
-    //  --         sp[2*kPointerSize]: argument count
-    //  --         sp[3*kPointerSize]: context
+    //  --         sp[1*kPointerSize]: padding
+    //  -- rdi and sp[2*kPointerSize]: constructor function
+    //  --         sp[3*kPointerSize]: argument count
+    //  --         sp[4*kPointerSize]: context
     // -----------------------------------
 
     __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ testl(FieldOperand(rbx, SharedFunctionInfo::kCompilerHintsOffset),
              Immediate(SharedFunctionInfo::kDerivedConstructorMask));
-    __ j(not_zero, &not_create_implicit_receiver);
+    __ j(not_zero, &not_create_implicit_receiver, Label::kNear);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1);
@@ -243,10 +245,11 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     // ----------- S t a t e -------------
     //  -- rax                          implicit receiver
-    //  -- Slot 3 / sp[0*kPointerSize]  new target
-    //  -- Slot 2 / sp[1*kPointerSize]  constructor function
-    //  -- Slot 1 / sp[2*kPointerSize]  number of arguments (tagged)
-    //  -- Slot 0 / sp[3*kPointerSize]  context
+    //  -- Slot 4 / sp[0*kPointerSize]  new target
+    //  -- Slot 3 / sp[1*kPointerSize]  padding
+    //  -- Slot 2 / sp[2*kPointerSize]  constructor function
+    //  -- Slot 1 / sp[3*kPointerSize]  number of arguments (tagged)
+    //  -- Slot 0 / sp[4*kPointerSize]  context
     // -----------------------------------
     // Deoptimizer enters here.
     masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
@@ -265,9 +268,10 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // ----------- S t a t e -------------
     //  -- sp[0*kPointerSize]  implicit receiver
     //  -- sp[1*kPointerSize]  implicit receiver
-    //  -- sp[2*kPointerSize]  constructor function
-    //  -- sp[3*kPointerSize]  number of arguments (tagged)
-    //  -- sp[4*kPointerSize]  context
+    //  -- sp[2*kPointerSize]  padding
+    //  -- sp[3*kPointerSize]  constructor function
+    //  -- sp[4*kPointerSize]  number of arguments (tagged)
+    //  -- sp[5*kPointerSize]  context
     // -----------------------------------
 
     // Restore constructor function and argument count.
@@ -288,16 +292,17 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     //  --                        rcx: counter (tagged)
     //  --         sp[0*kPointerSize]: implicit receiver
     //  --         sp[1*kPointerSize]: implicit receiver
-    //  -- rdi and sp[2*kPointerSize]: constructor function
-    //  --         sp[3*kPointerSize]: number of arguments (tagged)
-    //  --         sp[4*kPointerSize]: context
+    //  --         sp[2*kPointerSize]: padding
+    //  -- rdi and sp[3*kPointerSize]: constructor function
+    //  --         sp[4*kPointerSize]: number of arguments (tagged)
+    //  --         sp[5*kPointerSize]: context
     // -----------------------------------
     __ jmp(&entry, Label::kNear);
     __ bind(&loop);
     __ Push(Operand(rbx, rcx, times_pointer_size, 0));
     __ bind(&entry);
     __ decp(rcx);
-    __ j(greater_equal, &loop);
+    __ j(greater_equal, &loop, Label::kNear);
 
     // Call the function.
     ParameterCount actual(rax);
@@ -306,9 +311,10 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // ----------- S t a t e -------------
     //  -- rax                 constructor result
     //  -- sp[0*kPointerSize]  implicit receiver
-    //  -- sp[1*kPointerSize]  constructor function
-    //  -- sp[2*kPointerSize]  number of arguments
-    //  -- sp[3*kPointerSize]  context
+    //  -- sp[1*kPointerSize]  padding
+    //  -- sp[2*kPointerSize]  constructor function
+    //  -- sp[3*kPointerSize]  number of arguments
+    //  -- sp[4*kPointerSize]  context
     // -----------------------------------
 
     // Store offset of return address for deoptimizer.
@@ -363,7 +369,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // on-stack receiver as the result.
     __ bind(&use_receiver);
     __ movp(rax, Operand(rsp, 0 * kPointerSize));
-    __ JumpIfRoot(rax, Heap::kTheHoleValueRootIndex, &do_throw);
+    __ JumpIfRoot(rax, Heap::kTheHoleValueRootIndex, &do_throw, Label::kNear);
 
     __ bind(&leave_frame);
     // Restore the arguments count.
@@ -519,7 +525,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Argument count in rax. Clobbers rcx.
     Label enough_stack_space, stack_overflow;
     Generate_StackOverflowCheck(masm, rax, rcx, &stack_overflow, Label::kNear);
-    __ jmp(&enough_stack_space);
+    __ jmp(&enough_stack_space, Label::kNear);
 
     __ bind(&stack_overflow);
     __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -540,7 +546,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ addp(rcx, Immediate(1));
     __ bind(&entry);
     __ cmpp(rcx, rax);
-    __ j(not_equal, &loop);
+    __ j(not_equal, &loop, Label::kNear);
 
     // Invoke the builtin code.
     Handle<Code> builtin = is_construct
@@ -642,7 +648,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
     __ CmpObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
-    __ Assert(equal, kMissingBytecodeArray);
+    __ Assert(equal, AbortReason::kMissingBytecodeArray);
   }
 
   // Resume (Ignition/TurboFan) generator object.
@@ -768,6 +774,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     __ j(equal, &fallthrough);
 
     TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
+                                  OptimizationMarker::kLogFirstExecution,
+                                  Runtime::kFunctionFirstExecution);
+    TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
                                   OptimizationMarker::kCompileOptimized,
                                   Runtime::kCompileOptimized_NotConcurrent);
     TailCallRuntimeIfMarkerEquals(
@@ -781,7 +790,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
       if (FLAG_debug_code) {
         __ SmiCompare(optimized_code_entry,
                       Smi::FromEnum(OptimizationMarker::kInOptimizationQueue));
-        __ Assert(equal, kExpectedOptimizationSentinel);
+        __ Assert(equal, AbortReason::kExpectedOptimizationSentinel);
       }
       __ jmp(&fallthrough);
     }
@@ -859,7 +868,6 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
   __ movzxbp(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
   __ addp(bytecode_size_table,
           Immediate(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ jmp(&load_size, Label::kNear);
 
   // Load the size of the current bytecode.
   __ bind(&load_size);
@@ -922,7 +930,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
                      rax);
-    __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
+    __ Assert(
+        equal,
+        AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
   // Reset code age.
@@ -958,7 +968,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     Label loop_header;
     Label loop_check;
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-    __ j(always, &loop_check);
+    __ j(always, &loop_check, Label::kNear);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     __ Push(rax);
@@ -1051,7 +1061,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 
   // Push the arguments.
   Label loop_header, loop_check;
-  __ j(always, &loop_check);
+  __ j(always, &loop_check, Label::kNear);
   __ bind(&loop_header);
   __ Push(Operand(start_address, 0));
   __ subp(start_address, Immediate(kPointerSize));
@@ -1212,7 +1222,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
                      rbx);
-    __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
+    __ Assert(
+        equal,
+        AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
   // Get the target bytecode offset from the frame.
@@ -1274,7 +1286,7 @@ void Builtins::Generate_CheckOptimizationMarker(MacroAssembler* masm) {
   // The feedback vector must be defined.
   if (FLAG_debug_code) {
     __ CompareRoot(feedback_vector, Heap::kUndefinedValueRootIndex);
-    __ Assert(not_equal, BailoutReason::kExpectedFeedbackVector);
+    __ Assert(not_equal, AbortReason::kExpectedFeedbackVector);
   }
 
   // Is there an optimization marker or optimized code in the feedback vector?
@@ -1806,9 +1818,10 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
     // Will both indicate a nullptr and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
-    __ Check(not_smi, kUnexpectedInitialMapForInternalArrayFunction);
+    __ Check(not_smi,
+             AbortReason::kUnexpectedInitialMapForInternalArrayFunction);
     __ CmpObjectType(rbx, MAP_TYPE, rcx);
-    __ Check(equal, kUnexpectedInitialMapForInternalArrayFunction);
+    __ Check(equal, AbortReason::kUnexpectedInitialMapForInternalArrayFunction);
   }
 
   // Run the native code for the InternalArray function called as a normal
@@ -1835,9 +1848,9 @@ void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
     // Will both indicate a nullptr and a Smi.
     STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
-    __ Check(not_smi, kUnexpectedInitialMapForArrayFunction);
+    __ Check(not_smi, AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(rbx, MAP_TYPE, rcx);
-    __ Check(equal, kUnexpectedInitialMapForArrayFunction);
+    __ Check(equal, AbortReason::kUnexpectedInitialMapForArrayFunction);
   }
 
   __ movp(rdx, rdi);
@@ -1863,6 +1876,8 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // arguments and the receiver.
   __ Integer32ToSmi(r8, rax);
   __ Push(r8);
+
+  __ Push(Immediate(0));  // Padding.
 }
 
 static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
@@ -1920,19 +1935,6 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);
   __ Move(rsi, Smi::kZero);
   __ TailCallRuntime(Runtime::kAbort);
-}
-
-// static
-void Builtins::Generate_AbortJS(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rdx    : message as String object
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  __ PopReturnAddressTo(rcx);
-  __ Push(rdx);
-  __ PushReturnAddressFrom(rcx);
-  __ Move(rsi, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbortJS);
 }
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
@@ -2115,7 +2117,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ JumpIfSmi(rdx, &new_target_not_constructor, Label::kNear);
     __ movp(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
     __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
-             Immediate(1 << Map::kIsConstructor));
+             Immediate(Map::IsConstructorBit::kMask));
     __ j(not_zero, &new_target_constructor, Label::kNear);
     __ bind(&new_target_not_constructor);
     {
@@ -2242,7 +2244,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
           // Patch receiver to global proxy.
           __ LoadGlobalProxy(rcx);
         }
-        __ jmp(&convert_receiver);
+        __ jmp(&convert_receiver, Label::kNear);
       }
       __ bind(&convert_to_object);
       {
@@ -2419,12 +2421,12 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 
   // Check if target has a [[Call]] internal method.
   __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsCallable));
-  __ j(zero, &non_callable);
+           Immediate(Map::IsCallableBit::kMask));
+  __ j(zero, &non_callable, Label::kNear);
 
   // Check if target is a proxy and call CallProxy external builtin
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
-  __ j(not_equal, &non_function);
+  __ j(not_equal, &non_function, Label::kNear);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
@@ -2516,7 +2518,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Check if target has a [[Construct]] internal method.
   __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsConstructor));
+           Immediate(Map::IsConstructorBit::kMask));
   __ j(zero, &non_constructor, Label::kNear);
 
   // Only dispatch to bound functions after checking whether they are
@@ -2527,7 +2529,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Only dispatch to proxies after checking whether they are constructors.
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
-  __ j(not_equal, &non_proxy);
+  __ j(not_equal, &non_proxy, Label::kNear);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
           RelocInfo::CODE_TARGET);
 
@@ -2568,7 +2570,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   Label skip;
   // If the code object is null, just return to the caller.
-  __ cmpp(rax, Immediate(0));
+  __ testp(rax, rax);
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 

@@ -10,14 +10,18 @@ is to support collection of high resolution performance metrics.
 This is the same Performance API as implemented in modern Web browsers.
 
 ```js
-const { performance } = require('perf_hooks');
+const { PerformanceObserver, performance } = require('perf_hooks');
+
+const obs = new PerformanceObserver((items) => {
+  console.log(items.getEntries()[0].duration);
+  performance.clearMarks();
+});
+obs.observe({ entryTypes: ['measure'] });
+
 performance.mark('A');
 doSomeLongRunningProcess(() => {
   performance.mark('B');
   performance.measure('A to B', 'A', 'B');
-  const measure = performance.getEntriesByName('A to B')[0];
-  console.log(measure.duration);
-  // Prints the number of milliseconds between Mark 'A' and Mark 'B'
 });
 ```
 
@@ -25,35 +29,6 @@ doSomeLongRunningProcess(() => {
 <!-- YAML
 added: v8.5.0
 -->
-
-The `Performance` provides access to performance metric data. A single
-instance of this class is provided via the `performance` property.
-
-### performance.clearEntries(name)
-<!-- YAML
-added: v9.5.0
--->
-
-Remove all performance entry objects with `entryType` equal to `name` from the
-Performance Timeline.
-
-### performance.clearFunctions([name])
-<!-- YAML
-added: v8.5.0
--->
-
-* `name` {string}
-
-If `name` is not provided, removes all `PerformanceFunction` objects from the
-Performance Timeline. If `name` is provided, removes entries with `name`.
-
-### performance.clearGC()
-<!-- YAML
-added: v8.5.0
--->
-
-Remove all performance entry objects with `entryType` equal to `gc` from the
-Performance Timeline.
 
 ### performance.clearMarks([name])
 <!-- YAML
@@ -64,53 +39,6 @@ added: v8.5.0
 
 If `name` is not provided, removes all `PerformanceMark` objects from the
 Performance Timeline. If `name` is provided, removes only the named mark.
-
-### performance.clearMeasures([name])
-<!-- YAML
-added: v8.5.0
--->
-
-* `name` {string}
-
-If `name` is not provided, removes all `PerformanceMeasure` objects from the
-Performance Timeline. If `name` is provided, removes only objects whose
-`performanceEntry.name` matches `name`.
-
-### performance.getEntries()
-<!-- YAML
-added: v8.5.0
--->
-
-* Returns: {Array}
-
-Returns a list of all `PerformanceEntry` objects in chronological order
-with respect to `performanceEntry.startTime`.
-
-### performance.getEntriesByName(name[, type])
-<!-- YAML
-added: v8.5.0
--->
-
-* `name` {string}
-* `type` {string}
-* Returns: {Array}
-
-Returns a list of all `PerformanceEntry` objects in chronological order
-with respect to `performanceEntry.startTime` whose `performanceEntry.name` is
-equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
-`type`.
-
-### performance.getEntriesByType(type)
-<!-- YAML
-added: v8.5.0
--->
-
-* `type` {string}
-* Returns: {Array}
-
-Returns a list of all `PerformanceEntry` objects in chronological order
-with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
-is equal to `type`.
 
 ### performance.mark([name])
 <!-- YAML
@@ -124,20 +52,6 @@ Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `performanceEntry.entryType` is always `'mark'`, and whose
 `performanceEntry.duration` is always `0`. Performance marks are used
 to mark specific significant moments in the Performance Timeline.
-
-### performance.maxEntries
-<!-- YAML
-added: v9.6.0
--->
-
-Value: {number}
-
-The maximum number of Performance Entry items that should be added to the
-Performance Timeline. This limit is not strictly enforced, but a process
-warning will be emitted if the number of entries in the timeline exceeds
-this limit.
-
-Defaults to 150.
 
 ### performance.measure(name, startMark, endMark)
 <!-- YAML
@@ -181,7 +95,8 @@ added: v8.5.0
 
 * Returns: {number}
 
-Returns the current high resolution millisecond timestamp.
+Returns the current high resolution millisecond timestamp, where 0 represents
+the start of the current `node` process.
 
 ### performance.timeOrigin
 <!-- YAML
@@ -190,8 +105,8 @@ added: v8.5.0
 
 * {number}
 
-The [`timeOrigin`][] specifies the high resolution millisecond timestamp from
-which all performance metric durations are measured.
+The [`timeOrigin`][] specifies the high resolution millisecond timestamp at
+which the current `node` process began, measured in Unix time.
 
 ### performance.timerify(fn)
 <!-- YAML
@@ -219,7 +134,6 @@ const wrapped = performance.timerify(someFunction);
 const obs = new PerformanceObserver((list) => {
   console.log(list.getEntries()[0].duration);
   obs.disconnect();
-  performance.clearFunctions();
 });
 obs.observe({ entryTypes: ['function'] });
 
@@ -269,7 +183,7 @@ added: v8.5.0
 * {string}
 
 The type of the performance entry. Currently it may be one of: `'node'`,
-`'mark'`, `'measure'`, `'gc'`, or `'function'`.
+`'mark'`, `'measure'`, `'gc'`, `'function'`, or `'http2'`.
 
 ### performanceEntry.kind
 <!-- YAML
@@ -302,7 +216,8 @@ added: v8.5.0
 * {number}
 
 The high resolution millisecond timestamp at which the Node.js process
-completed bootstrap.
+completed bootstrapping. If bootstrapping has not yet finished, the property
+has the value of -1.
 
 ### performanceNodeTiming.clusterSetupEnd
 <!-- YAML
@@ -311,7 +226,8 @@ added: v8.5.0
 
 * {number}
 
-The high resolution millisecond timestamp at which cluster processing ended.
+The high resolution millisecond timestamp at which cluster processing ended. If
+cluster processing has not yet ended, the property has the value of -1.
 
 ### performanceNodeTiming.clusterSetupStart
 <!-- YAML
@@ -321,6 +237,7 @@ added: v8.5.0
 * {number}
 
 The high resolution millisecond timestamp at which cluster processing started.
+If cluster processing has not yet started, the property has the value of -1.
 
 ### performanceNodeTiming.loopExit
 <!-- YAML
@@ -330,7 +247,8 @@ added: v8.5.0
 * {number}
 
 The high resolution millisecond timestamp at which the Node.js event loop
-exited.
+exited. If the event loop has not yet exited, the property has the value of -1.
+It can only have a value of not -1 in a handler of the [`'exit'`][] event.
 
 ### performanceNodeTiming.loopStart
 <!-- YAML
@@ -340,7 +258,8 @@ added: v8.5.0
 * {number}
 
 The high resolution millisecond timestamp at which the Node.js event loop
-started.
+started. If the event loop has not yet started (e.g., in the first tick of the
+main script), the property has the value of -1.
 
 ### performanceNodeTiming.moduleLoadEnd
 <!-- YAML
@@ -395,8 +314,9 @@ added: v8.5.0
 
 * {number}
 
-The high resolution millisecond timestamp at which third_party_main processing
-ended.
+The high resolution millisecond timestamp at which third\_party\_main
+processing ended. If third\_party\_main processing has not yet ended, the
+property has the value of -1.
 
 ### performanceNodeTiming.thirdPartyMainStart
 <!-- YAML
@@ -405,8 +325,9 @@ added: v8.5.0
 
 * {number}
 
-The high resolution millisecond timestamp at which third_party_main processing
-started.
+The high resolution millisecond timestamp at which third\_party\_main
+processing started. If third\_party\_main processing has not yet started, the
+property has the value of -1.
 
 ### performanceNodeTiming.v8Start
 <!-- YAML
@@ -475,7 +396,7 @@ The `PerformanceObserverEntryList` class is used to provide access to the
 added: v8.5.0
 -->
 
-* Returns: {Array}
+* Returns: {PerformanceEntry[]}
 
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime`.
@@ -487,7 +408,7 @@ added: v8.5.0
 
 * `name` {string}
 * `type` {string}
-* Returns: {Array}
+* Returns: {PerformanceEntry[]}
 
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.name` is
@@ -500,7 +421,7 @@ added: v8.5.0
 -->
 
 * `type` {string}
-* Returns: {Array}
+* Returns: {PerformanceEntry[]}
 
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
@@ -517,13 +438,13 @@ Disconnects the `PerformanceObserver` instance from all notifications.
 added: v8.5.0
 -->
 * `options` {Object}
-  * `entryTypes` {Array} An array of strings identifying the types of
+  * `entryTypes` {string[]} An array of strings identifying the types of
     `PerformanceEntry` instances the observer is interested in. If not
     provided an error will be thrown.
   * `buffered` {boolean} If true, the notification callback will be
     called using `setImmediate()` and multiple `PerformanceEntry` instance
     notifications will be buffered internally. If `false`, notifications will
-    be immediate and synchronous. Defaults to `false`.
+    be immediate and synchronous. **Default:** `false`.
 
 Subscribes the `PerformanceObserver` instance to notifications of new
 `PerformanceEntry` instances identified by `options.entryTypes`.
@@ -600,7 +521,6 @@ hook.enable();
 const obs = new PerformanceObserver((list, observer) => {
   console.log(list.getEntries()[0]);
   performance.clearMarks();
-  performance.clearMeasures();
   observer.disconnect();
 });
 obs.observe({ entryTypes: ['measure'], buffered: true });
@@ -634,14 +554,13 @@ const obs = new PerformanceObserver((list) => {
     console.log(`require('${entry[0]}')`, entry.duration);
   });
   obs.disconnect();
-  // Free memory
-  performance.clearFunctions();
 });
 obs.observe({ entryTypes: ['function'], buffered: true });
 
 require('some-module');
 ```
 
+[`'exit'`]: process.html#process_event_exit
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [Async Hooks]: async_hooks.html
 [W3C Performance Timeline]: https://w3c.github.io/performance-timeline/

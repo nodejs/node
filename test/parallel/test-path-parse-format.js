@@ -220,10 +220,6 @@ function checkFormat(path, testCases) {
     assert.strictEqual(path.format(testCase[0]), testCase[1]);
   });
 
-  function typeName(value) {
-    return value === null ? 'null' : typeof value;
-  }
-
   [null, undefined, 1, true, false, 'string'].forEach((pathObject) => {
     common.expectsError(() => {
       path.format(pathObject);
@@ -231,7 +227,7 @@ function checkFormat(path, testCases) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "pathObject" argument must be of type Object. ' +
-               `Received type ${typeName(pathObject)}`
+               `Received type ${typeof pathObject}`
     });
   });
 }

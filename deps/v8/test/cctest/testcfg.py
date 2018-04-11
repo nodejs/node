@@ -28,46 +28,44 @@
 import os
 import shutil
 
-from testrunner.local import commands
+from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
+SHELL = 'cctest'
 
-class CcTestSuite(testsuite.TestSuite):
-  SHELL = 'cctest'
 
-  def __init__(self, name, root):
-    super(CcTestSuite, self).__init__(name, root)
-    if utils.IsWindows():
-      build_dir = "build"
-    else:
-      build_dir = "out"
-
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.SHELL))
+    shell = os.path.abspath(os.path.join(context.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
-    cmd = context.command_prefix + [shell, "--list"] + context.extra_flags
-    output = commands.Execute(cmd)
+    cmd = command.Command(
+        cmd_prefix=context.command_prefix,
+        shell=shell,
+        args=["--list"] + context.extra_flags)
+    output = cmd.execute()
     if output.exit_code != 0:
-      print ' '.join(cmd)
+      print cmd
       print output.stdout
       print output.stderr
       return []
-    tests = []
-    for test_desc in output.stdout.strip().split():
-      test = testcase.TestCase(self, test_desc)
-      tests.append(test)
+    tests = map(self._create_test, output.stdout.strip().split())
     tests.sort(key=lambda t: t.path)
     return tests
 
-  def GetShellForTestCase(self, testcase):
-    return self.SHELL
+  def _test_class(self):
+    return TestCase
 
-  def GetParametersForTestCase(self, testcase, context):
-    return [testcase.path], testcase.flags + context.mode_flags, {}
+
+class TestCase(testcase.TestCase):
+  def get_shell(self):
+    return SHELL
+
+  def _get_files_params(self, ctx):
+    return [self.path]
 
 
 def GetSuite(name, root):
-  return CcTestSuite(name, root)
+  return TestSuite(name, root)

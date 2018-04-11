@@ -37,6 +37,8 @@ if (process.argv[2] === 'child') {
         assert.strictEqual(server.connections, null);
         server.close();
       }));
+
+      connect.resume();
     }));
   });
 

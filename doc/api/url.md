@@ -51,7 +51,7 @@ WHATWG URL's `origin` property includes `protocol` and `host`, but not
 ├─────────────┴─────────────────────┴─────────────────────┴──────────┴────────────────┴───────┤
 │                                            href                                             │
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
-(all spaces in the "" line should be ignored -- they are purely for formatting)
+(all spaces in the "" line should be ignored — they are purely for formatting)
 ```
 
 Parsing the URL string using the WHATWG API:
@@ -313,8 +313,9 @@ myURL.port = 1234.5678;
 console.log(myURL.port);
 // Prints 1234
 
-// Out-of-range numbers are ignored
-myURL.port = 1e10;
+// Out-of-range numbers which are not represented in scientific notation
+// will be ignored.
+myURL.port = 1e10; // 10000000000, will be range-checked as described below
 console.log(myURL.port);
 // Prints 1234
 ```
@@ -324,9 +325,25 @@ in the range `0` to `65535` (inclusive). Setting the value to the default port
 of the `URL` objects given `protocol` will result in the `port` value becoming
 the empty string (`''`).
 
-If an invalid string is assigned to the `port` property, but it begins with a
-number, the leading number is assigned to `port`. Otherwise, or if the number
-lies outside the range denoted above, it is ignored.
+Upon assigning a value to the port, the value will first be converted to a
+string using `.toString()`.
+
+If that string is invalid but it begins with a number, the leading number is
+assigned to `port`.
+Otherwise, or if the number lies outside the range denoted above,
+it is ignored.
+
+Note that numbers which contain a decimal point,
+such as floating-point numbers or numbers in scientific notation,
+are not an exception to this rule.
+Leading numbers up to the decimal point will be set as the URL's port,
+assuming they are valid:
+
+```js
+myURL.port = 4.567e21;
+console.log(myURL.port);
+// Prints 4 (because it is the leading number in the string '4.567e21')
+```
 
 #### url.protocol
 
@@ -541,7 +558,7 @@ Instantiate a new `URLSearchParams` object with an iterable map in a way that
 is similar to [`Map`][]'s constructor. `iterable` can be an Array or any
 iterable object. That means `iterable` can be another `URLSearchParams`, in
 which case the constructor will simply create a clone of the provided
-`URLSearchParams`.  Elements of `iterable` are key-value pairs, and can
+`URLSearchParams`. Elements of `iterable` are key-value pairs, and can
 themselves be any iterable object.
 
 Duplicate keys are allowed.
@@ -636,7 +653,7 @@ are no such pairs, `null` is returned.
 #### urlSearchParams.getAll(name)
 
 * `name` {string}
-* Returns: {Array}
+* Returns: {string[]}
 
 Returns the values of all name-value pairs whose name is `name`. If there are
 no such pairs, an empty array is returned.
@@ -793,14 +810,14 @@ added: v7.6.0
 * `URL` {URL} A [WHATWG URL][] object
 * `options` {Object}
   * `auth` {boolean} `true` if the serialized URL string should include the
-    username and password, `false` otherwise. Defaults to `true`.
+    username and password, `false` otherwise. **Default:** `true`.
   * `fragment` {boolean} `true` if the serialized URL string should include the
-    fragment, `false` otherwise. Defaults to `true`.
+    fragment, `false` otherwise. **Default:** `true`.
   * `search` {boolean} `true` if the serialized URL string should include the
-    search query, `false` otherwise. Defaults to `true`.
+    search query, `false` otherwise. **Default:** `true`.
   * `unicode` {boolean} `true` if Unicode characters appearing in the host
     component of the URL string should be encoded directly as opposed to being
-    Punycode encoded. Defaults to `false`.
+    Punycode encoded. **Default:** `false`.
 
 Returns a customizable serialization of a URL String representation of a
 [WHATWG URL][] object.
@@ -1032,12 +1049,12 @@ changes:
 * `parseQueryString` {boolean} If `true`, the `query` property will always
   be set to an object returned by the [`querystring`][] module's `parse()`
   method. If `false`, the `query` property on the returned URL object will be an
-  unparsed, undecoded string. Defaults to `false`.
+  unparsed, undecoded string. **Default:** `false`.
 * `slashesDenoteHost` {boolean} If `true`, the first token after the literal
   string `//` and preceding the next `/` will be interpreted as the `host`.
   For instance, given `//foo/bar`, the result would be
   `{host: 'foo', pathname: '/bar'}` rather than `{pathname: '//foo/bar'}`.
-  Defaults to `false`.
+  **Default:** `false`.
 
 The `url.parse()` method takes a URL string, parses it, and returns a URL
 object.

@@ -267,6 +267,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(ParseInfo* info);
 
+  // Parse with the script as if the source is implicitly wrapped in a function.
+  // We manually construct the AST and scopes for a top-level function and the
+  // function wrapper.
+  void ParseWrapped(ParseInfo* info, ZoneList<Statement*>* body,
+                    DeclarationScope* scope, Zone* zone, bool* ok);
+
+  ZoneList<const AstRawString*>* PrepareWrappedArguments(ParseInfo* info,
+                                                         Zone* zone);
+
   void SetCachedData(ParseInfo* info);
 
   void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
@@ -292,10 +301,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       SET_ALLOW(harmony_do_expressions);
       SET_ALLOW(harmony_function_sent);
       SET_ALLOW(harmony_public_fields);
+      SET_ALLOW(harmony_static_fields);
       SET_ALLOW(harmony_dynamic_import);
       SET_ALLOW(harmony_import_meta);
-      SET_ALLOW(harmony_async_iteration);
       SET_ALLOW(harmony_bigint);
+      SET_ALLOW(harmony_optional_catch_binding);
+      SET_ALLOW(harmony_private_fields);
 #undef SET_ALLOW
     }
     return reusable_preparser_;
@@ -391,13 +402,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* RewriteDestructuringAssignment(Assignment* assignment);
 
   // [if (IteratorType == kAsync)]
-  //     !%_IsJSReceiver(result = Await(iterator.next()) &&
+  //     !%_IsJSReceiver(result = Await(next.[[Call]](iterator, « »)) &&
   //         %ThrowIteratorResultNotAnObject(result)
   // [else]
-  //     !%_IsJSReceiver(result = iterator.next()) &&
+  //     !%_IsJSReceiver(result = next.[[Call]](iterator, « »)) &&
   //         %ThrowIteratorResultNotAnObject(result)
   // [endif]
-  Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
+  Expression* BuildIteratorNextResult(VariableProxy* iterator,
+                                      VariableProxy* next, Variable* result,
                                       IteratorType type, int pos);
 
   // Initialize the components of a for-in / for-of statement.
@@ -425,7 +437,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       const AstRawString* name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      LanguageMode language_mode, bool* ok);
+      LanguageMode language_mode,
+      ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok);
+
+  ObjectLiteral* InitializeObjectLiteral(ObjectLiteral* object_literal) {
+    object_literal->CalculateEmitStore(main_zone());
+    return object_literal;
+  }
 
   // Check if the scope has conflicting var/let declarations from different
   // scopes. This covers for example
@@ -488,7 +506,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
-      int* expected_property_count, bool* ok);
+      int* expected_property_count,
+      ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
 
@@ -553,13 +572,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* RewriteSpreads(ArrayLiteral* lit);
 
-  // Rewrite expressions that are not used as patterns
-  V8_INLINE void RewriteNonPattern(bool* ok);
-
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       RewritableExpression* assignment);
-  V8_INLINE void QueueNonPatternForRewriting(RewritableExpression* expr,
-                                             bool* ok);
 
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr);
@@ -760,17 +774,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool CollapseNaryExpression(Expression** x, Expression* y, Token::Value op,
                               int pos, const SourceRange& range);
 
-  // Rewrites the following types of unary expressions:
-  // not <literal> -> true / false
-  // + <numeric literal> -> <numeric literal>
-  // - <numeric literal> -> <numeric literal with value negated>
+  // Returns a UnaryExpression or, in one of the following cases, a Literal.
   // ! <literal> -> true / false
-  // The following rewriting rules enable the collection of type feedback
-  // without any special stub and the multiplication is removed later in
-  // Crankshaft's canonicalization pass.
-  // + foo -> foo * 1
-  // - foo -> foo * (-1)
-  // ~ foo -> foo ^(~0)
+  // + <Number literal> -> <Number literal>
+  // - <Number literal> -> <Number literal with value negated>
+  // ~ <literal> -> true / false
   Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
                                    int pos);
 
@@ -988,10 +996,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
-  }
-
-  V8_INLINE ZoneList<RewritableExpression*>* GetNonPatternList() const {
-    return function_state_->non_patterns_to_rewrite();
   }
 
   V8_INLINE void CountUsage(v8::Isolate::UseCounterFeature feature) {

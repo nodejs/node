@@ -111,7 +111,7 @@ struct Tests {
     CHECK(this->IsBitset(T.Any));
 
     CHECK(bitset(0) == this->AsBitset(T.None));
-    CHECK(bitset(0xfffffffeu) == this->AsBitset(T.Any));
+    CHECK(bitset(0xFFFFFFFEu) == this->AsBitset(T.Any));
 
     // Union(T1, T2) is bitset for bitsets T1,T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
@@ -224,38 +224,38 @@ struct Tests {
     Factory* fac = isolate->factory();
     CHECK(T.NewConstant(fac->NewNumber(0))->Is(T.UnsignedSmall));
     CHECK(T.NewConstant(fac->NewNumber(1))->Is(T.UnsignedSmall));
-    CHECK(T.NewConstant(fac->NewNumber(0x3fffffff))->Is(T.UnsignedSmall));
+    CHECK(T.NewConstant(fac->NewNumber(0x3FFFFFFF))->Is(T.UnsignedSmall));
     CHECK(T.NewConstant(fac->NewNumber(-1))->Is(T.Negative31));
-    CHECK(T.NewConstant(fac->NewNumber(-0x3fffffff))->Is(T.Negative31));
+    CHECK(T.NewConstant(fac->NewNumber(-0x3FFFFFFF))->Is(T.Negative31));
     CHECK(T.NewConstant(fac->NewNumber(-0x40000000))->Is(T.Negative31));
     CHECK(T.NewConstant(fac->NewNumber(0x40000000))->Is(T.Unsigned31));
     CHECK(!T.NewConstant(fac->NewNumber(0x40000000))->Is(T.Unsigned30));
-    CHECK(T.NewConstant(fac->NewNumber(0x7fffffff))->Is(T.Unsigned31));
-    CHECK(!T.NewConstant(fac->NewNumber(0x7fffffff))->Is(T.Unsigned30));
+    CHECK(T.NewConstant(fac->NewNumber(0x7FFFFFFF))->Is(T.Unsigned31));
+    CHECK(!T.NewConstant(fac->NewNumber(0x7FFFFFFF))->Is(T.Unsigned30));
     CHECK(T.NewConstant(fac->NewNumber(-0x40000001))->Is(T.Negative32));
     CHECK(!T.NewConstant(fac->NewNumber(-0x40000001))->Is(T.Negative31));
-    CHECK(T.NewConstant(fac->NewNumber(-0x7fffffff))->Is(T.Negative32));
-    CHECK(!T.NewConstant(fac->NewNumber(-0x7fffffff - 1))->Is(T.Negative31));
+    CHECK(T.NewConstant(fac->NewNumber(-0x7FFFFFFF))->Is(T.Negative32));
+    CHECK(!T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 1))->Is(T.Negative31));
     if (SmiValuesAre31Bits()) {
       CHECK(!T.NewConstant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
-      CHECK(!T.NewConstant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
+      CHECK(!T.NewConstant(fac->NewNumber(0x7FFFFFFF))->Is(T.UnsignedSmall));
       CHECK(!T.NewConstant(fac->NewNumber(-0x40000001))->Is(T.SignedSmall));
-      CHECK(!T.NewConstant(fac->NewNumber(-0x7fffffff - 1))->Is(T.SignedSmall));
+      CHECK(!T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 1))->Is(T.SignedSmall));
     } else {
       CHECK(SmiValuesAre32Bits());
       CHECK(T.NewConstant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
-      CHECK(T.NewConstant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
+      CHECK(T.NewConstant(fac->NewNumber(0x7FFFFFFF))->Is(T.UnsignedSmall));
       CHECK(T.NewConstant(fac->NewNumber(-0x40000001))->Is(T.SignedSmall));
-      CHECK(T.NewConstant(fac->NewNumber(-0x7fffffff - 1))->Is(T.SignedSmall));
+      CHECK(T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 1))->Is(T.SignedSmall));
     }
     CHECK(T.NewConstant(fac->NewNumber(0x80000000u))->Is(T.Unsigned32));
     CHECK(!T.NewConstant(fac->NewNumber(0x80000000u))->Is(T.Unsigned31));
-    CHECK(T.NewConstant(fac->NewNumber(0xffffffffu))->Is(T.Unsigned32));
-    CHECK(!T.NewConstant(fac->NewNumber(0xffffffffu))->Is(T.Unsigned31));
-    CHECK(T.NewConstant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(0xffffffffu + 1.0))->Is(T.Integral32));
-    CHECK(T.NewConstant(fac->NewNumber(-0x7fffffff - 2.0))->Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(-0x7fffffff - 2.0))->Is(T.Integral32));
+    CHECK(T.NewConstant(fac->NewNumber(0xFFFFFFFFu))->Is(T.Unsigned32));
+    CHECK(!T.NewConstant(fac->NewNumber(0xFFFFFFFFu))->Is(T.Unsigned31));
+    CHECK(T.NewConstant(fac->NewNumber(0xFFFFFFFFu + 1.0))->Is(T.PlainNumber));
+    CHECK(!T.NewConstant(fac->NewNumber(0xFFFFFFFFu + 1.0))->Is(T.Integral32));
+    CHECK(T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 2.0))->Is(T.PlainNumber));
+    CHECK(!T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 2.0))->Is(T.Integral32));
     CHECK(T.NewConstant(fac->NewNumber(0.1))->Is(T.PlainNumber));
     CHECK(!T.NewConstant(fac->NewNumber(0.1))->Is(T.Integral32));
     CHECK(T.NewConstant(fac->NewNumber(-10.1))->Is(T.PlainNumber));

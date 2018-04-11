@@ -6,9 +6,6 @@
 
 // Flags: --harmony-bigint
 
-// TODO(adamk/jkummerow/neis): Support BigInts in TF unary ops.
-// Flags: --noopt
-
 var data = [{
   a: "-989c298c6fc3",
   r: "-989c298c6fc2"

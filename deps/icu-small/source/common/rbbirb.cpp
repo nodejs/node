@@ -47,7 +47,7 @@ U_NAMESPACE_BEGIN
 RBBIRuleBuilder::RBBIRuleBuilder(const UnicodeString   &rules,
                                        UParseError     *parseErr,
                                        UErrorCode      &status)
- : fRules(rules)
+ : fRules(rules), fStrippedRules(rules)
 {
     fStatus = &status; // status is checked below
     fParseError = parseErr;
@@ -147,8 +147,9 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
         return NULL;
     }
 
-    // Remove comments and whitespace from the rules to make it smaller.
-    UnicodeString strippedRules((const UnicodeString&)RBBIRuleScanner::stripRules(fRules));
+    // Remove whitespace from the rules to make it smaller.
+    // The rule parser has already removed comments.
+    fStrippedRules = fScanner->stripRules(fStrippedRules);
 
     // Calculate the size of each section in the data.
     //   Sizes here are padded up to a multiple of 8 for better memory alignment.
@@ -162,7 +163,7 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
     int32_t safeRevTableSize  = align8(fSafeRevTables->getTableSize());
     int32_t trieSize          = align8(fSetBuilder->getTrieSize());
     int32_t statusTableSize   = align8(fRuleStatusVals->size() * sizeof(int32_t));
-    int32_t rulesSize         = align8((strippedRules.length()+1) * sizeof(UChar));
+    int32_t rulesSize         = align8((fStrippedRules.length()+1) * sizeof(UChar));
 
     (void)safeFwdTableSize;
 
@@ -225,7 +226,7 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
     data->fStatusTable   = data->fTrie    + trieSize;
     data->fStatusTableLen= statusTableSize;
     data->fRuleSource    = data->fStatusTable + statusTableSize;
-    data->fRuleSourceLen = strippedRules.length() * sizeof(UChar);
+    data->fRuleSourceLen = fStrippedRules.length() * sizeof(UChar);
 
     uprv_memset(data->fReserved, 0, sizeof(data->fReserved));
 
@@ -245,7 +246,7 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
         ruleStatusTable[i] = fRuleStatusVals->elementAti(i);
     }
 
-    strippedRules.extract((UChar *)((uint8_t *)data+data->fRuleSource), rulesSize/2+1, *fStatus);
+    fStrippedRules.extract((UChar *)((uint8_t *)data+data->fRuleSource), rulesSize/2+1, *fStatus);
 
     return data;
 }
@@ -281,10 +282,10 @@ RBBIRuleBuilder::createRuleBasedBreakIterator( const UnicodeString    &rules,
     //
     // UnicodeSet processing.
     //    Munge the Unicode Sets to create a set of character categories.
-    //    Generate the mapping tables (TRIE) from input 32-bit characters to
+    //    Generate the mapping tables (TRIE) from input code points to
     //    the character categories.
     //
-    builder.fSetBuilder->build();
+    builder.fSetBuilder->buildRanges();
 
 
     //
@@ -316,6 +317,11 @@ RBBIRuleBuilder::createRuleBasedBreakIterator( const UnicodeString    &rules,
     }
 #endif
 
+    builder.optimizeTables();
+    builder.fSetBuilder->buildTrie();
+
+
+
     //
     //   Package up the compiled data into a memory image
     //      in the run-time format.
@@ -345,6 +351,29 @@ RBBIRuleBuilder::createRuleBasedBreakIterator( const UnicodeString    &rules,
         status = U_MEMORY_ALLOCATION_ERROR;
     }
     return This;
+}
+
+void RBBIRuleBuilder::optimizeTables() {
+    int32_t leftClass;
+    int32_t rightClass;
+
+    leftClass = 3;
+    rightClass = 0;
+    while (fForwardTables->findDuplCharClassFrom(leftClass, rightClass)) {
+        fSetBuilder->mergeCategories(leftClass, rightClass);
+        fForwardTables->removeColumn(rightClass);
+        fReverseTables->removeColumn(rightClass);
+        fSafeFwdTables->removeColumn(rightClass);
+        fSafeRevTables->removeColumn(rightClass);
+    }
+
+    fForwardTables->removeDuplicateStates();
+    fReverseTables->removeDuplicateStates();
+    fSafeFwdTables->removeDuplicateStates();
+    fSafeRevTables->removeDuplicateStates();
+
+
+
 }
 
 U_NAMESPACE_END

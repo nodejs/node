@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --cache=code --serialize-toplevel
+// Flags: --cache=code
 
 var a = "123";
 assertEquals(a, "123");

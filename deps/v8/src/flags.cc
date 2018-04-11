@@ -619,10 +619,13 @@ void FlagList::PrintHelp() {
         "    run the new debugging shell\n\n"
         "Options:\n";
 
-  for (size_t i = 0; i < num_flags; ++i) {
-    Flag* f = &flags[i];
-    os << "  --" << f->name() << " (" << f->comment() << ")\n"
-       << "        type: " << Type2String(f->type()) << "  default: " << *f
+  for (const Flag& f : flags) {
+    os << "  --";
+    for (const char* c = f.name(); *c != '\0'; ++c) {
+      os << NormalizeChar(*c);
+    }
+    os << " (" << f.comment() << ")\n"
+       << "        type: " << Type2String(f.type()) << "  default: " << f
        << "\n";
   }
 }

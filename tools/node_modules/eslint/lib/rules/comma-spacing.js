@@ -34,7 +34,12 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            missing: "A space is required {{loc}} ','.",
+            unexpected: "There should be no space {{loc}} ','."
+        }
     },
 
     create(context) {
@@ -57,17 +62,17 @@ module.exports = {
         /**
          * Reports a spacing error with an appropriate message.
          * @param {ASTNode} node The binary expression node to report.
-         * @param {string} dir Is the error "before" or "after" the comma?
+         * @param {string} loc Is the error "before" or "after" the comma?
          * @param {ASTNode} otherNode The node at the left or right of `node`
          * @returns {void}
          * @private
          */
-        function report(node, dir, otherNode) {
+        function report(node, loc, otherNode) {
             context.report({
                 node,
                 fix(fixer) {
-                    if (options[dir]) {
-                        if (dir === "before") {
+                    if (options[loc]) {
+                        if (loc === "before") {
                             return fixer.insertTextBefore(node, " ");
                         }
                         return fixer.insertTextAfter(node, " ");
@@ -76,7 +81,7 @@ module.exports = {
                     let start, end;
                     const newText = "";
 
-                    if (dir === "before") {
+                    if (loc === "before") {
                         start = otherNode.range[1];
                         end = node.range[0];
                     } else {
@@ -87,11 +92,9 @@ module.exports = {
                     return fixer.replaceTextRange([start, end], newText);
 
                 },
-                message: options[dir]
-                    ? "A space is required {{dir}} ','."
-                    : "There should be no space {{dir}} ','.",
+                messageId: options[loc] ? "missing" : "unexpected",
                 data: {
-                    dir
+                    loc
                 }
             });
         }

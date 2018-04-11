@@ -4,6 +4,16 @@ const common = require('../common');
 const { strictEqual } = require('assert');
 const { Writable } = require('stream');
 
+const w = new Writable();
+
+w.on('error', common.expectsError({
+  type: Error,
+  code: 'ERR_METHOD_NOT_IMPLEMENTED',
+  message: 'The _write() method is not implemented'
+}));
+
+w.end(Buffer.from('blerg'));
+
 const _write = common.mustCall((chunk, _, next) => {
   next();
 });
@@ -13,25 +23,15 @@ const _writev = common.mustCall((chunks, next) => {
   next();
 });
 
-const w = new Writable({ write: _write, writev: _writev });
+const w2 = new Writable({ write: _write, writev: _writev });
 
-strictEqual(w._write, _write);
-strictEqual(w._writev, _writev);
+strictEqual(w2._write, _write);
+strictEqual(w2._writev, _writev);
 
-w.write(Buffer.from('blerg'));
+w2.write(Buffer.from('blerg'));
 
-w.cork();
-w.write(Buffer.from('blerg'));
-w.write(Buffer.from('blerg'));
+w2.cork();
+w2.write(Buffer.from('blerg'));
+w2.write(Buffer.from('blerg'));
 
-w.end();
-
-const w2 = new Writable();
-
-w2.on('error', common.expectsError({
-  type: Error,
-  code: 'ERR_METHOD_NOT_IMPLEMENTED',
-  message: 'The _write method is not implemented'
-}));
-
-w2.end(Buffer.from('blerg'));
+w2.end();

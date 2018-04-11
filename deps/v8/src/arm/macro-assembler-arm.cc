@@ -224,44 +224,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, mode);
 }
 
-void MacroAssembler::CallDeoptimizer(Address target) {
-  BlockConstPoolScope block_const_pool(this);
-
-  uintptr_t target_raw = reinterpret_cast<uintptr_t>(target);
-
-  // Use ip directly instead of using UseScratchRegisterScope, as we do not
-  // preserve scratch registers across calls.
-
-  // We use blx, like a call, but it does not return here. The link register is
-  // used by the deoptimizer to work out what called it.
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(this, ARMv7);
-    movw(ip, target_raw & 0xffff);
-    movt(ip, (target_raw >> 16) & 0xffff);
-    blx(ip);
-  } else {
-    // We need to load a literal, but we can't use the usual constant pool
-    // because we call this from a patcher, and cannot afford the guard
-    // instruction and other administrative overhead.
-    ldr(ip, MemOperand(pc, (2 * kInstrSize) - kPcLoadDelta));
-    blx(ip);
-    dd(target_raw);
-  }
-}
-
-int MacroAssembler::CallDeoptimizerSize() {
-  // ARMv7+:
-  //    movw    ip, ...
-  //    movt    ip, ...
-  //    blx     ip              @ This never returns.
-  //
-  // ARMv6:
-  //    ldr     ip, =address
-  //    blx     ip              @ This never returns.
-  //    .word   address
-  return 3 * kInstrSize;
-}
-
 void TurboAssembler::Ret(Condition cond) { bx(lr, cond); }
 
 void TurboAssembler::Drop(int count, Condition cond) {
@@ -608,7 +570,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     Register scratch = temps.Acquire();
     ldr(scratch, MemOperand(address));
     cmp(scratch, value);
-    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
+    Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
   if (remembered_set_action == OMIT_REMEMBERED_SET &&
@@ -985,7 +947,7 @@ void TurboAssembler::LslPair(Register dst_low, Register dst_high,
   rsb(scratch, shift, Operand(32), SetCC);
   b(gt, &less_than_32);
   // If shift >= 32
-  and_(scratch, shift, Operand(0x1f));
+  and_(scratch, shift, Operand(0x1F));
   lsl(dst_high, src_low, Operand(scratch));
   mov(dst_low, Operand(0));
   jmp(&done);
@@ -1010,7 +972,7 @@ void TurboAssembler::LslPair(Register dst_low, Register dst_high,
     Move(dst_high, src_low);
     Move(dst_low, Operand(0));
   } else if (shift >= 32) {
-    shift &= 0x1f;
+    shift &= 0x1F;
     lsl(dst_high, src_low, Operand(shift));
     mov(dst_low, Operand(0));
   } else {
@@ -1031,7 +993,7 @@ void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
   rsb(scratch, shift, Operand(32), SetCC);
   b(gt, &less_than_32);
   // If shift >= 32
-  and_(scratch, shift, Operand(0x1f));
+  and_(scratch, shift, Operand(0x1F));
   lsr(dst_low, src_high, Operand(scratch));
   mov(dst_high, Operand(0));
   jmp(&done);
@@ -1054,7 +1016,7 @@ void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
     mov(dst_low, src_high);
     mov(dst_high, Operand(0));
   } else if (shift > 32) {
-    shift &= 0x1f;
+    shift &= 0x1F;
     lsr(dst_low, src_high, Operand(shift));
     mov(dst_high, Operand(0));
   } else if (shift == 0) {
@@ -1078,7 +1040,7 @@ void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
   rsb(scratch, shift, Operand(32), SetCC);
   b(gt, &less_than_32);
   // If shift >= 32
-  and_(scratch, shift, Operand(0x1f));
+  and_(scratch, shift, Operand(0x1F));
   asr(dst_low, src_high, Operand(scratch));
   asr(dst_high, src_high, Operand(31));
   jmp(&done);
@@ -1100,7 +1062,7 @@ void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
     mov(dst_low, src_high);
     asr(dst_high, src_high, Operand(31));
   } else if (shift > 32) {
-    shift &= 0x1f;
+    shift &= 0x1F;
     asr(dst_low, src_high, Operand(shift));
     asr(dst_high, src_high, Operand(31));
   } else if (shift == 0) {
@@ -1218,7 +1180,6 @@ int TurboAssembler::ActivationFrameAlignment() {
 #endif  // V8_HOST_ARCH_ARM
 }
 
-
 void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
                                     bool argument_count_is_length) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
@@ -1244,6 +1205,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   ldr(cp, MemOperand(scratch));
 #ifdef DEBUG
+  mov(r3, Operand(Context::kInvalidContext));
   mov(scratch,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   str(r3, MemOperand(scratch));
@@ -1307,7 +1269,7 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
 
   if (FLAG_debug_code) {
     cmp(src_reg, dst_reg);
-    Check(lo, kStackAccessBelowStackPointer);
+    Check(lo, AbortReason::kStackAccessBelowStackPointer);
   }
 
   // Restore caller's frame pointer and return address now as they will be
@@ -1539,15 +1501,15 @@ void MacroAssembler::MaybeDropFrames() {
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
+  Push(Smi::kZero);  // Padding.
   // Link the current handler as the next handler.
   mov(r6,
       Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
   ldr(r5, MemOperand(r6));
   push(r5);
-
   // Set this new handler as the current one.
   str(sp, MemOperand(r6));
 }
@@ -1560,8 +1522,8 @@ void MacroAssembler::PopStackHandler() {
   pop(r1);
   mov(scratch,
       Operand(ExternalReference(IsolateAddressId::kHandlerAddress, isolate())));
-  add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(scratch));
+  add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
 }
 
 
@@ -1660,9 +1622,9 @@ void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
 
-  // If result is not saturated (0x7fffffff or 0x80000000), we are done.
+  // If result is not saturated (0x7FFFFFFF or 0x80000000), we are done.
   sub(scratch, result, Operand(1));
-  cmp(scratch, Operand(0x7ffffffe));
+  cmp(scratch, Operand(0x7FFFFFFE));
   b(lt, done);
 }
 
@@ -1765,12 +1727,12 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
   }
 }
 
-void TurboAssembler::Assert(Condition cond, BailoutReason reason) {
+void TurboAssembler::Assert(Condition cond, AbortReason reason) {
   if (emit_debug_code())
     Check(cond, reason);
 }
 
-void TurboAssembler::Check(Condition cond, BailoutReason reason) {
+void TurboAssembler::Check(Condition cond, AbortReason reason) {
   Label L;
   b(cond, &L);
   Abort(reason);
@@ -1778,11 +1740,11 @@ void TurboAssembler::Check(Condition cond, BailoutReason reason) {
   bind(&L);
 }
 
-void TurboAssembler::Abort(BailoutReason reason) {
+void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
 #ifdef DEBUG
-  const char* msg = GetBailoutReason(reason);
+  const char* msg = GetAbortReason(reason);
   if (msg != nullptr) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -1873,7 +1835,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
-    Check(ne, kOperandIsASmi);
+    Check(ne, AbortReason::kOperandIsASmi);
   }
 }
 
@@ -1882,7 +1844,7 @@ void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
-    Check(eq, kOperandIsNotSmi);
+    Check(eq, AbortReason::kOperandIsNotASmi);
   }
 }
 
@@ -1890,11 +1852,11 @@ void MacroAssembler::AssertFixedArray(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
-    Check(ne, kOperandIsASmiAndNotAFixedArray);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFixedArray);
     push(object);
     CompareObjectType(object, object, object, FIXED_ARRAY_TYPE);
     pop(object);
-    Check(eq, kOperandIsNotAFixedArray);
+    Check(eq, AbortReason::kOperandIsNotAFixedArray);
   }
 }
 
@@ -1902,11 +1864,11 @@ void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
-    Check(ne, kOperandIsASmiAndNotAFunction);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction);
     push(object);
     CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
     pop(object);
-    Check(eq, kOperandIsNotAFunction);
+    Check(eq, AbortReason::kOperandIsNotAFunction);
   }
 }
 
@@ -1915,18 +1877,18 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     tst(object, Operand(kSmiTagMask));
-    Check(ne, kOperandIsASmiAndNotABoundFunction);
+    Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction);
     push(object);
     CompareObjectType(object, object, object, JS_BOUND_FUNCTION_TYPE);
     pop(object);
-    Check(eq, kOperandIsNotABoundFunction);
+    Check(eq, AbortReason::kOperandIsNotABoundFunction);
   }
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
   tst(object, Operand(kSmiTagMask));
-  Check(ne, kOperandIsASmiAndNotAGeneratorObject);
+  Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
   // Load map
   Register map = object;
@@ -1945,7 +1907,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   bind(&do_check);
   // Restore generator object to register and perform assertion
   pop(object);
-  Check(eq, kOperandIsNotAGeneratorObject);
+  Check(eq, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
@@ -1957,7 +1919,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     b(eq, &done_checking);
     ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareRoot(scratch, Heap::kAllocationSiteMapRootIndex);
-    Assert(eq, kExpectedUndefinedOrCell);
+    Assert(eq, AbortReason::kExpectedUndefinedOrCell);
     bind(&done_checking);
   }
 }

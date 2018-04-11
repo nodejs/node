@@ -60,8 +60,8 @@ class MipsDebugger {
   void PrintAllRegsIncludingFPU();
 
  private:
-  // We set the breakpoint code to 0xfffff to easily recognize it.
-  static const Instr kBreakpointInstr = SPECIAL | BREAK | 0xfffff << 6;
+  // We set the breakpoint code to 0xFFFFF to easily recognize it.
+  static const Instr kBreakpointInstr = SPECIAL | BREAK | 0xFFFFF << 6;
   static const Instr kNopInstr =  0x0;
 
   Simulator* sim_;
@@ -808,6 +808,10 @@ void Simulator::set_last_debugger_input(char* input) {
   last_debugger_input_ = input;
 }
 
+void Simulator::SetRedirectInstruction(Instruction* instruction) {
+  instruction->SetInstructionBits(rtCallRedirInstr);
+}
+
 void Simulator::FlushICache(base::CustomMatcherHashMap* i_cache,
                             void* start_addr, size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
@@ -878,21 +882,12 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 }
 
 
-void Simulator::Initialize(Isolate* isolate) {
-  if (isolate->simulator_initialized()) return;
-  isolate->set_simulator_initialized(true);
-  ::v8::internal::ExternalReference::set_redirector(isolate,
-                                                    &RedirectExternalReference);
-}
-
-
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == nullptr) {
     i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
-  Initialize(isolate);
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_ = reinterpret_cast<char*>(malloc(stack_size_));
@@ -932,101 +927,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 
 Simulator::~Simulator() { free(stack_); }
-
-
-// When the generated code calls an external reference we need to catch that in
-// the simulator.  The external reference will be a function compiled for the
-// host architecture.  We need to call that function instead of trying to
-// execute it with the simulator.  We do that by redirecting the external
-// reference to a swi (software-interrupt) instruction that is handled by
-// the simulator.  We write the original destination of the jump just at a known
-// offset from the swi instruction so the simulator knows what to call.
-class Redirection {
- public:
-  Redirection(Isolate* isolate, void* external_function,
-              ExternalReference::Type type)
-      : external_function_(external_function),
-        swi_instruction_(rtCallRedirInstr),
-        type_(type),
-        next_(nullptr) {
-    next_ = isolate->simulator_redirection();
-    Simulator::current(isolate)->
-        FlushICache(isolate->simulator_i_cache(),
-                    reinterpret_cast<void*>(&swi_instruction_),
-                    Instruction::kInstrSize);
-    isolate->set_simulator_redirection(this);
-  }
-
-  void* address_of_swi_instruction() {
-    return reinterpret_cast<void*>(&swi_instruction_);
-  }
-
-  void* external_function() { return external_function_; }
-  ExternalReference::Type type() { return type_; }
-
-  static Redirection* Get(Isolate* isolate, void* external_function,
-                          ExternalReference::Type type) {
-    Redirection* current = isolate->simulator_redirection();
-    for (; current != nullptr; current = current->next_) {
-      if (current->external_function_ == external_function &&
-          current->type_ == type) {
-        return current;
-      }
-    }
-    return new Redirection(isolate, external_function, type);
-  }
-
-  static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
-    char* addr_of_swi = reinterpret_cast<char*>(swi_instruction);
-    char* addr_of_redirection =
-        addr_of_swi - offsetof(Redirection, swi_instruction_);
-    return reinterpret_cast<Redirection*>(addr_of_redirection);
-  }
-
-  static void* ReverseRedirection(int32_t reg) {
-    Redirection* redirection = FromSwiInstruction(
-        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
-    return redirection->external_function();
-  }
-
-  static void DeleteChain(Redirection* redirection) {
-    while (redirection != nullptr) {
-      Redirection* next = redirection->next_;
-      delete redirection;
-      redirection = next;
-    }
-  }
-
- private:
-  void* external_function_;
-  uint32_t swi_instruction_;
-  ExternalReference::Type type_;
-  Redirection* next_;
-};
-
-
-// static
-void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
-                         Redirection* first) {
-  Redirection::DeleteChain(first);
-  if (i_cache != nullptr) {
-    for (base::CustomMatcherHashMap::Entry* entry = i_cache->Start();
-         entry != nullptr; entry = i_cache->Next(entry)) {
-      delete static_cast<CachePage*>(entry->value);
-    }
-    delete i_cache;
-  }
-}
-
-
-void* Simulator::RedirectExternalReference(Isolate* isolate,
-                                           void* external_function,
-                                           ExternalReference::Type type) {
-  base::LockGuard<base::Mutex> lock_guard(
-      isolate->simulator_redirection_mutex());
-  Redirection* redirection = Redirection::Get(isolate, external_function, type);
-  return redirection->address_of_swi_instruction();
-}
 
 
 // Get the active Simulator for the current thread.
@@ -1105,7 +1005,7 @@ void Simulator::set_fpu_register_double(int fpureg, double value) {
   } else {
     DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
     int64_t i64 = bit_cast<int64_t>(value);
-    set_fpu_register_word(fpureg, i64 & 0xffffffff);
+    set_fpu_register_word(fpureg, i64 & 0xFFFFFFFF);
     set_fpu_register_word(fpureg + 1, i64 >> 32);
   }
 }
@@ -1152,19 +1052,19 @@ int64_t Simulator::get_fpu_register(int fpureg) const {
 
 int32_t Simulator::get_fpu_register_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xffffffff);
+  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xFFFFFFFF);
 }
 
 
 int32_t Simulator::get_fpu_register_signed_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xffffffff);
+  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xFFFFFFFF);
 }
 
 
 int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>((FPUregisters_[fpureg * 2] >> 32) & 0xffffffff);
+  return static_cast<int32_t>((FPUregisters_[fpureg * 2] >> 32) & 0xFFFFFFFF);
 }
 
 
@@ -2204,7 +2104,7 @@ void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
 uint32_t Simulator::ReadBU(int32_t addr) {
   uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
   TraceMemRd(addr, static_cast<int32_t>(*ptr));
-  return *ptr & 0xff;
+  return *ptr & 0xFF;
 }
 
 
@@ -2318,7 +2218,7 @@ void Simulator::SoftwareInterrupt() {
 
   // We first check if we met a call_rt_redirected.
   if (instr_.InstructionBits() == rtCallRedirInstr) {
-    Redirection* redirection = Redirection::FromSwiInstruction(instr_.instr());
+    Redirection* redirection = Redirection::FromInstruction(instr_.instr());
     int32_t arg0 = get_register(a0);
     int32_t arg1 = get_register(a1);
     int32_t arg2 = get_register(a2);
@@ -2603,7 +2503,7 @@ void Simulator::DisableStop(uint32_t code) {
 
 void Simulator::IncreaseStopCounter(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
-  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
+  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF("Stop counter for code %i has overflowed.\n"
            "Enabling this code and reseting the counter to 0.\n", code);
     watched_stops_[code].count = 0;
@@ -3102,8 +3002,8 @@ void Simulator::DecodeTypeRegisterDRsType() {
 
       // Extracting sign, exponent and mantissa from the input double
       uint32_t sign = (classed >> 63) & 1;
-      uint32_t exponent = (classed >> 52) & 0x00000000000007ff;
-      uint64_t mantissa = classed & 0x000fffffffffffff;
+      uint32_t exponent = (classed >> 52) & 0x00000000000007FF;
+      uint64_t mantissa = classed & 0x000FFFFFFFFFFFFF;
       uint64_t result;
       double dResult;
 
@@ -3124,7 +3024,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       // Setting flags if double is NaN
       signalingNan = false;
       quietNan = false;
-      if (!negInf && !posInf && exponent == 0x7ff) {
+      if (!negInf && !posInf && exponent == 0x7FF) {
         quietNan = ((mantissa & 0x0008000000000000) != 0) &&
                    ((mantissa & (0x0008000000000000 - 1)) == 0);
         signalingNan = !quietNan;
@@ -3417,8 +3317,8 @@ void Simulator::DecodeTypeRegisterSRsType() {
 
       // Extracting sign, exponent and mantissa from the input float
       uint32_t sign = (classed >> 31) & 1;
-      uint32_t exponent = (classed >> 23) & 0x000000ff;
-      uint32_t mantissa = classed & 0x007fffff;
+      uint32_t exponent = (classed >> 23) & 0x000000FF;
+      uint32_t mantissa = classed & 0x007FFFFF;
       uint32_t result;
       float fResult;
 
@@ -3439,7 +3339,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       // Setting flags if float is NaN
       signalingNan = false;
       quietNan = false;
-      if (!negInf && !posInf && (exponent == 0xff)) {
+      if (!negInf && !posInf && (exponent == 0xFF)) {
         quietNan = ((mantissa & 0x00200000) == 0) &&
                    ((mantissa & (0x00200000 - 1)) == 0);
         signalingNan = !quietNan;
@@ -3994,12 +3894,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case MULT:
       i64hilo = static_cast<int64_t>(rs()) * static_cast<int64_t>(rt());
       if (!IsMipsArchVariant(kMips32r6)) {
-        set_register(LO, static_cast<int32_t>(i64hilo & 0xffffffff));
+        set_register(LO, static_cast<int32_t>(i64hilo & 0xFFFFFFFF));
         set_register(HI, static_cast<int32_t>(i64hilo >> 32));
       } else {
         switch (sa()) {
           case MUL_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(i64hilo & 0xffffffff));
+            SetResult(rd_reg(), static_cast<int32_t>(i64hilo & 0xFFFFFFFF));
             break;
           case MUH_OP:
             SetResult(rd_reg(), static_cast<int32_t>(i64hilo >> 32));
@@ -4013,12 +3913,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case MULTU:
       u64hilo = static_cast<uint64_t>(rs_u()) * static_cast<uint64_t>(rt_u());
       if (!IsMipsArchVariant(kMips32r6)) {
-        set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
+        set_register(LO, static_cast<int32_t>(u64hilo & 0xFFFFFFFF));
         set_register(HI, static_cast<int32_t>(u64hilo >> 32));
       } else {
         switch (sa()) {
           case MUL_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(u64hilo & 0xffffffff));
+            SetResult(rd_reg(), static_cast<int32_t>(u64hilo & 0xFFFFFFFF));
             break;
           case MUH_OP:
             SetResult(rd_reg(), static_cast<int32_t>(u64hilo >> 32));
@@ -4265,7 +4165,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
           // Reverse the bit in byte for each individual byte
           for (int i = 0; i < 4; i++) {
             output = output >> 8;
-            i_byte = input & 0xff;
+            i_byte = input & 0xFF;
 
             // Fast way to reverse bits in byte
             // Devised by Sean Anderson, July 13, 2001
@@ -5258,8 +5158,8 @@ void Msa3RInstrHelper_shuffle(const uint32_t opcode, T_reg ws, T_reg wt,
       wd_p[2 * i + 1] = ws_p[2 * i + 1];
       break;
     case VSHF: {
-      const int mask_not_valid = 0xc0;
-      const int mask_6_bits = 0x3f;
+      const int mask_not_valid = 0xC0;
+      const int mask_6_bits = 0x3F;
       if ((wd_p[i] & mask_not_valid)) {
         wd_p[i] = 0;
       } else {
@@ -5658,7 +5558,7 @@ void Simulator::DecodeTypeMsa3RF() {
         break;                                                       \
       }                                                              \
       /* Infinity */                                                 \
-      dst = PACK_FLOAT16(aSign, 0x1f, 0);                            \
+      dst = PACK_FLOAT16(aSign, 0x1F, 0);                            \
       break;                                                         \
     } else if (aExp == 0 && aFrac == 0) {                            \
       dst = PACK_FLOAT16(aSign, 0, 0);                               \
@@ -5672,13 +5572,13 @@ void Simulator::DecodeTypeMsa3RF() {
       aExp -= 0x71;                                                  \
       if (aExp < 1) {                                                \
         /* Will be denormal in halfprec */                           \
-        mask = 0x00ffffff;                                           \
+        mask = 0x00FFFFFF;                                           \
         if (aExp >= -11) {                                           \
           mask >>= 11 + aExp;                                        \
         }                                                            \
       } else {                                                       \
         /* Normal number in halfprec */                              \
-        mask = 0x00001fff;                                           \
+        mask = 0x00001FFF;                                           \
       }                                                              \
       switch (MSACSR_ & 3) {                                         \
         case kRoundToNearest:                                        \
@@ -5699,7 +5599,7 @@ void Simulator::DecodeTypeMsa3RF() {
       }                                                              \
       rounding_bumps_exp = (aFrac + increment >= 0x01000000);        \
       if (aExp > maxexp || (aExp == maxexp && rounding_bumps_exp)) { \
-        dst = PACK_FLOAT16(aSign, 0x1f, 0);                          \
+        dst = PACK_FLOAT16(aSign, 0x1F, 0);                          \
         break;                                                       \
       }                                                              \
       aFrac += increment;                                            \
@@ -6213,8 +6113,8 @@ template <typename T_int, typename T_fp, typename T_reg>
 T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
   switch (opcode) {
 #define EXTRACT_FLOAT16_SIGN(fp16) (fp16 >> 15)
-#define EXTRACT_FLOAT16_EXP(fp16) (fp16 >> 10 & 0x1f)
-#define EXTRACT_FLOAT16_FRAC(fp16) (fp16 & 0x3ff)
+#define EXTRACT_FLOAT16_EXP(fp16) (fp16 >> 10 & 0x1F)
+#define EXTRACT_FLOAT16_FRAC(fp16) (fp16 & 0x3FF)
 #define PACK_FLOAT32(sign, exp, frac) \
   static_cast<uint32_t>(((sign) << 31) + ((exp) << 23) + (frac))
 #define FEXUP_DF(src_index)                                                   \
@@ -6224,9 +6124,9 @@ T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
   aSign = EXTRACT_FLOAT16_SIGN(element);                                      \
   aExp = EXTRACT_FLOAT16_EXP(element);                                        \
   aFrac = EXTRACT_FLOAT16_FRAC(element);                                      \
-  if (V8_LIKELY(aExp && aExp != 0x1f)) {                                      \
+  if (V8_LIKELY(aExp && aExp != 0x1F)) {                                      \
     return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                     \
-  } else if (aExp == 0x1f) {                                                  \
+  } else if (aExp == 0x1F) {                                                  \
     if (aFrac) {                                                              \
       return bit_cast<int32_t>(std::numeric_limits<float>::quiet_NaN());      \
     } else {                                                                  \
@@ -6389,7 +6289,7 @@ void Simulator::DecodeTypeImmediate() {
   int32_t ft_reg = instr_.FtValue();  // Destination register.
 
   // Zero extended immediate.
-  uint32_t oe_imm16 = 0xffff & imm16;
+  uint32_t oe_imm16 = 0xFFFF & imm16;
   // Sign extended immediate.
   int32_t se_imm16 = imm16;
 
@@ -6438,11 +6338,11 @@ void Simulator::DecodeTypeImmediate() {
     const int32_t bitsIn16Int = sizeof(int16_t) * kBitsPerByte;
     if (do_branch) {
       if (FLAG_debug_code) {
-        int16_t bits = imm16 & 0xfc;
+        int16_t bits = imm16 & 0xFC;
         if (imm16 >= 0) {
           CHECK_EQ(bits, 0);
         } else {
-          CHECK_EQ(bits ^ 0xfc, 0);
+          CHECK_EQ(bits ^ 0xFC, 0);
         }
       }
       // jump range :[pc + kInstrSize - 512 * kInstrSize,
@@ -6899,7 +6799,7 @@ void Simulator::DecodeTypeImmediate() {
               break;
             }
             case ADDIUPC: {
-              int32_t se_imm19 = imm19 | ((imm19 & 0x40000) ? 0xfff80000 : 0);
+              int32_t se_imm19 = imm19 | ((imm19 & 0x40000) ? 0xFFF80000 : 0);
               alu_out = current_pc + (se_imm19 << 2);
               break;
             }
@@ -6987,7 +6887,7 @@ void Simulator::DecodeTypeJump() {
   // Get current pc.
   int32_t current_pc = get_pc();
   // Get unchanged bits of pc.
-  int32_t pc_high_bits = current_pc & 0xf0000000;
+  int32_t pc_high_bits = current_pc & 0xF0000000;
   // Next pc.
 
   int32_t next_pc = pc_high_bits | (simInstr.Imm26Value() << 2);
@@ -7150,18 +7050,16 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, fp_val);
 }
 
-
-int32_t Simulator::Call(byte* entry, int argument_count, ...) {
-  va_list parameters;
-  va_start(parameters, argument_count);
+intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+                             const intptr_t* arguments) {
   // Set up arguments.
 
   // First four arguments passed in registers.
-  DCHECK_GE(argument_count, 4);
-  set_register(a0, va_arg(parameters, int32_t));
-  set_register(a1, va_arg(parameters, int32_t));
-  set_register(a2, va_arg(parameters, int32_t));
-  set_register(a3, va_arg(parameters, int32_t));
+  int reg_arg_count = std::min(4, argument_count);
+  if (reg_arg_count > 0) set_register(a0, arguments[0]);
+  if (reg_arg_count > 1) set_register(a1, arguments[1]);
+  if (reg_arg_count > 2) set_register(a2, arguments[2]);
+  if (reg_arg_count > 3) set_register(a3, arguments[3]);
 
   // Remaining arguments passed on stack.
   int original_stack = get_register(sp);
@@ -7173,10 +7071,8 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   }
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  for (int i = 4; i < argument_count; i++) {
-    stack_argument[i - 4 + kCArgSlotCount] = va_arg(parameters, int32_t);
-  }
-  va_end(parameters);
+  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
+         (argument_count - reg_arg_count) * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -7185,8 +7081,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  int32_t result = get_register(v0);
-  return result;
+  return get_register(v0);
 }
 
 

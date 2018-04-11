@@ -99,10 +99,9 @@ TF_BUILTIN(NonPrimitiveToPrimitive_String, ConversionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(StringToNumber, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kArgument);
 
-  Return(StringToNumber(context, input));
+  Return(StringToNumber(input));
 }
 
 TF_BUILTIN(ToName, CodeStubAssembler) {
@@ -145,10 +144,9 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
 
 // ES section #sec-tostring-applied-to-the-number-type
 TF_BUILTIN(NumberToString, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kArgument);
 
-  Return(NumberToString(context, input));
+  Return(NumberToString(input));
 }
 
 // ES section #sec-tostring
@@ -330,7 +328,14 @@ TF_BUILTIN(ToInteger, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kArgument);
 
-  Return(ToInteger(context, input));
+  Return(ToInteger(context, input, kNoTruncation));
+}
+
+TF_BUILTIN(ToInteger_TruncateMinusZero, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Return(ToInteger(context, input, kTruncateMinusZero));
 }
 
 // ES6 section 7.1.13 ToObject (argument)

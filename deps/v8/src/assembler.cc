@@ -131,14 +131,14 @@ static struct V8_ALIGNED(16) {
 static struct V8_ALIGNED(16) {
   uint64_t a;
   uint64_t b;
-} double_absolute_constant = {V8_UINT64_C(0x7FFFFFFFFFFFFFFF),
-                              V8_UINT64_C(0x7FFFFFFFFFFFFFFF)};
+} double_absolute_constant = {uint64_t{0x7FFFFFFFFFFFFFFF},
+                              uint64_t{0x7FFFFFFFFFFFFFFF}};
 
 static struct V8_ALIGNED(16) {
   uint64_t a;
   uint64_t b;
-} double_negate_constant = {V8_UINT64_C(0x8000000000000000),
-                            V8_UINT64_C(0x8000000000000000)};
+} double_negate_constant = {uint64_t{0x8000000000000000},
+                            uint64_t{0x8000000000000000}};
 
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
@@ -351,7 +351,7 @@ void RelocInfo::set_target_address(Isolate* isolate, Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
-  Assembler::set_target_address_at(isolate, pc_, host_, target,
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_, target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
       IsCodeTarget(rmode_)) {
@@ -801,6 +801,16 @@ ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
   return ExternalReference(isolate->builtins()->builtins_table_address());
 }
 
+ExternalReference ExternalReference::handle_scope_implementer_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->handle_scope_implementer_address());
+}
+
+ExternalReference ExternalReference::pending_microtask_count_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->pending_microtask_count_address());
+}
+
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->interpreter()->dispatch_table_address());
@@ -1000,6 +1010,16 @@ ExternalReference ExternalReference::wasm_word32_popcnt(Isolate* isolate) {
 ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word32_rol(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_rol_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word32_ror(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_ror_wrapper)));
 }
 
 static void f64_acos_wrapper(double* param) {
@@ -1512,6 +1532,12 @@ ExternalReference ExternalReference::runtime_function_table_address(
     Isolate* isolate) {
   return ExternalReference(
       const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
+}
+
+ExternalReference ExternalReference::invalidate_prototype_chains_function(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
 }
 
 double power_helper(Isolate* isolate, double x, double y) {

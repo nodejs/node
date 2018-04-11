@@ -106,7 +106,7 @@ fs.readFile('./foo.txt', (err, body) => {
 <!-- type=misc -->
 
 To customize the default module resolution, loader hooks can optionally be
-provided via a `--loader ./loader-name.mjs` argument to Node.
+provided via a `--loader ./loader-name.mjs` argument to Node.js.
 
 When hooks are used they only apply to ES module loading and not to any
 CommonJS modules loaded.
@@ -142,15 +142,15 @@ module. This can be one of the following:
 
 | `format` | Description |
 | --- | --- |
-| `"esm"` | Load a standard JavaScript module |
-| `"cjs"` | Load a node-style CommonJS module |
-| `"builtin"` | Load a node builtin CommonJS module |
-| `"json"` | Load a JSON file |
-| `"addon"` | Load a [C++ Addon][addons] |
-| `"dynamic"` | Use a [dynamic instantiate hook][] |
+| `'esm'` | Load a standard JavaScript module |
+| `'cjs'` | Load a node-style CommonJS module |
+| `'builtin'` | Load a node builtin CommonJS module |
+| `'json'` | Load a JSON file |
+| `'addon'` | Load a [C++ Addon][addons] |
+| `'dynamic'` | Use a [dynamic instantiate hook][] |
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
-rules with only JS file extension and Node builtin modules support could
+rules with only JS file extension and Node.js builtin modules support could
 be written:
 
 ```js
@@ -203,7 +203,7 @@ would load the module `x.js` as an ES module with relative resolution support
 
 To create a custom dynamic module that doesn't correspond to one of the
 existing `format` interpretations, the `dynamicInstantiate` hook can be used.
-This hook is called only for modules that return `format: "dynamic"` from
+This hook is called only for modules that return `format: 'dynamic'` from
 the `resolve` hook.
 
 ```js

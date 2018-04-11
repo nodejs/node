@@ -1,33 +1,61 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
+const { SystemError } = require('internal/errors');
+const uv = process.binding('uv');
+
+function getExpectedError(type) {
+  const code = common.isWindows ? 'ENOTSOCK' : 'EBADF';
+  const message = common.isWindows ?
+    'socket operation on non-socket' : 'bad file descriptor';
+  const errno = common.isWindows ? uv.UV_ENOTSOCK : uv.UV_EBADF;
+  const syscall = `uv_${type}_buffer_size`;
+  const suffix = common.isWindows ?
+    'ENOTSOCK (socket operation on non-socket)' : 'EBADF (bad file descriptor)';
+  const error = {
+    code: 'ERR_SOCKET_BUFFER_SIZE',
+    type: SystemError,
+    message: `Could not get or set buffer size: ${syscall} returned ${suffix}`,
+    info: {
+      code,
+      message,
+      errno,
+      syscall
+    }
+  };
+  return error;
+}
 
 {
   // Should throw error if the socket is never bound.
-  const errorObj = {
-    code: 'ERR_SOCKET_BUFFER_SIZE',
-    type: Error,
-    message: /^Could not get or set buffer size:.*$/
-  };
+  const errorObj = getExpectedError('send');
 
   const socket = dgram.createSocket('udp4');
-
-  common.expectsError(() => {
-    socket.setRecvBufferSize(8192);
-  }, errorObj);
 
   common.expectsError(() => {
     socket.setSendBufferSize(8192);
   }, errorObj);
 
   common.expectsError(() => {
-    socket.getRecvBufferSize();
+    socket.getSendBufferSize();
+  }, errorObj);
+}
+
+{
+  const socket = dgram.createSocket('udp4');
+
+  // Should throw error if the socket is never bound.
+  const errorObj = getExpectedError('recv');
+
+  common.expectsError(() => {
+    socket.setRecvBufferSize(8192);
   }, errorObj);
 
   common.expectsError(() => {
-    socket.getSendBufferSize();
+    socket.getRecvBufferSize();
   }, errorObj);
 }
 
@@ -73,22 +101,48 @@ const dgram = require('dgram');
   }));
 }
 
-function checkBufferSizeError(type, size) {
+{
+  const info = {
+    code: 'EINVAL',
+    message: 'invalid argument',
+    errno: uv.UV_EINVAL,
+    syscall: 'uv_recv_buffer_size'
+  };
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
-    type: Error,
-    message: /^Could not get or set buffer size:.*$/
+    type: SystemError,
+    message: 'Could not get or set buffer size: uv_recv_buffer_size ' +
+             'returned EINVAL (invalid argument)',
+    info
   };
-  const functionName = `set${type.charAt(0).toUpperCase()}${type.slice(1)}` +
-    'BufferSize';
   const socket = dgram.createSocket('udp4');
   socket.bind(common.mustCall(() => {
     common.expectsError(() => {
-      socket[functionName](size);
+      socket.setRecvBufferSize(2147483648);
     }, errorObj);
     socket.close();
   }));
 }
 
-checkBufferSizeError('recv', 2147483648);
-checkBufferSizeError('send', 2147483648);
+{
+  const info = {
+    code: 'EINVAL',
+    message: 'invalid argument',
+    errno: uv.UV_EINVAL,
+    syscall: 'uv_send_buffer_size'
+  };
+  const errorObj = {
+    code: 'ERR_SOCKET_BUFFER_SIZE',
+    type: SystemError,
+    message: 'Could not get or set buffer size: uv_send_buffer_size ' +
+             'returned EINVAL (invalid argument)',
+    info
+  };
+  const socket = dgram.createSocket('udp4');
+  socket.bind(common.mustCall(() => {
+    common.expectsError(() => {
+      socket.setSendBufferSize(2147483648);
+    }, errorObj);
+    socket.close();
+  }));
+}

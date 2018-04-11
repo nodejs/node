@@ -20,9 +20,9 @@ internationalization functionality.
 
 ## How to upgrade ICU
 
-- Make sure your node workspace is clean (clean `git status`) should be
+- Make sure your Node.js workspace is clean (clean `git status`) should be
   sufficient.
-- Configure Node with the specific [ICU version](http://icu-project.org/download)
+- Configure Node.js with the specific [ICU version](http://icu-project.org/download)
   you want to upgrade to, for example:
 
 ```shell
@@ -40,7 +40,7 @@ make
   - Specifically, look for the lists in `sources!` in the `icu-generic.gyp` for
   files to exclude.
 
-- Verify the node build works:
+- Verify the Node.js build works:
 
 ```shell
 make test-ci
@@ -62,7 +62,7 @@ new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
 python tools/icu/shrink-icu-src.py
 ```
 
-- Now, do a clean rebuild of node to test:
+- Now, do a clean rebuild of Node.js to test:
 
 ```shell
 make -k distclean
@@ -84,7 +84,7 @@ new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
 You are ready to check in the updated `deps/small-icu`. This is a big commit,
 so make this a separate commit from the smaller changes.
 
-- Now, rebuild the Node license.
+- Now, rebuild the Node.js license.
 
 ```shell
 # clean up - remove deps/icu
@@ -116,7 +116,7 @@ make test-ci
 
 ## Postscript about the tools
 
-The files in this directory were written for the node.js effort.
+The files in this directory were written for the Node.js effort.
 It was the intent of their author (Steven R. Loomis / srl295) to
 merge them upstream into ICU, pending much discussion within the
 ICU-TC.
@@ -125,7 +125,7 @@ ICU-TC.
 configuration file for the `icutrim.py` script. `icutrim.py` and
 `iculslocs.cpp` may themselves be superseded by components built into
 ICU in the future. As of this writing, however, the tools are separate
-entities within Node, although theyare being scrutinized by interested
+entities within Node.js, although theyare being scrutinized by interested
 members of the ICU-TC. The “upstream” ICU bugs are given below.
 
    * [#10919](http://bugs.icu-project.org/trac/ticket/10919)

@@ -17,6 +17,8 @@
 #include "unicode/dcfmtsym.h"
 #include "number_scientific.h"
 #include "number_compact.h"
+#include "uresimp.h"
+#include "ureslocs.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -86,6 +88,37 @@ const char16_t *getPatternForStyle(const Locale &locale, const char *nsName, Cld
     }
 
     return pattern;
+}
+
+struct CurrencyFormatInfoResult {
+    bool exists;
+    const char16_t* pattern;
+    const char16_t* decimalSeparator;
+    const char16_t* groupingSeparator;
+};
+CurrencyFormatInfoResult getCurrencyFormatInfo(const Locale& locale, const char* isoCode, UErrorCode& status) {
+    // TODO: Load this data in a centralized location like ICU4J?
+    // TODO: Parts of this same data are loaded in dcfmtsym.cpp; should clean up.
+    CurrencyFormatInfoResult result = { false, nullptr, nullptr, nullptr };
+    if (U_FAILURE(status)) return result;
+    CharString key;
+    key.append("Currencies/", status);
+    key.append(isoCode, status);
+    UErrorCode localStatus = status;
+    LocalUResourceBundlePointer bundle(ures_open(U_ICUDATA_CURR, locale.getName(), &localStatus));
+    ures_getByKeyWithFallback(bundle.getAlias(), key.data(), bundle.getAlias(), &localStatus);
+    if (U_SUCCESS(localStatus) && ures_getSize(bundle.getAlias())>2) { // the length is 3 if more data is present
+        ures_getByIndex(bundle.getAlias(), 2, bundle.getAlias(), &localStatus);
+        int32_t dummy;
+        result.exists = true;
+        result.pattern = ures_getStringByIndex(bundle.getAlias(), 0, &dummy, &localStatus);
+        result.decimalSeparator = ures_getStringByIndex(bundle.getAlias(), 1, &dummy, &localStatus);
+        result.groupingSeparator = ures_getStringByIndex(bundle.getAlias(), 2, &dummy, &localStatus);
+        status = localStatus;
+    } else if (localStatus != U_MISSING_RESOURCE_ERROR) {
+        status = localStatus;
+    }
+    return result;
 }
 
 inline bool unitIsCurrency(const MeasureUnit &unit) {
@@ -161,8 +194,9 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps &macros, bool safe,
     bool isPercent = isNoUnit && unitIsPercent(macros.unit);
     bool isPermille = isNoUnit && unitIsPermille(macros.unit);
     bool isCldrUnit = !isCurrency && !isNoUnit;
-    bool isAccounting =
-            macros.sign == UNUM_SIGN_ACCOUNTING || macros.sign == UNUM_SIGN_ACCOUNTING_ALWAYS;
+    bool isAccounting = macros.sign == UNUM_SIGN_ACCOUNTING
+            || macros.sign == UNUM_SIGN_ACCOUNTING_ALWAYS
+            || macros.sign == UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO;
     CurrencyUnit currency(kDefaultCurrency, status);
     if (isCurrency) {
         currency = CurrencyUnit(macros.unit, status); // Restore CurrencyUnit from MeasureUnit
@@ -185,29 +219,7 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps &macros, bool safe,
     }
     const char *nsName = U_SUCCESS(status) ? ns->getName() : "latn";
 
-    // Load and parse the pattern string.  It is used for grouping sizes and affixes only.
-    CldrPatternStyle patternStyle;
-    if (isPercent || isPermille) {
-        patternStyle = CLDR_PATTERN_STYLE_PERCENT;
-    } else if (!isCurrency || unitWidth == UNUM_UNIT_WIDTH_FULL_NAME) {
-        patternStyle = CLDR_PATTERN_STYLE_DECIMAL;
-    } else if (isAccounting) {
-        // NOTE: Although ACCOUNTING and ACCOUNTING_ALWAYS are only supported in currencies right now,
-        // the API contract allows us to add support to other units in the future.
-        patternStyle = CLDR_PATTERN_STYLE_ACCOUNTING;
-    } else {
-        patternStyle = CLDR_PATTERN_STYLE_CURRENCY;
-    }
-    const char16_t *pattern = getPatternForStyle(macros.locale, nsName, patternStyle, status);
-    auto patternInfo = new ParsedPatternInfo();
-    fPatternInfo.adoptInstead(patternInfo);
-    PatternParser::parseToPatternInfo(UnicodeString(pattern), *patternInfo, status);
-
-    /////////////////////////////////////////////////////////////////////////////////////
-    /// START POPULATING THE DEFAULT MICROPROPS AND BUILDING THE MICROPROPS GENERATOR ///
-    /////////////////////////////////////////////////////////////////////////////////////
-
-    // Symbols
+    // Resolve the symbols. Do this here because currency may need to customize them.
     if (macros.symbols.isDecimalFormatSymbols()) {
         fMicros.symbols = macros.symbols.getDecimalFormatSymbols();
     } else {
@@ -215,6 +227,50 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps &macros, bool safe,
         // Give ownership to the NumberFormatterImpl.
         fSymbols.adoptInstead(fMicros.symbols);
     }
+
+    // Load and parse the pattern string. It is used for grouping sizes and affixes only.
+    // If we are formatting currency, check for a currency-specific pattern.
+    const char16_t* pattern = nullptr;
+    if (isCurrency) {
+        CurrencyFormatInfoResult info = getCurrencyFormatInfo(macros.locale, currency.getSubtype(), status);
+        if (info.exists) {
+            pattern = info.pattern;
+            // It's clunky to clone an object here, but this code is not frequently executed.
+            DecimalFormatSymbols* symbols = new DecimalFormatSymbols(*fMicros.symbols);
+            fMicros.symbols = symbols;
+            fSymbols.adoptInstead(symbols);
+            symbols->setSymbol(
+                DecimalFormatSymbols::ENumberFormatSymbol::kMonetarySeparatorSymbol,
+                UnicodeString(info.decimalSeparator),
+                FALSE);
+            symbols->setSymbol(
+                DecimalFormatSymbols::ENumberFormatSymbol::kMonetaryGroupingSeparatorSymbol,
+                UnicodeString(info.groupingSeparator),
+                FALSE);
+        }
+    }
+    if (pattern == nullptr) {
+        CldrPatternStyle patternStyle;
+        if (isPercent || isPermille) {
+            patternStyle = CLDR_PATTERN_STYLE_PERCENT;
+        } else if (!isCurrency || unitWidth == UNUM_UNIT_WIDTH_FULL_NAME) {
+            patternStyle = CLDR_PATTERN_STYLE_DECIMAL;
+        } else if (isAccounting) {
+            // NOTE: Although ACCOUNTING and ACCOUNTING_ALWAYS are only supported in currencies right now,
+            // the API contract allows us to add support to other units in the future.
+            patternStyle = CLDR_PATTERN_STYLE_ACCOUNTING;
+        } else {
+            patternStyle = CLDR_PATTERN_STYLE_CURRENCY;
+        }
+        pattern = getPatternForStyle(macros.locale, nsName, patternStyle, status);
+    }
+    auto patternInfo = new ParsedPatternInfo();
+    fPatternInfo.adoptInstead(patternInfo);
+    PatternParser::parseToPatternInfo(UnicodeString(pattern), *patternInfo, status);
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    /// START POPULATING THE DEFAULT MICROPROPS AND BUILDING THE MICROPROPS GENERATOR ///
+    /////////////////////////////////////////////////////////////////////////////////////
 
     // Rounding strategy
     if (!macros.rounder.isBogus()) {
@@ -233,11 +289,11 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps &macros, bool safe,
         fMicros.grouping = macros.grouper;
     } else if (macros.notation.fType == Notation::NTN_COMPACT) {
         // Compact notation uses minGrouping by default since ICU 59
-        fMicros.grouping = Grouper::minTwoDigits();
+        fMicros.grouping = Grouper::forStrategy(UNUM_GROUPING_MIN2);
     } else {
-        fMicros.grouping = Grouper::defaults();
+        fMicros.grouping = Grouper::forStrategy(UNUM_GROUPING_AUTO);
     }
-    fMicros.grouping.setLocaleData(*fPatternInfo);
+    fMicros.grouping.setLocaleData(*fPatternInfo, macros.locale);
 
     // Padding strategy
     if (!macros.padder.isBogus()) {
@@ -308,6 +364,7 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps &macros, bool safe,
                         LongNameHandler::forMeasureUnit(
                                 macros.locale,
                                 macros.unit,
+                                macros.perUnit,
                                 unitWidth,
                                 resolvePluralRules(macros.rules, macros.locale, status),
                                 chain,

@@ -32,14 +32,11 @@ namespace {{domain.domain}} {
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if type.type == "object" %}
       {% if "properties" in type %}
-// {{type.description}}
 class {{type.id}};
       {% else %}
-// {{type.description}}
 using {{type.id}} = Object;
       {% endif %}
     {% elif type.type != "array" %}
-// {{type.description}}
 using {{type.id}} = {{protocol.resolve_type(type).type}};
     {% endif %}
   {% endfor %}
@@ -74,7 +71,6 @@ namespace {{param.name | to_title_case}}Enum {
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
 
-// {{type.description}}
 class {{config.protocol.export_macro}} {{type.id}} : public Serializable{% if protocol.is_exported(domain.domain, type.id) %}, public API::{{type.id}}{% endif %}{
     PROTOCOL_DISALLOW_COPY({{type.id}});
 public:

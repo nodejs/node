@@ -28,7 +28,7 @@
 
 /**
  * \file
- * \brief C++ API: Abstract base class for all number formats.
+ * \brief C++ API: Compatibility APIs for number formatting.
  */
 
 #if !UCONFIG_NO_FORMATTING
@@ -53,15 +53,15 @@ class StringEnumeration;
 #endif
 
 /**
+ * <p><strong>IMPORTANT:</strong> New users are strongly encouraged to see if
+ * numberformatter.h fits their use case.  Although not deprecated, this header
+ * is provided for backwards compatibility only.
+ * <hr/>
  *
  * Abstract base class for all number formats.  Provides interface for
  * formatting and parsing a number.  Also provides methods for
  * determining which locales have number formats, and what their names
  * are.
- *
- * <p><strong>NOTE:</strong> Starting in ICU 60, there is a new set of APIs for localized number
- * formatting that are designed to be an improvement over DecimalFormat.  New users are discouraged
- * from using DecimalFormat.  For more information, see numberformatter.h.
  *
  * \headerfile unicode/numfmt.h "unicode/numfmt.h"
  * <P>
@@ -708,6 +708,9 @@ public:
     /**
      * Create a default style NumberFormat for the current default locale.
      * The default formatting style is locale dependent.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createInstance(UErrorCode&);
@@ -716,6 +719,9 @@ public:
      * Create a default style NumberFormat for the specified locale.
      * The default formatting style is locale dependent.
      * @param inLocale    the given locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createInstance(const Locale& inLocale,
@@ -723,6 +729,9 @@ public:
 
     /**
      * Create a specific style NumberFormat for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param desiredLocale    the given locale.
      * @param style            the given style.
      * @param errorCode        Output param filled with success/failure status.
@@ -759,12 +768,18 @@ public:
 
     /**
      * Returns a currency format for the current default locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createCurrencyInstance(UErrorCode&);
 
     /**
      * Returns a currency format for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param inLocale    the given locale.
      * @stable ICU 2.0
      */
@@ -773,12 +788,18 @@ public:
 
     /**
      * Returns a percentage format for the current default locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createPercentInstance(UErrorCode&);
 
     /**
      * Returns a percentage format for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param inLocale    the given locale.
      * @stable ICU 2.0
      */
@@ -787,12 +808,18 @@ public:
 
     /**
      * Returns a scientific format for the current default locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @stable ICU 2.0
      */
     static NumberFormat* U_EXPORT2 createScientificInstance(UErrorCode&);
 
     /**
      * Returns a scientific format for the specified locale.
+     * <p>
+     * <strong>NOTE:</strong> New users are strongly encouraged to use
+     * {@link NumberFormatter} instead of NumberFormat.
      * @param inLocale    the given locale.
      * @stable ICU 2.0
      */

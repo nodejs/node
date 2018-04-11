@@ -97,9 +97,10 @@ function expectBody(expected) {
 
   parser.reinitialize(HTTPParser.REQUEST);
 
-  assert.throws(function() {
-    parser.execute(request, 0, request.length);
-  }, Error, 'hello world');
+  assert.throws(
+    () => { parser.execute(request, 0, request.length); },
+    { name: 'Error', message: 'hello world' }
+  );
 }
 
 

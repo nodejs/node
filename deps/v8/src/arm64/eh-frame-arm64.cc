@@ -9,7 +9,6 @@ namespace v8 {
 namespace internal {
 
 static const int kX0DwarfCode = 0;
-static const int kJsSpDwarfCode = 28;
 static const int kFpDwarfCode = 29;
 static const int kLrDwarfCode = 30;
 static const int kCSpDwarfCode = 31;
@@ -29,13 +28,11 @@ void EhFrameWriter::WriteInitialStateInCie() {
 // static
 int EhFrameWriter::RegisterToDwarfCode(Register name) {
   switch (name.code()) {
-    case kRegCode_x28:
-      return kJsSpDwarfCode;
     case kRegCode_x29:
       return kFpDwarfCode;
     case kRegCode_x30:
       return kLrDwarfCode;
-    case kRegCode_x31:
+    case kSPRegInternalCode:
       return kCSpDwarfCode;
     case kRegCode_x0:
       return kX0DwarfCode;
@@ -54,8 +51,6 @@ const char* EhFrameDisassembler::DwarfRegisterCodeToString(int code) {
       return "fp";
     case kLrDwarfCode:
       return "lr";
-    case kJsSpDwarfCode:
-      return "jssp";
     case kCSpDwarfCode:
       return "csp";  // This could be zr as well
     default:

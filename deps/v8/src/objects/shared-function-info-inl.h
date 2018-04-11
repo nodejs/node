@@ -80,6 +80,8 @@ AbstractCode* SharedFunctionInfo::abstract_code() {
   }
 }
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_wrapped,
+                    SharedFunctionInfo::IsWrappedBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
                     SharedFunctionInfo::AllowLazyCompilationBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,

@@ -822,27 +822,24 @@ static const UChar      chRParen    = 0x29;
 
 //------------------------------------------------------------------------------
 //
-//  stripRules    Return a rules string without unnecessary
-//                characters.
+//  stripRules    Return a rules string without extra spaces.
+//                (Comments are removed separately, during rule parsing.)
 //
 //------------------------------------------------------------------------------
 UnicodeString RBBIRuleScanner::stripRules(const UnicodeString &rules) {
     UnicodeString strippedRules;
-    int rulesLength = rules.length();
-    for (int idx = 0; idx < rulesLength; ) {
-        UChar ch = rules[idx++];
-        if (ch == chPound) {
-            while (idx < rulesLength
-                && ch != chCR && ch != chLF && ch != chNEL)
-            {
-                ch = rules[idx++];
-            }
+    int32_t rulesLength = rules.length();
+    bool skippingSpaces = false;
+
+    for (int32_t idx=0; idx<rulesLength; idx = rules.moveIndex32(idx, 1)) {
+        UChar32 cp = rules.char32At(idx);
+        bool whiteSpace = u_hasBinaryProperty(cp, UCHAR_PATTERN_WHITE_SPACE);
+        if (skippingSpaces && whiteSpace) {
+            continue;
         }
-        if (!u_isISOControl(ch)) {
-            strippedRules.append(ch);
-        }
+        strippedRules.append(cp);
+        skippingSpaces = whiteSpace;
     }
-    // strippedRules = strippedRules.unescape();
     return strippedRules;
 }
 
@@ -942,6 +939,7 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
             //  It will be treated as white-space, and serves to break up anything
             //    that might otherwise incorrectly clump together with a comment in
             //    the middle (a variable name, for example.)
+            int32_t commentStart = fScanIndex;
             for (;;) {
                 c.fChar = nextCharLL();
                 if (c.fChar == (UChar32)-1 ||  // EOF
@@ -949,6 +947,9 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
                     c.fChar == chLF     ||
                     c.fChar == chNEL    ||
                     c.fChar == chLS)       {break;}
+            }
+            for (int32_t i=commentStart; i<fNextIndex-1; ++i) {
+                fRB->fStrippedRules.setCharAt(i, u' ');
             }
         }
         if (c.fChar == (UChar32)-1) {

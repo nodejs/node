@@ -28,6 +28,7 @@
 #include "node_revert.h"
 #include "node_debug_options.h"
 #include "node_perf.h"
+#include "node_context_data.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -245,7 +246,7 @@ bool config_experimental_vm_modules = false;
 
 // Set in node.cc by ParseArgs when --loader is used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 std::string config_userland_loader;  // NOLINT(runtime/string)
 
 // Set by ParseArgs when --pending-deprecation or NODE_PENDING_DEPRECATION
@@ -258,7 +259,7 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
 // used.
 // Used in node_config.cc to set a constant on process.binding('config')
-// that is used by lib/internal/bootstrap_node.js
+// that is used by lib/internal/bootstrap/node.js
 bool config_expose_internals = false;
 
 bool v8_initialized = false;
@@ -1268,9 +1269,11 @@ void AppendExceptionLine(Environment* env,
   ScriptOrigin origin = message->GetScriptOrigin();
   node::Utf8Value filename(env->isolate(), message->GetScriptResourceName());
   const char* filename_string = *filename;
-  int linenum = message->GetLineNumber();
+  int linenum = message->GetLineNumber(env->context()).FromJust();
   // Print line of source code.
-  node::Utf8Value sourceline(env->isolate(), message->GetSourceLine());
+  MaybeLocal<String> source_line_maybe = message->GetSourceLine(env->context());
+  node::Utf8Value sourceline(env->isolate(),
+                             source_line_maybe.ToLocalChecked());
   const char* sourceline_string = *sourceline;
   if (strstr(sourceline_string, "node-do-not-add-exception-line") != nullptr)
     return;
@@ -1418,7 +1421,7 @@ static void ReportException(Environment* env,
         name.IsEmpty() ||
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
-      String::Utf8Value message(er);
+      String::Utf8Value message(env->isolate(), er);
 
       PrintErrorString("%s\n", *message ? *message :
                                           "<toString() threw exception>");
@@ -1470,13 +1473,13 @@ static Local<Value> ExecuteString(Environment* env,
     exit(3);
   }
 
-  Local<Value> result = script.ToLocalChecked()->Run();
+  MaybeLocal<Value> result = script.ToLocalChecked()->Run(env->context());
   if (result.IsEmpty()) {
     ReportException(env, try_catch);
     exit(4);
   }
 
-  return scope.Escape(result);
+  return scope.Escape(result.ToLocalChecked());
 }
 
 
@@ -1580,7 +1583,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value path(args.GetIsolate(), args[0]);
   int err = uv_chdir(*path);
   if (err) {
-    return env->ThrowUVException(err, "uv_chdir");
+    return env->ThrowUVException(err, "chdir", nullptr, *path, nullptr);
   }
 }
 
@@ -2285,15 +2288,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (mp->nm_version == -1) {
-    if (env->EmitNapiWarning()) {
-      if (ProcessEmitWarning(env, "N-API is an experimental feature and could "
-                                  "change at any time.").IsNothing()) {
-        dlib.Close();
-        return;
-      }
-    }
-  } else if (mp->nm_version != NODE_MODULE_VERSION) {
+  // -1 is used for N-API modules
+  if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
@@ -2525,7 +2521,7 @@ static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
   env->ThrowError(errmsg);
 }
 
-static void Binding(const FunctionCallbackInfo<Value>& args) {
+static void GetBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsString());
@@ -2552,7 +2548,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(exports);
 }
 
-static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
+static void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsString());
@@ -2567,7 +2563,7 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(exports);
 }
 
-static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
+static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   CHECK(args[0]->IsString());
@@ -2659,6 +2655,17 @@ static void EnvGetter(Local<Name> property,
 static void EnvSetter(Local<Name> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (config_pending_deprecation && env->EmitProcessEnvWarning() &&
+      !value->IsString() && !value->IsNumber() && !value->IsBoolean()) {
+    if (ProcessEmitDeprecationWarning(
+          env,
+          "Assigning any value other than a string, number, or boolean to a "
+          "process.env property is deprecated. Please make sure to convert the "
+          "value to a string before setting process.env with it.",
+          "DEP0104").IsNothing())
+      return;
+  }
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   node::Utf8Value val(info.GetIsolate(), value);
@@ -2816,13 +2823,6 @@ static Local<Object> GetFeatures(Environment* env) {
   obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "uv"), True(env->isolate()));
   // TODO(bnoordhuis) ping libuv
   obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"), True(env->isolate()));
-
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  Local<Boolean> tls_npn = True(env->isolate());
-#else
-  Local<Boolean> tls_npn = False(env->isolate());
-#endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_npn"), tls_npn);
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
   Local<Boolean> tls_alpn = True(env->isolate());
@@ -3265,10 +3265,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "uptime", Uptime);
   env->SetMethod(process, "memoryUsage", MemoryUsage);
 
-  env->SetMethod(process, "binding", Binding);
-  env->SetMethod(process, "_linkedBinding", LinkedBinding);
-  env->SetMethod(process, "_internalBinding", InternalBinding);
-
   env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
@@ -3306,8 +3302,10 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void LoadEnvironment(Environment* env) {
-  HandleScope handle_scope(env->isolate());
+
+static Local<Function> GetBootstrapper(Environment* env, Local<String> source,
+                                  Local<String> script_name) {
+  EscapableHandleScope scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
 
@@ -3316,20 +3314,61 @@ void LoadEnvironment(Environment* env) {
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  // Execute the lib/internal/bootstrap_node.js file which was included as a
-  // static C string in node_natives.h by node_js2c.
-  // 'internal_bootstrap_node_native' is the string containing that source code.
-  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "bootstrap_node.js");
-  Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
+  // Execute the bootstrapper javascript file
+  Local<Value> bootstrapper_v = ExecuteString(env, source, script_name);
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
     exit(10);
   }
-  // The bootstrap_node.js file returns a function 'f'
-  CHECK(f_value->IsFunction());
 
-  Local<Function> f = Local<Function>::Cast(f_value);
+  CHECK(bootstrapper_v->IsFunction());
+  Local<Function> bootstrapper = Local<Function>::Cast(bootstrapper_v);
+
+  return scope.Escape(bootstrapper);
+}
+
+static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
+                                int argc, Local<Value> argv[],
+                                Local<Value>* out) {
+  bool ret = bootstrapper->Call(
+      env->context(), Null(env->isolate()), argc, argv).ToLocal(out);
+
+  // If there was an error during bootstrap then it was either handled by the
+  // FatalException handler or it's unrecoverable (e.g. max call stack
+  // exceeded). Either way, clear the stack so that the AsyncCallbackScope
+  // destructor doesn't fail on the id check.
+  // There are only two ways to have a stack size > 1: 1) the user manually
+  // called MakeCallback or 2) user awaited during bootstrap, which triggered
+  // _tickCallback().
+  if (!ret) {
+    env->async_hooks()->clear_async_id_stack();
+  }
+
+  return ret;
+}
+
+
+void LoadEnvironment(Environment* env) {
+  HandleScope handle_scope(env->isolate());
+
+  TryCatch try_catch(env->isolate());
+  // Disable verbose mode to stop FatalException() handler from trying
+  // to handle the exception. Errors this early in the start-up phase
+  // are not safe to ignore.
+  try_catch.SetVerbose(false);
+
+  // The bootstrapper scripts are lib/internal/bootstrap/loaders.js and
+  // lib/internal/bootstrap/node.js, each included as a static C string
+  // defined in node_javascript.h, generated in node_javascript.cc by
+  // node_js2c.
+  Local<String> loaders_name =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "internal/bootstrap/loaders.js");
+  Local<Function> loaders_bootstrapper =
+      GetBootstrapper(env, LoadersBootstrapperSource(env), loaders_name);
+  Local<String> node_name =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "internal/bootstrap/node.js");
+  Local<Function> node_bootstrapper =
+      GetBootstrapper(env, NodeBootstrapperSource(env), node_name);
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
@@ -3356,25 +3395,47 @@ void LoadEnvironment(Environment* env) {
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
 
-  // Now we call 'f' with the 'process' variable that we've built up with
-  // all our bindings. Inside bootstrap_node.js and internal/process we'll
-  // take care of assigning things to their places.
+  // Create binding loaders
+  v8::Local<v8::Function> get_binding_fn =
+      env->NewFunctionTemplate(GetBinding)->GetFunction(env->context())
+          .ToLocalChecked();
 
-  // We start the process this way in order to be more modular. Developers
-  // who do not like how bootstrap_node.js sets up the module system but do
-  // like Node's I/O bindings may want to replace 'f' with their own function.
-  Local<Value> arg = env->process_object();
+  v8::Local<v8::Function> get_linked_binding_fn =
+      env->NewFunctionTemplate(GetLinkedBinding)->GetFunction(env->context())
+          .ToLocalChecked();
 
-  auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
-  // If there was an error during bootstrap then it was either handled by the
-  // FatalException handler or it's unrecoverable (e.g. max call stack
-  // exceeded). Either way, clear the stack so that the AsyncCallbackScope
-  // destructor doesn't fail on the id check.
-  // There are only two ways to have a stack size > 1: 1) the user manually
-  // called MakeCallback or 2) user awaited during bootstrap, which triggered
-  // _tickCallback().
-  if (ret.IsEmpty())
-    env->async_hooks()->clear_async_id_stack();
+  v8::Local<v8::Function> get_internal_binding_fn =
+      env->NewFunctionTemplate(GetInternalBinding)->GetFunction(env->context())
+          .ToLocalChecked();
+
+  Local<Value> loaders_bootstrapper_args[] = {
+    env->process_object(),
+    get_binding_fn,
+    get_linked_binding_fn,
+    get_internal_binding_fn
+  };
+
+  // Bootstrap internal loaders
+  Local<Value> bootstrapped_loaders;
+  if (!ExecuteBootstrapper(env, loaders_bootstrapper,
+                           arraysize(loaders_bootstrapper_args),
+                           loaders_bootstrapper_args,
+                           &bootstrapped_loaders)) {
+    return;
+  }
+
+  // Bootstrap Node.js
+  Local<Value> bootstrapped_node;
+  Local<Value> node_bootstrapper_args[] = {
+    env->process_object(),
+    bootstrapped_loaders
+  };
+  if (!ExecuteBootstrapper(env, node_bootstrapper,
+                           arraysize(node_bootstrapper_args),
+                           node_bootstrapper_args,
+                           &bootstrapped_node)) {
+    return;
+  }
 }
 
 static void PrintHelp() {
@@ -4221,7 +4282,7 @@ void Init(int* argc,
 #endif
 
   // Needed for access to V8 intrinsics.  Disabled again during bootstrapping,
-  // see lib/internal/bootstrap_node.js.
+  // see lib/internal/bootstrap/node.js.
   const char allow_natives_syntax[] = "--allow_natives_syntax";
   V8::SetFlagsFromString(allow_natives_syntax,
                          sizeof(allow_natives_syntax) - 1);
@@ -4339,6 +4400,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 
 
 void FreeEnvironment(Environment* env) {
+  env->CleanupHandles();
   delete env;
 }
 
@@ -4362,6 +4424,8 @@ Local<Context> NewContext(Isolate* isolate,
   HandleScope handle_scope(isolate);
   auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
   auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
+  context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowWasmCodeGeneration, True(isolate));
   Local<Value> intl_v;
   if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
       intl_v->IsObject()) {
@@ -4405,7 +4469,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   {
     SealHandleScope seal(isolate);
     bool more;
-    PERFORMANCE_MARK(&env, LOOP_START);
+    env.performance_state()->Mark(
+        node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
@@ -4421,7 +4486,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       // event, or after running some callbacks.
       more = uv_loop_alive(env.event_loop());
     } while (more == true);
-    PERFORMANCE_MARK(&env, LOOP_EXIT);
+    env.performance_state()->Mark(
+        node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
   }
 
   env.set_trace_sync_io(false);
@@ -4437,6 +4503,13 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 #endif
 
   return exit_code;
+}
+
+bool AllowWasmCodeGenerationCallback(
+    Local<Context> context, Local<String>) {
+  Local<Value> wasm_code_gen =
+    context->GetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration);
+  return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
 }
 
 inline int Start(uv_loop_t* event_loop,
@@ -4457,6 +4530,7 @@ inline int Start(uv_loop_t* event_loop,
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
+  isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
@@ -4566,7 +4640,7 @@ void RegisterBuiltinModules() {
 }  // namespace node
 
 #if !HAVE_INSPECTOR
-void InitEmptyBindings() {}
+void Initialize() {}
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector, InitEmptyBindings)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector, Initialize)
 #endif  // !HAVE_INSPECTOR

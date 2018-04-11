@@ -7,6 +7,7 @@
 #include <stack>
 #include <unordered_map>
 
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
@@ -186,9 +187,14 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitFixedArray(Map* map, FixedArray* object) {
-    int length = object->synchronized_length();
-    int size = FixedArray::SizeFor(length);
+    // The synchronized_length() function checks that the length is a Smi.
+    // This is not necessarily the case if the array is being left-trimmed.
+    Object* length = object->unchecked_synchronized_length();
     if (!ShouldVisit(object)) return 0;
+    // The cached length must be the actual length as the array is not black.
+    // Left trimming marks the array black before over-writing the length.
+    DCHECK(length->IsSmi());
+    int size = FixedArray::SizeFor(Smi::ToInt(length));
     VisitMapPointer(object, object->map_slot());
     FixedArray::BodyDescriptor::IterateBody(object, size, this);
     return size;
@@ -381,6 +387,12 @@ SeqTwoByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
   return reinterpret_cast<SeqTwoByteString*>(object);
 }
 
+// Fixed array can become a free space during left trimming.
+template <>
+FixedArray* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return reinterpret_cast<FixedArray*>(object);
+}
+
 class ConcurrentMarking::Task : public CancelableTask {
  public:
   Task(Isolate* isolate, ConcurrentMarking* concurrent_marking,
@@ -427,6 +439,8 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 }
 
 void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
+  TRACE_BACKGROUND_GC(heap_->tracer(),
+                      GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   LiveBytesMap* live_bytes = nullptr;
@@ -500,6 +514,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 }
 
 void ConcurrentMarking::ScheduleTasks() {
+  DCHECK(heap_->use_tasks());
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
   if (task_count_ == 0) {
@@ -528,7 +543,7 @@ void ConcurrentMarking::ScheduleTasks() {
 }
 
 void ConcurrentMarking::RescheduleTasksIfNeeded() {
-  if (!FLAG_concurrent_marking) return;
+  if (!FLAG_concurrent_marking || !heap_->use_tasks()) return;
   {
     base::LockGuard<base::Mutex> guard(&pending_lock_);
     if (pending_task_count_ > 0) return;

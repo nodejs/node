@@ -28,8 +28,8 @@ const node = JSON.stringify(process.execPath);
 const cmd = `cat ${filename} | ${node} ${f} child`;
 exec(cmd, { maxBuffer: 1000000 }, function(err, stdout, stderr) {
   assert.ifError(err);
-  assert.strictEqual(stdout, dataExpected, 'it reads the file and outputs it');
-  assert.strictEqual(stderr, '', 'it does not write to stderr');
+  assert.strictEqual(stdout, dataExpected);
+  assert.strictEqual(stderr, '');
   console.log('ok');
 });
 

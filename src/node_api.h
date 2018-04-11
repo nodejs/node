@@ -1,12 +1,3 @@
-/******************************************************************************
- * Experimental prototype for demonstrating VM agnostic and ABI stable API
- * for native modules to use instead of using Nan and V8 APIs directly.
- *
- * The current status is "Experimental" and should not be used for
- * production applications.  The API is still subject to change
- * and as an experimental feature is NOT subject to semver.
- *
- ******************************************************************************/
 #ifndef SRC_NODE_API_H_
 #define SRC_NODE_API_H_
 
@@ -111,6 +102,8 @@ NAPI_EXTERN void napi_module_register(napi_module* mod);
 NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
+
+NAPI_EXTERN napi_status napi_fatal_exception(napi_env env, napi_value err);
 
 NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                                  size_t location_len,

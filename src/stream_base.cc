@@ -60,12 +60,11 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
 inline void SetWriteResultPropertiesOnWrapObject(
     Environment* env,
     Local<Object> req_wrap_obj,
-    const StreamWriteResult& res,
-    size_t bytes) {
+    const StreamWriteResult& res) {
   req_wrap_obj->Set(
       env->context(),
       env->bytes_string(),
-      Number::New(env->isolate(), bytes)).FromJust();
+      Number::New(env->isolate(), res.bytes)).FromJust();
   req_wrap_obj->Set(
       env->context(),
       env->async(),
@@ -91,7 +90,6 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   MaybeStackBuffer<uv_buf_t, 16> bufs(count);
 
   size_t storage_size = 0;
-  uint32_t bytes = 0;
   size_t offset;
 
   if (!all_buffers) {
@@ -123,7 +121,6 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       Local<Value> chunk = chunks->Get(i);
       bufs[i].base = Buffer::Data(chunk);
       bufs[i].len = Buffer::Length(chunk);
-      bytes += bufs[i].len;
     }
   }
 
@@ -140,7 +137,6 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       if (Buffer::HasInstance(chunk)) {
         bufs[i].base = Buffer::Data(chunk);
         bufs[i].len = Buffer::Length(chunk);
-        bytes += bufs[i].len;
         continue;
       }
 
@@ -160,12 +156,11 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       bufs[i].base = str_storage;
       bufs[i].len = str_size;
       offset += str_size;
-      bytes += str_size;
     }
   }
 
   StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
-  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res, bytes);
+  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res);
   if (res.wrap != nullptr && storage) {
     res.wrap->SetAllocatedStorage(storage.release(), storage_size);
   }
@@ -193,7 +188,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   if (res.async)
     req_wrap_obj->Set(env->context(), env->buffer_string(), args[1]).FromJust();
-  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res, buf.len);
+  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res);
 
   return res.err;
 }
@@ -228,6 +223,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   // Try writing immediately if write size isn't too big
   char stack_storage[16384];  // 16kb
   size_t data_size;
+  size_t synchronously_written = 0;
   uv_buf_t buf;
 
   bool try_write = storage_size <= sizeof(stack_storage) &&
@@ -243,6 +239,11 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     uv_buf_t* bufs = &buf;
     size_t count = 1;
     err = DoTryWrite(&bufs, &count);
+    // Keep track of the bytes written here, because we're taking a shortcut
+    // by using `DoTryWrite()` directly instead of using the utilities
+    // provided by `Write()`.
+    synchronously_written = count == 0 ? data_size : data_size - buf.len;
+    bytes_written_ += synchronously_written;
 
     // Immediate failure or success
     if (err != 0 || count == 0) {
@@ -298,8 +299,9 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   }
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
+  res.bytes += synchronously_written;
 
-  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res, data_size);
+  SetWriteResultPropertiesOnWrapObject(env, req_wrap_obj, res);
   if (res.wrap != nullptr) {
     res.wrap->SetAllocatedStorage(data.release(), data_size);
   }
@@ -387,6 +389,8 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
   StreamBase* stream = static_cast<StreamBase*>(stream_);
   Environment* env = stream->stream_env();
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Object> req_wrap_obj = async_wrap->object();
 
   Local<Value> argv[] = {

@@ -1,87 +1,37 @@
-/* crypto/ts/ts_lib.c */
 /*
- * Written by Zoltan Glozik (zglozik@stones.com) for the OpenSSL project
- * 2002.
- */
-/* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
+ * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/objects.h>
 #include <openssl/bn.h>
+#include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "ts.h"
-
-/* Local function declarations. */
-
-/* Function definitions. */
+#include <openssl/ts.h>
+#include "ts_lcl.h"
 
 int TS_ASN1_INTEGER_print_bio(BIO *bio, const ASN1_INTEGER *num)
 {
-    BIGNUM num_bn;
+    BIGNUM *num_bn;
     int result = 0;
     char *hex;
 
-    BN_init(&num_bn);
-    ASN1_INTEGER_to_BN(num, &num_bn);
-    if ((hex = BN_bn2hex(&num_bn))) {
+    num_bn = BN_new();
+    if (num_bn == NULL)
+        return -1;
+    ASN1_INTEGER_to_BN(num, num_bn);
+    if ((hex = BN_bn2hex(num_bn))) {
         result = BIO_write(bio, "0x", 2) > 0;
         result = result && BIO_write(bio, hex, strlen(hex)) > 0;
         OPENSSL_free(hex);
     }
-    BN_free(&num_bn);
+    BN_free(num_bn);
 
     return result;
 }
@@ -107,12 +57,13 @@ int TS_ext_print_bio(BIO *bio, const STACK_OF(X509_EXTENSION) *extensions)
     for (i = 0; i < n; i++) {
         ex = X509v3_get_ext(extensions, i);
         obj = X509_EXTENSION_get_object(ex);
-        i2a_ASN1_OBJECT(bio, obj);
+        if (i2a_ASN1_OBJECT(bio, obj) < 0)
+            return 0;
         critical = X509_EXTENSION_get_critical(ex);
-        BIO_printf(bio, ": %s\n", critical ? "critical" : "");
+        BIO_printf(bio, ":%s\n", critical ? " critical" : "");
         if (!X509V3_EXT_print(bio, ex, 0, 4)) {
             BIO_printf(bio, "%4s", "");
-            M_ASN1_OCTET_STRING_print(bio, ex->value);
+            ASN1_STRING_print(bio, X509_EXTENSION_get_data(ex));
         }
         BIO_write(bio, "\n", 1);
     }
@@ -129,14 +80,14 @@ int TS_X509_ALGOR_print_bio(BIO *bio, const X509_ALGOR *alg)
 
 int TS_MSG_IMPRINT_print_bio(BIO *bio, TS_MSG_IMPRINT *a)
 {
-    const ASN1_OCTET_STRING *msg;
+    ASN1_OCTET_STRING *msg;
 
-    TS_X509_ALGOR_print_bio(bio, TS_MSG_IMPRINT_get_algo(a));
+    TS_X509_ALGOR_print_bio(bio, a->hash_algo);
 
     BIO_printf(bio, "Message data:\n");
-    msg = TS_MSG_IMPRINT_get_msg(a);
-    BIO_dump_indent(bio, (const char *)M_ASN1_STRING_data(msg),
-                    M_ASN1_STRING_length(msg), 4);
+    msg = a->hashed_msg;
+    BIO_dump_indent(bio, (const char *)ASN1_STRING_get0_data(msg),
+                    ASN1_STRING_length(msg), 4);
 
     return 1;
 }

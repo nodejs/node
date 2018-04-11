@@ -43,8 +43,6 @@ const Register LoadDescriptor::SlotRegister() { return r2; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return r5; }
 
-const Register LoadICProtoArrayDescriptor::HandlerRegister() { return r6; }
-
 const Register StoreDescriptor::ReceiverRegister() { return r3; }
 const Register StoreDescriptor::NameRegister() { return r4; }
 const Register StoreDescriptor::ValueRegister() { return r2; }
@@ -195,6 +193,12 @@ void ConstructTrampolineDescriptor::InitializePlatformSpecific(
 void TransitionElementsKindDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r2, r3};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void AbortJSDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {r3};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

@@ -100,9 +100,9 @@ static void set32x64Bits(uint32_t table[64], int32_t start, int32_t limit) {
             ++lead;
         }
         if(lead<limitLead) {
-            bits=~((1<<lead)-1);
+            bits=~(((unsigned)1<<lead)-1);
             if(limitLead<0x20) {
-                bits&=(1<<limitLead)-1;
+                bits&=((unsigned)1<<limitLead)-1;
             }
             for(trail=0; trail<64; ++trail) {
                 table[trail]|=bits;

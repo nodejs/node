@@ -1,0 +1,139 @@
+
+ NOTES FOR THE WINDOWS PLATFORMS
+ ===============================
+
+ Requirement details for native (Visual C++) builds
+ --------------------------------------------------
+
+ In addition to the requirements and instructions listed in INSTALL,
+ this are required as well:
+
+ - You need Perl.  We recommend ActiveState Perl, available from
+   https://www.activestate.com/ActivePerl. Another viable alternative
+   appears to be Strawberry Perl, http://strawberryperl.com.
+   You also need the perl module Text::Template, available on CPAN.
+   Please read NOTES.PERL for more information.
+
+ - You need a C compiler.  OpenSSL has been tested to build with these:
+
+   * Visual C++
+
+ - Netwide Assembler, a.k.a. NASM, available from http://www.nasm.us,
+   is required if you intend to utilize assembler modules. Note that NASM
+   is the only supported assembler. The Microsoft provided assembler is NOT
+   supported.
+
+
+ Visual C++ (native Windows)
+ ---------------------------
+
+ Installation directories
+
+ The default installation directories are derived from environment
+ variables.
+
+ For VC-WIN32, the following defaults are use:
+
+     PREFIX:      %ProgramFiles(86)%\OpenSSL
+     OPENSSLDIR:  %CommonProgramFiles(86)%\SSL
+
+ For VC-WIN64, the following defaults are use:
+
+     PREFIX:      %ProgramW6432%\OpenSSL
+     OPENSSLDIR:  %CommonProgramW6432%\SSL
+
+ Should those environment variables not exist (on a pure Win32
+ installation for examples), these fallbacks are used:
+
+     PREFIX:      %ProgramFiles%\OpenSSL
+     OPENSSLDIR:  %CommonProgramFiles%\SSL
+
+ ALSO NOTE that those directories are usually write protected, even if
+ your account is in the Administrators group.  To work around that,
+ start the command prompt by right-clicking on it and choosing "Run as
+ Administrator" before running 'nmake install'.  The other solution
+ is, of course, to choose a different set of directories by using
+ --prefix and --openssldir when configuring.
+
+ GNU C (Cygwin)
+ --------------
+
+ Cygwin implements a Posix/Unix runtime system (cygwin1.dll) on top of the
+ Windows subsystem and provides a bash shell and GNU tools environment.
+ Consequently, a make of OpenSSL with Cygwin is virtually identical to the
+ Unix procedure.
+
+ To build OpenSSL using Cygwin, you need to:
+
+ * Install Cygwin (see https://cygwin.com/)
+
+ * Install Cygwin Perl and ensure it is in the path. Recall that
+   as least 5.10.0 is required.
+
+ * Run the Cygwin bash shell
+
+ Apart from that, follow the Unix instructions in INSTALL.
+
+ NOTE: "make test" and normal file operations may fail in directories
+ mounted as text (i.e. mount -t c:\somewhere /home) due to Cygwin
+ stripping of carriage returns. To avoid this ensure that a binary
+ mount is used, e.g. mount -b c:\somewhere /home.
+
+ It is also possible to create "conventional" Windows binaries that use
+ the Microsoft C runtime system (msvcrt.dll or crtdll.dll) using MinGW
+ development add-on for Cygwin. MinGW is supported even as a standalone
+ setup as described in the following section. In the context you should
+ recognize that binaries targeting Cygwin itself are not interchangeable
+ with "conventional" Windows binaries you generate with/for MinGW.
+
+
+ GNU C (MinGW/MSYS)
+ ------------------
+
+ * Compiler and shell environment installation:
+
+   MinGW and MSYS are available from http://www.mingw.org/, both are
+   required. Run the installers and do whatever magic they say it takes
+   to start MSYS bash shell with GNU tools and matching Perl on its PATH.
+   "Matching Perl" refers to chosen "shell environment", i.e. if built
+   under MSYS, then Perl compiled for MSYS must be used.
+
+   Alternatively, one can use MSYS2 from https://msys2.github.io/,
+   which includes MingW (32-bit and 64-bit).
+
+ * It is also possible to cross-compile it on Linux by configuring
+   with './Configure --cross-compile-prefix=i386-mingw32- mingw ...'.
+   Other possible cross compile prefixes include x86_64-w64-mingw32-
+   and i686-w64-mingw32-.
+
+
+ Linking your application
+ ------------------------
+
+ This section applies to non-Cygwin builds.
+
+ If you link with static OpenSSL libraries then you're expected to
+ additionally link your application with WS2_32.LIB, GDI32.LIB,
+ ADVAPI32.LIB, CRYPT32.LIB and USER32.LIB. Those developing
+ non-interactive service applications might feel concerned about
+ linking with GDI32.LIB and USER32.LIB, as they are justly associated
+ with interactive desktop, which is not available to service
+ processes. The toolkit is designed to detect in which context it's
+ currently executed, GUI, console app or service, and act accordingly,
+ namely whether or not to actually make GUI calls. Additionally those
+ who wish to /DELAYLOAD:GDI32.DLL and /DELAYLOAD:USER32.DLL and
+ actually keep them off service process should consider implementing
+ and exporting from .exe image in question own _OPENSSL_isservice not
+ relying on USER32.DLL. E.g., on Windows Vista and later you could:
+
+	__declspec(dllexport) __cdecl BOOL _OPENSSL_isservice(void)
+	{   DWORD sess;
+	    if (ProcessIdToSessionId(GetCurrentProcessId(),&sess))
+	        return sess==0;
+	    return FALSE;
+	}
+
+ If you link with OpenSSL .DLLs, then you're expected to include into
+ your application code small "shim" snippet, which provides glue between
+ OpenSSL BIO layer and your compiler run-time. See the OPENSSL_Applink
+ manual page for further details.

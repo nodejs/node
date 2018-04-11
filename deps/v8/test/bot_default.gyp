@@ -11,6 +11,7 @@
           'type': 'none',
           'dependencies': [
             'cctest/cctest.gyp:cctest_run',
+            'debugger/debugger.gyp:debugger_run',
             'fuzzer/fuzzer.gyp:fuzzer_run',
             'inspector/inspector.gyp:inspector-test_run',
             'intl/intl.gyp:intl_run',

@@ -900,6 +900,7 @@ NFRule::doParse(const UnicodeString& text,
                 ParsePosition& parsePosition,
                 UBool isFractionRule,
                 double upperBound,
+                uint32_t nonNumericalExecutedRuleMask,
                 Formattable& resVal) const
 {
     // internally we operate on a copy of the string being parsed
@@ -1002,6 +1003,7 @@ NFRule::doParse(const UnicodeString& text,
         temp.setTo(ruleText, sub1Pos, sub2Pos - sub1Pos);
         double partialResult = matchToDelimiter(workText, start, tempBaseValue,
             temp, pp, sub1,
+            nonNumericalExecutedRuleMask,
             upperBound);
 
         // if we got a successful match (or were trying to match a
@@ -1022,6 +1024,7 @@ NFRule::doParse(const UnicodeString& text,
             temp.setTo(ruleText, sub2Pos, ruleText.length() - sub2Pos);
             partialResult = matchToDelimiter(workText2, 0, partialResult,
                 temp, pp2, sub2,
+                nonNumericalExecutedRuleMask,
                 upperBound);
 
             // if we got a successful match on this second
@@ -1158,6 +1161,7 @@ NFRule::matchToDelimiter(const UnicodeString& text,
                          const UnicodeString& delimiter,
                          ParsePosition& pp,
                          const NFSubstitution* sub,
+                         uint32_t nonNumericalExecutedRuleMask,
                          double upperBound) const
 {
 	UErrorCode status = U_ZERO_ERROR;
@@ -1191,6 +1195,7 @@ NFRule::matchToDelimiter(const UnicodeString& text,
 #else
                     formatter->isLenient(),
 #endif
+                    nonNumericalExecutedRuleMask,
                     result);
 
                 // if the substitution could match all the text up to
@@ -1244,6 +1249,7 @@ NFRule::matchToDelimiter(const UnicodeString& text,
 #else
             formatter->isLenient(),
 #endif
+            nonNumericalExecutedRuleMask,
             result);
         if (success && (tempPP.getIndex() != 0)) {
             // if there's a successful match (or it's a null

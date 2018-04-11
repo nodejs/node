@@ -7,14 +7,6 @@ const OutgoingMessage = http.OutgoingMessage;
 const ClientRequest = http.ClientRequest;
 const ServerResponse = http.ServerResponse;
 
-common.expectsError(
-  OutgoingMessage.prototype._implicitHeader,
-  {
-    code: 'ERR_METHOD_NOT_IMPLEMENTED',
-    type: Error,
-    message: 'The _implicitHeader() method is not implemented'
-  }
-);
 assert.strictEqual(
   typeof ClientRequest.prototype._implicitHeader, 'function');
 assert.strictEqual(
@@ -67,14 +59,17 @@ common.expectsError(() => {
 });
 
 // write
-common.expectsError(() => {
+{
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.write();
-}, {
-  code: 'ERR_METHOD_NOT_IMPLEMENTED',
-  type: Error,
-  message: 'The _implicitHeader() method is not implemented'
-});
+
+  outgoingMessage.on('error', common.expectsError({
+    code: 'ERR_METHOD_NOT_IMPLEMENTED',
+    type: Error,
+    message: 'The _implicitHeader() method is not implemented'
+  }));
+
+  outgoingMessage.write('');
+}
 
 assert(OutgoingMessage.prototype.write.call({ _header: 'test' }));
 
@@ -84,7 +79,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or Buffer'
+  message: 'The first argument must be one of type string or Buffer. ' +
+           'Received type undefined'
 });
 
 common.expectsError(() => {
@@ -93,7 +89,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or Buffer'
+  message: 'The first argument must be one of type string or Buffer. ' +
+           'Received type number'
 });
 
 // addTrailers()

@@ -581,17 +581,17 @@ const parseTests = {
     href: 'git+http://github.com/joyent/node.git'
   },
 
-  //if local1@domain1 is uses as a relative URL it may
-  //be parse into auth@hostname, but here there is no
-  //way to make it work in url.parse, I add the test to be explicit
+  // If local1@domain1 is uses as a relative URL it may
+  // be parse into auth@hostname, but here there is no
+  // way to make it work in url.parse, I add the test to be explicit
   'local1@domain1': {
     pathname: 'local1@domain1',
     path: 'local1@domain1',
     href: 'local1@domain1'
   },
 
-  //While this may seem counter-intuitive, a browser will parse
-  //<a href='www.google.com'> as a path.
+  // While this may seem counter-intuitive, a browser will parse
+  // <a href='www.google.com'> as a path.
   'www.example.com': {
     href: 'www.example.com',
     pathname: 'www.example.com',

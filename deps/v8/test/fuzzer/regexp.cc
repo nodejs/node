@@ -49,7 +49,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   static const int kAllFlags = i::JSRegExp::kGlobal | i::JSRegExp::kIgnoreCase |
                                i::JSRegExp::kMultiline | i::JSRegExp::kSticky |
-                               i::JSRegExp::kUnicode;
+                               i::JSRegExp::kUnicode | i::JSRegExp::kDotAll;
 
   const uint8_t one_byte_array[6] = {'f', 'o', 'o', 'b', 'a', 'r'};
   const i::uc16 two_byte_array[6] = {'f', 0xD83D, 0xDCA9, 'b', 'a', 0x2603};

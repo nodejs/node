@@ -12,8 +12,10 @@ RSA_generate_key_ex, RSA_generate_key - generate RSA key pair
 
 Deprecated:
 
+ #if OPENSSL_API_COMPAT < 0x00908000L
  RSA *RSA_generate_key(int num, unsigned long e,
-    void (*callback)(int,int,void *), void *cb_arg);
+    void (*callback)(int, int, void *), void *cb_arg);
+ #endif
 
 =head1 DESCRIPTION
 
@@ -28,14 +30,14 @@ The exponent is an odd number, typically 3, 17 or 65537.
 A callback function may be used to provide feedback about the
 progress of the key generation. If B<cb> is not B<NULL>, it
 will be called as follows using the BN_GENCB_call() function
-described on the L<BN_generate_prime(3)|BN_generate_prime(3)> page.
+described on the L<BN_generate_prime(3)> page.
 
-=over 4
+=over 2
 
 =item *
 
 While a random prime number is generated, it is called as
-described in L<BN_generate_prime(3)|BN_generate_prime(3)>.
+described in L<BN_generate_prime(3)>.
 
 =item *
 
@@ -51,16 +53,17 @@ it is called as B<BN_GENCB_call(cb, 3, 0)>.
 
 The process is then repeated for prime q with B<BN_GENCB_call(cb, 3, 1)>.
 
-RSA_generate_key is deprecated (new applications should use
-RSA_generate_key_ex instead). RSA_generate_key works in the same way as
-RSA_generate_key_ex except it uses "old style" call backs. See
-L<BN_generate_prime(3)|BN_generate_prime(3)> for further details.
+RSA_generate_key() is deprecated (new applications should use
+RSA_generate_key_ex() instead). RSA_generate_key() works in the same way as
+RSA_generate_key_ex() except it uses "old style" call backs. See
+L<BN_generate_prime(3)> for further details.
 
 =head1 RETURN VALUE
 
-If key generation fails, RSA_generate_key() returns B<NULL>.
+RSA_generate_key_ex() returns 1 on success or 0 on error.
+RSA_generate_key() returns the key on success or B<NULL> on error.
 
-The error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+The error codes can be obtained by L<ERR_get_error(3)>.
 
 =head1 BUGS
 
@@ -70,11 +73,16 @@ RSA_generate_key() goes into an infinite loop for illegal input values.
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)|ERR_get_error(3)>, L<rand(3)|rand(3)>, L<rsa(3)|rsa(3)>,
-L<RSA_free(3)|RSA_free(3)>, L<BN_generate_prime(3)|BN_generate_prime(3)>
+L<ERR_get_error(3)>, L<RAND_bytes(3)>,
+L<RSA_generate_key(3)>, L<BN_generate_prime(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-The B<cb_arg> argument was added in SSLeay 0.9.0.
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

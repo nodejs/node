@@ -917,12 +917,8 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RAND);
 # endif
 
-# ifdef ENGINE_METHOD_ECDH
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDH);
-# endif
-
-# ifdef ENGINE_METHOD_ECDSA
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDSA);
+# ifdef ENGINE_METHOD_EC
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_EC);
 # endif
 
 # ifdef ENGINE_METHOD_CIPHERS
@@ -931,10 +927,6 @@ void DefineOpenSSLConstants(Local<Object> target) {
 
 # ifdef ENGINE_METHOD_DIGESTS
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DIGESTS);
-# endif
-
-# ifdef ENGINE_METHOD_STORE
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_STORE);
 # endif
 
 # ifdef ENGINE_METHOD_PKEY_METHS
@@ -969,11 +961,6 @@ void DefineOpenSSLConstants(Local<Object> target) {
 
 #ifdef DH_NOT_SUITABLE_GENERATOR
     NODE_DEFINE_CONSTANT(target, DH_NOT_SUITABLE_GENERATOR);
-#endif
-
-#ifndef OPENSSL_NO_NEXTPROTONEG
-#define NPN_ENABLED 1
-    NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
 #endif
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
@@ -1319,6 +1306,8 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   // Define libuv constants.
   NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
   NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_EXCL);
+  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_FICLONE);
+  NODE_DEFINE_CONSTANT(fs_constants, UV_FS_COPYFILE_FICLONE_FORCE);
 
   os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
   os_constants->Set(OneByteString(isolate, "errno"), err_constants);

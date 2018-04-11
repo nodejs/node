@@ -213,7 +213,8 @@ module.exports = {
          * @returns {ASTNode[]} An array of string nodes.
          */
         function getAllStrings() {
-            return sourceCode.ast.tokens.filter(token => token.type === "String");
+            return sourceCode.ast.tokens.filter(token => (token.type === "String" ||
+                (token.type === "JSXText" && sourceCode.getNodeByRangeIndex(token.range[0] - 1).type === "JSXAttribute")));
         }
 
         /**
@@ -287,6 +288,7 @@ module.exports = {
                  * line is a comment
                  */
                 let lineIsComment = false;
+                let textToMeasure;
 
                 /*
                  * We can short-circuit the comment checks if we're already out of
@@ -305,12 +307,17 @@ module.exports = {
 
                     if (isFullLineComment(line, lineNumber, comment)) {
                         lineIsComment = true;
+                        textToMeasure = line;
                     } else if (ignoreTrailingComments && isTrailingComment(line, lineNumber, comment)) {
-                        line = stripTrailingComment(line, comment);
+                        textToMeasure = stripTrailingComment(line, comment);
+                    } else {
+                        textToMeasure = line;
                     }
+                } else {
+                    textToMeasure = line;
                 }
-                if (ignorePattern && ignorePattern.test(line) ||
-                    ignoreUrls && URL_REGEXP.test(line) ||
+                if (ignorePattern && ignorePattern.test(textToMeasure) ||
+                    ignoreUrls && URL_REGEXP.test(textToMeasure) ||
                     ignoreStrings && stringsByLine[lineNumber] ||
                     ignoreTemplateLiterals && templateLiteralsByLine[lineNumber] ||
                     ignoreRegExpLiterals && regExpLiteralsByLine[lineNumber]
@@ -320,7 +327,7 @@ module.exports = {
                     return;
                 }
 
-                const lineLength = computeLineLength(line, tabWidth);
+                const lineLength = computeLineLength(textToMeasure, tabWidth);
                 const commentLengthApplies = lineIsComment && maxCommentLength;
 
                 if (lineIsComment && ignoreComments) {

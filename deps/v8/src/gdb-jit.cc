@@ -222,7 +222,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
  public:
   enum Type {
     S_REGULAR = 0x0u,
-    S_ATTR_COALESCED = 0xbu,
+    S_ATTR_COALESCED = 0xBu,
     S_ATTR_SOME_INSTRUCTIONS = 0x400u,
     S_ATTR_DEBUG = 0x02000000u,
     S_ATTR_PURE_INSTRUCTIONS = 0x80000000u
@@ -297,9 +297,9 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
     TYPE_DYNSYM = 11,
     TYPE_LOPROC = 0x70000000,
     TYPE_X86_64_UNWIND = 0x70000001,
-    TYPE_HIPROC = 0x7fffffff,
+    TYPE_HIPROC = 0x7FFFFFFF,
     TYPE_LOUSER = 0x80000000,
-    TYPE_HIUSER = 0xffffffff
+    TYPE_HIUSER = 0xFFFFFFFF
   };
 
   enum Flags {
@@ -308,9 +308,7 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
     FLAG_EXEC = 4
   };
 
-  enum SpecialIndexes {
-    INDEX_ABSOLUTE = 0xfff1
-  };
+  enum SpecialIndexes { INDEX_ABSOLUTE = 0xFFF1 };
 
   ELFSection(const char* name, Type type, uintptr_t align)
       : name_(name), type_(type), align_(align) { }
@@ -650,20 +648,20 @@ class ELF BASE_EMBEDDED {
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
 #if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
      (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
-    const uint8_t ident[16] =
-        { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 1, 1, 1, 0,
+                               0,    0,   0,   0,   0, 0, 0, 0};
 #elif(V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT) || \
     (V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN)
-    const uint8_t ident[16] =
-        { 0x7f, 'E', 'L', 'F', 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 1, 1, 0,
+                               0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && V8_OS_LINUX
-    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 2, 2, 1, 0,
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 0,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_S390X
-    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 2, 2, 1, 3,
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 2, 2, 1, 3,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #elif V8_TARGET_ARCH_S390
-    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 1, 2, 1, 3,
+    const uint8_t ident[16] = {0x7F, 'E', 'L', 'F', 1, 2, 1, 3,
                                0,    0,   0,   0,   0, 0, 0, 0};
 #else
 #error Unsupported target architecture.
@@ -1089,12 +1087,12 @@ class DebugInfoSection : public DebugSection {
     DW_OP_reg7 = 0x57,
     DW_OP_reg8 = 0x58,
     DW_OP_reg9 = 0x59,
-    DW_OP_reg10 = 0x5a,
-    DW_OP_reg11 = 0x5b,
-    DW_OP_reg12 = 0x5c,
-    DW_OP_reg13 = 0x5d,
-    DW_OP_reg14 = 0x5e,
-    DW_OP_reg15 = 0x5f,
+    DW_OP_reg10 = 0x5A,
+    DW_OP_reg11 = 0x5B,
+    DW_OP_reg12 = 0x5C,
+    DW_OP_reg13 = 0x5D,
+    DW_OP_reg14 = 0x5E,
+    DW_OP_reg15 = 0x5F,
     DW_OP_reg16 = 0x60,
     DW_OP_reg17 = 0x61,
     DW_OP_reg18 = 0x62,
@@ -1105,12 +1103,12 @@ class DebugInfoSection : public DebugSection {
     DW_OP_reg23 = 0x67,
     DW_OP_reg24 = 0x68,
     DW_OP_reg25 = 0x69,
-    DW_OP_reg26 = 0x6a,
-    DW_OP_reg27 = 0x6b,
-    DW_OP_reg28 = 0x6c,
-    DW_OP_reg29 = 0x6d,
-    DW_OP_reg30 = 0x6e,
-    DW_OP_reg31 = 0x6f,
+    DW_OP_reg26 = 0x6A,
+    DW_OP_reg27 = 0x6B,
+    DW_OP_reg28 = 0x6C,
+    DW_OP_reg29 = 0x6D,
+    DW_OP_reg30 = 0x6E,
+    DW_OP_reg31 = 0x6F,
     DW_OP_fbreg = 0x91  // 1 param: SLEB128 offset
   };
 
@@ -1286,11 +1284,11 @@ class DebugAbbrevSection : public DebugSection {
   // DWARF2 standard, figure 14.
   enum DWARF2Tags {
     DW_TAG_FORMAL_PARAMETER = 0x05,
-    DW_TAG_POINTER_TYPE = 0xf,
+    DW_TAG_POINTER_TYPE = 0xF,
     DW_TAG_COMPILE_UNIT = 0x11,
     DW_TAG_STRUCTURE_TYPE = 0x13,
     DW_TAG_BASE_TYPE = 0x24,
-    DW_TAG_SUBPROGRAM = 0x2e,
+    DW_TAG_SUBPROGRAM = 0x2E,
     DW_TAG_VARIABLE = 0x34
   };
 
@@ -1304,11 +1302,11 @@ class DebugAbbrevSection : public DebugSection {
   enum DWARF2Attribute {
     DW_AT_LOCATION = 0x2,
     DW_AT_NAME = 0x3,
-    DW_AT_BYTE_SIZE = 0xb,
+    DW_AT_BYTE_SIZE = 0xB,
     DW_AT_STMT_LIST = 0x10,
     DW_AT_LOW_PC = 0x11,
     DW_AT_HIGH_PC = 0x12,
-    DW_AT_ENCODING = 0x3e,
+    DW_AT_ENCODING = 0x3E,
     DW_AT_FRAME_BASE = 0x40,
     DW_AT_TYPE = 0x49
   };
@@ -1320,8 +1318,8 @@ class DebugAbbrevSection : public DebugSection {
     DW_FORM_STRING = 0x8,
     DW_FORM_DATA4 = 0x6,
     DW_FORM_BLOCK = 0x9,
-    DW_FORM_DATA1 = 0xb,
-    DW_FORM_FLAG = 0xc,
+    DW_FORM_DATA1 = 0xB,
+    DW_FORM_FLAG = 0xC,
     DW_FORM_REF4 = 0x13
   };
 

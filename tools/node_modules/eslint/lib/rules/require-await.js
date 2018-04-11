@@ -90,6 +90,11 @@ module.exports = {
 
             AwaitExpression() {
                 scopeInfo.hasAwait = true;
+            },
+            ForOfStatement(node) {
+                if (node.await) {
+                    scopeInfo.hasAwait = true;
+                }
             }
         };
     }

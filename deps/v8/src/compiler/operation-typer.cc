@@ -24,6 +24,8 @@ OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
   Type* truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero->Maybe(Type::Integral32()));
 
+  singleton_NaN_string_ = Type::HeapConstant(factory->NaN_string(), zone);
+  singleton_zero_string_ = Type::HeapConstant(factory->zero_string(), zone);
   singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
   singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
   singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
@@ -501,6 +503,14 @@ Type* OperationTyper::NumberToInt32(Type* type) {
                            Type::Signed32(), zone());
   }
   return Type::Signed32();
+}
+
+Type* OperationTyper::NumberToString(Type* type) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->IsNone()) return type;
+  if (type->Is(Type::NaN())) return singleton_NaN_string_;
+  if (type->Is(cache_.kZeroOrMinusZero)) return singleton_zero_string_;
+  return Type::SeqString();
 }
 
 Type* OperationTyper::NumberToUint32(Type* type) {

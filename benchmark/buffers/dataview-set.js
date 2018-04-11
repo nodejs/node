@@ -20,7 +20,7 @@ const types = [
 
 const bench = common.createBenchmark(main, {
   type: types,
-  millions: [1]
+  n: [1e6]
 });
 
 const INT8 = 0x7f;
@@ -39,18 +39,17 @@ const mod = {
   setUint32: UINT32
 };
 
-function main({ millions, type }) {
+function main({ n, type }) {
   type = type || 'Uint8';
-  const len = millions * 1e6;
   const ab = new ArrayBuffer(8);
   const dv = new DataView(ab, 0, 8);
   const le = /LE$/.test(type);
   const fn = `set${type.replace(/[LB]E$/, '')}`;
 
   if (/int/i.test(fn))
-    benchInt(dv, fn, len, le);
+    benchInt(dv, fn, n, le);
   else
-    benchFloat(dv, fn, len, le);
+    benchFloat(dv, fn, n, le);
 }
 
 function benchInt(dv, fn, len, le) {
@@ -60,7 +59,7 @@ function benchInt(dv, fn, len, le) {
   for (var i = 0; i < len; i++) {
     method.call(dv, 0, i % m, le);
   }
-  bench.end(len / 1e6);
+  bench.end(len);
 }
 
 function benchFloat(dv, fn, len, le) {
@@ -69,5 +68,5 @@ function benchFloat(dv, fn, len, le) {
   for (var i = 0; i < len; i++) {
     method.call(dv, 0, i * 0.1, le);
   }
-  bench.end(len / 1e6);
+  bench.end(len);
 }

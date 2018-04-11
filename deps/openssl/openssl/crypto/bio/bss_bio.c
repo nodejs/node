@@ -1,56 +1,10 @@
-/* crypto/bio/bss_bio.c  */
-/* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
+/*
+ * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 /*
@@ -61,38 +15,16 @@
  * See ssl/ssltest.c for some hints on how this can be used.
  */
 
-/* BIO_DEBUG implies BIO_PAIR_DEBUG */
-#ifdef BIO_DEBUG
-# ifndef BIO_PAIR_DEBUG
-#  define BIO_PAIR_DEBUG
-# endif
-#endif
-
-/* disable assert() unless BIO_PAIR_DEBUG has been defined */
-#ifndef BIO_PAIR_DEBUG
-# ifndef NDEBUG
-#  define NDEBUG
-# endif
-#endif
-
 #include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/bio.h>
+#include "bio_lcl.h"
 #include <openssl/err.h>
 #include <openssl/crypto.h>
 
 #include "e_os.h"
-
-/* VxWorks defines SSIZE_MAX with an empty value causing compile errors */
-#if defined(OPENSSL_SYS_VXWORKS)
-# undef SSIZE_MAX
-#endif
-#ifndef SSIZE_MAX
-# define SSIZE_MAX INT_MAX
-#endif
 
 static int bio_new(BIO *bio);
 static int bio_free(BIO *bio);
@@ -104,7 +36,7 @@ static int bio_puts(BIO *bio, const char *str);
 static int bio_make_pair(BIO *bio1, BIO *bio2);
 static void bio_destroy_pair(BIO *bio);
 
-static BIO_METHOD methods_biop = {
+static const BIO_METHOD methods_biop = {
     BIO_TYPE_BIO,
     "BIO pair",
     bio_write,
@@ -117,7 +49,7 @@ static BIO_METHOD methods_biop = {
     NULL                        /* no bio_callback_ctrl */
 };
 
-BIO_METHOD *BIO_s_bio(void)
+const BIO_METHOD *BIO_s_bio(void)
 {
     return &methods_biop;
 }
@@ -142,20 +74,13 @@ struct bio_bio_st {
 
 static int bio_new(BIO *bio)
 {
-    struct bio_bio_st *b;
+    struct bio_bio_st *b = OPENSSL_zalloc(sizeof(*b));
 
-    b = OPENSSL_malloc(sizeof *b);
     if (b == NULL)
         return 0;
 
-    b->peer = NULL;
-    b->closed = 0;
-    b->len = 0;
-    b->offset = 0;
     /* enough for one TLS record (just a default) */
     b->size = 17 * 1024;
-    b->buf = NULL;
-    b->request = 0;
 
     bio->ptr = b;
     return 1;
@@ -174,10 +99,7 @@ static int bio_free(BIO *bio)
     if (b->peer)
         bio_destroy_pair(bio);
 
-    if (b->buf != NULL) {
-        OPENSSL_free(b->buf);
-    }
-
+    OPENSSL_free(b->buf);
     OPENSSL_free(b);
 
     return 1;
@@ -316,8 +238,8 @@ static ossl_ssize_t bio_nread(BIO *bio, char **buf, size_t num_)
     struct bio_bio_st *b, *peer_b;
     ossl_ssize_t num, available;
 
-    if (num_ > SSIZE_MAX)
-        num = SSIZE_MAX;
+    if (num_ > OSSL_SSIZE_MAX)
+        num = OSSL_SSIZE_MAX;
     else
         num = (ossl_ssize_t) num_;
 
@@ -472,8 +394,8 @@ static ossl_ssize_t bio_nwrite(BIO *bio, char **buf, size_t num_)
     struct bio_bio_st *b;
     ossl_ssize_t num, space;
 
-    if (num_ > SSIZE_MAX)
-        num = SSIZE_MAX;
+    if (num_ > OSSL_SSIZE_MAX)
+        num = OSSL_SSIZE_MAX;
     else
         num = (ossl_ssize_t) num_;
 
@@ -511,10 +433,8 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
             size_t new_size = num;
 
             if (b->size != new_size) {
-                if (b->buf) {
-                    OPENSSL_free(b->buf);
-                    b->buf = NULL;
-                }
+                OPENSSL_free(b->buf);
+                b->buf = NULL;
                 b->size = new_size;
             }
             ret = 1;
@@ -791,14 +711,10 @@ int BIO_new_bio_pair(BIO **bio1_p, size_t writebuf1,
 
  err:
     if (ret == 0) {
-        if (bio1) {
-            BIO_free(bio1);
-            bio1 = NULL;
-        }
-        if (bio2) {
-            BIO_free(bio2);
-            bio2 = NULL;
-        }
+        BIO_free(bio1);
+        bio1 = NULL;
+        BIO_free(bio2);
+        bio2 = NULL;
     }
 
     *bio1_p = bio1;

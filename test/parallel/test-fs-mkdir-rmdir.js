@@ -32,8 +32,8 @@ fs.mkdir(d, 0o666, common.mustCall(function(err) {
     assert.strictEqual(this, undefined);
     assert.ok(err, 'got no error');
     assert.ok(/^EEXIST/.test(err.message), 'got no EEXIST message');
-    assert.strictEqual(err.code, 'EEXIST', 'got no EEXIST code');
-    assert.strictEqual(err.path, d, 'got no proper path for EEXIST');
+    assert.strictEqual(err.code, 'EEXIST');
+    assert.strictEqual(err.path, d);
 
     fs.rmdir(d, assert.ifError);
   }));

@@ -62,18 +62,6 @@ These are detailed in the [Building guide][].
 Once you have `git` and are sure you have all of the necessary dependencies,
 it's time to create a fork.
 
-Before getting started, it is recommended to configure `git` so that it knows
-who you are:
-
-```text
-$ git config --global user.name "J. Random User"
-$ git config --global user.email "j.random.user@example.com"
-```
-Please make sure this local email is also added to your
-[GitHub email list](https://github.com/settings/emails) so that your commits
-will be properly associated with your account and you will be promoted
-to Contributor once your first commit is landed.
-
 ### Step 1: Fork
 
 Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
@@ -85,6 +73,17 @@ $ cd node
 $ git remote add upstream https://github.com/nodejs/node.git
 $ git fetch upstream
 ```
+
+It is recommended to configure `git` so that it knows who you are:
+
+```text
+$ git config user.name "J. Random User"
+$ git config user.email "j.random.user@example.com"
+```
+Please make sure this local email is also added to your
+[GitHub email list](https://github.com/settings/emails) so that your commits
+will be properly associated with your account and you will be promoted
+to Contributor once your first commit is landed.
 
 ### Step 2: Branch
 
@@ -101,9 +100,11 @@ $ git checkout -b my-branch -t upstream/master
 ### Step 3: Code
 
 The vast majority of Pull Requests opened against the `nodejs/node`
-repository includes changes to either the C/C++ code contained in the `src`
-directory, the JavaScript code contained in the `lib` directory, the
-documentation in `docs/api` or tests within the `test` directory.
+repository includes changes to one or more of the following:
+   - the C/C++ code contained in the `src` directory
+   - the JavaScript code contained in the `lib` directory
+   - the documentation in `doc/api`
+   - tests within the `test` directory.
 
 If you are modifying code, please be sure to run `make lint` from time to
 time to ensure that the changes follow the Node.js code style guide.
@@ -164,10 +165,6 @@ use `Refs:`.
 5. If your commit introduces a breaking change (`semver-major`), it should
 contain an explanation about the reason of the breaking change, which
 situation would trigger the breaking change and what is the exact change.
-
-Breaking changes will be listed in the wiki with the aim to make upgrading
-easier.  Please have a look at [Breaking Changes](https://github.com/nodejs/node/wiki/Breaking-changes-between-v4-LTS-and-v6-LTS)
-for the level of detail that's suitable.
 
 Sample complete commit message:
 
@@ -401,10 +398,10 @@ seem unfamiliar, refer to this
 All Pull Requests require "sign off" in order to land. Whenever a contributor
 reviews a Pull Request they may find specific details that they would like to
 see changed or fixed. These may be as simple as fixing a typo, or may involve
-substantive changes to the code you have written. In general, such requests
-are intended to be helpful, but at times may come across as abrupt or unhelpful,
-especially requests to change things that do not include concrete suggestions
-on *how* to change them.
+substantive changes to the code you have written. While such requests are
+intended to be helpful, they may come across as abrupt or unhelpful, especially
+requests to change things that do not include concrete suggestions on *how* to
+change them.
 
 Try not to be discouraged. If you feel that a particular review is unfair,
 say so, or contact one of the other contributors in the project and seek their
@@ -610,8 +607,8 @@ however, will stay intact on the Pull Request page.
 For the size of "one logical change",
 [0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
 can be a good example. It touches the implementation, the documentation,
-and the tests, but is still one logical change. In general, the tests should
-always pass when each individual commit lands on the master branch.
+and the tests, but is still one logical change. All tests should always pass
+when each individual commit lands on the master branch.
 
 ### Getting Approvals for Your Pull Request
 

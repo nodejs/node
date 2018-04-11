@@ -97,7 +97,7 @@ TEST_F(BigIntWithIsolate, CompareToDouble) {
   big = NewFromInt(isolate(), 0xF00D00);
   Compare(big, 15731968.125, ComparisonResult::kLessThan);
   Compare(big, 15731967.875, ComparisonResult::kGreaterThan);
-  big = BigIntLiteral(isolate(), "0x123456789ab").ToHandleChecked();
+  big = BigIntLiteral(isolate(), "0x123456789AB").ToHandleChecked();
   Compare(big, 1250999896491.125, ComparisonResult::kLessThan);
 
   // Equality!

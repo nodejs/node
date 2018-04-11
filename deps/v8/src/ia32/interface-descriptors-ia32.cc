@@ -44,8 +44,6 @@ const Register LoadDescriptor::SlotRegister() { return eax; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return ebx; }
 
-const Register LoadICProtoArrayDescriptor::HandlerRegister() { return edi; }
-
 const Register StoreDescriptor::ReceiverRegister() { return edx; }
 const Register StoreDescriptor::NameRegister() { return ecx; }
 const Register StoreDescriptor::ValueRegister() { return eax; }
@@ -204,6 +202,11 @@ void TransitionElementsKindDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
+void AbortJSDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {edx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
 
 void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

@@ -14,6 +14,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module.h"
@@ -44,6 +45,13 @@ void Object::VerifyPointer(Object* p) {
   }
 }
 
+namespace {
+void VerifyForeignPointer(HeapObject* host, Object* foreign) {
+  host->VerifyPointer(foreign);
+  CHECK(foreign->IsUndefined(host->GetIsolate()) ||
+        Foreign::IsNormalized(foreign));
+}
+}  // namespace
 
 void Smi::SmiVerify() {
   CHECK(IsSmi());
@@ -252,6 +260,14 @@ void HeapObject::HeapObjectVerify() {
     STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
 
+    case LOAD_HANDLER_TYPE:
+      LoadHandler::cast(this)->LoadHandlerVerify();
+      break;
+
+    case STORE_HANDLER_TYPE:
+      StoreHandler::cast(this)->StoreHandlerVerify();
+      break;
+
     default:
       UNREACHABLE();
       break;
@@ -432,6 +448,10 @@ void Map::MapVerify() {
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()));
+  if (is_prototype_map()) {
+    DCHECK(prototype_info() == Smi::kZero ||
+           prototype_info()->IsPrototypeInfo());
+  }
 }
 
 
@@ -475,11 +495,11 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
       uint64_t value = get_representation(i);
       uint64_t unexpected =
           bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
-          V8_UINT64_C(0x7FF8000000000000);
+          uint64_t{0x7FF8000000000000};
       // Create implementation specific sNaN by inverting relevant bit.
-      unexpected ^= V8_UINT64_C(0x0008000000000000);
-      CHECK((value & V8_UINT64_C(0x7FF8000000000000)) != unexpected ||
-            (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
+      unexpected ^= uint64_t{0x0008000000000000};
+      CHECK((value & uint64_t{0x7FF8000000000000}) != unexpected ||
+            (value & uint64_t{0x0007FFFFFFFFFFFF}) == uint64_t{0});
     }
   }
 }
@@ -930,7 +950,7 @@ void JSArray::JSArrayVerify() {
     CHECK(HasDictionaryElements());
     uint32_t array_length;
     CHECK(length()->ToArrayLength(&array_length));
-    if (array_length == 0xffffffff) {
+    if (array_length == 0xFFFFFFFF) {
       CHECK(length()->ToArrayLength(&array_length));
     }
     if (array_length != 0) {
@@ -1137,8 +1157,10 @@ void JSProxy::JSProxyVerify() {
   VerifyPointer(target());
   VerifyPointer(handler());
   Isolate* isolate = GetIsolate();
-  CHECK_EQ(target()->IsCallable(), map()->is_callable());
-  CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
+  if (!IsRevoked()) {
+    CHECK_EQ(target()->IsCallable(), map()->is_callable());
+    CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
+  }
   CHECK(map()->prototype()->IsNull(isolate));
   // There should be no properties on a Proxy.
   CHECK_EQ(0, map()->NumberOfOwnDescriptors());
@@ -1303,7 +1325,7 @@ void PrototypeInfo::PrototypeInfoVerify() {
   } else {
     CHECK(prototype_users()->IsSmi());
   }
-  CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
+  CHECK(validity_cell()->IsSmi() || validity_cell()->IsCell());
 }
 
 void Tuple2::Tuple2Verify() {
@@ -1325,6 +1347,33 @@ void Tuple3::Tuple3Verify() {
   VerifyObjectField(kValue3Offset);
 }
 
+void DataHandler::DataHandlerVerify() {
+  CHECK(IsDataHandler());
+  CHECK_IMPLIES(!smi_handler()->IsSmi(),
+                smi_handler()->IsCode() && IsStoreHandler());
+  CHECK(validity_cell()->IsSmi() || validity_cell()->IsCell());
+  int data_count = data_field_count();
+  if (data_count >= 1) {
+    VerifyObjectField(kData1Offset);
+  }
+  if (data_count >= 2) {
+    VerifyObjectField(kData2Offset);
+  }
+  if (data_count >= 3) {
+    VerifyObjectField(kData3Offset);
+  }
+}
+
+void LoadHandler::LoadHandlerVerify() {
+  DataHandler::DataHandlerVerify();
+  // TODO(ishell): check handler integrity
+}
+
+void StoreHandler::StoreHandlerVerify() {
+  DataHandler::DataHandlerVerify();
+  // TODO(ishell): check handler integrity
+}
+
 void ContextExtension::ContextExtensionVerify() {
   CHECK(IsContextExtension());
   VerifyObjectField(kScopeInfoOffset);
@@ -1335,9 +1384,9 @@ void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());
   VerifyPointer(name());
   VerifyPointer(expected_receiver_type());
-  VerifyPointer(getter());
-  VerifyPointer(setter());
-  VerifyPointer(js_getter());
+  VerifyForeignPointer(this, getter());
+  VerifyForeignPointer(this, setter());
+  VerifyForeignPointer(this, js_getter());
   VerifyPointer(data());
 }
 
@@ -1360,11 +1409,11 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
 
 void InterceptorInfo::InterceptorInfoVerify() {
   CHECK(IsInterceptorInfo());
-  VerifyPointer(getter());
-  VerifyPointer(setter());
-  VerifyPointer(query());
-  VerifyPointer(deleter());
-  VerifyPointer(enumerator());
+  VerifyForeignPointer(this, getter());
+  VerifyForeignPointer(this, setter());
+  VerifyForeignPointer(this, query());
+  VerifyForeignPointer(this, deleter());
+  VerifyForeignPointer(this, enumerator());
   VerifyPointer(data());
   VerifySmiField(kFlagsOffset);
 }

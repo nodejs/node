@@ -19,6 +19,8 @@
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
+// Has to be the last include (doesn't have include guards)
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -267,7 +269,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::DeoptimizeCode);
+                                     RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (FLAG_trace_deopt) {
@@ -288,7 +290,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
 void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::DeoptimizeCode);
+                                     RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (FLAG_trace_deopt) {
@@ -319,7 +321,7 @@ void Deoptimizer::MarkAllCodeForContext(Context* context) {
 void Deoptimizer::DeoptimizeFunction(JSFunction* function, Code* code) {
   Isolate* isolate = function->GetIsolate();
   RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::DeoptimizeCode);
+                                     RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (code == nullptr) code = function->code();
@@ -381,7 +383,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       function_(function),
       bailout_id_(bailout_id),
       bailout_type_(type),
-      preserve_optimized_(false),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
       deoptimizing_throw_(false),
@@ -555,6 +556,10 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   return -1;
 }
 
+bool ShouldPadArguments(int arg_count) {
+  return kPadArguments && (arg_count % 2 != 0);
+}
+
 }  // namespace
 
 // We rely on this function not causing a GC.  It is called from generated code
@@ -600,7 +605,8 @@ void Deoptimizer::DoComputeOutputFrames() {
            input_data->OptimizationId()->value(), bailout_id_, fp_to_sp_delta_,
            caller_frame_top_);
     if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
-      compiled_code_->PrintDeoptLocation(trace_scope_->file(), from_);
+      compiled_code_->PrintDeoptLocation(
+          trace_scope_->file(), "            ;;; deoptimize at ", from_);
     }
   }
 
@@ -727,7 +733,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and
-  // the part described by InterpreterFrameConstants.
+  // the part described by InterpreterFrameConstants. This will include
+  // argument padding, when needed.
   unsigned fixed_frame_size = ComputeInterpretedFixedSize(shared);
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -752,12 +759,20 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Compute the incoming parameter translation.
   unsigned output_offset = output_frame_size;
+
+  if (ShouldPadArguments(parameter_count)) {
+    output_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_offset, "padding ");
+  }
+
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
 
+  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(), "    -------------------------\n");
   }
@@ -977,6 +992,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
+  int parameter_count = height;
+  if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
+
   TranslatedFrame::iterator function_iterator = value_iterator;
   Object* function = value_iterator->GetRawValue();
   value_iterator++;
@@ -990,7 +1008,6 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
-  int parameter_count = height;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
 
@@ -1009,14 +1026,21 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   }
   output_frame->SetTop(top_address);
 
-  // Compute the incoming parameter translation.
   unsigned output_offset = output_frame_size;
+  if (ShouldPadArguments(parameter_count)) {
+    output_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_offset, "padding ");
+  }
+
+  // Compute the incoming parameter translation.
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
 
+  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
   // Read caller's PC from the previous frame.
   output_offset -= kPCOnStackSize;
   intptr_t value;
@@ -1080,6 +1104,10 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
+  output_offset -= kPointerSize;
+  WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                     output_offset, "padding ");
+
   DCHECK_EQ(0, output_offset);
 
   Builtins* builtins = isolate_->builtins();
@@ -1125,6 +1153,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
   }
 
+  int parameter_count = height;
+  if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
+
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
@@ -1140,8 +1171,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
-  FrameDescription* output_frame =
-      new (output_frame_size) FrameDescription(output_frame_size);
+  FrameDescription* output_frame = new (output_frame_size)
+      FrameDescription(output_frame_size, parameter_count);
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
@@ -1154,9 +1185,15 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
-  // Compute the incoming parameter translation.
-  int parameter_count = height;
   unsigned output_offset = output_frame_size;
+
+  if (ShouldPadArguments(parameter_count)) {
+    output_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_offset, "padding ");
+  }
+
+  // Compute the incoming parameter translation.
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     // The allocated receiver of a construct stub frame is passed as the
@@ -1167,6 +1204,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
         (i == 0) ? reinterpret_cast<Address>(top_address) : nullptr);
   }
 
+  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
   // Read caller's PC from the previous frame.
   output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
@@ -1224,10 +1262,21 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                      "constructor function ");
 
   // The deopt info contains the implicit receiver or the new target at the
-  // position of the receiver. Copy it to the top of stack.
+  // position of the receiver. Copy it to the top of stack, with the hole value
+  // as padding to maintain alignment.
   output_offset -= kPointerSize;
-  value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+  WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                     output_offset, "padding");
+
+  output_offset -= kPointerSize;
+
+  if (ShouldPadArguments(parameter_count)) {
+    value = output_frame->GetFrameSlot(output_frame_size - 2 * kPointerSize);
+  } else {
+    value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+  }
   output_frame->SetFrameSlot(output_offset, value);
+
   if (bailout_id == BailoutId::ConstructStubCreate()) {
     DebugPrintOutputSlot(value, frame_index, output_offset, "new target\n");
   } else {
@@ -1371,7 +1420,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // parameter count.
   int stack_param_count = height_in_words - register_parameter_count - 1;
   if (must_handle_result) stack_param_count++;
-  int output_frame_size =
+  unsigned output_frame_size =
       kPointerSize * (stack_param_count + allocatable_register_count +
                       padding_slot_count) +
       BuiltinContinuationFrameConstants::kFixedFrameSize;
@@ -1413,9 +1462,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
            stack_param_count);
   }
 
-  unsigned output_frame_offset = output_frame_size;
-  FrameDescription* output_frame =
-      new (output_frame_size) FrameDescription(output_frame_size);
+  int translated_stack_parameters =
+      must_handle_result ? stack_param_count - 1 : stack_param_count;
+
+  if (ShouldPadArguments(stack_param_count)) output_frame_size += kPointerSize;
+  FrameDescription* output_frame = new (output_frame_size)
+      FrameDescription(output_frame_size, stack_param_count);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous frame's top and
@@ -1446,8 +1498,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   intptr_t value;
 
-  int translated_stack_parameters =
-      must_handle_result ? stack_param_count - 1 : stack_param_count;
+  unsigned output_frame_offset = output_frame_size;
+  if (ShouldPadArguments(stack_param_count)) {
+    output_frame_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_frame_offset, "padding ");
+  }
 
   for (int i = 0; i < translated_stack_parameters; ++i) {
     output_frame_offset -= kPointerSize;
@@ -1461,6 +1517,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                        frame_index, output_frame_offset,
                        "placeholder for return result on lazy deopt ");
   }
+
+  DCHECK_EQ(output_frame_offset, output_frame->GetLastArgumentSlotOffset());
 
   for (int i = 0; i < register_parameter_count; ++i) {
     Object* object = value_iterator->GetRawValue();
@@ -1612,13 +1670,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     output_frame->SetRegister(context_reg.code(), context_value);
   }
 
-  // TODO(6898): For eager deopts within builtin stub frames we currently skip
-  // marking the underlying function as deoptimized. This is to avoid deopt
-  // loops where we would just generate the same optimized code all over again.
-  if (is_topmost && bailout_type_ != LAZY) {
-    preserve_optimized_ = true;
-  }
-
   // Ensure the frame pointer register points to the callee's frame. The builtin
   // will build its own frame once we continue to it.
   Register fp_reg = JavaScriptFrame::fp_register();
@@ -1661,6 +1712,15 @@ void Deoptimizer::MaterializeHeapObjects() {
 
     *(reinterpret_cast<intptr_t*>(materialization.output_slot_address_)) =
         reinterpret_cast<intptr_t>(*value);
+  }
+
+  translated_state_.VerifyMaterializedObjects();
+
+  bool feedback_updated = translated_state_.DoUpdateFeedback();
+  if (trace_scope_ != nullptr && feedback_updated) {
+    PrintF(trace_scope_->file(), "Feedback updated");
+    compiled_code_->PrintDeoptLocation(trace_scope_->file(),
+                                       " from deoptimization at ", from_);
   }
 
   isolate_->materialized_object_store()->Remove(
@@ -1747,14 +1807,6 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 }
 
 // static
-unsigned Deoptimizer::ComputeJavascriptFixedSize(SharedFunctionInfo* shared) {
-  // The fixed part of the frame consists of the return address, frame
-  // pointer, function, context, and all the incoming arguments.
-  return ComputeIncomingArgumentSize(shared) +
-         StandardFrameConstants::kFixedFrameSize;
-}
-
-// static
 unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
   // The fixed part of the frame consists of the return address, frame
   // pointer, function, context, bytecode offset and all the incoming arguments.
@@ -1764,7 +1816,9 @@ unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
 
 // static
 unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo* shared) {
-  return (shared->internal_formal_parameter_count() + 1) * kPointerSize;
+  int parameter_slots = shared->internal_formal_parameter_count() + 1;
+  if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
+  return parameter_slots * kPointerSize;
 }
 
 void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
@@ -2001,6 +2055,11 @@ void Translation::StoreLiteral(int literal_id) {
   buffer_->Add(literal_id);
 }
 
+void Translation::AddUpdateFeedback(int vector_literal, int slot) {
+  buffer_->Add(UPDATE_FEEDBACK);
+  buffer_->Add(vector_literal);
+  buffer_->Add(slot);
+}
 
 void Translation::StoreJSFrameFunction() {
   StoreStackSlot((StandardFrameConstants::kCallerPCOffset -
@@ -2028,9 +2087,10 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case DOUBLE_STACK_SLOT:
     case LITERAL:
       return 1;
-    case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
+    case UPDATE_FEEDBACK:
       return 2;
+    case BEGIN:
     case INTERPRETED_FRAME:
     case CONSTRUCT_STUB_FRAME:
     case BUILTIN_CONTINUATION_FRAME:
@@ -2229,7 +2289,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   CHECK(code->instruction_start() <= pc && pc <= code->instruction_end());
   SourcePosition last_position = SourcePosition::Unknown();
-  DeoptimizeReason last_reason = DeoptimizeReason::kNoReason;
+  DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;
   int last_deopt_id = kNoDeoptimizationId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
@@ -2385,9 +2445,8 @@ int TranslatedValue::object_index() const {
 
 Object* TranslatedValue::GetRawValue() const {
   // If we have a value, return it.
-  Handle<Object> result_handle;
-  if (value_.ToHandle(&result_handle)) {
-    return *result_handle;
+  if (materialization_state() == kFinished) {
+    return *storage_;
   }
 
   // Otherwise, do a best effort to get the value without allocation.
@@ -2429,11 +2488,15 @@ Object* TranslatedValue::GetRawValue() const {
   return isolate()->heap()->arguments_marker();
 }
 
+void TranslatedValue::set_initialized_storage(Handle<Object> storage) {
+  DCHECK_EQ(kUninitialized, materialization_state());
+  storage_ = storage;
+  materialization_state_ = kFinished;
+}
 
 Handle<Object> TranslatedValue::GetValue() {
-  Handle<Object> result;
   // If we already have a value, then get it.
-  if (value_.ToHandle(&result)) return result;
+  if (materialization_state() == kFinished) return storage_;
 
   // Otherwise we have to materialize.
   switch (kind()) {
@@ -2444,12 +2507,27 @@ Handle<Object> TranslatedValue::GetValue() {
     case TranslatedValue::kFloat:
     case TranslatedValue::kDouble: {
       MaterializeSimple();
-      return value_.ToHandleChecked();
+      return storage_;
     }
 
     case TranslatedValue::kCapturedObject:
-    case TranslatedValue::kDuplicatedObject:
-      return container_->MaterializeObjectAt(object_index());
+    case TranslatedValue::kDuplicatedObject: {
+      // We need to materialize the object (or possibly even object graphs).
+      // To make the object verifier happy, we materialize in two steps.
+
+      // 1. Allocate storage for reachable objects. This makes sure that for
+      //    each object we have allocated space on heap. The space will be
+      //    a byte array that will be later initialized, or a fully
+      //    initialized object if it is safe to allocate one that will
+      //    pass the verifier.
+      container_->EnsureObjectAllocatedAt(this);
+
+      // 2. Initialize the objects. If we have allocated only byte arrays
+      //    for some objects, we now overwrite the byte arrays with the
+      //    correct object fields. Note that this phase does not allocate
+      //    any new objects, so it does not trigger the object verifier.
+      return container_->InitializeObjectAt(this);
+    }
 
     case TranslatedValue::kInvalid:
       FATAL("unexpected case");
@@ -2460,36 +2538,39 @@ Handle<Object> TranslatedValue::GetValue() {
   return Handle<Object>::null();
 }
 
-
 void TranslatedValue::MaterializeSimple() {
   // If we already have materialized, return.
-  if (!value_.is_null()) return;
+  if (materialization_state() == kFinished) return;
 
   Object* raw_value = GetRawValue();
   if (raw_value != isolate()->heap()->arguments_marker()) {
     // We can get the value without allocation, just return it here.
-    value_ = Handle<Object>(raw_value, isolate());
+    set_initialized_storage(Handle<Object>(raw_value, isolate()));
     return;
   }
 
   switch (kind()) {
     case kInt32:
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(int32_value()));
+      set_initialized_storage(
+          Handle<Object>(isolate()->factory()->NewNumber(int32_value())));
       return;
 
     case kUInt32:
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(uint32_value()));
+      set_initialized_storage(
+          Handle<Object>(isolate()->factory()->NewNumber(uint32_value())));
       return;
 
     case kFloat: {
       double scalar_value = float_value().get_scalar();
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
+      set_initialized_storage(
+          Handle<Object>(isolate()->factory()->NewNumber(scalar_value)));
       return;
     }
 
     case kDouble: {
       double scalar_value = double_value().get_scalar();
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
+      set_initialized_storage(
+          Handle<Object>(isolate()->factory()->NewNumber(scalar_value)));
       return;
     }
 
@@ -2551,7 +2632,7 @@ Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
 
 void TranslatedValue::Handlify() {
   if (kind() == kTagged) {
-    value_ = Handle<Object>(raw_literal(), isolate());
+    set_initialized_storage(Handle<Object>(raw_literal(), isolate()));
     raw_literal_ = nullptr;
   }
 }
@@ -2712,7 +2793,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       return TranslatedFrame::JavaScriptBuiltinContinuationFrame(
           bailout_id, shared_info, height_with_context);
     }
-
+    case Translation::UPDATE_FEEDBACK:
     case Translation::BEGIN:
     case Translation::DUPLICATED_OBJECT:
     case Translation::ARGUMENTS_ELEMENTS:
@@ -2802,6 +2883,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     PrintF(trace_file, "arguments elements object #%d (type = %d, length = %d)",
            object_index, static_cast<uint8_t>(type), length);
   }
+
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
       this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
@@ -2855,6 +2937,7 @@ int TranslatedState::CreateNextTranslatedValue(
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case Translation::BUILTIN_CONTINUATION_FRAME:
+    case Translation::UPDATE_FEEDBACK:
       // Peeled off before getting here.
       break;
 
@@ -3117,8 +3200,7 @@ int TranslatedState::CreateNextTranslatedValue(
   FATAL("We should never get here - unexpected deopt info.");
 }
 
-TranslatedState::TranslatedState(const JavaScriptFrame* frame)
-    : isolate_(nullptr), stack_frame_pointer_(nullptr) {
+TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationData* data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
@@ -3130,9 +3212,6 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
        nullptr /* trace file */,
        frame->function()->shared()->internal_formal_parameter_count());
 }
-
-TranslatedState::TranslatedState()
-    : isolate_(nullptr), stack_frame_pointer_(nullptr) {}
 
 void TranslatedState::Init(Address input_frame_pointer,
                            TranslationIterator* iterator,
@@ -3149,9 +3228,15 @@ void TranslatedState::Init(Address input_frame_pointer,
   CHECK(opcode == Translation::BEGIN);
 
   int count = iterator->Next();
-  iterator->Next();  // Drop JS frames count.
-
   frames_.reserve(count);
+  iterator->Next();  // Drop JS frames count.
+  int update_feedback_count = iterator->Next();
+  CHECK_GE(update_feedback_count, 0);
+  CHECK_LE(update_feedback_count, 1);
+
+  if (update_feedback_count == 1) {
+    ReadUpdateFeedback(iterator, literal_array, trace_file);
+  }
 
   std::stack<int> nested_counts;
 
@@ -3209,563 +3294,472 @@ void TranslatedState::Init(Address input_frame_pointer,
 void TranslatedState::Prepare(Address stack_frame_pointer) {
   for (auto& frame : frames_) frame.Handlify();
 
+  if (feedback_vector_ != nullptr) {
+    feedback_vector_handle_ =
+        Handle<FeedbackVector>(feedback_vector_, isolate());
+    feedback_vector_ = nullptr;
+  }
   stack_frame_pointer_ = stack_frame_pointer;
 
   UpdateFromPreviouslyMaterializedObjects();
 }
 
-class TranslatedState::CapturedObjectMaterializer {
- public:
-  CapturedObjectMaterializer(TranslatedState* state, int frame_index,
-                             int field_count)
-      : state_(state), frame_index_(frame_index), field_count_(field_count) {}
+TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
+  CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
+  TranslatedState::ObjectPosition pos = object_positions_[object_index];
+  return &(frames_[pos.frame_index_].values_[pos.value_index_]);
+}
 
-  // Ensure the properties never contain mutable heap numbers. This is necessary
-  // because the deoptimizer generalizes all maps to tagged representation
-  // fields (so mutable heap numbers are not allowed).
-  static void EnsurePropertiesGeneralized(Handle<Object> properties_or_hash) {
-    if (properties_or_hash->IsPropertyArray()) {
-      Handle<PropertyArray> properties =
-          Handle<PropertyArray>::cast(properties_or_hash);
-      int length = properties->length();
-      for (int i = 0; i < length; i++) {
-        if (properties->get(i)->IsMutableHeapNumber()) {
-          Handle<HeapObject> box(HeapObject::cast(properties->get(i)));
-          box->set_map(properties->GetIsolate()->heap()->heap_number_map());
-        }
+Handle<Object> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
+  slot = ResolveCapturedObject(slot);
+
+  DisallowHeapAllocation no_allocation;
+  if (slot->materialization_state() != TranslatedValue::kFinished) {
+    std::stack<int> worklist;
+    worklist.push(slot->object_index());
+    slot->mark_finished();
+
+    while (!worklist.empty()) {
+      int index = worklist.top();
+      worklist.pop();
+      InitializeCapturedObjectAt(index, &worklist, no_allocation);
+    }
+  }
+  return slot->GetStorage();
+}
+
+void TranslatedState::InitializeCapturedObjectAt(
+    int object_index, std::stack<int>* worklist,
+    const DisallowHeapAllocation& no_allocation) {
+  CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
+  TranslatedState::ObjectPosition pos = object_positions_[object_index];
+  int value_index = pos.value_index_;
+
+  TranslatedFrame* frame = &(frames_[pos.frame_index_]);
+  TranslatedValue* slot = &(frame->values_[value_index]);
+  value_index++;
+
+  CHECK_EQ(TranslatedValue::kFinished, slot->materialization_state());
+  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+
+  // Ensure all fields are initialized.
+  int children_init_index = value_index;
+  for (int i = 0; i < slot->GetChildrenCount(); i++) {
+    // If the field is an object that has not been initialized yet, queue it
+    // for initialization (and mark it as such).
+    TranslatedValue* child_slot = frame->ValueAt(children_init_index);
+    if (child_slot->kind() == TranslatedValue::kCapturedObject ||
+        child_slot->kind() == TranslatedValue::kDuplicatedObject) {
+      child_slot = ResolveCapturedObject(child_slot);
+      if (child_slot->materialization_state() != TranslatedValue::kFinished) {
+        DCHECK_EQ(TranslatedValue::kAllocated,
+                  child_slot->materialization_state());
+        worklist->push(child_slot->object_index());
+        child_slot->mark_finished();
       }
     }
+    SkipSlots(1, frame, &children_init_index);
   }
 
-  Handle<Object> FieldAt(int* value_index) {
-    CHECK_GT(field_count_, 0);
-    --field_count_;
-    Handle<Object> object = state_->MaterializeAt(frame_index_, value_index);
-    // This is a big hammer to make sure that the materialized objects do not
-    // have property arrays with mutable heap numbers (mutable heap numbers are
-    // bad because we generalize maps for all materialized objects).
-    EnsurePropertiesGeneralized(object);
-    return object;
-  }
+  // Read the map.
+  // The map should never be materialized, so let us check we already have
+  // an existing object here.
+  CHECK_EQ(frame->values_[value_index].kind(), TranslatedValue::kTagged);
+  Handle<Map> map = Handle<Map>::cast(frame->values_[value_index].GetValue());
+  CHECK(map->IsMap());
+  value_index++;
 
-  ~CapturedObjectMaterializer() { CHECK_EQ(0, field_count_); }
-
- private:
-  TranslatedState* state_;
-  int frame_index_;
-  int field_count_;
-};
-
-Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
-    TranslatedValue* slot, int frame_index, int* value_index) {
-  int length = slot->GetChildrenCount();
-
-  CapturedObjectMaterializer materializer(this, frame_index, length);
-
-  Handle<Object> result;
-  if (slot->value_.ToHandle(&result)) {
-    // This has been previously materialized, return the previous value.
-    // We still need to skip all the nested objects.
-    for (int i = 0; i < length; i++) {
-      materializer.FieldAt(value_index);
-    }
-
-    return result;
-  }
-
-  Handle<Object> map_object = materializer.FieldAt(value_index);
-  Handle<Map> map = Map::GeneralizeAllFields(Handle<Map>::cast(map_object));
+  // Handle the special cases.
   switch (map->instance_type()) {
     case MUTABLE_HEAP_NUMBER_TYPE:
-    case HEAP_NUMBER_TYPE: {
-      // Reuse the HeapNumber value directly as it is already properly
-      // tagged and skip materializing the HeapNumber explicitly.
-      Handle<Object> object = materializer.FieldAt(value_index);
-      slot->value_ = object;
-      // On 32-bit architectures, there is an extra slot there because
-      // the escape analysis calculates the number of slots as
-      // object-size/pointer-size. To account for this, we read out
-      // any extra slots.
-      for (int i = 0; i < length - 2; i++) {
-        materializer.FieldAt(value_index);
-      }
-      return object;
-    }
-    case JS_OBJECT_TYPE:
-    case JS_ERROR_TYPE:
-    case JS_ARGUMENTS_TYPE: {
-      Handle<JSObject> object =
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED);
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      int in_object_properties = map->GetInObjectProperties();
-      for (int i = 0; i < in_object_properties; ++i) {
-        Handle<Object> value = materializer.FieldAt(value_index);
-        FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
-        object->FastPropertyAtPut(index, *value);
-      }
-      return object;
-    }
-    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
-    case JS_SET_VALUE_ITERATOR_TYPE: {
-      Handle<JSSetIterator> object = Handle<JSSetIterator>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> table = materializer.FieldAt(value_index);
-      Handle<Object> index = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_table(*table);
-      object->set_index(*index);
-      return object;
-    }
-    case JS_MAP_KEY_ITERATOR_TYPE:
-    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
-    case JS_MAP_VALUE_ITERATOR_TYPE: {
-      Handle<JSMapIterator> object = Handle<JSMapIterator>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> table = materializer.FieldAt(value_index);
-      Handle<Object> index = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_table(*table);
-      object->set_index(*index);
-      return object;
-    }
-#define ARRAY_ITERATOR_CASE(type) case type:
-      ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
-#undef ARRAY_ITERATOR_CASE
-      {
-        Handle<JSArrayIterator> object = Handle<JSArrayIterator>::cast(
-            isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-        slot->value_ = object;
-        // Initialize the index to zero to make the heap verifier happy.
-        object->set_index(Smi::FromInt(0));
-        Handle<Object> properties = materializer.FieldAt(value_index);
-        Handle<Object> elements = materializer.FieldAt(value_index);
-        Handle<Object> iterated_object = materializer.FieldAt(value_index);
-        Handle<Object> next_index = materializer.FieldAt(value_index);
-        Handle<Object> iterated_object_map = materializer.FieldAt(value_index);
-        object->set_raw_properties_or_hash(*properties);
-        object->set_elements(FixedArrayBase::cast(*elements));
-        object->set_object(*iterated_object);
-        object->set_index(*next_index);
-        object->set_object_map(*iterated_object_map);
-        return object;
-      }
-    case JS_STRING_ITERATOR_TYPE: {
-      Handle<JSStringIterator> object = Handle<JSStringIterator>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      // Initialize the index to zero to make the heap verifier happy.
-      object->set_index(0);
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> iterated_string = materializer.FieldAt(value_index);
-      Handle<Object> next_index = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      CHECK(iterated_string->IsString());
-      object->set_string(String::cast(*iterated_string));
-      CHECK(next_index->IsSmi());
-      object->set_index(Smi::ToInt(*next_index));
-      return object;
-    }
-    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE: {
-      Handle<JSAsyncFromSyncIterator> object =
-          Handle<JSAsyncFromSyncIterator>::cast(
-              isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> sync_iterator = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_sync_iterator(JSReceiver::cast(*sync_iterator));
-      return object;
-    }
-    case JS_ARRAY_TYPE: {
-      Handle<JSArray> object = Handle<JSArray>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> array_length = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_length(*array_length);
-      int in_object_properties = map->GetInObjectProperties();
-      for (int i = 0; i < in_object_properties; ++i) {
-        Handle<Object> value = materializer.FieldAt(value_index);
-        FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
-        object->FastPropertyAtPut(index, *value);
-      }
-      return object;
-    }
-    case JS_BOUND_FUNCTION_TYPE: {
-      Handle<JSBoundFunction> object = Handle<JSBoundFunction>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> bound_target_function = materializer.FieldAt(value_index);
-      Handle<Object> bound_this = materializer.FieldAt(value_index);
-      Handle<Object> bound_arguments = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_bound_target_function(
-          JSReceiver::cast(*bound_target_function));
-      object->set_bound_this(*bound_this);
-      object->set_bound_arguments(FixedArray::cast(*bound_arguments));
-      return object;
-    }
-    case JS_FUNCTION_TYPE: {
-      Handle<JSFunction> object = isolate_->factory()->NewFunction(
-          map, handle(isolate_->object_function()->shared()),
-          handle(isolate_->context()), NOT_TENURED);
-      slot->value_ = object;
-      // We temporarily allocated a JSFunction for the {Object} function
-      // within the current context, to break cycles in the object graph.
-      // The correct function and context will be set below once available.
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> shared = materializer.FieldAt(value_index);
-      Handle<Object> context = materializer.FieldAt(value_index);
-      Handle<Object> vector_cell = materializer.FieldAt(value_index);
-      Handle<Object> code = materializer.FieldAt(value_index);
-      bool has_prototype_slot = map->has_prototype_slot();
-      Handle<Object> prototype;
-      if (has_prototype_slot) {
-        prototype = materializer.FieldAt(value_index);
-      }
-      object->set_map(*map);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_shared(SharedFunctionInfo::cast(*shared));
-      object->set_context(Context::cast(*context));
-      object->set_feedback_vector_cell(Cell::cast(*vector_cell));
-      object->set_code(Code::cast(*code));
-      if (has_prototype_slot) {
-        object->set_prototype_or_initial_map(*prototype);
-      }
-      int in_object_properties = map->GetInObjectProperties();
-      for (int i = 0; i < in_object_properties; ++i) {
-        Handle<Object> value = materializer.FieldAt(value_index);
-        FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
-        object->FastPropertyAtPut(index, *value);
-      }
-      return object;
-    }
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
-    case JS_GENERATOR_OBJECT_TYPE: {
-      Handle<JSGeneratorObject> object = Handle<JSGeneratorObject>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> function = materializer.FieldAt(value_index);
-      Handle<Object> context = materializer.FieldAt(value_index);
-      Handle<Object> receiver = materializer.FieldAt(value_index);
-      Handle<Object> input_or_debug_pos = materializer.FieldAt(value_index);
-      Handle<Object> resume_mode = materializer.FieldAt(value_index);
-      Handle<Object> continuation_offset = materializer.FieldAt(value_index);
-      Handle<Object> register_file = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_function(JSFunction::cast(*function));
-      object->set_context(Context::cast(*context));
-      object->set_receiver(*receiver);
-      object->set_input_or_debug_pos(*input_or_debug_pos);
-      object->set_resume_mode(Smi::ToInt(*resume_mode));
-      object->set_continuation(Smi::ToInt(*continuation_offset));
-      object->set_register_file(FixedArray::cast(*register_file));
+    case FIXED_DOUBLE_ARRAY_TYPE:
+      return;
 
-      if (object->IsJSAsyncGeneratorObject()) {
-        auto generator = Handle<JSAsyncGeneratorObject>::cast(object);
-        Handle<Object> queue = materializer.FieldAt(value_index);
-        Handle<Object> awaited_promise = materializer.FieldAt(value_index);
-        generator->set_queue(HeapObject::cast(*queue));
-        generator->set_awaited_promise(HeapObject::cast(*awaited_promise));
-      }
-
-      int in_object_properties = map->GetInObjectProperties();
-      for (int i = 0; i < in_object_properties; ++i) {
-        Handle<Object> value = materializer.FieldAt(value_index);
-        FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
-        object->FastPropertyAtPut(index, *value);
-      }
-      return object;
-    }
-    case CONS_STRING_TYPE: {
-      Handle<ConsString> object = Handle<ConsString>::cast(
-          isolate_->factory()
-              ->NewConsString(isolate_->factory()->undefined_string(),
-                              isolate_->factory()->undefined_string())
-              .ToHandleChecked());
-      slot->value_ = object;
-      Handle<Object> hash = materializer.FieldAt(value_index);
-      Handle<Object> string_length = materializer.FieldAt(value_index);
-      Handle<Object> first = materializer.FieldAt(value_index);
-      Handle<Object> second = materializer.FieldAt(value_index);
-      object->set_map(*map);
-      object->set_length(Smi::ToInt(*string_length));
-      object->set_first(String::cast(*first));
-      object->set_second(String::cast(*second));
-      CHECK(hash->IsNumber());  // The {Name::kEmptyHashField} value.
-      return object;
-    }
-    case CONTEXT_EXTENSION_TYPE: {
-      Handle<ContextExtension> object =
-          isolate_->factory()->NewContextExtension(
-              isolate_->factory()->NewScopeInfo(1),
-              isolate_->factory()->undefined_value());
-      slot->value_ = object;
-      Handle<Object> scope_info = materializer.FieldAt(value_index);
-      Handle<Object> extension = materializer.FieldAt(value_index);
-      object->set_scope_info(ScopeInfo::cast(*scope_info));
-      object->set_extension(*extension);
-      return object;
-    }
+    case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
-    case FIXED_ARRAY_TYPE: {
-      Handle<Object> lengthObject = materializer.FieldAt(value_index);
-      int32_t array_length = 0;
-      CHECK(lengthObject->ToInt32(&array_length));
-      Handle<FixedArray> object =
-          isolate_->factory()->NewFixedArray(array_length);
-      // We need to set the map, because the fixed array we are
-      // materializing could be a context or an arguments object,
-      // in which case we must retain that information.
-      object->set_map(*map);
-      slot->value_ = object;
-      for (int i = 0; i < array_length; ++i) {
-        Handle<Object> value = materializer.FieldAt(value_index);
-        object->set(i, *value);
-      }
-      return object;
-    }
-    case PROPERTY_ARRAY_TYPE: {
-      DCHECK_EQ(*map, isolate_->heap()->property_array_map());
-      Handle<Object> lengthObject = materializer.FieldAt(value_index);
-      int32_t array_length = 0;
-      CHECK(lengthObject->ToInt32(&array_length));
-      Handle<PropertyArray> object =
-          isolate_->factory()->NewPropertyArray(array_length);
-      slot->value_ = object;
-      for (int i = 0; i < array_length; ++i) {
-        Handle<Object> value = materializer.FieldAt(value_index);
-        object->set(i, *value);
-      }
-      return object;
-    }
-    case FIXED_DOUBLE_ARRAY_TYPE: {
-      DCHECK_EQ(*map, isolate_->heap()->fixed_double_array_map());
-      Handle<Object> lengthObject = materializer.FieldAt(value_index);
-      int32_t array_length = 0;
-      CHECK(lengthObject->ToInt32(&array_length));
-      Handle<FixedArrayBase> object =
-          isolate_->factory()->NewFixedDoubleArray(array_length);
-      slot->value_ = object;
-      if (array_length > 0) {
-        Handle<FixedDoubleArray> double_array =
-            Handle<FixedDoubleArray>::cast(object);
-        for (int i = 0; i < array_length; ++i) {
-          Handle<Object> value = materializer.FieldAt(value_index);
-          if (value.is_identical_to(isolate_->factory()->the_hole_value())) {
-            double_array->set_the_hole(isolate_, i);
-          } else {
-            CHECK(value->IsNumber());
-            double_array->set(i, value->Number());
-          }
-        }
-      }
-      return object;
-    }
-    case JS_REGEXP_TYPE: {
-      Handle<JSRegExp> object = Handle<JSRegExp>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> data = materializer.FieldAt(value_index);
-      Handle<Object> source = materializer.FieldAt(value_index);
-      Handle<Object> flags = materializer.FieldAt(value_index);
-      Handle<Object> last_index = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_data(*data);
-      object->set_source(*source);
-      object->set_flags(*flags);
-      object->set_last_index(*last_index);
-      return object;
-    }
-    case STRING_TYPE:
-    case ONE_BYTE_STRING_TYPE:
-    case CONS_ONE_BYTE_STRING_TYPE:
-    case SLICED_STRING_TYPE:
-    case SLICED_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_STRING_TYPE:
-    case EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case SHORT_EXTERNAL_STRING_TYPE:
-    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case THIN_STRING_TYPE:
-    case THIN_ONE_BYTE_STRING_TYPE:
-    case INTERNALIZED_STRING_TYPE:
-    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case SYMBOL_TYPE:
-    case ODDBALL_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
-    case JS_API_OBJECT_TYPE:
-    case JS_SPECIAL_API_OBJECT_TYPE:
-    case JS_VALUE_TYPE:
-    case JS_MESSAGE_OBJECT_TYPE:
-    case JS_DATE_TYPE:
-    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_MODULE_NAMESPACE_TYPE:
-    case JS_ARRAY_BUFFER_TYPE:
-    case JS_TYPED_ARRAY_TYPE:
-    case JS_DATA_VIEW_TYPE:
-    case JS_SET_TYPE:
-    case JS_MAP_TYPE:
-    case JS_WEAK_MAP_TYPE:
-    case JS_WEAK_SET_TYPE:
-    case JS_PROMISE_TYPE:
-    case JS_PROXY_TYPE:
-    case MAP_TYPE:
-    case ALLOCATION_SITE_TYPE:
-    case ACCESSOR_INFO_TYPE:
-    case SHARED_FUNCTION_INFO_TYPE:
-    case FUNCTION_TEMPLATE_INFO_TYPE:
-    case ACCESSOR_PAIR_TYPE:
-    case BYTE_ARRAY_TYPE:
-    case BYTECODE_ARRAY_TYPE:
-    case DESCRIPTOR_ARRAY_TYPE:
-    case TRANSITION_ARRAY_TYPE:
-    case FEEDBACK_VECTOR_TYPE:
-    case FOREIGN_TYPE:
-    case SCRIPT_TYPE:
-    case CODE_TYPE:
-    case PROPERTY_CELL_TYPE:
-    case BIGINT_TYPE:
-    case MODULE_TYPE:
-    case MODULE_INFO_ENTRY_TYPE:
-    case FREE_SPACE_TYPE:
-#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case FIXED_##TYPE##_ARRAY_TYPE:
-      TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
-#undef FIXED_TYPED_ARRAY_CASE
-    case FILLER_TYPE:
-    case ACCESS_CHECK_INFO_TYPE:
-    case INTERCEPTOR_INFO_TYPE:
-    case OBJECT_TEMPLATE_INFO_TYPE:
-    case ALLOCATION_MEMENTO_TYPE:
-    case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
-    case PROMISE_REACTION_JOB_INFO_TYPE:
-    case DEBUG_INFO_TYPE:
-    case STACK_FRAME_INFO_TYPE:
-    case CELL_TYPE:
-    case WEAK_CELL_TYPE:
-    case SMALL_ORDERED_HASH_MAP_TYPE:
-    case SMALL_ORDERED_HASH_SET_TYPE:
-    case CODE_DATA_CONTAINER_TYPE:
-    case PROTOTYPE_INFO_TYPE:
-    case TUPLE2_TYPE:
-    case TUPLE3_TYPE:
-    case ASYNC_GENERATOR_REQUEST_TYPE:
-    case WASM_MODULE_TYPE:
-    case WASM_INSTANCE_TYPE:
-    case WASM_MEMORY_TYPE:
-    case WASM_TABLE_TYPE:
-      OFStream os(stderr);
-      os << "[couldn't handle instance type " << map->instance_type() << "]"
-         << std::endl;
-      UNREACHABLE();
+    case PROPERTY_ARRAY_TYPE:
+    case CONTEXT_EXTENSION_TYPE:
+      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map,
+                                         no_allocation);
       break;
+
+    default:
+      CHECK(map->IsJSObjectMap());
+      InitializeJSObjectAt(frame, &value_index, slot, map, no_allocation);
+      break;
+  }
+  CHECK_EQ(value_index, children_init_index);
+}
+
+void TranslatedState::EnsureObjectAllocatedAt(TranslatedValue* slot) {
+  slot = ResolveCapturedObject(slot);
+
+  if (slot->materialization_state() == TranslatedValue::kUninitialized) {
+    std::stack<int> worklist;
+    worklist.push(slot->object_index());
+    slot->mark_allocated();
+
+    while (!worklist.empty()) {
+      int index = worklist.top();
+      worklist.pop();
+      EnsureCapturedObjectAllocatedAt(index, &worklist);
+    }
+  }
+}
+
+void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
+                                                  int* value_index,
+                                                  TranslatedValue* slot,
+                                                  Handle<Map> map) {
+  int length = Smi::cast(frame->values_[*value_index].GetRawValue())->value();
+  (*value_index)++;
+  Handle<FixedDoubleArray> array = Handle<FixedDoubleArray>::cast(
+      isolate()->factory()->NewFixedDoubleArray(length));
+  CHECK_GT(length, 0);
+  for (int i = 0; i < length; i++) {
+    CHECK_NE(TranslatedValue::kCapturedObject,
+             frame->values_[*value_index].kind());
+    Handle<Object> value = frame->values_[*value_index].GetValue();
+    if (value->IsNumber()) {
+      array->set(i, value->Number());
+    } else {
+      CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
+      array->set_the_hole(isolate(), i);
+    }
+    (*value_index)++;
+  }
+  slot->set_storage(array);
+}
+
+void TranslatedState::MaterializeMutableHeapNumber(TranslatedFrame* frame,
+                                                   int* value_index,
+                                                   TranslatedValue* slot) {
+  CHECK_NE(TranslatedValue::kCapturedObject,
+           frame->values_[*value_index].kind());
+  Handle<Object> value = frame->values_[*value_index].GetValue();
+  Handle<HeapNumber> box;
+  CHECK(value->IsNumber());
+  box = isolate()->factory()->NewHeapNumber(value->Number(), MUTABLE);
+  (*value_index)++;
+  slot->set_storage(box);
+}
+
+namespace {
+
+enum DoubleStorageKind : uint8_t {
+  kStoreTagged,
+  kStoreUnboxedDouble,
+  kStoreMutableHeapNumber,
+};
+
+}  // namespace
+
+void TranslatedState::SkipSlots(int slots_to_skip, TranslatedFrame* frame,
+                                int* value_index) {
+  while (slots_to_skip > 0) {
+    TranslatedValue* slot = &(frame->values_[*value_index]);
+    (*value_index)++;
+    slots_to_skip--;
+
+    if (slot->kind() == TranslatedValue::kCapturedObject) {
+      slots_to_skip += slot->GetChildrenCount();
+    }
+  }
+}
+
+void TranslatedState::EnsureCapturedObjectAllocatedAt(
+    int object_index, std::stack<int>* worklist) {
+  CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
+  TranslatedState::ObjectPosition pos = object_positions_[object_index];
+  int value_index = pos.value_index_;
+
+  TranslatedFrame* frame = &(frames_[pos.frame_index_]);
+  TranslatedValue* slot = &(frame->values_[value_index]);
+  value_index++;
+
+  CHECK_EQ(TranslatedValue::kAllocated, slot->materialization_state());
+  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+
+  // Read the map.
+  // The map should never be materialized, so let us check we already have
+  // an existing object here.
+  CHECK_EQ(frame->values_[value_index].kind(), TranslatedValue::kTagged);
+  Handle<Map> map = Handle<Map>::cast(frame->values_[value_index].GetValue());
+  CHECK(map->IsMap());
+  value_index++;
+
+  // Handle the special cases.
+  switch (map->instance_type()) {
+    case FIXED_DOUBLE_ARRAY_TYPE:
+      // Materialize (i.e. allocate&initialize) the array and return since
+      // there is no need to process the children.
+      return MaterializeFixedDoubleArray(frame, &value_index, slot, map);
+
+    case MUTABLE_HEAP_NUMBER_TYPE:
+      // Materialize (i.e. allocate&initialize) the heap number and return.
+      // There is no need to process the children.
+      return MaterializeMutableHeapNumber(frame, &value_index, slot);
+
+    case FIXED_ARRAY_TYPE:
+    case HASH_TABLE_TYPE: {
+      // Check we have the right size.
+      int array_length =
+          Smi::cast(frame->values_[value_index].GetRawValue())->value();
+
+      int instance_size = FixedArray::SizeFor(array_length);
+      CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
+
+      // Canonicalize empty fixed array.
+      if (*map == isolate()->heap()->empty_fixed_array()->map() &&
+          array_length == 0) {
+        slot->set_storage(isolate()->factory()->empty_fixed_array());
+      } else {
+        slot->set_storage(AllocateStorageFor(slot));
+      }
+
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
+    }
+
+    case PROPERTY_ARRAY_TYPE: {
+      // Check we have the right size.
+      int length_or_hash =
+          Smi::cast(frame->values_[value_index].GetRawValue())->value();
+      int array_length = PropertyArray::LengthField::decode(length_or_hash);
+      int instance_size = PropertyArray::SizeFor(array_length);
+      CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
+
+      slot->set_storage(AllocateStorageFor(slot));
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
+    }
+
+    case CONTEXT_EXTENSION_TYPE: {
+      CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kPointerSize);
+      slot->set_storage(AllocateStorageFor(slot));
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
+    }
+
+    default:
+      CHECK(map->IsJSObjectMap());
+      EnsureJSObjectAllocated(slot, map);
+      TranslatedValue* properties_slot = &(frame->values_[value_index]);
+      value_index++;
+      if (properties_slot->kind() == TranslatedValue::kCapturedObject) {
+        // If we are materializing the property array, make sure we put
+        // the mutable heap numbers at the right places.
+        EnsurePropertiesAllocatedAndMarked(properties_slot, map);
+        EnsureChildrenAllocated(properties_slot->GetChildrenCount(), frame,
+                                &value_index, worklist);
+      }
+      // Make sure all the remaining children (after the map and properties) are
+      // allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 2, frame,
+                                     &value_index, worklist);
   }
   UNREACHABLE();
 }
 
-Handle<Object> TranslatedState::MaterializeAt(int frame_index,
-                                              int* value_index) {
-  CHECK_LT(static_cast<size_t>(frame_index), frames().size());
-  TranslatedFrame* frame = &(frames_[frame_index]);
-  CHECK_LT(static_cast<size_t>(*value_index), frame->values_.size());
-
-  TranslatedValue* slot = &(frame->values_[*value_index]);
-  (*value_index)++;
-
-  switch (slot->kind()) {
-    case TranslatedValue::kTagged:
-    case TranslatedValue::kInt32:
-    case TranslatedValue::kUInt32:
-    case TranslatedValue::kBoolBit:
-    case TranslatedValue::kFloat:
-    case TranslatedValue::kDouble: {
-      slot->MaterializeSimple();
-      Handle<Object> value = slot->GetValue();
-      if (value->IsMutableHeapNumber()) {
-        HeapNumber::cast(*value)->set_map(isolate()->heap()->heap_number_map());
+void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
+                                              int* value_index,
+                                              std::stack<int>* worklist) {
+  // Ensure all children are allocated.
+  for (int i = 0; i < count; i++) {
+    // If the field is an object that has not been allocated yet, queue it
+    // for initialization (and mark it as such).
+    TranslatedValue* child_slot = frame->ValueAt(*value_index);
+    if (child_slot->kind() == TranslatedValue::kCapturedObject ||
+        child_slot->kind() == TranslatedValue::kDuplicatedObject) {
+      child_slot = ResolveCapturedObject(child_slot);
+      if (child_slot->materialization_state() ==
+          TranslatedValue::kUninitialized) {
+        worklist->push(child_slot->object_index());
+        child_slot->mark_allocated();
       }
-      return value;
+    } else {
+      // Make sure the simple values (heap numbers, etc.) are properly
+      // initialized.
+      child_slot->MaterializeSimple();
     }
-
-    case TranslatedValue::kCapturedObject: {
-      // The map must be a tagged object.
-      CHECK_EQ(frame->values_[*value_index].kind(), TranslatedValue::kTagged);
-      CHECK(frame->values_[*value_index].GetValue()->IsMap());
-      return MaterializeCapturedObjectAt(slot, frame_index, value_index);
-    }
-    case TranslatedValue::kDuplicatedObject: {
-      int object_index = slot->object_index();
-      TranslatedState::ObjectPosition pos = object_positions_[object_index];
-
-      // Make sure the duplicate is referring to a previous object.
-      CHECK(pos.frame_index_ < frame_index ||
-            (pos.frame_index_ == frame_index &&
-             pos.value_index_ < *value_index - 1));
-
-      Handle<Object> object =
-          frames_[pos.frame_index_].values_[pos.value_index_].GetValue();
-
-      // The object should have a (non-sentinel) value.
-      CHECK(!object.is_null() &&
-            !object.is_identical_to(isolate_->factory()->arguments_marker()));
-
-      slot->value_ = object;
-      return object;
-    }
-
-    case TranslatedValue::kInvalid:
-      UNREACHABLE();
-      break;
+    SkipSlots(1, frame, value_index);
   }
-
-  FATAL("We should never get here - unexpected deopt slot kind.");
-  return Handle<Object>::null();
 }
 
-Handle<Object> TranslatedState::MaterializeObjectAt(int object_index) {
-  CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
-  TranslatedState::ObjectPosition pos = object_positions_[object_index];
-  return MaterializeAt(pos.frame_index_, &(pos.value_index_));
+void TranslatedState::EnsurePropertiesAllocatedAndMarked(
+    TranslatedValue* properties_slot, Handle<Map> map) {
+  CHECK_EQ(TranslatedValue::kUninitialized,
+           properties_slot->materialization_state());
+
+  Handle<ByteArray> object_storage = AllocateStorageFor(properties_slot);
+  properties_slot->mark_allocated();
+  properties_slot->set_storage(object_storage);
+
+  // Set markers for the double properties.
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  int field_count = map->NumberOfOwnDescriptors();
+  for (int i = 0; i < field_count; i++) {
+    FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+    if (descriptors->GetDetails(i).representation().IsDouble() &&
+        !index.is_inobject()) {
+      CHECK(!map->IsUnboxedDoubleField(index));
+      int outobject_index = index.outobject_array_index();
+      int array_index = outobject_index * kPointerSize;
+      object_storage->set(array_index, kStoreMutableHeapNumber);
+    }
+  }
+}
+
+Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
+  int allocate_size =
+      ByteArray::LengthFor(slot->GetChildrenCount() * kPointerSize);
+  // It is important to allocate all the objects tenured so that the marker
+  // does not visit them.
+  Handle<ByteArray> object_storage =
+      isolate()->factory()->NewByteArray(allocate_size, TENURED);
+  for (int i = 0; i < object_storage->length(); i++) {
+    object_storage->set(i, kStoreTagged);
+  }
+  return object_storage;
+}
+
+void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
+                                              Handle<Map> map) {
+  CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kPointerSize);
+
+  Handle<ByteArray> object_storage = AllocateStorageFor(slot);
+  // Now we handle the interesting (JSObject) case.
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  int field_count = map->NumberOfOwnDescriptors();
+
+  // Set markers for the double properties.
+  for (int i = 0; i < field_count; i++) {
+    FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+    if (descriptors->GetDetails(i).representation().IsDouble() &&
+        index.is_inobject()) {
+      CHECK_GE(index.index(), FixedArray::kHeaderSize / kPointerSize);
+      int array_index = index.index() * kPointerSize - FixedArray::kHeaderSize;
+      uint8_t marker = map->IsUnboxedDoubleField(index)
+                           ? kStoreUnboxedDouble
+                           : kStoreMutableHeapNumber;
+      object_storage->set(array_index, marker);
+    }
+  }
+  slot->set_storage(object_storage);
+}
+
+Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
+                                                   int* value_index) {
+  TranslatedValue* slot = frame->ValueAt(*value_index);
+  SkipSlots(1, frame, value_index);
+  if (slot->kind() == TranslatedValue::kDuplicatedObject) {
+    slot = ResolveCapturedObject(slot);
+  }
+  CHECK_NE(TranslatedValue::kUninitialized, slot->materialization_state());
+  return slot->GetStorage();
+}
+
+void TranslatedState::InitializeJSObjectAt(
+    TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
+    Handle<Map> map, const DisallowHeapAllocation& no_allocation) {
+  Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
+  DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+
+  // The object should have at least a map and some payload.
+  CHECK_GE(slot->GetChildrenCount(), 2);
+
+  // Notify the concurrent marker about the layout change.
+  isolate()->heap()->NotifyObjectLayoutChange(
+      *object_storage, slot->GetChildrenCount() * kPointerSize, no_allocation);
+
+  // Fill the property array field.
+  {
+    Handle<Object> properties = GetValueAndAdvance(frame, value_index);
+    WRITE_FIELD(*object_storage, JSObject::kPropertiesOrHashOffset,
+                *properties);
+    WRITE_BARRIER(isolate()->heap(), *object_storage,
+                  JSObject::kPropertiesOrHashOffset, *properties);
+  }
+
+  // For all the other fields we first look at the fixed array and check the
+  // marker to see if we store an unboxed double.
+  DCHECK_EQ(kPointerSize, JSObject::kPropertiesOrHashOffset);
+  for (int i = 2; i < slot->GetChildrenCount(); i++) {
+    // Initialize and extract the value from its slot.
+    Handle<Object> field_value = GetValueAndAdvance(frame, value_index);
+
+    // Read out the marker and ensure the field is consistent with
+    // what the markers in the storage say (note that all heap numbers
+    // should be fully initialized by now).
+    int offset = i * kPointerSize;
+    uint8_t marker = READ_UINT8_FIELD(*object_storage, offset);
+    if (marker == kStoreUnboxedDouble) {
+      double double_field_value;
+      if (field_value->IsSmi()) {
+        double_field_value = Smi::cast(*field_value)->value();
+      } else {
+        CHECK(field_value->IsHeapNumber());
+        double_field_value = HeapNumber::cast(*field_value)->value();
+      }
+      WRITE_DOUBLE_FIELD(*object_storage, offset, double_field_value);
+    } else if (marker == kStoreMutableHeapNumber) {
+      CHECK(field_value->IsMutableHeapNumber());
+      WRITE_FIELD(*object_storage, offset, *field_value);
+      WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+    } else {
+      CHECK_EQ(kStoreTagged, marker);
+      WRITE_FIELD(*object_storage, offset, *field_value);
+      WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+    }
+  }
+  object_storage->synchronized_set_map(*map);
+}
+
+void TranslatedState::InitializeObjectWithTaggedFieldsAt(
+    TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
+    Handle<Map> map, const DisallowHeapAllocation& no_allocation) {
+  Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
+
+  // Skip the writes if we already have the canonical empty fixed array.
+  if (*object_storage == isolate()->heap()->empty_fixed_array()) {
+    CHECK_EQ(2, slot->GetChildrenCount());
+    Handle<Object> length_value = GetValueAndAdvance(frame, value_index);
+    CHECK_EQ(*length_value, Smi::FromInt(0));
+    return;
+  }
+
+  // Notify the concurrent marker about the layout change.
+  isolate()->heap()->NotifyObjectLayoutChange(
+      *object_storage, slot->GetChildrenCount() * kPointerSize, no_allocation);
+
+  // Write the fields to the object.
+  for (int i = 1; i < slot->GetChildrenCount(); i++) {
+    Handle<Object> field_value = GetValueAndAdvance(frame, value_index);
+    int offset = i * kPointerSize;
+    uint8_t marker = READ_UINT8_FIELD(*object_storage, offset);
+    if (i > 1 && marker == kStoreMutableHeapNumber) {
+      CHECK(field_value->IsMutableHeapNumber());
+    } else {
+      CHECK(marker == kStoreTagged || i == 1);
+      CHECK(!field_value->IsMutableHeapNumber());
+    }
+
+    WRITE_FIELD(*object_storage, offset, *field_value);
+    WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+  }
+
+  object_storage->synchronized_set_map(*map);
+}
+
+TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {
+  while (slot->kind() == TranslatedValue::kDuplicatedObject) {
+    slot = GetValueByObjectIndex(slot->object_index());
+  }
+  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  return slot;
 }
 
 TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
@@ -3818,7 +3812,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   bool new_store = false;
   if (previously_materialized_objects.is_null()) {
     previously_materialized_objects =
-        isolate_->factory()->NewFixedArray(length);
+        isolate_->factory()->NewFixedArray(length, TENURED);
     for (int i = 0; i < length; i++) {
       previously_materialized_objects->set(i, *marker);
     }
@@ -3834,6 +3828,10 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
         &(frames_[pos.frame_index_].values_[pos.value_index_]);
 
     CHECK(value_info->IsMaterializedObject());
+
+    // Skip duplicate objects (i.e., those that point to some
+    // other object id).
+    if (value_info->object_index() != i) continue;
 
     Handle<Object> value(value_info->GetRawValue(), isolate_);
 
@@ -3878,11 +3876,57 @@ void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
           &(frames_[pos.frame_index_].values_[pos.value_index_]);
       CHECK(value_info->IsMaterializedObject());
 
-      value_info->value_ =
-          Handle<Object>(previously_materialized_objects->get(i), isolate_);
+      if (value_info->kind() == TranslatedValue::kCapturedObject) {
+        value_info->set_initialized_storage(
+            Handle<Object>(previously_materialized_objects->get(i), isolate_));
+      }
     }
+  }
+}
+
+void TranslatedState::VerifyMaterializedObjects() {
+#if VERIFY_HEAP
+  int length = static_cast<int>(object_positions_.size());
+  for (int i = 0; i < length; i++) {
+    TranslatedValue* slot = GetValueByObjectIndex(i);
+    if (slot->kind() == TranslatedValue::kCapturedObject) {
+      CHECK_EQ(slot, GetValueByObjectIndex(slot->object_index()));
+      if (slot->materialization_state() == TranslatedValue::kFinished) {
+        slot->GetStorage()->ObjectVerify();
+      } else {
+        CHECK_EQ(slot->materialization_state(),
+                 TranslatedValue::kUninitialized);
+      }
+    }
+  }
+#endif
+}
+
+bool TranslatedState::DoUpdateFeedback() {
+  if (!feedback_vector_handle_.is_null()) {
+    CHECK(!feedback_slot_.IsInvalid());
+    isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
+    CallICNexus nexus(feedback_vector_handle_, feedback_slot_);
+    nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+    return true;
+  }
+  return false;
+}
+
+void TranslatedState::ReadUpdateFeedback(TranslationIterator* iterator,
+                                         FixedArray* literal_array,
+                                         FILE* trace_file) {
+  CHECK_EQ(Translation::UPDATE_FEEDBACK, iterator->Next());
+  feedback_vector_ = FeedbackVector::cast(literal_array->get(iterator->Next()));
+  feedback_slot_ = FeedbackSlot(iterator->Next());
+  if (trace_file != nullptr) {
+    PrintF(trace_file, "  reading FeedbackVector (slot %d)\n",
+           feedback_slot_.ToInt());
   }
 }
 
 }  // namespace internal
 }  // namespace v8
+
+// Undefine the heap manipulation macros.
+#include "src/objects/object-macros-undef.h"

@@ -206,3 +206,81 @@ paused at:
   createPromise().then(#v => v * 2);
 }
 
+
+Running test: testWithBlackboxedCode
+paused at:
+function testBlackboxedCreatePromise() {
+  #debugger;
+  createPromise().then(v => v * 2);
+
+paused at:
+  debugger;
+  #createPromise().then(v => v * 2);
+}
+
+paused at:
+  debugger;
+  createPromise().#then(v => v * 2);
+}
+
+asyncCallStackTraceId is set
+
+paused at:
+  debugger;
+  createPromise().then(#v => v * 2);
+}
+
+
+Running test: testAsyncFunction
+paused at:
+async function testAsyncFunction() {
+  #debugger;
+  foo();
+
+paused at:
+  debugger;
+  #foo();
+  await foo();
+
+paused at:
+  async function foo() {
+    #return 42;
+  }
+
+paused at:
+  foo();
+  await #foo();
+  foo().then(boo);
+
+paused at:
+  async function foo() {
+    #return 42;
+  }
+
+paused at:
+  await foo();
+  #foo().then(boo);
+
+
+paused at:
+  async function foo() {
+    #return 42;
+  }
+
+paused at:
+  await foo();
+  foo().#then(boo);
+
+
+paused at:
+  await foo();
+  foo().#then(boo);
+
+
+asyncCallStackTraceId is set
+
+paused at:
+
+  function boo#() {
+  }
+

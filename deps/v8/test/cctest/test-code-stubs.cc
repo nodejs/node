@@ -193,7 +193,7 @@ TEST(CodeStubMajorKeys) {
 #define CHECK_STUB(NAME)                        \
   {                                             \
     HandleScope scope(isolate);                 \
-    NAME##Stub stub_impl(0xabcd, isolate);      \
+    NAME##Stub stub_impl(0xABCD, isolate);      \
     CodeStub* stub = &stub_impl;                \
     CHECK_EQ(stub->MajorKey(), CodeStub::NAME); \
   }

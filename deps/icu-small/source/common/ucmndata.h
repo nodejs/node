@@ -52,7 +52,11 @@ typedef struct {
 
 typedef struct {
     uint32_t count;
-    UDataOffsetTOCEntry entry[2];    /* Actual size of array is from count. */
+    /**
+     * Variable-length array declared with length 1 to disable bounds checkers.
+     * The actual array length is in the count field.
+     */
+    UDataOffsetTOCEntry entry[1];
 } UDataOffsetTOC;
 
 /**

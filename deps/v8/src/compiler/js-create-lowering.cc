@@ -525,7 +525,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   // This has to be kept in sync with src/runtime/runtime-array.cc,
   // where this limit is protected.
   length = effect = graph()->NewNode(
-      simplified()->CheckBounds(), length,
+      simplified()->CheckBounds(VectorSlotPair()), length,
       jsgraph()->Constant(JSArray::kInitialMaxFastElementArray), effect,
       control);
 
@@ -617,15 +617,16 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
   if (IsSmiElementsKind(elements_kind)) {
     for (auto& value : values) {
       if (!NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
-        value = effect =
-            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
+        value = effect = graph()->NewNode(
+            simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
       }
     }
   } else if (IsDoubleElementsKind(elements_kind)) {
     for (auto& value : values) {
       if (!NodeProperties::GetType(value)->Is(Type::Number())) {
-        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
-                                          effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
+                             effect, control);
       }
       // Make sure we do not store signaling NaNs into double arrays.
       value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
@@ -913,6 +914,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
     DCHECK(!function_map->is_dictionary_map());
 
     // Emit code to allocate the JSFunction instance.
+    STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
     AllocationBuilder a(jsgraph(), effect, control);
     a.Allocate(function_map->instance_size());
     a.Store(AccessBuilder::ForMap(), function_map);
@@ -980,9 +982,9 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   AllocationBuilder aa(jsgraph(), effect, graph()->start());
   aa.AllocateArray(2, factory()->fixed_array_map());
   aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
-           jsgraph()->Constant(0), key);
+           jsgraph()->ZeroConstant(), key);
   aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
-           jsgraph()->Constant(1), value);
+           jsgraph()->OneConstant(), value);
   Node* elements = aa.Finish();
 
   AllocationBuilder a(jsgraph(), elements, graph()->start());

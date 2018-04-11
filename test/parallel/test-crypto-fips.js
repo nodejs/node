@@ -78,7 +78,7 @@ testHelper(
   'require("crypto").getFips()',
   process.env);
 
-//--force-fips should turn FIPS mode on
+// --force-fips should turn FIPS mode on
 testHelper(
   compiledWithFips() ? 'stdout' : 'stderr',
   ['--force-fips'],
@@ -234,7 +234,7 @@ testHelper(
   'require("crypto").setFips(false)',
   process.env);
 
-//--enable-fips and --force-fips order does not matter
+// --enable-fips and --force-fips order does not matter
 testHelper(
   'stderr',
   ['--enable-fips', '--force-fips'],

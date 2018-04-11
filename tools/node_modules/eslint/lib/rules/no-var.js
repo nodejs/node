@@ -33,10 +33,12 @@ function isGlobal(variable) {
  *      scope.
  */
 function getEnclosingFunctionScope(scope) {
-    while (scope.type !== "function" && scope.type !== "global") {
-        scope = scope.upper;
+    let currentScope = scope;
+
+    while (currentScope.type !== "function" && currentScope.type !== "global") {
+        currentScope = currentScope.upper;
     }
-    return scope;
+    return currentScope;
 }
 
 /**
@@ -87,12 +89,10 @@ const SCOPE_NODE_TYPE = /^(?:Program|BlockStatement|SwitchStatement|ForStatement
  *      `ForOfStatement`.
  */
 function getScopeNode(node) {
-    while (node) {
-        if (SCOPE_NODE_TYPE.test(node.type)) {
-            return node;
+    for (let currentNode = node; currentNode; currentNode = currentNode.parent) {
+        if (SCOPE_NODE_TYPE.test(currentNode.type)) {
+            return currentNode;
         }
-
-        node = node.parent;
     }
 
     /* istanbul ignore next : unreachable */

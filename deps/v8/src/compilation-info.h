@@ -211,13 +211,13 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void ReopenHandlesInNewHandleScope();
 
   void AbortOptimization(BailoutReason reason) {
-    DCHECK_NE(reason, kNoReason);
-    if (bailout_reason_ == kNoReason) bailout_reason_ = reason;
+    DCHECK_NE(reason, BailoutReason::kNoReason);
+    if (bailout_reason_ == BailoutReason::kNoReason) bailout_reason_ = reason;
     SetFlag(kDisableFutureOptimization);
   }
 
   void RetryOptimization(BailoutReason reason) {
-    DCHECK_NE(reason, kNoReason);
+    DCHECK_NE(reason, BailoutReason::kNoReason);
     if (GetFlag(kDisableFutureOptimization)) return;
     bailout_reason_ = reason;
   }

@@ -316,7 +316,6 @@ static void BiggestPowerTen(uint32_t number,
   }
 }
 
-
 // Generates the digits of input number w.
 // w is a floating-point number (DiyFp), consisting of a significand and an
 // exponent. Its exponent is bounded by kMinimalTargetExponent and
@@ -345,15 +344,15 @@ static void BiggestPowerTen(uint32_t number,
 //   then false is returned. This usually happens rarely (~0.5%).
 //
 // Say, for the sake of example, that
-//   w.e() == -48, and w.f() == 0x1234567890abcdef
+//   w.e() == -48, and w.f() == 0x1234567890ABCDEF
 // w's value can be computed by w.f() * 2^w.e()
 // We can obtain w's integral digits by simply shifting w.f() by -w.e().
 //  -> w's integral part is 0x1234
-//  w's fractional part is therefore 0x567890abcdef.
+//  w's fractional part is therefore 0x567890ABCDEF.
 // Printing w's integral part is easy (simply print 0x1234 in decimal).
 // In order to print its fraction we repeatedly multiply the fraction by 10 and
 // get each digit. Example the first digit after the point would be computed by
-//   (0x567890abcdef * 10) >> 48. -> 3
+//   (0x567890ABCDEF * 10) >> 48. -> 3
 // The whole thing becomes slightly more complicated because we want to stop
 // once we have enough digits. That is, once the digits inside the buffer
 // represent 'w' we can stop. Everything inside the interval low - high

@@ -209,10 +209,7 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   TestData t = initial_data;
-  Simulator::CallArgument args[] = {
-      Simulator::CallArgument(reinterpret_cast<uintptr_t>(&t)),
-      Simulator::CallArgument::End()};
-  Simulator::current(isolate)->CallVoid(code->entry(), args);
+  Simulator::current(isolate)->Call<void>(code->entry(), &t);
   int res = Simulator::current(isolate)->wreg(0);
 
   CHECK_EQ(expected_res, res);
@@ -283,10 +280,7 @@ int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
-  Simulator::CallArgument args[] = {
-      Simulator::CallArgument(reinterpret_cast<uintptr_t>(test_data)),
-      Simulator::CallArgument::End()};
-  Simulator::current(isolate)->CallVoid(code->entry(), args);
+  Simulator::current(isolate)->Call<void>(code->entry(), test_data);
   return Simulator::current(isolate)->wreg(0);
 }
 

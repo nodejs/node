@@ -26,7 +26,12 @@ module.exports = {
 
         schema: [],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpectedCall: "Redundant Boolean call.",
+            unexpectedNegation: "Redundant double negation."
+        }
     },
 
     create(context) {
@@ -82,7 +87,7 @@ module.exports = {
                 ) {
                     context.report({
                         node,
-                        message: "Redundant double negation.",
+                        messageId: "unexpectedNegation",
                         fix: fixer => fixer.replaceText(parent, sourceCode.getText(node.argument))
                     });
                 }
@@ -97,7 +102,7 @@ module.exports = {
                 if (isInBooleanContext(node, parent)) {
                     context.report({
                         node,
-                        message: "Redundant Boolean call.",
+                        messageId: "unexpectedCall",
                         fix: fixer => {
                             if (!node.arguments.length) {
                                 return fixer.replaceText(parent, "true");

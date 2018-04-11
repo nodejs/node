@@ -29,8 +29,8 @@
 class Context():
   def __init__(self, arch, mode, shell_dir, mode_flags, verbose, timeout,
                isolates, command_prefix, extra_flags, noi18n, random_seed,
-               no_sorting, rerun_failures_count, rerun_failures_max,
-               predictable, no_harness, use_perf_data, sancov_dir):
+               no_sorting, rerun_failures_count, rerun_failures_max, no_harness,
+               use_perf_data, sancov_dir, infra_staging=False):
     self.arch = arch
     self.mode = mode
     self.shell_dir = shell_dir
@@ -45,7 +45,7 @@ class Context():
     self.no_sorting = no_sorting
     self.rerun_failures_count = rerun_failures_count
     self.rerun_failures_max = rerun_failures_max
-    self.predictable = predictable
     self.no_harness = no_harness
     self.use_perf_data = use_perf_data
     self.sancov_dir = sancov_dir
+    self.infra_staging = infra_staging

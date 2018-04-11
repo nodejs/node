@@ -161,6 +161,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(function_map),
                              IntPtrConstant(JSFunction::kSizeWithoutPrototype /
                                             kPointerSize)));
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);

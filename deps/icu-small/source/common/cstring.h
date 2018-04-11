@@ -40,27 +40,9 @@
 #define uprv_strchr(s, c) U_STANDARD_CPP_NAMESPACE strchr(s, c)
 #define uprv_strstr(s, c) U_STANDARD_CPP_NAMESPACE strstr(s, c)
 #define uprv_strrchr(s, c) U_STANDARD_CPP_NAMESPACE strrchr(s, c)
-
-#if U_DEBUG
-
-#define uprv_strncpy(dst, src, size) ( \
-    uprv_checkValidMemory(src, 1), \
-    U_STANDARD_CPP_NAMESPACE strncpy(dst, src, size))
-#define uprv_strncmp(s1, s2, n) ( \
-    uprv_checkValidMemory(s1, 1), \
-    uprv_checkValidMemory(s2, 1), \
-    U_STANDARD_CPP_NAMESPACE strncmp(s1, s2, n))
-#define uprv_strncat(dst, src, n) ( \
-    uprv_checkValidMemory(src, 1), \
-    U_STANDARD_CPP_NAMESPACE strncat(dst, src, n))
-
-#else
-
 #define uprv_strncpy(dst, src, size) U_STANDARD_CPP_NAMESPACE strncpy(dst, src, size)
 #define uprv_strncmp(s1, s2, n) U_STANDARD_CPP_NAMESPACE strncmp(s1, s2, n)
 #define uprv_strncat(dst, src, n) U_STANDARD_CPP_NAMESPACE strncat(dst, src, n)
-
-#endif  /* U_DEBUG */
 
 /**
  * Is c an ASCII-repertoire letter a-z or A-Z?

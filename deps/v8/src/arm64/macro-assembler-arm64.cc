@@ -44,7 +44,6 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
 #endif
       tmp_list_(DefaultTmpList()),
       fptmp_list_(DefaultFPTmpList()),
-      sp_(jssp),
       use_real_aborts_(true) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
@@ -160,7 +159,7 @@ void TurboAssembler::LogicalMacro(const Register& rd, const Register& rn,
           UNREACHABLE();
       }
     } else if ((rd.Is64Bits() && (immediate == -1L)) ||
-               (rd.Is32Bits() && (immediate == 0xffffffffL))) {
+               (rd.Is32Bits() && (immediate == 0xFFFFFFFFL))) {
       switch (op) {
         case AND:
           Mov(rd, rn);
@@ -252,15 +251,15 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
     // Generic immediate case. Imm will be represented by
     //   [imm3, imm2, imm1, imm0], where each imm is 16 bits.
     // A move-zero or move-inverted is generated for the first non-zero or
-    // non-0xffff immX, and a move-keep for subsequent non-zero immX.
+    // non-0xFFFF immX, and a move-keep for subsequent non-zero immX.
 
     uint64_t ignored_halfword = 0;
     bool invert_move = false;
-    // If the number of 0xffff halfwords is greater than the number of 0x0000
+    // If the number of 0xFFFF halfwords is greater than the number of 0x0000
     // halfwords, it's more efficient to use move-inverted.
     if (CountClearHalfWords(~imm, reg_size) >
         CountClearHalfWords(imm, reg_size)) {
-      ignored_halfword = 0xffffL;
+      ignored_halfword = 0xFFFFL;
       invert_move = true;
     }
 
@@ -274,11 +273,11 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
     DCHECK_EQ(reg_size % 16, 0);
     bool first_mov_done = false;
     for (int i = 0; i < (rd.SizeInBits() / 16); i++) {
-      uint64_t imm16 = (imm >> (16 * i)) & 0xffffL;
+      uint64_t imm16 = (imm >> (16 * i)) & 0xFFFFL;
       if (imm16 != ignored_halfword) {
         if (!first_mov_done) {
           if (invert_move) {
-            movn(temp, (~imm16) & 0xffffL, 16 * i);
+            movn(temp, (~imm16) & 0xFFFFL, 16 * i);
           } else {
             movz(temp, imm16, 16 * i);
           }
@@ -356,18 +355,18 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
 
 void TurboAssembler::Movi16bitHelper(const VRegister& vd, uint64_t imm) {
   DCHECK(is_uint16(imm));
-  int byte1 = (imm & 0xff);
-  int byte2 = ((imm >> 8) & 0xff);
+  int byte1 = (imm & 0xFF);
+  int byte2 = ((imm >> 8) & 0xFF);
   if (byte1 == byte2) {
     movi(vd.Is64Bits() ? vd.V8B() : vd.V16B(), byte1);
   } else if (byte1 == 0) {
     movi(vd, byte2, LSL, 8);
   } else if (byte2 == 0) {
     movi(vd, byte1);
-  } else if (byte1 == 0xff) {
-    mvni(vd, ~byte2 & 0xff, LSL, 8);
-  } else if (byte2 == 0xff) {
-    mvni(vd, ~byte1 & 0xff);
+  } else if (byte1 == 0xFF) {
+    mvni(vd, ~byte2 & 0xFF, LSL, 8);
+  } else if (byte2 == 0xFF) {
+    mvni(vd, ~byte1 & 0xFF);
   } else {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireW();
@@ -382,11 +381,11 @@ void TurboAssembler::Movi32bitHelper(const VRegister& vd, uint64_t imm) {
   uint8_t bytes[sizeof(imm)];
   memcpy(bytes, &imm, sizeof(imm));
 
-  // All bytes are either 0x00 or 0xff.
+  // All bytes are either 0x00 or 0xFF.
   {
     bool all0orff = true;
     for (int i = 0; i < 4; ++i) {
-      if ((bytes[i] != 0) && (bytes[i] != 0xff)) {
+      if ((bytes[i] != 0) && (bytes[i] != 0xFF)) {
         all0orff = false;
         break;
       }
@@ -400,47 +399,47 @@ void TurboAssembler::Movi32bitHelper(const VRegister& vd, uint64_t imm) {
 
   // Of the 4 bytes, only one byte is non-zero.
   for (int i = 0; i < 4; i++) {
-    if ((imm & (0xff << (i * 8))) == imm) {
+    if ((imm & (0xFF << (i * 8))) == imm) {
       movi(vd, bytes[i], LSL, i * 8);
       return;
     }
   }
 
-  // Of the 4 bytes, only one byte is not 0xff.
+  // Of the 4 bytes, only one byte is not 0xFF.
   for (int i = 0; i < 4; i++) {
-    uint32_t mask = ~(0xff << (i * 8));
+    uint32_t mask = ~(0xFF << (i * 8));
     if ((imm & mask) == mask) {
-      mvni(vd, ~bytes[i] & 0xff, LSL, i * 8);
+      mvni(vd, ~bytes[i] & 0xFF, LSL, i * 8);
       return;
     }
   }
 
   // Immediate is of the form 0x00MMFFFF.
-  if ((imm & 0xff00ffff) == 0x0000ffff) {
+  if ((imm & 0xFF00FFFF) == 0x0000FFFF) {
     movi(vd, bytes[2], MSL, 16);
     return;
   }
 
   // Immediate is of the form 0x0000MMFF.
-  if ((imm & 0xffff00ff) == 0x000000ff) {
+  if ((imm & 0xFFFF00FF) == 0x000000FF) {
     movi(vd, bytes[1], MSL, 8);
     return;
   }
 
   // Immediate is of the form 0xFFMM0000.
-  if ((imm & 0xff00ffff) == 0xff000000) {
-    mvni(vd, ~bytes[2] & 0xff, MSL, 16);
+  if ((imm & 0xFF00FFFF) == 0xFF000000) {
+    mvni(vd, ~bytes[2] & 0xFF, MSL, 16);
     return;
   }
   // Immediate is of the form 0xFFFFMM00.
-  if ((imm & 0xffff00ff) == 0xffff0000) {
-    mvni(vd, ~bytes[1] & 0xff, MSL, 8);
+  if ((imm & 0xFFFF00FF) == 0xFFFF0000) {
+    mvni(vd, ~bytes[1] & 0xFF, MSL, 8);
     return;
   }
 
   // Top and bottom 16-bits are equal.
-  if (((imm >> 16) & 0xffff) == (imm & 0xffff)) {
-    Movi16bitHelper(vd.Is64Bits() ? vd.V4H() : vd.V8H(), imm & 0xffff);
+  if (((imm >> 16) & 0xFFFF) == (imm & 0xFFFF)) {
+    Movi16bitHelper(vd.Is64Bits() ? vd.V4H() : vd.V8H(), imm & 0xFFFF);
     return;
   }
 
@@ -454,12 +453,12 @@ void TurboAssembler::Movi32bitHelper(const VRegister& vd, uint64_t imm) {
 }
 
 void TurboAssembler::Movi64bitHelper(const VRegister& vd, uint64_t imm) {
-  // All bytes are either 0x00 or 0xff.
+  // All bytes are either 0x00 or 0xFF.
   {
     bool all0orff = true;
     for (int i = 0; i < 8; ++i) {
-      int byteval = (imm >> (i * 8)) & 0xff;
-      if (byteval != 0 && byteval != 0xff) {
+      int byteval = (imm >> (i * 8)) & 0xFF;
+      if (byteval != 0 && byteval != 0xFF) {
         all0orff = false;
         break;
       }
@@ -471,8 +470,8 @@ void TurboAssembler::Movi64bitHelper(const VRegister& vd, uint64_t imm) {
   }
 
   // Top and bottom 32-bits are equal.
-  if (((imm >> 32) & 0xffffffff) == (imm & 0xffffffff)) {
-    Movi32bitHelper(vd.Is64Bits() ? vd.V2S() : vd.V4S(), imm & 0xffffffff);
+  if (((imm >> 32) & 0xFFFFFFFF) == (imm & 0xFFFFFFFF)) {
+    Movi32bitHelper(vd.Is64Bits() ? vd.V2S() : vd.V4S(), imm & 0xFFFFFFFF);
     return;
   }
 
@@ -547,7 +546,7 @@ unsigned TurboAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size) {
   DCHECK_EQ(reg_size % 8, 0);
   int count = 0;
   for (unsigned i = 0; i < (reg_size / 16); i++) {
-    if ((imm & 0xffff) == 0) {
+    if ((imm & 0xFFFF) == 0) {
       count++;
     }
     imm >>= 16;
@@ -563,9 +562,8 @@ bool TurboAssembler::IsImmMovz(uint64_t imm, unsigned reg_size) {
   return CountClearHalfWords(imm, reg_size) >= ((reg_size / 16) - 1);
 }
 
-
 // The movn instruction can generate immediates containing an arbitrary 16-bit
-// half-word, with remaining bits set, eg. 0xffff1234, 0xffff1234ffffffff.
+// half-word, with remaining bits set, eg. 0xFFFF1234, 0xFFFF1234FFFFFFFF.
 bool TurboAssembler::IsImmMovn(uint64_t imm, unsigned reg_size) {
   return IsImmMovz(~imm, reg_size);
 }
@@ -1375,7 +1373,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
     DCHECK_GE(offset.ImmediateValue(), 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
-    Check(le, kStackAccessBelowStackPointer);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
 
   Str(src, MemOperand(StackPointer(), offset));
@@ -1387,7 +1385,7 @@ void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
     DCHECK_GE(offset.ImmediateValue(), 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
-    Check(le, kStackAccessBelowStackPointer);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
 
   Ldr(dst, MemOperand(StackPointer(), offset));
@@ -1426,7 +1424,7 @@ void MacroAssembler::PushCalleeSavedRegisters() {
   stp(d8, d9, tos);
 
   stp(x29, x30, tos);
-  stp(x27, x28, tos);    // x28 = jssp
+  stp(x27, x28, tos);
   stp(x25, x26, tos);
   stp(x23, x24, tos);
   stp(x21, x22, tos);
@@ -1448,7 +1446,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   ldp(x21, x22, tos);
   ldp(x23, x24, tos);
   ldp(x25, x26, tos);
-  ldp(x27, x28, tos);    // x28 = jssp
+  ldp(x27, x28, tos);
   ldp(x29, x30, tos);
 
   ldp(d8, d9, tos);
@@ -1479,7 +1477,7 @@ void TurboAssembler::AssertStackConsistency() {
       { DontEmitDebugCodeScope dont_emit_debug_code_scope(this);
         // Restore StackPointer().
         sub(StackPointer(), csp, StackPointer());
-        Abort(kTheCurrentStackPointerIsBelowCsp);
+        Abort(AbortReason::kTheCurrentStackPointerIsBelowCsp);
       }
 
       bind(&ok);
@@ -1531,7 +1529,7 @@ void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
     Subs(pointer1, pointer1, pointer2);
     B(lt, &pointer1_below_pointer2);
     Cmp(pointer1, count);
-    Check(ge, kOffsetOutOfRange);
+    Check(ge, AbortReason::kOffsetOutOfRange);
     Bind(&pointer1_below_pointer2);
     Add(pointer1, pointer1, pointer2);
   }
@@ -1595,7 +1593,7 @@ void TurboAssembler::AssertFPCRState(Register fpcr) {
     B(eq, &done);
 
     Bind(&unexpected_mode);
-    Abort(kUnexpectedFPCRMode);
+    Abort(AbortReason::kUnexpectedFPCRMode);
 
     Bind(&done);
   }
@@ -1632,7 +1630,7 @@ void TurboAssembler::Move(Register dst, Register src) { Mov(dst, src); }
 void TurboAssembler::Move(Register dst, Handle<HeapObject> x) { Mov(dst, x); }
 void TurboAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
 
-void TurboAssembler::AssertSmi(Register object, BailoutReason reason) {
+void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
@@ -1640,7 +1638,7 @@ void TurboAssembler::AssertSmi(Register object, BailoutReason reason) {
   }
 }
 
-void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
+void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
@@ -1650,44 +1648,44 @@ void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
 
 void MacroAssembler::AssertFixedArray(Register object) {
   if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotAFixedArray);
+    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFixedArray);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
     CompareObjectType(object, temp, temp, FIXED_ARRAY_TYPE);
-    Check(eq, kOperandIsNotAFixedArray);
+    Check(eq, AbortReason::kOperandIsNotAFixedArray);
   }
 }
 
 void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotAFunction);
+    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
     CompareObjectType(object, temp, temp, JS_FUNCTION_TYPE);
-    Check(eq, kOperandIsNotAFunction);
+    Check(eq, AbortReason::kOperandIsNotAFunction);
   }
 }
 
 
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotABoundFunction);
+    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotABoundFunction);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
     CompareObjectType(object, temp, temp, JS_BOUND_FUNCTION_TYPE);
-    Check(eq, kOperandIsNotABoundFunction);
+    Check(eq, AbortReason::kOperandIsNotABoundFunction);
   }
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
-  AssertNotSmi(object, kOperandIsASmiAndNotAGeneratorObject);
+  AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
   // Load map
   UseScratchRegisterScope temps(this);
@@ -1704,7 +1702,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
   bind(&do_check);
   // Restore generator object to register and perform assertion
-  Check(eq, kOperandIsNotAGeneratorObject);
+  Check(eq, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
@@ -1716,7 +1714,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
     JumpIfRoot(object, Heap::kUndefinedValueRootIndex, &done_checking);
     Ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareRoot(scratch, Heap::kAllocationSiteMapRootIndex);
-    Assert(eq, kExpectedUndefinedOrCell);
+    Assert(eq, AbortReason::kExpectedUndefinedOrCell);
     Bind(&done_checking);
   }
 }
@@ -1726,7 +1724,7 @@ void TurboAssembler::AssertPositiveOrZero(Register value) {
     Label done;
     int sign_bit = value.Is64Bits() ? kXSignBit : kWSignBit;
     Tbz(value, sign_bit, &done);
-    Abort(kUnexpectedNegativeValue);
+    Abort(AbortReason::kUnexpectedNegativeValue);
     Bind(&done);
   }
 }
@@ -1855,72 +1853,14 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
     DCHECK_LE(num_of_double_args + num_of_reg_args, 2);
   }
 
-  // We rely on the frame alignment being 16 bytes, which means we never need
-  // to align the CSP by an unknown number of bytes and we always know the delta
-  // between the stack pointer and the frame pointer.
-  DCHECK_EQ(ActivationFrameAlignment(), 16);
-
-  // If the stack pointer is not csp, we need to derive an aligned csp from the
-  // current stack pointer.
-  const Register old_stack_pointer = StackPointer();
-  if (!csp.Is(old_stack_pointer)) {
-    AssertStackConsistency();
-
-    int sp_alignment = ActivationFrameAlignment();
-    // The current stack pointer is a callee saved register, and is preserved
-    // across the call.
-    DCHECK(kCalleeSaved.IncludesAliasOf(old_stack_pointer));
-
-    // If more than eight arguments are passed to the function, we expect the
-    // ninth argument onwards to have been placed on the csp-based stack
-    // already. We assume csp already points to the last stack-passed argument
-    // in that case.
-    // Otherwise, align and synchronize the system stack pointer with jssp.
-    if (num_of_reg_args <= kRegisterPassedArguments) {
-      Bic(csp, old_stack_pointer, sp_alignment - 1);
-    }
-    SetStackPointer(csp);
-  }
-
   // Call directly. The function called cannot cause a GC, or allow preemption,
   // so the return address in the link register stays correct.
   Call(function);
 
-  if (csp.Is(old_stack_pointer)) {
-    if (num_of_reg_args > kRegisterPassedArguments) {
-      // Drop the register passed arguments.
-      int claim_slots = RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
-      Drop(claim_slots);
-    }
-  } else {
-    DCHECK(jssp.Is(old_stack_pointer));
-    if (emit_debug_code()) {
-      UseScratchRegisterScope temps(this);
-      Register temp = temps.AcquireX();
-
-      if (num_of_reg_args > kRegisterPassedArguments) {
-        // We don't need to drop stack arguments, as the stack pointer will be
-        // jssp when returning from this function. However, in debug builds, we
-        // can check that jssp is as expected.
-        int claim_slots =
-            RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
-
-        // Check jssp matches the previous value on the stack.
-        Ldr(temp, MemOperand(csp, claim_slots * kPointerSize));
-        Cmp(jssp, temp);
-        Check(eq, kTheStackWasCorruptedByMacroAssemblerCall);
-      } else {
-        // Because the stack pointer must be aligned on a 16-byte boundary, the
-        // aligned csp can be up to 12 bytes below the jssp. This is the case
-        // where we only pushed one W register on top of an aligned jssp.
-        Sub(temp, csp, old_stack_pointer);
-        // We want temp <= 0 && temp >= -12.
-        Cmp(temp, 0);
-        Ccmp(temp, -12, NFlag, le);
-        Check(ge, kTheStackWasCorruptedByMacroAssemblerCall);
-      }
-    }
-    SetStackPointer(old_stack_pointer);
+  if (num_of_reg_args > kRegisterPassedArguments) {
+    // Drop the register passed arguments.
+    int claim_slots = RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
+    Drop(claim_slots);
   }
 }
 
@@ -1997,10 +1937,10 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
     // Addresses are 48 bits so we never need to load the upper 16 bits.
     uint64_t imm = reinterpret_cast<uint64_t>(target);
     // If we don't use ARM tagged addresses, the 16 higher bits must be 0.
-    DCHECK_EQ((imm >> 48) & 0xffff, 0);
-    movz(temp, (imm >> 0) & 0xffff, 0);
-    movk(temp, (imm >> 16) & 0xffff, 16);
-    movk(temp, (imm >> 32) & 0xffff, 32);
+    DCHECK_EQ((imm >> 48) & 0xFFFF, 0);
+    movz(temp, (imm >> 0) & 0xFFFF, 0);
+    movk(temp, (imm >> 16) & 0xFFFF, 16);
+    movk(temp, (imm >> 32) & 0xFFFF, 32);
   } else {
     Ldr(temp, Immediate(reinterpret_cast<intptr_t>(target), rmode));
   }
@@ -2160,23 +2100,32 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // after we drop current frame. We add kPointerSize to count the receiver
   // argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
-  add(dst_reg, dst_reg,
-      Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
+  Add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
+  Add(dst_reg, dst_reg, StandardFrameConstants::kCallerSPOffset + kPointerSize);
+  // Round dst_reg up to a multiple of 16 bytes, so that we overwrite any
+  // potential padding.
+  Add(dst_reg, dst_reg, 15);
+  Bic(dst_reg, dst_reg, 15);
 
   Register src_reg = caller_args_count_reg;
   // Calculate the end of source area. +kPointerSize is for the receiver.
   if (callee_args_count.is_reg()) {
-    add(src_reg, jssp, Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
-    add(src_reg, src_reg, Operand(kPointerSize));
+    Add(src_reg, StackPointer(),
+        Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
+    Add(src_reg, src_reg, kPointerSize);
   } else {
-    add(src_reg, jssp,
-        Operand((callee_args_count.immediate() + 1) * kPointerSize));
+    Add(src_reg, StackPointer(),
+        (callee_args_count.immediate() + 1) * kPointerSize);
   }
+
+  // Round src_reg up to a multiple of 16 bytes, so we include any potential
+  // padding in the copy.
+  Add(src_reg, src_reg, 15);
+  Bic(src_reg, src_reg, 15);
 
   if (FLAG_debug_code) {
     Cmp(src_reg, dst_reg);
-    Check(lo, kStackAccessBelowStackPointer);
+    Check(lo, AbortReason::kStackAccessBelowStackPointer);
   }
 
   // Restore caller's frame pointer and return address now as they will be
@@ -2196,12 +2145,11 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Ldr(tmp_reg, MemOperand(src_reg, -kPointerSize, PreIndex));
   Str(tmp_reg, MemOperand(dst_reg, -kPointerSize, PreIndex));
   bind(&entry);
-  Cmp(jssp, src_reg);
+  Cmp(StackPointer(), src_reg);
   B(ne, &loop);
 
   // Leave current frame.
-  Mov(jssp, dst_reg);
-  SetStackPointer(jssp);
+  Mov(StackPointer(), dst_reg);
   AssertStackConsistency();
 }
 
@@ -2412,12 +2360,12 @@ void TurboAssembler::TryConvertDoubleToInt64(Register result,
   // the modulo operation on an integer register so we convert to a 64-bit
   // integer.
   //
-  // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff)
+  // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7FF...FF)
   // when the double is out of range. NaNs and infinities will be converted to 0
   // (as ECMA-262 requires).
   Fcvtzs(result.X(), double_input);
 
-  // The values INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff) are not
+  // The values INT64_MIN (0x800...00) or INT64_MAX (0x7FF...FF) are not
   // representable using a double, so if the result is one of those then we know
   // that saturation occurred, and we need to manually handle the conversion.
   //
@@ -2437,17 +2385,6 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   // contain our truncated int32 result.
   TryConvertDoubleToInt64(result, double_input, &done);
 
-  const Register old_stack_pointer = StackPointer();
-  if (csp.Is(old_stack_pointer)) {
-    // This currently only happens during compiler-unittest. If it arises
-    // during regular code generation the DoubleToI stub should be updated to
-    // cope with csp and have an extra parameter indicating which stack pointer
-    // it should use.
-    Push(jssp, xzr);  // Push xzr to maintain csp required 16-bytes alignment.
-    Mov(jssp, csp);
-    SetStackPointer(jssp);
-  }
-
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr, double_input);
 
@@ -2458,13 +2395,6 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   DCHECK_EQ(xzr.SizeInBytes(), double_input.SizeInBytes());
   Pop(xzr, lr);  // xzr to drop the double input on the stack.
 
-  if (csp.Is(old_stack_pointer)) {
-    Mov(csp, jssp);
-    SetStackPointer(csp);
-    AssertStackConsistency();
-    Pop(xzr, jssp);
-  }
-
   Bind(&done);
   // Keep our invariant that the upper 32 bits are zero.
   Uxtw(result.W(), result.W());
@@ -2472,7 +2402,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
 
 void TurboAssembler::Prologue() {
   Push(lr, fp, cp, x1);
-  Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
+  Add(fp, StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
@@ -2481,15 +2411,14 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   Register code_reg = temps.AcquireX();
 
   if (type == StackFrame::INTERNAL) {
-    DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Mov(code_reg, Operand(CodeObject()));
     Push(lr, fp, type_reg, code_reg);
-    Add(fp, jssp, InternalFrameConstants::kFixedFrameSizeFromFp);
-    // jssp[4] : lr
-    // jssp[3] : fp
-    // jssp[1] : type
-    // jssp[0] : [code object]
+    Add(fp, StackPointer(), InternalFrameConstants::kFixedFrameSizeFromFp);
+    // sp[4] : lr
+    // sp[3] : fp
+    // sp[1] : type
+    // sp[0] : [code object]
   } else if (type == StackFrame::WASM_COMPILED) {
     DCHECK(csp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
@@ -2502,7 +2431,6 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // csp[0] : for alignment
   } else {
     DCHECK_EQ(type, StackFrame::CONSTRUCT);
-    DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
 
     // Users of this frame type push a context pointer after the type field,
@@ -2511,11 +2439,12 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 
     // The context pointer isn't part of the fixed frame, so add an extra slot
     // to account for it.
-    Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
-    // jssp[3] : lr
-    // jssp[2] : fp
-    // jssp[1] : type
-    // jssp[0] : cp
+    Add(fp, StackPointer(),
+        TypedFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+    // sp[3] : lr
+    // sp[2] : fp
+    // sp[1] : type
+    // sp[0] : cp
   }
 }
 
@@ -2526,10 +2455,9 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
     AssertStackConsistency();
     Pop(fp, lr);
   } else {
-    DCHECK(jssp.Is(StackPointer()));
     // Drop the execution stack down to the frame pointer and restore
     // the caller frame pointer and return address.
-    Mov(jssp, fp);
+    Mov(StackPointer(), fp);
     AssertStackConsistency();
     Pop(fp, lr);
   }
@@ -2560,7 +2488,6 @@ void MacroAssembler::ExitFrameRestoreFPRegs() {
 void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
                                     int extra_space,
                                     StackFrame::Type frame_type) {
-  DCHECK(jssp.Is(StackPointer()));
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
 
@@ -2576,7 +2503,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //          fp[-8]: STUB marker
   //          fp[-16]: Space reserved for SPOffset.
   //          fp[-24]: CodeObject()
-  //  jssp -> fp[-32]: padding
+  //    sp -> fp[-32]: padding
   STATIC_ASSERT((2 * kPointerSize) == ExitFrameConstants::kCallerSPOffset);
   STATIC_ASSERT((1 * kPointerSize) == ExitFrameConstants::kCallerPCOffset);
   STATIC_ASSERT((0 * kPointerSize) == ExitFrameConstants::kCallerFPOffset);
@@ -2610,22 +2537,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //         fp[-16]: Space reserved for SPOffset.
   //         fp[-24]: CodeObject()
   //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
-  //         jssp[8]: Extra space reserved for caller (if extra_space != 0).
-  // jssp -> jssp[0]: Space reserved for the return address.
+  //         sp[8]: Extra space reserved for caller (if extra_space != 0).
+  //   sp -> sp[0]: Space reserved for the return address.
 
-  // Align and synchronize the system stack pointer with jssp.
-  AlignAndSetCSPForFrame();
   DCHECK(csp.Is(StackPointer()));
-
-  //         fp[8]: CallerPC (lr)
-  //   fp -> fp[0]: CallerFP (old fp)
-  //         fp[-8]: STUB marker
-  //         fp[-16]: Space reserved for SPOffset.
-  //         fp[-24]: CodeObject()
-  //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
-  //         csp[8]: Memory reserved for the caller if extra_space != 0.
-  //                 Alignment padding, if necessary.
-  //  csp -> csp[0]: Space reserved for the return address.
 
   // ExitFrame::GetStateForFramePointer expects to find the return address at
   // the memory address immediately below the pointer stored in SPOffset.
@@ -2638,7 +2553,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
 
 // Leave the current exit frame.
 void MacroAssembler::LeaveExitFrame(bool restore_doubles,
-                                    const Register& scratch) {
+                                    const Register& scratch,
+                                    const Register& scratch2) {
   DCHECK(csp.Is(StackPointer()));
 
   if (restore_doubles) {
@@ -2652,9 +2568,10 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
 
   if (emit_debug_code()) {
     // Also emit debug code to clear the cp in the top frame.
+    Mov(scratch2, Operand(Context::kInvalidContext));
     Mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
                                            isolate())));
-    Str(xzr, MemOperand(scratch));
+    Str(scratch2, MemOperand(scratch));
   }
   // Clear the frame pointer from the top frame.
   Mov(scratch, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
@@ -2665,8 +2582,7 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   //         fp[8]: CallerPC (lr)
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[...]: The rest of the frame.
-  Mov(jssp, fp);
-  SetStackPointer(jssp);
+  Mov(csp, fp);
   AssertStackConsistency();
   Pop(fp, lr);
 }
@@ -2830,14 +2746,12 @@ void MacroAssembler::PushSafepointRegisters() {
 
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // Make sure the safepoint registers list is what we expect.
-  DCHECK_EQ(CPURegList::GetSafepointSavedRegisters().list(), 0x6ffcffff);
+  DCHECK_EQ(CPURegList::GetSafepointSavedRegisters().list(), 0x6FFCFFFF);
 
   // Safepoint registers are stored contiguously on the stack, but not all the
   // registers are saved. The following registers are excluded:
   //  - x16 and x17 (ip0 and ip1) because they shouldn't be preserved outside of
   //    the macro assembler.
-  //  - x28 (jssp) because JS stack pointer doesn't need to be included in
-  //    safepoint registers.
   //  - x31 (csp) because the system stack pointer doesn't need to be included
   //    in safepoint registers.
   //
@@ -2845,12 +2759,9 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // safepoint register slots.
   if ((reg_code >= 0) && (reg_code <= 15)) {
     return reg_code;
-  } else if ((reg_code >= 18) && (reg_code <= 27)) {
+  } else if ((reg_code >= 18) && (reg_code <= 30)) {
     // Skip ip0 and ip1.
     return reg_code - 2;
-  } else if ((reg_code == 29) || (reg_code == 30)) {
-    // Also skip jssp.
-    return reg_code - 3;
   } else {
     // This register has no safepoint register slot.
     UNREACHABLE();
@@ -2909,7 +2820,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     Tst(scratch, kPointerSize - 1);
     B(eq, &ok);
-    Abort(kUnalignedCellInWriteBarrier);
+    Abort(AbortReason::kUnalignedCellInWriteBarrier);
     Bind(&ok);
   }
 
@@ -2975,11 +2886,9 @@ void TurboAssembler::CallRecordWriteStub(
   Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
       RecordWriteDescriptor::kFPMode));
 
-  Push(object);
-  Push(address);
+  Push(object, address);
 
-  Pop(slot_parameter);
-  Pop(object_parameter);
+  Pop(slot_parameter, object_parameter);
 
   Mov(isolate_parameter, ExternalReference::isolate_address(isolate()));
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
@@ -3008,7 +2917,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
     Ldr(temp, MemOperand(address));
     Cmp(temp, value);
-    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
+    Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
   // First, check if a write barrier is even needed. The tests below
@@ -3052,7 +2961,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   }
 }
 
-void TurboAssembler::Assert(Condition cond, BailoutReason reason) {
+void TurboAssembler::Assert(Condition cond, AbortReason reason) {
   if (emit_debug_code()) {
     Check(cond, reason);
   }
@@ -3060,14 +2969,14 @@ void TurboAssembler::Assert(Condition cond, BailoutReason reason) {
 
 void MacroAssembler::AssertRegisterIsRoot(Register reg,
                                           Heap::RootListIndex index,
-                                          BailoutReason reason) {
+                                          AbortReason reason) {
   if (emit_debug_code()) {
     CompareRoot(reg, index);
     Check(eq, reason);
   }
 }
 
-void TurboAssembler::Check(Condition cond, BailoutReason reason) {
+void TurboAssembler::Check(Condition cond, AbortReason reason) {
   Label ok;
   B(cond, &ok);
   Abort(reason);
@@ -3075,23 +2984,16 @@ void TurboAssembler::Check(Condition cond, BailoutReason reason) {
   Bind(&ok);
 }
 
-void TurboAssembler::Abort(BailoutReason reason) {
+void TurboAssembler::Abort(AbortReason reason) {
 #ifdef DEBUG
   RecordComment("Abort message: ");
-  RecordComment(GetBailoutReason(reason));
+  RecordComment(GetAbortReason(reason));
 
   if (FLAG_trap_on_abort) {
     Brk(0);
     return;
   }
 #endif
-
-  // Abort is used in some contexts where csp is the stack pointer. In order to
-  // simplify the CallRuntime code, make sure that jssp is the stack pointer.
-  // There is no risk of register corruption here because Abort doesn't return.
-  Register old_stack_pointer = StackPointer();
-  SetStackPointer(jssp);
-  Mov(jssp, old_stack_pointer);
 
   // We need some scratch registers for the MacroAssembler, so make sure we have
   // some. This is safe here because Abort never returns.
@@ -3128,11 +3030,10 @@ void TurboAssembler::Abort(BailoutReason reason) {
     {
       BlockPoolsScope scope(this);
       Bind(&msg_address);
-      EmitStringData(GetBailoutReason(reason));
+      EmitStringData(GetAbortReason(reason));
     }
   }
 
-  SetStackPointer(old_stack_pointer);
   TmpList()->set_list(old_tmp_list);
 }
 
@@ -3266,7 +3167,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
   // We don't pass any arguments on the stack, but we still need to align the C
   // stack pointer to a 16-byte boundary for PCS compliance.
   if (!csp.Is(StackPointer())) {
-    Bic(csp, StackPointer(), 0xf);
+    Bic(csp, StackPointer(), 0xF);
   }
 
   CallPrintf(arg_count, pcs);

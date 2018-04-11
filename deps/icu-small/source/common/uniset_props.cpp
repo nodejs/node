@@ -231,7 +231,7 @@ void U_CALLCONV UnicodeSet_initInclusion(int32_t src, UErrorCode &status) {
         ucase_addPropertyStarts(&sa, &status);
         break;
     case UPROPS_SRC_BIDI:
-        ubidi_addPropertyStarts(ubidi_getSingleton(), &sa, &status);
+        ubidi_addPropertyStarts(&sa, &status);
         break;
     default:
         status = U_INTERNAL_PROGRAM_ERROR;
@@ -257,6 +257,7 @@ const UnicodeSet* UnicodeSet::getInclusions(int32_t src, UErrorCode &status) {
     return i.fSet;
 }
 
+namespace {
 
 // Cache some sets for other services -------------------------------------- ***
 void U_CALLCONV createUni32Set(UErrorCode &errorCode) {
@@ -314,6 +315,8 @@ isPOSIXClose(const UnicodeString &pattern, int32_t pos) {
 // could be made available here but probably obsolete with use of modern
 // memory leak checker tools
 #define _dbgct(me)
+
+}  // namespace
 
 //----------------------------------------------------------------
 // Constructors &c
@@ -382,7 +385,7 @@ UnicodeSet::applyPatternIgnoreSpace(const UnicodeString& pattern,
     // _applyPattern calls add() etc., which set pat to empty.
     UnicodeString rebuiltPat;
     RuleCharacterIterator chars(pattern, symbols, pos);
-    applyPattern(chars, symbols, rebuiltPat, USET_IGNORE_SPACE, NULL, status);
+    applyPattern(chars, symbols, rebuiltPat, USET_IGNORE_SPACE, NULL, 0, status);
     if (U_FAILURE(status)) return;
     if (chars.inVariable()) {
         // syntaxError(chars, "Extra chars in variable value");
@@ -406,6 +409,8 @@ UBool UnicodeSet::resemblesPattern(const UnicodeString& pattern, int32_t pos) {
 // Implementation: Pattern parsing
 //----------------------------------------------------------------
 
+namespace {
+
 /**
  * A small all-inline class to manage a UnicodeSet pointer.  Add
  * operator->() etc. as needed.
@@ -423,6 +428,10 @@ public:
         return p != 0;
     }
 };
+
+constexpr int32_t MAX_DEPTH = 100;
+
+}  // namespace
 
 /**
  * Parse the pattern from the given RuleCharacterIterator.  The
@@ -443,8 +452,13 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
                               UnicodeString& rebuiltPat,
                               uint32_t options,
                               UnicodeSet& (UnicodeSet::*caseClosure)(int32_t attribute),
+                              int32_t depth,
                               UErrorCode& ec) {
     if (U_FAILURE(ec)) return;
+    if (depth > MAX_DEPTH) {
+        ec = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
 
     // Syntax characters: [ ] ^ - & { }
 
@@ -579,7 +593,7 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
             }
             switch (setMode) {
             case 1:
-                nested->applyPattern(chars, symbols, patLocal, options, caseClosure, ec);
+                nested->applyPattern(chars, symbols, patLocal, options, caseClosure, depth + 1, ec);
                 break;
             case 2:
                 chars.skipIgnored(opts);
@@ -837,6 +851,8 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
 // Property set implementation
 //----------------------------------------------------------------
 
+namespace {
+
 static UBool numericValueFilter(UChar32 ch, void* context) {
     return u_getNumericValue(ch) == *(double*)context;
 }
@@ -867,6 +883,8 @@ static UBool intPropertyFilter(UChar32 ch, void* context) {
 static UBool scriptExtensionsFilter(UChar32 ch, void* context) {
     return uscript_hasScript(ch, *(UScriptCode*)context);
 }
+
+}  // namespace
 
 /**
  * Generic filter-based scanning code for UCD property UnicodeSets.
@@ -924,6 +942,8 @@ void UnicodeSet::applyFilter(UnicodeSet::Filter filter,
     }
 }
 
+namespace {
+
 static UBool mungeCharName(char* dst, const char* src, int32_t dstCapacity) {
     /* Note: we use ' ' in compiler code page */
     int32_t j = 0;
@@ -940,6 +960,8 @@ static UBool mungeCharName(char* dst, const char* src, int32_t dstCapacity) {
     dst[j] = 0;
     return TRUE;
 }
+
+}  // namespace
 
 //----------------------------------------------------------------
 // Property set API

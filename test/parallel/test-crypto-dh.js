@@ -49,14 +49,14 @@ assert.strictEqual(dh2.verifyError, 0);
   () => { },
   /abc/,
   {}
-].forEach((i) => {
+].forEach((input) => {
   common.expectsError(
-    () => crypto.createDiffieHellman(i),
+    () => crypto.createDiffieHellman(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "sizeOrKey" argument must be one of type number, string, ' +
-               'Buffer, TypedArray, or DataView'
+               `Buffer, TypedArray, or DataView. Received type ${typeof input}`
     }
   );
 });
@@ -380,5 +380,6 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "curve" argument must be of type string'
+    message: 'The "curve" argument must be of type string. ' +
+             'Received type undefined'
   });

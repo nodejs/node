@@ -85,7 +85,6 @@ module.exports = {
         }
 
         const modes = (function(option) {
-            option = option || {};
             const defaults = optionToDefinition(option, optionDefinitions.before);
 
             return {
@@ -93,7 +92,7 @@ module.exports = {
                 anonymous: optionToDefinition(option.anonymous, defaults),
                 method: optionToDefinition(option.method, defaults)
             };
-        }(context.options[0]));
+        }(context.options[0] || {}));
 
         const sourceCode = context.getSourceCode();
 

@@ -28,7 +28,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+
+        messages: {
+            missingThis: "Expected 'this' to be used by class method '{{name}}'."
+        }
     },
     create(context) {
         const config = context.options[0] ? Object.assign({}, context.options[0]) : {};
@@ -80,9 +84,9 @@ module.exports = {
             if (isIncludedInstanceMethod(node.parent) && !methodUsesThis) {
                 context.report({
                     node,
-                    message: "Expected 'this' to be used by class method '{{classMethod}}'.",
+                    messageId: "missingThis",
                     data: {
-                        classMethod: node.parent.key.name
+                        name: node.parent.key.name
                     }
                 });
             }

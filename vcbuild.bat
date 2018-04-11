@@ -1,7 +1,5 @@
 @if not defined DEBUG_HELPER @ECHO OFF
 
-cd %~dp0
-
 if /i "%1"=="help" goto help
 if /i "%1"=="--help" goto help
 if /i "%1"=="-help" goto help
@@ -10,6 +8,8 @@ if /i "%1"=="?" goto help
 if /i "%1"=="-?" goto help
 if /i "%1"=="--?" goto help
 if /i "%1"=="/?" goto help
+
+cd %~dp0
 
 @rem Process arguments.
 set config=Release
@@ -72,6 +72,8 @@ if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %common_test_suites%&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&goto arg-ok
+if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
+if /i "%1"=="build-addons-napi"   set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons-napi"   set test_args=%test_args% addons-napi&set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
@@ -167,6 +169,9 @@ if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 
 call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
+
+call tools\msvs\find_nasm.cmd
+if errorlevel 1 echo Could not find NASM, it will not be used.
 
 call :getnodeversion || exit /b 1
 
@@ -359,14 +364,24 @@ if not defined SSHCONFIG (
 
 if not defined STAGINGSERVER set STAGINGSERVER=node-www
 ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node-v%FULLVERSION%-win-%target_arch%.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.7z
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node-v%FULLVERSION%-win-%target_arch%.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.zip
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
+if errorlevel 1 goto exit
 ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-win-%target_arch%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
+if errorlevel 1 goto exit
+
 
 :run
 @rem Run tests if requested.
@@ -514,7 +529,7 @@ if defined lint_js_ci goto lint-js-ci
 if not defined lint_js goto exit
 if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
-%config%\node tools\node_modules\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --ext=.js,.mjs,.md benchmark doc lib test tools
+%config%\node tools\node_modules\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
 goto exit
 
 :lint-js-ci

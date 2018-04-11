@@ -50,6 +50,7 @@ v8_isolate_run("run-gcmole") {
   isolate = "gcmole/run-gcmole.isolate"
 }
 
+# TODO(machenbach): Add tests as dependencies.
 v8_isolate_run("run-num-fuzzer") {
   deps = [
     "..:d8_run",

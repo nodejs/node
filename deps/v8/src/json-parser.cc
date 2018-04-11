@@ -20,6 +20,38 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// A vector-like data structure that uses a larger vector for allocation, and
+// provides limited utility access. The original vector must not be used for the
+// duration, and it may even be reallocated. This allows vector storage to be
+// reused for the properties of sibling objects.
+template <typename Container>
+class VectorSegment {
+ public:
+  using value_type = typename Container::value_type;
+
+  explicit VectorSegment(Container* container)
+      : container_(*container), begin_(container->size()) {}
+  ~VectorSegment() { container_.resize(begin_); }
+
+  Vector<const value_type> GetVector() const {
+    return Vector<const value_type>(container_.data() + begin_,
+                                    container_.size() - begin_);
+  }
+
+  template <typename T>
+  void push_back(T&& value) {
+    container_.push_back(std::forward<T>(value));
+  }
+
+ private:
+  Container& container_;
+  const typename Container::size_type begin_;
+};
+
+}  // namespace
+
 MaybeHandle<Object> JsonParseInternalizer::Internalize(Isolate* isolate,
                                                        Handle<Object> object,
                                                        Handle<Object> reviver) {
@@ -107,11 +139,11 @@ JsonParser<seq_one_byte>::JsonParser(Isolate* isolate, Handle<String> source)
     : source_(source),
       source_length_(source->length()),
       isolate_(isolate),
-      factory_(isolate_->factory()),
       zone_(isolate_->allocator(), ZONE_NAME),
       object_constructor_(isolate_->native_context()->object_function(),
                           isolate_),
-      position_(-1) {
+      position_(-1),
+      properties_(&zone_) {
   source_ = String::Flatten(source_);
   pretenure_ = (source_length_ >= kPretenureTreshold) ? TENURED : NOT_TENURED;
 
@@ -164,6 +196,9 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     }
 
     Handle<Script> script(factory->NewScript(source_));
+    if (isolate()->NeedsSourcePositionsForProfiling()) {
+      Script::InitLineEnds(script);
+    }
     // We should sent compile error event because we compile JSON object in
     // separated source file.
     isolate()->debug()->OnCompileError(script);
@@ -333,7 +368,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       factory()->NewJSObject(object_constructor(), pretenure_);
   Handle<Map> map(json_object->map());
   int descriptor = 0;
-  ZoneVector<Handle<Object>> properties(zone());
+  VectorSegment<ZoneVector<Handle<Object>>> properties(&properties_);
   DCHECK_EQ(c0_, '{');
 
   bool transitioning = true;
@@ -424,7 +459,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       DCHECK(!transitioning);
 
       // Commit the intermediate state to the object and stop transitioning.
-      CommitStateToJsonObject(json_object, map, &properties);
+      CommitStateToJsonObject(json_object, map, properties.GetVector());
 
       JSObject::DefinePropertyOrElementIgnoreAttributes(json_object, key, value)
           .Check();
@@ -432,7 +467,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
 
     // If we transitioned until the very end, transition the map now.
     if (transitioning) {
-      CommitStateToJsonObject(json_object, map, &properties);
+      CommitStateToJsonObject(json_object, map, properties.GetVector());
     } else {
       while (MatchSkipWhiteSpace(',')) {
         HandleScope local_scope(isolate());
@@ -480,15 +515,14 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
 template <bool seq_one_byte>
 void JsonParser<seq_one_byte>::CommitStateToJsonObject(
     Handle<JSObject> json_object, Handle<Map> map,
-    ZoneVector<Handle<Object>>* properties) {
+    Vector<const Handle<Object>> properties) {
   JSObject::AllocateStorageForMap(json_object, map);
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
   DescriptorArray* descriptors = json_object->map()->instance_descriptors();
-  int length = static_cast<int>(properties->size());
-  for (int i = 0; i < length; i++) {
-    Handle<Object> value = (*properties)[i];
+  for (int i = 0; i < properties.length(); i++) {
+    Handle<Object> value = properties[i];
     // Initializing store.
     json_object->WriteToField(i, descriptors->GetDetails(i), *value);
   }
@@ -697,7 +731,7 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
   String::WriteToFlat(*prefix, dest, start, end);
 
   while (c0_ != '"') {
-    // Check for control character (0x00-0x1f) or unterminated string (<0).
+    // Check for control character (0x00-0x1F) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (count >= length) {
       // We need to create a longer sequential string for the result.
@@ -728,13 +762,13 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
           SeqStringSet(seq_string, count++, '\x08');
           break;
         case 'f':
-          SeqStringSet(seq_string, count++, '\x0c');
+          SeqStringSet(seq_string, count++, '\x0C');
           break;
         case 'n':
-          SeqStringSet(seq_string, count++, '\x0a');
+          SeqStringSet(seq_string, count++, '\x0A');
           break;
         case 'r':
-          SeqStringSet(seq_string, count++, '\x0d');
+          SeqStringSet(seq_string, count++, '\x0D');
           break;
         case 't':
           SeqStringSet(seq_string, count++, '\x09');
@@ -862,7 +896,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   int beg_pos = position_;
   // Fast case for Latin1 only without escape characters.
   do {
-    // Check for control character (0x00-0x1f) or unterminated string (<0).
+    // Check for control character (0x00-0x1F) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\') {
       if (seq_one_byte || c0_ <= String::kMaxOneByteCharCode) {

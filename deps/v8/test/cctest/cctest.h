@@ -571,14 +571,20 @@ static inline void CheckDoubleEquals(double expected, double actual) {
 static inline uint8_t* AllocateAssemblerBuffer(
     size_t* allocated,
     size_t requested = v8::internal::AssemblerBase::kMinimalBufferSize) {
-  size_t page_size = v8::base::OS::AllocatePageSize();
+  size_t page_size = v8::internal::AllocatePageSize();
   size_t alloc_size = RoundUp(requested, page_size);
-  void* result =
-      v8::base::OS::Allocate(nullptr, alloc_size, page_size,
-                             v8::base::OS::MemoryPermission::kReadWriteExecute);
+  void* result = v8::internal::AllocatePages(
+      nullptr, alloc_size, page_size, v8::PageAllocator::kReadWriteExecute);
   CHECK(result);
   *allocated = alloc_size;
   return static_cast<uint8_t*>(result);
+}
+
+static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
+                                                 size_t allocated) {
+  bool result = v8::internal::SetPermissions(buffer, allocated,
+                                             v8::PageAllocator::kReadExecute);
+  CHECK(result);
 }
 
 static v8::debug::DebugDelegate dummy_delegate;
@@ -674,8 +680,16 @@ class ManualGCScope {
 class TestPlatform : public v8::Platform {
  public:
   // v8::Platform implementation.
+  v8::PageAllocator* GetPageAllocator() override {
+    return old_platform_->GetPageAllocator();
+  }
+
   void OnCriticalMemoryPressure() override {
     old_platform_->OnCriticalMemoryPressure();
+  }
+
+  bool OnCriticalMemoryPressure(size_t length) override {
+    return old_platform_->OnCriticalMemoryPressure(length);
   }
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(

@@ -269,7 +269,7 @@ int main(int argc, char* argv[]) {
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 
-  if (i::trap_handler::UseTrapHandler()) {
+  if (i::trap_handler::IsTrapHandlerEnabled()) {
     v8::V8::RegisterDefaultSignalHandler();
   }
 

@@ -49,6 +49,9 @@ namespace wasm {
 #define CASE_CONVERT_OP(name, RES, SRC, src_suffix, str) \
   CASE_##RES##_OP(U##name##SRC, str "_u/" src_suffix)    \
       CASE_##RES##_OP(S##name##SRC, str "_s/" src_suffix)
+#define CASE_CONVERT_SAT_OP(name, RES, SRC, src_suffix, str)   \
+  CASE_##RES##_OP(U##name##Sat##SRC, str "_u:sat/" src_suffix) \
+      CASE_##RES##_OP(S##name##Sat##SRC, str "_s:sat/" src_suffix)
 #define CASE_L32_OP(name, str)          \
   CASE_SIGN_OP(I32, name##8, str "8")   \
   CASE_SIGN_OP(I32, name##16, str "16") \
@@ -98,6 +101,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
+    // TODO(kschimpf): Add I64 versions of saturating conversions.
+    CASE_CONVERT_SAT_OP(Convert, I32, F32, "f32", "trunc")
+    CASE_CONVERT_SAT_OP(Convert, I32, F64, "f64", "trunc")
+
     CASE_CONVERT_OP(Convert, I64, I32, "i32", "extend")
     CASE_CONVERT_OP(Convert, F32, I32, "i32", "convert")
     CASE_CONVERT_OP(Convert, F32, I64, "i64", "convert")
@@ -275,6 +282,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_UNSIGNED_OP
 #undef CASE_ALL_SIGN_OP
 #undef CASE_CONVERT_OP
+#undef CASE_CONVERT_SAT_OP
 #undef CASE_L32_OP
 #undef CASE_U32_OP
 
@@ -340,11 +348,12 @@ enum WasmOpcodeSig : byte {
   FOREACH_SIGNATURE(DECLARE_SIG_ENUM)
 };
 #undef DECLARE_SIG_ENUM
-
-#define DECLARE_SIG(name, ...)                         \
-  constexpr ValueType kTypes_##name[] = {__VA_ARGS__}; \
-  constexpr FunctionSig kSig_##name(                   \
-      1, static_cast<int>(arraysize(kTypes_##name)) - 1, kTypes_##name);
+#define DECLARE_SIG(name, ...)                                                \
+  constexpr ValueType kTypes_##name[] = {__VA_ARGS__};                        \
+  constexpr int kReturnsCount_##name = kTypes_##name[0] == kWasmStmt ? 0 : 1; \
+  constexpr FunctionSig kSig_##name(                                          \
+      kReturnsCount_##name, static_cast<int>(arraysize(kTypes_##name)) - 1,   \
+      kTypes_##name + (1 - kReturnsCount_##name));
 FOREACH_SIGNATURE(DECLARE_SIG)
 #undef DECLARE_SIG
 
@@ -376,7 +385,7 @@ struct GetAsmJsOpcodeSigIndex {
 
 struct GetSimdOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
-#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
+#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) kSigEnum_None;
 #undef CASE
   }
@@ -384,10 +393,18 @@ struct GetSimdOpcodeSigIndex {
 
 struct GetAtomicOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
-#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
+#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_ATOMIC_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
+};
+
+struct GetNumericOpcodeSigIndex {
+  constexpr WasmOpcodeSig operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
+    return FOREACH_NUMERIC_OPCODE(CASE) kSigEnum_None;
+#undef CASE
+  }
 };
 
 constexpr std::array<WasmOpcodeSig, 256> kSimpleExprSigTable =
@@ -398,20 +415,26 @@ constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
     base::make_array<256>(GetSimdOpcodeSigIndex{});
 constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
     base::make_array<256>(GetAtomicOpcodeSigIndex{});
+constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
+    base::make_array<256>(GetNumericOpcodeSigIndex{});
 
 }  // namespace
 
 FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
-  if (opcode >> 8 == kSimdPrefix) {
-    return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kSimdExprSigTable[opcode & 0xff]]);
-  } else if (opcode >> 8 == kAtomicPrefix) {
-    return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xff]]);
-  } else {
-    DCHECK_GT(kSimpleExprSigTable.size(), opcode);
-    return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kSimpleExprSigTable[opcode]]);
+  switch (opcode >> 8) {
+    case kSimdPrefix:
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kSimdExprSigTable[opcode & 0xFF]]);
+    case kAtomicPrefix:
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xFF]]);
+    case kNumericPrefix:
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kNumericExprSigTable[opcode & 0xFF]]);
+    default:
+      DCHECK_GT(kSimpleExprSigTable.size(), opcode);
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kSimpleExprSigTable[opcode]]);
   }
 }
 
@@ -420,6 +443,14 @@ FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
   return const_cast<FunctionSig*>(
       kSimpleExprSigs[kSimpleAsmjsExprSigTable[opcode]]);
 }
+
+// Define constexpr arrays.
+constexpr uint8_t LoadType::kLoadSizeLog2[];
+constexpr ValueType LoadType::kValueType[];
+constexpr MachineType LoadType::kMemType[];
+constexpr uint8_t StoreType::kStoreSizeLog2[];
+constexpr ValueType StoreType::kValueType[];
+constexpr MachineRepresentation StoreType::kMemRep[];
 
 int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
   switch (reason) {

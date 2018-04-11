@@ -74,7 +74,7 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name,
       zone_(zone),
       deferred_handles_(nullptr),
       dependencies_(nullptr),
-      bailout_reason_(kNoReason),
+      bailout_reason_(BailoutReason::kNoReason),
       parameter_count_(0),
       optimization_id_(-1),
       debug_name_(debug_name) {}

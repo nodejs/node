@@ -51,7 +51,14 @@ module.exports = {
             ]
         },
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            missingCurlyAfter: "Expected { after '{{name}}'.",
+            missingCurlyAfterCondition: "Expected { after '{{name}}' condition.",
+            unexpectedCurlyAfter: "Unnecessary { after '{{name}}'.",
+            unexpectedCurlyAfterCondition: "Unnecessary { after '{{name}}' condition."
+        }
     },
 
     create(context) {
@@ -130,38 +137,18 @@ module.exports = {
                     return true;
                 }
 
-                node = node.consequent.body[0];
-                while (node) {
-                    if (node.type === "IfStatement" && !node.alternate) {
+                for (
+                    let currentNode = node.consequent.body[0];
+                    currentNode;
+                    currentNode = astUtils.getTrailingStatement(currentNode)
+                ) {
+                    if (currentNode.type === "IfStatement" && !currentNode.alternate) {
                         return true;
                     }
-                    node = astUtils.getTrailingStatement(node);
                 }
             }
 
             return false;
-        }
-
-        /**
-         * Reports "Expected { after ..." error
-         * @param {ASTNode} node The node to report.
-         * @param {ASTNode} bodyNode The body node that is incorrectly missing curly brackets
-         * @param {string} name The name to report.
-         * @param {string} suffix Additional string to add to the end of a report.
-         * @returns {void}
-         * @private
-         */
-        function reportExpectedBraceError(node, bodyNode, name, suffix) {
-            context.report({
-                node,
-                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
-                message: "Expected { after '{{name}}'{{suffix}}.",
-                data: {
-                    name,
-                    suffix: (suffix ? ` ${suffix}` : "")
-                },
-                fix: fixer => fixer.replaceText(bodyNode, `{${sourceCode.getText(bodyNode)}}`)
-            });
         }
 
         /**
@@ -219,61 +206,11 @@ module.exports = {
         }
 
         /**
-         * Reports "Unnecessary { after ..." error
-         * @param {ASTNode} node The node to report.
-         * @param {ASTNode} bodyNode The block statement that is incorrectly surrounded by parens
-         * @param {string} name The name to report.
-         * @param {string} suffix Additional string to add to the end of a report.
-         * @returns {void}
-         * @private
-         */
-        function reportUnnecessaryBraceError(node, bodyNode, name, suffix) {
-            context.report({
-                node,
-                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
-                message: "Unnecessary { after '{{name}}'{{suffix}}.",
-                data: {
-                    name,
-                    suffix: (suffix ? ` ${suffix}` : "")
-                },
-                fix(fixer) {
-
-                    /*
-                     * `do while` expressions sometimes need a space to be inserted after `do`.
-                     * e.g. `do{foo()} while (bar)` should be corrected to `do foo() while (bar)`
-                     */
-                    const needsPrecedingSpace = node.type === "DoWhileStatement" &&
-                        sourceCode.getTokenBefore(bodyNode).range[1] === bodyNode.range[0] &&
-                        !astUtils.canTokensBeAdjacent("do", sourceCode.getFirstToken(bodyNode, { skip: 1 }));
-
-                    const openingBracket = sourceCode.getFirstToken(bodyNode);
-                    const closingBracket = sourceCode.getLastToken(bodyNode);
-                    const lastTokenInBlock = sourceCode.getTokenBefore(closingBracket);
-
-                    if (needsSemicolon(closingBracket)) {
-
-                        /*
-                         * If removing braces would cause a SyntaxError due to multiple statements on the same line (or
-                         * change the semantics of the code due to ASI), don't perform a fix.
-                         */
-                        return null;
-                    }
-
-                    const resultingBodyText = sourceCode.getText().slice(openingBracket.range[1], lastTokenInBlock.range[0]) +
-                        sourceCode.getText(lastTokenInBlock) +
-                        sourceCode.getText().slice(lastTokenInBlock.range[1], closingBracket.range[0]);
-
-                    return fixer.replaceText(bodyNode, (needsPrecedingSpace ? " " : "") + resultingBodyText);
-                }
-            });
-        }
-
-        /**
          * Prepares to check the body of a node to see if it's a block statement.
          * @param {ASTNode} node The node to report if there's a problem.
          * @param {ASTNode} body The body node to check for blocks.
          * @param {string} name The name to report if there's a problem.
-         * @param {string} suffix Additional string to add to the end of a report.
+         * @param {{ condition: boolean }} opts Options to pass to the report functions
          * @returns {Object} a prepared check object, with "actual", "expected", "check" properties.
          *   "actual" will be `true` or `false` whether the body is already a block statement.
          *   "expected" will be `true` or `false` if the body should be a block statement or not, or
@@ -282,7 +219,7 @@ module.exports = {
          *   "check" will be a function reporting appropriate problems depending on the other
          *   properties.
          */
-        function prepareCheck(node, body, name, suffix) {
+        function prepareCheck(node, body, name, opts) {
             const hasBlock = (body.type === "BlockStatement");
             let expected = null;
 
@@ -314,9 +251,53 @@ module.exports = {
                 check() {
                     if (this.expected !== null && this.expected !== this.actual) {
                         if (this.expected) {
-                            reportExpectedBraceError(node, body, name, suffix);
+                            context.report({
+                                node,
+                                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
+                                messageId: opts && opts.condition ? "missingCurlyAfterCondition" : "missingCurlyAfter",
+                                data: {
+                                    name
+                                },
+                                fix: fixer => fixer.replaceText(body, `{${sourceCode.getText(body)}}`)
+                            });
                         } else {
-                            reportUnnecessaryBraceError(node, body, name, suffix);
+                            context.report({
+                                node,
+                                loc: (name !== "else" ? node : getElseKeyword(node)).loc.start,
+                                messageId: opts && opts.condition ? "unexpectedCurlyAfterCondition" : "unexpectedCurlyAfter",
+                                data: {
+                                    name
+                                },
+                                fix(fixer) {
+
+                                    /*
+                                     * `do while` expressions sometimes need a space to be inserted after `do`.
+                                     * e.g. `do{foo()} while (bar)` should be corrected to `do foo() while (bar)`
+                                     */
+                                    const needsPrecedingSpace = node.type === "DoWhileStatement" &&
+                                        sourceCode.getTokenBefore(body).range[1] === body.range[0] &&
+                                        !astUtils.canTokensBeAdjacent("do", sourceCode.getFirstToken(body, { skip: 1 }));
+
+                                    const openingBracket = sourceCode.getFirstToken(body);
+                                    const closingBracket = sourceCode.getLastToken(body);
+                                    const lastTokenInBlock = sourceCode.getTokenBefore(closingBracket);
+
+                                    if (needsSemicolon(closingBracket)) {
+
+                                        /*
+                                         * If removing braces would cause a SyntaxError due to multiple statements on the same line (or
+                                         * change the semantics of the code due to ASI), don't perform a fix.
+                                         */
+                                        return null;
+                                    }
+
+                                    const resultingBodyText = sourceCode.getText().slice(openingBracket.range[1], lastTokenInBlock.range[0]) +
+                                        sourceCode.getText(lastTokenInBlock) +
+                                        sourceCode.getText().slice(lastTokenInBlock.range[1], closingBracket.range[0]);
+
+                                    return fixer.replaceText(body, (needsPrecedingSpace ? " " : "") + resultingBodyText);
+                                }
+                            });
                         }
                     }
                 }
@@ -332,14 +313,13 @@ module.exports = {
         function prepareIfChecks(node) {
             const preparedChecks = [];
 
-            do {
-                preparedChecks.push(prepareCheck(node, node.consequent, "if", "condition"));
-                if (node.alternate && node.alternate.type !== "IfStatement") {
-                    preparedChecks.push(prepareCheck(node, node.alternate, "else"));
+            for (let currentNode = node; currentNode; currentNode = currentNode.alternate) {
+                preparedChecks.push(prepareCheck(currentNode, currentNode.consequent, "if", { condition: true }));
+                if (currentNode.alternate && currentNode.alternate.type !== "IfStatement") {
+                    preparedChecks.push(prepareCheck(currentNode, currentNode.alternate, "else"));
                     break;
                 }
-                node = node.alternate;
-            } while (node);
+            }
 
             if (consistent) {
 
@@ -377,7 +357,7 @@ module.exports = {
             },
 
             WhileStatement(node) {
-                prepareCheck(node, node.body, "while", "condition").check();
+                prepareCheck(node, node.body, "while", { condition: true }).check();
             },
 
             DoWhileStatement(node) {
@@ -385,7 +365,7 @@ module.exports = {
             },
 
             ForStatement(node) {
-                prepareCheck(node, node.body, "for", "condition").check();
+                prepareCheck(node, node.body, "for", { condition: true }).check();
             },
 
             ForInStatement(node) {

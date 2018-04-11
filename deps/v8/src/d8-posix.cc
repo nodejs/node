@@ -31,16 +31,16 @@ static int LengthWithoutIncompleteUtf8(char* buffer, int len) {
   static const int kUtf8SingleByteMask = 0x80;
   static const int kUtf8SingleByteValue = 0x00;
   // 2-byte encoding.
-  static const int kUtf8TwoByteMask = 0xe0;
-  static const int kUtf8TwoByteValue = 0xc0;
+  static const int kUtf8TwoByteMask = 0xE0;
+  static const int kUtf8TwoByteValue = 0xC0;
   // 3-byte encoding.
-  static const int kUtf8ThreeByteMask = 0xf0;
-  static const int kUtf8ThreeByteValue = 0xe0;
+  static const int kUtf8ThreeByteMask = 0xF0;
+  static const int kUtf8ThreeByteValue = 0xE0;
   // 4-byte encoding.
-  static const int kUtf8FourByteMask = 0xf8;
-  static const int kUtf8FourByteValue = 0xf0;
+  static const int kUtf8FourByteMask = 0xF8;
+  static const int kUtf8FourByteValue = 0xF0;
   // Subsequent bytes of a multi-byte encoding.
-  static const int kMultiByteMask = 0xc0;
+  static const int kMultiByteMask = 0xC0;
   static const int kMultiByteValue = 0x80;
   int multi_byte_bytes_seen = 0;
   while (answer > 0) {

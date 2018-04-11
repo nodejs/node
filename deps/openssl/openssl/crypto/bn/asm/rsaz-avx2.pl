@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 ##############################################################################
 #                                                                            #
@@ -103,7 +110,7 @@ if (!$avx && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9])\.([0-
 	$addx = ($ver>=3.03);
 }
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT = *OUT;
 
 if ($avx>1) {{{

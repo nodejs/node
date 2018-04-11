@@ -23,6 +23,7 @@
 
 #include "base64.h"
 #include "node_internals.h"
+#include "node_errors.h"
 #include "node_buffer.h"
 
 #include <limits.h>
@@ -35,20 +36,6 @@
 // most of the execution time. For these cases it's more performant to
 // use external string resources.
 #define EXTERN_APEX 0xFBEE9
-
-// TODO(addaleax): These should all have better error messages. In particular,
-// they should mention what the actual limits are.
-#define SB_MALLOC_FAILED_ERROR \
-  v8::Exception::Error(OneByteString(isolate, "\"toString()\" failed"))
-
-#define SB_STRING_TOO_LONG_ERROR \
-  v8::Exception::Error(OneByteString(isolate, "\"toString()\" failed"))
-
-#define SB_BUFFER_CREATION_ERROR \
-  v8::Exception::Error(OneByteString(isolate, "\"toString()\" failed"))
-
-#define SB_BUFFER_SIZE_EXCEEDED_ERROR \
-  v8::Exception::Error(OneByteString(isolate, "\"toString()\" failed"))
 
 namespace node {
 
@@ -93,7 +80,7 @@ class ExternString: public ResourceType {
 
     TypeName* new_data = node::UncheckedMalloc<TypeName>(length);
     if (new_data == nullptr) {
-      *error = SB_MALLOC_FAILED_ERROR;
+      *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
       return MaybeLocal<Value>();
     }
     memcpy(new_data, data, length * sizeof(*new_data));
@@ -126,7 +113,7 @@ class ExternString: public ResourceType {
 
     if (str.IsEmpty()) {
       delete h_str;
-      *error = SB_STRING_TOO_LONG_ERROR;
+      *error = node::ERR_STRING_TOO_LONG(isolate);
       return MaybeLocal<Value>();
     }
 
@@ -183,7 +170,7 @@ MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
                              v8::NewStringType::kNormal,
                              length);
   if (str.IsEmpty()) {
-    *error = SB_STRING_TOO_LONG_ERROR;
+    *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
   return str.ToLocalChecked();
@@ -201,7 +188,7 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
                              v8::NewStringType::kNormal,
                              length);
   if (str.IsEmpty()) {
-    *error = SB_STRING_TOO_LONG_ERROR;
+    *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
   return str.ToLocalChecked();
@@ -369,7 +356,7 @@ size_t StringBytes::Write(Isolate* isolate,
         auto ext = str->GetExternalOneByteStringResource();
         nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
       } else {
-        String::Value value(str);
+        String::Value value(isolate, str);
         nbytes = base64_decode(buf, buflen, *value, value.length());
       }
       *chars_written = nbytes;
@@ -380,7 +367,7 @@ size_t StringBytes::Write(Isolate* isolate,
         auto ext = str->GetExternalOneByteStringResource();
         nbytes = hex_decode(buf, buflen, ext->data(), ext->length());
       } else {
-        String::Value value(str);
+        String::Value value(isolate, str);
         nbytes = hex_decode(buf, buflen, *value, value.length());
       }
       *chars_written = nbytes;
@@ -479,7 +466,7 @@ size_t StringBytes::Size(Isolate* isolate,
       return str->Length() * sizeof(uint16_t);
 
     case BASE64: {
-      String::Value value(str);
+      String::Value value(isolate, str);
       return base64_decoded_size(*value, value.length());
     }
 
@@ -616,7 +603,7 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
 #define CHECK_BUFLEN_IN_RANGE(len)                                    \
   do {                                                                \
     if ((len) > Buffer::kMaxLength) {                                 \
-      *error = SB_BUFFER_SIZE_EXCEEDED_ERROR;                         \
+      *error = node::ERR_BUFFER_TOO_LARGE(isolate);                   \
       return MaybeLocal<Value>();                                     \
     }                                                                 \
   } while (0)
@@ -639,9 +626,13 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   switch (encoding) {
     case BUFFER:
       {
+        if (buflen > node::Buffer::kMaxLength) {
+          *error = node::ERR_BUFFER_TOO_LARGE(isolate);
+          return MaybeLocal<Value>();
+        }
         auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
         if (maybe_buf.IsEmpty()) {
-          *error = SB_BUFFER_CREATION_ERROR;
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
           return MaybeLocal<Value>();
         }
         return maybe_buf.ToLocalChecked();
@@ -651,7 +642,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       if (contains_non_ascii(buf, buflen)) {
         char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
-          *error = SB_MALLOC_FAILED_ERROR;
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
           return MaybeLocal<Value>();
         }
         force_ascii(buf, out, buflen);
@@ -666,7 +657,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                 v8::NewStringType::kNormal,
                                 buflen);
       if (val.IsEmpty()) {
-        *error = SB_STRING_TOO_LONG_ERROR;
+        *error = node::ERR_STRING_TOO_LONG(isolate);
         return MaybeLocal<Value>();
       }
       return val.ToLocalChecked();
@@ -678,7 +669,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       size_t dlen = base64_encoded_size(buflen);
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        *error = SB_MALLOC_FAILED_ERROR;
+        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
         return MaybeLocal<Value>();
       }
 
@@ -692,7 +683,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       size_t dlen = buflen * 2;
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        *error = SB_MALLOC_FAILED_ERROR;
+        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
         return MaybeLocal<Value>();
       }
       size_t written = hex_encode(buf, buflen, dst, dlen);
@@ -720,15 +711,19 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   // Buffer, so we need to reorder on BE platforms.  See
   // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
   // encoding specification
-  std::vector<uint16_t> dst;
   if (IsBigEndian()) {
-    dst.assign(buf, buf + buflen);
-    size_t nbytes = buflen * sizeof(dst[0]);
-    SwapBytes16(reinterpret_cast<char*>(&dst[0]), nbytes);
-    buf = &dst[0];
+    uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen);
+    if (dst == nullptr) {
+      *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      return MaybeLocal<Value>();
+    }
+    size_t nbytes = buflen * sizeof(uint16_t);
+    memcpy(dst, buf, nbytes);
+    SwapBytes16(reinterpret_cast<char*>(dst), nbytes);
+    return ExternTwoByteString::New(isolate, dst, buflen, error);
+  } else {
+    return ExternTwoByteString::NewFromCopy(isolate, buf, buflen, error);
   }
-
-  return ExternTwoByteString::NewFromCopy(isolate, buf, buflen, error);
 }
 
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,

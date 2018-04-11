@@ -175,7 +175,8 @@ class SendMessageToBackendTask : public TaskRunner::Task {
   v8::internal::Vector<uint16_t> message_;
 };
 
-void RunAsyncTask(TaskRunner* task_runner, const char* task_name,
+void RunAsyncTask(TaskRunner* task_runner,
+                  const v8_inspector::StringView& task_name,
                   TaskRunner::Task* task) {
   class AsyncTask : public TaskRunner::Task {
    public:
@@ -193,10 +194,7 @@ void RunAsyncTask(TaskRunner* task_runner, const char* task_name,
     DISALLOW_COPY_AND_ASSIGN(AsyncTask);
   };
 
-  task_runner->data()->AsyncTaskScheduled(
-      v8_inspector::StringView(reinterpret_cast<const uint8_t*>(task_name),
-                               strlen(task_name)),
-      task, false);
+  task_runner->data()->AsyncTaskScheduled(task_name, task, false);
   task_runner->Append(new AsyncTask(task));
 }
 
@@ -626,13 +624,16 @@ class SetTimeoutExtension : public IsolateData::SetupGlobalTask {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
+    const char* task_name = "setTimeout";
+    v8_inspector::StringView task_name_view(
+        reinterpret_cast<const uint8_t*>(task_name), strlen(task_name));
     if (args[0]->IsFunction()) {
-      RunAsyncTask(data->task_runner(), "setTimeout",
+      RunAsyncTask(data->task_runner(), task_name_view,
                    new SetTimeoutTask(context_group_id, isolate,
                                       v8::Local<v8::Function>::Cast(args[0])));
     } else {
       RunAsyncTask(
-          data->task_runner(), "setTimeout",
+          data->task_runner(), task_name_view,
           new ExecuteStringTask(
               context_group_id, ToVector(args[0].As<v8::String>()),
               v8::String::Empty(isolate), v8::Integer::New(isolate, 0),
@@ -703,6 +704,9 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         ToV8String(isolate, "externalAsyncTaskFinished"),
         v8::FunctionTemplate::New(
             isolate, &InspectorExtension::ExternalAsyncTaskFinished));
+    inspector->Set(ToV8String(isolate, "scheduleWithAsyncStack"),
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::ScheduleWithAsyncStack));
     global->Set(ToV8String(isolate, "inspector"), inspector);
   }
 
@@ -925,6 +929,33 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         static_cast<v8_inspector::V8StackTraceId*>(
             args[0].As<v8::ArrayBuffer>()->GetContents().Data());
     data->ExternalAsyncTaskFinished(*id);
+  }
+
+  static void ScheduleWithAsyncStack(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 3 || !args[0]->IsFunction() || !args[1]->IsString() ||
+        !args[2]->IsBoolean()) {
+      fprintf(stderr,
+              "Internal error: scheduleWithAsyncStack(function, "
+              "'task-name', with_empty_stack).");
+      Exit();
+    }
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    int context_group_id = data->GetContextGroupId(context);
+    bool with_empty_stack = args[2].As<v8::Boolean>()->Value();
+    if (with_empty_stack) context->Exit();
+
+    v8::internal::Vector<uint16_t> task_name =
+        ToVector(args[1].As<v8::String>());
+    v8_inspector::StringView task_name_view(task_name.start(),
+                                            task_name.length());
+
+    RunAsyncTask(data->task_runner(), task_name_view,
+                 new SetTimeoutTask(context_group_id, isolate,
+                                    v8::Local<v8::Function>::Cast(args[0])));
+    if (with_empty_stack) context->Enter();
   }
 };
 

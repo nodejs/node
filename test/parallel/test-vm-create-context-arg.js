@@ -20,13 +20,15 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-const assert = require('assert');
+const common = require('../common');
 const vm = require('vm');
 
-assert.throws(function() {
+common.expectsError(() => {
   vm.createContext('string is not supported');
-}, /^TypeError: sandbox must be an object$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError
+});
 
 // Should not throw.
 vm.createContext({ a: 1 });

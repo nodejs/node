@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define OFFSET(x) ((x)&0x1f)
+#define OFFSET(x) ((x)&0x1F)
 #define BIT(x) (1u << OFFSET(x))
 #define INDEX(x) ((x) >> 5)
 

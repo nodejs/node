@@ -55,7 +55,15 @@ module.exports = {
             ]
         },
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpectedOtherBlock: "Unexpected block statement surrounding arrow body.",
+            unexpectedEmptyBlock: "Unexpected block statement surrounding arrow body; put a value of `undefined` immediately after the `=>`.",
+            unexpectedObjectBlock: "Unexpected block statement surrounding arrow body; parenthesize the returned value and move it immediately after the `=>`.",
+            unexpectedSingleBlock: "Unexpected block statement surrounding arrow body; move the returned value immediately after the `=>`.",
+            expectedBlock: "Expected block statement surrounding arrow body."
+        }
     },
 
     create(context) {
@@ -110,22 +118,22 @@ module.exports = {
                 }
 
                 if (never || asNeeded && blockBody[0].type === "ReturnStatement") {
-                    let message;
+                    let messageId;
 
                     if (blockBody.length === 0) {
-                        message = "Unexpected block statement surrounding arrow body; put a value of `undefined` immediately after the `=>`.";
+                        messageId = "unexpectedEmptyBlock";
                     } else if (blockBody.length > 1) {
-                        message = "Unexpected block statement surrounding arrow body.";
+                        messageId = "unexpectedOtherBlock";
                     } else if (astUtils.isOpeningBraceToken(sourceCode.getFirstToken(blockBody[0], { skip: 1 }))) {
-                        message = "Unexpected block statement surrounding arrow body; parenthesize the returned value and move it immediately after the `=>`.";
+                        messageId = "unexpectedObjectBlock";
                     } else {
-                        message = "Unexpected block statement surrounding arrow body; move the returned value immediately after the `=>`.";
+                        messageId = "unexpectedSingleBlock";
                     }
 
                     context.report({
                         node,
                         loc: arrowBody.loc.start,
-                        message,
+                        messageId,
                         fix(fixer) {
                             const fixes = [];
 
@@ -190,7 +198,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: arrowBody.loc.start,
-                        message: "Expected block statement surrounding arrow body.",
+                        messageId: "expectedBlock",
                         fix(fixer) {
                             const fixes = [];
                             const arrowToken = sourceCode.getTokenBefore(arrowBody, astUtils.isArrowToken);

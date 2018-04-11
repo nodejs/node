@@ -564,6 +564,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       } else {
         return Op::template apply<StructBodyDescriptor>(p1, p2, p3);
       }
+    case LOAD_HANDLER_TYPE:
+    case STORE_HANDLER_TYPE:
+      return Op::template apply<StructBodyDescriptor>(p1, p2, p3);
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();

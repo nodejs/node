@@ -136,29 +136,27 @@ module.exports = {
         const array = Array.isArray(src) || Array.isArray(target);
         let dst = array && [] || {};
 
-        combine = !!combine;
-        isRule = !!isRule;
         if (array) {
-            target = target || [];
+            const resolvedTarget = target || [];
 
             // src could be a string, so check for array
             if (isRule && Array.isArray(src) && src.length > 1) {
                 dst = dst.concat(src);
             } else {
-                dst = dst.concat(target);
+                dst = dst.concat(resolvedTarget);
             }
-            if (typeof src !== "object" && !Array.isArray(src)) {
-                src = [src];
-            }
-            Object.keys(src).forEach((e, i) => {
-                e = src[i];
+            const resolvedSrc = typeof src === "object" ? src : [src];
+
+            Object.keys(resolvedSrc).forEach((_, i) => {
+                const e = resolvedSrc[i];
+
                 if (typeof dst[i] === "undefined") {
                     dst[i] = e;
                 } else if (typeof e === "object") {
                     if (isRule) {
                         dst[i] = e;
                     } else {
-                        dst[i] = deepmerge(target[i], e, combine, isRule);
+                        dst[i] = deepmerge(resolvedTarget[i], e, combine, isRule);
                     }
                 } else {
                     if (!combine) {

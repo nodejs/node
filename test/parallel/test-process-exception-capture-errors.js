@@ -6,7 +6,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "fn" argument must be one of type Function or null'
+    message: 'The "fn" argument must be one of type Function or null. ' +
+             'Received type number'
   }
 );
 

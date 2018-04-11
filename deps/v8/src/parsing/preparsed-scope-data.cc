@@ -24,7 +24,7 @@ class VariableMaybeAssignedField : public BitField8<bool, 0, 1> {};
 class VariableContextAllocatedField
     : public BitField8<bool, VariableMaybeAssignedField::kNext, 1> {};
 
-const int kMagicValue = 0xc0de0de;
+const int kMagicValue = 0xC0DE0DE;
 
 #ifdef DEBUG
 const size_t kUint32Size = 5;
@@ -571,8 +571,8 @@ void ConsumedPreParsedScopeData::RestoreData(Scope* scope) {
   if (scope_data_->RemainingBytes() < kUint8Size) {
     // Temporary debugging code for detecting inconsistent data. Write debug
     // information on the stack, then crash.
-    data_->GetIsolate()->PushStackTraceAndDie(0xc0defee, nullptr, nullptr,
-                                              0xc0defee);
+    data_->GetIsolate()->PushStackTraceAndDie(0xC0DEFEE, nullptr, nullptr,
+                                              0xC0DEFEE);
   }
 
   // scope_type is stored only in debug mode.

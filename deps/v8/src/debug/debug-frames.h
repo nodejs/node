@@ -9,14 +9,10 @@
 #include "src/frames.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declaration:
-namespace wasm {
-class InterpretedFrame;
-}
 
 class FrameInspector {
  public:
@@ -61,7 +57,7 @@ class FrameInspector {
 
   StandardFrame* frame_;
   std::unique_ptr<DeoptimizedFrameInfo> deoptimized_frame_;
-  std::unique_ptr<wasm::InterpretedFrame> wasm_interpreted_frame_;
+  wasm::WasmInterpreter::FramePtr wasm_interpreted_frame_;
   Isolate* isolate_;
   Handle<Script> script_;
   Handle<Object> receiver_;

@@ -47,7 +47,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == ia32 ===================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS esi, eax, edx, ecx, ebx
-#define GP_RETURN_REGISTERS eax, edx, ecx
+#define GP_RETURN_REGISTERS eax, edx
 #define FP_PARAM_REGISTERS xmm1, xmm2, xmm3, xmm4, xmm5, xmm6
 #define FP_RETURN_REGISTERS xmm1, xmm2
 
@@ -56,7 +56,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == x64 ====================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS rsi, rax, rdx, rcx, rbx, rdi
-#define GP_RETURN_REGISTERS rax, rdx, rcx
+#define GP_RETURN_REGISTERS rax, rdx
 #define FP_PARAM_REGISTERS xmm1, xmm2, xmm3, xmm4, xmm5, xmm6
 #define FP_RETURN_REGISTERS xmm1, xmm2
 
@@ -65,7 +65,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == arm ====================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS r3, r0, r1, r2
-#define GP_RETURN_REGISTERS r0, r1, r3
+#define GP_RETURN_REGISTERS r0, r1
 #define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
 #define FP_RETURN_REGISTERS d0, d1
 
@@ -74,7 +74,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == arm64 ====================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS x7, x0, x1, x2, x3, x4, x5, x6
-#define GP_RETURN_REGISTERS x0, x1, x2
+#define GP_RETURN_REGISTERS x0, x1
 #define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
 #define FP_RETURN_REGISTERS d0, d1
 
@@ -83,7 +83,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == mips ===================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS a0, a1, a2, a3
-#define GP_RETURN_REGISTERS v0, v1, t7
+#define GP_RETURN_REGISTERS v0, v1
 #define FP_PARAM_REGISTERS f2, f4, f6, f8, f10, f12, f14
 #define FP_RETURN_REGISTERS f2, f4
 
@@ -92,7 +92,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == mips64 =================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
-#define GP_RETURN_REGISTERS v0, v1, t3
+#define GP_RETURN_REGISTERS v0, v1
 #define FP_PARAM_REGISTERS f2, f4, f6, f8, f10, f12, f14
 #define FP_RETURN_REGISTERS f2, f4
 
@@ -101,7 +101,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == ppc & ppc64 ============================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS r10, r3, r4, r5, r6, r7, r8, r9
-#define GP_RETURN_REGISTERS r3, r4, r5
+#define GP_RETURN_REGISTERS r3, r4
 #define FP_PARAM_REGISTERS d1, d2, d3, d4, d5, d6, d7, d8
 #define FP_RETURN_REGISTERS d1, d2
 
@@ -110,7 +110,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == s390x ==================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS r6, r2, r3, r4, r5
-#define GP_RETURN_REGISTERS r2, r3, r4
+#define GP_RETURN_REGISTERS r2, r3
 #define FP_PARAM_REGISTERS d0, d2, d4, d6
 #define FP_RETURN_REGISTERS d0, d2, d4, d6
 
@@ -119,7 +119,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == s390 ===================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS r6, r2, r3, r4, r5
-#define GP_RETURN_REGISTERS r2, r3, r4
+#define GP_RETURN_REGISTERS r2, r3
 #define FP_PARAM_REGISTERS d0, d2
 #define FP_RETURN_REGISTERS d0, d2
 
@@ -157,6 +157,8 @@ struct Allocator {
   const DoubleRegister* fp_regs;
 
   int stack_offset;
+
+  void AdjustStackOffset(int offset) { stack_offset += offset; }
 
   LinkageLocation Next(ValueType type) {
     if (IsFloatingPoint(type)) {
@@ -226,25 +228,28 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + 1);
 
-  Allocator rets = return_registers;
-
-  // Add return location(s).
-  const int return_count = static_cast<int>(locations.return_count_);
-  for (int i = 0; i < return_count; i++) {
-    ValueType ret = fsig->GetReturn(i);
-    locations.AddReturn(rets.Next(ret));
-  }
-
+  // Add register and/or stack parameter(s).
   Allocator params = parameter_registers;
 
-  // Add parameter for the wasm_context.
+  // The wasm_context.
   locations.AddParam(params.Next(MachineType::PointerRepresentation()));
 
-  // Add register and/or stack parameter(s).
   const int parameter_count = static_cast<int>(fsig->parameter_count());
   for (int i = 0; i < parameter_count; i++) {
     ValueType param = fsig->GetParam(i);
-    locations.AddParam(params.Next(param));
+    auto l = params.Next(param);
+    locations.AddParam(l);
+  }
+
+  // Add return location(s).
+  Allocator rets = return_registers;
+  rets.AdjustStackOffset(params.stack_offset);
+
+  const int return_count = static_cast<int>(locations.return_count_);
+  for (int i = 0; i < return_count; i++) {
+    ValueType ret = fsig->GetReturn(i);
+    auto l = rets.Next(ret);
+    locations.AddReturn(l);
   }
 
   const RegList kCalleeSaveRegisters = 0;
@@ -255,22 +260,23 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
                                                     : MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
-  CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
   CallDescriptor::Kind kind = FLAG_wasm_jit_to_native
                                   ? CallDescriptor::kCallWasmFunction
                                   : CallDescriptor::kCallCodeObject;
 
-  return new (zone) CallDescriptor(       // --
-      kind,                               // kind
-      target_type,                        // target MachineType
-      target_loc,                         // target location
-      locations.Build(),                  // location_sig
-      params.stack_offset,                // stack_parameter_count
-      compiler::Operator::kNoProperties,  // properties
-      kCalleeSaveRegisters,               // callee-saved registers
-      kCalleeSaveFPRegisters,             // callee-saved fp regs
-      flags,                              // flags
-      "wasm-call");
+  return new (zone) CallDescriptor(              // --
+      kind,                                      // kind
+      target_type,                               // target MachineType
+      target_loc,                                // target location
+      locations.Build(),                         // location_sig
+      params.stack_offset,                       // stack_parameter_count
+      compiler::Operator::kNoProperties,         // properties
+      kCalleeSaveRegisters,                      // callee-saved registers
+      kCalleeSaveFPRegisters,                    // callee-saved fp regs
+      CallDescriptor::kNoFlags,                  // flags
+      "wasm-call",                               // debug name
+      0,                                         // allocatable registers
+      rets.stack_offset - params.stack_offset);  // stack_return_count
 }
 
 CallDescriptor* ReplaceTypeInCallDescriptorWith(
@@ -295,21 +301,7 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
-  Allocator rets = return_registers;
-
-  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
-    if (descriptor->GetReturnType(i) == input_type) {
-      for (size_t j = 0; j < num_replacements; j++) {
-        locations.AddReturn(rets.Next(output_type));
-      }
-    } else {
-      locations.AddReturn(
-          rets.Next(descriptor->GetReturnType(i).representation()));
-    }
-  }
-
   Allocator params = parameter_registers;
-
   for (size_t i = 0; i < descriptor->ParameterCount(); i++) {
     if (descriptor->GetParameterType(i) == input_type) {
       for (size_t j = 0; j < num_replacements; j++) {
@@ -321,17 +313,32 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
     }
   }
 
-  return new (zone) CallDescriptor(          // --
-      descriptor->kind(),                    // kind
-      descriptor->GetInputType(0),           // target MachineType
-      descriptor->GetInputLocation(0),       // target location
-      locations.Build(),                     // location_sig
-      params.stack_offset,                   // stack_parameter_count
-      descriptor->properties(),              // properties
-      descriptor->CalleeSavedRegisters(),    // callee-saved registers
-      descriptor->CalleeSavedFPRegisters(),  // callee-saved fp regs
-      descriptor->flags(),                   // flags
-      descriptor->debug_name());
+  Allocator rets = return_registers;
+  rets.AdjustStackOffset(params.stack_offset);
+  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
+    if (descriptor->GetReturnType(i) == input_type) {
+      for (size_t j = 0; j < num_replacements; j++) {
+        locations.AddReturn(rets.Next(output_type));
+      }
+    } else {
+      locations.AddReturn(
+          rets.Next(descriptor->GetReturnType(i).representation()));
+    }
+  }
+
+  return new (zone) CallDescriptor(              // --
+      descriptor->kind(),                        // kind
+      descriptor->GetInputType(0),               // target MachineType
+      descriptor->GetInputLocation(0),           // target location
+      locations.Build(),                         // location_sig
+      params.stack_offset,                       // stack_parameter_count
+      descriptor->properties(),                  // properties
+      descriptor->CalleeSavedRegisters(),        // callee-saved registers
+      descriptor->CalleeSavedFPRegisters(),      // callee-saved fp regs
+      descriptor->flags(),                       // flags
+      descriptor->debug_name(),                  // debug name
+      descriptor->AllocatableRegisters(),        // allocatable registers
+      rets.stack_offset - params.stack_offset);  // stack_return_count
 }
 
 CallDescriptor* GetI32WasmCallDescriptor(Zone* zone,

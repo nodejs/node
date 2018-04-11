@@ -332,14 +332,6 @@ ProfileNode* ProfileTree::AddPathFromEnd(const std::vector<CodeEntry*>& path,
 }
 
 
-struct NodesPair {
-  NodesPair(ProfileNode* src, ProfileNode* dst)
-      : src(src), dst(dst) { }
-  ProfileNode* src;
-  ProfileNode* dst;
-};
-
-
 class Position {
  public:
   explicit Position(ProfileNode* node)

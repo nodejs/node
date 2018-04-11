@@ -42,6 +42,7 @@ const writes = [
 let receivedWrites = 0;
 
 const server = tls.createServer(options, function(c) {
+  c.resume();
   writes.forEach(function(str) {
     c.write(str);
   });

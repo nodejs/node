@@ -331,7 +331,7 @@ TEST(Regress5829) {
   array->set_length(9);
   heap->CreateFillerObjectAt(old_end - kPointerSize, kPointerSize,
                              ClearRecordedSlots::kNo);
-  heap->old_space()->EmptyAllocationInfo();
+  heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   for (auto object_and_size :

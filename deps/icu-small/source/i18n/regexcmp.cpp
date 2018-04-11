@@ -4450,11 +4450,9 @@ UnicodeSet *RegexCompile::createSetForProperty(const UnicodeString &propName, UB
     //    See if the property looks like a Java "InBlockName", which
     //    we will recast as "Block=BlockName"
     //
-    static const UChar IN[] = {0x49, 0x6E, 0};  // "In"
-    static const UChar BLOCK[] = {0x42, 0x6C, 0x6f, 0x63, 0x6b, 0x3d, 00};  // "Block="
-    if (mPropName.startsWith(IN, 2) && propName.length()>=3) {
+    if (mPropName.startsWith(u"In", 2) && propName.length()>=3) {
         setExpr.truncate(4);   // Leaves "[\p{", or "[\P{"
-        setExpr.append(BLOCK, -1);
+        setExpr.append(u"Block=", -1);
         setExpr.append(UnicodeString(mPropName, 2));  // Property with the leading "In" removed.
         setExpr.append(chRBrace);
         setExpr.append(chRBracket);

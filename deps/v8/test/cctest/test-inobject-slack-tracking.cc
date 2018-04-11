@@ -622,6 +622,12 @@ static void TestSubclassChain(const std::vector<int>& hierarchy_desc) {
   TestClassHierarchy(hierarchy_desc, static_cast<int>(hierarchy_desc.size()));
 }
 
+TEST(Subclasses) {
+  std::vector<int> hierarchy_desc;
+  hierarchy_desc.push_back(50);
+  hierarchy_desc.push_back(128);
+  TestSubclassChain(hierarchy_desc);
+}
 
 TEST(LongSubclassChain1) {
   std::vector<int> hierarchy_desc;

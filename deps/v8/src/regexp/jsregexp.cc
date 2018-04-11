@@ -98,11 +98,35 @@ ContainedInLattice AddRange(ContainedInLattice containment,
   return containment;
 }
 
-// Generic RegExp methods. Dispatches to implementation specific methods.
-
+// More makes code generation slower, less makes V8 benchmark score lower.
+const int kMaxLookaheadForBoyerMoore = 8;
 // In a 3-character pattern you can maximally step forwards 3 characters
 // at a time, which is not always enough to pay for the extra logic.
 const int kPatternTooShortForBoyerMoore = 2;
+
+// Identifies the sort of regexps where the regexp engine is faster
+// than the code used for atom matches.
+static bool HasFewDifferentCharacters(Handle<String> pattern) {
+  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
+  if (length <= kPatternTooShortForBoyerMoore) return false;
+  const int kMod = 128;
+  bool character_found[kMod];
+  int different = 0;
+  memset(&character_found[0], 0, sizeof(character_found));
+  for (int i = 0; i < length; i++) {
+    int ch = (pattern->Get(i) & (kMod - 1));
+    if (!character_found[ch]) {
+      character_found[ch] = true;
+      different++;
+      // We declare a regexp low-alphabet if it has at least 3 times as many
+      // characters as it has different characters.
+      if (different * 3 > length) return false;
+    }
+  }
+  return true;
+}
+
+// Generic RegExp methods. Dispatches to implementation specific methods.
 
 MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                         Handle<String> pattern,
@@ -133,7 +157,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   bool has_been_compiled = false;
 
   if (parse_result.simple && !IgnoreCase(flags) && !IsSticky(flags) &&
-      pattern->length() <= kPatternTooShortForBoyerMoore) {
+      !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
     has_been_compiled = true;
@@ -141,12 +165,11 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
              parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
-    if (!IgnoreCase(atom->flags()) &&
-        atom_pattern.length() <= kPatternTooShortForBoyerMoore) {
-      Handle<String> atom_string;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, atom_string,
-          isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
+    Handle<String> atom_string;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, atom_string,
+        isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
+    if (!IgnoreCase(atom->flags()) && !HasFewDifferentCharacters(atom_string)) {
       AtomCompile(re, pattern, flags, atom_string);
       has_been_compiled = true;
     }
@@ -2433,8 +2456,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   } else {
     // For 2-character preloads in one-byte mode or 1-character preloads in
     // two-byte mode we also use a 16 bit load with zero extend.
-    static const uint32_t kTwoByteMask = 0xffff;
-    static const uint32_t kFourByteMask = 0xffffffff;
+    static const uint32_t kTwoByteMask = 0xFFFF;
+    static const uint32_t kFourByteMask = 0xFFFFFFFF;
     if (details->characters() == 2 && compiler->one_byte()) {
       if ((mask & kTwoByteMask) == kTwoByteMask) need_mask = false;
     } else if (details->characters() == 1 && !compiler->one_byte()) {
@@ -2554,6 +2577,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           details->positions(characters_filled_in);
       RegExpCharacterClass* tree = elm.char_class();
       ZoneList<CharacterRange>* ranges = tree->ranges(zone());
+      DCHECK(!ranges->is_empty());
       if (tree->is_negated()) {
         // A quick check uses multi-character mask and compare.  There is no
         // useful way to incorporate a negative char class into this scheme
@@ -2716,12 +2740,11 @@ RegExpNode* SeqRegExpNode::FilterSuccessor(int depth) {
   return set_replacement(this);
 }
 
-
-// We need to check for the following characters: 0x39c 0x3bc 0x178.
+// We need to check for the following characters: 0x39C 0x3BC 0x178.
 static inline bool RangeContainsLatin1Equivalents(CharacterRange range) {
   // TODO(dcarney): this could be a lot more efficient.
-  return range.Contains(0x39c) ||
-      range.Contains(0x3bc) || range.Contains(0x178);
+  return range.Contains(0x039C) || range.Contains(0x03BC) ||
+         range.Contains(0x0178);
 }
 
 
@@ -2973,7 +2996,7 @@ static void EmitHat(RegExpCompiler* compiler,
                                              new_trace.backtrack())) {
     // Newline means \n, \r, 0x2028 or 0x2029.
     if (!compiler->one_byte()) {
-      assembler->CheckCharacterAfterAnd(0x2028, 0xfffe, &ok);
+      assembler->CheckCharacterAfterAnd(0x2028, 0xFFFE, &ok);
     }
     assembler->CheckCharacter('\n', &ok);
     assembler->CheckNotCharacter('\r', new_trace.backtrack());
@@ -2982,8 +3005,6 @@ static void EmitHat(RegExpCompiler* compiler,
   on_success->Emit(compiler, &new_trace);
 }
 
-// More makes code generation slower, less makes V8 benchmark score lower.
-const int kMaxLookaheadForBoyerMoore = 8;
 
 // Emit the code to handle \b and \B (word-boundary or non-word-boundary).
 void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
@@ -3253,9 +3274,9 @@ TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                                              JSRegExp::Flags flags) {
   DCHECK_NOT_NULL(ranges);
   ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(1, zone);
-  elms->Add(
-      TextElement::CharClass(new (zone) RegExpCharacterClass(ranges, flags)),
-      zone);
+  elms->Add(TextElement::CharClass(
+                new (zone) RegExpCharacterClass(zone, ranges, flags)),
+            zone);
   return new (zone) TextNode(elms, read_backward, on_success);
 }
 
@@ -3268,10 +3289,10 @@ TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
   ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(2, zone);
   elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(lead_ranges, flags)),
+                new (zone) RegExpCharacterClass(zone, lead_ranges, flags)),
             zone);
   elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(trail_ranges, flags)),
+                new (zone) RegExpCharacterClass(zone, trail_ranges, flags)),
             zone);
   return new (zone) TextNode(elms, read_backward, on_success);
 }
@@ -5089,10 +5110,9 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
       ranges = negated;
     }
     if (ranges->length() == 0) {
-      JSRegExp::Flags default_flags = JSRegExp::Flags();
-      ranges->Add(CharacterRange::Everything(), zone);
+      JSRegExp::Flags default_flags;
       RegExpCharacterClass* fail =
-          new (zone) RegExpCharacterClass(ranges, default_flags, NEGATED);
+          new (zone) RegExpCharacterClass(zone, ranges, default_flags);
       return new (zone) TextNode(fail, compiler->read_backward(), on_success);
     }
     if (standard_type() == '*') {
@@ -5346,8 +5366,8 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
       if (IsUnicode(flags) && contains_trail_surrogate) {
         character_class_flags = RegExpCharacterClass::CONTAINS_SPLIT_SURROGATE;
       }
-      alternatives->at(write_posn++) =
-          new (zone) RegExpCharacterClass(ranges, flags, character_class_flags);
+      alternatives->at(write_posn++) = new (zone)
+          RegExpCharacterClass(zone, ranges, flags, character_class_flags);
     } else {
       // Just copy any trivial alternatives.
       for (int j = first_in_run; j < i; j++) {

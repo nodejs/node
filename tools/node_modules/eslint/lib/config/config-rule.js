@@ -197,11 +197,10 @@ class RuleConfigSet {
      * Add a severity level to the front of all configs in the instance.
      * This should only be called after all configs have been added to the instance.
      *
-     * @param {number} [severity=2] The level of severity for the rule (0, 1, 2)
      * @returns {void}
      */
-    addErrorSeverity(severity) {
-        severity = severity || 2;
+    addErrorSeverity() {
+        const severity = 2;
 
         this.ruleConfigs = this.ruleConfigs.map(config => {
             config.unshift(severity);

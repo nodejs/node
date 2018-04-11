@@ -109,7 +109,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "Unexpected empty {{name}}."
+        }
     },
 
     create(context) {
@@ -146,7 +150,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: node.body.loc.start,
-                    message: "Unexpected empty {{name}}.",
+                    messageId: "unexpected",
                     data: { name }
                 });
             }

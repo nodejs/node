@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 'use strict';
 
 const common = require('../common');

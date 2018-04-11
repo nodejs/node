@@ -79,26 +79,25 @@ class FileFinder {
      * Does not check if a matching directory entry is a file.
      * Searches for all the file names in this.fileNames.
      * Is currently used by lib/config.js to find .eslintrc and package.json files.
-     * @param  {string} directory The directory to start the search from.
+     * @param  {string} relativeDirectory The directory to start the search from.
      * @returns {GeneratorFunction} to iterate the file paths found
      */
-    *findAllInDirectoryAndParents(directory) {
+    *findAllInDirectoryAndParents(relativeDirectory) {
         const cache = this.cache;
 
-        if (directory) {
-            directory = path.resolve(this.cwd, directory);
-        } else {
-            directory = this.cwd;
-        }
+        const initialDirectory = relativeDirectory
+            ? path.resolve(this.cwd, relativeDirectory)
+            : this.cwd;
 
-        if (cache.hasOwnProperty(directory)) {
-            yield* cache[directory];
+        if (cache.hasOwnProperty(initialDirectory)) {
+            yield* cache[initialDirectory];
             return; // to avoid doing the normal loop afterwards
         }
 
         const dirs = [];
         const fileNames = this.fileNames;
         let searched = 0;
+        let directory = initialDirectory;
 
         do {
             dirs[searched++] = directory;
@@ -135,7 +134,7 @@ class FileFinder {
 
         // Add what has been cached previously to the cache of each directory searched.
         for (let i = 0; i < searched; i++) {
-            dirs.push.apply(cache[dirs[i]], cache[directory]);
+            [].push.apply(cache[dirs[i]], cache[directory]);
         }
 
         yield* cache[dirs[0]];

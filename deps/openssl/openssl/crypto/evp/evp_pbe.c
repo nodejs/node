@@ -1,64 +1,14 @@
-/* evp_pbe.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
- */
-/* ====================================================================
- * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/pkcs12.h>
 #include <openssl/x509.h>
@@ -66,18 +16,17 @@
 
 /* Password based encryption (PBE) functions */
 
-DECLARE_STACK_OF(EVP_PBE_CTL)
-static STACK_OF(EVP_PBE_CTL) *pbe_algs;
-
 /* Setup a cipher context from a PBE algorithm */
 
-typedef struct {
+struct evp_pbe_st {
     int pbe_type;
     int pbe_nid;
     int cipher_nid;
     int md_nid;
     EVP_PBE_KEYGEN *keygen;
-} EVP_PBE_CTL;
+};
+
+static STACK_OF(EVP_PBE_CTL) *pbe_algs;
 
 static const EVP_PBE_CTL builtin_pbe[] = {
     {EVP_PBE_TYPE_OUTER, NID_pbeWithMD2AndDES_CBC,
@@ -87,9 +36,7 @@ static const EVP_PBE_CTL builtin_pbe[] = {
     {EVP_PBE_TYPE_OUTER, NID_pbeWithSHA1AndRC2_CBC,
      NID_rc2_64_cbc, NID_sha1, PKCS5_PBE_keyivgen},
 
-#ifndef OPENSSL_NO_HMAC
     {EVP_PBE_TYPE_OUTER, NID_id_pbkdf2, -1, -1, PKCS5_v2_PBKDF2_keyivgen},
-#endif
 
     {EVP_PBE_TYPE_OUTER, NID_pbe_WithSHA1And128BitRC4,
      NID_rc4, NID_sha1, PKCS12_PBE_keyivgen},
@@ -104,9 +51,8 @@ static const EVP_PBE_CTL builtin_pbe[] = {
     {EVP_PBE_TYPE_OUTER, NID_pbe_WithSHA1And40BitRC2_CBC,
      NID_rc2_40_cbc, NID_sha1, PKCS12_PBE_keyivgen},
 
-#ifndef OPENSSL_NO_HMAC
     {EVP_PBE_TYPE_OUTER, NID_pbes2, -1, -1, PKCS5_v2_PBE_keyivgen},
-#endif
+
     {EVP_PBE_TYPE_OUTER, NID_pbeWithMD2AndRC2_CBC,
      NID_rc2_64_cbc, NID_md2, PKCS5_PBE_keyivgen},
     {EVP_PBE_TYPE_OUTER, NID_pbeWithMD5AndRC2_CBC,
@@ -121,32 +67,15 @@ static const EVP_PBE_CTL builtin_pbe[] = {
     {EVP_PBE_TYPE_PRF, NID_hmacWithSHA384, -1, NID_sha384, 0},
     {EVP_PBE_TYPE_PRF, NID_hmacWithSHA512, -1, NID_sha512, 0},
     {EVP_PBE_TYPE_PRF, NID_id_HMACGostR3411_94, -1, NID_id_GostR3411_94, 0},
-};
-
-#ifdef TEST
-int main(int argc, char **argv)
-{
-    int i, nid_md, nid_cipher;
-    EVP_PBE_CTL *tpbe, *tpbe2;
-    /*
-     * OpenSSL_add_all_algorithms();
-     */
-
-    for (i = 0; i < sizeof(builtin_pbe) / sizeof(EVP_PBE_CTL); i++) {
-        tpbe = builtin_pbe + i;
-        fprintf(stderr, "%d %d %s ", tpbe->pbe_type, tpbe->pbe_nid,
-                OBJ_nid2sn(tpbe->pbe_nid));
-        if (EVP_PBE_find(tpbe->pbe_type, tpbe->pbe_nid,
-                         &nid_cipher, &nid_md, 0))
-            fprintf(stderr, "Found %s %s\n",
-                    OBJ_nid2sn(nid_cipher), OBJ_nid2sn(nid_md));
-        else
-            fprintf(stderr, "Find ERROR!!\n");
-    }
-
-    return 0;
-}
+    {EVP_PBE_TYPE_PRF, NID_id_tc26_hmac_gost_3411_2012_256, -1,
+     NID_id_GostR3411_2012_256, 0},
+    {EVP_PBE_TYPE_PRF, NID_id_tc26_hmac_gost_3411_2012_512, -1,
+     NID_id_GostR3411_2012_512, 0},
+    {EVP_PBE_TYPE_KDF, NID_id_pbkdf2, -1, -1, PKCS5_v2_PBKDF2_keyivgen},
+#ifndef OPENSSL_NO_SCRYPT
+    {EVP_PBE_TYPE_KDF, NID_id_scrypt, -1, -1, PKCS5_v2_scrypt_keyivgen}
 #endif
+};
 
 int EVP_PBE_CipherInit(ASN1_OBJECT *pbe_obj, const char *pass, int passlen,
                        ASN1_TYPE *param, EVP_CIPHER_CTX *ctx, int en_de)
@@ -161,9 +90,9 @@ int EVP_PBE_CipherInit(ASN1_OBJECT *pbe_obj, const char *pass, int passlen,
         char obj_tmp[80];
         EVPerr(EVP_F_EVP_PBE_CIPHERINIT, EVP_R_UNKNOWN_PBE_ALGORITHM);
         if (!pbe_obj)
-            BUF_strlcpy(obj_tmp, "NULL", sizeof obj_tmp);
+            OPENSSL_strlcpy(obj_tmp, "NULL", sizeof(obj_tmp));
         else
-            i2t_ASN1_OBJECT(obj_tmp, sizeof obj_tmp, pbe_obj);
+            i2t_ASN1_OBJECT(obj_tmp, sizeof(obj_tmp), pbe_obj);
         ERR_add_error_data(2, "TYPE=", obj_tmp);
         return 0;
     }
@@ -244,7 +173,10 @@ int EVP_PBE_alg_add_type(int pbe_type, int pbe_nid, int cipher_nid,
     pbe_tmp->md_nid = md_nid;
     pbe_tmp->keygen = keygen;
 
-    sk_EVP_PBE_CTL_push(pbe_algs, pbe_tmp);
+    if (!sk_EVP_PBE_CTL_push(pbe_algs, pbe_tmp)) {
+        OPENSSL_free(pbe_tmp);
+        goto err;
+    }
     return 1;
 
  err:
@@ -256,6 +188,7 @@ int EVP_PBE_alg_add(int nid, const EVP_CIPHER *cipher, const EVP_MD *md,
                     EVP_PBE_KEYGEN *keygen)
 {
     int cipher_nid, md_nid;
+
     if (cipher)
         cipher_nid = EVP_CIPHER_nid(cipher);
     else
@@ -286,8 +219,7 @@ int EVP_PBE_find(int type, int pbe_nid,
             pbetmp = sk_EVP_PBE_CTL_value(pbe_algs, i);
     }
     if (pbetmp == NULL) {
-        pbetmp = OBJ_bsearch_pbe2(&pbelu, builtin_pbe,
-                                  sizeof(builtin_pbe) / sizeof(EVP_PBE_CTL));
+        pbetmp = OBJ_bsearch_pbe2(&pbelu, builtin_pbe, OSSL_NELEM(builtin_pbe));
     }
     if (pbetmp == NULL)
         return 0;
@@ -302,11 +234,26 @@ int EVP_PBE_find(int type, int pbe_nid,
 
 static void free_evp_pbe_ctl(EVP_PBE_CTL *pbe)
 {
-    OPENSSL_freeFunc(pbe);
+    OPENSSL_free(pbe);
 }
 
 void EVP_PBE_cleanup(void)
 {
     sk_EVP_PBE_CTL_pop_free(pbe_algs, free_evp_pbe_ctl);
     pbe_algs = NULL;
+}
+
+int EVP_PBE_get(int *ptype, int *ppbe_nid, size_t num)
+{
+    const EVP_PBE_CTL *tpbe;
+
+    if (num >= OSSL_NELEM(builtin_pbe))
+        return 0;
+
+    tpbe = builtin_pbe + num;
+    if (ptype)
+        *ptype = tpbe->pbe_type;
+    if (ppbe_nid)
+        *ppbe_nid = tpbe->pbe_nid;
+    return 1;
 }

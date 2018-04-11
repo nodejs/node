@@ -11,6 +11,7 @@
           'type': 'none',
           'dependencies': [
             'cctest/cctest.gyp:cctest_run',
+            'debugger/debugger.gyp:debugger_run',
             'intl/intl.gyp:intl_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',
             'webkit/webkit.gyp:webkit_run',

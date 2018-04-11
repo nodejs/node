@@ -90,15 +90,16 @@ class SourceCode extends TokenStore {
      * @param {Object|null} textOrConfig.parserServices - The parser srevices.
      * @param {ScopeManager|null} textOrConfig.scopeManager - The scope of this source code.
      * @param {Object|null} textOrConfig.visitorKeys - The visitor keys to traverse AST.
-     * @param {ASTNode} [ast] - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
+     * @param {ASTNode} [astIfNoConfig] - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
      * @constructor
      */
-    constructor(textOrConfig, ast) {
-        let text, parserServices, scopeManager, visitorKeys;
+    constructor(textOrConfig, astIfNoConfig) {
+        let text, ast, parserServices, scopeManager, visitorKeys;
 
         // Process overloading.
         if (typeof textOrConfig === "string") {
             text = textOrConfig;
+            ast = astIfNoConfig;
         } else if (typeof textOrConfig === "object" && textOrConfig !== null) {
             text = textOrConfig.text;
             ast = textOrConfig.ast;

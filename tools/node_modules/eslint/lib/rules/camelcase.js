@@ -28,7 +28,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            notCamelCase: "Identifier '{{name}}' is not in camel case."
+        }
     },
 
     create(context) {
@@ -62,7 +66,7 @@ module.exports = {
         function report(node) {
             if (reported.indexOf(node) < 0) {
                 reported.push(node);
-                context.report({ node, message: "Identifier '{{name}}' is not in camel case.", data: { name: node.name } });
+                context.report({ node, messageId: "notCamelCase", data: { name: node.name } });
             }
         }
 

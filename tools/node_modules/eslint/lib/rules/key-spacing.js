@@ -360,9 +360,10 @@ module.exports = {
          */
         function isKeyValueProperty(property) {
             return !(
-                (property.method ||
+                property.method ||
                 property.shorthand ||
-                property.kind !== "init" || property.type !== "Property") // Could be "ExperimentalSpreadProperty" or "SpreadProperty"
+                property.kind !== "init" ||
+                property.type !== "Property" // Could be "ExperimentalSpreadProperty" or "SpreadElement"
             );
         }
 

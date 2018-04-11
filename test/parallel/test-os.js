@@ -100,7 +100,7 @@ assert.ok(type.length > 0);
 const release = os.release();
 is.string(release);
 assert.ok(release.length > 0);
-//TODO: Check format on more than just AIX
+// TODO: Check format on more than just AIX
 if (common.isAIX)
   assert.ok(/^\d+\.\d+$/.test(release));
 

@@ -55,6 +55,10 @@ module.exports = {
                     maxItems: 2
                 }
             ]
+        },
+
+        messages: {
+            unexpected: "Gratuitous parentheses around expression."
         }
     },
 
@@ -163,12 +167,13 @@ module.exports = {
          * @private
          */
         function isInReturnStatement(node) {
-            while (node) {
-                if (node.type === "ReturnStatement" ||
-                        (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement")) {
+            for (let currentNode = node; currentNode; currentNode = currentNode.parent) {
+                if (
+                    currentNode.type === "ReturnStatement" ||
+                    (currentNode.type === "ArrowFunctionExpression" && currentNode.body.type !== "BlockStatement")
+                ) {
                     return true;
                 }
-                node = node.parent;
             }
 
             return false;
@@ -312,7 +317,7 @@ module.exports = {
             context.report({
                 node,
                 loc: leftParenToken.loc.start,
-                message: "Gratuitous parentheses around expression.",
+                messageId: "unexpected",
                 fix(fixer) {
                     const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
 

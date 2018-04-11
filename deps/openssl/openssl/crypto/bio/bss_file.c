@@ -1,59 +1,10 @@
-/* crypto/bio/bss_file.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 /*-
@@ -85,24 +36,19 @@
 
 # include <stdio.h>
 # include <errno.h>
-# include "cryptlib.h"
 # include "bio_lcl.h"
 # include <openssl/err.h>
 
-# if defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
-#  include <nwfileio.h>
-# endif
-
 # if !defined(OPENSSL_NO_STDIO)
 
-static int MS_CALLBACK file_write(BIO *h, const char *buf, int num);
-static int MS_CALLBACK file_read(BIO *h, char *buf, int size);
-static int MS_CALLBACK file_puts(BIO *h, const char *str);
-static int MS_CALLBACK file_gets(BIO *h, char *str, int size);
-static long MS_CALLBACK file_ctrl(BIO *h, int cmd, long arg1, void *arg2);
-static int MS_CALLBACK file_new(BIO *h);
-static int MS_CALLBACK file_free(BIO *data);
-static BIO_METHOD methods_filep = {
+static int file_write(BIO *h, const char *buf, int num);
+static int file_read(BIO *h, char *buf, int size);
+static int file_puts(BIO *h, const char *str);
+static int file_gets(BIO *h, char *str, int size);
+static long file_ctrl(BIO *h, int cmd, long arg1, void *arg2);
+static int file_new(BIO *h);
+static int file_free(BIO *data);
+static const BIO_METHOD methods_filep = {
     BIO_TYPE_FILE,
     "FILE pointer",
     file_write,
@@ -112,64 +58,17 @@ static BIO_METHOD methods_filep = {
     file_ctrl,
     file_new,
     file_free,
-    NULL,
+    NULL,                      /* file_callback_ctrl */
 };
-
-static FILE *file_fopen(const char *filename, const char *mode)
-{
-    FILE *file = NULL;
-
-#  if defined(_WIN32) && defined(CP_UTF8)
-    int sz, len_0 = (int)strlen(filename) + 1;
-    DWORD flags;
-
-    /*
-     * Basically there are three cases to cover: a) filename is
-     * pure ASCII string; b) actual UTF-8 encoded string and
-     * c) locale-ized string, i.e. one containing 8-bit
-     * characters that are meaningful in current system locale.
-     * If filename is pure ASCII or real UTF-8 encoded string,
-     * MultiByteToWideChar succeeds and _wfopen works. If
-     * filename is locale-ized string, chances are that
-     * MultiByteToWideChar fails reporting
-     * ERROR_NO_UNICODE_TRANSLATION, in which case we fall
-     * back to fopen...
-     */
-    if ((sz = MultiByteToWideChar(CP_UTF8, (flags = MB_ERR_INVALID_CHARS),
-                                  filename, len_0, NULL, 0)) > 0 ||
-        (GetLastError() == ERROR_INVALID_FLAGS &&
-         (sz = MultiByteToWideChar(CP_UTF8, (flags = 0),
-                                   filename, len_0, NULL, 0)) > 0)
-        ) {
-        WCHAR wmode[8];
-        WCHAR *wfilename = _alloca(sz * sizeof(WCHAR));
-
-        if (MultiByteToWideChar(CP_UTF8, flags,
-                                filename, len_0, wfilename, sz) &&
-            MultiByteToWideChar(CP_UTF8, 0, mode, strlen(mode) + 1,
-                                wmode, sizeof(wmode) / sizeof(wmode[0])) &&
-            (file = _wfopen(wfilename, wmode)) == NULL &&
-            (errno == ENOENT || errno == EBADF)
-            ) {
-            /*
-             * UTF-8 decode succeeded, but no file, filename
-             * could still have been locale-ized...
-             */
-            file = fopen(filename, mode);
-        }
-    } else if (GetLastError() == ERROR_NO_UNICODE_TRANSLATION) {
-        file = fopen(filename, mode);
-    }
-#  else
-    file = fopen(filename, mode);
-#  endif
-    return (file);
-}
 
 BIO *BIO_new_file(const char *filename, const char *mode)
 {
     BIO  *ret;
-    FILE *file = file_fopen(filename, mode);
+    FILE *file = openssl_fopen(filename, mode);
+    int fp_flags = BIO_CLOSE;
+
+    if (strchr(mode, 'b') == NULL)
+        fp_flags |= BIO_FP_TEXT;
 
     if (file == NULL) {
         SYSerr(SYS_F_FOPEN, get_last_sys_error());
@@ -191,7 +90,7 @@ BIO *BIO_new_file(const char *filename, const char *mode)
 
     BIO_clear_flags(ret, BIO_FLAGS_UPLINK); /* we did fopen -> we disengage
                                              * UPLINK */
-    BIO_set_fp(ret, file, BIO_CLOSE);
+    BIO_set_fp(ret, file, fp_flags);
     return (ret);
 }
 
@@ -202,18 +101,18 @@ BIO *BIO_new_fp(FILE *stream, int close_flag)
     if ((ret = BIO_new(BIO_s_file())) == NULL)
         return (NULL);
 
-    BIO_set_flags(ret, BIO_FLAGS_UPLINK); /* redundant, left for
-                                           * documentation puposes */
+    /* redundant flag, left for documentation purposes */
+    BIO_set_flags(ret, BIO_FLAGS_UPLINK);
     BIO_set_fp(ret, stream, close_flag);
     return (ret);
 }
 
-BIO_METHOD *BIO_s_file(void)
+const BIO_METHOD *BIO_s_file(void)
 {
     return (&methods_filep);
 }
 
-static int MS_CALLBACK file_new(BIO *bi)
+static int file_new(BIO *bi)
 {
     bi->init = 0;
     bi->num = 0;
@@ -222,7 +121,7 @@ static int MS_CALLBACK file_new(BIO *bi)
     return (1);
 }
 
-static int MS_CALLBACK file_free(BIO *a)
+static int file_free(BIO *a)
 {
     if (a == NULL)
         return (0);
@@ -240,7 +139,7 @@ static int MS_CALLBACK file_free(BIO *a)
     return (1);
 }
 
-static int MS_CALLBACK file_read(BIO *b, char *out, int outl)
+static int file_read(BIO *b, char *out, int outl)
 {
     int ret = 0;
 
@@ -260,7 +159,7 @@ static int MS_CALLBACK file_read(BIO *b, char *out, int outl)
     return (ret);
 }
 
-static int MS_CALLBACK file_write(BIO *b, const char *in, int inl)
+static int file_write(BIO *b, const char *in, int inl)
 {
     int ret = 0;
 
@@ -281,7 +180,7 @@ static int MS_CALLBACK file_write(BIO *b, const char *in, int inl)
     return (ret);
 }
 
-static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
+static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
 {
     long ret = 1;
     FILE *fp = (FILE *)b->ptr;
@@ -341,13 +240,6 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
                 _setmode(fd, _O_TEXT);
             else
                 _setmode(fd, _O_BINARY);
-#  elif defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
-            int fd = fileno((FILE *)ptr);
-            /* Under CLib there are differences in file modes */
-            if (num & BIO_FP_TEXT)
-                setmode(fd, O_TEXT);
-            else
-                setmode(fd, O_BINARY);
 #  elif defined(OPENSSL_SYS_MSDOS)
             int fd = fileno((FILE *)ptr);
             /* Set correct text/binary mode */
@@ -361,7 +253,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
                 } else
                     _setmode(fd, _O_BINARY);
             }
-#  elif defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_WIN32_CYGWIN)
+#  elif defined(OPENSSL_SYS_WIN32_CYGWIN)
             int fd = fileno((FILE *)ptr);
             if (num & BIO_FP_TEXT)
                 setmode(fd, O_TEXT);
@@ -375,33 +267,27 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
         b->shutdown = (int)num & BIO_CLOSE;
         if (num & BIO_FP_APPEND) {
             if (num & BIO_FP_READ)
-                BUF_strlcpy(p, "a+", sizeof p);
+                OPENSSL_strlcpy(p, "a+", sizeof(p));
             else
-                BUF_strlcpy(p, "a", sizeof p);
+                OPENSSL_strlcpy(p, "a", sizeof(p));
         } else if ((num & BIO_FP_READ) && (num & BIO_FP_WRITE))
-            BUF_strlcpy(p, "r+", sizeof p);
+            OPENSSL_strlcpy(p, "r+", sizeof(p));
         else if (num & BIO_FP_WRITE)
-            BUF_strlcpy(p, "w", sizeof p);
+            OPENSSL_strlcpy(p, "w", sizeof(p));
         else if (num & BIO_FP_READ)
-            BUF_strlcpy(p, "r", sizeof p);
+            OPENSSL_strlcpy(p, "r", sizeof(p));
         else {
             BIOerr(BIO_F_FILE_CTRL, BIO_R_BAD_FOPEN_MODE);
             ret = 0;
             break;
         }
-#  if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_WIN32_CYGWIN)
+#  if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32_CYGWIN)
         if (!(num & BIO_FP_TEXT))
             strcat(p, "b");
         else
             strcat(p, "t");
 #  endif
-#  if defined(OPENSSL_SYS_NETWARE)
-        if (!(num & BIO_FP_TEXT))
-            strcat(p, "b");
-        else
-            strcat(p, "t");
-#  endif
-        fp = file_fopen(ptr, p);
+        fp = openssl_fopen(ptr, p);
         if (fp == NULL) {
             SYSerr(SYS_F_FOPEN, get_last_sys_error());
             ERR_add_error_data(5, "fopen('", ptr, "','", p, "')");
@@ -452,7 +338,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
     return (ret);
 }
 
-static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size)
+static int file_gets(BIO *bp, char *buf, int size)
 {
     int ret = 0;
 
@@ -470,13 +356,67 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size)
     return (ret);
 }
 
-static int MS_CALLBACK file_puts(BIO *bp, const char *str)
+static int file_puts(BIO *bp, const char *str)
 {
     int n, ret;
 
     n = strlen(str);
     ret = file_write(bp, str, n);
     return (ret);
+}
+
+#else
+
+static int file_write(BIO *b, const char *in, int inl)
+{
+    return -1;
+}
+static int file_read(BIO *b, char *out, int outl)
+{
+    return -1;
+}
+static int file_puts(BIO *bp, const char *str)
+{
+    return -1;
+}
+static int file_gets(BIO *bp, char *buf, int size)
+{
+    return 0;
+}
+static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
+{
+    return 0;
+}
+static int file_new(BIO *bi)
+{
+    return 0;
+}
+static int file_free(BIO *a)
+{
+    return 0;
+}
+
+static const BIO_METHOD methods_filep = {
+    BIO_TYPE_FILE,
+    "FILE pointer",
+    file_write,
+    file_read,
+    file_puts,
+    file_gets,
+    file_ctrl,
+    file_new,
+    file_free,
+    NULL,                      /* file_callback_ctrl */
+};
+
+const BIO_METHOD *BIO_s_file(void)
+{
+    return (&methods_filep);
+}
+
+BIO *BIO_new_file(const char *filename, const char *mode)
+{
+    return NULL;
 }
 
 # endif                         /* OPENSSL_NO_STDIO */

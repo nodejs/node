@@ -404,13 +404,13 @@ class TurboAssembler : public Assembler {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, BailoutReason reason, CRegister cr = cr7);
+  void Assert(Condition cond, AbortReason reason, CRegister cr = cr7);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, BailoutReason reason, CRegister cr = cr7);
+  void Check(Condition cond, AbortReason reason, CRegister cr = cr7);
 
   // Print a message to stdout and abort execution.
-  void Abort(BailoutReason reason);
+  void Abort(AbortReason reason);
 
   inline bool AllowThisStubCall(CodeStub* stub);
 #if !V8_TARGET_ARCH_PPC64

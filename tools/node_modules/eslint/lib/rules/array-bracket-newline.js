@@ -41,7 +41,13 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+        messages: {
+            unexpectedOpeningLinebreak: "There should be no linebreak after '['.",
+            unexpectedClosingLinebreak: "There should be no linebreak before ']'.",
+            missingOpeningLinebreak: "A linebreak is required after '['.",
+            missingClosingLinebreak: "A linebreak is required before ']'."
+        }
     },
 
     create(context) {
@@ -106,7 +112,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc,
-                message: "There should be no linebreak after '['.",
+                messageId: "unexpectedOpeningLinebreak",
                 fix(fixer) {
                     const nextToken = sourceCode.getTokenAfter(token, { includeComments: true });
 
@@ -129,7 +135,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc,
-                message: "There should be no linebreak before ']'.",
+                messageId: "unexpectedClosingLinebreak",
                 fix(fixer) {
                     const previousToken = sourceCode.getTokenBefore(token, { includeComments: true });
 
@@ -152,7 +158,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc,
-                message: "A linebreak is required after '['.",
+                messageId: "missingOpeningLinebreak",
                 fix(fixer) {
                     return fixer.insertTextAfter(token, "\n");
                 }
@@ -169,7 +175,7 @@ module.exports = {
             context.report({
                 node,
                 loc: token.loc,
-                message: "A linebreak is required before ']'.",
+                messageId: "missingClosingLinebreak",
                 fix(fixer) {
                     return fixer.insertTextBefore(token, "\n");
                 }

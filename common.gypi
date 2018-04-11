@@ -27,13 +27,17 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.4',
+    'v8_embedder_string': '-node.6',
 
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
+
+    # Disable V8 untrusted code mitigations.
+    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
+    'v8_untrusted_code_mitigations': 'false',
 
     # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
     # between debug and non-debug mode.
@@ -90,8 +94,17 @@
             'msvs_configuration_platform': 'x64',
           }],
           ['OS=="aix"', {
+            'variables': {'real_os_name': '<!(uname -s)',},
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
+            'conditions': [
+              ['"<(real_os_name)"=="OS400"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+                  '-Wl,-brtl',
+                ],
+              }],
+            ],
           }],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
@@ -341,6 +354,7 @@
             'ldflags!': [ '-pthread' ],
           }],
           [ 'OS=="aix"', {
+            'variables': {'real_os_name': '<!(uname -s)',},
             'conditions': [
               [ 'target_arch=="ppc"', {
                 'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
@@ -348,6 +362,12 @@
               [ 'target_arch=="ppc64"', {
                 'cflags': [ '-maix64' ],
                 'ldflags': [ '-maix64' ],
+              }],
+              ['"<(real_os_name)"=="OS400"', {
+                'ldflags': [
+                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+                  '-Wl,-brtl',
+                ],
               }],
             ],
             'ldflags': [ '-Wl,-bbigtoc' ],

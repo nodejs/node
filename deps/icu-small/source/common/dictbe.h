@@ -42,27 +42,12 @@ class DictionaryBreakEngine : public LanguageBreakEngine {
 
   UnicodeSet    fSet;
 
-    /**
-     * The set of break types handled by this engine
-     * @internal
-     */
-
-  uint32_t      fTypes;
-
-  /**
-   * <p>Default constructor.</p>
-   *
-   */
-  DictionaryBreakEngine();
-
  public:
 
   /**
-   * <p>Constructor setting the break types handled.</p>
-   *
-   * @param breakTypes A bitmap of types handled by the engine.
+   * <p>Constructor </p>
    */
-  DictionaryBreakEngine( uint32_t breakTypes );
+  DictionaryBreakEngine();
 
   /**
    * <p>Virtual destructor.</p>
@@ -74,11 +59,10 @@ class DictionaryBreakEngine : public LanguageBreakEngine {
    * a particular kind of break.</p>
    *
    * @param c A character which begins a run that the engine might handle
-   * @param breakType The type of text break which the caller wants to determine
    * @return TRUE if this engine handles the particular character and break
    * type.
    */
-  virtual UBool handles( UChar32 c, int32_t breakType ) const;
+  virtual UBool handles(UChar32 c) const;
 
   /**
    * <p>Find any breaks within a run in the supplied text.</p>
@@ -88,14 +72,12 @@ class DictionaryBreakEngine : public LanguageBreakEngine {
    * that starts from the first character in the range.
    * @param startPos The start of the run within the supplied text.
    * @param endPos The end of the run within the supplied text.
-   * @param breakType The type of break desired, or -1.
    * @param foundBreaks vector of int32_t to receive the break positions
    * @return The number of breaks found.
    */
   virtual int32_t findBreaks( UText *text,
                               int32_t startPos,
                               int32_t endPos,
-                              int32_t breakType,
                               UVector32 &foundBreaks ) const;
 
  protected:
@@ -106,13 +88,6 @@ class DictionaryBreakEngine : public LanguageBreakEngine {
   * @param set A UnicodeSet of the set of characters handled by the engine
   */
   virtual void setCharacters( const UnicodeSet &set );
-
- /**
-  * <p>Set the break types handled by this engine.</p>
-  *
-  * @param breakTypes A bitmap of types handled by the engine.
-  */
-//  virtual void setBreakTypes( uint32_t breakTypes );
 
  /**
   * <p>Divide up a range of known dictionary characters handled by this break engine.</p>

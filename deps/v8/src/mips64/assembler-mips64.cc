@@ -170,22 +170,23 @@ bool RelocInfo::IsInConstantPool() {
 }
 
 Address RelocInfo::embedded_address() const {
-  return Assembler::target_address_at(pc_, host_);
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 uint32_t RelocInfo::embedded_size() const {
-  return static_cast<uint32_t>(
-      reinterpret_cast<intptr_t>((Assembler::target_address_at(pc_, host_))));
+  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(
+      (Assembler::target_address_at(pc_, constant_pool_))));
 }
 
 void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
                                      ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
+                                   flush_mode);
 }
 
 void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                   ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -287,7 +288,7 @@ const Instr kSwRegFpNegOffsetPattern =
     SW | (fp.code() << kRsShift) | (kNegOffset & kImm16Mask);  // NOLINT
 // A mask for the Rt register for push, pop, lw, sw instructions.
 const Instr kRtMask = kRtFieldMask;
-const Instr kLwSwInstrTypeMask = 0xffe00000;
+const Instr kLwSwInstrTypeMask = 0xFFE00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
@@ -2159,7 +2160,7 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
   // about -64KB to about +64KB, allowing further addition of 4 when accessing
   // 64-bit variables with two 32-bit accesses.
   constexpr int32_t kMinOffsetForSimpleAdjustment =
-      0x7ff8;  // Max int16_t that's a multiple of 8.
+      0x7FF8;  // Max int16_t that's a multiple of 8.
   constexpr int32_t kMaxOffsetForSimpleAdjustment =
       2 * kMinOffsetForSimpleAdjustment;
 
@@ -2486,7 +2487,7 @@ void Assembler::aluipc(Register rs, int16_t imm16) {
 
 // Break / Trap instructions.
 void Assembler::break_(uint32_t code, bool break_as_stop) {
-  DCHECK_EQ(code & ~0xfffff, 0);
+  DCHECK_EQ(code & ~0xFFFFF, 0);
   // We need to invalidate breaks that could be stops as well because the
   // simulator expects a char pointer after the stop instruction.
   // See constants-mips.h for explanation.
@@ -2896,7 +2897,7 @@ void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
   memcpy(&i, &d, 8);
 
-  *lo = i & 0xffffffff;
+  *lo = i & 0xFFFFFFFF;
   *hi = i >> 32;
 }
 

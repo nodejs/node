@@ -5,7 +5,7 @@ const url = require('url');
 
 const throwsObjsAndReportTypes = new Map([
   [undefined, 'undefined'],
-  [null, 'null'],
+  [null, 'object'],
   [true, 'boolean'],
   [false, 'boolean'],
   [0, 'number'],

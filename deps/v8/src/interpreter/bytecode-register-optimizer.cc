@@ -448,7 +448,7 @@ RegisterList BytecodeRegisterOptimizer::GetInputRegisterList(
   if (reg_list.register_count() == 1) {
     // If there is only a single register, treat it as a normal input register.
     Register reg(GetInputRegister(reg_list.first_register()));
-    return RegisterList(reg.index(), 1);
+    return RegisterList(reg);
   } else {
     int start_index = reg_list.first_register().index();
     for (int i = 0; i < reg_list.register_count(); ++i) {

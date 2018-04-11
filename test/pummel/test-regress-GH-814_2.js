@@ -38,9 +38,7 @@ tailProc.stdout.on('data', tailCB);
 function tailCB(data) {
   PASS = !data.toString().includes('.');
 
-  if (PASS) {
-    //console.error('i');
-  } else {
+  if (!PASS) {
     console.error('[FAIL]\n DATA -> ');
     console.error(data);
     console.error('\n');
@@ -52,9 +50,9 @@ function tailCB(data) {
 let PASS = true;
 const bufPool = [];
 const kBufSize = 16 * 1024 * 1024;
-const neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
+const neverWrittenBuffer = newBuffer(kBufSize, 0x2e); // 0x2e === '.'
 
-const timeToQuit = Date.now() + 5e3; //Test should last no more than this.
+const timeToQuit = Date.now() + 5e3; // Test should last no more than this.
 writer();
 
 function writer() {
@@ -79,14 +77,12 @@ function writer() {
         bufPool.length = 0;
       }
       process.nextTick(writer);
-      //console.error('o');
     }
   }
 
 }
 
 function writerCB(err, written) {
-  //console.error('cb.');
   assert.ifError(err);
 }
 

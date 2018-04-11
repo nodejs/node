@@ -79,5 +79,9 @@ server.listen(0, function() {
       console.log('close2');
       server.close();
     });
+
+    client2.resume();
   });
+
+  client1.resume();
 });

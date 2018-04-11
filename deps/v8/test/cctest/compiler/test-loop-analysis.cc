@@ -45,7 +45,7 @@ class LoopFinderTester : HandleAndZoneScope {
         zero(jsgraph.Int32Constant(0)),
         one(jsgraph.OneConstant()),
         half(jsgraph.Constant(0.5)),
-        self(graph.NewNode(common.Int32Constant(0xaabbccdd))),
+        self(graph.NewNode(common.Int32Constant(0xAABBCCDD))),
         dead(graph.NewNode(common.Dead())),
         loop_tree(nullptr) {
     graph.SetEnd(end);

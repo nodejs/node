@@ -62,15 +62,15 @@ Node* RegExpBuiltinsAssembler::AllocateRegExpResult(Node* context, Node* length,
       LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
   StoreMapNoWriteBarrier(result, map);
 
-  Node* const empty_array = EmptyFixedArrayConstant();
-  DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
   StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
-                                 empty_array);
+                                 EmptyFixedArrayConstant());
   StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
 
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
-  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kInputOffset, input);
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
+                                 UndefinedConstant());
 
   // Initialize the elements.
 
@@ -223,8 +223,6 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Allocate a new object to store the named capture properties.
     // TODO(jgruber): Could be optimized by adding the object map to the heap
     // root list.
-    // TODO(jgruber): Replace CreateDataProperty runtime calls once we have
-    // equivalent functionality in CSA.
 
     Node* const native_context = LoadNativeContext(context);
     Node* const map = LoadContextElement(
@@ -233,14 +231,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
         AllocateNameDictionary(NameDictionary::kInitialCapacity);
 
     Node* const group_object = AllocateJSObjectFromMap(map, properties);
-
-    // Store it on the result as a 'group' property.
-
-    {
-      Node* const name = HeapConstant(isolate()->factory()->groups_string());
-      CallRuntime(Runtime::kCreateDataProperty, context, result, name,
-                  group_object);
-    }
+    StoreObjectField(result, JSRegExpResult::kGroupsOffset, group_object);
 
     // One or more named captures exist, add a property for each one.
 
@@ -267,6 +258,9 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       Node* const capture =
           LoadFixedArrayElement(result_elements, SmiUntag(index));
 
+      // TODO(jgruber): Calling into runtime to create each property is slow.
+      // Either we should create properties entirely in CSA (should be doable),
+      // or only call runtime once and loop there.
       CallRuntime(Runtime::kCreateDataProperty, context, group_object, name,
                   capture);
 
@@ -834,7 +828,7 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
   Label out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32);
 
-#if defined(DEBUG) || defined(ENABLE_FASTSLOW_SWITCH)
+#ifdef V8_ENABLE_FORCE_SLOW_PATH
   var_result.Bind(Int32Constant(0));
   GotoIfForceSlowPath(&out);
 #endif
@@ -1225,8 +1219,7 @@ TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   Label if_isfastpath(this), if_isslowpath(this, Label::kDeferred);
-  Branch(IsFastRegExpNoPrototype(context, receiver, map), &if_isfastpath,
-         &if_isslowpath);
+  BranchIfFastRegExp(context, receiver, map, &if_isfastpath, &if_isslowpath);
 
   BIND(&if_isfastpath);
   Return(FlagsGetter(context, receiver, true));
@@ -2543,7 +2536,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   // to verify the constructor property and jump to the slow path if it has
   // been changed.
 
-  // Convert {maybe_limit} to a uint32, capping at the maximal smi value.
+  // Verify {maybe_limit}.
 
   VARIABLE(var_limit, MachineRepresentation::kTagged, maybe_limit);
   Label if_limitissmimax(this), runtime(this, Label::kDeferred);
@@ -2552,21 +2545,12 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
     Label next(this);
 
     GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
-    GotoIf(TaggedIsPositiveSmi(maybe_limit), &next);
+    Branch(TaggedIsPositiveSmi(maybe_limit), &next, &runtime);
 
-    var_limit.Bind(ToUint32(context, maybe_limit));
-    {
-      // ToUint32(limit) could potentially change the shape of the RegExp
-      // object. Recheck that we are still on the fast path and bail to runtime
-      // otherwise.
-      {
-        Label next(this);
-        BranchIfFastRegExp(context, regexp, &next, &runtime);
-        BIND(&next);
-      }
-
-      Branch(TaggedIsPositiveSmi(var_limit.value()), &next, &if_limitissmimax);
-    }
+    // We need to be extra-strict and require the given limit to be either
+    // undefined or a positive smi. We can't call ToUint32(maybe_limit) since
+    // that might move us onto the slow path, resulting in ordering spec
+    // violations (see https://crbug.com/801171).
 
     BIND(&if_limitissmimax);
     {
@@ -2590,13 +2574,8 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   RegExpPrototypeSplitBody(context, regexp, string, var_limit.value());
 
   BIND(&runtime);
-  {
-    // The runtime call passes in limit to ensure the second ToUint32(limit)
-    // call is not observable.
-    CSA_ASSERT(this, IsNumber(var_limit.value()));
-    Return(CallRuntime(Runtime::kRegExpSplit, context, regexp, string,
-                       var_limit.value()));
-  }
+  Return(CallRuntime(Runtime::kRegExpSplit, context, regexp, string,
+                     var_limit.value()));
 }
 
 // ES#sec-regexp.prototype-@@split
@@ -2740,7 +2719,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           TNode<IntPtrT> int_elem = SmiUntag(elem);
           TNode<IntPtrT> new_match_start =
               Signed(IntPtrAdd(WordShr(int_elem, IntPtrConstant(11)),
-                               WordAnd(int_elem, IntPtrConstant(0x7ff))));
+                               WordAnd(int_elem, IntPtrConstant(0x7FF))));
           var_match_start = SmiTag(new_match_start);
           Goto(&loop_epilogue);
         }

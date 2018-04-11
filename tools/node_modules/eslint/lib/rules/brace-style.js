@@ -35,20 +35,22 @@ module.exports = {
             }
         ],
 
-        fixable: "whitespace"
+        fixable: "whitespace",
+
+        messages: {
+            nextLineOpen: "Opening curly brace does not appear on the same line as controlling statement.",
+            sameLineOpen: "Opening curly brace appears on the same line as controlling statement.",
+            blockSameLine: "Statement inside of curly braces should be on next line.",
+            nextLineClose: "Closing curly brace does not appear on the same line as the subsequent block.",
+            singleLineClose: "Closing curly brace should be on the same line as opening curly brace or on the line after the previous block.",
+            sameLineClose: "Closing curly brace appears on the same line as the subsequent block."
+        }
     },
 
     create(context) {
         const style = context.options[0] || "1tbs",
             params = context.options[1] || {},
             sourceCode = context.getSourceCode();
-
-        const OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
-            OPEN_MESSAGE_ALLMAN = "Opening curly brace appears on the same line as controlling statement.",
-            BODY_MESSAGE = "Statement inside of curly braces should be on next line.",
-            CLOSE_MESSAGE = "Closing curly brace does not appear on the same line as the subsequent block.",
-            CLOSE_MESSAGE_SINGLE = "Closing curly brace should be on the same line as opening curly brace or on the line after the previous block.",
-            CLOSE_MESSAGE_STROUSTRUP_ALLMAN = "Closing curly brace appears on the same line as the subsequent block.";
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -86,7 +88,7 @@ module.exports = {
             if (style !== "allman" && !astUtils.isTokenOnSameLine(tokenBeforeOpeningCurly, openingCurly)) {
                 context.report({
                     node: openingCurly,
-                    message: OPEN_MESSAGE,
+                    messageId: "nextLineOpen",
                     fix: removeNewlineBetween(tokenBeforeOpeningCurly, openingCurly)
                 });
             }
@@ -94,7 +96,7 @@ module.exports = {
             if (style === "allman" && astUtils.isTokenOnSameLine(tokenBeforeOpeningCurly, openingCurly) && !singleLineException) {
                 context.report({
                     node: openingCurly,
-                    message: OPEN_MESSAGE_ALLMAN,
+                    messageId: "sameLineOpen",
                     fix: fixer => fixer.insertTextBefore(openingCurly, "\n")
                 });
             }
@@ -102,7 +104,7 @@ module.exports = {
             if (astUtils.isTokenOnSameLine(openingCurly, tokenAfterOpeningCurly) && tokenAfterOpeningCurly !== closingCurly && !singleLineException) {
                 context.report({
                     node: openingCurly,
-                    message: BODY_MESSAGE,
+                    messageId: "blockSameLine",
                     fix: fixer => fixer.insertTextAfter(openingCurly, "\n")
                 });
             }
@@ -110,7 +112,7 @@ module.exports = {
             if (tokenBeforeClosingCurly !== openingCurly && !singleLineException && astUtils.isTokenOnSameLine(tokenBeforeClosingCurly, closingCurly)) {
                 context.report({
                     node: closingCurly,
-                    message: CLOSE_MESSAGE_SINGLE,
+                    messageId: "singleLineClose",
                     fix: fixer => fixer.insertTextBefore(closingCurly, "\n")
                 });
             }
@@ -127,7 +129,7 @@ module.exports = {
             if (style === "1tbs" && !astUtils.isTokenOnSameLine(curlyToken, keywordToken)) {
                 context.report({
                     node: curlyToken,
-                    message: CLOSE_MESSAGE,
+                    messageId: "nextLineClose",
                     fix: removeNewlineBetween(curlyToken, keywordToken)
                 });
             }
@@ -135,7 +137,7 @@ module.exports = {
             if (style !== "1tbs" && astUtils.isTokenOnSameLine(curlyToken, keywordToken)) {
                 context.report({
                     node: curlyToken,
-                    message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
+                    messageId: "sameLineClose",
                     fix: fixer => fixer.insertTextAfter(curlyToken, "\n")
                 });
             }

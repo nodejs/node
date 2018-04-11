@@ -9,11 +9,11 @@ X509_check_host, X509_check_email, X509_check_ip, X509_check_ip_asc - X.509 cert
  #include <openssl/x509.h>
 
  int X509_check_host(X509 *, const char *name, size_t namelen,
-		     unsigned int flags, char **peername);
+                     unsigned int flags, char **peername);
  int X509_check_email(X509 *, const char *address, size_t addresslen,
-		      unsigned int flags);
+                      unsigned int flags);
  int X509_check_ip(X509 *, const unsigned char *address, size_t addresslen,
-		   unsigned int flags);
+                   unsigned int flags);
  int X509_check_ip_asc(X509 *, const char *address, unsigned int flags);
 
 =head1 DESCRIPTION
@@ -70,6 +70,8 @@ flags:
 
 =item B<X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT>,
 
+=item B<X509_CHECK_FLAG_NEVER_CHECK_SUBJECT>,
+
 =item B<X509_CHECK_FLAG_NO_WILDCARDS>,
 
 =item B<X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS>,
@@ -86,12 +88,18 @@ one subject alternative name of the right type (DNS name or email
 address as appropriate); the default is to ignore the subject DN
 when at least one corresponding subject alternative names is present.
 
+The B<X509_CHECK_FLAG_NEVER_CHECK_SUBJECT> flag causes the function to never
+consider the subject DN even if the certificate contains no subject alternative
+names of the right type (DNS name or email address as appropriate); the default
+is to use the subject DN when no corresponding subject alternative names are
+present.
+
 If set, B<X509_CHECK_FLAG_NO_WILDCARDS> disables wildcard
 expansion; this only applies to B<X509_check_host>.
 
 If set, B<X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS> suppresses support
 for "*" as wildcard pattern in labels that have a prefix or suffix,
-such as: "www*" or "*www"; this only aplies to B<X509_check_host>.
+such as: "www*" or "*www"; this only applies to B<X509_check_host>.
 
 If set, B<X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS> allows a "*" that
 constitutes the complete label of a DNS name (e.g. "*.example.com")
@@ -126,15 +134,24 @@ DANE support is added to OpenSSL.
 
 =head1 SEE ALSO
 
-L<SSL_get_verify_result(3)|SSL_get_verify_result(3)>,
-L<X509_VERIFY_PARAM_set1_host(3)|X509_VERIFY_PARAM_set1_host(3)>,
-L<X509_VERIFY_PARAM_add1_host(3)|X509_VERIFY_PARAM_add1_host(3)>,
-L<X509_VERIFY_PARAM_set1_email(3)|X509_VERIFY_PARAM_set1_email(3)>,
-L<X509_VERIFY_PARAM_set1_ip(3)|X509_VERIFY_PARAM_set1_ip(3)>,
-L<X509_VERIFY_PARAM_set1_ipasc(3)|X509_VERIFY_PARAM_set1_ipasc(3)>
+L<SSL_get_verify_result(3)>,
+L<X509_VERIFY_PARAM_set1_host(3)>,
+L<X509_VERIFY_PARAM_add1_host(3)>,
+L<X509_VERIFY_PARAM_set1_email(3)>,
+L<X509_VERIFY_PARAM_set1_ip(3)>,
+L<X509_VERIFY_PARAM_set1_ipasc(3)>
 
 =head1 HISTORY
 
 These functions were added in OpenSSL 1.0.2.
+
+=head1 COPYRIGHT
+
+Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

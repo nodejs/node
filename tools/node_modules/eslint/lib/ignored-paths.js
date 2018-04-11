@@ -76,7 +76,6 @@ function findPackageJSONFile(cwd) {
  * @returns {Object} Merged options
  */
 function mergeDefaultOptions(options) {
-    options = (options || {});
     return Object.assign({}, DEFAULT_OPTIONS, options);
 }
 
@@ -90,10 +89,11 @@ function mergeDefaultOptions(options) {
 class IgnoredPaths {
 
     /**
-     * @param {Object} options object containing 'ignore', 'ignorePath' and 'patterns' properties
+     * @param {Object} providedOptions object containing 'ignore', 'ignorePath' and 'patterns' properties
      */
-    constructor(options) {
-        options = mergeDefaultOptions(options);
+    constructor(providedOptions) {
+        const options = mergeDefaultOptions(providedOptions);
+
         this.cache = {};
 
         /**

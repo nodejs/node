@@ -31,8 +31,7 @@ extern bool zero_fill_all_buffers;
 
 namespace Buffer {
 
-static const unsigned int kMaxLength =
-    sizeof(int32_t) == sizeof(intptr_t) ? 0x3fffffff : 0x7fffffff;
+static const unsigned int kMaxLength = v8::TypedArray::kMaxLength;
 
 typedef void (*FreeCallback)(char* data, void* hint);
 

@@ -2728,7 +2728,7 @@ TEST(HoleyMutableHeapNumber) {
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
 
   mhn = isolate->factory()->NewHeapNumber(0.0, MUTABLE);
-  CHECK_EQ(V8_UINT64_C(0), mhn->value_as_bits());
+  CHECK_EQ(uint64_t{0}, mhn->value_as_bits());
 
   mhn->set_value_as_bits(kHoleNanInt64);
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());

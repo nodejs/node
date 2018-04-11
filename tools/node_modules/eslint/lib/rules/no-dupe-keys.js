@@ -91,7 +91,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-dupe-keys"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpected: "Duplicate key '{{name}}'."
+        }
     },
 
     create(context) {
@@ -123,7 +127,7 @@ module.exports = {
                     context.report({
                         node: info.node,
                         loc: node.key.loc,
-                        message: "Duplicate key '{{name}}'.",
+                        messageId: "unexpected",
                         data: { name }
                     });
                 }

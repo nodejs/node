@@ -7,10 +7,10 @@ SyntaxError: Strict mode code may not include a with statement
     at createScript (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at evalScript (bootstrap_node.js:*:*)
-    at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/bootstrap/node.js:*:*)
+    at startup (internal/bootstrap/node.js:*:*)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 42
 42
 [eval]:1
@@ -22,10 +22,10 @@ Error: hello
     at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at evalScript (bootstrap_node.js:*:*)
-    at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/bootstrap/node.js:*:*)
+    at startup (internal/bootstrap/node.js:*:*)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 
 [eval]:1
 throw new Error("hello")
@@ -36,10 +36,10 @@ Error: hello
     at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at evalScript (bootstrap_node.js:*:*)
-    at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/bootstrap/node.js:*:*)
+    at startup (internal/bootstrap/node.js:*:*)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 100
 [eval]:1
 var x = 100; y = x;
@@ -50,10 +50,10 @@ ReferenceError: y is not defined
     at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at evalScript (bootstrap_node.js:*:*)
-    at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/bootstrap/node.js:*:*)
+    at startup (internal/bootstrap/node.js:*:*)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 
 [eval]:1
 var ______________________________________________; throw 10

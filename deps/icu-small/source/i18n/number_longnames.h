@@ -21,8 +21,9 @@ class LongNameHandler : public MicroPropsGenerator, public UMemory {
                          const MicroPropsGenerator *parent, UErrorCode &status);
 
     static LongNameHandler
-    forMeasureUnit(const Locale &loc, const MeasureUnit &unit, const UNumberUnitWidth &width,
-                   const PluralRules *rules, const MicroPropsGenerator *parent, UErrorCode &status);
+    forMeasureUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
+                   const UNumberUnitWidth &width, const PluralRules *rules,
+                   const MicroPropsGenerator *parent, UErrorCode &status);
 
     void
     processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const U_OVERRIDE;
@@ -35,8 +36,15 @@ class LongNameHandler : public MicroPropsGenerator, public UMemory {
     LongNameHandler(const PluralRules *rules, const MicroPropsGenerator *parent)
             : rules(rules), parent(parent) {}
 
+    static LongNameHandler
+    forCompoundUnit(const Locale &loc, const MeasureUnit &unit, const MeasureUnit &perUnit,
+                    const UNumberUnitWidth &width, const PluralRules *rules,
+                    const MicroPropsGenerator *parent, UErrorCode &status);
+
     static void simpleFormatsToModifiers(const UnicodeString *simpleFormats, Field field,
                                          SimpleModifier *output, UErrorCode &status);
+    static void multiSimpleFormatsToModifiers(const UnicodeString *leadFormats, UnicodeString trailFormat,
+                                         Field field, SimpleModifier *output, UErrorCode &status);
 };
 
 }  // namespace impl

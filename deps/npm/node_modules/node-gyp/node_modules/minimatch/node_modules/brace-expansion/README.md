@@ -1,6 +1,6 @@
 # brace-expansion
 
-[Brace expansion](https://www.gnu.org/software/bash/manual/html_node/Brace-Expansion.html), 
+[Brace expansion](https://www.gnu.org/software/bash/manual/html_node/Brace-Expansion.html),
 as known from sh/bash, in JavaScript.
 
 [![build status](https://secure.travis-ci.org/juliangruber/brace-expansion.svg)](http://travis-ci.org/juliangruber/brace-expansion)

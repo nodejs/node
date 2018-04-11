@@ -66,7 +66,7 @@ void ReleaseHandlerData(int index);
 #define THREAD_LOCAL __thread
 #endif
 
-inline bool UseTrapHandler() {
+inline bool IsTrapHandlerEnabled() {
   return FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED;
 }
 
@@ -75,14 +75,14 @@ extern THREAD_LOCAL int g_thread_in_wasm_code;
 inline bool IsThreadInWasm() { return g_thread_in_wasm_code; }
 
 inline void SetThreadInWasm() {
-  if (UseTrapHandler()) {
+  if (IsTrapHandlerEnabled()) {
     DCHECK(!IsThreadInWasm());
     g_thread_in_wasm_code = true;
   }
 }
 
 inline void ClearThreadInWasm() {
-  if (UseTrapHandler()) {
+  if (IsTrapHandlerEnabled()) {
     DCHECK(IsThreadInWasm());
     g_thread_in_wasm_code = false;
   }

@@ -102,7 +102,7 @@ Addon module name is `addon`.
 Once the source code has been written, it must be compiled into the binary
 `addon.node` file. To do so, create a file called `binding.gyp` in the
 top-level of the project describing the build configuration of the module
-using a JSON-like format. This file is used by [node-gyp][] -- a tool written
+using a JSON-like format. This file is used by [node-gyp][] — a tool written
 specifically to compile Node.js Addons.
 
 ```json
@@ -246,7 +246,7 @@ napi_value Method(napi_env env, napi_callback_info args) {
   napi_value greeting;
   napi_status status;
 
-  status = napi_create_string_utf8(env, "hello", 6, &greeting);
+  status = napi_create_string_utf8(env, "hello", NAPI_AUTO_LENGTH, &greeting);
   if (status != napi_ok) return nullptr;
   return greeting;
 }
@@ -1096,8 +1096,10 @@ has ended but before the JavaScript VM is terminated and Node.js shuts down.
 
 #### void AtExit(callback, args)
 
-* `callback` {void (\*)(void\*)} A pointer to the function to call at exit.
-* `args` {void\*} A pointer to pass to the callback at exit.
+* `callback` <span class="type">&lt;void (\*)(void\*)&gt;</span>
+  A pointer to the function to call at exit.
+* `args` <span class="type">&lt;void\*&gt;</span>
+  A pointer to pass to the callback at exit.
 
 Registers exit hooks that run after the event loop has ended but before the VM
 is killed.

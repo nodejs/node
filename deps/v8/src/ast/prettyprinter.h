@@ -50,6 +50,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   bool is_iterator_error_;
   bool is_async_iterator_error_;
   bool is_call_error_;
+  FunctionKind function_kind_;
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  protected:

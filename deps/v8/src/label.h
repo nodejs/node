@@ -18,7 +18,10 @@ namespace internal {
 
 class Label {
  public:
-  enum Distance { kNear, kFar };
+  enum Distance {
+    kNear,  // near jump: 8 bit displacement (signed)
+    kFar    // far jump: 32 bit displacement (signed)
+  };
 
   Label() = default;
 

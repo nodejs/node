@@ -1,10 +1,14 @@
 =pod
 
+=for comment openssl_manual_section:7
+
 =head1 NAME
 
 crypto - OpenSSL cryptographic library
 
 =head1 SYNOPSIS
+
+See the individual manual pages for details.
 
 =head1 DESCRIPTION
 
@@ -14,53 +18,13 @@ by this library are used by the OpenSSL implementations of SSL, TLS
 and S/MIME, and they have also been used to implement SSH, OpenPGP, and
 other cryptographic standards.
 
-=head1 OVERVIEW
-
 B<libcrypto> consists of a number of sub-libraries that implement the
 individual algorithms.
 
 The functionality includes symmetric encryption, public key
 cryptography and key agreement, certificate handling, cryptographic
-hash functions and a cryptographic pseudo-random number generator.
-
-=over 4
-
-=item SYMMETRIC CIPHERS
-
-L<blowfish(3)|blowfish(3)>, L<cast(3)|cast(3)>, L<des(3)|des(3)>,
-L<idea(3)|idea(3)>, L<rc2(3)|rc2(3)>, L<rc4(3)|rc4(3)>, L<rc5(3)|rc5(3)> 
-
-=item PUBLIC KEY CRYPTOGRAPHY AND KEY AGREEMENT
-
-L<dsa(3)|dsa(3)>, L<dh(3)|dh(3)>, L<rsa(3)|rsa(3)>
-
-=item CERTIFICATES
-
-L<x509(3)|x509(3)>, L<x509v3(3)|x509v3(3)>
-
-=item AUTHENTICATION CODES, HASH FUNCTIONS
-
-L<hmac(3)|hmac(3)>, L<md2(3)|md2(3)>, L<md4(3)|md4(3)>,
-L<md5(3)|md5(3)>, L<mdc2(3)|mdc2(3)>, L<ripemd(3)|ripemd(3)>,
-L<sha(3)|sha(3)>
-
-=item AUXILIARY FUNCTIONS
-
-L<err(3)|err(3)>, L<threads(3)|threads(3)>, L<rand(3)|rand(3)>,
-L<OPENSSL_VERSION_NUMBER(3)|OPENSSL_VERSION_NUMBER(3)>
-
-=item INPUT/OUTPUT, DATA ENCODING
-
-L<asn1(3)|asn1(3)>, L<bio(3)|bio(3)>, L<evp(3)|evp(3)>, L<pem(3)|pem(3)>,
-L<pkcs7(3)|pkcs7(3)>, L<pkcs12(3)|pkcs12(3)> 
-
-=item INTERNAL FUNCTIONS
-
-L<bn(3)|bn(3)>, L<buffer(3)|buffer(3)>, L<ec(3)|ec(3)>, L<lhash(3)|lhash(3)>,
-L<objects(3)|objects(3)>, L<stack(3)|stack(3)>,
-L<txt_db(3)|txt_db(3)> 
-
-=back
+hash functions, cryptographic pseudo-random number generator, and
+various utilities.
 
 =head1 NOTES
 
@@ -68,7 +32,7 @@ Some of the newer functions follow a naming convention using the numbers
 B<0> and B<1>. For example the functions:
 
  int X509_CRL_add0_revoked(X509_CRL *crl, X509_REVOKED *rev);
- int X509_add1_trust_object(X509 *x, ASN1_OBJECT *obj);
+ int X509_add1_trust_object(X509 *x, const ASN1_OBJECT *obj);
 
 The B<0> version uses the supplied structure pointer directly
 in the parent and it will be freed up when the parent is freed.
@@ -78,8 +42,21 @@ The B<1> function uses a copy of the supplied structure pointer
 (or in some cases increases its link count) in the parent and
 so both (B<x> and B<obj> above) should be freed up.
 
+=head1 RETURN VALUES
+
+See the individual manual pages for details.
+
 =head1 SEE ALSO
 
-L<openssl(1)|openssl(1)>, L<ssl(3)|ssl(3)>
+L<openssl(1)>, L<ssl(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

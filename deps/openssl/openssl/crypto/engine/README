@@ -122,7 +122,7 @@ use by EVP_MD code. Ditto for tb_rsa.c, tb_dsa.c, etc. These instantiations of
 ENGINE_TABLE essentially provide linker-separation of the classes so that even
 if ENGINEs implement *all* possible algorithms, an application using only
 EVP_CIPHER code will link at most code relating to EVP_CIPHER, tb_cipher.c, core
-ENGINE code that is independant of class, and of course the ENGINE
+ENGINE code that is independent of class, and of course the ENGINE
 implementation that the application loaded. It will *not* however link any
 class-specific ENGINE code for digests, RSA, etc nor will it bleed over into
 other APIs, such as the RSA/DSA/etc library code.

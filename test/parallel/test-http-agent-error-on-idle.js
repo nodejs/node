@@ -27,10 +27,10 @@ server.listen(0, () => {
     res.on('end', common.mustCall(() => {
       process.nextTick(common.mustCall(() => {
         const freeSockets = agent.freeSockets[socketKey];
-        assert.strictEqual(freeSockets.length, 1,
-                           `expect a free socket on ${socketKey}`);
+        // Expect a free socket on socketKey
+        assert.strictEqual(freeSockets.length, 1);
 
-        //generate a random error on the free socket
+        // Generate a random error on the free socket
         const freeSocket = freeSockets[0];
         freeSocket.emit('error', new Error('ECONNRESET: test'));
 
@@ -40,8 +40,8 @@ server.listen(0, () => {
   }));
 
   function done() {
-    assert.strictEqual(Object.keys(agent.freeSockets).length, 0,
-                       'expect the freeSockets pool to be empty');
+    // Expect the freeSockets pool to be empty
+    assert.strictEqual(Object.keys(agent.freeSockets).length, 0);
 
     agent.destroy();
     server.close();

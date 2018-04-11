@@ -15,7 +15,7 @@
 namespace v8 {
 namespace base {
 
-void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg) {
+void CallOnceImpl(OnceType* once, std::function<void()> init_func) {
   AtomicWord state = Acquire_Load(once);
   // Fast path. The provided function was already executed.
   if (state == ONCE_STATE_DONE) {
@@ -34,7 +34,7 @@ void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg) {
   if (state == ONCE_STATE_UNINITIALIZED) {
     // We are the first thread to call this function, so we have to call the
     // function.
-    init_func(arg);
+    init_func();
     Release_Store(once, ONCE_STATE_DONE);
   } else {
     // Another thread has already started executing the function. We need to

@@ -75,7 +75,7 @@ fs.rename('/tmp/hello', '/tmp/world', (err) => {
 
 In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
-the entire process until they complete--halting all connections.
+the entire process until they complete — halting all connections.
 
 While it is not recommended, most fs functions allow the callback argument to
 be omitted, in which case a default callback is used that rethrows errors. To
@@ -359,16 +359,16 @@ Emitted when the `fs.ReadStream`'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the ReadStream.
+* `fd` {integer} Integer file descriptor used by the `ReadStream`.
 
 Emitted when the `fs.ReadStream`'s file descriptor has been opened.
 
 ### readStream.bytesRead
 <!-- YAML
-added: 6.4.0
+added: v6.4.0
 -->
 
-* Value: {number}
+* {number}
 
 The number of bytes that have been read so far.
 
@@ -377,7 +377,7 @@ The number of bytes that have been read so far.
 added: v0.1.93
 -->
 
-* Value: {string|Buffer}
+* {string|Buffer}
 
 The path to the file the stream is reading from as specified in the first
 argument to `fs.createReadStream()`. If `path` is passed as a string, then
@@ -421,24 +421,36 @@ Stats {
 ```
 
 ### stats.isBlockDevice()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a block device.
 
 ### stats.isCharacterDevice()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a character device.
 
 ### stats.isDirectory()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a file system directory.
 
 ### stats.isFIFO()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
@@ -446,18 +458,27 @@ Returns `true` if the `fs.Stats` object describes a first-in-first-out (FIFO)
 pipe.
 
 ### stats.isFile()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a regular file.
 
 ### stats.isSocket()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
 Returns `true` if the `fs.Stats` object describes a socket.
 
 ### stats.isSymbolicLink()
+<!-- YAML
+added: v0.1.10
+-->
 
 * Returns: {boolean}
 
@@ -467,107 +488,137 @@ This method is only valid when using [`fs.lstat()`][]
 
 ### stats.dev
 
-* Value: {number}
+* {number}
 
 The numeric identifier of the device containing the file.
 
 ### stats.ino
 
-* Value: {number}
+* {number}
 
 The file system specific "Inode" number for the file.
 
 ### stats.mode
 
-* Value: {number}
+* {number}
 
 A bit-field describing the file type and mode.
 
 ### stats.nlink
 
-* Value: {number}
+* {number}
 
 The number of hard-links that exist for the file.
 
 ### stats.uid
 
-* Value: {number}
+* {number}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 ### stats.gid
 
-* Value: {number}
+* {number}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 ### stats.rdev
 
-* Value: {number}
+* {number}
 
 A numeric device identifier if the file is considered "special".
 
+### stats.size
+
+* {number}
+
+The size of the file in bytes.
+
 ### stats.blksize
 
-* Value: {number}
+* {number}
 
 The file system block size for i/o operations.
 
 ### stats.blocks
 
-* Value: {number}
+* {number}
 
 The number of blocks allocated for this file.
 
 ### stats.atimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
 
 ### stats.mtimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
 
 ### stats.ctimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
 
 ### stats.birthtimeMs
+<!-- YAML
+added: v8.1.0
+-->
 
-* Value: {number}
+* {number}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
 
 ### stats.atime
+<!-- YAML
+added: v0.11.13
+-->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the last time this file was accessed.
 
 ### stats.mtime
+<!-- YAML
+added: v0.11.13
+-->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the last time this file was modified.
 
 ### stats.ctime
+<!-- YAML
+added: v0.11.13
+-->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the last time the file status was changed.
 
 ### stats.birthtime
+<!-- YAML
+added: v0.11.13
+-->
 
-* Value: {Date}
+* {Date}
 
 The timestamp indicating the creation time of this file.
 
@@ -583,16 +634,16 @@ representation.
 
 The times in the stat object have the following semantics:
 
-* `atime` "Access Time" - Time when file data last accessed.  Changed
+* `atime` "Access Time" - Time when file data last accessed. Changed
   by the mknod(2), utimes(2), and read(2) system calls.
 * `mtime` "Modified Time" - Time when file data last modified.
   Changed by the mknod(2), utimes(2), and write(2) system calls.
 * `ctime` "Change Time" - Time when file status was last changed
-  (inode data modification).  Changed by the chmod(2), chown(2),
+  (inode data modification). Changed by the chmod(2), chown(2),
   link(2), mknod(2), rename(2), unlink(2), utimes(2),
   read(2), and write(2) system calls.
-* `birthtime` "Birth Time" -  Time of file creation. Set once when the
-  file is created.  On filesystems where birthtime is not available,
+* `birthtime` "Birth Time" - Time of file creation. Set once when the
+  file is created. On filesystems where birthtime is not available,
   this field may instead hold either the `ctime` or
   `1970-01-01T00:00Z` (ie, unix epoch timestamp `0`). Note that this
   value may be greater than `atime` or `mtime` in this case. On Darwin
@@ -600,8 +651,8 @@ The times in the stat object have the following semantics:
   set to an earlier value than the current `birthtime` using the
   utimes(2) system call.
 
-Prior to Node v0.12, the `ctime` held the `birthtime` on Windows
-systems.  Note that as of v0.12, `ctime` is not "creation time", and
+Prior to Node.js v0.12, the `ctime` held the `birthtime` on Windows
+systems. Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
 ## Class: fs.WriteStream
@@ -623,9 +674,9 @@ Emitted when the `WriteStream`'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the WriteStream.
+* `fd` {integer} Integer file descriptor used by the `WriteStream`.
 
-Emitted when the WriteStream's file is opened.
+Emitted when the `WriteStream`'s file is opened.
 
 ### writeStream.bytesWritten
 <!-- YAML
@@ -657,7 +708,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/6534
     description: The constants like `fs.R_OK`, etc which were present directly
                  on `fs` were moved into `fs.constants` as a soft deprecation.
-                 Thus for Node `< v6.3.0` use `fs` to access those constants, or
+                 Thus for Node.js `< v6.3.0` use `fs`
+                 to access those constants, or
                  do something like `(fs.constants || fs).R_OK` to work with all
                  versions.
 -->
@@ -1088,7 +1140,7 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous close(2).  No arguments other than a possible exception are given
+Asynchronous close(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.closeSync(fd)
@@ -1113,7 +1165,7 @@ added: v8.5.0
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`
+* `flags` {number} modifiers for copy operation. **Default:** `0`.
 * `callback` {Function}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
@@ -1123,8 +1175,18 @@ operation. If an error occurs after the destination file has been opened for
 writing, Node.js will attempt to remove the destination.
 
 `flags` is an optional integer that specifies the behavior
-of the copy operation. The only supported flag is `fs.constants.COPYFILE_EXCL`,
-which causes the copy operation to fail if `dest` already exists.
+of the copy operation. It is possible to create a mask consisting of the bitwise
+OR of two or more values (e.g.
+`fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
+
+* `fs.constants.COPYFILE_EXCL` - The copy operation will fail if `dest` already
+exists.
+* `fs.constants.COPYFILE_FICLONE` - The copy operation will attempt to create a
+copy-on-write reflink. If the platform does not support copy-on-write, then a
+fallback copy mechanism is used.
+* `fs.constants.COPYFILE_FICLONE_FORCE` - The copy operation will attempt to
+create a copy-on-write reflink. If the platform does not support copy-on-write,
+then the operation will fail.
 
 Example:
 
@@ -1156,7 +1218,7 @@ added: v8.5.0
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`
+* `flags` {number} modifiers for copy operation. **Default:** `0`.
 
 Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. Returns `undefined`. Node.js makes no guarantees about the
@@ -1164,8 +1226,18 @@ atomicity of the copy operation. If an error occurs after the destination file
 has been opened for writing, Node.js will attempt to remove the destination.
 
 `flags` is an optional integer that specifies the behavior
-of the copy operation. The only supported flag is `fs.constants.COPYFILE_EXCL`,
-which causes the copy operation to fail if `dest` already exists.
+of the copy operation. It is possible to create a mask consisting of the bitwise
+OR of two or more values (e.g.
+`fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
+
+* `fs.constants.COPYFILE_EXCL` - The copy operation will fail if `dest` already
+exists.
+* `fs.constants.COPYFILE_FICLONE` - The copy operation will attempt to create a
+copy-on-write reflink. If the platform does not support copy-on-write, then a
+fallback copy mechanism is used.
+* `fs.constants.COPYFILE_FICLONE_FORCE` - The copy operation will attempt to
+create a copy-on-write reflink. If the platform does not support copy-on-write,
+then the operation will fail.
 
 Example:
 
@@ -1236,7 +1308,7 @@ const defaults = {
 ```
 
 `options` can include `start` and `end` values to read a range of bytes from
-the file instead of the entire file.  Both `start` and `end` are inclusive and
+the file instead of the entire file. Both `start` and `end` are inclusive and
 start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
 `fs.createReadStream()` reads sequentially from the current file position.
 The `encoding` can be any one of those accepted by [`Buffer`][].
@@ -1307,7 +1379,7 @@ const defaults = {
 ```
 
 `options` may also include a `start` option to allow writing data at
-some position past the beginning of the file.  Modifying a file rather
+some position past the beginning of the file. Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
 default mode `w`. The `encoding` can be any one of those accepted by
 [`Buffer`][].
@@ -1343,7 +1415,7 @@ deprecated: v1.0.0
   * `exists` {boolean}
 
 Test whether or not the given path exists by checking with the file system.
-Then call the `callback` argument with either true or false.  Example:
+Then call the `callback` argument with either true or false. Example:
 
 ```js
 fs.exists('/etc/passwd', (exists) => {
@@ -1912,7 +1984,7 @@ changes:
   * `err` {Error}
 
 Asynchronously creates a directory. No arguments other than a possible exception
-are given to the completion callback. `mode` defaults to `0o777`.
+are given to the completion callback.
 
 See also: mkdir(2)
 
@@ -2030,6 +2102,9 @@ object with an `encoding` property specifying the character encoding to use.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: v9.9.0
+    pr-url: https://github.com/nodejs/node/pull/18801
+    description: The `as` and `as+` modes are supported now.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -2038,7 +2113,7 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
-* `mode` {integer} **Default:** `0o666`
+* `mode` {integer} **Default:** `0o666` (readable and writable)
 * `callback` {Function}
   * `err` {Error}
   * `fd` {integer}
@@ -2088,7 +2163,7 @@ The file is created if it does not exist.
 The file is created if it does not exist.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. It defaults to `0o666` (readable and writable).
+created.
 
 The callback gets two arguments `(err, fd)`.
 
@@ -2098,7 +2173,7 @@ to a non-existent file. The exclusive flag may or may not work with network file
 systems.
 
 `flags` can also be a number as documented by open(2); commonly used constants
-are available from `fs.constants`.  On Windows, flags are translated to
+are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
 
@@ -2222,7 +2297,7 @@ changes:
   * `err` {Error}
   * `files` {string[]|Buffer[]}
 
-Asynchronous readdir(3).  Reads the contents of a directory.
+Asynchronous readdir(3). Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
 the names of the files in the directory excluding `'.'` and `'..'`.
 
@@ -2244,7 +2319,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Array} An array of filenames
+* Returns: {string[]} An array of filenames
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 `'..'`.
@@ -2526,7 +2601,7 @@ the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
 On Linux, when Node.js is linked against musl libc, the procfs file system must
-be mounted on `/proc` in order for this function to work.  Glibc does not have
+be mounted on `/proc` in order for this function to work. Glibc does not have
 this restriction.
 
 ## fs.realpathSync(path[, options])
@@ -2595,7 +2670,7 @@ the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
 On Linux, when Node.js is linked against musl libc, the procfs file system must
-be mounted on `/proc` in order for this function to work.  Glibc does not have
+be mounted on `/proc` in order for this function to work. Glibc does not have
 this restriction.
 
 ## fs.rename(oldPath, newPath, callback)
@@ -2622,8 +2697,19 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronous rename(2). No arguments other than a possible exception are given
-to the completion callback.
+Asynchronously rename file at `oldPath` to the pathname provided
+as `newPath`. In the case that `newPath` already exists, it will
+be overwritten. No arguments other than a possible exception are
+given to the completion callback.
+
+See also: rename(2).
+
+```js
+fs.rename('oldFile.txt', 'newFile.txt', (err) => {
+  if (err) throw err;
+  console.log('Rename complete!');
+});
+```
 
 ## fs.renameSync(oldPath, newPath)
 <!-- YAML
@@ -2756,7 +2842,7 @@ changes:
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback. The `type` argument can be set to `'dir'`,
-`'file'`, or `'junction'` (default is `'file'`) and is only available on
+`'file'`, or `'junction'` and is only available on
 Windows (ignored on other platforms). Note that Windows junction points require
 the destination path to be absolute. When using `'junction'`, the `target`
 argument will automatically be normalized to absolute path.
@@ -2895,7 +2981,7 @@ Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
 Using [`fs.watch()`][] is more efficient than `fs.watchFile()` and
-`fs.unwatchFile()`.  `fs.watch()` should be used instead of `fs.watchFile()`
+`fs.unwatchFile()`. `fs.watch()` should be used instead of `fs.watchFile()`
 and `fs.unwatchFile()` when possible.
 
 ## fs.utimes(path, atime, mtime, callback)
@@ -2978,24 +3064,24 @@ changes:
 * `filename` {string|Buffer|URL}
 * `options` {string|Object}
   * `persistent` {boolean} Indicates whether the process should continue to run
-    as long as files are being watched. **Default:** `true`
+    as long as files are being watched. **Default:** `true`.
   * `recursive` {boolean} Indicates whether all subdirectories should be
     watched, or only the current directory. This applies when a directory is
     specified, and only on supported platforms (See [Caveats][]). **Default:**
-    `false`
+    `false`.
   * `encoding` {string} Specifies the character encoding to be used for the
-     filename passed to the listener. **Default:** `'utf8'`
+     filename passed to the listener. **Default:** `'utf8'`.
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
   * `filename` {string|Buffer}
 
 Watch for changes on `filename`, where `filename` is either a file or a
-directory.  The returned object is a [`fs.FSWatcher`][].
+directory. The returned object is a [`fs.FSWatcher`][].
 
 The second argument is optional. If `options` is provided as a string, it
 specifies the `encoding`. Otherwise `options` should be passed as an object.
 
-The listener callback gets two arguments `(eventType, filename)`.  `eventType`
+The listener callback gets two arguments `(eventType, filename)`. `eventType`
 is either `'rename'` or `'change'`, and `filename` is the name of the file
 which triggered the event.
 
@@ -3057,7 +3143,7 @@ content, and one for truncation).
 <!--type=misc-->
 
 Providing `filename` argument in the callback is only supported on Linux,
-macOS, Windows, and AIX.  Even on supported platforms, `filename` is not always
+macOS, Windows, and AIX. Even on supported platforms, `filename` is not always
 guaranteed to be provided. Therefore, don't assume that `filename` argument is
 always provided in the callback, and have some fallback logic if it is null.
 
@@ -3097,8 +3183,7 @@ The `options` argument may be omitted. If provided, it should be an object. The
 `options` object may contain a boolean named `persistent` that indicates
 whether the process should continue to run as long as files are being watched.
 The `options` object may specify an `interval` property indicating how often the
-target should be polled in milliseconds. The default is
-`{ persistent: true, interval: 5007 }`.
+target should be polled in milliseconds.
 
 The `listener` gets two arguments the current stat object and the previous
 stat object:
@@ -3214,7 +3299,7 @@ changes:
   * `written` {integer}
   * `string` {string}
 
-Write `string` to the file specified by `fd`.  If `string` is not a string, then
+Write `string` to the file specified by `fd`. If `string` is not a string, then
 the value will be coerced to one.
 
 `position` refers to the offset from the beginning of the file where this data
@@ -3271,8 +3356,7 @@ changes:
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string or a buffer.
 
-The `encoding` option is ignored if `data` is a buffer. It defaults
-to `'utf8'`.
+The `encoding` option is ignored if `data` is a buffer.
 
 Example:
 
@@ -3361,7 +3445,7 @@ Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
 The `fs/promises` API provides an alternative set of asynchronous file system
 methods that return `Promise` objects rather than using callbacks. The
-API is accessible via `require('fs/promises)`.
+API is accessible via `require('fs/promises')`.
 
 ### class: FileHandle
 <!-- YAML
@@ -3378,7 +3462,7 @@ Instances of the `FileHandle` object are created internally by the
 `fsPromises.open()` method.
 
 Unlike callback-based such as `fs.fstat()`, `fs.fchown()`, `fs.fchmod()`,
-`fs.ftruncate()`, `fs.read()`, and `fs.write()`, operations -- all of which
+`fs.ftruncate()`, `fs.read()`, and `fs.write()`, operations — all of which
 use a simple numeric file descriptor, all `fsPromises.*` variations use the
 `FileHandle` class in order to help protect against accidental leaking of
 unclosed file descriptors after a `Promise` is resolved or rejected.
@@ -3388,7 +3472,7 @@ unclosed file descriptors after a `Promise` is resolved or rejected.
 added: REPLACEME
 -->
 
-Value: {number} The numeric file descriptor managed by the `FileHandle` object.
+* {number} The numeric file descriptor managed by the `FileHandle` object.
 
 #### filehandle.appendFile(data, options)
 <!-- YAML
@@ -3636,8 +3720,7 @@ Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string or a buffer. The `Promise` will be resolved with no
 arguments upon success.
 
-The `encoding` option is ignored if `data` is a buffer. It defaults
-to `'utf8'`.
+The `encoding` option is ignored if `data` is a buffer.
 
 If `options` is a string, then it specifies the encoding.
 
@@ -3740,7 +3823,7 @@ added: REPLACEME
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
-* `flags` {number} modifiers for copy operation. **Default:** `0`
+* `flags` {number} modifiers for copy operation. **Default:** `0`.
 * Returns: {Promise}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
@@ -3751,8 +3834,18 @@ error occurs after the destination file has been opened for writing, Node.js
 will attempt to remove the destination.
 
 `flags` is an optional integer that specifies the behavior
-of the copy operation. The only supported flag is `fs.constants.COPYFILE_EXCL`,
-which causes the copy operation to fail if `dest` already exists.
+of the copy operation. It is possible to create a mask consisting of the bitwise
+OR of two or more values (e.g.
+`fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
+
+* `fs.constants.COPYFILE_EXCL` - The copy operation will fail if `dest` already
+exists.
+* `fs.constants.COPYFILE_FICLONE` - The copy operation will attempt to create a
+copy-on-write reflink. If the platform does not support copy-on-write, then a
+fallback copy mechanism is used.
+* `fs.constants.COPYFILE_FICLONE_FORCE` - The copy operation will attempt to
+create a copy-on-write reflink. If the platform does not support copy-on-write,
+then the operation will fail.
 
 Example:
 
@@ -3996,8 +4089,8 @@ added: REPLACEME
 
 * `path` {string|Buffer|URL}
 * `flags` {string|number}
-* `mode` {integer} **Default:** `0o666`
-* Return: {Promise}
+* `mode` {integer} **Default:** `0o666` (readable and writable)
+* Returns: {Promise}
 
 Asynchronous file open that returns a `Promise` that, when resolved, yields a
 `FileHandle` object. See open(2).
@@ -4047,7 +4140,7 @@ The file is created if it does not exist.
 The file is created if it does not exist.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. It defaults to `0o666` (readable and writable).
+created.
 
 The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that `path` is newly
 created. On POSIX systems, `path` is considered to exist even if it is a symlink
@@ -4055,7 +4148,7 @@ to a non-existent file. The exclusive flag may or may not work with network file
 systems.
 
 `flags` can also be a number as documented by open(2); commonly used constants
-are available from `fs.constants`.  On Windows, flags are translated to
+are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
 
@@ -4191,7 +4284,7 @@ the path. If the `encoding` is set to `'buffer'`, the path returned will be
 passed as a `Buffer` object.
 
 On Linux, when Node.js is linked against musl libc, the procfs file system must
-be mounted on `/proc` in order for this function to work.  Glibc does not have
+be mounted on `/proc` in order for this function to work. Glibc does not have
 this restriction.
 
 ### fsPromises.rename(oldPath, newPath)
@@ -4245,7 +4338,7 @@ Creates a symbolic link then resolves the `Promise` with no arguments upon
 success.
 
 The `type` argument is only used on Windows platforms and can be one of `'dir'`,
-`'file'`, or `'junction'` (default is `'file'`). Note that Windows junction
+`'file'`, or `'junction'`. Note that Windows junction
 points require the destination path to be absolute. When using `'junction'`,
 the `target` argument will automatically be normalized to absolute path.
 
@@ -4341,8 +4434,7 @@ Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string or a buffer. The `Promise` will be resolved with no
 arguments upon success.
 
-The `encoding` option is ignored if `data` is a buffer. It defaults
-to `'utf8'`.
+The `encoding` option is ignored if `data` is a buffer.
 
 If `options` is a string, then it specifies the encoding.
 
@@ -4384,6 +4476,34 @@ The following constants are meant for use with [`fs.access()`][].
     <td><code>X_OK</code></td>
     <td>Flag indicating that the file can be executed by the calling
     process.</td>
+  </tr>
+</table>
+
+### File Copy Constants
+
+The following constants are meant for use with [`fs.copyFile()`][].
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>COPYFILE_EXCL</code></td>
+    <td>If present, the copy operation will fail with an error if the
+    destination path already exists.</td>
+  </tr>
+  <tr>
+    <td><code>COPYFILE_FICLONE</code></td>
+    <td>If present, the copy operation will attempt to create a
+    copy-on-write reflink. If the underlying platform does not support
+    copy-on-write, then a fallback copy mechanism is used.</td>
+  </tr>
+  <tr>
+    <td><code>COPYFILE_FICLONE_FORCE</code></td>
+    <td>If present, the copy operation will attempt to create a
+    copy-on-write reflink. If the underlying platform does not support
+    copy-on-write, then the operation will fail with an error.</td>
   </tr>
 </table>
 
@@ -4596,6 +4716,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.access()`]: #fs_fs_access_path_mode_callback
 [`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
+[`fs.copyFile()`]: #fs_fs_copyfile_src_dest_flags_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback

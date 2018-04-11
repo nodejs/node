@@ -34,7 +34,7 @@ Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable(Isolate* isolate) {
 
 int HandlerTableBuilder::NewHandlerEntry() {
   int handler_id = static_cast<int>(entries_.size());
-  Entry entry = {0, 0, 0, Register(), HandlerTable::UNCAUGHT};
+  Entry entry = {0, 0, 0, Register::invalid_value(), HandlerTable::UNCAUGHT};
   entries_.push_back(entry);
   return handler_id;
 }

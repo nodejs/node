@@ -64,9 +64,7 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
    * @deprecated ICU 60 use createEmptyInstance instead
    * @see createEmptyInstance()
    */
-  static inline FilteredBreakIteratorBuilder *createInstance(UErrorCode &status) {
-    return createEmptyInstance(status);
-  }
+  static FilteredBreakIteratorBuilder *createInstance(UErrorCode &status);
 #endif  /* U_HIDE_DEPRECATED_API */
 
 #ifndef U_HIDE_DRAFT_API
@@ -105,7 +103,6 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
    */
   virtual UBool unsuppressBreakAfter(const UnicodeString& string, UErrorCode& status) = 0;
 
-#ifndef U_HIDE_DEPRECATED_API
   /**
    * This function has been deprecated in favor of wrapIteratorWithFilter()
    * The behavior is identical.
@@ -116,7 +113,6 @@ class U_COMMON_API FilteredBreakIteratorBuilder : public UObject {
    * @see wrapBreakIteratorWithFilter()
    */
   virtual BreakIterator *build(BreakIterator* adoptBreakIterator, UErrorCode& status) = 0;
-#endif  /* U_HIDE_DEPRECATED_API */
 
 #ifndef U_HIDE_DRAFT_API
   /**

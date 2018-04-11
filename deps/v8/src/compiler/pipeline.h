@@ -76,7 +76,7 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(
+  V8_EXPORT_PRIVATE static Handle<Code> GenerateCodeForTesting(
       CompilationInfo* info, Isolate* isolate, CallDescriptor* call_descriptor,
       Graph* graph, Schedule* schedule = nullptr,
       SourcePositionTable* source_positions = nullptr);

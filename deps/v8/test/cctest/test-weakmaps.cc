@@ -42,21 +42,6 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
 }
 
-
-static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
-  Handle<Map> map =
-      isolate->factory()->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
-  Handle<JSObject> weakmap_obj = isolate->factory()->NewJSObjectFromMap(map);
-  Handle<JSWeakMap> weakmap(JSWeakMap::cast(*weakmap_obj));
-  // Do not leak handles for the hash table, it would make entries strong.
-  {
-    HandleScope scope(isolate);
-    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
-    weakmap->set_table(*table);
-  }
-  return weakmap;
-}
-
 static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   std::pair<v8::Persistent<v8::Value>*, int>* p =
@@ -74,7 +59,7 @@ TEST(Weakness) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
+  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
   GlobalHandles* global_handles = isolate->global_handles();
 
   // Keep global reference to the key.
@@ -127,7 +112,7 @@ TEST(Shrinking) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
+  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Check initial capacity.
   CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->Capacity());
@@ -174,7 +159,7 @@ TEST(Regress2060a) {
   Handle<JSFunction> function =
       factory->NewFunctionForTest(factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
-  Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
+  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
@@ -226,7 +211,7 @@ TEST(Regress2060b) {
     CHECK(!heap->InNewSpace(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
-  Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
+  Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
   for (int i = 0; i < 32; i++) {
     Handle<Smi> smi(Smi::FromInt(i), isolate);
     int32_t hash = keys[i]->GetOrCreateHash(isolate)->value();
@@ -250,7 +235,7 @@ TEST(Regress399527) {
   Heap* heap = isolate->heap();
   {
     HandleScope scope(isolate);
-    AllocateJSWeakMap(isolate);
+    isolate->factory()->NewJSWeakMap();
     heap::SimulateIncrementalMarking(heap);
   }
   // The weak map is marked black here but leaving the handle scope will make

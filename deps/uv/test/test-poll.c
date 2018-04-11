@@ -134,7 +134,10 @@ static void close_socket(uv_os_sock_t sock) {
 #else
   r = close(sock);
 #endif
-  ASSERT(r == 0);
+  /* On FreeBSD close() can fail with ECONNRESET if the socket was shutdown by
+   * the peer before all pending data was delivered.
+   */
+  ASSERT(r == 0 || errno == ECONNRESET);
 }
 
 

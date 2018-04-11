@@ -13,7 +13,7 @@ extern uintptr_t
 extern uintptr_t
     nodedbg_offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue;
 extern int debug_symbols_generated;
-extern int nodedbg_const_Environment__kContextEmbedderDataIndex__int;
+extern int nodedbg_const_ContextEmbedderIndex__kEnvironment__int;
 extern uintptr_t
     nodedbg_offset_Environment_HandleWrapQueue__head___ListNode_HandleWrap;
 extern uintptr_t
@@ -56,10 +56,10 @@ class TestReqWrap : public node::ReqWrap<uv_req_t> {
                                 node::AsyncWrap::PROVIDER_TIMERWRAP) {}
 };
 
-TEST_F(DebugSymbolsTest, ContextEmbedderDataIndex) {
-  int kContextEmbedderDataIndex = node::Environment::kContextEmbedderDataIndex;
-  EXPECT_EQ(nodedbg_const_Environment__kContextEmbedderDataIndex__int,
-            kContextEmbedderDataIndex);
+TEST_F(DebugSymbolsTest, ContextEmbedderEnvironmentIndex) {
+  int kEnvironmentIndex = node::ContextEmbedderIndex::kEnvironment;
+  EXPECT_EQ(nodedbg_const_ContextEmbedderIndex__kEnvironment__int,
+            kEnvironmentIndex);
 }
 
 TEST_F(DebugSymbolsTest, ExternalStringDataOffset) {

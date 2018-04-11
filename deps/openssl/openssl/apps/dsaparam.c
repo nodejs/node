@@ -1,72 +1,17 @@
-/* apps/dsaparam.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
- *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
- */
-
-#include <openssl/opensslconf.h> /* for OPENSSL_NO_DSA */
 /*
- * Until the key-gen callbacks are modified to use newer prototypes, we allow
- * deprecated functions for openssl-internal code
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-#ifdef OPENSSL_NO_DEPRECATED
-# undef OPENSSL_NO_DEPRECATED
-#endif
 
-#ifndef OPENSSL_NO_DSA
-# include <assert.h>
+#include <openssl/opensslconf.h>
+#ifdef OPENSSL_NO_DSA
+NON_EMPTY_TRANSLATION_UNIT
+#else
+
 # include <stdio.h>
 # include <stdlib.h>
 # include <time.h>
@@ -79,24 +24,6 @@
 # include <openssl/x509.h>
 # include <openssl/pem.h>
 
-# undef PROG
-# define PROG    dsaparam_main
-
-/*-
- * -inform arg  - input format - default PEM (DER or PEM)
- * -outform arg - output format - default PEM
- * -in arg      - input file - default stdin
- * -out arg     - output file - default stdout
- * -noout
- * -text
- * -C
- * -noout
- * -genkey
- *  #ifdef GENCB_TEST
- * -timebomb n  - interrupt keygen after <n> seconds
- *  #endif
- */
-
 # ifdef GENCB_TEST
 
 static int stop_keygen_flag = 0;
@@ -108,175 +35,138 @@ static void timebomb_sigalarm(int foo)
 
 # endif
 
-static int MS_CALLBACK dsa_cb(int p, int n, BN_GENCB *cb);
+static int dsa_cb(int p, int n, BN_GENCB *cb);
 
-int MAIN(int, char **);
+typedef enum OPTION_choice {
+    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
+    OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_TEXT, OPT_C,
+    OPT_NOOUT, OPT_GENKEY, OPT_RAND, OPT_ENGINE,
+    OPT_TIMEBOMB
+} OPTION_CHOICE;
 
-int MAIN(int argc, char **argv)
+OPTIONS dsaparam_options[] = {
+    {"help", OPT_HELP, '-', "Display this summary"},
+    {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
+    {"in", OPT_IN, '<', "Input file"},
+    {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
+    {"out", OPT_OUT, '>', "Output file"},
+    {"text", OPT_TEXT, '-', "Print as text"},
+    {"C", OPT_C, '-', "Output C code"},
+    {"noout", OPT_NOOUT, '-', "No output"},
+    {"genkey", OPT_GENKEY, '-', "Generate a DSA key"},
+    {"rand", OPT_RAND, 's', "Files to use for random number input"},
+# ifdef GENCB_TEST
+    {"timebomb", OPT_TIMEBOMB, 'p', "Interrupt keygen after 'pnum' seconds"},
+# endif
+# ifndef OPENSSL_NO_ENGINE
+    {"engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device"},
+# endif
+    {NULL}
+};
+
+int dsaparam_main(int argc, char **argv)
 {
-    DSA *dsa = NULL;
-    int i, badops = 0, text = 0;
-    BIO *in = NULL, *out = NULL;
-    int informat, outformat, noout = 0, C = 0, ret = 1;
-    char *infile, *outfile, *prog, *inrand = NULL;
-    int numbits = -1, num, genkey = 0;
-    int need_rand = 0;
-    char *engine = NULL;
     ENGINE *e = NULL;
+    DSA *dsa = NULL;
+    BIO *in = NULL, *out = NULL;
+    BN_GENCB *cb = NULL;
+    int numbits = -1, num = 0, genkey = 0, need_rand = 0;
+    int informat = FORMAT_PEM, outformat = FORMAT_PEM, noout = 0, C = 0;
+    int ret = 1, i, text = 0, private = 0;
 # ifdef GENCB_TEST
     int timebomb = 0;
 # endif
+    char *infile = NULL, *outfile = NULL, *prog, *inrand = NULL;
+    OPTION_CHOICE o;
 
-    apps_startup();
-
-    if (bio_err == NULL)
-        if ((bio_err = BIO_new(BIO_s_file())) != NULL)
-            BIO_set_fp(bio_err, stderr, BIO_NOCLOSE | BIO_FP_TEXT);
-
-    if (!load_config(bio_err, NULL))
-        goto end;
-
-    infile = NULL;
-    outfile = NULL;
-    informat = FORMAT_PEM;
-    outformat = FORMAT_PEM;
-
-    prog = argv[0];
-    argc--;
-    argv++;
-    while (argc >= 1) {
-        if (strcmp(*argv, "-inform") == 0) {
-            if (--argc < 1)
-                goto bad;
-            informat = str2fmt(*(++argv));
-        } else if (strcmp(*argv, "-outform") == 0) {
-            if (--argc < 1)
-                goto bad;
-            outformat = str2fmt(*(++argv));
-        } else if (strcmp(*argv, "-in") == 0) {
-            if (--argc < 1)
-                goto bad;
-            infile = *(++argv);
-        } else if (strcmp(*argv, "-out") == 0) {
-            if (--argc < 1)
-                goto bad;
-            outfile = *(++argv);
-        }
-# ifndef OPENSSL_NO_ENGINE
-        else if (strcmp(*argv, "-engine") == 0) {
-            if (--argc < 1)
-                goto bad;
-            engine = *(++argv);
-        }
-# endif
+    prog = opt_init(argc, argv, dsaparam_options);
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_EOF:
+        case OPT_ERR:
+ opthelp:
+            BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
+            goto end;
+        case OPT_HELP:
+            opt_help(dsaparam_options);
+            ret = 0;
+            goto end;
+        case OPT_INFORM:
+            if (!opt_format(opt_arg(), OPT_FMT_PEMDER, &informat))
+                goto opthelp;
+            break;
+        case OPT_IN:
+            infile = opt_arg();
+            break;
+        case OPT_OUTFORM:
+            if (!opt_format(opt_arg(), OPT_FMT_PEMDER, &outformat))
+                goto opthelp;
+            break;
+        case OPT_OUT:
+            outfile = opt_arg();
+            break;
+        case OPT_ENGINE:
+            e = setup_engine(opt_arg(), 0);
+            break;
+        case OPT_TIMEBOMB:
 # ifdef GENCB_TEST
-        else if (strcmp(*argv, "-timebomb") == 0) {
-            if (--argc < 1)
-                goto bad;
-            timebomb = atoi(*(++argv));
-        }
+            timebomb = atoi(opt_arg());
+            break;
 # endif
-        else if (strcmp(*argv, "-text") == 0)
+        case OPT_TEXT:
             text = 1;
-        else if (strcmp(*argv, "-C") == 0)
+            break;
+        case OPT_C:
             C = 1;
-        else if (strcmp(*argv, "-genkey") == 0) {
-            genkey = 1;
+            break;
+        case OPT_GENKEY:
+            genkey = need_rand = 1;
+            break;
+        case OPT_RAND:
+            inrand = opt_arg();
             need_rand = 1;
-        } else if (strcmp(*argv, "-rand") == 0) {
-            if (--argc < 1)
-                goto bad;
-            inrand = *(++argv);
-            need_rand = 1;
-        } else if (strcmp(*argv, "-noout") == 0)
+            break;
+        case OPT_NOOUT:
             noout = 1;
-        else if (sscanf(*argv, "%d", &num) == 1) {
-            /* generate a key */
-            numbits = num;
-            need_rand = 1;
-        } else {
-            BIO_printf(bio_err, "unknown option %s\n", *argv);
-            badops = 1;
             break;
         }
-        argc--;
-        argv++;
     }
+    argc = opt_num_rest();
+    argv = opt_rest();
 
-    if (badops) {
- bad:
-        BIO_printf(bio_err, "%s [options] [bits] <infile >outfile\n", prog);
-        BIO_printf(bio_err, "where options are\n");
-        BIO_printf(bio_err, " -inform arg   input format - DER or PEM\n");
-        BIO_printf(bio_err, " -outform arg  output format - DER or PEM\n");
-        BIO_printf(bio_err, " -in arg       input file\n");
-        BIO_printf(bio_err, " -out arg      output file\n");
-        BIO_printf(bio_err, " -text         print as text\n");
-        BIO_printf(bio_err, " -C            Output C code\n");
-        BIO_printf(bio_err, " -noout        no output\n");
-        BIO_printf(bio_err, " -genkey       generate a DSA key\n");
-        BIO_printf(bio_err,
-                   " -rand         files to use for random number input\n");
-# ifndef OPENSSL_NO_ENGINE
-        BIO_printf(bio_err,
-                   " -engine e     use engine e, possibly a hardware device.\n");
-# endif
-# ifdef GENCB_TEST
-        BIO_printf(bio_err,
-                   " -timebomb n   interrupt keygen after <n> seconds\n");
-# endif
-        BIO_printf(bio_err,
-                   " number        number of bits to use for generating private key\n");
-        goto end;
-    }
-
-    ERR_load_crypto_strings();
-
-    in = BIO_new(BIO_s_file());
-    out = BIO_new(BIO_s_file());
-    if ((in == NULL) || (out == NULL)) {
-        ERR_print_errors(bio_err);
-        goto end;
-    }
-
-    if (infile == NULL)
-        BIO_set_fp(in, stdin, BIO_NOCLOSE);
-    else {
-        if (BIO_read_filename(in, infile) <= 0) {
-            perror(infile);
+    if (argc == 1) {
+        if (!opt_int(argv[0], &num) || num < 0)
             goto end;
-        }
+        /* generate a key */
+        numbits = num;
+        need_rand = 1;
     }
-    if (outfile == NULL) {
-        BIO_set_fp(out, stdout, BIO_NOCLOSE);
-# ifdef OPENSSL_SYS_VMS
-        {
-            BIO *tmpbio = BIO_new(BIO_f_linebuffer());
-            out = BIO_push(tmpbio, out);
-        }
-# endif
-    } else {
-        if (BIO_write_filename(out, outfile) <= 0) {
-            perror(outfile);
-            goto end;
-        }
-    }
+    private = genkey ? 1 : 0;
 
-    e = setup_engine(bio_err, engine, 0);
+    in = bio_open_default(infile, 'r', informat);
+    if (in == NULL)
+        goto end;
+    out = bio_open_owner(outfile, outformat, private);
+    if (out == NULL)
+        goto end;
 
     if (need_rand) {
-        app_RAND_load_file(NULL, bio_err, (inrand != NULL));
+        app_RAND_load_file(NULL, (inrand != NULL));
         if (inrand != NULL)
             BIO_printf(bio_err, "%ld semi-random bytes loaded\n",
                        app_RAND_load_files(inrand));
     }
 
     if (numbits > 0) {
-        BN_GENCB cb;
-        BN_GENCB_set(&cb, dsa_cb, bio_err);
+        cb = BN_GENCB_new();
+        if (cb == NULL) {
+            BIO_printf(bio_err, "Error allocating BN_GENCB object\n");
+            goto end;
+        }
+        BN_GENCB_set(cb, dsa_cb, bio_err);
         assert(need_rand);
         dsa = DSA_new();
-        if (!dsa) {
+        if (dsa == NULL) {
             BIO_printf(bio_err, "Error allocating DSA object\n");
             goto end;
         }
@@ -298,7 +188,7 @@ int MAIN(int argc, char **argv)
             alarm(timebomb);
         }
 # endif
-        if (!DSA_generate_parameters_ex(dsa, num, NULL, 0, NULL, NULL, &cb)) {
+        if (!DSA_generate_parameters_ex(dsa, num, NULL, 0, NULL, NULL, cb)) {
 # ifdef GENCB_TEST
             if (stop_keygen_flag) {
                 BIO_printf(bio_err, "DSA key generation time-stopped\n");
@@ -313,12 +203,8 @@ int MAIN(int argc, char **argv)
         }
     } else if (informat == FORMAT_ASN1)
         dsa = d2i_DSAparams_bio(in, NULL);
-    else if (informat == FORMAT_PEM)
+    else
         dsa = PEM_read_bio_DSAparams(in, NULL, NULL, NULL);
-    else {
-        BIO_printf(bio_err, "bad input format specified\n");
-        goto end;
-    }
     if (dsa == NULL) {
         BIO_printf(bio_err, "unable to load DSA parameters\n");
         ERR_print_errors(bio_err);
@@ -330,67 +216,46 @@ int MAIN(int argc, char **argv)
     }
 
     if (C) {
+        const BIGNUM *p = NULL, *q = NULL, *g = NULL;
         unsigned char *data;
-        int l, len, bits_p;
+        int len, bits_p;
 
-        len = BN_num_bytes(dsa->p);
-        bits_p = BN_num_bits(dsa->p);
-        data = (unsigned char *)OPENSSL_malloc(len + 20);
-        if (data == NULL) {
-            perror("OPENSSL_malloc");
-            goto end;
-        }
-        l = BN_bn2bin(dsa->p, data);
-        printf("static unsigned char dsa%d_p[]={", bits_p);
-        for (i = 0; i < l; i++) {
-            if ((i % 12) == 0)
-                printf("\n\t");
-            printf("0x%02X,", data[i]);
-        }
-        printf("\n\t};\n");
+        DSA_get0_pqg(dsa, &p, &q, &g);
+        len = BN_num_bytes(p);
+        bits_p = BN_num_bits(p);
 
-        l = BN_bn2bin(dsa->q, data);
-        printf("static unsigned char dsa%d_q[]={", bits_p);
-        for (i = 0; i < l; i++) {
-            if ((i % 12) == 0)
-                printf("\n\t");
-            printf("0x%02X,", data[i]);
-        }
-        printf("\n\t};\n");
+        data = app_malloc(len + 20, "BN space");
 
-        l = BN_bn2bin(dsa->g, data);
-        printf("static unsigned char dsa%d_g[]={", bits_p);
-        for (i = 0; i < l; i++) {
-            if ((i % 12) == 0)
-                printf("\n\t");
-            printf("0x%02X,", data[i]);
-        }
-        printf("\n\t};\n\n");
-
-        printf("DSA *get_dsa%d()\n\t{\n", bits_p);
-        printf("\tDSA *dsa;\n\n");
-        printf("\tif ((dsa=DSA_new()) == NULL) return(NULL);\n");
-        printf("\tdsa->p=BN_bin2bn(dsa%d_p,sizeof(dsa%d_p),NULL);\n",
+        BIO_printf(bio_out, "DSA *get_dsa%d()\n{\n", bits_p);
+        print_bignum_var(bio_out, p, "dsap", len, data);
+        print_bignum_var(bio_out, q, "dsaq", len, data);
+        print_bignum_var(bio_out, g, "dsag", len, data);
+        BIO_printf(bio_out, "    DSA *dsa = DSA_new();\n"
+                            "\n");
+        BIO_printf(bio_out, "    if (dsa == NULL)\n"
+                            "        return NULL;\n");
+        BIO_printf(bio_out, "    dsa->p = BN_bin2bn(dsap_%d, sizeof(dsap_%d), NULL);\n",
                bits_p, bits_p);
-        printf("\tdsa->q=BN_bin2bn(dsa%d_q,sizeof(dsa%d_q),NULL);\n",
+        BIO_printf(bio_out, "    dsa->q = BN_bin2bn(dsaq_%d, sizeof(dsaq_%d), NULL);\n",
                bits_p, bits_p);
-        printf("\tdsa->g=BN_bin2bn(dsa%d_g,sizeof(dsa%d_g),NULL);\n",
+        BIO_printf(bio_out, "    dsa->g = BN_bin2bn(dsag_%d, sizeof(dsag_%d), NULL);\n",
                bits_p, bits_p);
-        printf
-            ("\tif ((dsa->p == NULL) || (dsa->q == NULL) || (dsa->g == NULL))\n");
-        printf("\t\t{ DSA_free(dsa); return(NULL); }\n");
-        printf("\treturn(dsa);\n\t}\n");
+        BIO_printf(bio_out, "    if (!dsa->p || !dsa->q || !dsa->g) {\n"
+                            "        DSA_free(dsa);\n"
+                            "        return NULL;\n"
+                            "    }\n"
+                            "    return(dsa);\n}\n");
+        OPENSSL_free(data);
     }
+
+    if (outformat == FORMAT_ASN1 && genkey)
+        noout = 1;
 
     if (!noout) {
         if (outformat == FORMAT_ASN1)
             i = i2d_DSAparams_bio(out, dsa);
-        else if (outformat == FORMAT_PEM)
+        else
             i = PEM_write_bio_DSAparams(out, dsa);
-        else {
-            BIO_printf(bio_err, "bad output format specified for outfile\n");
-            goto end;
-        }
         if (!i) {
             BIO_printf(bio_err, "unable to write DSA parameters\n");
             ERR_print_errors(bio_err);
@@ -408,34 +273,27 @@ int MAIN(int argc, char **argv)
             DSA_free(dsakey);
             goto end;
         }
+        assert(private);
         if (outformat == FORMAT_ASN1)
             i = i2d_DSAPrivateKey_bio(out, dsakey);
-        else if (outformat == FORMAT_PEM)
+        else
             i = PEM_write_bio_DSAPrivateKey(out, dsakey, NULL, NULL, 0, NULL,
                                             NULL);
-        else {
-            BIO_printf(bio_err, "bad output format specified for outfile\n");
-            DSA_free(dsakey);
-            goto end;
-        }
         DSA_free(dsakey);
     }
     if (need_rand)
-        app_RAND_write_file(NULL, bio_err);
+        app_RAND_write_file(NULL);
     ret = 0;
  end:
-    if (in != NULL)
-        BIO_free(in);
-    if (out != NULL)
-        BIO_free_all(out);
-    if (dsa != NULL)
-        DSA_free(dsa);
+    BN_GENCB_free(cb);
+    BIO_free(in);
+    BIO_free_all(out);
+    DSA_free(dsa);
     release_engine(e);
-    apps_shutdown();
-    OPENSSL_EXIT(ret);
+    return (ret);
 }
 
-static int MS_CALLBACK dsa_cb(int p, int n, BN_GENCB *cb)
+static int dsa_cb(int p, int n, BN_GENCB *cb)
 {
     char c = '*';
 
@@ -447,21 +305,12 @@ static int MS_CALLBACK dsa_cb(int p, int n, BN_GENCB *cb)
         c = '*';
     if (p == 3)
         c = '\n';
-    BIO_write(cb->arg, &c, 1);
-    (void)BIO_flush(cb->arg);
-# ifdef LINT
-    p = n;
-# endif
+    BIO_write(BN_GENCB_get_arg(cb), &c, 1);
+    (void)BIO_flush(BN_GENCB_get_arg(cb));
 # ifdef GENCB_TEST
     if (stop_keygen_flag)
         return 0;
 # endif
     return 1;
 }
-#else                           /* !OPENSSL_NO_DSA */
-
-# if PEDANTIC
-static void *dummy = &dummy;
-# endif
-
 #endif

@@ -25,10 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
+// Flags: --expose-gc
 // Test whether scripts compiled after setting the break point are
 // updated correctly.
 
+gc();
 Debug = debug.Debug;
 
 var break_count = 0;

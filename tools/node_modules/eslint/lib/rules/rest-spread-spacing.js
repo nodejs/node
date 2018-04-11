@@ -47,9 +47,15 @@ module.exports = {
             switch (node.type) {
                 case "SpreadElement":
                     type = "spread";
+                    if (node.parent.type === "ObjectExpression") {
+                        type += " property";
+                    }
                     break;
                 case "RestElement":
                     type = "rest";
+                    if (node.parent.type === "ObjectPattern") {
+                        type += " property";
+                    }
                     break;
                 case "ExperimentalSpreadProperty":
                     type = "spread property";

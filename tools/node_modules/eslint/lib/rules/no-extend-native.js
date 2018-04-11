@@ -45,7 +45,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpected: "{{builtin}} prototype is read only, properties should not be added."
+        }
     },
 
     create(context) {
@@ -67,7 +71,7 @@ module.exports = {
         function reportNode(node, builtin) {
             context.report({
                 node,
-                message: "{{builtin}} prototype is read only, properties should not be added.",
+                messageId: "unexpected",
                 data: {
                     builtin
                 }

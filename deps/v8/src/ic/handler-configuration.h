@@ -9,14 +9,25 @@
 #include "src/field-index.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/data-handler.h"
 #include "src/utils.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
 
-// A set of bit fields representing Smi handlers for loads.
-class LoadHandler {
+// A set of bit fields representing Smi handlers for loads and a HeapObject
+// that represents load handlers that can't be encoded in a Smi.
+// TODO(ishell): move to load-handler.h
+class LoadHandler final : public DataHandler {
  public:
+  DECL_CAST(LoadHandler)
+
+  DECL_PRINTER(LoadHandler)
+  DECL_VERIFIER(LoadHandler)
+
   enum Kind {
     kElement,
     kIndexedString,
@@ -72,7 +83,8 @@ class LoadHandler {
   //
   // Encoding when KindBits contains kElement or kIndexedString.
   //
-  class AllowOutOfBoundsBits : public BitField<bool, KindBits::kNext, 1> {};
+  class AllowOutOfBoundsBits
+      : public BitField<bool, LookupOnReceiverBits::kNext, 1> {};
 
   //
   // Encoding when KindBits contains kElement.
@@ -88,23 +100,9 @@ class LoadHandler {
   //
   // Encoding when KindBits contains kModuleExport.
   //
-  class ExportsIndexBits : public BitField<unsigned, KindBits::kNext,
-                                           kSmiValueSize - KindBits::kNext> {};
-
-  // The layout of an Tuple3 handler representing a load of a field from
-  // prototype when prototype chain checks do not include non-existing lookups
-  // or access checks.
-  static const int kDataOffset = Tuple3::kValue1Offset;
-  static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
-  static const int kValidityCellOffset = Tuple3::kValue3Offset;
-
-  // The layout of an array handler representing a load of a field from
-  // prototype when prototype chain checks include non-existing lookups and
-  // access checks.
-  static const int kSmiHandlerIndex = 0;
-  static const int kValidityCellIndex = 1;
-  static const int kDataIndex = 2;
-  static const int kFirstPrototypeIndex = 3;
+  class ExportsIndexBits
+      : public BitField<unsigned, LookupOnReceiverBits::kNext,
+                        kSmiValueSize - LookupOnReceiverBits::kNext> {};
 
   // Decodes kind from Smi-handler.
   static inline Kind GetHandlerKind(Smi* smi_handler);
@@ -149,7 +147,7 @@ class LoadHandler {
   // needed (e.g., for "nonexistent"), null_value() may be passed in.
   static Handle<Object> LoadFullChain(Isolate* isolate,
                                       Handle<Map> receiver_map,
-                                      Handle<Object> holder, Handle<Name> name,
+                                      Handle<Object> holder,
                                       Handle<Smi> smi_handler);
 
   // Creates a data handler that represents a prototype chain check followed
@@ -157,8 +155,9 @@ class LoadHandler {
   // Can be used only if GetPrototypeCheckCount() returns non negative value.
   static Handle<Object> LoadFromPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-      Handle<Name> name, Handle<Smi> smi_handler,
-      MaybeHandle<Object> maybe_data = MaybeHandle<Object>());
+      Handle<Smi> smi_handler,
+      MaybeHandle<Object> maybe_data1 = MaybeHandle<Object>(),
+      MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>());
 
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
@@ -177,22 +176,18 @@ class LoadHandler {
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
   static KeyedAccessLoadMode GetKeyedAccessLoadMode(Object* handler);
-
- private:
-  // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
-  // check is a part of a prototype chain check.
-  static inline Handle<Smi> EnableAccessCheckOnReceiver(
-      Isolate* isolate, Handle<Smi> smi_handler);
-
-  // Sets LookupOnReceiverBits in given Smi-handler. The receiver
-  // check is a part of a prototype chain check.
-  static inline Handle<Smi> EnableLookupOnReceiver(Isolate* isolate,
-                                                   Handle<Smi> smi_handler);
 };
 
-// A set of bit fields representing Smi handlers for stores.
-class StoreHandler {
+// A set of bit fields representing Smi handlers for stores and a HeapObject
+// that represents store handlers that can't be encoded in a Smi.
+// TODO(ishell): move to store-handler.h
+class StoreHandler final : public DataHandler {
  public:
+  DECL_CAST(StoreHandler)
+
+  DECL_PRINTER(StoreHandler)
+  DECL_VERIFIER(StoreHandler)
+
   enum Kind {
     kElement,
     kField,
@@ -213,21 +208,24 @@ class StoreHandler {
 
   enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
 
-  static inline bool IsHandler(Object* maybe_handler);
-
   // Applicable to kGlobalProxy, kProxy kinds.
 
   // Defines whether access rights check should be done on receiver object.
   class DoAccessCheckOnReceiverBits
       : public BitField<bool, KindBits::kNext, 1> {};
 
+  // Defines whether a lookup should be done on receiver object before
+  // proceeding to the prototype chain. Applicable to named property kinds only
+  // when storing through prototype chain. Ignored when storing to holder.
+  class LookupOnReceiverBits
+      : public BitField<bool, DoAccessCheckOnReceiverBits::kNext, 1> {};
+
   // Applicable to kField, kTransitionToField and kTransitionToConstant
   // kinds.
 
   // Index of a value entry in the descriptor array.
-  class DescriptorBits
-      : public BitField<unsigned, DoAccessCheckOnReceiverBits::kNext,
-                        kDescriptorIndexBitCount> {};
+  class DescriptorBits : public BitField<unsigned, LookupOnReceiverBits::kNext,
+                                         kDescriptorIndexBitCount> {};
   //
   // Encoding when KindBits contains kTransitionToConstant.
   //
@@ -249,23 +247,9 @@ class StoreHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
-  // The layout of an Tuple3 handler representing a transitioning store
-  // when prototype chain checks do not include non-existing lookups or access
-  // checks.
-  static const int kDataOffset = Tuple3::kValue1Offset;
-  static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
-  static const int kValidityCellOffset = Tuple3::kValue3Offset;
-
   static inline WeakCell* GetTransitionCell(Object* handler);
   static Object* ValidHandlerOrNull(Object* handler, Name* name,
                                     Handle<Map>* out_transition);
-
-  // The layout of an array handler representing a transitioning store
-  // when prototype chain checks include non-existing lookups and access checks.
-  static const int kSmiHandlerIndex = 0;
-  static const int kValidityCellIndex = 1;
-  static const int kDataIndex = 2;
-  static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
@@ -289,8 +273,9 @@ class StoreHandler {
 
   static Handle<Object> StoreThroughPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-      Handle<Name> name, Handle<Smi> smi_handler,
-      MaybeHandle<Object> data = MaybeHandle<Object>());
+      Handle<Smi> smi_handler,
+      MaybeHandle<Object> maybe_data1 = MaybeHandle<Object>(),
+      MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>());
 
   static Handle<Object> StoreElementTransition(Isolate* isolate,
                                                Handle<Map> receiver_map,
@@ -299,8 +284,7 @@ class StoreHandler {
 
   static Handle<Object> StoreProxy(Isolate* isolate, Handle<Map> receiver_map,
                                    Handle<JSProxy> proxy,
-                                   Handle<JSReceiver> receiver,
-                                   Handle<Name> name);
+                                   Handle<JSReceiver> receiver);
 
   // Creates a handler for storing a property to the property cell of a global
   // object.
@@ -317,11 +301,6 @@ class StoreHandler {
   static inline Handle<Smi> StoreProxy(Isolate* isolate);
 
  private:
-  // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
-  // check is a part of a prototype chain check.
-  static inline Handle<Smi> EnableAccessCheckOnReceiver(
-      Isolate* isolate, Handle<Smi> smi_handler);
-
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
                                        int descriptor, FieldIndex field_index,
                                        Representation representation,
@@ -341,5 +320,7 @@ class StoreHandler {
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_IC_HANDLER_CONFIGURATION_H_

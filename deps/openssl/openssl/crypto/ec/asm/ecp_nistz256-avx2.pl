@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 ##############################################################################
 #                                                                            #
@@ -149,7 +156,7 @@ $code.=<<___;
 ___
 
 {
-# This function recieves a pointer to an array of four affine points
+# This function receives a pointer to an array of four affine points
 # (X, Y, <1>) and rearanges the data for AVX2 execution, while
 # converting it to 2^29 radix redundant form
 
@@ -301,7 +308,7 @@ ___
 }
 {
 ################################################################################
-# This function recieves a pointer to an array of four AVX2 formatted points
+# This function receives a pointer to an array of four AVX2 formatted points
 # (X, Y, Z) convert the data to normal representation, and rearanges the data
 
 my ($D0,$D1,$D2,$D3, $D4,$D5,$D6,$D7, $D8)=map("%ymm$_",(0..8));
@@ -1909,7 +1916,7 @@ ___
 }
 {
 ################################################################################
-# void ecp_nistz256_avx2_multi_select_w7(void* RESULT, void *in,
+# void ecp_nistz256_avx2_multi_gather_w7(void* RESULT, void *in,
 #			    int index0, int index1, int index2, int index3);
 ################################################################################
 
@@ -1919,10 +1926,10 @@ my ($R0a,$R0b,$R1a,$R1b,$R2a,$R2b,$R3a,$R3b)=map("%ymm$_",(4..11));
 my ($M0,$T0,$T1,$TMP0)=map("%ymm$_",(12..15));
 
 $code.=<<___;
-.globl	ecp_nistz256_avx2_multi_select_w7
-.type	ecp_nistz256_avx2_multi_select_w7,\@function,6
+.globl	ecp_nistz256_avx2_multi_gather_w7
+.type	ecp_nistz256_avx2_multi_gather_w7,\@function,6
 .align	32
-ecp_nistz256_avx2_multi_select_w7:
+ecp_nistz256_avx2_multi_gather_w7:
 	vzeroupper
 ___
 $code.=<<___	if ($win64);
@@ -2036,7 +2043,7 @@ $code.=<<___	if ($win64);
 ___
 $code.=<<___;
 	ret
-.size	ecp_nistz256_avx2_multi_select_w7,.-ecp_nistz256_avx2_multi_select_w7
+.size	ecp_nistz256_avx2_multi_gather_w7,.-ecp_nistz256_avx2_multi_gather_w7
 
 .extern	OPENSSL_ia32cap_P
 .globl	ecp_nistz_avx2_eligible
@@ -2061,8 +2068,8 @@ $code.=<<___;
 .globl	ecp_nistz256_avx2_to_mont
 .globl	ecp_nistz256_avx2_from_mont
 .globl	ecp_nistz256_avx2_set1
-.globl	ecp_nistz256_avx2_multi_select_w7
-.type	ecp_nistz256_avx2_multi_select_w7,\@abi-omnipotent
+.globl	ecp_nistz256_avx2_multi_gather_w7
+.type	ecp_nistz256_avx2_multi_gather_w7,\@abi-omnipotent
 ecp_nistz256_avx2_transpose_convert:
 ecp_nistz256_avx2_convert_transpose_back:
 ecp_nistz256_avx2_point_add_affine_x4:
@@ -2070,10 +2077,10 @@ ecp_nistz256_avx2_point_add_affines_x4:
 ecp_nistz256_avx2_to_mont:
 ecp_nistz256_avx2_from_mont:
 ecp_nistz256_avx2_set1:
-ecp_nistz256_avx2_multi_select_w7:
+ecp_nistz256_avx2_multi_gather_w7:
 	.byte	0x0f,0x0b	# ud2
 	ret
-.size	ecp_nistz256_avx2_multi_select_w7,.-ecp_nistz256_avx2_multi_select_w7
+.size	ecp_nistz256_avx2_multi_gather_w7,.-ecp_nistz256_avx2_multi_gather_w7
 
 .globl	ecp_nistz_avx2_eligible
 .type	ecp_nistz_avx2_eligible,\@abi-omnipotent

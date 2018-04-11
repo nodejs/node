@@ -55,7 +55,7 @@ T_UConverter_toUnicode_UTF32_BE(UConverterToUnicodeArgs * args,
     uint32_t ch, i;
 
     /* Restore state of current sequence */
-    if (args->converter->toUnicodeStatus && myTarget < targetLimit) {
+    if (args->converter->toULength > 0 && myTarget < targetLimit) {
         i = args->converter->toULength;       /* restore # of bytes consumed */
         args->converter->toULength = 0;
 
@@ -136,7 +136,7 @@ T_UConverter_toUnicode_UTF32_BE_OFFSET_LOGIC(UConverterToUnicodeArgs * args,
     int32_t offsetNum = 0;
 
     /* Restore state of current sequence */
-    if (args->converter->toUnicodeStatus && myTarget < targetLimit) {
+    if (args->converter->toULength > 0 && myTarget < targetLimit) {
         i = args->converter->toULength;       /* restore # of bytes consumed */
         args->converter->toULength = 0;
 
@@ -517,7 +517,7 @@ T_UConverter_toUnicode_UTF32_LE(UConverterToUnicodeArgs * args,
     uint32_t ch, i;
 
     /* Restore state of current sequence */
-    if (args->converter->toUnicodeStatus && myTarget < targetLimit)
+    if (args->converter->toULength > 0 && myTarget < targetLimit)
     {
         i = args->converter->toULength;       /* restore # of bytes consumed */
         args->converter->toULength = 0;
@@ -604,7 +604,7 @@ T_UConverter_toUnicode_UTF32_LE_OFFSET_LOGIC(UConverterToUnicodeArgs * args,
     int32_t offsetNum = 0;
 
     /* Restore state of current sequence */
-    if (args->converter->toUnicodeStatus && myTarget < targetLimit)
+    if (args->converter->toULength > 0 && myTarget < targetLimit)
     {
         i = args->converter->toULength;       /* restore # of bytes consumed */
         args->converter->toULength = 0;

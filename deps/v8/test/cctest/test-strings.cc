@@ -50,8 +50,8 @@ class MyRandomNumberGenerator {
     init();
   }
 
-  void init(uint32_t seed = 0x5688c73e) {
-    static const uint32_t phi = 0x9e3779b9;
+  void init(uint32_t seed = 0x5688C73E) {
+    static const uint32_t phi = 0x9E3779B9;
     c = 362436;
     i = kQSize-1;
     Q[0] = seed;
@@ -64,7 +64,7 @@ class MyRandomNumberGenerator {
 
   uint32_t next() {
     uint64_t a = 18782;
-    uint32_t r = 0xfffffffe;
+    uint32_t r = 0xFFFFFFFE;
     i = (i + 1) & (kQSize-1);
     uint64_t t = a * Q[i] + c;
     c = (t >> 32);

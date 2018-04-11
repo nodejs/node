@@ -310,7 +310,10 @@ MaybeHandle<HandlerTable> CodeGenerator::GetHandlerTable() const {
 }
 
 Handle<Code> CodeGenerator::FinalizeCode() {
-  if (result_ != kSuccess) return Handle<Code>();
+  if (result_ != kSuccess) {
+    tasm()->AbortedCodeGeneration();
+    return Handle<Code>();
+  }
 
   // Allocate exception handler table.
   Handle<HandlerTable> table = HandlerTable::Empty(isolate());
@@ -915,9 +918,17 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
   FrameStateDescriptor* const descriptor = entry.descriptor();
   frame_state_offset++;
 
-  Translation translation(
-      &translations_, static_cast<int>(descriptor->GetFrameCount()),
-      static_cast<int>(descriptor->GetJSFrameCount()), zone());
+  int update_feedback_count = entry.feedback().IsValid() ? 1 : 0;
+  Translation translation(&translations_,
+                          static_cast<int>(descriptor->GetFrameCount()),
+                          static_cast<int>(descriptor->GetJSFrameCount()),
+                          update_feedback_count, zone());
+  if (entry.feedback().IsValid()) {
+    DeoptimizationLiteral literal =
+        DeoptimizationLiteral(entry.feedback().vector());
+    int literal_id = DefineDeoptimizationLiteral(literal);
+    translation.AddUpdateFeedback(literal_id, entry.feedback().slot().ToInt());
+  }
   InstructionOperandIterator iter(instr, frame_state_offset);
   BuildTranslationForFrameStateDescriptor(descriptor, &iter, &translation,
                                           state_combine);
@@ -1000,8 +1011,6 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
             literal = DeoptimizationLiteral(isolate()->factory()->true_value());
           }
         } else {
-          // TODO(jarin,bmeurer): We currently pass in raw pointers to the
-          // JSFunction::entry here. We should really consider fixing this.
           DCHECK(type == MachineType::Int32() ||
                  type == MachineType::Uint32() ||
                  type.representation() == MachineRepresentation::kWord32 ||
@@ -1019,8 +1028,6 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       case Constant::kInt64:
         // When pointers are 8 bytes, we can use int64 constants to represent
         // Smis.
-        // TODO(jarin,bmeurer): We currently pass in raw pointers to the
-        // JSFunction::entry here. We should really consider fixing this.
         DCHECK(type.representation() == MachineRepresentation::kWord64 ||
                type.representation() == MachineRepresentation::kTagged);
         DCHECK_EQ(8, kPointerSize);

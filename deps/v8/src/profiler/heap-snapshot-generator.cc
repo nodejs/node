@@ -1905,6 +1905,9 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 #define STRUCT_MAP_NAME(NAME, Name, name) NAME_ENTRY(name##_map)
     STRUCT_LIST(STRUCT_MAP_NAME)
 #undef STRUCT_MAP_NAME
+#define DATA_HANDLER_MAP_NAME(NAME, Name, Size, name) NAME_ENTRY(name##_map)
+    DATA_HANDLER_LIST(DATA_HANDLER_MAP_NAME)
+#undef DATA_HANDLER_MAP_NAME
 #define STRING_NAME(name, str) NAME_ENTRY(name)
     INTERNALIZED_STRING_LIST(STRING_NAME)
 #undef STRING_NAME
@@ -2732,10 +2735,10 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
 static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   static const char hex_chars[] = "0123456789ABCDEF";
   w->AddString("\\u");
-  w->AddCharacter(hex_chars[(u >> 12) & 0xf]);
-  w->AddCharacter(hex_chars[(u >> 8) & 0xf]);
-  w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
-  w->AddCharacter(hex_chars[u & 0xf]);
+  w->AddCharacter(hex_chars[(u >> 12) & 0xF]);
+  w->AddCharacter(hex_chars[(u >> 8) & 0xF]);
+  w->AddCharacter(hex_chars[(u >> 4) & 0xF]);
+  w->AddCharacter(hex_chars[u & 0xF]);
 }
 
 

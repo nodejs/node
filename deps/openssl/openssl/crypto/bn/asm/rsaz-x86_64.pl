@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 ##############################################################################
 #                                                                            #
@@ -95,7 +102,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
@@ -1767,7 +1774,7 @@ ___
 {	# __rsaz_512_mul
 	#
 	# input: %rsi - ap, %rbp - bp
-	# ouput:
+	# output:
 	# clobbers: everything
 my ($ap,$bp) = ("%rsi","%rbp");
 $code.=<<___;
@@ -1919,7 +1926,7 @@ if ($addx) {
 	# __rsaz_512_mulx
 	#
 	# input: %rsi - ap, %rbp - bp
-	# ouput:
+	# output:
 	# clobbers: everything
 my ($ap,$bp,$zero) = ("%rsi","%rbp","%rdi");
 $code.=<<___;

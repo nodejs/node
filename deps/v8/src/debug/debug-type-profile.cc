@@ -105,10 +105,7 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode) {
     }
   } else {
     DCHECK_EQ(debug::TypeProfile::Mode::kCollect, mode);
-    if (isolate->factory()->feedback_vectors_for_profiling_tools()->IsUndefined(
-            isolate)) {
-      isolate->InitializeVectorListFromHeap();
-    }
+    isolate->MaybeInitializeVectorListFromHeap();
   }
   isolate->set_type_profile_mode(mode);
 }

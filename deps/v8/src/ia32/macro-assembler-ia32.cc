@@ -489,29 +489,29 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
-    Check(equal, kOperandIsNotASmi);
+    Check(equal, AbortReason::kOperandIsNotASmi);
   }
 }
 
 void MacroAssembler::AssertFixedArray(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmiAndNotAFixedArray);
+    Check(not_equal, AbortReason::kOperandIsASmiAndNotAFixedArray);
     Push(object);
     CmpObjectType(object, FIXED_ARRAY_TYPE, object);
     Pop(object);
-    Check(equal, kOperandIsNotAFixedArray);
+    Check(equal, AbortReason::kOperandIsNotAFixedArray);
   }
 }
 
 void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmiAndNotAFunction);
+    Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
     Push(object);
     CmpObjectType(object, JS_FUNCTION_TYPE, object);
     Pop(object);
-    Check(equal, kOperandIsNotAFunction);
+    Check(equal, AbortReason::kOperandIsNotAFunction);
   }
 }
 
@@ -519,11 +519,11 @@ void MacroAssembler::AssertFunction(Register object) {
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmiAndNotABoundFunction);
+    Check(not_equal, AbortReason::kOperandIsASmiAndNotABoundFunction);
     Push(object);
     CmpObjectType(object, JS_BOUND_FUNCTION_TYPE, object);
     Pop(object);
-    Check(equal, kOperandIsNotABoundFunction);
+    Check(equal, AbortReason::kOperandIsNotABoundFunction);
   }
 }
 
@@ -531,7 +531,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
 
   test(object, Immediate(kSmiTagMask));
-  Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
+  Check(not_equal, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
   {
     Push(object);
@@ -552,7 +552,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
     Pop(object);
   }
 
-  Check(equal, kOperandIsNotAGeneratorObject);
+  Check(equal, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
@@ -563,7 +563,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
     j(equal, &done_checking);
     cmp(FieldOperand(object, 0),
         Immediate(isolate()->factory()->allocation_site_map()));
-    Assert(equal, kExpectedUndefinedOrCell);
+    Assert(equal, AbortReason::kExpectedUndefinedOrCell);
     bind(&done_checking);
   }
 }
@@ -572,7 +572,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
-    Check(not_equal, kOperandIsASmi);
+    Check(not_equal, AbortReason::kOperandIsASmi);
   }
 }
 
@@ -598,7 +598,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   }
   if (emit_debug_code()) {
     cmp(Operand(esp, 0), Immediate(isolate()->factory()->undefined_value()));
-    Check(not_equal, kCodeObjectNotProperlyPatched);
+    Check(not_equal, AbortReason::kCodeObjectNotProperlyPatched);
   }
 }
 
@@ -606,7 +606,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
         Immediate(StackFrame::TypeToMarker(type)));
-    Check(equal, kStackFrameTypesMustMatch);
+    Check(equal, AbortReason::kStackFrameTypesMustMatch);
   }
   leave();
 }
@@ -738,7 +738,8 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
                                     isolate());
   mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
-  mov(Operand::StaticVariable(context_address), Immediate(0));
+  mov(Operand::StaticVariable(context_address),
+      Immediate(Context::kInvalidContext));
 #endif
 
   // Clear the top frame.
@@ -757,8 +758,10 @@ void MacroAssembler::LeaveApiExitFrame() {
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+
+  push(Immediate(0));  // Padding.
 
   // Link the current handler as the next handler.
   ExternalReference handler_address(IsolateAddressId::kHandlerAddress,
@@ -891,7 +894,7 @@ void TurboAssembler::PrepareForTailCall(
 
   if (FLAG_debug_code) {
     cmp(esp, new_sp_reg);
-    Check(below, kStackAccessBelowStackPointer);
+    Check(below, AbortReason::kStackAccessBelowStackPointer);
   }
 
   // Copy return address from caller's frame to current frame's return address
@@ -1447,16 +1450,15 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-
-void TurboAssembler::Assert(Condition cc, BailoutReason reason) {
+void TurboAssembler::Assert(Condition cc, AbortReason reason) {
   if (emit_debug_code()) Check(cc, reason);
 }
 
-void TurboAssembler::AssertUnreachable(BailoutReason reason) {
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
   if (emit_debug_code()) Abort(reason);
 }
 
-void TurboAssembler::Check(Condition cc, BailoutReason reason) {
+void TurboAssembler::Check(Condition cc, AbortReason reason) {
   Label L;
   j(cc, &L);
   Abort(reason);
@@ -1478,9 +1480,9 @@ void TurboAssembler::CheckStackAlignment() {
   }
 }
 
-void TurboAssembler::Abort(BailoutReason reason) {
+void TurboAssembler::Abort(AbortReason reason) {
 #ifdef DEBUG
-  const char* msg = GetBailoutReason(reason);
+  const char* msg = GetAbortReason(reason);
   if (msg != nullptr) {
     RecordComment("Abort message: ");
     RecordComment(msg);

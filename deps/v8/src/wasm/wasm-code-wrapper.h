@@ -13,6 +13,7 @@ class WasmCode;
 }  // namespace wasm
 
 class Code;
+class WasmInstanceObject;
 
 // TODO(mtrofin): remove once we remove FLAG_wasm_jit_to_native
 class WasmCodeWrapper {
@@ -25,6 +26,15 @@ class WasmCodeWrapper {
   const wasm::WasmCode* GetWasmCode() const;
   bool is_null() const { return code_ptr_.wasm_code_ == nullptr; }
   bool IsCodeObject() const;
+  bool is_liftoff() const;
+
+  Vector<uint8_t> instructions() const;
+
+  Handle<WasmInstanceObject> wasm_instance() const;
+
+#ifdef ENABLE_DISASSEMBLER
+  void Disassemble(const char* name, Isolate* isolate, std::ostream& os) const;
+#endif
 
  private:
   union {

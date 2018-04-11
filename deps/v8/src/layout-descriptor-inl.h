@@ -67,10 +67,7 @@ LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
   int layout_word_index = 0;
   int layout_bit_index = 0;
 
-  if (!GetIndexes(field_index, &layout_word_index, &layout_bit_index)) {
-    CHECK(false);
-    return this;
-  }
+  CHECK(GetIndexes(field_index, &layout_word_index, &layout_bit_index));
   uint32_t layout_mask = static_cast<uint32_t>(1) << layout_bit_index;
 
   if (IsSlowLayout()) {

@@ -54,7 +54,7 @@ defined are described in [OS Constants](#os_os_constants_1).
 added: v0.3.3
 -->
 
-* Returns: {Array}
+* Returns: {Object[]}
 
 The `os.cpus()` method returns an array of objects containing information about
 each logical CPU core.
@@ -217,13 +217,13 @@ string.
 added: v0.3.3
 -->
 
-* Returns: {Array}
+* Returns: {number[]}
 
 The `os.loadavg()` method returns an array containing the 1, 5, and 15 minute
 load averages.
 
 The load average is a measure of system activity, calculated by the operating
-system and expressed as a fractional number.  As a rule of thumb, the load
+system and expressed as a fractional number. As a rule of thumb, the load
 average should ideally be less than the number of logical CPUs in the system.
 
 The load average is a UNIX-specific concept with no real equivalent on
@@ -398,11 +398,11 @@ added: v6.0.0
 * `options` {Object}
   * `encoding` {string} Character encoding used to interpret resulting strings.
     If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
-    values will be `Buffer` instances. **Default:** `'utf8'`
+    values will be `Buffer` instances. **Default:** `'utf8'`.
 * Returns: {Object}
 
 The `os.userInfo()` method returns information about the currently effective
-user -- on POSIX platforms, this is typically a subset of the password file. The
+user — on POSIX platforms, this is typically a subset of the password file. The
 returned object includes the `username`, `uid`, `gid`, `shell`, and `homedir`.
 On Windows, the `uid` and `gid` fields are `-1`, and `shell` is `null`.
 

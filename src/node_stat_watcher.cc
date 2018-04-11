@@ -30,13 +30,19 @@
 namespace node {
 
 using v8::Context;
+using v8::DontDelete;
+using v8::DontEnum;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::PropertyAttribute;
+using v8::ReadOnly;
+using v8::Signature;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 
@@ -52,6 +58,17 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   AsyncWrap::AddWrapMethods(env, t);
   env->SetProtoMethod(t, "start", StatWatcher::Start);
   env->SetProtoMethod(t, "stop", StatWatcher::Stop);
+
+  Local<FunctionTemplate> is_active_templ =
+      FunctionTemplate::New(env->isolate(),
+                            IsActive,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
+  t->PrototypeTemplate()->SetAccessorProperty(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "isActive"),
+      is_active_templ,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete | DontEnum));
 
   target->Set(statWatcherString, t->GetFunction());
 }
@@ -73,7 +90,9 @@ StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
 
 
 StatWatcher::~StatWatcher() {
-  Stop();
+  if (IsActive()) {
+    Stop();
+  }
   uv_close(reinterpret_cast<uv_handle_t*>(watcher_), Delete);
 }
 
@@ -88,10 +107,14 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  FillStatsArray(env->fs_stats_field_array(), curr);
-  FillStatsArray(env->fs_stats_field_array(), prev, 14);
-  Local<Value> arg = Integer::New(env->isolate(), status);
-  wrap->MakeCallback(env->onchange_string(), 1, &arg);
+  node::FillGlobalStatsArray(env, curr);
+  node::FillGlobalStatsArray(env, prev, env->kFsStatsFieldsLength);
+
+  Local<Value> argv[2] {
+    Integer::New(env->isolate(), status),
+    env->fs_stats_field_array()->GetJSArray()
+  };
+  wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
 }
 
 
@@ -101,32 +124,63 @@ void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   new StatWatcher(env, args.This());
 }
 
+bool StatWatcher::IsActive() {
+  return uv_is_active(reinterpret_cast<uv_handle_t*>(watcher_)) != 0;
+}
 
+void StatWatcher::IsActive(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  StatWatcher* wrap = Unwrap<StatWatcher>(args.This());
+  CHECK(wrap != nullptr);
+  args.GetReturnValue().Set(wrap->IsActive());
+}
+
+// wrap.start(filename, persistent, interval)
 void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 3);
 
-  StatWatcher* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  node::Utf8Value path(args.GetIsolate(), args[0]);
-  const bool persistent = args[1]->BooleanValue();
-  const uint32_t interval = args[2]->Uint32Value();
-
-  if (uv_is_active(reinterpret_cast<uv_handle_t*>(wrap->watcher_)))
+  StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
+  CHECK_NE(wrap, nullptr);
+  if (wrap->IsActive()) {
     return;
+  }
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  node::Utf8Value path(args.GetIsolate(), args[0]);
+  CHECK_NE(*path, nullptr);
+
+  bool persistent = true;
+  if (args[1]->IsFalse()) {
+    persistent = false;
+  }
+
+  CHECK(args[2]->IsUint32());
+  const uint32_t interval = args[2].As<Uint32>()->Value();
+
   // Safe, uv_ref/uv_unref are idempotent.
   if (persistent)
     uv_ref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
   else
     uv_unref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
-  uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
 
+  // Note that uv_fs_poll_start does not return ENOENT, we are handling
+  // mostly memory errors here.
+  const int err = uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
+  if (err != 0) {
+    args.GetReturnValue().Set(err);
+  }
   wrap->ClearWeak();
 }
 
 
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
-  StatWatcher* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
+  CHECK_NE(wrap, nullptr);
+  if (!wrap->IsActive()) {
+    return;
+  }
+
   Environment* env = wrap->env();
   Context::Scope context_scope(env->context());
   wrap->MakeCallback(env->onstop_string(), 0, nullptr);
@@ -135,8 +189,6 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
 
 
 void StatWatcher::Stop() {
-  if (!uv_is_active(reinterpret_cast<uv_handle_t*>(watcher_)))
-    return;
   uv_fs_poll_stop(watcher_);
   MakeWeak<StatWatcher>(this);
 }

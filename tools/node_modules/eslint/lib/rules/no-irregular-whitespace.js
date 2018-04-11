@@ -101,7 +101,7 @@ module.exports = {
          */
         function removeInvalidNodeErrorsInIdentifierOrLiteral(node) {
             const shouldCheckStrings = skipStrings && (typeof node.value === "string");
-            const shouldCheckRegExps = skipRegExps && (node.value instanceof RegExp);
+            const shouldCheckRegExps = skipRegExps && Boolean(node.regex);
 
             if (shouldCheckStrings || shouldCheckRegExps) {
 

@@ -20,7 +20,11 @@ module.exports = {
         schema: [{
             type: "array",
             items: { type: "string" }
-        }]
+        }],
+
+        messages: {
+            missingReturn: "Expected return with your callback function."
+        }
     },
 
     create(context) {
@@ -166,7 +170,7 @@ module.exports = {
 
                 // as long as you're the child of a function at this point you should be asked to return
                 if (findClosestParentOfType(node, ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"])) {
-                    context.report({ node, message: "Expected return with your callback function." });
+                    context.report({ node, messageId: "missingReturn" });
                 }
 
             }

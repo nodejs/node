@@ -77,6 +77,9 @@ class U_I18N_API NumberStringBuilder : public UMemory {
     int32_t insert(int32_t index, const UnicodeString &unistr, int32_t start, int32_t end, Field field,
                    UErrorCode &status);
 
+    int32_t splice(int32_t startThis, int32_t endThis,  const UnicodeString &unistr,
+                   int32_t startOther, int32_t endOther, Field field, UErrorCode& status);
+
     int32_t append(const NumberStringBuilder &other, UErrorCode &status);
 
     int32_t insert(int32_t index, const NumberStringBuilder &other, UErrorCode &status);
@@ -123,6 +126,8 @@ class U_I18N_API NumberStringBuilder : public UMemory {
     int32_t prepareForInsert(int32_t index, int32_t count, UErrorCode &status);
 
     int32_t prepareForInsertHelper(int32_t index, int32_t count, UErrorCode &status);
+
+    int32_t remove(int32_t index, int32_t count);
 };
 
 } // namespace impl

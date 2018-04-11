@@ -15,7 +15,7 @@ server.on('stream', (stream) => {
       common.expectsError({
         code: 'ERR_HTTP2_SEND_FILE',
         type: Error,
-        message: 'Only regular files can be sent'
+        message: 'Directories cannot be sent'
       })(err);
 
       stream.respond({ ':status': 404 });

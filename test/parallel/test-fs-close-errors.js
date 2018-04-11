@@ -3,24 +3,17 @@
 // This tests that the errors thrown from fs.close and fs.closeSync
 // include the desired properties
 
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const fs = require('fs');
 
-['', false, null, undefined, {}, []].forEach((i) => {
-  common.expectsError(
-    () => fs.close(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
-  common.expectsError(
-    () => fs.closeSync(i),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "fd" argument must be of type integer'
-    }
-  );
+['', false, null, undefined, {}, []].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "fd" argument must be of type number. ' +
+             `Received type ${typeof input}`
+  };
+  assert.throws(() => fs.close(input), errObj);
+  assert.throws(() => fs.closeSync(input), errObj);
 });

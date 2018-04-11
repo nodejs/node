@@ -24,7 +24,8 @@
     'node_lib_target_name%': 'node_lib',
     'node_intermediate_lib_type%': 'static_library',
     'library_files': [
-      'lib/internal/bootstrap_node.js',
+      'lib/internal/bootstrap/loaders.js',
+      'lib/internal/bootstrap/node.js',
       'lib/async_hooks.js',
       'lib/assert.js',
       'lib/buffer.js',
@@ -80,6 +81,7 @@
       'lib/zlib.js',
       'lib/internal/async_hooks.js',
       'lib/internal/buffer.js',
+      'lib/internal/cli_table.js',
       'lib/internal/child_process.js',
       'lib/internal/cluster/child.js',
       'lib/internal/cluster/master.js',
@@ -103,17 +105,18 @@
       'lib/internal/http.js',
       'lib/internal/inspector_async_hook.js',
       'lib/internal/linkedlist.js',
-      'lib/internal/loader/Loader.js',
-      'lib/internal/loader/CreateDynamicModule.js',
-      'lib/internal/loader/DefaultResolve.js',
-      'lib/internal/loader/ModuleJob.js',
-      'lib/internal/loader/ModuleMap.js',
-      'lib/internal/loader/Translators.js',
+      'lib/internal/modules/cjs/helpers.js',
+      'lib/internal/modules/cjs/loader.js',
+      'lib/internal/modules/esm/loader.js',
+      'lib/internal/modules/esm/create_dynamic_module.js',
+      'lib/internal/modules/esm/default_resolve.js',
+      'lib/internal/modules/esm/module_job.js',
+      'lib/internal/modules/esm/module_map.js',
+      'lib/internal/modules/esm/translators.js',
       'lib/internal/safe_globals.js',
       'lib/internal/net.js',
-      'lib/internal/module.js',
       'lib/internal/os.js',
-      'lib/internal/process/modules.js',
+      'lib/internal/process/esm_loader.js',
       'lib/internal/process/next_tick.js',
       'lib/internal/process/promises.js',
       'lib/internal/process/stdio.js',
@@ -130,6 +133,7 @@
       'lib/internal/timers.js',
       'lib/internal/tls.js',
       'lib/internal/trace_events_async_hooks.js',
+      'lib/internal/tty.js',
       'lib/internal/url.js',
       'lib/internal/util.js',
       'lib/internal/util/comparisons.js',
@@ -141,10 +145,11 @@
       'lib/internal/v8.js',
       'lib/internal/v8_prof_polyfill.js',
       'lib/internal/v8_prof_processor.js',
-      'lib/internal/vm/Module.js',
+      'lib/internal/stream_base_commons.js',
+      'lib/internal/vm/module.js',
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/async_iterator.js',
-      'lib/internal/streams/BufferList.js',
+      'lib/internal/streams/buffer_list.js',
       'lib/internal/streams/duplexpair.js',
       'lib/internal/streams/legacy.js',
       'lib/internal/streams/destroy.js',
@@ -201,6 +206,9 @@
       'sources': [
         'src/node_main.cc'
       ],
+      'includes': [
+        'node.gypi'
+      ],
       'include_dirs': [
         'src',
         'deps/v8/include',
@@ -218,9 +226,6 @@
         }],
         [ 'node_intermediate_lib_type=="static_library" and '
             'node_shared=="false"', {
-          'includes': [
-            'node.gypi'
-          ],
           'xcode_settings': {
             'OTHER_LDFLAGS': [
               '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
@@ -311,6 +316,7 @@
         'src/node_contextify.cc',
         'src/node_debug_options.cc',
         'src/node_domain.cc',
+        'src/node_errors.h',
         'src/node_file.cc',
         'src/node_http2.cc',
         'src/node_http_parser.cc',
@@ -320,6 +326,7 @@
         'src/node_postmortem_metadata.cc',
         'src/node_serdes.cc',
         'src/node_trace_events.cc',
+        'src/node_types.cc',
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
@@ -335,6 +342,7 @@
         'src/string_decoder.cc',
         'src/string_search.cc',
         'src/stream_base.cc',
+        'src/stream_pipe.cc',
         'src/stream_wrap.cc',
         'src/tcp_wrap.cc',
         'src/timer_wrap.cc',
@@ -391,6 +399,7 @@
         'src/string_decoder-inl.h',
         'src/stream_base.h',
         'src/stream_base-inl.h',
+        'src/stream_pipe.h',
         'src/stream_wrap.h',
         'src/tracing/agent.h',
         'src/tracing/node_trace_buffer.h',
@@ -466,22 +475,8 @@
               ],
             }],
           ],
-          'defines!': [
-            'NODE_PLATFORM="win"',
-          ],
-          'defines': [
-            'FD_SETSIZE=1024',
-            # we need to use node's preferred "win32" rather than gyp's preferred "win"
-            'NODE_PLATFORM="win32"',
-            # Stop <windows.h> from defining macros that conflict with
-            # std::min() and std::max().  We don't use <windows.h> (much)
-            # but we still inherit it from uv.h.
-            'NOMINMAX',
-            '_UNICODE=1',
-          ],
           'libraries': [ '-lpsapi.lib' ]
         }, { # POSIX
-          'defines': [ '__POSIX__' ],
           'sources': [ 'src/backtrace_posix.cc' ],
         }],
         [ 'node_use_etw=="true"', {
@@ -593,8 +588,8 @@
             'mkssldef_flags': [
               # Categories to export.
               '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
-              'NEXTPROTONEG,PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,'
-              'STDIO,TLSEXT,FP_API',
+              'PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,STDIO,TLSEXT,'
+              'FP_API',
               # Defines.
               '-DWIN32',
               # Symbols to filter from the export list.
@@ -614,8 +609,8 @@
             {
               'action_name': 'mkssldef',
               'inputs': [
-                'deps/openssl/openssl/util/libeay.num',
-                'deps/openssl/openssl/util/ssleay.num',
+                'deps/openssl/openssl/util/libcrypto.num',
+                'deps/openssl/openssl/util/libssl.num',
               ],
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
               'action': [
@@ -714,6 +709,7 @@
           'inputs': [
             '<@(library_files)',
             './config.gypi',
+            'tools/check_macros.py'
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
@@ -724,6 +720,12 @@
             }],
             [ 'node_use_perfctr=="false"', {
               'inputs': [ 'src/noperfctr_macros.py' ]
+            }],
+            [ 'node_debug_lib=="false"', {
+              'inputs': [ 'tools/nodcheck_macros.py' ]
+            }],
+            [ 'node_debug_lib=="true"', {
+              'inputs': [ 'tools/dcheck_macros.py' ]
             }]
           ],
           'action': [
@@ -968,6 +970,7 @@
 
   'conditions': [
     [ 'OS=="aix" and node_shared=="true"', {
+      'variables': {'real_os_name': '<!(uname -s)',},
       'targets': [
         {
           'target_name': 'node_aix_shared',
@@ -986,7 +989,14 @@
               'ldflags': [
                 '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread'
               ],
-            }]
+            }],
+            ['"<(real_os_name)"=="OS400"', {
+              'ldflags': [
+                '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+                '-Wl,-bbigtoc',
+                '-Wl,-brtl',
+              ],
+            }],
           ],
           'includes': [
             'node.gypi'

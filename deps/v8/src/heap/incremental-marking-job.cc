@@ -21,7 +21,7 @@ void IncrementalMarkingJob::Start(Heap* heap) {
 }
 
 void IncrementalMarkingJob::ScheduleTask(Heap* heap) {
-  if (!task_pending_) {
+  if (!task_pending_ && heap->use_tasks()) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     task_pending_ = true;
     auto task = new Task(heap->isolate(), this);

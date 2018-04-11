@@ -6,7 +6,8 @@ const assert = require('assert');
 common.expectWarning(
   'DeprecationWarning',
   'assert.fail() with more than one argument is deprecated. ' +
-    'Please use assert.strictEqual() instead or only pass a message.'
+    'Please use assert.strictEqual() instead or only pass a message.',
+  'DEP0094'
 );
 
 // Two args only, operator defaults to '!='
@@ -38,11 +39,7 @@ assert.throws(() => {
   assert.fail(typeof 1, 'object', new TypeError('another custom message'));
 }, {
   name: 'TypeError',
-  message: 'another custom message',
-  operator: undefined,
-  actual: undefined,
-  expected: undefined,
-  code: undefined
+  message: 'another custom message'
 });
 
 // No third arg (but a fourth arg)

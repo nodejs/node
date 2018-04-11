@@ -296,7 +296,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     Ld(scratch, MemOperand(address));
-    Assert(eq, kWrongAddressOrValuePassedToRecordWrite, scratch,
+    Assert(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite, scratch,
            Operand(value));
   }
 
@@ -1537,14 +1537,14 @@ int TurboAssembler::InstrCountForLi64Bit(int64_t value) {
                kArchVariant == kMips64r6) {
       return 2;
     } else if ((value & kImm16Mask) == 0 &&
-               ((value >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+               ((value >> 31) & 0x1FFFF) == ((0x20000 - bit31) & 0x1FFFF) &&
                kArchVariant == kMips64r6) {
       return 2;
     } else if (is_int16(static_cast<int32_t>(value)) &&
                is_int16((value >> 32) + bit31) && kArchVariant == kMips64r6) {
       return 2;
     } else if (is_int16(static_cast<int32_t>(value)) &&
-               ((value >> 31) & 0x1ffff) == ((0x20000 - bit31) & 0x1ffff) &&
+               ((value >> 31) & 0x1FFFF) == ((0x20000 - bit31) & 0x1FFFF) &&
                kArchVariant == kMips64r6) {
       return 2;
     } else if (base::bits::IsPowerOfTwo(value + 1) ||
@@ -1649,8 +1649,8 @@ void TurboAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
       lui(rd, j.immediate() >> kLuiShift & kImm16Mask);
       dahi(rd, ((j.immediate() >> 32) + bit31) & kImm16Mask);
     } else if ((j.immediate() & kImm16Mask) == 0 &&
-               ((j.immediate() >> 31) & 0x1ffff) ==
-                   ((0x20000 - bit31) & 0x1ffff) &&
+               ((j.immediate() >> 31) & 0x1FFFF) ==
+                   ((0x20000 - bit31) & 0x1FFFF) &&
                kArchVariant == kMips64r6) {
       // 16 LSBs all set to zero.
       // 48 MSBs hold a signed value which can't be represented by signed
@@ -1665,8 +1665,8 @@ void TurboAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
       daddiu(rd, zero_reg, j.immediate() & kImm16Mask);
       dahi(rd, ((j.immediate() >> 32) + bit31) & kImm16Mask);
     } else if (is_int16(static_cast<int32_t>(j.immediate())) &&
-               ((j.immediate() >> 31) & 0x1ffff) ==
-                   ((0x20000 - bit31) & 0x1ffff) &&
+               ((j.immediate() >> 31) & 0x1FFFF) ==
+                   ((0x20000 - bit31) & 0x1FFFF) &&
                kArchVariant == kMips64r6) {
       // 48 LSBs contain an unsigned 16-bit number.
       // 16 MSBs contain a signed 16-bit number.
@@ -2163,7 +2163,7 @@ void MacroAssembler::Trunc_l_ud(FPURegister fd,
   {
     UseScratchRegisterScope temps(this);
     Register scratch1 = temps.Acquire();
-    li(scratch1, 0x7fffffffffffffff);
+    li(scratch1, 0x7FFFFFFFFFFFFFFF);
     and_(t8, t8, scratch1);
   }
   dmtc1(t8, fs);
@@ -2297,7 +2297,7 @@ void TurboAssembler::Trunc_ul_d(FPURegister fd, Register rs,
   }
 
   // Load 2^63 into scratch as its double representation.
-  li(at, 0x43e0000000000000);
+  li(at, 0x43E0000000000000);
   dmtc1(at, scratch);
 
   // Test if scratch > fd.
@@ -2351,7 +2351,7 @@ void TurboAssembler::Trunc_ul_s(FPURegister fd, Register rs,
     // Load 2^63 into scratch as its float representation.
     UseScratchRegisterScope temps(this);
     Register scratch1 = temps.Acquire();
-    li(scratch1, 0x5f000000);
+    li(scratch1, 0x5F000000);
     mtc1(scratch1, scratch);
   }
 
@@ -4037,8 +4037,10 @@ void MacroAssembler::MaybeDropFrames() {
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+
+  Push(Smi::kZero);  // Padding.
 
   // Link the current handler as the next handler.
   li(a6,
@@ -4174,7 +4176,8 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   }
 
   if (FLAG_debug_code) {
-    Check(lo, kStackAccessBelowStackPointer, src_reg, Operand(dst_reg));
+    Check(lo, AbortReason::kStackAccessBelowStackPointer, src_reg,
+          Operand(dst_reg));
   }
 
   // Restore caller's frame pointer and return address now as they will be
@@ -4747,13 +4750,13 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 // -----------------------------------------------------------------------------
 // Debugging.
 
-void TurboAssembler::Assert(Condition cc, BailoutReason reason, Register rs,
+void TurboAssembler::Assert(Condition cc, AbortReason reason, Register rs,
                             Operand rt) {
   if (emit_debug_code())
     Check(cc, reason, rs, rt);
 }
 
-void TurboAssembler::Check(Condition cc, BailoutReason reason, Register rs,
+void TurboAssembler::Check(Condition cc, AbortReason reason, Register rs,
                            Operand rt) {
   Label L;
   Branch(&L, cc, rs, rt);
@@ -4762,11 +4765,11 @@ void TurboAssembler::Check(Condition cc, BailoutReason reason, Register rs,
   bind(&L);
 }
 
-void TurboAssembler::Abort(BailoutReason reason) {
+void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
 #ifdef DEBUG
-  const char* msg = GetBailoutReason(reason);
+  const char* msg = GetAbortReason(reason);
   if (msg != nullptr) {
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -5095,7 +5098,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     andi(scratch, object, kSmiTagMask);
-    Check(ne, kOperandIsASmi, scratch, Operand(zero_reg));
+    Check(ne, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
   }
 }
 
@@ -5106,7 +5109,7 @@ void MacroAssembler::AssertSmi(Register object) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     andi(scratch, object, kSmiTagMask);
-    Check(eq, kOperandIsASmi, scratch, Operand(zero_reg));
+    Check(eq, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
   }
 }
 
@@ -5114,9 +5117,11 @@ void MacroAssembler::AssertFixedArray(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotAFixedArray, t8, Operand(zero_reg));
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFixedArray, t8,
+          Operand(zero_reg));
     GetObjectType(object, t8, t8);
-    Check(eq, kOperandIsNotAFixedArray, t8, Operand(FIXED_ARRAY_TYPE));
+    Check(eq, AbortReason::kOperandIsNotAFixedArray, t8,
+          Operand(FIXED_ARRAY_TYPE));
   }
 }
 
@@ -5124,9 +5129,11 @@ void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotAFunction, t8, Operand(zero_reg));
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, t8,
+          Operand(zero_reg));
     GetObjectType(object, t8, t8);
-    Check(eq, kOperandIsNotAFunction, t8, Operand(JS_FUNCTION_TYPE));
+    Check(eq, AbortReason::kOperandIsNotAFunction, t8,
+          Operand(JS_FUNCTION_TYPE));
   }
 }
 
@@ -5135,9 +5142,11 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     SmiTst(object, t8);
-    Check(ne, kOperandIsASmiAndNotABoundFunction, t8, Operand(zero_reg));
+    Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, t8,
+          Operand(zero_reg));
     GetObjectType(object, t8, t8);
-    Check(eq, kOperandIsNotABoundFunction, t8, Operand(JS_BOUND_FUNCTION_TYPE));
+    Check(eq, AbortReason::kOperandIsNotABoundFunction, t8,
+          Operand(JS_BOUND_FUNCTION_TYPE));
   }
 }
 
@@ -5145,7 +5154,8 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
   STATIC_ASSERT(kSmiTag == 0);
   SmiTst(object, t8);
-  Check(ne, kOperandIsASmiAndNotAGeneratorObject, t8, Operand(zero_reg));
+  Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, t8,
+        Operand(zero_reg));
 
   GetObjectType(object, t8, t8);
 
@@ -5157,7 +5167,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   // Check if JSAsyncGeneratorObject
   Branch(&done, eq, t8, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
 
-  Abort(kOperandIsNotAGeneratorObject);
+  Abort(AbortReason::kOperandIsNotAGeneratorObject);
 
   bind(&done);
 }
@@ -5171,7 +5181,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     Branch(&done_checking, eq, object, Operand(scratch));
     Ld(t8, FieldMemOperand(object, HeapObject::kMapOffset));
     LoadRoot(scratch, Heap::kAllocationSiteMapRootIndex);
-    Assert(eq, kExpectedUndefinedOrCell, t8, Operand(scratch));
+    Assert(eq, AbortReason::kExpectedUndefinedOrCell, t8, Operand(scratch));
     bind(&done_checking);
   }
 }
@@ -5402,8 +5412,8 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
 void TurboAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
                                    int num_double_arguments) {
-  li(t8, Operand(function));
-  CallCFunctionHelper(t8, num_reg_arguments, num_double_arguments);
+  li(t9, Operand(function));
+  CallCFunctionHelper(t9, num_reg_arguments, num_double_arguments);
 }
 
 void TurboAssembler::CallCFunction(Register function, int num_reg_arguments,

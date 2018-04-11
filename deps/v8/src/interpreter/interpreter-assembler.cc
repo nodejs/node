@@ -577,7 +577,7 @@ void InterpreterAssembler::CallEpilogue() {
     Node* stack_pointer_before_call = stack_pointer_before_call_;
     stack_pointer_before_call_ = nullptr;
     AbortIfWordNotEqual(stack_pointer_before_call, stack_pointer_after_call,
-                        kUnexpectedStackPointer);
+                        AbortReason::kUnexpectedStackPointer);
   }
 }
 
@@ -586,7 +586,11 @@ void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
   Comment("increment call count");
   Node* call_count =
       LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize);
-  Node* new_count = SmiAdd(call_count, SmiConstant(1));
+  // The lowest {CallICNexus::CallCountField::kShift} bits of the call
+  // count are used as flags. To increment the call count by 1 we hence
+  // have to increment by 1 << {CallICNexus::CallCountField::kShift}.
+  Node* new_count =
+      SmiAdd(call_count, SmiConstant(1 << CallICNexus::CallCountField::kShift));
   // Count is Smi, so we don't need a write barrier.
   StoreFeedbackVectorSlot(feedback_vector, slot_id, new_count,
                           SKIP_WRITE_BARRIER, kPointerSize);
@@ -1309,7 +1313,6 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
       break;
     default:
       UNREACHABLE();
-      base_index = nullptr;
   }
   Node* target_index = IntPtrAdd(base_index, next_bytecode);
   Node* target_code_entry =
@@ -1350,20 +1353,20 @@ Node* InterpreterAssembler::LoadOSRNestingLevel() {
                          MachineType::Int8());
 }
 
-void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
+void InterpreterAssembler::Abort(AbortReason abort_reason) {
   disable_stack_check_across_call_ = true;
-  Node* abort_id = SmiConstant(bailout_reason);
+  Node* abort_id = SmiConstant(abort_reason);
   CallRuntime(Runtime::kAbort, GetContext(), abort_id);
   disable_stack_check_across_call_ = false;
 }
 
 void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
-                                               BailoutReason bailout_reason) {
+                                               AbortReason abort_reason) {
   Label ok(this), abort(this, Label::kDeferred);
   Branch(WordEqual(lhs, rhs), &ok, &abort);
 
   BIND(&abort);
-  Abort(bailout_reason);
+  Abort(abort_reason);
   Goto(&ok);
 
   BIND(&ok);
@@ -1383,7 +1386,7 @@ void InterpreterAssembler::MaybeDropFrames(Node* context) {
   // We don't expect this call to return since the frame dropper tears down
   // the stack and jumps into the function on the target frame to restart it.
   CallStub(CodeFactory::FrameDropperTrampoline(isolate()), context, restart_fp);
-  Abort(kUnexpectedReturnFromFrameDropper);
+  Abort(AbortReason::kUnexpectedReturnFromFrameDropper);
   Goto(&ok);
 
   BIND(&ok);
@@ -1442,7 +1445,7 @@ void InterpreterAssembler::AbortIfRegisterCountInvalid(Node* register_file,
   Branch(UintPtrLessThanOrEqual(register_count, array_size), &ok, &abort);
 
   BIND(&abort);
-  Abort(kInvalidRegisterFileInGenerator);
+  Abort(AbortReason::kInvalidRegisterFileInGenerator);
   Goto(&ok);
 
   BIND(&ok);

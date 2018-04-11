@@ -554,9 +554,15 @@ def CheckDeps(workspace):
 
 
 def PyTests(workspace):
-  test_scripts = join(workspace, 'tools', 'release', 'test_scripts.py')
-  return subprocess.call(
-      [sys.executable, test_scripts], stdout=subprocess.PIPE) == 0
+  result = True
+  for script in [
+      join(workspace, 'tools', 'release', 'test_scripts.py'),
+      join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
+    ]:
+    print 'Running ' + script
+    result &= subprocess.call(
+        [sys.executable, script], stdout=subprocess.PIPE) == 0
+  return result
 
 
 def GetOptions():
@@ -573,8 +579,8 @@ def Main():
   success = True
   print "Running checkdeps..."
   success &= CheckDeps(workspace)
-  print "Running C++ lint check..."
   if not options.no_lint:
+    print "Running C++ lint check..."
     success &= CppLintProcessor().RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."

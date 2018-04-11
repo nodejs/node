@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 
 // Check ca option can contain concatenated certs by prepending an unrelated
@@ -18,7 +18,7 @@ connect({
     cert: keys.agent6.cert,
     key: keys.agent6.key,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.ifError(err);
   return cleanup();
-});
+}));

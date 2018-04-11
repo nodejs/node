@@ -72,7 +72,7 @@ be used.
 <a id="DEP0005"></a>
 ### DEP0005: Buffer() constructor
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime (supports [`--pending-deprecation`][])
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can potentially lead to accidental security issues.
@@ -92,6 +92,10 @@ is strongly recommended:
 * [`Buffer.from(buffer)`][] - Create a `Buffer` that copies `buffer`.
 * [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer`
   that copies `string`.
+
+As of REPLACEME, a deprecation warning is printed at runtime when
+`--pending-deprecation` is used or when the calling code is
+outside `node_modules` in order to better target developers, rather than users.
 
 <a id="DEP0006"></a>
 ### DEP0006: child\_process options.customFds
@@ -127,7 +131,7 @@ to the `constants` property exposed by the relevant module. For instance,
 <a id="DEP0009"></a>
 ### DEP0009: crypto.pbkdf2 without digest
 
-Type: End-of-life
+Type: End-of-Life
 
 Use of the [`crypto.pbkdf2()`][] API without specifying a digest was deprecated
 in Node.js 6.0 because the method defaulted to using the non-recommended
@@ -379,7 +383,7 @@ instead.
 <a id="DEP0041"></a>
 ### DEP0041: NODE\_REPL\_HISTORY\_FILE environment variable
 
-Type: End-of-life
+Type: End-of-Life
 
 The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
 `NODE_REPL_HISTORY` instead.
@@ -560,16 +564,16 @@ The `tls.createSecurePair()` API was deprecated in documentation in Node.js
 <a id="DEP0065"></a>
 ### DEP0065: repl.REPL_MODE_MAGIC and NODE_REPL_MODE=magic
 
-Type: Documentation-only
+Type: End-of-Life
 
 The `repl` module's `REPL_MODE_MAGIC` constant, used for `replMode` option, has
-been deprecated. Its behavior has been functionally identical to that of
+been removed. Its behavior has been functionally identical to that of
 `REPL_MODE_SLOPPY` since Node.js v6.0.0, when V8 5.0 was imported. Please use
 `REPL_MODE_SLOPPY` instead.
 
 The `NODE_REPL_MODE` environment variable is used to set the underlying
-`replMode` of an interactive `node` session. Its default value, `magic`, is
-similarly deprecated in favor of `sloppy`.
+`replMode` of an interactive `node` session. Its value, `magic`, is also
+removed. Please use `sloppy` instead.
 
 <a id="DEP0066"></a>
 ### DEP0066: outgoingMessage.\_headers, outgoingMessage.\_headerNames
@@ -610,7 +614,7 @@ a V8-inspector based CLI debugger available through `node inspect`.
 
 Type: End-of-Life
 
-DebugContext has been removed in V8 and is not available in Node 10+.
+DebugContext has been removed in V8 and is not available in Node.js 10+.
 
 DebugContext was an experimental API.
 
@@ -700,7 +704,7 @@ Type: Runtime
 
 `Module._debug()` has been deprecated.
 
-The `Module._debug()` function   was never documented as an officially
+The `Module._debug()` function was never documented as an officially
 supported API.
 
 <a id="DEP0078"></a>
@@ -886,12 +890,13 @@ should start using the `async_context` variant of `MakeCallback` or
 `CallbackScope`, or the high-level `AsyncResource` class.
 
 <a id="DEP0098"></a>
-### DEP0098: AsyncHooks Embedder AsyncResource.emit{Before,After} APIs
+### DEP0098: AsyncHooks Embedder AsyncResource.emitBefore and AsyncResource.emitAfter APIs
 
 Type: Runtime
 
-The embedded API provided by AsyncHooks exposes emit{Before,After} methods
-which are very easy to use incorrectly which can lead to unrecoverable errors.
+The embedded API provided by AsyncHooks exposes `.emitBefore()` and
+`.emitAfter()` methods which are very easy to use incorrectly which can lead
+to unrecoverable errors.
 
 Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
@@ -915,7 +920,6 @@ Type: Runtime
 
 This was never a documented feature.
 
-
 <a id="DEP0101"></a>
 ### DEP0101: --with-lttng
 
@@ -932,11 +936,71 @@ Using the `noAssert` argument has no functionality anymore. All input is going
 to be verified, no matter if it is set to true or not. Skipping the verification
 could lead to hard to find errors and crashes.
 
+<a id="DEP0103"></a>
+### DEP0103: process.binding('util').is[...] typechecks
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Using `process.binding()` in general should be avoided. The type checking
+methods in particular can be replaced by using [`util.types`][].
+
+<a id="DEP0104"></a>
+### DEP0104: process.env string coercion
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Currently when assigning a property to [`process.env`][], the assigned value is
+implicitly converted to a string if it is not a string. This behavior is
+deprecated if the assigned value is not a string, boolean, or number. In the
+future, such assignment may result in a thrown error. Please convert the
+property to a string before assigning it to `process.env`.
+
+<a id="DEP0105"></a>
+### DEP0105: decipher.finaltol
+
+Type: Runtime
+
+`decipher.finaltol()` has never been documented and is currently an alias for
+[`decipher.final()`][]. In the future, this API will likely be removed, and it
+is recommended to use [`decipher.final()`][] instead.
+
+<a id="DEP0106"></a>
+### DEP0106: crypto.createCipher and crypto.createDecipher
+
+Type: Documentation-only
+
+Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
+avoided as they use a weak key derivation function (MD5 with no salt) and static
+initialization vectors. It is recommended to derive a key using
+[`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][] and
+[`crypto.createDecipheriv()`][] to obtain the [`Cipher`][] and [`Decipher`][]
+objects respectively.
+
+<a id="DEP0107"></a>
+### DEP0107: tls.convertNPNProtocols()
+
+Type: Runtime
+
+This was an undocumented helper function not intended for use outside Node.js
+core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
+
+<a id="DEP0108"></a>
+### DEP0108: zlib.bytesRead
+
+Type: Documentation-only
+
+Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
+because it also made sense to interpret the value as the number of bytes
+read by the engine, but is inconsistent with other streams in Node.js that
+expose values under these names.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`Cipher`]: crypto.html#crypto_class_cipher
+[`Decipher`]: crypto.html#crypto_class_decipher
 [`assert`]: assert.html
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
@@ -949,10 +1013,15 @@ could lead to hard to find errors and crashes.
 [`child_process`]: child_process.html
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
+[`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
+[`crypto.createDecipher()`]: crypto.html#crypto_crypto_createdecipher_algorithm_password_options
+[`crypto.createDecipheriv()`]: crypto.html#crypto_crypto_createdecipheriv_algorithm_key_iv_options
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`decipher.final()`]: crypto.html#crypto_decipher_final_outputencoding
 [`decipher.setAuthTag()`]: crypto.html#crypto_decipher_setauthtag_buffer
 [`domain`]: domain.html
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
@@ -968,6 +1037,7 @@ could lead to hard to find errors and crashes.
 [`fs.stat()`]: fs.html#fs_fs_stat_path_callback
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
+[`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
@@ -1000,8 +1070,10 @@ could lead to hard to find errors and crashes.
 [`util.log()`]: util.html#util_util_log_string
 [`util.print()`]: util.html#util_util_print_strings
 [`util.puts()`]: util.html#util_util_puts_strings
+[`util.types`]: util.html#util_util_types
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
+[`zlib.bytesWritten`]: zlib.html#zlib_zlib_byteswritten
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length

@@ -24,6 +24,6 @@ const bar = new ModuleWrap('export const five = 5', 'bar');
 
   foo.instantiate();
 
-  assert.strictEqual(await foo.evaluate(), 6);
+  assert.strictEqual(await foo.evaluate(-1, false), 6);
   assert.strictEqual(foo.namespace().five, 5);
 })();

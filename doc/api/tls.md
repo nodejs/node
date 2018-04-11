@@ -104,21 +104,16 @@ not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`] for more info.
 
-### ALPN, NPN, and SNI
+### ALPN and SNI
 
 <!-- type=misc -->
 
-ALPN (Application-Layer Protocol Negotiation Extension), NPN (Next
-Protocol Negotiation) and, SNI (Server Name Indication) are TLS
-handshake extensions:
+ALPN (Application-Layer Protocol Negotiation Extension) and
+SNI (Server Name Indication) are TLS handshake extensions:
 
-* ALPN/NPN - Allows the use of one TLS server for multiple protocols (HTTP,
-  SPDY, HTTP/2)
+* ALPN - Allows the use of one TLS server for multiple protocols (HTTP, HTTP/2)
 * SNI - Allows the use of one TLS server for multiple hostnames with different
   SSL certificates.
-
-Use of ALPN is recommended over NPN. The NPN extension has never been
-formally defined or documented and generally not recommended for use.
 
 ### Client-initiated renegotiation attack mitigation
 
@@ -134,9 +129,9 @@ An `'error'` event is emitted on the [`tls.TLSSocket`][] instance when this
 threshold is exceeded. The limits are configurable:
 
 * `tls.CLIENT_RENEG_LIMIT` {number} Specifies the number of renegotiation
-  requests. Defaults to `3`.
+  requests. **Default:** `3`.
 * `tls.CLIENT_RENEG_WINDOW` {number} Specifies the time renegotiation window
-  in seconds. Defaults to `600` (10 minutes).
+  in seconds. **Default:** `600` (10 minutes).
 
 The default renegotiation limits should not be modified without a full
 understanding of the implications and risks.
@@ -332,12 +327,9 @@ server. If `tlsSocket.authorized` is `false`, then `socket.authorizationError`
 is set to describe how authorization failed. Note that depending on the settings
 of the TLS server, unauthorized connections may still be accepted.
 
-The `tlsSocket.npnProtocol` and `tlsSocket.alpnProtocol` properties are strings
-that contain the selected NPN and ALPN protocols, respectively. When both NPN
-and ALPN extensions are received, ALPN takes precedence over NPN and the next
-protocol is selected by ALPN.
-
-When ALPN has no selected protocol, `tlsSocket.alpnProtocol` returns `false`.
+The `tlsSocket.alpnProtocol` property is a string that contains the selected
+ALPN protocol. When ALPN has no selected protocol, `tlsSocket.alpnProtocol`
+equals `false`.
 
 The `tlsSocket.servername` property is a string containing the server name
 requested via SNI.
@@ -374,7 +366,7 @@ added: v0.6.0
 -->
 
 Returns the bound address, the address family name, and port of the
-server as reported by the operating system.  See [`net.Server.address()`][] for
+server as reported by the operating system. See [`net.Server.address()`][] for
 more information.
 
 ### server.close([callback])
@@ -461,14 +453,13 @@ changes:
 * `options` {Object}
   * `isServer`: The SSL/TLS protocol is asymmetrical, TLSSockets must know if
     they are to behave as a server or a client. If `true` the TLS socket will be
-    instantiated as a server.  Defaults to `false`.
+    instantiated as a server. **Default:** `false`.
   * `server` {net.Server} An optional [`net.Server`][] instance.
   * `requestCert`: Whether to authenticate the remote peer by requesting a
      certificate. Clients always request a server certificate. Servers
      (`isServer` is true) may optionally set `requestCert` to true to request a
      client certificate.
   * `rejectUnauthorized`: Optional, see [`tls.createServer()`][]
-  * `NPNProtocols`: Optional, see [`tls.createServer()`][]
   * `ALPNProtocols`: Optional, see [`tls.createServer()`][]
   * `SNICallback`: Optional, see [`tls.createServer()`][]
   * `session` {Buffer} An optional `Buffer` instance containing a TLS session.
@@ -509,9 +500,9 @@ regardless of whether or not the server's certificate has been authorized. It
 is the client's responsibility to check the `tlsSocket.authorized` property to
 determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.authorized === false`, then the error can be found by examining the
-`tlsSocket.authorizationError` property. If either ALPN or NPN was used,
-the `tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` properties can be
-checked to determine the negotiated protocol.
+`tlsSocket.authorizationError` property. If ALPN was used, the
+`tlsSocket.alpnProtocol` property can be checked to determine the negotiated
+protocol.
 
 ### tlsSocket.address()
 <!-- YAML
@@ -566,7 +557,7 @@ field which always contains the value `'TLSv1/SSLv3'`.
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
 
 See `SSL_CIPHER_get_name()` in
-https://www.openssl.org/docs/man1.0.2/ssl/SSL_CIPHER_get_name.html for more
+https://www.openssl.org/docs/man1.1.0/ssl/SSL_CIPHER_get_name.html for more
 information.
 
 ### tlsSocket.getEphemeralKeyInfo()
@@ -582,6 +573,23 @@ if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 `name` property is available only when type is 'ECDH'.
 
 For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
+
+### tlsSocket.getFinished()
+<!-- YAML
+added: v9.9.0
+-->
+
+* Returns: {Buffer|undefined} The latest `Finished` message that has been
+sent to the socket as part of a SSL/TLS handshake, or `undefined` if
+no `Finished` message has been sent yet.
+
+As the `Finished` messages are message digests of the complete handshake
+(with a total of 192 bits for TLS 1.0 and more for SSL 3.0), they can
+be used for external authentication procedures when the authentication
+provided by SSL/TLS is not desired or is not enough.
+
+Corresponds to the `SSL_get_finished` routine in OpenSSL and may be used
+to implement the `tls-unique` channel binding from [RFC 5929][].
 
 ### tlsSocket.getPeerCertificate([detailed])
 <!-- YAML
@@ -620,13 +628,30 @@ For example:
   raw: < RAW DER buffer >,
   pubkey: < RAW DER buffer >,
   valid_from: 'Nov 11 09:52:22 2009 GMT',
-  valid_to: 'Nov  6 09:52:22 2029 GMT',
+  valid_to: 'Nov 6 09:52:22 2029 GMT',
   fingerprint: '2A:7A:C2:DD:E5:F9:CC:53:72:35:99:7A:02:5A:71:38:52:EC:8A:DF',
   fingerprint256: '2A:7A:C2:DD:E5:F9:CC:53:72:35:99:7A:02:5A:71:38:52:EC:8A:DF:00:11:22:33:44:55:66:77:88:99:AA:BB',
   serialNumber: 'B9B0D332A1AA5635' }
 ```
 
 If the peer does not provide a certificate, an empty object will be returned.
+
+### tlsSocket.getPeerFinished()
+<!-- YAML
+added: v9.9.0
+-->
+
+* Returns: {Buffer|undefined} The latest `Finished` message that is expected
+or has actually been received from the socket as part of a SSL/TLS handshake,
+or `undefined` if there is no `Finished` message so far.
+
+As the `Finished` messages are message digests of the complete handshake
+(with a total of 192 bits for TLS 1.0 and more for SSL 3.0), they can
+be used for external authentication procedures when the authentication
+provided by SSL/TLS is not desired or is not enough.
+
+Corresponds to the `SSL_get_peer_finished` routine in OpenSSL and may be used
+to implement the `tls-unique` channel binding from [RFC 5929][].
 
 ### tlsSocket.getProtocol()
 <!-- YAML
@@ -646,7 +671,7 @@ Example responses include:
 * `TLSv1.2`
 * `unknown`
 
-See https://www.openssl.org/docs/man1.0.2/ssl/SSL_get_version.html for more
+See https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_version.html for more
 information.
 
 ### tlsSocket.getSession()
@@ -712,7 +737,7 @@ added: v0.11.8
 * `options` {Object}
   * `rejectUnauthorized` {boolean} If not `false`, the server certificate is
     verified against the list of supplied CAs. An `'error'` event is emitted if
-    verification fails; `err.code` contains the OpenSSL error code. Defaults to
+    verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
   * `requestCert`
 * `callback` {Function} A function that will be called when the renegotiation
@@ -733,8 +758,8 @@ When running as the server, the socket will be destroyed with an error after
 added: v0.11.11
 -->
 
-* `size` {number} The maximum TLS fragment size. Defaults to `16384`. The
-  maximum value is `16384`.
+* `size` {number} The maximum TLS fragment size. The maximum value is `16384`.
+  **Default:** `16384`.
 
 The `tlsSocket.setMaxSendFragment()` method sets the maximum TLS fragment size.
 Returns `true` if setting the limit succeeded; `false` otherwise.
@@ -807,8 +832,7 @@ changes:
     description: The `lookup` option is supported now.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
-    description: The `ALPNProtocols` and `NPNProtocols` options can
-                 be `Uint8Array`s now.
+    description: The `ALPNProtocols` option can be a `Uint8Array` now.
   - version: v5.3.0, v4.7.0
     pr-url: https://github.com/nodejs/node/pull/4246
     description: The `secureContext` option is supported now.
@@ -818,7 +842,8 @@ changes:
 -->
 
 * `options` {Object}
-  * `host` {string} Host the client should connect to, defaults to 'localhost'.
+  * `host` {string} Host the client should connect to. **Default:**
+    `'localhost'`.
   * `port` {number} Port the client should connect to.
   * `path` {string} Creates unix socket connection to path. If this option is
     specified, `host` and `port` are ignored.
@@ -826,21 +851,15 @@ changes:
     rather than creating a new socket. Typically, this is an instance of
     [`net.Socket`][], but any `Duplex` stream is allowed.
     If this option is specified, `path`, `host` and `port` are ignored,
-    except for certificate validation.  Usually, a socket is already connected
+    except for certificate validation. Usually, a socket is already connected
     when passed to `tls.connect()`, but it can be connected later. Note that
     connection/disconnection/destruction of `socket` is the user's
     responsibility, calling `tls.connect()` will not cause `net.connect()` to be
     called.
   * `rejectUnauthorized` {boolean} If not `false`, the server certificate is
     verified against the list of supplied CAs. An `'error'` event is emitted if
-    verification fails; `err.code` contains the OpenSSL error code. Defaults to
+    verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
-  * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
-    `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
-    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
-    first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
@@ -859,12 +878,13 @@ changes:
   * `minDHSize` {number} Minimum size of the DH parameter in bits to accept a
     TLS connection. When a server offers a DH parameter with a size less
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
-    Defaults to `1024`.
+    **Default:** `1024`.
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
     `tls.createSecureContext()`.
-  * `lookup`: {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+  * `lookup`: {Function} Custom lookup function. **Default:**
+    [`dns.lookup()`][].
   * ...: Optional [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing, otherwise they are ignored.
 * `callback` {Function}
@@ -990,7 +1010,7 @@ changes:
     it is not.
   * `key` {string|string[]|Buffer|Buffer[]|Object[]} Optional private keys in
     PEM format. PEM allows the option of private keys being encrypted. Encrypted
-    keys will be decrypted with `options.passphrase`.  Multiple keys using
+    keys will be decrypted with `options.passphrase`. Multiple keys using
     different algorithms can be provided either as an array of unencrypted key
     strings or buffers, or an array of objects in the form `{pem:
     <string|buffer>[, passphrase: <string>]}`. The object form can only occur in
@@ -1003,7 +1023,7 @@ changes:
     consist of the PEM formatted certificate for a provided private `key`,
     followed by the PEM formatted intermediate certificates (if any), in order,
     and not including the root CA (the root CA must be pre-known to the peer,
-    see `ca`).  When providing multiple cert chains, they do not have to be in
+    see `ca`). When providing multiple cert chains, they do not have to be in
     the same order as their private keys in `key`. If the intermediate
     certificates are not provided, the peer will not be able to validate the
     certificate, and the handshake will fail.
@@ -1013,7 +1033,7 @@ changes:
     using this option. The value can be a string or Buffer, or an Array of
     strings and/or Buffers. Any string or Buffer can contain multiple PEM CAs
     concatenated together. The peer's certificate must be chainable to a CA
-    trusted by the server for the connection to be authenticated.  When using
+    trusted by the server for the connection to be authenticated. When using
     certificates that are not chainable to a well-known CA, the certificate's CA
     must be explicitly specified as a trusted or the connection will fail to
     authenticate.
@@ -1023,7 +1043,7 @@ changes:
     For self-signed certificates, the certificate is its own CA, and must be
     provided.
   * `ciphers` {string} Optional cipher suite specification, replacing the
-    default.  For more information, see [modifying the default cipher suite][].
+    default. For more information, see [modifying the default cipher suite][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
     preferences instead of the client's. When `true`, causes
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
@@ -1031,10 +1051,10 @@ changes:
   * `ecdhCurve` {string} A string describing a named curve or a colon separated
     list of curve NIDs or names, for example `P-521:P-384:P-256`, to use for
     ECDH key agreement, or `false` to disable ECDH. Set to `auto` to select the
-    curve automatically. Defaults to [`tls.DEFAULT_ECDH_CURVE`]. Use
-    [`crypto.getCurves()`][] to obtain a list of available curve names. On
-    recent releases, `openssl ecparam -list_curves` will also display the name
-    and description of each available elliptic curve.
+    curve automatically. Use [`crypto.getCurves()`][] to obtain a list of
+    available curve names. On recent releases, `openssl ecparam -list_curves`
+    will also display the name and description of each available elliptic curve.
+    **Default:** [`tls.DEFAULT_ECDH_CURVE`].
   * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
     provide the client certificate.
   * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
@@ -1049,10 +1069,10 @@ changes:
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
-  * `secureProtocol` {string} Optional SSL method to use, default is
-    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
-    the function names as strings. For example, `"SSLv3_method"` to force SSL
-    version 3.
+  * `secureProtocol` {string} Optional SSL method to use. The possible values
+    are listed as [SSL_METHODS][], use the function names as strings.
+    For example, `'TLSv1_2_method'` to force TLS version 1.2. **Default:**
+    `'TLS_method'`.
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
 
@@ -1082,8 +1102,7 @@ changes:
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
-    description: The `ALPNProtocols` and `NPNProtocols` options can
-                 be `Uint8Array`s now.
+    description: The `ALPNProtocols` option can be a `Uint8Array` now.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/2564
     description: ALPN options are supported now.
@@ -1093,22 +1112,15 @@ changes:
   * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
     provide the client certificate.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
-    does not finish in the specified number of milliseconds. Defaults to `120`
-    seconds. A `'tlsClientError'` is emitted on the `tls.Server` object whenever
-    a handshake times out.
+    does not finish in the specified number of milliseconds.
+    A `'tlsClientError'` is emitted on the `tls.Server` object whenever
+    a handshake times out. **Default:** `120000` (120 seconds).
   * `requestCert` {boolean} If `true` the server will request a certificate from
-    clients that connect and attempt to verify that certificate. Defaults to
+    clients that connect and attempt to verify that certificate. **Default:**
     `false`.
   * `rejectUnauthorized` {boolean} If not `false` the server will reject any
     connection which is not authorized with the list of supplied CAs. This
-    option only has an effect if `requestCert` is `true`. Defaults to `true`.
-  * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
-    `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
-    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
-    first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
-    (Protocols should be ordered by their priority.)
+    option only has an effect if `requestCert` is `true`. **Default:** `true`.
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
@@ -1116,9 +1128,6 @@ changes:
     first byte is the length of the next protocol name. Passing an array is
     usually much simpler, e.g. `['hello', 'world']`.
     (Protocols should be ordered by their priority.)
-    When the server receives both NPN and ALPN extensions from the client,
-    ALPN takes precedence over NPN and the server does not send an NPN
-    extension to the client.
   * `SNICallback(servername, cb)` {Function} A function that will be called if
     the client supports SNI TLS extension. Two arguments will be passed when
     called: `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`,
@@ -1135,7 +1144,7 @@ changes:
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `secureConnectionListener` {Function}
 
-Creates a new [tls.Server][].  The `secureConnectionListener`, if provided, is
+Creates a new [tls.Server][]. The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
 
 The `ticketKeys` options is automatically shared between `cluster` module
@@ -1295,11 +1304,10 @@ changes:
   * `secureContext`: An optional TLS context object from
      [`tls.createSecureContext()`][]
   * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
-    Defaults to `false`.
+    **Default:** `false`.
   * `server` {net.Server} An optional [`net.Server`][] instance
   * `requestCert`: Optional, see [`tls.createServer()`][]
   * `rejectUnauthorized`: Optional, see [`tls.createServer()`][]
-  * `NPNProtocols`: Optional, see [`tls.createServer()`][]
   * `ALPNProtocols`: Optional, see [`tls.createServer()`][]
   * `SNICallback`: Optional, see [`tls.createServer()`][]
   * `session` {Buffer} An optional `Buffer` instance containing a TLS session.
@@ -1356,10 +1364,10 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
-[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.1.0/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
-[SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
+[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
+[SSL_METHODS]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html#Dealing-with-Protocol-Methods
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
@@ -1368,3 +1376,4 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [tls.Server]: #tls_class_tls_server
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
+[RFC 5929]: https://tools.ietf.org/html/rfc5929

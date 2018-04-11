@@ -132,10 +132,10 @@ static void CategoryGroupEnabled(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(*category_group_enabled > 0);
 }
 
-void InitializeTraceEvents(Local<Object> target,
-                           Local<Value> unused,
-                           Local<Context> context,
-                           void* priv) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "emit", Emit);
@@ -144,4 +144,4 @@ void InitializeTraceEvents(Local<Object> target,
 
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(trace_events, node::InitializeTraceEvents)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(trace_events, node::Initialize)

@@ -34,7 +34,8 @@ const server = http.Server(common.mustCall(function(req, res) {
   res.end();
 
   const r = res.write('This should raise an error.');
-  assert.strictEqual(r, true, 'write after end should return true');
+  // write after end should return true
+  assert.strictEqual(r, true);
 }));
 
 server.listen(0, function() {

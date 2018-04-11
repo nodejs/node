@@ -58,7 +58,7 @@ void StoreBuffer::SetUp() {
 
   if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
                                   kStoreBufferSize * kStoreBuffers,
-                                  base::OS::MemoryPermission::kReadWrite)) {
+                                  PageAllocator::kReadWrite)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;
@@ -105,10 +105,14 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, kStoreBuffers);
   Address last_inserted_addr = nullptr;
+
+  // We are taking the chunk map mutex here because the page lookup of addr
+  // below may require us to check if addr is part of a large page.
+  base::LockGuard<base::Mutex> guard(heap_->lo_space()->chunk_map_mutex());
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
     Address addr = *current;
-    Page* page = Page::FromAnyPointerAddress(heap_, addr);
+    MemoryChunk* chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {
       last_inserted_addr = nullptr;
       current++;
@@ -116,15 +120,15 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
       DCHECK(!IsDeletionAddress(end));
       addr = UnmarkDeletionAddress(addr);
       if (end) {
-        RememberedSet<OLD_TO_NEW>::RemoveRange(page, addr, end,
+        RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, addr, end,
                                                SlotSet::PREFREE_EMPTY_BUCKETS);
       } else {
-        RememberedSet<OLD_TO_NEW>::Remove(page, addr);
+        RememberedSet<OLD_TO_NEW>::Remove(chunk, addr);
       }
     } else {
       DCHECK(!IsDeletionAddress(addr));
       if (addr != last_inserted_addr) {
-        RememberedSet<OLD_TO_NEW>::Insert(page, addr);
+        RememberedSet<OLD_TO_NEW>::Insert(chunk, addr);
         last_inserted_addr = addr;
       }
     }

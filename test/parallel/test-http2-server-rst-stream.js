@@ -18,14 +18,22 @@ const {
 const tests = [
   [NGHTTP2_NO_ERROR, false],
   [NGHTTP2_NO_ERROR, false],
-  [NGHTTP2_PROTOCOL_ERROR, true],
+  [NGHTTP2_PROTOCOL_ERROR, true, 'NGHTTP2_PROTOCOL_ERROR'],
   [NGHTTP2_CANCEL, false],
-  [NGHTTP2_REFUSED_STREAM, true],
-  [NGHTTP2_INTERNAL_ERROR, true]
+  [NGHTTP2_REFUSED_STREAM, true, 'NGHTTP2_REFUSED_STREAM'],
+  [NGHTTP2_INTERNAL_ERROR, true, 'NGHTTP2_INTERNAL_ERROR']
 ];
 
 const server = http2.createServer();
 server.on('stream', (stream, headers) => {
+  const test = tests.find((t) => t[0] === Number(headers.rstcode));
+  if (test[1]) {
+    stream.on('error', common.expectsError({
+      type: Error,
+      code: 'ERR_HTTP2_STREAM_ERROR',
+      message: `Stream closed with error code ${test[2]}`
+    }));
+  }
   stream.close(headers.rstcode | 0);
 });
 
@@ -40,10 +48,10 @@ server.listen(0, common.mustCall(() => {
   tests.forEach((test) => {
     const req = client.request({
       ':method': 'POST',
-      rstcode: test[0]
+      'rstcode': test[0]
     });
-    req.on('close', common.mustCall((code) => {
-      assert.strictEqual(code, test[0]);
+    req.on('close', common.mustCall(() => {
+      assert.strictEqual(req.rstCode, test[0]);
       countdown.dec();
     }));
     req.on('aborted', common.mustCall());

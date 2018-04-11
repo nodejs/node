@@ -17,6 +17,7 @@
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
+#include "src/objects/data-handler.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-containers.h"
 
@@ -26,6 +27,10 @@ namespace internal {
 class Callable;
 class CallInterfaceDescriptor;
 class Isolate;
+class JSCollection;
+class JSWeakCollection;
+class JSWeakMap;
+class JSWeakSet;
 class Factory;
 class Zone;
 
@@ -252,7 +257,7 @@ class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
 
-typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
+typedef ZoneVector<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
 typedef std::function<void()> CodeAssemblerCallback;
 
@@ -1062,6 +1067,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool Word32ShiftIsSafe() const;
 
  private:
+  // These two don't have definitions and are here only for catching use cases
+  // where the cast is not necessary.
+  TNode<Int32T> Signed(TNode<Int32T> x);
+  TNode<Uint32T> Unsigned(TNode<Uint32T> x);
+
   RawMachineAssembler* raw_assembler() const;
 
   // Calls respective callback registered in the state.
@@ -1157,7 +1167,7 @@ class CodeAssemblerLabel {
       CodeAssembler* assembler,
       const CodeAssemblerVariableList& merged_variables,
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
-      : CodeAssemblerLabel(assembler, merged_variables.length(),
+      : CodeAssemblerLabel(assembler, merged_variables.size(),
                            &(merged_variables[0]), type) {}
   CodeAssemblerLabel(
       CodeAssembler* assembler, size_t count,

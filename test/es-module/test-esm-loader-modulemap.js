@@ -7,10 +7,11 @@
 const common = require('../common');
 
 const { URL } = require('url');
-const Loader = require('internal/loader/Loader');
-const ModuleMap = require('internal/loader/ModuleMap');
-const ModuleJob = require('internal/loader/ModuleJob');
-const createDynamicModule = require('internal/loader/CreateDynamicModule');
+const Loader = require('internal/modules/esm/loader');
+const ModuleMap = require('internal/modules/esm/module_map');
+const ModuleJob = require('internal/modules/esm/module_job');
+const createDynamicModule = require(
+  'internal/modules/esm/create_dynamic_module');
 
 const stubModuleUrl = new URL('file://tmp/test');
 const stubModule = createDynamicModule(['default'], stubModuleUrl);
@@ -24,7 +25,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string'
+    message: 'The "url" argument must be of type string. Received type number'
   }
 );
 
@@ -33,7 +34,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string'
+    message: 'The "url" argument must be of type string. Received type number'
   }
 );
 
@@ -42,7 +43,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "job" argument must be of type ModuleJob'
+    message: 'The "job" argument must be of type ModuleJob. ' +
+             'Received type string'
   }
 );
 
@@ -51,6 +53,6 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "url" argument must be of type string'
+    message: 'The "url" argument must be of type string. Received type number'
   }
 );

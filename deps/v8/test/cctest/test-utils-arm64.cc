@@ -114,7 +114,7 @@ bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
   // Retrieve the corresponding X register so we can check that the upper part
   // was properly cleared.
   int64_t result_x = core->xreg(reg.code());
-  if ((result_x & 0xffffffff00000000L) != 0) {
+  if ((result_x & 0xFFFFFFFF00000000L) != 0) {
     printf("Expected 0x%08" PRIx32 "\t Found 0x%016" PRIx64 "\n",
            expected, result_x);
     return false;
@@ -146,7 +146,7 @@ bool EqualFP32(float expected, const RegisterDump* core,
   // Retrieve the corresponding D register so we can check that the upper part
   // was properly cleared.
   uint64_t result_64 = core->dreg_bits(fpreg.code());
-  if ((result_64 & 0xffffffff00000000L) != 0) {
+  if ((result_64 & 0xFFFFFFFF00000000L) != 0) {
     printf("Expected 0x%08" PRIx32 " (%f)\t Found 0x%016" PRIx64 "\n",
            bit_cast<uint32_t>(expected), expected, result_64);
     return false;

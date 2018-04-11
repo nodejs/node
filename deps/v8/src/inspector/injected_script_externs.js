@@ -108,6 +108,12 @@ InjectedScriptHostClass.prototype.getOwnPropertySymbols = function(obj) {}
  */
 InjectedScriptHostClass.prototype.nativeAccessorDescriptor = function(obj, name) {}
 
+/**
+ * @param {!Object} arrayBuffer
+ * @return {Array<Object>|undefined}
+ */
+InjectedScriptHostClass.prototype.typedArrayProperties = function(arrayBuffer) {}
+
 /** @type {!InjectedScriptHostClass} */
 var InjectedScriptHost;
 /** @type {!Window} */

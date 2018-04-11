@@ -58,6 +58,7 @@ namespace node {
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \
+  V(STREAMPIPE)                                                               \
   V(TCPCONNECTWRAP)                                                           \
   V(TCPSERVERWRAP)                                                            \
   V(TCPWRAP)                                                                  \
@@ -141,7 +142,7 @@ class AsyncWrap : public BaseObject {
   static void EmitPromiseResolve(Environment* env, double async_id);
 
   void EmitTraceEventBefore();
-  void EmitTraceEventAfter();
+  static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();
 
 
@@ -169,11 +170,26 @@ class AsyncWrap : public BaseObject {
 
   static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 
+  // This is a simplified version of InternalCallbackScope that only runs
+  // the `before` and `after` hooks. Only use it when not actually calling
+  // back into JS; otherwise, use InternalCallbackScope.
+  class AsyncScope {
+   public:
+    explicit inline AsyncScope(AsyncWrap* wrap);
+    ~AsyncScope();
+
+   private:
+    AsyncWrap* wrap_ = nullptr;
+  };
+
  private:
   friend class PromiseWrap;
 
-  // This is specifically used by the PromiseWrap constructor.
-  AsyncWrap(Environment* env, v8::Local<v8::Object> promise, bool silent);
+  AsyncWrap(Environment* env,
+            v8::Local<v8::Object> promise,
+            ProviderType provider,
+            double execution_async_id,
+            bool silent);
   inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.

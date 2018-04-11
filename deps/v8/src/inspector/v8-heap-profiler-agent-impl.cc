@@ -63,7 +63,7 @@ class GlobalObjectNameResolver final
     if (m_offset + length + 1 >= m_strings.size()) return "";
     for (size_t i = 0; i < length; ++i) {
       UChar ch = name[i];
-      m_strings[m_offset + i] = ch > 0xff ? '?' : static_cast<char>(ch);
+      m_strings[m_offset + i] = ch > 0xFF ? '?' : static_cast<char>(ch);
     }
     m_strings[m_offset + length] = '\0';
     char* result = &*m_strings.begin() + m_offset;

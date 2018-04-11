@@ -29,11 +29,11 @@
 #include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"
 
-#include "src/arm/simulator-arm.h"
 #include "src/assembler-inl.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
+#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {
@@ -198,16 +198,15 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  F_piiii f = FUNCTION_CAST<F_piiii>(AssembleCode([&](Assembler& assm) {
+  auto f = AssembleCode<int(TestData*, int, int, int)>([&](Assembler& assm) {
     AssembleLoadExcl(&assm, access1, r1, r1);
     AssembleMemoryAccess(&assm, access2, r3, r2, r1);
     AssembleStoreExcl(&assm, access3, r0, r3, r1);
-  }));
+  });
 
   TestData t = initial_data;
 
-  int res =
-      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0));
+  int res = f.Call(&t, 0, 0, 0);
   CHECK_EQ(expected_res, res);
   switch (access3.size) {
     case MemoryAccess::Size::Byte:
@@ -267,12 +266,11 @@ namespace {
 int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                         MemoryAccess access) {
   HandleScope scope(isolate);
-  F_piiii f = FUNCTION_CAST<F_piiii>(AssembleCode([&](Assembler& assm) {
+  auto f = AssembleCode<int(TestData*, int, int)>([&](Assembler& assm) {
     AssembleMemoryAccess(&assm, access, r0, r2, r1);
-  }));
+  });
 
-  return reinterpret_cast<int>(
-      CALL_GENERATED_CODE(isolate, f, test_data, 0, 0, 0, 0));
+  return f.Call(test_data, 0, 0);
 }
 
 }  // namespace

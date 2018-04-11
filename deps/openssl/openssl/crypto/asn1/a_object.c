@@ -1,70 +1,23 @@
-/* crypto/asn1/a_object.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
 #include <limits.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/buffer.h>
 #include <openssl/asn1.h>
 #include <openssl/objects.h>
 #include <openssl/bn.h>
+#include "internal/asn1_int.h"
+#include "asn1_locl.h"
 
-int i2d_ASN1_OBJECT(ASN1_OBJECT *a, unsigned char **pp)
+int i2d_ASN1_OBJECT(const ASN1_OBJECT *a, unsigned char **pp)
 {
     unsigned char *p;
     int objsize;
@@ -89,7 +42,7 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
 {
     int i, first, len = 0, c, use_bn;
     char ftmp[24], *tmp = ftmp;
-    int tmpsize = sizeof ftmp;
+    int tmpsize = sizeof(ftmp);
     const char *p;
     unsigned long l;
     BIGNUM *bl = NULL;
@@ -137,9 +90,9 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
             }
             if (!use_bn && l >= ((ULONG_MAX - 80) / 10L)) {
                 use_bn = 1;
-                if (!bl)
+                if (bl == NULL)
                     bl = BN_new();
-                if (!bl || !BN_set_word(bl, l))
+                if (bl == NULL || !BN_set_word(bl, l))
                     goto err;
             }
             if (use_bn) {
@@ -171,7 +124,7 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
                     OPENSSL_free(tmp);
                 tmpsize = blsize + 32;
                 tmp = OPENSSL_malloc(tmpsize);
-                if (!tmp)
+                if (tmp == NULL)
                     goto err;
             }
             while (blsize--) {
@@ -203,38 +156,39 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
     }
     if (tmp != ftmp)
         OPENSSL_free(tmp);
-    if (bl)
-        BN_free(bl);
+    BN_free(bl);
     return (len);
  err:
     if (tmp != ftmp)
         OPENSSL_free(tmp);
-    if (bl)
-        BN_free(bl);
+    BN_free(bl);
     return (0);
 }
 
-int i2t_ASN1_OBJECT(char *buf, int buf_len, ASN1_OBJECT *a)
+int i2t_ASN1_OBJECT(char *buf, int buf_len, const ASN1_OBJECT *a)
 {
     return OBJ_obj2txt(buf, buf_len, a, 0);
 }
 
-int i2a_ASN1_OBJECT(BIO *bp, ASN1_OBJECT *a)
+int i2a_ASN1_OBJECT(BIO *bp, const ASN1_OBJECT *a)
 {
     char buf[80], *p = buf;
     int i;
 
     if ((a == NULL) || (a->data == NULL))
         return (BIO_write(bp, "NULL", 4));
-    i = i2t_ASN1_OBJECT(buf, sizeof buf, a);
+    i = i2t_ASN1_OBJECT(buf, sizeof(buf), a);
     if (i > (int)(sizeof(buf) - 1)) {
         p = OPENSSL_malloc(i + 1);
-        if (!p)
+        if (p == NULL)
             return -1;
         i2t_ASN1_OBJECT(p, i + 1, a);
     }
-    if (i <= 0)
-        return BIO_write(bp, "<INVALID>", 9);
+    if (i <= 0) {
+        i = BIO_write(bp, "<INVALID>", 9);
+        i += BIO_dump(bp, (const char *)a->data, a->length);
+        return i;
+    }
     BIO_write(bp, p, i);
     if (p != buf)
         OPENSSL_free(p);
@@ -272,7 +226,7 @@ ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
 ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
                              long len)
 {
-    ASN1_OBJECT *ret = NULL;
+    ASN1_OBJECT *ret = NULL, tobj;
     const unsigned char *p;
     unsigned char *data;
     int i, length;
@@ -289,6 +243,29 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
     }
     /* Now 0 < len <= INT_MAX, so the cast is safe. */
     length = (int)len;
+    /*
+     * Try to lookup OID in table: these are all valid encodings so if we get
+     * a match we know the OID is valid.
+     */
+    tobj.nid = NID_undef;
+    tobj.data = p;
+    tobj.length = length;
+    tobj.flags = 0;
+    i = OBJ_obj2nid(&tobj);
+    if (i != NID_undef) {
+        /*
+         * Return shared registered OID object: this improves efficiency
+         * because we don't have to return a dynamically allocated OID
+         * and NID lookups can use the cached value.
+         */
+        ret = OBJ_nid2obj(i);
+        if (a) {
+            ASN1_OBJECT_free(*a);
+            *a = ret;
+        }
+        *pp += len;
+        return ret;
+    }
     for (i = 0; i < length; i++, p++) {
         if (*p == 0x80 && (!i || !(p[-1] & 0x80))) {
             ASN1err(ASN1_F_C2I_ASN1_OBJECT, ASN1_R_INVALID_OBJECT_ENCODING);
@@ -314,9 +291,8 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
     /* once detached we can change it */
     if ((data == NULL) || (ret->length < length)) {
         ret->length = 0;
-        if (data != NULL)
-            OPENSSL_free(data);
-        data = (unsigned char *)OPENSSL_malloc(length);
+        OPENSSL_free(data);
+        data = OPENSSL_malloc(length);
         if (data == NULL) {
             i = ERR_R_MALLOC_FAILURE;
             goto err;
@@ -338,7 +314,7 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
     return (ret);
  err:
     ASN1err(ASN1_F_C2I_ASN1_OBJECT, i);
-    if ((ret != NULL) && ((a == NULL) || (*a != ret)))
+    if ((a == NULL) || (*a != ret))
         ASN1_OBJECT_free(ret);
     return (NULL);
 }
@@ -347,16 +323,11 @@ ASN1_OBJECT *ASN1_OBJECT_new(void)
 {
     ASN1_OBJECT *ret;
 
-    ret = (ASN1_OBJECT *)OPENSSL_malloc(sizeof(ASN1_OBJECT));
+    ret = OPENSSL_zalloc(sizeof(*ret));
     if (ret == NULL) {
         ASN1err(ASN1_F_ASN1_OBJECT_NEW, ERR_R_MALLOC_FAILURE);
         return (NULL);
     }
-    ret->length = 0;
-    ret->data = NULL;
-    ret->nid = 0;
-    ret->sn = NULL;
-    ret->ln = NULL;
     ret->flags = ASN1_OBJECT_FLAG_DYNAMIC;
     return (ret);
 }
@@ -369,16 +340,13 @@ void ASN1_OBJECT_free(ASN1_OBJECT *a)
 #ifndef CONST_STRICT            /* disable purely for compile-time strict
                                  * const checking. Doing this on a "real"
                                  * compile will cause memory leaks */
-        if (a->sn != NULL)
-            OPENSSL_free((void *)a->sn);
-        if (a->ln != NULL)
-            OPENSSL_free((void *)a->ln);
+        OPENSSL_free((void*)a->sn);
+        OPENSSL_free((void*)a->ln);
 #endif
         a->sn = a->ln = NULL;
     }
     if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC_DATA) {
-        if (a->data != NULL)
-            OPENSSL_free((void *)a->data);
+        OPENSSL_free((void*)a->data);
         a->data = NULL;
         a->length = 0;
     }
@@ -400,7 +368,3 @@ ASN1_OBJECT *ASN1_OBJECT_create(int nid, unsigned char *data, int len,
         ASN1_OBJECT_FLAG_DYNAMIC_DATA;
     return (OBJ_dup(&o));
 }
-
-IMPLEMENT_STACK_OF(ASN1_OBJECT)
-
-IMPLEMENT_ASN1_SET_OF(ASN1_OBJECT)

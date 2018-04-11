@@ -95,8 +95,7 @@ namespace internal {
 // If more advance computation is required before the assert then access the
 // RegisterDump named core directly:
 //
-//   CHECK_EQUAL_64(0x1234, core.xreg(0) & 0xffff);
-
+//   CHECK_EQUAL_64(0x1234, core.xreg(0) & 0xFFFF);
 
 #if 0  // TODO(all): enable.
 static v8::Persistent<v8::Context> env;
@@ -150,7 +149,6 @@ static void InitializeVM() {
   simulator.ResetState();
 
 #define START_AFTER_RESET()                                                    \
-  __ SetStackPointer(csp);                                                     \
   __ PushCalleeSavedRegisters();                                               \
   __ Debug("Start test.", __LINE__, TRACE_ENABLE | LOG_ALL);
 
@@ -192,7 +190,6 @@ static void InitializeVM() {
 
 
 #define START_AFTER_RESET()                                                    \
-  __ SetStackPointer(csp);                                                     \
   __ PushCalleeSavedRegisters();
 
 #define START()                                                                \
@@ -200,6 +197,7 @@ static void InitializeVM() {
   START_AFTER_RESET();
 
 #define RUN()                                                       \
+  MakeAssemblerBufferExecutable(buf, allocated);                    \
   Assembler::FlushICache(isolate, buf, masm.SizeOfGeneratedCode()); \
   {                                                                 \
     void (*test_function)(void);                                    \
@@ -213,7 +211,7 @@ static void InitializeVM() {
   __ Ret();                     \
   __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN() CHECK(v8::base::OS::Free(buf, allocated));
+#define TEARDOWN() CHECK(v8::internal::FreePages(buf, allocated));
 
 #endif  // ifdef USE_SIMULATOR.
 
@@ -266,20 +264,20 @@ TEST(stack_ops) {
   __ Mov(x1, csp);
 
   // Add extended to the csp, and move the result to a normal register.
-  __ Mov(x17, 0xfff);
+  __ Mov(x17, 0xFFF);
   __ Add(csp, csp, Operand(x17, SXTB));
   __ Mov(x2, csp);
 
   // Create an csp using a logical instruction, and move to normal register.
-  __ Orr(csp, xzr, Operand(0x1fff));
+  __ Orr(csp, xzr, Operand(0x1FFF));
   __ Mov(x3, csp);
 
   // Write wcsp using a logical instruction.
-  __ Orr(wcsp, wzr, Operand(0xfffffff8L));
+  __ Orr(wcsp, wzr, Operand(0xFFFFFFF8L));
   __ Mov(x4, csp);
 
   // Write csp, and read back wcsp.
-  __ Orr(csp, xzr, Operand(0xfffffff8L));
+  __ Orr(csp, xzr, Operand(0xFFFFFFF8L));
   __ Mov(w5, wcsp);
 
   //  restore csp.
@@ -290,10 +288,10 @@ TEST(stack_ops) {
 
   CHECK_EQUAL_64(0x1000, x0);
   CHECK_EQUAL_64(0x1050, x1);
-  CHECK_EQUAL_64(0x104f, x2);
-  CHECK_EQUAL_64(0x1fff, x3);
-  CHECK_EQUAL_64(0xfffffff8, x4);
-  CHECK_EQUAL_64(0xfffffff8, x5);
+  CHECK_EQUAL_64(0x104F, x2);
+  CHECK_EQUAL_64(0x1FFF, x3);
+  CHECK_EQUAL_64(0xFFFFFFF8, x4);
+  CHECK_EQUAL_64(0xFFFFFFF8, x5);
 
   TEARDOWN();
 }
@@ -304,8 +302,8 @@ TEST(mvn) {
   SETUP();
 
   START();
-  __ Mvn(w0, 0xfff);
-  __ Mvn(x1, 0xfff);
+  __ Mvn(w0, 0xFFF);
+  __ Mvn(x1, 0xFFF);
   __ Mvn(w2, Operand(w0, LSL, 1));
   __ Mvn(x3, Operand(x1, LSL, 2));
   __ Mvn(w4, Operand(w0, LSR, 3));
@@ -324,22 +322,22 @@ TEST(mvn) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfffff000, x0);
-  CHECK_EQUAL_64(0xfffffffffffff000UL, x1);
-  CHECK_EQUAL_64(0x00001fff, x2);
-  CHECK_EQUAL_64(0x0000000000003fffUL, x3);
-  CHECK_EQUAL_64(0xe00001ff, x4);
-  CHECK_EQUAL_64(0xf0000000000000ffUL, x5);
+  CHECK_EQUAL_64(0xFFFFF000, x0);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFF000UL, x1);
+  CHECK_EQUAL_64(0x00001FFF, x2);
+  CHECK_EQUAL_64(0x0000000000003FFFUL, x3);
+  CHECK_EQUAL_64(0xE00001FF, x4);
+  CHECK_EQUAL_64(0xF0000000000000FFUL, x5);
   CHECK_EQUAL_64(0x00000001, x6);
   CHECK_EQUAL_64(0x0, x7);
-  CHECK_EQUAL_64(0x7ff80000, x8);
-  CHECK_EQUAL_64(0x3ffc000000000000UL, x9);
-  CHECK_EQUAL_64(0xffffff00, x10);
+  CHECK_EQUAL_64(0x7FF80000, x8);
+  CHECK_EQUAL_64(0x3FFC000000000000UL, x9);
+  CHECK_EQUAL_64(0xFFFFFF00, x10);
   CHECK_EQUAL_64(0x0000000000000001UL, x11);
-  CHECK_EQUAL_64(0xffff8003, x12);
-  CHECK_EQUAL_64(0xffffffffffff0007UL, x13);
-  CHECK_EQUAL_64(0xfffffffffffe000fUL, x14);
-  CHECK_EQUAL_64(0xfffffffffffe000fUL, x15);
+  CHECK_EQUAL_64(0xFFFF8003, x12);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0007UL, x13);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFE000FUL, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFE000FUL, x15);
 
   TEARDOWN();
 }
@@ -350,35 +348,35 @@ TEST(mov) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffL);
-  __ Mov(x1, 0xffffffffffffffffL);
-  __ Mov(x2, 0xffffffffffffffffL);
-  __ Mov(x3, 0xffffffffffffffffL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x1, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x2, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x3, 0xFFFFFFFFFFFFFFFFL);
 
-  __ Mov(x0, 0x0123456789abcdefL);
+  __ Mov(x0, 0x0123456789ABCDEFL);
 
-  __ movz(x1, 0xabcdL << 16);
-  __ movk(x2, 0xabcdL << 32);
-  __ movn(x3, 0xabcdL << 48);
+  __ movz(x1, 0xABCDL << 16);
+  __ movk(x2, 0xABCDL << 32);
+  __ movn(x3, 0xABCDL << 48);
 
-  __ Mov(x4, 0x0123456789abcdefL);
+  __ Mov(x4, 0x0123456789ABCDEFL);
   __ Mov(x5, x4);
 
   __ Mov(w6, -1);
 
   // Test that moves back to the same register have the desired effect. This
   // is a no-op for X registers, and a truncation for W registers.
-  __ Mov(x7, 0x0123456789abcdefL);
+  __ Mov(x7, 0x0123456789ABCDEFL);
   __ Mov(x7, x7);
-  __ Mov(x8, 0x0123456789abcdefL);
+  __ Mov(x8, 0x0123456789ABCDEFL);
   __ Mov(w8, w8);
-  __ Mov(x9, 0x0123456789abcdefL);
+  __ Mov(x9, 0x0123456789ABCDEFL);
   __ Mov(x9, Operand(x9));
-  __ Mov(x10, 0x0123456789abcdefL);
+  __ Mov(x10, 0x0123456789ABCDEFL);
   __ Mov(w10, Operand(w10));
 
-  __ Mov(w11, 0xfff);
-  __ Mov(x12, 0xfff);
+  __ Mov(w11, 0xFFF);
+  __ Mov(x12, 0xFFF);
   __ Mov(w13, Operand(w11, LSL, 1));
   __ Mov(x14, Operand(x12, LSL, 2));
   __ Mov(w15, Operand(w11, LSR, 3));
@@ -396,31 +394,31 @@ TEST(mov) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x0123456789abcdefL, x0);
-  CHECK_EQUAL_64(0x00000000abcd0000L, x1);
-  CHECK_EQUAL_64(0xffffabcdffffffffL, x2);
-  CHECK_EQUAL_64(0x5432ffffffffffffL, x3);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x0);
+  CHECK_EQUAL_64(0x00000000ABCD0000L, x1);
+  CHECK_EQUAL_64(0xFFFFABCDFFFFFFFFL, x2);
+  CHECK_EQUAL_64(0x5432FFFFFFFFFFFFL, x3);
   CHECK_EQUAL_64(x4, x5);
   CHECK_EQUAL_32(-1, w6);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x7);
-  CHECK_EQUAL_32(0x89abcdefL, w8);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x9);
-  CHECK_EQUAL_32(0x89abcdefL, w10);
-  CHECK_EQUAL_64(0x00000fff, x11);
-  CHECK_EQUAL_64(0x0000000000000fffUL, x12);
-  CHECK_EQUAL_64(0x00001ffe, x13);
-  CHECK_EQUAL_64(0x0000000000003ffcUL, x14);
-  CHECK_EQUAL_64(0x000001ff, x15);
-  CHECK_EQUAL_64(0x00000000000000ffUL, x18);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x7);
+  CHECK_EQUAL_32(0x89ABCDEFL, w8);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x9);
+  CHECK_EQUAL_32(0x89ABCDEFL, w10);
+  CHECK_EQUAL_64(0x00000FFF, x11);
+  CHECK_EQUAL_64(0x0000000000000FFFUL, x12);
+  CHECK_EQUAL_64(0x00001FFE, x13);
+  CHECK_EQUAL_64(0x0000000000003FFCUL, x14);
+  CHECK_EQUAL_64(0x000001FF, x15);
+  CHECK_EQUAL_64(0x00000000000000FFUL, x18);
   CHECK_EQUAL_64(0x00000001, x19);
   CHECK_EQUAL_64(0x0, x20);
-  CHECK_EQUAL_64(0x7ff80000, x21);
-  CHECK_EQUAL_64(0x3ffc000000000000UL, x22);
-  CHECK_EQUAL_64(0x000000fe, x23);
-  CHECK_EQUAL_64(0xfffffffffffffffcUL, x24);
-  CHECK_EQUAL_64(0x00007ff8, x25);
-  CHECK_EQUAL_64(0x000000000000fff0UL, x26);
-  CHECK_EQUAL_64(0x000000000001ffe0UL, x27);
+  CHECK_EQUAL_64(0x7FF80000, x21);
+  CHECK_EQUAL_64(0x3FFC000000000000UL, x22);
+  CHECK_EQUAL_64(0x000000FE, x23);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFCUL, x24);
+  CHECK_EQUAL_64(0x00007FF8, x25);
+  CHECK_EQUAL_64(0x000000000000FFF0UL, x26);
+  CHECK_EQUAL_64(0x000000000001FFE0UL, x27);
 
   TEARDOWN();
 }
@@ -431,29 +429,29 @@ TEST(mov_imm_w) {
   SETUP();
 
   START();
-  __ Mov(w0, 0xffffffffL);
-  __ Mov(w1, 0xffff1234L);
-  __ Mov(w2, 0x1234ffffL);
+  __ Mov(w0, 0xFFFFFFFFL);
+  __ Mov(w1, 0xFFFF1234L);
+  __ Mov(w2, 0x1234FFFFL);
   __ Mov(w3, 0x00000000L);
   __ Mov(w4, 0x00001234L);
   __ Mov(w5, 0x12340000L);
   __ Mov(w6, 0x12345678L);
   __ Mov(w7, (int32_t)0x80000000);
-  __ Mov(w8, (int32_t)0xffff0000);
+  __ Mov(w8, (int32_t)0xFFFF0000);
   __ Mov(w9, kWMinInt);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffL, x0);
-  CHECK_EQUAL_64(0xffff1234L, x1);
-  CHECK_EQUAL_64(0x1234ffffL, x2);
+  CHECK_EQUAL_64(0xFFFFFFFFL, x0);
+  CHECK_EQUAL_64(0xFFFF1234L, x1);
+  CHECK_EQUAL_64(0x1234FFFFL, x2);
   CHECK_EQUAL_64(0x00000000L, x3);
   CHECK_EQUAL_64(0x00001234L, x4);
   CHECK_EQUAL_64(0x12340000L, x5);
   CHECK_EQUAL_64(0x12345678L, x6);
   CHECK_EQUAL_64(0x80000000L, x7);
-  CHECK_EQUAL_64(0xffff0000L, x8);
+  CHECK_EQUAL_64(0xFFFF0000L, x8);
   CHECK_EQUAL_32(kWMinInt, w9);
 
   TEARDOWN();
@@ -465,18 +463,18 @@ TEST(mov_imm_x) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffL);
-  __ Mov(x1, 0xffffffffffff1234L);
-  __ Mov(x2, 0xffffffff12345678L);
-  __ Mov(x3, 0xffff1234ffff5678L);
-  __ Mov(x4, 0x1234ffffffff5678L);
-  __ Mov(x5, 0x1234ffff5678ffffL);
-  __ Mov(x6, 0x12345678ffffffffL);
-  __ Mov(x7, 0x1234ffffffffffffL);
-  __ Mov(x8, 0x123456789abcffffL);
-  __ Mov(x9, 0x12345678ffff9abcL);
-  __ Mov(x10, 0x1234ffff56789abcL);
-  __ Mov(x11, 0xffff123456789abcL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x1, 0xFFFFFFFFFFFF1234L);
+  __ Mov(x2, 0xFFFFFFFF12345678L);
+  __ Mov(x3, 0xFFFF1234FFFF5678L);
+  __ Mov(x4, 0x1234FFFFFFFF5678L);
+  __ Mov(x5, 0x1234FFFF5678FFFFL);
+  __ Mov(x6, 0x12345678FFFFFFFFL);
+  __ Mov(x7, 0x1234FFFFFFFFFFFFL);
+  __ Mov(x8, 0x123456789ABCFFFFL);
+  __ Mov(x9, 0x12345678FFFF9ABCL);
+  __ Mov(x10, 0x1234FFFF56789ABCL);
+  __ Mov(x11, 0xFFFF123456789ABCL);
   __ Mov(x12, 0x0000000000000000L);
   __ Mov(x13, 0x0000000000001234L);
   __ Mov(x14, 0x0000000012345678L);
@@ -485,28 +483,28 @@ TEST(mov_imm_x) {
   __ Mov(x19, 0x1234000056780000L);
   __ Mov(x20, 0x1234567800000000L);
   __ Mov(x21, 0x1234000000000000L);
-  __ Mov(x22, 0x123456789abc0000L);
-  __ Mov(x23, 0x1234567800009abcL);
-  __ Mov(x24, 0x1234000056789abcL);
-  __ Mov(x25, 0x0000123456789abcL);
-  __ Mov(x26, 0x123456789abcdef0L);
-  __ Mov(x27, 0xffff000000000001L);
-  __ Mov(x28, 0x8000ffff00000000L);
+  __ Mov(x22, 0x123456789ABC0000L);
+  __ Mov(x23, 0x1234567800009ABCL);
+  __ Mov(x24, 0x1234000056789ABCL);
+  __ Mov(x25, 0x0000123456789ABCL);
+  __ Mov(x26, 0x123456789ABCDEF0L);
+  __ Mov(x27, 0xFFFF000000000001L);
+  __ Mov(x28, 0x8000FFFF00000000L);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffffff1234L, x1);
-  CHECK_EQUAL_64(0xffffffff12345678L, x2);
-  CHECK_EQUAL_64(0xffff1234ffff5678L, x3);
-  CHECK_EQUAL_64(0x1234ffffffff5678L, x4);
-  CHECK_EQUAL_64(0x1234ffff5678ffffL, x5);
-  CHECK_EQUAL_64(0x12345678ffffffffL, x6);
-  CHECK_EQUAL_64(0x1234ffffffffffffL, x7);
-  CHECK_EQUAL_64(0x123456789abcffffL, x8);
-  CHECK_EQUAL_64(0x12345678ffff9abcL, x9);
-  CHECK_EQUAL_64(0x1234ffff56789abcL, x10);
-  CHECK_EQUAL_64(0xffff123456789abcL, x11);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF1234L, x1);
+  CHECK_EQUAL_64(0xFFFFFFFF12345678L, x2);
+  CHECK_EQUAL_64(0xFFFF1234FFFF5678L, x3);
+  CHECK_EQUAL_64(0x1234FFFFFFFF5678L, x4);
+  CHECK_EQUAL_64(0x1234FFFF5678FFFFL, x5);
+  CHECK_EQUAL_64(0x12345678FFFFFFFFL, x6);
+  CHECK_EQUAL_64(0x1234FFFFFFFFFFFFL, x7);
+  CHECK_EQUAL_64(0x123456789ABCFFFFL, x8);
+  CHECK_EQUAL_64(0x12345678FFFF9ABCL, x9);
+  CHECK_EQUAL_64(0x1234FFFF56789ABCL, x10);
+  CHECK_EQUAL_64(0xFFFF123456789ABCL, x11);
   CHECK_EQUAL_64(0x0000000000000000L, x12);
   CHECK_EQUAL_64(0x0000000000001234L, x13);
   CHECK_EQUAL_64(0x0000000012345678L, x14);
@@ -515,13 +513,13 @@ TEST(mov_imm_x) {
   CHECK_EQUAL_64(0x1234000056780000L, x19);
   CHECK_EQUAL_64(0x1234567800000000L, x20);
   CHECK_EQUAL_64(0x1234000000000000L, x21);
-  CHECK_EQUAL_64(0x123456789abc0000L, x22);
-  CHECK_EQUAL_64(0x1234567800009abcL, x23);
-  CHECK_EQUAL_64(0x1234000056789abcL, x24);
-  CHECK_EQUAL_64(0x0000123456789abcL, x25);
-  CHECK_EQUAL_64(0x123456789abcdef0L, x26);
-  CHECK_EQUAL_64(0xffff000000000001L, x27);
-  CHECK_EQUAL_64(0x8000ffff00000000L, x28);
+  CHECK_EQUAL_64(0x123456789ABC0000L, x22);
+  CHECK_EQUAL_64(0x1234567800009ABCL, x23);
+  CHECK_EQUAL_64(0x1234000056789ABCL, x24);
+  CHECK_EQUAL_64(0x0000123456789ABCL, x25);
+  CHECK_EQUAL_64(0x123456789ABCDEF0L, x26);
+  CHECK_EQUAL_64(0xFFFF000000000001L, x27);
+  CHECK_EQUAL_64(0x8000FFFF00000000L, x28);
 
   TEARDOWN();
 }
@@ -532,8 +530,8 @@ TEST(orr) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xf0f0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xF0F0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Orr(x2, x0, Operand(x1));
   __ Orr(w3, w0, Operand(w1, LSL, 28));
@@ -543,22 +541,22 @@ TEST(orr) {
   __ Orr(x7, x0, Operand(x1, ASR, 4));
   __ Orr(w8, w0, Operand(w1, ROR, 12));
   __ Orr(x9, x0, Operand(x1, ROR, 12));
-  __ Orr(w10, w0, Operand(0xf));
-  __ Orr(x11, x0, Operand(0xf0000000f0000000L));
+  __ Orr(w10, w0, Operand(0xF));
+  __ Orr(x11, x0, Operand(0xF0000000F0000000L));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xf000f0ff, x2);
-  CHECK_EQUAL_64(0xf000f0f0, x3);
-  CHECK_EQUAL_64(0xf00000ff0000f0f0L, x4);
-  CHECK_EQUAL_64(0x0f00f0ff, x5);
-  CHECK_EQUAL_64(0xff00f0ff, x6);
-  CHECK_EQUAL_64(0x0f00f0ff, x7);
-  CHECK_EQUAL_64(0x0ffff0f0, x8);
-  CHECK_EQUAL_64(0x0ff00000000ff0f0L, x9);
-  CHECK_EQUAL_64(0xf0ff, x10);
-  CHECK_EQUAL_64(0xf0000000f000f0f0L, x11);
+  CHECK_EQUAL_64(0xF000F0FF, x2);
+  CHECK_EQUAL_64(0xF000F0F0, x3);
+  CHECK_EQUAL_64(0xF00000FF0000F0F0L, x4);
+  CHECK_EQUAL_64(0x0F00F0FF, x5);
+  CHECK_EQUAL_64(0xFF00F0FF, x6);
+  CHECK_EQUAL_64(0x0F00F0FF, x7);
+  CHECK_EQUAL_64(0x0FFFF0F0, x8);
+  CHECK_EQUAL_64(0x0FF00000000FF0F0L, x9);
+  CHECK_EQUAL_64(0xF0FF, x10);
+  CHECK_EQUAL_64(0xF0000000F000F0F0L, x11);
 
   TEARDOWN();
 }
@@ -587,9 +585,9 @@ TEST(orr_extend) {
   CHECK_EQUAL_64(0x00010101, x7);
   CHECK_EQUAL_64(0x00020201, x8);
   CHECK_EQUAL_64(0x0000000400040401UL, x9);
-  CHECK_EQUAL_64(0x00000000ffffff81UL, x10);
-  CHECK_EQUAL_64(0xffffffffffff0101UL, x11);
-  CHECK_EQUAL_64(0xfffffffe00020201UL, x12);
+  CHECK_EQUAL_64(0x00000000FFFFFF81UL, x10);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0101UL, x11);
+  CHECK_EQUAL_64(0xFFFFFFFE00020201UL, x12);
   CHECK_EQUAL_64(0x0000000400040401UL, x13);
 
   TEARDOWN();
@@ -602,10 +600,10 @@ TEST(bitwise_wide_imm) {
 
   START();
   __ Mov(x0, 0);
-  __ Mov(x1, 0xf0f0f0f0f0f0f0f0UL);
+  __ Mov(x1, 0xF0F0F0F0F0F0F0F0UL);
 
-  __ Orr(x10, x0, Operand(0x1234567890abcdefUL));
-  __ Orr(w11, w1, Operand(0x90abcdef));
+  __ Orr(x10, x0, Operand(0x1234567890ABCDEFUL));
+  __ Orr(w11, w1, Operand(0x90ABCDEF));
 
   __ Orr(w12, w0, kWMinInt);
   __ Eor(w13, w0, kWMinInt);
@@ -614,9 +612,9 @@ TEST(bitwise_wide_imm) {
   RUN();
 
   CHECK_EQUAL_64(0, x0);
-  CHECK_EQUAL_64(0xf0f0f0f0f0f0f0f0UL, x1);
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x10);
-  CHECK_EQUAL_64(0xf0fbfdffUL, x11);
+  CHECK_EQUAL_64(0xF0F0F0F0F0F0F0F0UL, x1);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x10);
+  CHECK_EQUAL_64(0xF0FBFDFFUL, x11);
   CHECK_EQUAL_32(kWMinInt, w12);
   CHECK_EQUAL_32(kWMinInt, w13);
 
@@ -629,8 +627,8 @@ TEST(orn) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xf0f0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xF0F0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Orn(x2, x0, Operand(x1));
   __ Orn(w3, w0, Operand(w1, LSL, 4));
@@ -640,22 +638,22 @@ TEST(orn) {
   __ Orn(x7, x0, Operand(x1, ASR, 1));
   __ Orn(w8, w0, Operand(w1, ROR, 16));
   __ Orn(x9, x0, Operand(x1, ROR, 16));
-  __ Orn(w10, w0, Operand(0xffff));
-  __ Orn(x11, x0, Operand(0xffff0000ffffL));
+  __ Orn(w10, w0, Operand(0xFFFF));
+  __ Orn(x11, x0, Operand(0xFFFF0000FFFFL));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffff0ffffff0L, x2);
-  CHECK_EQUAL_64(0xfffff0ff, x3);
-  CHECK_EQUAL_64(0xfffffff0fffff0ffL, x4);
-  CHECK_EQUAL_64(0xffffffff87fffff0L, x5);
-  CHECK_EQUAL_64(0x07fffff0, x6);
-  CHECK_EQUAL_64(0xffffffff87fffff0L, x7);
-  CHECK_EQUAL_64(0xff00ffff, x8);
-  CHECK_EQUAL_64(0xff00ffffffffffffL, x9);
-  CHECK_EQUAL_64(0xfffff0f0, x10);
-  CHECK_EQUAL_64(0xffff0000fffff0f0L, x11);
+  CHECK_EQUAL_64(0xFFFFFFFF0FFFFFF0L, x2);
+  CHECK_EQUAL_64(0xFFFFF0FF, x3);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFFF0FFL, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF87FFFFF0L, x5);
+  CHECK_EQUAL_64(0x07FFFFF0, x6);
+  CHECK_EQUAL_64(0xFFFFFFFF87FFFFF0L, x7);
+  CHECK_EQUAL_64(0xFF00FFFF, x8);
+  CHECK_EQUAL_64(0xFF00FFFFFFFFFFFFL, x9);
+  CHECK_EQUAL_64(0xFFFFF0F0, x10);
+  CHECK_EQUAL_64(0xFFFF0000FFFFF0F0L, x11);
 
   TEARDOWN();
 }
@@ -680,14 +678,14 @@ TEST(orn_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffff7f, x6);
-  CHECK_EQUAL_64(0xfffffffffffefefdUL, x7);
-  CHECK_EQUAL_64(0xfffdfdfb, x8);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x9);
-  CHECK_EQUAL_64(0x0000007f, x10);
-  CHECK_EQUAL_64(0x0000fefd, x11);
-  CHECK_EQUAL_64(0x00000001fffdfdfbUL, x12);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x13);
+  CHECK_EQUAL_64(0xFFFFFF7F, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFEFEFDUL, x7);
+  CHECK_EQUAL_64(0xFFFDFDFB, x8);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x9);
+  CHECK_EQUAL_64(0x0000007F, x10);
+  CHECK_EQUAL_64(0x0000FEFD, x11);
+  CHECK_EQUAL_64(0x00000001FFFDFDFBUL, x12);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x13);
 
   TEARDOWN();
 }
@@ -698,8 +696,8 @@ TEST(and_) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ And(x2, x0, Operand(x1));
   __ And(w3, w0, Operand(w1, LSL, 4));
@@ -709,22 +707,22 @@ TEST(and_) {
   __ And(x7, x0, Operand(x1, ASR, 20));
   __ And(w8, w0, Operand(w1, ROR, 28));
   __ And(x9, x0, Operand(x1, ROR, 28));
-  __ And(w10, w0, Operand(0xff00));
-  __ And(x11, x0, Operand(0xff));
+  __ And(w10, w0, Operand(0xFF00));
+  __ And(x11, x0, Operand(0xFF));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x000000f0, x2);
-  CHECK_EQUAL_64(0x00000ff0, x3);
-  CHECK_EQUAL_64(0x00000ff0, x4);
+  CHECK_EQUAL_64(0x000000F0, x2);
+  CHECK_EQUAL_64(0x00000FF0, x3);
+  CHECK_EQUAL_64(0x00000FF0, x4);
   CHECK_EQUAL_64(0x00000070, x5);
-  CHECK_EQUAL_64(0x0000ff00, x6);
-  CHECK_EQUAL_64(0x00000f00, x7);
-  CHECK_EQUAL_64(0x00000ff0, x8);
+  CHECK_EQUAL_64(0x0000FF00, x6);
+  CHECK_EQUAL_64(0x00000F00, x7);
+  CHECK_EQUAL_64(0x00000FF0, x8);
   CHECK_EQUAL_64(0x00000000, x9);
-  CHECK_EQUAL_64(0x0000ff00, x10);
-  CHECK_EQUAL_64(0x000000f0, x11);
+  CHECK_EQUAL_64(0x0000FF00, x10);
+  CHECK_EQUAL_64(0x000000F0, x11);
 
   TEARDOWN();
 }
@@ -735,7 +733,7 @@ TEST(and_extend) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffUL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x1, 0x8000000080008081UL);
   __ And(w6, w0, Operand(w1, UXTB));
   __ And(x7, x0, Operand(x1, UXTH, 1));
@@ -753,9 +751,9 @@ TEST(and_extend) {
   CHECK_EQUAL_64(0x00010102, x7);
   CHECK_EQUAL_64(0x00020204, x8);
   CHECK_EQUAL_64(0x0000000400040408UL, x9);
-  CHECK_EQUAL_64(0xffffff81, x10);
-  CHECK_EQUAL_64(0xffffffffffff0102UL, x11);
-  CHECK_EQUAL_64(0xfffffffe00020204UL, x12);
+  CHECK_EQUAL_64(0xFFFFFF81, x10);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0102UL, x11);
+  CHECK_EQUAL_64(0xFFFFFFFE00020204UL, x12);
   CHECK_EQUAL_64(0x0000000400040408UL, x13);
 
   TEARDOWN();
@@ -767,18 +765,18 @@ TEST(ands) {
   SETUP();
 
   START();
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x1, 0xF00000FF);
   __ Ands(w0, w1, Operand(w1));
   END();
 
   RUN();
 
   CHECK_EQUAL_NZCV(NFlag);
-  CHECK_EQUAL_64(0xf00000ff, x0);
+  CHECK_EQUAL_64(0xF00000FF, x0);
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
   __ Ands(w0, w0, Operand(w1, LSR, 4));
   END();
 
@@ -799,8 +797,8 @@ TEST(ands) {
   CHECK_EQUAL_64(0x8000000000000000L, x0);
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Ands(w0, w0, Operand(0xf));
+  __ Mov(x0, 0xFFF0);
+  __ Ands(w0, w0, Operand(0xF));
   END();
 
   RUN();
@@ -809,7 +807,7 @@ TEST(ands) {
   CHECK_EQUAL_64(0x00000000, x0);
 
   START();
-  __ Mov(x0, 0xff000000);
+  __ Mov(x0, 0xFF000000);
   __ Ands(w0, w0, Operand(0x80000000));
   END();
 
@@ -827,8 +825,8 @@ TEST(bic) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Bic(x2, x0, Operand(x1));
   __ Bic(w3, w0, Operand(w1, LSL, 4));
@@ -838,34 +836,32 @@ TEST(bic) {
   __ Bic(x7, x0, Operand(x1, ASR, 20));
   __ Bic(w8, w0, Operand(w1, ROR, 28));
   __ Bic(x9, x0, Operand(x1, ROR, 24));
-  __ Bic(x10, x0, Operand(0x1f));
+  __ Bic(x10, x0, Operand(0x1F));
   __ Bic(x11, x0, Operand(0x100));
 
   // Test bic into csp when the constant cannot be encoded in the immediate
   // field.
   // Use x20 to preserve csp. We check for the result via x21 because the
   // test infrastructure requires that csp be restored to its original value.
-  __ SetStackPointer(jssp);  // Change stack pointer to avoid consistency check.
   __ Mov(x20, csp);
-  __ Mov(x0, 0xffffff);
-  __ Bic(csp, x0, Operand(0xabcdef));
+  __ Mov(x0, 0xFFFFFF);
+  __ Bic(csp, x0, Operand(0xABCDEF));
   __ Mov(x21, csp);
   __ Mov(csp, x20);
-  __ SetStackPointer(csp);  // Restore stack pointer.
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x0000ff00, x2);
-  CHECK_EQUAL_64(0x0000f000, x3);
-  CHECK_EQUAL_64(0x0000f000, x4);
-  CHECK_EQUAL_64(0x0000ff80, x5);
-  CHECK_EQUAL_64(0x000000f0, x6);
-  CHECK_EQUAL_64(0x0000f0f0, x7);
-  CHECK_EQUAL_64(0x0000f000, x8);
-  CHECK_EQUAL_64(0x0000ff00, x9);
-  CHECK_EQUAL_64(0x0000ffe0, x10);
-  CHECK_EQUAL_64(0x0000fef0, x11);
+  CHECK_EQUAL_64(0x0000FF00, x2);
+  CHECK_EQUAL_64(0x0000F000, x3);
+  CHECK_EQUAL_64(0x0000F000, x4);
+  CHECK_EQUAL_64(0x0000FF80, x5);
+  CHECK_EQUAL_64(0x000000F0, x6);
+  CHECK_EQUAL_64(0x0000F0F0, x7);
+  CHECK_EQUAL_64(0x0000F000, x8);
+  CHECK_EQUAL_64(0x0000FF00, x9);
+  CHECK_EQUAL_64(0x0000FFE0, x10);
+  CHECK_EQUAL_64(0x0000FEF0, x11);
 
   CHECK_EQUAL_64(0x543210, x21);
 
@@ -878,7 +874,7 @@ TEST(bic_extend) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffUL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x1, 0x8000000080008081UL);
   __ Bic(w6, w0, Operand(w1, UXTB));
   __ Bic(x7, x0, Operand(x1, UXTH, 1));
@@ -892,14 +888,14 @@ TEST(bic_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffff7e, x6);
-  CHECK_EQUAL_64(0xfffffffffffefefdUL, x7);
-  CHECK_EQUAL_64(0xfffdfdfb, x8);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x9);
-  CHECK_EQUAL_64(0x0000007e, x10);
-  CHECK_EQUAL_64(0x0000fefd, x11);
-  CHECK_EQUAL_64(0x00000001fffdfdfbUL, x12);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x13);
+  CHECK_EQUAL_64(0xFFFFFF7E, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFEFEFDUL, x7);
+  CHECK_EQUAL_64(0xFFFDFDFB, x8);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x9);
+  CHECK_EQUAL_64(0x0000007E, x10);
+  CHECK_EQUAL_64(0x0000FEFD, x11);
+  CHECK_EQUAL_64(0x00000001FFFDFDFBUL, x12);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x13);
 
   TEARDOWN();
 }
@@ -910,7 +906,7 @@ TEST(bics) {
   SETUP();
 
   START();
-  __ Mov(x1, 0xffff);
+  __ Mov(x1, 0xFFFF);
   __ Bics(w0, w1, Operand(w1));
   END();
 
@@ -920,7 +916,7 @@ TEST(bics) {
   CHECK_EQUAL_64(0x00000000, x0);
 
   START();
-  __ Mov(x0, 0xffffffff);
+  __ Mov(x0, 0xFFFFFFFF);
   __ Bics(w0, w0, Operand(w0, LSR, 1));
   END();
 
@@ -941,8 +937,8 @@ TEST(bics) {
   CHECK_EQUAL_64(0x00000000, x0);
 
   START();
-  __ Mov(x0, 0xffffffffffffffffL);
-  __ Bics(x0, x0, Operand(0x7fffffffffffffffL));
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFL);
+  __ Bics(x0, x0, Operand(0x7FFFFFFFFFFFFFFFL));
   END();
 
   RUN();
@@ -951,8 +947,8 @@ TEST(bics) {
   CHECK_EQUAL_64(0x8000000000000000L, x0);
 
   START();
-  __ Mov(w0, 0xffff0000);
-  __ Bics(w0, w0, Operand(0xfffffff0));
+  __ Mov(w0, 0xFFFF0000);
+  __ Bics(w0, w0, Operand(0xFFFFFFF0));
   END();
 
   RUN();
@@ -969,8 +965,8 @@ TEST(eor) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Eor(x2, x0, Operand(x1));
   __ Eor(w3, w0, Operand(w1, LSL, 4));
@@ -980,22 +976,22 @@ TEST(eor) {
   __ Eor(x7, x0, Operand(x1, ASR, 20));
   __ Eor(w8, w0, Operand(w1, ROR, 28));
   __ Eor(x9, x0, Operand(x1, ROR, 28));
-  __ Eor(w10, w0, Operand(0xff00ff00));
-  __ Eor(x11, x0, Operand(0xff00ff00ff00ff00L));
+  __ Eor(w10, w0, Operand(0xFF00FF00));
+  __ Eor(x11, x0, Operand(0xFF00FF00FF00FF00L));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xf000ff0f, x2);
-  CHECK_EQUAL_64(0x0000f000, x3);
-  CHECK_EQUAL_64(0x0000000f0000f000L, x4);
-  CHECK_EQUAL_64(0x7800ff8f, x5);
-  CHECK_EQUAL_64(0xffff00f0, x6);
-  CHECK_EQUAL_64(0x0000f0f0, x7);
-  CHECK_EQUAL_64(0x0000f00f, x8);
-  CHECK_EQUAL_64(0x00000ff00000ffffL, x9);
-  CHECK_EQUAL_64(0xff0000f0, x10);
-  CHECK_EQUAL_64(0xff00ff00ff0000f0L, x11);
+  CHECK_EQUAL_64(0xF000FF0F, x2);
+  CHECK_EQUAL_64(0x0000F000, x3);
+  CHECK_EQUAL_64(0x0000000F0000F000L, x4);
+  CHECK_EQUAL_64(0x7800FF8F, x5);
+  CHECK_EQUAL_64(0xFFFF00F0, x6);
+  CHECK_EQUAL_64(0x0000F0F0, x7);
+  CHECK_EQUAL_64(0x0000F00F, x8);
+  CHECK_EQUAL_64(0x00000FF00000FFFFL, x9);
+  CHECK_EQUAL_64(0xFF0000F0, x10);
+  CHECK_EQUAL_64(0xFF00FF00FF0000F0L, x11);
 
   TEARDOWN();
 }
@@ -1024,9 +1020,9 @@ TEST(eor_extend) {
   CHECK_EQUAL_64(0x1111111111101013UL, x7);
   CHECK_EQUAL_64(0x11131315, x8);
   CHECK_EQUAL_64(0x1111111511151519UL, x9);
-  CHECK_EQUAL_64(0xeeeeee90, x10);
-  CHECK_EQUAL_64(0xeeeeeeeeeeee1013UL, x11);
-  CHECK_EQUAL_64(0xeeeeeeef11131315UL, x12);
+  CHECK_EQUAL_64(0xEEEEEE90, x10);
+  CHECK_EQUAL_64(0xEEEEEEEEEEEE1013UL, x11);
+  CHECK_EQUAL_64(0xEEEEEEEF11131315UL, x12);
   CHECK_EQUAL_64(0x1111111511151519UL, x13);
 
   TEARDOWN();
@@ -1038,8 +1034,8 @@ TEST(eon) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Eon(x2, x0, Operand(x1));
   __ Eon(w3, w0, Operand(w1, LSL, 4));
@@ -1049,22 +1045,22 @@ TEST(eon) {
   __ Eon(x7, x0, Operand(x1, ASR, 20));
   __ Eon(w8, w0, Operand(w1, ROR, 28));
   __ Eon(x9, x0, Operand(x1, ROR, 28));
-  __ Eon(w10, w0, Operand(0x03c003c0));
+  __ Eon(w10, w0, Operand(0x03C003C0));
   __ Eon(x11, x0, Operand(0x0000100000001000L));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffff0fff00f0L, x2);
-  CHECK_EQUAL_64(0xffff0fff, x3);
-  CHECK_EQUAL_64(0xfffffff0ffff0fffL, x4);
-  CHECK_EQUAL_64(0xffffffff87ff0070L, x5);
-  CHECK_EQUAL_64(0x0000ff0f, x6);
-  CHECK_EQUAL_64(0xffffffffffff0f0fL, x7);
-  CHECK_EQUAL_64(0xffff0ff0, x8);
-  CHECK_EQUAL_64(0xfffff00fffff0000L, x9);
-  CHECK_EQUAL_64(0xfc3f03cf, x10);
-  CHECK_EQUAL_64(0xffffefffffff100fL, x11);
+  CHECK_EQUAL_64(0xFFFFFFFF0FFF00F0L, x2);
+  CHECK_EQUAL_64(0xFFFF0FFF, x3);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFF0FFFL, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF87FF0070L, x5);
+  CHECK_EQUAL_64(0x0000FF0F, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0F0FL, x7);
+  CHECK_EQUAL_64(0xFFFF0FF0, x8);
+  CHECK_EQUAL_64(0xFFFFF00FFFFF0000L, x9);
+  CHECK_EQUAL_64(0xFC3F03CF, x10);
+  CHECK_EQUAL_64(0xFFFFEFFFFFFF100FL, x11);
 
   TEARDOWN();
 }
@@ -1089,14 +1085,14 @@ TEST(eon_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xeeeeee6f, x6);
-  CHECK_EQUAL_64(0xeeeeeeeeeeefefecUL, x7);
-  CHECK_EQUAL_64(0xeeececea, x8);
-  CHECK_EQUAL_64(0xeeeeeeeaeeeaeae6UL, x9);
-  CHECK_EQUAL_64(0x1111116f, x10);
-  CHECK_EQUAL_64(0x111111111111efecUL, x11);
-  CHECK_EQUAL_64(0x11111110eeececeaUL, x12);
-  CHECK_EQUAL_64(0xeeeeeeeaeeeaeae6UL, x13);
+  CHECK_EQUAL_64(0xEEEEEE6F, x6);
+  CHECK_EQUAL_64(0xEEEEEEEEEEEFEFECUL, x7);
+  CHECK_EQUAL_64(0xEEECECEA, x8);
+  CHECK_EQUAL_64(0xEEEEEEEAEEEAEAE6UL, x9);
+  CHECK_EQUAL_64(0x1111116F, x10);
+  CHECK_EQUAL_64(0x111111111111EFECUL, x11);
+  CHECK_EQUAL_64(0x11111110EEECECEAUL, x12);
+  CHECK_EQUAL_64(0xEEEEEEEAEEEAEAE6UL, x13);
 
   TEARDOWN();
 }
@@ -1109,8 +1105,8 @@ TEST(mul) {
   START();
   __ Mov(x16, 0);
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x18, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
 
   __ Mul(w0, w16, w16);
   __ Mul(w1, w16, w17);
@@ -1137,23 +1133,23 @@ TEST(mul) {
 
   CHECK_EQUAL_64(0, x0);
   CHECK_EQUAL_64(0, x1);
-  CHECK_EQUAL_64(0xffffffff, x2);
+  CHECK_EQUAL_64(0xFFFFFFFF, x2);
   CHECK_EQUAL_64(1, x3);
   CHECK_EQUAL_64(0, x4);
-  CHECK_EQUAL_64(0xffffffff, x5);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x6);
+  CHECK_EQUAL_64(0xFFFFFFFF, x5);
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x6);
   CHECK_EQUAL_64(1, x7);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x8);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
   CHECK_EQUAL_64(0, x11);
   CHECK_EQUAL_64(0, x12);
   CHECK_EQUAL_64(1, x13);
-  CHECK_EQUAL_64(0xffffffff, x14);
+  CHECK_EQUAL_64(0xFFFFFFFF, x14);
   CHECK_EQUAL_64(0, x20);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x21);
-  CHECK_EQUAL_64(0xffffffff, x22);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x23);
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x21);
+  CHECK_EQUAL_64(0xFFFFFFFF, x22);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x23);
 
   TEARDOWN();
 }
@@ -1178,7 +1174,7 @@ TEST(smull) {
   SmullHelper(1, 1, 1);
   SmullHelper(-1, -1, 1);
   SmullHelper(1, -1, -1);
-  SmullHelper(0xffffffff80000000, 0x80000000, 1);
+  SmullHelper(0xFFFFFFFF80000000, 0x80000000, 1);
   SmullHelper(0x0000000080000000, 0x00010000, 0x00008000);
 }
 
@@ -1190,8 +1186,8 @@ TEST(madd) {
   START();
   __ Mov(x16, 0);
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x18, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
 
   __ Madd(w0, w16, w16, w16);
   __ Madd(w1, w16, w16, w17);
@@ -1225,27 +1221,27 @@ TEST(madd) {
 
   CHECK_EQUAL_64(0, x0);
   CHECK_EQUAL_64(1, x1);
-  CHECK_EQUAL_64(0xffffffff, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
+  CHECK_EQUAL_64(0xFFFFFFFF, x2);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
   CHECK_EQUAL_64(1, x4);
   CHECK_EQUAL_64(0, x5);
   CHECK_EQUAL_64(0, x6);
-  CHECK_EQUAL_64(0xffffffff, x7);
-  CHECK_EQUAL_64(0xfffffffe, x8);
+  CHECK_EQUAL_64(0xFFFFFFFF, x7);
+  CHECK_EQUAL_64(0xFFFFFFFE, x8);
   CHECK_EQUAL_64(2, x9);
   CHECK_EQUAL_64(0, x10);
   CHECK_EQUAL_64(0, x11);
 
   CHECK_EQUAL_64(0, x12);
   CHECK_EQUAL_64(1, x13);
-  CHECK_EQUAL_64(0xffffffff, x14);
-  CHECK_EQUAL_64(0xffffffffffffffff, x15);
+  CHECK_EQUAL_64(0xFFFFFFFF, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFF, x15);
   CHECK_EQUAL_64(1, x20);
   CHECK_EQUAL_64(0x100000000UL, x21);
   CHECK_EQUAL_64(0, x22);
-  CHECK_EQUAL_64(0xffffffff, x23);
-  CHECK_EQUAL_64(0x1fffffffe, x24);
-  CHECK_EQUAL_64(0xfffffffe00000002UL, x25);
+  CHECK_EQUAL_64(0xFFFFFFFF, x23);
+  CHECK_EQUAL_64(0x1FFFFFFFE, x24);
+  CHECK_EQUAL_64(0xFFFFFFFE00000002UL, x25);
   CHECK_EQUAL_64(0, x26);
   CHECK_EQUAL_64(0, x27);
 
@@ -1260,8 +1256,8 @@ TEST(msub) {
   START();
   __ Mov(x16, 0);
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x18, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
 
   __ Msub(w0, w16, w16, w16);
   __ Msub(w1, w16, w16, w17);
@@ -1295,29 +1291,29 @@ TEST(msub) {
 
   CHECK_EQUAL_64(0, x0);
   CHECK_EQUAL_64(1, x1);
-  CHECK_EQUAL_64(0xffffffff, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
+  CHECK_EQUAL_64(0xFFFFFFFF, x2);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
   CHECK_EQUAL_64(1, x4);
-  CHECK_EQUAL_64(0xfffffffe, x5);
-  CHECK_EQUAL_64(0xfffffffe, x6);
+  CHECK_EQUAL_64(0xFFFFFFFE, x5);
+  CHECK_EQUAL_64(0xFFFFFFFE, x6);
   CHECK_EQUAL_64(1, x7);
   CHECK_EQUAL_64(0, x8);
   CHECK_EQUAL_64(0, x9);
-  CHECK_EQUAL_64(0xfffffffe, x10);
-  CHECK_EQUAL_64(0xfffffffe, x11);
+  CHECK_EQUAL_64(0xFFFFFFFE, x10);
+  CHECK_EQUAL_64(0xFFFFFFFE, x11);
 
   CHECK_EQUAL_64(0, x12);
   CHECK_EQUAL_64(1, x13);
-  CHECK_EQUAL_64(0xffffffff, x14);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x15);
+  CHECK_EQUAL_64(0xFFFFFFFF, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x15);
   CHECK_EQUAL_64(1, x20);
-  CHECK_EQUAL_64(0xfffffffeUL, x21);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x22);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x23);
+  CHECK_EQUAL_64(0xFFFFFFFEUL, x21);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x22);
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x23);
   CHECK_EQUAL_64(0, x24);
   CHECK_EQUAL_64(0x200000000UL, x25);
-  CHECK_EQUAL_64(0x1fffffffeUL, x26);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x27);
+  CHECK_EQUAL_64(0x1FFFFFFFEUL, x26);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x27);
 
   TEARDOWN();
 }
@@ -1332,12 +1328,12 @@ TEST(smulh) {
   __ Mov(x21, 1);
   __ Mov(x22, 0x0000000100000000L);
   __ Mov(x23, 0x12345678);
-  __ Mov(x24, 0x0123456789abcdefL);
+  __ Mov(x24, 0x0123456789ABCDEFL);
   __ Mov(x25, 0x0000000200000000L);
   __ Mov(x26, 0x8000000000000000UL);
-  __ Mov(x27, 0xffffffffffffffffUL);
+  __ Mov(x27, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x28, 0x5555555555555555UL);
-  __ Mov(x29, 0xaaaaaaaaaaaaaaaaUL);
+  __ Mov(x29, 0xAAAAAAAAAAAAAAAAUL);
 
   __ Smulh(x0, x20, x24);
   __ Smulh(x1, x21, x24);
@@ -1359,14 +1355,14 @@ TEST(smulh) {
   CHECK_EQUAL_64(0, x1);
   CHECK_EQUAL_64(0, x2);
   CHECK_EQUAL_64(0x01234567, x3);
-  CHECK_EQUAL_64(0x02468acf, x4);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x5);
+  CHECK_EQUAL_64(0x02468ACF, x4);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x5);
   CHECK_EQUAL_64(0x4000000000000000UL, x6);
   CHECK_EQUAL_64(0, x7);
   CHECK_EQUAL_64(0, x8);
-  CHECK_EQUAL_64(0x1c71c71c71c71c71UL, x9);
-  CHECK_EQUAL_64(0xe38e38e38e38e38eUL, x10);
-  CHECK_EQUAL_64(0x1c71c71c71c71c72UL, x11);
+  CHECK_EQUAL_64(0x1C71C71C71C71C71UL, x9);
+  CHECK_EQUAL_64(0xE38E38E38E38E38EUL, x10);
+  CHECK_EQUAL_64(0x1C71C71C71C71C72UL, x11);
 
   TEARDOWN();
 }
@@ -1378,8 +1374,8 @@ TEST(smaddl_umaddl) {
 
   START();
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x18, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x20, 4);
   __ Mov(x21, 0x200000000UL);
 
@@ -1400,8 +1396,8 @@ TEST(smaddl_umaddl) {
   CHECK_EQUAL_64(5, x11);
   CHECK_EQUAL_64(0x200000001UL, x12);
   CHECK_EQUAL_64(0x100000003UL, x13);
-  CHECK_EQUAL_64(0xfffffffe00000005UL, x14);
-  CHECK_EQUAL_64(0xfffffffe00000005UL, x15);
+  CHECK_EQUAL_64(0xFFFFFFFE00000005UL, x14);
+  CHECK_EQUAL_64(0xFFFFFFFE00000005UL, x15);
   CHECK_EQUAL_64(0x1, x22);
 
   TEARDOWN();
@@ -1414,8 +1410,8 @@ TEST(smsubl_umsubl) {
 
   START();
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x18, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x20, 4);
   __ Mov(x21, 0x200000000UL);
 
@@ -1434,11 +1430,11 @@ TEST(smsubl_umsubl) {
   CHECK_EQUAL_64(5, x9);
   CHECK_EQUAL_64(3, x10);
   CHECK_EQUAL_64(3, x11);
-  CHECK_EQUAL_64(0x1ffffffffUL, x12);
-  CHECK_EQUAL_64(0xffffffff00000005UL, x13);
+  CHECK_EQUAL_64(0x1FFFFFFFFUL, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF00000005UL, x13);
   CHECK_EQUAL_64(0x200000003UL, x14);
   CHECK_EQUAL_64(0x200000003UL, x15);
-  CHECK_EQUAL_64(0x3ffffffffUL, x22);
+  CHECK_EQUAL_64(0x3FFFFFFFFUL, x22);
 
   TEARDOWN();
 }
@@ -1450,8 +1446,8 @@ TEST(div) {
 
   START();
   __ Mov(x16, 1);
-  __ Mov(x17, 0xffffffff);
-  __ Mov(x18, 0xffffffffffffffffUL);
+  __ Mov(x17, 0xFFFFFFFF);
+  __ Mov(x18, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x19, 0x80000000);
   __ Mov(x20, 0x8000000000000000UL);
   __ Mov(x21, 2);
@@ -1495,15 +1491,15 @@ TEST(div) {
   RUN();
 
   CHECK_EQUAL_64(1, x0);
-  CHECK_EQUAL_64(0xffffffff, x1);
+  CHECK_EQUAL_64(0xFFFFFFFF, x1);
   CHECK_EQUAL_64(1, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
   CHECK_EQUAL_64(1, x4);
   CHECK_EQUAL_64(1, x5);
   CHECK_EQUAL_64(0, x6);
   CHECK_EQUAL_64(1, x7);
   CHECK_EQUAL_64(0, x8);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x9);
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x9);
   CHECK_EQUAL_64(0x40000000, x10);
   CHECK_EQUAL_64(0xC0000000, x11);
   CHECK_EQUAL_64(0x40000000, x12);
@@ -1516,7 +1512,7 @@ TEST(div) {
   CHECK_EQUAL_64(0x8000000000000000UL, x25);
   CHECK_EQUAL_64(0, x26);
   CHECK_EQUAL_64(0, x27);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x28);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x28);
   CHECK_EQUAL_64(0, x29);
   CHECK_EQUAL_64(0, x18);
   CHECK_EQUAL_64(0, x19);
@@ -1532,7 +1528,7 @@ TEST(rbit_rev) {
   SETUP();
 
   START();
-  __ Mov(x24, 0xfedcba9876543210UL);
+  __ Mov(x24, 0xFEDCBA9876543210UL);
   __ Rbit(w0, w24);
   __ Rbit(x1, x24);
   __ Rev16(w2, w24);
@@ -1544,13 +1540,13 @@ TEST(rbit_rev) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x084c2a6e, x0);
-  CHECK_EQUAL_64(0x084c2a6e195d3b7fUL, x1);
+  CHECK_EQUAL_64(0x084C2A6E, x0);
+  CHECK_EQUAL_64(0x084C2A6E195D3B7FUL, x1);
   CHECK_EQUAL_64(0x54761032, x2);
-  CHECK_EQUAL_64(0xdcfe98ba54761032UL, x3);
+  CHECK_EQUAL_64(0xDCFE98BA54761032UL, x3);
   CHECK_EQUAL_64(0x10325476, x4);
-  CHECK_EQUAL_64(0x98badcfe10325476UL, x5);
-  CHECK_EQUAL_64(0x1032547698badcfeUL, x6);
+  CHECK_EQUAL_64(0x98BADCFE10325476UL, x5);
+  CHECK_EQUAL_64(0x1032547698BADCFEUL, x6);
 
   TEARDOWN();
 }
@@ -1562,7 +1558,7 @@ TEST(clz_cls) {
 
   START();
   __ Mov(x24, 0x0008000000800000UL);
-  __ Mov(x25, 0xff800000fff80000UL);
+  __ Mov(x25, 0xFF800000FFF80000UL);
   __ Mov(x26, 0);
   __ Clz(w0, w24);
   __ Clz(x1, x24);
@@ -1773,7 +1769,7 @@ TEST(adr_far) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xf, x0);
+  CHECK_EQUAL_64(0xF, x0);
 
   TEARDOWN();
 }
@@ -1960,7 +1956,7 @@ TEST(compare_branch) {
   __ Mov(x3, 1);
   __ Bind(&nzf_end);
 
-  __ Mov(x18, 0xffffffff00000000UL);
+  __ Mov(x18, 0xFFFFFFFF00000000UL);
 
   Label a, a_end;
   __ Cbz(w18, &a);
@@ -2000,7 +1996,7 @@ TEST(test_branch) {
   __ Mov(x1, 0);
   __ Mov(x2, 0);
   __ Mov(x3, 0);
-  __ Mov(x16, 0xaaaaaaaaaaaaaaaaUL);
+  __ Mov(x16, 0xAAAAAAAAAAAAAAAAUL);
 
   Label bz, bz_end;
   __ Tbz(w16, 0, &bz);
@@ -2432,7 +2428,7 @@ TEST(ldr_str_offset) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
+  uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -2456,10 +2452,10 @@ TEST(ldr_str_offset) {
 
   CHECK_EQUAL_64(0x76543210, x0);
   CHECK_EQUAL_64(0x76543210, dst[0]);
-  CHECK_EQUAL_64(0xfedcba98, x1);
-  CHECK_EQUAL_64(0xfedcba9800000000UL, dst[1]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x2);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[2]);
+  CHECK_EQUAL_64(0xFEDCBA98, x1);
+  CHECK_EQUAL_64(0xFEDCBA9800000000UL, dst[1]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x2);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[2]);
   CHECK_EQUAL_64(0x32, x3);
   CHECK_EQUAL_64(0x3200, dst[3]);
   CHECK_EQUAL_64(0x7654, x4);
@@ -2479,8 +2475,8 @@ TEST(ldr_str_wide) {
   uint32_t dst[8192];
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
-  memset(src, 0xaa, 8192 * sizeof(src[0]));
-  memset(dst, 0xaa, 8192 * sizeof(dst[0]));
+  memset(src, 0xAA, 8192 * sizeof(src[0]));
+  memset(dst, 0xAA, 8192 * sizeof(dst[0]));
   src[0] = 0;
   src[6144] = 6144;
   src[8191] = 8191;
@@ -2523,7 +2519,7 @@ TEST(ldr_str_preindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
+  uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
   uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -2553,10 +2549,10 @@ TEST(ldr_str_preindex) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfedcba98, x0);
-  CHECK_EQUAL_64(0xfedcba9800000000UL, dst[1]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x1);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[2]);
+  CHECK_EQUAL_64(0xFEDCBA98, x0);
+  CHECK_EQUAL_64(0xFEDCBA9800000000UL, dst[1]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x1);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[2]);
   CHECK_EQUAL_64(0x01234567, x2);
   CHECK_EQUAL_64(0x0123456700000000UL, dst[4]);
   CHECK_EQUAL_64(0x32, x3);
@@ -2581,7 +2577,7 @@ TEST(ldr_str_postindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
+  uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
   uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -2611,12 +2607,12 @@ TEST(ldr_str_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfedcba98, x0);
-  CHECK_EQUAL_64(0xfedcba9800000000UL, dst[1]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x1);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[2]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x2);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[4]);
+  CHECK_EQUAL_64(0xFEDCBA98, x0);
+  CHECK_EQUAL_64(0xFEDCBA9800000000UL, dst[1]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x1);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[2]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x2);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[4]);
   CHECK_EQUAL_64(0x32, x3);
   CHECK_EQUAL_64(0x3200, dst[3]);
   CHECK_EQUAL_64(0x9876, x4);
@@ -2639,7 +2635,7 @@ TEST(load_signed) {
   INIT_V8();
   SETUP();
 
-  uint32_t src[2] = {0x80008080, 0x7fff7f7f};
+  uint32_t src[2] = {0x80008080, 0x7FFF7F7F};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
 
   START();
@@ -2658,16 +2654,16 @@ TEST(load_signed) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffff80, x0);
-  CHECK_EQUAL_64(0x0000007f, x1);
-  CHECK_EQUAL_64(0xffff8080, x2);
-  CHECK_EQUAL_64(0x00007f7f, x3);
-  CHECK_EQUAL_64(0xffffffffffffff80UL, x4);
-  CHECK_EQUAL_64(0x000000000000007fUL, x5);
-  CHECK_EQUAL_64(0xffffffffffff8080UL, x6);
-  CHECK_EQUAL_64(0x0000000000007f7fUL, x7);
-  CHECK_EQUAL_64(0xffffffff80008080UL, x8);
-  CHECK_EQUAL_64(0x000000007fff7f7fUL, x9);
+  CHECK_EQUAL_64(0xFFFFFF80, x0);
+  CHECK_EQUAL_64(0x0000007F, x1);
+  CHECK_EQUAL_64(0xFFFF8080, x2);
+  CHECK_EQUAL_64(0x00007F7F, x3);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFF80UL, x4);
+  CHECK_EQUAL_64(0x000000000000007FUL, x5);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF8080UL, x6);
+  CHECK_EQUAL_64(0x0000000000007F7FUL, x7);
+  CHECK_EQUAL_64(0xFFFFFFFF80008080UL, x8);
+  CHECK_EQUAL_64(0x000000007FFF7F7FUL, x9);
 
   TEARDOWN();
 }
@@ -2690,9 +2686,9 @@ TEST(load_store_regoffset) {
   __ Mov(x24, 0);
   __ Mov(x25, 4);
   __ Mov(x26, -4);
-  __ Mov(x27, 0xfffffffc);  // 32-bit -4.
-  __ Mov(x28, 0xfffffffe);  // 32-bit -2.
-  __ Mov(x29, 0xffffffff);  // 32-bit -1.
+  __ Mov(x27, 0xFFFFFFFC);  // 32-bit -4.
+  __ Mov(x28, 0xFFFFFFFE);  // 32-bit -2.
+  __ Mov(x29, 0xFFFFFFFF);  // 32-bit -1.
 
   __ Ldr(w0, MemOperand(x16, x24));
   __ Ldr(x1, MemOperand(x16, x25));
@@ -2891,11 +2887,11 @@ TEST(load_store_q) {
   INIT_V8();
   SETUP();
 
-  uint8_t src[48] = {0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe, 0x01, 0x23,
-                     0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x21, 0x43, 0x65, 0x87,
-                     0xa9, 0xcb, 0xed, 0x0f, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc,
-                     0xde, 0xf0, 0x24, 0x46, 0x68, 0x8a, 0xac, 0xce, 0xe0, 0x02,
-                     0x42, 0x64, 0x86, 0xa8, 0xca, 0xec, 0x0e, 0x20};
+  uint8_t src[48] = {0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0x01, 0x23,
+                     0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x21, 0x43, 0x65, 0x87,
+                     0xA9, 0xCB, 0xED, 0x0F, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC,
+                     0xDE, 0xF0, 0x24, 0x46, 0x68, 0x8A, 0xAC, 0xCE, 0xE0, 0x02,
+                     0x42, 0x64, 0x86, 0xA8, 0xCA, 0xEC, 0x0E, 0x20};
 
   uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
@@ -2918,15 +2914,15 @@ TEST(load_store_q) {
 
   RUN();
 
-  CHECK_EQUAL_128(0xf0debc9a78563412, 0x0fedcba987654321, q0);
-  CHECK_EQUAL_64(0x0fedcba987654321, dst[0]);
-  CHECK_EQUAL_64(0xf0debc9a78563412, dst[1]);
-  CHECK_EQUAL_128(0xefcdab8967452301, 0xfedcba9876543210, q1);
-  CHECK_EQUAL_64(0xfedcba9876543210, dst[4]);
-  CHECK_EQUAL_64(0xefcdab8967452301, dst[5]);
-  CHECK_EQUAL_128(0x200eeccaa8866442, 0x02e0ceac8a684624, q2);
-  CHECK_EQUAL_64(0x02e0ceac8a684624, dst[2]);
-  CHECK_EQUAL_64(0x200eeccaa8866442, dst[3]);
+  CHECK_EQUAL_128(0xF0DEBC9A78563412, 0x0FEDCBA987654321, q0);
+  CHECK_EQUAL_64(0x0FEDCBA987654321, dst[0]);
+  CHECK_EQUAL_64(0xF0DEBC9A78563412, dst[1]);
+  CHECK_EQUAL_128(0xEFCDAB8967452301, 0xFEDCBA9876543210, q1);
+  CHECK_EQUAL_64(0xFEDCBA9876543210, dst[4]);
+  CHECK_EQUAL_64(0xEFCDAB8967452301, dst[5]);
+  CHECK_EQUAL_128(0x200EECCAA8866442, 0x02E0CEAC8A684624, q2);
+  CHECK_EQUAL_64(0x02E0CEAC8A684624, dst[2]);
+  CHECK_EQUAL_64(0x200EECCAA8866442, dst[3]);
   CHECK_EQUAL_64(src_base, x17);
   CHECK_EQUAL_64(dst_base + 16, x18);
   CHECK_EQUAL_64(src_base + 16, x19);
@@ -2967,22 +2963,22 @@ TEST(neon_ld1_d) {
 
   CHECK_EQUAL_128(0, 0x0706050403020100, q2);
   CHECK_EQUAL_128(0, 0x0807060504030201, q3);
-  CHECK_EQUAL_128(0, 0x100f0e0d0c0b0a09, q4);
+  CHECK_EQUAL_128(0, 0x100F0E0D0C0B0A09, q4);
   CHECK_EQUAL_128(0, 0x0908070605040302, q5);
-  CHECK_EQUAL_128(0, 0x11100f0e0d0c0b0a, q6);
+  CHECK_EQUAL_128(0, 0x11100F0E0D0C0B0A, q6);
   CHECK_EQUAL_128(0, 0x1918171615141312, q7);
-  CHECK_EQUAL_128(0, 0x0a09080706050403, q16);
-  CHECK_EQUAL_128(0, 0x1211100f0e0d0c0b, q17);
-  CHECK_EQUAL_128(0, 0x1a19181716151413, q18);
-  CHECK_EQUAL_128(0, 0x2221201f1e1d1c1b, q19);
-  CHECK_EQUAL_128(0, 0x0b0a090807060504, q30);
-  CHECK_EQUAL_128(0, 0x131211100f0e0d0c, q31);
-  CHECK_EQUAL_128(0, 0x1b1a191817161514, q0);
-  CHECK_EQUAL_128(0, 0x232221201f1e1d1c, q1);
-  CHECK_EQUAL_128(0, 0x0c0b0a0908070605, q20);
-  CHECK_EQUAL_128(0, 0x14131211100f0e0d, q21);
-  CHECK_EQUAL_128(0, 0x1c1b1a1918171615, q22);
-  CHECK_EQUAL_128(0, 0x24232221201f1e1d, q23);
+  CHECK_EQUAL_128(0, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100F0E0D0C0B, q17);
+  CHECK_EQUAL_128(0, 0x1A19181716151413, q18);
+  CHECK_EQUAL_128(0, 0x2221201F1E1D1C1B, q19);
+  CHECK_EQUAL_128(0, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0, 0x131211100F0E0D0C, q31);
+  CHECK_EQUAL_128(0, 0x1B1A191817161514, q0);
+  CHECK_EQUAL_128(0, 0x232221201F1E1D1C, q1);
+  CHECK_EQUAL_128(0, 0x0C0B0A0908070605, q20);
+  CHECK_EQUAL_128(0, 0x14131211100F0E0D, q21);
+  CHECK_EQUAL_128(0, 0x1C1B1A1918171615, q22);
+  CHECK_EQUAL_128(0, 0x24232221201F1E1D, q23);
 
   TEARDOWN();
 }
@@ -3021,22 +3017,22 @@ TEST(neon_ld1_d_postindex) {
 
   CHECK_EQUAL_128(0, 0x0706050403020100, q2);
   CHECK_EQUAL_128(0, 0x0807060504030201, q3);
-  CHECK_EQUAL_128(0, 0x100f0e0d0c0b0a09, q4);
+  CHECK_EQUAL_128(0, 0x100F0E0D0C0B0A09, q4);
   CHECK_EQUAL_128(0, 0x0908070605040302, q5);
-  CHECK_EQUAL_128(0, 0x11100f0e0d0c0b0a, q6);
+  CHECK_EQUAL_128(0, 0x11100F0E0D0C0B0A, q6);
   CHECK_EQUAL_128(0, 0x1918171615141312, q7);
-  CHECK_EQUAL_128(0, 0x0a09080706050403, q16);
-  CHECK_EQUAL_128(0, 0x1211100f0e0d0c0b, q17);
-  CHECK_EQUAL_128(0, 0x1a19181716151413, q18);
-  CHECK_EQUAL_128(0, 0x2221201f1e1d1c1b, q19);
-  CHECK_EQUAL_128(0, 0x0b0a090807060504, q30);
-  CHECK_EQUAL_128(0, 0x131211100f0e0d0c, q31);
-  CHECK_EQUAL_128(0, 0x1b1a191817161514, q0);
-  CHECK_EQUAL_128(0, 0x232221201f1e1d1c, q1);
-  CHECK_EQUAL_128(0, 0x0c0b0a0908070605, q20);
-  CHECK_EQUAL_128(0, 0x14131211100f0e0d, q21);
-  CHECK_EQUAL_128(0, 0x1c1b1a1918171615, q22);
-  CHECK_EQUAL_128(0, 0x24232221201f1e1d, q23);
+  CHECK_EQUAL_128(0, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100F0E0D0C0B, q17);
+  CHECK_EQUAL_128(0, 0x1A19181716151413, q18);
+  CHECK_EQUAL_128(0, 0x2221201F1E1D1C1B, q19);
+  CHECK_EQUAL_128(0, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0, 0x131211100F0E0D0C, q31);
+  CHECK_EQUAL_128(0, 0x1B1A191817161514, q0);
+  CHECK_EQUAL_128(0, 0x232221201F1E1D1C, q1);
+  CHECK_EQUAL_128(0, 0x0C0B0A0908070605, q20);
+  CHECK_EQUAL_128(0, 0x14131211100F0E0D, q21);
+  CHECK_EQUAL_128(0, 0x1C1B1A1918171615, q22);
+  CHECK_EQUAL_128(0, 0x24232221201F1E1D, q23);
   CHECK_EQUAL_64(src_base + 1, x17);
   CHECK_EQUAL_64(src_base + 1 + 16, x18);
   CHECK_EQUAL_64(src_base + 2 + 24, x19);
@@ -3072,20 +3068,20 @@ TEST(neon_ld1_q) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q2);
-  CHECK_EQUAL_128(0x100f0e0d0c0b0a09, 0x0807060504030201, q3);
-  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x1817161514131211, q4);
-  CHECK_EQUAL_128(0x11100f0e0d0c0b0a, 0x0908070605040302, q5);
-  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x1918171615141312, q6);
-  CHECK_EQUAL_128(0x31302f2e2d2c2b2a, 0x2928272625242322, q7);
-  CHECK_EQUAL_128(0x1211100f0e0d0c0b, 0x0a09080706050403, q16);
-  CHECK_EQUAL_128(0x2221201f1e1d1c1b, 0x1a19181716151413, q17);
-  CHECK_EQUAL_128(0x3231302f2e2d2c2b, 0x2a29282726252423, q18);
-  CHECK_EQUAL_128(0x4241403f3e3d3c3b, 0x3a39383736353433, q19);
-  CHECK_EQUAL_128(0x131211100f0e0d0c, 0x0b0a090807060504, q30);
-  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x1b1a191817161514, q31);
-  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x2b2a292827262524, q0);
-  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x3b3a393837363534, q1);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x100F0E0D0C0B0A09, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x1817161514131211, q4);
+  CHECK_EQUAL_128(0x11100F0E0D0C0B0A, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x1918171615141312, q6);
+  CHECK_EQUAL_128(0x31302F2E2D2C2B2A, 0x2928272625242322, q7);
+  CHECK_EQUAL_128(0x1211100F0E0D0C0B, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0x2221201F1E1D1C1B, 0x1A19181716151413, q17);
+  CHECK_EQUAL_128(0x3231302F2E2D2C2B, 0x2A29282726252423, q18);
+  CHECK_EQUAL_128(0x4241403F3E3D3C3B, 0x3A39383736353433, q19);
+  CHECK_EQUAL_128(0x131211100F0E0D0C, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x1B1A191817161514, q31);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x2B2A292827262524, q0);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x3B3A393837363534, q1);
 
   TEARDOWN();
 }
@@ -3118,20 +3114,20 @@ TEST(neon_ld1_q_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q2);
-  CHECK_EQUAL_128(0x100f0e0d0c0b0a09, 0x0807060504030201, q3);
-  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x1817161514131211, q4);
-  CHECK_EQUAL_128(0x11100f0e0d0c0b0a, 0x0908070605040302, q5);
-  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x1918171615141312, q6);
-  CHECK_EQUAL_128(0x31302f2e2d2c2b2a, 0x2928272625242322, q7);
-  CHECK_EQUAL_128(0x1211100f0e0d0c0b, 0x0a09080706050403, q16);
-  CHECK_EQUAL_128(0x2221201f1e1d1c1b, 0x1a19181716151413, q17);
-  CHECK_EQUAL_128(0x3231302f2e2d2c2b, 0x2a29282726252423, q18);
-  CHECK_EQUAL_128(0x4241403f3e3d3c3b, 0x3a39383736353433, q19);
-  CHECK_EQUAL_128(0x131211100f0e0d0c, 0x0b0a090807060504, q30);
-  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x1b1a191817161514, q31);
-  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x2b2a292827262524, q0);
-  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x3b3a393837363534, q1);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x100F0E0D0C0B0A09, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x1817161514131211, q4);
+  CHECK_EQUAL_128(0x11100F0E0D0C0B0A, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x1918171615141312, q6);
+  CHECK_EQUAL_128(0x31302F2E2D2C2B2A, 0x2928272625242322, q7);
+  CHECK_EQUAL_128(0x1211100F0E0D0C0B, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0x2221201F1E1D1C1B, 0x1A19181716151413, q17);
+  CHECK_EQUAL_128(0x3231302F2E2D2C2B, 0x2A29282726252423, q18);
+  CHECK_EQUAL_128(0x4241403F3E3D3C3B, 0x3A39383736353433, q19);
+  CHECK_EQUAL_128(0x131211100F0E0D0C, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x1B1A191817161514, q31);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x2B2A292827262524, q0);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x3B3A393837363534, q1);
   CHECK_EQUAL_64(src_base + 1, x17);
   CHECK_EQUAL_64(src_base + 1 + 32, x18);
   CHECK_EQUAL_64(src_base + 2 + 48, x19);
@@ -3193,13 +3189,13 @@ TEST(neon_ld1_lane) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
   CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q1);
   CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q2);
   CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q3);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q4);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q5);
-  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q6);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q4);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q5);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q6);
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q7);
 
   TEARDOWN();
@@ -3228,14 +3224,14 @@ TEST(neon_ld2_d) {
 
   RUN();
 
-  CHECK_EQUAL_128(0, 0x0e0c0a0806040200, q2);
-  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q3);
-  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q4);
-  CHECK_EQUAL_128(0, 0x100e0c0a08060402, q5);
-  CHECK_EQUAL_128(0, 0x0f0e0b0a07060302, q6);
-  CHECK_EQUAL_128(0, 0x11100d0c09080504, q7);
-  CHECK_EQUAL_128(0, 0x0e0d0c0b06050403, q31);
-  CHECK_EQUAL_128(0, 0x1211100f0a090807, q0);
+  CHECK_EQUAL_128(0, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0, 0x100E0C0A08060402, q5);
+  CHECK_EQUAL_128(0, 0x0F0E0B0A07060302, q6);
+  CHECK_EQUAL_128(0, 0x11100D0C09080504, q7);
+  CHECK_EQUAL_128(0, 0x0E0D0C0B06050403, q31);
+  CHECK_EQUAL_128(0, 0x1211100F0A090807, q0);
 
   TEARDOWN();
 }
@@ -3266,15 +3262,15 @@ TEST(neon_ld2_d_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0, 0x0e0c0a0806040200, q2);
-  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q3);
-  CHECK_EQUAL_128(0, 0x0f0d0b0907050301, q4);
-  CHECK_EQUAL_128(0, 0x0f0e0b0a07060302, q5);
-  CHECK_EQUAL_128(0, 0x11100d0c09080504, q6);
-  CHECK_EQUAL_128(0, 0x0e0d0c0b06050403, q16);
-  CHECK_EQUAL_128(0, 0x1211100f0a090807, q17);
-  CHECK_EQUAL_128(0, 0x0f0e0d0c07060504, q31);
-  CHECK_EQUAL_128(0, 0x131211100b0a0908, q0);
+  CHECK_EQUAL_128(0, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0, 0x0F0E0B0A07060302, q5);
+  CHECK_EQUAL_128(0, 0x11100D0C09080504, q6);
+  CHECK_EQUAL_128(0, 0x0E0D0C0B06050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100F0A090807, q17);
+  CHECK_EQUAL_128(0, 0x0F0E0D0C07060504, q31);
+  CHECK_EQUAL_128(0, 0x131211100B0A0908, q0);
 
   CHECK_EQUAL_64(src_base + 1, x17);
   CHECK_EQUAL_64(src_base + 1 + 16, x18);
@@ -3310,16 +3306,16 @@ TEST(neon_ld2_q) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x1e1c1a1816141210, 0x0e0c0a0806040200, q2);
-  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q3);
-  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q4);
-  CHECK_EQUAL_128(0x201e1c1a18161412, 0x100e0c0a08060402, q5);
-  CHECK_EQUAL_128(0x1f1e1b1a17161312, 0x0f0e0b0a07060302, q6);
-  CHECK_EQUAL_128(0x21201d1c19181514, 0x11100d0c09080504, q7);
-  CHECK_EQUAL_128(0x1e1d1c1b16151413, 0x0e0d0c0b06050403, q16);
-  CHECK_EQUAL_128(0x2221201f1a191817, 0x1211100f0a090807, q17);
-  CHECK_EQUAL_128(0x1b1a191817161514, 0x0b0a090807060504, q31);
-  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x131211100f0e0d0c, q0);
+  CHECK_EQUAL_128(0x1E1C1A1816141210, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0x201E1C1A18161412, 0x100E0C0A08060402, q5);
+  CHECK_EQUAL_128(0x1F1E1B1A17161312, 0x0F0E0B0A07060302, q6);
+  CHECK_EQUAL_128(0x21201D1C19181514, 0x11100D0C09080504, q7);
+  CHECK_EQUAL_128(0x1E1D1C1B16151413, 0x0E0D0C0B06050403, q16);
+  CHECK_EQUAL_128(0x2221201F1A191817, 0x1211100F0A090807, q17);
+  CHECK_EQUAL_128(0x1B1A191817161514, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x131211100F0E0D0C, q0);
 
   TEARDOWN();
 }
@@ -3350,16 +3346,16 @@ TEST(neon_ld2_q_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x1e1c1a1816141210, 0x0e0c0a0806040200, q2);
-  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q3);
-  CHECK_EQUAL_128(0x1f1d1b1917151311, 0x0f0d0b0907050301, q4);
-  CHECK_EQUAL_128(0x201e1c1a18161412, 0x100e0c0a08060402, q5);
-  CHECK_EQUAL_128(0x1f1e1b1a17161312, 0x0f0e0b0a07060302, q6);
-  CHECK_EQUAL_128(0x21201d1c19181514, 0x11100d0c09080504, q7);
-  CHECK_EQUAL_128(0x1e1d1c1b16151413, 0x0e0d0c0b06050403, q16);
-  CHECK_EQUAL_128(0x2221201f1a191817, 0x1211100f0a090807, q17);
-  CHECK_EQUAL_128(0x1b1a191817161514, 0x0b0a090807060504, q31);
-  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x131211100f0e0d0c, q0);
+  CHECK_EQUAL_128(0x1E1C1A1816141210, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0x201E1C1A18161412, 0x100E0C0A08060402, q5);
+  CHECK_EQUAL_128(0x1F1E1B1A17161312, 0x0F0E0B0A07060302, q6);
+  CHECK_EQUAL_128(0x21201D1C19181514, 0x11100D0C09080504, q7);
+  CHECK_EQUAL_128(0x1E1D1C1B16151413, 0x0E0D0C0B06050403, q16);
+  CHECK_EQUAL_128(0x2221201F1A191817, 0x1211100F0A090807, q17);
+  CHECK_EQUAL_128(0x1B1A191817161514, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x131211100F0E0D0C, q0);
 
   CHECK_EQUAL_64(src_base + 1, x17);
   CHECK_EQUAL_64(src_base + 1 + 32, x18);
@@ -3430,22 +3426,22 @@ TEST(neon_ld2_lane) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
-  CHECK_EQUAL_128(0x0102030405060708, 0x090a0b0c0d0e0f10, q1);
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090A0B0C0D0E0F10, q1);
   CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q2);
-  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080a09, q3);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080A09, q3);
   CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q4);
-  CHECK_EQUAL_128(0x0706050408070605, 0x090807060a090807, q5);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060A090807, q5);
   CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q6);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x100f0e0d0c0b0a09, q7);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q8);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q9);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q10);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q11);
-  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q12);
-  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q13);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x100F0E0D0C0B0A09, q7);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q8);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q9);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q10);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q11);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q13);
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q14);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q15);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q15);
 
   TEARDOWN();
 }
@@ -3516,22 +3512,22 @@ TEST(neon_ld2_lane_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x00020406080a0c0e, 0x10121416181a1c1e, q0);
-  CHECK_EQUAL_128(0x01030507090b0d0f, 0x11131517191b1d1f, q1);
-  CHECK_EQUAL_128(0x0100050409080d0c, 0x1110151419181d1c, q2);
-  CHECK_EQUAL_128(0x030207060b0a0f0e, 0x131217161b1a1f1e, q3);
-  CHECK_EQUAL_128(0x030201000b0a0908, 0x131211101b1a1918, q4);
-  CHECK_EQUAL_128(0x070605040f0e0d0c, 0x171615141f1e1d1c, q5);
+  CHECK_EQUAL_128(0x00020406080A0C0E, 0x10121416181A1C1E, q0);
+  CHECK_EQUAL_128(0x01030507090B0D0F, 0x11131517191B1D1F, q1);
+  CHECK_EQUAL_128(0x0100050409080D0C, 0x1110151419181D1C, q2);
+  CHECK_EQUAL_128(0x030207060B0A0F0E, 0x131217161B1A1F1E, q3);
+  CHECK_EQUAL_128(0x030201000B0A0908, 0x131211101B1A1918, q4);
+  CHECK_EQUAL_128(0x070605040F0E0D0C, 0x171615141F1E1D1C, q5);
   CHECK_EQUAL_128(0x0706050403020100, 0x1716151413121110, q6);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1f1e1d1c1b1a1918, q7);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q8);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q9);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q10);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q11);
-  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q12);
-  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q13);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1F1E1D1C1B1A1918, q7);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q8);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q9);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q10);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q11);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q13);
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q14);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q15);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q15);
 
   CHECK_EQUAL_64(src_base + 32, x17);
   CHECK_EQUAL_64(src_base + 32, x18);
@@ -3583,12 +3579,12 @@ TEST(neon_ld2_alllanes) {
   CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q5);
   CHECK_EQUAL_128(0x0605060506050605, 0x0605060506050605, q6);
   CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q7);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0c0b0a090c0b0a09, q8);
-  CHECK_EQUAL_128(0x0000000000000000, 0x100f0e0d100f0e0d, q9);
-  CHECK_EQUAL_128(0x0d0c0b0a0d0c0b0a, 0x0d0c0b0a0d0c0b0a, q10);
-  CHECK_EQUAL_128(0x11100f0e11100f0e, 0x11100f0e11100f0e, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0C0B0A090C0B0A09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x100F0E0D100F0E0D, q9);
+  CHECK_EQUAL_128(0x0D0C0B0A0D0C0B0A, 0x0D0C0B0A0D0C0B0A, q10);
+  CHECK_EQUAL_128(0x11100F0E11100F0E, 0x11100F0E11100F0E, q11);
   CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
-  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x21201f1e1d1c1b1a, q13);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x21201F1E1D1C1B1A, q13);
 
   TEARDOWN();
 }
@@ -3625,12 +3621,12 @@ TEST(neon_ld2_alllanes_postindex) {
   CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q5);
   CHECK_EQUAL_128(0x0605060506050605, 0x0605060506050605, q6);
   CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q7);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0c0b0a090c0b0a09, q8);
-  CHECK_EQUAL_128(0x0000000000000000, 0x100f0e0d100f0e0d, q9);
-  CHECK_EQUAL_128(0x0d0c0b0a0d0c0b0a, 0x0d0c0b0a0d0c0b0a, q10);
-  CHECK_EQUAL_128(0x11100f0e11100f0e, 0x11100f0e11100f0e, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0C0B0A090C0B0A09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x100F0E0D100F0E0D, q9);
+  CHECK_EQUAL_128(0x0D0C0B0A0D0C0B0A, 0x0D0C0B0A0D0C0B0A, q10);
+  CHECK_EQUAL_128(0x11100F0E11100F0E, 0x11100F0E11100F0E, q11);
   CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
-  CHECK_EQUAL_128(0x21201f1e1d1c1b1a, 0x21201f1e1d1c1b1a, q13);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x21201F1E1D1C1B1A, q13);
   CHECK_EQUAL_64(src_base + 34, x17);
 
   TEARDOWN();
@@ -3659,18 +3655,18 @@ TEST(neon_ld3_d) {
 
   RUN();
 
-  CHECK_EQUAL_128(0, 0x15120f0c09060300, q2);
-  CHECK_EQUAL_128(0, 0x1613100d0a070401, q3);
-  CHECK_EQUAL_128(0, 0x1714110e0b080502, q4);
-  CHECK_EQUAL_128(0, 0x1613100d0a070401, q5);
-  CHECK_EQUAL_128(0, 0x1714110e0b080502, q6);
-  CHECK_EQUAL_128(0, 0x1815120f0c090603, q7);
-  CHECK_EQUAL_128(0, 0x15140f0e09080302, q8);
-  CHECK_EQUAL_128(0, 0x171611100b0a0504, q9);
-  CHECK_EQUAL_128(0, 0x191813120d0c0706, q10);
-  CHECK_EQUAL_128(0, 0x1211100f06050403, q31);
-  CHECK_EQUAL_128(0, 0x161514130a090807, q0);
-  CHECK_EQUAL_128(0, 0x1a1918170e0d0c0b, q1);
+  CHECK_EQUAL_128(0, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0, 0x1211100F06050403, q31);
+  CHECK_EQUAL_128(0, 0x161514130A090807, q0);
+  CHECK_EQUAL_128(0, 0x1A1918170E0D0C0B, q1);
 
   TEARDOWN();
 }
@@ -3701,21 +3697,21 @@ TEST(neon_ld3_d_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0, 0x15120f0c09060300, q2);
-  CHECK_EQUAL_128(0, 0x1613100d0a070401, q3);
-  CHECK_EQUAL_128(0, 0x1714110e0b080502, q4);
-  CHECK_EQUAL_128(0, 0x1613100d0a070401, q5);
-  CHECK_EQUAL_128(0, 0x1714110e0b080502, q6);
-  CHECK_EQUAL_128(0, 0x1815120f0c090603, q7);
-  CHECK_EQUAL_128(0, 0x15140f0e09080302, q8);
-  CHECK_EQUAL_128(0, 0x171611100b0a0504, q9);
-  CHECK_EQUAL_128(0, 0x191813120d0c0706, q10);
-  CHECK_EQUAL_128(0, 0x1211100f06050403, q11);
-  CHECK_EQUAL_128(0, 0x161514130a090807, q12);
-  CHECK_EQUAL_128(0, 0x1a1918170e0d0c0b, q13);
+  CHECK_EQUAL_128(0, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0, 0x1211100F06050403, q11);
+  CHECK_EQUAL_128(0, 0x161514130A090807, q12);
+  CHECK_EQUAL_128(0, 0x1A1918170E0D0C0B, q13);
   CHECK_EQUAL_128(0, 0x1312111007060504, q31);
-  CHECK_EQUAL_128(0, 0x171615140b0a0908, q0);
-  CHECK_EQUAL_128(0, 0x1b1a19180f0e0d0c, q1);
+  CHECK_EQUAL_128(0, 0x171615140B0A0908, q0);
+  CHECK_EQUAL_128(0, 0x1B1A19180F0E0D0C, q1);
 
   CHECK_EQUAL_64(src_base + 1, x17);
   CHECK_EQUAL_64(src_base + 1 + 24, x18);
@@ -3751,21 +3747,21 @@ TEST(neon_ld3_q) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x2d2a2724211e1b18, 0x15120f0c09060300, q2);
-  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q3);
-  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q4);
-  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q5);
-  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q6);
-  CHECK_EQUAL_128(0x302d2a2724211e1b, 0x1815120f0c090603, q7);
-  CHECK_EQUAL_128(0x2d2c272621201b1a, 0x15140f0e09080302, q8);
-  CHECK_EQUAL_128(0x2f2e292823221d1c, 0x171611100b0a0504, q9);
-  CHECK_EQUAL_128(0x31302b2a25241f1e, 0x191813120d0c0706, q10);
-  CHECK_EQUAL_128(0x2a2928271e1d1c1b, 0x1211100f06050403, q11);
-  CHECK_EQUAL_128(0x2e2d2c2b2221201f, 0x161514130a090807, q12);
-  CHECK_EQUAL_128(0x3231302f26252423, 0x1a1918170e0d0c0b, q13);
-  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x0b0a090807060504, q31);
-  CHECK_EQUAL_128(0x2b2a292827262524, 0x131211100f0e0d0c, q0);
-  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x1b1a191817161514, q1);
+  CHECK_EQUAL_128(0x2D2A2724211E1B18, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0x302D2A2724211E1B, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0x2D2C272621201B1A, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0x2F2E292823221D1C, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0x31302B2A25241F1E, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0x2A2928271E1D1C1B, 0x1211100F06050403, q11);
+  CHECK_EQUAL_128(0x2E2D2C2B2221201F, 0x161514130A090807, q12);
+  CHECK_EQUAL_128(0x3231302F26252423, 0x1A1918170E0D0C0B, q13);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x131211100F0E0D0C, q0);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x1B1A191817161514, q1);
 
   TEARDOWN();
 }
@@ -3797,21 +3793,21 @@ TEST(neon_ld3_q_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x2d2a2724211e1b18, 0x15120f0c09060300, q2);
-  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q3);
-  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q4);
-  CHECK_EQUAL_128(0x2e2b2825221f1c19, 0x1613100d0a070401, q5);
-  CHECK_EQUAL_128(0x2f2c292623201d1a, 0x1714110e0b080502, q6);
-  CHECK_EQUAL_128(0x302d2a2724211e1b, 0x1815120f0c090603, q7);
-  CHECK_EQUAL_128(0x2d2c272621201b1a, 0x15140f0e09080302, q8);
-  CHECK_EQUAL_128(0x2f2e292823221d1c, 0x171611100b0a0504, q9);
-  CHECK_EQUAL_128(0x31302b2a25241f1e, 0x191813120d0c0706, q10);
-  CHECK_EQUAL_128(0x2a2928271e1d1c1b, 0x1211100f06050403, q11);
-  CHECK_EQUAL_128(0x2e2d2c2b2221201f, 0x161514130a090807, q12);
-  CHECK_EQUAL_128(0x3231302f26252423, 0x1a1918170e0d0c0b, q13);
-  CHECK_EQUAL_128(0x232221201f1e1d1c, 0x0b0a090807060504, q31);
-  CHECK_EQUAL_128(0x2b2a292827262524, 0x131211100f0e0d0c, q0);
-  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x1b1a191817161514, q1);
+  CHECK_EQUAL_128(0x2D2A2724211E1B18, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0x302D2A2724211E1B, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0x2D2C272621201B1A, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0x2F2E292823221D1C, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0x31302B2A25241F1E, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0x2A2928271E1D1C1B, 0x1211100F06050403, q11);
+  CHECK_EQUAL_128(0x2E2D2C2B2221201F, 0x161514130A090807, q12);
+  CHECK_EQUAL_128(0x3231302F26252423, 0x1A1918170E0D0C0B, q13);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x131211100F0E0D0C, q0);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x1B1A191817161514, q1);
 
   CHECK_EQUAL_64(src_base + 1, x17);
   CHECK_EQUAL_64(src_base + 1 + 48, x18);
@@ -3886,24 +3882,24 @@ TEST(neon_ld3_lane) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
-  CHECK_EQUAL_128(0x0102030405060708, 0x090a0b0c0d0e0f10, q1);
-  CHECK_EQUAL_128(0x0203040506070809, 0x0a0b0c0d0e0f1011, q2);
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090A0B0C0D0E0F10, q1);
+  CHECK_EQUAL_128(0x0203040506070809, 0x0A0B0C0D0E0F1011, q2);
   CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q3);
-  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080a09, q4);
-  CHECK_EQUAL_128(0x0504060507060807, 0x09080a090b0a0c0b, q5);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080A09, q4);
+  CHECK_EQUAL_128(0x0504060507060807, 0x09080A090B0A0C0B, q5);
   CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q6);
-  CHECK_EQUAL_128(0x0706050408070605, 0x090807060a090807, q7);
-  CHECK_EQUAL_128(0x0b0a09080c0b0a09, 0x0d0c0b0a0e0d0c0b, q8);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060A090807, q7);
+  CHECK_EQUAL_128(0x0B0A09080C0B0A09, 0x0D0C0B0A0E0D0C0B, q8);
   CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q9);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x100f0e0d0c0b0a09, q10);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x100F0E0D0C0B0A09, q10);
   CHECK_EQUAL_128(0x1716151413121110, 0x1817161514131211, q11);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q12);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q13);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q14);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q15);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q16);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q17);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q13);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q14);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q15);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q16);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q17);
 
   TEARDOWN();
 }
@@ -3978,29 +3974,29 @@ TEST(neon_ld3_lane_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x000306090c0f1215, 0x181b1e2124272a2d, q0);
-  CHECK_EQUAL_128(0x0104070a0d101316, 0x191c1f2225282b2e, q1);
-  CHECK_EQUAL_128(0x0205080b0e111417, 0x1a1d202326292c2f, q2);
-  CHECK_EQUAL_128(0x010007060d0c1312, 0x19181f1e25242b2a, q3);
-  CHECK_EQUAL_128(0x030209080f0e1514, 0x1b1a212027262d2c, q4);
-  CHECK_EQUAL_128(0x05040b0a11101716, 0x1d1c232229282f2e, q5);
-  CHECK_EQUAL_128(0x030201000f0e0d0c, 0x1b1a191827262524, q6);
-  CHECK_EQUAL_128(0x0706050413121110, 0x1f1e1d1c2b2a2928, q7);
-  CHECK_EQUAL_128(0x0b0a090817161514, 0x232221202f2e2d2c, q8);
-  CHECK_EQUAL_128(0x0706050403020100, 0x1f1e1d1c1b1a1918, q9);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x2726252423222120, q10);
-  CHECK_EQUAL_128(0x1716151413121110, 0x2f2e2d2c2b2a2928, q11);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q12);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q13);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q14);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q15);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q16);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q17);
-  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q18);
-  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q19);
-  CHECK_EQUAL_128(0x2f2e2d2c0b0a0908, 0x2726252423222120, q20);
+  CHECK_EQUAL_128(0x000306090C0F1215, 0x181B1E2124272A2D, q0);
+  CHECK_EQUAL_128(0x0104070A0D101316, 0x191C1F2225282B2E, q1);
+  CHECK_EQUAL_128(0x0205080B0E111417, 0x1A1D202326292C2F, q2);
+  CHECK_EQUAL_128(0x010007060D0C1312, 0x19181F1E25242B2A, q3);
+  CHECK_EQUAL_128(0x030209080F0E1514, 0x1B1A212027262D2C, q4);
+  CHECK_EQUAL_128(0x05040B0A11101716, 0x1D1C232229282F2E, q5);
+  CHECK_EQUAL_128(0x030201000F0E0D0C, 0x1B1A191827262524, q6);
+  CHECK_EQUAL_128(0x0706050413121110, 0x1F1E1D1C2B2A2928, q7);
+  CHECK_EQUAL_128(0x0B0A090817161514, 0x232221202F2E2D2C, q8);
+  CHECK_EQUAL_128(0x0706050403020100, 0x1F1E1D1C1B1A1918, q9);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x2726252423222120, q10);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2F2E2D2C2B2A2928, q11);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q13);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q14);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q15);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q16);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q17);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q18);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q19);
+  CHECK_EQUAL_128(0x2F2E2D2C0B0A0908, 0x2726252423222120, q20);
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q21);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q22);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q22);
   CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q23);
 
   CHECK_EQUAL_64(src_base + 48, x17);
@@ -4053,19 +4049,19 @@ TEST(neon_ld3_alllanes) {
   CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
   CHECK_EQUAL_128(0x0000000000000000, 0x0605060506050605, q6);
   CHECK_EQUAL_128(0x0000000000000000, 0x0807080708070807, q7);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0a090a090a090a09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0A090A090A090A09, q8);
   CHECK_EQUAL_128(0x0706070607060706, 0x0706070607060706, q9);
   CHECK_EQUAL_128(0x0908090809080908, 0x0908090809080908, q10);
-  CHECK_EQUAL_128(0x0b0a0b0a0b0a0b0a, 0x0b0a0b0a0b0a0b0a, q11);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0f0e0d0c0f0e0d0c, q12);
+  CHECK_EQUAL_128(0x0B0A0B0A0B0A0B0A, 0x0B0A0B0A0B0A0B0A, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0F0E0D0C0F0E0D0C, q12);
   CHECK_EQUAL_128(0x0000000000000000, 0x1312111013121110, q13);
   CHECK_EQUAL_128(0x0000000000000000, 0x1716151417161514, q14);
-  CHECK_EQUAL_128(0x100f0e0d100f0e0d, 0x100f0e0d100f0e0d, q15);
+  CHECK_EQUAL_128(0x100F0E0D100F0E0D, 0x100F0E0D100F0E0D, q15);
   CHECK_EQUAL_128(0x1413121114131211, 0x1413121114131211, q16);
   CHECK_EQUAL_128(0x1817161518171615, 0x1817161518171615, q17);
-  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x201f1e1d1c1b1a19, q18);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x201F1E1D1C1B1A19, q18);
   CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
-  CHECK_EQUAL_128(0x302f2e2d2c2b2a29, 0x302f2e2d2c2b2a29, q20);
+  CHECK_EQUAL_128(0x302F2E2D2C2B2A29, 0x302F2E2D2C2B2A29, q20);
 
   TEARDOWN();
 }
@@ -4104,19 +4100,19 @@ TEST(neon_ld3_alllanes_postindex) {
   CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
   CHECK_EQUAL_128(0x0000000000000000, 0x0605060506050605, q6);
   CHECK_EQUAL_128(0x0000000000000000, 0x0807080708070807, q7);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0a090a090a090a09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0A090A090A090A09, q8);
   CHECK_EQUAL_128(0x0706070607060706, 0x0706070607060706, q9);
   CHECK_EQUAL_128(0x0908090809080908, 0x0908090809080908, q10);
-  CHECK_EQUAL_128(0x0b0a0b0a0b0a0b0a, 0x0b0a0b0a0b0a0b0a, q11);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0f0e0d0c0f0e0d0c, q12);
+  CHECK_EQUAL_128(0x0B0A0B0A0B0A0B0A, 0x0B0A0B0A0B0A0B0A, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0F0E0D0C0F0E0D0C, q12);
   CHECK_EQUAL_128(0x0000000000000000, 0x1312111013121110, q13);
   CHECK_EQUAL_128(0x0000000000000000, 0x1716151417161514, q14);
-  CHECK_EQUAL_128(0x100f0e0d100f0e0d, 0x100f0e0d100f0e0d, q15);
+  CHECK_EQUAL_128(0x100F0E0D100F0E0D, 0x100F0E0D100F0E0D, q15);
   CHECK_EQUAL_128(0x1413121114131211, 0x1413121114131211, q16);
   CHECK_EQUAL_128(0x1817161518171615, 0x1817161518171615, q17);
-  CHECK_EQUAL_128(0x201f1e1d1c1b1a19, 0x201f1e1d1c1b1a19, q18);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x201F1E1D1C1B1A19, q18);
   CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
-  CHECK_EQUAL_128(0x302f2e2d2c2b2a29, 0x302f2e2d2c2b2a29, q20);
+  CHECK_EQUAL_128(0x302F2E2D2C2B2A29, 0x302F2E2D2C2B2A29, q20);
 
   TEARDOWN();
 }
@@ -4144,22 +4140,22 @@ TEST(neon_ld4_d) {
 
   RUN();
 
-  CHECK_EQUAL_128(0, 0x1c1814100c080400, q2);
-  CHECK_EQUAL_128(0, 0x1d1915110d090501, q3);
-  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q4);
-  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q5);
-  CHECK_EQUAL_128(0, 0x1d1915110d090501, q6);
-  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q7);
-  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q8);
-  CHECK_EQUAL_128(0, 0x201c1814100c0804, q9);
-  CHECK_EQUAL_128(0, 0x1b1a13120b0a0302, q10);
-  CHECK_EQUAL_128(0, 0x1d1c15140d0c0504, q11);
-  CHECK_EQUAL_128(0, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0, 0x1F1E17160F0E0706, q12);
   CHECK_EQUAL_128(0, 0x2120191811100908, q13);
   CHECK_EQUAL_128(0, 0x1615141306050403, q30);
-  CHECK_EQUAL_128(0, 0x1a1918170a090807, q31);
-  CHECK_EQUAL_128(0, 0x1e1d1c1b0e0d0c0b, q0);
-  CHECK_EQUAL_128(0, 0x2221201f1211100f, q1);
+  CHECK_EQUAL_128(0, 0x1A1918170A090807, q31);
+  CHECK_EQUAL_128(0, 0x1E1D1C1B0E0D0C0B, q0);
+  CHECK_EQUAL_128(0, 0x2221201F1211100F, q1);
 
   TEARDOWN();
 }
@@ -4195,25 +4191,25 @@ TEST(neon_ld4_d_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0, 0x1c1814100c080400, q2);
-  CHECK_EQUAL_128(0, 0x1d1915110d090501, q3);
-  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q4);
-  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q5);
-  CHECK_EQUAL_128(0, 0x1d1915110d090501, q6);
-  CHECK_EQUAL_128(0, 0x1e1a16120e0a0602, q7);
-  CHECK_EQUAL_128(0, 0x1f1b17130f0b0703, q8);
-  CHECK_EQUAL_128(0, 0x201c1814100c0804, q9);
-  CHECK_EQUAL_128(0, 0x1b1a13120b0a0302, q10);
-  CHECK_EQUAL_128(0, 0x1d1c15140d0c0504, q11);
-  CHECK_EQUAL_128(0, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0, 0x1F1E17160F0E0706, q12);
   CHECK_EQUAL_128(0, 0x2120191811100908, q13);
   CHECK_EQUAL_128(0, 0x1615141306050403, q14);
-  CHECK_EQUAL_128(0, 0x1a1918170a090807, q15);
-  CHECK_EQUAL_128(0, 0x1e1d1c1b0e0d0c0b, q16);
-  CHECK_EQUAL_128(0, 0x2221201f1211100f, q17);
+  CHECK_EQUAL_128(0, 0x1A1918170A090807, q15);
+  CHECK_EQUAL_128(0, 0x1E1D1C1B0E0D0C0B, q16);
+  CHECK_EQUAL_128(0, 0x2221201F1211100F, q17);
   CHECK_EQUAL_128(0, 0x1716151407060504, q30);
-  CHECK_EQUAL_128(0, 0x1b1a19180b0a0908, q31);
-  CHECK_EQUAL_128(0, 0x1f1e1d1c0f0e0d0c, q0);
+  CHECK_EQUAL_128(0, 0x1B1A19180B0A0908, q31);
+  CHECK_EQUAL_128(0, 0x1F1E1D1C0F0E0D0C, q0);
   CHECK_EQUAL_128(0, 0x2322212013121110, q1);
 
   CHECK_EQUAL_64(src_base + 1, x17);
@@ -4249,26 +4245,26 @@ TEST(neon_ld4_q) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x3c3834302c282420, 0x1c1814100c080400, q2);
-  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q3);
-  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q4);
-  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q5);
-  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q6);
-  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q7);
-  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q8);
-  CHECK_EQUAL_128(0x403c3834302c2824, 0x201c1814100c0804, q9);
-  CHECK_EQUAL_128(0x3b3a33322b2a2322, 0x1b1a13120b0a0302, q10);
-  CHECK_EQUAL_128(0x3d3c35342d2c2524, 0x1d1c15140d0c0504, q11);
-  CHECK_EQUAL_128(0x3f3e37362f2e2726, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0x3C3834302C282420, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0x403C3834302C2824, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0x3B3A33322B2A2322, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0x3D3C35342D2C2524, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0x3F3E37362F2E2726, 0x1F1E17160F0E0706, q12);
   CHECK_EQUAL_128(0x4140393831302928, 0x2120191811100908, q13);
   CHECK_EQUAL_128(0x3635343326252423, 0x1615141306050403, q14);
-  CHECK_EQUAL_128(0x3a3938372a292827, 0x1a1918170a090807, q15);
-  CHECK_EQUAL_128(0x3e3d3c3b2e2d2c2b, 0x1e1d1c1b0e0d0c0b, q16);
-  CHECK_EQUAL_128(0x4241403f3231302f, 0x2221201f1211100f, q17);
-  CHECK_EQUAL_128(0x2b2a292827262524, 0x0b0a090807060504, q18);
-  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x131211100f0e0d0c, q19);
-  CHECK_EQUAL_128(0x3b3a393837363534, 0x1b1a191817161514, q20);
-  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x232221201f1e1d1c, q21);
+  CHECK_EQUAL_128(0x3A3938372A292827, 0x1A1918170A090807, q15);
+  CHECK_EQUAL_128(0x3E3D3C3B2E2D2C2B, 0x1E1D1C1B0E0D0C0B, q16);
+  CHECK_EQUAL_128(0x4241403F3231302F, 0x2221201F1211100F, q17);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x0B0A090807060504, q18);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x131211100F0E0D0C, q19);
+  CHECK_EQUAL_128(0x3B3A393837363534, 0x1B1A191817161514, q20);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x232221201F1E1D1C, q21);
   TEARDOWN();
 }
 
@@ -4304,26 +4300,26 @@ TEST(neon_ld4_q_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x3c3834302c282420, 0x1c1814100c080400, q2);
-  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q3);
-  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q4);
-  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q5);
-  CHECK_EQUAL_128(0x3d3935312d292521, 0x1d1915110d090501, q6);
-  CHECK_EQUAL_128(0x3e3a36322e2a2622, 0x1e1a16120e0a0602, q7);
-  CHECK_EQUAL_128(0x3f3b37332f2b2723, 0x1f1b17130f0b0703, q8);
-  CHECK_EQUAL_128(0x403c3834302c2824, 0x201c1814100c0804, q9);
-  CHECK_EQUAL_128(0x3b3a33322b2a2322, 0x1b1a13120b0a0302, q10);
-  CHECK_EQUAL_128(0x3d3c35342d2c2524, 0x1d1c15140d0c0504, q11);
-  CHECK_EQUAL_128(0x3f3e37362f2e2726, 0x1f1e17160f0e0706, q12);
+  CHECK_EQUAL_128(0x3C3834302C282420, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0x403C3834302C2824, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0x3B3A33322B2A2322, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0x3D3C35342D2C2524, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0x3F3E37362F2E2726, 0x1F1E17160F0E0706, q12);
   CHECK_EQUAL_128(0x4140393831302928, 0x2120191811100908, q13);
   CHECK_EQUAL_128(0x3635343326252423, 0x1615141306050403, q14);
-  CHECK_EQUAL_128(0x3a3938372a292827, 0x1a1918170a090807, q15);
-  CHECK_EQUAL_128(0x3e3d3c3b2e2d2c2b, 0x1e1d1c1b0e0d0c0b, q16);
-  CHECK_EQUAL_128(0x4241403f3231302f, 0x2221201f1211100f, q17);
-  CHECK_EQUAL_128(0x2b2a292827262524, 0x0b0a090807060504, q30);
-  CHECK_EQUAL_128(0x333231302f2e2d2c, 0x131211100f0e0d0c, q31);
-  CHECK_EQUAL_128(0x3b3a393837363534, 0x1b1a191817161514, q0);
-  CHECK_EQUAL_128(0x434241403f3e3d3c, 0x232221201f1e1d1c, q1);
+  CHECK_EQUAL_128(0x3A3938372A292827, 0x1A1918170A090807, q15);
+  CHECK_EQUAL_128(0x3E3D3C3B2E2D2C2B, 0x1E1D1C1B0E0D0C0B, q16);
+  CHECK_EQUAL_128(0x4241403F3231302F, 0x2221201F1211100F, q17);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x131211100F0E0D0C, q31);
+  CHECK_EQUAL_128(0x3B3A393837363534, 0x1B1A191817161514, q0);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x232221201F1E1D1C, q1);
 
   CHECK_EQUAL_64(src_base + 1, x17);
   CHECK_EQUAL_64(src_base + 1 + 64, x18);
@@ -4405,38 +4401,38 @@ TEST(neon_ld4_lane) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
-  CHECK_EQUAL_128(0x0102030405060708, 0x090a0b0c0d0e0f10, q1);
-  CHECK_EQUAL_128(0x0203040506070809, 0x0a0b0c0d0e0f1011, q2);
-  CHECK_EQUAL_128(0x030405060708090a, 0x0b0c0d0e0f101112, q3);
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090A0B0C0D0E0F10, q1);
+  CHECK_EQUAL_128(0x0203040506070809, 0x0A0B0C0D0E0F1011, q2);
+  CHECK_EQUAL_128(0x030405060708090A, 0x0B0C0D0E0F101112, q3);
   CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q4);
-  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080a09, q5);
-  CHECK_EQUAL_128(0x0504060507060807, 0x09080a090b0a0c0b, q6);
-  CHECK_EQUAL_128(0x0706080709080a09, 0x0b0a0c0b0d0c0e0d, q7);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080A09, q5);
+  CHECK_EQUAL_128(0x0504060507060807, 0x09080A090B0A0C0B, q6);
+  CHECK_EQUAL_128(0x0706080709080A09, 0x0B0A0C0B0D0C0E0D, q7);
   CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q8);
-  CHECK_EQUAL_128(0x0706050408070605, 0x090807060a090807, q9);
-  CHECK_EQUAL_128(0x0b0a09080c0b0a09, 0x0d0c0b0a0e0d0c0b, q10);
-  CHECK_EQUAL_128(0x0f0e0d0c100f0e0d, 0x11100f0e1211100f, q11);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060A090807, q9);
+  CHECK_EQUAL_128(0x0B0A09080C0B0A09, 0x0D0C0B0A0E0D0C0B, q10);
+  CHECK_EQUAL_128(0x0F0E0D0C100F0E0D, 0x11100F0E1211100F, q11);
   CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q12);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x100f0e0d0c0b0a09, q13);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x100F0E0D0C0B0A09, q13);
   CHECK_EQUAL_128(0x1716151413121110, 0x1817161514131211, q14);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x201f1e1d1c1b1a19, q15);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q16);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q17);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q18);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736350333323130, q19);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q20);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q21);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q22);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x0706353433323130, q23);
-  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q24);
-  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q25);
-  CHECK_EQUAL_128(0x2f2e2d2c0b0a0908, 0x2726252423222120, q26);
-  CHECK_EQUAL_128(0x3f3e3d3c0f0e0d0c, 0x3736353433323130, q27);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x201F1E1D1C1B1A19, q15);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q16);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q17);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q18);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736350333323130, q19);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q20);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q21);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q22);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x0706353433323130, q23);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q24);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q25);
+  CHECK_EQUAL_128(0x2F2E2D2C0B0A0908, 0x2726252423222120, q26);
+  CHECK_EQUAL_128(0x3F3E3D3C0F0E0D0C, 0x3736353433323130, q27);
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q28);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q29);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q29);
   CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q30);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x3736353433323130, q31);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x3736353433323130, q31);
 
   TEARDOWN();
 }
@@ -4522,38 +4518,38 @@ TEST(neon_ld4_lane_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0004080c1014181c, 0x2024282c3034383c, q0);
-  CHECK_EQUAL_128(0x0105090d1115191d, 0x2125292d3135393d, q1);
-  CHECK_EQUAL_128(0x02060a0e12161a1e, 0x22262a2e32363a3e, q2);
-  CHECK_EQUAL_128(0x03070b0f13171b1f, 0x23272b2f33373b3f, q3);
+  CHECK_EQUAL_128(0x0004080C1014181C, 0x2024282C3034383C, q0);
+  CHECK_EQUAL_128(0x0105090D1115191D, 0x2125292D3135393D, q1);
+  CHECK_EQUAL_128(0x02060A0E12161A1E, 0x22262A2E32363A3E, q2);
+  CHECK_EQUAL_128(0x03070B0F13171B1F, 0x23272B2F33373B3F, q3);
   CHECK_EQUAL_128(0x0100090811101918, 0x2120292831303938, q4);
-  CHECK_EQUAL_128(0x03020b0a13121b1a, 0x23222b2a33323b3a, q5);
-  CHECK_EQUAL_128(0x05040d0c15141d1c, 0x25242d2c35343d3c, q6);
-  CHECK_EQUAL_128(0x07060f0e17161f1e, 0x27262f2e37363f3e, q7);
+  CHECK_EQUAL_128(0x03020B0A13121B1A, 0x23222B2A33323B3A, q5);
+  CHECK_EQUAL_128(0x05040D0C15141D1C, 0x25242D2C35343D3C, q6);
+  CHECK_EQUAL_128(0x07060F0E17161F1E, 0x27262F2E37363F3E, q7);
   CHECK_EQUAL_128(0x0302010013121110, 0x2322212033323130, q8);
   CHECK_EQUAL_128(0x0706050417161514, 0x2726252437363534, q9);
-  CHECK_EQUAL_128(0x0b0a09081b1a1918, 0x2b2a29283b3a3938, q10);
-  CHECK_EQUAL_128(0x0f0e0d0c1f1e1d1c, 0x2f2e2d2c3f3e3d3c, q11);
+  CHECK_EQUAL_128(0x0B0A09081B1A1918, 0x2B2A29283B3A3938, q10);
+  CHECK_EQUAL_128(0x0F0E0D0C1F1E1D1C, 0x2F2E2D2C3F3E3D3C, q11);
   CHECK_EQUAL_128(0x0706050403020100, 0x2726252423222120, q12);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x2f2e2d2c2b2a2928, q13);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x2F2E2D2C2B2A2928, q13);
   CHECK_EQUAL_128(0x1716151413121110, 0x3736353433323130, q14);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x3f3e3d3c3b3a3938, q15);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q16);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716150113121110, q17);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726250223222120, q18);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736350333323130, q19);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q20);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0302151413121110, q21);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x0504252423222120, q22);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x0706353433323130, q23);
-  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q24);
-  CHECK_EQUAL_128(0x1f1e1d1c07060504, 0x1716151413121110, q25);
-  CHECK_EQUAL_128(0x2f2e2d2c0b0a0908, 0x2726252423222120, q26);
-  CHECK_EQUAL_128(0x3f3e3d3c0f0e0d0c, 0x3736353433323130, q27);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x3F3E3D3C3B3A3938, q15);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q16);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q17);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q18);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736350333323130, q19);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q20);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q21);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q22);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x0706353433323130, q23);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q24);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q25);
+  CHECK_EQUAL_128(0x2F2E2D2C0B0A0908, 0x2726252423222120, q26);
+  CHECK_EQUAL_128(0x3F3E3D3C0F0E0D0C, 0x3736353433323130, q27);
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q28);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x1716151413121110, q29);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q29);
   CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q30);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x3736353433323130, q31);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x3736353433323130, q31);
 
   CHECK_EQUAL_64(src_base + 64, x17);
   CHECK_EQUAL_64(src_base + 64, x18);
@@ -4608,24 +4604,24 @@ TEST(neon_ld4_alllanes) {
   CHECK_EQUAL_128(0x0808080808080808, 0x0808080808080808, q7);
   CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q8);
   CHECK_EQUAL_128(0x0000000000000000, 0x0908090809080908, q9);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0b0a0b0a0b0a0b0a, q10);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0d0c0d0c0d0c0d0c, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0B0A0B0A0B0A0B0A, q10);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0D0C0D0C0D0C0D0C, q11);
   CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q12);
-  CHECK_EQUAL_128(0x0a090a090a090a09, 0x0a090a090a090a09, q13);
-  CHECK_EQUAL_128(0x0c0b0c0b0c0b0c0b, 0x0c0b0c0b0c0b0c0b, q14);
-  CHECK_EQUAL_128(0x0e0d0e0d0e0d0e0d, 0x0e0d0e0d0e0d0e0d, q15);
-  CHECK_EQUAL_128(0x0000000000000000, 0x1211100f1211100f, q16);
+  CHECK_EQUAL_128(0x0A090A090A090A09, 0x0A090A090A090A09, q13);
+  CHECK_EQUAL_128(0x0C0B0C0B0C0B0C0B, 0x0C0B0C0B0C0B0C0B, q14);
+  CHECK_EQUAL_128(0x0E0D0E0D0E0D0E0D, 0x0E0D0E0D0E0D0E0D, q15);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1211100F1211100F, q16);
   CHECK_EQUAL_128(0x0000000000000000, 0x1615141316151413, q17);
-  CHECK_EQUAL_128(0x0000000000000000, 0x1a1918171a191817, q18);
-  CHECK_EQUAL_128(0x0000000000000000, 0x1e1d1c1b1e1d1c1b, q19);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1A1918171A191817, q18);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1E1D1C1B1E1D1C1B, q19);
   CHECK_EQUAL_128(0x1312111013121110, 0x1312111013121110, q20);
   CHECK_EQUAL_128(0x1716151417161514, 0x1716151417161514, q21);
-  CHECK_EQUAL_128(0x1b1a19181b1a1918, 0x1b1a19181b1a1918, q22);
-  CHECK_EQUAL_128(0x1f1e1d1c1f1e1d1c, 0x1f1e1d1c1f1e1d1c, q23);
+  CHECK_EQUAL_128(0x1B1A19181B1A1918, 0x1B1A19181B1A1918, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1F1E1D1C, 0x1F1E1D1C1F1E1D1C, q23);
   CHECK_EQUAL_128(0x2726252423222120, 0x2726252423222120, q24);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2f2e2d2c2b2a2928, q25);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2F2E2D2C2B2A2928, q25);
   CHECK_EQUAL_128(0x3736353433323130, 0x3736353433323130, q26);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3f3e3d3c3b3a3938, q27);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3F3E3D3C3B3A3938, q27);
 
   TEARDOWN();
 }
@@ -4673,24 +4669,24 @@ TEST(neon_ld4_alllanes_postindex) {
   CHECK_EQUAL_128(0x0808080808080808, 0x0808080808080808, q7);
   CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q8);
   CHECK_EQUAL_128(0x0000000000000000, 0x0908090809080908, q9);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0b0a0b0a0b0a0b0a, q10);
-  CHECK_EQUAL_128(0x0000000000000000, 0x0d0c0d0c0d0c0d0c, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0B0A0B0A0B0A0B0A, q10);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0D0C0D0C0D0C0D0C, q11);
   CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q12);
-  CHECK_EQUAL_128(0x0a090a090a090a09, 0x0a090a090a090a09, q13);
-  CHECK_EQUAL_128(0x0c0b0c0b0c0b0c0b, 0x0c0b0c0b0c0b0c0b, q14);
-  CHECK_EQUAL_128(0x0e0d0e0d0e0d0e0d, 0x0e0d0e0d0e0d0e0d, q15);
-  CHECK_EQUAL_128(0x0000000000000000, 0x1211100f1211100f, q16);
+  CHECK_EQUAL_128(0x0A090A090A090A09, 0x0A090A090A090A09, q13);
+  CHECK_EQUAL_128(0x0C0B0C0B0C0B0C0B, 0x0C0B0C0B0C0B0C0B, q14);
+  CHECK_EQUAL_128(0x0E0D0E0D0E0D0E0D, 0x0E0D0E0D0E0D0E0D, q15);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1211100F1211100F, q16);
   CHECK_EQUAL_128(0x0000000000000000, 0x1615141316151413, q17);
-  CHECK_EQUAL_128(0x0000000000000000, 0x1a1918171a191817, q18);
-  CHECK_EQUAL_128(0x0000000000000000, 0x1e1d1c1b1e1d1c1b, q19);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1A1918171A191817, q18);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1E1D1C1B1E1D1C1B, q19);
   CHECK_EQUAL_128(0x1312111013121110, 0x1312111013121110, q20);
   CHECK_EQUAL_128(0x1716151417161514, 0x1716151417161514, q21);
-  CHECK_EQUAL_128(0x1b1a19181b1a1918, 0x1b1a19181b1a1918, q22);
-  CHECK_EQUAL_128(0x1f1e1d1c1f1e1d1c, 0x1f1e1d1c1f1e1d1c, q23);
+  CHECK_EQUAL_128(0x1B1A19181B1A1918, 0x1B1A19181B1A1918, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1F1E1D1C, 0x1F1E1D1C1F1E1D1C, q23);
   CHECK_EQUAL_128(0x2726252423222120, 0x2726252423222120, q24);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2f2e2d2c2b2a2928, q25);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2F2E2D2C2B2A2928, q25);
   CHECK_EQUAL_128(0x3736353433323130, 0x3736353433323130, q26);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3f3e3d3c3b3a3938, q27);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3F3E3D3C3B3A3938, q27);
   CHECK_EQUAL_64(src_base + 64, x17);
 
   TEARDOWN();
@@ -4739,10 +4735,10 @@ TEST(neon_st1_lane) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q1);
-  CHECK_EQUAL_128(0x0100030205040706, 0x09080b0a0d0c0f0e, q2);
-  CHECK_EQUAL_128(0x0302010007060504, 0x0b0a09080f0e0d0c, q3);
-  CHECK_EQUAL_128(0x0706050403020100, 0x0f0e0d0c0b0a0908, q4);
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q1);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080B0A0D0C0F0E, q2);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0B0A09080F0E0D0C, q3);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q4);
 
   TEARDOWN();
 }
@@ -4759,8 +4755,8 @@ TEST(neon_st2_lane) {
   START();
   __ Mov(x17, dst_base);
   __ Mov(x18, dst_base);
-  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090a0b0c0d0e0f);
-  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191a1b1c1d1e1f);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090A0B0C0D0E0F);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191A1B1C1D1E1F);
 
   // Test B stores with and without post index.
   for (int i = 15; i >= 0; i--) {
@@ -4818,24 +4814,24 @@ TEST(neon_st2_lane) {
   RUN();
 
   CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q2);
-  CHECK_EQUAL_128(0x1f0f1e0e1d0d1c0c, 0x1b0b1a0a19091808, q3);
+  CHECK_EQUAL_128(0x1F0F1E0E1D0D1C0C, 0x1B0B1A0A19091808, q3);
   CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q4);
-  CHECK_EQUAL_128(0x1f0f1e0e1d0d1c0c, 0x1b0b1a0a19091808, q5);
+  CHECK_EQUAL_128(0x1F0F1E0E1D0D1C0C, 0x1B0B1A0A19091808, q5);
 
   CHECK_EQUAL_128(0x1617060714150405, 0x1213020310110001, q6);
-  CHECK_EQUAL_128(0x1e1f0e0f1c1d0c0d, 0x1a1b0a0b18190809, q7);
+  CHECK_EQUAL_128(0x1E1F0E0F1C1D0C0D, 0x1A1B0A0B18190809, q7);
   CHECK_EQUAL_128(0x1617060714150405, 0x1213020310110001, q16);
-  CHECK_EQUAL_128(0x1e1f0e0f1c1d0c0d, 0x1a1b0a0b18190809, q17);
+  CHECK_EQUAL_128(0x1E1F0E0F1C1D0C0D, 0x1A1B0A0B18190809, q17);
 
   CHECK_EQUAL_128(0x1415161704050607, 0x1011121300010203, q18);
-  CHECK_EQUAL_128(0x1c1d1e1f0c0d0e0f, 0x18191a1b08090a0b, q19);
+  CHECK_EQUAL_128(0x1C1D1E1F0C0D0E0F, 0x18191A1B08090A0B, q19);
   CHECK_EQUAL_128(0x1415161704050607, 0x1011121300010203, q20);
-  CHECK_EQUAL_128(0x1c1d1e1f0c0d0e0f, 0x18191a1b08090a0b, q21);
+  CHECK_EQUAL_128(0x1C1D1E1F0C0D0E0F, 0x18191A1B08090A0B, q21);
 
   CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q22);
-  CHECK_EQUAL_128(0x18191a1b1c1d1e1f, 0x08090a0b0c0d0e0f, q23);
+  CHECK_EQUAL_128(0x18191A1B1C1D1E1F, 0x08090A0B0C0D0E0F, q23);
   CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q22);
-  CHECK_EQUAL_128(0x18191a1b1c1d1e1f, 0x08090a0b0c0d0e0f, q23);
+  CHECK_EQUAL_128(0x18191A1B1C1D1E1F, 0x08090A0B0C0D0E0F, q23);
 
   TEARDOWN();
 }
@@ -4852,9 +4848,9 @@ TEST(neon_st3_lane) {
   START();
   __ Mov(x17, dst_base);
   __ Mov(x18, dst_base);
-  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090a0b0c0d0e0f);
-  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191a1b1c1d1e1f);
-  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292a2b2c2d2e2f);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090A0B0C0D0E0F);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191A1B1C1D1E1F);
+  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292A2B2C2D2E2F);
 
   // Test B stores with and without post index.
   for (int i = 15; i >= 0; i--) {
@@ -4916,25 +4912,25 @@ TEST(neon_st3_lane) {
   RUN();
 
   CHECK_EQUAL_128(0x0524140423130322, 0x1202211101201000, q3);
-  CHECK_EQUAL_128(0x1a0a291909281808, 0x2717072616062515, q4);
-  CHECK_EQUAL_128(0x2f1f0f2e1e0e2d1d, 0x0d2c1c0c2b1b0b2a, q5);
+  CHECK_EQUAL_128(0x1A0A291909281808, 0x2717072616062515, q4);
+  CHECK_EQUAL_128(0x2F1F0F2E1E0E2D1D, 0x0D2C1C0C2B1B0B2A, q5);
   CHECK_EQUAL_128(0x0524140423130322, 0x1202211101201000, q6);
-  CHECK_EQUAL_128(0x1a0a291909281808, 0x2717072616062515, q7);
-  CHECK_EQUAL_128(0x2f1f0f2e1e0e2d1d, 0x0d2c1c0c2b1b0b2a, q16);
+  CHECK_EQUAL_128(0x1A0A291909281808, 0x2717072616062515, q7);
+  CHECK_EQUAL_128(0x2F1F0F2E1E0E2D1D, 0x0D2C1C0C2B1B0B2A, q16);
 
   CHECK_EQUAL_128(0x1415040522231213, 0x0203202110110001, q17);
-  CHECK_EQUAL_128(0x0a0b282918190809, 0x2627161706072425, q18);
-  CHECK_EQUAL_128(0x2e2f1e1f0e0f2c2d, 0x1c1d0c0d2a2b1a1b, q19);
+  CHECK_EQUAL_128(0x0A0B282918190809, 0x2627161706072425, q18);
+  CHECK_EQUAL_128(0x2E2F1E1F0E0F2C2D, 0x1C1D0C0D2A2B1A1B, q19);
   CHECK_EQUAL_128(0x1415040522231213, 0x0203202110110001, q20);
-  CHECK_EQUAL_128(0x0a0b282918190809, 0x2627161706072425, q21);
-  CHECK_EQUAL_128(0x2e2f1e1f0e0f2c2d, 0x1c1d0c0d2a2b1a1b, q22);
+  CHECK_EQUAL_128(0x0A0B282918190809, 0x2627161706072425, q21);
+  CHECK_EQUAL_128(0x2E2F1E1F0E0F2C2D, 0x1C1D0C0D2A2B1A1B, q22);
 
   CHECK_EQUAL_128(0x0405060720212223, 0x1011121300010203, q23);
-  CHECK_EQUAL_128(0x18191a1b08090a0b, 0x2425262714151617, q24);
-  CHECK_EQUAL_128(0x2c2d2e2f1c1d1e1f, 0x0c0d0e0f28292a2b, q25);
+  CHECK_EQUAL_128(0x18191A1B08090A0B, 0x2425262714151617, q24);
+  CHECK_EQUAL_128(0x2C2D2E2F1C1D1E1F, 0x0C0D0E0F28292A2B, q25);
   CHECK_EQUAL_128(0x0405060720212223, 0x1011121300010203, q26);
-  CHECK_EQUAL_128(0x18191a1b08090a0b, 0x2425262714151617, q27);
-  CHECK_EQUAL_128(0x2c2d2e2f1c1d1e1f, 0x0c0d0e0f28292a2b, q28);
+  CHECK_EQUAL_128(0x18191A1B08090A0B, 0x2425262714151617, q27);
+  CHECK_EQUAL_128(0x2C2D2E2F1C1D1E1F, 0x0C0D0E0F28292A2B, q28);
 
   TEARDOWN();
 }
@@ -4951,10 +4947,10 @@ TEST(neon_st4_lane) {
   START();
   __ Mov(x17, dst_base);
   __ Mov(x18, dst_base);
-  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090a0b0c0d0e0f);
-  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191a1b1c1d1e1f);
-  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292a2b2c2d2e2f);
-  __ Movi(v3.V2D(), 0x2021222324252627, 0x28292a2b2c2d2e2f);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090A0B0C0D0E0F);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191A1B1C1D1E1F);
+  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292A2B2C2D2E2F);
+  __ Movi(v3.V2D(), 0x2021222324252627, 0x28292A2B2C2D2E2F);
 
   // Test B stores without post index.
   for (int i = 15; i >= 0; i--) {
@@ -5001,21 +4997,21 @@ TEST(neon_st4_lane) {
 
   CHECK_EQUAL_128(0x2323130322221202, 0x2121110120201000, q4);
   CHECK_EQUAL_128(0x2727170726261606, 0x2525150524241404, q5);
-  CHECK_EQUAL_128(0x2b2b1b0b2a2a1a0a, 0x2929190928281808, q6);
-  CHECK_EQUAL_128(0x2f2f1f0f2e2e1e0e, 0x2d2d1d0d2c2c1c0c, q7);
+  CHECK_EQUAL_128(0x2B2B1B0B2A2A1A0A, 0x2929190928281808, q6);
+  CHECK_EQUAL_128(0x2F2F1F0F2E2E1E0E, 0x2D2D1D0D2C2C1C0C, q7);
 
   CHECK_EQUAL_128(0x2223222312130203, 0x2021202110110001, q16);
   CHECK_EQUAL_128(0x2627262716170607, 0x2425242514150405, q17);
-  CHECK_EQUAL_128(0x2a2b2a2b1a1b0a0b, 0x2829282918190809, q18);
-  CHECK_EQUAL_128(0x2e2f2e2f1e1f0e0f, 0x2c2d2c2d1c1d0c0d, q19);
+  CHECK_EQUAL_128(0x2A2B2A2B1A1B0A0B, 0x2829282918190809, q18);
+  CHECK_EQUAL_128(0x2E2F2E2F1E1F0E0F, 0x2C2D2C2D1C1D0C0D, q19);
 
   CHECK_EQUAL_128(0x2021222320212223, 0x1011121300010203, q20);
   CHECK_EQUAL_128(0x2425262724252627, 0x1415161704050607, q21);
-  CHECK_EQUAL_128(0x28292a2b28292a2b, 0x18191a1b08090a0b, q22);
-  CHECK_EQUAL_128(0x2c2d2e2f2c2d2e2f, 0x1c1d1e1f0c0d0e0f, q23);
+  CHECK_EQUAL_128(0x28292A2B28292A2B, 0x18191A1B08090A0B, q22);
+  CHECK_EQUAL_128(0x2C2D2E2F2C2D2E2F, 0x1C1D1E1F0C0D0E0F, q23);
 
-  CHECK_EQUAL_128(0x18191a1b1c1d1e1f, 0x08090a0b0c0d0e0f, q24);
-  CHECK_EQUAL_128(0x28292a2b2c2d2e2f, 0x28292a2b2c2d2e2f, q25);
+  CHECK_EQUAL_128(0x18191A1B1C1D1E1F, 0x08090A0B0C0D0E0F, q24);
+  CHECK_EQUAL_128(0x28292A2B2C2D2E2F, 0x28292A2B2C2D2E2F, q25);
   CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q26);
   CHECK_EQUAL_128(0x2021222324252627, 0x2021222324252627, q27);
 
@@ -5080,13 +5076,13 @@ TEST(neon_ld1_lane_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q0);
-  CHECK_EQUAL_128(0x0100030205040706, 0x09080b0a0d0c0f0e, q1);
-  CHECK_EQUAL_128(0x0302010007060504, 0x0b0a09080f0e0d0c, q2);
-  CHECK_EQUAL_128(0x0706050403020100, 0x0f0e0d0c0b0a0908, q3);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050003020100, q4);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0100050403020100, q5);
-  CHECK_EQUAL_128(0x0f0e0d0c03020100, 0x0706050403020100, q6);
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080B0A0D0C0F0E, q1);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0B0A09080F0E0D0C, q2);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q3);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q4);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q5);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q6);
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q7);
   CHECK_EQUAL_64(src_base + 16, x17);
   CHECK_EQUAL_64(src_base + 16, x18);
@@ -5139,10 +5135,10 @@ TEST(neon_st1_lane_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0001020304050607, 0x08090a0b0c0d0e0f, q1);
-  CHECK_EQUAL_128(0x0100030205040706, 0x09080b0a0d0c0f0e, q2);
-  CHECK_EQUAL_128(0x0302010007060504, 0x0b0a09080f0e0d0c, q3);
-  CHECK_EQUAL_128(0x0706050403020100, 0x0f0e0d0c0b0a0908, q4);
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q1);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080B0A0D0C0F0E, q2);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0B0A09080F0E0D0C, q3);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q4);
 
   TEARDOWN();
 }
@@ -5184,8 +5180,8 @@ TEST(neon_ld1_alllanes) {
   CHECK_EQUAL_128(0x0504050405040504, 0x0504050405040504, q3);
   CHECK_EQUAL_128(0, 0x0807060508070605, q4);
   CHECK_EQUAL_128(0x0908070609080706, 0x0908070609080706, q5);
-  CHECK_EQUAL_128(0, 0x0e0d0c0b0a090807, q6);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0f0e0d0c0b0a0908, q7);
+  CHECK_EQUAL_128(0, 0x0E0D0C0B0A090807, q6);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0F0E0D0C0B0A0908, q7);
 
   TEARDOWN();
 }
@@ -5219,8 +5215,8 @@ TEST(neon_ld1_alllanes_postindex) {
   CHECK_EQUAL_128(0, 0x0403040304030403, q2);
   CHECK_EQUAL_128(0x0504050405040504, 0x0504050405040504, q3);
   CHECK_EQUAL_128(0, 0x0908070609080706, q4);
-  CHECK_EQUAL_128(0x0a0908070a090807, 0x0a0908070a090807, q5);
-  CHECK_EQUAL_128(0x1211100f0e0d0c0b, 0x1211100f0e0d0c0b, q6);
+  CHECK_EQUAL_128(0x0A0908070A090807, 0x0A0908070A090807, q5);
+  CHECK_EQUAL_128(0x1211100F0E0D0C0B, 0x1211100F0E0D0C0B, q6);
   CHECK_EQUAL_64(src_base + 19, x17);
 
   TEARDOWN();
@@ -5266,10 +5262,10 @@ TEST(neon_st1_d) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q0);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q1);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q2);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323130, q3);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q0);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q1);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q2);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q3);
   CHECK_EQUAL_128(0, 0x0706050403020100, q16);
   CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q17);
   CHECK_EQUAL_128(0, 0x0706050403020100, q18);
@@ -5380,16 +5376,16 @@ TEST(neon_st1_q) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q16);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q17);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q18);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q19);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q20);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q21);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q22);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q23);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q24);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323130, q25);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q18);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q19);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q20);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q21);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q23);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q25);
 
   TEARDOWN();
 }
@@ -5438,16 +5434,16 @@ TEST(neon_st1_q_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q16);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q17);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q18);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q19);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q20);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q21);
-  CHECK_EQUAL_128(0x0f0e0d0c0b0a0908, 0x0706050403020100, q22);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x1716151413121110, q23);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726252423222120, q24);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323130, q25);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q18);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q19);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q20);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q21);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q23);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q25);
 
   TEARDOWN();
 }
@@ -5487,7 +5483,7 @@ TEST(neon_st2_d) {
   CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q0);
   CHECK_EQUAL_128(0x0504131203021110, 0x0100151413121110, q1);
   CHECK_EQUAL_128(0x1615140706050413, 0x1211100302010014, q2);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736353433323117, q3);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323117, q3);
 
   TEARDOWN();
 }
@@ -5524,7 +5520,7 @@ TEST(neon_st2_d_postindex) {
 
   CHECK_EQUAL_128(0x1405041312030211, 0x1001000211011000, q0);
   CHECK_EQUAL_128(0x0605041312111003, 0x0201001716070615, q1);
-  CHECK_EQUAL_128(0x2f2e2d2c2b2a2928, 0x2726251716151407, q2);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726251716151407, q2);
 
   TEARDOWN();
 }
@@ -5564,9 +5560,9 @@ TEST(neon_st2_q) {
   RUN();
 
   CHECK_EQUAL_128(0x1312030211100100, 0x1303120211011000, q0);
-  CHECK_EQUAL_128(0x01000b0a19180908, 0x1716070615140504, q1);
+  CHECK_EQUAL_128(0x01000B0A19180908, 0x1716070615140504, q1);
   CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q2);
-  CHECK_EQUAL_128(0x1f1e1d1c1b1a1918, 0x0f0e0d0c0b0a0908, q3);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0F0E0D0C0B0A0908, q3);
   TEARDOWN();
 }
 
@@ -5604,10 +5600,10 @@ TEST(neon_st2_q_postindex) {
   RUN();
 
   CHECK_EQUAL_128(0x1405041312030211, 0x1001000211011000, q0);
-  CHECK_EQUAL_128(0x1c0d0c1b1a0b0a19, 0x1809081716070615, q1);
-  CHECK_EQUAL_128(0x0504030201001003, 0x0201001f1e0f0e1d, q2);
-  CHECK_EQUAL_128(0x0d0c0b0a09081716, 0x1514131211100706, q3);
-  CHECK_EQUAL_128(0x4f4e4d4c4b4a1f1e, 0x1d1c1b1a19180f0e, q4);
+  CHECK_EQUAL_128(0x1C0D0C1B1A0B0A19, 0x1809081716070615, q1);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201001F1E0F0E1D, q2);
+  CHECK_EQUAL_128(0x0D0C0B0A09081716, 0x1514131211100706, q3);
+  CHECK_EQUAL_128(0x4F4E4D4C4B4A1F1E, 0x1D1C1B1A19180F0E, q4);
 
   TEARDOWN();
 }
@@ -5644,7 +5640,7 @@ TEST(neon_st3_d) {
   RUN();
 
   CHECK_EQUAL_128(0x2221201312111003, 0x0201000100201000, q0);
-  CHECK_EQUAL_128(0x1f1e1d2726252417, 0x1615140706050423, q1);
+  CHECK_EQUAL_128(0x1F1E1D2726252417, 0x1615140706050423, q1);
 
   TEARDOWN();
 }
@@ -5684,7 +5680,7 @@ TEST(neon_st3_d_postindex) {
   CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
   CHECK_EQUAL_128(0x0201002726171607, 0x0625241514050423, q1);
   CHECK_EQUAL_128(0x1615140706050423, 0x2221201312111003, q2);
-  CHECK_EQUAL_128(0x3f3e3d3c3b3a3938, 0x3736352726252417, q3);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736352726252417, q3);
 
   TEARDOWN();
 }
@@ -5730,8 +5726,8 @@ TEST(neon_st3_q) {
   CHECK_EQUAL_128(0x0605042322212013, 0x1211100302010023, q1);
   CHECK_EQUAL_128(0x1007060504030201, 0x0025241716151407, q2);
   CHECK_EQUAL_128(0x0827262524232221, 0x2017161514131211, q3);
-  CHECK_EQUAL_128(0x281f1e1d1c1b1a19, 0x180f0e0d0c0b0a09, q4);
-  CHECK_EQUAL_128(0x5f5e5d5c5b5a5958, 0x572f2e2d2c2b2a29, q5);
+  CHECK_EQUAL_128(0x281F1E1D1C1B1A19, 0x180F0E0D0C0B0A09, q4);
+  CHECK_EQUAL_128(0x5F5E5D5C5B5A5958, 0x572F2E2D2C2B2A29, q5);
 
   TEARDOWN();
 }
@@ -5774,11 +5770,11 @@ TEST(neon_st3_q_postindex) {
 
   CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
   CHECK_EQUAL_128(0x1809082726171607, 0x0625241514050423, q1);
-  CHECK_EQUAL_128(0x0e2d2c1d1c0d0c2b, 0x2a1b1a0b0a292819, q2);
-  CHECK_EQUAL_128(0x0504030201001003, 0x0201002f2e1f1e0f, q3);
+  CHECK_EQUAL_128(0x0E2D2C1D1C0D0C2B, 0x2A1B1A0B0A292819, q2);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201002F2E1F1E0F, q3);
   CHECK_EQUAL_128(0x2524232221201716, 0x1514131211100706, q4);
-  CHECK_EQUAL_128(0x1d1c1b1a19180f0e, 0x0d0c0b0a09082726, q5);
-  CHECK_EQUAL_128(0x6f6e6d6c6b6a2f2e, 0x2d2c2b2a29281f1e, q6);
+  CHECK_EQUAL_128(0x1D1C1B1A19180F0E, 0x0D0C0B0A09082726, q5);
+  CHECK_EQUAL_128(0x6F6E6D6C6B6A2F2E, 0x2D2C2B2A29281F1E, q6);
 
   TEARDOWN();
 }
@@ -5820,7 +5816,7 @@ TEST(neon_st4_d) {
   CHECK_EQUAL_128(0x1110010032221202, 0X3121110130201000, q0);
   CHECK_EQUAL_128(0x1003020100322322, 0X1312030231302120, q1);
   CHECK_EQUAL_128(0x1407060504333231, 0X3023222120131211, q2);
-  CHECK_EQUAL_128(0x3f3e3d3c3b373635, 0x3427262524171615, q3);
+  CHECK_EQUAL_128(0x3F3E3D3C3B373635, 0x3427262524171615, q3);
 
   TEARDOWN();
 }
@@ -5865,7 +5861,7 @@ TEST(neon_st4_d_postindex) {
   CHECK_EQUAL_128(0x1607063534252415, 0x1405043332232213, q1);
   CHECK_EQUAL_128(0x2221201312111003, 0x0201003736272617, q2);
   CHECK_EQUAL_128(0x2625241716151407, 0x0605043332313023, q3);
-  CHECK_EQUAL_128(0x4f4e4d4c4b4a4948, 0x4746453736353427, q4);
+  CHECK_EQUAL_128(0x4F4E4D4C4B4A4948, 0x4746453736353427, q4);
 
   TEARDOWN();
 }
@@ -5914,9 +5910,9 @@ TEST(neon_st4_q) {
   CHECK_EQUAL_128(0x3231302322212013, 0x1211100302010013, q1);
   CHECK_EQUAL_128(0x1007060504030201, 0x0015140706050433, q2);
   CHECK_EQUAL_128(0x3027262524232221, 0x2017161514131211, q3);
-  CHECK_EQUAL_128(0x180f0e0d0c0b0a09, 0x0837363534333231, q4);
-  CHECK_EQUAL_128(0x382f2e2d2c2b2a29, 0x281f1e1d1c1b1a19, q5);
-  CHECK_EQUAL_128(0x6f6e6d6c6b6a6968, 0x673f3e3d3c3b3a39, q6);
+  CHECK_EQUAL_128(0x180F0E0D0C0B0A09, 0x0837363534333231, q4);
+  CHECK_EQUAL_128(0x382F2E2D2C2B2A29, 0x281F1E1D1C1B1A19, q5);
+  CHECK_EQUAL_128(0x6F6E6D6C6B6A6968, 0x673F3E3D3C3B3A39, q6);
 
   TEARDOWN();
 }
@@ -5965,13 +5961,13 @@ TEST(neon_st4_q_postindex) {
 
   CHECK_EQUAL_128(0x1203023130212011, 0x1001000130201000, q0);
   CHECK_EQUAL_128(0x1607063534252415, 0x1405043332232213, q1);
-  CHECK_EQUAL_128(0x1a0b0a3938292819, 0x1809083736272617, q2);
-  CHECK_EQUAL_128(0x1e0f0e3d3c2d2c1d, 0x1c0d0c3b3a2b2a1b, q3);
-  CHECK_EQUAL_128(0x0504030201001003, 0x0201003f3e2f2e1f, q4);
+  CHECK_EQUAL_128(0x1A0B0A3938292819, 0x1809083736272617, q2);
+  CHECK_EQUAL_128(0x1E0F0E3D3C2D2C1D, 0x1C0D0C3B3A2B2A1B, q3);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201003F3E2F2E1F, q4);
   CHECK_EQUAL_128(0x2524232221201716, 0x1514131211100706, q5);
-  CHECK_EQUAL_128(0x0d0c0b0a09083736, 0x3534333231302726, q6);
-  CHECK_EQUAL_128(0x2d2c2b2a29281f1e, 0x1d1c1b1a19180f0e, q7);
-  CHECK_EQUAL_128(0x8f8e8d8c8b8a3f3e, 0x3d3c3b3a39382f2e, q8);
+  CHECK_EQUAL_128(0x0D0C0B0A09083736, 0x3534333231302726, q6);
+  CHECK_EQUAL_128(0x2D2C2B2A29281F1E, 0x1D1C1B1A19180F0E, q7);
+  CHECK_EQUAL_128(0x8F8E8D8C8B8A3F3E, 0x3D3C3B3A39382F2E, q8);
 
   TEARDOWN();
 }
@@ -6047,11 +6043,11 @@ TEST(neon_destructive_tbl) {
   SETUP();
 
   START();
-  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291a1b1c0d0e0f);
-  __ Movi(v1.V2D(), 0xafaeadacabaaa9a8, 0xa7a6a5a4a3a2a1a0);
-  __ Movi(v2.V2D(), 0xbfbebdbcbbbab9b8, 0xb7b6b5b4b3b2b1b0);
-  __ Movi(v3.V2D(), 0xcfcecdcccbcac9c8, 0xc7c6c5c4c3c2c1c0);
-  __ Movi(v4.V2D(), 0xdfdedddcdbdad9d8, 0xd7d6d5d4d3d2d1d0);
+  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291A1B1C0D0E0F);
+  __ Movi(v1.V2D(), 0xAFAEADACABAAA9A8, 0xA7A6A5A4A3A2A1A0);
+  __ Movi(v2.V2D(), 0xBFBEBDBCBBBAB9B8, 0xB7B6B5B4B3B2B1B0);
+  __ Movi(v3.V2D(), 0xCFCECDCCCBCAC9C8, 0xC7C6C5C4C3C2C1C0);
+  __ Movi(v4.V2D(), 0xDFDEDDDCDBDAD9D8, 0xD7D6D5D4D3D2D1D0);
 
   __ Movi(v16.V2D(), 0x5555555555555555, 0x5555555555555555);
   __ Tbl(v16.V16B(), v1.V16B(), v0.V16B());
@@ -6081,15 +6077,15 @@ TEST(neon_destructive_tbl) {
 
   RUN();
 
-  CHECK_EQUAL_128(0xa000000000000000, 0x0000000000adaeaf, q16);
-  CHECK_EQUAL_128(0xa000000000000000, 0x0000000000adaeaf, q17);
-  CHECK_EQUAL_128(0xa000000000000000, 0x0000000000adaeaf, q18);
-  CHECK_EQUAL_128(0x0f00000000000000, 0x0000000000424100, q19);
+  CHECK_EQUAL_128(0xA000000000000000, 0x0000000000ADAEAF, q16);
+  CHECK_EQUAL_128(0xA000000000000000, 0x0000000000ADAEAF, q17);
+  CHECK_EQUAL_128(0xA000000000000000, 0x0000000000ADAEAF, q18);
+  CHECK_EQUAL_128(0x0F00000000000000, 0x0000000000424100, q19);
 
-  CHECK_EQUAL_128(0xa0000000d4d5d6c7, 0xc8c9babbbcadaeaf, q20);
-  CHECK_EQUAL_128(0xa0000000d4d5d6c7, 0xc8c9babbbcadaeaf, q21);
-  CHECK_EQUAL_128(0xa0000000d4d5d6c7, 0xc8c9babbbcadaeaf, q22);
-  CHECK_EQUAL_128(0x0f000000c4c5c6b7, 0xb8b9aaabac424100, q26);
+  CHECK_EQUAL_128(0xA0000000D4D5D6C7, 0xC8C9BABBBCADAEAF, q20);
+  CHECK_EQUAL_128(0xA0000000D4D5D6C7, 0xC8C9BABBBCADAEAF, q21);
+  CHECK_EQUAL_128(0xA0000000D4D5D6C7, 0xC8C9BABBBCADAEAF, q22);
+  CHECK_EQUAL_128(0x0F000000C4C5C6B7, 0xB8B9AAABAC424100, q26);
 
   TEARDOWN();
 }
@@ -6099,11 +6095,11 @@ TEST(neon_destructive_tbx) {
   SETUP();
 
   START();
-  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291a1b1c0d0e0f);
-  __ Movi(v1.V2D(), 0xafaeadacabaaa9a8, 0xa7a6a5a4a3a2a1a0);
-  __ Movi(v2.V2D(), 0xbfbebdbcbbbab9b8, 0xb7b6b5b4b3b2b1b0);
-  __ Movi(v3.V2D(), 0xcfcecdcccbcac9c8, 0xc7c6c5c4c3c2c1c0);
-  __ Movi(v4.V2D(), 0xdfdedddcdbdad9d8, 0xd7d6d5d4d3d2d1d0);
+  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291A1B1C0D0E0F);
+  __ Movi(v1.V2D(), 0xAFAEADACABAAA9A8, 0xA7A6A5A4A3A2A1A0);
+  __ Movi(v2.V2D(), 0xBFBEBDBCBBBAB9B8, 0xB7B6B5B4B3B2B1B0);
+  __ Movi(v3.V2D(), 0xCFCECDCCCBCAC9C8, 0xC7C6C5C4C3C2C1C0);
+  __ Movi(v4.V2D(), 0xDFDEDDDCDBDAD9D8, 0xD7D6D5D4D3D2D1D0);
 
   __ Movi(v16.V2D(), 0x5555555555555555, 0x5555555555555555);
   __ Tbx(v16.V16B(), v1.V16B(), v0.V16B());
@@ -6133,15 +6129,15 @@ TEST(neon_destructive_tbx) {
 
   RUN();
 
-  CHECK_EQUAL_128(0xa055555555555555, 0x5555555555adaeaf, q16);
-  CHECK_EQUAL_128(0xa041424334353627, 0x28291a1b1cadaeaf, q17);
-  CHECK_EQUAL_128(0xa0aeadacabaaa9a8, 0xa7a6a5a4a3adaeaf, q18);
-  CHECK_EQUAL_128(0x0f41424334353627, 0x28291a1b1c424100, q19);
+  CHECK_EQUAL_128(0xA055555555555555, 0x5555555555ADAEAF, q16);
+  CHECK_EQUAL_128(0xA041424334353627, 0x28291A1B1CADAEAF, q17);
+  CHECK_EQUAL_128(0xA0AEADACABAAA9A8, 0xA7A6A5A4A3ADAEAF, q18);
+  CHECK_EQUAL_128(0x0F41424334353627, 0x28291A1B1C424100, q19);
 
-  CHECK_EQUAL_128(0xa0555555d4d5d6c7, 0xc8c9babbbcadaeaf, q20);
-  CHECK_EQUAL_128(0xa0414243d4d5d6c7, 0xc8c9babbbcadaeaf, q21);
-  CHECK_EQUAL_128(0xa0aeadacd4d5d6c7, 0xc8c9babbbcadaeaf, q22);
-  CHECK_EQUAL_128(0x0f414243c4c5c6b7, 0xb8b9aaabac424100, q26);
+  CHECK_EQUAL_128(0xA0555555D4D5D6C7, 0xC8C9BABBBCADAEAF, q20);
+  CHECK_EQUAL_128(0xA0414243D4D5D6C7, 0xC8C9BABBBCADAEAF, q21);
+  CHECK_EQUAL_128(0xA0AEADACD4D5D6C7, 0xC8C9BABBBCADAEAF, q22);
+  CHECK_EQUAL_128(0x0F414243C4C5C6B7, 0xB8B9AAABAC424100, q26);
 
   TEARDOWN();
 }
@@ -6151,7 +6147,7 @@ TEST(neon_destructive_fcvtl) {
   SETUP();
 
   START();
-  __ Movi(v0.V2D(), 0x400000003f800000, 0xbf800000c0000000);
+  __ Movi(v0.V2D(), 0x400000003F800000, 0xBF800000C0000000);
   __ Fcvtl(v16.V2D(), v0.V2S());
   __ Fcvtl2(v17.V2D(), v0.V4S());
   __ Mov(v18, v0);
@@ -6159,7 +6155,7 @@ TEST(neon_destructive_fcvtl) {
   __ Fcvtl(v18.V2D(), v18.V2S());
   __ Fcvtl2(v19.V2D(), v19.V4S());
 
-  __ Movi(v1.V2D(), 0x40003c003c004000, 0xc000bc00bc00c000);
+  __ Movi(v1.V2D(), 0x40003C003C004000, 0xC000BC00BC00C000);
   __ Fcvtl(v20.V4S(), v1.V4H());
   __ Fcvtl2(v21.V4S(), v1.V8H());
   __ Mov(v22, v1);
@@ -6171,15 +6167,15 @@ TEST(neon_destructive_fcvtl) {
 
   RUN();
 
-  CHECK_EQUAL_128(0xbff0000000000000, 0xc000000000000000, q16);
-  CHECK_EQUAL_128(0x4000000000000000, 0x3ff0000000000000, q17);
-  CHECK_EQUAL_128(0xbff0000000000000, 0xc000000000000000, q18);
-  CHECK_EQUAL_128(0x4000000000000000, 0x3ff0000000000000, q19);
+  CHECK_EQUAL_128(0xBFF0000000000000, 0xC000000000000000, q16);
+  CHECK_EQUAL_128(0x4000000000000000, 0x3FF0000000000000, q17);
+  CHECK_EQUAL_128(0xBFF0000000000000, 0xC000000000000000, q18);
+  CHECK_EQUAL_128(0x4000000000000000, 0x3FF0000000000000, q19);
 
-  CHECK_EQUAL_128(0xc0000000bf800000, 0xbf800000c0000000, q20);
-  CHECK_EQUAL_128(0x400000003f800000, 0x3f80000040000000, q21);
-  CHECK_EQUAL_128(0xc0000000bf800000, 0xbf800000c0000000, q22);
-  CHECK_EQUAL_128(0x400000003f800000, 0x3f80000040000000, q23);
+  CHECK_EQUAL_128(0xC0000000BF800000, 0xBF800000C0000000, q20);
+  CHECK_EQUAL_128(0x400000003F800000, 0x3F80000040000000, q21);
+  CHECK_EQUAL_128(0xC0000000BF800000, 0xBF800000C0000000, q22);
+  CHECK_EQUAL_128(0x400000003F800000, 0x3F80000040000000, q23);
 
   TEARDOWN();
 }
@@ -6247,8 +6243,8 @@ TEST(ldp_stp_double) {
 TEST(ldp_stp_quad) {
   SETUP();
 
-  uint64_t src[4] = {0x0123456789abcdef, 0xaaaaaaaa55555555, 0xfedcba9876543210,
-                     0x55555555aaaaaaaa};
+  uint64_t src[4] = {0x0123456789ABCDEF, 0xAAAAAAAA55555555, 0xFEDCBA9876543210,
+                     0x55555555AAAAAAAA};
   uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -6262,14 +6258,14 @@ TEST(ldp_stp_quad) {
 
   RUN();
 
-  CHECK_EQUAL_128(0xaaaaaaaa55555555, 0x0123456789abcdef, q31);
-  CHECK_EQUAL_128(0x55555555aaaaaaaa, 0xfedcba9876543210, q0);
+  CHECK_EQUAL_128(0xAAAAAAAA55555555, 0x0123456789ABCDEF, q31);
+  CHECK_EQUAL_128(0x55555555AAAAAAAA, 0xFEDCBA9876543210, q0);
   CHECK_EQUAL_64(0, dst[0]);
   CHECK_EQUAL_64(0, dst[1]);
-  CHECK_EQUAL_64(0xfedcba9876543210, dst[2]);
-  CHECK_EQUAL_64(0x55555555aaaaaaaa, dst[3]);
-  CHECK_EQUAL_64(0x0123456789abcdef, dst[4]);
-  CHECK_EQUAL_64(0xaaaaaaaa55555555, dst[5]);
+  CHECK_EQUAL_64(0xFEDCBA9876543210, dst[2]);
+  CHECK_EQUAL_64(0x55555555AAAAAAAA, dst[3]);
+  CHECK_EQUAL_64(0x0123456789ABCDEF, dst[4]);
+  CHECK_EQUAL_64(0xAAAAAAAA55555555, dst[5]);
   CHECK_EQUAL_64(src_base + 4 * sizeof(src[0]), x16);
   CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[1]), x17);
 
@@ -6280,8 +6276,8 @@ TEST(ldp_stp_offset) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL};
+  uint64_t src[3] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
+                     0xFFEEDDCCBBAA9988UL};
   uint64_t dst[7] = {0, 0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -6309,19 +6305,19 @@ TEST(ldp_stp_offset) {
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[0]);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[2]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[3]);
-  CHECK_EQUAL_64(0x8899aabb, x6);
-  CHECK_EQUAL_64(0xbbaa9988, x7);
-  CHECK_EQUAL_64(0xbbaa99888899aabbUL, dst[4]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x8);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[5]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x9);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[6]);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[1]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[2]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABB, x6);
+  CHECK_EQUAL_64(0xBBAA9988, x7);
+  CHECK_EQUAL_64(0xBBAA99888899AABBUL, dst[4]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x8);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[5]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x9);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[6]);
   CHECK_EQUAL_64(src_base, x16);
   CHECK_EQUAL_64(dst_base, x17);
   CHECK_EQUAL_64(src_base + 24, x18);
@@ -6335,8 +6331,8 @@ TEST(ldp_stp_offset_wide) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677, 0x8899aabbccddeeff,
-                     0xffeeddccbbaa9988};
+  uint64_t src[3] = {0x0011223344556677, 0x8899AABBCCDDEEFF,
+                     0xFFEEDDCCBBAA9988};
   uint64_t dst[7] = {0, 0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -6367,19 +6363,19 @@ TEST(ldp_stp_offset_wide) {
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[0]);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[2]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[3]);
-  CHECK_EQUAL_64(0x8899aabb, x6);
-  CHECK_EQUAL_64(0xbbaa9988, x7);
-  CHECK_EQUAL_64(0xbbaa99888899aabbUL, dst[4]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x8);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[5]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x9);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[6]);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[1]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[2]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABB, x6);
+  CHECK_EQUAL_64(0xBBAA9988, x7);
+  CHECK_EQUAL_64(0xBBAA99888899AABBUL, dst[4]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x8);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[5]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x9);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[6]);
   CHECK_EQUAL_64(src_base - base_offset, x20);
   CHECK_EQUAL_64(dst_base - base_offset, x21);
   CHECK_EQUAL_64(src_base + base_offset + 24, x18);
@@ -6393,8 +6389,8 @@ TEST(ldp_stp_preindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL};
+  uint64_t src[3] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
+                     0xFFEEDDCCBBAA9988UL};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -6420,17 +6416,17 @@ TEST(ldp_stp_preindex) {
   RUN();
 
   CHECK_EQUAL_64(0x00112233, x0);
-  CHECK_EQUAL_64(0xccddeeff, x1);
+  CHECK_EQUAL_64(0xCCDDEEFF, x1);
   CHECK_EQUAL_64(0x44556677, x2);
   CHECK_EQUAL_64(0x00112233, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[0]);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
   CHECK_EQUAL_64(0x0011223344556677UL, x6);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base, x16);
   CHECK_EQUAL_64(dst_base, x17);
@@ -6448,8 +6444,8 @@ TEST(ldp_stp_preindex_wide) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677, 0x8899aabbccddeeff,
-                     0xffeeddccbbaa9988};
+  uint64_t src[3] = {0x0011223344556677, 0x8899AABBCCDDEEFF,
+                     0xFFEEDDCCBBAA9988};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -6483,17 +6479,17 @@ TEST(ldp_stp_preindex_wide) {
   RUN();
 
   CHECK_EQUAL_64(0x00112233, x0);
-  CHECK_EQUAL_64(0xccddeeff, x1);
+  CHECK_EQUAL_64(0xCCDDEEFF, x1);
   CHECK_EQUAL_64(0x44556677, x2);
   CHECK_EQUAL_64(0x00112233, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[0]);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
   CHECK_EQUAL_64(0x0011223344556677UL, x6);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base, x24);
   CHECK_EQUAL_64(dst_base, x25);
@@ -6511,8 +6507,8 @@ TEST(ldp_stp_postindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[4] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL, 0x7766554433221100UL};
+  uint64_t src[4] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
+                     0xFFEEDDCCBBAA9988UL, 0x7766554433221100UL};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -6540,15 +6536,15 @@ TEST(ldp_stp_postindex) {
   CHECK_EQUAL_64(0x44556677, x0);
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
   CHECK_EQUAL_64(0x4455667700112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
   CHECK_EQUAL_64(0x0011223344556677UL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x5);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x6);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x6);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base, x16);
   CHECK_EQUAL_64(dst_base, x17);
@@ -6566,7 +6562,7 @@ TEST(ldp_stp_postindex_wide) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[4] = {0x0011223344556677, 0x8899aabbccddeeff, 0xffeeddccbbaa9988,
+  uint64_t src[4] = {0x0011223344556677, 0x8899AABBCCDDEEFF, 0xFFEEDDCCBBAA9988,
                      0x7766554433221100};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
@@ -6603,15 +6599,15 @@ TEST(ldp_stp_postindex_wide) {
   CHECK_EQUAL_64(0x44556677, x0);
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
   CHECK_EQUAL_64(0x4455667700112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
   CHECK_EQUAL_64(0x0011223344556677UL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x5);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x6);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x6);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base + base_offset, x24);
   CHECK_EQUAL_64(dst_base - base_offset, x25);
@@ -6629,7 +6625,7 @@ TEST(ldp_sign_extend) {
   INIT_V8();
   SETUP();
 
-  uint32_t src[2] = {0x80000000, 0x7fffffff};
+  uint32_t src[2] = {0x80000000, 0x7FFFFFFF};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
 
   START();
@@ -6639,8 +6635,8 @@ TEST(ldp_sign_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffff80000000UL, x0);
-  CHECK_EQUAL_64(0x000000007fffffffUL, x1);
+  CHECK_EQUAL_64(0xFFFFFFFF80000000UL, x0);
+  CHECK_EQUAL_64(0x000000007FFFFFFFUL, x1);
 
   TEARDOWN();
 }
@@ -6650,7 +6646,7 @@ TEST(ldur_stur) {
   INIT_V8();
   SETUP();
 
-  int64_t src[2] = {0x0123456789abcdefUL, 0x0123456789abcdefUL};
+  int64_t src[2] = {0x0123456789ABCDEFUL, 0x0123456789ABCDEFUL};
   int64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -6673,13 +6669,13 @@ TEST(ldur_stur) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x6789abcd, x0);
-  CHECK_EQUAL_64(0x6789abcd0000L, dst[0]);
-  CHECK_EQUAL_64(0xabcdef0123456789L, x1);
-  CHECK_EQUAL_64(0xcdef012345678900L, dst[1]);
-  CHECK_EQUAL_64(0x000000ab, dst[2]);
-  CHECK_EQUAL_64(0xabcdef01, x2);
-  CHECK_EQUAL_64(0x00abcdef01000000L, dst[3]);
+  CHECK_EQUAL_64(0x6789ABCD, x0);
+  CHECK_EQUAL_64(0x6789ABCD0000L, dst[0]);
+  CHECK_EQUAL_64(0xABCDEF0123456789L, x1);
+  CHECK_EQUAL_64(0xCDEF012345678900L, dst[1]);
+  CHECK_EQUAL_64(0x000000AB, dst[2]);
+  CHECK_EQUAL_64(0xABCDEF01, x2);
+  CHECK_EQUAL_64(0x00ABCDEF01000000L, dst[3]);
   CHECK_EQUAL_64(0x00000001, x3);
   CHECK_EQUAL_64(0x0100000000000000L, dst[4]);
   CHECK_EQUAL_64(src_base, x17);
@@ -6696,7 +6692,7 @@ TEST(ldr_pcrel_large_offset) {
 
   START();
 
-  __ Ldr(x1, Immediate(0x1234567890abcdefUL));
+  __ Ldr(x1, Immediate(0x1234567890ABCDEFUL));
 
   {
     v8::internal::PatchingAssembler::BlockPoolsScope scope(&masm);
@@ -6706,14 +6702,14 @@ TEST(ldr_pcrel_large_offset) {
     }
   }
 
-  __ Ldr(x2, Immediate(0x1234567890abcdefUL));
+  __ Ldr(x2, Immediate(0x1234567890ABCDEFUL));
 
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x1);
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x2);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x1);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x2);
 
   TEARDOWN();
 }
@@ -6723,13 +6719,13 @@ TEST(ldr_literal) {
   SETUP();
 
   START();
-  __ Ldr(x2, Immediate(0x1234567890abcdefUL));
+  __ Ldr(x2, Immediate(0x1234567890ABCDEFUL));
   __ Ldr(d13, 1.234);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x2);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x2);
   CHECK_EQUAL_FP64(1.234, d13);
 
   TEARDOWN();
@@ -6762,7 +6758,7 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   __ CheckConstPool(true, true);
   CHECK_CONSTANT_POOL_SIZE(0);
 
-  __ Ldr(x0, Immediate(0x1234567890abcdefUL));
+  __ Ldr(x0, Immediate(0x1234567890ABCDEFUL));
   __ Ldr(d0, 1.234);
   CHECK_CONSTANT_POOL_SIZE(16);
 
@@ -6803,7 +6799,7 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   CHECK_CONSTANT_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
-  __ Ldr(x4, Immediate(0x34567890abcdef12UL));
+  __ Ldr(x4, Immediate(0x34567890ABCDEF12UL));
   __ Ldr(d4, 123.4);
   CHECK_CONSTANT_POOL_SIZE(16);
   END();
@@ -6811,9 +6807,9 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   RUN();
 
   // Check that the literals loaded correctly.
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x0);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x0);
   CHECK_EQUAL_FP64(1.234, d0);
-  CHECK_EQUAL_64(0x34567890abcdef12UL, x4);
+  CHECK_EQUAL_64(0x34567890ABCDEF12UL, x4);
   CHECK_EQUAL_FP64(123.4, d4);
 
   TEARDOWN();
@@ -6857,17 +6853,17 @@ TEST(add_sub_imm) {
   START();
   __ Mov(x0, 0x0);
   __ Mov(x1, 0x1111);
-  __ Mov(x2, 0xffffffffffffffffL);
+  __ Mov(x2, 0xFFFFFFFFFFFFFFFFL);
   __ Mov(x3, 0x8000000000000000L);
 
   __ Add(x10, x0, Operand(0x123));
   __ Add(x11, x1, Operand(0x122000));
-  __ Add(x12, x0, Operand(0xabc << 12));
+  __ Add(x12, x0, Operand(0xABC << 12));
   __ Add(x13, x2, Operand(1));
 
   __ Add(w14, w0, Operand(0x123));
   __ Add(w15, w1, Operand(0x122000));
-  __ Add(w16, w0, Operand(0xabc << 12));
+  __ Add(w16, w0, Operand(0xABC << 12));
   __ Add(w17, w2, Operand(1));
 
   __ Sub(x20, x0, Operand(0x1));
@@ -6885,23 +6881,23 @@ TEST(add_sub_imm) {
 
   CHECK_EQUAL_64(0x123, x10);
   CHECK_EQUAL_64(0x123111, x11);
-  CHECK_EQUAL_64(0xabc000, x12);
+  CHECK_EQUAL_64(0xABC000, x12);
   CHECK_EQUAL_64(0x0, x13);
 
   CHECK_EQUAL_32(0x123, w14);
   CHECK_EQUAL_32(0x123111, w15);
-  CHECK_EQUAL_32(0xabc000, w16);
+  CHECK_EQUAL_32(0xABC000, w16);
   CHECK_EQUAL_32(0x0, w17);
 
-  CHECK_EQUAL_64(0xffffffffffffffffL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL, x20);
   CHECK_EQUAL_64(0x1000, x21);
   CHECK_EQUAL_64(0x111, x22);
-  CHECK_EQUAL_64(0x7fffffffffffffffL, x23);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFL, x23);
 
-  CHECK_EQUAL_32(0xffffffff, w24);
+  CHECK_EQUAL_32(0xFFFFFFFF, w24);
   CHECK_EQUAL_32(0x1000, w25);
   CHECK_EQUAL_32(0x111, w26);
-  CHECK_EQUAL_32(0xffffffff, w27);
+  CHECK_EQUAL_32(0xFFFFFFFF, w27);
 
   TEARDOWN();
 }
@@ -6915,22 +6911,22 @@ TEST(add_sub_wide_imm) {
   __ Mov(x0, 0x0);
   __ Mov(x1, 0x1);
 
-  __ Add(x10, x0, Operand(0x1234567890abcdefUL));
-  __ Add(x11, x1, Operand(0xffffffff));
+  __ Add(x10, x0, Operand(0x1234567890ABCDEFUL));
+  __ Add(x11, x1, Operand(0xFFFFFFFF));
 
   __ Add(w12, w0, Operand(0x12345678));
-  __ Add(w13, w1, Operand(0xffffffff));
+  __ Add(w13, w1, Operand(0xFFFFFFFF));
 
   __ Add(w18, w0, Operand(kWMinInt));
   __ Sub(w19, w0, Operand(kWMinInt));
 
-  __ Sub(x20, x0, Operand(0x1234567890abcdefUL));
+  __ Sub(x20, x0, Operand(0x1234567890ABCDEFUL));
   __ Sub(w21, w0, Operand(0x12345678));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x10);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x10);
   CHECK_EQUAL_64(0x100000000UL, x11);
 
   CHECK_EQUAL_32(0x12345678, w12);
@@ -6939,7 +6935,7 @@ TEST(add_sub_wide_imm) {
   CHECK_EQUAL_32(kWMinInt, w18);
   CHECK_EQUAL_32(kWMinInt, w19);
 
-  CHECK_EQUAL_64(-0x1234567890abcdefUL, x20);
+  CHECK_EQUAL_64(-0x1234567890ABCDEFUL, x20);
   CHECK_EQUAL_32(-0x12345678, w21);
 
   TEARDOWN();
@@ -6952,9 +6948,9 @@ TEST(add_sub_shifted) {
 
   START();
   __ Mov(x0, 0);
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
-  __ Mov(x3, 0xffffffffffffffffL);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
+  __ Mov(x3, 0xFFFFFFFFFFFFFFFFL);
 
   __ Add(x10, x1, Operand(x2));
   __ Add(x11, x0, Operand(x1, LSL, 8));
@@ -6977,23 +6973,23 @@ TEST(add_sub_shifted) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffffffffffL, x10);
-  CHECK_EQUAL_64(0x23456789abcdef00L, x11);
-  CHECK_EQUAL_64(0x000123456789abcdL, x12);
-  CHECK_EQUAL_64(0x000123456789abcdL, x13);
-  CHECK_EQUAL_64(0xfffedcba98765432L, x14);
-  CHECK_EQUAL_64(0xff89abcd, x15);
-  CHECK_EQUAL_64(0xef89abcc, x18);
-  CHECK_EQUAL_64(0xef0123456789abccL, x19);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL, x10);
+  CHECK_EQUAL_64(0x23456789ABCDEF00L, x11);
+  CHECK_EQUAL_64(0x000123456789ABCDL, x12);
+  CHECK_EQUAL_64(0x000123456789ABCDL, x13);
+  CHECK_EQUAL_64(0xFFFEDCBA98765432L, x14);
+  CHECK_EQUAL_64(0xFF89ABCD, x15);
+  CHECK_EQUAL_64(0xEF89ABCC, x18);
+  CHECK_EQUAL_64(0xEF0123456789ABCCL, x19);
 
-  CHECK_EQUAL_64(0x0123456789abcdefL, x20);
-  CHECK_EQUAL_64(0xdcba9876543210ffL, x21);
-  CHECK_EQUAL_64(0xfffedcba98765432L, x22);
-  CHECK_EQUAL_64(0xfffedcba98765432L, x23);
-  CHECK_EQUAL_64(0x000123456789abcdL, x24);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x20);
+  CHECK_EQUAL_64(0xDCBA9876543210FFL, x21);
+  CHECK_EQUAL_64(0xFFFEDCBA98765432L, x22);
+  CHECK_EQUAL_64(0xFFFEDCBA98765432L, x23);
+  CHECK_EQUAL_64(0x000123456789ABCDL, x24);
   CHECK_EQUAL_64(0x00765432, x25);
   CHECK_EQUAL_64(0x10765432, x26);
-  CHECK_EQUAL_64(0x10fedcba98765432L, x27);
+  CHECK_EQUAL_64(0x10FEDCBA98765432L, x27);
 
   TEARDOWN();
 }
@@ -7005,8 +7001,8 @@ TEST(add_sub_extended) {
 
   START();
   __ Mov(x0, 0);
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
   __ Mov(w3, 0x80);
 
   __ Add(x10, x0, Operand(x1, UXTB, 0));
@@ -7039,30 +7035,30 @@ TEST(add_sub_extended) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xefL, x10);
-  CHECK_EQUAL_64(0x1deL, x11);
-  CHECK_EQUAL_64(0x337bcL, x12);
-  CHECK_EQUAL_64(0x89abcdef0L, x13);
+  CHECK_EQUAL_64(0xEFL, x10);
+  CHECK_EQUAL_64(0x1DEL, x11);
+  CHECK_EQUAL_64(0x337BCL, x12);
+  CHECK_EQUAL_64(0x89ABCDEF0L, x13);
 
-  CHECK_EQUAL_64(0xffffffffffffffefL, x14);
-  CHECK_EQUAL_64(0xffffffffffffffdeL, x15);
-  CHECK_EQUAL_64(0xffffffffffff37bcL, x16);
-  CHECK_EQUAL_64(0xfffffffc4d5e6f78L, x17);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFEFL, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFDEL, x15);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF37BCL, x16);
+  CHECK_EQUAL_64(0xFFFFFFFC4D5E6F78L, x17);
   CHECK_EQUAL_64(0x10L, x18);
   CHECK_EQUAL_64(0x20L, x19);
-  CHECK_EQUAL_64(0xc840L, x20);
-  CHECK_EQUAL_64(0x3b2a19080L, x21);
+  CHECK_EQUAL_64(0xC840L, x20);
+  CHECK_EQUAL_64(0x3B2A19080L, x21);
 
-  CHECK_EQUAL_64(0x0123456789abce0fL, x22);
-  CHECK_EQUAL_64(0x0123456789abcdcfL, x23);
+  CHECK_EQUAL_64(0x0123456789ABCE0FL, x22);
+  CHECK_EQUAL_64(0x0123456789ABCDCFL, x23);
 
-  CHECK_EQUAL_32(0x89abce2f, w24);
-  CHECK_EQUAL_32(0xffffffef, w25);
-  CHECK_EQUAL_32(0xffffffde, w26);
-  CHECK_EQUAL_32(0xc3b2a188, w27);
+  CHECK_EQUAL_32(0x89ABCE2F, w24);
+  CHECK_EQUAL_32(0xFFFFFFEF, w25);
+  CHECK_EQUAL_32(0xFFFFFFDE, w26);
+  CHECK_EQUAL_32(0xC3B2A188, w27);
 
-  CHECK_EQUAL_32(0x4d5e6f78, w28);
-  CHECK_EQUAL_64(0xfffffffc4d5e6f78L, x29);
+  CHECK_EQUAL_32(0x4D5E6F78, w28);
+  CHECK_EQUAL_64(0xFFFFFFFC4D5E6F78L, x29);
 
   CHECK_EQUAL_64(256, x30);
 
@@ -7092,7 +7088,7 @@ TEST(add_sub_negative) {
   __ Add(w19, w3, -0x344);
   __ Add(w20, w4, -2000);
 
-  __ Sub(w21, w3, -0xbc);
+  __ Sub(w21, w3, -0xBC);
   __ Sub(w22, w4, -2000);
   END();
 
@@ -7104,7 +7100,7 @@ TEST(add_sub_negative) {
 
   CHECK_EQUAL_64(600, x13);
   CHECK_EQUAL_64(5000, x14);
-  CHECK_EQUAL_64(0x1122334455667cdd, x15);
+  CHECK_EQUAL_64(0x1122334455667CDD, x15);
 
   CHECK_EQUAL_32(0x11223000, w19);
   CHECK_EQUAL_32(398000, w20);
@@ -7162,8 +7158,7 @@ TEST(preshift_immediates) {
   // pre-shifted encodable immediate followed by a post-shift applied to
   // the arithmetic or logical operation.
 
-  // Save csp and change stack pointer to avoid consistency check.
-  __ SetStackPointer(jssp);
+  // Save csp.
   __ Mov(x29, csp);
 
   // Set the registers to known values.
@@ -7171,28 +7166,28 @@ TEST(preshift_immediates) {
   __ Mov(csp, 0x1000);
 
   // Arithmetic ops.
-  __ Add(x1, x0, 0x1f7de);
-  __ Add(w2, w0, 0xffffff1);
+  __ Add(x1, x0, 0x1F7DE);
+  __ Add(w2, w0, 0xFFFFFF1);
   __ Adds(x3, x0, 0x18001);
-  __ Adds(w4, w0, 0xffffff1);
+  __ Adds(w4, w0, 0xFFFFFF1);
   __ Add(x5, x0, 0x10100);
-  __ Sub(w6, w0, 0xffffff1);
+  __ Sub(w6, w0, 0xFFFFFF1);
   __ Subs(x7, x0, 0x18001);
-  __ Subs(w8, w0, 0xffffff1);
+  __ Subs(w8, w0, 0xFFFFFF1);
 
   // Logical ops.
-  __ And(x9, x0, 0x1f7de);
-  __ Orr(w10, w0, 0xffffff1);
+  __ And(x9, x0, 0x1F7DE);
+  __ Orr(w10, w0, 0xFFFFFF1);
   __ Eor(x11, x0, 0x18001);
 
   // Ops using the stack pointer.
-  __ Add(csp, csp, 0x1f7f0);
+  __ Add(csp, csp, 0x1F7F0);
   __ Mov(x12, csp);
   __ Mov(csp, 0x1000);
 
-  __ Adds(x13, csp, 0x1f7f0);
+  __ Adds(x13, csp, 0x1F7F0);
 
-  __ Orr(csp, x0, 0x1f7f0);
+  __ Orr(csp, x0, 0x1F7F0);
   __ Mov(x14, csp);
   __ Mov(csp, 0x1000);
 
@@ -7201,25 +7196,24 @@ TEST(preshift_immediates) {
 
   //  Restore csp.
   __ Mov(csp, x29);
-  __ SetStackPointer(csp);
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x1000, x0);
-  CHECK_EQUAL_64(0x207de, x1);
-  CHECK_EQUAL_64(0x10000ff1, x2);
+  CHECK_EQUAL_64(0x207DE, x1);
+  CHECK_EQUAL_64(0x10000FF1, x2);
   CHECK_EQUAL_64(0x19001, x3);
-  CHECK_EQUAL_64(0x10000ff1, x4);
+  CHECK_EQUAL_64(0x10000FF1, x4);
   CHECK_EQUAL_64(0x11100, x5);
-  CHECK_EQUAL_64(0xf000100f, x6);
-  CHECK_EQUAL_64(0xfffffffffffe8fff, x7);
-  CHECK_EQUAL_64(0xf000100f, x8);
+  CHECK_EQUAL_64(0xF000100F, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFE8FFF, x7);
+  CHECK_EQUAL_64(0xF000100F, x8);
   CHECK_EQUAL_64(0x1000, x9);
-  CHECK_EQUAL_64(0xffffff1, x10);
-  CHECK_EQUAL_64(0x207f0, x12);
-  CHECK_EQUAL_64(0x207f0, x13);
-  CHECK_EQUAL_64(0x1f7f0, x14);
+  CHECK_EQUAL_64(0xFFFFFF1, x10);
+  CHECK_EQUAL_64(0x207F0, x12);
+  CHECK_EQUAL_64(0x207F0, x13);
+  CHECK_EQUAL_64(0x1F7F0, x14);
   CHECK_EQUAL_64(0x11100, x15);
 
   TEARDOWN();
@@ -7260,7 +7254,7 @@ TEST(neg) {
   SETUP();
 
   START();
-  __ Mov(x0, 0xf123456789abcdefL);
+  __ Mov(x0, 0xF123456789ABCDEFL);
 
   // Immediate.
   __ Neg(x1, 0x123);
@@ -7285,17 +7279,17 @@ TEST(neg) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfffffffffffffeddUL, x1);
-  CHECK_EQUAL_64(0xfffffedd, x2);
-  CHECK_EQUAL_64(0x1db97530eca86422UL, x3);
-  CHECK_EQUAL_64(0xd950c844, x4);
-  CHECK_EQUAL_64(0xe1db97530eca8643UL, x5);
-  CHECK_EQUAL_64(0xf7654322, x6);
-  CHECK_EQUAL_64(0x0076e5d4c3b2a191UL, x7);
-  CHECK_EQUAL_64(0x01d950c9, x8);
-  CHECK_EQUAL_64(0xffffff11, x9);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFEDDUL, x1);
+  CHECK_EQUAL_64(0xFFFFFEDD, x2);
+  CHECK_EQUAL_64(0x1DB97530ECA86422UL, x3);
+  CHECK_EQUAL_64(0xD950C844, x4);
+  CHECK_EQUAL_64(0xE1DB97530ECA8643UL, x5);
+  CHECK_EQUAL_64(0xF7654322, x6);
+  CHECK_EQUAL_64(0x0076E5D4C3B2A191UL, x7);
+  CHECK_EQUAL_64(0x01D950C9, x8);
+  CHECK_EQUAL_64(0xFFFFFF11, x9);
   CHECK_EQUAL_64(0x0000000000000022UL, x10);
-  CHECK_EQUAL_64(0xfffcc844, x11);
+  CHECK_EQUAL_64(0xFFFCC844, x11);
   CHECK_EQUAL_64(0x0000000000019088UL, x12);
   CHECK_EQUAL_64(0x65432110, x13);
   CHECK_EQUAL_64(0x0000000765432110UL, x14);
@@ -7337,9 +7331,9 @@ static void AdcsSbcsHelper(Op op, T left, T right, int carry, T expected,
 TEST(adcs_sbcs_x) {
   INIT_V8();
   uint64_t inputs[] = {
-      0x0000000000000000, 0x0000000000000001, 0x7ffffffffffffffe,
-      0x7fffffffffffffff, 0x8000000000000000, 0x8000000000000001,
-      0xfffffffffffffffe, 0xffffffffffffffff,
+      0x0000000000000000, 0x0000000000000001, 0x7FFFFFFFFFFFFFFE,
+      0x7FFFFFFFFFFFFFFF, 0x8000000000000000, 0x8000000000000001,
+      0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF,
   };
   static const size_t input_count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -7353,134 +7347,134 @@ TEST(adcs_sbcs_x) {
   static const Expected expected_adcs_x[input_count][input_count] = {
       {{0x0000000000000000, ZFlag, 0x0000000000000001, NoFlag},
        {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
-       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag}},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag}},
       {{0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
        {0x0000000000000002, NoFlag, 0x0000000000000003, NoFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag}},
-      {{0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
-       {0xfffffffffffffffc, NVFlag, 0xfffffffffffffffd, NVFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag}},
-      {{0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+      {{0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
+       {0xFFFFFFFFFFFFFFFC, NVFlag, 0xFFFFFFFFFFFFFFFD, NVFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag}},
+      {{0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
-       {0xfffffffffffffffe, NVFlag, 0xffffffffffffffff, NVFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
+       {0xFFFFFFFFFFFFFFFE, NVFlag, 0xFFFFFFFFFFFFFFFF, NVFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag}},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag}},
       {{0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCVFlag, 0x0000000000000001, CVFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag}},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag}},
       {{0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
        {0x0000000000000002, CVFlag, 0x0000000000000003, CVFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
        {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag}},
-      {{0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0xfffffffffffffffc, NCFlag, 0xfffffffffffffffd, NCFlag},
-       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag}},
-      {{0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+      {{0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0xFFFFFFFFFFFFFFFC, NCFlag, 0xFFFFFFFFFFFFFFFD, NCFlag},
+       {0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag}},
+      {{0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
        {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
-       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
-       {0xfffffffffffffffe, NCFlag, 0xffffffffffffffff, NCFlag}}};
+       {0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag},
+       {0xFFFFFFFFFFFFFFFE, NCFlag, 0xFFFFFFFFFFFFFFFF, NCFlag}}};
 
   static const Expected expected_sbcs_x[input_count][input_count] = {
-      {{0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+      {{0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
-       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag},
        {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
        {0x0000000000000000, ZFlag, 0x0000000000000001, NoFlag}},
       {{0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x0000000000000002, NoFlag, 0x0000000000000003, NoFlag},
        {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag}},
-      {{0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
-       {0xfffffffffffffffc, NVFlag, 0xfffffffffffffffd, NVFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
-       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag}},
-      {{0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+      {{0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
+       {0xFFFFFFFFFFFFFFFC, NVFlag, 0xFFFFFFFFFFFFFFFD, NVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag}},
+      {{0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NVFlag, 0xffffffffffffffff, NVFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NVFlag, 0xFFFFFFFFFFFFFFFF, NVFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag}},
-      {{0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag}},
+      {{0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
        {0x0000000000000000, ZCVFlag, 0x0000000000000001, CVFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000000, NFlag, 0x8000000000000001, NFlag}},
       {{0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
        {0x0000000000000002, CVFlag, 0x0000000000000003, CVFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag}},
-      {{0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
-       {0xfffffffffffffffc, NCFlag, 0xfffffffffffffffd, NCFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag}},
-      {{0xfffffffffffffffe, NCFlag, 0xffffffffffffffff, NCFlag},
-       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
+      {{0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag},
+       {0xFFFFFFFFFFFFFFFC, NCFlag, 0xFFFFFFFFFFFFFFFD, NCFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag}},
+      {{0xFFFFFFFFFFFFFFFE, NCFlag, 0xFFFFFFFFFFFFFFFF, NCFlag},
+       {0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag},
        {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag}}};
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag}}};
 
   for (size_t left = 0; left < input_count; left++) {
     for (size_t right = 0; right < input_count; right++) {
@@ -7507,8 +7501,8 @@ TEST(adcs_sbcs_x) {
 TEST(adcs_sbcs_w) {
   INIT_V8();
   uint32_t inputs[] = {
-      0x00000000, 0x00000001, 0x7ffffffe, 0x7fffffff,
-      0x80000000, 0x80000001, 0xfffffffe, 0xffffffff,
+      0x00000000, 0x00000001, 0x7FFFFFFE, 0x7FFFFFFF,
+      0x80000000, 0x80000001, 0xFFFFFFFE, 0xFFFFFFFF,
   };
   static const size_t input_count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -7522,134 +7516,134 @@ TEST(adcs_sbcs_w) {
   static const Expected expected_adcs_w[input_count][input_count] = {
       {{0x00000000, ZFlag, 0x00000001, NoFlag},
        {0x00000001, NoFlag, 0x00000002, NoFlag},
-       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x80000000, NFlag, 0x80000001, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag}},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag}},
       {{0x00000001, NoFlag, 0x00000002, NoFlag},
        {0x00000002, NoFlag, 0x00000003, NoFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag}},
-      {{0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
-       {0xfffffffc, NVFlag, 0xfffffffd, NVFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag}},
-      {{0x7fffffff, NoFlag, 0x80000000, NVFlag},
+      {{0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
+       {0xFFFFFFFC, NVFlag, 0xFFFFFFFD, NVFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag}},
+      {{0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
-       {0xfffffffe, NVFlag, 0xffffffff, NVFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
+       {0xFFFFFFFE, NVFlag, 0xFFFFFFFF, NVFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffe, CFlag, 0x7fffffff, CFlag}},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag}},
       {{0x80000000, NFlag, 0x80000001, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCVFlag, 0x00000001, CVFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag}},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag}},
       {{0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
        {0x00000002, CVFlag, 0x00000003, CVFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
        {0x80000000, NCFlag, 0x80000001, NCFlag}},
-      {{0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0xfffffffc, NCFlag, 0xfffffffd, NCFlag},
-       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag}},
-      {{0xffffffff, NFlag, 0x00000000, ZCFlag},
+      {{0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0xFFFFFFFC, NCFlag, 0xFFFFFFFD, NCFlag},
+       {0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag}},
+      {{0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffe, CFlag, 0x7fffffff, CFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
        {0x80000000, NCFlag, 0x80000001, NCFlag},
-       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
-       {0xfffffffe, NCFlag, 0xffffffff, NCFlag}}};
+       {0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag},
+       {0xFFFFFFFE, NCFlag, 0xFFFFFFFF, NCFlag}}};
 
   static const Expected expected_sbcs_w[input_count][input_count] = {
-      {{0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+      {{0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000000, NFlag, 0x80000001, NFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
-       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag},
        {0x00000001, NoFlag, 0x00000002, NoFlag},
        {0x00000000, ZFlag, 0x00000001, NoFlag}},
       {{0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x00000002, NoFlag, 0x00000003, NoFlag},
        {0x00000001, NoFlag, 0x00000002, NoFlag}},
-      {{0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
-       {0xfffffffc, NVFlag, 0xfffffffd, NVFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
-       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag}},
-      {{0x7ffffffe, CFlag, 0x7fffffff, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+      {{0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
+       {0xFFFFFFFC, NVFlag, 0xFFFFFFFD, NVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag}},
+      {{0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NVFlag, 0xffffffff, NVFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NVFlag, 0xFFFFFFFF, NVFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag}},
-      {{0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag}},
+      {{0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
        {0x00000000, ZCVFlag, 0x00000001, CVFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000000, NFlag, 0x80000001, NFlag}},
       {{0x80000000, NCFlag, 0x80000001, NCFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
        {0x00000002, CVFlag, 0x00000003, CVFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag}},
-      {{0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
-       {0xfffffffc, NCFlag, 0xfffffffd, NCFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag}},
-      {{0xfffffffe, NCFlag, 0xffffffff, NCFlag},
-       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
+      {{0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag},
+       {0xFFFFFFFC, NCFlag, 0xFFFFFFFD, NCFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag}},
+      {{0xFFFFFFFE, NCFlag, 0xFFFFFFFF, NCFlag},
+       {0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag},
        {0x80000000, NCFlag, 0x80000001, NCFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0x7ffffffe, CFlag, 0x7fffffff, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag}}};
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag}}};
 
   for (size_t left = 0; left < input_count; left++) {
     for (size_t right = 0; right < input_count; right++) {
@@ -7680,9 +7674,9 @@ TEST(adc_sbc_shift) {
   START();
   __ Mov(x0, 0);
   __ Mov(x1, 1);
-  __ Mov(x2, 0x0123456789abcdefL);
-  __ Mov(x3, 0xfedcba9876543210L);
-  __ Mov(x4, 0xffffffffffffffffL);
+  __ Mov(x2, 0x0123456789ABCDEFL);
+  __ Mov(x3, 0xFEDCBA9876543210L);
+  __ Mov(x4, 0xFFFFFFFFFFFFFFFFL);
 
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
@@ -7717,29 +7711,29 @@ TEST(adc_sbc_shift) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffffffffffL, x5);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL, x5);
   CHECK_EQUAL_64(1L << 60, x6);
-  CHECK_EQUAL_64(0xf0123456789abcddL, x7);
+  CHECK_EQUAL_64(0xF0123456789ABCDDL, x7);
   CHECK_EQUAL_64(0x0111111111111110L, x8);
   CHECK_EQUAL_64(0x1222222222222221L, x9);
 
-  CHECK_EQUAL_32(0xffffffff, w10);
+  CHECK_EQUAL_32(0xFFFFFFFF, w10);
   CHECK_EQUAL_32(1 << 30, w11);
-  CHECK_EQUAL_32(0xf89abcdd, w12);
+  CHECK_EQUAL_32(0xF89ABCDD, w12);
   CHECK_EQUAL_32(0x91111110, w13);
-  CHECK_EQUAL_32(0x9a222221, w14);
+  CHECK_EQUAL_32(0x9A222221, w14);
 
-  CHECK_EQUAL_64(0xffffffffffffffffL + 1, x18);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL + 1, x18);
   CHECK_EQUAL_64((1L << 60) + 1, x19);
-  CHECK_EQUAL_64(0xf0123456789abcddL + 1, x20);
+  CHECK_EQUAL_64(0xF0123456789ABCDDL + 1, x20);
   CHECK_EQUAL_64(0x0111111111111110L + 1, x21);
   CHECK_EQUAL_64(0x1222222222222221L + 1, x22);
 
-  CHECK_EQUAL_32(0xffffffff + 1, w23);
+  CHECK_EQUAL_32(0xFFFFFFFF + 1, w23);
   CHECK_EQUAL_32((1 << 30) + 1, w24);
-  CHECK_EQUAL_32(0xf89abcdd + 1, w25);
+  CHECK_EQUAL_32(0xF89ABCDD + 1, w25);
   CHECK_EQUAL_32(0x91111110 + 1, w26);
-  CHECK_EQUAL_32(0x9a222221 + 1, w27);
+  CHECK_EQUAL_32(0x9A222221 + 1, w27);
 
   TEARDOWN();
 }
@@ -7755,7 +7749,7 @@ TEST(adc_sbc_extend) {
 
   __ Mov(x0, 0);
   __ Mov(x1, 1);
-  __ Mov(x2, 0x0123456789abcdefL);
+  __ Mov(x2, 0x0123456789ABCDEFL);
 
   __ Adc(x10, x1, Operand(w2, UXTB, 1));
   __ Adc(x11, x1, Operand(x2, SXTH, 2));
@@ -7781,28 +7775,28 @@ TEST(adc_sbc_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x1df, x10);
-  CHECK_EQUAL_64(0xffffffffffff37bdL, x11);
-  CHECK_EQUAL_64(0xfffffff765432110L, x12);
-  CHECK_EQUAL_64(0x123456789abcdef1L, x13);
+  CHECK_EQUAL_64(0x1DF, x10);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF37BDL, x11);
+  CHECK_EQUAL_64(0xFFFFFFF765432110L, x12);
+  CHECK_EQUAL_64(0x123456789ABCDEF1L, x13);
 
-  CHECK_EQUAL_32(0x1df, w14);
-  CHECK_EQUAL_32(0xffff37bd, w15);
-  CHECK_EQUAL_32(0x9abcdef1, w9);
+  CHECK_EQUAL_32(0x1DF, w14);
+  CHECK_EQUAL_32(0xFFFF37BD, w15);
+  CHECK_EQUAL_32(0x9ABCDEF1, w9);
 
-  CHECK_EQUAL_64(0x1df + 1, x20);
-  CHECK_EQUAL_64(0xffffffffffff37bdL + 1, x21);
-  CHECK_EQUAL_64(0xfffffff765432110L + 1, x22);
-  CHECK_EQUAL_64(0x123456789abcdef1L + 1, x23);
+  CHECK_EQUAL_64(0x1DF + 1, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF37BDL + 1, x21);
+  CHECK_EQUAL_64(0xFFFFFFF765432110L + 1, x22);
+  CHECK_EQUAL_64(0x123456789ABCDEF1L + 1, x23);
 
-  CHECK_EQUAL_32(0x1df + 1, w24);
-  CHECK_EQUAL_32(0xffff37bd + 1, w25);
-  CHECK_EQUAL_32(0x9abcdef1 + 1, w26);
+  CHECK_EQUAL_32(0x1DF + 1, w24);
+  CHECK_EQUAL_32(0xFFFF37BD + 1, w25);
+  CHECK_EQUAL_32(0x9ABCDEF1 + 1, w26);
 
   // Check that adc correctly sets the condition flags.
   START();
-  __ Mov(x0, 0xff);
-  __ Mov(x1, 0xffffffffffffffffL);
+  __ Mov(x0, 0xFF);
+  __ Mov(x1, 0xFFFFFFFFFFFFFFFFL);
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
   __ Adcs(x10, x0, Operand(x1, SXTX, 1));
@@ -7813,7 +7807,7 @@ TEST(adc_sbc_extend) {
   CHECK_EQUAL_NZCV(CFlag);
 
   START();
-  __ Mov(x0, 0x7fffffffffffffffL);
+  __ Mov(x0, 0x7FFFFFFFFFFFFFFFL);
   __ Mov(x1, 1);
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
@@ -7825,7 +7819,7 @@ TEST(adc_sbc_extend) {
   CHECK_EQUAL_NZCV(NVFlag);
 
   START();
-  __ Mov(x0, 0x7fffffffffffffffL);
+  __ Mov(x0, 0x7FFFFFFFFFFFFFFFL);
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
   __ Adcs(x10, x0, Operand(1));
@@ -7849,36 +7843,36 @@ TEST(adc_sbc_wide_imm) {
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
 
-  __ Adc(x7, x0, Operand(0x1234567890abcdefUL));
-  __ Adc(w8, w0, Operand(0xffffffff));
-  __ Sbc(x9, x0, Operand(0x1234567890abcdefUL));
-  __ Sbc(w10, w0, Operand(0xffffffff));
-  __ Ngc(x11, Operand(0xffffffff00000000UL));
-  __ Ngc(w12, Operand(0xffff0000));
+  __ Adc(x7, x0, Operand(0x1234567890ABCDEFUL));
+  __ Adc(w8, w0, Operand(0xFFFFFFFF));
+  __ Sbc(x9, x0, Operand(0x1234567890ABCDEFUL));
+  __ Sbc(w10, w0, Operand(0xFFFFFFFF));
+  __ Ngc(x11, Operand(0xFFFFFFFF00000000UL));
+  __ Ngc(w12, Operand(0xFFFF0000));
 
   // Set the C flag.
   __ Cmp(w0, Operand(w0));
 
-  __ Adc(x18, x0, Operand(0x1234567890abcdefUL));
-  __ Adc(w19, w0, Operand(0xffffffff));
-  __ Sbc(x20, x0, Operand(0x1234567890abcdefUL));
-  __ Sbc(w21, w0, Operand(0xffffffff));
-  __ Ngc(x22, Operand(0xffffffff00000000UL));
-  __ Ngc(w23, Operand(0xffff0000));
+  __ Adc(x18, x0, Operand(0x1234567890ABCDEFUL));
+  __ Adc(w19, w0, Operand(0xFFFFFFFF));
+  __ Sbc(x20, x0, Operand(0x1234567890ABCDEFUL));
+  __ Sbc(w21, w0, Operand(0xFFFFFFFF));
+  __ Ngc(x22, Operand(0xFFFFFFFF00000000UL));
+  __ Ngc(w23, Operand(0xFFFF0000));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x7);
-  CHECK_EQUAL_64(0xffffffff, x8);
-  CHECK_EQUAL_64(0xedcba9876f543210UL, x9);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x7);
+  CHECK_EQUAL_64(0xFFFFFFFF, x8);
+  CHECK_EQUAL_64(0xEDCBA9876F543210UL, x9);
   CHECK_EQUAL_64(0, x10);
-  CHECK_EQUAL_64(0xffffffff, x11);
-  CHECK_EQUAL_64(0xffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x11);
+  CHECK_EQUAL_64(0xFFFF, x12);
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL + 1, x18);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL + 1, x18);
   CHECK_EQUAL_64(0, x19);
-  CHECK_EQUAL_64(0xedcba9876f543211UL, x20);
+  CHECK_EQUAL_64(0xEDCBA9876F543211UL, x20);
   CHECK_EQUAL_64(1, x21);
   CHECK_EQUAL_64(0x100000000UL, x22);
   CHECK_EQUAL_64(0x10000, x23);
@@ -7971,7 +7965,7 @@ TEST(flags) {
 
   START();
   __ Mov(x0, 1);
-  __ Mov(x1, 0x7fffffffffffffffL);
+  __ Mov(x1, 0x7FFFFFFFFFFFFFFFL);
   __ Cmn(x1, Operand(x0));
   END();
 
@@ -7981,7 +7975,7 @@ TEST(flags) {
 
   START();
   __ Mov(w0, 1);
-  __ Mov(w1, 0x7fffffff);
+  __ Mov(w1, 0x7FFFFFFF);
   __ Cmn(w1, Operand(w0));
   END();
 
@@ -7991,7 +7985,7 @@ TEST(flags) {
 
   START();
   __ Mov(x0, 1);
-  __ Mov(x1, 0xffffffffffffffffL);
+  __ Mov(x1, 0xFFFFFFFFFFFFFFFFL);
   __ Cmn(x1, Operand(x0));
   END();
 
@@ -8001,7 +7995,7 @@ TEST(flags) {
 
   START();
   __ Mov(w0, 1);
-  __ Mov(w1, 0xffffffff);
+  __ Mov(w1, 0xFFFFFFFF);
   __ Cmn(w1, Operand(w0));
   END();
 
@@ -8042,16 +8036,16 @@ TEST(cmp_shift) {
   SETUP();
 
   START();
-  __ Mov(x18, 0xf0000000);
-  __ Mov(x19, 0xf000000010000000UL);
-  __ Mov(x20, 0xf0000000f0000000UL);
+  __ Mov(x18, 0xF0000000);
+  __ Mov(x19, 0xF000000010000000UL);
+  __ Mov(x20, 0xF0000000F0000000UL);
   __ Mov(x21, 0x7800000078000000UL);
-  __ Mov(x22, 0x3c0000003c000000UL);
+  __ Mov(x22, 0x3C0000003C000000UL);
   __ Mov(x23, 0x8000000780000000UL);
-  __ Mov(x24, 0x0000000f00000000UL);
-  __ Mov(x25, 0x00000003c0000000UL);
+  __ Mov(x24, 0x0000000F00000000UL);
+  __ Mov(x25, 0x00000003C0000000UL);
   __ Mov(x26, 0x8000000780000000UL);
-  __ Mov(x27, 0xc0000003);
+  __ Mov(x27, 0xC0000003);
 
   __ Cmp(w20, Operand(w21, LSL, 1));
   __ Mrs(x0, NZCV);
@@ -8100,11 +8094,11 @@ TEST(cmp_extend) {
   START();
   __ Mov(w20, 0x2);
   __ Mov(w21, 0x1);
-  __ Mov(x22, 0xffffffffffffffffUL);
-  __ Mov(x23, 0xff);
-  __ Mov(x24, 0xfffffffffffffffeUL);
-  __ Mov(x25, 0xffff);
-  __ Mov(x26, 0xffffffff);
+  __ Mov(x22, 0xFFFFFFFFFFFFFFFFUL);
+  __ Mov(x23, 0xFF);
+  __ Mov(x24, 0xFFFFFFFFFFFFFFFEUL);
+  __ Mov(x25, 0xFFFF);
+  __ Mov(x26, 0xFFFFFFFF);
 
   __ Cmp(w20, Operand(w21, LSL, 1));
   __ Mrs(x0, NZCV);
@@ -8202,7 +8196,7 @@ TEST(ccmp_wide_imm) {
   __ Mrs(x0, NZCV);
 
   __ Cmp(w20, Operand(w20));
-  __ Ccmp(x20, Operand(0xffffffffffffffffUL), NZCVFlag, eq);
+  __ Ccmp(x20, Operand(0xFFFFFFFFFFFFFFFFUL), NZCVFlag, eq);
   __ Mrs(x1, NZCV);
   END();
 
@@ -8222,9 +8216,9 @@ TEST(ccmp_shift_extend) {
   START();
   __ Mov(w20, 0x2);
   __ Mov(w21, 0x1);
-  __ Mov(x22, 0xffffffffffffffffUL);
-  __ Mov(x23, 0xff);
-  __ Mov(x24, 0xfffffffffffffffeUL);
+  __ Mov(x22, 0xFFFFFFFFFFFFFFFFUL);
+  __ Mov(x23, 0xFF);
+  __ Mov(x24, 0xFFFFFFFFFFFFFFFEUL);
 
   __ Cmp(w20, Operand(w20));
   __ Ccmp(w20, Operand(w21, LSL, 1), NZCVFlag, eq);
@@ -8265,8 +8259,8 @@ TEST(csel) {
 
   START();
   __ Mov(x16, 0);
-  __ Mov(x24, 0x0000000f0000000fUL);
-  __ Mov(x25, 0x0000001f0000001fUL);
+  __ Mov(x24, 0x0000000F0000000FUL);
+  __ Mov(x25, 0x0000001F0000001FUL);
   __ Mov(x26, 0);
   __ Mov(x27, 0);
 
@@ -8303,26 +8297,26 @@ TEST(csel) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x0000000f, x0);
-  CHECK_EQUAL_64(0x0000001f, x1);
+  CHECK_EQUAL_64(0x0000000F, x0);
+  CHECK_EQUAL_64(0x0000001F, x1);
   CHECK_EQUAL_64(0x00000020, x2);
-  CHECK_EQUAL_64(0x0000000f, x3);
-  CHECK_EQUAL_64(0xffffffe0ffffffe0UL, x4);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x5);
-  CHECK_EQUAL_64(0xffffffe0ffffffe1UL, x6);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x7);
+  CHECK_EQUAL_64(0x0000000F, x3);
+  CHECK_EQUAL_64(0xFFFFFFE0FFFFFFE0UL, x4);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x5);
+  CHECK_EQUAL_64(0xFFFFFFE0FFFFFFE1UL, x6);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x7);
   CHECK_EQUAL_64(0x00000001, x8);
-  CHECK_EQUAL_64(0xffffffff, x9);
-  CHECK_EQUAL_64(0x0000001f00000020UL, x10);
-  CHECK_EQUAL_64(0xfffffff0fffffff0UL, x11);
-  CHECK_EQUAL_64(0xfffffff0fffffff1UL, x12);
-  CHECK_EQUAL_64(0x0000000f, x13);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x14);
-  CHECK_EQUAL_64(0x0000000f, x15);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x18);
+  CHECK_EQUAL_64(0xFFFFFFFF, x9);
+  CHECK_EQUAL_64(0x0000001F00000020UL, x10);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFFFFF0UL, x11);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFFFFF1UL, x12);
+  CHECK_EQUAL_64(0x0000000F, x13);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x14);
+  CHECK_EQUAL_64(0x0000000F, x15);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x18);
   CHECK_EQUAL_64(0, x24);
-  CHECK_EQUAL_64(0x0000001f0000001fUL, x25);
-  CHECK_EQUAL_64(0x0000001f0000001fUL, x26);
+  CHECK_EQUAL_64(0x0000001F0000001FUL, x25);
+  CHECK_EQUAL_64(0x0000001F0000001FUL, x26);
   CHECK_EQUAL_64(0, x27);
 
   TEARDOWN();
@@ -8387,7 +8381,7 @@ TEST(lslv) {
   INIT_V8();
   SETUP();
 
-  uint64_t value = 0x0123456789abcdefUL;
+  uint64_t value = 0x0123456789ABCDEFUL;
   int shift[] = {1, 3, 5, 9, 17, 33};
 
   START();
@@ -8440,7 +8434,7 @@ TEST(lsrv) {
   INIT_V8();
   SETUP();
 
-  uint64_t value = 0x0123456789abcdefUL;
+  uint64_t value = 0x0123456789ABCDEFUL;
   int shift[] = {1, 3, 5, 9, 17, 33};
 
   START();
@@ -8479,7 +8473,7 @@ TEST(lsrv) {
   CHECK_EQUAL_64(value >> (shift[4] & 63), x20);
   CHECK_EQUAL_64(value >> (shift[5] & 63), x21);
 
-  value &= 0xffffffffUL;
+  value &= 0xFFFFFFFFUL;
   CHECK_EQUAL_32(value >> (shift[0] & 31), w22);
   CHECK_EQUAL_32(value >> (shift[1] & 31), w23);
   CHECK_EQUAL_32(value >> (shift[2] & 31), w24);
@@ -8495,7 +8489,7 @@ TEST(asrv) {
   INIT_V8();
   SETUP();
 
-  int64_t value = 0xfedcba98fedcba98UL;
+  int64_t value = 0xFEDCBA98FEDCBA98UL;
   int shift[] = {1, 3, 5, 9, 17, 33};
 
   START();
@@ -8534,7 +8528,7 @@ TEST(asrv) {
   CHECK_EQUAL_64(value >> (shift[4] & 63), x20);
   CHECK_EQUAL_64(value >> (shift[5] & 63), x21);
 
-  int32_t value32 = static_cast<int32_t>(value & 0xffffffffUL);
+  int32_t value32 = static_cast<int32_t>(value & 0xFFFFFFFFUL);
   CHECK_EQUAL_32(value32 >> (shift[0] & 31), w22);
   CHECK_EQUAL_32(value32 >> (shift[1] & 31), w23);
   CHECK_EQUAL_32(value32 >> (shift[2] & 31), w24);
@@ -8550,7 +8544,7 @@ TEST(rorv) {
   INIT_V8();
   SETUP();
 
-  uint64_t value = 0x0123456789abcdefUL;
+  uint64_t value = 0x0123456789ABCDEFUL;
   int shift[] = {4, 8, 12, 16, 24, 36};
 
   START();
@@ -8582,18 +8576,18 @@ TEST(rorv) {
   RUN();
 
   CHECK_EQUAL_64(value, x0);
-  CHECK_EQUAL_64(0xf0123456789abcdeUL, x16);
-  CHECK_EQUAL_64(0xef0123456789abcdUL, x17);
-  CHECK_EQUAL_64(0xdef0123456789abcUL, x18);
-  CHECK_EQUAL_64(0xcdef0123456789abUL, x19);
-  CHECK_EQUAL_64(0xabcdef0123456789UL, x20);
-  CHECK_EQUAL_64(0x789abcdef0123456UL, x21);
-  CHECK_EQUAL_32(0xf89abcde, w22);
-  CHECK_EQUAL_32(0xef89abcd, w23);
-  CHECK_EQUAL_32(0xdef89abc, w24);
-  CHECK_EQUAL_32(0xcdef89ab, w25);
-  CHECK_EQUAL_32(0xabcdef89, w26);
-  CHECK_EQUAL_32(0xf89abcde, w27);
+  CHECK_EQUAL_64(0xF0123456789ABCDEUL, x16);
+  CHECK_EQUAL_64(0xEF0123456789ABCDUL, x17);
+  CHECK_EQUAL_64(0xDEF0123456789ABCUL, x18);
+  CHECK_EQUAL_64(0xCDEF0123456789ABUL, x19);
+  CHECK_EQUAL_64(0xABCDEF0123456789UL, x20);
+  CHECK_EQUAL_64(0x789ABCDEF0123456UL, x21);
+  CHECK_EQUAL_32(0xF89ABCDE, w22);
+  CHECK_EQUAL_32(0xEF89ABCD, w23);
+  CHECK_EQUAL_32(0xDEF89ABC, w24);
+  CHECK_EQUAL_32(0xCDEF89AB, w25);
+  CHECK_EQUAL_32(0xABCDEF89, w26);
+  CHECK_EQUAL_32(0xF89ABCDE, w27);
 
   TEARDOWN();
 }
@@ -8604,7 +8598,7 @@ TEST(bfm) {
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
+  __ Mov(x1, 0x0123456789ABCDEFL);
 
   __ Mov(x10, 0x8888888888888888L);
   __ Mov(x11, 0x8888888888888888L);
@@ -8626,15 +8620,14 @@ TEST(bfm) {
 
   RUN();
 
+  CHECK_EQUAL_64(0x88888888888889ABL, x10);
+  CHECK_EQUAL_64(0x8888CDEF88888888L, x11);
 
-  CHECK_EQUAL_64(0x88888888888889abL, x10);
-  CHECK_EQUAL_64(0x8888cdef88888888L, x11);
+  CHECK_EQUAL_32(0x888888AB, w20);
+  CHECK_EQUAL_32(0x88CDEF88, w21);
 
-  CHECK_EQUAL_32(0x888888ab, w20);
-  CHECK_EQUAL_32(0x88cdef88, w21);
-
-  CHECK_EQUAL_64(0x8888888888ef8888L, x12);
-  CHECK_EQUAL_64(0x88888888888888abL, x13);
+  CHECK_EQUAL_64(0x8888888888EF8888L, x12);
+  CHECK_EQUAL_64(0x88888888888888ABL, x13);
 
   TEARDOWN();
 }
@@ -8645,8 +8638,8 @@ TEST(sbfm) {
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
 
   __ sbfm(x10, x1, 16, 31);
   __ sbfm(x11, x1, 32, 15);
@@ -8675,28 +8668,27 @@ TEST(sbfm) {
 
   RUN();
 
-
-  CHECK_EQUAL_64(0xffffffffffff89abL, x10);
-  CHECK_EQUAL_64(0xffffcdef00000000L, x11);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF89ABL, x10);
+  CHECK_EQUAL_64(0xFFFFCDEF00000000L, x11);
   CHECK_EQUAL_64(0x4567L, x12);
-  CHECK_EQUAL_64(0x789abcdef0000L, x13);
+  CHECK_EQUAL_64(0x789ABCDEF0000L, x13);
 
-  CHECK_EQUAL_32(0xffffffab, w14);
-  CHECK_EQUAL_32(0xffcdef00, w15);
+  CHECK_EQUAL_32(0xFFFFFFAB, w14);
+  CHECK_EQUAL_32(0xFFCDEF00, w15);
   CHECK_EQUAL_32(0x54, w16);
   CHECK_EQUAL_32(0x00321000, w17);
 
   CHECK_EQUAL_64(0x01234567L, x18);
-  CHECK_EQUAL_64(0xfffffffffedcba98L, x19);
-  CHECK_EQUAL_64(0xffffffffffcdef00L, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFEDCBA98L, x19);
+  CHECK_EQUAL_64(0xFFFFFFFFFFCDEF00L, x20);
   CHECK_EQUAL_64(0x321000L, x21);
-  CHECK_EQUAL_64(0xffffffffffffabcdL, x22);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFABCDL, x22);
   CHECK_EQUAL_64(0x5432L, x23);
-  CHECK_EQUAL_64(0xffffffffffffffefL, x24);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFEFL, x24);
   CHECK_EQUAL_64(0x10, x25);
-  CHECK_EQUAL_64(0xffffffffffffcdefL, x26);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFCDEFL, x26);
   CHECK_EQUAL_64(0x3210, x27);
-  CHECK_EQUAL_64(0xffffffff89abcdefL, x28);
+  CHECK_EQUAL_64(0xFFFFFFFF89ABCDEFL, x28);
   CHECK_EQUAL_64(0x76543210, x29);
 
   TEARDOWN();
@@ -8708,8 +8700,8 @@ TEST(ubfm) {
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
 
   __ Mov(x10, 0x8888888888888888L);
   __ Mov(x11, 0x8888888888888888L);
@@ -8737,24 +8729,24 @@ TEST(ubfm) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x00000000000089abL, x10);
-  CHECK_EQUAL_64(0x0000cdef00000000L, x11);
+  CHECK_EQUAL_64(0x00000000000089ABL, x10);
+  CHECK_EQUAL_64(0x0000CDEF00000000L, x11);
   CHECK_EQUAL_64(0x4567L, x12);
-  CHECK_EQUAL_64(0x789abcdef0000L, x13);
+  CHECK_EQUAL_64(0x789ABCDEF0000L, x13);
 
-  CHECK_EQUAL_32(0x000000ab, w25);
-  CHECK_EQUAL_32(0x00cdef00, w26);
+  CHECK_EQUAL_32(0x000000AB, w25);
+  CHECK_EQUAL_32(0x00CDEF00, w26);
   CHECK_EQUAL_32(0x54, w27);
   CHECK_EQUAL_32(0x00321000, w28);
 
   CHECK_EQUAL_64(0x8000000000000000L, x15);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x16);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x16);
   CHECK_EQUAL_64(0x01234567L, x17);
-  CHECK_EQUAL_64(0xcdef00L, x18);
-  CHECK_EQUAL_64(0xabcdL, x19);
-  CHECK_EQUAL_64(0xefL, x20);
-  CHECK_EQUAL_64(0xcdefL, x21);
-  CHECK_EQUAL_64(0x89abcdefL, x22);
+  CHECK_EQUAL_64(0xCDEF00L, x18);
+  CHECK_EQUAL_64(0xABCDL, x19);
+  CHECK_EQUAL_64(0xEFL, x20);
+  CHECK_EQUAL_64(0xCDEFL, x21);
+  CHECK_EQUAL_64(0x89ABCDEFL, x22);
 
   TEARDOWN();
 }
@@ -8765,8 +8757,8 @@ TEST(extr) {
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
 
   __ Extr(w10, w1, w2, 0);
   __ Extr(x11, x1, x2, 0);
@@ -8784,15 +8776,15 @@ TEST(extr) {
   RUN();
 
   CHECK_EQUAL_64(0x76543210, x10);
-  CHECK_EQUAL_64(0xfedcba9876543210L, x11);
-  CHECK_EQUAL_64(0xbb2a1908, x12);
-  CHECK_EQUAL_64(0x0048d159e26af37bUL, x13);
-  CHECK_EQUAL_64(0x89abcdef, x20);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x21);
-  CHECK_EQUAL_64(0x19083b2a, x22);
-  CHECK_EQUAL_64(0x13579bdf, x23);
-  CHECK_EQUAL_64(0x7f6e5d4c3b2a1908UL, x24);
-  CHECK_EQUAL_64(0x02468acf13579bdeUL, x25);
+  CHECK_EQUAL_64(0xFEDCBA9876543210L, x11);
+  CHECK_EQUAL_64(0xBB2A1908, x12);
+  CHECK_EQUAL_64(0x0048D159E26AF37BUL, x13);
+  CHECK_EQUAL_64(0x89ABCDEF, x20);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x21);
+  CHECK_EQUAL_64(0x19083B2A, x22);
+  CHECK_EQUAL_64(0x13579BDF, x23);
+  CHECK_EQUAL_64(0x7F6E5D4C3B2A1908UL, x24);
+  CHECK_EQUAL_64(0x02468ACF13579BDEUL, x25);
 
   TEARDOWN();
 }
@@ -8841,7 +8833,7 @@ TEST(fmov_reg) {
   __ Fmov(x1, d1);
   __ Fmov(d2, x1);
   __ Fmov(d4, d1);
-  __ Fmov(d6, bit_cast<double>(0x0123456789abcdefL));
+  __ Fmov(d6, bit_cast<double>(0x0123456789ABCDEFL));
   __ Fmov(s6, s6);
   END();
 
@@ -8853,7 +8845,7 @@ TEST(fmov_reg) {
   CHECK_EQUAL_64(bit_cast<uint64_t>(-13.0), x1);
   CHECK_EQUAL_FP64(-13.0, d2);
   CHECK_EQUAL_FP64(-13.0, d4);
-  CHECK_EQUAL_FP32(bit_cast<float>(0x89abcdef), s6);
+  CHECK_EQUAL_FP32(bit_cast<float>(0x89ABCDEF), s6);
 
   TEARDOWN();
 }
@@ -9169,12 +9161,12 @@ TEST(fmadd_fmsub_float) {
 TEST(fmadd_fmsub_double_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double s1 = bit_cast<double>(0x7ff5555511111111);
-  double s2 = bit_cast<double>(0x7ff5555522222222);
-  double sa = bit_cast<double>(0x7ff55555aaaaaaaa);
-  double q1 = bit_cast<double>(0x7ffaaaaa11111111);
-  double q2 = bit_cast<double>(0x7ffaaaaa22222222);
-  double qa = bit_cast<double>(0x7ffaaaaaaaaaaaaa);
+  double s1 = bit_cast<double>(0x7FF5555511111111);
+  double s2 = bit_cast<double>(0x7FF5555522222222);
+  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
+  double q1 = bit_cast<double>(0x7FFAAAAA11111111);
+  double q2 = bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -9183,9 +9175,9 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  double s1_proc = bit_cast<double>(0x7ffd555511111111);
-  double s2_proc = bit_cast<double>(0x7ffd555522222222);
-  double sa_proc = bit_cast<double>(0x7ffd5555aaaaaaaa);
+  double s1_proc = bit_cast<double>(0x7FFD555511111111);
+  double s2_proc = bit_cast<double>(0x7FFD555522222222);
+  double sa_proc = bit_cast<double>(0x7FFD5555AAAAAAAA);
   double q1_proc = q1;
   double q2_proc = q2;
   double qa_proc = qa;
@@ -9197,10 +9189,10 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  double s1_proc_neg = bit_cast<double>(0xfffd555511111111);
-  double sa_proc_neg = bit_cast<double>(0xfffd5555aaaaaaaa);
-  double q1_proc_neg = bit_cast<double>(0xfffaaaaa11111111);
-  double qa_proc_neg = bit_cast<double>(0xfffaaaaaaaaaaaaa);
+  double s1_proc_neg = bit_cast<double>(0xFFFD555511111111);
+  double sa_proc_neg = bit_cast<double>(0xFFFD5555AAAAAAAA);
+  double q1_proc_neg = bit_cast<double>(0xFFFAAAAA11111111);
+  double qa_proc_neg = bit_cast<double>(0xFFFAAAAAAAAAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -9252,12 +9244,12 @@ TEST(fmadd_fmsub_double_nans) {
 TEST(fmadd_fmsub_float_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float s1 = bit_cast<float>(0x7f951111);
-  float s2 = bit_cast<float>(0x7f952222);
-  float sa = bit_cast<float>(0x7f95aaaa);
-  float q1 = bit_cast<float>(0x7fea1111);
-  float q2 = bit_cast<float>(0x7fea2222);
-  float qa = bit_cast<float>(0x7feaaaaa);
+  float s1 = bit_cast<float>(0x7F951111);
+  float s2 = bit_cast<float>(0x7F952222);
+  float sa = bit_cast<float>(0x7F95AAAA);
+  float q1 = bit_cast<float>(0x7FEA1111);
+  float q2 = bit_cast<float>(0x7FEA2222);
+  float qa = bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -9266,9 +9258,9 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  float s1_proc = bit_cast<float>(0x7fd51111);
-  float s2_proc = bit_cast<float>(0x7fd52222);
-  float sa_proc = bit_cast<float>(0x7fd5aaaa);
+  float s1_proc = bit_cast<float>(0x7FD51111);
+  float s2_proc = bit_cast<float>(0x7FD52222);
+  float sa_proc = bit_cast<float>(0x7FD5AAAA);
   float q1_proc = q1;
   float q2_proc = q2;
   float qa_proc = qa;
@@ -9280,10 +9272,10 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  float s1_proc_neg = bit_cast<float>(0xffd51111);
-  float sa_proc_neg = bit_cast<float>(0xffd5aaaa);
-  float q1_proc_neg = bit_cast<float>(0xffea1111);
-  float qa_proc_neg = bit_cast<float>(0xffeaaaaa);
+  float s1_proc_neg = bit_cast<float>(0xFFD51111);
+  float sa_proc_neg = bit_cast<float>(0xFFD5AAAA);
+  float q1_proc_neg = bit_cast<float>(0xFFEA1111);
+  float qa_proc_neg = bit_cast<float>(0xFFEAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -9499,10 +9491,10 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
 TEST(fmax_fmin_d) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  double snan = bit_cast<double>(0x7ff5555512345678);
-  double qnan = bit_cast<double>(0x7ffaaaaa87654321);
+  double snan = bit_cast<double>(0x7FF5555512345678);
+  double qnan = bit_cast<double>(0x7FFAAAAA87654321);
 
-  double snan_processed = bit_cast<double>(0x7ffd555512345678);
+  double snan_processed = bit_cast<double>(0x7FFD555512345678);
   double qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -9584,10 +9576,10 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
 TEST(fmax_fmin_s) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  float snan = bit_cast<float>(0x7f951234);
-  float qnan = bit_cast<float>(0x7fea8765);
+  float snan = bit_cast<float>(0x7F951234);
+  float qnan = bit_cast<float>(0x7FEA8765);
 
-  float snan_processed = bit_cast<float>(0x7fd51234);
+  float snan_processed = bit_cast<float>(0x7FD51234);
   float qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -9727,7 +9719,7 @@ TEST(fcmp) {
 
     __ Fmov(s8, 0.0);
     __ Fmov(s9, 0.5);
-    __ Mov(w18, 0x7f800001);  // Single precision NaN.
+    __ Mov(w18, 0x7F800001);  // Single precision NaN.
     __ Fmov(s18, w18);
 
     __ Fcmp(s8, s8);
@@ -9749,7 +9741,7 @@ TEST(fcmp) {
 
     __ Fmov(d19, 0.0);
     __ Fmov(d20, 0.5);
-    __ Mov(x21, 0x7ff0000000000001UL);   // Double precision NaN.
+    __ Mov(x21, 0x7FF0000000000001UL);  // Double precision NaN.
     __ Fmov(d21, x21);
 
     __ Fcmp(d19, d19);
@@ -10422,8 +10414,8 @@ TEST(fcvt_ds) {
   __ Fmov(s26, -0.0);
   __ Fmov(s27, FLT_MAX);
   __ Fmov(s28, FLT_MIN);
-  __ Fmov(s29, bit_cast<float>(0x7fc12345));  // Quiet NaN.
-  __ Fmov(s30, bit_cast<float>(0x7f812345));  // Signalling NaN.
+  __ Fmov(s29, bit_cast<float>(0x7FC12345));  // Quiet NaN.
+  __ Fmov(s30, bit_cast<float>(0x7F812345));  // Signalling NaN.
 
   __ Fcvt(d0, s16);
   __ Fcvt(d1, s17);
@@ -10464,8 +10456,8 @@ TEST(fcvt_ds) {
   //  - The top bit of the mantissa is forced to 1 (making it a quiet NaN).
   //  - The remaining mantissa bits are copied until they run out.
   //  - The low-order bits that haven't already been assigned are set to 0.
-  CHECK_EQUAL_FP64(bit_cast<double>(0x7ff82468a0000000), d13);
-  CHECK_EQUAL_FP64(bit_cast<double>(0x7ff82468a0000000), d14);
+  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d13);
+  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d14);
 
   TEARDOWN();
 }
@@ -10496,23 +10488,23 @@ TEST(fcvt_sd) {
       //    For normalized numbers:
       //         bit 29 (0x0000000020000000) is the lowest-order bit which will
       //                                     fit in the float's mantissa.
-      {bit_cast<double>(0x3ff0000000000000), bit_cast<float>(0x3f800000)},
-      {bit_cast<double>(0x3ff0000000000001), bit_cast<float>(0x3f800000)},
-      {bit_cast<double>(0x3ff0000010000000), bit_cast<float>(0x3f800000)},
-      {bit_cast<double>(0x3ff0000010000001), bit_cast<float>(0x3f800001)},
-      {bit_cast<double>(0x3ff0000020000000), bit_cast<float>(0x3f800001)},
-      {bit_cast<double>(0x3ff0000020000001), bit_cast<float>(0x3f800001)},
-      {bit_cast<double>(0x3ff0000030000000), bit_cast<float>(0x3f800002)},
-      {bit_cast<double>(0x3ff0000030000001), bit_cast<float>(0x3f800002)},
-      {bit_cast<double>(0x3ff0000040000000), bit_cast<float>(0x3f800002)},
-      {bit_cast<double>(0x3ff0000040000001), bit_cast<float>(0x3f800002)},
-      {bit_cast<double>(0x3ff0000050000000), bit_cast<float>(0x3f800002)},
-      {bit_cast<double>(0x3ff0000050000001), bit_cast<float>(0x3f800003)},
-      {bit_cast<double>(0x3ff0000060000000), bit_cast<float>(0x3f800003)},
+      {bit_cast<double>(0x3FF0000000000000), bit_cast<float>(0x3F800000)},
+      {bit_cast<double>(0x3FF0000000000001), bit_cast<float>(0x3F800000)},
+      {bit_cast<double>(0x3FF0000010000000), bit_cast<float>(0x3F800000)},
+      {bit_cast<double>(0x3FF0000010000001), bit_cast<float>(0x3F800001)},
+      {bit_cast<double>(0x3FF0000020000000), bit_cast<float>(0x3F800001)},
+      {bit_cast<double>(0x3FF0000020000001), bit_cast<float>(0x3F800001)},
+      {bit_cast<double>(0x3FF0000030000000), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000030000001), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000040000000), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000040000001), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000050000000), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000050000001), bit_cast<float>(0x3F800003)},
+      {bit_cast<double>(0x3FF0000060000000), bit_cast<float>(0x3F800003)},
       //  - A mantissa that overflows into the exponent during rounding.
-      {bit_cast<double>(0x3feffffff0000000), bit_cast<float>(0x3f800000)},
+      {bit_cast<double>(0x3FEFFFFFF0000000), bit_cast<float>(0x3F800000)},
       //  - The largest double that rounds to a normal float.
-      {bit_cast<double>(0x47efffffefffffff), bit_cast<float>(0x7f7fffff)},
+      {bit_cast<double>(0x47EFFFFFEFFFFFFF), bit_cast<float>(0x7F7FFFFF)},
 
       // Doubles that are too big for a float.
       {kFP64PositiveInfinity, kFP32PositiveInfinity},
@@ -10520,7 +10512,7 @@ TEST(fcvt_sd) {
       //  - The smallest exponent that's too big for a float.
       {pow(2.0, 128), kFP32PositiveInfinity},
       //  - This exponent is in range, but the value rounds to infinity.
-      {bit_cast<double>(0x47effffff0000000), kFP32PositiveInfinity},
+      {bit_cast<double>(0x47EFFFFFF0000000), kFP32PositiveInfinity},
 
       // Doubles that are too small for a float.
       //  - The smallest (subnormal) double.
@@ -10530,36 +10522,36 @@ TEST(fcvt_sd) {
 
       // Normal doubles that become subnormal floats.
       //  - The largest subnormal float.
-      {bit_cast<double>(0x380fffffc0000000), bit_cast<float>(0x007fffff)},
+      {bit_cast<double>(0x380FFFFFC0000000), bit_cast<float>(0x007FFFFF)},
       //  - The smallest subnormal float.
-      {bit_cast<double>(0x36a0000000000000), bit_cast<float>(0x00000001)},
+      {bit_cast<double>(0x36A0000000000000), bit_cast<float>(0x00000001)},
       //  - Subnormal floats that need (ties-to-even) rounding.
       //    For these subnormals:
       //         bit 34 (0x0000000400000000) is the lowest-order bit which will
       //                                     fit in the float's mantissa.
-      {bit_cast<double>(0x37c159e000000000), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37c159e000000001), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37c159e200000000), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37c159e200000001), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37c159e400000000), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37c159e400000001), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37c159e600000000), bit_cast<float>(0x0004567a)},
-      {bit_cast<double>(0x37c159e600000001), bit_cast<float>(0x0004567a)},
-      {bit_cast<double>(0x37c159e800000000), bit_cast<float>(0x0004567a)},
-      {bit_cast<double>(0x37c159e800000001), bit_cast<float>(0x0004567a)},
-      {bit_cast<double>(0x37c159ea00000000), bit_cast<float>(0x0004567a)},
-      {bit_cast<double>(0x37c159ea00000001), bit_cast<float>(0x0004567b)},
-      {bit_cast<double>(0x37c159ec00000000), bit_cast<float>(0x0004567b)},
+      {bit_cast<double>(0x37C159E000000000), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37C159E000000001), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37C159E200000000), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37C159E200000001), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37C159E400000000), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37C159E400000001), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37C159E600000000), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159E600000001), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159E800000000), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159E800000001), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159EA00000000), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159EA00000001), bit_cast<float>(0x0004567B)},
+      {bit_cast<double>(0x37C159EC00000000), bit_cast<float>(0x0004567B)},
       //  - The smallest double which rounds up to become a subnormal float.
       {bit_cast<double>(0x3690000000000001), bit_cast<float>(0x00000001)},
 
       // Check NaN payload preservation.
-      {bit_cast<double>(0x7ff82468a0000000), bit_cast<float>(0x7fc12345)},
-      {bit_cast<double>(0x7ff82468bfffffff), bit_cast<float>(0x7fc12345)},
+      {bit_cast<double>(0x7FF82468A0000000), bit_cast<float>(0x7FC12345)},
+      {bit_cast<double>(0x7FF82468BFFFFFFF), bit_cast<float>(0x7FC12345)},
       //  - Signalling NaNs become quiet NaNs.
-      {bit_cast<double>(0x7ff02468a0000000), bit_cast<float>(0x7fc12345)},
-      {bit_cast<double>(0x7ff02468bfffffff), bit_cast<float>(0x7fc12345)},
-      {bit_cast<double>(0x7ff000001fffffff), bit_cast<float>(0x7fc00000)},
+      {bit_cast<double>(0x7FF02468A0000000), bit_cast<float>(0x7FC12345)},
+      {bit_cast<double>(0x7FF02468BFFFFFFF), bit_cast<float>(0x7FC12345)},
+      {bit_cast<double>(0x7FF000001FFFFFFF), bit_cast<float>(0x7FC00000)},
   };
   int count = sizeof(test) / sizeof(test[0]);
 
@@ -10600,7 +10592,7 @@ TEST(fcvtas) {
   __ Fmov(s3, -2.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -10615,14 +10607,14 @@ TEST(fcvtas) {
   __ Fmov(s19, -2.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 2.5);
   __ Fmov(d26, -2.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtas(w0, s0);
@@ -10662,32 +10654,32 @@ TEST(fcvtas) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(3, x2);
-  CHECK_EQUAL_64(0xfffffffd, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFD, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(3, x10);
-  CHECK_EQUAL_64(0xfffffffd, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFD, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(3, x18);
-  CHECK_EQUAL_64(0xfffffffffffffffdUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFDUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(3, x25);
-  CHECK_EQUAL_64(0xfffffffffffffffdUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFDUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 
   TEARDOWN();
@@ -10705,27 +10697,27 @@ TEST(fcvtau) {
   __ Fmov(s3, -2.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0xffffff00);  // Largest float < UINT32_MAX.
+  __ Fmov(s6, 0xFFFFFF00);  // Largest float < UINT32_MAX.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
   __ Fmov(d10, 2.5);
   __ Fmov(d11, -2.5);
   __ Fmov(d12, kFP64PositiveInfinity);
   __ Fmov(d13, kFP64NegativeInfinity);
-  __ Fmov(d14, 0xfffffffe);
+  __ Fmov(d14, 0xFFFFFFFE);
   __ Fmov(s16, 1.0);
   __ Fmov(s17, 1.1);
   __ Fmov(s18, 2.5);
   __ Fmov(s19, -2.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0xffffff0000000000UL);  // Largest float < UINT64_MAX.
+  __ Fmov(s22, 0xFFFFFF0000000000UL);  // Largest float < UINT64_MAX.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 2.5);
   __ Fmov(d26, -2.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0xfffffffffffff800UL);  // Largest double < UINT64_MAX.
+  __ Fmov(d29, 0xFFFFFFFFFFFFF800UL);  // Largest double < UINT64_MAX.
   __ Fmov(s30, 0x100000000UL);
 
   __ Fcvtau(w0, s0);
@@ -10765,30 +10757,30 @@ TEST(fcvtau) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(3, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0xffffff00, x6);
+  CHECK_EQUAL_64(0xFFFFFF00, x6);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(3, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0xfffffffe, x14);
+  CHECK_EQUAL_64(0xFFFFFFFE, x14);
   CHECK_EQUAL_64(1, x16);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(3, x18);
   CHECK_EQUAL_64(0, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0, x21);
-  CHECK_EQUAL_64(0xffffff0000000000UL, x22);
+  CHECK_EQUAL_64(0xFFFFFF0000000000UL, x22);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(3, x25);
   CHECK_EQUAL_64(0, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0, x28);
-  CHECK_EQUAL_64(0xfffffffffffff800UL, x29);
-  CHECK_EQUAL_64(0xffffffff, x30);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFF800UL, x29);
+  CHECK_EQUAL_64(0xFFFFFFFF, x30);
 
   TEARDOWN();
 }
@@ -10805,7 +10797,7 @@ TEST(fcvtms) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -10820,14 +10812,14 @@ TEST(fcvtms) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtms(w0, s0);
@@ -10867,32 +10859,32 @@ TEST(fcvtms) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
-  CHECK_EQUAL_64(0xfffffffe, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFE, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
-  CHECK_EQUAL_64(0xfffffffe, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFE, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(1, x18);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 
   TEARDOWN();
@@ -10910,7 +10902,7 @@ TEST(fcvtmu) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -10925,14 +10917,14 @@ TEST(fcvtmu) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtmu(w0, s0);
@@ -10972,30 +10964,30 @@ TEST(fcvtmu) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(1, x18);
   CHECK_EQUAL_64(0x0UL, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x0UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x0UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
   CHECK_EQUAL_64(0x0UL, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x0UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x0UL, x30);
 
   TEARDOWN();
@@ -11013,7 +11005,7 @@ TEST(fcvtns) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -11028,14 +11020,14 @@ TEST(fcvtns) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtns(w0, s0);
@@ -11075,32 +11067,32 @@ TEST(fcvtns) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(2, x2);
-  CHECK_EQUAL_64(0xfffffffe, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFE, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(2, x10);
-  CHECK_EQUAL_64(0xfffffffe, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFE, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(2, x18);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(2, x25);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
-//  CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
+  //  CHECK_EQUAL_64(0x8000000000000000UL, x28);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 
   TEARDOWN();
@@ -11118,27 +11110,27 @@ TEST(fcvtnu) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0xffffff00);  // Largest float < UINT32_MAX.
+  __ Fmov(s6, 0xFFFFFF00);  // Largest float < UINT32_MAX.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
   __ Fmov(d10, 1.5);
   __ Fmov(d11, -1.5);
   __ Fmov(d12, kFP64PositiveInfinity);
   __ Fmov(d13, kFP64NegativeInfinity);
-  __ Fmov(d14, 0xfffffffe);
+  __ Fmov(d14, 0xFFFFFFFE);
   __ Fmov(s16, 1.0);
   __ Fmov(s17, 1.1);
   __ Fmov(s18, 1.5);
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0xffffff0000000000UL);   // Largest float < UINT64_MAX.
+  __ Fmov(s22, 0xFFFFFF0000000000UL);  // Largest float < UINT64_MAX.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0xfffffffffffff800UL);   // Largest double < UINT64_MAX.
+  __ Fmov(d29, 0xFFFFFFFFFFFFF800UL);  // Largest double < UINT64_MAX.
   __ Fmov(s30, 0x100000000UL);
 
   __ Fcvtnu(w0, s0);
@@ -11178,30 +11170,30 @@ TEST(fcvtnu) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(2, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0xffffff00, x6);
+  CHECK_EQUAL_64(0xFFFFFF00, x6);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(2, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0xfffffffe, x14);
+  CHECK_EQUAL_64(0xFFFFFFFE, x14);
   CHECK_EQUAL_64(1, x16);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(2, x18);
   CHECK_EQUAL_64(0, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0, x21);
-  CHECK_EQUAL_64(0xffffff0000000000UL, x22);
+  CHECK_EQUAL_64(0xFFFFFF0000000000UL, x22);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(2, x25);
   CHECK_EQUAL_64(0, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
-//  CHECK_EQUAL_64(0, x28);
-  CHECK_EQUAL_64(0xfffffffffffff800UL, x29);
-  CHECK_EQUAL_64(0xffffffff, x30);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
+  //  CHECK_EQUAL_64(0, x28);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFF800UL, x29);
+  CHECK_EQUAL_64(0xFFFFFFFF, x30);
 
   TEARDOWN();
 }
@@ -11218,7 +11210,7 @@ TEST(fcvtzs) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -11233,14 +11225,14 @@ TEST(fcvtzs) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtzs(w0, s0);
@@ -11280,32 +11272,32 @@ TEST(fcvtzs) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
-  CHECK_EQUAL_64(0xffffffff, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(1, x18);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 
   TEARDOWN();
@@ -11323,7 +11315,7 @@ TEST(fcvtzu) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -11338,14 +11330,14 @@ TEST(fcvtzu) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtzu(w0, s0);
@@ -11385,30 +11377,30 @@ TEST(fcvtzu) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(1, x17);
   CHECK_EQUAL_64(1, x18);
   CHECK_EQUAL_64(0x0UL, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x0UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x0UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
   CHECK_EQUAL_64(0x0UL, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x0UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x0UL, x30);
 
   TEARDOWN();
@@ -11429,9 +11421,9 @@ static void TestUScvtfHelper(uint64_t in,
                              uint64_t expected_scvtf_bits,
                              uint64_t expected_ucvtf_bits) {
   uint64_t u64 = in;
-  uint32_t u32 = u64 & 0xffffffff;
+  uint32_t u32 = u64 & 0xFFFFFFFF;
   int64_t s64 = static_cast<int64_t>(in);
-  int32_t s32 = s64 & 0x7fffffff;
+  int32_t s32 = s64 & 0x7FFFFFFF;
 
   bool cvtf_s32 = (s64 == s32);
   bool cvtf_u32 = (u64 == u32);
@@ -11519,63 +11511,63 @@ TEST(scvtf_ucvtf_double) {
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
   TestUScvtfHelper(0x0000000000000000, 0x0000000000000000, 0x0000000000000000);
-  TestUScvtfHelper(0x0000000000000001, 0x3ff0000000000000, 0x3ff0000000000000);
-  TestUScvtfHelper(0x0000000040000000, 0x41d0000000000000, 0x41d0000000000000);
-  TestUScvtfHelper(0x0000000100000000, 0x41f0000000000000, 0x41f0000000000000);
-  TestUScvtfHelper(0x4000000000000000, 0x43d0000000000000, 0x43d0000000000000);
+  TestUScvtfHelper(0x0000000000000001, 0x3FF0000000000000, 0x3FF0000000000000);
+  TestUScvtfHelper(0x0000000040000000, 0x41D0000000000000, 0x41D0000000000000);
+  TestUScvtfHelper(0x0000000100000000, 0x41F0000000000000, 0x41F0000000000000);
+  TestUScvtfHelper(0x4000000000000000, 0x43D0000000000000, 0x43D0000000000000);
   // Test mantissa extremities.
-  TestUScvtfHelper(0x4000000000000400, 0x43d0000000000001, 0x43d0000000000001);
+  TestUScvtfHelper(0x4000000000000400, 0x43D0000000000001, 0x43D0000000000001);
   // The largest int32_t that fits in a double.
-  TestUScvtfHelper(0x000000007fffffff, 0x41dfffffffc00000, 0x41dfffffffc00000);
+  TestUScvtfHelper(0x000000007FFFFFFF, 0x41DFFFFFFFC00000, 0x41DFFFFFFFC00000);
   // Values that would be negative if treated as an int32_t.
-  TestUScvtfHelper(0x00000000ffffffff, 0x41efffffffe00000, 0x41efffffffe00000);
-  TestUScvtfHelper(0x0000000080000000, 0x41e0000000000000, 0x41e0000000000000);
-  TestUScvtfHelper(0x0000000080000001, 0x41e0000000200000, 0x41e0000000200000);
+  TestUScvtfHelper(0x00000000FFFFFFFF, 0x41EFFFFFFFE00000, 0x41EFFFFFFFE00000);
+  TestUScvtfHelper(0x0000000080000000, 0x41E0000000000000, 0x41E0000000000000);
+  TestUScvtfHelper(0x0000000080000001, 0x41E0000000200000, 0x41E0000000200000);
   // The largest int64_t that fits in a double.
-  TestUScvtfHelper(0x7ffffffffffffc00, 0x43dfffffffffffff, 0x43dfffffffffffff);
+  TestUScvtfHelper(0x7FFFFFFFFFFFFC00, 0x43DFFFFFFFFFFFFF, 0x43DFFFFFFFFFFFFF);
   // Check for bit pattern reproduction.
-  TestUScvtfHelper(0x0123456789abcde0, 0x43723456789abcde, 0x43723456789abcde);
-  TestUScvtfHelper(0x0000000012345678, 0x41b2345678000000, 0x41b2345678000000);
+  TestUScvtfHelper(0x0123456789ABCDE0, 0x43723456789ABCDE, 0x43723456789ABCDE);
+  TestUScvtfHelper(0x0000000012345678, 0x41B2345678000000, 0x41B2345678000000);
 
   // Simple conversions of negative int64_t values. These require no rounding,
   // and the results should not depend on the rounding mode.
-  TestUScvtfHelper(0xffffffffc0000000, 0xc1d0000000000000, 0x43effffffff80000);
-  TestUScvtfHelper(0xffffffff00000000, 0xc1f0000000000000, 0x43efffffffe00000);
-  TestUScvtfHelper(0xc000000000000000, 0xc3d0000000000000, 0x43e8000000000000);
+  TestUScvtfHelper(0xFFFFFFFFC0000000, 0xC1D0000000000000, 0x43EFFFFFFFF80000);
+  TestUScvtfHelper(0xFFFFFFFF00000000, 0xC1F0000000000000, 0x43EFFFFFFFE00000);
+  TestUScvtfHelper(0xC000000000000000, 0xC3D0000000000000, 0x43E8000000000000);
 
   // Conversions which require rounding.
-  TestUScvtfHelper(0x1000000000000000, 0x43b0000000000000, 0x43b0000000000000);
-  TestUScvtfHelper(0x1000000000000001, 0x43b0000000000000, 0x43b0000000000000);
-  TestUScvtfHelper(0x1000000000000080, 0x43b0000000000000, 0x43b0000000000000);
-  TestUScvtfHelper(0x1000000000000081, 0x43b0000000000001, 0x43b0000000000001);
-  TestUScvtfHelper(0x1000000000000100, 0x43b0000000000001, 0x43b0000000000001);
-  TestUScvtfHelper(0x1000000000000101, 0x43b0000000000001, 0x43b0000000000001);
-  TestUScvtfHelper(0x1000000000000180, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000181, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000200, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000201, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000280, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000281, 0x43b0000000000003, 0x43b0000000000003);
-  TestUScvtfHelper(0x1000000000000300, 0x43b0000000000003, 0x43b0000000000003);
+  TestUScvtfHelper(0x1000000000000000, 0x43B0000000000000, 0x43B0000000000000);
+  TestUScvtfHelper(0x1000000000000001, 0x43B0000000000000, 0x43B0000000000000);
+  TestUScvtfHelper(0x1000000000000080, 0x43B0000000000000, 0x43B0000000000000);
+  TestUScvtfHelper(0x1000000000000081, 0x43B0000000000001, 0x43B0000000000001);
+  TestUScvtfHelper(0x1000000000000100, 0x43B0000000000001, 0x43B0000000000001);
+  TestUScvtfHelper(0x1000000000000101, 0x43B0000000000001, 0x43B0000000000001);
+  TestUScvtfHelper(0x1000000000000180, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000181, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000200, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000201, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000280, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000281, 0x43B0000000000003, 0x43B0000000000003);
+  TestUScvtfHelper(0x1000000000000300, 0x43B0000000000003, 0x43B0000000000003);
   // Check rounding of negative int64_t values (and large uint64_t values).
-  TestUScvtfHelper(0x8000000000000000, 0xc3e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000001, 0xc3e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000200, 0xc3e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000201, 0xc3dfffffffffffff, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000400, 0xc3dfffffffffffff, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000401, 0xc3dfffffffffffff, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000600, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000601, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000800, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000801, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000a00, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000a01, 0xc3dffffffffffffd, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000c00, 0xc3dffffffffffffd, 0x43e0000000000002);
+  TestUScvtfHelper(0x8000000000000000, 0xC3E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000001, 0xC3E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000200, 0xC3E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000201, 0xC3DFFFFFFFFFFFFF, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000400, 0xC3DFFFFFFFFFFFFF, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000401, 0xC3DFFFFFFFFFFFFF, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000600, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000601, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000800, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000801, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000A00, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000A01, 0xC3DFFFFFFFFFFFFD, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000C00, 0xC3DFFFFFFFFFFFFD, 0x43E0000000000002);
   // Round up to produce a result that's too big for the input to represent.
-  TestUScvtfHelper(0x7ffffffffffffe00, 0x43e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x7fffffffffffffff, 0x43e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0xfffffffffffffc00, 0xc090000000000000, 0x43f0000000000000);
-  TestUScvtfHelper(0xffffffffffffffff, 0xbff0000000000000, 0x43f0000000000000);
+  TestUScvtfHelper(0x7FFFFFFFFFFFFE00, 0x43E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x7FFFFFFFFFFFFFFF, 0x43E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0xFFFFFFFFFFFFFC00, 0xC090000000000000, 0x43F0000000000000);
+  TestUScvtfHelper(0xFFFFFFFFFFFFFFFF, 0xBFF0000000000000, 0x43F0000000000000);
 }
 
 
@@ -11584,9 +11576,9 @@ static void TestUScvtf32Helper(uint64_t in,
                                uint32_t expected_scvtf_bits,
                                uint32_t expected_ucvtf_bits) {
   uint64_t u64 = in;
-  uint32_t u32 = u64 & 0xffffffff;
+  uint32_t u32 = u64 & 0xFFFFFFFF;
   int64_t s64 = static_cast<int64_t>(in);
-  int32_t s32 = s64 & 0x7fffffff;
+  int32_t s32 = s64 & 0x7FFFFFFF;
 
   bool cvtf_s32 = (s64 == s32);
   bool cvtf_u32 = (u64 == u32);
@@ -11656,10 +11648,8 @@ static void TestUScvtf32Helper(uint64_t in,
     CHECK_EQUAL_FP32(expected_ucvtf, results_ucvtf_x[fbits]);
     if (cvtf_s32) CHECK_EQUAL_FP32(expected_scvtf, results_scvtf_w[fbits]);
     if (cvtf_u32) CHECK_EQUAL_FP32(expected_ucvtf, results_ucvtf_w[fbits]);
-    break;
   }
   for (int fbits = 33; fbits <= 64; fbits++) {
-    break;
     float expected_scvtf = expected_scvtf_base / powf(2, fbits);
     float expected_ucvtf = expected_ucvtf_base / powf(2, fbits);
     CHECK_EQUAL_FP32(expected_scvtf, results_scvtf_x[fbits]);
@@ -11676,28 +11666,28 @@ TEST(scvtf_ucvtf_float) {
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
   TestUScvtf32Helper(0x0000000000000000, 0x00000000, 0x00000000);
-  TestUScvtf32Helper(0x0000000000000001, 0x3f800000, 0x3f800000);
-  TestUScvtf32Helper(0x0000000040000000, 0x4e800000, 0x4e800000);
-  TestUScvtf32Helper(0x0000000100000000, 0x4f800000, 0x4f800000);
-  TestUScvtf32Helper(0x4000000000000000, 0x5e800000, 0x5e800000);
+  TestUScvtf32Helper(0x0000000000000001, 0x3F800000, 0x3F800000);
+  TestUScvtf32Helper(0x0000000040000000, 0x4E800000, 0x4E800000);
+  TestUScvtf32Helper(0x0000000100000000, 0x4F800000, 0x4F800000);
+  TestUScvtf32Helper(0x4000000000000000, 0x5E800000, 0x5E800000);
   // Test mantissa extremities.
-  TestUScvtf32Helper(0x0000000000800001, 0x4b000001, 0x4b000001);
-  TestUScvtf32Helper(0x4000008000000000, 0x5e800001, 0x5e800001);
+  TestUScvtf32Helper(0x0000000000800001, 0x4B000001, 0x4B000001);
+  TestUScvtf32Helper(0x4000008000000000, 0x5E800001, 0x5E800001);
   // The largest int32_t that fits in a float.
-  TestUScvtf32Helper(0x000000007fffff80, 0x4effffff, 0x4effffff);
+  TestUScvtf32Helper(0x000000007FFFFF80, 0x4EFFFFFF, 0x4EFFFFFF);
   // Values that would be negative if treated as an int32_t.
-  TestUScvtf32Helper(0x00000000ffffff00, 0x4f7fffff, 0x4f7fffff);
-  TestUScvtf32Helper(0x0000000080000000, 0x4f000000, 0x4f000000);
-  TestUScvtf32Helper(0x0000000080000100, 0x4f000001, 0x4f000001);
+  TestUScvtf32Helper(0x00000000FFFFFF00, 0x4F7FFFFF, 0x4F7FFFFF);
+  TestUScvtf32Helper(0x0000000080000000, 0x4F000000, 0x4F000000);
+  TestUScvtf32Helper(0x0000000080000100, 0x4F000001, 0x4F000001);
   // The largest int64_t that fits in a float.
-  TestUScvtf32Helper(0x7fffff8000000000, 0x5effffff, 0x5effffff);
+  TestUScvtf32Helper(0x7FFFFF8000000000, 0x5EFFFFFF, 0x5EFFFFFF);
   // Check for bit pattern reproduction.
-  TestUScvtf32Helper(0x0000000000876543, 0x4b076543, 0x4b076543);
+  TestUScvtf32Helper(0x0000000000876543, 0x4B076543, 0x4B076543);
 
   // Simple conversions of negative int64_t values. These require no rounding,
   // and the results should not depend on the rounding mode.
-  TestUScvtf32Helper(0xfffffc0000000000, 0xd4800000, 0x5f7ffffc);
-  TestUScvtf32Helper(0xc000000000000000, 0xde800000, 0x5f400000);
+  TestUScvtf32Helper(0xFFFFFC0000000000, 0xD4800000, 0x5F7FFFFC);
+  TestUScvtf32Helper(0xC000000000000000, 0xDE800000, 0x5F400000);
 
   // Conversions which require rounding.
   TestUScvtf32Helper(0x0000800000000000, 0x57000000, 0x57000000);
@@ -11714,28 +11704,28 @@ TEST(scvtf_ucvtf_float) {
   TestUScvtf32Helper(0x0000800002800001, 0x57000003, 0x57000003);
   TestUScvtf32Helper(0x0000800003000000, 0x57000003, 0x57000003);
   // Check rounding of negative int64_t values (and large uint64_t values).
-  TestUScvtf32Helper(0x8000000000000000, 0xdf000000, 0x5f000000);
-  TestUScvtf32Helper(0x8000000000000001, 0xdf000000, 0x5f000000);
-  TestUScvtf32Helper(0x8000004000000000, 0xdf000000, 0x5f000000);
-  TestUScvtf32Helper(0x8000004000000001, 0xdeffffff, 0x5f000000);
-  TestUScvtf32Helper(0x8000008000000000, 0xdeffffff, 0x5f000000);
-  TestUScvtf32Helper(0x8000008000000001, 0xdeffffff, 0x5f000001);
-  TestUScvtf32Helper(0x800000c000000000, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x800000c000000001, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000010000000000, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000010000000001, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000014000000000, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000014000000001, 0xdefffffd, 0x5f000001);
-  TestUScvtf32Helper(0x8000018000000000, 0xdefffffd, 0x5f000002);
+  TestUScvtf32Helper(0x8000000000000000, 0xDF000000, 0x5F000000);
+  TestUScvtf32Helper(0x8000000000000001, 0xDF000000, 0x5F000000);
+  TestUScvtf32Helper(0x8000004000000000, 0xDF000000, 0x5F000000);
+  TestUScvtf32Helper(0x8000004000000001, 0xDEFFFFFF, 0x5F000000);
+  TestUScvtf32Helper(0x8000008000000000, 0xDEFFFFFF, 0x5F000000);
+  TestUScvtf32Helper(0x8000008000000001, 0xDEFFFFFF, 0x5F000001);
+  TestUScvtf32Helper(0x800000C000000000, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x800000C000000001, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000010000000000, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000010000000001, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000014000000000, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000014000000001, 0xDEFFFFFD, 0x5F000001);
+  TestUScvtf32Helper(0x8000018000000000, 0xDEFFFFFD, 0x5F000002);
   // Round up to produce a result that's too big for the input to represent.
-  TestUScvtf32Helper(0x000000007fffffc0, 0x4f000000, 0x4f000000);
-  TestUScvtf32Helper(0x000000007fffffff, 0x4f000000, 0x4f000000);
-  TestUScvtf32Helper(0x00000000ffffff80, 0x4f800000, 0x4f800000);
-  TestUScvtf32Helper(0x00000000ffffffff, 0x4f800000, 0x4f800000);
-  TestUScvtf32Helper(0x7fffffc000000000, 0x5f000000, 0x5f000000);
-  TestUScvtf32Helper(0x7fffffffffffffff, 0x5f000000, 0x5f000000);
-  TestUScvtf32Helper(0xffffff8000000000, 0xd3000000, 0x5f800000);
-  TestUScvtf32Helper(0xffffffffffffffff, 0xbf800000, 0x5f800000);
+  TestUScvtf32Helper(0x000000007FFFFFC0, 0x4F000000, 0x4F000000);
+  TestUScvtf32Helper(0x000000007FFFFFFF, 0x4F000000, 0x4F000000);
+  TestUScvtf32Helper(0x00000000FFFFFF80, 0x4F800000, 0x4F800000);
+  TestUScvtf32Helper(0x00000000FFFFFFFF, 0x4F800000, 0x4F800000);
+  TestUScvtf32Helper(0x7FFFFFC000000000, 0x5F000000, 0x5F000000);
+  TestUScvtf32Helper(0x7FFFFFFFFFFFFFFF, 0x5F000000, 0x5F000000);
+  TestUScvtf32Helper(0xFFFFFF8000000000, 0xD3000000, 0x5F800000);
+  TestUScvtf32Helper(0xFFFFFFFFFFFFFFFF, 0xBF800000, 0x5F800000);
 }
 
 
@@ -11782,18 +11772,18 @@ TEST(system_mrs) {
 TEST(system_msr) {
   INIT_V8();
   // All FPCR fields that must be implemented: AHP, DN, FZ, RMode
-  const uint64_t fpcr_core = 0x07c00000;
+  const uint64_t fpcr_core = 0x07C00000;
 
   // All FPCR fields (including fields which may be read-as-zero):
   //  Stride, Len
   //  IDE, IXE, UFE, OFE, DZE, IOE
-  const uint64_t fpcr_all = fpcr_core | 0x00379f00;
+  const uint64_t fpcr_all = fpcr_core | 0x00379F00;
 
   SETUP();
 
   START();
   __ Mov(w0, 0);
-  __ Mov(w1, 0x7fffffff);
+  __ Mov(w1, 0x7FFFFFFF);
 
   __ Mov(x7, 0);
 
@@ -11963,14 +11953,14 @@ TEST(zero_dest_setflags) {
   __ adds(xzr, x1, xzr);
   __ adds(xzr, xzr, x1);
 
-  __ ands(xzr, x2, ~0xf);
-  __ ands(xzr, xzr, ~0xf);
+  __ ands(xzr, x2, ~0xF);
+  __ ands(xzr, xzr, ~0xF);
   __ ands(xzr, x0, x2);
   __ ands(xzr, x2, xzr);
   __ ands(xzr, xzr, x2);
 
-  __ bics(xzr, x3, ~0xf);
-  __ bics(xzr, xzr, ~0xf);
+  __ bics(xzr, x3, ~0xF);
+  __ bics(xzr, xzr, ~0xF);
   __ bics(xzr, x0, x3);
   __ bics(xzr, x3, xzr);
   __ bics(xzr, xzr, x3);
@@ -12018,7 +12008,6 @@ TEST(register_bit) {
   CHECK(xzr.bit() == (1UL << kZeroRegCode));
 
   // Internal ABI definitions.
-  CHECK(jssp.bit() == (1UL << kJSSPCode));
   CHECK(csp.bit() == (1UL << kSPRegInternalCode));
   CHECK(csp.bit() != xzr.bit());
 
@@ -12026,32 +12015,8 @@ TEST(register_bit) {
   CHECK(x0.bit() == w0.bit());
   CHECK(x1.bit() == w1.bit());
   CHECK(x10.bit() == w10.bit());
-  CHECK(jssp.bit() == wjssp.bit());
   CHECK(xzr.bit() == wzr.bit());
   CHECK(csp.bit() == wcsp.bit());
-}
-
-
-TEST(stack_pointer_override) {
-  // This test generates some stack maintenance code, but the test only checks
-  // the reported state.
-  INIT_V8();
-  SETUP();
-  START();
-
-  // The default stack pointer in V8 is jssp, but for compatibility with W16,
-  // the test framework sets it to csp before calling the test.
-  CHECK(csp.Is(__ StackPointer()));
-  __ SetStackPointer(x0);
-  CHECK(x0.Is(__ StackPointer()));
-  __ SetStackPointer(jssp);
-  CHECK(jssp.Is(__ StackPointer()));
-  __ SetStackPointer(csp);
-  CHECK(csp.Is(__ StackPointer()));
-
-  END();
-  RUN();
-  TEARDOWN();
 }
 
 
@@ -12113,10 +12078,10 @@ TEST(peek_poke_simple) {
   CHECK_EQUAL_64(literal_base * 3, x2);
   CHECK_EQUAL_64(literal_base * 4, x3);
 
-  CHECK_EQUAL_64((literal_base * 1) & 0xffffffff, x10);
-  CHECK_EQUAL_64((literal_base * 2) & 0xffffffff, x11);
-  CHECK_EQUAL_64((literal_base * 3) & 0xffffffff, x12);
-  CHECK_EQUAL_64((literal_base * 4) & 0xffffffff, x13);
+  CHECK_EQUAL_64((literal_base * 1) & 0xFFFFFFFF, x10);
+  CHECK_EQUAL_64((literal_base * 2) & 0xFFFFFFFF, x11);
+  CHECK_EQUAL_64((literal_base * 3) & 0xFFFFFFFF, x12);
+  CHECK_EQUAL_64((literal_base * 4) & 0xFFFFFFFF, x13);
 
   TEARDOWN();
 }
@@ -12194,9 +12159,9 @@ TEST(peek_poke_unaligned) {
   CHECK_EQUAL_64(literal_base * 6, x5);
   CHECK_EQUAL_64(literal_base * 7, x6);
 
-  CHECK_EQUAL_64((literal_base * 1) & 0xffffffff, x10);
-  CHECK_EQUAL_64((literal_base * 2) & 0xffffffff, x11);
-  CHECK_EQUAL_64((literal_base * 3) & 0xffffffff, x12);
+  CHECK_EQUAL_64((literal_base * 1) & 0xFFFFFFFF, x10);
+  CHECK_EQUAL_64((literal_base * 2) & 0xFFFFFFFF, x11);
+  CHECK_EQUAL_64((literal_base * 3) & 0xFFFFFFFF, x12);
 
   TEARDOWN();
 }
@@ -12240,8 +12205,8 @@ TEST(peek_poke_endianness) {
   uint64_t x0_expected = literal_base * 1;
   uint64_t x1_expected = literal_base * 2;
   uint64_t x4_expected = (x0_expected << 32) | (x0_expected >> 32);
-  uint64_t x5_expected = ((x1_expected << 16) & 0xffff0000) |
-                         ((x1_expected >> 16) & 0x0000ffff);
+  uint64_t x5_expected =
+      ((x1_expected << 16) & 0xFFFF0000) | ((x1_expected >> 16) & 0x0000FFFF);
 
   CHECK_EQUAL_64(x0_expected, x0);
   CHECK_EQUAL_64(x1_expected, x1);
@@ -12280,23 +12245,16 @@ TEST(peek_poke_mixed) {
   __ Poke(x1, 8);
   __ Poke(x0, 0);
   {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(x4, __ StackPointer());
-    __ SetStackPointer(x4);
-
-    __ Poke(wzr, 0);    // Clobber the space we're about to drop.
-    __ Drop(1, kWRegSize);
-    __ Peek(x6, 0);
-    __ Claim(1);
-    __ Peek(w7, 10);
-    __ Poke(x3, 28);
+    __ Peek(x6, 4);
+    __ Peek(w7, 6);
     __ Poke(xzr, 0);    // Clobber the space we're about to drop.
-    __ Drop(1);
-    __ Poke(x2, 12);
-    __ Push(w0);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
+    __ Poke(xzr, 8);    // Clobber the space we're about to drop.
+    __ Drop(2);
+    __ Poke(x3, 8);
+    __ Poke(x2, 0);
+    __ Claim(2);
+    __ Poke(x0, 0);
+    __ Poke(x1, 8);
   }
 
   __ Pop(x0, x1, x2, x3);
@@ -12309,8 +12267,8 @@ TEST(peek_poke_mixed) {
   uint64_t x2_expected = literal_base * 3;
   uint64_t x3_expected = literal_base * 4;
   uint64_t x6_expected = (x1_expected << 32) | (x0_expected >> 32);
-  uint64_t x7_expected = ((x1_expected << 16) & 0xffff0000) |
-                         ((x0_expected >> 48) & 0x0000ffff);
+  uint64_t x7_expected =
+      ((x1_expected << 16) & 0xFFFF0000) | ((x0_expected >> 48) & 0x0000FFFF);
 
   CHECK_EQUAL_64(x0_expected, x0);
   CHECK_EQUAL_64(x1_expected, x1);
@@ -12333,34 +12291,28 @@ enum PushPopMethod {
   PushPopRegList
 };
 
-
-// The maximum number of registers that can be used by the PushPopJssp* tests,
+// The maximum number of registers that can be used by the PushPop* tests,
 // where a reg_count field is provided.
-static int const kPushPopJsspMaxRegCount = -1;
+static int const kPushPopMaxRegCount = -1;
 
 // Test a simple push-pop pattern:
-//  * Claim <claim> bytes to set the stack alignment.
 //  * Push <reg_count> registers with size <reg_size>.
 //  * Clobber the register contents.
 //  * Pop <reg_count> registers to restore the original contents.
-//  * Drop <claim> bytes to restore the original stack pointer.
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
-static void PushPopJsspSimpleHelper(int reg_count,
-                                    int claim,
-                                    int reg_size,
-                                    PushPopMethod push_method,
-                                    PushPopMethod pop_method) {
+static void PushPopSimpleHelper(int reg_count, int reg_size,
+                                PushPopMethod push_method,
+                                PushPopMethod pop_method) {
   SETUP();
 
   START();
 
   // Registers in the TmpList can be used by the macro assembler for debug code
-  // (for example in 'Pop'), so we can't use them here. We can't use jssp
-  // because it will be the stack pointer for this test.
-  static RegList const allowed = ~(masm.TmpList()->list() | jssp.bit());
-  if (reg_count == kPushPopJsspMaxRegCount) {
+  // (for example in 'Pop'), so we can't use them here.
+  static RegList const allowed = ~(masm.TmpList()->list());
+  if (reg_count == kPushPopMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
   // Work out which registers to use, based on reg_size.
@@ -12377,10 +12329,6 @@ static void PushPopJsspSimpleHelper(int reg_count,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
     int i;
 
     // Initialize the registers.
@@ -12391,9 +12339,6 @@ static void PushPopJsspSimpleHelper(int reg_count,
         __ Mov(x[i], literal_base * i);
       }
     }
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
 
     switch (push_method) {
       case PushPopByFour:
@@ -12439,12 +12384,6 @@ static void PushPopJsspSimpleHelper(int reg_count,
         __ PopSizeRegList(list, reg_size);
         break;
     }
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
   }
 
   END();
@@ -12454,7 +12393,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
   // Check that the register contents were preserved.
   // Always use CHECK_EQUAL_64, even when testing W registers, so we can test
   // that the upper word was properly cleared by Pop.
-  literal_base &= (0xffffffffffffffffUL >> (64-reg_size));
+  literal_base &= (0xFFFFFFFFFFFFFFFFUL >> (64 - reg_size));
   for (int i = 0; i < reg_count; i++) {
     if (x[i].IsZero()) {
       CHECK_EQUAL_64(0, x[i]);
@@ -12466,77 +12405,53 @@ static void PushPopJsspSimpleHelper(int reg_count,
   TEARDOWN();
 }
 
-
-TEST(push_pop_jssp_simple_32) {
+TEST(push_pop_simple_32) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopRegList, PushPopRegList);
+
+  for (int count = 0; count < kPushPopMaxRegCount; count += 4) {
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopByFour, PushPopRegList);
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopRegList, PushPopByFour);
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopRegList, PushPopRegList);
   }
+  // Skip testing kPushPopMaxRegCount, as we exclude the temporary registers
+  // and we end up with a number of registers that is not a multiple of four and
+  // is not supported for pushing.
 }
 
-
-TEST(push_pop_jssp_simple_64) {
+TEST(push_pop_simple_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 2) {
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopByFour, PushPopRegList);
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopRegList, PushPopByFour);
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopRegList, PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopByFour,
+                      PushPopByFour);
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopByFour,
+                      PushPopRegList);
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopRegList,
+                      PushPopByFour);
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopRegList,
+                      PushPopRegList);
 }
 
-
-// The maximum number of registers that can be used by the PushPopFPJssp* tests,
+// The maximum number of registers that can be used by the PushPopFP* tests,
 // where a reg_count field is provided.
-static int const kPushPopFPJsspMaxRegCount = -1;
+static int const kPushPopFPMaxRegCount = -1;
 
 // Test a simple push-pop pattern:
-//  * Claim <claim> bytes to set the stack alignment.
 //  * Push <reg_count> FP registers with size <reg_size>.
 //  * Clobber the register contents.
 //  * Pop <reg_count> FP registers to restore the original contents.
-//  * Drop <claim> bytes to restore the original stack pointer.
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
-static void PushPopFPJsspSimpleHelper(int reg_count,
-                                      int claim,
-                                      int reg_size,
-                                      PushPopMethod push_method,
-                                      PushPopMethod pop_method) {
+static void PushPopFPSimpleHelper(int reg_count, int reg_size,
+                                  PushPopMethod push_method,
+                                  PushPopMethod pop_method) {
   SETUP();
 
   START();
@@ -12544,7 +12459,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   // We can use any floating-point register. None of them are reserved for
   // debug code, for example.
   static RegList const allowed = ~0;
-  if (reg_count == kPushPopFPJsspMaxRegCount) {
+  if (reg_count == kPushPopFPMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfVRegisters);
   }
   // Work out which registers to use, based on reg_size.
@@ -12564,9 +12479,6 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
 
   {
     CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
     int i;
 
     // Initialize the registers, using X registers to load the literal.
@@ -12579,9 +12491,6 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
       // Calculate the next literal.
       __ Add(x0, x0, x1);
     }
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
 
     switch (push_method) {
       case PushPopByFour:
@@ -12627,12 +12536,6 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
         __ PopSizeRegList(list, reg_size, CPURegister::kVRegister);
         break;
     }
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
   }
 
   END();
@@ -12642,7 +12545,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   // Check that the register contents were preserved.
   // Always use CHECK_EQUAL_FP64, even when testing S registers, so we can
   // test that the upper word was properly cleared by Pop.
-  literal_base &= (0xffffffffffffffffUL >> (64-reg_size));
+  literal_base &= (0xFFFFFFFFFFFFFFFFUL >> (64 - reg_size));
   for (int i = 0; i < reg_count; i++) {
     uint64_t literal = literal_base * i;
     double expected;
@@ -12653,69 +12556,59 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   TEARDOWN();
 }
 
-
-TEST(push_pop_fp_jssp_simple_32) {
+TEST(push_pop_fp_simple_32) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 4) {
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopByFour,
+                          PushPopRegList);
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopRegList,
+                          PushPopByFour);
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopRegList,
+                          PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopByFour,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopByFour,
+                        PushPopRegList);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopRegList,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopRegList,
+                        PushPopRegList);
 }
 
-
-TEST(push_pop_fp_jssp_simple_64) {
+TEST(push_pop_fp_simple_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 2) {
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopByFour,
+                          PushPopRegList);
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopRegList,
+                          PushPopByFour);
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopRegList,
+                          PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopByFour,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopByFour,
+                        PushPopRegList);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopRegList,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopRegList,
+                        PushPopRegList);
 }
 
 
 // Push and pop data using an overlapping combination of Push/Pop and
 // RegList-based methods.
-static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
+static void PushPopMixedMethodsHelper(int reg_size) {
   SETUP();
 
-  // Registers x8 and x9 are used by the macro assembler for debug code (for
-  // example in 'Pop'), so we can't use them here. We can't use jssp because it
-  // will be the stack pointer for this test.
-  static RegList const allowed =
-      ~(x8.bit() | x9.bit() | jssp.bit() | xzr.bit());
+  // Registers in the TmpList can be used by the macro assembler for debug code
+  // (for example in 'Pop'), so we can't use them here.
+  static RegList const allowed = ~(masm.TmpList()->list());
   // Work out which registers to use, based on reg_size.
   auto r = CreateRegisterArray<Register, 10>();
   auto x = CreateRegisterArray<Register, 10>();
@@ -12745,11 +12638,6 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   START();
   {
     CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
 
     __ Mov(x[3], literal_base * 3);
     __ Mov(x[2], literal_base * 2);
@@ -12768,12 +12656,6 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
     __ Pop(r[4], r[5]);
     Clobber(&masm, r6_to_r9);
     __ Pop(r[6], r[7], r[8], r[9]);
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
   }
 
   END();
@@ -12782,7 +12664,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 
   // Always use CHECK_EQUAL_64, even when testing W registers, so we can test
   // that the upper word was properly cleared by Pop.
-  literal_base &= (0xffffffffffffffffUL >> (64-reg_size));
+  literal_base &= (0xFFFFFFFFFFFFFFFFUL >> (64 - reg_size));
 
   CHECK_EQUAL_64(literal_base * 3, x[9]);
   CHECK_EQUAL_64(literal_base * 2, x[8]);
@@ -12794,232 +12676,9 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   TEARDOWN();
 }
 
-
-TEST(push_pop_jssp_mixed_methods_64) {
+TEST(push_pop_mixed_methods_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kXRegSizeInBits);
-  }
-}
-
-
-TEST(push_pop_jssp_mixed_methods_32) {
-  INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kWRegSizeInBits);
-  }
-}
-
-
-// Push and pop data using overlapping X- and W-sized quantities.
-static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
-  // This test emits rather a lot of code.
-  SETUP_SIZE(BUF_SIZE * 2);
-
-  // Work out which registers to use, based on reg_size.
-  Register tmp = x8;
-  static RegList const allowed = ~(tmp.bit() | jssp.bit());
-  if (reg_count == kPushPopJsspMaxRegCount) {
-    reg_count = CountSetBits(allowed, kNumberOfRegisters);
-  }
-  auto w = CreateRegisterArray<Register, kNumberOfRegisters>();
-  auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
-  RegList list =
-      PopulateRegisterArray(w.data(), x.data(), nullptr, 0, reg_count, allowed);
-
-  // The number of W-sized slots we expect to pop. When we pop, we alternate
-  // between W and X registers, so we need reg_count*1.5 W-sized slots.
-  int const requested_w_slots = reg_count + reg_count / 2;
-
-  // Track what _should_ be on the stack, using W-sized slots.
-  static int const kMaxWSlots = kNumberOfRegisters + kNumberOfRegisters / 2;
-  uint32_t stack[kMaxWSlots];
-  for (int i = 0; i < kMaxWSlots; i++) {
-    stack[i] = 0xdeadbeef;
-  }
-
-  // The literal base is chosen to have two useful properties:
-  //  * When multiplied by small values (such as a register index), this value
-  //    is clearly readable in the result.
-  //  * The value is not formed from repeating fixed-size smaller values, so it
-  //    can be used to detect endianness-related errors.
-  static uint64_t const literal_base = 0x0100001000100101UL;
-  static uint64_t const literal_base_hi = literal_base >> 32;
-  static uint64_t const literal_base_lo = literal_base & 0xffffffff;
-  static uint64_t const literal_base_w = literal_base & 0xffffffff;
-
-  START();
-  {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
-    // Initialize the registers.
-    for (int i = 0; i < reg_count; i++) {
-      // Always write into the X register, to ensure that the upper word is
-      // properly ignored by Push when testing W registers.
-      if (!x[i].IsZero()) {
-        __ Mov(x[i], literal_base * i);
-      }
-    }
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
-    // The push-pop pattern is as follows:
-    // Push:           Pop:
-    //  x[0](hi)   ->   w[0]
-    //  x[0](lo)   ->   x[1](hi)
-    //  w[1]       ->   x[1](lo)
-    //  w[1]       ->   w[2]
-    //  x[2](hi)   ->   x[2](hi)
-    //  x[2](lo)   ->   x[2](lo)
-    //  x[2](hi)   ->   w[3]
-    //  x[2](lo)   ->   x[4](hi)
-    //  x[2](hi)   ->   x[4](lo)
-    //  x[2](lo)   ->   w[5]
-    //  w[3]       ->   x[5](hi)
-    //  w[3]       ->   x[6](lo)
-    //  w[3]       ->   w[7]
-    //  w[3]       ->   x[8](hi)
-    //  x[4](hi)   ->   x[8](lo)
-    //  x[4](lo)   ->   w[9]
-    // ... pattern continues ...
-    //
-    // That is, registers are pushed starting with the lower numbers,
-    // alternating between x and w registers, and pushing i%4+1 copies of each,
-    // where i is the register number.
-    // Registers are popped starting with the higher numbers one-by-one,
-    // alternating between x and w registers, but only popping one at a time.
-    //
-    // This pattern provides a wide variety of alignment effects and overlaps.
-
-    // ---- Push ----
-
-    int active_w_slots = 0;
-    for (int i = 0; active_w_slots < requested_w_slots; i++) {
-      CHECK(i < reg_count);
-      // In order to test various arguments to PushMultipleTimes, and to try to
-      // exercise different alignment and overlap effects, we push each
-      // register a different number of times.
-      int times = i % 4 + 1;
-      if (i & 1) {
-        // Push odd-numbered registers as W registers.
-        __ Mov(tmp.W(), times);
-        __ PushMultipleTimes(w[i], tmp.W());
-
-        // Fill in the expected stack slots.
-        for (int j = 0; j < times; j++) {
-          if (w[i].Is(wzr)) {
-            // The zero register always writes zeroes.
-            stack[active_w_slots++] = 0;
-          } else {
-            stack[active_w_slots++] = literal_base_w * i;
-          }
-        }
-      } else {
-        // Push even-numbered registers as X registers.
-        __ Mov(tmp, times);
-        __ PushMultipleTimes(x[i], tmp);
-
-        // Fill in the expected stack slots.
-        for (int j = 0; j < times; j++) {
-          if (x[i].IsZero()) {
-            // The zero register always writes zeroes.
-            stack[active_w_slots++] = 0;
-            stack[active_w_slots++] = 0;
-          } else {
-            stack[active_w_slots++] = literal_base_hi * i;
-            stack[active_w_slots++] = literal_base_lo * i;
-          }
-        }
-      }
-    }
-    // Because we were pushing several registers at a time, we probably pushed
-    // more than we needed to.
-    if (active_w_slots > requested_w_slots) {
-      __ Drop(active_w_slots - requested_w_slots, kWRegSize);
-      // Bump the number of active W-sized slots back to where it should be,
-      // and fill the empty space with a dummy value.
-      do {
-        stack[active_w_slots--] = 0xdeadbeef;
-      } while (active_w_slots > requested_w_slots);
-    }
-
-    // ---- Pop ----
-
-    Clobber(&masm, list);
-
-    // If popping an even number of registers, the first one will be X-sized.
-    // Otherwise, the first one will be W-sized.
-    bool next_is_64 = !(reg_count & 1);
-    for (int i = reg_count-1; i >= 0; i--) {
-      if (next_is_64) {
-        __ Pop(x[i]);
-        active_w_slots -= 2;
-      } else {
-        __ Pop(w[i]);
-        active_w_slots -= 1;
-      }
-      next_is_64 = !next_is_64;
-    }
-    CHECK_EQ(active_w_slots, 0);
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
-  }
-
-  END();
-
-  RUN();
-
-  int slot = 0;
-  for (int i = 0; i < reg_count; i++) {
-    // Even-numbered registers were written as W registers.
-    // Odd-numbered registers were written as X registers.
-    bool expect_64 = (i & 1);
-    uint64_t expected;
-
-    if (expect_64) {
-      uint64_t hi = stack[slot++];
-      uint64_t lo = stack[slot++];
-      expected = (hi << 32) | lo;
-    } else {
-      expected = stack[slot++];
-    }
-
-    // Always use CHECK_EQUAL_64, even when testing W registers, so we can
-    // test that the upper word was properly cleared by Pop.
-    if (x[i].IsZero()) {
-      CHECK_EQUAL_64(0, x[i]);
-    } else {
-      CHECK_EQUAL_64(expected, x[i]);
-    }
-  }
-  CHECK(slot == requested_w_slots);
-
-  TEARDOWN();
-}
-
-
-TEST(push_pop_jssp_wx_overlap) {
-  INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 1; count <= 8; count++) {
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-  }
+  PushPopMixedMethodsHelper(kXRegSizeInBits);
 }
 
 
@@ -13066,8 +12725,8 @@ TEST(push_pop_csp) {
   __ Claim(2);
   __ PushXRegList(0);
   __ PopXRegList(0);
-  __ PushXRegList(0xffffffff);
-  __ PopXRegList(0xffffffff);
+  __ PushXRegList(0xFFFFFFFF);
+  __ PopXRegList(0xFFFFFFFF);
   __ Drop(12);
 
   END();
@@ -13118,10 +12777,6 @@ TEST(push_queued) {
 
   START();
 
-  CHECK(__ StackPointer().Is(csp));
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
   MacroAssembler::PushPopQueue queue(&masm);
 
   // Queue up registers.
@@ -13133,11 +12788,15 @@ TEST(push_queued) {
   queue.Queue(w4);
   queue.Queue(w5);
   queue.Queue(w6);
+  queue.Queue(w7);
 
   queue.Queue(d0);
   queue.Queue(d1);
 
   queue.Queue(s2);
+  queue.Queue(s3);
+  queue.Queue(s4);
+  queue.Queue(s5);
 
   __ Mov(x0, 0x1234000000000000);
   __ Mov(x1, 0x1234000100010001);
@@ -13146,99 +12805,25 @@ TEST(push_queued) {
   __ Mov(w4, 0x12340004);
   __ Mov(w5, 0x12340005);
   __ Mov(w6, 0x12340006);
+  __ Mov(w7, 0x12340007);
   __ Fmov(d0, 123400.0);
   __ Fmov(d1, 123401.0);
   __ Fmov(s2, 123402.0);
+  __ Fmov(s3, 123403.0);
+  __ Fmov(s4, 123404.0);
+  __ Fmov(s5, 123405.0);
 
   // Actually push them.
   queue.PushQueued();
 
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 2));
+  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 8));
+  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 6));
 
   // Pop them conventionally.
-  __ Pop(s2);
+  __ Pop(s5, s4, s3, s2);
   __ Pop(d1, d0);
-  __ Pop(w6, w5, w4);
+  __ Pop(w7, w6, w5, w4);
   __ Pop(x3, x2, x1, x0);
-
-  __ Mov(csp, __ StackPointer());
-  __ SetStackPointer(csp);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x1234000000000000, x0);
-  CHECK_EQUAL_64(0x1234000100010001, x1);
-  CHECK_EQUAL_64(0x1234000200020002, x2);
-  CHECK_EQUAL_64(0x1234000300030003, x3);
-
-  CHECK_EQUAL_32(0x12340004, w4);
-  CHECK_EQUAL_32(0x12340005, w5);
-  CHECK_EQUAL_32(0x12340006, w6);
-
-  CHECK_EQUAL_FP64(123400.0, d0);
-  CHECK_EQUAL_FP64(123401.0, d1);
-
-  CHECK_EQUAL_FP32(123402.0, s2);
-
-  TEARDOWN();
-}
-
-
-TEST(pop_queued) {
-  INIT_V8();
-  SETUP();
-
-  START();
-
-  CHECK(__ StackPointer().Is(csp));
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
-  MacroAssembler::PushPopQueue queue(&masm);
-
-  __ Mov(x0, 0x1234000000000000);
-  __ Mov(x1, 0x1234000100010001);
-  __ Mov(x2, 0x1234000200020002);
-  __ Mov(x3, 0x1234000300030003);
-  __ Mov(w4, 0x12340004);
-  __ Mov(w5, 0x12340005);
-  __ Mov(w6, 0x12340006);
-  __ Fmov(d0, 123400.0);
-  __ Fmov(d1, 123401.0);
-  __ Fmov(s2, 123402.0);
-
-  // Push registers conventionally.
-  __ Push(x0, x1, x2, x3);
-  __ Push(w4, w5, w6);
-  __ Push(d0, d1);
-  __ Push(s2);
-
-  // Queue up a pop.
-  queue.Queue(s2);
-
-  queue.Queue(d1);
-  queue.Queue(d0);
-
-  queue.Queue(w6);
-  queue.Queue(w5);
-  queue.Queue(w4);
-
-  queue.Queue(x3);
-  queue.Queue(x2);
-  queue.Queue(x1);
-  queue.Queue(x0);
-
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 2));
-
-  // Actually pop them.
-  queue.PopQueued();
-
-  __ Mov(csp, __ StackPointer());
-  __ SetStackPointer(csp);
 
   END();
 
@@ -13252,11 +12837,95 @@ TEST(pop_queued) {
   CHECK_EQUAL_64(0x0000000012340004, x4);
   CHECK_EQUAL_64(0x0000000012340005, x5);
   CHECK_EQUAL_64(0x0000000012340006, x6);
+  CHECK_EQUAL_64(0x0000000012340007, x7);
 
   CHECK_EQUAL_FP64(123400.0, d0);
   CHECK_EQUAL_FP64(123401.0, d1);
 
   CHECK_EQUAL_FP32(123402.0, s2);
+  CHECK_EQUAL_FP32(123403.0, s3);
+  CHECK_EQUAL_FP32(123404.0, s4);
+  CHECK_EQUAL_FP32(123405.0, s5);
+
+  TEARDOWN();
+}
+
+
+TEST(pop_queued) {
+  INIT_V8();
+  SETUP();
+
+  START();
+
+  MacroAssembler::PushPopQueue queue(&masm);
+
+  __ Mov(x0, 0x1234000000000000);
+  __ Mov(x1, 0x1234000100010001);
+  __ Mov(x2, 0x1234000200020002);
+  __ Mov(x3, 0x1234000300030003);
+  __ Mov(w4, 0x12340004);
+  __ Mov(w5, 0x12340005);
+  __ Mov(w6, 0x12340006);
+  __ Mov(w7, 0x12340007);
+  __ Fmov(d0, 123400.0);
+  __ Fmov(d1, 123401.0);
+  __ Fmov(s2, 123402.0);
+  __ Fmov(s3, 123403.0);
+  __ Fmov(s4, 123404.0);
+  __ Fmov(s5, 123405.0);
+
+  // Push registers conventionally.
+  __ Push(x0, x1, x2, x3);
+  __ Push(w4, w5, w6, w7);
+  __ Push(d0, d1);
+  __ Push(s2, s3, s4, s5);
+
+  // Queue up a pop.
+  queue.Queue(s5);
+  queue.Queue(s4);
+  queue.Queue(s3);
+  queue.Queue(s2);
+
+  queue.Queue(d1);
+  queue.Queue(d0);
+
+  queue.Queue(w7);
+  queue.Queue(w6);
+  queue.Queue(w5);
+  queue.Queue(w4);
+
+  queue.Queue(x3);
+  queue.Queue(x2);
+  queue.Queue(x1);
+  queue.Queue(x0);
+
+  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 8));
+  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 6));
+
+  // Actually pop them.
+  queue.PopQueued();
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x1234000000000000, x0);
+  CHECK_EQUAL_64(0x1234000100010001, x1);
+  CHECK_EQUAL_64(0x1234000200020002, x2);
+  CHECK_EQUAL_64(0x1234000300030003, x3);
+
+  CHECK_EQUAL_64(0x0000000012340004, x4);
+  CHECK_EQUAL_64(0x0000000012340005, x5);
+  CHECK_EQUAL_64(0x0000000012340006, x6);
+  CHECK_EQUAL_64(0x0000000012340007, x7);
+
+  CHECK_EQUAL_FP64(123400.0, d0);
+  CHECK_EQUAL_FP64(123401.0, d1);
+
+  CHECK_EQUAL_FP32(123402.0, s2);
+  CHECK_EQUAL_FP32(123403.0, s3);
+  CHECK_EQUAL_FP32(123404.0, s4);
+  CHECK_EQUAL_FP32(123405.0, s5);
 
   TEARDOWN();
 }
@@ -13273,9 +12942,6 @@ TEST(copy_slots_down) {
   START();
 
   // Test copying 12 slots down one slot.
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
   __ Mov(x1, ones);
   __ Mov(x2, twos);
   __ Mov(x3, threes);
@@ -13284,32 +12950,28 @@ TEST(copy_slots_down) {
   __ Push(x1, x2, x3, x4);
   __ Push(x1, x2, x1, x2);
   __ Push(x3, x4, x3, x4);
-  __ Push(xzr);
+  __ Push(xzr, xzr);
 
-  __ Mov(x5, 0);
-  __ Mov(x6, 1);
+  __ Mov(x5, 1);
+  __ Mov(x6, 2);
   __ Mov(x7, 12);
   __ CopySlots(x5, x6, x7);
 
-  __ Pop(x4, x5, x6, x7);
-  __ Pop(x8, x9, x10, x11);
-  __ Pop(x12, x13, x14, x15);
-  __ Drop(1);
+  __ Pop(xzr, x4, x5, x6);
+  __ Pop(x7, x8, x9, x10);
+  __ Pop(x11, x12, x13, x14);
+  __ Pop(x15, xzr);
 
   // Test copying one slot down one slot.
-  __ Push(x1, xzr, xzr);
+  __ Push(x1, xzr, xzr, xzr);
 
-  __ Mov(x1, 1);
-  __ Mov(x2, 2);
+  __ Mov(x1, 2);
+  __ Mov(x2, 3);
   __ Mov(x3, 1);
   __ CopySlots(x1, x2, x3);
 
-  __ Drop(1);
-  __ Pop(x0);
-  __ Drop(1);
-
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
+  __ Drop(2);
+  __ Pop(x0, xzr);
 
   END();
 
@@ -13345,9 +13007,6 @@ TEST(copy_slots_up) {
 
   START();
 
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
   __ Mov(x1, ones);
   __ Mov(x2, twos);
   __ Mov(x3, threes);
@@ -13360,8 +13019,7 @@ TEST(copy_slots_up) {
   __ Mov(x7, 1);
   __ CopySlots(x5, x6, x7);
 
-  __ Drop(1);
-  __ Pop(x10);
+  __ Pop(xzr, x10);
 
   // Test copying two slots to the next two slots higher in memory.
   __ Push(xzr, xzr);
@@ -13376,19 +13034,16 @@ TEST(copy_slots_up) {
   __ Pop(x11, x12);
 
   // Test copying three slots to the next three slots higher in memory.
-  __ Push(xzr, xzr, xzr);
-  __ Push(x1, x2, x3);
+  __ Push(xzr, xzr, xzr, x1);
+  __ Push(x2, x3);
 
   __ Mov(x5, 3);
   __ Mov(x6, 0);
   __ Mov(x7, 3);
   __ CopySlots(x5, x6, x7);
 
-  __ Drop(3);
-  __ Pop(x0, x1, x2);
-
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
+  __ Drop(2);
+  __ Pop(xzr, x0, x1, x2);
 
   END();
 
@@ -13415,16 +13070,13 @@ TEST(copy_double_words_downwards_even) {
 
   START();
 
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
   // Test copying 12 slots up one slot.
   __ Mov(x1, ones);
   __ Mov(x2, twos);
   __ Mov(x3, threes);
   __ Mov(x4, fours);
 
-  __ Push(xzr);
+  __ Push(xzr, xzr);
   __ Push(x1, x2, x3, x4);
   __ Push(x1, x2, x1, x2);
   __ Push(x3, x4, x3, x4);
@@ -13434,13 +13086,10 @@ TEST(copy_double_words_downwards_even) {
   __ Mov(x7, 12);
   __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
 
-  __ Drop(1);
-  __ Pop(x4, x5, x6, x7);
-  __ Pop(x8, x9, x10, x11);
-  __ Pop(x12, x13, x14, x15);
-
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
+  __ Pop(xzr, x4, x5, x6);
+  __ Pop(x7, x8, x9, x10);
+  __ Pop(x11, x12, x13, x14);
+  __ Pop(x15, xzr);
 
   END();
 
@@ -13476,9 +13125,6 @@ TEST(copy_double_words_downwards_odd) {
 
   START();
 
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
   // Test copying 13 slots up one slot.
   __ Mov(x1, ones);
   __ Mov(x2, twos);
@@ -13496,14 +13142,10 @@ TEST(copy_double_words_downwards_odd) {
   __ Mov(x7, 13);
   __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
 
-  __ Drop(1);
-  __ Pop(x4);
+  __ Pop(xzr, x4);
   __ Pop(x5, x6, x7, x8);
   __ Pop(x9, x10, x11, x12);
   __ Pop(x13, x14, x15, x16);
-
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
 
   END();
 
@@ -13541,9 +13183,6 @@ TEST(copy_noop) {
 
   START();
 
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
   __ Mov(x1, ones);
   __ Mov(x2, twos);
   __ Mov(x3, threes);
@@ -13571,9 +13210,6 @@ TEST(copy_noop) {
   __ Pop(x5, x6, x7, x8);
   __ Pop(x9, x10, x11, x12);
   __ Pop(x13, x14, x15, x16);
-
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
 
   END();
 
@@ -13613,13 +13249,13 @@ TEST(jump_both_smi) {
   START();
 
   __ Mov(x0, 0x5555555500000001UL);  // A pointer.
-  __ Mov(x1, 0xaaaaaaaa00000001UL);  // A pointer.
+  __ Mov(x1, 0xAAAAAAAA00000001UL);  // A pointer.
   __ Mov(x2, 0x1234567800000000UL);  // A smi.
   __ Mov(x3, 0x8765432100000000UL);  // A smi.
-  __ Mov(x4, 0xdead);
-  __ Mov(x5, 0xdead);
-  __ Mov(x6, 0xdead);
-  __ Mov(x7, 0xdead);
+  __ Mov(x4, 0xDEAD);
+  __ Mov(x5, 0xDEAD);
+  __ Mov(x6, 0xDEAD);
+  __ Mov(x7, 0xDEAD);
 
   __ JumpIfBothSmi(x0, x1, &cond_pass_00, &cond_fail_00);
   __ Bind(&return1);
@@ -13663,7 +13299,7 @@ TEST(jump_both_smi) {
   RUN();
 
   CHECK_EQUAL_64(0x5555555500000001UL, x0);
-  CHECK_EQUAL_64(0xaaaaaaaa00000001UL, x1);
+  CHECK_EQUAL_64(0xAAAAAAAA00000001UL, x1);
   CHECK_EQUAL_64(0x1234567800000000UL, x2);
   CHECK_EQUAL_64(0x8765432100000000UL, x3);
   CHECK_EQUAL_64(0, x4);
@@ -13686,13 +13322,13 @@ TEST(jump_either_smi) {
   START();
 
   __ Mov(x0, 0x5555555500000001UL);  // A pointer.
-  __ Mov(x1, 0xaaaaaaaa00000001UL);  // A pointer.
+  __ Mov(x1, 0xAAAAAAAA00000001UL);  // A pointer.
   __ Mov(x2, 0x1234567800000000UL);  // A smi.
   __ Mov(x3, 0x8765432100000000UL);  // A smi.
-  __ Mov(x4, 0xdead);
-  __ Mov(x5, 0xdead);
-  __ Mov(x6, 0xdead);
-  __ Mov(x7, 0xdead);
+  __ Mov(x4, 0xDEAD);
+  __ Mov(x5, 0xDEAD);
+  __ Mov(x6, 0xDEAD);
+  __ Mov(x7, 0xDEAD);
 
   __ JumpIfEitherSmi(x0, x1, &cond_pass_00, &cond_fail_00);
   __ Bind(&return1);
@@ -13736,7 +13372,7 @@ TEST(jump_either_smi) {
   RUN();
 
   CHECK_EQUAL_64(0x5555555500000001UL, x0);
-  CHECK_EQUAL_64(0xaaaaaaaa00000001UL, x1);
+  CHECK_EQUAL_64(0xAAAAAAAA00000001UL, x1);
   CHECK_EQUAL_64(0x1234567800000000UL, x2);
   CHECK_EQUAL_64(0x8765432100000000UL, x3);
   CHECK_EQUAL_64(0, x4);
@@ -14615,17 +14251,17 @@ TEST(printf) {
   __ Mov(x2, reinterpret_cast<uintptr_t>(test_substring));
 
   // Test the maximum number of arguments, and sign extension.
-  __ Mov(w3, 0xffffffff);
-  __ Mov(w4, 0xffffffff);
-  __ Mov(x5, 0xffffffffffffffff);
-  __ Mov(x6, 0xffffffffffffffff);
+  __ Mov(w3, 0xFFFFFFFF);
+  __ Mov(w4, 0xFFFFFFFF);
+  __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
+  __ Mov(x6, 0xFFFFFFFFFFFFFFFF);
   __ Fmov(s1, 1.234);
   __ Fmov(s2, 2.345);
   __ Fmov(d3, 3.456);
   __ Fmov(d4, 4.567);
 
   // Test printing callee-saved registers.
-  __ Mov(x28, 0x123456789abcdef);
+  __ Mov(x28, 0x123456789ABCDEF);
   __ Fmov(d10, 42.0);
 
   // Test with three arguments.
@@ -14656,16 +14292,6 @@ TEST(printf) {
   CHECK(csp.Is(__ StackPointer()));
   __ Printf("StackPointer(csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
             __ StackPointer(), __ StackPointer().W());
-
-  // Test with a different stack pointer.
-  const Register old_stack_pointer = __ StackPointer();
-  __ Mov(x29, old_stack_pointer);
-  __ SetStackPointer(x29);
-  // Print the stack pointer (not csp).
-  __ Printf("StackPointer(not csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
-            __ StackPointer(), __ StackPointer().W());
-  __ Mov(old_stack_pointer, __ StackPointer());
-  __ SetStackPointer(old_stack_pointer);
 
   // Test with three arguments.
   __ Printf("3=%u, 4=%u, 5=%u\n", x10, x11, x12);
@@ -14717,10 +14343,10 @@ TEST(printf_no_preserve) {
   __ Mov(x22, x0);
 
   // Test the maximum number of arguments, and sign extension.
-  __ Mov(w3, 0xffffffff);
-  __ Mov(w4, 0xffffffff);
-  __ Mov(x5, 0xffffffffffffffff);
-  __ Mov(x6, 0xffffffffffffffff);
+  __ Mov(w3, 0xFFFFFFFF);
+  __ Mov(w4, 0xFFFFFFFF);
+  __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
+  __ Mov(x6, 0xFFFFFFFFFFFFFFFF);
   __ PrintfNoPreserve("w3(uint32): %" PRIu32 "\nw4(int32): %" PRId32 "\n"
                       "x5(uint64): %" PRIu64 "\nx6(int64): %" PRId64 "\n",
                       w3, w4, x5, x6);
@@ -14734,7 +14360,7 @@ TEST(printf_no_preserve) {
   __ Mov(x24, x0);
 
   // Test printing callee-saved registers.
-  __ Mov(x28, 0x123456789abcdef);
+  __ Mov(x28, 0x123456789ABCDEF);
   __ PrintfNoPreserve("0x%" PRIx32 ", 0x%" PRIx64 "\n", w28, x28);
   __ Mov(x25, x0);
 
@@ -14742,33 +14368,21 @@ TEST(printf_no_preserve) {
   __ PrintfNoPreserve("%g\n", d10);
   __ Mov(x26, x0);
 
-  // Test with a different stack pointer.
-  const Register old_stack_pointer = __ StackPointer();
-  __ Mov(x29, old_stack_pointer);
-  __ SetStackPointer(x29);
-  // Print the stack pointer (not csp).
-  __ PrintfNoPreserve(
-      "StackPointer(not csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
-      __ StackPointer(), __ StackPointer().W());
-  __ Mov(x27, x0);
-  __ Mov(old_stack_pointer, __ StackPointer());
-  __ SetStackPointer(old_stack_pointer);
-
   // Test with three arguments.
   __ Mov(x3, 3);
   __ Mov(x4, 40);
   __ Mov(x5, 500);
   __ PrintfNoPreserve("3=%u, 4=%u, 5=%u\n", x3, x4, x5);
-  __ Mov(x28, x0);
+  __ Mov(x27, x0);
 
   // Mixed argument types.
-  __ Mov(w3, 0xffffffff);
+  __ Mov(w3, 0xFFFFFFFF);
   __ Fmov(s1, 1.234);
-  __ Mov(x5, 0xffffffffffffffff);
+  __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
   __ Fmov(d3, 3.456);
   __ PrintfNoPreserve("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n",
                       w3, s1, x5, d3);
-  __ Mov(x29, x0);
+  __ Mov(x28, x0);
 
   END();
   RUN();
@@ -14794,18 +14408,14 @@ TEST(printf_no_preserve) {
   // %e: 3.456000e+00
   // %E: 4.567000E+00
   CHECK_EQUAL_64(13 + 10 + 17 + 17, x24);
-  // 0x89abcdef, 0x123456789abcdef
+  // 0x89ABCDEF, 0x123456789ABCDEF
   CHECK_EQUAL_64(30, x25);
   // 42
   CHECK_EQUAL_64(3, x26);
-  // StackPointer(not csp): 0x00007fb037ae2370, 0x37ae2370
-  // Note: This is an example value, but the field width is fixed here so the
-  // string length is still predictable.
-  CHECK_EQUAL_64(54, x27);
   // 3=3, 4=40, 5=500
-  CHECK_EQUAL_64(17, x28);
+  CHECK_EQUAL_64(17, x27);
   // w3: 4294967295, s1: 1.234000, x5: 18446744073709551615, d3: 3.456000
-  CHECK_EQUAL_64(69, x29);
+  CHECK_EQUAL_64(69, x28);
 
   TEARDOWN();
 }
@@ -14824,18 +14434,18 @@ TEST(blr_lr) {
   __ Adr(lr, &target);
 
   __ Blr(lr);
-  __ Mov(x0, 0xdeadbeef);
+  __ Mov(x0, 0xDEADBEEF);
   __ B(&end);
 
   __ Bind(&target);
-  __ Mov(x0, 0xc001c0de);
+  __ Mov(x0, 0xC001C0DE);
 
   __ Bind(&end);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xc001c0de, x0);
+  CHECK_EQUAL_64(0xC001C0DE, x0);
 
   TEARDOWN();
 }
@@ -14904,13 +14514,13 @@ TEST(barriers) {
 TEST(process_nan_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = bit_cast<double>(0x7ff5555511111111);
-  double qn = bit_cast<double>(0x7ffaaaaa11111111);
+  double sn = bit_cast<double>(0x7FF5555511111111);
+  double qn = bit_cast<double>(0x7FFAAAAA11111111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = bit_cast<double>(0x7ffd555511111111);
+  double sn_proc = bit_cast<double>(0x7FFD555511111111);
   double qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -14980,13 +14590,13 @@ TEST(process_nan_double) {
 TEST(process_nan_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = bit_cast<float>(0x7f951111);
-  float qn = bit_cast<float>(0x7fea1111);
+  float sn = bit_cast<float>(0x7F951111);
+  float qn = bit_cast<float>(0x7FEA1111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = bit_cast<float>(0x7fd51111);
+  float sn_proc = bit_cast<float>(0x7FD51111);
   float qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -15090,18 +14700,18 @@ static void ProcessNaNsHelper(double n, double m, double expected) {
 TEST(process_nans_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = bit_cast<double>(0x7ff5555511111111);
-  double sm = bit_cast<double>(0x7ff5555522222222);
-  double qn = bit_cast<double>(0x7ffaaaaa11111111);
-  double qm = bit_cast<double>(0x7ffaaaaa22222222);
+  double sn = bit_cast<double>(0x7FF5555511111111);
+  double sm = bit_cast<double>(0x7FF5555522222222);
+  double qn = bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = bit_cast<double>(0x7FFAAAAA22222222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = bit_cast<double>(0x7ffd555511111111);
-  double sm_proc = bit_cast<double>(0x7ffd555522222222);
+  double sn_proc = bit_cast<double>(0x7FFD555511111111);
+  double sm_proc = bit_cast<double>(0x7FFD555522222222);
   double qn_proc = qn;
   double qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -15162,18 +14772,18 @@ static void ProcessNaNsHelper(float n, float m, float expected) {
 TEST(process_nans_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = bit_cast<float>(0x7f951111);
-  float sm = bit_cast<float>(0x7f952222);
-  float qn = bit_cast<float>(0x7fea1111);
-  float qm = bit_cast<float>(0x7fea2222);
+  float sn = bit_cast<float>(0x7F951111);
+  float sm = bit_cast<float>(0x7F952222);
+  float qn = bit_cast<float>(0x7FEA1111);
+  float qm = bit_cast<float>(0x7FEA2222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = bit_cast<float>(0x7fd51111);
-  float sm_proc = bit_cast<float>(0x7fd52222);
+  float sn_proc = bit_cast<float>(0x7FD51111);
+  float sm_proc = bit_cast<float>(0x7FD52222);
   float qn_proc = qn;
   float qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -15287,12 +14897,12 @@ static void DefaultNaNHelper(float n, float m, float a) {
 
 TEST(default_nan_float) {
   INIT_V8();
-  float sn = bit_cast<float>(0x7f951111);
-  float sm = bit_cast<float>(0x7f952222);
-  float sa = bit_cast<float>(0x7f95aaaa);
-  float qn = bit_cast<float>(0x7fea1111);
-  float qm = bit_cast<float>(0x7fea2222);
-  float qa = bit_cast<float>(0x7feaaaaa);
+  float sn = bit_cast<float>(0x7F951111);
+  float sm = bit_cast<float>(0x7F952222);
+  float sa = bit_cast<float>(0x7F95AAAA);
+  float qn = bit_cast<float>(0x7FEA1111);
+  float qm = bit_cast<float>(0x7FEA2222);
+  float qa = bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -15415,12 +15025,12 @@ static void DefaultNaNHelper(double n, double m, double a) {
 
 TEST(default_nan_double) {
   INIT_V8();
-  double sn = bit_cast<double>(0x7ff5555511111111);
-  double sm = bit_cast<double>(0x7ff5555522222222);
-  double sa = bit_cast<double>(0x7ff55555aaaaaaaa);
-  double qn = bit_cast<double>(0x7ffaaaaa11111111);
-  double qm = bit_cast<double>(0x7ffaaaaa22222222);
-  double qa = bit_cast<double>(0x7ffaaaaaaaaaaaaa);
+  double sn = bit_cast<double>(0x7FF5555511111111);
+  double sm = bit_cast<double>(0x7FF5555522222222);
+  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
+  double qn = bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));

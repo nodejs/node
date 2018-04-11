@@ -10,6 +10,7 @@
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 
@@ -103,8 +104,10 @@ class StreamTester {
 
     i::Handle<i::JSPromise> i_promise = v8::Utils::OpenHandle(*promise_);
 
-    stream_ = i_isolate->wasm_compilation_manager()->StartStreamingCompilation(
-        i_isolate, v8::Utils::OpenHandle(*context), i_promise);
+    stream_ = i_isolate->wasm_engine()
+                  ->compilation_manager()
+                  ->StartStreamingCompilation(
+                      i_isolate, v8::Utils::OpenHandle(*context), i_promise);
   }
 
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }
@@ -327,12 +330,12 @@ ZoneBuffer GetModuleWithInvalidSectionSize(Zone* zone) {
   ZoneBuffer buffer = GetValidModuleBytes(zone);
   // 9 == 4 (wasm magic) + 4 (version) + 1 (section code)
   uint8_t* section_size_address = const_cast<uint8_t*>(buffer.begin()) + 9;
-  // 0x808080800f is an invalid module size in leb encoding.
+  // 0x808080800F is an invalid module size in leb encoding.
   section_size_address[0] = 0x80;
   section_size_address[1] = 0x80;
   section_size_address[2] = 0x80;
   section_size_address[3] = 0x80;
-  section_size_address[4] = 0x0f;
+  section_size_address[4] = 0x0F;
   return buffer;
 }
 
@@ -871,6 +874,84 @@ STREAM_TEST(TestModuleWithZeroFunctions) {
   CHECK(tester.IsPromiseFulfilled());
 }
 
+STREAM_TEST(TestModuleWithMultipleFunctions) {
+  StreamTester tester;
+
+  uint8_t code[] = {
+      U32V_1(4),                  // body size
+      U32V_1(0),                  // locals count
+      kExprGetLocal, 0, kExprEnd  // body
+  };
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 3),                        // section size
+      U32V_1(3),                            // functions count
+      0,                                    // signature index
+      0,                                    // signature index
+      0,                                    // signature index
+      kCodeSectionCode,                     // section code
+      U32V_1(1 + arraysize(code) * 3),      // section size
+      U32V_1(3),                            // functions count
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.RunCompilerTasks();
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestModuleWithDataSection) {
+  StreamTester tester;
+
+  uint8_t code[] = {
+      U32V_1(4),                  // body size
+      U32V_1(0),                  // locals count
+      kExprGetLocal, 0, kExprEnd  // body
+  };
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 3),                        // section size
+      U32V_1(3),                            // functions count
+      0,                                    // signature index
+      0,                                    // signature index
+      0,                                    // signature index
+      kCodeSectionCode,                     // section code
+      U32V_1(1 + arraysize(code) * 3),      // section size
+      U32V_1(3),                            // functions count
+  };
+
+  const uint8_t data_section[] = {
+      kDataSectionCode,  // section code
+      U32V_1(1),         // section size
+      U32V_1(0),         // data segment count
+  };
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.RunCompilerTasks();
+  tester.OnBytesReceived(data_section, arraysize(data_section));
+  tester.RunCompilerTasks();
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
 // Test that all bytes arrive before doing any compilation. FinishStream is
 // called immediately.
 STREAM_TEST(TestModuleWithImportedFunction) {
@@ -892,6 +973,40 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   tester.RunCompilerTasks();
 
   CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestModuleWithErrorAfterDataSection) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 1),                        // section size
+      U32V_1(1),                            // functions count
+      0,                                    // signature index
+      kCodeSectionCode,                     // section code
+      U32V_1(6),                            // section size
+      U32V_1(1),                            // functions count
+      U32V_1(4),                            // body size
+      U32V_1(0),                            // locals count
+      kExprGetLocal,                        // some code
+      0,                                    // some code
+      kExprEnd,                             // some code
+      kDataSectionCode,                     // section code
+      U32V_1(1),                            // section size
+      U32V_1(0),                            // data segment count
+      kUnknownSectionCode,                  // section code
+      U32V_1(1),                            // invalid section size
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseRejected());
 }
 #undef STREAM_TEST
 

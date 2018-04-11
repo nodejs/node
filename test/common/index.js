@@ -611,20 +611,32 @@ exports.isAlive = function isAlive(pid) {
   }
 };
 
-function expectWarning(name, expectedMessages) {
+exports.noWarnCode = 'no_expected_warning_code';
+
+function expectWarning(name, expected) {
+  const map = new Map(expected);
   return exports.mustCall((warning) => {
     assert.strictEqual(warning.name, name);
-    assert.ok(expectedMessages.includes(warning.message),
+    assert.ok(map.has(warning.message),
               `unexpected error message: "${warning.message}"`);
+    const code = map.get(warning.message);
+    if (code === undefined) {
+      throw new Error('An error code must be specified or use ' +
+      'common.noWarnCode if there is no error code. The error  ' +
+      `code for this warning was ${warning.code}`);
+    }
+    if (code !== exports.noWarnCode) {
+      assert.strictEqual(warning.code, code);
+    }
     // Remove a warning message after it is seen so that we guarantee that we
     // get each message only once.
-    expectedMessages.splice(expectedMessages.indexOf(warning.message), 1);
-  }, expectedMessages.length);
+    map.delete(expected);
+  }, expected.length);
 }
 
-function expectWarningByName(name, expected) {
+function expectWarningByName(name, expected, code) {
   if (typeof expected === 'string') {
-    expected = [expected];
+    expected = [[expected, code]];
   }
   process.on('warning', expectWarning(name, expected));
 }
@@ -633,8 +645,15 @@ function expectWarningByMap(warningMap) {
   const catchWarning = {};
   Object.keys(warningMap).forEach((name) => {
     let expected = warningMap[name];
-    if (typeof expected === 'string') {
-      expected = [expected];
+    if (!Array.isArray(expected)) {
+      throw new Error('warningMap entries must be arrays consisting of two ' +
+      'entries: [message, warningCode]');
+    }
+    if (!(Array.isArray(expected[0]))) {
+      if (expected.length === 0) {
+        return;
+      }
+      expected = [[expected[0], expected[1]]];
     }
     catchWarning[name] = expectWarning(name, expected);
   });
@@ -644,9 +663,9 @@ function expectWarningByMap(warningMap) {
 // accepts a warning name and description or array of descriptions or a map
 // of warning names to description(s)
 // ensures a warning is generated for each name/description pair
-exports.expectWarning = function(nameOrMap, expected) {
+exports.expectWarning = function(nameOrMap, expected, code) {
   if (typeof nameOrMap === 'string') {
-    expectWarningByName(nameOrMap, expected);
+    expectWarningByName(nameOrMap, expected, code);
   } else {
     expectWarningByMap(nameOrMap);
   }
@@ -672,7 +691,9 @@ exports.expectsError = function expectsError(fn, settings, exact) {
     fn = undefined;
   }
   function innerFn(error) {
-    assert.strictEqual(error.code, settings.code);
+    const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
+    assert.strictEqual(descriptor.enumerable,
+                       false, 'The error message should be non-enumerable');
     if ('type' in settings) {
       const type = settings.type;
       if (type !== Error && !Error.isPrototypeOf(type)) {
@@ -686,6 +707,9 @@ exports.expectsError = function expectsError(fn, settings, exact) {
       }
       assert.strictEqual(typeName, type.name);
     }
+    if ('info' in settings) {
+      assert.deepStrictEqual(error.info, settings.info);
+    }
     if ('message' in settings) {
       const message = settings.message;
       if (typeof message === 'string') {
@@ -695,18 +719,16 @@ exports.expectsError = function expectsError(fn, settings, exact) {
                `${error.message} does not match ${message}`);
       }
     }
-    if ('name' in settings) {
-      assert.strictEqual(error.name, settings.name);
-    }
-    if (error.constructor.name === 'AssertionError') {
-      ['generatedMessage', 'actual', 'expected', 'operator'].forEach((key) => {
-        if (key in settings) {
-          const actual = error[key];
-          const expected = settings[key];
-          assert.strictEqual(actual, expected,
-                             `${key}: expected ${expected}, not ${actual}`);
-        }
-      });
+
+    // Check all error properties.
+    const keys = Object.keys(settings);
+    for (const key of keys) {
+      if (key === 'message' || key === 'type' || key === 'info')
+        continue;
+      const actual = error[key];
+      const expected = settings[key];
+      assert.strictEqual(actual, expected,
+                         `${key}: expected ${expected}, not ${actual}`);
     }
     return true;
   }

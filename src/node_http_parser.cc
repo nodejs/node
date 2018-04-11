@@ -525,6 +525,14 @@ class Parser : public AsyncWrap, public StreamListener {
   static const size_t kAllocBufferSize = 64 * 1024;
 
   uv_buf_t OnStreamAlloc(size_t suggested_size) override {
+    // For most types of streams, OnStreamRead will be immediately after
+    // OnStreamAlloc, and will consume all data, so using a static buffer for
+    // reading is more efficient. For other streams, just use the default
+    // allocator, which uses Malloc().
+    if (env()->http_parser_buffer_in_use())
+      return StreamListener::OnStreamAlloc(suggested_size);
+    env()->set_http_parser_buffer_in_use(true);
+
     if (env()->http_parser_buffer() == nullptr)
       env()->set_http_parser_buffer(new char[kAllocBufferSize]);
 
@@ -534,6 +542,15 @@ class Parser : public AsyncWrap, public StreamListener {
 
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override {
     HandleScope scope(env()->isolate());
+    // Once we’re done here, either indicate that the HTTP parser buffer
+    // is free for re-use, or free() the data if it didn’t come from there
+    // in the first place.
+    OnScopeLeave on_scope_leave([&]() {
+      if (buf.base == env()->http_parser_buffer())
+        env()->set_http_parser_buffer_in_use(false);
+      else
+        free(buf.base);
+    });
 
     if (nread < 0) {
       PassReadErrorToPreviousListener(nread);
@@ -711,10 +728,10 @@ const struct http_parser_settings Parser::settings = {
 };
 
 
-void InitHttpParser(Local<Object> target,
-                    Local<Value> unused,
-                    Local<Context> context,
-                    void* priv) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -761,4 +778,4 @@ void InitHttpParser(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(http_parser, node::InitHttpParser)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(http_parser, node::Initialize)

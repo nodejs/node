@@ -681,7 +681,7 @@ static void dumpUS(FILE* f, const UnicodeString& us) {
 #endif
 
 UBool
-NFRuleSet::parse(const UnicodeString& text, ParsePosition& pos, double upperBound, Formattable& result) const
+NFRuleSet::parse(const UnicodeString& text, ParsePosition& pos, double upperBound, uint32_t nonNumericalExecutedRuleMask, Formattable& result) const
 {
     // try matching each rule in the rule set against the text being
     // parsed.  Whichever one matches the most characters is the one
@@ -707,9 +707,12 @@ NFRuleSet::parse(const UnicodeString& text, ParsePosition& pos, double upperBoun
 #endif
     // Try each of the negative rules, fraction rules, infinity rules and NaN rules
     for (int i = 0; i < NON_NUMERICAL_RULE_LENGTH; i++) {
-        if (nonNumericalRules[i]) {
+        if (nonNumericalRules[i] && ((nonNumericalExecutedRuleMask >> i) & 1) == 0) {
+            // Mark this rule as being executed so that we don't try to execute it again.
+            nonNumericalExecutedRuleMask |= 1 << i;
+
             Formattable tempResult;
-            UBool success = nonNumericalRules[i]->doParse(text, workingPos, 0, upperBound, tempResult);
+            UBool success = nonNumericalRules[i]->doParse(text, workingPos, 0, upperBound, nonNumericalExecutedRuleMask, tempResult);
             if (success && (workingPos.getIndex() > highWaterMark.getIndex())) {
                 result = tempResult;
                 highWaterMark = workingPos;
@@ -748,7 +751,7 @@ NFRuleSet::parse(const UnicodeString& text, ParsePosition& pos, double upperBoun
                 continue;
             }
             Formattable tempResult;
-            UBool success = rules[i]->doParse(text, workingPos, fIsFractionRuleSet, upperBound, tempResult);
+            UBool success = rules[i]->doParse(text, workingPos, fIsFractionRuleSet, upperBound, nonNumericalExecutedRuleMask, tempResult);
             if (success && workingPos.getIndex() > highWaterMark.getIndex()) {
                 result = tempResult;
                 highWaterMark = workingPos;
