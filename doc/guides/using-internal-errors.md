@@ -116,13 +116,17 @@ special cases, they should only validate that the expected code is received
 and NOT validate the message.  This will reduce the amount of test change
 required when the message for an error changes.
 
+Please use [`common.expectsError()`][common.expectsError()] instead of
+`assert.throws()` to make your asserts.
+
 ```js
-assert.throws(() => {
+const common = require('../common');
+common.expectsError(() => {
   socket.bind();
-}, common.expectsError({
+}, {
   code: 'ERR_SOCKET_ALREADY_BOUND',
   type: Error
-}));
+});
 ```
 
 Avoid changing the format of the message after the error has been created.
@@ -143,3 +147,6 @@ Exposes all internal error classes to be used by Node.js APIs.
 * Returns: {string}
 
 Returns the formatted error message string for the given `key`.
+
+
+[common.expectsError()]: https://github.com/nodejs/node/blob/master/test/common/README.md#expectserrorfn-settings-exact
