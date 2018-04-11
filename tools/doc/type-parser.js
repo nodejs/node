@@ -107,7 +107,7 @@ const customTypesMap = {
   'Timeout': 'timers.html#timers_class_timeout',
   'Timer': 'timers.html#timers_timers',
 
-  'tls.SecureContext': '#tls_tls_createsecurecontext_options',
+  'tls.SecureContext': 'tls.html#tls_tls_createsecurecontext_options',
   'tls.Server': 'tls.html#tls_class_tls_server',
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
 
