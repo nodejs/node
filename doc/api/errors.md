@@ -1017,6 +1017,19 @@ When setting the priority for an HTTP/2 stream, the stream may be marked as
 a dependency for a parent stream. This error code is used when an attempt is
 made to mark a stream and dependent of itself.
 
+<a id="ERR_HTTP2_TRAILERS_ALREADY_SENT"></a>
+### ERR_HTTP2_TRAILERS_ALREADY_SENT
+
+Trailing headers have already been sent on the `Http2Stream`.
+
+<a id="ERR_HTTP2_TRAILERS_NOT_READY"></a>
+### ERR_HTTP2_TRAILERS_NOT_READY
+
+The `http2stream.sendTrailers()` method cannot be called until after the
+`'wantTrailers'` event is emitted on an `Http2Stream` object. The
+`'wantTrailers'` event will only be emitted if the `waitForTrailers` option
+is set for the `Http2Stream`.
+
 <a id="ERR_HTTP2_UNSUPPORTED_PROTOCOL"></a>
 ### ERR_HTTP2_UNSUPPORTED_PROTOCOL
 
