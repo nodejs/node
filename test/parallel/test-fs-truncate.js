@@ -179,7 +179,7 @@ function testFtruncate(cb) {
   process.on('exit', () => fs.closeSync(fd));
 
   ['', false, null, {}, []].forEach((input) => {
-    assert.throws(
+    common.expectsError(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
@@ -191,7 +191,7 @@ function testFtruncate(cb) {
   });
 
   [-1.5, 1.5].forEach((input) => {
-    assert.throws(
+    common.expectsError(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_OUT_OF_RANGE',
@@ -204,7 +204,7 @@ function testFtruncate(cb) {
 
   // 2 ** 31 = 2147483648
   [2147483648, -2147483649].forEach((input) => {
-    assert.throws(
+    common.expectsError(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_OUT_OF_RANGE',
@@ -234,7 +234,7 @@ function testFtruncate(cb) {
 
 ['', false, null, undefined, {}, []].forEach((input) => {
   ['ftruncate', 'ftruncateSync'].forEach((fnName) => {
-    assert.throws(
+    common.expectsError(
       () => fs[fnName](input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
