@@ -2617,8 +2617,8 @@ void Http2Session::Http2Ping::Send(uint8_t* payload) {
 }
 
 void Http2Session::Http2Ping::Done(bool ack, const uint8_t* payload) {
-  session_->statistics_.ping_rtt = (uv_hrtime() - startTime_);
-  double duration = (session_->statistics_.ping_rtt - startTime_) / 1e6;
+  session_->statistics_.ping_rtt = uv_hrtime() - startTime_;
+  double duration = session_->statistics_.ping_rtt / 1e6;
 
   Local<Value> buf = Undefined(env()->isolate());
   if (payload != nullptr) {
