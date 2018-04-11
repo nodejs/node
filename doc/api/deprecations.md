@@ -958,11 +958,11 @@ property to a string before assigning it to `process.env`.
 <a id="DEP0105"></a>
 ### DEP0105: decipher.finaltol
 
-Type: Runtime
+Type: End-of-Life
 
-`decipher.finaltol()` has never been documented and is currently an alias for
-[`decipher.final()`][]. In the future, this API will likely be removed, and it
-is recommended to use [`decipher.final()`][] instead.
+`decipher.finaltol()` has never been documented and was an alias for
+[`decipher.final()`][]. This API has been removed, and it is recommended to use
+[`decipher.final()`][] instead.
 
 <a id="DEP0106"></a>
 ### DEP0106: crypto.createCipher and crypto.createDecipher
