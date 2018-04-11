@@ -627,7 +627,7 @@ added: v1.6.0
 -->
 
 * `name` {string}
-* `value` {string|string[]}
+* `value` {any}
 
 Sets a single header value for headers object. If this header already exists in
 the to-be-sent headers, its value will be replaced. Use an array of strings
@@ -1229,7 +1229,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* `value` {string | string[]}
+* `value` {any}
 
 Sets a single header value for implicit headers. If this header already exists
 in the to-be-sent headers, its value will be replaced. Use an array of strings
