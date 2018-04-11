@@ -818,6 +818,7 @@ added: v7.6.0
   * `unicode` {boolean} `true` if Unicode characters appearing in the host
     component of the URL string should be encoded directly as opposed to being
     Punycode encoded. **Default:** `false`.
+* Returns: {string}
 
 Returns a customizable serialization of a URL String representation of a
 [WHATWG URL][] object.

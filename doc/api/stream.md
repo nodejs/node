@@ -462,6 +462,9 @@ See also: [`writable.cork()`][].
 <!-- YAML
 added: v9.3.0
 -->
+
+* {number}
+
 Return the value of `highWaterMark` passed when constructing this
 `Writable`.
 
@@ -1208,6 +1211,8 @@ added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
+
+* {AsyncIterator}
 
 Returns an [AsyncIterator][async-iterator] to fully consume the stream.
 

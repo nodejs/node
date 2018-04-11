@@ -1407,6 +1407,7 @@ deprecated: v0.11.13
 > Stability: 0 - Deprecated: Use [`tls.createSecureContext()`][] instead.
 
 - `details` {Object} Identical to [`tls.createSecureContext()`][].
+- Returns: {tls.SecureContext}
 
 The `crypto.createCredentials()` method is a deprecated function for creating
 and returning a `tls.SecureContext`. It should not be used. Replace it with

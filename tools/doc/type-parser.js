@@ -29,6 +29,8 @@ const customTypesMap = {
 
   'this': `${jsDocPrefix}Reference/Operators/this`,
 
+  'AsyncIterator': 'https://github.com/tc39/proposal-async-iteration',
+
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
   'Iterator':
@@ -105,6 +107,7 @@ const customTypesMap = {
   'Timeout': 'timers.html#timers_class_timeout',
   'Timer': 'timers.html#timers_timers',
 
+  'tls.SecureContext': 'tls.html#tls_tls_createsecurecontext_options',
   'tls.Server': 'tls.html#tls_class_tls_server',
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
 
