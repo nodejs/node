@@ -1101,7 +1101,8 @@ def configure_openssl(o):
   ('llvm_version' in variables and variables['llvm_version'] >= '3.3') or \
   ('nasm_version' in variables and variables['nasm_version'] >= '2.10')
 
-  if not openssl110_asm_supported and variables['openssl_no_asm'] == 0:
+  if not options.without_ssl and not openssl110_asm_supported and \
+	  variables['openssl_no_asm'] == 0:
     warn('''openssl_no_asm is enabled due to missed or old assembler.
             Please refer BUILDING.md''')
     variables['openssl_no_asm'] = 1
