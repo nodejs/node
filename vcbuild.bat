@@ -52,6 +52,7 @@ set http2_debug=
 set nghttp2_debug=
 set link_module=
 set no_cctest=
+set openssl_no_asm=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -117,6 +118,7 @@ if /i "%1"=="debug-http2"   set debug_http2=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
 if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
+if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -161,6 +163,7 @@ if defined link_module      set configure_flags=%configure_flags% %link_module%
 if defined i18n_arg         set configure_flags=%configure_flags% --with-intl=%i18n_arg%
 if defined config_flags     set configure_flags=%configure_flags% %config_flags%
 if defined target_arch      set configure_flags=%configure_flags% --dest-cpu=%target_arch%
+if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
@@ -170,8 +173,8 @@ if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
 
-call tools\msvs\find_nasm.cmd
-if errorlevel 1 echo Could not find NASM, it will not be used.
+if not defined openssl_no_asm call tools\msvs\find_nasm.cmd
+if errorlevel 1 echo Could not find NASM, install it or build with openssl-no-asm. See BUILDING.md.
 
 call :getnodeversion || exit /b 1
 
@@ -547,7 +550,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
