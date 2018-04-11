@@ -56,8 +56,9 @@ namespace internal {
   V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  \
   V(r8)  V(r9)  V(r10) V(fp)  V(ip)  V(sp)  V(lr)  V(pc)
 
-#define ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  V(r8)
+#define ALLOCATABLE_GENERAL_REGISTERS(V)                  \
+  V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  \
+  V(r8)  V(r9)
 
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
@@ -184,6 +185,17 @@ enum SwVfpRegisterCode {
       kSwVfpAfterLast
 };
 
+// Representation of a list of non-overlapping VFP registers. This list
+// represents the data layout of VFP registers as a bitfield:
+//   S registers cover 1 bit
+//   D registers cover 2 bits
+//   Q registers cover 4 bits
+//
+// This way, we make sure no registers in the list ever overlap. However, a list
+// may represent multiple different sets of registers,
+// e.g. [d0 s2 s3] <=> [s0 s1 d1].
+typedef uint64_t VfpRegList;
+
 // Single word VFP register.
 class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
  public:
@@ -195,6 +207,11 @@ class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
     *vm = reg_code >> 1;
   }
   void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // Each bit in the list corresponds to a S register.
+    return uint64_t{0x1} << code();
+  }
 
  private:
   friend class RegisterBase;
@@ -217,10 +234,6 @@ enum DoubleRegisterCode {
 // Double word VFP register.
 class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
  public:
-  // A few double registers are reserved: one as a scratch register and one to
-  // hold 0.0, that does not fit in the immediate field of vmov instructions.
-  //  d14: 0.0
-  //  d15: scratch register.
   static constexpr int kSizeInBytes = 8;
 
   inline static int NumRegisters();
@@ -231,6 +244,11 @@ class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
     *vm = reg_code & 0x0F;
   }
   void split_code(int* vm, int* m) const { split_code(code(), vm, m); }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // A D register overlaps two S registers.
+    return uint64_t{0x3} << (code() * 2);
+  }
 
  private:
   friend class RegisterBase;
@@ -254,6 +272,11 @@ class LowDwVfpRegister
   SwVfpRegister low() const { return SwVfpRegister::from_code(code() * 2); }
   SwVfpRegister high() const {
     return SwVfpRegister::from_code(code() * 2 + 1);
+  }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // A D register overlaps two S registers.
+    return uint64_t{0x3} << (code() * 2);
   }
 
  private:
@@ -281,6 +304,11 @@ class QwNeonRegister : public RegisterBase<QwNeonRegister, kSimd128AfterLast> {
   DwVfpRegister low() const { return DwVfpRegister::from_code(code() * 2); }
   DwVfpRegister high() const {
     return DwVfpRegister::from_code(code() * 2 + 1);
+  }
+  VfpRegList ToVfpRegList() const {
+    DCHECK(is_valid());
+    // A Q register overlaps four S registers.
+    return uint64_t{0xf} << (code() * 4);
   }
 
  private:
@@ -334,12 +362,6 @@ SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
 constexpr LowDwVfpRegister kFirstCalleeSavedDoubleReg = d8;
 constexpr LowDwVfpRegister kLastCalleeSavedDoubleReg = d15;
 constexpr LowDwVfpRegister kDoubleRegZero  = d13;
-constexpr LowDwVfpRegister kScratchDoubleReg = d14;
-// This scratch q-register aliases d14 (kScratchDoubleReg) and d15, but is only
-// used if NEON is supported, which implies VFP32DREGS. When there are only 16
-// d-registers, d15 is still allocatable.
-constexpr QwNeonRegister kScratchQuadReg = q7;
-constexpr LowDwVfpRegister kScratchDoubleReg2 = d15;
 
 constexpr CRegister no_creg = CRegister::no_reg();
 
@@ -376,7 +398,7 @@ class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(int32_t immediate,
-         RelocInfo::Mode rmode = RelocInfo::NONE32));
+                          RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(static Operand Zero());
   INLINE(explicit Operand(const ExternalReference& f));
   explicit Operand(Handle<HeapObject> handle);
@@ -651,7 +673,7 @@ class Assembler : public AssemblerBase {
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Address constant_pool, Address target,
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
@@ -665,12 +687,11 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Isolate* isolate, Address constant_pool_entry, Code* code,
-      Address target);
+      Address constant_pool_entry, Code* code, Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Here we are patching the address in the constant pool, not the actual call
@@ -685,6 +706,9 @@ class Assembler : public AssemblerBase {
   // register.
   static constexpr int kPcLoadDelta = 8;
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+  VfpRegList* GetScratchVfpRegisterList() {
+    return &scratch_vfp_register_list_;
+  }
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -717,6 +741,8 @@ class Assembler : public AssemblerBase {
 
   void and_(Register dst, Register src1, const Operand& src2,
             SBit s = LeaveCC, Condition cond = al);
+  void and_(Register dst, Register src1, Register src2, SBit s = LeaveCC,
+            Condition cond = al);
 
   void eor(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -935,6 +961,9 @@ class Assembler : public AssemblerBase {
   void dmb(BarrierOption option);
   void dsb(BarrierOption option);
   void isb(BarrierOption option);
+
+  // Conditional speculation barrier.
+  void csdb();
 
   // Coprocessor instructions
 
@@ -1655,6 +1684,7 @@ class Assembler : public AssemblerBase {
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
+  VfpRegList scratch_vfp_register_list_;
 
  private:
   // Avoid overflows for displacements etc.
@@ -1732,6 +1762,7 @@ class Assembler : public AssemblerBase {
   friend class BlockConstPoolScope;
   friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;
+  friend class UseScratchRegisterScope;
 
   // The following functions help with avoiding allocations of embedded heap
   // objects during the code assembly phase. {RequestHeapObject} records the
@@ -1747,8 +1778,6 @@ class Assembler : public AssemblerBase {
   std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
-constexpr int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
-
 class EnsureSpace BASE_EMBEDDED {
  public:
   INLINE(explicit EnsureSpace(Assembler* assembler));
@@ -1760,7 +1789,6 @@ class PatchingAssembler : public Assembler {
   ~PatchingAssembler();
 
   void Emit(Address addr);
-  void FlushICache(Isolate* isolate);
 };
 
 // This scope utility allows scratch registers to be managed safely. The
@@ -1779,12 +1807,38 @@ class UseScratchRegisterScope {
 
   // Take a register from the list and return it.
   Register Acquire();
+  SwVfpRegister AcquireS() { return AcquireVfp<SwVfpRegister>(); }
+  LowDwVfpRegister AcquireLowD() { return AcquireVfp<LowDwVfpRegister>(); }
+  DwVfpRegister AcquireD() {
+    DwVfpRegister reg = AcquireVfp<DwVfpRegister>();
+    DCHECK(assembler_->VfpRegisterIsAvailable(reg));
+    return reg;
+  }
+  QwNeonRegister AcquireQ() {
+    QwNeonRegister reg = AcquireVfp<QwNeonRegister>();
+    DCHECK(assembler_->VfpRegisterIsAvailable(reg));
+    return reg;
+  }
 
  private:
-  // Currently available scratch registers.
-  RegList* available_;
+  friend class Assembler;
+  friend class TurboAssembler;
+
+  // Check if we have registers available to acquire.
+  // These methods are kept private intentionally to restrict their usage to the
+  // assemblers. Choosing to emit a difference instruction sequence depending on
+  // the availability of scratch registers is generally their job.
+  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  template <typename T>
+  bool CanAcquireVfp() const;
+
+  template <typename T>
+  T AcquireVfp();
+
+  Assembler* assembler_;
   // Available scratch registers at the start of this scope.
   RegList old_available_;
+  VfpRegList old_available_vfp_;
 };
 
 }  // namespace internal

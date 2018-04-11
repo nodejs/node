@@ -14,20 +14,23 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = r2;
-const Register kReturnRegister1 = r3;
-const Register kReturnRegister2 = r4;
-const Register kJSFunctionRegister = r3;
-const Register kContextRegister = r13;
-const Register kAllocateSizeRegister = r3;
-const Register kInterpreterAccumulatorRegister = r2;
-const Register kInterpreterBytecodeOffsetRegister = r6;
-const Register kInterpreterBytecodeArrayRegister = r7;
-const Register kInterpreterDispatchTableRegister = r8;
-const Register kJavaScriptCallArgCountRegister = r2;
-const Register kJavaScriptCallNewTargetRegister = r5;
-const Register kRuntimeCallFunctionRegister = r3;
-const Register kRuntimeCallArgCountRegister = r2;
+constexpr Register kReturnRegister0 = r2;
+constexpr Register kReturnRegister1 = r3;
+constexpr Register kReturnRegister2 = r4;
+constexpr Register kJSFunctionRegister = r3;
+constexpr Register kContextRegister = r13;
+constexpr Register kAllocateSizeRegister = r3;
+constexpr Register kSpeculationPoisonRegister = r9;
+constexpr Register kInterpreterAccumulatorRegister = r2;
+constexpr Register kInterpreterBytecodeOffsetRegister = r6;
+constexpr Register kInterpreterBytecodeArrayRegister = r7;
+constexpr Register kInterpreterDispatchTableRegister = r8;
+constexpr Register kJavaScriptCallArgCountRegister = r2;
+constexpr Register kJavaScriptCallNewTargetRegister = r5;
+constexpr Register kJavaScriptCallCodeStartRegister = r4;
+constexpr Register kOffHeapTrampolineRegister = ip;
+constexpr Register kRuntimeCallFunctionRegister = r3;
+constexpr Register kRuntimeCallArgCountRegister = r2;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -1001,6 +1004,8 @@ class TurboAssembler : public Assembler {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
+  void ResetSpeculationPoisonRegister();
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
@@ -1082,6 +1087,9 @@ class MacroAssembler : public TurboAssembler {
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
 
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
+
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {
     CompareRoot(with, index);
@@ -1137,10 +1145,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, InvokeFlag flag);
 
   void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
   // Frame restart support

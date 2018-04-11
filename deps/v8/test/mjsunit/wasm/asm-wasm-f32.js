@@ -200,23 +200,8 @@ var inputs = [
 ];
 
 var funcs = [
-  f32_add,
-  f32_sub,
-  f32_mul,
-  f32_div,
-  f32_ceil,
-  f32_floor,
-// TODO(bradnelson) f32_sqrt,
-// TODO(bradnelson) f32_abs,
-// TODO(bradnelson) f32_min is wrong for -0
-// TODO(bradnelson) f32_max is wrong for -0
-  f32_eq,
-  f32_ne,
-  f32_lt,
-  f32_lteq,
-  f32_gt,
-  f32_gteq,
-  f32_neg,
+  f32_add, f32_sub, f32_mul, f32_div, f32_ceil, f32_floor, f32_sqrt, f32_abs,
+  f32_min, f32_max, f32_eq, f32_ne, f32_lt, f32_lteq, f32_gt, f32_gteq, f32_neg
 ];
 
 (function () {

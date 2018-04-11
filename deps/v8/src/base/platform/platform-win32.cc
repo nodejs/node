@@ -829,15 +829,14 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
     // base will be nullptr.
     if (base != nullptr) break;
   }
-  DCHECK_EQ(base, aligned_base);
+  DCHECK_IMPLIES(base, base == aligned_base);
   return reinterpret_cast<void*>(base);
 }
 
 // static
 bool OS::Free(void* address, const size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
-  // TODO(bbudge) Add DCHECK_EQ(0, size % AllocatePageSize()) when callers
-  // pass the correct size on Windows.
+  DCHECK_EQ(0, size % AllocatePageSize());
   USE(size);
   return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
@@ -872,6 +871,10 @@ void OS::Sleep(TimeDelta interval) {
 
 
 void OS::Abort() {
+  // Before aborting, make sure to flush output buffers.
+  fflush(stdout);
+  fflush(stderr);
+
   if (g_hard_abort) {
     V8_IMMEDIATE_CRASH();
   }

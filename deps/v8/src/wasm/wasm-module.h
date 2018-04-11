@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_MODULE_H_
-#define V8_WASM_MODULE_H_
+#ifndef V8_WASM_WASM_MODULE_H_
+#define V8_WASM_WASM_MODULE_H_
 
 #include <memory>
 
@@ -275,7 +275,7 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
 Handle<Object> GetOrCreateIndirectCallWrapper(
     Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
-    WasmCodeWrapper wasm_code, uint32_t index, FunctionSig* sig);
+    WasmCodeWrapper wasm_code, uint32_t func_index, FunctionSig* sig);
 
 void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
                                               Handle<FixedArray> code_table);
@@ -323,4 +323,4 @@ class TruncatedUserString {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_MODULE_H_
+#endif  // V8_WASM_WASM_MODULE_H_

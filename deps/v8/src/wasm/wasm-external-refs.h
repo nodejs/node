@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#ifndef WASM_EXTERNAL_REFS_H
-#define WASM_EXTERNAL_REFS_H
+#ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
+#define V8_WASM_WASM_EXTERNAL_REFS_H_
 
 namespace v8 {
 namespace internal {
@@ -77,4 +77,5 @@ void call_trap_callback_for_testing();
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-#endif
+
+#endif  // V8_WASM_WASM_EXTERNAL_REFS_H_

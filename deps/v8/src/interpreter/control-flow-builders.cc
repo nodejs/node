@@ -47,10 +47,6 @@ void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
 
 LoopBuilder::~LoopBuilder() {
   DCHECK(continue_labels_.empty() || continue_labels_.is_bound());
-  // Restore the parent jump table.
-  if (generator_jump_table_location_ != nullptr) {
-    *generator_jump_table_location_ = parent_generator_jump_table_;
-  }
 }
 
 void LoopBuilder::LoopHeader() {
@@ -60,26 +56,6 @@ void LoopBuilder::LoopHeader() {
   // and misplaced between the headers.
   DCHECK(break_labels_.empty() && continue_labels_.empty());
   builder()->Bind(&loop_header_);
-}
-
-void LoopBuilder::LoopHeaderInGenerator(
-    BytecodeJumpTable** generator_jump_table, int first_resume_id,
-    int resume_count) {
-  // Bind all the resume points that are inside the loop to be at the loop
-  // header.
-  for (int id = first_resume_id; id < first_resume_id + resume_count; ++id) {
-    builder()->Bind(*generator_jump_table, id);
-  }
-
-  // Create the loop header.
-  LoopHeader();
-
-  // Create a new jump table for after the loop header for only these
-  // resume points.
-  generator_jump_table_location_ = generator_jump_table;
-  parent_generator_jump_table_ = *generator_jump_table;
-  *generator_jump_table =
-      builder()->AllocateJumpTable(resume_count, first_resume_id);
 }
 
 void LoopBuilder::LoopBody() {

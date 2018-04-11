@@ -14,6 +14,8 @@ namespace compiler {
     if (FLAG_trace_turbo_jt) PrintF(__VA_ARGS__); \
   } while (false)
 
+namespace {
+
 struct JumpThreadingState {
   bool forwarded;
   ZoneVector<RpoNumber>& result;
@@ -53,6 +55,19 @@ struct JumpThreadingState {
   RpoNumber onstack() { return RpoNumber::FromInt(-2); }
 };
 
+bool IsBlockWithBranchPoisoning(InstructionSequence* code,
+                                InstructionBlock* block) {
+  if (block->PredecessorCount() != 1) return false;
+  RpoNumber pred_rpo = (block->predecessors())[0];
+  const InstructionBlock* pred = code->InstructionBlockAt(pred_rpo);
+  if (pred->code_start() == pred->code_end()) return false;
+  Instruction* instr = code->InstructionAt(pred->code_end() - 1);
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  return mode == kFlags_branch_and_poison;
+}
+
+}  // namespace
+
 bool JumpThreading::ComputeForwarding(Zone* local_zone,
                                       ZoneVector<RpoNumber>& result,
                                       InstructionSequence* code,
@@ -72,46 +87,48 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
       // Process the instructions in a block up to a non-empty instruction.
       TRACE("jt [%d] B%d\n", static_cast<int>(stack.size()),
             block->rpo_number().ToInt());
-      bool fallthru = true;
       RpoNumber fw = block->rpo_number();
-      for (int i = block->code_start(); i < block->code_end(); ++i) {
-        Instruction* instr = code->InstructionAt(i);
-        if (!instr->AreMovesRedundant()) {
-          // can't skip instructions with non redundant moves.
-          TRACE("  parallel move\n");
-          fallthru = false;
-        } else if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
-          // can't skip instructions with flags continuations.
-          TRACE("  flags\n");
-          fallthru = false;
-        } else if (instr->IsNop()) {
-          // skip nops.
-          TRACE("  nop\n");
-          continue;
-        } else if (instr->arch_opcode() == kArchJmp) {
-          // try to forward the jump instruction.
-          TRACE("  jmp\n");
-          // if this block deconstructs the frame, we can't forward it.
-          // TODO(mtrofin): we can still forward if we end up building
-          // the frame at start. So we should move the decision of whether
-          // to build a frame or not in the register allocator, and trickle it
-          // here and to the code generator.
-          if (frame_at_start ||
-              !(block->must_deconstruct_frame() ||
-                block->must_construct_frame())) {
-            fw = code->InputRpo(instr, 0);
+      if (!IsBlockWithBranchPoisoning(code, block)) {
+        bool fallthru = true;
+        for (int i = block->code_start(); i < block->code_end(); ++i) {
+          Instruction* instr = code->InstructionAt(i);
+          if (!instr->AreMovesRedundant()) {
+            // can't skip instructions with non redundant moves.
+            TRACE("  parallel move\n");
+            fallthru = false;
+          } else if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
+            // can't skip instructions with flags continuations.
+            TRACE("  flags\n");
+            fallthru = false;
+          } else if (instr->IsNop()) {
+            // skip nops.
+            TRACE("  nop\n");
+            continue;
+          } else if (instr->arch_opcode() == kArchJmp) {
+            // try to forward the jump instruction.
+            TRACE("  jmp\n");
+            // if this block deconstructs the frame, we can't forward it.
+            // TODO(mtrofin): we can still forward if we end up building
+            // the frame at start. So we should move the decision of whether
+            // to build a frame or not in the register allocator, and trickle it
+            // here and to the code generator.
+            if (frame_at_start || !(block->must_deconstruct_frame() ||
+                                    block->must_construct_frame())) {
+              fw = code->InputRpo(instr, 0);
+            }
+            fallthru = false;
+          } else {
+            // can't skip other instructions.
+            TRACE("  other\n");
+            fallthru = false;
           }
-          fallthru = false;
-        } else {
-          // can't skip other instructions.
-          TRACE("  other\n");
-          fallthru = false;
+          break;
         }
-        break;
-      }
-      if (fallthru) {
-        int next = 1 + block->rpo_number().ToInt();
-        if (next < code->InstructionBlockCount()) fw = RpoNumber::FromInt(next);
+        if (fallthru) {
+          int next = 1 + block->rpo_number().ToInt();
+          if (next < code->InstructionBlockCount())
+            fw = RpoNumber::FromInt(next);
+        }
       }
       state.Forward(fw);
     }
@@ -155,7 +172,8 @@ void JumpThreading::ApplyForwarding(ZoneVector<RpoNumber>& result,
     bool fallthru = true;
     for (int i = block->code_start(); i < block->code_end(); ++i) {
       Instruction* instr = code->InstructionAt(i);
-      if (FlagsModeField::decode(instr->opcode()) == kFlags_branch) {
+      FlagsMode mode = FlagsModeField::decode(instr->opcode());
+      if (mode == kFlags_branch || mode == kFlags_branch_and_poison) {
         fallthru = false;  // branches don't fall through to the next block.
       } else if (instr->arch_opcode() == kArchJmp) {
         if (skip[block_num]) {

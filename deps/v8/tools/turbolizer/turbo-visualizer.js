@@ -65,18 +65,15 @@ class Snapper {
   }
 
   setDisassemblyExpanded(newState) {
-    console.log(newState)
     if (this.disassemblyExpand.classed("invisible") === newState) return;
     this.disassemblyExpandUpdate(newState);
     let resizer = this.resizer;
     if (newState) {
       resizer.sep_right = resizer.sep_right_snap;
       resizer.sep_right_snap = resizer.client_width;
-      console.log("set expand")
     } else {
       resizer.sep_right_snap = resizer.sep_right;
       resizer.sep_right = resizer.client_width;
-      console.log("set collapse")
     }
     resizer.updatePanes();
   }

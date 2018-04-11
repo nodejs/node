@@ -187,6 +187,7 @@ class Simulator : public SimulatorBase {
   static void SetRedirectInstruction(Instruction* instruction);
 
   // ICache checking.
+  static bool ICacheMatch(void* one, void* two);
   static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size);
 
@@ -424,9 +425,6 @@ class Simulator : public SimulatorBase {
 
   // Debugger input.
   char* last_debugger_input_;
-
-  // Icache simulation
-  base::CustomMatcherHashMap* i_cache_;
 
   // Registered breakpoints.
   Instruction* break_pc_;

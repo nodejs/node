@@ -149,7 +149,8 @@ Object* PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
     JSObject::ValidateElements(*object);
   } else if (object->HasFixedTypedArrayElements()) {
     // Typed arrays cannot have holes or undefined elements.
-    return Smi::FromInt(FixedArrayBase::cast(object->elements())->length());
+    int array_length = FixedArrayBase::cast(object->elements())->length();
+    return Smi::FromInt(Min(limit, static_cast<uint32_t>(array_length)));
   } else if (!object->HasDoubleElements()) {
     JSObject::EnsureWritableFastElements(object);
   }
@@ -390,7 +391,7 @@ RUNTIME_FUNCTION(Runtime_TrySliceSimpleNonFastElements) {
   // implementation.
   if (receiver->IsJSArray()) {
     // This "fastish" path must make sure the destination array is a JSArray.
-    if (!isolate->IsArraySpeciesLookupChainIntact() ||
+    if (!isolate->IsSpeciesLookupChainIntact() ||
         !JSArray::cast(*receiver)->HasArrayPrototype(isolate)) {
       return Smi::FromInt(0);
     }
@@ -532,17 +533,15 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   return *array;
 }
 
-
-// GrowArrayElements returns a sentinel Smi if the object was normalized.
+// GrowArrayElements returns a sentinel Smi if the object was normalized or if
+// the key is negative.
 RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_NUMBER_CHECKED(int, key, Int32, args[1]);
 
-  if (key < 0) {
-    return object->elements();
-  }
+  if (key < 0) return Smi::kZero;
 
   uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
   uint32_t index = static_cast<uint32_t>(key);
@@ -553,7 +552,6 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     }
   }
 
-  // On success, return the fixed array elements.
   return object->elements();
 }
 

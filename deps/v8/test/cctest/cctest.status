@@ -85,6 +85,7 @@
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/NativeAccessorUninitializedIC': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
+  'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(7202). The test is flaky.
@@ -172,10 +173,6 @@
 ['arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
   'test-multiple-return/*': [SKIP],
 }],
-# TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
-['arch == mips or arch == mips64 or arch == mipsel or arch == mips64el or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
-  'test-multiple-return/ReturnLastValue*': [SKIP],
-}],
 ##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
@@ -197,9 +194,6 @@
   'test-cpu-profiler/TickEvents': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
-
-  # BUG(chromium:794911).
-  'test-cpu-profiler/TracingCpuProfiler': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -322,12 +316,58 @@
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
-['arch == mips or arch == mipsel or arch == mips64 or arch == mips64el', {
-  # For now skip wasm SIMD tests that fail when MSA instr. extension is not
-  # available (currently simd-scalar-lowering mechanism doesn't work properly
-  # for all SIMD operations)
-  'test-run-wasm-simd/*': [SKIP],
-}],  # 'arch == mips or arch == mipsel or arch == mips64 or arch == mips64el'
+['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips', {
+  # Skip tests that fail on MIPS architectures which don't support SIMD,
+  # because lowering mechanism doesn't work properly
+  'test-run-wasm-simd/RunWasm_F32x4RecipApprox_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_F32x4RecipSqrtApprox_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_I32x4ConvertI16x8_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_I16x8ConvertI8x16_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_I16x8ConvertI32x4_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_I8x16ConvertI16x8_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4Select_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8Select_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16Select_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4NonCanonicalSelect_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8NonCanonicalSelect_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16NonCanonicalSelect_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_I16x8AddHoriz_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_F32x4AddHoriz_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4Dup_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4ZipLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4ZipRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4UnzipLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4UnzipRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4TransposeLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4TransposeRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x2Reverse_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4Irregular_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8Dup_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8ZipLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8ZipRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8UnzipLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8UnzipRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8TransposeLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8TransposeRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x4Reverse_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x2Reverse_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8Irregular_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16Dup_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16ZipLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16ZipRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16UnzipLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16UnzipRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16TransposeLeft_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16TransposeRight_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x8Reverse_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x4Reverse_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x2Reverse_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16Irregular_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16Concat_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_ReductionTest4_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_ReductionTest8_compiled': [SKIP],
+  'test-run-wasm-simd/RunWasm_ReductionTest16_compiled': [SKIP],
+}],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
 ['arch == android_arm or arch == android_ia32', {

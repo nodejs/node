@@ -24,17 +24,16 @@ class ModuleInfoEntry;
 class String;
 class Zone;
 
-// A Module object is a mapping from export names to cells
-// This is still very much in flux.
+// The runtime representation of an ECMAScript module.
 class Module : public Struct {
  public:
   DECL_CAST(Module)
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 
-  // The code representing this Module, or an abstraction thereof.
-  // This is either a SharedFunctionInfo or a JSFunction or a ModuleInfo
-  // depending on whether the module has been instantiated and evaluated.  See
+  // The code representing this module, or an abstraction thereof.
+  // This is either a SharedFunctionInfo, a JSFunction, a JSGeneratorObject, or
+  // a ModuleInfo, depending on the state (status) the module is in. See
   // Module::ModuleVerify() for the precise invariant.
   DECL_ACCESSORS(code, Object)
 

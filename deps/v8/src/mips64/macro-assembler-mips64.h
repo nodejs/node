@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
-#define V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
+#ifndef V8_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
+#define V8_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
 
 #include "src/assembler.h"
 #include "src/globals.h"
@@ -19,12 +19,15 @@ constexpr Register kReturnRegister2 = a0;
 constexpr Register kJSFunctionRegister = a1;
 constexpr Register kContextRegister = s7;
 constexpr Register kAllocateSizeRegister = a0;
+constexpr Register kSpeculationPoisonRegister = a7;
 constexpr Register kInterpreterAccumulatorRegister = v0;
 constexpr Register kInterpreterBytecodeOffsetRegister = t0;
 constexpr Register kInterpreterBytecodeArrayRegister = t1;
 constexpr Register kInterpreterDispatchTableRegister = t2;
 constexpr Register kJavaScriptCallArgCountRegister = a0;
+constexpr Register kJavaScriptCallCodeStartRegister = a2;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
+constexpr Register kOffHeapTrampolineRegister = at;
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 
@@ -601,6 +604,10 @@ class TurboAssembler : public Assembler {
   void Movf(Register rd, Register rs, uint16_t cc = 0);
 
   void Clz(Register rd, Register rs);
+  void Ctz(Register rd, Register rs);
+  void Dctz(Register rd, Register rs);
+  void Popcnt(Register rd, Register rs);
+  void Dpopcnt(Register rd, Register rs);
 
   // MIPS64 R2 instruction macro.
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
@@ -744,8 +751,10 @@ class TurboAssembler : public Assembler {
     }
   }
 
-  void Move(FPURegister dst, float imm);
-  void Move(FPURegister dst, double imm);
+  void Move(FPURegister dst, float imm) { Move(dst, bit_cast<uint32_t>(imm)); }
+  void Move(FPURegister dst, double imm) { Move(dst, bit_cast<uint64_t>(imm)); }
+  void Move(FPURegister dst, uint32_t src);
+  void Move(FPURegister dst, uint64_t src);
 
   inline void MulBranchOvf(Register dst, Register left, const Operand& right,
                            Label* overflow_label, Register scratch = at) {
@@ -874,6 +883,12 @@ class TurboAssembler : public Assembler {
            Register scratch = at);
   void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
             Register scratch = at);
+
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
+  void ResetSpeculationPoisonRegister();
 
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
@@ -1091,10 +1106,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   // Frame restart support.
   void MaybeDropFrames();
 
@@ -1155,6 +1166,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpToExternalReference(const ExternalReference& builtin,
                                BranchDelaySlot bd = PROTECT,
                                bool builtin_exit_frame = false);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // -------------------------------------------------------------------------
   // StatsCounter support.
@@ -1301,4 +1315,4 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
+#endif  // V8_MIPS64_MACRO_ASSEMBLER_MIPS64_H_

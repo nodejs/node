@@ -17,6 +17,7 @@ are represented as 1/0. E.g.
   v8_enable_disassembler=0
 """
 
+import argparse
 import os
 import subprocess
 import sys
@@ -31,52 +32,71 @@ GN_ARGS = [
   "use_sysroot = false",
 ]
 
-BUILD_SUBDIR = "gn"
+BUILD_TARGET = "v8_monolith"
 
-# TODO: make this cross-platform.
-GN_SUBDIR = ["buildtools", "linux64", "gn"]
+def FindGn(options):
+  if options.host_os == "linux":
+    os_path = "linux64"
+  elif options.host_os == "mac":
+    os_path = "mac"
+  elif options.host_os == "win":
+    os_path = "win"
+  else:
+    raise "Operating system not supported by GN"
+  return os.path.join(options.v8_path, "buildtools", os_path, "gn")
 
-def Build(v8_path, build_path, depot_tools, is_debug, build_flags):
+def GenerateBuildFiles(options):
   print "Setting GN args."
-  lines = []
-  lines.extend(GN_ARGS)
-  for flag in build_flags:
+  gn = FindGn(options)
+  gn_args = []
+  gn_args.extend(GN_ARGS)
+  for flag in options.flag:
     flag = flag.replace("=1", "=true")
     flag = flag.replace("=0", "=false")
     flag = flag.replace("target_cpu=ia32", "target_cpu=\"x86\"")
-    lines.append(flag)
-  lines.append("is_debug = %s" % ("true" if is_debug else "false"))
-  with open(os.path.join(build_path, "args.gn"), "w") as args_file:
-    args_file.write("\n".join(lines))
-  gn = os.path.join(v8_path, *GN_SUBDIR)
-  subprocess.check_call([gn, "gen", "-C", build_path], cwd=v8_path)
-  ninja = os.path.join(depot_tools, "ninja")
+    gn_args.append(flag)
+  if options.mode == "DEBUG":
+    gn_args.append("is_debug = true")
+  else:
+    gn_args.append("is_debug = false")
+
+  if not os.path.isdir(options.build_path):
+    os.makedirs(options.build_path)
+  with open(os.path.join(options.build_path, "args.gn"), "w") as args_file:
+    args_file.write("\n".join(gn_args))
+  subprocess.check_call([gn, "gen", "-C", options.build_path],
+                        cwd=options.v8_path)
+
+def Build(options):
   print "Building."
-  subprocess.check_call([ninja, "-v", "-C", build_path, "v8_monolith"],
-                        cwd=v8_path)
+  depot_tools = node_common.EnsureDepotTools(options.v8_path, False)
+  ninja = os.path.join(depot_tools, "ninja")
+  subprocess.check_call([ninja, "-v", "-C", options.build_path, BUILD_TARGET],
+                        cwd=options.v8_path)
 
-def Main(v8_path, build_path, is_debug, build_flags):
-  # Verify paths.
-  v8_path = os.path.abspath(v8_path)
-  assert os.path.isdir(v8_path)
-  build_path = os.path.abspath(build_path)
-  build_path = os.path.join(build_path, BUILD_SUBDIR)
-  if not os.path.isdir(build_path):
-    os.makedirs(build_path)
+def ParseOptions(args):
+  parser = argparse.ArgumentParser(
+      description="Build %s with GN" % BUILD_TARGET)
+  parser.add_argument("--mode", help="Build mode (Release/Debug)")
+  parser.add_argument("--v8_path", help="Path to V8")
+  parser.add_argument("--build_path", help="Path to build result")
+  parser.add_argument("--flag", help="Translate GYP flag to GN",
+                      action="append")
+  parser.add_argument("--host_os", help="Current operating system")
+  options = parser.parse_args(args)
 
-  # Check that we have depot tools.
-  depot_tools = node_common.EnsureDepotTools(v8_path, False)
+  assert options.host_os
+  assert options.mode == "Debug" or options.mode == "Release"
 
-  # Build with GN.
-  Build(v8_path, build_path, depot_tools, is_debug, build_flags)
+  assert options.v8_path
+  options.v8_path = os.path.abspath(options.v8_path)
+  assert os.path.isdir(options.v8_path)
+
+  assert options.build_path
+  options.build_path = os.path.abspath(options.build_path)
+  return options
 
 if __name__ == "__main__":
-  # TODO: use argparse to parse arguments.
-  build_mode = sys.argv[1]
-  v8_path = sys.argv[2]
-  build_path = sys.argv[3]
-  assert build_mode == "Debug" or build_mode == "Release"
-  is_debug = build_mode == "Debug"
-  # TODO: introduce "--" flag for pass-through flags.
-  build_flags = sys.argv[4:]
-  Main(v8_path, build_path, is_debug, build_flags)
+  options = ParseOptions(sys.argv[1:])
+  GenerateBuildFiles(options)
+  Build(options)

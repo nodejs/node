@@ -33,7 +33,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["e"],
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
 ]
 handlers: [
   [4, 7, 9],
@@ -83,9 +83,9 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["e1"],
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["e2"],
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
 ]
 handlers: [
   [4, 8, 10],

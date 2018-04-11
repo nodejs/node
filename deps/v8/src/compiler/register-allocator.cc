@@ -713,7 +713,7 @@ void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
         break;
       case UsePositionType::kRequiresRegister:
         DCHECK(op.IsRegister() || op.IsFPRegister());
-      // Fall through.
+        V8_FALLTHROUGH;
       case UsePositionType::kAny:
         InstructionOperand::ReplaceWith(pos->operand(), &op);
         break;
@@ -1897,10 +1897,10 @@ int LiveRangeBuilder::FixedFPLiveRangeID(int index, MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kSimd128:
       result -= config()->num_float_registers();
-    // Fall through.
+      V8_FALLTHROUGH;
     case MachineRepresentation::kFloat32:
       result -= config()->num_double_registers();
-    // Fall through.
+      V8_FALLTHROUGH;
     case MachineRepresentation::kFloat64:
       result -= config()->num_general_registers();
       break;

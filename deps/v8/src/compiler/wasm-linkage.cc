@@ -280,77 +280,77 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
 }
 
 CallDescriptor* ReplaceTypeInCallDescriptorWith(
-    Zone* zone, CallDescriptor* descriptor, size_t num_replacements,
+    Zone* zone, CallDescriptor* call_descriptor, size_t num_replacements,
     MachineType input_type, MachineRepresentation output_type) {
-  size_t parameter_count = descriptor->ParameterCount();
-  size_t return_count = descriptor->ReturnCount();
-  for (size_t i = 0; i < descriptor->ParameterCount(); i++) {
-    if (descriptor->GetParameterType(i) == input_type) {
+  size_t parameter_count = call_descriptor->ParameterCount();
+  size_t return_count = call_descriptor->ReturnCount();
+  for (size_t i = 0; i < call_descriptor->ParameterCount(); i++) {
+    if (call_descriptor->GetParameterType(i) == input_type) {
       parameter_count += num_replacements - 1;
     }
   }
-  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
-    if (descriptor->GetReturnType(i) == input_type) {
+  for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
+    if (call_descriptor->GetReturnType(i) == input_type) {
       return_count += num_replacements - 1;
     }
   }
-  if (parameter_count == descriptor->ParameterCount() &&
-      return_count == descriptor->ReturnCount()) {
-    return descriptor;
+  if (parameter_count == call_descriptor->ParameterCount() &&
+      return_count == call_descriptor->ReturnCount()) {
+    return call_descriptor;
   }
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
   Allocator params = parameter_registers;
-  for (size_t i = 0; i < descriptor->ParameterCount(); i++) {
-    if (descriptor->GetParameterType(i) == input_type) {
+  for (size_t i = 0; i < call_descriptor->ParameterCount(); i++) {
+    if (call_descriptor->GetParameterType(i) == input_type) {
       for (size_t j = 0; j < num_replacements; j++) {
         locations.AddParam(params.Next(output_type));
       }
     } else {
       locations.AddParam(
-          params.Next(descriptor->GetParameterType(i).representation()));
+          params.Next(call_descriptor->GetParameterType(i).representation()));
     }
   }
 
   Allocator rets = return_registers;
   rets.AdjustStackOffset(params.stack_offset);
-  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
-    if (descriptor->GetReturnType(i) == input_type) {
+  for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
+    if (call_descriptor->GetReturnType(i) == input_type) {
       for (size_t j = 0; j < num_replacements; j++) {
         locations.AddReturn(rets.Next(output_type));
       }
     } else {
       locations.AddReturn(
-          rets.Next(descriptor->GetReturnType(i).representation()));
+          rets.Next(call_descriptor->GetReturnType(i).representation()));
     }
   }
 
-  return new (zone) CallDescriptor(              // --
-      descriptor->kind(),                        // kind
-      descriptor->GetInputType(0),               // target MachineType
-      descriptor->GetInputLocation(0),           // target location
-      locations.Build(),                         // location_sig
-      params.stack_offset,                       // stack_parameter_count
-      descriptor->properties(),                  // properties
-      descriptor->CalleeSavedRegisters(),        // callee-saved registers
-      descriptor->CalleeSavedFPRegisters(),      // callee-saved fp regs
-      descriptor->flags(),                       // flags
-      descriptor->debug_name(),                  // debug name
-      descriptor->AllocatableRegisters(),        // allocatable registers
-      rets.stack_offset - params.stack_offset);  // stack_return_count
+  return new (zone) CallDescriptor(               // --
+      call_descriptor->kind(),                    // kind
+      call_descriptor->GetInputType(0),           // target MachineType
+      call_descriptor->GetInputLocation(0),       // target location
+      locations.Build(),                          // location_sig
+      params.stack_offset,                        // stack_parameter_count
+      call_descriptor->properties(),              // properties
+      call_descriptor->CalleeSavedRegisters(),    // callee-saved registers
+      call_descriptor->CalleeSavedFPRegisters(),  // callee-saved fp regs
+      call_descriptor->flags(),                   // flags
+      call_descriptor->debug_name(),              // debug name
+      call_descriptor->AllocatableRegisters(),    // allocatable registers
+      rets.stack_offset - params.stack_offset);   // stack_return_count
 }
 
 CallDescriptor* GetI32WasmCallDescriptor(Zone* zone,
-                                         CallDescriptor* descriptor) {
-  return ReplaceTypeInCallDescriptorWith(zone, descriptor, 2,
+                                         CallDescriptor* call_descriptor) {
+  return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 2,
                                          MachineType::Int64(),
                                          MachineRepresentation::kWord32);
 }
 
-CallDescriptor* GetI32WasmCallDescriptorForSimd(Zone* zone,
-                                                CallDescriptor* descriptor) {
-  return ReplaceTypeInCallDescriptorWith(zone, descriptor, 4,
+CallDescriptor* GetI32WasmCallDescriptorForSimd(
+    Zone* zone, CallDescriptor* call_descriptor) {
+  return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 4,
                                          MachineType::Simd128(),
                                          MachineRepresentation::kWord32);
 }

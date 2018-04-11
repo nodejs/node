@@ -73,12 +73,13 @@ class SimdScalarLowering {
                    const Operator* load_op, SimdType type);
   void LowerStoreOp(MachineRepresentation rep, Node* node,
                     const Operator* store_op, SimdType rep_type);
-  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op);
+  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
+                     bool not_horizontal = true);
   void LowerCompareOp(Node* node, SimdType input_rep_type, const Operator* op,
                       bool invert_inputs = false);
   Node* FixUpperBits(Node* input, int32_t shift);
   void LowerBinaryOpForSmallInt(Node* node, SimdType input_rep_type,
-                                const Operator* op);
+                                const Operator* op, bool not_horizontal = true);
   Node* Mask(Node* input, int32_t mask);
   void LowerSaturateBinaryOp(Node* node, SimdType input_rep_type,
                              const Operator* op, bool is_signed);

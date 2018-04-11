@@ -350,6 +350,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* BitcastInt32ToFloat32();
   const Operator* BitcastInt64ToFloat64();
 
+  // These operators sign-extend to Int32/Int64
+  const Operator* SignExtendWord8ToInt32();
+  const Operator* SignExtendWord16ToInt32();
+  const Operator* SignExtendWord8ToInt64();
+  const Operator* SignExtendWord16ToInt64();
+  const Operator* SignExtendWord32ToInt64();
+
   // Floating point operators always operate with IEEE 754 round-to-nearest
   // (single-precision).
   const Operator* Float32Add();
@@ -577,6 +584,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
+  const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
   // store [base + index], value
@@ -592,29 +600,33 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StackSlot(int size, int alignment = 0);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
+  // Returns a value which can be used as a mask to poison values when executing
+  // speculatively.
+  const Operator* SpeculationPoison();
+
   // Access to the machine stack.
   const Operator* LoadStackPointer();
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
 
   // atomic-load [base + index]
-  const Operator* AtomicLoad(LoadRepresentation rep);
+  const Operator* Word32AtomicLoad(LoadRepresentation rep);
   // atomic-store [base + index], value
-  const Operator* AtomicStore(MachineRepresentation rep);
+  const Operator* Word32AtomicStore(MachineRepresentation rep);
   // atomic-exchange [base + index], value
-  const Operator* AtomicExchange(MachineType rep);
+  const Operator* Word32AtomicExchange(MachineType rep);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* AtomicCompareExchange(MachineType rep);
+  const Operator* Word32AtomicCompareExchange(MachineType rep);
   // atomic-add [base + index], value
-  const Operator* AtomicAdd(MachineType rep);
+  const Operator* Word32AtomicAdd(MachineType rep);
   // atomic-sub [base + index], value
-  const Operator* AtomicSub(MachineType rep);
+  const Operator* Word32AtomicSub(MachineType rep);
   // atomic-and [base + index], value
-  const Operator* AtomicAnd(MachineType rep);
+  const Operator* Word32AtomicAnd(MachineType rep);
   // atomic-or [base + index], value
-  const Operator* AtomicOr(MachineType rep);
+  const Operator* Word32AtomicOr(MachineType rep);
   // atomic-xor [base + index], value
-  const Operator* AtomicXor(MachineType rep);
+  const Operator* Word32AtomicXor(MachineType rep);
 
   const OptionalOperator SpeculationFence();
 

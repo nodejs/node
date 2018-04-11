@@ -20,17 +20,12 @@ ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
 endif
 
-ifdef QUICKCHECK
-  QUICKCHECK_ARG := --quickcheck
-endif
-
 ifdef ENABLE_V8_TAP
   TAP_V8 := --junitout $(PWD)/v8-tap.xml
   TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
   TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
 endif
 
-V8_BUILD_OPTIONS += GYPFLAGS="-Dclang=0"
 V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
   V8_BUILD_OPTIONS += i18nsupport=off
@@ -96,7 +91,7 @@ $(NODE_G_EXE): config.gypi out/Makefile
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
-              deps/v8/gypfiles/features.gypi deps/v8/src/v8.gyp node.gyp \
+              deps/v8/gypfiles/features.gypi deps/v8/gypfiles/v8.gyp node.gyp \
               config.gypi
 	$(PYTHON) tools/gyp_node.py -f make
 
@@ -233,8 +228,7 @@ endif
 # Rebuilds deps/v8 as a git tree, pulls its third-party dependencies, and
 # builds it.
 v8:
-	tools/make-v8.sh
-	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
+	tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
 jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
@@ -569,31 +563,22 @@ test-with-async-hooks:
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 # Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
-# Performs a full test unless QUICKCHECK is specified.
-# Note that we cannot run the tests in deps/v8 directly without rebuilding a
-# git tree and using gclient to pull the third-party dependencies, which is
-# done by the `v8` target.
-	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
-        --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) $(QUICKCHECK_ARG) \
-        --no-presubmit \
-        --shell-dir=$(PWD)/deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) \
-	 $(TAP_V8)
-	git clean -fdxq -- deps/v8
+	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
+        --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) \
+				mjsunit cctest debugger inspector message preparser \
+	      $(TAP_V8)
 	@echo Testing hash seed
 	$(MAKE) test-hash-seed
 
 test-v8-intl: v8
-# Performs a full test unless QUICKCHECK is specified.
-	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
-        --mode=$(BUILDTYPE_LOWER) --no-presubmit $(QUICKCHECK_ARG) \
-        --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl \
+	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
+        --mode=$(BUILDTYPE_LOWER) intl \
         $(TAP_V8_INTL)
 
 test-v8-benchmarks: v8
-	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
-        --download-data $(QUICKCHECK_ARG) --no-presubmit \
-        --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) benchmarks \
-	 $(TAP_V8_BENCHMARKS)
+	deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
+        benchmarks \
+	      $(TAP_V8_BENCHMARKS)
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
 # runs all v8 tests

@@ -197,6 +197,28 @@ const six = BigInt(6);
   // Multi-digit BigInts.
   // Test parseInt/toString round trip on a list of randomly generated
   // string representations of numbers in various bases.
+
+  // Userland polyfill while we wait for BigInt.fromString (see:
+  // https://mathiasbynens.github.io/proposal-number-fromstring/ ).
+  // This intentionally only implements what the tests below need.
+  function ParseBigInt(str, radix) {
+    const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+    var result = 0n;
+    var base = BigInt(radix);
+    var index = 0;
+    var negative = false;
+    if (str[0] === "-") {
+      negative = true;
+      index++;
+    }
+    for (; index < str.length; index++) {
+      var digit = alphabet.indexOf(str[index]);
+      assertTrue(digit >= 0 && digit < radix);
+      result = result * base + BigInt(digit);
+    }
+    if (negative) result = -result;
+    return result;
+  }
   var positive = [0, 0,  // Skip base 0 and 1.
     "1100110001100010110011110110010010001011100111100101111000111101100001000",
     "1001200022210010220101120212021002011002201122200002211102120120021011020",
@@ -273,26 +295,10 @@ const six = BigInt(6);
   ];
   for (var base = 2; base <= 36; base++) {
     var input = positive[base];
-    assertEquals(input, BigInt.parseInt(input, base).toString(base));
+    assertEquals(input, ParseBigInt(input, base).toString(base));
     input = negative[base];
-    assertEquals(input, BigInt.parseInt(input, base).toString(base));
+    assertEquals(input, ParseBigInt(input, base).toString(base));
   }
-}
-
-// .parseInt
-{
-  assertEquals("hellobigint", BigInt.parseInt("hellobigint", 32).toString(32));
-  assertEquals("abc", BigInt.parseInt("101010111100", 2).toString(16));
-  // Detect "0x" prefix.
-  assertEquals("f00dcafe", BigInt.parseInt("0xf00dcafe").toString(16));
-  // Default base is 10, trailing junk is skipped.
-  assertEquals("abc", BigInt.parseInt("2748junk").toString(16));
-  // Objects are converted to string.
-  let obj = {toString: () => "0x12345"};
-  assertEquals("12345", BigInt.parseInt(obj).toString(16));
-  // Empty and invalid strings throw.
-  assertThrows("BigInt.parseInt('')", SyntaxError);
-  assertThrows("BigInt.parseInt('nope', 2)", SyntaxError);
 }
 
 // .valueOf

@@ -136,16 +136,19 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
       result = targetExhausted;
       break;
     }
-    switch (bytesToWrite) {  // note: everything falls through.
+    switch (bytesToWrite) {
       case 4:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
+        V8_FALLTHROUGH;
       case 3:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
+        V8_FALLTHROUGH;
       case 2:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
+        V8_FALLTHROUGH;
       case 1:
         *--target = static_cast<char>(ch | firstByteMark[bytesToWrite]);
     }
@@ -210,8 +213,10 @@ static bool isLegalUTF8(const unsigned char* source, int length) {
     // Everything else falls through when "true"...
     case 4:
       if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
+      V8_FALLTHROUGH;
     case 3:
       if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
+      V8_FALLTHROUGH;
     case 2:
       if ((a = (*--srcptr)) > 0xBF) return false;
 
@@ -232,6 +237,7 @@ static bool isLegalUTF8(const unsigned char* source, int length) {
         default:
           if (a < 0x80) return false;
       }
+      V8_FALLTHROUGH;
 
     case 1:
       if (*source >= 0x80 && *source < 0xC2) return false;
@@ -258,18 +264,23 @@ static inline UChar32 readUTF8Sequence(const char*& sequence, size_t length) {
     case 6:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 5:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 4:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 3:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 2:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
+      V8_FALLTHROUGH;
     case 1:
       character += static_cast<unsigned char>(*sequence++);
   }

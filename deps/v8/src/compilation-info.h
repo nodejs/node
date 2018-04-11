@@ -45,12 +45,16 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kAccessorInliningEnabled = 1 << 3,
     kFunctionContextSpecializing = 1 << 4,
     kInliningEnabled = 1 << 5,
-    kDisableFutureOptimization = 1 << 6,
-    kSplittingEnabled = 1 << 7,
-    kSourcePositionsEnabled = 1 << 8,
-    kBailoutOnUninitialized = 1 << 9,
-    kLoopPeelingEnabled = 1 << 10,
-    kUntrustedCodeMitigations = 1 << 11,
+    kPoisonLoads = 1 << 6,
+    kDisableFutureOptimization = 1 << 7,
+    kSplittingEnabled = 1 << 8,
+    kSourcePositionsEnabled = 1 << 9,
+    kBailoutOnUninitialized = 1 << 10,
+    kLoopPeelingEnabled = 1 << 11,
+    kUntrustedCodeMitigations = 1 << 12,
+    kSwitchJumpTableEnabled = 1 << 13,
+    kGenerateSpeculationPoisonOnEntry = 1 << 14,
+    kPoisonRegisterArguments = 1 << 15,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -60,9 +64,9 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   struct WasmCodeDesc {
     CodeDesc code_desc;
     size_t safepoint_table_offset = 0;
+    size_t handler_table_offset = 0;
     uint32_t frame_slot_count = 0;
     Handle<ByteArray> source_positions_table;
-    MaybeHandle<HandlerTable> handler_table;
   };
 
   // Construct a compilation info for unoptimized compilation.
@@ -99,7 +103,11 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   bool has_shared_info() const { return !shared_info().is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
-  Code::Kind code_kind() const { return code_kind_; }
+  AbstractCode::Kind abstract_code_kind() const { return code_kind_; }
+  Code::Kind code_kind() const {
+    DCHECK(code_kind_ < static_cast<AbstractCode::Kind>(Code::NUMBER_OF_KINDS));
+    return static_cast<Code::Kind>(code_kind_);
+  }
   uint32_t stub_key() const { return stub_key_; }
   void set_stub_key(uint32_t stub_key) { stub_key_ = stub_key; }
   int32_t builtin_index() const { return builtin_index_; }
@@ -108,12 +116,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
   int num_parameters() const;
   int num_parameters_including_this() const;
-  bool is_this_defined() const;
-
-  void set_parameter_count(int parameter_count) {
-    DCHECK(IsStub());
-    parameter_count_ = parameter_count;
-  }
 
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
@@ -154,6 +156,9 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
+  void MarkAsPoisonLoads() { SetFlag(kPoisonLoads); }
+  bool is_poison_loads() const { return GetFlag(kPoisonLoads); }
+
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
 
@@ -167,6 +172,27 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   bool has_untrusted_code_mitigations() const {
     return GetFlag(kUntrustedCodeMitigations);
+  }
+
+  bool switch_jump_table_enabled() const {
+    return GetFlag(kSwitchJumpTableEnabled);
+  }
+
+  bool is_generating_speculation_poison_on_entry() const {
+    bool enabled = GetFlag(kGenerateSpeculationPoisonOnEntry);
+    DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
+    return enabled;
+  }
+
+  void MarkAsPoisoningRegisterArguments() {
+    DCHECK(has_untrusted_code_mitigations());
+    SetFlag(kGenerateSpeculationPoisonOnEntry);
+    SetFlag(kPoisonRegisterArguments);
+  }
+  bool is_poisoning_register_arguments() const {
+    bool enabled = GetFlag(kPoisonRegisterArguments);
+    DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
+    return enabled;
   }
 
   // Code getters and setters.
@@ -193,9 +219,17 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   JSGlobalObject* global_object() const;
 
   // Accessors for the different compilation modes.
-  bool IsOptimizing() const { return mode_ == OPTIMIZE; }
-  bool IsStub() const { return mode_ == STUB; }
-  bool IsWasm() const { return code_kind() == Code::WASM_FUNCTION; }
+  bool IsOptimizing() const {
+    return abstract_code_kind() == AbstractCode::OPTIMIZED_FUNCTION;
+  }
+  bool IsWasm() const {
+    return abstract_code_kind() == AbstractCode::WASM_FUNCTION;
+  }
+  bool IsStub() const {
+    return abstract_code_kind() != AbstractCode::OPTIMIZED_FUNCTION &&
+           abstract_code_kind() != AbstractCode::WASM_FUNCTION &&
+           abstract_code_kind() != AbstractCode::INTERPRETED_FUNCTION;
+  }
   void SetOptimizingForOsr(BailoutId osr_offset, JavaScriptFrame* osr_frame) {
     DCHECK(IsOptimizing());
     osr_offset_ = osr_offset;
@@ -275,15 +309,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   WasmCodeDesc* wasm_code_desc() { return &wasm_code_desc_; }
 
  private:
-  // Compilation mode.
-  // BASE is generated by the full codegen, optionally prepared for bailouts.
-  // OPTIMIZE is optimized code generated by the Hydrogen-based backend.
-  enum Mode { BASE, OPTIMIZE, STUB };
-
-  CompilationInfo(Vector<const char> debug_name, Code::Kind code_kind,
-                  Mode mode, Zone* zone);
-
-  void SetMode(Mode mode) { mode_ = mode; }
+  CompilationInfo(Vector<const char> debug_name, AbstractCode::Kind code_kind,
+                  Zone* zone);
 
   void SetFlag(Flag flag) { flags_ |= flag; }
 
@@ -298,7 +325,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   unsigned flags_;
 
-  Code::Kind code_kind_;
+  AbstractCode::Kind code_kind_;
   uint32_t stub_key_;
   int32_t builtin_index_;
 
@@ -310,8 +337,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   Handle<Code> code_;
   WasmCodeDesc wasm_code_desc_;
 
-  // Compilation mode flag and whether deoptimization is allowed.
-  Mode mode_;
+  // Entry point when compiling for OSR, {BailoutId::None} otherwise.
   BailoutId osr_offset_;
 
   // Holds the bytecode array generated by the interpreter.
@@ -337,9 +363,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   BailoutReason bailout_reason_;
 
   InlinedFunctionList inlined_functions_;
-
-  // Number of parameters used for compilation of stubs that require arguments.
-  int parameter_count_;
 
   int optimization_id_;
 

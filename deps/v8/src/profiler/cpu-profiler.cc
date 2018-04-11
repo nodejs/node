@@ -208,7 +208,7 @@ int CpuProfiler::GetProfilesCount() {
 
 
 CpuProfile* CpuProfiler::GetProfile(int index) {
-  return profiles_->profiles()->at(index);
+  return profiles_->profiles()->at(index).get();
 }
 
 
@@ -220,7 +220,6 @@ void CpuProfiler::DeleteAllProfiles() {
 
 void CpuProfiler::DeleteProfile(CpuProfile* profile) {
   profiles_->RemoveProfile(profile);
-  delete profile;
   if (profiles_->profiles()->empty() && !is_profiling_) {
     // If this was the last profile, clean up all accessory data as well.
     ResetProfiles();

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ARM64_DISASM_ARM64_H
-#define V8_ARM64_DISASM_ARM64_H
+#ifndef V8_ARM64_DISASM_ARM64_H_
+#define V8_ARM64_DISASM_ARM64_H_
 
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64.h"
@@ -96,4 +96,4 @@ class PrintDisassembler : public DisassemblingDecoder {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ARM64_DISASM_ARM64_H
+#endif  // V8_ARM64_DISASM_ARM64_H_

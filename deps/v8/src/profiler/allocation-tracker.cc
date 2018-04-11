@@ -5,6 +5,7 @@
 #include "src/profiler/allocation-tracker.h"
 
 #include "src/frames-inl.h"
+#include "src/global-handles.h"
 #include "src/objects-inl.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 

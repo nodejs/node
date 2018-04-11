@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_WASMTRANSLATION_H_
-#define V8_INSPECTOR_WASMTRANSLATION_H_
+#ifndef V8_INSPECTOR_WASM_TRANSLATION_H_
+#define V8_INSPECTOR_WASM_TRANSLATION_H_
 
 #include <unordered_map>
 
@@ -72,4 +72,4 @@ class WasmTranslation {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_WASMTRANSLATION_H_
+#endif  // V8_INSPECTOR_WASM_TRANSLATION_H_

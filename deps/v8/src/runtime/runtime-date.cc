@@ -21,15 +21,6 @@ RUNTIME_FUNCTION(Runtime_IsDate) {
   return isolate->heap()->ToBoolean(obj->IsJSDate());
 }
 
-
-RUNTIME_FUNCTION(Runtime_ThrowNotDateError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError(MessageTemplate::kNotDateObject));
-}
-
-
 RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

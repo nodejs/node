@@ -87,7 +87,7 @@
   'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
 
   # Very slow test
-  'regress/regress-crbug-808192' : [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
+  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
@@ -104,6 +104,7 @@
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
   'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
+  'compiler/regress-808472': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -159,7 +160,6 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
-  'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
 
@@ -241,6 +241,10 @@
   'stack-traces-overflow': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
+
+  # Unsuitable for GC stress because coverage information is lost on GC.
+  'code-coverage-ad-hoc': [SKIP],
+  'code-coverage-precise': [SKIP],
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
@@ -409,6 +413,7 @@
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
+  'regress/regress-165637': [SKIP],
 
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
@@ -633,16 +638,57 @@
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times
-  'es6/array-iterator-turbo': [SKIP]
+  'es6/array-iterator-turbo': [SKIP],
+
+  # BUG(v8:7466).
+  'compiler/promise-constructor': [SKIP],
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
-['gc_fuzzer == True', {
+['gc_fuzzer', {
   'regress/regress-336820': [SKIP],
   'regress/regress-748069': [SKIP],
   'regress/regress-778668': [SKIP],
   'ignition/regress-672027': [PASS, ['tsan', SKIP]],
-}],  # 'gc_fuzzer == True'
+  'string-replace-gc': [PASS, SLOW, ['mode == debug', SKIP]],
+
+  # Unsuitable for GC fuzzing because coverage information is lost on GC.
+  'code-coverage-ad-hoc': [SKIP],
+  'code-coverage-precise': [SKIP],
+
+  # Fails allocation on tsan.
+  'es6/classes': [PASS, ['tsan', SKIP]],
+
+  # Tests that fail some assertions due to checking internal state sensitive
+  # to GC. We mark PASS,FAIL to not skip those tests on the endurance fuzzer.
+  'array-literal-feedback': [PASS, FAIL],
+  'compiler/native-context-specialization-hole-check': [PASS, FAIL],
+  'elements-transition-hoisting': [PASS, FAIL],
+  'es6/collections-constructor-custom-iterator': [PASS, FAIL],
+  'keyed-load-with-symbol-key': [PASS, FAIL],
+  'regress/regress-3709': [PASS, FAIL],
+  'regress/regress-trap-allocation-memento': [PASS, FAIL],
+  'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
+  'shared-function-tier-up-turbo': [PASS, FAIL],
+}],  # 'gc_fuzzer'
+
+##############################################################################
+['endurance_fuzzer', {
+  # BUG(v8:7400).
+  'wasm/lazy-compilation': [SKIP],
+
+  # BUG(v8:7429).
+  'regress/regress-599414-array-concat-fast-path': [SKIP],
+
+  # Often crashes due to memory consumption.
+  'regress/regress-655573': [SKIP],
+
+  # TSAN allocation failures.
+  'deep-recursion': [PASS, ['tsan', SKIP]],
+  'regress/regress-430201b': [PASS, ['tsan', SKIP]],
+  'regress/regress-crbug-493779': [PASS, ['tsan', SKIP]],
+  'regress/wasm/regress-763439': [PASS, ['tsan', SKIP]],
+}],  # 'endurance_fuzzer'
 
 ##############################################################################
 ['predictable == True', {
@@ -654,6 +700,8 @@
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
+  # Relies on async compilation which requires background tasks.
+  'wasm/streaming-error-position': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################

@@ -14,13 +14,13 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 
 class TestSuite(testsuite.TestSuite):
-  SUB_TESTS = ( 'json', 'parser', 'regexp', 'multi_return', 'wasm',
-          'wasm_async', 'wasm_call', 'wasm_code', 'wasm_compile',
+  SUB_TESTS = ( 'json', 'parser', 'regexp_builtins', 'regexp', 'multi_return', 'wasm',
+          'wasm_async', 'wasm_code', 'wasm_compile',
           'wasm_data_section', 'wasm_function_sigs_section',
           'wasm_globals_section', 'wasm_imports_section', 'wasm_memory_section',
           'wasm_names_section', 'wasm_types_section' )
 
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for subtest in TestSuite.SUB_TESTS:
       for fname in os.listdir(os.path.join(self.root, subtest)):
@@ -37,12 +37,9 @@ class TestSuite(testsuite.TestSuite):
   def _variants_gen_class(self):
     return VariantsGenerator
 
-  def _LegacyVariantsGeneratorFactory(self):
-    return testsuite.StandardLegacyVariantsGenerator
-
 
 class TestCase(testcase.TestCase):
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     suite, name = self.path.split('/')
     return [os.path.join(self.suite.root, suite, name)]
 
@@ -52,7 +49,7 @@ class TestCase(testcase.TestCase):
   def _get_statusfile_flags(self):
     return []
 
-  def _get_mode_flags(self, ctx):
+  def _get_mode_flags(self):
     return []
 
   def get_shell(self):
@@ -60,5 +57,5 @@ class TestCase(testcase.TestCase):
     return 'v8_simple_%s_fuzzer' % group
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

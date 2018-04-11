@@ -4,7 +4,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Adaptor script called through build/isolate.gypi.
+"""Adaptor script called through gni/isolate.gni.
 
 Creates a wrapping .isolate which 'includes' the original one, that can be
 consumed by tools/swarming_client/isolate.py. Path variables are determined

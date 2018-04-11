@@ -337,12 +337,13 @@ TEST_F(Int64LoweringTest, CallI64Return) {
   Signature<MachineRepresentation>::Builder sig_builder(zone(), 1, 0);
   sig_builder.AddReturn(MachineRepresentation::kWord64);
 
-  compiler::CallDescriptor* desc =
+  auto call_descriptor =
       compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
 
-  LowerGraph(graph()->NewNode(common()->Call(desc), Int32Constant(function),
-                              context_address, start(), start()),
-             MachineRepresentation::kWord64);
+  LowerGraph(
+      graph()->NewNode(common()->Call(call_descriptor), Int32Constant(function),
+                       context_address, start(), start()),
+      MachineRepresentation::kWord64);
 
   Capture<Node*> call;
   Matcher<Node*> call_matcher =
@@ -356,7 +357,7 @@ TEST_F(Int64LoweringTest, CallI64Return) {
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
           graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)),
-      compiler::GetI32WasmCallDescriptor(zone(), desc));
+      compiler::GetI32WasmCallDescriptor(zone(), call_descriptor));
 }
 
 TEST_F(Int64LoweringTest, CallI64Parameter) {
@@ -369,14 +370,15 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
   sig_builder.AddParam(MachineRepresentation::kWord32);
   sig_builder.AddParam(MachineRepresentation::kWord64);
 
-  compiler::CallDescriptor* desc =
+  auto call_descriptor =
       compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
 
-  LowerGraph(graph()->NewNode(common()->Call(desc), Int32Constant(function),
-                              context_address, Int64Constant(value(0)),
-                              Int32Constant(low_word_value(1)),
-                              Int64Constant(value(2)), start(), start()),
-             MachineRepresentation::kWord32);
+  LowerGraph(
+      graph()->NewNode(common()->Call(call_descriptor), Int32Constant(function),
+                       context_address, Int64Constant(value(0)),
+                       Int32Constant(low_word_value(1)),
+                       Int64Constant(value(2)), start(), start()),
+      MachineRepresentation::kWord32);
 
   EXPECT_THAT(
       graph()->end()->InputAt(1),
@@ -388,9 +390,10 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
                       IsInt32Constant(high_word_value(2)), start(), start()),
                start(), start()));
 
-  CompareCallDescriptors(OpParameter<const CallDescriptor*>(
-                             graph()->end()->InputAt(1)->InputAt(1)),
-                         compiler::GetI32WasmCallDescriptor(zone(), desc));
+  CompareCallDescriptors(
+      OpParameter<const CallDescriptor*>(
+          graph()->end()->InputAt(1)->InputAt(1)),
+      compiler::GetI32WasmCallDescriptor(zone(), call_descriptor));
 }
 
 TEST_F(Int64LoweringTest, Int64Add) {

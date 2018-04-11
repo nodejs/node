@@ -196,13 +196,13 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN()                                                       \
-  MakeAssemblerBufferExecutable(buf, allocated);                    \
-  Assembler::FlushICache(isolate, buf, masm.SizeOfGeneratedCode()); \
-  {                                                                 \
-    void (*test_function)(void);                                    \
-    memcpy(&test_function, &buf, sizeof(buf));                      \
-    test_function();                                                \
+#define RUN()                                              \
+  MakeAssemblerBufferExecutable(buf, allocated);           \
+  Assembler::FlushICache(buf, masm.SizeOfGeneratedCode()); \
+  {                                                        \
+    void (*test_function)(void);                           \
+    memcpy(&test_function, &buf, sizeof(buf));             \
+    test_function();                                       \
   }
 
 #define END()                   \
@@ -251,37 +251,37 @@ TEST(stack_ops) {
   SETUP();
 
   START();
-  // save csp.
-  __ Mov(x29, csp);
+  // save sp.
+  __ Mov(x29, sp);
 
-  // Set the csp to a known value.
+  // Set the sp to a known value.
   __ Mov(x16, 0x1000);
-  __ Mov(csp, x16);
-  __ Mov(x0, csp);
+  __ Mov(sp, x16);
+  __ Mov(x0, sp);
 
-  // Add immediate to the csp, and move the result to a normal register.
-  __ Add(csp, csp, Operand(0x50));
-  __ Mov(x1, csp);
+  // Add immediate to the sp, and move the result to a normal register.
+  __ Add(sp, sp, Operand(0x50));
+  __ Mov(x1, sp);
 
-  // Add extended to the csp, and move the result to a normal register.
+  // Add extended to the sp, and move the result to a normal register.
   __ Mov(x17, 0xFFF);
-  __ Add(csp, csp, Operand(x17, SXTB));
-  __ Mov(x2, csp);
+  __ Add(sp, sp, Operand(x17, SXTB));
+  __ Mov(x2, sp);
 
-  // Create an csp using a logical instruction, and move to normal register.
-  __ Orr(csp, xzr, Operand(0x1FFF));
-  __ Mov(x3, csp);
+  // Create an sp using a logical instruction, and move to normal register.
+  __ Orr(sp, xzr, Operand(0x1FFF));
+  __ Mov(x3, sp);
 
-  // Write wcsp using a logical instruction.
-  __ Orr(wcsp, wzr, Operand(0xFFFFFFF8L));
-  __ Mov(x4, csp);
+  // Write wsp using a logical instruction.
+  __ Orr(wsp, wzr, Operand(0xFFFFFFF8L));
+  __ Mov(x4, sp);
 
-  // Write csp, and read back wcsp.
-  __ Orr(csp, xzr, Operand(0xFFFFFFF8L));
-  __ Mov(w5, wcsp);
+  // Write sp, and read back wsp.
+  __ Orr(sp, xzr, Operand(0xFFFFFFF8L));
+  __ Mov(w5, wsp);
 
-  //  restore csp.
-  __ Mov(csp, x29);
+  //  restore sp.
+  __ Mov(sp, x29);
   END();
 
   RUN();
@@ -839,15 +839,15 @@ TEST(bic) {
   __ Bic(x10, x0, Operand(0x1F));
   __ Bic(x11, x0, Operand(0x100));
 
-  // Test bic into csp when the constant cannot be encoded in the immediate
+  // Test bic into sp when the constant cannot be encoded in the immediate
   // field.
-  // Use x20 to preserve csp. We check for the result via x21 because the
-  // test infrastructure requires that csp be restored to its original value.
-  __ Mov(x20, csp);
+  // Use x20 to preserve sp. We check for the result via x21 because the
+  // test infrastructure requires that sp be restored to its original value.
+  __ Mov(x20, sp);
   __ Mov(x0, 0xFFFFFF);
-  __ Bic(csp, x0, Operand(0xABCDEF));
-  __ Mov(x21, csp);
-  __ Mov(csp, x20);
+  __ Bic(sp, x0, Operand(0xABCDEF));
+  __ Mov(x21, sp);
+  __ Mov(sp, x20);
   END();
 
   RUN();
@@ -6686,13 +6686,23 @@ TEST(ldur_stur) {
   TEARDOWN();
 }
 
+namespace {
+
+void LoadLiteral(MacroAssembler* masm, Register reg, uint64_t imm) {
+  // Since we do not allow non-relocatable entries in the literal pool, we need
+  // to fake a relocation mode that is not NONE here.
+  masm->Ldr(reg, Immediate(imm, RelocInfo::RUNTIME_ENTRY));
+}
+
+}  // namespace
+
 TEST(ldr_pcrel_large_offset) {
   INIT_V8();
   SETUP_SIZE(1 * MB);
 
   START();
 
-  __ Ldr(x1, Immediate(0x1234567890ABCDEFUL));
+  LoadLiteral(&masm, x1, 0x1234567890ABCDEFUL);
 
   {
     v8::internal::PatchingAssembler::BlockPoolsScope scope(&masm);
@@ -6702,7 +6712,7 @@ TEST(ldr_pcrel_large_offset) {
     }
   }
 
-  __ Ldr(x2, Immediate(0x1234567890ABCDEFUL));
+  LoadLiteral(&masm, x2, 0x1234567890ABCDEFUL);
 
   END();
 
@@ -6719,14 +6729,13 @@ TEST(ldr_literal) {
   SETUP();
 
   START();
-  __ Ldr(x2, Immediate(0x1234567890ABCDEFUL));
-  __ Ldr(d13, 1.234);
+  LoadLiteral(&masm, x2, 0x1234567890ABCDEFUL);
+
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x1234567890ABCDEFUL, x2);
-  CHECK_EQUAL_FP64(1.234, d13);
 
   TEARDOWN();
 }
@@ -6758,8 +6767,8 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   __ CheckConstPool(true, true);
   CHECK_CONSTANT_POOL_SIZE(0);
 
-  __ Ldr(x0, Immediate(0x1234567890ABCDEFUL));
-  __ Ldr(d0, 1.234);
+  LoadLiteral(&masm, x0, 0x1234567890ABCDEFUL);
+  LoadLiteral(&masm, x1, 0xABCDEF1234567890UL);
   CHECK_CONSTANT_POOL_SIZE(16);
 
   code_size += 2 * kInstructionSize;
@@ -6799,8 +6808,8 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   CHECK_CONSTANT_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
-  __ Ldr(x4, Immediate(0x34567890ABCDEF12UL));
-  __ Ldr(d4, 123.4);
+  LoadLiteral(&masm, x4, 0x34567890ABCDEF12UL);
+  LoadLiteral(&masm, x5, 0xABCDEF0123456789UL);
   CHECK_CONSTANT_POOL_SIZE(16);
   END();
 
@@ -6808,9 +6817,9 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
 
   // Check that the literals loaded correctly.
   CHECK_EQUAL_64(0x1234567890ABCDEFUL, x0);
-  CHECK_EQUAL_FP64(1.234, d0);
+  CHECK_EQUAL_64(0xABCDEF1234567890UL, x1);
   CHECK_EQUAL_64(0x34567890ABCDEF12UL, x4);
-  CHECK_EQUAL_FP64(123.4, d4);
+  CHECK_EQUAL_64(0xABCDEF0123456789UL, x5);
 
   TEARDOWN();
 }
@@ -7158,12 +7167,12 @@ TEST(preshift_immediates) {
   // pre-shifted encodable immediate followed by a post-shift applied to
   // the arithmetic or logical operation.
 
-  // Save csp.
-  __ Mov(x29, csp);
+  // Save sp.
+  __ Mov(x29, sp);
 
   // Set the registers to known values.
   __ Mov(x0, 0x1000);
-  __ Mov(csp, 0x1000);
+  __ Mov(sp, 0x1000);
 
   // Arithmetic ops.
   __ Add(x1, x0, 0x1F7DE);
@@ -7181,21 +7190,21 @@ TEST(preshift_immediates) {
   __ Eor(x11, x0, 0x18001);
 
   // Ops using the stack pointer.
-  __ Add(csp, csp, 0x1F7F0);
-  __ Mov(x12, csp);
-  __ Mov(csp, 0x1000);
+  __ Add(sp, sp, 0x1F7F0);
+  __ Mov(x12, sp);
+  __ Mov(sp, 0x1000);
 
-  __ Adds(x13, csp, 0x1F7F0);
+  __ Adds(x13, sp, 0x1F7F0);
 
-  __ Orr(csp, x0, 0x1F7F0);
-  __ Mov(x14, csp);
-  __ Mov(csp, 0x1000);
+  __ Orr(sp, x0, 0x1F7F0);
+  __ Mov(x14, sp);
+  __ Mov(sp, 0x1000);
 
-  __ Add(csp, csp, 0x10100);
-  __ Mov(x15, csp);
+  __ Add(sp, sp, 0x10100);
+  __ Mov(x15, sp);
 
-  //  Restore csp.
-  __ Mov(csp, x29);
+  //  Restore sp.
+  __ Mov(sp, x29);
   END();
 
   RUN();
@@ -11840,8 +11849,7 @@ TEST(system_msr) {
   TEARDOWN();
 }
 
-
-TEST(system_nop) {
+TEST(system) {
   INIT_V8();
   SETUP();
   RegisterDump before;
@@ -11849,6 +11857,7 @@ TEST(system_nop) {
   START();
   before.Dump(&masm);
   __ Nop();
+  __ Csdb();
   END();
 
   RUN();
@@ -11867,7 +11876,7 @@ TEST(zero_dest) {
 
   START();
   // Preserve the system stack pointer, in case we clobber it.
-  __ Mov(x30, csp);
+  __ Mov(x30, sp);
   // Initialize the other registers used in this test.
   uint64_t literal_base = 0x0100001000100101UL;
   __ Mov(x0, 0);
@@ -11907,12 +11916,12 @@ TEST(zero_dest) {
   __ sub(xzr, x7, xzr);
   __ sub(xzr, xzr, x7);
 
-  // Swap the saved system stack pointer with the real one. If csp was written
+  // Swap the saved system stack pointer with the real one. If sp was written
   // during the test, it will show up in x30. This is done because the test
-  // framework assumes that csp will be valid at the end of the test.
+  // framework assumes that sp will be valid at the end of the test.
   __ Mov(x29, x30);
-  __ Mov(x30, csp);
-  __ Mov(csp, x29);
+  __ Mov(x30, sp);
+  __ Mov(sp, x29);
   // We used x29 as a scratch register, so reset it to make sure it doesn't
   // trigger a test failure.
   __ Add(x29, x28, x1);
@@ -11934,7 +11943,7 @@ TEST(zero_dest_setflags) {
 
   START();
   // Preserve the system stack pointer, in case we clobber it.
-  __ Mov(x30, csp);
+  __ Mov(x30, sp);
   // Initialize the other registers used in this test.
   uint64_t literal_base = 0x0100001000100101UL;
   __ Mov(x0, 0);
@@ -11972,12 +11981,12 @@ TEST(zero_dest_setflags) {
   __ subs(xzr, x3, xzr);
   __ subs(xzr, xzr, x3);
 
-  // Swap the saved system stack pointer with the real one. If csp was written
+  // Swap the saved system stack pointer with the real one. If sp was written
   // during the test, it will show up in x30. This is done because the test
-  // framework assumes that csp will be valid at the end of the test.
+  // framework assumes that sp will be valid at the end of the test.
   __ Mov(x29, x30);
-  __ Mov(x30, csp);
-  __ Mov(csp, x29);
+  __ Mov(x30, sp);
+  __ Mov(sp, x29);
   // We used x29 as a scratch register, so reset it to make sure it doesn't
   // trigger a test failure.
   __ Add(x29, x28, x1);
@@ -12008,15 +12017,15 @@ TEST(register_bit) {
   CHECK(xzr.bit() == (1UL << kZeroRegCode));
 
   // Internal ABI definitions.
-  CHECK(csp.bit() == (1UL << kSPRegInternalCode));
-  CHECK(csp.bit() != xzr.bit());
+  CHECK(sp.bit() == (1UL << kSPRegInternalCode));
+  CHECK(sp.bit() != xzr.bit());
 
   // xn.bit() == wn.bit() at all times, for the same n.
   CHECK(x0.bit() == w0.bit());
   CHECK(x1.bit() == w1.bit());
   CHECK(x10.bit() == w10.bit());
   CHECK(xzr.bit() == wzr.bit());
-  CHECK(csp.bit() == wcsp.bit());
+  CHECK(sp.bit() == wsp.bit());
 }
 
 
@@ -12478,7 +12487,6 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    CHECK(__ StackPointer().Is(csp));
     int i;
 
     // Initialize the registers, using X registers to load the literal.
@@ -12637,8 +12645,6 @@ static void PushPopMixedMethodsHelper(int reg_size) {
 
   START();
   {
-    CHECK(__ StackPointer().Is(csp));
-
     __ Mov(x[3], literal_base * 3);
     __ Mov(x[2], literal_base * 2);
     __ Mov(x[1], literal_base * 1);
@@ -12681,15 +12687,11 @@ TEST(push_pop_mixed_methods_64) {
   PushPopMixedMethodsHelper(kXRegSizeInBits);
 }
 
-
-TEST(push_pop_csp) {
+TEST(push_pop) {
   INIT_V8();
   SETUP();
 
   START();
-
-  CHECK(csp.Is(__ StackPointer()));
-
   __ Mov(x3, 0x3333333333333333UL);
   __ Mov(x2, 0x2222222222222222UL);
   __ Mov(x1, 0x1111111111111111UL);
@@ -13863,8 +13865,8 @@ TEST(isvalid) {
   CHECK(xzr.IsValid());
   CHECK(wzr.IsValid());
 
-  CHECK(csp.IsValid());
-  CHECK(wcsp.IsValid());
+  CHECK(sp.IsValid());
+  CHECK(wsp.IsValid());
 
   CHECK(d0.IsValid());
   CHECK(s0.IsValid());
@@ -13875,14 +13877,14 @@ TEST(isvalid) {
   CHECK(w0.IsRegister());
   CHECK(xzr.IsRegister());
   CHECK(wzr.IsRegister());
-  CHECK(csp.IsRegister());
-  CHECK(wcsp.IsRegister());
+  CHECK(sp.IsRegister());
+  CHECK(wsp.IsRegister());
   CHECK(!x0.IsVRegister());
   CHECK(!w0.IsVRegister());
   CHECK(!xzr.IsVRegister());
   CHECK(!wzr.IsVRegister());
-  CHECK(!csp.IsVRegister());
-  CHECK(!wcsp.IsVRegister());
+  CHECK(!sp.IsVRegister());
+  CHECK(!wsp.IsVRegister());
 
   CHECK(d0.IsVRegister());
   CHECK(s0.IsVRegister());
@@ -13898,8 +13900,8 @@ TEST(isvalid) {
   CHECK(static_cast<CPURegister>(xzr).IsValid());
   CHECK(static_cast<CPURegister>(wzr).IsValid());
 
-  CHECK(static_cast<CPURegister>(csp).IsValid());
-  CHECK(static_cast<CPURegister>(wcsp).IsValid());
+  CHECK(static_cast<CPURegister>(sp).IsValid());
+  CHECK(static_cast<CPURegister>(wsp).IsValid());
 
   CHECK(static_cast<CPURegister>(d0).IsValid());
   CHECK(static_cast<CPURegister>(s0).IsValid());
@@ -13910,14 +13912,14 @@ TEST(isvalid) {
   CHECK(static_cast<CPURegister>(w0).IsRegister());
   CHECK(static_cast<CPURegister>(xzr).IsRegister());
   CHECK(static_cast<CPURegister>(wzr).IsRegister());
-  CHECK(static_cast<CPURegister>(csp).IsRegister());
-  CHECK(static_cast<CPURegister>(wcsp).IsRegister());
+  CHECK(static_cast<CPURegister>(sp).IsRegister());
+  CHECK(static_cast<CPURegister>(wsp).IsRegister());
   CHECK(!static_cast<CPURegister>(x0).IsVRegister());
   CHECK(!static_cast<CPURegister>(w0).IsVRegister());
   CHECK(!static_cast<CPURegister>(xzr).IsVRegister());
   CHECK(!static_cast<CPURegister>(wzr).IsVRegister());
-  CHECK(!static_cast<CPURegister>(csp).IsVRegister());
-  CHECK(!static_cast<CPURegister>(wcsp).IsVRegister());
+  CHECK(!static_cast<CPURegister>(sp).IsVRegister());
+  CHECK(!static_cast<CPURegister>(wsp).IsVRegister());
 
   CHECK(static_cast<CPURegister>(d0).IsVRegister());
   CHECK(static_cast<CPURegister>(s0).IsVRegister());
@@ -13995,11 +13997,11 @@ TEST(cpureglist_utils_x) {
   CHECK(!test.IncludesAliasOf(x4));
   CHECK(!test.IncludesAliasOf(x30));
   CHECK(!test.IncludesAliasOf(xzr));
-  CHECK(!test.IncludesAliasOf(csp));
+  CHECK(!test.IncludesAliasOf(sp));
   CHECK(!test.IncludesAliasOf(w4));
   CHECK(!test.IncludesAliasOf(w30));
   CHECK(!test.IncludesAliasOf(wzr));
-  CHECK(!test.IncludesAliasOf(wcsp));
+  CHECK(!test.IncludesAliasOf(wsp));
 
   CHECK(!test.IncludesAliasOf(d0));
   CHECK(!test.IncludesAliasOf(d1));
@@ -14059,13 +14061,13 @@ TEST(cpureglist_utils_w) {
   CHECK(!test.IncludesAliasOf(x14));
   CHECK(!test.IncludesAliasOf(x30));
   CHECK(!test.IncludesAliasOf(xzr));
-  CHECK(!test.IncludesAliasOf(csp));
+  CHECK(!test.IncludesAliasOf(sp));
   CHECK(!test.IncludesAliasOf(w0));
   CHECK(!test.IncludesAliasOf(w9));
   CHECK(!test.IncludesAliasOf(w14));
   CHECK(!test.IncludesAliasOf(w30));
   CHECK(!test.IncludesAliasOf(wzr));
-  CHECK(!test.IncludesAliasOf(wcsp));
+  CHECK(!test.IncludesAliasOf(wsp));
 
   CHECK(!test.IncludesAliasOf(d10));
   CHECK(!test.IncludesAliasOf(d11));
@@ -14140,8 +14142,8 @@ TEST(cpureglist_utils_d) {
 
   CHECK(!test.IncludesAliasOf(xzr));
   CHECK(!test.IncludesAliasOf(wzr));
-  CHECK(!test.IncludesAliasOf(csp));
-  CHECK(!test.IncludesAliasOf(wcsp));
+  CHECK(!test.IncludesAliasOf(sp));
+  CHECK(!test.IncludesAliasOf(wsp));
 
   CHECK(!test.IsEmpty());
 
@@ -14238,7 +14240,7 @@ TEST(printf) {
   // Initialize x29 to the value of the stack pointer. We will use x29 as a
   // temporary stack pointer later, and initializing it in this way allows the
   // RegisterDump check to pass.
-  __ Mov(x29, __ StackPointer());
+  __ Mov(x29, sp);
 
   // Test simple integer arguments.
   __ Mov(x0, 1234);
@@ -14288,10 +14290,8 @@ TEST(printf) {
   __ Printf("%g\n", d10);
   __ Printf("%%%%%s%%%c%%\n", x2, w13);
 
-  // Print the stack pointer (csp).
-  CHECK(csp.Is(__ StackPointer()));
-  __ Printf("StackPointer(csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
-            __ StackPointer(), __ StackPointer().W());
+  // Print the stack pointer.
+  __ Printf("StackPointer(sp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n", sp, wsp);
 
   // Test with three arguments.
   __ Printf("3=%u, 4=%u, 5=%u\n", x10, x11, x12);
@@ -15089,7 +15089,7 @@ TEST(call_no_relocation) {
   {
     Assembler::BlockConstPoolScope scope(&masm);
     call_start = buf + __ pc_offset();
-    __ Call(buf + function.pos(), RelocInfo::NONE64);
+    __ Call(buf + function.pos(), RelocInfo::NONE);
     return_address = buf + __ pc_offset();
   }
   __ Pop(xzr, lr);

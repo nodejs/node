@@ -58,12 +58,18 @@ const char* GetModifier(KeyedAccessLoadMode mode) {
 }
 
 const char* GetModifier(KeyedAccessStoreMode mode) {
-  if (mode == STORE_NO_TRANSITION_HANDLE_COW) return ".COW";
-  if (mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-    return ".IGNORE_OOB";
+  switch (mode) {
+    case STORE_NO_TRANSITION_HANDLE_COW:
+      return ".COW";
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
+      return ".STORE+COW";
+    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
+      return ".IGNORE_OOB";
+    default:
+      break;
   }
-  if (IsGrowStoreMode(mode)) return ".GROW";
-  return "";
+  DCHECK(!IsCOWHandlingStoreMode(mode));
+  return IsGrowStoreMode(mode) ? ".GROW" : "";
 }
 
 }  // namespace
@@ -89,12 +95,10 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 
   const char* modifier = "";
   if (IsKeyedLoadIC()) {
-    KeyedAccessLoadMode mode =
-        casted_nexus<KeyedLoadICNexus>()->GetKeyedAccessLoadMode();
+    KeyedAccessLoadMode mode = nexus()->GetKeyedAccessLoadMode();
     modifier = GetModifier(mode);
   } else if (IsKeyedStoreIC()) {
-    KeyedAccessStoreMode mode =
-        casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
+    KeyedAccessStoreMode mode = nexus()->GetKeyedAccessStoreMode();
     modifier = GetModifier(mode);
   }
 
@@ -147,13 +151,14 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 
 #define TRACE_IC(type, name) TraceIC(type, name)
 
-IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
+IC::IC(FrameDepth depth, Isolate* isolate, Handle<FeedbackVector> vector,
+       FeedbackSlot slot)
     : isolate_(isolate),
       vector_set_(false),
       kind_(FeedbackSlotKind::kInvalid),
       target_maps_set_(false),
       slow_stub_reason_(nullptr),
-      nexus_(nexus) {
+      nexus_(vector, slot) {
   // To improve the performance of the (much used) IC code, we unfold a few
   // levels of the stack frame iteration code. This yields a ~35% speedup when
   // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
@@ -199,9 +204,8 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
     constant_pool_address_ = constant_pool;
   }
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
-  DCHECK_NOT_NULL(nexus);
-  kind_ = nexus->kind();
-  state_ = nexus->StateFromFeedback();
+  kind_ = nexus_.kind();
+  state_ = nexus_.StateFromFeedback();
   old_state_ = state_;
 }
 
@@ -251,11 +255,11 @@ static void LookupForRead(LookupIterator* it) {
 bool IC::ShouldRecomputeHandler(Handle<String> name) {
   if (!RecomputeHandlerForName(name)) return false;
 
-  maybe_handler_ = nexus()->FindHandlerForMap(receiver_map());
-
   // This is a contextual access, always just update the handler and stay
   // monomorphic.
   if (IsGlobalIC()) return true;
+
+  maybe_handler_ = nexus()->FindHandlerForMap(receiver_map());
 
   // The current map wasn't handled yet. There's no reason to stay monomorphic,
   // *unless* we're moving from a deprecated map to its replacement, or
@@ -315,6 +319,13 @@ MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
       isolate(), NewReferenceError(MessageTemplate::kNotDefined, name), Object);
 }
 
+// static
+void IC::OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
+                           JSFunction* host_function, const char* reason) {
+  FeedbackVector* vector = nexus->vector();
+  FeedbackSlot slot = nexus->slot();
+  OnFeedbackChanged(isolate, vector, slot, host_function, reason);
+}
 
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
@@ -385,21 +396,15 @@ bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
 
   vector_set_ = true;
   OnFeedbackChanged(
-      isolate(), *vector(), slot(), GetHostFunction(),
+      isolate(), nexus(), GetHostFunction(),
       new_state == PREMONOMORPHIC ? "Premonomorphic" : "Megamorphic");
   return changed;
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                               Handle<Object> handler) {
-  if (IsLoadGlobalIC()) {
-    LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-    nexus->ConfigureHandlerMode(handler);
-
-  } else if (IsStoreGlobalIC()) {
-    StoreGlobalICNexus* nexus = casted_nexus<StoreGlobalICNexus>();
-    nexus->ConfigureHandlerMode(handler);
-
+  if (IsGlobalIC()) {
+    nexus()->ConfigureHandlerMode(handler);
   } else {
     // Non-keyed ICs don't track the name explicitly.
     if (!is_keyed()) name = Handle<Name>::null();
@@ -407,7 +412,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   }
 
   vector_set_ = true;
-  OnFeedbackChanged(isolate(), *vector(), slot(), GetHostFunction(),
+  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(),
                     IsLoadGlobalIC() ? "LoadGlobal" : "Monomorphic");
 }
 
@@ -419,8 +424,7 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
   nexus()->ConfigurePolymorphic(name, maps, handlers);
 
   vector_set_ = true;
-  OnFeedbackChanged(isolate(), *vector(), slot(), GetHostFunction(),
-                    "Polymorphic");
+  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(), "Polymorphic");
 }
 
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
@@ -450,6 +454,19 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // Named lookup in the object.
   LookupIterator it(object, name);
   LookupForRead(&it);
+
+  if (name->IsPrivate()) {
+    if (name->IsPrivateField() && !it.IsFound()) {
+      return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
+                       name);
+    }
+
+    // IC handling of private symbols/fields lookup on JSProxy is not
+    // supported.
+    if (object->IsJSProxy()) {
+      use_ic = false;
+    }
+  }
 
   if (it.IsFound() || !ShouldThrowReferenceError()) {
     // Update inline cache and stub cache.
@@ -492,9 +509,8 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
       }
 
       if (FLAG_use_ic) {
-        LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-        if (nexus->ConfigureLexicalVarMode(lookup_result.context_index,
-                                           lookup_result.slot_index)) {
+        if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
+                                             lookup_result.slot_index)) {
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_LoadScriptContextField);
         } else {
           // Given combination of indices can't be encoded, so use slow stub.
@@ -638,14 +654,14 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
         UpdateMonomorphicIC(handler, name);
         break;
       }
-    // Fall through.
+      V8_FALLTHROUGH;
     case POLYMORPHIC:
       if (UpdatePolymorphicIC(name, handler)) break;
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
         CopyICToMegamorphicCache(name);
       }
       ConfigureVectorState(MEGAMORPHIC, name);
-    // Fall through.
+      V8_FALLTHROUGH;
     case MEGAMORPHIC:
       UpdateMegamorphicCache(*receiver_map(), *name, *handler);
       // Indicate that we've handled this case.
@@ -685,8 +701,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
           lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
         DCHECK(lookup->GetReceiver()->IsJSGlobalObject());
         // Now update the cell in the feedback vector.
-        LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-        nexus->ConfigurePropertyCellMode(lookup->GetPropertyCell());
+        nexus()->ConfigurePropertyCellMode(lookup->GetPropertyCell());
         TRACE_IC("LoadGlobalIC", lookup->name());
         return;
       }
@@ -1199,8 +1214,14 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                Object);
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded() &&
              !object->IsJSValue()) {
-    if ((object->IsJSReceiver() || object->IsString()) &&
-        key->ToArrayIndex(&index)) {
+    // For regular JSReceiver or String {object}s the {key} must be a positive
+    // array index, for JSTypedArray {object}s we can also support negative
+    // {key}s which we just map into the [2*31,2*32-1] range (via a bit_cast).
+    // This is valid since JSTypedArray::length is always a Smi.
+    if (((object->IsJSReceiver() || object->IsString()) &&
+         key->ToArrayIndex(&index)) ||
+        (object->IsJSTypedArray() &&
+         key->ToInt32(bit_cast<int32_t*>(&index)))) {
       KeyedAccessLoadMode load_mode = GetLoadMode(object, index);
       UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
       if (is_vector_set()) {
@@ -1287,7 +1308,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
     }
   }
 
-  receiver = it->GetStoreTarget();
+  receiver = it->GetStoreTarget<JSObject>();
   if (it->ExtendingNonExtensible(receiver)) return false;
   created_new_transition_ =
       it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
@@ -1322,9 +1343,8 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     }
 
     if (FLAG_use_ic) {
-      StoreGlobalICNexus* nexus = casted_nexus<StoreGlobalICNexus>();
-      if (nexus->ConfigureLexicalVarMode(lookup_result.context_index,
-                                         lookup_result.slot_index)) {
+      if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
+                                           lookup_result.slot_index)) {
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_StoreScriptContextField);
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
@@ -1383,7 +1403,23 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   LookupIterator it = LookupIterator::ForTransitionHandler(
       isolate(), object, name, value, cached_handler, transition_map);
-  if (FLAG_use_ic) UpdateCaches(&it, value, store_mode, cached_handler);
+
+  bool use_ic = FLAG_use_ic;
+
+  if (name->IsPrivate()) {
+    if (name->IsPrivateField() && !it.IsFound()) {
+      return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
+                       name);
+    }
+
+    // IC handling of private fields/symbols stores on JSProxy is not
+    // supported.
+    if (object->IsJSProxy()) {
+      use_ic = false;
+    }
+  }
+
+  if (use_ic) UpdateCaches(&it, value, store_mode, cached_handler);
 
   MAYBE_RETURN_NULL(
       Object::SetProperty(&it, value, language_mode(), store_mode));
@@ -1411,8 +1447,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
           lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
         DCHECK(lookup->GetReceiver()->IsJSGlobalObject());
         // Now update the cell in the feedback vector.
-        StoreGlobalICNexus* nexus = casted_nexus<StoreGlobalICNexus>();
-        nexus->ConfigurePropertyCellMode(lookup->GetPropertyCell());
+        nexus()->ConfigurePropertyCellMode(lookup->GetPropertyCell());
         TRACE_IC("StoreGlobalIC", lookup->name());
         return;
       }
@@ -1439,7 +1474,7 @@ Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::TRANSITION: {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
 
-      Handle<JSObject> store_target = lookup->GetStoreTarget();
+      Handle<JSObject> store_target = lookup->GetStoreTarget<JSObject>();
       if (store_target->IsJSGlobalObject()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 
@@ -1692,7 +1727,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     }
     if (receiver_map.is_identical_to(previous_receiver_map) &&
         old_store_mode == STANDARD_STORE &&
-        (store_mode == STORE_AND_GROW_NO_TRANSITION ||
+        (store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
       // A "normal" IC that handles stores can switch to a version that can
@@ -1787,10 +1822,10 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
     }
     case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
       DCHECK(map->has_fixed_typed_array_elements());
-    // Fall through
+      V8_FALLTHROUGH;
     case STORE_NO_TRANSITION_HANDLE_COW:
     case STANDARD_STORE:
-    case STORE_AND_GROW_NO_TRANSITION:
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
       return map;
   }
   UNREACHABLE();
@@ -1799,7 +1834,7 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
   DCHECK(store_mode == STANDARD_STORE ||
-         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
   DCHECK(!receiver_map->DictionaryElementsInPrototypeChainOnly());
@@ -1840,7 +1875,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     MapHandles* receiver_maps, ObjectHandles* handlers,
     KeyedAccessStoreMode store_mode) {
   DCHECK(store_mode == STANDARD_STORE ||
-         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
@@ -1915,7 +1950,7 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
         return STORE_AND_GROW_TRANSITION_TO_OBJECT;
       }
     }
-    return STORE_AND_GROW_NO_TRANSITION;
+    return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
   } else {
     // Handle only in-bounds elements accesses.
     if (receiver->HasSmiElements()) {
@@ -2005,7 +2040,13 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     old_receiver_map = handle(receiver->map(), isolate());
     is_arguments = receiver->IsJSArgumentsObject();
     bool is_proxy = receiver->IsJSProxy();
-    key_is_valid_index = key->IsSmi() && Smi::ToInt(*key) >= 0;
+    // For JSTypedArray {object}s we can handle negative indices as OOB
+    // accesses, since integer indexed properties are never looked up
+    // on the prototype chain. For this we simply map the negative {key}s
+    // to the [2**31,2**32-1] range, which is safe since JSTypedArray::length
+    // is always an unsigned Smi.
+    key_is_valid_index =
+        key->IsSmi() && (Smi::ToInt(*key) >= 0 || object->IsJSTypedArray());
     if (!is_arguments && !is_proxy) {
       if (key_is_valid_index) {
         uint32_t index = static_cast<uint32_t>(Smi::ToInt(*key));
@@ -2071,29 +2112,26 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   Handle<Name> key = args.at<Name>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
   // set up outside the IC, handle that here.
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
   if (IsLoadICKind(kind)) {
-    LoadICNexus nexus(vector, vector_slot);
-    LoadIC ic(isolate, &nexus);
+    LoadIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 
   } else if (IsLoadGlobalICKind(kind)) {
     DCHECK_EQ(isolate->native_context()->global_proxy(), *receiver);
     receiver = isolate->global_object();
-    LoadGlobalICNexus nexus(vector, vector_slot);
-    LoadGlobalIC ic(isolate, &nexus);
+    LoadGlobalIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(key));
 
   } else {
     DCHECK(IsKeyedLoadICKind(kind));
-    KeyedLoadICNexus nexus(vector, vector_slot);
-    KeyedLoadIC ic(isolate, &nexus);
+    KeyedLoadIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
   }
@@ -2108,10 +2146,9 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   Handle<String> name = args.at<String>(0);
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
 
-  LoadGlobalICNexus nexus(vector, vector_slot);
-  LoadGlobalIC ic(isolate, &nexus);
+  LoadGlobalIC ic(isolate, vector, vector_slot);
   ic.UpdateState(global, name);
 
   Handle<Object> result;
@@ -2150,7 +2187,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
   if (!is_found) {
     Handle<Smi> slot = args.at<Smi>(1);
     Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-    FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+    FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
     FeedbackSlotKind kind = vector->GetKind(vector_slot);
     // It is actually a LoadGlobalICs here but the predicate handles this case
     // properly.
@@ -2171,9 +2208,8 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<Object> key = args.at(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
-  KeyedLoadICNexus nexus(vector, vector_slot);
-  KeyedLoadIC ic(isolate, &nexus);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  KeyedLoadIC ic(isolate, vector, vector_slot);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 }
@@ -2188,24 +2224,21 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
   if (IsStoreICKind(kind) || IsStoreOwnICKind(kind)) {
-    StoreICNexus nexus(vector, vector_slot);
-    StoreIC ic(isolate, &nexus);
+    StoreIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else if (IsStoreGlobalICKind(kind)) {
     DCHECK_EQ(isolate->native_context()->global_proxy(), *receiver);
     receiver = isolate->global_object();
-    StoreGlobalICNexus nexus(vector, vector_slot);
-    StoreGlobalIC ic(isolate, &nexus);
+    StoreGlobalIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(key, value));
   } else {
     DCHECK(IsKeyedStoreICKind(kind));
-    KeyedStoreICNexus nexus(vector, vector_slot);
-    KeyedStoreIC ic(isolate, &nexus);
+    KeyedStoreIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   }
@@ -2219,9 +2252,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Miss) {
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Name> key = args.at<Name>(3);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
-  StoreGlobalICNexus nexus(vector, vector_slot);
-  StoreGlobalIC ic(isolate, &nexus);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  StoreGlobalIC ic(isolate, vector, vector_slot);
   Handle<JSGlobalObject> global = isolate->global_object();
   ic.UpdateState(global, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(key, value));
@@ -2238,7 +2270,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
 
 #ifdef DEBUG
   {
-    FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+    FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
     FeedbackSlotKind slot_kind = vector->GetKind(vector_slot);
     DCHECK(IsStoreGlobalICKind(slot_kind));
     Handle<Object> receiver = args.at(3);
@@ -2272,7 +2304,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
     return *value;
   }
 
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -2289,9 +2321,8 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
-  KeyedStoreICNexus nexus(vector, vector_slot);
-  KeyedStoreIC ic(isolate, &nexus);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+  KeyedStoreIC ic(isolate, vector, vector_slot);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
@@ -2306,7 +2337,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> object = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -2324,7 +2355,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   Handle<Map> map = args.at<Map>(3);
   Handle<Smi> slot = args.at<Smi>(4);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(5);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   if (object->IsJSObject()) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
@@ -2333,11 +2364,6 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   RETURN_RESULT_OR_FAILURE(
       isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
-}
-
-
-RUNTIME_FUNCTION(Runtime_Unreachable) {
-  UNREACHABLE();
 }
 
 
@@ -2413,7 +2439,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   Handle<Smi> slot = args.at<Smi>(3);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(4);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   FeedbackSlotKind slot_kind = vector->GetKind(vector_slot);
   // It could actually be any kind of load IC slot here but the predicate
   // handles all the cases properly.
@@ -2436,7 +2462,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<JSObject> receiver = args.at<JSObject>(3);
   Handle<Name> name = args.at<Name>(4);
-  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
 
   // TODO(ishell): Cache interceptor_holder in the store handler like we do

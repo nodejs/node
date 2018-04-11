@@ -347,22 +347,20 @@ uint32_t RelocInfo::embedded_size() const {
       Assembler::target_address_at(pc_, constant_pool_));
 }
 
-void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
+void RelocInfo::set_embedded_address(Address address,
                                      ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
-                                   flush_mode);
+  Assembler::set_target_address_at(pc_, constant_pool_, address, flush_mode);
 }
 
-void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
-                                  ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_,
+void RelocInfo::set_embedded_size(uint32_t size, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(pc_, constant_pool_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
-void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(isolate, address, icache_flush_mode);
+  set_embedded_address(address, icache_flush_mode);
 }
 
 Address RelocInfo::js_to_wasm_address() const {
@@ -566,9 +564,15 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
     // it's awkward to use CpuFeatures::VFP32DREGS with CpuFeatureScope. To make
     // its use consistent with other features, we always enable it if we can.
     EnableCpuFeature(VFP32DREGS);
+    // Make sure we pick two D registers which alias a Q register. This way, we
+    // can use a Q as a scratch if NEON is supported.
+    scratch_vfp_register_list_ = d14.ToVfpRegList() | d15.ToVfpRegList();
+  } else {
+    // When VFP32DREGS is not supported, d15 become allocatable. Therefore we
+    // cannot use it as a scratch.
+    scratch_vfp_register_list_ = d14.ToVfpRegList();
   }
 }
-
 
 Assembler::~Assembler() {
   DCHECK_EQ(const_pool_blocked_nesting_, 0);
@@ -1214,6 +1218,7 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
     DCHECK(x.IsImmediate());
     // Upon failure to encode, the opcode should not have changed.
     DCHECK(opcode == (instr & kOpCodeMask));
+    UseScratchRegisterScope temps(this);
     Condition cond = Instruction::ConditionField(instr);
     if ((opcode == MOV) && !set_flags) {
       // Generate a sequence of mov instructions or a load from the constant
@@ -1221,7 +1226,7 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
       DCHECK(!rn.is_valid());
       Move32BitImmediate(rd, x, cond);
     } else if ((opcode == ADD) && !set_flags && (rd == rn) &&
-               (scratch_register_list_ == 0)) {
+               !temps.CanAcquire()) {
       // Split the operation into a sequence of additions if we cannot use a
       // scratch register. In this case, we cannot re-use rn and the assembler
       // does not have any scratch registers to spare.
@@ -1244,7 +1249,6 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to a scratch register and change the original instruction to
       // use it.
-      UseScratchRegisterScope temps(this);
       // Re-use the destination register if possible.
       Register scratch =
           (rd.is_valid() && rd != rn && rd != pc) ? rd : temps.Acquire();
@@ -1501,6 +1505,10 @@ void Assembler::and_(Register dst, Register src1, const Operand& src2,
   AddrMode1(cond | AND | s, dst, src1, src2);
 }
 
+void Assembler::and_(Register dst, Register src1, Register src2, SBit s,
+                     Condition cond) {
+  and_(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::eor(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -2367,6 +2375,11 @@ void Assembler::isb(BarrierOption option) {
   }
 }
 
+void Assembler::csdb() {
+  // Details available in Arm Cache Speculation Side-channels white paper,
+  // version 1.1, page 4.
+  emit(0xE320F014);
+}
 
 // Coprocessor instructions.
 void Assembler::cdp(Coprocessor coproc,
@@ -5153,8 +5166,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 
 void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                                      intptr_t value) {
-  DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL &&
-         rmode != RelocInfo::NONE64);
+  DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL);
   bool sharing_ok = RelocInfo::IsNone(rmode) ||
                     (rmode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
@@ -5474,24 +5486,24 @@ void PatchingAssembler::Emit(Address addr) {
   emit(reinterpret_cast<Instr>(addr));
 }
 
-void PatchingAssembler::FlushICache(Isolate* isolate) {
-  Assembler::FlushICache(isolate, buffer_, buffer_size_ - kGap);
-}
-
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : available_(assembler->GetScratchRegisterList()),
-      old_available_(*available_) {}
+    : assembler_(assembler),
+      old_available_(*assembler->GetScratchRegisterList()),
+      old_available_vfp_(*assembler->GetScratchVfpRegisterList()) {}
 
 UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *available_ = old_available_;
+  *assembler_->GetScratchRegisterList() = old_available_;
+  *assembler_->GetScratchVfpRegisterList() = old_available_vfp_;
 }
 
 Register UseScratchRegisterScope::Acquire() {
-  DCHECK_NOT_NULL(available_);
-  DCHECK_NE(*available_, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available_));
-  *available_ &= ~(1UL << index);
-  return Register::from_code(index);
+  RegList* available = assembler_->GetScratchRegisterList();
+  DCHECK_NOT_NULL(available);
+  DCHECK_NE(*available, 0);
+  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
+  Register reg = Register::from_code(index);
+  *available &= ~reg.bit();
+  return reg;
 }
 
 }  // namespace internal

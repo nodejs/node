@@ -123,7 +123,7 @@ Object* DeclareGlobal(
     // named interceptor or the interceptor is not masking.
     if (!global->HasNamedInterceptor() ||
         global->GetNamedInterceptor()->non_masking()) {
-      LoadGlobalICNexus nexus(feedback_vector, slot);
+      FeedbackNexus nexus(feedback_vector, slot);
       nexus.ConfigurePropertyCellMode(it.GetPropertyCell());
     }
   }
@@ -141,7 +141,8 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
     FeedbackSlot slot(Smi::ToInt(declarations->get(i + 1)));
-    Handle<Object> possibly_literal_slot(declarations->get(i + 2), isolate);
+    Handle<Object> possibly_feedback_cell_slot(declarations->get(i + 2),
+                                               isolate);
     Handle<Object> initial_value(declarations->get(i + 3), isolate);
 
     bool is_var = initial_value->IsUndefined(isolate);
@@ -150,16 +151,18 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     Handle<Object> value;
     if (is_function) {
-      DCHECK(possibly_literal_slot->IsSmi());
+      DCHECK(possibly_feedback_cell_slot->IsSmi());
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
-      FeedbackSlot literals_slot(Smi::ToInt(*possibly_literal_slot));
-      Handle<Cell> literals(Cell::cast(feedback_vector->Get(literals_slot)),
-                            isolate);
+      FeedbackSlot feedback_cells_slot(
+          Smi::ToInt(*possibly_feedback_cell_slot));
+      Handle<FeedbackCell> feedback_cell(
+          FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)),
+          isolate);
       Handle<JSFunction> function =
           isolate->factory()->NewFunctionFromSharedFunctionInfo(
-              shared, context, literals, TENURED);
+              shared, context, feedback_cell, TENURED);
       value = function;
     } else {
       value = isolate->factory()->undefined_value();
@@ -635,34 +638,27 @@ RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
 
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 1);
-  CONVERT_SMI_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackCell, feedback_cell, 1);
   Handle<Context> context(isolate->context(), isolate);
-  FeedbackSlot slot = FeedbackVector::ToSlot(index);
-  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, vector_cell, NOT_TENURED);
+          shared, context, feedback_cell, NOT_TENURED);
   return *function;
 }
 
-
 RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 1);
-  CONVERT_SMI_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackCell, feedback_cell, 1);
   Handle<Context> context(isolate->context(), isolate);
-  FeedbackSlot slot = FeedbackVector::ToSlot(index);
-  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, vector_cell, TENURED);
+          shared, context, feedback_cell, TENURED);
   return *function;
 }
 

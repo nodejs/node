@@ -36,6 +36,8 @@ class TypeCache final {
   Type* const kUint32 = Type::Unsigned32();
   Type* const kFloat32 = Type::Number();
   Type* const kFloat64 = Type::Number();
+  Type* const kBigInt64 = Type::BigInt();
+  Type* const kBigUint64 = Type::BigInt();
 
   Type* const kHoleySmi =
       Type::Union(Type::SignedSmall(), Type::Hole(), zone());
@@ -95,8 +97,8 @@ class TypeCache final {
   // [0, kMaxUInt32].
   Type* const kJSArrayLengthType = Type::Unsigned32();
 
-  // The JSTyped::length property always contains a tagged number in the range
-  // [0, kMaxSmiValue].
+  // The JSTypedArray::length property always contains a tagged number in the
+  // range [0, kMaxSmiValue].
   Type* const kJSTypedArrayLengthType = Type::UnsignedSmall();
 
   // The String::length property always contains a smi in the range

@@ -348,11 +348,11 @@ void BytecodeExpectationsPrinter::PrintCodeSnippet(
 void BytecodeExpectationsPrinter::PrintHandlers(
     std::ostream& stream, i::Handle<i::BytecodeArray> bytecode_array) const {
   stream << "handlers: [\n";
-  HandlerTable* table = HandlerTable::cast(bytecode_array->handler_table());
-  for (int i = 0, num_entries = table->NumberOfRangeEntries(); i < num_entries;
+  HandlerTable table(*bytecode_array);
+  for (int i = 0, num_entries = table.NumberOfRangeEntries(); i < num_entries;
        ++i) {
-    stream << "  [" << table->GetRangeStart(i) << ", " << table->GetRangeEnd(i)
-           << ", " << table->GetRangeHandler(i) << "],\n";
+    stream << "  [" << table.GetRangeStart(i) << ", " << table.GetRangeEnd(i)
+           << ", " << table.GetRangeHandler(i) << "],\n";
   }
   stream << "]\n";
 }

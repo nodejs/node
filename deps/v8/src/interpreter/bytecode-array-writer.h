@@ -43,7 +43,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   void BindJumpTableEntry(BytecodeJumpTable* jump_table, int case_value);
   Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate, int register_count,
                                         int parameter_count,
-                                        Handle<FixedArray> handler_table);
+                                        Handle<ByteArray> handler_table);
 
  private:
   // Maximum sized packed bytecode is comprised of a prefix bytecode,

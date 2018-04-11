@@ -300,18 +300,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       Comment("out of bounds elements access");
       Label return_undefined(this);
 
-      // Negative indices aren't valid array indices (according to
-      // the ECMAScript specification), and are stored as properties
-      // in V8, not elements. So we cannot handle them here.
-      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), miss);
-
       // Check if we're allowed to handle OOB accesses.
       Node* allow_out_of_bounds =
           IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
       GotoIfNot(allow_out_of_bounds, miss);
 
-      // For typed arrays we never lookup elements in the prototype chain.
+      // Negative indices aren't valid array indices (according to
+      // the ECMAScript specification), and are stored as properties
+      // in V8, not elements. So we cannot handle them here, except
+      // in case of typed arrays, where integer indexed properties
+      // aren't looked up in the prototype chain.
       GotoIf(IsJSTypedArray(holder), &return_undefined);
+      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), miss);
 
       // For all other receivers we need to check that the prototype chain
       // doesn't contain any elements.
@@ -1350,7 +1350,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
 
   BIND(&if_smi_hash);
   {
-    Node* hash = SmiToWord32(properties);
+    Node* hash = SmiToInt32(properties);
     Node* encoded_hash =
         Word32Shl(hash, Int32Constant(PropertyArray::HashField::kShift));
     var_encoded_hash.Bind(encoded_hash);
@@ -1368,7 +1368,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     Node* length_intptr = ChangeInt32ToIntPtr(
         Word32And(length_and_hash_int32,
                   Int32Constant(PropertyArray::LengthField::kMask)));
-    Node* length = WordToParameter(length_intptr, mode);
+    Node* length = IntPtrToParameter(length_intptr, mode);
     var_length.Bind(length);
     Goto(&extend_store);
   }
@@ -1412,11 +1412,11 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     // TODO(gsathya): Clean up the type conversions by creating smarter
     // helpers that do the correct op based on the mode.
     Node* new_capacity_int32 =
-        TruncateWordToWord32(ParameterToWord(new_capacity, mode));
+        TruncateIntPtrToInt32(ParameterToIntPtr(new_capacity, mode));
     Node* new_length_and_hash_int32 =
         Word32Or(var_encoded_hash.value(), new_capacity_int32);
     StoreObjectField(new_properties, PropertyArray::kLengthAndHashOffset,
-                     SmiFromWord32(new_length_and_hash_int32));
+                     SmiFromInt32(new_length_and_hash_int32));
     StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
     Comment("] Extend storage");
     Goto(&done);
@@ -1614,26 +1614,22 @@ void AccessorAssembler::EmitElementLoad(
         SmiUntag(CAST(LoadObjectField(object, JSTypedArray::kLengthOffset)));
     GotoIfNot(UintPtrLessThan(intptr_index, length), out_of_bounds);
 
-    // Backing store = external_pointer + base_pointer.
-    Node* external_pointer =
-        LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
-                        MachineType::Pointer());
-    Node* base_pointer =
-        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
-    Node* backing_store =
-        IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer));
+    Node* backing_store = LoadFixedTypedArrayBackingStore(CAST(elements));
 
     Label uint8_elements(this), int8_elements(this), uint16_elements(this),
         int16_elements(this), uint32_elements(this), int32_elements(this),
-        float32_elements(this), float64_elements(this);
+        float32_elements(this), float64_elements(this), bigint64_elements(this),
+        biguint64_elements(this);
     Label* elements_kind_labels[] = {
-        &uint8_elements,  &uint8_elements,   &int8_elements,
-        &uint16_elements, &int16_elements,   &uint32_elements,
-        &int32_elements,  &float32_elements, &float64_elements};
+        &uint8_elements,    &uint8_elements,    &int8_elements,
+        &uint16_elements,   &int16_elements,    &uint32_elements,
+        &int32_elements,    &float32_elements,  &float64_elements,
+        &bigint64_elements, &biguint64_elements};
     int32_t elements_kinds[] = {
-        UINT8_ELEMENTS,  UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
-        UINT16_ELEMENTS, INT16_ELEMENTS,         UINT32_ELEMENTS,
-        INT32_ELEMENTS,  FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS};
+        UINT8_ELEMENTS,    UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
+        UINT16_ELEMENTS,   INT16_ELEMENTS,         UINT32_ELEMENTS,
+        INT32_ELEMENTS,    FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS,
+        BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS};
     const size_t kTypedElementsKindCount =
         LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
@@ -1645,27 +1641,27 @@ void AccessorAssembler::EmitElementLoad(
     {
       Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
       Node* element = Load(MachineType::Uint8(), backing_store, intptr_index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&int8_elements);
     {
       Comment("INT8_ELEMENTS");
       Node* element = Load(MachineType::Int8(), backing_store, intptr_index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&uint16_elements);
     {
       Comment("UINT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
       Node* element = Load(MachineType::Uint16(), backing_store, index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&int16_elements);
     {
       Comment("INT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
       Node* element = Load(MachineType::Int16(), backing_store, index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&uint32_elements);
     {
@@ -1697,6 +1693,18 @@ void AccessorAssembler::EmitElementLoad(
       var_double_value->Bind(element);
       Goto(rebox_double);
     }
+    BIND(&bigint64_elements);
+    {
+      Comment("BIGINT64_ELEMENTS");
+      exit_point->Return(LoadFixedTypedArrayElementAsTagged(
+          backing_store, intptr_index, BIGINT64_ELEMENTS, INTPTR_PARAMETERS));
+    }
+    BIND(&biguint64_elements);
+    {
+      Comment("BIGUINT64_ELEMENTS");
+      exit_point->Return(LoadFixedTypedArrayElementAsTagged(
+          backing_store, intptr_index, BIGUINT64_ELEMENTS, INTPTR_PARAMETERS));
+    }
   }
 }
 
@@ -1718,13 +1726,13 @@ void AccessorAssembler::BranchIfStrictMode(Node* vector, Node* slot,
       LoadObjectField(vector, FeedbackVector::kSharedFunctionInfoOffset);
   Node* metadata =
       LoadObjectField(sfi, SharedFunctionInfo::kFeedbackMetadataOffset);
-  Node* slot_int = SmiToWord32(slot);
+  Node* slot_int = SmiToInt32(slot);
 
   // See VectorICComputer::index().
   const int kItemsPerWord = FeedbackMetadata::VectorICComputer::kItemsPerWord;
   Node* word_index = Int32Div(slot_int, Int32Constant(kItemsPerWord));
   Node* word_offset = Int32Mod(slot_int, Int32Constant(kItemsPerWord));
-  Node* data = SmiToWord32(LoadFixedArrayElement(
+  Node* data = SmiToInt32(LoadFixedArrayElement(
       metadata, ChangeInt32ToIntPtr(word_index),
       FeedbackMetadata::kReservedIndexCount * kPointerSize, INTPTR_PARAMETERS));
   // See VectorICComputer::decode().
@@ -1803,10 +1811,12 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
   BIND(&if_oob);
   {
     Comment("out of bounds");
-    // Negative keys can't take the fast OOB path.
-    GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), slow);
     // Positive OOB indices are effectively the same as hole loads.
-    Goto(&if_element_hole);
+    GotoIf(IntPtrGreaterThanOrEqual(index, IntPtrConstant(0)),
+           &if_element_hole);
+    // Negative keys can't take the fast OOB path, except for typed arrays.
+    GotoIfNot(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), slow);
+    Return(UndefinedConstant());
   }
 
   BIND(&if_element_hole);
@@ -1977,6 +1987,9 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     // TODO(jkummerow): Consider supporting JSModuleNamespace.
     GotoIfNot(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), slow);
 
+    // Private field/symbol lookup is not supported.
+    GotoIf(IsPrivateSymbol(p->name), slow);
+
     direct_exit.ReturnCallStub(
         Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
         p->context, receiver /*holder is the same as receiver*/, p->name,
@@ -2004,7 +2017,7 @@ Node* AccessorAssembler::StubCachePrimaryOffset(Node* name, Node* map) {
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
-  Node* map32 = TruncateWordToWord32(BitcastTaggedToWord(map));
+  Node* map32 = TruncateIntPtrToInt32(BitcastTaggedToWord(map));
   // Base the offset on a simple combination of name and map.
   Node* hash = Int32Add(hash_field, map32);
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
@@ -2016,8 +2029,8 @@ Node* AccessorAssembler::StubCacheSecondaryOffset(Node* name, Node* seed) {
   // See v8::internal::StubCache::SecondaryOffset().
 
   // Use the seed from the primary cache in the secondary cache.
-  Node* name32 = TruncateWordToWord32(BitcastTaggedToWord(name));
-  Node* hash = Int32Sub(TruncateWordToWord32(seed), name32);
+  Node* name32 = TruncateIntPtrToInt32(BitcastTaggedToWord(name));
+  Node* hash = Int32Sub(TruncateIntPtrToInt32(seed), name32);
   hash = Int32Add(hash, Int32Constant(StubCache::kSecondaryMagic));
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;
@@ -2340,9 +2353,9 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
     Comment("Load lexical variable");
     TNode<IntPtrT> lexical_handler = SmiUntag(CAST(maybe_weak_cell));
     TNode<IntPtrT> context_index =
-        Signed(DecodeWord<GlobalICNexus::ContextIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::ContextIndexBits>(lexical_handler));
     TNode<IntPtrT> slot_index =
-        Signed(DecodeWord<GlobalICNexus::SlotIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> context = lazy_context();
     TNode<Context> script_context = LoadScriptContext(context, context_index);
     TNode<Object> result = LoadContextElement(script_context, slot_index);
@@ -2685,9 +2698,9 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
     Comment("Store lexical variable");
     TNode<IntPtrT> lexical_handler = SmiUntag(maybe_weak_cell);
     TNode<IntPtrT> context_index =
-        Signed(DecodeWord<GlobalICNexus::ContextIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::ContextIndexBits>(lexical_handler));
     TNode<IntPtrT> slot_index =
-        Signed(DecodeWord<GlobalICNexus::SlotIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> script_context =
         LoadScriptContext(CAST(pp->context), context_index);
     StoreContextElement(script_context, slot_index, CAST(pp->value));

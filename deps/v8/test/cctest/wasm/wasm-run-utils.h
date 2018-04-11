@@ -268,16 +268,16 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
  public:
   WasmFunctionWrapper(Zone* zone, int num_params);
 
-  void Init(CallDescriptor* descriptor, MachineType return_type,
+  void Init(CallDescriptor* call_descriptor, MachineType return_type,
             Vector<MachineType> param_types);
 
   template <typename ReturnType, typename... ParamTypes>
-  void Init(CallDescriptor* descriptor) {
+  void Init(CallDescriptor* call_descriptor) {
     std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
         {MachineTypeForC<ParamTypes>()...}};
     Vector<MachineType> param_vec(param_machine_types.data(),
                                   param_machine_types.size());
-    Init(descriptor, MachineTypeForC<ReturnType>(), param_vec);
+    Init(call_descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
   void SetInnerCode(WasmCodeWrapper code) {

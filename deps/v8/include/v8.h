@@ -145,7 +145,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class Object;
-struct StreamedSource;
+struct ScriptStreamingData;
 template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
@@ -554,6 +554,14 @@ template <class T> class PersistentBase {
   V8_INLINE void ClearWeak() { ClearWeak<void>(); }
 
   /**
+   * Annotates the strong handle with the given label, which is then used by the
+   * heap snapshot generator as a name of the edge from the root to the handle.
+   * The function does not take ownership of the label and assumes that the
+   * label is valid as long as the handle is valid.
+   */
+  V8_INLINE void AnnotateStrongRetainer(const char* label);
+
+  /**
    * Allows the embedder to tell the v8 garbage collector that a certain object
    * is alive. Only allowed when the embedder is asked to trace its heap by
    * EmbedderHeapTracer.
@@ -945,7 +953,7 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  */
 class V8_EXPORT SealHandleScope {
  public:
-  SealHandleScope(Isolate* isolate);
+  explicit SealHandleScope(Isolate* isolate);
   ~SealHandleScope();
 
   SealHandleScope(const SealHandleScope&) = delete;
@@ -1136,6 +1144,7 @@ class V8_EXPORT Module {
  public:
   /**
    * The different states a module can be in.
+   *
    * This corresponds to the states used in ECMAScript except that "evaluated"
    * is split into kEvaluated and kErrored, indicating success and failure,
    * respectively.
@@ -1186,7 +1195,7 @@ class V8_EXPORT Module {
                                                 Local<Module> referrer);
 
   /**
-   * ModuleDeclarationInstantiation
+   * Instantiates the module and its dependencies.
    *
    * Returns an empty Maybe<bool> if an exception occurred during
    * instantiation. (In the case where the callback throws an exception, that
@@ -1196,16 +1205,19 @@ class V8_EXPORT Module {
                                                       ResolveCallback callback);
 
   /**
-   * ModuleEvaluation
+   * Evaluates the module and its dependencies.
    *
-   * Returns the completion value.
-   * TODO(neis): Be more precise or say nothing.
+   * If status is kInstantiated, run the module's code. On success, set status
+   * to kEvaluated and return the completion value; on failure, set status to
+   * kErrored and propagate the thrown exception (which is then also available
+   * via |GetException|).
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
   /**
    * Returns the namespace object of this module.
-   * The module's status must be kEvaluated.
+   *
+   * The module's status must be at least kInstantiated.
    */
   Local<Value> GetModuleNamespace();
 };
@@ -1219,24 +1231,23 @@ class V8_EXPORT Script {
   /**
    * A shorthand for ScriptCompiler::Compile().
    */
-  static V8_DEPRECATE_SOON(
-      "Use maybe version",
-      Local<Script> Compile(Local<String> source,
-                            ScriptOrigin* origin = nullptr));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Script> Compile(Local<String> source,
+                                             ScriptOrigin* origin = nullptr));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Script> Compile(
       Local<Context> context, Local<String> source,
       ScriptOrigin* origin = nullptr);
 
-  static Local<Script> V8_DEPRECATE_SOON("Use maybe version",
-                                         Compile(Local<String> source,
-                                                 Local<String> file_name));
+  static Local<Script> V8_DEPRECATED("Use maybe version",
+                                     Compile(Local<String> source,
+                                             Local<String> file_name));
 
   /**
    * Runs the script returning the resulting value. It will be run in the
    * context in which it was created (ScriptCompiler::CompileBound or
    * UnboundScript::BindToCurrentContext()).
    */
-  V8_DEPRECATE_SOON("Use maybe version", Local<Value> Run());
+  V8_DEPRECATED("Use maybe version", Local<Value> Run());
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Run(Local<Context> context);
 
   /**
@@ -1395,14 +1406,14 @@ class V8_EXPORT ScriptCompiler {
     // object is alive.
     const CachedData* GetCachedData() const;
 
-    internal::StreamedSource* impl() const { return impl_; }
+    internal::ScriptStreamingData* impl() const { return impl_; }
 
     // Prevent copying.
     StreamedSource(const StreamedSource&) = delete;
     StreamedSource& operator=(const StreamedSource&) = delete;
 
    private:
-    internal::StreamedSource* impl_;
+    internal::ScriptStreamingData* impl_;
   };
 
   /**
@@ -1546,13 +1557,13 @@ class V8_EXPORT ScriptCompiler {
    * It is possible to specify multiple context extensions (obj in the above
    * example).
    */
-  static V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Function> CompileFunctionInContext(
-                               Isolate* isolate, Source* source,
-                               Local<Context> context, size_t arguments_count,
-                               Local<String> arguments[],
-                               size_t context_extension_count,
-                               Local<Object> context_extensions[]));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Function> CompileFunctionInContext(
+                           Isolate* isolate, Source* source,
+                           Local<Context> context, size_t arguments_count,
+                           Local<String> arguments[],
+                           size_t context_extension_count,
+                           Local<Object> context_extensions[]));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInContext(
       Local<Context> context, Source* source, size_t arguments_count,
       Local<String> arguments[], size_t context_extension_count,
@@ -1580,7 +1591,7 @@ class V8_EXPORT Message {
  public:
   Local<String> Get() const;
 
-  V8_DEPRECATE_SOON("Use maybe version", Local<String> GetSourceLine() const);
+  V8_DEPRECATED("Use maybe version", Local<String> GetSourceLine() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSourceLine(
       Local<Context> context) const;
 
@@ -1606,7 +1617,7 @@ class V8_EXPORT Message {
   /**
    * Returns the number, 1-based, of the line where the error occurred.
    */
-  V8_DEPRECATE_SOON("Use maybe version", int GetLineNumber() const);
+  V8_DEPRECATED("Use maybe version", int GetLineNumber() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetLineNumber(Local<Context> context) const;
 
   /**
@@ -1630,7 +1641,7 @@ class V8_EXPORT Message {
    * Returns the index within the line of the first character where
    * the error occurred.
    */
-  V8_DEPRECATE_SOON("Use maybe version", int GetStartColumn() const);
+  V8_DEPRECATED("Use maybe version", int GetStartColumn() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetStartColumn(Local<Context> context) const;
 
   /**
@@ -1864,7 +1875,7 @@ class V8_EXPORT ValueSerializer {
      * SharedArrayBuffer object. The embedder must return an ID for the
      * object, using the same ID if this SharedArrayBuffer has already been
      * serialized in this buffer. When deserializing, this ID will be passed to
-     * ValueDeserializer::TransferSharedArrayBuffer as |transfer_id|.
+     * ValueDeserializer::GetSharedArrayBufferFromId as |clone_id|.
      *
      * If the object cannot be serialized, an
      * exception should be thrown and Nothing<uint32_t>() returned.
@@ -1991,6 +2002,13 @@ class V8_EXPORT ValueDeserializer {
      */
     virtual MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
         Isolate* isolate, uint32_t transfer_id);
+
+    /**
+     * Get a SharedArrayBuffer given a clone_id previously provided
+     * by ValueSerializer::GetSharedArrayBufferId
+     */
+    virtual MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
+        Isolate* isolate, uint32_t clone_id);
   };
 
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
@@ -2307,6 +2325,16 @@ class V8_EXPORT Value : public Data {
    * Returns true if this value is a Float64Array.
    */
   bool IsFloat64Array() const;
+
+  /**
+   * Returns true if this value is a BigInt64Array.
+   */
+  bool IsBigInt64Array() const;
+
+  /**
+   * Returns true if this value is a BigUint64Array.
+   */
+  bool IsBigUint64Array() const;
 
   /**
    * Returns true if this value is a DataView.
@@ -2783,8 +2811,8 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Utf8Value {
    public:
-    V8_DEPRECATE_SOON("Use Isolate version",
-                      explicit Utf8Value(Local<v8::Value> obj));
+    V8_DEPRECATED("Use Isolate version",
+                  explicit Utf8Value(Local<v8::Value> obj));
     Utf8Value(Isolate* isolate, Local<v8::Value> obj);
     ~Utf8Value();
     char* operator*() { return str_; }
@@ -2808,8 +2836,7 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Value {
    public:
-    V8_DEPRECATE_SOON("Use Isolate version",
-                      explicit Value(Local<v8::Value> obj));
+    V8_DEPRECATED("Use Isolate version", explicit Value(Local<v8::Value> obj));
     Value(Isolate* isolate, Local<v8::Value> obj);
     ~Value();
     uint16_t* operator*() { return str_; }
@@ -3059,6 +3086,12 @@ enum class KeyCollectionMode { kOwnOnly, kIncludePrototypes };
 enum class IndexFilter { kIncludeIndices, kSkipIndices };
 
 /**
+ * kConvertToString will convert integer indices to strings.
+ * kKeepNumbers will return numbers for integer indices.
+ */
+enum class KeyConversionMode { kConvertToString, kKeepNumbers };
+
+/**
  * Integrity level for objects.
  */
 enum class IntegrityLevel { kFrozen, kSealed };
@@ -3193,6 +3226,19 @@ class V8_EXPORT Object : public Value {
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None);
 
   /**
+   * Attempts to create a property with the given name which behaves like a data
+   * property, except that the provided getter is invoked (and provided with the
+   * data value) to supply its value the first time it is read. After the
+   * property is accessed once, it is replaced with an ordinary data property.
+   *
+   * Analogous to Template::SetLazyDataProperty.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetLazyDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter, Local<Value> data = Local<Value>(),
+      PropertyAttribute attributes = None);
+
+  /**
    * Functionality for private properties.
    * This is an experimental feature, use at your own risk.
    * Note: Private properties are not inherited. Do not rely on this, since it
@@ -3215,7 +3261,8 @@ class V8_EXPORT Object : public Value {
       Local<Context> context);
   V8_WARN_UNUSED_RESULT MaybeLocal<Array> GetPropertyNames(
       Local<Context> context, KeyCollectionMode mode,
-      PropertyFilter property_filter, IndexFilter index_filter);
+      PropertyFilter property_filter, IndexFilter index_filter,
+      KeyConversionMode key_conversion = KeyConversionMode::kKeepNumbers);
 
   /**
    * This function has the same functionality as GetPropertyNames but
@@ -3233,7 +3280,8 @@ class V8_EXPORT Object : public Value {
    * be enumerated by a for-in statement over this object.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Array> GetOwnPropertyNames(
-      Local<Context> context, PropertyFilter filter);
+      Local<Context> context, PropertyFilter filter,
+      KeyConversionMode key_conversion = KeyConversionMode::kKeepNumbers);
 
   /**
    * Get the prototype object.  This does not skip objects marked to
@@ -4046,11 +4094,15 @@ class V8_EXPORT Proxy : public Object {
 class V8_EXPORT WasmCompiledModule : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
-  // A buffer that is owned by the caller.
+  /**
+   * A buffer that is owned by the caller.
+   */
   typedef std::pair<const uint8_t*, size_t> CallerOwnedBuffer;
 
-  // An opaque, native heap object for transferring wasm modules. It
-  // supports move semantics, and does not support copy semantics.
+  /**
+   * An opaque, native heap object for transferring wasm modules. It
+   * supports move semantics, and does not support copy semantics.
+   */
   class TransferrableModule final {
    public:
     TransferrableModule(TransferrableModule&& src) = default;
@@ -4069,35 +4121,41 @@ class V8_EXPORT WasmCompiledModule : public Object {
     OwnedBuffer wire_bytes = {nullptr, 0};
   };
 
-  // Get an in-memory, non-persistable, and context-independent (meaning,
-  // suitable for transfer to another Isolate and Context) representation
-  // of this wasm compiled module.
+  /**
+   * Get an in-memory, non-persistable, and context-independent (meaning,
+   * suitable for transfer to another Isolate and Context) representation
+   * of this wasm compiled module.
+   */
   TransferrableModule GetTransferrableModule();
 
-  // Efficiently re-create a WasmCompiledModule, without recompiling, from
-  // a TransferrableModule.
+  /**
+   * Efficiently re-create a WasmCompiledModule, without recompiling, from
+   * a TransferrableModule.
+   */
   static MaybeLocal<WasmCompiledModule> FromTransferrableModule(
       Isolate* isolate, const TransferrableModule&);
 
-  // Get the wasm-encoded bytes that were used to compile this module.
+  /**
+   * Get the wasm-encoded bytes that were used to compile this module.
+   */
   Local<String> GetWasmWireBytes();
 
-  // Serialize the compiled module. The serialized data does not include the
-  // uncompiled bytes.
+  /**
+   * Serialize the compiled module. The serialized data does not include the
+   * uncompiled bytes.
+   */
   SerializedModule Serialize();
 
-  // If possible, deserialize the module, otherwise compile it from the provided
-  // uncompiled bytes.
+  /**
+   * If possible, deserialize the module, otherwise compile it from the provided
+   * uncompiled bytes.
+   */
   static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
       Isolate* isolate, const CallerOwnedBuffer& serialized_module,
       const CallerOwnedBuffer& wire_bytes);
   V8_INLINE static WasmCompiledModule* Cast(Value* obj);
 
  private:
-  // TODO(ahaas): please remove the friend once streamed compilation is
-  // implemented
-  friend class WasmModuleObjectBuilder;
-
   static MaybeLocal<WasmCompiledModule> Deserialize(
       Isolate* isolate, const CallerOwnedBuffer& serialized_module,
       const CallerOwnedBuffer& wire_bytes);
@@ -4117,11 +4175,18 @@ class V8_EXPORT WasmCompiledModule : public Object {
 // to simply WasmModuleObjectBuilder
 class V8_EXPORT WasmModuleObjectBuilderStreaming final {
  public:
-  WasmModuleObjectBuilderStreaming(Isolate* isolate);
-  // The buffer passed into OnBytesReceived is owned by the caller.
+  explicit WasmModuleObjectBuilderStreaming(Isolate* isolate);
+  /**
+   * The buffer passed into OnBytesReceived is owned by the caller.
+   */
   void OnBytesReceived(const uint8_t*, size_t size);
   void Finish();
-  void Abort(Local<Value> exception);
+  /**
+   * Abort streaming compilation. If {exception} has a value, then the promise
+   * associated with streaming compilation is rejected with that value. If
+   * {exception} does not have value, the promise does not get rejected.
+   */
+  void Abort(MaybeLocal<Value> exception);
   Local<Promise> GetPromise();
 
   ~WasmModuleObjectBuilderStreaming();
@@ -4140,11 +4205,13 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   Isolate* isolate_ = nullptr;
 
 #if V8_CC_MSVC
-  // We don't need the static Copy API, so the default
-  // NonCopyablePersistentTraits would be sufficient, however,
-  // MSVC eagerly instantiates the Copy.
-  // We ensure we don't use Copy, however, by compiling with the
-  // defaults everywhere else.
+  /**
+   * We don't need the static Copy API, so the default
+   * NonCopyablePersistentTraits would be sufficient, however,
+   * MSVC eagerly instantiates the Copy.
+   * We ensure we don't use Copy, however, by compiling with the
+   * defaults everywhere else.
+   */
   Persistent<Promise, CopyablePersistentTraits<Promise>> promise_;
 #else
   Persistent<Promise> promise_;
@@ -4152,30 +4219,6 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   std::vector<Buffer> received_buffers_;
   size_t total_size_ = 0;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
-};
-
-class V8_EXPORT WasmModuleObjectBuilder final {
- public:
-  WasmModuleObjectBuilder(Isolate* isolate) : isolate_(isolate) {}
-  // The buffer passed into OnBytesReceived is owned by the caller.
-  void OnBytesReceived(const uint8_t*, size_t size);
-  MaybeLocal<WasmCompiledModule> Finish();
-
- private:
-  Isolate* isolate_ = nullptr;
-  // TODO(ahaas): We probably need none of this below here once streamed
-  // compilation is implemented.
-  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> Buffer;
-
-  // Disable copy semantics *in this implementation*. We can choose to
-  // relax this, albeit it's not clear why.
-  WasmModuleObjectBuilder(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder(WasmModuleObjectBuilder&&) = default;
-  WasmModuleObjectBuilder& operator=(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&) = default;
-
-  std::vector<Buffer> received_buffers_;
-  size_t total_size_ = 0;
 };
 
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
@@ -4617,6 +4660,37 @@ class V8_EXPORT Float64Array : public TypedArray {
   static void CheckCast(Value* obj);
 };
 
+/**
+ * An instance of BigInt64Array constructor.
+ */
+class V8_EXPORT BigInt64Array : public TypedArray {
+ public:
+  static Local<BigInt64Array> New(Local<ArrayBuffer> array_buffer,
+                                  size_t byte_offset, size_t length);
+  static Local<BigInt64Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+                                  size_t byte_offset, size_t length);
+  V8_INLINE static BigInt64Array* Cast(Value* obj);
+
+ private:
+  BigInt64Array();
+  static void CheckCast(Value* obj);
+};
+
+/**
+ * An instance of BigUint64Array constructor.
+ */
+class V8_EXPORT BigUint64Array : public TypedArray {
+ public:
+  static Local<BigUint64Array> New(Local<ArrayBuffer> array_buffer,
+                                   size_t byte_offset, size_t length);
+  static Local<BigUint64Array> New(Local<SharedArrayBuffer> shared_array_buffer,
+                                   size_t byte_offset, size_t length);
+  V8_INLINE static BigUint64Array* Cast(Value* obj);
+
+ private:
+  BigUint64Array();
+  static void CheckCast(Value* obj);
+};
 
 /**
  * An instance of DataView constructor (ES6 draft 15.13.7).
@@ -4878,9 +4952,8 @@ class V8_EXPORT RegExp : public Object {
    *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
    * is equivalent to evaluating "/foo/gm".
    */
-  static V8_DEPRECATE_SOON("Use maybe version",
-                           Local<RegExp> New(Local<String> pattern,
-                                             Flags flags));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<RegExp> New(Local<String> pattern, Flags flags));
   static V8_WARN_UNUSED_RESULT MaybeLocal<RegExp> New(Local<Context> context,
                                                       Local<String> pattern,
                                                       Flags flags);
@@ -7437,7 +7510,7 @@ class V8_EXPORT Isolate {
   /**
    * Enqueues the callback to the Microtask Work Queue
    */
-  void EnqueueMicrotask(MicrotaskCallback microtask, void* data = NULL);
+  void EnqueueMicrotask(MicrotaskCallback callback, void* data = nullptr);
 
   /**
    * Controls how Microtasks are invoked. See MicrotasksPolicy for details.
@@ -7967,6 +8040,8 @@ class V8_EXPORT V8 {
                        WeakCallbackInfo<void>::Callback weak_callback);
   static void MakeWeak(internal::Object*** location_addr);
   static void* ClearWeak(internal::Object** location);
+  static void AnnotateStrongRetainer(internal::Object** location,
+                                     const char* label);
   static Value* Eternalize(Isolate* isolate, Value* handle);
 
   static void RegisterExternallyReferencedObject(internal::Object** object,
@@ -8203,7 +8278,7 @@ class V8_EXPORT TryCatch {
    * all TryCatch blocks should be stack allocated because the memory
    * location itself is compared against JavaScript try/catch blocks.
    */
-  TryCatch(Isolate* isolate);
+  explicit TryCatch(Isolate* isolate);
 
   /**
    * Unregisters and deletes this try/catch block.
@@ -9172,6 +9247,12 @@ template <typename P>
 P* PersistentBase<T>::ClearWeak() {
   return reinterpret_cast<P*>(
     V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_)));
+}
+
+template <class T>
+void PersistentBase<T>::AnnotateStrongRetainer(const char* label) {
+  V8::AnnotateStrongRetainer(reinterpret_cast<internal::Object**>(this->val_),
+                             label);
 }
 
 template <class T>

@@ -204,6 +204,10 @@ V8_INLINE bool IsLineTerminator(uchar c) {
   return c == 0x000A || c == 0x000D || c == 0x2028 || c == 0x2029;
 }
 
+V8_INLINE bool IsStringLiteralLineTerminator(uchar c) {
+  return c == 0x000A || c == 0x000D;
+}
+
 #ifndef V8_INTL_SUPPORT
 struct ToLowercase {
   static const int kMaxWidth = 3;

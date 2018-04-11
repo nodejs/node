@@ -270,7 +270,7 @@ class ModuleDecoderImpl : public Decoder {
     pc_ = end_;  // On error, terminate section decoding loop.
   }
 
-  void DumpModule(const ModuleResult& result) {
+  void DumpModule(const Vector<const byte> module_bytes) {
     std::string path;
     if (FLAG_dump_wasm_module_path) {
       path = FLAG_dump_wasm_module_path;
@@ -280,12 +280,13 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // File are named `HASH.{ok,failed}.wasm`.
-    size_t hash = base::hash_range(start_, end_);
+    size_t hash = base::hash_range(module_bytes.start(), module_bytes.end());
     EmbeddedVector<char, 32> buf;
-    SNPrintF(buf, "%016zx.%s.wasm", hash, result.ok() ? "ok" : "failed");
+    SNPrintF(buf, "%016zx.%s.wasm", hash, ok() ? "ok" : "failed");
     std::string name(buf.start());
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
-      if (fwrite(start_, end_ - start_, 1, wasm_file) != 1) {
+      if (fwrite(module_bytes.start(), module_bytes.length(), 1, wasm_file) !=
+          1) {
         OFStream os(stderr);
         os << "Error while dumping wasm file" << std::endl;
       }
@@ -848,7 +849,6 @@ class ModuleDecoderImpl : public Decoder {
       // Copy error code and location.
       result.MoveErrorFrom(intermediate_result_);
     }
-    if (FLAG_dump_wasm_module) DumpModule(result);
     return result;
   }
 
@@ -856,6 +856,7 @@ class ModuleDecoderImpl : public Decoder {
   ModuleResult DecodeModule(Isolate* isolate, bool verify_functions = true) {
     StartDecoding(isolate);
     uint32_t offset = 0;
+    Vector<const byte> orig_bytes(start(), end() - start());
     DecodeModuleHeader(Vector<const uint8_t>(start(), end() - start()), offset);
     if (failed()) {
       return FinishDecoding(verify_functions);
@@ -877,6 +878,8 @@ class ModuleDecoderImpl : public Decoder {
       offset += section_iter.payload_length();
       section_iter.advance(true);
     }
+
+    if (FLAG_dump_wasm_module) DumpModule(orig_bytes);
 
     if (decoder.failed()) {
       return decoder.toResult<std::unique_ptr<WasmModule>>(nullptr);

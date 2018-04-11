@@ -373,18 +373,12 @@ C_REGISTERS(DECLARE_C_REGISTER)
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
-#if V8_TARGET_ARCH_PPC64
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
-#else
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
-#endif
-
 // Class Operand represents a shifter operand in data processing instructions
 class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(intptr_t immediate,
-                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR)
+                          RelocInfo::Mode rmode = RelocInfo::NONE)
          : rmode_(rmode)) {
     value_.immediate = immediate;
   }
@@ -394,7 +388,7 @@ class Operand BASE_EMBEDDED {
     value_.immediate = reinterpret_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR)) {
+  INLINE(explicit Operand(Smi* value) : rmode_(RelocInfo::NONE)) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
   // rm
@@ -581,7 +575,7 @@ class Assembler : public AssemblerBase {
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Address constant_pool, Address target,
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
@@ -595,12 +589,11 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Isolate* isolate, Address instruction_payload, Code* code,
-      Address target);
+      Address instruction_payload, Code* code, Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Size of an instruction.
@@ -1664,8 +1657,6 @@ class PatchingAssembler : public Assembler {
  public:
   PatchingAssembler(IsolateData isolate_data, byte* address, int instructions);
   ~PatchingAssembler();
-
-  void FlushICache(Isolate* isolate);
 };
 
 }  // namespace internal

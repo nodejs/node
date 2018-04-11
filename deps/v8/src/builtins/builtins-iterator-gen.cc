@@ -11,11 +11,24 @@ namespace internal {
 
 using compiler::Node;
 
+Node* IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,
+                                                   Node* object) {
+  return GetProperty(context, object, factory()->iterator_symbol());
+}
+
 IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
                                                       Node* object,
                                                       Label* if_exception,
                                                       Variable* exception) {
-  Node* method = GetProperty(context, object, factory()->iterator_symbol());
+  Node* method = GetIteratorMethod(context, object);
+  return GetIterator(context, object, method, if_exception, exception);
+}
+
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
+                                                      Node* object,
+                                                      Node* method,
+                                                      Label* if_exception,
+                                                      Variable* exception) {
   GotoIfException(method, if_exception, exception);
 
   Callable callable = CodeFactory::Call(isolate());
@@ -27,13 +40,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   Branch(IsJSReceiver(iterator), &get_next, &if_notobject);
 
   BIND(&if_notobject);
-  {
-    Node* ret =
-        CallRuntime(Runtime::kThrowTypeError, context,
-                    SmiConstant(MessageTemplate::kNotAnIterator), iterator);
-    GotoIfException(ret, if_exception, exception);
-    Unreachable();
-  }
+  { ThrowTypeError(context, MessageTemplate::kNotAnIterator, iterator); }
 
   BIND(&get_next);
   Node* const next = GetProperty(context, iterator, factory()->next_string());

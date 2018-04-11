@@ -33,7 +33,9 @@ declare_args() {
 
   # Enable the snapshot feature, for fast context creation.
   # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
-  v8_use_snapshot = true
+  # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
+  # https://803591
+  v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")
 
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
@@ -103,6 +105,12 @@ if (v8_code_coverage && !is_clang) {
 if (is_posix && (v8_enable_backtrace || v8_monolithic)) {
   v8_remove_configs += [ "//build/config/gcc:symbol_visibility_hidden" ]
   v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
+}
+
+# On MIPS gcc_target_rpath and ldso_path might be needed for all builds.
+if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
+    target_cpu == "mips" || target_cpu == "mips64") {
+  v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 }
 
 # All templates should be kept in sync.

@@ -37,21 +37,21 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
   static const int kEntrySize = 3;
 };
 
-class InfoVectorPair {
+class InfoCellPair {
  public:
-  InfoVectorPair() : shared_(nullptr), vector_cell_(nullptr) {}
-  InfoVectorPair(SharedFunctionInfo* shared, Cell* vector_cell)
-      : shared_(shared), vector_cell_(vector_cell) {}
+  InfoCellPair() : shared_(nullptr), feedback_cell_(nullptr) {}
+  InfoCellPair(SharedFunctionInfo* shared, FeedbackCell* feedback_cell)
+      : shared_(shared), feedback_cell_(feedback_cell) {}
 
+  FeedbackCell* feedback_cell() const { return feedback_cell_; }
   SharedFunctionInfo* shared() const { return shared_; }
-  Cell* vector() const { return vector_cell_; }
 
+  bool has_feedback_cell() const { return feedback_cell_ != nullptr; }
   bool has_shared() const { return shared_ != nullptr; }
-  bool has_vector() const { return vector_cell_ != nullptr; }
 
  private:
   SharedFunctionInfo* shared_;
-  Cell* vector_cell_;
+  FeedbackCell* feedback_cell_;
 };
 
 // This cache is used in two different variants. For regexp caching, it simply
@@ -71,12 +71,12 @@ class CompilationCacheTable
   // Find cached value for a string key, otherwise return null.
   Handle<Object> Lookup(Handle<String> src, Handle<Context> context,
                         LanguageMode language_mode);
-  InfoVectorPair LookupScript(Handle<String> src, Handle<Context> context,
-                              LanguageMode language_mode);
-  InfoVectorPair LookupEval(Handle<String> src,
-                            Handle<SharedFunctionInfo> shared,
-                            Handle<Context> native_context,
-                            LanguageMode language_mode, int position);
+  MaybeHandle<SharedFunctionInfo> LookupScript(Handle<String> src,
+                                               Handle<Context> context,
+                                               LanguageMode language_mode);
+  InfoCellPair LookupEval(Handle<String> src, Handle<SharedFunctionInfo> shared,
+                          Handle<Context> native_context,
+                          LanguageMode language_mode, int position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> Put(Handle<CompilationCacheTable> cache,
                                            Handle<String> src,
@@ -86,11 +86,12 @@ class CompilationCacheTable
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<Context> context, LanguageMode language_mode,
-      Handle<SharedFunctionInfo> value, Handle<Cell> literals);
+      Handle<SharedFunctionInfo> value);
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-      Handle<Context> native_context, Handle<Cell> literals, int position);
+      Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
+      int position);
   static Handle<CompilationCacheTable> PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);

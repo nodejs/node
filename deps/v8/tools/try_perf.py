@@ -20,6 +20,12 @@ BOTS = {
   '--nexus10': 'v8_nexus10_perf_try',
 }
 
+# This list will contain builder names that should be triggered on an internal
+# swarming bucket instead of internal Buildbot master.
+SWARMING_BOTS = [
+  'v8_linux64_perf_try',
+]
+
 DEFAULT_BOTS = [
   'v8_arm32_perf_try',
   'v8_linux32_perf_try',
@@ -49,6 +55,17 @@ PUBLIC_BENCHMARKS = [
 ]
 
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
+def _trigger_bots(bucket, bots, options):
+  cmd = ['git cl try']
+  cmd += ['-B', bucket]
+  cmd += ['-b %s' % bot for bot in bots]
+  if options.revision: cmd += ['-r %s' % options.revision]
+  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
+  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
+  if options.extra_flags:
+    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
+  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 def main():
   parser = argparse.ArgumentParser(description='')
@@ -89,14 +106,13 @@ def main():
   subprocess.check_output(
       'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
-  cmd = ['git cl try -m internal.client.v8']
-  cmd += ['-b %s' % bot for bot in options.bots]
-  if options.revision: cmd += ['-r %s' % options.revision]
-  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
-  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
-  if options.extra_flags:
-    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
-  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
+  buildbot_bots = [bot for bot in options.bots if bot not in SWARMING_BOTS]
+  if buildbot_bots:
+    _trigger_bots('master.internal.client.v8', buildbot_bots, options)
+
+  swarming_bots = [bot for bot in options.bots if bot in SWARMING_BOTS]
+  if swarming_bots:
+    _trigger_bots('luci.v8-internal.try', swarming_bots, options)
 
 
 if __name__ == '__main__':  # pragma: no cover

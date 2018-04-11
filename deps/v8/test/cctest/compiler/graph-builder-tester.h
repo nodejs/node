@@ -247,11 +247,11 @@ class GraphBuilderTester : public HandleAndZoneScope,
   virtual byte* Generate() {
     if (code_.is_null()) {
       Zone* zone = graph()->zone();
-      CallDescriptor* desc =
+      auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
       CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
-      code_ = Pipeline::GenerateCodeForTesting(&info, main_isolate(), desc,
-                                               graph());
+      code_ = Pipeline::GenerateCodeForTesting(&info, main_isolate(),
+                                               call_descriptor, graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
         OFStream os(stdout);

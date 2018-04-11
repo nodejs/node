@@ -136,9 +136,6 @@ class SharedFunctionInfo : public HeapObject {
   DECL_INT_ACCESSORS(unique_id)
 #endif
 
-  // [instance class name]: class name for instances.
-  DECL_ACCESSORS(instance_class_name, String)
-
   // [function data]: This field holds some additional data for function.
   // Currently it has one of:
   //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
@@ -342,7 +339,11 @@ class SharedFunctionInfo : public HeapObject {
   static Handle<Object> GetSourceCode(Handle<SharedFunctionInfo> shared);
   static Handle<Object> GetSourceCodeHarmony(Handle<SharedFunctionInfo> shared);
 
-  // Tells whether this function should be subject to debugging.
+  // Tells whether this function should be subject to debugging, e.g. for
+  // - scope inspection
+  // - internal break points
+  // - coverage and type profile
+  // - error stack trace
   inline bool IsSubjectToDebugging();
 
   // Whether this function is defined in user-provided JavaScript code.
@@ -424,7 +425,6 @@ class SharedFunctionInfo : public HeapObject {
   V(kScopeInfoOffset, kPointerSize)           \
   V(kOuterScopeInfoOffset, kPointerSize)      \
   V(kConstructStubOffset, kPointerSize)       \
-  V(kInstanceClassNameOffset, kPointerSize)   \
   V(kFunctionDataOffset, kPointerSize)        \
   V(kScriptOffset, kPointerSize)              \
   V(kDebugInfoOffset, kPointerSize)           \
@@ -469,7 +469,9 @@ class SharedFunctionInfo : public HeapObject {
   V(IsNativeBit, bool, 1, _)                             \
   V(IsStrictBit, bool, 1, _)                             \
   V(IsWrappedBit, bool, 1, _)                            \
-  V(FunctionKindBits, FunctionKind, 11, _)               \
+  V(IsClassConstructorBit, bool, 1, _)                   \
+  V(IsDerivedConstructorBit, bool, 1, _)                 \
+  V(FunctionKindBits, FunctionKind, 5, _)                \
   V(HasDuplicateParametersBit, bool, 1, _)               \
   V(AllowLazyCompilationBit, bool, 1, _)                 \
   V(NeedsHomeObjectBit, bool, 1, _)                      \
@@ -487,12 +489,6 @@ class SharedFunctionInfo : public HeapObject {
                 DisabledOptimizationReasonBits::kMax);
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
-  // Masks for checking if certain FunctionKind bits are set without fully
-  // decoding of the FunctionKind bit field.
-  static const int kClassConstructorMask = FunctionKind::kClassConstructor
-                                           << FunctionKindBits::kShift;
-  static const int kDerivedConstructorMask = FunctionKind::kDerivedConstructor
-                                             << FunctionKindBits::kShift;
 
 // Bit positions in |debugger_hints|.
 #define DEBUGGER_HINTS_BIT_FIELDS(V, _)        \

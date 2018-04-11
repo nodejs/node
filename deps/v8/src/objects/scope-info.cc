@@ -781,47 +781,6 @@ void ScopeInfo::ModuleVariable(int i, String** name, int* index,
   }
 }
 
-#ifdef DEBUG
-
-static void PrintList(const char* list_name, int nof_internal_slots, int start,
-                      int end, ScopeInfo* scope_info) {
-  if (start < end) {
-    PrintF("\n  // %s\n", list_name);
-    if (nof_internal_slots > 0) {
-      PrintF("  %2d - %2d [internal slots]\n", 0, nof_internal_slots - 1);
-    }
-    for (int i = nof_internal_slots; start < end; ++i, ++start) {
-      PrintF("  %2d ", i);
-      String::cast(scope_info->get(start))->ShortPrint();
-      PrintF("\n");
-    }
-  }
-}
-
-void ScopeInfo::Print() {
-  PrintF("ScopeInfo ");
-  if (HasFunctionName()) {
-    FunctionName()->ShortPrint();
-  } else {
-    PrintF("/* no function name */");
-  }
-  PrintF("{");
-
-  if (length() > 0) {
-    PrintList("parameters", 0, ParameterNamesIndex(),
-              ParameterNamesIndex() + ParameterCount(), this);
-    PrintList("stack slots", 0, StackLocalNamesIndex(),
-              StackLocalNamesIndex() + StackLocalCount(), this);
-    PrintList("context slots", Context::MIN_CONTEXT_SLOTS,
-              ContextLocalNamesIndex(),
-              ContextLocalNamesIndex() + ContextLocalCount(), this);
-    // TODO(neis): Print module stuff if present.
-  }
-
-  PrintF("}\n");
-}
-#endif  // DEBUG
-
 Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
                                              Handle<Object> export_name,
                                              Handle<Object> local_name,

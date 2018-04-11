@@ -31,6 +31,11 @@ class JSCollection;
 class JSWeakCollection;
 class JSWeakMap;
 class JSWeakSet;
+class PromiseCapability;
+class PromiseFulfillReactionJobTask;
+class PromiseReaction;
+class PromiseReactionJobTask;
+class PromiseRejectReactionJobTask;
 class Factory;
 class Zone;
 
@@ -197,6 +202,7 @@ enum class ObjectType {
 
 class AccessCheckNeeded;
 class ClassBoilerplate;
+class BooleanWrapper;
 class CompilationCacheTable;
 class Constructor;
 class Filler;
@@ -208,8 +214,11 @@ class JSSloppyArgumentsObject;
 class MapCache;
 class MutableHeapNumber;
 class NativeContext;
+class NumberWrapper;
+class ScriptWrapper;
 class SloppyArgumentsElements;
 class StringWrapper;
+class SymbolWrapper;
 class Undetectable;
 class UniqueName;
 class WasmMemoryObject;
@@ -404,6 +413,7 @@ class SloppyTNode : public TNode<T> {
   V(IntPtrEqual, BoolT, WordT, WordT)                     \
   V(Uint32LessThan, BoolT, Word32T, Word32T)              \
   V(Uint32LessThanOrEqual, BoolT, Word32T, Word32T)       \
+  V(Uint32GreaterThan, BoolT, Word32T, Word32T)           \
   V(Uint32GreaterThanOrEqual, BoolT, Word32T, Word32T)    \
   V(UintPtrLessThan, BoolT, WordT, WordT)                 \
   V(UintPtrLessThanOrEqual, BoolT, WordT, WordT)          \
@@ -491,6 +501,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Float64RoundTruncate, Float64T, Float64T)                  \
   V(Word32Clz, Int32T, Word32T)                                \
   V(Word32Not, Word32T, Word32T)                               \
+  V(WordNot, WordT, WordT)                                     \
   V(Int32AbsWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T)    \
   V(Int64AbsWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T)    \
   V(IntPtrAbsWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT) \
@@ -543,7 +554,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Base Assembler
   // ===========================================================================
 
-  template <class PreviousType>
+  template <class PreviousType, bool FromTyped>
   class CheckedNode {
    public:
 #ifdef DEBUG
@@ -561,6 +572,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       static_assert(std::is_convertible<TNode<A>, TNode<Object>>::value,
                     "Coercion to untagged values cannot be "
                     "checked.");
+      static_assert(
+          !FromTyped ||
+              !std::is_convertible<TNode<PreviousType>, TNode<A>>::value,
+          "Unnecessary CAST: types are convertible.");
 #ifdef DEBUG
       if (FLAG_debug_code) {
         Node* function = code_assembler_->ExternalConstant(
@@ -610,13 +625,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return TNode<T>::UncheckedCast(value);
   }
 
-  CheckedNode<Object> Cast(Node* value, const char* location) {
-    return CheckedNode<Object>(value, this, location);
+  CheckedNode<Object, false> Cast(Node* value, const char* location) {
+    return {value, this, location};
   }
 
   template <class T>
-  CheckedNode<T> Cast(TNode<T> value, const char* location) {
-    return CheckedNode<T>(value, this, location);
+  CheckedNode<T, true> Cast(TNode<T> value, const char* location) {
+    return {value, this, location};
   }
 
 #ifdef DEBUG
@@ -626,6 +641,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Cast(x, "CAST(" #x ") at " __FILE__ ":" TO_STRING_LITERAL(__LINE__))
 #else
 #define CAST(x) Cast(x, "")
+#endif
+
+#ifdef V8_EMBEDDED_BUILTINS
+  // Off-heap builtins cannot embed constants within the code object itself,
+  // and thus need to load them from the root list.
+  bool ShouldLoadConstantsFromRootList() const {
+    return (isolate()->serializer_enabled() &&
+            isolate()->builtins_constants_table_builder() != nullptr);
+  }
+
+  TNode<HeapObject> LookupConstant(Handle<HeapObject> object);
 #endif
 
   // Constants.
@@ -651,6 +677,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<ExternalReference> ExternalConstant(ExternalReference address);
   TNode<Float64T> Float64Constant(double value);
   TNode<HeapNumber> NaNConstant();
+  TNode<BoolT> Int32TrueConstant() {
+    return ReinterpretCast<BoolT>(Int32Constant(1));
+  }
+  TNode<BoolT> Int32FalseConstant() {
+    return ReinterpretCast<BoolT>(Int32Constant(0));
+  }
 
   bool ToInt32Constant(Node* node, int32_t& out_value);
   bool ToInt64Constant(Node* node, int64_t& out_value);
@@ -701,6 +733,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Access to the stack pointer
   Node* LoadStackPointer();
+
+  // Poison mask for speculation.
+  Node* SpeculationPoison();
 
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base);
@@ -1136,23 +1171,17 @@ class TypedCodeAssemblerVariable : public CodeAssemblerVariable {
                               initial_value) {}
 #endif  // DEBUG
 
-  template <class U, class = typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<U>>::value>::type>
-  operator TNode<U>() const {
-    return TNode<T>::UncheckedCast(value());
+  TNode<T> value() const {
+    return TNode<T>::UncheckedCast(CodeAssemblerVariable::value());
   }
-  template <class U, class = typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<U>>::value>::type>
-  operator SloppyTNode<U>() const {
-    return value();
-  }
-  operator Node*() const { return value(); }
 
   void operator=(TNode<T> value) { Bind(value); }
+  void operator=(const TypedCodeAssemblerVariable<T>& variable) {
+    Bind(variable.value());
+  }
 
  private:
   using CodeAssemblerVariable::Bind;
-  using CodeAssemblerVariable::value;
 };
 
 class CodeAssemblerLabel {

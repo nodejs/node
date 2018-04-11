@@ -1,3 +1,4 @@
+// Flags: --harmony-bigint
 /* global SharedArrayBuffer */
 'use strict';
 const common = require('../common');
@@ -44,6 +45,8 @@ for (const [ value, _method ] of [
   [ new Int32Array() ],
   [ new Float32Array() ],
   [ new Float64Array() ],
+  [ new BigInt64Array() ],
+  [ new BigUint64Array() ],
   [ Object.defineProperty(new Uint8Array(),
                           Symbol.toStringTag,
                           { value: 'foo' }) ],

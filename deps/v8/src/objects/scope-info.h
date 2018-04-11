@@ -35,6 +35,7 @@ class Zone;
 class ScopeInfo : public FixedArray {
  public:
   DECL_CAST(ScopeInfo)
+  DECL_PRINTER(ScopeInfo)
 
   // Return the type of this scope.
   ScopeType scope_type();
@@ -187,10 +188,6 @@ class ScopeInfo : public FixedArray {
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static ScopeInfo* Empty(Isolate* isolate);
 
-#ifdef DEBUG
-  void Print();
-#endif
-
 // The layout of the static part of a ScopeInfo is as follows. Each entry is
 // numeric and occupies one array slot.
 // 1. A set of properties of the scope.
@@ -307,7 +304,7 @@ class ScopeInfo : public FixedArray {
   class HasSimpleParametersField
       : public BitField<bool, AsmModuleField::kNext, 1> {};
   class FunctionKindField
-      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 11> {};
+      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 5> {};
   class HasOuterScopeInfoField
       : public BitField<bool, FunctionKindField::kNext, 1> {};
   class IsDebugEvaluateScopeField

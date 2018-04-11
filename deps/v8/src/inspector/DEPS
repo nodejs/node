@@ -7,6 +7,7 @@ include_rules = [
   "+src/base/platform/platform.h",
   "+src/conversions.h",
   "+src/flags.h",
+  "+src/utils.h",
   "+src/unicode-cache.h",
   "+src/inspector",
   "+src/tracing",

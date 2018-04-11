@@ -10,6 +10,7 @@
 #include "src/contexts.h"
 #include "src/counters.h"
 #include "src/elements.h"
+#include "src/global-handles.h"
 #include "src/isolate.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
@@ -251,7 +252,7 @@ BUILTIN(ArraySlice) {
     JSArray* array = JSArray::cast(*receiver);
     if (V8_UNLIKELY(!array->HasFastElements() ||
                     !IsJSArrayFastElementMovingAllowed(isolate, array) ||
-                    !isolate->IsArraySpeciesLookupChainIntact() ||
+                    !isolate->IsSpeciesLookupChainIntact() ||
                     // If this is a subclass of Array, then call out to JS
                     !array->HasArrayPrototype(isolate))) {
       AllowHeapAllocation allow_allocation;
@@ -316,7 +317,7 @@ BUILTIN(ArraySplice) {
           // If this is a subclass of Array, then call out to JS.
           !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
           // If anything with @@species has been messed with, call out to JS.
-          !isolate->IsArraySpeciesLookupChainIntact())) {
+          !isolate->IsSpeciesLookupChainIntact())) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -1186,7 +1187,7 @@ BUILTIN(ArrayConcat) {
   // Avoid a real species read to avoid extra lookups to the array constructor
   if (V8_LIKELY(receiver->IsJSArray() &&
                 Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
-                isolate->IsArraySpeciesLookupChainIntact())) {
+                isolate->IsSpeciesLookupChainIntact())) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }

@@ -743,11 +743,12 @@ class FeedbackVectorFixer {
 
     for (int i = 0; i < function_instances->length(); i++) {
       Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-      Handle<Cell> new_cell = isolate->factory()->NewManyClosuresCell(
-          isolate->factory()->undefined_value());
-      fun->set_feedback_vector_cell(*new_cell);
+      Handle<FeedbackCell> feedback_cell =
+          isolate->factory()->NewManyClosuresCell(
+              isolate->factory()->undefined_value());
+      fun->set_feedback_cell(*feedback_cell);
       // Only create feedback vectors if we already have the metadata.
-      if (shared_info->is_compiled()) JSFunction::EnsureLiterals(fun);
+      if (shared_info->is_compiled()) JSFunction::EnsureFeedbackVector(fun);
     }
   }
 

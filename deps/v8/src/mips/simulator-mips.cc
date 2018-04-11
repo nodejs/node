@@ -783,8 +783,7 @@ void MipsDebugger::Debug() {
 #undef XSTR
 }
 
-
-static bool ICacheMatch(void* one, void* two) {
+bool Simulator::ICacheMatch(void* one, void* two) {
   DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
   DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
@@ -883,11 +882,6 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
-  i_cache_ = isolate_->simulator_i_cache();
-  if (i_cache_ == nullptr) {
-    i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
-    isolate_->set_simulator_i_cache(i_cache_);
-  }
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_ = reinterpret_cast<char*>(malloc(stack_size_));
@@ -2539,8 +2533,7 @@ void Simulator::PrintStopInfo(uint32_t code) {
 
 
 void Simulator::SignalException(Exception e) {
-  V8_Fatal(__FILE__, __LINE__, "Error: Exception %i raised.",
-           static_cast<int>(e));
+  FATAL("Error: Exception %i raised.", static_cast<int>(e));
 }
 
 // Min/Max template functions for Double and Single arguments.
@@ -5690,7 +5683,8 @@ void Simulator::DecodeTypeMsa3RF() {
     case MSUB_Q:
     case MADDR_Q:
     case MSUBR_Q:
-      get_msa_register(wd_reg(), &wd);  // fall-through
+      get_msa_register(wd_reg(), &wd);
+      V8_FALLTHROUGH;
     case MUL_Q:
     case MULR_Q:
       switch (DecodeMsaDataFormat()) {
@@ -6912,7 +6906,7 @@ void Simulator::DecodeTypeJump() {
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
-    CheckICache(isolate_->simulator_i_cache(), instr);
+    CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
   v8::internal::EmbeddedVector<char, 256> buffer;

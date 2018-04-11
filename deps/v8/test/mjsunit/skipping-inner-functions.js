@@ -365,3 +365,15 @@ TestSkippableFunctionInForOfHeaderAndBody();
   function lazy(p = (function() {}, class {}, function() {}, class { method1() { } })) { }
   lazy();
 })();
+
+(function TestOneByteTwoByteMismatch() {
+  // Regression test for
+  // https://bugs.chromium.org/p/v8/issues/detail?id=7428
+
+  let name = 'weird_string\u2653'.slice(0, 12);
+  let o = {};
+  o[name] = null;
+  var x;
+  eval('x = function weird_string() { function skip() {} };');
+  x();
+})();

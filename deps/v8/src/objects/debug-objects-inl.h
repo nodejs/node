@@ -28,7 +28,7 @@ ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateOffset)
 ACCESSORS(DebugInfo, coverage_info, Object, kCoverageInfoOffset)
 
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionOffset)
-ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsOffset)
+ACCESSORS(BreakPointInfo, break_points, Object, kBreakPointsOffset)
 
 SMI_ACCESSORS(BreakPoint, id, kIdOffset)
 ACCESSORS(BreakPoint, condition, String, kConditionOffset)

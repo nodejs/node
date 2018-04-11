@@ -2971,7 +2971,6 @@ class CountBreakDebugDelegate : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              v8::Local<v8::Object> exec_state,
-                             v8::Local<v8::Value> break_points_hit,
                              const std::vector<int>&) override {
     debug_break_count++;
   }

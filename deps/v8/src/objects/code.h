@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
+#include "src/handler-table.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
 
@@ -17,92 +18,6 @@ namespace internal {
 class ByteArray;
 class BytecodeArray;
 class CodeDataContainer;
-
-// HandlerTable is a fixed array containing entries for exception handlers in
-// the code object it is associated with. The tables comes in two flavors:
-// 1) Based on ranges: Used for unoptimized code. Contains one entry per
-//    exception handler and a range representing the try-block covered by that
-//    handler. Layout looks as follows:
-//      [ range-start , range-end , handler-offset , handler-data ]
-// 2) Based on return addresses: Used for turbofanned code. Contains one entry
-//    per call-site that could throw an exception. Layout looks as follows:
-//      [ return-address-offset , handler-offset ]
-class HandlerTable : public FixedArray {
- public:
-  // Conservative prediction whether a given handler will locally catch an
-  // exception or cause a re-throw to outside the code boundary. Since this is
-  // undecidable it is merely an approximation (e.g. useful for debugger).
-  enum CatchPrediction {
-    UNCAUGHT,    // The handler will (likely) rethrow the exception.
-    CAUGHT,      // The exception will be caught by the handler.
-    PROMISE,     // The exception will be caught and cause a promise rejection.
-    DESUGARING,  // The exception will be caught, but both the exception and the
-                 // catching are part of a desugaring and should therefore not
-                 // be visible to the user (we won't notify the debugger of such
-                 // exceptions).
-    ASYNC_AWAIT,  // The exception will be caught and cause a promise rejection
-                  // in the desugaring of an async function, so special
-                  // async/await handling in the debugger can take place.
-  };
-
-  // Getters for handler table based on ranges.
-  inline int GetRangeStart(int index) const;
-  inline int GetRangeEnd(int index) const;
-  inline int GetRangeHandler(int index) const;
-  inline int GetRangeData(int index) const;
-
-  // Setters for handler table based on ranges.
-  inline void SetRangeStart(int index, int value);
-  inline void SetRangeEnd(int index, int value);
-  inline void SetRangeHandler(int index, int offset, CatchPrediction pred);
-  inline void SetRangeData(int index, int value);
-
-  // Setters for handler table based on return addresses.
-  inline void SetReturnOffset(int index, int value);
-  inline void SetReturnHandler(int index, int offset);
-
-  // Lookup handler in a table based on ranges. The {pc_offset} is an offset to
-  // the start of the potentially throwing instruction (using return addresses
-  // for this value would be invalid).
-  int LookupRange(int pc_offset, int* data, CatchPrediction* prediction);
-
-  // Lookup handler in a table based on return addresses.
-  int LookupReturn(int pc_offset);
-
-  // Returns the number of entries in the table.
-  inline int NumberOfRangeEntries() const;
-
-  // Returns the required length of the underlying fixed array.
-  static int LengthForRange(int entries) { return entries * kRangeEntrySize; }
-  static int LengthForReturn(int entries) { return entries * kReturnEntrySize; }
-
-  // Returns an empty handler table.
-  static Handle<HandlerTable> Empty(Isolate* isolate);
-
-  DECL_CAST(HandlerTable)
-
-#ifdef ENABLE_DISASSEMBLER
-  void HandlerTableRangePrint(std::ostream& os);   // NOLINT
-  void HandlerTableReturnPrint(std::ostream& os);  // NOLINT
-#endif
-
- private:
-  // Layout description for handler table based on ranges.
-  static const int kRangeStartIndex = 0;
-  static const int kRangeEndIndex = 1;
-  static const int kRangeHandlerIndex = 2;
-  static const int kRangeDataIndex = 3;
-  static const int kRangeEntrySize = 4;
-
-  // Layout description for handler table based on return addresses.
-  static const int kReturnOffsetIndex = 0;
-  static const int kReturnHandlerIndex = 1;
-  static const int kReturnEntrySize = 2;
-
-  // Encoding of the {handler} field.
-  class HandlerPredictionField : public BitField<CatchPrediction, 0, 3> {};
-  class HandlerOffsetField : public BitField<int, 3, 29> {};
-};
 
 // Code describes objects with on-the-fly generated machine code.
 class Code : public HeapObject {
@@ -133,26 +48,27 @@ class Code : public HeapObject {
 
   static const char* Kind2String(Kind kind);
 
-#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
-  // Printing
-  static const char* ICState2String(InlineCacheState state);
-#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
-
 #ifdef ENABLE_DISASSEMBLER
   void Disassemble(const char* name, std::ostream& os,
                    void* current_pc = nullptr);  // NOLINT
 #endif
 
-  // [instruction_size]: Size of the native instructions
+  // [instruction_size]: Size of the native instructions, including embedded
+  // data such as the safepoints table.
   inline int instruction_size() const;
   inline void set_instruction_size(int value);
+
+  // Returns the size of the native instructions, including embedded
+  // data such as the safepoints table. For off-heap code objects
+  // this may from instruction_size in that this will return the size of the
+  // off-heap instruction stream rather than the on-heap trampoline located
+  // at instruction_start.
+  inline int InstructionSize();
+  int OffHeapInstructionSize();
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
   void InvalidateEmbeddedObjects();
-
-  // [handler_table]: Fixed array containing offsets of exception handlers.
-  DECL_ACCESSORS(handler_table, FixedArray)
 
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
@@ -245,6 +161,11 @@ class Code : public HeapObject {
   inline int safepoint_table_offset() const;
   inline void set_safepoint_table_offset(int offset);
 
+  // [handler_table_offset]: The offset in the instruction stream where the
+  // exception handler table starts.
+  inline int handler_table_offset() const;
+  inline void set_handler_table_offset(int offset);
+
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized because of dead embedded maps.
   inline bool marked_for_deoptimization() const;
@@ -302,8 +223,20 @@ class Code : public HeapObject {
   // Returns the address of the first instruction.
   inline byte* instruction_start() const;
 
+  // Returns the address of the first instruction. For off-heap code objects
+  // this differs from instruction_start (which would point to the off-heap
+  // trampoline instead).
+  inline Address InstructionStart();
+  Address OffHeapInstructionStart();
+
   // Returns the address right after the last instruction.
   inline byte* instruction_end() const;
+
+  // Returns the address right after the last instruction. For off-heap code
+  // objects this differs from instruction_end (which would point to the
+  // off-heap trampoline instead).
+  inline Address InstructionEnd();
+  Address OffHeapInstructionEnd();
 
   // Returns the size of the instructions, padding, relocation and unwinding
   // information.
@@ -434,9 +367,8 @@ class Code : public HeapObject {
 
   // Layout description.
   static const int kRelocationInfoOffset = HeapObject::kHeaderSize;
-  static const int kHandlerTableOffset = kRelocationInfoOffset + kPointerSize;
   static const int kDeoptimizationDataOffset =
-      kHandlerTableOffset + kPointerSize;
+      kRelocationInfoOffset + kPointerSize;
   static const int kSourcePositionTableOffset =
       kDeoptimizationDataOffset + kPointerSize;
   static const int kProtectedInstructionsOffset =
@@ -447,7 +379,9 @@ class Code : public HeapObject {
       kCodeDataContainerOffset + kPointerSize;
   static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
   static const int kSafepointTableOffsetOffset = kFlagsOffset + kIntSize;
-  static const int kStubKeyOffset = kSafepointTableOffsetOffset + kIntSize;
+  static const int kHandlerTableOffsetOffset =
+      kSafepointTableOffsetOffset + kIntSize;
+  static const int kStubKeyOffset = kHandlerTableOffsetOffset + kIntSize;
   static const int kConstantPoolOffset = kStubKeyOffset + kIntSize;
   static const int kBuiltinIndexOffset =
       kConstantPoolOffset + kConstantPoolSize;
@@ -584,7 +518,7 @@ class AbstractCode : public HeapObject {
 
   inline Object* stack_frame_cache();
   static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                 Handle<NumberDictionary> cache);
+                                 Handle<SimpleNumberDictionary> cache);
   void DropStackFrameCache();
 
   // Returns the size of instructions and the metadata.
@@ -787,7 +721,7 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(constant_pool, FixedArray)
 
   // Accessors for handler table containing offsets of exception handlers.
-  DECL_ACCESSORS(handler_table, FixedArray)
+  DECL_ACCESSORS(handler_table, ByteArray)
 
   // Accessors for source position table containing mappings between byte code
   // offset and source position or SourcePositionTableWithFrameCache.

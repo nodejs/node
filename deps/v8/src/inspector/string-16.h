@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_STRING16_H_
-#define V8_INSPECTOR_STRING16_H_
+#ifndef V8_INSPECTOR_STRING_16_H_
+#define V8_INSPECTOR_STRING_16_H_
 
 #include <stdint.h>
 #include <cctype>
@@ -149,4 +149,4 @@ struct hash<v8_inspector::String16> {
 
 #endif  // !defined(__APPLE__) || defined(_LIBCPP_VERSION)
 
-#endif  // V8_INSPECTOR_STRING16_H_
+#endif  // V8_INSPECTOR_STRING_16_H_

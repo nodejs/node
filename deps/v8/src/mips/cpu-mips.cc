@@ -38,9 +38,7 @@ void CpuFeatures::FlushICache(void* start, size_t size) {
   int res;
   // See http://www.linux-mips.org/wiki/Cacheflush_Syscall.
   res = syscall(__NR_cacheflush, start, size, ICACHE);
-  if (res) {
-    V8_Fatal(__FILE__, __LINE__, "Failed to flush the instruction cache");
-  }
+  if (res) FATAL("Failed to flush the instruction cache");
 #endif  // ANDROID
 #endif  // !USE_SIMULATOR.
 }

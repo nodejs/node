@@ -1,0 +1,10 @@
+test/mjsunit/mjsunit.js:{NUMBER}: Failure: expected <true> found <false>
+
+Stack: MjsUnitAssertionError
+    at assertTrue *mjsunit.js {NUMBER}:{NUMBER}
+    at            *%(basename)s 7:1
+    throw new MjsUnitAssertionError(message);
+    ^
+MjsUnitAssertionError
+    at assertTrue *mjsunit.js {NUMBER}:{NUMBER}
+    at            *%(basename)s 7:1

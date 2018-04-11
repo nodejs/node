@@ -1,0 +1,23 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/toolchain/gcc_toolchain.gni")
+
+gcc_toolchain("mips-bundled") {
+  toolprefix = rebase_path("//tools/mips_toolchain/bin/mips-mti-linux-gnu-",
+                           root_build_dir)
+  cc = "${toolprefix}gcc"
+  cxx = "${toolprefix}g++"
+
+  readelf = "${toolprefix}readelf"
+  nm = "${toolprefix}nm"
+  ar = "${toolprefix}ar"
+  ld = cxx
+
+  toolchain_args = {
+    current_cpu = "mips"
+    current_os = "linux"
+    is_clang = false
+  }
+}

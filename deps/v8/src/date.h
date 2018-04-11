@@ -5,8 +5,6 @@
 #ifndef V8_DATE_H_
 #define V8_DATE_H_
 
-#include "src/allocation.h"
-#include "src/base/platform/platform.h"
 #include "src/base/timezone-cache.h"
 #include "src/globals.h"
 
@@ -289,4 +287,4 @@ class DateCache {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_DATE_H_

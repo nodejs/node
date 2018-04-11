@@ -5,11 +5,15 @@
 #ifndef V8_VERSION_H_
 #define V8_VERSION_H_
 
+#include <cstdint>
+
 #include "src/base/functional.h"
-#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Vector;
 
 class Version {
  public:

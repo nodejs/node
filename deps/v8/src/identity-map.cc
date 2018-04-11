@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 static const int kInitialIdentityMapSize = 4;
-static const int kResizeFactor = 4;
+static const int kResizeFactor = 2;
 
 IdentityMapBase::~IdentityMapBase() {
   // Clear must be called by the subclass to avoid calling the virtual
@@ -87,7 +87,8 @@ void* IdentityMapBase::DeleteIndex(int index) {
   size_--;
   DCHECK_GE(size_, 0);
 
-  if (size_ * kResizeFactor < capacity_ / kResizeFactor) {
+  if (capacity_ > kInitialIdentityMapSize &&
+      size_ * kResizeFactor < capacity_ / kResizeFactor) {
     Resize(capacity_ / kResizeFactor);
     return ret_value;  // No need to fix collisions as resize reinserts keys.
   }
@@ -192,6 +193,14 @@ void* IdentityMapBase::DeleteEntry(Object* key) {
   int index = Lookup(key);
   if (index < 0) return nullptr;  // No entry found.
   return DeleteIndex(index);
+}
+
+Object* IdentityMapBase::KeyAtIndex(int index) const {
+  DCHECK_LE(0, index);
+  DCHECK_LT(index, capacity_);
+  DCHECK_NE(keys_[index], heap_->not_mapped_symbol());
+  CHECK(is_iterable());  // Must be iterable to access by index;
+  return keys_[index];
 }
 
 IdentityMapBase::RawEntry IdentityMapBase::EntryAtIndex(int index) const {

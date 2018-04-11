@@ -41,7 +41,8 @@ int GetSlotSizeInBytes(MachineRepresentation rep) {
 }
 
 // Forward declaration.
-Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
+Handle<Code> BuildTeardownFunction(Isolate* isolate,
+                                   CallDescriptor* call_descriptor,
                                    std::vector<AllocatedOperand> parameters);
 
 // Build the `setup` function. It takes a code object and a FixedArray as
@@ -69,15 +70,16 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
 // |                |                     | results into lanes of a new        |
 // |                |                     | 128-bit vector.                    |
 //
-Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
+Handle<Code> BuildSetupFunction(Isolate* isolate,
+                                CallDescriptor* call_descriptor,
                                 std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, 2);
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
   params.push_back(__ Parameter(0));
-  params.push_back(
-      __ HeapConstant(BuildTeardownFunction(isolate, descriptor, parameters)));
+  params.push_back(__ HeapConstant(
+      BuildTeardownFunction(isolate, call_descriptor, parameters)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
@@ -123,7 +125,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
             tester.raw_assembler_for_testing()->machine()->I32x4Splat(),
             __ Int32Constant(0));
         for (int lane = 0; lane < 4; lane++) {
-          Node* lane_value = __ SmiToWord32(
+          Node* lane_value = __ SmiToInt32(
               __ LoadFixedArrayElement(element, __ IntPtrConstant(lane)));
           vector = tester.raw_assembler_for_testing()->AddNode(
               tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
@@ -140,7 +142,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
     params.push_back(element);
   }
   __ Return(tester.raw_assembler_for_testing()->AddNode(
-      tester.raw_assembler_for_testing()->common()->Call(descriptor),
+      tester.raw_assembler_for_testing()->common()->Call(call_descriptor),
       static_cast<int>(params.size()), params.data()));
   return tester.GenerateCodeCloseAndEscape();
 }
@@ -187,9 +189,10 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
 // SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may clobber the
 // top 64 bits of Simd128 registers. This is the case on x64, ia32 and Arm64 for
 // example.
-Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
+Handle<Code> BuildTeardownFunction(Isolate* isolate,
+                                   CallDescriptor* call_descriptor,
                                    std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, descriptor);
+  CodeAssemblerTester tester(isolate, call_descriptor);
   CodeStubAssembler assembler(tester.state());
   Node* result_array = __ Parameter(1);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
@@ -203,7 +206,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
       case MachineRepresentation::kFloat32:
         param =
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
-      // Fallthrough
+        V8_FALLTHROUGH;
       case MachineRepresentation::kFloat64:
         __ StoreObjectFieldNoWriteBarrier(
             __ LoadFixedArrayElement(result_array, i), HeapNumber::kValueOffset,
@@ -213,7 +216,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
         Node* vector = __ LoadFixedArrayElement(result_array, i);
         for (int lane = 0; lane < 4; lane++) {
           Node* lane_value =
-              __ SmiFromWord32(tester.raw_assembler_for_testing()->AddNode(
+              __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
                   tester.raw_assembler_for_testing()
                       ->machine()
                       ->I32x4ExtractLane(lane),
@@ -275,13 +278,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
 }
 
 bool TestSimd128Moves() {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
-  // TODO(mips): Implement support for the kSimd128 representation in
-  // AssembleMove and AssembleSwap on MIPS.
-  return false;
-#else
   return CpuFeatures::SupportsWasmSimd128();
-#endif
 }
 
 }  // namespace
@@ -962,7 +959,7 @@ class CodeGeneratorTester {
         generator_(environment->main_zone(), &frame_, &linkage_,
                    environment->code(), &info_, environment->main_isolate(),
                    base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-                   nullptr) {
+                   nullptr, LoadPoisoning::kDontPoison) {
     // Force a frame to be created.
     generator_.frame_access_state()->MarkHasFrame(true);
     generator_.AssembleConstructFrame();

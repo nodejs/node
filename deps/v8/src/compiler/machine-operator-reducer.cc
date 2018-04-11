@@ -352,10 +352,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Add: {
       Float64BinopMatcher m(node);
-      if (m.right().IsNaN()) {  // x + NaN => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat64(m.right().Value() - m.right().Value());
-      }
       if (m.IsFoldable()) {  // K + K => K
         return ReplaceFloat64(m.left().Value() + m.right().Value());
       }

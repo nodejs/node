@@ -46,7 +46,7 @@
 namespace v8 {
 namespace internal {
 
-bool CpuFeatures::SupportsCrankshaft() { return true; }
+bool CpuFeatures::SupportsOptimizer() { return true; }
 
 bool CpuFeatures::SupportsWasmSimd128() { return false; }
 
@@ -70,8 +70,8 @@ void RelocInfo::apply(intptr_t delta) {
     // mov sequence
     DCHECK(IsInternalReferenceEncoded(rmode_));
     Address target = Assembler::target_address_at(pc_, constant_pool_);
-    Assembler::set_target_address_at(nullptr, pc_, constant_pool_,
-                                     target + delta, SKIP_ICACHE_FLUSH);
+    Assembler::set_target_address_at(pc_, constant_pool_, target + delta,
+                                     SKIP_ICACHE_FLUSH);
   }
 }
 
@@ -159,7 +159,7 @@ void RelocInfo::set_target_object(HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(target->GetIsolate(), pc_, constant_pool_,
+  Assembler::set_target_address_at(pc_, constant_pool_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
@@ -179,15 +179,15 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
   return target_address();
 }
 
-void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
+void RelocInfo::set_target_runtime_entry(Address target,
                                          WriteBarrierMode write_barrier_mode,
                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsRuntimeEntry(rmode_));
   if (target_address() != target)
-    set_target_address(isolate, target, write_barrier_mode, icache_flush_mode);
+    set_target_address(target, write_barrier_mode, icache_flush_mode);
 }
 
-void RelocInfo::WipeOut(Isolate* isolate) {
+void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
@@ -197,15 +197,15 @@ void RelocInfo::WipeOut(Isolate* isolate) {
   } else if (IsInternalReferenceEncoded(rmode_)) {
     // mov sequence
     // Currently used only by deserializer, no need to flush.
-    Assembler::set_target_address_at(isolate, pc_, constant_pool_, nullptr,
+    Assembler::set_target_address_at(pc_, constant_pool_, nullptr,
                                      SKIP_ICACHE_FLUSH);
   } else {
-    Assembler::set_target_address_at(isolate, pc_, constant_pool_, nullptr);
+    Assembler::set_target_address_at(pc_, constant_pool_, nullptr);
   }
 }
 
 template <typename ObjectVisitor>
-void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
+void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);
@@ -221,7 +221,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
 }
 
 // Operand constructors
-Operand::Operand(Register rm) : rm_(rm), rmode_(kRelocInfo_NONEPTR) {}
+Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
 
 int32_t Assembler::emit_code_target(Handle<Code> target,
                                     RelocInfo::Mode rmode) {
@@ -281,26 +281,24 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 // has already deserialized the mov instructions etc.
 // There is a FIXED_SEQUENCE assumption here
 void Assembler::deserialization_set_special_target_at(
-    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
-  set_target_address_at(isolate, instruction_payload,
+    Address instruction_payload, Code* code, Address target) {
+  set_target_address_at(instruction_payload,
                         code ? code->constant_pool() : nullptr, target);
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
+    Address pc, Address target, RelocInfo::Mode mode) {
   if (RelocInfo::IsInternalReferenceEncoded(mode)) {
-    set_target_address_at(isolate, pc, nullptr, target, SKIP_ICACHE_FLUSH);
+    set_target_address_at(pc, nullptr, target, SKIP_ICACHE_FLUSH);
   } else {
     Memory::Address_at(pc) = target;
   }
 }
 
 // This code assumes the FIXED_SEQUENCE of IIHF/IILF
-void Assembler::set_target_address_at(Isolate* isolate, Address pc,
-                                      Address constant_pool, Address target,
+void Assembler::set_target_address_at(Address pc, Address constant_pool,
+                                      Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_IMPLIES(isolate == nullptr, icache_flush_mode == SKIP_ICACHE_FLUSH);
-
   // Check for instructions generated by Asm::mov()
   Opcode op1 = Instruction::S390OpcodeValue(reinterpret_cast<const byte*>(pc));
   SixByteInstr instr_1 =
@@ -315,7 +313,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
                                                   instr_1);
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(isolate, pc, 6);
+      Assembler::FlushICache(pc, 6);
     }
     patched = true;
   } else {
@@ -344,7 +342,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
       Instruction::SetInstructionBits<SixByteInstr>(
           reinterpret_cast<byte*>(pc + instr1_length), instr_2);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        Assembler::FlushICache(isolate, pc, 12);
+        Assembler::FlushICache(pc, 12);
       }
       patched = true;
     }
@@ -358,7 +356,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
       Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
                                                     instr_1);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        Assembler::FlushICache(isolate, pc, 6);
+        Assembler::FlushICache(pc, 6);
       }
       patched = true;
     }

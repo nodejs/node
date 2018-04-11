@@ -5,10 +5,13 @@
 #ifndef V8_V8_H_
 #define V8_V8_H_
 
-#include "include/v8.h"
 #include "src/globals.h"
 
 namespace v8 {
+
+class Platform;
+class StartupData;
+
 namespace internal {
 
 class V8 : public AllStatic {

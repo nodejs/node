@@ -255,13 +255,12 @@ void V8RuntimeAgentImpl::evaluate(
   if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(true);
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
-  v8::Local<v8::Script> script;
-  if (m_inspector->compileScript(scope.context(), expression, String16())
-          .ToLocal(&script)) {
+  {
     v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
                                         v8::MicrotasksScope::kRunMicrotasks);
-    maybeResultValue = script->Run(scope.context());
-  }
+    maybeResultValue = v8::debug::EvaluateGlobal(
+        m_inspector->isolate(), toV8String(m_inspector->isolate(), expression));
+  }  // Run microtasks before returning result.
 
   if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(false);
 

@@ -7,6 +7,8 @@
 
 // Note 2: This file is deliberately missing the include guards (the undeffing
 // approach wouldn't work otherwise).
+//
+// PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD
 
 // The accessors with RELAXED_, ACQUIRE_, and RELEASE_ prefixes should be used
 // for fields that can be written to and read from multiple threads at the same

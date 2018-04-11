@@ -128,7 +128,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4ReplaceLane:
     case kX64F32x4RecipApprox:
     case kX64F32x4RecipSqrtApprox:
+    case kX64F32x4Abs:
+    case kX64F32x4Neg:
     case kX64F32x4Add:
+    case kX64F32x4AddHoriz:
     case kX64F32x4Sub:
     case kX64F32x4Mul:
     case kX64F32x4Min:

@@ -46,7 +46,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   UseScratchRegisterScope temps(masm);
   Register double_low = GetRegisterThatIsNotOneOf(result_reg);
   Register double_high = GetRegisterThatIsNotOneOf(result_reg, double_low);
-  LowDwVfpRegister double_scratch = kScratchDoubleReg;
+  LowDwVfpRegister double_scratch = temps.AcquireLowD();
 
   // Save the old values from these temporary registers on the stack.
   __ Push(double_high, double_low);
@@ -385,6 +385,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ cmp(cp, Operand(0));
   __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
+
   // Compute the handler entry address and jump to it.
   ConstantPoolUnavailableScope constant_pool_unavailable(masm);
   __ mov(r1, Operand(pending_handler_entrypoint_address));
@@ -572,8 +578,8 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
   if (tasm->isolate()->function_entry_hook() != nullptr) {
     tasm->MaybeCheckConstPool();
-    PredictableCodeSizeScope predictable(tasm);
-    predictable.ExpectSize(tasm->CallStubSize() + 2 * Assembler::kInstrSize);
+    PredictableCodeSizeScope predictable(
+        tasm, tasm->CallStubSize() + 2 * Assembler::kInstrSize);
     tasm->push(lr);
     tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
     tasm->pop(lr);
@@ -584,8 +590,8 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != nullptr) {
     ProfileEntryHookStub stub(masm->isolate());
     masm->MaybeCheckConstPool();
-    PredictableCodeSizeScope predictable(masm);
-    predictable.ExpectSize(masm->CallStubSize() + 2 * Assembler::kInstrSize);
+    PredictableCodeSizeScope predictable(
+        masm, masm->CallStubSize() + 2 * Assembler::kInstrSize);
     __ push(lr);
     __ CallStub(&stub);
     __ pop(lr);
