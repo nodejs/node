@@ -112,6 +112,24 @@ common.expectsError(
     type: TypeError
   });
 
+common.expectsError(
+  () => {
+    fs.access(__filename);
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
+
+common.expectsError(
+  () => {
+    fs.access(__filename, () => {}, {});
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
+
 // Regular access should not throw.
 fs.accessSync(__filename);
 const mode = fs.F_OK | fs.R_OK | fs.W_OK;
