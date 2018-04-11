@@ -411,6 +411,7 @@ deprecated: v9.0.0
 
 * `keyword` {string} the potential keyword to parse and execute
 * `rest` {any} any parameters to the keyword command
+* Returns: {boolean}
 
 > Stability: 0 - Deprecated.
 

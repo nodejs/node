@@ -112,6 +112,8 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 added: v0.1.90
 -->
 
+* Returns: {Object}
+
 Returns the bound address, the address family name, and port of the server
 as reported by the operating system if listening on an IP socket.
 Useful to find which port was assigned when getting an OS-assigned address.
@@ -152,8 +154,6 @@ closed when all connections are ended and the server emits a [`'close'`][] event
 The optional `callback` will be called once the `'close'` event occurs. Unlike
 that event, it will be called with an Error as its only argument if the server
 was not open when it was closed.
-
-Returns `server`.
 
 ### server.connections
 <!-- YAML
@@ -500,6 +500,8 @@ See also: [`socket.setTimeout()`][]
 added: v0.1.90
 -->
 
+* Returns: {Object}
+
 Returns the bound address, the address family name and port of the
 socket as reported by the operating system. Returns an object with
 three properties, e.g.
@@ -601,8 +603,6 @@ For [IPC][] connections, available `options` are:
   See [Identifying paths for IPC connections][]. If provided, the TCP-specific
   options above are ignored.
 
-Returns `socket`.
-
 #### socket.connect(path[, connectListener])
 
 * `path` {string} Path the client should connect to. See
@@ -616,8 +616,6 @@ Initiate an [IPC][] connection on the given socket.
 Alias to
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 called with `{ path: path }` as `options`.
-
-Returns `socket`.
 
 #### socket.connect(port[, host][, connectListener])
 <!-- YAML
@@ -635,8 +633,6 @@ Initiate a TCP connection on the given socket.
 Alias to
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 called with `{port: port, host: host}` as `options`.
-
-Returns `socket`.
 
 ### socket.connecting
 <!-- YAML
@@ -828,6 +824,8 @@ active socket in the event system. If the socket is already `unref`d calling
 <!-- YAML
 added: v0.1.90
 -->
+
+* Returns: {boolean}
 
 Sends data on the socket. The second parameter specifies the encoding in the
 case of a string — it defaults to UTF8 encoding.
@@ -1068,24 +1066,29 @@ $ nc -U /tmp/echo.sock
 added: v0.3.0
 -->
 
-Tests if input is an IP address. Returns 0 for invalid strings,
-returns 4 for IP version 4 addresses, and returns 6 for IP version 6 addresses.
+* Returns: {integer}
 
+Tests if input is an IP address. Returns `0` for invalid strings,
+returns `4` for IP version 4 addresses, and returns `6` for IP version 6
+addresses.
 
 ## net.isIPv4(input)
 <!-- YAML
 added: v0.3.0
 -->
 
-Returns true if input is a version 4 IP address, otherwise returns false.
+* Returns: {boolean}
 
+Returns `true` if input is a version 4 IP address, otherwise returns `false`.
 
 ## net.isIPv6(input)
 <!-- YAML
 added: v0.3.0
 -->
 
-Returns true if input is a version 6 IP address, otherwise returns false.
+* Returns: {boolean}
+
+Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 
 [`'close'`]: #net_event_close
 [`'connect'`]: #net_event_connect

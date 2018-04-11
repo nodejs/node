@@ -626,11 +626,10 @@ added: v0.5.9
 * `timeout` {number} Milliseconds before a request times out.
 * `callback` {Function} Optional function to be called when a timeout occurs.
   Same as binding to the `timeout` event.
+* Returns: {http.ClientRequest}
 
 Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
-
-Returns `request`.
 
 ### request.socket
 <!-- YAML
@@ -670,6 +669,7 @@ added: v0.1.29
 * `chunk` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
+* Returns: {boolean}
 
 Sends a chunk of the body. By calling this method
 many times, a request body can be sent to a
@@ -892,6 +892,7 @@ added: v0.9.12
 
 * `msecs` {number} **Default:** `120000` (2 minutes)
 * `callback` {Function}
+* Returns: {http.Server}
 
 Sets the timeout value for sockets, and emits a `'timeout'` event on
 the Server object, passing the socket as an argument, if a timeout
@@ -903,8 +904,6 @@ will be called with the timed-out socket as an argument.
 By default, the Server's timeout value is 2 minutes, and sockets are
 destroyed automatically if they time out. However, if a callback is assigned
 to the Server's `'timeout'` event, timeouts must be handled explicitly.
-
-Returns `server`.
 
 ### server.timeout
 <!-- YAML
@@ -1207,6 +1206,7 @@ added: v0.9.12
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http.ServerResponse}
 
 Sets the Socket's timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
@@ -1216,8 +1216,6 @@ If no `'timeout'` listener is added to the request, the response, or
 the server, then sockets are destroyed when they time out. If a handler is
 assigned to the request, the response, or the server's `'timeout'` events,
 timed out sockets must be handled explicitly.
-
-Returns `response`.
 
 ### response.socket
 <!-- YAML
@@ -1530,10 +1528,9 @@ added: v0.5.9
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http.IncomingMessage}
 
 Calls `message.connection.setTimeout(msecs, callback)`.
-
-Returns `message`.
 
 ### message.socket
 <!-- YAML

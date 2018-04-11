@@ -110,6 +110,8 @@ callbacks will be called with an error with code `ECANCELLED`.
 added: v0.11.3
 -->
 
+* Returns: {string[]}
+
 Returns an array of IP address strings, formatted according to [rfc5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
