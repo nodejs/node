@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD
+
 #undef DECL_PRIMITIVE_ACCESSORS
 #undef DECL_BOOLEAN_ACCESSORS
 #undef DECL_INT_ACCESSORS

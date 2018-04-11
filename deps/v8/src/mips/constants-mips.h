@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef  V8_MIPS_CONSTANTS_H_
-#define  V8_MIPS_CONSTANTS_H_
+#ifndef V8_MIPS_CONSTANTS_MIPS_H_
+#define V8_MIPS_CONSTANTS_MIPS_H_
 #include "src/globals.h"
 // UNIMPLEMENTED_ macro for MIPS.
 #ifdef DEBUG
@@ -1931,4 +1931,4 @@ bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
 }  // namespace internal
 }  // namespace v8
 
-#endif    // #ifndef V8_MIPS_CONSTANTS_H_
+#endif  // V8_MIPS_CONSTANTS_MIPS_H_

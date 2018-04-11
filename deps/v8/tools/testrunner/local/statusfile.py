@@ -34,8 +34,8 @@ from utils import Freeze
 # Possible outcomes
 FAIL = "FAIL"
 PASS = "PASS"
-TIMEOUT = "TIMEOUT" # TODO(majeski): unused in status files
-CRASH = "CRASH" # TODO(majeski): unused in status files
+TIMEOUT = "TIMEOUT"
+CRASH = "CRASH"
 
 # Outcomes only for status file, need special handling
 FAIL_OK = "FAIL_OK"

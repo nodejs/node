@@ -42,7 +42,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   OldSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
   Object* root;
-  VisitRootPointer(Root::kPartialSnapshotCache, &root);
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 

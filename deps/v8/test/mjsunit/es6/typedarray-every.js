@@ -132,7 +132,6 @@ function TestTypedArrayForEach(constructor) {
   });
   assertEquals(2, count);
   assertTrue(!!buffer);
-  assertEquals("ArrayBuffer", %_ClassOf(buffer));
   assertSame(buffer, a.buffer);
 
   // The %TypedArray%.every() method should not work when

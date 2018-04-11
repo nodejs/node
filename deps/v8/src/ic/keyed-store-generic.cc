@@ -428,9 +428,10 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 void KeyedStoreGenericAssembler::EmitGenericElementStore(
     Node* receiver, Node* receiver_map, Node* instance_type, Node* intptr_index,
     Node* value, Node* context, Label* slow) {
-  Label if_fast(this), if_in_bounds(this), if_increment_length_by_one(this),
-      if_bump_length_with_gap(this), if_grow(this), if_nonfast(this),
-      if_typed_array(this), if_dictionary(this);
+  Label if_fast(this), if_in_bounds(this), if_out_of_bounds(this),
+      if_increment_length_by_one(this), if_bump_length_with_gap(this),
+      if_grow(this), if_nonfast(this), if_typed_array(this),
+      if_dictionary(this);
   Node* elements = LoadElements(receiver);
   Node* elements_kind = LoadMapElementsKind(receiver_map);
   Branch(IsFastElementsKind(elements_kind), &if_fast, &if_nonfast);
@@ -440,7 +441,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   GotoIf(InstanceTypeEqual(instance_type, JS_ARRAY_TYPE), &if_array);
   {
     Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
-    Branch(UintPtrLessThan(intptr_index, capacity), &if_in_bounds, &if_grow);
+    Branch(UintPtrLessThan(intptr_index, capacity), &if_in_bounds,
+           &if_out_of_bounds);
   }
   BIND(&if_array);
   {
@@ -457,6 +459,16 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     StoreElementWithCapacity(receiver, receiver_map, elements, elements_kind,
                              intptr_index, value, context, slow,
                              kDontChangeLength);
+  }
+
+  BIND(&if_out_of_bounds);
+  {
+    // Integer indexed out-of-bounds accesses to typed arrays are simply
+    // ignored, since we never look up integer indexed properties on the
+    // prototypes of typed arrays. For all other types, we may need to
+    // grow the backing store.
+    GotoIfNot(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), &if_grow);
+    Return(value);
   }
 
   BIND(&if_increment_length_by_one);
@@ -911,9 +923,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       BIND(&strict);
       {
-        Node* message = SmiConstant(MessageTemplate::kNoSetterInCallback);
-        TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
-                        var_accessor_holder.value());
+        ThrowTypeError(p->context, MessageTemplate::kNoSetterInCallback,
+                       p->name, var_accessor_holder.value());
       }
     }
   }
@@ -926,10 +937,9 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&strict);
     {
-      Node* message = SmiConstant(MessageTemplate::kStrictReadOnlyProperty);
       Node* type = Typeof(p->receiver);
-      TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
-                      type, p->receiver);
+      ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
+                     p->name, type, p->receiver);
     }
   }
 

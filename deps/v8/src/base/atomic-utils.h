@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ATOMIC_UTILS_H_
-#define V8_ATOMIC_UTILS_H_
+#ifndef V8_BASE_ATOMIC_UTILS_H_
+#define V8_BASE_ATOMIC_UTILS_H_
 
 #include <limits.h>
 #include <type_traits>
@@ -419,4 +419,4 @@ class AtomicElement {
 }  // namespace base
 }  // namespace v8
 
-#endif  // #define V8_ATOMIC_UTILS_H_
+#endif  // V8_BASE_ATOMIC_UTILS_H_

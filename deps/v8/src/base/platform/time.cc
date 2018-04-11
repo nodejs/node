@@ -143,41 +143,83 @@ TimeDelta TimeDelta::FromNanoseconds(int64_t nanoseconds) {
 
 
 int TimeDelta::InDays() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int>::max();
+  }
   return static_cast<int>(delta_ / Time::kMicrosecondsPerDay);
 }
 
-
 int TimeDelta::InHours() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int>::max();
+  }
   return static_cast<int>(delta_ / Time::kMicrosecondsPerHour);
 }
 
-
 int TimeDelta::InMinutes() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int>::max();
+  }
   return static_cast<int>(delta_ / Time::kMicrosecondsPerMinute);
 }
 
-
 double TimeDelta::InSecondsF() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<double>::infinity();
+  }
   return static_cast<double>(delta_) / Time::kMicrosecondsPerSecond;
 }
 
-
 int64_t TimeDelta::InSeconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
   return delta_ / Time::kMicrosecondsPerSecond;
 }
 
-
 double TimeDelta::InMillisecondsF() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<double>::infinity();
+  }
   return static_cast<double>(delta_) / Time::kMicrosecondsPerMillisecond;
 }
 
-
 int64_t TimeDelta::InMilliseconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
   return delta_ / Time::kMicrosecondsPerMillisecond;
 }
 
+int64_t TimeDelta::InMillisecondsRoundedUp() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
+  return (delta_ + Time::kMicrosecondsPerMillisecond - 1) /
+         Time::kMicrosecondsPerMillisecond;
+}
+
+int64_t TimeDelta::InMicroseconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
+  return delta_;
+}
 
 int64_t TimeDelta::InNanoseconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
   return delta_ * Time::kNanosecondsPerMicrosecond;
 }
 
@@ -415,6 +457,15 @@ struct timeval Time::ToTimeval() const {
 
 #endif  // V8_OS_WIN
 
+// static
+TimeTicks TimeTicks::HighResolutionNow() {
+  // a DCHECK of TimeTicks::IsHighResolution() was removed from here
+  // as it turns out this path is used in the wild for logs and counters.
+  //
+  // TODO(hpayer) We may eventually want to split TimedHistograms based
+  // on low resolution clocks to avoid polluting metrics
+  return TimeTicks::Now();
+}
 
 Time Time::FromJsTime(double ms_since_epoch) {
   // The epoch is a valid time, so this constructor doesn't interpret
@@ -447,165 +498,221 @@ std::ostream& operator<<(std::ostream& os, const Time& time) {
 
 #if V8_OS_WIN
 
-class TickClock {
- public:
-  virtual ~TickClock() {}
-  virtual int64_t Now() = 0;
-  virtual bool IsHighResolution() = 0;
+namespace {
+
+// We define a wrapper to adapt between the __stdcall and __cdecl call of the
+// mock function, and to avoid a static constructor.  Assigning an import to a
+// function pointer directly would require setup code to fetch from the IAT.
+DWORD timeGetTimeWrapper() { return timeGetTime(); }
+
+DWORD (*g_tick_function)(void) = &timeGetTimeWrapper;
+
+// A structure holding the most significant bits of "last seen" and a
+// "rollover" counter.
+union LastTimeAndRolloversState {
+  // The state as a single 32-bit opaque value.
+  base::Atomic32 as_opaque_32;
+
+  // The state as usable values.
+  struct {
+    // The top 8-bits of the "last" time. This is enough to check for rollovers
+    // and the small bit-size means fewer CompareAndSwap operations to store
+    // changes in state, which in turn makes for fewer retries.
+    uint8_t last_8;
+    // A count of the number of detected rollovers. Using this as bits 47-32
+    // of the upper half of a 64-bit value results in a 48-bit tick counter.
+    // This extends the total rollover period from about 49 days to about 8800
+    // years while still allowing it to be stored with last_8 in a single
+    // 32-bit value.
+    uint16_t rollovers;
+  } as_values;
 };
+base::Atomic32 g_last_time_and_rollovers = 0;
+static_assert(sizeof(LastTimeAndRolloversState) <=
+                  sizeof(g_last_time_and_rollovers),
+              "LastTimeAndRolloversState does not fit in a single atomic word");
 
+// We use timeGetTime() to implement TimeTicks::Now().  This can be problematic
+// because it returns the number of milliseconds since Windows has started,
+// which will roll over the 32-bit value every ~49 days.  We try to track
+// rollover ourselves, which works if TimeTicks::Now() is called at least every
+// 48.8 days (not 49 days because only changes in the top 8 bits get noticed).
+TimeTicks RolloverProtectedNow() {
+  LastTimeAndRolloversState state;
+  DWORD now;  // DWORD is always unsigned 32 bits.
 
-// Overview of time counters:
+  while (true) {
+    // Fetch the "now" and "last" tick values, updating "last" with "now" and
+    // incrementing the "rollovers" counter if the tick-value has wrapped back
+    // around. Atomic operations ensure that both "last" and "rollovers" are
+    // always updated together.
+    int32_t original = base::Acquire_Load(&g_last_time_and_rollovers);
+    state.as_opaque_32 = original;
+    now = g_tick_function();
+    uint8_t now_8 = static_cast<uint8_t>(now >> 24);
+    if (now_8 < state.as_values.last_8) ++state.as_values.rollovers;
+    state.as_values.last_8 = now_8;
+
+    // If the state hasn't changed, exit the loop.
+    if (state.as_opaque_32 == original) break;
+
+    // Save the changed state. If the existing value is unchanged from the
+    // original, exit the loop.
+    int32_t check = base::Release_CompareAndSwap(&g_last_time_and_rollovers,
+                                                 original, state.as_opaque_32);
+    if (check == original) break;
+
+    // Another thread has done something in between so retry from the top.
+  }
+
+  return TimeTicks() +
+         TimeDelta::FromMilliseconds(
+             now + (static_cast<uint64_t>(state.as_values.rollovers) << 32));
+}
+
+// Discussion of tick counter options on Windows:
+//
 // (1) CPU cycle counter. (Retrieved via RDTSC)
 // The CPU counter provides the highest resolution time stamp and is the least
-// expensive to retrieve. However, the CPU counter is unreliable and should not
-// be used in production. Its biggest issue is that it is per processor and it
-// is not synchronized between processors. Also, on some computers, the counters
-// will change frequency due to thermal and power changes, and stop in some
-// states.
+// expensive to retrieve. However, on older CPUs, two issues can affect its
+// reliability: First it is maintained per processor and not synchronized
+// between processors. Also, the counters will change frequency due to thermal
+// and power changes, and stop in some states.
 //
 // (2) QueryPerformanceCounter (QPC). The QPC counter provides a high-
-// resolution (100 nanoseconds) time stamp but is comparatively more expensive
-// to retrieve. What QueryPerformanceCounter actually does is up to the HAL.
-// (with some help from ACPI).
-// According to http://blogs.msdn.com/oldnewthing/archive/2005/09/02/459952.aspx
-// in the worst case, it gets the counter from the rollover interrupt on the
+// resolution (<1 microsecond) time stamp. On most hardware running today, it
+// auto-detects and uses the constant-rate RDTSC counter to provide extremely
+// efficient and reliable time stamps.
+//
+// On older CPUs where RDTSC is unreliable, it falls back to using more
+// expensive (20X to 40X more costly) alternate clocks, such as HPET or the ACPI
+// PM timer, and can involve system calls; and all this is up to the HAL (with
+// some help from ACPI). According to
+// http://blogs.msdn.com/oldnewthing/archive/2005/09/02/459952.aspx, in the
+// worst case, it gets the counter from the rollover interrupt on the
 // programmable interrupt timer. In best cases, the HAL may conclude that the
 // RDTSC counter runs at a constant frequency, then it uses that instead. On
 // multiprocessor machines, it will try to verify the values returned from
 // RDTSC on each processor are consistent with each other, and apply a handful
 // of workarounds for known buggy hardware. In other words, QPC is supposed to
-// give consistent result on a multiprocessor computer, but it is unreliable in
-// reality due to bugs in BIOS or HAL on some, especially old computers.
-// With recent updates on HAL and newer BIOS, QPC is getting more reliable but
-// it should be used with caution.
+// give consistent results on a multiprocessor computer, but for older CPUs it
+// can be unreliable due bugs in BIOS or HAL.
 //
-// (3) System time. The system time provides a low-resolution (typically 10ms
-// to 55 milliseconds) time stamp but is comparatively less expensive to
-// retrieve and more reliable.
-class HighResolutionTickClock final : public TickClock {
- public:
-  explicit HighResolutionTickClock(int64_t ticks_per_second)
-      : ticks_per_second_(ticks_per_second) {
-    DCHECK_LT(0, ticks_per_second);
+// (3) System time. The system time provides a low-resolution (from ~1 to ~15.6
+// milliseconds) time stamp but is comparatively less expensive to retrieve and
+// more reliable. Time::EnableHighResolutionTimer() and
+// Time::ActivateHighResolutionTimer() can be called to alter the resolution of
+// this timer; and also other Windows applications can alter it, affecting this
+// one.
+
+TimeTicks InitialTimeTicksNowFunction();
+
+// See "threading notes" in InitializeNowFunctionPointer() for details on how
+// concurrent reads/writes to these globals has been made safe.
+using TimeTicksNowFunction = decltype(&TimeTicks::Now);
+TimeTicksNowFunction g_time_ticks_now_function = &InitialTimeTicksNowFunction;
+int64_t g_qpc_ticks_per_second = 0;
+
+// As of January 2015, use of <atomic> is forbidden in Chromium code. This is
+// what std::atomic_thread_fence does on Windows on all Intel architectures when
+// the memory_order argument is anything but std::memory_order_seq_cst:
+#define ATOMIC_THREAD_FENCE(memory_order) _ReadWriteBarrier();
+
+TimeDelta QPCValueToTimeDelta(LONGLONG qpc_value) {
+  // Ensure that the assignment to |g_qpc_ticks_per_second|, made in
+  // InitializeNowFunctionPointer(), has happened by this point.
+  ATOMIC_THREAD_FENCE(memory_order_acquire);
+
+  DCHECK_GT(g_qpc_ticks_per_second, 0);
+
+  // If the QPC Value is below the overflow threshold, we proceed with
+  // simple multiply and divide.
+  if (qpc_value < TimeTicks::kQPCOverflowThreshold) {
+    return TimeDelta::FromMicroseconds(
+        qpc_value * TimeTicks::kMicrosecondsPerSecond / g_qpc_ticks_per_second);
   }
-  virtual ~HighResolutionTickClock() {}
+  // Otherwise, calculate microseconds in a round about manner to avoid
+  // overflow and precision issues.
+  int64_t whole_seconds = qpc_value / g_qpc_ticks_per_second;
+  int64_t leftover_ticks = qpc_value - (whole_seconds * g_qpc_ticks_per_second);
+  return TimeDelta::FromMicroseconds(
+      (whole_seconds * TimeTicks::kMicrosecondsPerSecond) +
+      ((leftover_ticks * TimeTicks::kMicrosecondsPerSecond) /
+       g_qpc_ticks_per_second));
+}
 
-  int64_t Now() override {
-    uint64_t now = QPCNowRaw();
+TimeTicks QPCNow() { return TimeTicks() + QPCValueToTimeDelta(QPCNowRaw()); }
 
-    // Intentionally calculate microseconds in a round about manner to avoid
-    // overflow and precision issues. Think twice before simplifying!
-    int64_t whole_seconds = now / ticks_per_second_;
-    int64_t leftover_ticks = now % ticks_per_second_;
-    int64_t ticks = (whole_seconds * Time::kMicrosecondsPerSecond) +
-        ((leftover_ticks * Time::kMicrosecondsPerSecond) / ticks_per_second_);
+bool IsBuggyAthlon(const CPU& cpu) {
+  // On Athlon X2 CPUs (e.g. model 15) QueryPerformanceCounter is unreliable.
+  return strcmp(cpu.vendor(), "AuthenticAMD") == 0 && cpu.family() == 15;
+}
 
-    // Make sure we never return 0 here, so that TimeTicks::HighResolutionNow()
-    // will never return 0.
-    return ticks + 1;
+void InitializeTimeTicksNowFunctionPointer() {
+  LARGE_INTEGER ticks_per_sec = {};
+  if (!QueryPerformanceFrequency(&ticks_per_sec)) ticks_per_sec.QuadPart = 0;
+
+  // If Windows cannot provide a QPC implementation, TimeTicks::Now() must use
+  // the low-resolution clock.
+  //
+  // If the QPC implementation is expensive and/or unreliable, TimeTicks::Now()
+  // will still use the low-resolution clock. A CPU lacking a non-stop time
+  // counter will cause Windows to provide an alternate QPC implementation that
+  // works, but is expensive to use. Certain Athlon CPUs are known to make the
+  // QPC implementation unreliable.
+  //
+  // Otherwise, Now uses the high-resolution QPC clock. As of 21 August 2015,
+  // ~72% of users fall within this category.
+  TimeTicksNowFunction now_function;
+  CPU cpu;
+  if (ticks_per_sec.QuadPart <= 0 || !cpu.has_non_stop_time_stamp_counter() ||
+      IsBuggyAthlon(cpu)) {
+    now_function = &RolloverProtectedNow;
+  } else {
+    now_function = &QPCNow;
   }
 
-  bool IsHighResolution() override { return true; }
+  // Threading note 1: In an unlikely race condition, it's possible for two or
+  // more threads to enter InitializeNowFunctionPointer() in parallel. This is
+  // not a problem since all threads should end up writing out the same values
+  // to the global variables.
+  //
+  // Threading note 2: A release fence is placed here to ensure, from the
+  // perspective of other threads using the function pointers, that the
+  // assignment to |g_qpc_ticks_per_second| happens before the function pointers
+  // are changed.
+  g_qpc_ticks_per_second = ticks_per_sec.QuadPart;
+  ATOMIC_THREAD_FENCE(memory_order_release);
+  g_time_ticks_now_function = now_function;
+}
 
- private:
-  int64_t ticks_per_second_;
-};
+TimeTicks InitialTimeTicksNowFunction() {
+  InitializeTimeTicksNowFunctionPointer();
+  return g_time_ticks_now_function();
+}
 
+#undef ATOMIC_THREAD_FENCE
 
-class RolloverProtectedTickClock final : public TickClock {
- public:
-  RolloverProtectedTickClock() : rollover_(0) {}
-  virtual ~RolloverProtectedTickClock() {}
-
-  int64_t Now() override {
-    // We use timeGetTime() to implement TimeTicks::Now(), which rolls over
-    // every ~49.7 days. We try to track rollover ourselves, which works if
-    // TimeTicks::Now() is called at least every 24 days.
-    // Note that we do not use GetTickCount() here, since timeGetTime() gives
-    // more predictable delta values, as described here:
-    // http://blogs.msdn.com/b/larryosterman/archive/2009/09/02/what-s-the-difference-between-gettickcount-and-timegettime.aspx
-    // timeGetTime() provides 1ms granularity when combined with
-    // timeBeginPeriod(). If the host application for V8 wants fast timers, it
-    // can use timeBeginPeriod() to increase the resolution.
-    // We use a lock-free version because the sampler thread calls it
-    // while having the rest of the world stopped, that could cause a deadlock.
-    base::Atomic32 rollover = base::Acquire_Load(&rollover_);
-    uint32_t now = static_cast<uint32_t>(timeGetTime());
-    if ((now >> 31) != static_cast<uint32_t>(rollover & 1)) {
-      base::Release_CompareAndSwap(&rollover_, rollover, rollover + 1);
-      ++rollover;
-    }
-    uint64_t ms = (static_cast<uint64_t>(rollover) << 31) | now;
-    return static_cast<int64_t>(ms * Time::kMicrosecondsPerMillisecond);
-  }
-
-  bool IsHighResolution() override { return false; }
-
- private:
-  base::Atomic32 rollover_;
-};
-
-
-static LazyStaticInstance<RolloverProtectedTickClock,
-                          DefaultConstructTrait<RolloverProtectedTickClock>,
-                          ThreadSafeInitOnceTrait>::type tick_clock =
-    LAZY_STATIC_INSTANCE_INITIALIZER;
-
-
-struct CreateHighResTickClockTrait {
-  static TickClock* Create() {
-    // Check if the installed hardware supports a high-resolution performance
-    // counter, and if not fallback to the low-resolution tick clock.
-    LARGE_INTEGER ticks_per_second;
-    if (!QueryPerformanceFrequency(&ticks_per_second)) {
-      return tick_clock.Pointer();
-    }
-
-    // If QPC not reliable, fallback to low-resolution tick clock.
-    if (IsQPCReliable()) {
-      return tick_clock.Pointer();
-    }
-
-    return new HighResolutionTickClock(ticks_per_second.QuadPart);
-  }
-};
-
-
-static LazyDynamicInstance<TickClock, CreateHighResTickClockTrait,
-                           ThreadSafeInitOnceTrait>::type high_res_tick_clock =
-    LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+}  // namespace
 
 // static
 TimeTicks TimeTicks::Now() {
   // Make sure we never return 0 here.
-  TimeTicks ticks(tick_clock.Pointer()->Now());
+  TimeTicks ticks(g_time_ticks_now_function());
   DCHECK(!ticks.IsNull());
   return ticks;
 }
 
 // static
-TimeTicks TimeTicks::HighResolutionNow() {
-  // Make sure we never return 0 here.
-  TimeTicks ticks(high_res_tick_clock.Pointer()->Now());
-  DCHECK(!ticks.IsNull());
-  return ticks;
-}
-
-
-// static
-bool TimeTicks::IsHighResolutionClockWorking() {
-  return high_res_tick_clock.Pointer()->IsHighResolution();
+bool TimeTicks::IsHighResolution() {
+  if (g_time_ticks_now_function == &InitialTimeTicksNowFunction)
+    InitializeTimeTicksNowFunctionPointer();
+  return g_time_ticks_now_function == &QPCNow;
 }
 
 #else  // V8_OS_WIN
 
 TimeTicks TimeTicks::Now() {
-  return HighResolutionNow();
-}
-
-
-TimeTicks TimeTicks::HighResolutionNow() {
   int64_t ticks;
 #if V8_OS_MACOSX
   static struct mach_timebase_info info;
@@ -627,11 +734,8 @@ TimeTicks TimeTicks::HighResolutionNow() {
   return TimeTicks(ticks + 1);
 }
 
-
 // static
-bool TimeTicks::IsHighResolutionClockWorking() {
-  return true;
-}
+bool TimeTicks::IsHighResolution() { return true; }
 
 #endif  // V8_OS_WIN
 

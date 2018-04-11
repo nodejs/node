@@ -155,6 +155,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
       Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return);
 
   static MaybeHandle<Map> GetMapWitness(Node* node);
+  static bool HasInstanceTypeWitness(Node* receiver, Node* effect,
+                                     InstanceType instance_type);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join

@@ -3,9 +3,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import os
+import sys
 import unittest
 
-from pool import Pool
+# Needed because the test runner contains relative imports.
+TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+sys.path.append(TOOLS_PATH)
+
+from testrunner.local.pool import Pool
 
 def Run(x):
   if x == 10:
@@ -17,6 +24,9 @@ class PoolTest(unittest.TestCase):
     results = set()
     pool = Pool(3)
     for result in pool.imap_unordered(Run, [[x] for x in range(0, 10)]):
+      if result.heartbeat:
+        # Any result can be a heartbeat due to timings.
+        continue
       results.add(result.value)
     self.assertEquals(set(range(0, 10)), results)
 
@@ -25,6 +35,9 @@ class PoolTest(unittest.TestCase):
     pool = Pool(3)
     with self.assertRaises(Exception):
       for result in pool.imap_unordered(Run, [[x] for x in range(0, 12)]):
+        if result.heartbeat:
+          # Any result can be a heartbeat due to timings.
+          continue
         # Item 10 will not appear in results due to an internal exception.
         results.add(result.value)
     expect = set(range(0, 12))
@@ -35,8 +48,15 @@ class PoolTest(unittest.TestCase):
     results = set()
     pool = Pool(3)
     for result in pool.imap_unordered(Run, [[x] for x in range(0, 10)]):
+      if result.heartbeat:
+        # Any result can be a heartbeat due to timings.
+        continue
       results.add(result.value)
       if result.value < 30:
         pool.add([result.value + 20])
     self.assertEquals(set(range(0, 10) + range(20, 30) + range(40, 50)),
                       results)
+
+
+if __name__ == '__main__':
+    unittest.main()

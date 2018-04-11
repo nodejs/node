@@ -281,6 +281,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::copy_typed_array_elements_to_typed_array(isolate)
           .address(),
       "copy_typed_array_elements_to_typed_array");
+  Add(ExternalReference::copy_typed_array_elements_slice(isolate).address(),
+      "copy_typed_array_elements_slice");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

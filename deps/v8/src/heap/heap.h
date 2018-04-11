@@ -114,6 +114,7 @@ using v8::MemoryPressureLevel;
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
+  V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, string_table_map, StringTableMap)                                     \
   V(Map, weak_hash_table_map, WeakHashTableMap)                                \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
@@ -168,6 +169,8 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
   V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
   V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
+  V(Map, fixed_biguint64_array_map, FixedBigUint64ArrayMap)                    \
+  V(Map, fixed_bigint64_array_map, FixedBigInt64ArrayMap)                      \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
@@ -193,8 +196,11 @@ using v8::MemoryPressureLevel;
   V(FixedTypedArrayBase, empty_fixed_float64_array, EmptyFixedFloat64Array)    \
   V(FixedTypedArrayBase, empty_fixed_uint8_clamped_array,                      \
     EmptyFixedUint8ClampedArray)                                               \
+  V(FixedTypedArrayBase, empty_fixed_biguint64_array,                          \
+    EmptyFixedBigUint64Array)                                                  \
+  V(FixedTypedArrayBase, empty_fixed_bigint64_array, EmptyFixedBigInt64Array)  \
   V(Script, empty_script, EmptyScript)                                         \
-  V(Cell, undefined_cell, UndefinedCell)                                       \
+  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
@@ -213,6 +219,8 @@ using v8::MemoryPressureLevel;
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_neutering_protector,                            \
     ArrayBufferNeuteringProtector)                                             \
+  V(PropertyCell, promise_hook_protector, PromiseHookProtector)                \
+  V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
   /* Special numbers */                                                        \
   V(HeapNumber, nan_value, NanValue)                                           \
   V(HeapNumber, hole_nan_value, HoleNanValue)                                  \
@@ -230,7 +238,7 @@ using v8::MemoryPressureLevel;
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
   V(Object, script_list, ScriptList)                                           \
-  V(NumberDictionary, code_stubs, CodeStubs)                                   \
+  V(SimpleNumberDictionary, code_stubs, CodeStubs)                             \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
@@ -242,6 +250,8 @@ using v8::MemoryPressureLevel;
   /* slots refer to the code with the reference to the weak object. */         \
   V(ArrayList, weak_new_space_object_to_code_list,                             \
     WeakNewSpaceObjectToCodeList)                                              \
+  /* Indirection lists for isolate-independent builtins */                     \
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Feedback vectors that we need for code coverage or type profile */        \
   V(Object, feedback_vectors_for_profiling_tools,                              \
     FeedbackVectorsForProfilingTools)                                          \
@@ -340,6 +350,7 @@ using v8::MemoryPressureLevel;
   V(JsConstructEntryCode)               \
   V(JsEntryCode)                        \
   V(JSMessageObjectMap)                 \
+  V(ManyClosuresCell)                   \
   V(ManyClosuresCellMap)                \
   V(MetaMap)                            \
   V(MinusInfinityValue)                 \
@@ -363,6 +374,7 @@ using v8::MemoryPressureLevel;
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
   V(SharedFunctionInfoMap)              \
+  V(SimpleNumberDictionaryMap)          \
   V(SloppyArgumentsElementsMap)         \
   V(SmallOrderedHashMapMap)             \
   V(SmallOrderedHashSetMap)             \
@@ -377,7 +389,6 @@ using v8::MemoryPressureLevel;
   V(TransitionArrayMap)                 \
   V(TrueValue)                          \
   V(TwoPointerFillerMap)                \
-  V(UndefinedCell)                      \
   V(UndefinedMap)                       \
   V(UndefinedValue)                     \
   V(UninitializedMap)                   \
@@ -575,7 +586,13 @@ class Heap {
 
   enum FindMementoMode { kForRuntime, kForGC };
 
-  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT, MINOR_MARK_COMPACT };
+  enum HeapState {
+    NOT_IN_GC,
+    SCAVENGE,
+    MARK_COMPACT,
+    MINOR_MARK_COMPACT,
+    TEAR_DOWN
+  };
 
   using PretenuringFeedbackMap = std::unordered_map<AllocationSite*, size_t>;
 
@@ -966,6 +983,8 @@ class Heap {
   // Returns whether SetUp has been called.
   bool HasBeenSetUp();
 
+  void stop_using_tasks() { use_tasks_ = false; }
+
   bool use_tasks() const { return use_tasks_; }
 
   // ===========================================================================
@@ -1062,7 +1081,7 @@ class Heap {
   Object** roots_array_start() { return roots_; }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void SetRootCodeStubs(NumberDictionary* value);
+  void SetRootCodeStubs(SimpleNumberDictionary* value);
 
   void SetRootMaterializedObjects(FixedArray* objects) {
     roots_[kMaterializedObjectsRootIndex] = objects;
@@ -1109,6 +1128,8 @@ class Heap {
   void SetDeserializeLazyHandler(Code* code);
   void SetDeserializeLazyHandlerWide(Code* code);
   void SetDeserializeLazyHandlerExtraWide(Code* code);
+
+  void SetBuiltinsConstantsTable(FixedArray* cache);
 
   // ===========================================================================
   // Inline allocation. ========================================================
@@ -1161,15 +1182,15 @@ class Heap {
   // Iterators. ================================================================
   // ===========================================================================
 
-  // Iterates over all roots in the heap.
   void IterateRoots(RootVisitor* v, VisitMode mode);
-  // Iterates over all strong roots in the heap.
   void IterateStrongRoots(RootVisitor* v, VisitMode mode);
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.
   void IterateSmiRoots(RootVisitor* v);
-  // Iterates over all the other roots in the heap.
+  // Iterates over weak string tables.
   void IterateWeakRoots(RootVisitor* v, VisitMode mode);
+  // Iterates over weak global handles.
+  void IterateWeakGlobalHandles(RootVisitor* v);
 
   // ===========================================================================
   // Store buffer API. =========================================================
@@ -1570,6 +1591,11 @@ class Heap {
   // space.
   void RemoveAllocationObserversFromAllSpaces(
       AllocationObserver* observer, AllocationObserver* new_space_observer);
+
+  bool allocation_step_in_progress() { return allocation_step_in_progress_; }
+  void set_allocation_step_in_progress(bool val) {
+    allocation_step_in_progress_ = val;
+  }
 
   // ===========================================================================
   // Retaining path tracking. ==================================================
@@ -2076,7 +2102,8 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
       MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT AllocationResult AllocateBigInt(int length);
+  MUST_USE_RESULT AllocationResult
+  AllocateBigInt(int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a byte array of the specified length
   MUST_USE_RESULT AllocationResult
@@ -2265,6 +2292,10 @@ class Heap {
   // Allocate a tenured simple cell.
   MUST_USE_RESULT AllocationResult AllocateCell(Object* value);
 
+  // Allocate a tenured simple feedback cell.
+  MUST_USE_RESULT AllocationResult AllocateFeedbackCell(Map* map,
+                                                        HeapObject* value);
+
   // Allocate a tenured JS global property cell initialized with the hole.
   MUST_USE_RESULT AllocationResult AllocatePropertyCell(Name* name);
 
@@ -2287,13 +2318,16 @@ class Heap {
 
   // Allocates a new code object (fully initialized). All header fields of the
   // returned object are immutable and the code object is write protected.
-  MUST_USE_RESULT AllocationResult
-  AllocateCode(const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
-               int32_t builtin_index, ByteArray* reloc_info,
-               CodeDataContainer* data_container, HandlerTable* handler_table,
-               ByteArray* source_position_table, DeoptimizationData* deopt_data,
-               Movability movability, uint32_t stub_key, bool is_turbofanned,
-               int stack_slots, int safepoint_table_offset);
+  MUST_USE_RESULT AllocationResult AllocateCode(
+      const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
+      int32_t builtin_index, ByteArray* reloc_info,
+      CodeDataContainer* data_container, ByteArray* source_position_table,
+      DeoptimizationData* deopt_data, Movability movability, uint32_t stub_key,
+      bool is_turbofanned, int stack_slots, int safepoint_table_offset,
+      int handler_table_offset);
+
+  MUST_USE_RESULT AllocationResult AllocateJSPromise(
+      JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
 
   void set_force_oom(bool value) { force_oom_ = value; }
 
@@ -2399,6 +2433,8 @@ class Heap {
 
   // Observer that can cause early scavenge start.
   StressScavengeObserver* stress_scavenge_observer_;
+
+  bool allocation_step_in_progress_;
 
   // The maximum percent of the marking limit reached wihout causing marking.
   // This is tracked when specyfing --fuzzer-gc-analysis.
@@ -2658,6 +2694,7 @@ class AlwaysAllocateScope {
   Heap* heap_;
 };
 
+// The CodeSpaceMemoryModificationScope can only be used by the main thread.
 class CodeSpaceMemoryModificationScope {
  public:
   explicit inline CodeSpaceMemoryModificationScope(Heap* heap);
@@ -2667,6 +2704,9 @@ class CodeSpaceMemoryModificationScope {
   Heap* heap_;
 };
 
+// The CodePageMemoryModificationScope does not check if tansitions to
+// writeable and back to executable are actually allowed, i.e. the MemoryChunk
+// was registered to be executable. It can be used by concurrent threads.
 class CodePageMemoryModificationScope {
  public:
   explicit inline CodePageMemoryModificationScope(MemoryChunk* chunk);
@@ -2689,7 +2729,8 @@ class CodePageMemoryModificationScope {
 class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  public:
   void VisitPointers(HeapObject* host, Object** start, Object** end) override;
-  void VisitRootPointers(Root root, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
 
  private:
   void VerifyPointers(Object** start, Object** end);
@@ -2699,7 +2740,8 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
 // Verify that all objects are Smis.
 class VerifySmisVisitor : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
 };
 
 // Space iterator for iterating over all the paged spaces of the heap: Map

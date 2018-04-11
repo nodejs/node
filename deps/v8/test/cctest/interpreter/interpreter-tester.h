@@ -122,10 +122,10 @@ class InterpreterTester {
       function->shared()->set_function_data(*bytecode_.ToHandleChecked());
     }
     if (!feedback_metadata_.is_null()) {
-      function->set_feedback_vector_cell(isolate_->heap()->undefined_cell());
+      function->set_feedback_cell(isolate_->heap()->many_closures_cell());
       function->shared()->set_feedback_metadata(
           *feedback_metadata_.ToHandleChecked());
-      JSFunction::EnsureLiterals(function);
+      JSFunction::EnsureFeedbackVector(function);
     }
     return function;
   }

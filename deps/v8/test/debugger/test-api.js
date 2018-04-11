@@ -67,11 +67,6 @@ class DebugWrapper {
     this.ExceptionBreak = { Caught : 0,
                             Uncaught: 1 };
 
-    // The different script break point types.
-    this.ScriptBreakPointType = { ScriptId: 0,
-                                  ScriptName: 1,
-                                  ScriptRegExp: 2 };
-
     // Store the current script id so we can skip corresponding break events.
     this.thisScriptId = %FunctionGetScriptId(receive);
 
@@ -137,13 +132,6 @@ class DebugWrapper {
     const loc =
       %ScriptLocationFromLine2(scriptid, opt_line, opt_column, offset);
     return this.setBreakPointAtLocation(scriptid, loc, opt_condition);
-  }
-
-  setScriptBreakPoint(type, scriptid, opt_line, opt_column, opt_condition) {
-    // Only sets by script id are supported for now.
-    assertEquals(this.ScriptBreakPointType.ScriptId, type);
-    return this.setScriptBreakPointById(scriptid, opt_line, opt_column,
-                                        opt_condition);
   }
 
   setScriptBreakPointById(scriptid, opt_line, opt_column, opt_condition) {

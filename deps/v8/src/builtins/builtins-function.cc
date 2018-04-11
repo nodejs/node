@@ -288,25 +288,21 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
 // ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
 BUILTIN(FunctionPrototypeBind) { return DoFunctionBind(isolate, args); }
 
-// TODO(verwaest): This is a temporary helper until the FastFunctionBind stub
-// can tailcall to the builtin directly.
-RUNTIME_FUNCTION(Runtime_FunctionBind) {
-  DCHECK_EQ(2, args.length());
-  Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
-  // Rewrap the arguments as builtins arguments.
-  int argc = incoming->length() + BuiltinArguments::kNumExtraArgsWithReceiver;
-  BuiltinArguments caller_args(argc, incoming->arguments() + 1);
-  return DoFunctionBind(isolate, caller_args);
-}
-
 // ES6 section 19.2.3.5 Function.prototype.toString ( )
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
   if (receiver->IsJSBoundFunction()) {
     return *JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(receiver));
-  } else if (receiver->IsJSFunction()) {
+  }
+  if (receiver->IsJSFunction()) {
     return *JSFunction::ToString(Handle<JSFunction>::cast(receiver));
+  }
+  // With the revised toString behavior, all callable objects are valid
+  // receivers for this method.
+  if (FLAG_harmony_function_tostring && receiver->IsJSReceiver() &&
+      JSReceiver::cast(*receiver)->map()->is_callable()) {
+    return isolate->heap()->function_native_code_string();
   }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotGeneric,

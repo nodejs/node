@@ -68,7 +68,6 @@ namespace internal {
 // clang-format on
 
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
-static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 
 const int kNumRegs = kNumberOfRegisters;
 // Registers x0-x17 are caller-saved.
@@ -455,8 +454,8 @@ constexpr Register no_reg = NoReg;
 GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits);
-DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits);
+DEFINE_REGISTER(Register, wsp, kSPRegInternalCode, kWRegSizeInBits);
+DEFINE_REGISTER(Register, sp, kSPRegInternalCode, kXRegSizeInBits);
 
 #define DEFINE_VREGISTERS(N)                            \
   DEFINE_REGISTER(VRegister, b##N, N, kBRegSizeInBits); \
@@ -994,7 +993,7 @@ class Assembler : public AssemblerBase {
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
-      Isolate* isolate, Address pc, Address constant_pool, Address target,
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address of
@@ -1008,12 +1007,11 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Isolate* isolate, Address constant_pool_entry, Code* code,
-      Address target);
+      Address constant_pool_entry, Code* code, Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // All addresses in the constant pool are the same size as pointers.
@@ -1753,6 +1751,9 @@ class Assembler : public AssemblerBase {
 
   // Instruction synchronization barrier
   void isb();
+
+  // Conditional speculation barrier.
+  void csdb();
 
   // Alias for system instructions.
   void nop() { hint(NOP); }
@@ -3677,18 +3678,9 @@ class PatchingAssembler : public Assembler {
   // If more or fewer instructions than expected are generated or if some
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
-
-  // This version will flush at destruction.
-  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
-      : PatchingAssembler(IsolateData(isolate), start, count) {
-    CHECK_NOT_NULL(isolate);
-    isolate_ = isolate;
-  }
-
-  // This version will not flush.
+  // Note that the instruction cache will not be flushed.
   PatchingAssembler(IsolateData isolate_data, byte* start, unsigned count)
-      : Assembler(isolate_data, start, count * kInstructionSize + kGap),
-        isolate_(nullptr) {
+      : Assembler(isolate_data, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }
@@ -3701,18 +3693,12 @@ class PatchingAssembler : public Assembler {
     DCHECK((pc_offset() + kGap) == buffer_size_);
     // Verify no relocation information has been emitted.
     DCHECK(IsConstPoolEmpty());
-    // Flush the Instruction cache.
-    size_t length = buffer_size_ - kGap;
-    if (isolate_ != nullptr) Assembler::FlushICache(isolate_, buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.
   static constexpr int kAdrFarPatchableNNops = 2;
   static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
-
- private:
-  Isolate* isolate_;
 };
 
 

@@ -51,17 +51,28 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
   enum EnableScheduling { kDisableScheduling, kEnableScheduling };
   enum EnableSerialization { kDisableSerialization, kEnableSerialization };
+  enum EnableSwitchJumpTable {
+    kDisableSwitchJumpTable,
+    kEnableSwitchJumpTable
+  };
+  enum EnableSpeculationPoison {
+    kDisableSpeculationPoison,
+    kEnableSpeculationPoison
+  };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
+      EnableSwitchJumpTable enable_switch_jump_table,
+      EnableSpeculationPoison enable_speculation_poison,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
-      EnableSerialization enable_serialization = kDisableSerialization);
+      EnableSerialization enable_serialization = kDisableSerialization,
+      LoadPoisoning poisoning = LoadPoisoning::kDontPoison);
 
   // Visit code for the entire graph with the included schedule.
   bool SelectInstructions();
@@ -157,6 +168,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
 
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
+
+  // TODO(jarin) This is temporary until the poisoning is universally supported.
+  static bool SupportsSpeculationPoisoning();
 
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
@@ -277,7 +291,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   enum CallBufferFlag {
     kCallCodeImmediate = 1u << 0,
     kCallAddressImmediate = 1u << 1,
-    kCallTail = 1u << 2
+    kCallTail = 1u << 2,
+    kCallFixedTargetRegister = 1u << 3,
   };
   typedef base::Flags<CallBufferFlag> CallBufferFlags;
 
@@ -354,10 +369,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitUnreachable(Node* node);
   void VisitDeadValue(Node* node);
 
+  void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
+
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
-                            const CallDescriptor* descriptor, Node* node);
+                            const CallDescriptor* call_descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
-                          const CallDescriptor* descriptor, Node* node);
+                          const CallDescriptor* call_descriptor, Node* node);
 
   void EmitIdentity(Node* node);
   bool CanProduceSignalingNaN(Node* node);
@@ -445,6 +462,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
   EnableSerialization enable_serialization_;
+  EnableSwitchJumpTable enable_switch_jump_table_;
+  EnableSpeculationPoison enable_speculation_poison_;
+  LoadPoisoning load_poisoning_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

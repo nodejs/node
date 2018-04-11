@@ -109,14 +109,35 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
 Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
   allocator()->ReserveAndInitializeBuiltinsTableForBuiltin(builtin_id);
   DisallowHeapAllocation no_gc;
-  return DeserializeBuiltinRaw(builtin_id);
+  Code* code = DeserializeBuiltinRaw(builtin_id);
+
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    DCHECK(isolate()->builtins()->is_initialized());
+    OFStream os(stdout);
+    code->Disassemble(Builtins::name(builtin_id), os);
+    os << std::flush;
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  return code;
 }
 
 Code* BuiltinDeserializer::DeserializeHandler(Bytecode bytecode,
                                               OperandScale operand_scale) {
   allocator()->ReserveForHandler(bytecode, operand_scale);
   DisallowHeapAllocation no_gc;
-  return DeserializeHandlerRaw(bytecode, operand_scale);
+  Code* code = DeserializeHandlerRaw(bytecode, operand_scale);
+
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    OFStream os(stdout);
+    code->Disassemble(Bytecodes::ToString(bytecode), os);
+    os << std::flush;
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  return code;
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
@@ -136,8 +157,7 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
 
   // Flush the instruction cache.
   Code* code = Code::cast(o);
-  Assembler::FlushICache(isolate(), code->instruction_start(),
-                         code->instruction_size());
+  Assembler::FlushICache(code->instruction_start(), code->instruction_size());
 
   return code;
 }
@@ -161,8 +181,7 @@ Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
 
   // Flush the instruction cache.
   Code* code = Code::cast(o);
-  Assembler::FlushICache(isolate(), code->instruction_start(),
-                         code->instruction_size());
+  Assembler::FlushICache(code->instruction_start(), code->instruction_size());
 
   return code;
 }

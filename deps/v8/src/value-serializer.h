@@ -266,8 +266,9 @@ class ValueDeserializer {
   MaybeHandle<JSRegExp> ReadJSRegExp() WARN_UNUSED_RESULT;
   MaybeHandle<JSMap> ReadJSMap() WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer() WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer(bool is_shared)
+  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer(bool is_shared)
+      WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
       WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
@@ -300,7 +301,7 @@ class ValueDeserializer {
 
   // Always global handles.
   Handle<FixedArray> id_map_;
-  MaybeHandle<NumberDictionary> array_buffer_transfer_map_;
+  MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };

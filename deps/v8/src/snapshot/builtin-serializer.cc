@@ -65,8 +65,8 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
   sink_.PutRaw(data, data_length, "BuiltinOffsets");
 }
 
-void BuiltinSerializer::VisitRootPointers(Root root, Object** start,
-                                          Object** end) {
+void BuiltinSerializer::VisitRootPointers(Root root, const char* description,
+                                          Object** start, Object** end) {
   UNREACHABLE();  // We iterate manually in SerializeBuiltins.
 }
 

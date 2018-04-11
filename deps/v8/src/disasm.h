@@ -41,6 +41,13 @@ class Disassembler {
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
 
+  // Disassemblers on ia32/x64 need a separate method for testing, as
+  // instruction decode method above continues on unimplemented opcodes, and
+  // does not test the disassemblers. Basic functionality of the method remains
+  // the same.
+  int InstructionDecodeForTesting(v8::internal::Vector<char> buffer,
+                                  byte* instruction);
+
   // Returns -1 if instruction does not mark the beginning of a constant pool,
   // or the number of entries in the constant pool beginning here.
   int ConstantPoolSizeAt(byte* instruction);
@@ -48,6 +55,7 @@ class Disassembler {
   // Write disassembly into specified file 'f' using specified NameConverter
   // (see constructor).
   static void Disassemble(FILE* f, byte* begin, byte* end);
+
  private:
   const NameConverter& converter_;
 

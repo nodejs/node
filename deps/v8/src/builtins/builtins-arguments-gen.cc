@@ -44,7 +44,7 @@ ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
   Node* formal_parameter_count =
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
                       MachineType::Int32());
-  formal_parameter_count = Word32ToParameter(formal_parameter_count, mode);
+  formal_parameter_count = Int32ToParameter(formal_parameter_count, mode);
 
   argument_count.Bind(formal_parameter_count);
   Node* marker_or_function = LoadBufferObject(

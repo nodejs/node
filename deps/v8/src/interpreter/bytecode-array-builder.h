@@ -240,7 +240,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Gets or creates the template for a TemplateObjectDescription which will
   // be inserted at constant pool index |template_object_description_entry|.
   BytecodeArrayBuilder& GetTemplateObject(
-      size_t template_object_description_entry);
+      size_t template_object_description_entry, int feedback_slot);
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.
@@ -354,6 +354,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // the key to be deleted and the register contains a reference to the object.
   BytecodeArrayBuilder& Delete(Register object, LanguageMode language_mode);
 
+  // JavaScript defines two kinds of 'nil'.
+  enum NilValue { kNullValue, kUndefinedValue };
+
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
                                          int feedback_slot);
@@ -430,9 +433,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& SuspendGenerator(Register generator,
                                          RegisterList registers,
                                          int suspend_id);
-  BytecodeArrayBuilder& RestoreGeneratorState(Register generator);
+  BytecodeArrayBuilder& SwitchOnGeneratorState(Register generator,
+                                               BytecodeJumpTable* jump_table);
   BytecodeArrayBuilder& ResumeGenerator(Register generator,
-                                        Register generator_state,
                                         RegisterList registers);
 
   // Exception handling.

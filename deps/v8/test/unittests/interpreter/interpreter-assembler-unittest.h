@@ -49,6 +49,15 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         const Matcher<compiler::Node*>& index_matcher,
         const Matcher<compiler::Node*>& value_matcher);
 
+    Matcher<Node*> IsWordNot(const Matcher<Node*>& value_matcher);
+
+    Matcher<compiler::Node*> IsPoisonTagged(
+        const Matcher<compiler::Node*> value_matcher);
+    Matcher<compiler::Node*> IsPoisonInt32(
+        const Matcher<compiler::Node*> value_matcher);
+    Matcher<compiler::Node*> IsPoisonWord(
+        const Matcher<compiler::Node*> value_matcher);
+
     Matcher<compiler::Node*> IsUnsignedByteOperand(int offset);
     Matcher<compiler::Node*> IsSignedByteOperand(int offset);
     Matcher<compiler::Node*> IsUnsignedShortOperand(int offset);
@@ -56,10 +65,18 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
     Matcher<compiler::Node*> IsUnsignedQuadOperand(int offset);
     Matcher<compiler::Node*> IsSignedQuadOperand(int offset);
 
+    Matcher<compiler::Node*> IsUnpoisonedSignedOperand(
+        int offset, OperandSize operand_size);
+    Matcher<compiler::Node*> IsUnpoisonedUnsignedOperand(
+        int offset, OperandSize operand_size);
+
     Matcher<compiler::Node*> IsSignedOperand(int offset,
                                              OperandSize operand_size);
     Matcher<compiler::Node*> IsUnsignedOperand(int offset,
                                                OperandSize operand_size);
+
+    Matcher<compiler::Node*> IsLoadRegisterOperand(int offset,
+                                                   OperandSize operand_size);
 
    private:
     DISALLOW_COPY_AND_ASSIGN(InterpreterAssemblerForTest);

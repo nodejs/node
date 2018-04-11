@@ -9,16 +9,19 @@
 namespace v8 {
 namespace internal {
 
-#define DECLARE_TAG(ignore1, name, ignore2) name,
-const char* const
-    VisitorSynchronization::kTags[VisitorSynchronization::kNumberOfSyncTags] = {
-        ROOT_ID_LIST(DECLARE_TAG)};
-#undef DECLARE_TAG
-
-#define DECLARE_TAG(ignore1, ignore2, name) name,
-const char* const VisitorSynchronization::kTagNames
-    [VisitorSynchronization::kNumberOfSyncTags] = {ROOT_ID_LIST(DECLARE_TAG)};
-#undef DECLARE_TAG
+const char* RootVisitor::RootName(Root root) {
+  switch (root) {
+#define ROOT_CASE(root_id, description) \
+  case Root::root_id:                   \
+    return description;
+    ROOT_ID_LIST(ROOT_CASE)
+#undef ROOT_CASE
+    case Root::kNumberOfRoots:
+      break;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 }  // namespace internal
 }  // namespace v8

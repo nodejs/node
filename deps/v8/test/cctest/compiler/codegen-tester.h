@@ -62,7 +62,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   virtual byte* Generate() {
     if (code_.is_null()) {
       Schedule* schedule = this->Export();
-      CallDescriptor* call_descriptor = this->call_descriptor();
+      auto call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
       CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
       code_ = Pipeline::GenerateCodeForTesting(

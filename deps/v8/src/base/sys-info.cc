@@ -5,11 +5,13 @@
 #include "src/base/sys-info.h"
 
 #if V8_OS_POSIX
-#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#if !V8_OS_FUCHSIA
+#include <sys/resource.h>
+#endif
 #endif
 
 #if V8_OS_BSD
@@ -101,7 +103,7 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
 
 // static
 int64_t SysInfo::AmountOfVirtualMemory() {
-#if V8_OS_WIN
+#if V8_OS_WIN || V8_OS_FUCHSIA
   return 0;
 #elif V8_OS_POSIX
   struct rlimit rlim;

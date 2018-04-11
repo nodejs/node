@@ -60,8 +60,9 @@ Deserializer<AllocatorT>::~Deserializer() {
 // This is called on the roots.  It is the driver of the deserialization
 // process.  It is also called on the body of each function.
 template <class AllocatorT>
-void Deserializer<AllocatorT>::VisitRootPointers(Root root, Object** start,
-                                                 Object** end) {
+void Deserializer<AllocatorT>::VisitRootPointers(Root root,
+                                                 const char* description,
+                                                 Object** start, Object** end) {
   // Builtins and bytecode handlers are deserialized in a separate pass by the
   // BuiltinDeserializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
@@ -246,11 +247,12 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     // fields in the serializer.
     BytecodeArray* bytecode_array = BytecodeArray::cast(obj);
     bytecode_array->set_interrupt_budget(
-        interpreter::Interpreter::kInterruptBudget);
+        interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);
   }
   // Check alignment.
-  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
+  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
+                                    HeapObject::RequiredAlignment(obj->map())));
   return obj;
 }
 
@@ -378,8 +380,11 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
   CASE_STATEMENT(where, how, within, NEW_SPACE)  \
   CASE_BODY(where, how, within, NEW_SPACE)       \
   CASE_STATEMENT(where, how, within, OLD_SPACE)  \
+  V8_FALLTHROUGH;                                \
   CASE_STATEMENT(where, how, within, CODE_SPACE) \
+  V8_FALLTHROUGH;                                \
   CASE_STATEMENT(where, how, within, MAP_SPACE)  \
+  V8_FALLTHROUGH;                                \
   CASE_STATEMENT(where, how, within, LO_SPACE)   \
   CASE_BODY(where, how, within, kAnyOldSpace)
 
@@ -480,9 +485,9 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         Address pc = code->entry() + pc_offset;
         Address target = code->entry() + target_offset;
         Assembler::deserialization_set_target_internal_reference_at(
-            isolate, pc, target, data == kInternalReference
-                                     ? RelocInfo::INTERNAL_REFERENCE
-                                     : RelocInfo::INTERNAL_REFERENCE_ENCODED);
+            pc, target,
+            data == kInternalReference ? RelocInfo::INTERNAL_REFERENCE
+                                       : RelocInfo::INTERNAL_REFERENCE_ENCODED);
         break;
       }
 
@@ -585,7 +590,7 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         int skip = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<intptr_t>(current) + skip);
-        // Fall through.
+        V8_FALLTHROUGH;
       }
 
       SIXTEEN_CASES(kRootArrayConstants)
@@ -604,7 +609,7 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         int skip = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<Address>(current) + skip);
-        // Fall through.
+        V8_FALLTHROUGH;
       }
 
       FOUR_CASES(kHotObject)
@@ -643,12 +648,17 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         break;
       }
 
+#ifdef DEBUG
+#define UNUSED_CASE(byte_code) \
+  case byte_code:              \
+    UNREACHABLE();
+      UNUSED_SERIALIZER_BYTE_CODES(UNUSED_CASE)
+#endif
+#undef UNUSED_CASE
+
 #undef SIXTEEN_CASES
 #undef FOUR_CASES
 #undef SINGLE_CASE
-
-      default:
-        UNREACHABLE();
     }
   }
   CHECK_EQ(limit, current);
@@ -746,7 +756,7 @@ Object** Deserializer<AllocatorT>::ReadDataCase(Isolate* isolate,
     if (how == kFromCode) {
       Address location_of_branch_data = reinterpret_cast<Address>(current);
       Assembler::deserialization_set_special_target_at(
-          isolate, location_of_branch_data,
+          location_of_branch_data,
           Code::cast(HeapObject::FromAddress(current_object_address)),
           reinterpret_cast<Address>(new_object));
       location_of_branch_data += Assembler::kSpecialTargetSize;

@@ -321,4 +321,4 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
 }  // namespace internal
 }  // namespace v8
 
-#endif /* V8_DEBUG_LIVEEDIT_H_ */
+#endif  // V8_DEBUG_LIVEEDIT_H_

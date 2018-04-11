@@ -55,98 +55,6 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
 
 typedef compiler::Node Node;
 
-Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
-                                                       Node* feedback_vector,
-                                                       Node* slot,
-                                                       Node* context) {
-  Isolate* isolate = this->isolate();
-  Factory* factory = isolate->factory();
-  IncrementCounter(isolate->counters()->fast_new_closure_total(), 1);
-
-  Node* compiler_hints =
-      LoadObjectField(shared_info, SharedFunctionInfo::kCompilerHintsOffset,
-                      MachineType::Uint32());
-
-  // The calculation of |function_map_index| must be in sync with
-  // SharedFunctionInfo::function_map_index().
-  Node* function_map_index =
-      IntPtrAdd(DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(
-                    compiler_hints),
-                IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
-  CSA_ASSERT(this, UintPtrLessThanOrEqual(
-                       function_map_index,
-                       IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));
-
-  // Get the function map in the current native context and set that
-  // as the map of the allocated object.
-  Node* native_context = LoadNativeContext(context);
-  Node* function_map = LoadContextElement(native_context, function_map_index);
-
-  // Create a new closure from the given function info in new space
-  Node* instance_size_in_bytes =
-      TimesPointerSize(LoadMapInstanceSizeInWords(function_map));
-  Node* result = Allocate(instance_size_in_bytes);
-  StoreMapNoWriteBarrier(result, function_map);
-  InitializeJSObjectBodyNoSlackTracking(result, function_map,
-                                        instance_size_in_bytes,
-                                        JSFunction::kSizeWithoutPrototype);
-
-  // Initialize the rest of the function.
-  Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
-  StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOrHashOffset,
-                                 empty_fixed_array);
-  StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
-                                 empty_fixed_array);
-  {
-    // Set function prototype if necessary.
-    Label done(this), init_prototype(this);
-    Branch(IsFunctionWithPrototypeSlotMap(function_map), &init_prototype,
-           &done);
-
-    BIND(&init_prototype);
-    StoreObjectFieldNoWriteBarrier(
-        result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
-    Goto(&done);
-
-    BIND(&done);
-  }
-
-  Node* literals_cell = LoadFeedbackVectorSlot(
-      feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
-  {
-    // Bump the closure counter encoded in the cell's map.
-    Node* cell_map = LoadMap(literals_cell);
-    Label no_closures(this), one_closure(this), cell_done(this);
-
-    GotoIf(IsNoClosuresCellMap(cell_map), &no_closures);
-    GotoIf(IsOneClosureCellMap(cell_map), &one_closure);
-    CSA_ASSERT(this, IsManyClosuresCellMap(cell_map), cell_map, literals_cell,
-               feedback_vector, slot);
-    Goto(&cell_done);
-
-    BIND(&no_closures);
-    StoreMapNoWriteBarrier(literals_cell, Heap::kOneClosureCellMapRootIndex);
-    Goto(&cell_done);
-
-    BIND(&one_closure);
-    StoreMapNoWriteBarrier(literals_cell, Heap::kManyClosuresCellMapRootIndex);
-    Goto(&cell_done);
-
-    BIND(&cell_done);
-  }
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
-                                 literals_cell);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
-                                 shared_info);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  Handle<Code> lazy_builtin_handle(
-      isolate->builtins()->builtin(Builtins::kCompileLazy));
-  Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
-  return result;
-}
-
 Node* ConstructorBuiltinsAssembler::NotHasBoilerplate(Node* literal_site) {
   return TaggedIsSmi(literal_site);
 }
@@ -158,11 +66,94 @@ Node* ConstructorBuiltinsAssembler::LoadAllocationSiteBoilerplate(Node* site) {
 }
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
-  Node* shared = Parameter(FastNewClosureDescriptor::kSharedFunctionInfo);
-  Node* context = Parameter(FastNewClosureDescriptor::kContext);
-  Node* vector = Parameter(FastNewClosureDescriptor::kVector);
-  Node* slot = Parameter(FastNewClosureDescriptor::kSlot);
-  Return(EmitFastNewClosure(shared, vector, slot, context));
+  Node* shared_function_info = Parameter(Descriptor::kSharedFunctionInfo);
+  Node* feedback_cell = Parameter(Descriptor::kFeedbackCell);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsFeedbackCell(feedback_cell));
+  CSA_ASSERT(this, IsSharedFunctionInfo(shared_function_info));
+
+  IncrementCounter(isolate()->counters()->fast_new_closure_total(), 1);
+
+  // Bump the closure counter encoded the {feedback_cell}s map.
+  {
+    Node* const feedback_cell_map = LoadMap(feedback_cell);
+    Label no_closures(this), one_closure(this), cell_done(this);
+
+    GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
+    GotoIf(IsOneClosureCellMap(feedback_cell_map), &one_closure);
+    CSA_ASSERT(this, IsManyClosuresCellMap(feedback_cell_map),
+               feedback_cell_map, feedback_cell);
+    Goto(&cell_done);
+
+    BIND(&no_closures);
+    StoreMapNoWriteBarrier(feedback_cell, Heap::kOneClosureCellMapRootIndex);
+    Goto(&cell_done);
+
+    BIND(&one_closure);
+    StoreMapNoWriteBarrier(feedback_cell, Heap::kManyClosuresCellMapRootIndex);
+    Goto(&cell_done);
+
+    BIND(&cell_done);
+  }
+
+  // The calculation of |function_map_index| must be in sync with
+  // SharedFunctionInfo::function_map_index().
+  Node* const compiler_hints = LoadObjectField(
+      shared_function_info, SharedFunctionInfo::kCompilerHintsOffset,
+      MachineType::Uint32());
+  Node* const function_map_index =
+      IntPtrAdd(DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(
+                    compiler_hints),
+                IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
+  CSA_ASSERT(this, UintPtrLessThanOrEqual(
+                       function_map_index,
+                       IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));
+
+  // Get the function map in the current native context and set that
+  // as the map of the allocated object.
+  Node* const native_context = LoadNativeContext(context);
+  Node* const function_map =
+      LoadContextElement(native_context, function_map_index);
+
+  // Create a new closure from the given function info in new space
+  Node* instance_size_in_bytes =
+      TimesPointerSize(LoadMapInstanceSizeInWords(function_map));
+  Node* const result = Allocate(instance_size_in_bytes);
+  StoreMapNoWriteBarrier(result, function_map);
+  InitializeJSObjectBodyNoSlackTracking(result, function_map,
+                                        instance_size_in_bytes,
+                                        JSFunction::kSizeWithoutPrototype);
+
+  // Initialize the rest of the function.
+  StoreObjectFieldRoot(result, JSObject::kPropertiesOrHashOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectFieldRoot(result, JSObject::kElementsOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  {
+    // Set function prototype if necessary.
+    Label done(this), init_prototype(this);
+    Branch(IsFunctionWithPrototypeSlotMap(function_map), &init_prototype,
+           &done);
+
+    BIND(&init_prototype);
+    StoreObjectFieldRoot(result, JSFunction::kPrototypeOrInitialMapOffset,
+                         Heap::kTheHoleValueRootIndex);
+    Goto(&done);
+    BIND(&done);
+  }
+
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
+                                 feedback_cell);
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
+                                 shared_function_info);
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
+  Handle<Code> lazy_builtin_handle(
+      isolate()->builtins()->builtin(Builtins::kCompileLazy));
+  Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
+  Return(result);
 }
 
 TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
@@ -418,7 +409,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 
   BIND(&create_empty_array);
   CSA_ASSERT(this, IsAllocationSite(allocation_site.value()));
-  Node* kind = SmiToWord32(CAST(
+  Node* kind = SmiToInt32(CAST(
       LoadObjectField(allocation_site.value(),
                       AllocationSite::kTransitionInfoOrBoilerplateOffset)));
   CSA_ASSERT(this, IsFastElementsKind(kind));
@@ -662,7 +653,7 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   args.PopAndReturn(EmitCreateEmptyObjectLiteral(context));
 
   BIND(&return_to_object);
-  args.PopAndReturn(CallBuiltin(Builtins::kToObject, context, value));
+  args.PopAndReturn(ToObject(context, value));
 }
 
 TF_BUILTIN(ObjectConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
@@ -687,7 +678,7 @@ TF_BUILTIN(ObjectConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
   args.PopAndReturn(EmitFastNewObject(context, target, new_target));
 
   BIND(&return_to_object);
-  args.PopAndReturn(CallBuiltin(Builtins::kToObject, context, value));
+  args.PopAndReturn(ToObject(context, value));
 }
 
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {

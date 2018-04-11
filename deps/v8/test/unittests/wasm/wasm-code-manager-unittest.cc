@@ -151,14 +151,13 @@ TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
   CheckLooksLike(a, {{10, 15}, {20, 35}, {36, 40}});
 }
 
-class WasmCodeManagerTest : public TestWithIsolate {
+enum ModuleStyle : int { Fixed = 0, Growable = 1 };
+
+class WasmCodeManagerTest : public TestWithIsolate,
+                            public ::testing::WithParamInterface<ModuleStyle> {
  public:
   using NativeModulePtr = std::unique_ptr<NativeModule>;
-  enum ModuleStyle : int { Fixed = 0, Growable = 1 };
 
-  const std::vector<ModuleStyle> styles() const {
-    return std::vector<ModuleStyle>({Fixed, Growable});
-  }
   // We pretend all our modules have 10 functions and no imports, just so
   // we can size up the code_table.
   NativeModulePtr AllocFixedModule(WasmCodeManager* manager, size_t size) {
@@ -187,7 +186,7 @@ class WasmCodeManagerTest : public TestWithIsolate {
     std::unique_ptr<byte[]> exec_buff(new byte[size]);
     desc.buffer = exec_buff.get();
     desc.instr_size = static_cast<int>(size);
-    return native_module->AddCode(desc, 0, index, 0, {}, false);
+    return native_module->AddCode(desc, 0, index, 0, 0, {}, false);
   }
 
   size_t page() const { return AllocatePageSize(); }
@@ -196,194 +195,171 @@ class WasmCodeManagerTest : public TestWithIsolate {
   }
 };
 
-TEST_F(WasmCodeManagerTest, EmptyCase) {
-  for (auto style : styles()) {
-    WasmCodeManager manager(v8_isolate(), 0 * page());
-    CHECK_EQ(0, manager.remaining_uncommitted());
+INSTANTIATE_TEST_CASE_P(Parameterized, WasmCodeManagerTest,
+                        ::testing::Values(Fixed, Growable));
 
-    NativeModulePtr native_module = AllocModule(&manager, 1 * page(), style);
-    CHECK(native_module);
-    WasmCode* code = AddCode(native_module.get(), 0, 10);
-    CHECK_NULL(code);
-    CHECK_EQ(0, manager.remaining_uncommitted());
-    native_module.reset();
-    CHECK_EQ(0, manager.remaining_uncommitted());
+TEST_P(WasmCodeManagerTest, EmptyCase) {
+  WasmCodeManager manager(v8_isolate(), 0 * page());
+  CHECK_EQ(0, manager.remaining_uncommitted());
+
+  NativeModulePtr native_module = AllocModule(&manager, 1 * page(), GetParam());
+  CHECK(native_module);
+  ASSERT_DEATH_IF_SUPPORTED(AddCode(native_module.get(), 0, 10),
+                            "OOM in NativeModule::AddOwnedCode");
+}
+
+TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
+  WasmCodeManager manager(v8_isolate(), 1 * page());
+  CHECK_EQ(1 * page(), manager.remaining_uncommitted());
+  NativeModulePtr native_module = AllocModule(&manager, 1 * page(), GetParam());
+  CHECK(native_module);
+  CHECK_EQ(1 * page(), manager.remaining_uncommitted());
+  uint32_t index = 0;
+  WasmCode* code = AddCode(native_module.get(), index++, 1 * kCodeAlignment);
+  CHECK_NOT_NULL(code);
+  CHECK_EQ(0, manager.remaining_uncommitted());
+
+  code = AddCode(native_module.get(), index++, 3 * kCodeAlignment);
+  CHECK_NOT_NULL(code);
+  CHECK_EQ(0, manager.remaining_uncommitted());
+
+  code = AddCode(native_module.get(), index++, page() - 4 * kCodeAlignment);
+  CHECK_NOT_NULL(code);
+  CHECK_EQ(0, manager.remaining_uncommitted());
+
+  ASSERT_DEATH_IF_SUPPORTED(
+      AddCode(native_module.get(), index++, 1 * kCodeAlignment),
+      "OOM in NativeModule::AddOwnedCode");
+}
+
+TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
+  WasmCodeManager manager(v8_isolate(), 1 * page());
+  NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), GetParam());
+  NativeModulePtr nm2 = AllocModule(&manager, 1 * page(), GetParam());
+  CHECK(nm1);
+  CHECK(nm2);
+  WasmCode* code = AddCode(nm1.get(), 0, 1 * page());
+  CHECK_NOT_NULL(code);
+  ASSERT_DEATH_IF_SUPPORTED(AddCode(nm2.get(), 0, 1 * page()),
+                            "OOM in NativeModule::AddOwnedCode");
+}
+
+TEST_P(WasmCodeManagerTest, DifferentHeapsApplyLimitsIndependently) {
+  WasmCodeManager manager1(v8_isolate(), 1 * page());
+  WasmCodeManager manager2(v8_isolate(), 2 * page());
+  NativeModulePtr nm1 = AllocModule(&manager1, 1 * page(), GetParam());
+  NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), GetParam());
+  CHECK(nm1);
+  CHECK(nm2);
+  WasmCode* code = AddCode(nm1.get(), 0, 1 * page());
+  CHECK_NOT_NULL(code);
+  CHECK_EQ(0, manager1.remaining_uncommitted());
+  code = AddCode(nm2.get(), 0, 1 * page());
+  CHECK_NOT_NULL(code);
+}
+
+TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
+  WasmCodeManager manager(v8_isolate(), 3 * page());
+  NativeModulePtr nm = AllocModule(&manager, 1 * page(), GetParam());
+  if (GetParam() == Fixed) {
+    ASSERT_DEATH_IF_SUPPORTED(AddCode(nm.get(), 0, 1 * page() + kCodeAlignment),
+                              "OOM in NativeModule::AddOwnedCode");
+  } else {
+    CHECK_NOT_NULL(AddCode(nm.get(), 0, 1 * page() + kCodeAlignment));
+    CHECK_EQ(manager.remaining_uncommitted(), 1 * page());
   }
 }
 
-TEST_F(WasmCodeManagerTest, AllocateAndGoOverLimit) {
-  for (auto style : styles()) {
-    WasmCodeManager manager(v8_isolate(), 1 * page());
-    CHECK_EQ(1 * page(), manager.remaining_uncommitted());
-    NativeModulePtr native_module = AllocModule(&manager, 1 * page(), style);
-    CHECK(native_module);
-    CHECK_EQ(1 * page(), manager.remaining_uncommitted());
-    uint32_t index = 0;
-    WasmCode* code = AddCode(native_module.get(), index++, 1 * kCodeAlignment);
-    CHECK_NOT_NULL(code);
-    CHECK_EQ(0, manager.remaining_uncommitted());
-
-    code = AddCode(native_module.get(), index++, 3 * kCodeAlignment);
-    CHECK_NOT_NULL(code);
-    CHECK_EQ(0, manager.remaining_uncommitted());
-
-    code = AddCode(native_module.get(), index++, page() - 4 * kCodeAlignment);
-    CHECK_NOT_NULL(code);
-    CHECK_EQ(0, manager.remaining_uncommitted());
-
-    code = AddCode(native_module.get(), index++, 1 * kCodeAlignment);
-    CHECK_NULL(code);
-    CHECK_EQ(0, manager.remaining_uncommitted());
-
-    native_module.reset();
-    CHECK_EQ(1 * page(), manager.remaining_uncommitted());
-  }
+TEST_P(WasmCodeManagerTest, CommitIncrements) {
+  WasmCodeManager manager(v8_isolate(), 10 * page());
+  NativeModulePtr nm = AllocModule(&manager, 3 * page(), GetParam());
+  WasmCode* code = AddCode(nm.get(), 0, kCodeAlignment);
+  CHECK_NOT_NULL(code);
+  CHECK_EQ(manager.remaining_uncommitted(), 9 * page());
+  code = AddCode(nm.get(), 1, 2 * page());
+  CHECK_NOT_NULL(code);
+  CHECK_EQ(manager.remaining_uncommitted(), 7 * page());
+  code = AddCode(nm.get(), 2, page() - kCodeAlignment);
+  CHECK_NOT_NULL(code);
+  CHECK_EQ(manager.remaining_uncommitted(), 7 * page());
 }
 
-TEST_F(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
-  for (auto style : styles()) {
-    WasmCodeManager manager(v8_isolate(), 1 * page());
-    NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), style);
-    NativeModulePtr nm2 = AllocModule(&manager, 1 * page(), style);
-    CHECK(nm1);
-    CHECK(nm2);
-    WasmCode* code = AddCode(nm1.get(), 0, 1 * page());
-    CHECK_NOT_NULL(code);
-    code = AddCode(nm2.get(), 0, 1 * page());
-    CHECK_NULL(code);
-  }
+TEST_P(WasmCodeManagerTest, Lookup) {
+  WasmCodeManager manager(v8_isolate(), 2 * page());
+
+  NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), GetParam());
+  NativeModulePtr nm2 = AllocModule(&manager, 1 * page(), GetParam());
+  WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
+  CHECK_EQ(nm1.get(), code1_0->owner());
+  WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
+  WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
+  WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
+  CHECK_EQ(nm2.get(), code2_1->owner());
+
+  CHECK_EQ(0, code1_0->index());
+  CHECK_EQ(1, code1_1->index());
+  CHECK_EQ(0, code2_0->index());
+  CHECK_EQ(1, code2_1->index());
+
+  // we know the manager object is allocated here, so we shouldn't
+  // find any WasmCode* associated with that ptr.
+  WasmCode* not_found = manager.LookupCode(reinterpret_cast<Address>(&manager));
+  CHECK_NULL(not_found);
+  WasmCode* found = manager.LookupCode(code1_0->instructions().start());
+  CHECK_EQ(found, code1_0);
+  found = manager.LookupCode(code2_1->instructions().start() +
+                             (code2_1->instructions().size() / 2));
+  CHECK_EQ(found, code2_1);
+  found = manager.LookupCode(code2_1->instructions().start() +
+                             code2_1->instructions().size() - 1);
+  CHECK_EQ(found, code2_1);
+  found = manager.LookupCode(code2_1->instructions().start() +
+                             code2_1->instructions().size());
+  CHECK_NULL(found);
+  Address mid_code1_1 =
+      code1_1->instructions().start() + (code1_1->instructions().size() / 2);
+  CHECK_EQ(code1_1, manager.LookupCode(mid_code1_1));
+  nm1.reset();
+  CHECK_NULL(manager.LookupCode(mid_code1_1));
 }
 
-TEST_F(WasmCodeManagerTest, DifferentHeapsApplyLimitsIndependently) {
-  for (auto style : styles()) {
-    WasmCodeManager manager1(v8_isolate(), 1 * page());
-    WasmCodeManager manager2(v8_isolate(), 2 * page());
-    NativeModulePtr nm1 = AllocModule(&manager1, 1 * page(), style);
-    NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), style);
-    CHECK(nm1);
-    CHECK(nm2);
-    WasmCode* code = AddCode(nm1.get(), 0, 1 * page());
-    CHECK_NOT_NULL(code);
-    CHECK_EQ(0, manager1.remaining_uncommitted());
-    code = AddCode(nm2.get(), 0, 1 * page());
-    CHECK_NOT_NULL(code);
-  }
+TEST_P(WasmCodeManagerTest, MultiManagerLookup) {
+  WasmCodeManager manager1(v8_isolate(), 2 * page());
+  WasmCodeManager manager2(v8_isolate(), 2 * page());
+
+  NativeModulePtr nm1 = AllocModule(&manager1, 1 * page(), GetParam());
+  NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), GetParam());
+
+  WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
+  CHECK_EQ(nm1.get(), code1_0->owner());
+  WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
+  WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
+  WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
+  CHECK_EQ(nm2.get(), code2_1->owner());
+
+  CHECK_EQ(0, code1_0->index());
+  CHECK_EQ(1, code1_1->index());
+  CHECK_EQ(0, code2_0->index());
+  CHECK_EQ(1, code2_1->index());
+
+  CHECK_EQ(code1_0, manager1.LookupCode(code1_0->instructions().start()));
+  CHECK_NULL(manager2.LookupCode(code1_0->instructions().start()));
 }
 
-TEST_F(WasmCodeManagerTest, GrowingVsFixedModule) {
-  for (auto style : styles()) {
-    WasmCodeManager manager(v8_isolate(), 3 * page());
-    NativeModulePtr nm = AllocModule(&manager, 1 * page(), style);
-    WasmCode* code = AddCode(nm.get(), 0, 1 * page() + kCodeAlignment);
-    if (style == Fixed) {
-      CHECK_NULL(code);
-      CHECK_EQ(manager.remaining_uncommitted(), 3 * page());
-    } else {
-      CHECK_NOT_NULL(code);
-      CHECK_EQ(manager.remaining_uncommitted(), 1 * page());
-    }
-  }
-}
+TEST_P(WasmCodeManagerTest, LookupWorksAfterRewrite) {
+  WasmCodeManager manager(v8_isolate(), 2 * page());
 
-TEST_F(WasmCodeManagerTest, CommitIncrements) {
-  for (auto style : styles()) {
-    WasmCodeManager manager(v8_isolate(), 10 * page());
-    NativeModulePtr nm = AllocModule(&manager, 3 * page(), style);
-    WasmCode* code = AddCode(nm.get(), 0, kCodeAlignment);
-    CHECK_NOT_NULL(code);
-    CHECK_EQ(manager.remaining_uncommitted(), 9 * page());
-    code = AddCode(nm.get(), 1, 2 * page());
-    CHECK_NOT_NULL(code);
-    CHECK_EQ(manager.remaining_uncommitted(), 7 * page());
-    code = AddCode(nm.get(), 2, page() - kCodeAlignment);
-    CHECK_NOT_NULL(code);
-    CHECK_EQ(manager.remaining_uncommitted(), 7 * page());
-  }
-}
+  NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), GetParam());
 
-TEST_F(WasmCodeManagerTest, Lookup) {
-  for (auto style : styles()) {
-    WasmCodeManager manager(v8_isolate(), 2 * page());
-
-    NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), style);
-    NativeModulePtr nm2 = AllocModule(&manager, 1 * page(), style);
-    WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
-    CHECK_EQ(nm1.get(), code1_0->owner());
-    WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
-    WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
-    WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
-    CHECK_EQ(nm2.get(), code2_1->owner());
-
-    CHECK_EQ(0, code1_0->index());
-    CHECK_EQ(1, code1_1->index());
-    CHECK_EQ(0, code2_0->index());
-    CHECK_EQ(1, code2_1->index());
-
-    // we know the manager object is allocated here, so we shouldn't
-    // find any WasmCode* associated with that ptr.
-    WasmCode* not_found =
-        manager.LookupCode(reinterpret_cast<Address>(&manager));
-    CHECK_NULL(not_found);
-    WasmCode* found = manager.LookupCode(code1_0->instructions().start());
-    CHECK_EQ(found, code1_0);
-    found = manager.LookupCode(code2_1->instructions().start() +
-                               (code2_1->instructions().size() / 2));
-    CHECK_EQ(found, code2_1);
-    found = manager.LookupCode(code2_1->instructions().start() +
-                               code2_1->instructions().size() - 1);
-    CHECK_EQ(found, code2_1);
-    found = manager.LookupCode(code2_1->instructions().start() +
-                               code2_1->instructions().size());
-    CHECK_NULL(found);
-    Address mid_code1_1 =
-        code1_1->instructions().start() + (code1_1->instructions().size() / 2);
-    CHECK_EQ(code1_1, manager.LookupCode(mid_code1_1));
-    nm1.reset();
-    CHECK_NULL(manager.LookupCode(mid_code1_1));
-  }
-}
-
-TEST_F(WasmCodeManagerTest, MultiManagerLookup) {
-  for (auto style : styles()) {
-    WasmCodeManager manager1(v8_isolate(), 2 * page());
-    WasmCodeManager manager2(v8_isolate(), 2 * page());
-
-    NativeModulePtr nm1 = AllocModule(&manager1, 1 * page(), style);
-    NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), style);
-
-    WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
-    CHECK_EQ(nm1.get(), code1_0->owner());
-    WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
-    WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
-    WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
-    CHECK_EQ(nm2.get(), code2_1->owner());
-
-    CHECK_EQ(0, code1_0->index());
-    CHECK_EQ(1, code1_1->index());
-    CHECK_EQ(0, code2_0->index());
-    CHECK_EQ(1, code2_1->index());
-
-    CHECK_EQ(code1_0, manager1.LookupCode(code1_0->instructions().start()));
-    CHECK_NULL(manager2.LookupCode(code1_0->instructions().start()));
-  }
-}
-
-TEST_F(WasmCodeManagerTest, LookupWorksAfterRewrite) {
-  for (auto style : styles()) {
-    WasmCodeManager manager(v8_isolate(), 2 * page());
-
-    NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), style);
-
-    WasmCode* code0 = AddCode(nm1.get(), 0, kCodeAlignment);
-    WasmCode* code1 = AddCode(nm1.get(), 1, kCodeAlignment);
-    CHECK_EQ(0, code0->index());
-    CHECK_EQ(1, code1->index());
-    CHECK_EQ(code1, manager.LookupCode(code1->instructions().start()));
-    WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
-    CHECK_EQ(1, code1_1->index());
-    CHECK_EQ(code1, manager.LookupCode(code1->instructions().start()));
-    CHECK_EQ(code1_1, manager.LookupCode(code1_1->instructions().start()));
-  }
+  WasmCode* code0 = AddCode(nm1.get(), 0, kCodeAlignment);
+  WasmCode* code1 = AddCode(nm1.get(), 1, kCodeAlignment);
+  CHECK_EQ(0, code0->index());
+  CHECK_EQ(1, code1->index());
+  CHECK_EQ(code1, manager.LookupCode(code1->instructions().start()));
+  WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
+  CHECK_EQ(1, code1_1->index());
+  CHECK_EQ(code1, manager.LookupCode(code1->instructions().start()));
+  CHECK_EQ(code1_1, manager.LookupCode(code1_1->instructions().start()));
 }
 
 }  // namespace wasm_heap_unittest

@@ -149,9 +149,12 @@ namespace compiler {
   V(X64F32x4Splat)                 \
   V(X64F32x4ExtractLane)           \
   V(X64F32x4ReplaceLane)           \
+  V(X64F32x4Abs)                   \
+  V(X64F32x4Neg)                   \
   V(X64F32x4RecipApprox)           \
   V(X64F32x4RecipSqrtApprox)       \
   V(X64F32x4Add)                   \
+  V(X64F32x4AddHoriz)              \
   V(X64F32x4Sub)                   \
   V(X64F32x4Mul)                   \
   V(X64F32x4Min)                   \
@@ -265,8 +268,6 @@ namespace compiler {
   V(M4I)  /* [      %r2*4 + K] */      \
   V(M8I)  /* [      %r2*8 + K] */      \
   V(Root) /* [%root       + K] */
-
-enum X64MemoryProtection { kUnprotected = 0, kProtected = 1 };
 
 }  // namespace compiler
 }  // namespace internal

@@ -84,9 +84,8 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   BIND(&if_receiverisincompatible);
   {
     // The {receiver} is not a valid JSGeneratorObject.
-    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                StringConstant(method_name), receiver);
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                   StringConstant(method_name), receiver);
   }
 
   BIND(&if_receiverisclosed);
@@ -110,10 +109,7 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   }
 
   BIND(&if_receiverisrunning);
-  {
-    CallRuntime(Runtime::kThrowGeneratorRunning, context);
-    Unreachable();
-  }
+  { ThrowTypeError(context, MessageTemplate::kGeneratorRunning); }
 
   BIND(&if_exception);
   {

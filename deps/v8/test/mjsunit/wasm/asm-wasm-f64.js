@@ -262,32 +262,10 @@ var inputs = [
 ];
 
 var funcs = [
-  f64_add,
-  f64_sub,
-  f64_mul,
-  f64_div,
-  f64_eq,
-  f64_ne,
-  f64_lt,
-  f64_lteq,
-  f64_gt,
-  f64_gteq,
-  f64_ceil,
-  f64_floor,
-// TODO(bradnelson) f64_sqrt,
-  f64_abs,
-  f64_neg,
-// TODO(bradnelson) f64_min is wrong for -0
-// TODO(bradnelson) f64_max is wrong for -0
-  f64_acos,
-  f64_asin,
-  f64_atan,
-  f64_cos,
-  f64_sin,
-  f64_tan,
-  f64_exp,
-  f64_log,
-  f64_atan2,
+  f64_add,  f64_sub, f64_mul,  f64_div,  f64_eq,    f64_ne,   f64_lt,
+  f64_lteq, f64_gt,  f64_gteq, f64_ceil, f64_floor, f64_sqrt, f64_abs,
+  f64_neg,  f64_min, f64_max,  f64_acos, f64_asin,  f64_atan, f64_cos,
+  f64_sin,  f64_tan, f64_exp,  f64_log,  f64_atan2,
 ];
 
 (function () {

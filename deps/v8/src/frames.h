@@ -5,8 +5,6 @@
 #ifndef V8_FRAMES_H_
 #define V8_FRAMES_H_
 
-#include "src/allocation.h"
-#include "src/flags.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/objects/code.h"
@@ -18,18 +16,20 @@ namespace wasm {
 class WasmCode;
 }
 
+// Forward declarations.
 class AbstractCode;
 class Debug;
-class ObjectVisitor;
-class StringStream;
-
-// Forward declarations.
 class ExternalCallbackScope;
 class Isolate;
+class ObjectVisitor;
 class RootVisitor;
 class StackFrameIteratorBase;
+class StringStream;
 class ThreadLocalTop;
+class WasmCompiledModule;
+class WasmDebugInfo;
 class WasmInstanceObject;
+class WasmSharedModuleData;
 
 class InnerPointerToCodeCache {
  public:
@@ -286,9 +286,8 @@ class StackFrame BASE_EMBEDDED {
 
   // Printing support.
   enum PrintMode { OVERVIEW, DETAILS };
-  virtual void Print(StringStream* accumulator,
-                     PrintMode mode,
-                     int index) const { }
+  virtual void Print(StringStream* accumulator, PrintMode mode,
+                     int index) const;
 
   Isolate* isolate() const { return isolate_; }
 
@@ -890,6 +889,11 @@ class InterpretedFrame : public JavaScriptFrame {
 
   static int GetBytecodeOffset(Address fp);
 
+  static InterpretedFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_interpreted());
+    return static_cast<InterpretedFrame*>(frame);
+  }
+
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
 
@@ -968,7 +972,7 @@ class WasmCompiledFrame final : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject* wasm_instance() const;
+  WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
   WasmCodeWrapper wasm_code() const;
   uint32_t function_index() const;
   Script* script() const override;
@@ -989,6 +993,8 @@ class WasmCompiledFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
+  WasmCompiledModule* compiled_module() const;
+  WasmSharedModuleData* shared() const;
 };
 
 class WasmInterpreterEntryFrame final : public StandardFrame {
@@ -1008,7 +1014,9 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject* wasm_instance() const;
+  WasmDebugInfo* debug_info() const;
+  WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
+
   Script* script() const override;
   int position() const override;
   Object* context() const override;
@@ -1025,6 +1033,8 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
+  WasmCompiledModule* compiled_module() const;
+  WasmSharedModuleData* shared() const;
 };
 
 class WasmToJsFrame : public StubFrame {

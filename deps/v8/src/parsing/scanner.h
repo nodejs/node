@@ -721,6 +721,12 @@ class Scanner {
   Token::Value ScanHtmlComment();
 
   void ScanDecimalDigits();
+  bool ScanHexDigits();
+  bool ScanBinaryDigits();
+  bool ScanSignedInteger();
+  bool ScanOctalDigits();
+  bool ScanImplicitOctalDigits(int start_pos);
+
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifierOrKeyword();
   Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);

@@ -3,8 +3,6 @@ Test whether Promise treats thenable correctly.
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 The promise is already rejected now.
-PASS rejected
-PASS result is "hello"
 PASS successfullyParsed is true
 
 TEST COMPLETE

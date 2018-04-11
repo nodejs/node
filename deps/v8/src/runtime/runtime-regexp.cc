@@ -1920,14 +1920,6 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
   RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
-RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  Object* exception = isolate->pending_exception();
-  isolate->clear_pending_exception();
-  return isolate->ReThrow(exception);
-}
-
 RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

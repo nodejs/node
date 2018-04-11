@@ -188,13 +188,13 @@ namespace internal {
   C(SET, "set", 0)                                                 \
   C(OF, "of", 0)                                                   \
   C(TARGET, "target", 0)                                           \
-  C(SENT, "sent", 0)                                               \
   C(META, "meta", 0)                                               \
   C(AS, "as", 0)                                                   \
   C(FROM, "from", 0)                                               \
   C(NAME, "name", 0)                                               \
   C(PROTO_UNDERSCORED, "__proto__", 0)                             \
   C(CONSTRUCTOR, "constructor", 0)                                 \
+  C(PRIVATE_CONSTRUCTOR, "#constructor", 0)                        \
   C(PROTOTYPE, "prototype", 0)                                     \
   C(EVAL, "eval", 0)                                               \
   C(ARGUMENTS, "arguments", 0)                                     \

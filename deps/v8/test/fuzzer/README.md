@@ -45,18 +45,10 @@ the fuzzer is called `foo`.
    * Use this binary to reproduce issues found by cluster fuzz, e.g.
      `out/x64.debug/v8_simple_foo_fuzzer testcase.foo`
 
-5. Copy the build rules of an existing fuzzer in
-   [test/fuzzer/fuzzer.gyp](https://cs.chromium.org/chromium/src/v8/test/fuzzer/fuzzer.gyp),
-   e.g. the build rules for the
-   [wasm.cc](https://cs.chromium.org/chromium/src/v8/test/fuzzer/wasm.cc) fuzzer
-   are `v8_simple_wasm_fuzzer` and `wasm_fuzzer_lib`
-
-   * This build rule is needed to compile with gyp
-
-6. Copy the binary name and the test directory name in
+5. Copy the binary name and the test directory name in
    [test/fuzzer/fuzzer.isolate](https://cs.chromium.org/chromium/src/v8/test/fuzzer/fuzzer.isolate)
 
-7. Add the fuzzer to the FuzzerTestSuite in
+6. Add the fuzzer to the FuzzerTestSuite in
    [test/fuzzer/testcfg.py](https://cs.chromium.org/chromium/src/v8/test/fuzzer/testcfg.py)
 
    * This step is needed to run the fuzzer with the files created in Step 2 on

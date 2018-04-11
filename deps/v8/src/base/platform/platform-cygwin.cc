@@ -139,7 +139,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
     // base will be nullptr.
     if (base != nullptr) break;
   }
-  DCHECK_EQ(base, aligned_base);
+  DCHECK_IMPLIES(base, base == aligned_base);
   return reinterpret_cast<void*>(base);
 }
 

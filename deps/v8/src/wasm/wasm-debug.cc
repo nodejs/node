@@ -438,7 +438,6 @@ class InterpreterHandle {
   Handle<JSObject> GetLocalScopeObject(wasm::InterpretedFrame* frame,
                                        Handle<WasmDebugInfo> debug_info) {
     Isolate* isolate = debug_info->GetIsolate();
-    Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
 
     Handle<JSObject> local_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
@@ -497,8 +496,6 @@ class InterpreterHandle {
   Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
                                   Handle<WasmDebugInfo> debug_info) {
     auto frame = GetInterpretedFrame(frame_pointer, frame_index);
-    Isolate* isolate = debug_info->GetIsolate();
-    Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
 
     Handle<FixedArray> global_scope =
         isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
@@ -591,8 +588,7 @@ void RedirectCallsitesInCodeGC(Code* code, CodeRelocationMapGC& map) {
     Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
     Handle<Code>* new_target = map.Find(target);
     if (!new_target) continue;
-    it.rinfo()->set_target_address(code->GetIsolate(),
-                                   (*new_target)->instruction_start());
+    it.rinfo()->set_target_address((*new_target)->instruction_start());
   }
 }
 
@@ -606,7 +602,7 @@ void RedirectCallsitesInCode(Isolate* isolate, const wasm::WasmCode* code,
     Address target = it.rinfo()->target_address();
     auto new_target = map->find(target);
     if (new_target == map->end()) continue;
-    it.rinfo()->set_wasm_call_address(isolate, new_target->second);
+    it.rinfo()->set_wasm_call_address(new_target->second);
   }
 }
 
@@ -618,7 +614,7 @@ void RedirectCallsitesInJSWrapperCode(Isolate* isolate, Code* code,
     Address target = it.rinfo()->js_to_wasm_address();
     auto new_target = map->find(target);
     if (new_target == map->end()) continue;
-    it.rinfo()->set_js_to_wasm_address(isolate, new_target->second);
+    it.rinfo()->set_js_to_wasm_address(new_target->second);
   }
 }
 
@@ -685,7 +681,9 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
   auto interp_handle =
       Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate, *debug_info);
   debug_info->set(kInterpreterHandleIndex, *interp_handle);
-  return interp_handle->get()->interpreter();
+  auto ret = interp_handle->get()->interpreter();
+  ret->SetCallIndirectTestMode();
+  return ret;
 }
 
 bool WasmDebugInfo::IsWasmDebugInfo(Object* object) {
@@ -850,12 +848,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
       debug_info->set_c_wasm_entries(*entries);
     }
     DCHECK(entries->get(index)->IsUndefined(isolate));
-    Address context_address = reinterpret_cast<Address>(
-        debug_info->wasm_instance()->has_memory_object()
-            ? debug_info->wasm_instance()->wasm_context()
-            : nullptr);
-    Handle<Code> new_entry_code =
-        compiler::CompileCWasmEntry(isolate, sig, context_address);
+    Handle<Code> new_entry_code = compiler::CompileCWasmEntry(isolate, sig);
     Handle<String> name = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("c-wasm-entry"));
     Handle<SharedFunctionInfo> shared =

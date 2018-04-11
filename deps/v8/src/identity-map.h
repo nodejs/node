@@ -46,6 +46,8 @@ class IdentityMapBase {
   void* DeleteEntry(Object* key);
   void Clear();
 
+  Object* KeyAtIndex(int index) const;
+
   V8_EXPORT_PRIVATE RawEntry EntryAtIndex(int index) const;
   V8_EXPORT_PRIVATE int NextIndex(int index) const;
 
@@ -126,8 +128,13 @@ class IdentityMap : public IdentityMapBase {
       return *this;
     }
 
-    V* operator*() { return reinterpret_cast<V*>(map_->EntryAtIndex(index_)); }
-    V* operator->() { return reinterpret_cast<V*>(map_->EntryAtIndex(index_)); }
+    Object* key() const { return map_->KeyAtIndex(index_); }
+    V* entry() const {
+      return reinterpret_cast<V*>(map_->EntryAtIndex(index_));
+    }
+
+    V* operator*() { return entry(); }
+    V* operator->() { return entry(); }
     bool operator!=(const Iterator& other) { return index_ != other.index_; }
 
    private:

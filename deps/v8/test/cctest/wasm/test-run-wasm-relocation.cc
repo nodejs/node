@@ -50,12 +50,11 @@ WASM_COMPILED_EXEC_TEST(RunPatchWasmContext) {
     for (RelocIterator it(*code, filter); !it.done(); it.next()) {
       CHECK_EQ(old_wasm_context_address, it.rinfo()->wasm_context_reference());
       it.rinfo()->set_wasm_context_reference(
-          isolate, reinterpret_cast<Address>(&new_wasm_context));
+          reinterpret_cast<Address>(&new_wasm_context));
       patched = true;
     }
     CHECK(patched);
-    Assembler::FlushICache(isolate, code->instruction_start(),
-                           code->instruction_size());
+    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
   }
 
   // Run with the new global data.

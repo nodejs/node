@@ -1335,99 +1335,6 @@ UNINITIALIZED_TEST(OneByteArrayJoin) {
   isolate->Dispose();
 }
 
-
-static void CheckException(const char* source) {
-  // An empty handle is returned upon exception.
-  CHECK(CompileRun(source).IsEmpty());
-}
-
-
-TEST(RobustSubStringStub) {
-  // This tests whether the SubStringStub can handle unsafe arguments.
-  // If not recognized, those unsafe arguments lead to out-of-bounds reads.
-  FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Value> result;
-  Handle<String> string;
-  CompileRun("var short = 'abcdef';");
-
-  // Invalid indices.
-  CheckException("%_SubString(short,     0,    10000);");
-  CheckException("%_SubString(short, -1234,        5);");
-  CheckException("%_SubString(short,     5,        2);");
-  // Special HeapNumbers.
-  CheckException("%_SubString(short,     1, Infinity);");
-  CheckException("%_SubString(short,   NaN,        5);");
-  // String arguments.
-  CheckException("%_SubString(short,    '2',     '5');");
-  // Ordinary HeapNumbers can be handled (in runtime).
-  result = CompileRun("%_SubString(short, Math.sqrt(4), 5.1);");
-  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK_EQ(0, strcmp("cde", string->ToCString().get()));
-
-  CompileRun("var long = 'abcdefghijklmnopqrstuvwxyz';");
-  // Invalid indices.
-  CheckException("%_SubString(long,     0,    10000);");
-  CheckException("%_SubString(long, -1234,       17);");
-  CheckException("%_SubString(long,    17,        2);");
-  // Special HeapNumbers.
-  CheckException("%_SubString(long,     1, Infinity);");
-  CheckException("%_SubString(long,   NaN,       17);");
-  // String arguments.
-  CheckException("%_SubString(long,    '2',    '17');");
-  // Ordinary HeapNumbers within bounds can be handled (in runtime).
-  result = CompileRun("%_SubString(long, Math.sqrt(4), 17.1);");
-  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK_EQ(0, strcmp("cdefghijklmnopq", string->ToCString().get()));
-
-  // Test that out-of-bounds substring of a slice fails when the indices
-  // would have been valid for the underlying string.
-  CompileRun("var slice = long.slice(1, 15);");
-  CheckException("%_SubString(slice, 0, 17);");
-}
-
-TEST(RobustSubStringStubExternalStrings) {
-  // Ensure that the specific combination of calling the SubStringStub on an
-  // external string and triggering a GC on string allocation does not crash.
-  // See crbug.com/649967.
-
-  FLAG_allow_natives_syntax = true;
-#ifdef VERIFY_HEAP
-  FLAG_verify_heap = true;
-#endif
-
-  CcTest::InitializeVM();
-  v8::HandleScope handle_scope(CcTest::isolate());
-
-  v8::Local<v8::String> underlying =
-      CompileRun(
-          "var str = 'abcdefghijklmnopqrstuvwxyz';"
-          "str")
-          ->ToString(CcTest::isolate()->GetCurrentContext())
-          .ToLocalChecked();
-  CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
-
-  const int length = underlying->Length();
-  uc16* two_byte = NewArray<uc16>(length + 1);
-  underlying->Write(two_byte);
-
-  Resource* resource = new Resource(two_byte, length);
-  CHECK(underlying->MakeExternal(resource));
-  CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
-
-  v8::Local<v8::Script> script = v8_compile(v8_str("%_SubString(str, 5, 8)"));
-
-  // Trigger a GC on string allocation.
-  i::heap::SimulateFullSpace(CcTest::heap()->new_space());
-
-  v8::Local<v8::Value> result;
-  CHECK(script->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-            .ToLocal(&result));
-  Handle<String> string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK_EQ(0, strcmp("fgh", string->ToCString().get()));
-}
-
 namespace {
 
 int* global_use_counts = nullptr;
@@ -1505,7 +1412,7 @@ static uint16_t ConvertLatin1(uint16_t c) {
 #ifndef V8_INTL_SUPPORT
 static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
   uint16_t expect = ConvertLatin1<unibrow::Ecma262UnCanonicalize, true>(c);
-  if (expect > unibrow::Latin1::kMaxChar) expect = 0;
+  if (expect > unibrow::Latin1::kMaxChar || expect == 0) expect = c;
   CHECK_EQ(expect, test);
 }
 
@@ -1514,7 +1421,7 @@ TEST(Latin1IgnoreCase) {
   for (uint16_t c = unibrow::Latin1::kMaxChar + 1; c != 0; c++) {
     uint16_t lower = ConvertLatin1<unibrow::ToLowercase, false>(c);
     uint16_t upper = ConvertLatin1<unibrow::ToUppercase, false>(c);
-    uint16_t test = unibrow::Latin1::ConvertNonLatin1ToLatin1(c);
+    uint16_t test = unibrow::Latin1::TryConvertToLatin1(c);
     // Filter out all character whose upper is not their lower or vice versa.
     if (lower == 0 && upper == 0) {
       CheckCanonicalEquivalence(c, test);
@@ -1674,6 +1581,63 @@ TEST(ExternalStringIndexOf) {
                    ->Int32Value(context.local())
                    .FromJust());
 }
+
+#define GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(NAME, STRING)                \
+  TEST(GCInsideNewStringFromUtf8SubStringWith##NAME) {                         \
+    CcTest::InitializeVM();                                                    \
+    LocalContext context;                                                      \
+    v8::HandleScope scope(CcTest::isolate());                                  \
+    Factory* factory = CcTest::i_isolate()->factory();                         \
+    Heap* heap = CcTest::i_isolate()->heap();                                  \
+    /* Length must be bigger than the buffer size of the Utf8Decoder. */       \
+    const char* buf = STRING;                                                  \
+    size_t len = strlen(buf);                                                  \
+    Handle<String> main_string =                                               \
+        factory                                                                \
+            ->NewStringFromOneByte(Vector<const uint8_t>(                      \
+                reinterpret_cast<const uint8_t*>(buf), len))                   \
+            .ToHandleChecked();                                                \
+    CHECK(heap->InNewSpace(*main_string));                                     \
+    /* Next allocation will cause GC. */                                       \
+    heap::SimulateFullSpace(CcTest::i_isolate()->heap()->new_space());         \
+    /* Offset by two to check substring-ing. */                                \
+    Handle<String> s = factory                                                 \
+                           ->NewStringFromUtf8SubString(                       \
+                               Handle<SeqOneByteString>::cast(main_string), 2, \
+                               static_cast<int>(len - 2))                      \
+                           .ToHandleChecked();                                 \
+    Handle<String> expected_string =                                           \
+        factory->NewStringFromUtf8(Vector<const char>(buf + 2, len - 2))       \
+            .ToHandleChecked();                                                \
+    CHECK(s->Equals(*expected_string));                                        \
+  }
+
+GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
+    OneByte,
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ")
+GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
+    TwoByte,
+    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D")
+
+#undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
 
 }  // namespace test_strings
 }  // namespace internal

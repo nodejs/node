@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ARM64_FRAMES_ARM64_H_
-#define V8_ARM64_FRAMES_ARM64_H_
+#ifndef V8_ARM64_FRAME_CONSTANTS_ARM64_H_
+#define V8_ARM64_FRAME_CONSTANTS_ARM64_H_
 
 namespace v8 {
 namespace internal {
@@ -61,4 +61,4 @@ class JavaScriptFrameConstants : public AllStatic {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ARM64_FRAMES_ARM64_H_
+#endif  // V8_ARM64_FRAME_CONSTANTS_ARM64_H_

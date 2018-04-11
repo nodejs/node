@@ -5,13 +5,8 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
-#include <set>
-
-#include "src/base/ieee754.h"
-#include "src/heap/heap.h"
-#include "src/heap/mark-compact.h"
-#include "src/heap/objects-visiting.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 
 // These instance types do not exist for actual use but are merely introduced
 // for object stats tracing. In contrast to Code and FixedArray sub types
@@ -19,18 +14,71 @@
 // tracing.
 //
 // Update LAST_VIRTUAL_TYPE below when changing this macro.
-#define VIRTUAL_INSTANCE_TYPE_LIST(V) \
-  V(BOILERPLATE_ELEMENTS_TYPE)        \
-  V(BOILERPLATE_NAME_DICTIONARY_TYPE) \
-  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)  \
-  V(JS_ARRAY_BOILERPLATE_TYPE)        \
-  V(JS_OBJECT_BOILERPLATE_TYPE)
+#define VIRTUAL_INSTANCE_TYPE_LIST(V)       \
+  CODE_KIND_LIST(V)                         \
+  V(BOILERPLATE_ELEMENTS_TYPE)              \
+  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)        \
+  V(BOILERPLATE_PROPERTY_DICTIONARY_TYPE)   \
+  V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)      \
+  V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)      \
+  V(CODE_STUBS_TABLE_TYPE)                  \
+  V(COW_ARRAY_TYPE)                         \
+  V(DEOPTIMIZATION_DATA_TYPE)               \
+  V(DEPENDENT_CODE_TYPE)                    \
+  V(ELEMENTS_TYPE)                          \
+  V(EMBEDDED_OBJECT_TYPE)                   \
+  V(ENUM_CACHE_TYPE)                        \
+  V(ENUM_INDICES_CACHE_TYPE)                \
+  V(FEEDBACK_METADATA_TYPE)                 \
+  V(FEEDBACK_VECTOR_ENTRY_TYPE)             \
+  V(FEEDBACK_VECTOR_HEADER_TYPE)            \
+  V(FEEDBACK_VECTOR_SLOT_CALL_TYPE)         \
+  V(FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE)  \
+  V(FEEDBACK_VECTOR_SLOT_ENUM_TYPE)         \
+  V(FEEDBACK_VECTOR_SLOT_LOAD_TYPE)         \
+  V(FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE)  \
+  V(FEEDBACK_VECTOR_SLOT_OTHER_TYPE)        \
+  V(FEEDBACK_VECTOR_SLOT_STORE_TYPE)        \
+  V(FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE) \
+  V(FUNCTION_CONTEXT_TYPE)                  \
+  V(FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE)    \
+  V(GLOBAL_ELEMENTS_TYPE)                   \
+  V(GLOBAL_PROPERTIES_TYPE)                 \
+  V(JS_ARRAY_BOILERPLATE_TYPE)              \
+  V(JS_COLLETION_TABLE_TYPE)                \
+  V(JS_OBJECT_BOILERPLATE_TYPE)             \
+  V(NATIVE_CONTEXT_TYPE)                    \
+  V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)    \
+  V(NUMBER_STRING_CACHE_TYPE)               \
+  V(OBJECT_PROPERTY_DICTIONARY_TYPE)        \
+  V(OBJECT_TO_CODE_TYPE)                    \
+  V(OPTIMIZED_CODE_LITERALS_TYPE)           \
+  V(OTHER_CONTEXT_TYPE)                     \
+  V(PROTOTYPE_USERS_TYPE)                   \
+  V(REGEXP_MULTIPLE_CACHE_TYPE)             \
+  V(RETAINED_MAPS_TYPE)                     \
+  V(SCRIPT_LIST_TYPE)                       \
+  V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)      \
+  V(SCRIPT_SOURCE_EXTERNAL_TYPE)            \
+  V(SCRIPT_SOURCE_NON_EXTERNAL_TYPE)        \
+  V(SERIALIZED_OBJECTS_TYPE)                \
+  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)     \
+  V(STRING_SPLIT_CACHE_TYPE)                \
+  V(STRING_TABLE_TYPE)                      \
+  V(UNCOMPILED_JS_FUNCTION_TYPE)            \
+  V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)   \
+  V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
 namespace v8 {
 namespace internal {
 
+class Heap;
+class Isolate;
+
 class ObjectStats {
  public:
+  static const size_t kNoOverAllocation = 0;
+
   explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(); }
 
   // See description on VIRTUAL_INSTANCE_TYPE_LIST.
@@ -38,18 +86,14 @@ class ObjectStats {
 #define DEFINE_VIRTUAL_INSTANCE_TYPE(type) type,
     VIRTUAL_INSTANCE_TYPE_LIST(DEFINE_VIRTUAL_INSTANCE_TYPE)
 #undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
-        LAST_VIRTUAL_TYPE = JS_OBJECT_BOILERPLATE_TYPE,
+        LAST_VIRTUAL_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE,
   };
 
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
   enum {
-    FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
-    FIRST_FIXED_ARRAY_SUB_TYPE =
-        FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
-    FIRST_VIRTUAL_TYPE =
-        FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
+    FIRST_VIRTUAL_TYPE = LAST_TYPE + 1,
     OBJECT_STATS_COUNT = FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1,
   };
 
@@ -60,10 +104,8 @@ class ObjectStats {
 
   void CheckpointObjectStats();
   void RecordObjectStats(InstanceType type, size_t size);
-  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size);
-  void RecordCodeSubTypeStats(int code_sub_type, size_t size);
-  bool RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
-                                    size_t size, size_t over_allocated);
+  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size,
+                                size_t over_allocated);
 
   size_t object_count_last_gc(size_t index) {
     return object_counts_last_time_[index];
@@ -105,8 +147,6 @@ class ObjectStats {
   // Detailed histograms by InstanceType.
   size_t size_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
   size_t over_allocated_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
-
-  std::set<FixedArrayBase*> visited_fixed_array_sub_types_;
 };
 
 class ObjectStatsCollector {

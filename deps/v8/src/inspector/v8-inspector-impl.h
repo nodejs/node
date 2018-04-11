@@ -28,8 +28,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef V8_INSPECTOR_V8INSPECTORIMPL_H_
-#define V8_INSPECTOR_V8INSPECTORIMPL_H_
+#ifndef V8_INSPECTOR_V8_INSPECTOR_IMPL_H_
+#define V8_INSPECTOR_V8_INSPECTOR_IMPL_H_
 
 #include <functional>
 #include <map>
@@ -154,4 +154,4 @@ class V8InspectorImpl : public V8Inspector {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8INSPECTORIMPL_H_
+#endif  // V8_INSPECTOR_V8_INSPECTOR_IMPL_H_

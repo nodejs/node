@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TRAP_HANDLER_H_
-#define V8_TRAP_HANDLER_H_
+#ifndef V8_TRAP_HANDLER_TRAP_HANDLER_H_
+#define V8_TRAP_HANDLER_TRAP_HANDLER_H_
 
 #include <signal.h>
 #include <stdint.h>
@@ -101,4 +101,4 @@ size_t GetRecoveredTrapCount();
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TRAP_HANDLER_H_
+#endif  // V8_TRAP_HANDLER_TRAP_HANDLER_H_

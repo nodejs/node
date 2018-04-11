@@ -29,7 +29,8 @@ namespace interpreter {
 class InterpreterCompilationJob final : public CompilationJob {
  public:
   InterpreterCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
-                            AccountingAllocator* allocator);
+                            AccountingAllocator* allocator,
+                            ZoneVector<FunctionLiteral*>* eager_inner_literals);
 
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
@@ -66,11 +67,6 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
   if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
 
   DCHECK(FLAG_lazy_handler_deserialization);
-  if (FLAG_trace_lazy_deserialization) {
-    PrintF("Lazy-deserializing handler %s\n",
-           Bytecodes::ToString(bytecode, operand_scale).c_str());
-  }
-
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
 
@@ -123,11 +119,15 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
                        ? nullptr
                        : Code::GetCodeFromTargetAddress(code_entry);
     Object* old_code = code;
-    v->VisitRootPointer(Root::kDispatchTable, &code);
+    v->VisitRootPointer(Root::kDispatchTable, nullptr, &code);
     if (code != old_code) {
       dispatch_table_[i] = reinterpret_cast<Code*>(code)->entry();
     }
   }
+}
+
+int Interpreter::InterruptBudget() {
+  return FLAG_interrupt_budget;
 }
 
 namespace {
@@ -163,12 +163,14 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
 
 InterpreterCompilationJob::InterpreterCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
-    AccountingAllocator* allocator)
+    AccountingAllocator* allocator,
+    ZoneVector<FunctionLiteral*>* eager_inner_literals)
     : CompilationJob(parse_info->stack_limit(), parse_info, &compilation_info_,
                      "Ignition", State::kReadyToExecute),
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
-      generator_(&compilation_info_, parse_info->ast_string_constants()) {}
+      generator_(&compilation_info_, parse_info->ast_string_constants(),
+                 eager_inner_literals) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
@@ -226,10 +228,12 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   return SUCCEEDED;
 }
 
-CompilationJob* Interpreter::NewCompilationJob(ParseInfo* parse_info,
-                                               FunctionLiteral* literal,
-                                               AccountingAllocator* allocator) {
-  return new InterpreterCompilationJob(parse_info, literal, allocator);
+CompilationJob* Interpreter::NewCompilationJob(
+    ParseInfo* parse_info, FunctionLiteral* literal,
+    AccountingAllocator* allocator,
+    ZoneVector<FunctionLiteral*>* eager_inner_literals) {
+  return new InterpreterCompilationJob(parse_info, literal, allocator,
+                                       eager_inner_literals);
 }
 
 bool Interpreter::IsDispatchTableInitialized() const {

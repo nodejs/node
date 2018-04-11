@@ -3,6 +3,10 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
 <template id="details-selection-template">
 <style>
+#dataSelectionSection {
+  display: none;
+}
+
 .box {
   border-left: dashed 1px #666666;
   border-right: dashed 1px #666666;
@@ -20,9 +24,20 @@ found in the LICENSE file. -->
     border-radius: 0px 0px 5px 5px;
 }
 
-span {
-  display: block;
-  padding: 5px;
+.box > ul {
+  margin: 0px;
+  padding: 0px;
+}
+
+.box > ul > li {
+  display: inline-block;
+}
+
+.box > ul > li:not(:first-child) {
+  margin-left: 10px;
+}
+
+.box > ul > li:first-child {
   font-weight: bold;
 }
 
@@ -38,35 +53,58 @@ span {
 #categories {
   margin-top: 10px;
 }
+
+#category-filter {
+  text-align: right;
+  width: 50px;
+}
+
 </style>
-<h2>Data selection</h2>
-<ul>
-  <li>
-    <label for="isolate-select">
-      Isolate
-    </label>
-    <select id="isolate-select">
-      <option>No data</option>
-    </select>
-  </li>
-  <li>
-    <label for="dataset-select">
-      Data set
-    </label>
-    <select id="dataset-select">
-      <option>No data</option>
-    </select>
-  </li>
-  <li>
-    <input type="checkbox" id="merge-categories" checked=checked />
-    <label for="merge-categories">
-      Merge categories
-    </label>
-  </li>
-</ul>
+<section id="dataSelectionSection">
+  <h2>Data selection</h2>
+  <ul>
+    <li>
+      <label for="isolate-select">
+        Isolate
+      </label>
+      <select id="isolate-select">
+        <option>No data</option>
+      </select>
+    </li>
+    <li>
+      <label for="dataset-select">
+        Data set
+      </label>
+      <select id="dataset-select">
+        <option>No data</option>
+      </select>
+    </li>
+    <li>
+      <input type="checkbox" id="merge-categories" checked=checked />
+      <label for="merge-categories">
+        Merge categories
+      </label>
+    </li>
+    <li>
+      <label for="gc-select">
+        Garbage collection (at a specific time in ms)
+      </label>
+      <select id="gc-select">
+        <option>No data</option>
+      </select>
+    </li>
+    <li>
+      <input id="category-filter" type="text" value="0" disabled="disabled" />KB
+      <button id="category-filter-btn" disabled="disabled">Filter categories with less memory</button>
+    </li>
+    <li>
+      <button id="csv-export-btn" disabled="disabled">Export selection as CSV</button>
+    </li>
+  </ul>
 
-
-<div id="categories"></div>
+  <div id="categories"></div>
+</section>
 </template>
+
 <script type="text/javascript" src="categories.js"></script>
 <script type="text/javascript" src="details-selection.js"></script>

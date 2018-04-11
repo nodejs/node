@@ -24,13 +24,15 @@ class SimulatorBase {
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
 
-  // Call on isolate initialization and teardown.
+  // Call on isolate initialization.
   static void Initialize(Isolate* isolate);
-  static void TearDown(base::CustomMatcherHashMap* i_cache);
 
   static base::Mutex* redirection_mutex() { return redirection_mutex_; }
   static Redirection* redirection() { return redirection_; }
   static void set_redirection(Redirection* r) { redirection_ = r; }
+
+  static base::Mutex* i_cache_mutex() { return i_cache_mutex_; }
+  static base::CustomMatcherHashMap* i_cache() { return i_cache_; }
 
  protected:
   template <typename Return, typename SimT, typename CallImpl, typename... Args>
@@ -38,12 +40,12 @@ class SimulatorBase {
                              Args... args) {
     // Convert all arguments to intptr_t. Fails if any argument is not integral
     // or pointer.
-    std::array<intptr_t, sizeof...(args)> args_arr{ConvertArg(args)...};
+    std::array<intptr_t, sizeof...(args)> args_arr{{ConvertArg(args)...}};
     intptr_t ret = (sim->*call)(entry, args_arr.size(), args_arr.data());
     return ConvertReturn<Return>(ret);
   }
 
-  // Convert back integral return types.
+  // Convert back integral return types. This is always a narrowing conversion.
   template <typename T>
   static typename std::enable_if<std::is_integral<T>::value, T>::type
   ConvertReturn(intptr_t ret) {
@@ -64,13 +66,15 @@ class SimulatorBase {
       intptr_t ret) {}
 
  private:
-  // Runtime call support. Uses the isolate in a thread-safe way.
-  static void* RedirectExternalReference(Isolate* isolate,
-                                         void* external_function,
+  // Runtime call support.
+  static void* RedirectExternalReference(void* external_function,
                                          ExternalReference::Type type);
 
   static base::Mutex* redirection_mutex_;
   static Redirection* redirection_;
+
+  static base::Mutex* i_cache_mutex_;
+  static base::CustomMatcherHashMap* i_cache_;
 
   // Helper methods to convert arbitrary integer or pointer arguments to the
   // needed generic argument type intptr_t.
@@ -80,7 +84,16 @@ class SimulatorBase {
   static typename std::enable_if<std::is_integral<T>::value, intptr_t>::type
   ConvertArg(T arg) {
     static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
+#if V8_TARGET_ARCH_MIPS64
+    // The MIPS64 calling convention is to sign extend all values, even unsigned
+    // ones.
+    using signed_t = typename std::make_signed<T>::type;
+    return static_cast<intptr_t>(static_cast<signed_t>(arg));
+#else
+    // Standard C++ convertion: Sign-extend signed values, zero-extend unsigned
+    // values.
     return static_cast<intptr_t>(arg);
+#endif
   }
 
   // Convert pointer-typed argument to intptr_t.
@@ -108,8 +121,7 @@ class SimulatorBase {
 //  - V8_TARGET_ARCH_S390: svc (Supervisor Call)
 class Redirection {
  public:
-  Redirection(Isolate* isolate, void* external_function,
-              ExternalReference::Type type);
+  Redirection(void* external_function, ExternalReference::Type type);
 
   Address address_of_instruction() {
 #if ABI_USES_FUNCTION_DESCRIPTORS
@@ -122,7 +134,7 @@ class Redirection {
   void* external_function() { return external_function_; }
   ExternalReference::Type type() { return type_; }
 
-  static Redirection* Get(Isolate* isolate, void* external_function,
+  static Redirection* Get(void* external_function,
                           ExternalReference::Type type);
 
   static Redirection* FromInstruction(Instruction* instruction) {

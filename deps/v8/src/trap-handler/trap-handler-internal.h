@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef TRAP_HANDLER_INTERNAL_H_
-#define TRAP_HANDLER_INTERNAL_H_
+#ifndef V8_TRAP_HANDLER_TRAP_HANDLER_INTERNAL_H_
+#define V8_TRAP_HANDLER_TRAP_HANDLER_INTERNAL_H_
 
 // This file should not be included (even transitively) by files outside of
 // src/trap-handler.
@@ -79,4 +79,4 @@ extern bool g_is_default_signal_handler_registered;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // TRAP_HANDLER_INTERNAL_H_
+#endif  // V8_TRAP_HANDLER_TRAP_HANDLER_INTERNAL_H_

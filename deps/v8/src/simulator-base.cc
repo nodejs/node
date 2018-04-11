@@ -20,9 +20,21 @@ base::Mutex* SimulatorBase::redirection_mutex_ = nullptr;
 Redirection* SimulatorBase::redirection_ = nullptr;
 
 // static
+base::Mutex* SimulatorBase::i_cache_mutex_ = nullptr;
+
+// static
+base::CustomMatcherHashMap* SimulatorBase::i_cache_ = nullptr;
+
+// static
 void SimulatorBase::InitializeOncePerProcess() {
   DCHECK_NULL(redirection_mutex_);
   redirection_mutex_ = new base::Mutex();
+
+  DCHECK_NULL(i_cache_mutex_);
+  i_cache_mutex_ = new base::Mutex();
+
+  DCHECK_NULL(i_cache_);
+  i_cache_ = new base::CustomMatcherHashMap(&Simulator::ICacheMatch);
 }
 
 // static
@@ -32,6 +44,18 @@ void SimulatorBase::GlobalTearDown() {
 
   Redirection::DeleteChain(redirection_);
   redirection_ = nullptr;
+
+  delete i_cache_mutex_;
+  i_cache_mutex_ = nullptr;
+
+  if (i_cache_ != nullptr) {
+    for (base::HashMap::Entry* entry = i_cache_->Start(); entry != nullptr;
+         entry = i_cache_->Next(entry)) {
+      delete static_cast<CachePage*>(entry->value);
+    }
+  }
+  delete i_cache_;
+  i_cache_ = nullptr;
 }
 
 // static
@@ -40,32 +64,20 @@ void SimulatorBase::Initialize(Isolate* isolate) {
 }
 
 // static
-void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
-  if (i_cache != nullptr) {
-    for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
-         entry = i_cache->Next(entry)) {
-      delete static_cast<CachePage*>(entry->value);
-    }
-    delete i_cache;
-  }
-}
-
-// static
-void* SimulatorBase::RedirectExternalReference(Isolate* isolate,
-                                               void* external_function,
+void* SimulatorBase::RedirectExternalReference(void* external_function,
                                                ExternalReference::Type type) {
   base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
-  Redirection* redirection = Redirection::Get(isolate, external_function, type);
+  Redirection* redirection = Redirection::Get(external_function, type);
   return redirection->address_of_instruction();
 }
 
-Redirection::Redirection(Isolate* isolate, void* external_function,
-                         ExternalReference::Type type)
+Redirection::Redirection(void* external_function, ExternalReference::Type type)
     : external_function_(external_function), type_(type), next_(nullptr) {
   next_ = Simulator::redirection();
+  base::LockGuard<base::Mutex> lock_guard(Simulator::i_cache_mutex());
   Simulator::SetRedirectInstruction(
       reinterpret_cast<Instruction*>(address_of_instruction()));
-  Simulator::FlushICache(isolate->simulator_i_cache(),
+  Simulator::FlushICache(Simulator::i_cache(),
                          reinterpret_cast<void*>(&instruction_),
                          sizeof(instruction_));
   Simulator::set_redirection(this);
@@ -77,7 +89,7 @@ Redirection::Redirection(Isolate* isolate, void* external_function,
 }
 
 // static
-Redirection* Redirection::Get(Isolate* isolate, void* external_function,
+Redirection* Redirection::Get(void* external_function,
                               ExternalReference::Type type) {
   Redirection* current = Simulator::redirection();
   for (; current != nullptr; current = current->next_) {
@@ -86,7 +98,7 @@ Redirection* Redirection::Get(Isolate* isolate, void* external_function,
       return current;
     }
   }
-  return new Redirection(isolate, external_function, type);
+  return new Redirection(external_function, type);
 }
 
 }  // namespace internal

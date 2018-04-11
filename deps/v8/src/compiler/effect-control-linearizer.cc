@@ -726,9 +726,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedTaggedSignedToInt32:
       if (frame_state == nullptr) {
-        V8_Fatal(__FILE__, __LINE__, "No frame state (zapped by #%d: %s)",
-                 frame_state_zapper_->id(),
-                 frame_state_zapper_->op()->mnemonic());
+        FATAL("No frame state (zapped by #%d: %s)", frame_state_zapper_->id(),
+              frame_state_zapper_->op()->mnemonic());
       }
       result = LowerCheckedTaggedSignedToInt32(node, frame_state);
       break;
@@ -807,9 +806,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTypeOf:
       result = LowerTypeOf(node);
       break;
-    case IrOpcode::kClassOf:
-      result = LowerClassOf(node);
-      break;
     case IrOpcode::kNewDoubleElements:
       result = LowerNewDoubleElements(node);
       break;
@@ -830,6 +826,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kDeadValue:
       result = LowerDeadValue(node);
+      break;
     case IrOpcode::kStringFromCharCode:
       result = LowerStringFromCharCode(node);
       break;
@@ -855,16 +852,19 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerSeqStringCharCodeAt(node);
       break;
     case IrOpcode::kStringCodePointAt:
-      result = LowerStringCodePointAt(node);
+      result = LowerStringCodePointAt(node, UnicodeEncodingOf(node->op()));
       break;
     case IrOpcode::kSeqStringCodePointAt:
-      result = LowerSeqStringCharCodeAt(node);
+      result = LowerSeqStringCodePointAt(node, UnicodeEncodingOf(node->op()));
       break;
     case IrOpcode::kStringToLowerCaseIntl:
       result = LowerStringToLowerCaseIntl(node);
       break;
     case IrOpcode::kStringToUpperCaseIntl:
       result = LowerStringToUpperCaseIntl(node);
+      break;
+    case IrOpcode::kStringSubstring:
+      result = LowerStringSubstring(node);
       break;
     case IrOpcode::kStringEqual:
       result = LowerStringEqual(node);
@@ -972,10 +972,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
   }
 
   if ((result ? 1 : 0) != node->op()->ValueOutputCount()) {
-    V8_Fatal(__FILE__, __LINE__,
-             "Effect control linearizer lowering of '%s':"
-             " value output count does not agree.",
-             node->op()->mnemonic());
+    FATAL(
+        "Effect control linearizer lowering of '%s':"
+        " value output count does not agree.",
+        node->op()->mnemonic());
   }
 
   *effect = gasm()->ExtractCurrentEffect();
@@ -1365,10 +1365,10 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kTryMigrateInstance;
-      CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+      auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
       Node* result =
-          __ Call(desc, __ CEntryStubConstant(1), value,
+          __ Call(call_descriptor, __ CEntryStubConstant(1), value,
                   __ ExternalConstant(ExternalReference(id, isolate())),
                   __ Int32Constant(1), __ NoContextConstant());
       Node* check = ObjectIsSmi(result);
@@ -1495,8 +1495,8 @@ Node* EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state) {
 
   Node* check = __ Uint32LessThan(value_instance_type,
                                   __ Uint32Constant(FIRST_NONSTRING_TYPE));
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
-                     check, frame_state);
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotAString, params.feedback(), check,
+                     frame_state);
   return value;
 }
 
@@ -1935,7 +1935,8 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
                                                            Node* frame_state) {
-  CheckTaggedInputMode mode = CheckTaggedInputModeOf(node->op());
+  CheckTaggedInputParameters const& p =
+      CheckTaggedInputParametersOf(node->op());
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeLabel();
@@ -1947,7 +1948,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
   // In the Smi case, just convert to int32 and then float64.
   // Otherwise, check heap numberness and load the number.
   Node* number = BuildCheckedHeapNumberOrOddballToFloat64(
-      mode, VectorSlotPair(), value, frame_state);
+      p.mode(), p.feedback(), value, frame_state);
   __ Goto(&done, number);
 
   __ Bind(&if_smi);
@@ -2042,9 +2043,9 @@ Node* EffectControlLinearizer::LowerNumberToString(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kNumberToString);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), argument,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), argument,
                  __ NoContextConstant());
 }
 
@@ -2379,21 +2380,9 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
   Callable const callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
   Operator::Properties const properties = Operator::kEliminatable;
   CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), obj,
-                 __ NoContextConstant());
-}
-
-Node* EffectControlLinearizer::LowerClassOf(Node* node) {
-  Node* obj = node->InputAt(0);
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kClassOf);
-  Operator::Properties const properties = Operator::kEliminatable;
-  CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), obj,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
                  __ NoContextConstant());
 }
 
@@ -2403,9 +2392,9 @@ Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kToBoolean);
   Operator::Properties const properties = Operator::kEliminatable;
   CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), obj,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
                  __ NoContextConstant());
 }
 
@@ -2583,10 +2572,10 @@ Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kNewArgumentsElements);
   Operator::Properties const properties = node->op()->properties();
   CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), frame, length,
-                 __ SmiConstant(mapped_count), __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), frame,
+                 length, __ SmiConstant(mapped_count), __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
@@ -2656,9 +2645,9 @@ Node* EffectControlLinearizer::LowerSameValue(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kSameValue);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), lhs, rhs,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
                  __ NoContextConstant());
 }
 
@@ -2678,9 +2667,9 @@ Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringToNumber);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), string,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), string,
                  __ NoContextConstant());
 }
 
@@ -2692,44 +2681,174 @@ Node* EffectControlLinearizer::LowerStringCharAt(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringCharAt);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
+                 position, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kStringCharCodeAt);
-  Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties,
-      MachineType::TaggedSigned());
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
-                 __ NoContextConstant());
+  // We need a loop here to properly deal with indirect strings
+  // (SlicedString, ConsString and ThinString).
+  auto loop = __ MakeLoopLabel(MachineRepresentation::kTagged,
+                               MachineRepresentation::kWord32);
+  auto loop_next = __ MakeLabel(MachineRepresentation::kTagged,
+                                MachineRepresentation::kWord32);
+  auto loop_done = __ MakeLabel(MachineRepresentation::kWord32);
+  __ Goto(&loop, receiver, position);
+  __ Bind(&loop);
+  {
+    Node* receiver = loop.PhiAt(0);
+    Node* position = loop.PhiAt(1);
+    Node* receiver_map = __ LoadField(AccessBuilder::ForMap(), receiver);
+    Node* receiver_instance_type =
+        __ LoadField(AccessBuilder::ForMapInstanceType(), receiver_map);
+    Node* receiver_representation = __ Word32And(
+        receiver_instance_type, __ Int32Constant(kStringRepresentationMask));
+
+    // Dispatch on the current {receiver}s string representation.
+    auto if_seqstring = __ MakeLabel();
+    auto if_consstring = __ MakeLabel();
+    auto if_thinstring = __ MakeLabel();
+    auto if_externalstring = __ MakeLabel();
+    auto if_slicedstring = __ MakeLabel();
+    auto if_runtime = __ MakeDeferredLabel();
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kSeqStringTag)),
+              &if_seqstring);
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kConsStringTag)),
+              &if_consstring);
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kThinStringTag)),
+              &if_thinstring);
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kExternalStringTag)),
+              &if_externalstring);
+    __ Branch(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kSlicedStringTag)),
+              &if_slicedstring, &if_runtime);
+
+    __ Bind(&if_seqstring);
+    {
+      Node* receiver_is_onebyte = __ Word32Equal(
+          __ Word32Equal(__ Word32And(receiver_instance_type,
+                                      __ Int32Constant(kStringEncodingMask)),
+                         __ Int32Constant(kTwoByteStringTag)),
+          __ Int32Constant(0));
+      Node* result = LoadFromSeqString(receiver, position, receiver_is_onebyte);
+      __ Goto(&loop_done, result);
+    }
+
+    __ Bind(&if_thinstring);
+    {
+      Node* receiver_actual =
+          __ LoadField(AccessBuilder::ForThinStringActual(), receiver);
+      __ Goto(&loop_next, receiver_actual, position);
+    }
+
+    __ Bind(&if_consstring);
+    {
+      Node* receiver_second =
+          __ LoadField(AccessBuilder::ForConsStringSecond(), receiver);
+      __ GotoIfNot(__ WordEqual(receiver_second, __ EmptyStringConstant()),
+                   &if_runtime);
+      Node* receiver_first =
+          __ LoadField(AccessBuilder::ForConsStringFirst(), receiver);
+      __ Goto(&loop_next, receiver_first, position);
+    }
+
+    __ Bind(&if_externalstring);
+    {
+      // We need to bailout to the runtime for short external strings.
+      __ GotoIf(__ Word32Equal(
+                    __ Word32And(receiver_instance_type,
+                                 __ Int32Constant(kShortExternalStringMask)),
+                    __ Int32Constant(kShortExternalStringTag)),
+                &if_runtime);
+
+      Node* receiver_data = __ LoadField(
+          AccessBuilder::ForExternalStringResourceData(), receiver);
+
+      auto if_onebyte = __ MakeLabel();
+      auto if_twobyte = __ MakeLabel();
+      __ Branch(
+          __ Word32Equal(__ Word32And(receiver_instance_type,
+                                      __ Int32Constant(kStringEncodingMask)),
+                         __ Int32Constant(kTwoByteStringTag)),
+          &if_twobyte, &if_onebyte);
+
+      __ Bind(&if_onebyte);
+      {
+        Node* result = __ Load(MachineType::Uint8(), receiver_data,
+                               ChangeInt32ToIntPtr(position));
+        __ Goto(&loop_done, result);
+      }
+
+      __ Bind(&if_twobyte);
+      {
+        Node* result = __ Load(
+            MachineType::Uint16(), receiver_data,
+            __ Word32Shl(ChangeInt32ToIntPtr(position), __ Int32Constant(1)));
+        __ Goto(&loop_done, result);
+      }
+    }
+
+    __ Bind(&if_slicedstring);
+    {
+      Node* receiver_offset =
+          __ LoadField(AccessBuilder::ForSlicedStringOffset(), receiver);
+      Node* receiver_parent =
+          __ LoadField(AccessBuilder::ForSlicedStringParent(), receiver);
+      __ Goto(&loop_next, receiver_parent,
+              __ Int32Add(position, ChangeSmiToInt32(receiver_offset)));
+    }
+
+    __ Bind(&if_runtime);
+    {
+      Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+      Runtime::FunctionId id = Runtime::kStringCharCodeAt;
+      auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+          graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
+      Node* result =
+          __ Call(call_descriptor, __ CEntryStubConstant(1), receiver,
+                  ChangeInt32ToSmi(position),
+                  __ ExternalConstant(ExternalReference(id, isolate())),
+                  __ Int32Constant(2), __ NoContextConstant());
+      __ Goto(&loop_done, ChangeSmiToInt32(result));
+    }
+
+    __ Bind(&loop_next);
+    __ Goto(&loop, loop_next.PhiAt(0), loop_next.PhiAt(1));
+  }
+  __ Bind(&loop_done);
+  return loop_done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
+Node* EffectControlLinearizer::LowerStringCodePointAt(
+    Node* node, UnicodeEncoding encoding) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kStringCodePointAt);
+  Builtins::Name builtin = encoding == UnicodeEncoding::UTF16
+                               ? Builtins::kStringCodePointAtUTF16
+                               : Builtins::kStringCodePointAtUTF32;
+
+  Callable const callable = Builtins::CallableFor(isolate(), builtin);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties,
       MachineType::TaggedSigned());
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
+                 position, __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LoadFromString(Node* receiver, Node* position,
-                                              Node* is_one_byte) {
+Node* EffectControlLinearizer::LoadFromSeqString(Node* receiver, Node* position,
+                                                 Node* is_one_byte) {
   auto one_byte_load = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kWord32);
   __ GotoIf(is_one_byte, &one_byte_load);
@@ -2756,7 +2875,7 @@ Node* EffectControlLinearizer::LowerSeqStringCharCodeAt(Node* node) {
       __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
       __ Int32Constant(kOneByteStringTag));
 
-  return LoadFromString(receiver, position, is_one_byte);
+  return LoadFromSeqString(receiver, position, is_one_byte);
 }
 
 Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
@@ -2770,7 +2889,7 @@ Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
       __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
       __ Int32Constant(kOneByteStringTag));
 
-  Node* first_char_code = LoadFromString(receiver, position, is_one_byte);
+  Node* first_char_code = LoadFromSeqString(receiver, position, is_one_byte);
 
   auto return_result = __ MakeLabel(MachineRepresentation::kWord32);
 
@@ -2779,16 +2898,18 @@ Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
       __ Word32Equal(__ Word32And(first_char_code, __ Int32Constant(0xFC00)),
                      __ Int32Constant(0xD800));
   // Return first character code.
-  __ GotoIf(first_out, &return_result, first_char_code);
+  __ GotoIfNot(first_out, &return_result, first_char_code);
   // Check if position + 1 is still in range.
-  Node* length = __ LoadField(AccessBuilder::ForStringLength(), receiver);
+  Node* length = ChangeSmiToInt32(
+      __ LoadField(AccessBuilder::ForStringLength(), receiver));
   Node* next_position = __ Int32Add(position, __ Int32Constant(1));
   Node* next_position_in_range = __ Int32LessThan(next_position, length);
-  __ GotoIf(next_position_in_range, &return_result, first_char_code);
+  __ GotoIfNot(next_position_in_range, &return_result, first_char_code);
 
   // Load second character code.
-  Node* second_char_code = LoadFromString(receiver, next_position, is_one_byte);
-  // Check if first character code is outside of interval [0xD800, 0xDBFF].
+  Node* second_char_code =
+      LoadFromSeqString(receiver, next_position, is_one_byte);
+  // Check if second character code is outside of interval [0xDC00, 0xDFFF].
   Node* second_out =
       __ Word32Equal(__ Word32And(second_char_code, __ Int32Constant(0xFC00)),
                      __ Int32Constant(0xDC00));
@@ -2862,12 +2983,12 @@ Node* EffectControlLinearizer::LowerStringFromCharCode(Node* node) {
   {
     Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
     Runtime::FunctionId id = Runtime::kStringCharFromCode;
-    CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
         graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-    Node* vtrue1 =
-        __ Call(desc, __ CEntryStubConstant(1), ChangeInt32ToSmi(code),
-                __ ExternalConstant(ExternalReference(id, isolate())),
-                __ Int32Constant(1), __ NoContextConstant());
+    Node* vtrue1 = __ Call(
+        call_descriptor, __ CEntryStubConstant(1), ChangeInt32ToSmi(code),
+        __ ExternalConstant(ExternalReference(id, isolate())),
+        __ Int32Constant(1), __ NoContextConstant());
     __ Goto(&done, vtrue1);
   }
   __ Bind(&done);
@@ -2883,9 +3004,9 @@ Node* EffectControlLinearizer::LowerStringToLowerCaseIntl(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringToLowerCaseIntl);
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
                  __ NoContextConstant());
 }
 
@@ -2893,9 +3014,9 @@ Node* EffectControlLinearizer::LowerStringToUpperCaseIntl(Node* node) {
   Node* receiver = node->InputAt(0);
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kStringToUpperCaseIntl;
-  CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-  return __ Call(desc, __ CEntryStubConstant(1), receiver,
+  return __ Call(call_descriptor, __ CEntryStubConstant(1), receiver,
                  __ ExternalConstant(ExternalReference(id, isolate())),
                  __ Int32Constant(1), __ NoContextConstant());
 }
@@ -3048,10 +3169,10 @@ Node* EffectControlLinearizer::LowerStringIndexOf(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringIndexOf);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), subject, search_string,
-                 position, __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), subject,
+                 search_string, position, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringLength(Node* node) {
@@ -3067,10 +3188,25 @@ Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
 
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), lhs, rhs,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
                  __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerStringSubstring(Node* node) {
+  Node* receiver = node->InputAt(0);
+  Node* start = ChangeInt32ToIntPtr(node->InputAt(1));
+  Node* end = ChangeInt32ToIntPtr(node->InputAt(2));
+
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringSubstring);
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
+                 start, end, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringEqual(Node* node) {
@@ -3176,10 +3312,10 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
       builder.AddParam(MachineType::AnyTagged());
       Node* try_internalize_string_function = __ ExternalConstant(
           ExternalReference::try_internalize_string_function(isolate()));
-      CallDescriptor const* const desc =
+      auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
-      Node* val_internalized =
-          __ Call(common()->Call(desc), try_internalize_string_function, val);
+      Node* val_internalized = __ Call(common()->Call(call_descriptor),
+                                       try_internalize_string_function, val);
 
       // Now see if the results match.
       __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, VectorSlotPair(),
@@ -3218,10 +3354,14 @@ Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
 }
 
 Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
+  return __ WordShl(ChangeInt32ToIntPtr(value), SmiShiftBitsConstant());
+}
+
+Node* EffectControlLinearizer::ChangeInt32ToIntPtr(Node* value) {
   if (machine()->Is64()) {
     value = __ ChangeInt32ToInt64(value);
   }
-  return __ WordShl(value, SmiShiftBitsConstant());
+  return value;
 }
 
 Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
@@ -3350,10 +3490,10 @@ Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCopyFastSmiOrObjectElements);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  Node* result = __ Call(desc, __ HeapConstant(callable.code()), object,
-                         __ NoContextConstant());
+  Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
+                         object, __ NoContextConstant());
   __ Goto(&done, result);
 
   __ Bind(&done);
@@ -3386,11 +3526,12 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
           : Builtins::CallableFor(isolate(),
                                   Builtins::kGrowFastSmiOrObjectElements);
   CallDescriptor::Flags call_flags = CallDescriptor::kNoFlags;
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, call_flags,
       properties);
-  Node* new_elements = __ Call(desc, __ HeapConstant(callable.code()), object,
-                               ChangeInt32ToSmi(index), __ NoContextConstant());
+  Node* new_elements =
+      __ Call(call_descriptor, __ HeapConstant(callable.code()), object,
+              ChangeInt32ToSmi(index), __ NoContextConstant());
 
   // Ensure that we were able to grow the {elements}.
   __ DeoptimizeIf(DeoptimizeReason::kCouldNotGrowElements, params.feedback(),
@@ -3429,9 +3570,9 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
       // Instance migration, call out to the runtime for {object}.
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kTransitionElementsKind;
-      CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+      auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
-      __ Call(desc, __ CEntryStubConstant(1), object, target_map,
+      __ Call(call_descriptor, __ CEntryStubConstant(1), object, target_map,
               __ ExternalConstant(ExternalReference(id, isolate())),
               __ Int32Constant(2), __ NoContextConstant());
       break;
@@ -3557,8 +3698,9 @@ Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
   // Compute the effective storage pointer, handling the case where the
   // {external} pointer is the effective storage pointer (i.e. the {base}
   // is Smi zero).
-  Node* storage = NumberMatcher(base).Is(0) ? external : __ UnsafePointerAdd(
-                                                             base, external);
+  Node* storage = IntPtrMatcher(base).Is(0)
+                      ? external
+                      : __ UnsafePointerAdd(base, external);
 
   // Perform the actual typed element access.
   return __ LoadElement(AccessBuilder::ForTypedArrayElement(array_type, true),
@@ -3580,8 +3722,9 @@ void EffectControlLinearizer::LowerStoreTypedElement(Node* node) {
   // Compute the effective storage pointer, handling the case where the
   // {external} pointer is the effective storage pointer (i.e. the {base}
   // is Smi zero).
-  Node* storage = NumberMatcher(base).Is(0) ? external : __ UnsafePointerAdd(
-                                                             base, external);
+  Node* storage = IntPtrMatcher(base).Is(0)
+                      ? external
+                      : __ UnsafePointerAdd(base, external);
 
   // Perform the actual typed element access.
   __ StoreElement(AccessBuilder::ForTypedArrayElement(array_type, true),
@@ -3604,9 +3747,9 @@ void EffectControlLinearizer::TransitionElementsTo(Node* node, Node* array,
     // Instance migration, call out to the runtime for {array}.
     Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
     Runtime::FunctionId id = Runtime::kTransitionElementsKind;
-    CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
         graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
-    __ Call(desc, __ CEntryStubConstant(1), array, target_map,
+    __ Call(call_descriptor, __ CEntryStubConstant(1), array, target_map,
             __ ExternalConstant(ExternalReference(id, isolate())),
             __ Int32Constant(2), __ NoContextConstant());
   }
@@ -3951,9 +4094,9 @@ void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
   AbortReason reason = AbortReasonOf(node->op());
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kAbort;
-  CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-  __ Call(desc, __ CEntryStubConstant(1),
+  __ Call(call_descriptor, __ CEntryStubConstant(1),
           jsgraph()->SmiConstant(static_cast<int>(reason)),
           __ ExternalConstant(ExternalReference(id, isolate())),
           __ Int32Constant(1), __ NoContextConstant());
@@ -3988,13 +4131,13 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       Operator::Properties properties = Operator::kEliminatable;
       Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
       CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0, flags,
           properties);
       Node* native_context = __ LoadField(
           AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
-      Node* result = __ Call(desc, __ HeapConstant(callable.code()), value,
-                             native_context);
+      Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
+                             value, native_context);
       __ Goto(&done_convert, result);
 
       __ Bind(&done_convert);
@@ -4024,13 +4167,13 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       Operator::Properties properties = Operator::kEliminatable;
       Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
       CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0, flags,
           properties);
       Node* native_context = __ LoadField(
           AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
-      Node* result = __ Call(desc, __ HeapConstant(callable.code()), value,
-                             native_context);
+      Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
+                             value, native_context);
       __ Goto(&done_convert, result);
 
       // Replace the {value} with the {global_proxy}.
@@ -4381,11 +4524,11 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
         Builtins::CallableFor(isolate(), Builtins::kFindOrderedHashMapEntry);
     Operator::Properties const properties = node->op()->properties();
     CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, flags,
         properties);
-    return __ Call(desc, __ HeapConstant(callable.code()), table, key,
-                   __ NoContextConstant());
+    return __ Call(call_descriptor, __ HeapConstant(callable.code()), table,
+                   key, __ NoContextConstant());
   }
 }
 

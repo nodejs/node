@@ -97,6 +97,7 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 }
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Scavenger::ScavengePage");
   CodePageMemoryModificationScope memory_modification_scope(page);
   RememberedSet<OLD_TO_NEW>::Iterate(
       page,
@@ -115,6 +116,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
 }
 
 void Scavenger::Process(OneshotBarrier* barrier) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Scavenger::Process");
   // Threshold when to switch processing the promotion list to avoid
   // allocating too much backing store in the worklist.
   const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
@@ -160,12 +162,13 @@ void Scavenger::Finalize() {
   allocator_.Finalize();
 }
 
-void RootScavengeVisitor::VisitRootPointer(Root root, Object** p) {
+void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,
+                                           Object** p) {
   ScavengePointer(p);
 }
 
-void RootScavengeVisitor::VisitRootPointers(Root root, Object** start,
-                                            Object** end) {
+void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
+                                            Object** start, Object** end) {
   // Copy all HeapObject pointers in [start, end)
   for (Object** p = start; p < end; p++) ScavengePointer(p);
 }

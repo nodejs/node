@@ -723,7 +723,7 @@ bytecodes: [
   /*  137 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [

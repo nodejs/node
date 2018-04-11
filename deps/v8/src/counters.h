@@ -220,6 +220,12 @@ class Histogram {
   int max() const { return max_; }
   int num_buckets() const { return num_buckets_; }
 
+  // Asserts that |expected_counters| are the same as the Counters this
+  // Histogram reports to.
+  void AssertReportsToCounters(Counters* expected_counters) {
+    DCHECK_EQ(counters_, expected_counters);
+  }
+
  protected:
   Histogram() {}
   Histogram(const char* name, int min, int max, int num_buckets,
@@ -229,7 +235,9 @@ class Histogram {
         max_(max),
         num_buckets_(num_buckets),
         histogram_(nullptr),
-        counters_(counters) {}
+        counters_(counters) {
+    DCHECK(counters_);
+  }
 
   Counters* counters() const { return counters_; }
 
@@ -261,6 +269,10 @@ class TimedHistogram : public Histogram {
   // Stop the timer and record the results. Log if isolate non-null.
   void Stop(base::ElapsedTimer* timer, Isolate* isolate);
 
+  // Records a TimeDelta::Max() result. Useful to record percentage of tasks
+  // that never got to run in a given scenario. Log if isolate non-null.
+  void RecordAbandon(base::ElapsedTimer* timer, Isolate* isolate);
+
  protected:
   friend class Counters;
   HistogramTimerResolution resolution_;
@@ -282,6 +294,7 @@ class TimedHistogramScope {
       : histogram_(histogram), isolate_(isolate) {
     histogram_->Start(&timer_, isolate);
   }
+
   ~TimedHistogramScope() { histogram_->Stop(&timer_, isolate_); }
 
  private:
@@ -290,6 +303,42 @@ class TimedHistogramScope {
   Isolate* isolate_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TimedHistogramScope);
+};
+
+// Helper class for recording a TimedHistogram asynchronously with manual
+// controls (it will not generate a report if destroyed without explicitly
+// triggering a report). |async_counters| should be a shared_ptr to
+// |histogram->counters()|, making it is safe to report to an
+// AsyncTimedHistogram after the associated isolate has been destroyed.
+// AsyncTimedHistogram can be moved/copied to avoid computing Now() multiple
+// times when the times of multiple tasks are identical; each copy will generate
+// its own report.
+class AsyncTimedHistogram {
+ public:
+  explicit AsyncTimedHistogram(TimedHistogram* histogram,
+                               std::shared_ptr<Counters> async_counters)
+      : histogram_(histogram), async_counters_(std::move(async_counters)) {
+    histogram_->AssertReportsToCounters(async_counters_.get());
+    histogram_->Start(&timer_, nullptr);
+  }
+
+  ~AsyncTimedHistogram() = default;
+
+  AsyncTimedHistogram(const AsyncTimedHistogram& other) = default;
+  AsyncTimedHistogram& operator=(const AsyncTimedHistogram& other) = default;
+  AsyncTimedHistogram(AsyncTimedHistogram&& other) = default;
+  AsyncTimedHistogram& operator=(AsyncTimedHistogram&& other) = default;
+
+  // Records the time elapsed to |histogram_| and stops |timer_|.
+  void RecordDone() { histogram_->Stop(&timer_, nullptr); }
+
+  // Records TimeDelta::Max() to |histogram_| and stops |timer_|.
+  void RecordAbandon() { histogram_->RecordAbandon(&timer_, nullptr); }
+
+ private:
+  base::ElapsedTimer timer_;
+  TimedHistogram* histogram_;
+  std::shared_ptr<Counters> async_counters_;
 };
 
 // Helper class for scoping a TimedHistogram, where the histogram is selected at
@@ -643,6 +692,8 @@ class RuntimeCallTimer final {
   V(ArrayBuffer_New)                                       \
   V(Array_CloneElementAt)                                  \
   V(Array_New)                                             \
+  V(BigInt64Array_New)                                     \
+  V(BigUint64Array_New)                                    \
   V(BooleanObject_BooleanValue)                            \
   V(BooleanObject_New)                                     \
   V(Context_New)                                           \
@@ -795,7 +846,6 @@ class RuntimeCallTimer final {
   V(CompileBackgroundEval)                     \
   V(CompileBackgroundIgnition)                 \
   V(CompileBackgroundScript)                   \
-  V(CompileBackgroundRenumber)                 \
   V(CompileBackgroundRewriteReturnResult)      \
   V(CompileBackgroundScopeAnalysis)            \
   V(CompileDeserialize)                        \
@@ -805,7 +855,6 @@ class RuntimeCallTimer final {
   V(CompileGetFromOptimizedCodeMap)            \
   V(CompileIgnition)                           \
   V(CompileIgnitionFinalization)               \
-  V(CompileRenumber)                           \
   V(CompileRewriteReturnResult)                \
   V(CompileScopeAnalysis)                      \
   V(CompileScript)                             \
@@ -1170,7 +1219,9 @@ class RuntimeCallTimerScope {
   HT(compile_script_no_cache_because_cache_too_cold,                           \
      V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)  \
   HT(compile_script_on_background,                                             \
-     V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)
+     V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
+  HT(gc_parallel_task_latency, V8.GC.ParallelTaskLatencyMicroSeconds, 1000000, \
+     MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

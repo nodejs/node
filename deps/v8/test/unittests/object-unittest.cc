@@ -19,10 +19,11 @@ namespace {
 
 bool IsInStringInstanceTypeList(InstanceType instance_type) {
   switch (instance_type) {
-#define TEST_INSTANCE_TYPE(type, ...) \
-  case InstanceType::type:            \
-    STATIC_ASSERT(InstanceType::type < InstanceType::FIRST_NONSTRING_TYPE);
-
+#define ASSERT_INSTANCE_TYPE(type, ...) \
+  STATIC_ASSERT(InstanceType::type < InstanceType::FIRST_NONSTRING_TYPE);
+    STRING_TYPE_LIST(ASSERT_INSTANCE_TYPE)
+#undef ASSERT_INSTANCE_TYPE
+#define TEST_INSTANCE_TYPE(type, ...) case InstanceType::type:
     STRING_TYPE_LIST(TEST_INSTANCE_TYPE)
 #undef TEST_INSTANCE_TYPE
     return true;

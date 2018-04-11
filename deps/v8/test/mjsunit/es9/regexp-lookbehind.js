@@ -162,3 +162,10 @@ assertEquals(["cacb", "a", ""], /(?<=a(.\2)b(\1)).{4}/.exec("aabcacbc"));
 assertEquals(["b", "ac", "ac"], /(?<=a(\2)b(..\1))b/.exec("aacbacb"));
 assertEquals(["x", "aa"], /(?<=(?:\1b)(aa))./.exec("aabaax"));
 assertEquals(["x", "aa"], /(?<=(?:\1|b)(aa))./.exec("aaaax"));
+
+// Restricted syntax in Annex B 1.4.
+assertThrows("/(?<=.)*/u", SyntaxError);
+assertThrows("/(?<=.){1,2}/u", SyntaxError);
+assertThrows("/(?<=.)*/", SyntaxError);
+assertThrows("/(?<=.)?/", SyntaxError);
+assertThrows("/(?<=.)+/", SyntaxError);

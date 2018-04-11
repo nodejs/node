@@ -379,7 +379,7 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
 
-  ArchOpcode opcode = kArchNop;
+  InstructionCode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
       opcode = kMips64Lwc1;
@@ -410,9 +410,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
+  if (node->opcode() == IrOpcode::kPoisonedLoad) {
+    CHECK_EQ(load_poisoning_, LoadPoisoning::kDoPoison);
+    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+  }
 
   EmitLoad(this, node, opcode);
 }
+
+void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
@@ -1382,6 +1388,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
             break;
         }
       }
+      break;
     }
     default:
       break;
@@ -1650,14 +1657,14 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
 }
 
 void InstructionSelector::EmitPrepareArguments(
-    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
   Mips64OperandGenerator g(this);
 
   // Prepare for C function call.
-  if (descriptor->IsCFunctionCall()) {
-    Emit(kArchPrepareCallCFunction |
-             MiscField::encode(static_cast<int>(descriptor->ParameterCount())),
+  if (call_descriptor->IsCFunctionCall()) {
+    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
+                                         call_descriptor->ParameterCount())),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.
@@ -1668,10 +1675,17 @@ void InstructionSelector::EmitPrepareArguments(
       ++slot;
     }
   } else {
-    int push_count = static_cast<int>(descriptor->StackParameterCount());
+    int push_count = static_cast<int>(call_descriptor->StackParameterCount());
     if (push_count > 0) {
+      // Calculate needed space
+      int stack_size = 0;
+      for (PushParameter input : (*arguments)) {
+        if (input.node) {
+          stack_size += input.location.GetSizeInPointers();
+        }
+      }
       Emit(kMips64StackClaim, g.NoOutput(),
-           g.TempImmediate(push_count << kPointerSizeLog2));
+           g.TempImmediate(stack_size << kPointerSizeLog2));
     }
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
@@ -1683,9 +1697,9 @@ void InstructionSelector::EmitPrepareArguments(
   }
 }
 
-void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
-                                             const CallDescriptor* descriptor,
-                                             Node* node) {
+void InstructionSelector::EmitPrepareResults(
+    ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
+    Node* node) {
   Mips64OperandGenerator g(this);
 
   int reverse_slot = 0;
@@ -1693,14 +1707,14 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
     if (output.node != nullptr) {
-      DCHECK(!descriptor->IsCFunctionCall());
+      DCHECK(!call_descriptor->IsCFunctionCall());
       if (output.location.GetType() == MachineType::Float32()) {
         MarkAsFloat32(output.node);
       } else if (output.location.GetType() == MachineType::Float64()) {
         MarkAsFloat64(output.node);
       }
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kMips64Peek | MiscField::encode(reverse_slot), result);
+      Emit(kMips64Peek, g.DefineAsRegister(output.node),
+           g.UseImmediate(reverse_slot));
     }
     reverse_slot += output.location.GetSizeInPointers();
   }
@@ -2057,12 +2071,13 @@ void EmitWordCompareZero(InstructionSelector* selector, Node* value,
   }
 }
 
+}  // namespace
 
 // Shared routine for word comparisons against zero.
-void VisitWordCompareZero(InstructionSelector* selector, Node* user,
-                          Node* value, FlagsContinuation* cont) {
+void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
+                                               FlagsContinuation* cont) {
   // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (selector->CanCover(user, value)) {
+  while (CanCover(user, value)) {
     if (value->opcode() == IrOpcode::kWord32Equal) {
       Int32BinopMatcher m(value);
       if (!m.right().Is(0)) break;
@@ -2080,56 +2095,56 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
     cont->Negate();
   }
 
-  if (selector->CanCover(user, value)) {
+  if (CanCover(user, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
-        return VisitWord32Compare(selector, value, cont);
+        return VisitWord32Compare(this, value, cont);
       case IrOpcode::kInt32LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWord32Compare(selector, value, cont);
+        return VisitWord32Compare(this, value, cont);
       case IrOpcode::kInt32LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWord32Compare(selector, value, cont);
+        return VisitWord32Compare(this, value, cont);
       case IrOpcode::kUint32LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWord32Compare(selector, value, cont);
+        return VisitWord32Compare(this, value, cont);
       case IrOpcode::kUint32LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitWord32Compare(selector, value, cont);
+        return VisitWord32Compare(this, value, cont);
       case IrOpcode::kWord64Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
-        return VisitWord64Compare(selector, value, cont);
+        return VisitWord64Compare(this, value, cont);
       case IrOpcode::kInt64LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWord64Compare(selector, value, cont);
+        return VisitWord64Compare(this, value, cont);
       case IrOpcode::kInt64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWord64Compare(selector, value, cont);
+        return VisitWord64Compare(this, value, cont);
       case IrOpcode::kUint64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWord64Compare(selector, value, cont);
+        return VisitWord64Compare(this, value, cont);
       case IrOpcode::kUint64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitWord64Compare(selector, value, cont);
+        return VisitWord64Compare(this, value, cont);
       case IrOpcode::kFloat32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
-        return VisitFloat32Compare(selector, value, cont);
+        return VisitFloat32Compare(this, value, cont);
       case IrOpcode::kFloat32LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitFloat32Compare(selector, value, cont);
+        return VisitFloat32Compare(this, value, cont);
       case IrOpcode::kFloat32LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitFloat32Compare(selector, value, cont);
+        return VisitFloat32Compare(this, value, cont);
       case IrOpcode::kFloat64Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
-        return VisitFloat64Compare(selector, value, cont);
+        return VisitFloat64Compare(this, value, cont);
       case IrOpcode::kFloat64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitFloat64Compare(selector, value, cont);
+        return VisitFloat64Compare(this, value, cont);
       case IrOpcode::kFloat64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitFloat64Compare(selector, value, cont);
+        return VisitFloat64Compare(this, value, cont);
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
         // <Operation>WithOverflow node.
@@ -2141,23 +2156,23 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
           // *AFTER* this branch).
           Node* const node = value->InputAt(0);
           Node* const result = NodeProperties::FindProjection(node, 0);
-          if (result == nullptr || selector->IsDefined(result)) {
+          if (result == nullptr || IsDefined(result)) {
             switch (node->opcode()) {
               case IrOpcode::kInt32AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(selector, node, kMips64Dadd, cont);
+                return VisitBinop(this, node, kMips64Dadd, cont);
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(selector, node, kMips64Dsub, cont);
+                return VisitBinop(this, node, kMips64Dsub, cont);
               case IrOpcode::kInt32MulWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(selector, node, kMips64MulOvf, cont);
+                return VisitBinop(this, node, kMips64MulOvf, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(selector, node, kMips64DaddOvf, cont);
+                return VisitBinop(this, node, kMips64DaddOvf, cont);
               case IrOpcode::kInt64SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(selector, node, kMips64DsubOvf, cont);
+                return VisitBinop(this, node, kMips64DsubOvf, cont);
               default:
                 break;
             }
@@ -2166,49 +2181,14 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         break;
       case IrOpcode::kWord32And:
       case IrOpcode::kWord64And:
-        return VisitWordCompare(selector, value, kMips64Tst, cont, true);
+        return VisitWordCompare(this, value, kMips64Tst, cont, true);
       default:
         break;
     }
   }
 
   // Continuation could not be combined with a compare, emit compare against 0.
-  EmitWordCompareZero(selector, value, cont);
-}
-
-}  // namespace
-
-void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
-                                      BasicBlock* fbranch) {
-  FlagsContinuation cont(kNotEqual, tbranch, fbranch);
-  VisitWordCompareZero(this, branch, branch->InputAt(0), &cont);
-}
-
-void InstructionSelector::VisitDeoptimizeIf(Node* node) {
-  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
-  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
-}
-
-void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
-  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
-  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
-}
-
-void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
-  FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
-  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
-}
-
-void InstructionSelector::VisitTrapUnless(Node* node,
-                                          Runtime::FunctionId func_id) {
-  FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
-  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+  EmitWordCompareZero(this, value, cont);
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
@@ -2216,24 +2196,26 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
   // Emit either ArchTableSwitch or ArchLookupSwitch.
-  static const size_t kMaxTableSwitchValueRange = 2 << 16;
-  size_t table_space_cost = 10 + 2 * sw.value_range;
-  size_t table_time_cost = 3;
-  size_t lookup_space_cost = 2 + 2 * sw.case_count;
-  size_t lookup_time_cost = sw.case_count;
-  if (sw.case_count > 0 &&
-      table_space_cost + 3 * table_time_cost <=
-          lookup_space_cost + 3 * lookup_time_cost &&
-      sw.min_value > std::numeric_limits<int32_t>::min() &&
-      sw.value_range <= kMaxTableSwitchValueRange) {
-    InstructionOperand index_operand = value_operand;
-    if (sw.min_value) {
-      index_operand = g.TempRegister();
-      Emit(kMips64Sub, index_operand, value_operand,
-           g.TempImmediate(sw.min_value));
+  if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
+    static const size_t kMaxTableSwitchValueRange = 2 << 16;
+    size_t table_space_cost = 10 + 2 * sw.value_range;
+    size_t table_time_cost = 3;
+    size_t lookup_space_cost = 2 + 2 * sw.case_count;
+    size_t lookup_time_cost = sw.case_count;
+    if (sw.case_count > 0 &&
+        table_space_cost + 3 * table_time_cost <=
+            lookup_space_cost + 3 * lookup_time_cost &&
+        sw.min_value > std::numeric_limits<int32_t>::min() &&
+        sw.value_range <= kMaxTableSwitchValueRange) {
+      InstructionOperand index_operand = value_operand;
+      if (sw.min_value) {
+        index_operand = g.TempRegister();
+        Emit(kMips64Sub, index_operand, value_operand,
+             g.TempImmediate(sw.min_value));
+      }
+      // Generate a table lookup.
+      return EmitTableSwitch(sw, index_operand);
     }
-    // Generate a table lookup.
-    return EmitTableSwitch(sw, index_operand);
   }
 
   // Generate a sequence of conditional jumps.
@@ -2245,7 +2227,7 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) {
-    return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
+    return VisitWordCompareZero(m.node(), m.left().node(), &cont);
   }
 
   VisitWord32Compare(this, node, &cont);
@@ -2330,7 +2312,7 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int64BinopMatcher m(node);
   if (m.right().Is(0)) {
-    return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
+    return VisitWordCompareZero(m.node(), m.left().node(), &cont);
   }
 
   VisitWord64Compare(this, node, &cont);
@@ -2431,7 +2413,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
-void InstructionSelector::VisitAtomicLoad(Node* node) {
+void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   Mips64OperandGenerator g(this);
   Node* base = node->InputAt(0);
@@ -2439,13 +2421,15 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
-      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
+      opcode =
+          load_rep.IsSigned() ? kWord32AtomicLoadInt8 : kWord32AtomicLoadUint8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
+      opcode = load_rep.IsSigned() ? kWord32AtomicLoadInt16
+                                   : kWord32AtomicLoadUint16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kAtomicLoadWord32;
+      opcode = kWord32AtomicLoadWord32;
       break;
     default:
       UNREACHABLE();
@@ -2464,7 +2448,7 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
   }
 }
 
-void InstructionSelector::VisitAtomicStore(Node* node) {
+void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
   Mips64OperandGenerator g(this);
   Node* base = node->InputAt(0);
@@ -2473,13 +2457,13 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   ArchOpcode opcode = kArchNop;
   switch (rep) {
     case MachineRepresentation::kWord8:
-      opcode = kAtomicStoreWord8;
+      opcode = kWord32AtomicStoreWord8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = kAtomicStoreWord16;
+      opcode = kWord32AtomicStoreWord16;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kAtomicStoreWord32;
+      opcode = kWord32AtomicStoreWord32;
       break;
     default:
       UNREACHABLE();
@@ -2500,7 +2484,7 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   }
 }
 
-void InstructionSelector::VisitAtomicExchange(Node* node) {
+void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   Mips64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -2508,15 +2492,15 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   ArchOpcode opcode = kArchNop;
   MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Int8()) {
-    opcode = kAtomicExchangeInt8;
+    opcode = kWord32AtomicExchangeInt8;
   } else if (type == MachineType::Uint8()) {
-    opcode = kAtomicExchangeUint8;
+    opcode = kWord32AtomicExchangeUint8;
   } else if (type == MachineType::Int16()) {
-    opcode = kAtomicExchangeInt16;
+    opcode = kWord32AtomicExchangeInt16;
   } else if (type == MachineType::Uint16()) {
-    opcode = kAtomicExchangeUint16;
+    opcode = kWord32AtomicExchangeUint16;
   } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = kAtomicExchangeWord32;
+    opcode = kWord32AtomicExchangeWord32;
   } else {
     UNREACHABLE();
     return;
@@ -2538,7 +2522,7 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs, 3, temp);
 }
 
-void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
+void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Mips64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -2547,15 +2531,15 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   ArchOpcode opcode = kArchNop;
   MachineType type = AtomicOpRepresentationOf(node->op());
   if (type == MachineType::Int8()) {
-    opcode = kAtomicCompareExchangeInt8;
+    opcode = kWord32AtomicCompareExchangeInt8;
   } else if (type == MachineType::Uint8()) {
-    opcode = kAtomicCompareExchangeUint8;
+    opcode = kWord32AtomicCompareExchangeUint8;
   } else if (type == MachineType::Int16()) {
-    opcode = kAtomicCompareExchangeInt16;
+    opcode = kWord32AtomicCompareExchangeInt16;
   } else if (type == MachineType::Uint16()) {
-    opcode = kAtomicCompareExchangeUint16;
+    opcode = kWord32AtomicCompareExchangeUint16;
   } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = kAtomicCompareExchangeWord32;
+    opcode = kWord32AtomicCompareExchangeWord32;
   } else {
     UNREACHABLE();
     return;
@@ -2619,11 +2603,12 @@ void InstructionSelector::VisitAtomicBinaryOperation(
   Emit(code, 1, outputs, input_count, inputs, 4, temps);
 }
 
-#define VISIT_ATOMIC_BINOP(op)                                              \
-  void InstructionSelector::VisitAtomic##op(Node* node) {                   \
-    VisitAtomicBinaryOperation(node, kAtomic##op##Int8, kAtomic##op##Uint8, \
-                               kAtomic##op##Int16, kAtomic##op##Uint16,     \
-                               kAtomic##op##Word32);                        \
+#define VISIT_ATOMIC_BINOP(op)                                   \
+  void InstructionSelector::VisitWord32Atomic##op(Node* node) {  \
+    VisitAtomicBinaryOperation(                                  \
+        node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
+        kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
+        kWord32Atomic##op##Word32);                              \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
@@ -2647,12 +2632,6 @@ void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
   V(I32x4)                \
   V(I16x8)                \
   V(I8x16)
-
-// TODO(mostynb@opera.com): this is never used, remove it?
-#define SIMD_FORMAT_LIST(V) \
-  V(32x4)                   \
-  V(16x8)                   \
-  V(8x16)
 
 #define SIMD_UNOP_LIST(V)                                  \
   V(F32x4SConvertI32x4, kMips64F32x4SConvertI32x4)         \
@@ -2921,6 +2900,32 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
        g.UseImmediate(Pack4Lanes(shuffle + 12, mask)));
 }
 
+void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt32(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitSignExtendWord8ToInt64(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Seh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.TempImmediate(0));
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
@@ -2957,10 +2962,12 @@ InstructionSelector::AlignmentRequirements() {
   }
 }
 
+// static
+bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
+
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST
 #undef SIMD_UNOP_LIST
-#undef SIMD_FORMAT_LIST
 #undef SIMD_TYPE_LIST
 #undef TRACE_UNIMPL
 #undef TRACE

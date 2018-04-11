@@ -62,8 +62,8 @@ class MachineRepresentationInferrer {
                           : MachineRepresentation::kBit;
       case IrOpcode::kCall:
       case IrOpcode::kCallWithCallerSavedRegisters: {
-        CallDescriptor const* desc = CallDescriptorOf(input->op());
-        return desc->GetReturnType(index).representation();
+        auto call_descriptor = CallDescriptorOf(input->op());
+        return call_descriptor->GetReturnType(index).representation();
       }
       default:
         return MachineRepresentation::kNone;
@@ -110,7 +110,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kTypedStateValues:
             representation_vector_[node->id()] = MachineRepresentation::kNone;
             break;
-          case IrOpcode::kAtomicLoad:
+          case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kLoad:
           case IrOpcode::kProtectedLoad:
             representation_vector_[node->id()] = PromoteRepresentation(
@@ -119,6 +119,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kLoadStackPointer:
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
+          case IrOpcode::kSpeculationPoison:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -132,27 +133,27 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kCall:
           case IrOpcode::kCallWithCallerSavedRegisters: {
-            CallDescriptor const* desc = CallDescriptorOf(node->op());
-            if (desc->ReturnCount() > 0) {
+            auto call_descriptor = CallDescriptorOf(node->op());
+            if (call_descriptor->ReturnCount() > 0) {
               representation_vector_[node->id()] =
-                  desc->GetReturnType(0).representation();
+                  call_descriptor->GetReturnType(0).representation();
             } else {
               representation_vector_[node->id()] =
                   MachineRepresentation::kTagged;
             }
             break;
           }
-          case IrOpcode::kAtomicStore:
+          case IrOpcode::kWord32AtomicStore:
             representation_vector_[node->id()] =
                 PromoteRepresentation(AtomicStoreRepresentationOf(node->op()));
             break;
-          case IrOpcode::kAtomicExchange:
-          case IrOpcode::kAtomicCompareExchange:
-          case IrOpcode::kAtomicAdd:
-          case IrOpcode::kAtomicSub:
-          case IrOpcode::kAtomicAnd:
-          case IrOpcode::kAtomicOr:
-          case IrOpcode::kAtomicXor:
+          case IrOpcode::kWord32AtomicExchange:
+          case IrOpcode::kWord32AtomicCompareExchange:
+          case IrOpcode::kWord32AtomicAdd:
+          case IrOpcode::kWord32AtomicSub:
+          case IrOpcode::kWord32AtomicAnd:
+          case IrOpcode::kWord32AtomicOr:
+          case IrOpcode::kWord32AtomicXor:
             representation_vector_[node->id()] = PromoteRepresentation(
                 AtomicOpRepresentationOf(node->op()).representation());
             break;
@@ -459,19 +460,19 @@ class MachineRepresentationChecker {
             CheckValueInputIsTagged(node, 0);
             break;
           case IrOpcode::kLoad:
-          case IrOpcode::kAtomicLoad:
+          case IrOpcode::kWord32AtomicLoad:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
             break;
           case IrOpcode::kStore:
-          case IrOpcode::kAtomicStore:
-          case IrOpcode::kAtomicExchange:
-          case IrOpcode::kAtomicAdd:
-          case IrOpcode::kAtomicSub:
-          case IrOpcode::kAtomicAnd:
-          case IrOpcode::kAtomicOr:
-          case IrOpcode::kAtomicXor:
+          case IrOpcode::kWord32AtomicStore:
+          case IrOpcode::kWord32AtomicExchange:
+          case IrOpcode::kWord32AtomicAdd:
+          case IrOpcode::kWord32AtomicSub:
+          case IrOpcode::kWord32AtomicAnd:
+          case IrOpcode::kWord32AtomicOr:
+          case IrOpcode::kWord32AtomicXor:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
@@ -486,7 +487,7 @@ class MachineRepresentationChecker {
                     node, 2, inferrer_->GetRepresentation(node));
             }
             break;
-          case IrOpcode::kAtomicCompareExchange:
+          case IrOpcode::kWord32AtomicCompareExchange:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
@@ -737,15 +738,15 @@ class MachineRepresentationChecker {
   }
 
   void CheckCallInputs(Node const* node) {
-    CallDescriptor const* desc = CallDescriptorOf(node->op());
+    auto call_descriptor = CallDescriptorOf(node->op());
     std::ostringstream str;
     bool should_log_error = false;
-    for (size_t i = 0; i < desc->InputCount(); ++i) {
+    for (size_t i = 0; i < call_descriptor->InputCount(); ++i) {
       Node const* input = node->InputAt(static_cast<int>(i));
       MachineRepresentation const input_type =
           inferrer_->GetRepresentation(input);
       MachineRepresentation const expected_input_type =
-          desc->GetInputType(i).representation();
+          call_descriptor->GetInputType(i).representation();
       if (!IsCompatible(expected_input_type, input_type)) {
         if (!should_log_error) {
           should_log_error = true;

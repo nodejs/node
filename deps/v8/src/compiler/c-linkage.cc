@@ -165,8 +165,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
 
 #ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
-  V8_Fatal(__FILE__, __LINE__,
-           "requested C call descriptor on unsupported architecture");
+  FATAL("requested C call descriptor on unsupported architecture");
   return nullptr;
 #endif
 

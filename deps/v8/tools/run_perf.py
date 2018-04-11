@@ -1116,7 +1116,8 @@ def Main(args):
       # Traverse graph/trace tree and iterate over all runnables.
       for runnable in FlattenRunnables(root, NodeCB):
         runnable_name = "/".join(runnable.graphs)
-        if not runnable_name.startswith(options.filter):
+        if (not runnable_name.startswith(options.filter) and
+            runnable_name + "/" != options.filter):
           continue
         print ">>> Running suite: %s" % runnable_name
 

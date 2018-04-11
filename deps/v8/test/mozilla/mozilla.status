@@ -118,6 +118,10 @@
   # Invalid according to ES2015 syntax. (Details: crbug.com/726625)
   'ecma_3/extensions/regress-368516': [FAIL],
 
+  # Function.prototype.toString revision.
+  # (https://chromium-review.googlesource.com/c/546941#message-5dc0f5efe277388501e8870e39ec70383dfc7db8)
+  'js1_5/Scope/regress-185485': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory
