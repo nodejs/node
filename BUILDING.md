@@ -258,9 +258,9 @@ Prerequisites:
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
-* The [NetWide Assembler](http://www.nasm.us/), for OpenSSL assembler modules
-  if not installed in the default location it needs to be manually added
-  to `PATH`. Build with openssl-no-asm option does not require this.
+* The [NetWide Assembler](http://www.nasm.us/), for OpenSSL assembler modules.
+  If not installed in the default location, it needs to be manually added
+  to `PATH`. Build with `openssl-no-asm` option does not require this.
 * **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
   and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
 
