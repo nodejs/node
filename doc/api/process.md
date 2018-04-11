@@ -1176,13 +1176,13 @@ setTimeout(() => {
 ```
 
 
-## process.initgroups(user, extra_group)
+## process.initgroups(user, extraGroup)
 <!-- YAML
 added: v0.9.4
 -->
 
 * `user` {string|number} The user name or numeric identifier.
-* `extra_group` {string|number} A group name or numeric identifier.
+* `extraGroup` {string|number} A group name or numeric identifier.
 
 The `process.initgroups()` method reads the `/etc/group` file and initializes
 the group access list, using all groups of which the user is a member. This is

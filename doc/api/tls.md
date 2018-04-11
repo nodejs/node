@@ -1366,10 +1366,10 @@ socket.pipe(pair.encrypted);
 can be replaced by:
 
 ```js
-secure_socket = tls.TLSSocket(socket, options);
+secureSocket = tls.TLSSocket(socket, options);
 ```
 
-where `secure_socket` has the same API as `pair.cleartext`.
+where `secureSocket` has the same API as `pair.cleartext`.
 
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
