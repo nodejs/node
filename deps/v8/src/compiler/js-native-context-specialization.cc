@@ -2255,14 +2255,18 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
         jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
     hash = graph()->NewNode(common()->TypeGuard(Type::SignedSmall()), hash,
                             control);
+    hash =
+        graph()->NewNode(simplified()->NumberShiftLeft(), hash,
+                         jsgraph()->Constant(PropertyArray::HashField::kShift));
   } else {
     hash = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForPropertyArrayLengthAndHash()),
         properties, effect, control);
     effect = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
-    hash = graph()->NewNode(simplified()->NumberBitwiseAnd(), hash,
-                            jsgraph()->Constant(JSReceiver::kHashMask));
+    hash =
+        graph()->NewNode(simplified()->NumberBitwiseAnd(), hash,
+                         jsgraph()->Constant(PropertyArray::HashField::kMask));
   }
 
   Node* new_length_and_hash = graph()->NewNode(

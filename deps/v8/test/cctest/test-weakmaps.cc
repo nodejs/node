@@ -191,7 +191,7 @@ TEST(Regress2060a) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
       CHECK(!heap->InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
-      int32_t hash = object->GetOrCreateHash(isolate)->value();
+      int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakmap, key, object, hash);
     }
   }

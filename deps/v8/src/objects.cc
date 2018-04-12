@@ -2301,6 +2301,7 @@ namespace {
 // objects.  This avoids a double lookup in the cases where we know we will
 // add the hash to the JSObject if it does not already exist.
 Object* GetSimpleHash(Object* object) {
+  DisallowHeapAllocation no_gc;
   // The object is either a Smi, a HeapNumber, a name, an odd-ball, a real JS
   // object, or a Harmony proxy.
   if (object->IsSmi()) {
@@ -2333,10 +2334,10 @@ Object* GetSimpleHash(Object* object) {
 }  // namespace
 
 Object* Object::GetHash() {
+  DisallowHeapAllocation no_gc;
   Object* hash = GetSimpleHash(this);
   if (hash->IsSmi()) return hash;
 
-  DisallowHeapAllocation no_gc;
   DCHECK(IsJSReceiver());
   JSReceiver* receiver = JSReceiver::cast(this);
   Isolate* isolate = receiver->GetIsolate();
@@ -2345,10 +2346,12 @@ Object* Object::GetHash() {
 
 // static
 Smi* Object::GetOrCreateHash(Isolate* isolate, Object* key) {
+  DisallowHeapAllocation no_gc;
   return key->GetOrCreateHash(isolate);
 }
 
 Smi* Object::GetOrCreateHash(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
   Object* hash = GetSimpleHash(this);
   if (hash->IsSmi()) return Smi::cast(hash);
 
@@ -6266,26 +6269,27 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
 
 namespace {
 
-Object* SetHashAndUpdateProperties(HeapObject* properties, int masked_hash) {
-  DCHECK_NE(PropertyArray::kNoHashSentinel, masked_hash);
-  DCHECK_EQ(masked_hash & JSReceiver::kHashMask, masked_hash);
+Object* SetHashAndUpdateProperties(HeapObject* properties, int hash) {
+  DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
+  DCHECK(PropertyArray::HashField::is_valid(hash));
 
   if (properties == properties->GetHeap()->empty_fixed_array() ||
       properties == properties->GetHeap()->empty_property_dictionary()) {
-    return Smi::FromInt(masked_hash);
+    return Smi::FromInt(hash);
   }
 
   if (properties->IsPropertyArray()) {
-    PropertyArray::cast(properties)->SetHash(masked_hash);
+    PropertyArray::cast(properties)->SetHash(hash);
     return properties;
   }
 
   DCHECK(properties->IsDictionary());
-  NameDictionary::cast(properties)->SetHash(masked_hash);
+  NameDictionary::cast(properties)->SetHash(hash);
   return properties;
 }
 
 int GetIdentityHashHelper(Isolate* isolate, JSReceiver* object) {
+  DisallowHeapAllocation no_gc;
   Object* properties = object->raw_properties_or_hash();
   if (properties->IsSmi()) {
     return Smi::ToInt(properties);
@@ -6311,17 +6315,19 @@ int GetIdentityHashHelper(Isolate* isolate, JSReceiver* object) {
 }
 }  // namespace
 
-void JSReceiver::SetIdentityHash(int masked_hash) {
-  DCHECK_NE(PropertyArray::kNoHashSentinel, masked_hash);
-  DCHECK_EQ(masked_hash & JSReceiver::kHashMask, masked_hash);
+void JSReceiver::SetIdentityHash(int hash) {
+  DisallowHeapAllocation no_gc;
+  DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
+  DCHECK(PropertyArray::HashField::is_valid(hash));
 
   HeapObject* existing_properties = HeapObject::cast(raw_properties_or_hash());
   Object* new_properties =
-      SetHashAndUpdateProperties(existing_properties, masked_hash);
+      SetHashAndUpdateProperties(existing_properties, hash);
   set_raw_properties_or_hash(new_properties);
 }
 
 void JSReceiver::SetProperties(HeapObject* properties) {
+  DisallowHeapAllocation no_gc;
   Isolate* isolate = properties->GetIsolate();
   int hash = GetIdentityHashHelper(isolate, this);
   Object* new_properties = properties;
@@ -6337,6 +6343,7 @@ void JSReceiver::SetProperties(HeapObject* properties) {
 
 template <typename ProxyType>
 Smi* GetOrCreateIdentityHashHelper(Isolate* isolate, ProxyType* proxy) {
+  DisallowHeapAllocation no_gc;
   Object* maybe_hash = proxy->hash();
   if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
 
@@ -6346,6 +6353,7 @@ Smi* GetOrCreateIdentityHashHelper(Isolate* isolate, ProxyType* proxy) {
 }
 
 Object* JSObject::GetIdentityHash(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
   if (IsJSGlobalProxy()) {
     return JSGlobalProxy::cast(this)->hash();
   }
@@ -6359,6 +6367,7 @@ Object* JSObject::GetIdentityHash(Isolate* isolate) {
 }
 
 Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
   if (IsJSGlobalProxy()) {
     return GetOrCreateIdentityHashHelper(isolate, JSGlobalProxy::cast(this));
   }
@@ -6368,16 +6377,11 @@ Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate) {
     return Smi::cast(hash_obj);
   }
 
-  int masked_hash;
-  // TODO(gsathya): Remove the loop and pass kHashMask directly to
-  // GenerateIdentityHash.
-  do {
-    int hash = isolate->GenerateIdentityHash(Smi::kMaxValue);
-    masked_hash = hash & JSReceiver::kHashMask;
-  } while (masked_hash == PropertyArray::kNoHashSentinel);
+  int hash = isolate->GenerateIdentityHash(PropertyArray::HashField::kMax);
+  DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
 
-  SetIdentityHash(masked_hash);
-  return Smi::FromInt(masked_hash);
+  SetIdentityHash(hash);
+  return Smi::FromInt(hash);
 }
 
 Object* JSProxy::GetIdentityHash() { return hash(); }
