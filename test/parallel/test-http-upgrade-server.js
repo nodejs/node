@@ -121,8 +121,6 @@ function test_upgrade_with_listener() {
 /*-----------------------------------------------
   connection: Upgrade, no listener
 -----------------------------------------------*/
-let test_upgrade_no_listener_ended = false;
-
 function test_upgrade_no_listener() {
   const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
@@ -135,8 +133,9 @@ function test_upgrade_no_listener() {
              '\r\n');
   });
 
-  conn.on('end', function() {
-    test_upgrade_no_listener_ended = true;
+  conn.once('data', (data) => {
+    assert.strictEqual('string', typeof data);
+    assert.strictEqual('HTTP/1.1 200', data.substr(0, 12));
     conn.end();
   });
 
@@ -182,5 +181,4 @@ server.listen(0, function() {
 process.on('exit', function() {
   assert.strictEqual(3, requests_recv);
   assert.strictEqual(3, requests_sent);
-  assert.ok(test_upgrade_no_listener_ended);
 });

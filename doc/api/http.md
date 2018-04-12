@@ -471,8 +471,9 @@ added: v0.1.94
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
-event is not being listened for, clients receiving an upgrade header will have
-their connections closed.
+event is not being listened for and the response status code is 101 Switching
+Protocols, clients receiving an upgrade header will have their connections
+closed.
 
 A client server pair demonstrating how to listen for the `'upgrade'` event.
 
@@ -873,6 +874,11 @@ per connection (in the case of HTTP Keep-Alive connections).
 ### Event: 'upgrade'
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Not listening to this event no longer causes the socket
+                 to be destroyed if a client sends an Upgrade header.
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
@@ -880,9 +886,8 @@ added: v0.1.94
 * `socket` {net.Socket} Network socket between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
-Emitted each time a client requests an HTTP upgrade. If this event is not
-listened for, then clients requesting an upgrade will have their connections
-closed.
+Emitted each time a client requests an HTTP upgrade. Listening to this event
+is optional and clients cannot insist on a protocol change.
 
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
