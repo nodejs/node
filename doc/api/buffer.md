@@ -442,9 +442,9 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 Prior to Node.js 8.0.0, the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created
@@ -530,9 +530,9 @@ console.log(buf);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
 [`buf.fill(fill)`][`buf.fill()`].
@@ -571,9 +571,9 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -615,9 +615,9 @@ added: v5.12.0
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -1058,8 +1058,8 @@ console.log(buf1.compare(buf2, 5, 6, 5));
 // Prints: 1
 ```
 
-A `RangeError` will be thrown if: `targetStart < 0`, `sourceStart < 0`,
-`targetEnd > target.byteLength` or `sourceEnd > source.byteLength`.
+[`ERR_INDEX_OUT_OF_RANGE`] is thrown if `targetStart < 0`, `sourceStart < 0`,
+`targetEnd > target.byteLength`, or `sourceEnd > source.byteLength`.
 
 ### buf.copy(target[, targetStart[, sourceStart[, sourceEnd]]])
 <!-- YAML
@@ -1884,8 +1884,9 @@ added: v5.10.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of unsigned 16-bit integers and swaps the byte-order
-*in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 2.
+Interprets `buf` as an array of unsigned 16-bit integers and swaps the
+byte-order *in-place*. Throws [`ERR_INVALID_BUFFER_SIZE`] if [`buf.length`] is
+not a multiple of 2.
 
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
@@ -1911,8 +1912,9 @@ added: v5.10.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of unsigned 32-bit integers and swaps the byte-order
-*in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 4.
+Interprets `buf` as an array of unsigned 32-bit integers and swaps the
+byte-order *in-place*. Throws [`ERR_INVALID_BUFFER_SIZE`] if [`buf.length`] is
+not a multiple of 4.
 
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
@@ -1938,8 +1940,9 @@ added: v6.3.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of 64-bit numbers and swaps the byte-order *in-place*.
-Throws a `RangeError` if [`buf.length`] is not a multiple of 8.
+Interprets `buf` as an array of 64-bit numbers and swaps the byte-order
+*in-place*. Throws [`ERR_INVALID_BUFFER_SIZE`] if [`buf.length`] is not a
+multiple of 8.
 
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
@@ -2539,9 +2542,9 @@ deprecated: v6.0.0
 
 * `size` {integer} The desired length of the new `SlowBuffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
 contents of a newly created `SlowBuffer` are unknown and may contain sensitive
@@ -2605,8 +2608,10 @@ This value may depend on the JS engine that is being used.
 [`Buffer.from(string)`]: #buffer_class_method_buffer_from_string_encoding
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[`ERR_INDEX_OUT_OF_RANGE`]: errors.html#ERR_INDEX_OUT_OF_RANGE
+[`ERR_INVALID_BUFFER_SIZE`]: errors.html#ERR_INVALID_BUFFER_SIZE
+[`ERR_INVALID_OPT_VALUE`]: errors.html#ERR_INVALID_OPT_VALUE
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`RangeError`]: errors.html#errors_class_rangeerror
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String#lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
