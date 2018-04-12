@@ -937,6 +937,7 @@
         'test/cctest/test_base64.cc',
         'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
+        'test/cctest/test_platform.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc'
       ],

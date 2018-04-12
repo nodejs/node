@@ -26,6 +26,7 @@ class TaskQueue {
   void Push(std::unique_ptr<T> task);
   std::unique_ptr<T> Pop();
   std::unique_ptr<T> BlockingPop();
+  std::queue<std::unique_ptr<T>> PopAll();
   void NotifyOfCompletion();
   void BlockingDrain();
   void Stop();
@@ -66,6 +67,7 @@ class PerIsolatePlatformData :
   int unref();
 
   // Returns true iff work was dispatched or executed.
+  // New tasks that are posted during flushing of the queue are not run.
   bool FlushForegroundTasksInternal();
   void CancelPendingDelayedTasks();
 

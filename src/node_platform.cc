@@ -95,7 +95,7 @@ void PerIsolatePlatformData::PostDelayedTask(
 }
 
 PerIsolatePlatformData::~PerIsolatePlatformData() {
-  FlushForegroundTasksInternal();
+  while (FlushForegroundTasksInternal()) {}
   CancelPendingDelayedTasks();
 
   uv_close(reinterpret_cast<uv_handle_t*>(flush_tasks_),
@@ -223,7 +223,13 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
       });
     });
   }
-  while (std::unique_ptr<Task> task = foreground_tasks_.Pop()) {
+  // Move all foreground tasks into a separate queue and flush that queue.
+  // This way tasks that are posted while flushing the queue will be run on the
+  // next call of FlushForegroundTasksInternal.
+  std::queue<std::unique_ptr<Task>> tasks = foreground_tasks_.PopAll();
+  while (!tasks.empty()) {
+    std::unique_ptr<Task> task = std::move(tasks.front());
+    tasks.pop();
     did_work = true;
     RunForegroundTask(std::move(task));
   }
@@ -346,6 +352,14 @@ void TaskQueue<T>::Stop() {
   Mutex::ScopedLock scoped_lock(lock_);
   stopped_ = true;
   tasks_available_.Broadcast(scoped_lock);
+}
+
+template <class T>
+std::queue<std::unique_ptr<T>> TaskQueue<T>::PopAll() {
+  Mutex::ScopedLock scoped_lock(lock_);
+  std::queue<std::unique_ptr<T>> result;
+  result.swap(task_queue_);
+  return result;
 }
 
 }  // namespace node
