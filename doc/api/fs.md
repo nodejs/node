@@ -363,6 +363,15 @@ added: v0.1.93
 
 Emitted when the `fs.ReadStream`'s file descriptor has been opened.
 
+### Event: 'ready'
+<!-- YAML
+added: v9.11.0
+-->
+
+Emitted when the `fs.ReadStream` is ready to be used.
+
+Fires immediately after `'open'`.
+
 ### readStream.bytesRead
 <!-- YAML
 added: v6.4.0
@@ -677,6 +686,15 @@ added: v0.1.93
 * `fd` {integer} Integer file descriptor used by the `WriteStream`.
 
 Emitted when the `WriteStream`'s file is opened.
+
+### Event: 'ready'
+<!-- YAML
+added: v9.11.0
+-->
+
+Emitted when the `fs.WriteStream` is ready to be used.
+
+Fires immediately after `'open'`.
 
 ### writeStream.bytesWritten
 <!-- YAML

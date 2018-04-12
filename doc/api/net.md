@@ -485,6 +485,15 @@ Not applicable to UNIX sockets.
 * `family` {string|null} The address type. See [`dns.lookup()`][].
 * `host` {string} The hostname.
 
+### Event: 'ready'
+<!-- YAML
+added: v9.11.0
+-->
+
+Emitted when a socket is ready to be used.
+
+Triggered immediately after `'connect'`.
+
 ### Event: 'timeout'
 <!-- YAML
 added: v0.1.90
