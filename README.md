@@ -257,7 +257,7 @@ For more information about the governance of the Node.js project, see
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
 * [ofrobots](https://github.com/ofrobots) -
-**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt;
+**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [targos](https://github.com/targos) -
@@ -443,7 +443,7 @@ For more information about the governance of the Node.js project, see
 * [not-an-aardvark](https://github.com/not-an-aardvark) -
 **Teddy Katz** &lt;teddy.katz@gmail.com&gt;
 * [ofrobots](https://github.com/ofrobots) -
-**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt;
+**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [orangemocha](https://github.com/orangemocha) -
 **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -
