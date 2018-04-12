@@ -825,7 +825,7 @@ active socket in the event system. If the socket is already `unref`d calling
 added: v0.1.90
 -->
 
-* `data` {string|Buffer}
+* `data` {string|Buffer|Uint8Array}
 * `encoding` {string} **Default:** `UTF8`
 * `callback` {Function}
 * Returns: {boolean}
@@ -840,7 +840,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
 
-See Writable stream [`_write()`][stream_writable_write] method for more information.
+See Writable stream [`write()`][stream_writable_write] method for more information.
 
 ## net.connect()
 
@@ -1147,4 +1147,4 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
-[stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback_1
+[stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
