@@ -1524,10 +1524,7 @@ console.log(buf.readDoubleBE(0));
 console.log(buf.readDoubleLE(0));
 // Prints: 5.447603722011605e-270
 console.log(buf.readDoubleLE(1));
-// Throws an exception: RangeError: Index out of range
-console.log(buf.readDoubleLE(1, true));
-// Warning: reads passed end of buffer!
-// This will result in a segmentation fault! Don't do this!
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readFloatBE(offset)
@@ -1556,10 +1553,7 @@ console.log(buf.readFloatBE(0));
 console.log(buf.readFloatLE(0));
 // Prints: 1.539989614439558e-36
 console.log(buf.readFloatLE(1));
-// Throws an exception: RangeError: Index out of range
-console.log(buf.readFloatLE(1, true));
-// Warning: reads passed end of buffer!
-// This will result in a segmentation fault! Don't do this!
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readInt8(offset)
@@ -1587,7 +1581,7 @@ console.log(buf.readInt8(0));
 console.log(buf.readInt8(1));
 // Prints: 5
 console.log(buf.readInt8(2));
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readInt16BE(offset)
@@ -1618,7 +1612,7 @@ console.log(buf.readInt16BE(0));
 console.log(buf.readInt16LE(0));
 // Prints: 1280
 console.log(buf.readInt16LE(1));
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readInt32BE(offset)
@@ -1649,7 +1643,7 @@ console.log(buf.readInt32BE(0));
 console.log(buf.readInt32LE(0));
 // Prints: 83886080
 console.log(buf.readInt32LE(1));
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readIntBE(offset, byteLength)
@@ -1679,9 +1673,9 @@ console.log(buf.readIntLE(0, 6).toString(16));
 console.log(buf.readIntBE(0, 6).toString(16));
 // Prints: 1234567890ab
 console.log(buf.readIntBE(1, 6).toString(16));
-// Throws ERR_INDEX_OUT_OF_RANGE:
+// Throws ERR_INDEX_OUT_OF_RANGE
 console.log(buf.readIntBE(1, 0).toString(16));
-// Throws ERR_OUT_OF_RANGE:
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readUInt8(offset)
@@ -1707,7 +1701,7 @@ console.log(buf.readUInt8(0));
 console.log(buf.readUInt8(1));
 // Prints: 254
 console.log(buf.readUInt8(2));
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readUInt16BE(offset)
@@ -1740,7 +1734,7 @@ console.log(buf.readUInt16BE(1).toString(16));
 console.log(buf.readUInt16LE(1).toString(16));
 // Prints: 5634
 console.log(buf.readUInt16LE(2).toString(16));
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readUInt32BE(offset)
@@ -1769,7 +1763,7 @@ console.log(buf.readUInt32BE(0).toString(16));
 console.log(buf.readUInt32LE(0).toString(16));
 // Prints: 78563412
 console.log(buf.readUInt32LE(1).toString(16));
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.readUIntBE(offset, byteLength)
@@ -1799,7 +1793,7 @@ console.log(buf.readUIntBE(0, 6).toString(16));
 console.log(buf.readUIntLE(0, 6).toString(16));
 // Prints: ab9078563412
 console.log(buf.readUIntBE(1, 6).toString(16));
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_OUT_OF_RANGE
 ```
 
 ### buf.slice([start[, end]])
@@ -1895,7 +1889,7 @@ console.log(buf1);
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 buf2.swap16();
-// Throws an exception: RangeError: Buffer size must be a multiple of 16-bits
+// Throws ERR_INVALID_BUFFER_SIZE
 ```
 
 ### buf.swap32()
@@ -1922,7 +1916,7 @@ console.log(buf1);
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 buf2.swap32();
-// Throws an exception: RangeError: Buffer size must be a multiple of 32-bits
+// Throws ERR_INVALID_BUFFER_SIZE
 ```
 
 ### buf.swap64()
@@ -1949,7 +1943,7 @@ console.log(buf1);
 const buf2 = Buffer.from([0x1, 0x2, 0x3]);
 
 buf2.swap64();
-// Throws an exception: RangeError: Buffer size must be a multiple of 64-bits
+// Throws ERR_INVALID_BUFFER_SIZE
 ```
 
 Note that JavaScript cannot encode 64-bit integers. This method is intended
