@@ -666,7 +666,7 @@ added: v8.9.0
 * Returns: {string[]|null}
 
 Returns an array containing the paths searched during resolution of `request` or
-null if the `request` string references a core module, for example `http` or
+`null` if the `request` string references a core module, for example `http` or
 `fs`.
 
 ## The `module` Object

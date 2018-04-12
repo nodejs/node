@@ -261,7 +261,7 @@ The typical flow of an OCSP Request is as follows:
    listener if registered.
 3. Server extracts the OCSP URL from either the `certificate` or `issuer` and
    performs an [OCSP request] to the CA.
-4. Server receives `OCSPResponse` from the CA and sends it back to the client
+4. Server receives `'OCSPResponse'` from the CA and sends it back to the client
    via the `callback` argument
 5. Client validates the response and either destroys the socket or performs a
    handshake.
@@ -1307,7 +1307,8 @@ deprecated: v0.11.3
 The `'secure'` event is emitted by the `SecurePair` object once a secure
 connection has been established.
 
-As with checking for the server [`secureConnection`](#tls_event_secureconnection)
+As with checking for the server
+[`'secureConnection'`](#tls_event_secureconnection)
 event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 

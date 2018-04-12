@@ -144,7 +144,7 @@ exports.obsoleteFunction = util.deprecate(() => {
 ```
 
 When called, `util.deprecate()` will return a function that will emit a
-`DeprecationWarning` using the `process.on('warning')` event. The warning will
+`DeprecationWarning` using the [`'warning'`][] event. The warning will
 be emitted and printed to `stderr` the first time the returned function is
 called. After the warning is emitted, the wrapped function is called without
 emitting a warning.
@@ -2030,6 +2030,7 @@ deprecated: v0.11.3
 Deprecated predecessor of `console.log`.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
+[`'warning'`]: process.html#process_event_warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView

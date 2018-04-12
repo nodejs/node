@@ -299,7 +299,7 @@ binding.
 
 This also works with timers that are returned from [`setInterval()`][] and
 [`setTimeout()`][]. If their callback function throws, it will be caught by
-the domain 'error' handler.
+the domain `'error'` handler.
 
 If the Timer or EventEmitter was already bound to a domain, it is removed
 from that one, and bound to this one instead.
@@ -334,30 +334,30 @@ d.on('error', (er) => {
 
 ### domain.enter()
 
-The `enter` method is plumbing used by the `run`, `bind`, and `intercept`
-methods to set the active domain. It sets `domain.active` and `process.domain`
-to the domain, and implicitly pushes the domain onto the domain stack managed
-by the domain module (see [`domain.exit()`][] for details on the domain stack).
-The call to `enter` delimits the beginning of a chain of asynchronous calls and
-I/O operations bound to a domain.
+The `enter()` method is plumbing used by the `run()`, `bind()`, and
+`intercept()` methods to set the active domain. It sets `domain.active` and
+`process.domain` to the domain, and implicitly pushes the domain onto the domain
+stack managed by the domain module (see [`domain.exit()`][] for details on the
+domain stack). The call to `enter()` delimits the beginning of a chain of
+asynchronous calls and I/O operations bound to a domain.
 
-Calling `enter` changes only the active domain, and does not alter the domain
-itself. `enter` and `exit` can be called an arbitrary number of times on a
+Calling `enter()` changes only the active domain, and does not alter the domain
+itself. `enter()` and `exit()` can be called an arbitrary number of times on a
 single domain.
 
 ### domain.exit()
 
-The `exit` method exits the current domain, popping it off the domain stack.
+The `exit()` method exits the current domain, popping it off the domain stack.
 Any time execution is going to switch to the context of a different chain of
 asynchronous calls, it's important to ensure that the current domain is exited.
-The call to `exit` delimits either the end of or an interruption to the chain
+The call to `exit()` delimits either the end of or an interruption to the chain
 of asynchronous calls and I/O operations bound to a domain.
 
 If there are multiple, nested domains bound to the current execution context,
-`exit` will exit any domains nested within this domain.
+`exit()` will exit any domains nested within this domain.
 
-Calling `exit` changes only the active domain, and does not alter the domain
-itself. `enter` and `exit` can be called an arbitrary number of times on a
+Calling `exit()` changes only the active domain, and does not alter the domain
+itself. `enter()` and `exit()` can be called an arbitrary number of times on a
 single domain.
 
 ### domain.intercept(callback)
@@ -481,7 +481,7 @@ d2.run(() => {
 ```
 
 Note that domains will not interfere with the error handling mechanisms for
-Promises, i.e. no `error` event will be emitted for unhandled Promise
+Promises, i.e. no `'error'` event will be emitted for unhandled Promise
 rejections.
 
 [`Error`]: errors.html#errors_class_error

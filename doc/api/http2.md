@@ -19,8 +19,8 @@ compatibility with the existing [HTTP/1][] module API. However,
 the [Compatibility API][] is.
 
 The `http2` Core API is much more symmetric between client and server than the
-`http` API. For instance, most events, like `error`, `connect` and `stream`, can
-be emitted either by client-side code or server-side code.
+`http` API. For instance, most events, like `'error'`, `'connect'` and
+`'stream'`, can be emitted either by client-side code or server-side code.
 
 ### Server-side example
 
@@ -463,7 +463,7 @@ If the `payload` argument is not specified, the default payload will be the
 added: v9.4.0
 -->
 
-Calls [`ref()`][`net.Socket.prototype.ref`] on this `Http2Session`
+Calls [`ref()`][`net.Socket.prototype.ref()`] on this `Http2Session`
 instance's underlying [`net.Socket`].
 
 #### http2session.remoteSettings
@@ -571,7 +571,7 @@ client.
 added: v9.4.0
 -->
 
-Calls [`unref()`][`net.Socket.prototype.unref`] on this `Http2Session`
+Calls [`unref()`][`net.Socket.prototype.unref()`] on this `Http2Session`
 instance's underlying [`net.Socket`].
 
 ### Class: ServerHttp2Session
@@ -856,7 +856,7 @@ added: v8.4.0
 -->
 
 The `'timeout'` event is emitted after no activity is received for this
-`'Http2Stream'` within the number of milliseconds set using
+`Http2Stream` within the number of milliseconds set using
 `http2stream.setTimeout()`.
 
 #### Event: 'trailers'
@@ -3158,8 +3158,8 @@ following additional properties:
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Socket`]: net.html#net_class_net_socket
-[`net.Socket.prototype.ref`]: net.html#net_socket_ref
-[`net.Socket.prototype.unref`]: net.html#net_socket_unref
+[`net.Socket.prototype.ref()`]: net.html#net_socket_ref
+[`net.Socket.prototype.unref()`]: net.html#net_socket_unref
 [`net.connect()`]: net.html#net_net_connect
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
