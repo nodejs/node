@@ -68,7 +68,12 @@ server.listen(0, common.mustCall(() => {
     assert.strictEqual(socket.listeners('connect').length, 0);
     assert.strictEqual(socket.listeners('data').length, 0);
     assert.strictEqual(socket.listeners('drain').length, 0);
-    assert.strictEqual(socket.listeners('end').length, 1);
+
+    // the stream.Duplex onend listener
+    // allow 0 here, so that i can run the same test on streams1 impl
+    assert(socket.listenerCount('end') <= 2,
+           `Found ${socket.listenerCount('end')} end listeners`);
+
     assert.strictEqual(socket.listeners('free').length, 0);
     assert.strictEqual(socket.listeners('close').length, 0);
     assert.strictEqual(socket.listeners('error').length, 0);
