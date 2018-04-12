@@ -118,6 +118,7 @@
       'lib/internal/net.js',
       'lib/internal/os.js',
       'lib/internal/process/esm_loader.js',
+      'lib/internal/process/methods.js',
       'lib/internal/process/next_tick.js',
       'lib/internal/process/promises.js',
       'lib/internal/process/stdio.js',
