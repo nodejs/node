@@ -50,6 +50,7 @@ inline AsyncWrap::AsyncScope::AsyncScope(AsyncWrap* wrap)
   Environment* env = wrap->env();
   if (env->async_hooks()->fields()[Environment::AsyncHooks::kBefore] == 0)
     return;
+  v8::HandleScope handle_scope(env->isolate());
   EmitBefore(env, wrap->get_async_id());
 }
 
@@ -57,6 +58,7 @@ inline AsyncWrap::AsyncScope::~AsyncScope() {
   Environment* env = wrap_->env();
   if (env->async_hooks()->fields()[Environment::AsyncHooks::kAfter] == 0)
     return;
+  v8::HandleScope handle_scope(env->isolate());
   EmitAfter(env, wrap_->get_async_id());
 }
 
