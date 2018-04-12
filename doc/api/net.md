@@ -826,7 +826,7 @@ added: v0.1.90
 -->
 
 * `data` {string|Buffer|Uint8Array}
-* `encoding` {string} **Default:** `utf8`. Only used when data is `string`
+* `encoding` {string} Only used when data is `string`. **Default:** `utf8`. 
 * `callback` {Function}
 * Returns: {boolean}
 
@@ -840,7 +840,8 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
 
-See Writable stream [`write()`][stream_writable_write] method for more information.
+See Writable stream [`write()`][stream_writable_write] method for more 
+information.
 
 ## net.connect()
 
