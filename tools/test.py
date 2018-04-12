@@ -582,8 +582,7 @@ class TestOutput(object):
       # Timed out tests will have exit_code -signal.SIGTERM.
       if self.output.timed_out:
         return False
-      return self.output.exit_code < 0 and \
-             self.output.exit_code != -signal.SIGABRT
+      return self.output.exit_code < 0
 
   def HasTimedOut(self):
     return self.output.timed_out;
