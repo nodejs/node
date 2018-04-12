@@ -84,6 +84,13 @@ const clientsOptions = [{
 const serverResults = [];
 const clientResults = [];
 
+// check for throwing case where servername is not supplied
+common.expectsError(tls.createServer(serverOptions, () => {}).addContext, {
+  type: TypeError,
+  code: 'ERR_TLS_REQUIRED_SERVER_NAME',
+  message: '"servername" is a required parameter'
+});
+
 const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.servername);
 });
