@@ -82,6 +82,7 @@
       'lib/zlib.js',
       'lib/internal/async_hooks.js',
       'lib/internal/buffer.js',
+      'lib/internal/cli_table.js',
       'lib/internal/child_process.js',
       'lib/internal/cluster/child.js',
       'lib/internal/cluster/master.js',
