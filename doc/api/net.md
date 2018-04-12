@@ -825,6 +825,10 @@ active socket in the event system. If the socket is already `unref`d calling
 added: v0.1.90
 -->
 
+
+* `data` {string|Buffer}
+* `encoding` {string} **Default:** `UTF8`
+* `callback` {Function}
 * Returns: {boolean}
 
 Sends data on the socket. The second parameter specifies the encoding in the
