@@ -1597,6 +1597,11 @@ A string that contained unescaped characters was received.
 An unhandled error occurred (for instance, when an `'error'` event is emitted
 by an [`EventEmitter`][] but an `'error'` handler is not registered).
 
+<a id="ERR_UNKNOWN_CREDENTIAL"></a>
+### ERR_UNKNOWN_CREDENTIAL
+
+A Unix group or user identifier that does not exist was passed.
+
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING
 

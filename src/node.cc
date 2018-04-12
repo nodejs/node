@@ -164,6 +164,7 @@ using v8::ScriptOrigin;
 using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
+using v8::Uint32;
 using v8::Uint32Array;
 using v8::Undefined;
 using v8::V8;
@@ -1580,10 +1581,8 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() != 1 || !args[0]->IsString()) {
-    return env->ThrowTypeError("Bad argument.");
-  }
-
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
   node::Utf8Value path(args.GetIsolate(), args[0]);
   int err = uv_chdir(*path);
   if (err) {
@@ -1616,32 +1615,16 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
 
 
 static void Umask(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   uint32_t old;
 
-  if (args.Length() < 1 || args[0]->IsUndefined()) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsUndefined() || args[0]->IsUint32());
+
+  if (args[0]->IsUndefined()) {
     old = umask(0);
     umask(static_cast<mode_t>(old));
-  } else if (!args[0]->IsInt32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("argument must be an integer or octal string.");
   } else {
-    int oct;
-    if (args[0]->IsInt32()) {
-      oct = args[0]->Uint32Value();
-    } else {
-      oct = 0;
-      node::Utf8Value str(env->isolate(), args[0]);
-
-      // Parse the octal string.
-      for (size_t i = 0; i < str.length(); i++) {
-        char c = (*str)[i];
-        if (c > '7' || c < '0') {
-          return env->ThrowTypeError("invalid octal string");
-        }
-        oct *= 8;
-        oct += c - '0';
-      }
-    }
+    int oct = args[0].As<Uint32>()->Value();
     old = umask(static_cast<mode_t>(oct));
   }
 
@@ -1779,18 +1762,18 @@ static void GetEGid(const FunctionCallbackInfo<Value>& args) {
 static void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("setgid argument must be a number or a string");
-  }
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsUint32() || args[0]->IsString());
 
   gid_t gid = gid_by_name(env->isolate(), args[0]);
 
   if (gid == gid_not_found) {
-    return env->ThrowError("setgid group id does not exist");
-  }
-
-  if (setgid(gid)) {
-    return env->ThrowErrnoException(errno, "setgid");
+    // Tells JS to throw ERR_INVALID_CREDENTIAL
+    args.GetReturnValue().Set(1);
+  } else if (setgid(gid)) {
+    env->ThrowErrnoException(errno, "setgid");
+  } else {
+    args.GetReturnValue().Set(0);
   }
 }
 
@@ -1798,18 +1781,18 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 static void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("setegid argument must be a number or string");
-  }
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsUint32() || args[0]->IsString());
 
   gid_t gid = gid_by_name(env->isolate(), args[0]);
 
   if (gid == gid_not_found) {
-    return env->ThrowError("setegid group id does not exist");
-  }
-
-  if (setegid(gid)) {
-    return env->ThrowErrnoException(errno, "setegid");
+    // Tells JS to throw ERR_INVALID_CREDENTIAL
+    args.GetReturnValue().Set(1);
+  } else if (setegid(gid)) {
+    env->ThrowErrnoException(errno, "setegid");
+  } else {
+    args.GetReturnValue().Set(0);
   }
 }
 
@@ -1817,18 +1800,18 @@ static void SetEGid(const FunctionCallbackInfo<Value>& args) {
 static void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("setuid argument must be a number or a string");
-  }
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsUint32() || args[0]->IsString());
 
   uid_t uid = uid_by_name(env->isolate(), args[0]);
 
   if (uid == uid_not_found) {
-    return env->ThrowError("setuid user id does not exist");
-  }
-
-  if (setuid(uid)) {
-    return env->ThrowErrnoException(errno, "setuid");
+    // Tells JS to throw ERR_INVALID_CREDENTIAL
+    args.GetReturnValue().Set(1);
+  } else if (setuid(uid)) {
+    env->ThrowErrnoException(errno, "setuid");
+  } else {
+    args.GetReturnValue().Set(0);
   }
 }
 
@@ -1836,18 +1819,18 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 static void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("seteuid argument must be a number or string");
-  }
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsUint32() || args[0]->IsString());
 
   uid_t uid = uid_by_name(env->isolate(), args[0]);
 
   if (uid == uid_not_found) {
-    return env->ThrowError("seteuid user id does not exist");
-  }
-
-  if (seteuid(uid)) {
-    return env->ThrowErrnoException(errno, "seteuid");
+    // Tells JS to throw ERR_INVALID_CREDENTIAL
+    args.GetReturnValue().Set(1);
+  } else if (seteuid(uid)) {
+    env->ThrowErrnoException(errno, "seteuid");
+  } else {
+    args.GetReturnValue().Set(0);
   }
 }
 
@@ -1893,9 +1876,8 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
 static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsArray()) {
-    return env->ThrowTypeError("argument 1 must be an array");
-  }
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsArray());
 
   Local<Array> groups_list = args[0].As<Array>();
   size_t size = groups_list->Length();
@@ -1906,7 +1888,9 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
 
     if (gid == gid_not_found) {
       delete[] groups;
-      return env->ThrowError("group name not found");
+      // Tells JS to throw ERR_INVALID_CREDENTIAL
+      args.GetReturnValue().Set(static_cast<uint32_t>(i + 1));
+      return;
     }
 
     groups[i] = gid;
@@ -1918,19 +1902,17 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   if (rc == -1) {
     return env->ThrowErrnoException(errno, "setgroups");
   }
+
+  args.GetReturnValue().Set(0);
 }
 
 
 static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsUint32() && !args[0]->IsString()) {
-    return env->ThrowTypeError("argument 1 must be a number or a string");
-  }
-
-  if (!args[1]->IsUint32() && !args[1]->IsString()) {
-    return env->ThrowTypeError("argument 2 must be a number or a string");
-  }
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsUint32() || args[0]->IsString());
+  CHECK(args[1]->IsUint32() || args[1]->IsString());
 
   node::Utf8Value arg0(env->isolate(), args[0]);
   gid_t extra_group;
@@ -1946,7 +1928,8 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (user == nullptr) {
-    return env->ThrowError("initgroups user not found");
+    // Tells JS to throw ERR_INVALID_CREDENTIAL
+    return args.GetReturnValue().Set(1);
   }
 
   extra_group = gid_by_name(env->isolate(), args[1]);
@@ -1954,7 +1937,8 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   if (extra_group == gid_not_found) {
     if (must_free)
       free(user);
-    return env->ThrowError("initgroups extra group not found");
+    // Tells JS to throw ERR_INVALID_CREDENTIAL
+    return args.GetReturnValue().Set(2);
   }
 
   int rc = initgroups(user, extra_group);
@@ -1966,6 +1950,8 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   if (rc) {
     return env->ThrowErrnoException(errno, "initgroups");
   }
+
+  args.GetReturnValue().Set(0);
 }
 
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
