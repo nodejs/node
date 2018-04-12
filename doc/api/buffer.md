@@ -6,9 +6,8 @@
 
 Prior to the introduction of [`TypedArray`], the JavaScript language had no
 mechanism for reading or manipulating streams of binary data. The `Buffer` class
-was introduced as part of the Node.js API to make it possible to interact with
-octet streams in the context of things like TCP streams and file system
-operations.
+was introduced as part of the Node.js API to enable interaction with octet
+streams in TCP streams, file system operations, and other contexts.
 
 With [`TypedArray`] now available, the `Buffer` class implements the
 [`Uint8Array`] API in a manner that is more optimized and suitable for Node.js.
@@ -195,11 +194,11 @@ The character encodings currently supported by Node.js include:
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
 *Note*: Today's browsers follow the [WHATWG Encoding Standard][] which aliases
-both 'latin1' and ISO-8859-1 to win-1252. This means that while doing something
-like `http.get()`, if the returned charset is one of those listed in the WHATWG
-specification it is possible that the server actually returned
-win-1252-encoded data, and using `'latin1'` encoding may incorrectly decode the
-characters.
+both `'latin1'` and `'ISO-8859-1'` to `'win-1252'`. This means that while doing
+something like `http.get()`, if the returned charset is one of those listed in
+the WHATWG specification it is possible that the server actually returned
+`'win-1252'`-encoded data, and using `'latin1'` encoding may incorrectly decode
+the characters.
 
 ## Buffers and TypedArray
 <!-- YAML
@@ -338,7 +337,7 @@ Example:
 const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
-### new Buffer(arrayBuffer[, byteOffset [, length]])
+### new Buffer(arrayBuffer[, byteOffset[, length]])
 <!-- YAML
 added: v3.0.0
 deprecated: v6.0.0
@@ -407,7 +406,8 @@ changes:
 
 > Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
 
-* `buffer` {Buffer} An existing `Buffer` to copy data from.
+* `buffer` {Buffer|Uint8Array} An existing `Buffer` or [`Uint8Array`] from which
+  to copy data.
 
 Copies the passed `buffer` data onto a new `Buffer` instance.
 
@@ -862,7 +862,8 @@ A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`] or a
 added: v5.10.0
 -->
 
-* `buffer` {Buffer} An existing `Buffer` to copy data from.
+* `buffer` {Buffer|Uint8Array} An existing `Buffer` or [`Uint8Array`] from which
+  to copy data.
 
 Copies the passed `buffer` data onto a new `Buffer` instance.
 
@@ -1983,7 +1984,7 @@ added: v5.10.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of unsigned 16-bit integers and swaps the byte-order
+Interprets `buf` as an array of unsigned 16-bit integers and swaps the byte order
 *in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 2.
 
 Examples:
@@ -2013,7 +2014,7 @@ added: v5.10.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of unsigned 32-bit integers and swaps the byte-order
+Interprets `buf` as an array of unsigned 32-bit integers and swaps the byte order
 *in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 4.
 
 Examples:
@@ -2043,7 +2044,7 @@ added: v6.3.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of 64-bit numbers and swaps the byte-order *in-place*.
+Interprets `buf` as an array of 64-bit numbers and swaps the byte order *in-place*.
 Throws a `RangeError` if [`buf.length`] is not a multiple of 8.
 
 Examples:
