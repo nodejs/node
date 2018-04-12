@@ -70,12 +70,12 @@ dns.setServers(goog);
 assert.deepStrictEqual(dns.getServers(), goog);
 common.expectsError(() => dns.setServers(['foobar']), {
   code: 'ERR_INVALID_IP_ADDRESS',
-  type: Error,
+  type: TypeError,
   message: 'Invalid IP address: foobar'
 });
 common.expectsError(() => dns.setServers(['127.0.0.1:va']), {
   code: 'ERR_INVALID_IP_ADDRESS',
-  type: Error,
+  type: TypeError,
   message: 'Invalid IP address: 127.0.0.1:va'
 });
 assert.deepStrictEqual(dns.getServers(), goog);
