@@ -386,8 +386,9 @@ Awaits the `block` promise or, if `block` is a function, immediately call the
 function and await the returned promise to complete. It will then check that the
 promise is not rejected.
 
-If `block` is a function and it throws synchronously, that error will be
-rejected directly without checking the `error` handler.
+If `block` is a function and it throws an error synchronously,
+`assert.doesNotReject()` will return a rejected Promise with that error without
+checking the error handler.
 
 Please note: Using `assert.doesNotReject()` is actually not useful because there
 is little benefit by catching a rejection and then rejecting it again. Instead,
@@ -927,8 +928,9 @@ Awaits the `block` promise or, if `block` is a function, immediately call the
 function and await the returned promise to complete. It will then check that the
 promise is rejected.
 
-If `block` is a function and it throws synchronously, that error will be
-rejected directly without checking the `error` handler.
+If `block` is a function and it throws an error synchronously,
+`assert.rejects()` will return a rejected Promise with that error without
+checking the error handler.
 
 Besides the async nature to await the completion behaves identically to
 [`assert.throws()`][].
