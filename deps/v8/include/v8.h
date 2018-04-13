@@ -2345,6 +2345,11 @@ class V8_EXPORT Value : public Data {
 
   bool IsWebAssemblyCompiledModule() const;
 
+  /**
+   * Returns true if the value is a Module Namespace Object.
+   */
+  bool IsModuleNamespaceObject() const;
+
   V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<Number> ToNumber(
