@@ -9,7 +9,6 @@ const TIMEOUT = common.platformTimeout(100);
 const hooks = initHooks();
 hooks.enable();
 
-// install first timeout
 setInterval(common.mustCall(ontimeout), TIMEOUT);
 const as = hooks.activitiesOfTypes('Timeout');
 assert.strictEqual(as.length, 1);
@@ -25,8 +24,8 @@ function ontimeout() {
   throw new Error('setInterval Error');
 }
 
-process.on('uncaughtException', common.mustCall((err) => {
-  assert(err.message, 'setInterval Error');
+process.once('uncaughtException', common.mustCall((err) => {
+  assert.strictEqual(err.message, 'setInterval Error');
 }));
 
 process.on('exit', () => {
