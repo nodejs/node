@@ -213,7 +213,7 @@ us a report nonetheless.
 
 - [#5507](https://github.com/nodejs/node/pull/5507): _Fix a defect that makes
   the CacheBleed Attack possible_. Many, though not all, OpenSSL vulnerabilities
-  in the TLS/SSL protocols also effect Node.js.
+  in the TLS/SSL protocols also affect Node.js.
 
 - [CVE-2016-2216](https://nodejs.org/en/blog/vulnerability/february-2016-security-releases/):
   _Fix defects in HTTP header parsing for requests and responses that can allow
