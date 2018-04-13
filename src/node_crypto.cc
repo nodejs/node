@@ -68,7 +68,6 @@ using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
-using v8::False;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -1397,7 +1396,7 @@ void SecureContext::SetPskIdentity(const FunctionCallbackInfo<Value>& args) {
     return wrap->env()->ThrowTypeError("Argument must be a string");
   }
 
-  String::Utf8Value identity(args[0]);
+  String::Utf8Value identity(args.GetIsolate(), args[0]);
   if (!SSL_CTX_use_psk_identity_hint(wrap->ctx_, *identity)) {
     return wrap->env()->ThrowError("Failed to set PSK identity hint");
   }
@@ -1559,7 +1558,7 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
 
   Local<String> identity_str = identity_val.As<String>();
   size_t identity_len = identity_str->Length();
-  String::Utf8Value identity_buf(identity_str);
+  String::Utf8Value identity_buf(isolate, identity_str);
 
   CHECK_LE(identity_len, max_identity_len);
   memcpy(identity, *identity_buf, identity_len);

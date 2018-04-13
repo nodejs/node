@@ -920,7 +920,8 @@ changes:
     `ciphers` option. Additionally, it may be necessary to disable
     `rejectUnauthorized` if a client attempts to specify a certificate for the
     session.
-    * *Note*: `psk` must be a hexadecimal string, `identity` must use UTF-8 encoding.
+    * *Note*: `psk` must be a hexadecimal string,
+    `identity` must use UTF-8 encoding.
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
@@ -1211,7 +1212,8 @@ changes:
     a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
     session tickets on multiple instances of the TLS server.
   * ...: Any [`tls.createSecureContext()`][] options can be provided. For
-    servers, the identity options (`pfx`, `key`/`cert` or `pskCallback`) are usually required.
+    servers, the identity options (`pfx`, `key`/`cert` or `pskCallback`)
+    are usually required.
 * `secureConnectionListener` {Function}
 
 Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
@@ -1369,20 +1371,6 @@ changes:
   certificate from a connecting client. Only applies when `isServer` is `true`.
 * `rejectUnauthorized` {boolean} If not `false` a server automatically reject
   clients with invalid certificates. Only applies when `isServer` is `true`.
-* `pskCallback(hint)` {Function} When negotiating TLS-PSK, this optional
-   function is called with the identity hint provided by the server. If the
-   client should continue to negotiate PSK ciphers, the return value of this
-   function must be an object in the form `{psk: <string>, identity:
-   <string>}`.
-   * *Note*: PSK ciphers are disabled by default, and using
-   TLS-PSK thus requires explicitly specifying a cipher suite with the
-   `ciphers` option. Additionally, it may be necessary to disable
-   `rejectUnauthorized` if a client attempts to specify a certificate for the
-   session.
-   * *Note*: `psk` must be a hexadecimal string.
-* `pskIdentityHint`: {string} The identity hint to send to clients when
-  negotiating TLS-PSK.
-  * *Note*: Must use UTF-8 encoding.
 * `options`
   * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
   * `isServer`: If `true` the TLS socket will be instantiated in server-mode.

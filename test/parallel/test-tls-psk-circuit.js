@@ -87,12 +87,16 @@ function startTest(port) {
   doTestCase(0);
 }
 
+const DISCONNECT_MESSAGE =
+  'Client network socket disconnected before ' +
+  'secure TLS connection was established';
+
 process.on('exit', () => {
   assert.deepStrictEqual(clientResults, [
     'connect',
     'connect',
-    'Client network socket disconnected before secure TLS connection was established',
-    'Client network socket disconnected before secure TLS connection was established',
+    DISCONNECT_MESSAGE,
+    DISCONNECT_MESSAGE,
     'connect'
   ]);
   assert.deepStrictEqual(connectingIds, [
