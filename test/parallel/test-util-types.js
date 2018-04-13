@@ -5,8 +5,6 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { types, inspect } = require('util');
-const path = require('path');
-const fs = require('fs');
 const vm = require('vm');
 const { JSStream } = process.binding('js_stream');
 
@@ -127,39 +125,4 @@ for (const [ value, _method ] of [
     console.log('Testing', testedFunc);
     assert.deepStrictEqual(yup, expected[testedFunc]);
   }
-}
-
-
-// Try reading the v8.h header to verify completeness.
-
-let v8_h;
-try {
-  v8_h = fs.readFileSync(path.resolve(
-    __dirname, '..', '..', 'deps', 'v8', 'include', 'v8.h'), 'utf8');
-} catch (e) {
-  // If loading the header fails, it should fail because we did not find it.
-  assert.strictEqual(e.code, 'ENOENT');
-  common.skip('Could not read v8.h');
-  return;
-}
-
-// Exclude a number of checks that make sense on the C++ side but have
-// much faster/better JS equivalents, so they should not be exposed.
-const exclude = [
-  'Undefined', 'Null', 'NullOrUndefined', 'True', 'False', 'Name', 'String',
-  'Symbol', 'Function', 'Array', 'Object', 'Boolean', 'Number', 'Int32',
-  'Uint32'
-];
-
-const start = v8_h.indexOf('Value : public Data');
-const end = v8_h.indexOf('};', start);
-const valueDefinition = v8_h.substr(start, end - start);
-
-const re = /bool Is(\w+)\(\)/g;
-let match;
-while (match = re.exec(valueDefinition)) {
-  if (exclude.includes(match[1]))
-    continue;
-  assert(`is${match[1]}` in types,
-         `util.types should provide check for Is${match[1]}`);
 }
