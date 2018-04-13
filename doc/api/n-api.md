@@ -541,7 +541,7 @@ This API can be called even if there is a pending JavaScript exception.
 
 #### napi_fatal_exception
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_fatal_exception(napi_env env, napi_value err);
@@ -560,7 +560,7 @@ thrown to immediately terminate the process.
 
 #### napi_fatal_error
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 NAPI_NO_RETURN void napi_fatal_error(const char* location,
@@ -1383,7 +1383,7 @@ of the ECMAScript Language Specification.
 
 #### napi_create_dataview
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 
 ```C
@@ -1417,7 +1417,7 @@ JavaScript DataView Objects are described in
 ### Functions to convert from C types to N-API
 #### napi_create_int32
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_create_int32(napi_env env, int32_t value, napi_value* result)
@@ -1438,7 +1438,7 @@ of the ECMAScript Language Specification.
 
 #### napi_create_uint32
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_create_uint32(napi_env env, uint32_t value, napi_value* result)
@@ -1459,7 +1459,7 @@ of the ECMAScript Language Specification.
 
 #### napi_create_int64
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_create_int64(napi_env env, int64_t value, napi_value* result)
@@ -1486,7 +1486,7 @@ outside the range of
 
 #### napi_create_double
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_create_double(napi_env env, double value, napi_value* result)
@@ -1706,7 +1706,7 @@ is managed by the VM
 
 #### napi_get_dataview_info
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 
 ```C
@@ -2239,7 +2239,7 @@ This API checks if the Object passed in is a typed array.
 
 ### napi_is_dataview
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 
 ```C
@@ -2573,7 +2573,7 @@ This API checks if the Object passed in has the named property.
 
 #### napi_delete_property
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_delete_property(napi_env env,
@@ -2595,7 +2595,7 @@ This API attempts to delete the `key` own property from `object`.
 
 #### napi_has_own_property
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_has_own_property(napi_env env,
@@ -2742,7 +2742,7 @@ requested index.
 
 #### napi_delete_element
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_delete_element(napi_env env,
@@ -2970,7 +2970,7 @@ call like the arguments and the `this` pointer from a given callback info.
 
 ### napi_get_new_target
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_get_new_target(napi_env env,
@@ -3224,7 +3224,7 @@ then by calling `napi_unwrap()` on the wrapper object.
 
 ### napi_remove_wrap
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_remove_wrap(napi_env env,
@@ -3296,7 +3296,7 @@ callback invocation, even when it was cancelled.
 <!-- YAML
 added: v8.0.0
 changes:
-  - version: REPLACEME
+  - version: v6.14.2
     pr-url: https://github.com/nodejs/node/pull/14697
     description: Added `async_resource` and `async_resource_name` parameters.
 -->
@@ -3406,7 +3406,7 @@ the runtime.
 
 ### napi_async_init
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_async_init(napi_env env,
@@ -3427,7 +3427,7 @@ Returns `napi_ok` if the API succeeded.
 
 ### napi_async_destroy
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_async_destroy(napi_env env,
@@ -3445,7 +3445,7 @@ This API can be called even if there is a pending JavaScript exception.
 <!-- YAML
 added: v8.0.0
 changes:
-  - version: REPLACEME
+  - version: v6.14.2
     description: Added `async_context` parameter.
 -->
 ```C
@@ -3489,7 +3489,7 @@ may be required when implementing custom async behavior that does not use
 
 ### *napi_open_callback_scope*
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
@@ -3514,7 +3514,7 @@ the required scope.
 
 ### *napi_close_callback_scope*
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
@@ -3529,7 +3529,7 @@ This API can be called even if there is a pending JavaScript exception.
 
 ### napi_get_node_version
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 
 ```C
@@ -3557,7 +3557,7 @@ The returned buffer is statically allocated and does not need to be freed.
 
 ### napi_get_version
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_get_version(napi_env env,
@@ -3587,7 +3587,7 @@ support it:
 
 ### napi_adjust_external_memory
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
@@ -3666,7 +3666,7 @@ deferred = NULL;
 
 ### napi_create_promise
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_create_promise(napi_env env,
@@ -3686,7 +3686,7 @@ This API creates a deferred object and a JavaScript promise.
 
 ### napi_resolve_deferred
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_resolve_deferred(napi_env env,
@@ -3709,7 +3709,7 @@ The deferred object is freed upon successful completion.
 
 ### napi_reject_deferred
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_reject_deferred(napi_env env,
@@ -3732,7 +3732,7 @@ The deferred object is freed upon successful completion.
 
 ### napi_is_promise
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 napi_status napi_is_promise(napi_env env,
@@ -3752,7 +3752,7 @@ underlying JavaScript engine.
 
 ### napi_run_script
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 NAPI_EXTERN napi_status napi_run_script(napi_env env,
@@ -3771,7 +3771,7 @@ a specific `napi_env`.
 
 ### napi_get_uv_event_loop
 <!-- YAML
-added: REPLACEME
+added: v6.14.2
 -->
 ```C
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
