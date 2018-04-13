@@ -3583,6 +3583,10 @@ bool Value::IsSetIterator() const {
 
 bool Value::IsPromise() const { return Utils::OpenHandle(this)->IsJSPromise(); }
 
+bool Value::IsModuleNamespaceObject() const {
+  return Utils::OpenHandle(this)->IsJSModuleNamespace();
+}
+
 MaybeLocal<String> Value::ToString(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsString()) return ToApiHandle<String>(obj);
