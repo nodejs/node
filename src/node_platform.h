@@ -67,7 +67,8 @@ class PerIsolatePlatformData :
   int unref();
 
   // Returns true iff work was dispatched or executed.
-  // New tasks that are posted during flushing of the queue are not run.
+  // New tasks that are posted during flushing of the queue are postponed until
+  // the next flushing.
   bool FlushForegroundTasksInternal();
   void CancelPendingDelayedTasks();
 
