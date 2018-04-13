@@ -179,13 +179,38 @@ function testFtruncate(cb) {
   process.on('exit', () => fs.closeSync(fd));
 
   ['', false, null, {}, []].forEach((input) => {
-    assert.throws(
+    common.expectsError(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError [ERR_INVALID_ARG_TYPE]',
         message: 'The "len" argument must be of type number. ' +
                  `Received type ${typeof input}`
+      }
+    );
+  });
+
+  [-1.5, 1.5].forEach((input) => {
+    common.expectsError(
+      () => fs.ftruncate(fd, input),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "len" is out of range. It must be ' +
+                  `an integer. Received ${input}`
+      }
+    );
+  });
+
+  // 2 ** 31 = 2147483648
+  [2147483648, -2147483649].forEach((input) => {
+    common.expectsError(
+      () => fs.ftruncate(fd, input),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "len" is out of range. It must be ' +
+                  `> -2147483649 && < 2147483648. Received ${input}`
       }
     );
   });
@@ -209,7 +234,7 @@ function testFtruncate(cb) {
 
 ['', false, null, undefined, {}, []].forEach((input) => {
   ['ftruncate', 'ftruncateSync'].forEach((fnName) => {
-    assert.throws(
+    common.expectsError(
       () => fs[fnName](input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
