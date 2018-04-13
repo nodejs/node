@@ -1380,7 +1380,7 @@ changes:
    `rejectUnauthorized` if a client attempts to specify a certificate for the
    session.
    * *Note*: `psk` must be a hexadecimal string.
-* `pskIdentity`: {string} The identity hint to send to clients when
+* `pskIdentityHint`: {string} The identity hint to send to clients when
   negotiating TLS-PSK.
   * *Note*: Must use UTF-8 encoding.
 * `options`
