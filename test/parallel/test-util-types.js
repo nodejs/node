@@ -1,3 +1,4 @@
+// Flags: --experimental-vm-modules
 /* global SharedArrayBuffer */
 'use strict';
 const common = require('../common');
@@ -123,3 +124,11 @@ for (const [ value, _method ] of [
     assert.deepStrictEqual(yup, expected[testedFunc]);
   }
 }
+
+(async () => {
+  const m = new vm.Module('');
+  await m.link(() => 0);
+  m.instantiate();
+  await m.evaluate();
+  assert.ok(types.isModuleNamespaceObject(m.namespace));
+})();
