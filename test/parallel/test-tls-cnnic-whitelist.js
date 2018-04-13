@@ -14,22 +14,6 @@ function loadPEM(n) {
 }
 
 const testCases = [
-  { // Test 0: for the check of a cert not in the whitelist.
-    // agent7-cert.pem is issued by the fake CNNIC root CA so that its
-    // hash is not listed in the whitelist.
-    // fake-cnnic-root-cert has the same subject name as the original
-    // rootCA.
-    serverOpts: {
-      key: loadPEM('agent7-key'),
-      cert: loadPEM('agent7-cert')
-    },
-    clientOpts: {
-      port: undefined,
-      rejectUnauthorized: true,
-      ca: [loadPEM('fake-cnnic-root-cert')]
-    },
-    errorCode: 'CERT_HAS_EXPIRED'
-  },
   // Test 1: for the fix of node#2061
   // agent6-cert.pem is signed by intermediate cert of ca3.
   // The server has a cert chain of agent6->ca3->ca1(root) but
