@@ -360,6 +360,7 @@ class CipherBase : public BaseObject {
     kErrorMessageSize,
     kErrorState
   };
+  static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
   void Init(const char* cipher_type,
             const char* key_buf,
@@ -399,7 +400,7 @@ class CipherBase : public BaseObject {
         ctx_(nullptr),
         kind_(kind),
         auth_tag_set_(false),
-        auth_tag_len_(0),
+        auth_tag_len_(kNoAuthTagLength),
         pending_auth_failed_(false) {
     MakeWeak();
   }
