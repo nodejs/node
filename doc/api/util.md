@@ -182,9 +182,6 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/17907
-    description: The `%o` specifiers `depth` option is now set to Infinity.
   - version: v8.4.0
     pr-url: https://github.com/nodejs/node/pull/14558
     description: The `%o` and `%O` specifiers are supported now.
