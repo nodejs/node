@@ -44,9 +44,9 @@
 #include "StartComAndWoSignData.inc"
 
 #include <algorithm>
+#include <cmath>
 #include <errno.h>
 #include <limits.h>  // INT_MAX
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
@@ -5623,7 +5623,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   }
 
   raw_keylen = args[3]->NumberValue();
-  if (raw_keylen < 0.0 || isnan(raw_keylen) || isinf(raw_keylen) ||
+  if (raw_keylen < 0.0 || std::isnan(raw_keylen) || std::isinf(raw_keylen) ||
       raw_keylen > INT_MAX) {
     type_error = "Bad key length";
     goto err;
