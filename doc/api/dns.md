@@ -212,7 +212,7 @@ will contain an array of IPv4 addresses (e.g.
 * `options` {Object}
   * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     The callback receives an array of `{ address: '1.2.3.4', ttl: 60 }` objects
-    rather than an array of strings.  The TTL is expressed in seconds.
+    rather than an array of strings. The TTL is expressed in seconds.
 * `callback` {Function} An `(err, result)` callback function.
 
 ## dns.resolve6(hostname[, options], callback)
@@ -228,7 +228,7 @@ will contain an array of IPv6 addresses.
 * `options` {Object}
   * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     The callback receives an array of `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }`
-    objects rather than an array of strings.  The TTL is expressed in seconds.
+    objects rather than an array of strings. The TTL is expressed in seconds.
 * `callback` {Function} An `(err, result)` callback function.
 
 ## dns.resolveCname(hostname, callback)
@@ -258,7 +258,7 @@ added: v0.9.12
 
 Uses the DNS protocol to resolve regular expression based records (`NAPTR`
 records) for the `hostname`. The `callback` function has arguments
-`(err, addresses)`.  The `addresses` argument passed to the `callback` function
+`(err, addresses)`. The `addresses` argument passed to the `callback` function
 will contain an array of objects with the following properties:
 
 * `flags`

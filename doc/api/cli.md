@@ -342,7 +342,7 @@ added: v6.12.0
 -->
 
 `options...` are interpreted as if they had been specified on the command line
-before the actual command line (so they can be overriden).  Node will exit with
+before the actual command line (so they can be overriden). Node will exit with
 an error if an option that is not allowed in the environment is used, such as
 `-p` or a script file.
 
@@ -382,7 +382,7 @@ added: v3.0.0
 
 Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
-to an empty string (`""` or `" "`) disables persistent REPL history.
+to an empty string (`''` or `' '`) disables persistent REPL history.
 
 
 ### `NODE_TTY_UNSAFE_ASYNC=1`

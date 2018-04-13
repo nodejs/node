@@ -395,7 +395,7 @@ deprecated: v6.0.0
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes.  The `size` must be less than or equal
+Allocates a new `Buffer` of `size` bytes. The `size` must be less than or equal
 to the value of [`buffer.kMaxLength`]. Otherwise, a [`RangeError`] is thrown.
 A zero-length `Buffer` will be created if `size <= 0`.
 

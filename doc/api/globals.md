@@ -188,7 +188,7 @@ added: v0.1.13
 
 * {Function}
 
-To require modules. See the [Modules][] section.  `require` is not actually a
+To require modules. See the [Modules][] section. `require` is not actually a
 global but rather local to each module.
 
 ### require.cache
@@ -221,14 +221,14 @@ Process files with the extension `.sjs` as `.js`:
 require.extensions['.sjs'] = require.extensions['.js'];
 ```
 
-**Deprecated**  In the past, this list has been used to load
+**Deprecated** In the past, this list has been used to load
 non-JavaScript modules into Node.js by compiling them on-demand.
 However, in practice, there are much better ways to do this, such as
 loading modules via some other Node.js program, or compiling them to
 JavaScript ahead of time.
 
 Since the Module system is locked, this feature will probably never go
-away.  However, it may have subtle bugs and complexities that are best
+away. However, it may have subtle bugs and complexities that are best
 left untouched.
 
 ### require.resolve()

@@ -90,26 +90,26 @@ Node.js process and a cluster worker differs:
    idea of what the number 7 file descriptor references.
 2. `server.listen(handle)` Listening on handles explicitly will cause
    the worker to use the supplied handle, rather than talk to the master
-   process.  If the worker already has the handle, then it's presumed
+   process. If the worker already has the handle, then it's presumed
    that you know what you are doing.
 3. `server.listen(0)` Normally, this will cause servers to listen on a
-   random port.  However, in a cluster, each worker will receive the
-   same "random" port each time they do `listen(0)`.  In essence, the
-   port is random the first time, but predictable thereafter.  If you
+   random port. However, in a cluster, each worker will receive the
+   same "random" port each time they do `listen(0)`. In essence, the
+   port is random the first time, but predictable thereafter. If you
    want to listen on a unique port, generate a port number based on the
    cluster worker ID.
 
 There is no routing logic in Node.js, or in your program, and no shared
-state between the workers.  Therefore, it is important to design your
+state between the workers. Therefore, it is important to design your
 program such that it does not rely too heavily on in-memory data objects
 for things like sessions and login.
 
 Because workers are all separate processes, they can be killed or
 re-spawned depending on your program's needs, without affecting other
-workers.  As long as there are some workers still alive, the server will
-continue to accept connections.  If no workers are alive, existing connections
-will be dropped and new connections will be refused.  Node.js does not
-automatically manage the number of workers for you, however.  It is your
+workers. As long as there are some workers still alive, the server will
+continue to accept connections. If no workers are alive, existing connections
+will be dropped and new connections will be refused. Node.js does not
+automatically manage the number of workers for you, however. It is your
 responsibility to manage the worker pool for your application's needs.
 
 Although a primary use case for the `cluster` module is networking, it can
@@ -489,7 +489,7 @@ Emitted after the worker IPC channel has disconnected. This can occur when a
 worker exits gracefully, is killed, or is disconnected manually (such as with
 worker.disconnect()).
 
-There may be a delay between the `'disconnect'` and `'exit'` events.  These events
+There may be a delay between the `'disconnect'` and `'exit'` events. These events
 can be used to detect if the process is stuck in a cleanup or if there are
 long-living connections.
 
@@ -582,7 +582,7 @@ The `addressType` is one of:
 * `4` (TCPv4)
 * `6` (TCPv6)
 * `-1` (unix domain socket)
-* `"udp4"` or `"udp6"` (UDP v4 or v6)
+* `'udp4'` or `'udp6'` (UDP v4 or v6)
 
 ## Event: 'message'
 
@@ -709,7 +709,7 @@ distribute IOCP handles without incurring a large performance hit.
 
 `cluster.schedulingPolicy` can also be set through the
 `NODE_CLUSTER_SCHED_POLICY` environment variable. Valid
-values are `"rr"` and `"none"`.
+values are `'rr'` and `'none'`.
 
 ## cluster.settings
 <!-- YAML

@@ -295,7 +295,7 @@ added: v0.1.98
   * `shift` {boolean} `true` to indicate the `<Shift>` key.
   * `name` {string} The name of the a key.
 
-The `rl.write()` method will write either `data` or a key sequence  identified
+The `rl.write()` method will write either `data` or a key sequence identified
 by `key` to the `output`. The `key` argument is supported only if `output` is
 a [TTY][] text terminal.
 

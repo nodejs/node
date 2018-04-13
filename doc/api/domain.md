@@ -12,7 +12,7 @@ but should expect to have to migrate to a different solution
 in the future.
 
 Domains provide a way to handle multiple different IO operations as a
-single group.  If any of the event emitters or callbacks registered to a
+single group. If any of the event emitters or callbacks registered to a
 domain emit an `'error'` event, or throw an error, then the domain object
 will be notified, rather than losing the context of the error in the
 `process.on('uncaughtException')` handler, or causing the program to
@@ -30,7 +30,7 @@ never any way to safely "pick up where you left off", without leaking
 references, or creating some other sort of undefined brittle state.
 
 The safest way to respond to a thrown error is to shut down the
-process.  Of course, in a normal web server, you might have many
+process. Of course, in a normal web server, you might have many
 connections open, and it is not reasonable to abruptly shut those down
 because an error was triggered by someone else.
 
@@ -40,7 +40,7 @@ time, and stop listening for new requests in that worker.
 
 In this way, `domain` usage goes hand-in-hand with the cluster module,
 since the master process can fork a new worker when a worker
-encounters an error.  For Node.js programs that scale to multiple
+encounters an error. For Node.js programs that scale to multiple
 machines, the terminating proxy or service registry can take note of
 the failure, and react accordingly.
 
@@ -103,7 +103,7 @@ if (cluster.isMaster) {
   const domain = require('domain');
 
   // See the cluster documentation for more details about using
-  // worker processes to serve requests.  How it works, caveats, etc.
+  // worker processes to serve requests. How it works, caveats, etc.
 
   const server = require('http').createServer((req, res) => {
     const d = domain.create();
@@ -126,7 +126,7 @@ if (cluster.isMaster) {
         // stop taking new requests.
         server.close();
 
-        // Let the master know we're dead.  This will trigger a
+        // Let the master know we're dead. This will trigger a
         // 'disconnect' in the cluster master, and then it will fork
         // a new worker.
         cluster.worker.disconnect();
@@ -155,7 +155,7 @@ if (cluster.isMaster) {
   server.listen(PORT);
 }
 
-// This part is not important.  Just an example routing thing.
+// This part is not important. Just an example routing thing.
 // You'd put your fancy application logic here.
 function handleRequest(req, res) {
   switch (req.url) {
@@ -197,11 +197,11 @@ the active domain at the time of their creation.
 
 Additionally, callbacks passed to lowlevel event loop requests (such as
 to fs.open, or other callback-taking methods) will automatically be
-bound to the active domain.  If they throw, then the domain will catch
+bound to the active domain. If they throw, then the domain will catch
 the error.
 
 In order to prevent excessive memory usage, Domain objects themselves
-are not implicitly added as children of the active domain.  If they
+are not implicitly added as children of the active domain. If they
 were, then it would be too easy to prevent request and response objects
 from being properly garbage collected.
 
@@ -218,7 +218,7 @@ Implicit binding only takes care of thrown errors and `'error'` events.
 <!--type=misc-->
 
 Sometimes, the domain in use is not the one that ought to be used for a
-specific event emitter.  Or, the event emitter could have been created
+specific event emitter. Or, the event emitter could have been created
 in the context of one domain, but ought to instead be bound to some
 other domain.
 
@@ -268,7 +268,7 @@ Returns a new Domain object.
 The Domain class encapsulates the functionality of routing errors and
 uncaught exceptions to the active Domain object.
 
-Domain is a child class of [`EventEmitter`][].  To handle the errors that it
+Domain is a child class of [`EventEmitter`][]. To handle the errors that it
 catches, listen to its `'error'` event.
 
 ### domain.run(fn[, ...args])
@@ -318,13 +318,13 @@ to the domain.
 
 * `emitter` {EventEmitter|Timer} emitter or timer to be added to the domain
 
-Explicitly adds an emitter to the domain.  If any event handlers called by
+Explicitly adds an emitter to the domain. If any event handlers called by
 the emitter throw an error, or if the emitter emits an `'error'` event, it
 will be routed to the domain's `'error'` event, just like with implicit
 binding.
 
 This also works with timers that are returned from [`setInterval()`][] and
-[`setTimeout()`][].  If their callback function throws, it will be caught by
+[`setTimeout()`][]. If their callback function throws, it will be caught by
 the domain 'error' handler.
 
 If the Timer or EventEmitter was already bound to a domain, it is removed
@@ -334,7 +334,7 @@ from that one, and bound to this one instead.
 
 * `emitter` {EventEmitter|Timer} emitter or timer to be removed from the domain
 
-The opposite of [`domain.add(emitter)`][].  Removes domain handling from the
+The opposite of [`domain.add(emitter)`][]. Removes domain handling from the
 specified emitter.
 
 ### domain.bind(callback)
@@ -343,7 +343,7 @@ specified emitter.
 * Returns: {Function} The bound function
 
 The returned function will be a wrapper around the supplied callback
-function.  When the returned function is called, any errors that are
+function. When the returned function is called, any errors that are
 thrown will be routed to the domain's `'error'` event.
 
 #### Example
@@ -370,7 +370,7 @@ d.on('error', (er) => {
 * `callback` {Function} The callback function
 * Returns: {Function} The intercepted function
 
-This method is almost identical to [`domain.bind(callback)`][].  However, in
+This method is almost identical to [`domain.bind(callback)`][]. However, in
 addition to catching thrown errors, it will also intercept [`Error`][]
 objects sent as the first argument to the function.
 
@@ -439,7 +439,7 @@ without exiting the domain.
 
 ### domain.dispose()
 
-> Stability: 0 - Deprecated.  Please recover from failed IO actions
+> Stability: 0 - Deprecated. Please recover from failed IO actions
 > explicitly via error event handlers set on the domain.
 
 Once `dispose` has been called, the domain will no longer be used by callbacks
