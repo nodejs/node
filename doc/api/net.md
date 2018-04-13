@@ -834,6 +834,9 @@ active socket in the event system. If the socket is already `unref`ed calling
 added: v0.1.90
 -->
 
+* `data` {string|Buffer|Uint8Array}
+* `encoding` {string} Only used when data is `string`. **Default:** `utf8`. 
+* `callback` {Function}
 * Returns: {boolean}
 
 Sends data on the socket. The second parameter specifies the encoding in the
@@ -845,6 +848,9 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
+
+See Writable stream [`write()`][stream_writable_write] method for more 
+information.
 
 ## net.connect()
 
@@ -1149,5 +1155,6 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [duplex stream]: stream.html#stream_class_stream_duplex
 [half-closed]: https://tools.ietf.org/html/rfc1122
 [socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
+[stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
