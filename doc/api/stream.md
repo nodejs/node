@@ -1652,8 +1652,7 @@ const { StringDecoder } = require('string_decoder');
 class StringWritable extends Writable {
   constructor(options) {
     super(options);
-    const state = this._writableState;
-    this._decoder = new StringDecoder(state.defaultEncoding);
+    this._decoder = new StringDecoder(options && options.defaultEncoding);
     this.data = '';
   }
   _write(chunk, encoding, callback) {
