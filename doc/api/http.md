@@ -676,9 +676,8 @@ added: v0.3.0
 
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
-because of how the protocol parser attaches to the socket. After
-`response.end()`, the property is nulled. The `socket` may also be accessed
-via `request.connection`.
+because of how the protocol parser attaches to the socket. The `socket` 
+may also be accessed via `request.connection`.
 
 Example:
 
