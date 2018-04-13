@@ -726,7 +726,44 @@ for (const test of TEST_CASES) {
       type: Error,
       message: `Invalid GCM authentication tag length: ${length}`
     });
+
+    common.expectsError(() => {
+      crypto.createDecipheriv('aes-256-gcm',
+                              'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                              'qkuZpJWCewa6Szih',
+                              {
+                                authTagLength: length
+                              });
+    }, {
+      type: Error,
+      message: `Invalid GCM authentication tag length: ${length}`
+    });
   }
+}
+
+// Test that users can manually restrict the GCM tag length to a single value.
+{
+  const decipher = crypto.createDecipheriv('aes-256-gcm',
+                                           'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                           'qkuZpJWCewa6Szih', {
+                                             authTagLength: 8
+                                           });
+
+  common.expectsError(() => {
+    // This tag would normally be allowed.
+    decipher.setAuthTag(Buffer.from('1'.repeat(12)));
+  }, {
+    type: Error,
+    message: 'Invalid GCM authentication tag length: 12'
+  });
+
+  // The Decipher object should be left intact.
+  decipher.setAuthTag(Buffer.from('445352d3ff85cf94', 'hex'));
+  const text = Buffer.concat([
+    decipher.update('3a2a3647', 'hex'),
+    decipher.final()
+  ]);
+  assert.strictEqual(text.toString('utf8'), 'node');
 }
 
 // Test that create(De|C)ipher(iv)? throws if the mode is CCM and an invalid
