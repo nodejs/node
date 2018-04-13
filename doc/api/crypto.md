@@ -1457,6 +1457,10 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/???
+    description: The `authTagLength` option can now be used to restrict accepted
+                 GCM authentication tag lengths.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/18644
     description: The `iv` parameter may now be `null` for ciphers which do not
@@ -1474,7 +1478,9 @@ and initialization vector (`iv`).
 The `options` argument controls stream behavior and is optional except when a
 cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
 `authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][].
+authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
+option is not required but can be used to restrict accepted authentication tags
+to those with the specified length.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the

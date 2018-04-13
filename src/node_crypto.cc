@@ -2806,6 +2806,10 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static bool IsValidGCMTagLength(int tag_len) {
+  return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
+}
+
 bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
                                    int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
@@ -2818,7 +2822,8 @@ bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
     return false;
   }
 
-  if (EVP_CIPHER_CTX_mode(ctx_) == EVP_CIPH_CCM_MODE) {
+  const int mode = EVP_CIPHER_CTX_mode(ctx_);
+  if (mode == EVP_CIPH_CCM_MODE) {
     if (auth_tag_len < 0) {
       char msg[128];
       snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
@@ -2851,6 +2856,19 @@ bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
     } else {
       max_message_size_ = INT_MAX;
     }
+  } else {
+    CHECK_EQ(mode, EVP_CIPH_GCM_MODE);
+
+    if (auth_tag_len >= 0 && !IsValidGCMTagLength(auth_tag_len)) {
+      char msg[50];
+      snprintf(msg, sizeof(msg),
+          "Invalid GCM authentication tag length: %u", auth_tag_len);
+      env()->ThrowError(msg);
+      return false;
+    }
+
+    // Remember the given authentication tag length for later.
+    auth_tag_len_ = auth_tag_len;
   }
 
   return true;
@@ -2886,10 +2904,11 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   // Only callable after Final and if encrypting.
   if (cipher->ctx_ != nullptr ||
       cipher->kind_ != kCipher ||
-      cipher->auth_tag_len_ == 0) {
+      cipher->auth_tag_len_ <= 0) {
     return args.GetReturnValue().SetUndefined();
   }
 
+  CHECK_GE(cipher->auth_tag_len_, 0);
   Local<Object> buf =
       Buffer::Copy(env, cipher->auth_tag_, cipher->auth_tag_len_)
       .ToLocalChecked();
@@ -2911,7 +2930,8 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   unsigned int tag_len = Buffer::Length(args[0]);
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_);
   if (mode == EVP_CIPH_GCM_MODE) {
-    if (tag_len > 16 || (tag_len < 12 && tag_len != 8 && tag_len != 4)) {
+    if ((cipher->auth_tag_len_ >= 0 && cipher->auth_tag_len_ != tag_len) ||
+        !IsValidGCMTagLength(tag_len)) {
       char msg[50];
       snprintf(msg, sizeof(msg),
           "Invalid GCM authentication tag length: %u", tag_len);

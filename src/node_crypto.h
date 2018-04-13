@@ -398,7 +398,7 @@ class CipherBase : public BaseObject {
         ctx_(nullptr),
         kind_(kind),
         auth_tag_set_(false),
-        auth_tag_len_(0),
+        auth_tag_len_(-1),
         pending_auth_failed_(false) {
     MakeWeak<CipherBase>(this);
   }
@@ -407,7 +407,7 @@ class CipherBase : public BaseObject {
   EVP_CIPHER_CTX* ctx_;
   const CipherKind kind_;
   bool auth_tag_set_;
-  unsigned int auth_tag_len_;
+  int auth_tag_len_;
   char auth_tag_[EVP_GCM_TLS_TAG_LEN];
   bool pending_auth_failed_;
   int max_message_size_;
