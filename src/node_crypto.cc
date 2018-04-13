@@ -1418,7 +1418,7 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
                                               unsigned char *psk,
                                               unsigned int max_psk_len) {
   SecureContext* sc = static_cast<SecureContext*>(
-      SSL_CTX_get_app_data(ssl->ctx));
+      SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
 
   Environment* env = sc->env();
   Isolate* isolate = env->isolate();
@@ -1489,7 +1489,7 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
                                               unsigned char *psk,
                                               unsigned int max_psk_len) {
   SecureContext* sc = static_cast<SecureContext*>(
-      SSL_CTX_get_app_data(ssl->ctx));
+      SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
 
   Environment* env = sc->env();
   Isolate* isolate = env->isolate();
