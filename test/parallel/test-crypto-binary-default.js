@@ -522,6 +522,25 @@ function testCipher5(key, iv) {
   assert.strictEqual(txt, plaintext);
 }
 
+
+function testCipher5(key, iv) {
+  // Test encryption and decryption with explicit key with aes128-wrap
+  const plaintext =
+      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
+      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
+      'jAfaFg**';
+  const cipher = crypto.createCipher('id-aes128-wrap', key);
+  let ciph = cipher.update(plaintext, 'utf8', 'buffer');
+  ciph = Buffer.concat([ciph, cipher.final('buffer')]);
+
+  const decipher = crypto.createDecipher('id-aes128-wrap', key);
+  let txt = decipher.update(ciph, 'buffer', 'utf8');
+  txt += decipher.final('utf8');
+
+  assert.strictEqual(txt, plaintext,
+                     'encryption and decryption with key');
+}
+
 if (!common.hasFipsCrypto) {
   testCipher1('MySecretKey123');
   testCipher1(Buffer.from('MySecretKey123'));

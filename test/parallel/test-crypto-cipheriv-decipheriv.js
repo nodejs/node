@@ -78,6 +78,25 @@ function testCipher3(key, iv) {
          `encryption/decryption with key ${key} and iv ${iv}`);
 }
 
+
+function testCipher3(key, iv) {
+  // Test encryption and decryption with explicit key and iv.
+  // AES Key Wrap test vector comes from RFC3394
+  const plaintext = Buffer.from('00112233445566778899AABBCCDDEEFF', 'hex');
+
+  const cipher = crypto.createCipheriv('id-aes128-wrap', key, iv);
+  let ciph = cipher.update(plaintext, 'utf8', 'buffer');
+  ciph = Buffer.concat([ciph, cipher.final('buffer')]);
+  const ciph2 = Buffer.from('1FA68B0A8112B447AEF34BD8FB5A7B829D3E862371D2CFE5',
+                            'hex');
+  assert(ciph.equals(ciph2));
+  const decipher = crypto.createDecipheriv('id-aes128-wrap', key, iv);
+  let deciph = decipher.update(ciph, 'buffer');
+  deciph = Buffer.concat([deciph, decipher.final()]);
+
+  assert(deciph.equals(plaintext), 'encryption/decryption with key and iv');
+}
+
 testCipher1('0123456789abcd0123456789', '12345678');
 testCipher1('0123456789abcd0123456789', Buffer.from('12345678'));
 testCipher1(Buffer.from('0123456789abcd0123456789'), '12345678');
