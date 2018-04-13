@@ -3177,7 +3177,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
 [FS Constants]: #fs_fs_constants_1
-[MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
+[MDN-Date]: https://developer.mozilla.org/en-US/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [MSDN-Rel-Path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#fully_qualified_vs._relative_paths
 [Readable Stream]: stream.html#stream_class_stream_readable

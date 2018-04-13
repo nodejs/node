@@ -1146,7 +1146,7 @@ console.log(myURL.origin);
 ```
 
 [`Error`]: errors.html#errors_class_error
-[`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`TypeError`]: errors.html#errors_class_typeerror
 [`URLSearchParams`]: #url_class_urlsearchparams
