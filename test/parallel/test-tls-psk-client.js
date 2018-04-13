@@ -14,7 +14,7 @@ const IDENTITY = 'Client_identity';  // Hardcoded by openssl
 
 const server = spawn(common.opensslCli, [
   's_server',
-  '-accept', common.PORT,
+  '-accept', 54323 /*common.PORT*/,
   '-cipher', CIPHERS,
   '-psk', KEY,
   '-psk_hint', IDENTITY,
@@ -68,7 +68,7 @@ server.on('exit', (code) => {
 
 
 function startClient() {
-  const s = tls.connect(common.PORT, {
+  const s = tls.connect(54323 /*common.PORT*/, {
     ciphers: CIPHERS,
     rejectUnauthorized: false,
     pskCallback(hint) {

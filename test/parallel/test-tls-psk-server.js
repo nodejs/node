@@ -15,7 +15,7 @@ const IDENTITY = 'TestUser';
 
 const server = tls.createServer({
   ciphers: CIPHERS,
-  pskIdentity: IDENTITY,
+  pskIdentityHint: IDENTITY,
   pskCallback(identity) {
     if (identity === IDENTITY) {
       return {
@@ -38,12 +38,11 @@ server.on('secureConnection', (socket) => {
 let gotHello = false;
 let sentWorld = false;
 let gotWorld = false;
-let opensslExitCode = -1;
 
-server.listen(0, function() {
+server.listen(0, () => {
   const client = spawn(common.opensslCli, [
     's_client',
-    '-connect', '127.0.0.1:' + this.address().port,
+    '-connect', '127.0.0.1:' + server.address().port,
     '-cipher', CIPHERS,
     '-psk', KEY,
     '-psk_identity', IDENTITY
@@ -67,15 +66,12 @@ server.listen(0, function() {
     }
   });
 
-  client.on('exit', (code) => {
-    opensslExitCode = code;
+  client.on('exit', common.mustCall((code) => {
+    assert.ok(gotHello);
+    assert.ok(sentWorld);
+    assert.ok(gotWorld);
+    assert.strictEqual(0, code);
     server.close();
-  });
+  }));
 });
 
-process.on('exit', () => {
-  assert.ok(gotHello);
-  assert.ok(sentWorld);
-  assert.ok(gotWorld);
-  assert.strictEqual(0, opensslExitCode);
-});

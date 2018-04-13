@@ -42,8 +42,9 @@ const server = tls.createServer(serverOptions, common.mustCall((c) => {
     c.end(data);
   });
 }, 3));
-server.listen(0, function() {
-  startTest(this.address().port);
+
+server.listen(0, () => {
+  startTest(server.address().port);
 });
 
 function startTest(port) {
@@ -88,7 +89,11 @@ function startTest(port) {
 
 process.on('exit', () => {
   assert.deepStrictEqual(clientResults, [
-    'connect', 'connect', 'socket hang up', 'socket hang up', 'connect'
+    'connect',
+    'connect',
+    'Client network socket disconnected before secure TLS connection was established',
+    'Client network socket disconnected before secure TLS connection was established',
+    'connect'
   ]);
   assert.deepStrictEqual(connectingIds, [
     'UserA', 'UserB', 'UserC', 'UserB', 'UserB'
