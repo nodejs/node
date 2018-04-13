@@ -217,10 +217,9 @@ are linked from more than one location in the dependency tree (Node.js would
 see those as two separate modules and would attempt to load the module multiple
 times, causing an exception to be thrown).
 
-Note also that the `--preserve-symlinks` flag does not apply to the main
-module - this special case helps
-`node --preserve-symlinks node_module/.bin/<foo>` work.  If you want the same
-behavior on the main module, also use `--preserve-symlinks-main`.
+The `--preserve-symlinks` flag does not apply to the main module, which allows
+`node --preserve-symlinks node_module/.bin/<foo>` to work.  To apply the same
+behavior for the main module, also use `--preserve-symlinks-main`.
 
 ### `--preserve-symlinks-main`
 <!-- YAML
