@@ -14,10 +14,16 @@ namespace tracing {
 using v8::platform::tracing::TraceObject;
 using v8::platform::tracing::TraceWriter;
 
+enum trace_format {
+  TRACE_FORMAT_JSON,
+  TRACE_FORMAT_LDJSON
+};
+
 class NodeTraceWriter : public TraceWriter {
  public:
   explicit NodeTraceWriter(const std::string& log_file_pattern,
-                           uv_loop_t* tracing_loop);
+                           uv_loop_t* tracing_loop,
+                           enum trace_format format = TRACE_FORMAT_JSON);
   ~NodeTraceWriter();
 
   void AppendTraceEvent(TraceObject* trace_event) override;
@@ -64,6 +70,7 @@ class NodeTraceWriter : public TraceWriter {
   int total_traces_ = 0;
   int file_num_ = 0;
   const std::string& log_file_pattern_;
+  enum trace_format format_;
   std::ostringstream stream_;
   TraceWriter* json_trace_writer_ = nullptr;
   bool exited_ = false;

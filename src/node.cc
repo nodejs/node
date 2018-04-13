@@ -192,6 +192,7 @@ static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 static bool trace_enabled = false;
+static enum tracing::trace_format trace_format = tracing::TRACE_FORMAT_JSON;
 static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static std::string trace_file_pattern =  // NOLINT(runtime/string)
   "node_trace.${rotation}.log";
@@ -278,7 +279,8 @@ static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
     if (trace_enabled) {
-      tracing_agent_.reset(new tracing::Agent(trace_file_pattern));
+      tracing_agent_.reset(
+          new tracing::Agent(trace_file_pattern, trace_format));
       platform_ = new NodePlatform(thread_pool_size,
         tracing_agent_->GetTracingController());
       V8::InitializePlatform(platform_);
@@ -3485,6 +3487,8 @@ static void PrintHelp() {
          "  --trace-events-enabled     track trace events\n"
          "  --trace-event-categories   comma separated list of trace event\n"
          "                             categories to record\n"
+         "  --trace-event-format val   set the trace events output format\n"
+         "                             val may be one of 'json' or 'ldjson'\n"
          "  --trace-event-file-pattern Template string specifying the\n"
          "                             filepath for the trace-events data, it\n"
          "                             supports ${rotation} and ${pid}\n"
@@ -3617,6 +3621,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--no-force-async-hooks-checks",
     "--trace-events-enabled",
     "--trace-event-categories",
+    "--trace-event-format",
     "--trace-event-file-pattern",
     "--track-heap-objects",
     "--zero-fill-buffers",
@@ -3761,6 +3766,18 @@ static void ParseArgs(int* argc,
       no_force_async_hooks_checks = true;
     } else if (strcmp(arg, "--trace-events-enabled") == 0) {
       trace_enabled = true;
+    } else if (strcmp(arg, "--trace-event-format") == 0) {
+      const char* format = argv[index + 1];
+      if (strcmp(format, "ldjson") == 0) {
+        trace_format = tracing::TRACE_FORMAT_LDJSON;
+      } else if (strcmp(format, "json") == 0) {
+        trace_format = tracing::TRACE_FORMAT_JSON;
+      } else {
+        fprintf(stderr, "%s: %s is not a supported trace event format\n",
+                argv[0], format);
+        exit(9);
+      }
+      args_consumed += 1;
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
       const char* categories = argv[index + 1];
       if (categories == nullptr) {

@@ -4,6 +4,7 @@
 #include "libplatform/v8-tracing.h"
 #include "uv.h"
 #include "v8.h"
+#include "node_trace_writer.h"
 
 namespace node {
 namespace tracing {
@@ -19,7 +20,8 @@ class TracingController : public v8::platform::tracing::TracingController {
 
 class Agent {
  public:
-  explicit Agent(const std::string& log_file_pattern);
+  explicit Agent(const std::string& log_file_pattern,
+                 enum trace_format format = TRACE_FORMAT_JSON);
   void Start(const std::string& enabled_categories);
   void Stop();
 

@@ -239,6 +239,15 @@ added: v7.7.0
 A comma separated list of categories that should be traced when trace event
 tracing is enabled using `--trace-events-enabled`.
 
+### `--trace-event-format`
+<!-- YAML
+added: REPLACEME
+-->
+
+Specifies the trace events output format. Must be one of either: `'json'`
+(the default V8 Trace Events format) or `'ldjson'` (newline-delimited JSON).
+Defaults to `'json'`.
+
 ### `--trace-event-file-pattern`
 <!-- YAML
 added: v9.8.0
