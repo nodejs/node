@@ -47,21 +47,9 @@ const server = http.createServer(common.mustCall((req, res) => {
     request1.socket.on('close', common.mustCall());
     response.resume();
     response.on('end', common.mustCall(() => {
-      //
-      // THE IMPORTANT PART
-      //
-      // It is possible for the socket to get destroyed and other work
-      // to run before the 'close' event fires because it happens on
-      // nextTick. This example is contrived because it destroys the
-      // socket manually at just the right time, but at Voxer we have
-      // seen cases where the socket is destroyed by non-user code
-      // then handed out again by an agent *before* the 'close' event
-      // is triggered.
       request1.socket.destroy();
 
-      // TODO(jasnell): This close event does not appear to be triggered.
-      // is it necessary?
-      response.once('close', () => {
+      response.socket.once('close', common.mustCall(() => {
         // assert request2 was removed from the queue
         assert(!agent.requests[key]);
         process.nextTick(() => {
@@ -70,7 +58,7 @@ const server = http.createServer(common.mustCall((req, res) => {
           assert.notStrictEqual(request1.socket, request2.socket);
           assert(!request2.socket.destroyed, 'the socket is destroyed');
         });
-      });
+      }));
     }));
   }));
 
