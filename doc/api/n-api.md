@@ -1,6 +1,7 @@
 # N-API
 
 <!--introduced_in=v7.10.0-->
+<!-- type=misc -->
 
 > Stability: 2 - Stable
 
