@@ -191,9 +191,9 @@ experimental support for the `await` keyword is enabled.
 > await Promise.reject(new Error('REPL await'))
 Error: REPL await
     at repl:1:45
-> timeout = util.promisify(setTimeout)
+> const timeout = util.promisify(setTimeout)
 [Function]
-> old = Date.now(); await timeout(1000); console.log(Date.now() - old);
+> const old = Date.now(); await timeout(1000); console.log(Date.now() - old);
 1002
 undefined
 ```
