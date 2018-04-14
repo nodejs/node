@@ -1,6 +1,7 @@
 # C++ Addons
 
 <!--introduced_in=v0.10.0-->
+<!-- type=misc -->
 
 Node.js Addons are dynamically-linked shared objects, written in C++, that
 can be loaded into Node.js using the [`require()`][require] function, and used
