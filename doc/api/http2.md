@@ -128,8 +128,8 @@ solely on the API of the `Http2Session`.
 added: v8.4.0
 -->
 
-The `'close'` event is emitted once the `Http2Session` has been destroyed. It
-does not expect any arguments.
+The `'close'` event is emitted once the `Http2Session` has been destroyed. Its
+listener does not expect any arguments.
 
 #### Event: 'connect'
 <!-- YAML
