@@ -553,15 +553,54 @@ function cloneValue(src) {
 }
 
 
-// These parse out the contents of an H# tag.
+// This section parse out the contents of an H# tag.
+
+// To reduse escape slashes in RegExp string components.
+const r = String.raw;
+
+const eventPrefix = r`^Event:\s+`;
+const classPrefix = r`^[Cc]lass:\s+`;
+const ctorPrefix = r`^(?:[Cc]onstructor:\s+)?new\s+`;
+const classMethodPrefix = r`^Class Method:\s+`;
+const maybeClassPropertyPrefix = r`(?:Class Property:\s+)?`;
+
+const maybeQuote = '[\'"]?';
+const notQuotes = '[^\'"]+';
+
+// To include constructs like `readable\[Symbol.asyncIterator\]()`
+// or `readable.\_read(size)` (with Markdown escapes).
+const simpleId = r`(?:(?:\\?_)+|\b)\w+\b`;
+const computedId = r`\\?\[[\w\.]+\\?\]`;
+const id = `(?:${simpleId}|${computedId})`;
+const classId = r`[A-Z]\w+`;
+
+const ancestors = r`(?:${id}\.?)+`;
+const maybeAncestors = r`(?:${id}\.?)*`;
+
+const callWithParams = r`\([^)]*\)`;
+
+const noCallOrProp = '(?![.[(])';
+
+const maybeExtends = r`(?:\s+extends\s+${maybeAncestors}${classId})?`;
+
 const headingExpressions = [
-  { type: 'event', re: /^Event(?::|\s)+['"]?([^"']+).*$/i },
-  { type: 'class', re: /^Class:\s*([^ ]+).*$/i },
-  { type: 'property', re: /^[^.[]+(\[[^\]]+\])\s*$/ },
-  { type: 'property', re: /^[^.]+\.([^ .()]+)\s*$/ },
-  { type: 'classMethod', re: /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i },
-  { type: 'method', re: /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/ },
-  { type: 'ctor', re: /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/ },
+  { type: 'event', re: RegExp(
+    `${eventPrefix}${maybeQuote}(${notQuotes})${maybeQuote}$`, 'i') },
+
+  { type: 'class', re: RegExp(
+    `${classPrefix}(${maybeAncestors}${classId})${maybeExtends}$`, '') },
+
+  { type: 'ctor', re: RegExp(
+    `${ctorPrefix}(${maybeAncestors}${classId})${callWithParams}$`, '') },
+
+  { type: 'classMethod', re: RegExp(
+    `${classMethodPrefix}${maybeAncestors}(${id})${callWithParams}$`, 'i') },
+
+  { type: 'method', re: RegExp(
+    `^${maybeAncestors}(${id})${callWithParams}$`, 'i') },
+
+  { type: 'property', re: RegExp(
+    `^${maybeClassPropertyPrefix}${ancestors}(${id})${noCallOrProp}$`, 'i') },
 ];
 
 function newSection({ text }) {
