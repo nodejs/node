@@ -27,8 +27,7 @@ const assert = require('assert');
 const timeoutd = domain.create();
 
 timeoutd.on('error', common.mustCall(function(e) {
-  assert.strictEqual(e.message, 'Timeout UNREFd',
-                     'Domain should catch timer error');
+  assert.strictEqual(e.message, 'Timeout UNREFd');
   clearTimeout(timeout);
 }, 2));
 
@@ -47,8 +46,7 @@ t.unref();
 const immediated = domain.create();
 
 immediated.on('error', common.mustCall(function(e) {
-  assert.strictEqual(e.message, 'Immediate Error',
-                     'Domain should catch immediate error');
+  assert.strictEqual(e.message, 'Immediate Error');
 }));
 
 immediated.run(function() {
