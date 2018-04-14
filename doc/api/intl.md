@@ -1,6 +1,7 @@
 # Internationalization Support
 
 <!--introduced_in=v8.2.0-->
+<!-- type=misc -->
 
 Node.js has many features that make it easier to write internationalized
 programs. Some of them are:
