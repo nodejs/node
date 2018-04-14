@@ -736,7 +736,7 @@ percent-encoded where necessary.
 
 Returns an ES6 Iterator over the values of each name-value pair.
 
-#### urlSearchParams\[@@iterator\]()
+#### urlSearchParams\[Symbol.iterator\]()
 
 * Returns: {Iterator}
 
@@ -1174,7 +1174,7 @@ console.log(myURL.origin);
 [`url.toJSON()`]: #url_url_tojson
 [`url.toString()`]: #url_url_tostring
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
-[`urlSearchParams@@iterator()`]: #url_urlsearchparams_iterator
+[`urlSearchParams@@iterator()`]: #url_urlsearchparams_symbol_iterator
 [ICU]: intl.html#intl_options_for_building_node_js
 [Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
