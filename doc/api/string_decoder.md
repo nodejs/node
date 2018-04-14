@@ -42,7 +42,9 @@ decoder.write(Buffer.from([0x82]));
 console.log(decoder.end(Buffer.from([0xAC])));
 ```
 
-## Class: new StringDecoder([encoding])
+## Class: StringDecoder
+
+### new StringDecoder([encoding])
 <!-- YAML
 added: v0.1.99
 -->
