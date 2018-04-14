@@ -44,7 +44,6 @@ const server = http.createServer(common.mustCall((req, res) => {
     // assert request2 is queued in the agent
     const key = agent.getName(requestOptions);
     assert.strictEqual(agent.requests[key].length, 1);
-    request1.socket.on('close', common.mustCall());
     response.resume();
     response.on('end', common.mustCall(() => {
       request1.socket.destroy();
