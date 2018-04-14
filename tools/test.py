@@ -54,6 +54,7 @@ skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 
 VERBOSE = False
 
+os.environ['NODE_OPTIONS'] = ''
 
 # ---------------------------------------------
 # --- P r o g r e s s   I n d i c a t o r s ---
