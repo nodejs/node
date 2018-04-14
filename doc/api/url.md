@@ -133,16 +133,22 @@ the `URL` object is what is expected.
 
 ```js
 const { URL } = require('url');
-var myURL = new URL('http://anotherExample.org/', 'https://example.org/');
+
+let myURL = new URL('http://anotherExample.org/', 'https://example.org/');
 // http://anotherexample.org/
+
 myURL = new URL('https://anotherExample.org/', 'https://example.org/');
 // https://anotherexample.org/
+
 myURL = new URL('foo://anotherExample.org/', 'https://example.org/');
 // foo://anotherExample.org/
+
 myURL = new URL('http:anotherExample.org/', 'https://example.org/');
 // http://anotherexample.org/
+
 myURL = new URL('https:anotherExample.org/', 'https://example.org/');
 // https://example.org/anotherExample.org/
+
 myURL = new URL('foo:anotherExample.org/', 'https://example.org/');
 // foo:anotherExample.org/
 ```
