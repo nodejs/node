@@ -80,6 +80,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>  // tzset(), _tzset()
 
 #include <string>
 #include <vector>
@@ -135,6 +136,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::Date;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Float64Array;
@@ -2679,6 +2681,10 @@ static void EnvSetter(Local<Name> property,
   node::Utf8Value key(info.GetIsolate(), property);
   node::Utf8Value val(info.GetIsolate(), value);
   setenv(*key, *val, 1);
+  if (key.length() == 2 && key[0] == 'T' && key[1] == 'Z') {
+    tzset();
+    Date::DateTimeConfigurationChangeNotification(info.GetIsolate());
+  }
 #else  // _WIN32
   node::TwoByteValue key(info.GetIsolate(), property);
   node::TwoByteValue val(info.GetIsolate(), value);
@@ -2686,6 +2692,10 @@ static void EnvSetter(Local<Name> property,
   // Environment variables that start with '=' are read-only.
   if (key_ptr[0] != L'=') {
     SetEnvironmentVariableW(key_ptr, reinterpret_cast<WCHAR*>(*val));
+  }
+  if (key.length() == 2 && key[0] == L'T' && key[1] == L'Z') {
+    _tzset();
+    Date::DateTimeConfigurationChangeNotification(info.GetIsolate());
   }
 #endif
   // Whether it worked or not, always return value.
