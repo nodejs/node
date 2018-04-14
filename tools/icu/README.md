@@ -1,7 +1,7 @@
 # Notes about the `tools/icu` subdirectory
 
 This directory contains tools, data, and information about the
-[http://icu-project.org](ICU) (International Components for Unicode)
+[ICU](http://icu-project.org) (International Components for Unicode)
 integration. ICU is used to provide internationalization functionality.
 
 - `patches/` are one-off patches, actually entire source file replacements,
