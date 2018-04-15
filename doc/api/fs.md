@@ -4553,7 +4553,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
 </table>
 
-### File System Flags
+## File System Flags
 
 The following flags are available wherever the `flag` option takes a
 string:
