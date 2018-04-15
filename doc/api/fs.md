@@ -1324,11 +1324,31 @@ Be aware that, unlike the default value set for `highWaterMark` on a
 readable stream (16 kb), the stream returned by this method has a
 default value of 64 kb for the same parameter.
 
+<<<<<<< HEAD
+=======
+`options` is an object or string with the following defaults:
+
+```js
+const defaults = {
+  end: Infinity,
+  flags: 'r',
+  encoding: null,
+  fd: null,
+  mode: 0o666,
+  autoClose: true,
+  highWaterMark: 64 * 1024
+};
+```
+
+>>>>>>> Minimize comments and documentation
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
 start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
 `fs.createReadStream()` reads sequentially from the current file position.
 The `encoding` can be any one of those accepted by [`Buffer`][].
+
+If `start` or `end` are not integers, then they are rounded to the closest
+integer using `Math.round`.
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `'open'` event will be
@@ -1351,19 +1371,6 @@ fs.createReadStream('sample.txt', { start: 90, end: 99 });
 ```
 
 If `options` is a string, then it specifies the encoding.
-
-The following rules apply to the `start` and `end` values:
-
-- If `end` is omitted or set to undefined, then it will be coerced to `Infinity`.
-- The type of both `start` and `end` needs to be `number`. If not, then the
-function would throw a `TypeError` with the code `ERR_INVALID_ARG_TYPE`.
-- Both `start` and `end` should be valid values (i.e. they should neither be
-negative nor `NaN`, and `start` should not be greater than `end`). If they are,
-the function would throw a `RangeError` with the code `ERR_OUT_OF_RANGE`.
-- Both `start` and `end` should be integer values. If they are not, then they
-are rounded to the closest integer using `Math.round`.
-- If none of the above rules apply, then the function works without any quirks
-as expected.
 
 ## fs.createWriteStream(path[, options])
 <!-- YAML
