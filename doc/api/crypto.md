@@ -1321,6 +1321,11 @@ This property is deprecated. Please use `crypto.setFips()` and
 <!-- YAML
 added: v0.1.94
 deprecated: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20235
+    description: The `authTagLength` option can now be used to produce shorter
+                 authentication tags in GCM mode and defaults to 16 bytes.
 -->
 
 > Stability: 0 - Deprecated: Use [`crypto.createCipheriv()`][] instead.
@@ -1336,7 +1341,9 @@ Creates and returns a `Cipher` object that uses the given `algorithm` and
 The `options` argument controls stream behavior and is optional except when a
 cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
 `authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][].
+authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
+option is not required but can be used to set the length of the authentication
+tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
@@ -1366,6 +1373,10 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20235
+    description: The `authTagLength` option can now be used to produce shorter
+                 authentication tags in GCM mode and defaults to 16 bytes.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/18644
     description: The `iv` parameter may now be `null` for ciphers which do not
@@ -1383,7 +1394,9 @@ initialization vector (`iv`).
 The `options` argument controls stream behavior and is optional except when a
 cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
 `authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][].
+authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
+option is not required but can be used to set the length of the authentication
+tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
