@@ -731,6 +731,18 @@ for (const test of TEST_CASES) {
   // Explicitely passing invalid lengths should throw.
   for (const length of [0, 1, 2, 6, 9, 10, 11, 17]) {
     common.expectsError(() => {
+      crypto.createCipheriv('aes-256-gcm',
+                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                            'qkuZpJWCewa6Szih',
+                            {
+                              authTagLength: length
+                            });
+    }, {
+      type: Error,
+      message: `Invalid GCM authentication tag length: ${length}`
+    });
+
+    common.expectsError(() => {
       crypto.createDecipheriv('aes-256-gcm',
                               'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                               'qkuZpJWCewa6Szih',
@@ -741,6 +753,23 @@ for (const test of TEST_CASES) {
       type: Error,
       message: `Invalid GCM authentication tag length: ${length}`
     });
+  }
+}
+
+// Test that GCM can produce shorter authentication tags than 16 bytes.
+{
+  const fullTag = '1debb47b2c91ba2cea16fad021703070';
+  for (const [authTagLength, e] of [[undefined, 16], [12, 12], [4, 4]]) {
+    const cipher = crypto.createCipheriv('aes-256-gcm',
+                                         'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                         'qkuZpJWCewa6Szih', {
+                                           authTagLength
+                                         });
+    cipher.setAAD(Buffer.from('abcd'));
+    cipher.update('01234567', 'hex');
+    cipher.final();
+    const tag = cipher.getAuthTag();
+    assert.strictEqual(tag.toString('hex'), fullTag.substr(0, 2 * e));
   }
 }
 
