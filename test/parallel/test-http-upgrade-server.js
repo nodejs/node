@@ -134,8 +134,8 @@ function test_upgrade_no_listener() {
   });
 
   conn.once('data', (data) => {
-    assert.strictEqual('string', typeof data);
-    assert.strictEqual('HTTP/1.1 200', data.substr(0, 12));
+    assert.strictEqual(typeof data, 'string');
+    assert.strictEqual(data.substr(0, 12), 'HTTP/1.1 200');
     conn.end();
   });
 
