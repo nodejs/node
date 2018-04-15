@@ -724,7 +724,7 @@ for (const test of TEST_CASES) {
       decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
     }, {
       type: Error,
-      message: `Invalid GCM authentication tag length: ${length}`
+      message: `Invalid authentication tag length: ${length}`
     });
 
     common.expectsError(() => {
@@ -736,7 +736,7 @@ for (const test of TEST_CASES) {
                             });
     }, {
       type: Error,
-      message: `Invalid GCM authentication tag length: ${length}`
+      message: `Invalid authentication tag length: ${length}`
     });
 
     common.expectsError(() => {
@@ -748,7 +748,7 @@ for (const test of TEST_CASES) {
                               });
     }, {
       type: Error,
-      message: `Invalid GCM authentication tag length: ${length}`
+      message: `Invalid authentication tag length: ${length}`
     });
   }
 }
@@ -783,7 +783,7 @@ for (const test of TEST_CASES) {
     decipher.setAuthTag(Buffer.from('1'.repeat(12)));
   }, {
     type: Error,
-    message: 'Invalid GCM authentication tag length: 12'
+    message: 'Invalid authentication tag length: 12'
   });
 
   // The Decipher object should be left intact.
@@ -985,7 +985,7 @@ for (const test of TEST_CASES) {
   }
 }
 
-// Test that setAAD throws in CCM mode when no authentication tag is provided.
+// Test that final() throws in CCM mode when no authentication tag is provided.
 {
   if (!common.hasFipsCrypto) {
     const key = Buffer.from('1ed2233fa2223ef5d7df08546049406c', 'hex');
@@ -1000,6 +1000,8 @@ for (const test of TEST_CASES) {
       decrypt.setAAD(Buffer.from('63616c76696e', 'hex'), {
         plaintextLength: ct.length
       });
+      decrypt.update(ct);
+      decrypt.final();
     }, errMessages.state);
   }
 }
