@@ -51,23 +51,17 @@ read(buf, 'readUInt32LE', [1], 0xcfea48fd);
 read(buf, 'readUIntBE', [2, 2], 0x48ea);
 read(buf, 'readUIntLE', [2, 2], 0xea48);
 
-// invalid byteLength parameter for readUIntBE() and readUIntLE()
-common.expectsError(() => { buf.readUIntBE(2, 0); },
-                    { code: 'ERR_OUT_OF_RANGE' });
-common.expectsError(() => { buf.readUIntLE(2, 7); },
-                    { code: 'ERR_OUT_OF_RANGE' });
-
-// attempt to overflow buffers, similar to previous bug in array buffers
+// Attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(() => Buffer.allocUnsafe(8).readFloatBE(0xffffffff),
               RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
               RangeError);
 
-// ensure negative values can't get past offset
+// Ensure negative values can't get past offset
 assert.throws(() => Buffer.allocUnsafe(8).readFloatBE(-1), RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
 
-// offset checks
+// Offset checks
 {
   const buf = Buffer.allocUnsafe(0);
 
@@ -75,67 +69,26 @@ assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
   assert.throws(() => buf.readInt8(0), RangeError);
 }
 
-{
-  const buf = Buffer.from([0xFF]);
-
-  assert.strictEqual(buf.readUInt8(0), 255);
-  assert.strictEqual(buf.readInt8(0), -1);
-}
-
-[16, 32].forEach((bits) => {
-  const buf = Buffer.allocUnsafe(bits / 8 - 1);
-
-  assert.throws(() => buf[`readUInt${bits}BE`](0),
-                RangeError,
-                `readUInt${bits}BE()`);
-
-  assert.throws(() => buf[`readUInt${bits}LE`](0),
-                RangeError,
-                `readUInt${bits}LE()`);
-
-  assert.throws(() => buf[`readInt${bits}BE`](0),
-                RangeError,
-                `readInt${bits}BE()`);
-
-  assert.throws(() => buf[`readInt${bits}LE`](0),
-                RangeError,
-                `readInt${bits}LE()`);
+[16, 32].forEach((bit) => {
+  const buf = Buffer.allocUnsafe(bit / 8 - 1);
+  [`Int${bit}B`, `Int${bit}L`, `UInt${bit}B`, `UInt${bit}L`].forEach((fn) => {
+    assert.throws(
+      () => buf[`read${fn}E`](0),
+      {
+        name: 'RangeError [ERR_BUFFER_OUT_OF_BOUNDS]',
+        message: 'Attempt to write outside buffer bounds'
+      }
+    );
+  });
 });
 
 [16, 32].forEach((bits) => {
   const buf = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
+  ['LE', 'BE'].forEach((endian) => {
+    assert.strictEqual(buf[`readUInt${bits}${endian}`](0),
+                       (0xFFFFFFFF >>> (32 - bits)));
 
-  assert.strictEqual(buf[`readUInt${bits}BE`](0),
-                     (0xFFFFFFFF >>> (32 - bits)));
-
-  assert.strictEqual(buf[`readUInt${bits}LE`](0),
-                     (0xFFFFFFFF >>> (32 - bits)));
-
-  assert.strictEqual(buf[`readInt${bits}BE`](0),
-                     (0xFFFFFFFF >> (32 - bits)));
-
-  assert.strictEqual(buf[`readInt${bits}LE`](0),
-                     (0xFFFFFFFF >> (32 - bits)));
+    assert.strictEqual(buf[`readInt${bits}${endian}`](0),
+                       (0xFFFFFFFF >> (32 - bits)));
+  });
 });
-
-// Test for common read(U)IntLE/BE
-{
-  const buf = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
-
-  assert.strictEqual(buf.readUIntLE(0, 1), 0x01);
-  assert.strictEqual(buf.readUIntBE(0, 1), 0x01);
-  assert.strictEqual(buf.readUIntLE(0, 3), 0x030201);
-  assert.strictEqual(buf.readUIntBE(0, 3), 0x010203);
-  assert.strictEqual(buf.readUIntLE(0, 5), 0x0504030201);
-  assert.strictEqual(buf.readUIntBE(0, 5), 0x0102030405);
-  assert.strictEqual(buf.readUIntLE(0, 6), 0x060504030201);
-  assert.strictEqual(buf.readUIntBE(0, 6), 0x010203040506);
-  assert.strictEqual(buf.readIntLE(0, 1), 0x01);
-  assert.strictEqual(buf.readIntBE(0, 1), 0x01);
-  assert.strictEqual(buf.readIntLE(0, 3), 0x030201);
-  assert.strictEqual(buf.readIntBE(0, 3), 0x010203);
-  assert.strictEqual(buf.readIntLE(0, 5), 0x0504030201);
-  assert.strictEqual(buf.readIntBE(0, 5), 0x0102030405);
-  assert.strictEqual(buf.readIntLE(0, 6), 0x060504030201);
-  assert.strictEqual(buf.readIntBE(0, 6), 0x010203040506);
-}

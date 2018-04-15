@@ -117,25 +117,19 @@ const assert = require('assert');
 
   // Check byteLength.
   ['writeUIntBE', 'writeUIntLE'].forEach((fn) => {
-
-    // Verify that default offset & byteLength works fine.
-    data[fn](undefined, undefined);
-    data[fn](undefined);
-    data[fn]();
-
-    ['', '0', null, {}, [], () => {}, true, false].forEach((bl) => {
+    ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((bl) => {
       assert.throws(
         () => data[fn](23, 0, bl),
         { code: 'ERR_INVALID_ARG_TYPE' });
     });
 
-    [Infinity, -1].forEach((offset) => {
+    [Infinity, -1].forEach((byteLength) => {
       assert.throws(
-        () => data[fn](23, 0, offset),
+        () => data[fn](23, 0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${offset}`
+                   `It must be >= 1 and <= 6. Received ${byteLength}`
         }
       );
     });
