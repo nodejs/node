@@ -1206,16 +1206,14 @@ myReader.on('readable', () => {
 });
 ```
 
-##### readable[@@asyncIterator]
+##### readable\[Symbol.asyncIterator\]()
 <!-- YAML
 added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
 
-* {AsyncIterator}
-
-Returns an [AsyncIterator][async-iterator] to fully consume the stream.
+* Returns: {AsyncIterator} to fully consume the stream.
 
 ```js
 const fs = require('fs');
@@ -2415,4 +2413,3 @@ contain multi-byte characters.
 [readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
-[async-iterator]: https://github.com/tc39/proposal-async-iteration
