@@ -1348,7 +1348,7 @@ start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
 The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `start` or `end` are not integers, then they are rounded to the closest
-integer using `Math.round`.
+integer using `Math.round()`.
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `'open'` event will be
