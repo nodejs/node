@@ -169,6 +169,7 @@ void Emit(Environment* env, double async_id, AsyncHooks::Fields type,
   if (async_hooks->fields()[type] == 0)
     return;
 
+  v8::HandleScope handle_scope(env->isolate());
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   FatalTryCatch try_catch(env);
   USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
