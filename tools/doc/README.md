@@ -29,7 +29,7 @@ added: v0.10.0
 
 * `x` {string} The description of the string.
 * `y` {boolean} Should I stay or should I go?
-* `z` {number} How many zebras to bring.
+* `z` {number} How many zebras to bring. **Default:** `100`.
 
 A description of the function.
 
@@ -66,7 +66,7 @@ added: v0.10.0
 
 * `anArg` {Object} Just an argument.
   * `field` {string} `anArg` can have this field.
-  * `field2` {boolean} Another field. Default: `false`.
+  * `field2` {boolean} Another field. **Default:** `false`.
 * Returns: {boolean} `true` if it worked.
 
 A description of the method for humans.
@@ -77,6 +77,9 @@ added: v0.10.0
 -->
 
 * Returns: {SomeClass | null} The next `SomeClass` in line.
+
+`SomeClass` must be registered in `tools/doc/type-parser.js`
+to be properly parsed in `{type}` fields.
 
 ### SomeClass.someProperty
 <!-- YAML
@@ -99,8 +102,8 @@ This event is emitted on instances of `SomeClass`, not on the module itself.
 
 
 * Classes have (description, Properties, Methods, Events).
-* Events have (list of arguments, description).
-* Functions have (list of arguments, description).
-* Methods have (list of arguments, description).
+* Events have (list of listener arguments, description).
+* Functions have (list of arguments, returned value if defined, description).
+* Methods have (list of arguments, returned value if defined, description).
 * Modules have (description, Properties, Functions, Classes, Examples).
 * Properties have (type, description).
