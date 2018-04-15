@@ -1554,6 +1554,18 @@ Perform a SemVer comparison to the release version.
   version, `0` if the given version matches the process version, and `-1`
   if the given version is greater than the release version.
 
+## process.release.compareVersion(version)
+<!-- YAML
+added: REPLACEME
+-->
+
+Perform a SemVer comparison to the release version.
+
+* `version` {string} The semver version to compare.
+* Returns: {number} `1` if the given version is lower than the current release
+  version, `0` if the given version matches the process version, and `-1`
+  if the given version is greater than the release version.
+
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
 added: v0.5.9
