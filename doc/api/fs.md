@@ -4640,9 +4640,6 @@ through `fs.open` or `fs.writeFile` or `fsPromises.open()`) will fail with
 A call to `fs.ftruncate()` or `fsPromises.ftruncate()` can be used to reset
 the file contents.
 
-
-
-
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
 [`Buffer`]: buffer.html#buffer_buffer
