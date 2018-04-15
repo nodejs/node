@@ -17,7 +17,7 @@ common.expectsError(() => {
   new vm.Script('void 0', 42);
 }, invalidArgType);
 
-[null, {}, [1], 'bad', true, 0.1].forEach((value) => {
+[null, {}, [1], 'bad', true].forEach((value) => {
   common.expectsError(() => {
     new vm.Script('void 0', { lineOffset: value });
   }, invalidArgType);
@@ -25,6 +25,16 @@ common.expectsError(() => {
   common.expectsError(() => {
     new vm.Script('void 0', { columnOffset: value });
   }, invalidArgType);
+});
+
+[0.1, 2 ** 32].forEach((value) => {
+  common.expectsError(() => {
+    new vm.Script('void 0', { lineOffset: value });
+  }, outOfRange);
+
+  common.expectsError(() => {
+    new vm.Script('void 0', { columnOffset: value });
+  }, outOfRange);
 });
 
 common.expectsError(() => {
@@ -53,26 +63,31 @@ common.expectsError(() => {
   const script = new vm.Script('void 0');
   const sandbox = vm.createContext();
 
-  function assertErrors(options) {
+  function assertErrors(options, errCheck) {
     common.expectsError(() => {
       script.runInThisContext(options);
-    }, invalidArgType);
+    }, errCheck);
 
     common.expectsError(() => {
       script.runInContext(sandbox, options);
-    }, invalidArgType);
+    }, errCheck);
 
     common.expectsError(() => {
       script.runInNewContext({}, options);
-    }, invalidArgType);
+    }, errCheck);
   }
 
-  [null, 'bad', 42].forEach(assertErrors);
-  [{}, [1], 'bad', null, -1, 0, NaN].forEach((value) => {
-    assertErrors({ timeout: value });
+  [null, 'bad', 42].forEach((value) => {
+    assertErrors(value, invalidArgType);
+  });
+  [{}, [1], 'bad', null].forEach((value) => {
+    assertErrors({ timeout: value }, invalidArgType);
+  });
+  [-1, 0, NaN].forEach((value) => {
+    assertErrors({ timeout: value }, outOfRange);
   });
   [{}, [1], 'bad', 1, null].forEach((value) => {
-    assertErrors({ displayErrors: value });
-    assertErrors({ breakOnSigint: value });
+    assertErrors({ displayErrors: value }, invalidArgType);
+    assertErrors({ breakOnSigint: value }, invalidArgType);
   });
 }
