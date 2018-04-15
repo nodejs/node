@@ -3106,9 +3106,10 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
     ok = EVP_CipherFinal_ex(ctx_, *out, out_len) == 1;
 
     if (ok && kind_ == kCipher && IsAuthenticatedMode()) {
-      // For GCM, the tag length is static (16 bytes), while the CCM tag length
-      // must be specified in advance.
-      if (mode == EVP_CIPH_GCM_MODE)
+      // In GCM mode, the authentication tag length can be specified in advance,
+      // but defaults to 16 bytes when encrypting. In CCM mode, it must always
+      // be given by the user.
+      if (mode == EVP_CIPH_GCM_MODE && auth_tag_len_ == kNoAuthTagLength)
         auth_tag_len_ = sizeof(auth_tag_);
       // TOOD(tniessen) Use EVP_CTRL_AEAP_GET_TAG in OpenSSL 1.1.0
       static_assert(EVP_CTRL_CCM_GET_TAG == EVP_CTRL_GCM_GET_TAG,
