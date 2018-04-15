@@ -56,7 +56,7 @@ dns.resolve4('archive.org', (err, addresses) => {
 There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
 
-## Class dns.Resolver
+## Class: dns.Resolver
 <!-- YAML
 added: v8.3.0
 -->
