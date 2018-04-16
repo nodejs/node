@@ -151,7 +151,9 @@ added: REPLACEME
 -->
 
 * `options` {Object}
-  * `categories` {string[]} An array of trace category names
+  * `categories` {string[]} An array of trace category names. Values included
+    in the array are coerced to a string when possible. An error will be
+    thrown if the value cannot be coerced.
 * Returns: {Tracing}.
 
 Creates and returns a `Tracing` object for the given set of `categories`.
@@ -192,14 +194,5 @@ t2.enable();
 
 console.log(trace_events.getEnabledCategories());
 ```
-
-### `trace_events.getEnabledTracingObjects()`
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {Tracing[]}
-
-Returns an array of currently enabled `Tracing` objects.
 
 [Performance API]: perf_hooks.html

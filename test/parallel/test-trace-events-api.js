@@ -13,8 +13,7 @@ const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const {
   createTracing,
-  getEnabledCategories,
-  getEnabledTracingObjects
+  getEnabledCategories
 } = require('trace_events');
 
 const isChild = process.argv[2] === 'child';
@@ -91,16 +90,20 @@ if (isChild) {
       tracing3 = undefined;
     }
     global.gc();
-    assert.strictEqual(getEnabledTracingObjects().length, 1);
     assert.strictEqual(getEnabledCategories(), 'abc');
-    {
-      let tracing3 = getEnabledTracingObjects()[0];
-      assert(tracing3);
-      tracing3.disable();
-      assert.strictEqual(getEnabledCategories(), undefined);
-      tracing3 = undefined;
+    // Not able to disable the thing after this point, however.
+  }
+
+  {
+    common.expectWarning(
+      'Warning',
+      'Possible trace_events memory leak detected. There are more than ' +
+      '10 enabled Tracing objects.',
+      common.noWarnCode);
+    for (let n = 0; n < 10; n++) {
+      const tracing = createTracing({ categories: [ `a${n}` ] });
+      tracing.enable();
     }
-    global.gc();
   }
 
   tmpdir.refresh();

@@ -41,7 +41,7 @@ class NodeCategorySet : public BaseObject {
   }
 
   bool enabled_ = false;
-  std::set<std::string> categories_;
+  const std::set<std::string> categories_;
 };
 
 void NodeCategorySet::New(const FunctionCallbackInfo<Value>& args) {
