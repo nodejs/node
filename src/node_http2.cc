@@ -1391,16 +1391,35 @@ void Http2Session::MaybeScheduleWrite() {
 // storage for data and metadata that was associated with these writes.
 void Http2Session::ClearOutgoing(int status) {
   CHECK_NE(flags_ & SESSION_STATE_SENDING, 0);
-  flags_ &= ~SESSION_STATE_SENDING;
 
-  for (const nghttp2_stream_write& wr : outgoing_buffers_) {
-    WriteWrap* wrap = wr.req_wrap;
-    if (wrap != nullptr)
-      wrap->Done(status);
+  if (outgoing_buffers_.size() > 0) {
+    outgoing_storage_.clear();
+
+    for (const nghttp2_stream_write& wr : outgoing_buffers_) {
+      WriteWrap* wrap = wr.req_wrap;
+      if (wrap != nullptr)
+        wrap->Done(status);
+    }
+
+    outgoing_buffers_.clear();
   }
 
-  outgoing_buffers_.clear();
-  outgoing_storage_.clear();
+  flags_ &= ~SESSION_STATE_SENDING;
+
+  // Now that we've finished sending queued data, if there are any pending
+  // RstStreams we should try sending again and then flush them one by one.
+  if (pending_rst_streams_.size() > 0) {
+    std::vector<int32_t> current_pending_rst_streams;
+    pending_rst_streams_.swap(current_pending_rst_streams);
+
+    SendPendingData();
+
+    for (int32_t stream_id : current_pending_rst_streams) {
+      Http2Stream* stream = FindStream(stream_id);
+      if (stream != nullptr)
+        stream->FlushRstStream();
+    }
+  }
 }
 
 // Queue a given block of data for sending. This always creates a copy,
@@ -1424,18 +1443,19 @@ void Http2Session::CopyDataIntoOutgoing(const uint8_t* src, size_t src_length) {
 // chunk out to the i/o socket to be sent. This is a particularly hot method
 // that will generally be called at least twice be event loop iteration.
 // This is a potential performance optimization target later.
-void Http2Session::SendPendingData() {
+// Returns non-zero value if a write is already in progress.
+uint8_t Http2Session::SendPendingData() {
   DEBUG_HTTP2SESSION(this, "sending pending data");
   // Do not attempt to send data on the socket if the destroying flag has
   // been set. That means everything is shutting down and the socket
   // will not be usable.
   if (IsDestroyed())
-    return;
+    return 0;
   flags_ &= ~SESSION_STATE_WRITE_SCHEDULED;
 
   // SendPendingData should not be called recursively.
   if (flags_ & SESSION_STATE_SENDING)
-    return;
+    return 1;
   // This is cleared by ClearOutgoing().
   flags_ |= SESSION_STATE_SENDING;
 
@@ -1459,15 +1479,15 @@ void Http2Session::SendPendingData() {
     // does take care of things like closing the individual streams after
     // a socket has been torn down, so we still need to call it.
     ClearOutgoing(UV_ECANCELED);
-    return;
+    return 0;
   }
 
   // Part Two: Pass Data to the underlying stream
 
   size_t count = outgoing_buffers_.size();
   if (count == 0) {
-    flags_ &= ~SESSION_STATE_SENDING;
-    return;
+    ClearOutgoing(0);
+    return 0;
   }
   MaybeStackBuffer<uv_buf_t, 32> bufs;
   bufs.AllocateSufficientStorage(count);
@@ -1497,7 +1517,7 @@ void Http2Session::SendPendingData() {
   if (stream_->DoTryWrite(&writebufs, &count) != 0 || count == 0) {
     // All writes finished synchronously, nothing more to do here.
     ClearOutgoing(0);
-    return;
+    return 0;
   }
 
   WriteWrap* req = AllocateSend();
@@ -1507,6 +1527,8 @@ void Http2Session::SendPendingData() {
 
   DEBUG_HTTP2SESSION2(this, "wants data in return? %d",
                       nghttp2_session_want_read(session_));
+
+  return 0;
 }
 
 
@@ -1939,12 +1961,25 @@ inline int Http2Stream::SubmitPriority(nghttp2_priority_spec* prispec,
 // peer.
 inline void Http2Stream::SubmitRstStream(const uint32_t code) {
   CHECK(!this->IsDestroyed());
+  code_ = code;
+  // If possible, force a purge of any currently pending data here to make sure
+  // it is sent before closing the stream. If it returns non-zero then we need
+  // to wait until the current write finishes and try again to avoid nghttp2
+  // behaviour where it prioritizes RstStream over everything else.
+  if (session_->SendPendingData() != 0) {
+    session_->AddPendingRstStream(id_);
+    return;
+  }
+
+  FlushRstStream();
+}
+
+void Http2Stream::FlushRstStream() {
+  if (IsDestroyed())
+    return;
   Http2Scope h2scope(this);
-  // Force a purge of any currently pending data here to make sure
-  // it is sent before closing the stream.
-  session_->SendPendingData();
   CHECK_EQ(nghttp2_submit_rst_stream(**session_, NGHTTP2_FLAG_NONE,
-                                     id_, code), 0);
+                                     id_, code_), 0);
 }
 
 
