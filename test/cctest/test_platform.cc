@@ -44,7 +44,7 @@ TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
   Env env {handle_scope, argv};
   int run_count = 0;
   platform->CallOnForegroundThread(
-      isolate_, new RepostingTask(3, &run_count, isolate_, platform.get()));
+      isolate_, new RepostingTask(2, &run_count, isolate_, platform.get()));
   platform->FlushForegroundTasks(isolate_);
   EXPECT_EQ(1, run_count);
   platform->FlushForegroundTasks(isolate_);
