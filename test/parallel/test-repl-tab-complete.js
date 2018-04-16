@@ -203,6 +203,86 @@ testMe.complete('toSt', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['toString'], 'toSt']);
 }));
 
+// tab completion Symbol
+{
+  assert.strictEqual(typeof repl.tabComplete, 'symbol');
+}
+
+// tab completion for function calls
+{
+  putIn.run(['.clear']);
+  putIn.run(['var repl = require(\'repl\')']);
+
+  putIn.run(['var completeMethod = () => [7, 13]']);
+
+  putIn.run(['var obj = { methodWithTabComplete: (i) => {} }']);
+  putIn.run(['obj.methodWithTabComplete[repl.tabComplete] = completeMethod']);
+
+  putIn.run(['var fnWithTabComplete = (i) => {}']);
+  putIn.run(['fnWithTabComplete[repl.tabComplete] = completeMethod']);
+
+
+  ['obj.methodWithTabComplete(', 'fnWithTabComplete('].forEach(input => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      console.log(data)
+      assert.strictEqual(err, null);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], undefined);
+      assert.strictEqual(data[0].length, 2);
+      assert.ok(data[0].includes(7));
+      assert.ok(data[0].includes(13));
+    }));
+  })
+
+  // does not tab complete expressions without the `tabComplete` method
+  putIn.run(['.clear']);
+  putIn.run(['var fnWithTabComplete = (i) => {} }']);
+
+  testMe.complete('fnWithTabComplete (', common.mustCall((err, data) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(data.length, 2);
+    assert.strictEqual(data[1], undefined);
+    assert.strictEqual(data[0].length, 0);
+  }));
+
+  // passes input params to the completer function
+  {
+    putIn.run(['.clear']);
+    putIn.run(['var repl = require(\'repl\')']);
+
+    putIn.run(['var completeMethod = (args) => args']);
+
+    putIn.run(['var fnWithTabComplete = (i) => {}']);
+    putIn.run(['fnWithTabComplete[repl.tabComplete] = completeMethod']);
+    const tabCompleteCases = [{
+      input: 'fnWithTabComplete (\'hi',
+      expected: ['\'hi'],
+    }, {
+      input: 'fnWithTabComplete (\'a\', \'b\',',
+      expected: ['\'a\'', '\'b\'', ''],
+    }, {
+      input: 'fnWithTabComplete(\"a\", b = 0, /*c,*/ d',
+      expected: ['\"a\"', 'b = 0', '/*c,*/ d']
+    }, {
+      input: 'fnWithTabComplete(a, \"bamieh, ahm\", \"incom::',
+      expected: ['a', '\"bamieh, ahm\"', '\"incom::']
+    }];
+
+    tabCompleteCases.forEach(tabCompleteCase => {
+      testMe.complete(tabCompleteCase.input, common.mustCall((err, data) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(data.length, 2);
+        assert.strictEqual(data[1], undefined);
+        assert.strictEqual(data[0].length, tabCompleteCase.expected.length);
+        tabCompleteCase.expected.forEach(expectedData => {
+          assert(data[0].includes(expectedData));
+        })
+      }));
+    })
+
+  }
+
+}
 // Tab complete provides built in libs for require()
 putIn.run(['.clear']);
 
