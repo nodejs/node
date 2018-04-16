@@ -1324,23 +1324,6 @@ Be aware that, unlike the default value set for `highWaterMark` on a
 readable stream (16 kb), the stream returned by this method has a
 default value of 64 kb for the same parameter.
 
-<<<<<<< HEAD
-=======
-`options` is an object or string with the following defaults:
-
-```js
-const defaults = {
-  end: Infinity,
-  flags: 'r',
-  encoding: null,
-  fd: null,
-  mode: 0o666,
-  autoClose: true,
-  highWaterMark: 64 * 1024
-};
-```
-
->>>>>>> Minimize comments and documentation
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
 start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
