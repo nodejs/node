@@ -21,6 +21,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 
 #include "env-inl.h"
 #include "string_bytes.h"
@@ -38,7 +39,7 @@
 
 #define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
-    if (!(r)) return env->ThrowRangeError("Index out of range");            \
+    if (!(r)) return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);               \
   } while (0)
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
@@ -544,7 +545,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
     return args.GetReturnValue().Set(0);
 
   if (source_start > ts_obj_length)
-    return env->ThrowRangeError("Index out of range");
+    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
 
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
@@ -728,9 +729,9 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
 
   if (source_start > ts_obj_length)
-    return env->ThrowRangeError("Index out of range");
+    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
   if (target_start > target_length)
-    return env->ThrowRangeError("Index out of range");
+    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
 
   CHECK_LE(source_start, source_end);
   CHECK_LE(target_start, target_end);
