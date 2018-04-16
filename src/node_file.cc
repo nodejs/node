@@ -108,13 +108,13 @@ FileHandle::FileHandle(Environment* env, int fd, Local<Object> obj)
                               attr).FromJust();
 }
 
-void FileHandle::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsInt32());
 
   FileHandle* handle =
-      new FileHandle(env, args[0].As<v8::Int32>()->Value(), args.This());
+      new FileHandle(env, args[0].As<Int32>()->Value(), args.This());
   if (args[1]->IsNumber())
     handle->read_offset_ = args[1]->IntegerValue(env->context()).FromJust();
   if (args[2]->IsNumber())
@@ -671,7 +671,7 @@ inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value) {
   if (value->IsObject()) {
     return Unwrap<FSReqBase>(value.As<Object>());
   } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
-    return new FSReqPromise<double, v8::Float64Array>(env);
+    return new FSReqPromise<double, Float64Array>(env);
   }
   return nullptr;
 }
