@@ -320,6 +320,13 @@ fs.watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
 });
 ```
 
+### Event: 'close'
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the watcher stops watching for changes.
+
 ### Event: 'error'
 <!-- YAML
 added: v0.5.8
@@ -328,13 +335,6 @@ added: v0.5.8
 * `error` {Error}
 
 Emitted when an error occurs while watching the file.
-
-### Event: 'close'
-<!-- YAML
-added: REPLACEME
--->
-
-Emitted when the watcher stops watching for changes.
 
 ### watcher.close()
 <!-- YAML
@@ -3465,13 +3465,6 @@ use a simple numeric file descriptor, all `fsPromises.*` variations use the
 `FileHandle` class in order to help protect against accidental leaking of
 unclosed file descriptors after a `Promise` is resolved or rejected.
 
-#### filehandle.fd
-<!-- YAML
-added: REPLACEME
--->
-
-* {number} The numeric file descriptor managed by the `FileHandle` object.
-
 #### filehandle.appendFile(data, options)
 <!-- YAML
 added: REPLACEME
@@ -3543,6 +3536,13 @@ added: REPLACEME
 
 Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
 success.
+
+#### filehandle.fd
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number} The numeric file descriptor managed by the `FileHandle` object.
 
 #### filehandle.read(buffer, offset, length, position)
 <!-- YAML
