@@ -37,6 +37,9 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")
+
 #define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
     if (!(r)) return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);               \
@@ -657,8 +660,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_BUFFER_ARG(args.This(), ts_obj);
 
-  if (!args[0]->IsString())
-    return env->ThrowTypeError("Argument must be a string");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "argument");
 
   Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
