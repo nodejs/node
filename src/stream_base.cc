@@ -3,6 +3,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_internals.h"
 #include "env-inl.h"
 #include "js_stream.h"
@@ -175,7 +176,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[1]->IsUint8Array()) {
-    env->ThrowTypeError("Second argument must be a buffer");
+    node::THROW_ERR_INVALID_ARG_TYPE(env, "Second argument must be a buffer");
     return 0;
   }
 
