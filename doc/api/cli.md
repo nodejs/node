@@ -379,7 +379,7 @@ will be chosen.
 added: v6.0.0
 -->
 
-Automatically zero-fills all newly allocated [Buffer][] and [SlowBuffer][]
+Automatically zero-fills all newly allocated [`Buffer`][] and [`SlowBuffer`][]
 instances.
 
 
@@ -675,11 +675,11 @@ greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
 
 [`--openssl-config`]: #cli_openssl_config_file
-[Buffer]: buffer.html#buffer_buffer
+[`Buffer`]: buffer.html#buffer_class_buffer
+[`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer
 [REPL]: repl.html
-[SlowBuffer]: buffer.html#buffer_class_slowbuffer
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
