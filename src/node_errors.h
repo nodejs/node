@@ -17,8 +17,9 @@ namespace node {
 // a `Local<Value>` containing the TypeError with proper code and message
 
 #define ERRORS_WITH_CODE(V)                                                  \
+  V(ERR_INDEX_OUT_OF_RANGE, RangeError)                                      \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
-  V(ERR_STRING_TOO_LONG, Error)                                             \
+  V(ERR_STRING_TOO_LONG, Error)                                              \
   V(ERR_BUFFER_TOO_LARGE, Error)
 
 #define V(code, type)                                                         \
@@ -42,6 +43,7 @@ namespace node {
 // Errors with predefined static messages
 
 #define PREDEFINED_ERROR_MESSAGES(V)                                         \
+  V(ERR_INDEX_OUT_OF_RANGE, "Index out of range")                            \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")
 
 #define V(code, message)                                                     \
