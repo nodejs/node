@@ -46,6 +46,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "env-inl.h"
 #include "util-inl.h"
 #include "base_object-inl.h"
@@ -447,7 +448,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
   UErrorCode status = U_ZERO_ERROR;
   MaybeLocal<Object> result;
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  CHECK(Buffer::HasInstance(args[0]));
   SPREAD_BUFFER_ARG(args[0], ts_obj);
   const enum encoding fromEncoding = ParseEncoding(isolate, args[1], BUFFER);
   const enum encoding toEncoding = ParseEncoding(isolate, args[2], BUFFER);
