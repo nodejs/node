@@ -90,6 +90,21 @@ if (tag) {
 });
 
 [
+  [1.5, 1, 1, 'major'],
+  [1, 1.5, 1, 'minor'],
+  [1, 1, 1.5, 'patch'],
+].forEach(([major, minor, patch, expected]) => {
+  assert.throws(() => {
+    compareVersion(major, minor, patch);
+  }, {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    message: `The value of "${expected}" is out of range. ` +
+             'It must be an integer. Received 1.5'
+  });
+});
+
+[
   '1a.0.0',
   '1.0a.0',
   '1.0.0a',
