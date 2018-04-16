@@ -685,8 +685,7 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   Maybe<URL> result = node::loader::Resolve(env, specifier_std, url);
   if (result.IsNothing() || (result.FromJust().flags() & URL_FLAGS_FAILED)) {
     std::string msg = "Cannot find module " + specifier_std;
-    env->ThrowError(msg.c_str());
-    return;
+    return node::THROW_ERR_MISSING_MODULE(env, msg.c_str());
   }
 
   args.GetReturnValue().Set(result.FromJust().ToObject(env));
