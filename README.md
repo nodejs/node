@@ -472,6 +472,8 @@ For more information about the governance of the Node.js project, see
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
+* [ryzokuken](https://github.com/ryzokuken) -
+**Ujjwal Sharma** &lt;usharma1998@gmail.com&gt; (he/him)
 * [saghul](https://github.com/saghul) -
 **Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
 * [sam-github](https://github.com/sam-github) -
