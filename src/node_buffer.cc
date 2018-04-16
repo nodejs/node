@@ -668,8 +668,10 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   size_t max_length;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &offset));
-  if (offset > ts_obj_length)
-    return env->ThrowRangeError("Offset is out of bounds");
+  if (offset > ts_obj_length) {
+    return node::THROW_ERR_BUFFER_OUT_OF_BOUNDS(
+        env, "\"offset\" is outside of buffer bounds");
+  }
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], ts_obj_length - offset,
                                           &max_length));
