@@ -1548,8 +1548,8 @@ added: REPLACEME
 * `minor` {number} The minor version to compare.
 * `patch` {number} The patch version to compare.
 * `tag` {string} The pre-release tag to compare.
-* Returns: {number} `1` if the given version is lower than the current release
-  version, `0` if the given version matches the process version, and `-1`
+* Returns: {number} `-1` if the given version is lower than the current release
+  version, `0` if the given version matches the process version, and `1`
   if the given version is greater than the release version.
 
 Perform a SemVer comparison to the release version.
@@ -1560,8 +1560,8 @@ added: REPLACEME
 -->
 
 * `version` {string} The semver version to compare.
-* Returns: {number} `1` if the given version is lower than the current release
-  version, `0` if the given version matches the process version, and `-1`
+* Returns: {number} `-1` if the given version is lower than the current release
+  version, `0` if the given version matches the process version, and `1`
   if the given version is greater than the release version.
 
 Perform a SemVer comparison to the release version.

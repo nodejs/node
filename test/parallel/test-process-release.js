@@ -29,12 +29,12 @@ const {
 
 [
   [major, minor, patch, tag, 0],
-  [major + 1, minor, patch, tag, -1],
-  [major - 1, minor, patch, tag, 1],
-  [major, minor + 1, patch, tag, -1],
-  [major, minor - 1, patch, tag, 1],
-  [major, minor, patch + 1, tag, -1],
-  [major, minor, patch - 1, tag, 1]
+  [major + 1, minor, patch, tag, 1],
+  [major - 1, minor, patch, tag, -1],
+  [major, minor + 1, patch, tag, 1],
+  [major, minor - 1, patch, tag, -1],
+  [major, minor, patch + 1, tag, 1],
+  [major, minor, patch - 1, tag, -1]
 ].forEach(([major, minor, patch, tag, expected]) => {
   // Skip invalid entries.
   if (major < 0 || minor < 0 || patch < 0)
@@ -47,12 +47,12 @@ const {
 if (tag) {
   assert.strictEqual(compareVersion(major, minor, patch), 1);
   assert.strictEqual(compareVersion(`${major}.${minor}.${patch}`), 1);
-  assert.strictEqual(compareVersion(major, minor, patch, `${tag}-fake`), -1);
+  assert.strictEqual(compareVersion(major, minor, patch, `${tag}-fake`), 1);
   assert.strictEqual(
-    compareVersion(major, minor, patch, `${tag.slice(0, -1)}`), 1);
+    compareVersion(major, minor, patch, `${tag.slice(0, -1)}`), -1);
 } else {
-  assert.strictEqual(compareVersion(major, minor, patch, 'fake-tag'), -1);
-  assert.strictEqual(compareVersion(`${major}.${minor}.${patch}-fake-tag`), -1);
+  assert.strictEqual(compareVersion(major, minor, patch, 'fake-tag'), 1);
+  assert.strictEqual(compareVersion(`${major}.${minor}.${patch}-fake-tag`), 1);
   assert.strictEqual(compareVersion(major, minor, patch), 0);
 }
 
