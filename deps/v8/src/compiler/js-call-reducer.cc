@@ -419,7 +419,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // runtime otherwise.
     Handle<DescriptorArray> descriptors(receiver_map->instance_descriptors(),
                                         isolate());
-    if (descriptors->length() < 2) return NoChange();
+    if (descriptors->number_of_descriptors() < 2) return NoChange();
     if (descriptors->GetKey(JSFunction::kLengthDescriptorIndex) !=
         isolate()->heap()->length_string()) {
       return NoChange();
