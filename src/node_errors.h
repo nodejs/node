@@ -32,6 +32,9 @@ namespace node {
     e->Set(isolate->GetCurrentContext(), OneByteString(isolate, "code"),      \
            js_code).FromJust();                                               \
     return e;                                                                 \
+  }                                                                           \
+  inline void THROW_ ## code(Environment* env, const char* message) {         \
+    env->isolate()->ThrowException(code(env->isolate(), message));            \
   }
   ERRORS_WITH_CODE(V)
 #undef V
@@ -44,6 +47,9 @@ namespace node {
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
     return code(isolate, message);                                           \
+  }                                                                          \
+  inline void THROW_ ## code(Environment* env) {                             \
+    env->isolate()->ThrowException(code(env->isolate(), message));           \
   }
   PREDEFINED_ERROR_MESSAGES(V)
 #undef V
