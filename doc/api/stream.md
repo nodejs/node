@@ -1391,6 +1391,107 @@ async function run() {
 run().catch(console.error);
 ```
 
+### stream.finished(stream, callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {Stream} A readable and/or writable stream.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+
+A function to get notified when a stream is no longer readable, writable
+or has experienced an error or a premature close event.
+
+```js
+const { finished } = require('stream');
+
+const rs = fs.createReadStream('archive.tar');
+
+finished(rs, (err) => {
+  if (err) {
+    console.error('Stream failed', err);
+  } else {
+    console.log('Stream is done reading');
+  }
+});
+
+rs.resume(); // drain the stream
+```
+
+Especially useful in error handling scenarios where a stream is destroyed
+prematurely (like an aborted HTTP request), and will not emit `'end'`
+or `'finish'`.
+
+The `finished` API is promisify'able as well;
+
+```js
+const finished = util.promisify(stream.finished);
+
+const rs = fs.createReadStream('archive.tar');
+
+async function run() {
+  await finished(rs);
+  console.log('Stream is done reading');
+}
+
+run().catch(console.error);
+rs.resume(); // drain the stream
+```
+
+### stream.pipeline(...streams[, callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `...streams` {Stream} Two or more streams to pipe between.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+
+A module method to pipe between streams forwarding errors and properly cleaning
+up and provide a callback when the pipeline is complete.
+
+```js
+const { pipeline } = require('stream');
+const fs = require('fs');
+const zlib = require('zlib');
+
+// Use the pipeline API to easily pipe a series of streams
+// together and get notified when the pipeline is fully done.
+
+// A pipeline to gzip a potentially huge tar file efficiently:
+
+pipeline(
+  fs.createReadStream('archive.tar'),
+  zlib.createGzip(),
+  fs.createWriteStream('archive.tar.gz'),
+  (err) => {
+    if (err) {
+      console.error('Pipeline failed', err);
+    } else {
+      console.log('Pipeline succeeded');
+    }
+  }
+);
+```
+
+The `pipeline` API is promisify'able as well:
+
+```js
+const pipeline = util.promisify(stream.pipeline);
+
+async function run() {
+  await pipeline(
+    fs.createReadStream('archive.tar'),
+    zlib.createGzip(),
+    fs.createWriteStream('archive.tar.gz')
+  );
+  console.log('Pipeline succeeded');
+}
+
+run().catch(console.error);
+```
+
 ## API for Stream Implementers
 
 <!--type=misc-->
