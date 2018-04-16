@@ -69,8 +69,11 @@
   * OK: JavaScript, Google's V8
   * NOT OK: Javascript, Google's v8
 
+See also API documentation structure overview in [doctools README][].
+
 [Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
 [serial commas]: https://en.wikipedia.org/wiki/Serial_comma
 [The New York Times Manual of Style and Usage]: https://en.wikipedia.org/wiki/The_New_York_Times_Manual_of_Style_and_Usage
 [plugin]: http://editorconfig.org/#download
+[doctools README]: ../tools/doc/README.md
