@@ -18,8 +18,8 @@ const ret = spawnSync(
   process.execPath,
   ['--stack_size=75', __filename, 'async']
 );
-assert.strictEqual(ret.status, 0,
-                   `EXIT CODE: ${ret.status}, STDERR:\n${ret.stderr}`);
 const stderr = ret.stderr.toString('utf8', 0, 2048);
+assert.strictEqual(ret.status, 0,
+                   `EXIT CODE: ${ret.status}, STDERR:\n${stderr}`);
 assert.ok(!/async.*hook/i.test(stderr));
 assert.ok(stderr.includes('UnhandledPromiseRejectionWarning: Error'), stderr);

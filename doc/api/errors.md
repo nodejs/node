@@ -1158,6 +1158,12 @@ Invalid characters were detected in headers.
 A cursor on a given stream cannot be moved to a specified row without a
 specified column.
 
+<a id="ERR_INVALID_ENV_VALUE"></a>
+### ERR_INVALID_ENV_VALUE
+
+A environment variable value is unknown. Please consultate the documentation and
+make sure to pass in valid values.
+
 <a id="ERR_INVALID_FD"></a>
 ### ERR_INVALID_FD
 

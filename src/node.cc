@@ -175,6 +175,10 @@ static node_module* modlist_addon;
 // TODO(addaleax): This should not be global.
 static bool abort_on_uncaught_exception = false;
 
+enum ExceptionOrigin {
+  kFromError = false
+};
+
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
 
@@ -1466,7 +1470,7 @@ static void OnFatalError(const char* location, const char* message) {
 
 NO_RETURN void FatalError(const char* location, const char* message) {
   OnFatalError(location, message);
-  // to suppress compiler warning
+  // To suppress compiler warning.
   ABORT();
 }
 
@@ -1479,10 +1483,16 @@ FatalTryCatch::~FatalTryCatch() {
   }
 }
 
-
 void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message) {
+  InternalFatalException(isolate, error, message, kFromError);
+}
+
+void InternalFatalException(Isolate* isolate,
+                            Local<Value> error,
+                            Local<Message> message,
+                            bool from_promise) {
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -1493,7 +1503,7 @@ void FatalException(Isolate* isolate,
 
   if (!fatal_exception_function->IsFunction()) {
     // Failed before the process._fatalException function was added!
-    // this is probably pretty bad.  Nothing to do but report and exit.
+    // this is probably pretty bad. Nothing to do but report and exit.
     ReportException(env, error, message);
     exit(6);
   } else {
@@ -1502,10 +1512,13 @@ void FatalException(Isolate* isolate,
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
 
+    Local<Value> argv[2] = { error,
+                             Boolean::New(env->isolate(), from_promise) };
+
     // This will return true if the JS layer handled it, false otherwise
     Local<Value> caught =
         fatal_exception_function.As<Function>()
-            ->Call(process_object, 1, &error);
+            ->Call(process_object, arraysize(argv), argv);
 
     if (fatal_try_catch.HasTerminated())
       return;

@@ -1,0 +1,61 @@
+First GC did not collect it.
+Error: Two
+    at Promise (*promise_unhandled_reject.js:*)
+    at new Promise (<anonymous>)
+    at Object.<anonymous> (*promise_unhandled_reject.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+  <rejected> Error: Two
+    at Promise (*promise_unhandled_reject.js:*)
+    at new Promise (<anonymous>)
+    at Object.<anonymous> (*promise_unhandled_reject.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+Error: Three
+    at Object.<anonymous> (*promise_unhandled_reject.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+  <rejected> Error: Three
+    at Object.<anonymous> (*promise_unhandled_reject.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+Second GC did not collect it.
+Third GC did not collect it.
+Exit code 1
+undefined:0
+
+
+
+Error: Two
+    at Promise (*promise_unhandled_reject.js:*)
+    at new Promise (<anonymous>)
+    at Object.<anonymous> (*promise_unhandled_reject.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *

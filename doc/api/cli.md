@@ -625,6 +625,29 @@ Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
 to an empty string (`''` or `' '`) disables persistent REPL history.
 
+### `NODE_UNHANDLED_REJECTION=state`
+<!-- YAML
+added: REPLACEME
+-->
+
+Setting this environment variable allows fine grained control over the behavior
+of unhandled rejections. This may be set to either one of `SILENT`, `WARN`,
+`ERROR_ON_GC` or `ERROR` while the default behavior without using the
+environment variable is the same as `WARN`. `WARN` reflects the
+[`unhandledRejection hook`][].
+
+Setting the environment variable to `SILENT` prevents unhandled rejection
+warnings from being logged, even if no [`unhandledRejection hook`][] is set.
+
+If set to `ERROR_ON_GC` unhandled rejections that are garbage collected are
+turned into exceptions.
+
+If set to `ERROR` any unhandled rejection is going turn the rejection into an
+exception.
+
+Any rejection that is turned into an exception can be caught by the
+[`uncaughtException hook`][].
+
 ### `OPENSSL_CONF=file`
 <!-- YAML
 added: v6.11.0
@@ -689,6 +712,8 @@ greater than `4` (its current default value). For more information, see the
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`uncaughtExceotion hook`]: process.html#process_event_uncaughtexception
+[`unhandledRejection hook`]: process.html#process_event_unhandledrejection
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [debugger]: debugger.html

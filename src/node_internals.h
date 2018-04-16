@@ -224,6 +224,10 @@ void FatalException(v8::Isolate* isolate,
                     v8::Local<v8::Value> error,
                     v8::Local<v8::Message> message);
 
+void InternalFatalException(v8::Isolate* isolate,
+                            v8::Local<v8::Value> error,
+                            v8::Local<v8::Message> message,
+                            bool from_promise);
 
 void SignalExit(int signo);
 #ifdef __POSIX__

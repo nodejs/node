@@ -147,7 +147,18 @@ most convenient for scripts).
 ### Event: 'uncaughtException'
 <!-- YAML
 added: v0.1.18
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20097
+    description: Garbage collected unhandled rejections will now also trigger an
+                 uncaughtException. The `errorOrigin` argument was added to
+                 distinguish those.
 -->
+
+* `err` {Error} The uncaught exception.
+* `errorOrigin` {string} Indicates if the exception originates from an
+  unhandled rejection or from synchronous errors. Can either be `'FROM_PROMISE'`
+  or `'FROM_ERROR'`.
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
@@ -159,12 +170,13 @@ behavior. You may also change the [`process.exitCode`][] in
 provided exit code, otherwise in the presence of such handler the process will
 exit with 0.
 
-The listener function is called with the `Error` object passed as the only
-argument.
-
 ```js
-process.on('uncaughtException', (err) => {
-  fs.writeSync(1, `Caught exception: ${err}\n`);
+process.on('uncaughtException', (err, errorOrigin) => {
+  fs.writeSync(
+    1,
+    `Caught exception: ${err}\n` +
+    `Exception originated from unhandled rejection: ${errorOrigin}`
+  );
 });
 
 setTimeout(() => {
@@ -216,6 +228,10 @@ changes:
                  a process warning.
 -->
 
+* `reason` {Error|any} The object with which the promise was rejected
+  (typically an [`Error`][] object).
+* `promise` {Promise} The rejected promise.
+
 The `'unhandledRejection'` event is emitted whenever a `Promise` is rejected and
 no error handler is attached to the promise within a turn of the event loop.
 When programming with Promises, exceptions are encapsulated as "rejected
@@ -224,21 +240,15 @@ are propagated through a `Promise` chain. The `'unhandledRejection'` event is
 useful for detecting and keeping track of promises that were rejected whose
 rejections have not yet been handled.
 
-The listener function is called with the following arguments:
-
-* `reason` {Error|any} The object with which the promise was rejected
-  (typically an [`Error`][] object).
-* `p` the `Promise` that was rejected.
-
 ```js
-process.on('unhandledRejection', (reason, p) => {
-  console.log('Unhandled Rejection at:', p, 'reason:', reason);
-  // application specific logging, throwing an error, or other logic here
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Application specific logging, throwing an error, or other logic here
 });
 
 somePromise.then((res) => {
-  return reportToUser(JSON.pasre(res)); // note the typo (`pasre`)
-}); // no `.catch()` or `.then()`
+  return reportToUser(JSON.pasre(res)); // Note the typo (`pasre`)
+}); // No `.catch()` or `.then()`
 ```
 
 The following will also trigger the `'unhandledRejection'` event to be
@@ -251,7 +261,7 @@ function SomeResource() {
 }
 
 const resource = new SomeResource();
-// no .catch or .then on resource.loaded for at least a turn
+// No .catch or .then on resource.loaded for at least a turn
 ```
 
 In this example case, it is possible to track the rejection as a developer error
@@ -259,7 +269,11 @@ as would typically be the case for other `'unhandledRejection'` events. To
 address such failures, a non-operational
 [`.catch(() => { })`][`promise.catch()`] handler may be attached to
 `resource.loaded`, which would prevent the `'unhandledRejection'` event from
-being emitted. Alternatively, the [`'rejectionHandled'`][] event may be used.
+being emitted.
+
+In case a rejected promise is garbage collected without ever having a
+[`.catch(() => { })`][`promise.catch()`] handler attached, it will trigger an
+`uncaughtException` just as any other uncaught JavaScript exception.
 
 ### Event: 'warning'
 <!-- YAML
@@ -2089,7 +2103,6 @@ cases:
 [`'exit'`]: #process_event_exit
 [`'finish'`]: stream.html#stream_event_finish
 [`'message'`]: child_process.html#child_process_event_message
-[`'rejectionHandled'`]: #process_event_rejectionhandled
 [`'uncaughtException'`]: #process_event_uncaughtexception
 [`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal

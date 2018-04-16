@@ -1,0 +1,14 @@
+Caught Fail; From promise: FROM_PROMISE
+(node:*) UnhandledPromiseRejectionWarning: Error: Fail
+    at *promise_unhandled_caught.js:*
+    at new Promise (<anonymous>)
+    at Object.<anonymous> (*promise_unhandled_caught.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+(node:*) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). (rejection id: 1)
+Exit code 0

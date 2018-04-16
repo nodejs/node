@@ -1,0 +1,24 @@
+(node:*) UnhandledPromiseRejectionWarning: Error: One
+    at *promise_fast_reject.js:*
+    at new Promise (<anonymous>)
+    at Object.<anonymous> (*promise_fast_reject.js:*)
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+(node:*) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). (rejection id: 1)
+(node:*) UnhandledPromiseRejectionWarning: Error: Two
+    at *promise_fast_reject.js:*
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+(node:*) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). (rejection id: 2)
+Exit code 0

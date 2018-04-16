@@ -11,15 +11,27 @@ using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::Exception;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Message;
 using v8::Object;
 using v8::Promise;
 using v8::PromiseRejectEvent;
 using v8::PromiseRejectMessage;
 using v8::String;
 using v8::Value;
+using v8::WeakCallbackInfo;
+using v8::WeakCallbackType;
+
+enum ExceptionOrigin {
+  kFromPromise = true
+};
+
+// The internal field 0 is used by PromiseHook() in async-wrap.cc.
+static constexpr int kUnhandledPromiseField = 1;
 
 void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -58,6 +70,23 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+void WeakCallback(
+    const v8::WeakCallbackInfo<Persistent<Promise> >& data) {
+  Environment* env = Environment::GetCurrent(data.GetIsolate());
+  Persistent<Promise>* p = data.GetParameter();
+  p->ClearWeak();
+
+  env->SetImmediate([](Environment* env, void* data) {
+    HandleScope handle_scope(env->isolate());
+    Persistent<Promise>* p = static_cast<Persistent<Promise>*>(data);
+    Local<Promise> promise = p->Get(env->isolate());
+    Local<Value> err = promise->Result();
+    Local<Message> message = Exception::CreateMessage(env->isolate(), err);
+    InternalFatalException(env->isolate(), err, message, kFromPromise);
+    delete p;
+  }, p);
+}
+
 void PromiseRejectCallback(PromiseRejectMessage message) {
   static std::atomic<uint64_t> unhandledRejections{0};
   static std::atomic<uint64_t> rejectionsHandledAfter{0};
@@ -72,13 +101,27 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   if (event == v8::kPromiseRejectWithNoHandler) {
     callback = env->promise_reject_unhandled_function();
-    value = message.GetValue();
 
+    // Call fatalException in case the unhandled promise is garbage collected
+    // without being handled later on.
+    Persistent<Promise>* p = new Persistent<Promise>(env->isolate(), promise);
+    p->SetWeak(p, WeakCallback, WeakCallbackType::kFinalizer);
+    CHECK_EQ(promise->GetAlignedPointerFromInternalField(
+      kUnhandledPromiseField), nullptr);
+    promise->SetAlignedPointerInInternalField(kUnhandledPromiseField, p);
+
+    value = message.GetValue();
     if (value.IsEmpty())
       value = Undefined(isolate);
 
     unhandledRejections++;
   } else if (event == v8::kPromiseHandlerAddedAfterReject) {
+    Persistent<Promise>* p = static_cast<Persistent<Promise>*>(
+        promise->GetAlignedPointerFromInternalField(
+            kUnhandledPromiseField));
+    delete p;
+    promise->SetAlignedPointerInInternalField(
+      kUnhandledPromiseField, nullptr);
     callback = env->promise_reject_handled_function();
     value = Undefined(isolate);
 
@@ -98,7 +141,6 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
                                          Undefined(isolate),
                                          arraysize(args),
                                          args);
-
   if (!ret.IsEmpty() && ret.ToLocalChecked()->IsTrue())
     env->tick_info()->promise_rejections_toggle_on();
 }
