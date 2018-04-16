@@ -592,6 +592,8 @@ class Http2Stream : public AsyncWrap,
   // Submits an RST_STREAM frame using the given code
   inline void SubmitRstStream(const uint32_t code);
 
+  void FlushRstStream();
+
   // Submits a PUSH_PROMISE frame with this stream as the parent.
   inline Http2Stream* SubmitPushPromise(
       nghttp2_nv* nva,
@@ -815,7 +817,7 @@ class Http2Session : public AsyncWrap {
 
   bool Ping(v8::Local<v8::Function> function);
 
-  inline void SendPendingData();
+  inline uint8_t SendPendingData();
 
   // Submits a new request. If the request is a success, assigned
   // will be a pointer to the Http2Stream instance assigned.
@@ -867,6 +869,11 @@ class Http2Session : public AsyncWrap {
 
   char* stream_alloc() {
     return stream_buf_;
+  }
+
+  // Schedule an RstStream for after the current write finishes.
+  inline void AddPendingRstStream(int32_t stream_id) {
+    pending_rst_streams_.emplace_back(stream_id);
   }
 
   static void OnStreamAllocImpl(size_t suggested_size,
@@ -1085,6 +1092,7 @@ class Http2Session : public AsyncWrap {
 
   std::vector<nghttp2_stream_write> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
+  std::vector<int32_t> pending_rst_streams_;
 
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);

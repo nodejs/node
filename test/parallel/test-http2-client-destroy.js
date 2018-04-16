@@ -125,3 +125,21 @@ const Countdown = require('../common/countdown');
     req.on('error', () => {});
   }));
 }
+
+// test destroy before connect
+{
+  const server = h2.createServer();
+  server.on('stream', common.mustNotCall());
+
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+
+    server.on('connection', common.mustCall(() => {
+      server.close();
+      client.close();
+    }));
+
+    const req = client.request();
+    req.destroy();
+  }));
+}
