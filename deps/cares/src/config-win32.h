@@ -245,7 +245,7 @@
 #  define _CRT_NONSTDC_NO_DEPRECATE 1
 #endif
 
-/* Set the Target to Vista. However, any symbols required above Win2000
+/* Set the Target to Vista. However, any symbols required above Win2000 
  * should be loaded via LoadLibrary() */
 #if defined(_MSC_VER) && (_MSC_VER >= 1500)
 #  define VS2008_MIN_TARGET 0x0600
