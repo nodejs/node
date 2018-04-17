@@ -456,19 +456,6 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
   i::V8::SetSnapshotBlob(snapshot_blob);
 }
 
-void* v8::ArrayBuffer::Allocator::Reserve(size_t length) { UNIMPLEMENTED(); }
-
-void v8::ArrayBuffer::Allocator::Free(void* data, size_t length,
-                                      AllocationMode mode) {
-  UNIMPLEMENTED();
-}
-
-void v8::ArrayBuffer::Allocator::SetProtection(
-    void* data, size_t length,
-    v8::ArrayBuffer::Allocator::Protection protection) {
-  UNIMPLEMENTED();
-}
-
 namespace {
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
@@ -1419,7 +1406,8 @@ static Local<FunctionTemplate> FunctionTemplateNew(
 
 Local<FunctionTemplate> FunctionTemplate::New(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
-    v8::Local<Signature> signature, int length, ConstructorBehavior behavior) {
+    v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
+    SideEffectType side_effect_type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
@@ -1448,7 +1436,8 @@ MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
     Isolate* isolate, FunctionCallback callback, Local<Private> cache_property,
-    Local<Value> data, Local<Signature> signature, int length) {
+    Local<Value> data, Local<Signature> signature, int length,
+    SideEffectType side_effect_type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, FunctionTemplate, NewWithCache);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -1474,7 +1463,8 @@ Local<AccessorSignature> AccessorSignature::New(
   } while (false)
 
 void FunctionTemplate::SetCallHandler(FunctionCallback callback,
-                                      v8::Local<Value> data) {
+                                      v8::Local<Value> data,
+                                      SideEffectType side_effect_type) {
   auto info = Utils::OpenHandle(this);
   EnsureNotInstantiated(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* isolate = info->GetIsolate();
@@ -2484,11 +2474,11 @@ class IsIdentifierHelper {
   DISALLOW_COPY_AND_ASSIGN(IsIdentifierHelper);
 };
 
-
 MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<Context> v8_context, Source* source, size_t arguments_count,
     Local<String> arguments[], size_t context_extension_count,
-    Local<Object> context_extensions[]) {
+    Local<Object> context_extensions[], CompileOptions options,
+    NoCacheReason no_cache_reason) {
   PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
                         Function);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
@@ -4719,12 +4709,12 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
   return Just(true);
 }
 
-
 Maybe<bool> Object::SetAccessor(Local<Context> context, Local<Name> name,
                                 AccessorNameGetterCallback getter,
                                 AccessorNameSetterCallback setter,
                                 MaybeLocal<Value> data, AccessControl settings,
-                                PropertyAttribute attribute) {
+                                PropertyAttribute attribute,
+                                SideEffectType getter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter, setter,
                            data.FromMaybe(Local<Value>()), settings, attribute,
                            i::FLAG_disable_old_api_accessors, false);
@@ -4750,21 +4740,19 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
                               static_cast<i::PropertyAttributes>(attribute));
 }
 
-Maybe<bool> Object::SetNativeDataProperty(v8::Local<v8::Context> context,
-                                          v8::Local<Name> name,
-                                          AccessorNameGetterCallback getter,
-                                          AccessorNameSetterCallback setter,
-                                          v8::Local<Value> data,
-                                          PropertyAttribute attributes) {
+Maybe<bool> Object::SetNativeDataProperty(
+    v8::Local<v8::Context> context, v8::Local<Name> name,
+    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
+    v8::Local<Value> data, PropertyAttribute attributes,
+    SideEffectType getter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter, setter, data, DEFAULT,
                            attributes, true, false);
 }
 
-Maybe<bool> Object::SetLazyDataProperty(v8::Local<v8::Context> context,
-                                        v8::Local<Name> name,
-                                        AccessorNameGetterCallback getter,
-                                        v8::Local<Value> data,
-                                        PropertyAttribute attributes) {
+Maybe<bool> Object::SetLazyDataProperty(
+    v8::Local<v8::Context> context, v8::Local<Name> name,
+    AccessorNameGetterCallback getter, v8::Local<Value> data,
+    PropertyAttribute attributes, SideEffectType getter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter,
                            static_cast<AccessorNameSetterCallback>(nullptr),
                            data, DEFAULT, attributes, true, true);
@@ -5030,10 +5018,10 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   RETURN_ESCAPED(result);
 }
 
-
 MaybeLocal<Function> Function::New(Local<Context> context,
                                    FunctionCallback callback, Local<Value> data,
-                                   int length, ConstructorBehavior behavior) {
+                                   int length, ConstructorBehavior behavior,
+                                   SideEffectType side_effect_type) {
   i::Isolate* isolate = Utils::OpenHandle(*context)->GetIsolate();
   LOG_API(isolate, Function, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);

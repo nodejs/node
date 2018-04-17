@@ -84,20 +84,6 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     allocator_->Free(data, length);
   }
 
-  void* Reserve(size_t length) override {
-    UNIMPLEMENTED();
-    return nullptr;
-  }
-
-  void Free(void* data, size_t length, AllocationMode mode) override {
-    UNIMPLEMENTED();
-  }
-
-  void SetProtection(void* data, size_t length,
-                     Protection protection) override {
-    UNIMPLEMENTED();
-  }
-
  private:
   std::unique_ptr<Allocator> allocator_ =
       std::unique_ptr<Allocator>(NewDefaultAllocator());
