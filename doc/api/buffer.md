@@ -1003,7 +1003,8 @@ changes:
     description: Additional parameters for specifying offsets are supported now.
 -->
 
-* `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`] to compare to.
+* `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`] with which to
+  compare `buf`.
 * `targetStart` {integer} The offset within `target` at which to begin
   comparison. **Default:** `0`.
 * `targetEnd` {integer} The offset with `target` at which to end comparison
@@ -1148,7 +1149,8 @@ changes:
     description: The arguments can now be `Uint8Array`s.
 -->
 
-* `otherBuffer` {Buffer} A `Buffer` or [`Uint8Array`] to compare to.
+* `otherBuffer` {Buffer} A `Buffer` or [`Uint8Array`] with which to compare
+  `buf`.
 * Returns: {boolean}
 
 Returns `true` if both `buf` and `otherBuffer` have exactly the same bytes,
@@ -1996,7 +1998,7 @@ console.log(copy);
 added: v0.1.90
 -->
 
-* `encoding` {string} The character encoding to decode to. **Default:** `'utf8'`.
+* `encoding` {string} The character encoding to use. **Default:** `'utf8'`.
 * `start` {integer} The byte offset to start decoding at. **Default:** `0`.
 * `end` {integer} The byte offset to stop decoding at (not inclusive).
   **Default:** [`buf.length`].
