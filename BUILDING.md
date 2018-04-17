@@ -176,10 +176,10 @@ If you are running tests prior to submitting a Pull Request, the recommended
 command is:
 
 ```console
-$ make test
+$ make -j4 test
 ```
 
-`make test` does a full check on the codebase, including running linters and
+`make -j4 test` does a full check on the codebase, including running linters and
 documentation tests.
 
 Optionally, continue below.
