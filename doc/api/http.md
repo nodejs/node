@@ -1401,7 +1401,7 @@ following additional events, methods, and properties.
 added: v0.3.8
 -->
 
-Emitted when the request has been aborted and the network socket has closed.
+Emitted when the request has been aborted.
 
 ### Event: 'close'
 <!-- YAML
@@ -1410,6 +1410,16 @@ added: v0.4.2
 
 Indicates that the underlying connection was closed.
 Just like `'end'`, this event occurs only once per response.
+
+### message.aborted
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+The `message.aborted` property will be `true` if the request has
+been aborted.
 
 ### message.destroy([error])
 <!-- YAML
