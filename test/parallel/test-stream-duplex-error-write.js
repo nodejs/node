@@ -21,4 +21,4 @@ duplex.on('error', common.mustCall(function() {
 duplex.on('end', common.mustNotCall());
 
 duplex.end('hello');
-duplex.on('data', function() {});
+duplex.resume();
