@@ -21,6 +21,7 @@ if (process.argv[2] === 'child') {
     assert.strictEqual(signal, null);
   }));
 
+  child.stderr.pipe(process.stderr);
   child.stdout.destroy();
   child.send('go');
 }
