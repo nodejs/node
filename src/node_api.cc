@@ -387,7 +387,6 @@ class Reference : private Finalizer {
     if (initial_refcount == 0) {
       _persistent.SetWeak(
           this, FinalizeCallback, v8::WeakCallbackType::kParameter);
-      _persistent.MarkIndependent();
     }
   }
 
@@ -431,7 +430,6 @@ class Reference : private Finalizer {
     if (--_refcount == 0) {
       _persistent.SetWeak(
           this, FinalizeCallback, v8::WeakCallbackType::kParameter);
-      _persistent.MarkIndependent();
     }
 
     return _refcount;

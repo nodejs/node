@@ -70,7 +70,6 @@ inline void BaseObject::MakeWeak(Type* ptr) {
   v8::Local<v8::Object> handle = object();
   CHECK_GT(handle->InternalFieldCount(), 0);
   Wrap(handle, ptr);
-  persistent_handle_.MarkIndependent();
   persistent_handle_.SetWeak<Type>(ptr, WeakCallback<Type>,
                                    v8::WeakCallbackType::kParameter);
 }
