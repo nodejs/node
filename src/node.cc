@@ -2225,6 +2225,13 @@ inline InitializerCallback GetInitializerCallback(DLib* dlib) {
   return reinterpret_cast<InitializerCallback>(dlib->GetSymbolAddress(name));
 }
 
+using KickstartCallback = void (*)();
+
+inline KickstartCallback GetKickstartCallback(DLib* dlib) {
+  const char* name = "node_kickstart_module";
+  return reinterpret_cast<KickstartCallback>(dlib->GetSymbolAddress(name));
+}
+
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
@@ -2263,7 +2270,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   // Objects containing v14 or later modules will have registered themselves
   // on the pending list.  Activate all of them now.  At present, only one
   // module per object is supported.
-  node_module* const mp = modpending;
+  node_module* mp = modpending;
   modpending = nullptr;
 
   if (!is_opened) {
@@ -2281,15 +2288,26 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   if (mp == nullptr) {
     if (auto callback = GetInitializerCallback(&dlib)) {
       callback(exports, module, context);
-    } else {
+      return;
+    } else if (auto kickstart = GetKickstartCallback(&dlib)) {
+      kickstart();
+      mp = modpending;
+      modpending = nullptr;
+    }
+    if (mp == nullptr) {
       dlib.Close();
       env->ThrowError("Module did not self-register.");
+      return;
     }
-    return;
   }
 
   // -1 is used for N-API modules
   if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
+    if (auto callback = GetInitializerCallback(&dlib)) {
+      callback(exports, module, context);
+      return;
+    }
+
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),

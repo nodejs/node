@@ -93,6 +93,16 @@ typedef struct {
 #define NAPI_MODULE(modname, regfunc) \
   NAPI_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 
+#define NAPI_MODULE_FALLBACK_X(modname)                               \
+  EXTERN_C_START                                                      \
+    void node_kickstart_module() {                                    \
+      _register_ ## modname();                                        \
+    }                                                                 \
+  EXTERN_C_END
+
+#define NAPI_MODULE_FALLBACK(modname)                                 \
+  NAPI_MODULE_FALLBACK_X(modname)
+
 #define NAPI_AUTO_LENGTH SIZE_MAX
 
 EXTERN_C_START

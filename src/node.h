@@ -545,6 +545,16 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
   /* NOLINTNEXTLINE (readability/null_usage) */                       \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
 
+#define NODE_MODULE_FALLBACK_X(modname)                               \
+  extern "C" {                                                        \
+    void node_kickstart_module() {                                    \
+      _register_ ## modname();                                        \
+    }                                                                 \
+  }
+
+#define NODE_MODULE_FALLBACK(modname)                                 \
+  NODE_MODULE_FALLBACK_X(modname)
+
 /*
  * For backward compatibility in add-on modules.
  */
