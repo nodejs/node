@@ -20,11 +20,10 @@ function run() {
 
 function done(server, socket, cb) {
   socket.destroy();
-  server.close();
-  cb();
+  server.close(cb);
 }
 
-function server_test(with_pipeline, cb) {
+function serverTest(with_pipeline, cb) {
   let got_all = false;
   let timedout = false;
   const server = http.createServer(common.mustCall((req, res) => {
@@ -36,7 +35,7 @@ function server_test(with_pipeline, cb) {
         done(server, req.socket, cb);
     }
   }, 3));
-  server.setTimeout(500, common.mustCall((socket) => {
+  server.setTimeout(500, common.mustCallAtLeast((socket) => {
     // End this test and call `run()` for the next test (if any).
     timedout = true;
     if (got_all)
@@ -57,9 +56,9 @@ function server_test(with_pipeline, cb) {
 }
 
 test(function serverEndKeepAliveTimeoutWithPipeline(cb) {
-  server_test(true, cb);
+  serverTest(true, cb);
 });
 
 test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
-  server_test(false, cb);
+  serverTest(false, cb);
 });
