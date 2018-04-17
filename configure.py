@@ -1202,7 +1202,7 @@ def configure_v8(o):
     if 'DEPOT_TOOLS_WIN_TOOLCHAIN' not in os.environ:
       os.environ['DEPOT_TOOLS_WIN_TOOLCHAIN'] = '0'
     depot_tools = FetchDeps(v8_path)
-     o['variables']['build_v8_with_gn_extra_gn_args'] = (
+    o['variables']['build_v8_with_gn_extra_gn_args'] = (
         options.build_v8_with_gn_extra_gn_args)
     o['variables']['build_v8_with_gn_max_jobs'] = (
         options.build_v8_with_gn_max_jobs)

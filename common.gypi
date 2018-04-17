@@ -82,9 +82,9 @@
       ['build_v8_with_gn == "true"', {
         'conditions': [
           ['GENERATOR == "ninja"', {
-            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/v8_monolith.gen/gn/obj/libv8_monolith.a',
+            'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/v8_monolith.gen/gn/obj/<(STATIC_LIB_PREFIX)v8_monolith<(STATIC_LIB_SUFFIX)',
           }, {
-            'v8_base': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
+            'v8_base': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/<(STATIC_LIB_PREFIX)v8_monolith<(STATIC_LIB_SUFFIX)',
           }],
         ],
       }],

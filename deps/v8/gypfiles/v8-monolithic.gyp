@@ -23,6 +23,16 @@
         'include_dirs': [
           '../include/',
         ],
+        'link_settings': {
+          'conditions': [
+            ['OS=="win"', {
+              'libraries': ['-ldbghelp.lib', '-lshlwapi.lib', '-lwinmm.lib', '-lws2_32.lib'],
+            }],
+            ['OS=="linux"', {
+              'libraries': ['-ldl', '-lrt'],
+            }],
+          ],
+        },
       },
       'actions': [
         {

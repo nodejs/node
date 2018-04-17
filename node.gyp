@@ -268,8 +268,17 @@
           },
           'msvs_settings': {
             'VCLinkerTool': {
-              'AdditionalOptions': [
-                '/WHOLEARCHIVE:<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+              'conditions': [
+                ['GENERATOR=="ninja"', {
+                  'AdditionalOptions': [
+                    '/WHOLEARCHIVE:<(obj_dir)\\<(STATIC_LIB_PREFIX)'
+                        '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                  ],
+                }, {
+                  'AdditionalOptions': [
+                    '/WHOLEARCHIVE:<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                  ],
+                }],
               ],
             },
           },
