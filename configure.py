@@ -556,6 +556,29 @@ parser.add_option('--build-v8-with-gn',
     default=False,
     help='build V8 using GN instead of gyp')
 
+parser.add_option('--build-v8-with-gn-max-jobs',
+    dest='build_v8_with_gn_max_jobs',
+    default='',
+    help='Value for the -j parameter for the ninja invocation.')
+parser.add_option('--build-v8-with-gn-max-load',
+    dest='build_v8_with_gn_max_load',
+    default='',
+    help='Value for the -l parameter for the ninja invocation.')
+parser.add_option('--build-v8-with-gn-extra-gn-args',
+    dest='build_v8_with_gn_extra_gn_args',
+    default='',
+    help='Extra gn args to pass add to the "gn gen --args "..." invocation')
+parser.add_option('--use-clang-cl',
+    action='store_true',
+    dest='use_clang_cl',
+    default=False,
+    help='On Windows, build using clang-cl. By default, uses the copy of '
+         'clang-cl that is bundled with V8. Requires --ninja.')
+parser.add_option('--clang-cl-base-path',
+    dest='clang_cl_base_path',
+    help='Absolute path to a directory containing a bin\\clang-cl.exe '
+         '(requires --use-clang-cl).')
+
 parser.add_option('--verbose',
     action='store_true',
     dest='verbose',
@@ -590,6 +613,22 @@ def warn(msg):
 # track if warnings occurred
 warn.warned = False
 
+if options.use_clang_cl:
+  if not options.use_ninja:
+    warn('--use-clang-cl requires --ninja')
+  if options.clang_cl_base_path:
+    clang_base_path = options.clang_cl_base_path
+  else:
+    clang_base_path = os.path.abspath(os.path.join(
+        'deps', 'v8', 'third_party', 'llvm-build', 'Release+Asserts'))
+  # CC sets the path for GYP-compiled files.
+  os.environ['CC'] = os.path.join(clang_base_path, 'bin', 'clang-cl.exe')
+  # GN arg sets the path for --build-v8-using-gn.
+  if options.build_v8_with_gn_extra_gn_args:
+    options.build_v8_with_gn_extra_gn_args += ' '
+  options.build_v8_with_gn_extra_gn_args += 'clang_base_path="{}"'.format(
+      clang_base_path)
+
 def print_verbose(x):
   if not options.verbose:
     return
@@ -597,6 +636,7 @@ def print_verbose(x):
     print x
   else:
     pprint.pprint(x, indent=2)
+
 
 def b(value):
   """Returns the string 'true' if value is truthy, 'false' otherwise."""
@@ -1154,10 +1194,23 @@ def configure_v8(o):
   if options.without_bundled_v8 and options.build_v8_with_gn:
     raise Exception(
         '--build-v8-with-gn is incompatible with --without-bundled-v8.')
+  o['variables']['build_v8_with_gn'] = b(options.build_v8_with_gn)
   if options.build_v8_with_gn:
     v8_path = os.path.join('deps', 'v8')
     print('Fetching dependencies to build V8 with GN')
-    options.build_v8_with_gn = FetchDeps(v8_path)
+    # Default to non-Googler configuration.
+    if 'DEPOT_TOOLS_WIN_TOOLCHAIN' not in os.environ:
+      os.environ['DEPOT_TOOLS_WIN_TOOLCHAIN'] = '0'
+    depot_tools = FetchDeps(v8_path)
+     o['variables']['build_v8_with_gn_extra_gn_args'] = (
+        options.build_v8_with_gn_extra_gn_args)
+    o['variables']['build_v8_with_gn_max_jobs'] = (
+        options.build_v8_with_gn_max_jobs)
+    o['variables']['build_v8_with_gn_max_load'] = (
+        options.build_v8_with_gn_max_load)
+    o['variables']['build_v8_with_gn_bundled_win_toolchain'] = (
+        os.environ['DEPOT_TOOLS_WIN_TOOLCHAIN'])
+    o['variables']['build_v8_with_gn_depot_tools'] = depot_tools
   o['variables']['build_v8_with_gn'] = b(options.build_v8_with_gn)
 
 
