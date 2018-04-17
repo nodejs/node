@@ -128,7 +128,7 @@ Activate inspector on host:port. Default is 127.0.0.1:9229.
 
 V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
-tcp port and communicate using the [Chrome Debugging Protocol][].
+tcp port and communicate using the [Chrome DevTools Protocol][].
 
 
 ### `--napi-modules`
@@ -678,7 +678,7 @@ greater than `4` (its current default value). For more information, see the
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
-[Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer
+[Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor

@@ -174,7 +174,7 @@ breakpoint)
 
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
 instances for debugging and profiling. It uses the
-[Chrome Debugging Protocol][].
+[Chrome DevTools Protocol][].
 
 V8 Inspector can be enabled by passing the `--inspect` flag when starting a
 Node.js application. It is also possible to supply a custom port with that flag,
@@ -194,5 +194,5 @@ To start debugging, open the following URL in Chrome:
 at the end of the URL is generated on the fly, it varies in different
 debugging sessions.)
 
-[Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
+[Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [V8 Inspector]: #debugger_v8_inspector_integration_for_node_js
