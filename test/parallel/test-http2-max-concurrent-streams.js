@@ -45,7 +45,6 @@ server.listen(0, common.mustCall(() => {
     req.on('aborted', common.mustCall());
     req.on('response', common.mustNotCall());
     req.resume();
-    req.on('end', common.mustCall());
     req.on('close', common.mustCall(() => countdown.dec()));
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
