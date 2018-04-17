@@ -2074,19 +2074,21 @@ for (const value of buf) {
 added: v0.1.90
 -->
 
-* `string` {string} String to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`. **Default:** `0`.
-* `length` {integer} Number of bytes to write. **Default:** `buf.length - offset`.
+* `string` {string} String to write to `buf`.
+* `offset` {integer} Number of bytes to skip before starting to write `string`.
+  **Default:** `0`.
+* `length` {integer} Number of bytes to write. **Default:**
+  `buf.length - offset`.
 * `encoding` {string} The character encoding of `string`. **Default:** `'utf8'`.
 * Returns: {integer} Number of bytes written.
 
-Writes `string` to `buf` at `offset` according to the character encoding in `encoding`.
-The `length` parameter is the number of bytes to write. If `buf` did not contain
-enough space to fit the entire string, only a partial amount of `string` will
-be written. However, partially encoded characters will not be written.
+Writes `string` to `buf` at `offset` according to the character encoding in
+`encoding`. The `length` parameter is the number of bytes to write. If `buf` did
+not contain enough space to fit the entire string, only part of `string` will be
+written. However, partially encoded characters will not be written.
 
 ```js
-const buf = Buffer.allocUnsafe(256);
+const buf = Buffer.alloc(256);
 
 const len = buf.write('\u00bd + \u00bc = \u00be', 0);
 
