@@ -104,7 +104,6 @@ ContextifyContext::ContextifyContext(
   if (context_.IsEmpty())
     return;
   context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-  context_.MarkIndependent();
 }
 
 
