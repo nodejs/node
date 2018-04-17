@@ -13,15 +13,17 @@ a list of comma-separated category names.
 
 The available categories are:
 
-* `node`
-* `node.async_hooks` - Enables capture of detailed async_hooks trace data.
+* `node` - An empty placeholder.
+* `node.async_hooks` - Enables capture of detailed [async_hooks] trace data.
+  The [async_hooks] events have a unique `asyncId` and a special triggerId
+  `triggerAsyncId` property.
 * `node.bootstrap` - Enables capture of Node.js bootstrap milestones.
 * `node.perf` - Enables capture of [Performance API] measurements.
   * `node.perf.usertiming` - Enables capture of only Performance API User Timing
     measures and marks.
   * `node.perf.timerify` - Enables capture of only Performance API timerify
     measurements.
-* `v8`
+* `v8` - The [V8] events are GC, compiling, and execution related.
 
 By default the `node`, `node.async_hooks`, and `v8` categories are enabled.
 
@@ -193,3 +195,5 @@ console.log(trace_events.getEnabledCategories());
 ```
 
 [Performance API]: perf_hooks.html
+[V8]: v8.html
+[async_hooks]: async_hooks.html
