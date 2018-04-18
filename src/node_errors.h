@@ -22,6 +22,7 @@ namespace node {
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
+  V(ERR_MISSING_ARGS, TypeError)                                             \
   V(ERR_MISSING_MODULE, Error)                                               \
   V(ERR_STRING_TOO_LONG, Error)                                              \
   V(ERR_BUFFER_TOO_LARGE, Error)
