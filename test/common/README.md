@@ -119,9 +119,6 @@ Tests whether `name`, `expected`, and `code` are part of a raised warning. If
 an expected warning does not have a code then `common.noWarnCode` can be used
 to indicate this.
 
-### noWarnCode
-See `common.expectWarning()` for usage.
-
 ### fileExists(pathname)
 * pathname [&lt;string>]
 * return [&lt;boolean>]
@@ -147,13 +144,11 @@ consisting of all `ArrayBufferView` and an `ArrayBuffer`.
 
 Returns the file name and line number for the provided Function.
 
-### runWithInvalidFD(func)
-* `func` [&lt;Function>]
+### getTTYfd()
 
-Runs `func` with an invalid file descriptor that is an unsigned integer and
-can be used to trigger `EBADF` as the first argument. If no such file
-descriptor could be generated, a skip message will be printed and the `func`
-will not be run.
+Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
+
+The TTY file descriptor is assumed to be capable of being writable.
 
 ### globalCheck
 * [&lt;boolean>]
@@ -328,6 +323,9 @@ Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
 the exit code and/or signal name of a node process that aborted, `false`
 otherwise.
 
+### noWarnCode
+See `common.expectWarning()` for usage.
+
 ### opensslCli
 * [&lt;boolean>]
 
@@ -368,6 +366,14 @@ original state after calling [`common.hijackStdOut()`][].
 * [&lt;string>]
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
+
+### runWithInvalidFD(func)
+* `func` [&lt;Function>]
+
+Runs `func` with an invalid file descriptor that is an unsigned integer and
+can be used to trigger `EBADF` as the first argument. If no such file
+descriptor could be generated, a skip message will be printed and the `func`
+will not be run.
 
 ### skip(msg)
 * `msg` [&lt;string>]
@@ -694,12 +700,6 @@ The realpath of the testing temporary directory.
 ### refresh()
 
 Deletes and recreates the testing temporary directory.
-
-### getTTYfd()
-
-Attempts to get a valid TTY file descriptor. Returns `-1` if it fails.
-
-The TTY file descriptor is assumed to be capable of being writable.
 
 ## WPT Module
 
