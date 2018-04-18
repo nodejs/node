@@ -18,12 +18,14 @@ runBenchmark('http',
                'chunkedEnc=true',
                'chunks=0',
                'dur=0.1',
+               'input=keep-alive',
                'key=""',
                'len=1',
                'method=write',
                'n=1',
                'res=normal',
-               'type=asc'
+               'type=asc',
+               'value=X-Powered-By'
              ],
              {
                NODEJS_BENCHMARK_ZERO_ALLOWED: 1,
