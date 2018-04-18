@@ -18,6 +18,8 @@ PWD = $(CURDIR)
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
+else
+  PARALLEL_ARGS = -J
 endif
 
 ifdef ENABLE_V8_TAP
@@ -232,7 +234,7 @@ v8:
 
 .PHONY: jstest
 jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
-	$(PYTHON) tools/test.py --mode=release -J \
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
 
@@ -267,13 +269,13 @@ test-cov: all
 	$(MAKE) lint
 
 test-parallel: all
-	$(PYTHON) tools/test.py --mode=release parallel -J
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release parallel
 
 test-valgrind: all
-	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release --valgrind sequential parallel message
 
 test-check-deopts: all
-	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release --check-deopts parallel sequential
 
 benchmark/misc/function_call/build/Release/binding.node: all \
 		benchmark/misc/function_call/binding.cc \
@@ -396,7 +398,7 @@ clear-stalled:
 
 .PHONY: test-gc
 test-gc: all test/gc/build/Release/binding.node
-	$(PYTHON) tools/test.py --mode=release gc
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release gc
 
 .PHONY: test-gc-clean
 test-gc-clean:
@@ -408,10 +410,10 @@ test-build-addons-napi: all build-addons-napi
 
 .PHONY: test-all
 test-all: test-build test/gc/build/Release/binding.node ## Run everything in test/.
-	$(PYTHON) tools/test.py --mode=debug,release
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release
 
 test-all-valgrind: test-build
-	$(PYTHON) tools/test.py --mode=debug,release --valgrind
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES ?= addons addons-napi
 CI_JS_SUITES ?= default
@@ -473,29 +475,29 @@ run-ci: build-ci
 	$(MAKE) test-ci
 
 test-release: test-build
-	$(PYTHON) tools/test.py --mode=release
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release
 
 test-debug: test-build
-	$(PYTHON) tools/test.py --mode=debug
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug
 
 test-message: test-build
-	$(PYTHON) tools/test.py message
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) message
 
 test-simple: | cctest  # Depends on 'all'.
-	$(PYTHON) tools/test.py parallel sequential
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
 
 test-pummel: all
-	$(PYTHON) tools/test.py pummel
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) pummel
 
 test-internet: all
-	$(PYTHON) tools/test.py internet
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) internet
 
 test-node-inspect: $(NODE_EXE)
 	USE_EMBEDDED_NODE_INSPECT=1 $(NODE) tools/test-npm-package \
 		--install deps/node-inspect test
 
 test-tick-processor: all
-	$(PYTHON) tools/test.py tick-processor
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) tick-processor
 
 .PHONY: test-hash-seed
 # Verifies the hash seed used by V8 for hashing is random.
@@ -505,10 +507,10 @@ test-hash-seed: all
 .PHONY: test-doc
 test-doc: doc-only ## Builds, lints, and verifies the docs.
 	$(MAKE) lint
-	$(PYTHON) tools/test.py $(CI_DOC)
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) $(CI_DOC)
 
 test-known-issues: all
-	$(PYTHON) tools/test.py known_issues
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) known_issues
 
 # Related CI job: node-test-npm
 test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
@@ -519,7 +521,7 @@ test-npm-publish: $(NODE_EXE)
 
 .PHONY: test-addons-napi
 test-addons-napi: test-build-addons-napi
-	$(PYTHON) tools/test.py --mode=release addons-napi
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release addons-napi
 
 .PHONY: test-addons-napi-clean
 test-addons-napi-clean:
@@ -528,7 +530,7 @@ test-addons-napi-clean:
 
 .PHONY: test-addons
 test-addons: test-build test-addons-napi
-	$(PYTHON) tools/test.py --mode=release addons
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release addons
 
 .PHONY: test-addons-clean
 test-addons-clean:
@@ -539,19 +541,19 @@ test-addons-clean:
 
 test-timers:
 	$(MAKE) --directory=tools faketime
-	$(PYTHON) tools/test.py --mode=release timers
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release timers
 
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
 test-async-hooks:
-	$(PYTHON) tools/test.py --mode=release async-hooks
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release async-hooks
 
 test-with-async-hooks:
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
-	NODE_TEST_WITH_ASYNC_HOOKS=1 $(PYTHON) tools/test.py --mode=release -J \
+	NODE_TEST_WITH_ASYNC_HOOKS=1 $(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=release \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
 
