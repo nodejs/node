@@ -74,6 +74,14 @@ added: v8.5.0
 Enable experimental ES module support and caching modules.
 
 
+### `--experimental-repl-await`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental top-level `await` keyword support in REPL.
+
+
 ### `--experimental-vm-modules`
 <!-- YAML
 added: v9.6.0
