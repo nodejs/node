@@ -378,21 +378,25 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: REPLACEME
 -->
-* `block` {Function}
+* `block` {Function|Promise}
 * `error` {RegExp|Function}
 * `message` {any}
 
-Awaits for the promise returned by function `block` to complete and not be
-rejected.
+Awaits the `block` promise or, if `block` is a function, immediately calls the
+function and awaits the returned promise to complete. It will then check that
+the promise is not rejected.
+
+If `block` is a function and it throws an error synchronously,
+`assert.doesNotReject()` will return a rejected Promise with that error without
+checking the error handler.
 
 Please note: Using `assert.doesNotReject()` is actually not useful because there
 is little benefit by catching a rejection and then rejecting it again. Instead,
 consider adding a comment next to the specific code path that should not reject
 and keep error messages as expressive as possible.
 
-When `assert.doesNotReject()` is called, it will immediately call the `block`
-function, and awaits for completion. See [`assert.rejects()`][] for more
-details.
+If specified, `error` can be a [`Class`][], [`RegExp`][] or a validation
+function. See [`assert.throws()`][] for more details.
 
 Besides the async nature to await the completion behaves identically to
 [`assert.doesNotThrow()`][].
@@ -409,12 +413,10 @@ Besides the async nature to await the completion behaves identically to
 ```
 
 ```js
-assert.doesNotReject(
-  () => Promise.reject(new TypeError('Wrong value')),
-  SyntaxError
-).then(() => {
-  // ...
-});
+assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
+  .then(() => {
+    // ...
+  });
 ```
 
 ## assert.doesNotThrow(block[, error][, message])
@@ -432,8 +434,7 @@ changes:
 * `error` {RegExp|Function}
 * `message` {any}
 
-Asserts that the function `block` does not throw an error. See
-[`assert.throws()`][] for more details.
+Asserts that the function `block` does not throw an error.
 
 Please note: Using `assert.doesNotThrow()` is actually not useful because there
 is no benefit by catching an error and then rethrowing it. Instead, consider
@@ -447,6 +448,9 @@ If an error is thrown and it is the same type as that specified by the `error`
 parameter, then an `AssertionError` is thrown. If the error is of a different
 type, or if the `error` parameter is undefined, the error is propagated back
 to the caller.
+
+If specified, `error` can be a [`Class`][], [`RegExp`][] or a validation
+function. See [`assert.throws()`][] for more details.
 
 The following, for instance, will throw the [`TypeError`][] because there is no
 matching error type in the assertion:
@@ -484,7 +488,7 @@ assert.doesNotThrow(
   () => {
     throw new TypeError('Wrong value');
   },
-  TypeError,
+  /Wrong value/,
   'Whoops'
 );
 // Throws: AssertionError: Got unwanted exception (TypeError). Whoops
@@ -916,20 +920,25 @@ assert(0);
 <!-- YAML
 added: REPLACEME
 -->
-* `block` {Function}
-* `error` {RegExp|Function|Object}
+* `block` {Function|Promise}
+* `error` {RegExp|Function|Object|Error}
 * `message` {any}
 
-Awaits for promise returned by function `block` to be rejected.
+Awaits the `block` promise or, if `block` is a function, immediately calls the
+function and awaits the returned promise to complete. It will then check that
+the promise is rejected.
 
-When `assert.rejects()` is called, it will immediately call the `block`
-function, and awaits for completion.
+If `block` is a function and it throws an error synchronously,
+`assert.rejects()` will return a rejected Promise with that error without
+checking the error handler.
 
 Besides the async nature to await the completion behaves identically to
 [`assert.throws()`][].
 
-If specified, `error` can be a constructor, [`RegExp`][], a validation
-function, or an object where each property will be tested for.
+If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
+an object where each property will be tested for, or an instance of error where
+each property will be tested for including the non-enumerable `message` and
+`name` properties.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to reject.
@@ -938,21 +947,30 @@ the block fails to reject.
 (async () => {
   await assert.rejects(
     async () => {
-      throw new Error('Wrong value');
+      throw new TypeError('Wrong value');
     },
-    Error
+    {
+      name: 'TypeError',
+      message: 'Wrong value'
+    }
   );
 })();
 ```
 
 ```js
 assert.rejects(
-  () => Promise.reject(new Error('Wrong value')),
+  Promise.reject(new Error('Wrong value')),
   Error
 ).then(() => {
   // ...
 });
 ```
+
+Note that `error` cannot be a string. If a string is provided as the second
+argument, then `error` is assumed to be omitted and the string will be used for
+`message` instead. This can lead to easy-to-miss mistakes. Please read the
+example in [`assert.throws()`][] carefully if using a string as the second
+argument gets considered.
 
 ## assert.strictEqual(actual, expected[, message])
 <!-- YAML
@@ -1000,13 +1018,15 @@ changes:
     description: The `error` parameter can now be an arrow function.
 -->
 * `block` {Function}
-* `error` {RegExp|Function|Object}
+* `error` {RegExp|Function|Object|Error}
 * `message` {any}
 
 Expects the function `block` to throw an error.
 
-If specified, `error` can be a constructor, [`RegExp`][], a validation
-function, or an object where each property will be tested for.
+If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
+an object where each property will be tested for, or an instance of error where
+each property will be tested for including the non-enumerable `message` and
+`name` properties.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
@@ -1055,10 +1075,11 @@ assert.throws(
 Custom error object / error instance:
 
 ```js
+const err = new TypeError('Wrong value');
+err.code = 404;
+
 assert.throws(
   () => {
-    const err = new TypeError('Wrong value');
-    err.code = 404;
     throw err;
   },
   {
@@ -1067,9 +1088,19 @@ assert.throws(
     // Note that only properties on the error object will be tested!
   }
 );
+
+// Fails due to the different `message` and `name` properties:
+assert.throws(
+  () => {
+    const otherErr = new Error('Not found');
+    otherErr.code = 404;
+    throw otherErr;
+  },
+  err // This tests for `message`, `name` and `code`.
+);
 ```
 
-Note that `error` can not be a string. If a string is provided as the second
+Note that `error` cannot be a string. If a string is provided as the second
 argument, then `error` is assumed to be omitted and the string will be used for
 `message` instead. This can lead to easy-to-miss mistakes. Please read the
 example below carefully if using a string as the second argument gets
@@ -1107,6 +1138,7 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing notation, it is recommended not to use a string as the
 second argument. This might lead to difficult-to-spot errors.
 
+[`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Error`]: errors.html#errors_class_error
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
@@ -1123,7 +1155,6 @@ second argument. This might lead to difficult-to-spot errors.
 [`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
 [`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
-[`assert.rejects()`]: #assert_assert_rejects_block_error_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
 [`strict mode`]: #assert_strict_mode

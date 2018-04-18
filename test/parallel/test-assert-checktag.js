@@ -1,24 +1,6 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const util = require('util');
-
-// Template tag function turning an error message into a RegExp
-// for assert.throws()
-function re(literals, ...values) {
-  let result = literals[0];
-  const escapeRE = /[\\^$.*+?()[\]{}|=!<>:-]/g;
-  for (const [i, value] of values.entries()) {
-    const str = util.inspect(value);
-    // Need to escape special characters.
-    result += str.replace(escapeRE, '\\$&');
-    result += literals[i + 1];
-  }
-  return common.expectsError({
-    code: 'ERR_ASSERTION',
-    message: new RegExp(`^${result}$`)
-  });
-}
 
 // Turn off no-restricted-properties because we are testing deepEqual!
 /* eslint-disable no-restricted-properties */
@@ -35,10 +17,20 @@ function re(literals, ...values) {
 
   // For deepStrictEqual we check the runtime type,
   // then reveal the fakeness of the fake date
-  assert.throws(() => assert.deepStrictEqual(date, fake),
-                re`${date} deepStrictEqual Date {}`);
-  assert.throws(() => assert.deepStrictEqual(fake, date),
-                re`Date {} deepStrictEqual ${date}`);
+  assert.throws(
+    () => assert.deepStrictEqual(date, fake),
+    {
+      message: 'Input A expected to strictly deep-equal input B:\n' +
+               '+ expected - actual\n\n- 2016-01-01T00:00:00.000Z\n+ Date {}'
+    }
+  );
+  assert.throws(
+    () => assert.deepStrictEqual(fake, date),
+    {
+      message: 'Input A expected to strictly deep-equal input B:\n' +
+               '+ expected - actual\n\n- Date {}\n+ 2016-01-01T00:00:00.000Z'
+    }
+  );
 }
 
 {  // At the moment global has its own type tag

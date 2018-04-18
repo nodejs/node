@@ -2912,11 +2912,10 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_);
   if (mode == EVP_CIPH_GCM_MODE) {
     if (tag_len > 16 || (tag_len < 12 && tag_len != 8 && tag_len != 4)) {
-      char msg[125];
+      char msg[50];
       snprintf(msg, sizeof(msg),
-          "Permitting authentication tag lengths of %u bytes is deprecated. "
-          "Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.", tag_len);
-      ProcessEmitDeprecationWarning(cipher->env(), msg, "DEP0090");
+          "Invalid GCM authentication tag length: %u", tag_len);
+      return cipher->env()->ThrowError(msg);
     }
   }
 

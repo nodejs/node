@@ -1,6 +1,7 @@
 # ECMAScript Modules
 
 <!--introduced_in=v8.5.0-->
+<!-- type=misc -->
 
 > Stability: 1 - Experimental
 
@@ -36,11 +37,14 @@ Only the CLI argument for the main entry point to the program can be an entry
 point into an ESM graph. Dynamic import can also be used to create entry points
 into ESM graphs at runtime.
 
-#### `import.meta`
+#### import.meta
+
+* {Object}
 
 The `import.meta` metaproperty is an `Object` that contains the following
 property:
-* `url` {string} The absolute `file:` URL of the module
+
+* `url` {string} The absolute `file:` URL of the module.
 
 ### Unsupported
 

@@ -320,6 +320,13 @@ fs.watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
 });
 ```
 
+### Event: 'close'
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the watcher stops watching for changes.
+
 ### Event: 'error'
 <!-- YAML
 added: v0.5.8
@@ -1298,34 +1305,19 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
-  * `flags` {string}
-  * `encoding` {string}
-  * `fd` {integer}
-  * `mode` {integer}
-  * `autoClose` {boolean}
+  * `flags` {string} **Default:** `'r'`
+  * `encoding` {string} **Default:** `null`
+  * `fd` {integer} **Default:** `null`
+  * `mode` {integer} **Default:** `0o666`
+  * `autoClose` {boolean} **Default:** `true`
   * `start` {integer}
-  * `end` {integer}
-  * `highWaterMark` {integer}
-* Returns: {stream.Readable}
-
-Returns a new [`ReadStream`][] object. (See [Readable Streams][]).
+  * `end` {integer} **Default:** `Infinity`
+  * `highWaterMark` {integer} **Default:** `64 * 1024`
+* Returns: {fs.ReadStream} See [Readable Streams][].
 
 Be aware that, unlike the default value set for `highWaterMark` on a
 readable stream (16 kb), the stream returned by this method has a
 default value of 64 kb for the same parameter.
-
-`options` is an object or string with the following defaults:
-
-```js
-const defaults = {
-  flags: 'r',
-  encoding: null,
-  fd: null,
-  mode: 0o666,
-  autoClose: true,
-  highWaterMark: 64 * 1024
-};
-```
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
@@ -1376,27 +1368,13 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
-  * `flags` {string}
-  * `encoding` {string}
-  * `fd` {integer}
-  * `mode` {integer}
-  * `autoClose` {boolean}
+  * `flags` {string} **Default:** `'w'`
+  * `encoding` {string} **Default:** `'utf8'`
+  * `fd` {integer} **Default:** `null`
+  * `mode` {integer} **Default:** `0o666`
+  * `autoClose` {boolean} **Default:** `true`
   * `start` {integer}
-* Returns: {stream.Writable}
-
-Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
-
-`options` is an object or string with the following defaults:
-
-```js
-const defaults = {
-  flags: 'w',
-  encoding: 'utf8',
-  fd: null,
-  mode: 0o666,
-  autoClose: true
-};
-```
+* Returns: {fs.WriteStream} See [Writable Stream][].
 
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file. Modifying a file rather
@@ -1410,7 +1388,7 @@ then the file descriptor won't be closed, even if there's an error.
 It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
 
-Like [`ReadStream`][], if `fd` is specified, `WriteStream` will ignore the
+Like [`ReadStream`][], if `fd` is specified, [`WriteStream`][] will ignore the
 `path` argument and will use the specified file descriptor. This means that no
 `'open'` event will be emitted. Note that `fd` should be blocking; non-blocking
 `fd`s should be passed to [`net.Socket`][].
@@ -1675,7 +1653,7 @@ added: v0.1.95
 * `fd` {integer}
 * Returns: {fs.Stats}
 
-Synchronous fstat(2). Returns an instance of [`fs.Stats`][].
+Synchronous fstat(2).
 
 ## fs.fsync(fd, callback)
 <!-- YAML
@@ -1978,7 +1956,7 @@ changes:
 * `path` {string|Buffer|URL}
 * Returns: {fs.Stats}
 
-Synchronous lstat(2). Returns an instance of [`fs.Stats`][].
+Synchronous lstat(2).
 
 ## fs.mkdir(path[, mode], callback)
 <!-- YAML
@@ -2339,10 +2317,9 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {string[]} An array of filenames
+* Returns: {string[]} An array of filenames excluding `'.'` and `'..'`.
 
-Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
-`'..'`.
+Synchronous readdir(3).
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
@@ -2841,7 +2818,7 @@ changes:
 * `path` {string|Buffer|URL}
 * Returns: {fs.Stats}
 
-Synchronous stat(2). Returns an instance of [`fs.Stats`][].
+Synchronous stat(2).
 
 ## fs.symlink(target, path[, type], callback)
 <!-- YAML
@@ -3094,9 +3071,10 @@ changes:
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
   * `filename` {string|Buffer}
+* Returns: {fs.FSWatcher}
 
 Watch for changes on `filename`, where `filename` is either a file or a
-directory. The returned object is a [`fs.FSWatcher`][].
+directory.
 
 The second argument is optional. If `options` is provided as a string, it
 specifies the `encoding`. Otherwise `options` should be passed as an object.
@@ -3487,13 +3465,6 @@ use a simple numeric file descriptor, all `fsPromises.*` variations use the
 `FileHandle` class in order to help protect against accidental leaking of
 unclosed file descriptors after a `Promise` is resolved or rejected.
 
-#### filehandle.fd
-<!-- YAML
-added: REPLACEME
--->
-
-* {number} The numeric file descriptor managed by the `FileHandle` object.
-
 #### filehandle.appendFile(data, options)
 <!-- YAML
 added: REPLACEME
@@ -3565,6 +3536,13 @@ added: REPLACEME
 
 Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
 success.
+
+#### filehandle.fd
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number} The numeric file descriptor managed by the `FileHandle` object.
 
 #### filehandle.read(buffer, offset, length, position)
 <!-- YAML

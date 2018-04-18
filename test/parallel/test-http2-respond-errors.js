@@ -7,48 +7,13 @@ if (!common.hasCrypto)
 const http2 = require('http2');
 const { Http2Stream } = process.binding('http2');
 
-const types = {
-  boolean: true,
-  function: () => {},
-  number: 1,
-  object: {},
-  array: [],
-  null: null,
-  symbol: Symbol('test')
-};
-
 const server = http2.createServer();
 
 Http2Stream.prototype.respond = () => 1;
 server.on('stream', common.mustCall((stream) => {
 
-  // Check for all possible TypeError triggers on options.getTrailers
-  Object.entries(types).forEach(([type, value]) => {
-    if (type === 'function') {
-      return;
-    }
-
-    common.expectsError(
-      () => stream.respond({
-        'content-type': 'text/plain'
-      }, {
-        ['getTrailers']: value
-      }),
-      {
-        type: TypeError,
-        code: 'ERR_INVALID_OPT_VALUE',
-        message: `The value "${String(value)}" is invalid ` +
-                  'for option "getTrailers"'
-      }
-    );
-  });
-
   // Send headers
-  stream.respond({
-    'content-type': 'text/plain'
-  }, {
-    ['getTrailers']: () => common.mustCall()
-  });
+  stream.respond({ 'content-type': 'text/plain' });
 
   // Should throw if headers already sent
   common.expectsError(

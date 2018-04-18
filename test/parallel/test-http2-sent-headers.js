@@ -12,10 +12,9 @@ server.on('stream', common.mustCall((stream) => {
   stream.additionalHeaders({ ':status': 102 });
   assert.strictEqual(stream.sentInfoHeaders[0][':status'], 102);
 
-  stream.respond({ abc: 'xyz' }, {
-    getTrailers(headers) {
-      headers.xyz = 'abc';
-    }
+  stream.respond({ abc: 'xyz' }, { waitForTrailers: true });
+  stream.on('wantTrailers', () => {
+    stream.sendTrailers({ xyz: 'abc' });
   });
   assert.strictEqual(stream.sentHeaders.abc, 'xyz');
   assert.strictEqual(stream.sentHeaders[':status'], 200);

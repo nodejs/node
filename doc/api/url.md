@@ -93,7 +93,9 @@ return `true`.
 
 #### Constructor: new URL(input[, base])
 
-* `input` {string} The input URL to parse
+* `input` {string} The absolute or relative input URL to parse. If `input`
+  is relative, then `base` is required. If `input` is absolute, the `base`
+  is ignored.
 * `base` {string|URL} The base URL to resolve against if the `input` is not
   absolute.
 
@@ -124,6 +126,32 @@ const myURL = new URL('https://你好你好');
 
 This feature is only available if the `node` executable was compiled with
 [ICU][] enabled. If not, the domain names are passed through unchanged.
+
+In cases where it is not known in advance if `input` is an absolute URL
+and a `base` is provided, it is advised to validate that the `origin` of
+the `URL` object is what is expected.
+
+```js
+const { URL } = require('url');
+
+let myURL = new URL('http://anotherExample.org/', 'https://example.org/');
+// http://anotherexample.org/
+
+myURL = new URL('https://anotherExample.org/', 'https://example.org/');
+// https://anotherexample.org/
+
+myURL = new URL('foo://anotherExample.org/', 'https://example.org/');
+// foo://anotherExample.org/
+
+myURL = new URL('http:anotherExample.org/', 'https://example.org/');
+// http://anotherexample.org/
+
+myURL = new URL('https:anotherExample.org/', 'https://example.org/');
+// https://example.org/anotherExample.org/
+
+myURL = new URL('foo:anotherExample.org/', 'https://example.org/');
+// foo:anotherExample.org/
+```
 
 #### url.hash
 
@@ -736,7 +764,7 @@ percent-encoded where necessary.
 
 Returns an ES6 Iterator over the values of each name-value pair.
 
-#### urlSearchParams\[@@iterator\]()
+#### urlSearchParams\[Symbol.iterator\]()
 
 * Returns: {Iterator}
 
@@ -1174,7 +1202,7 @@ console.log(myURL.origin);
 [`url.toJSON()`]: #url_url_tojson
 [`url.toString()`]: #url_url_tostring
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
-[`urlSearchParams@@iterator()`]: #url_urlsearchparams_iterator
+[`urlSearchParams@@iterator()`]: #url_urlsearchparams_symbol_iterator
 [ICU]: intl.html#intl_options_for_building_node_js
 [Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
 [WHATWG URL Standard]: https://url.spec.whatwg.org/

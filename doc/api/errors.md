@@ -586,6 +586,14 @@ found [here][online].
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
+<a id="ERR_AMBIGUOUS_ARGUMENT"></a>
+### ERR_AMBIGUOUS_ARGUMENT
+
+This is triggered by the `assert` module in case e.g.,
+`assert.throws(fn, message)` is used in a way that the message is the thrown
+error message. This is ambiguous because the message is not verifying the error
+message and will only be thrown in case no error is thrown.
+
 <a id="ERR_ARG_NOT_ITERABLE"></a>
 ### ERR_ARG_NOT_ITERABLE
 
@@ -1009,6 +1017,19 @@ When setting the priority for an HTTP/2 stream, the stream may be marked as
 a dependency for a parent stream. This error code is used when an attempt is
 made to mark a stream and dependent of itself.
 
+<a id="ERR_HTTP2_TRAILERS_ALREADY_SENT"></a>
+### ERR_HTTP2_TRAILERS_ALREADY_SENT
+
+Trailing headers have already been sent on the `Http2Stream`.
+
+<a id="ERR_HTTP2_TRAILERS_NOT_READY"></a>
+### ERR_HTTP2_TRAILERS_NOT_READY
+
+The `http2stream.sendTrailers()` method cannot be called until after the
+`'wantTrailers'` event is emitted on an `Http2Stream` object. The
+`'wantTrailers'` event will only be emitted if the `waitForTrailers` option
+is set for the `Http2Stream`.
+
 <a id="ERR_HTTP2_UNSUPPORTED_PROTOCOL"></a>
 ### ERR_HTTP2_UNSUPPORTED_PROTOCOL
 
@@ -1423,6 +1444,12 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
 An attempt was made to call [`stream.write()`][] with a `null` chunk.
 
+<a id="ERR_STREAM_PREMATURE_CLOSE"></a>
+### ERR_STREAM_PREMATURE_CLOSE
+
+An error returned by `stream.finished()` and `stream.pipeline()`, when a stream
+or a pipeline ends non gracefully with no explicit error.
+
 <a id="ERR_STREAM_PUSH_AFTER_EOF"></a>
 ### ERR_STREAM_PUSH_AFTER_EOF
 
@@ -1522,6 +1549,18 @@ socket, which is only valid from a client.
 ### ERR_TLS_RENEGOTIATION_DISABLED
 
 An attempt was made to renegotiate TLS on a socket instance with TLS disabled.
+
+<a id="ERR_TRACE_EVENTS_CATEGORY_REQUIRED"></a>
+### ERR_TRACE_EVENTS_CATEGORY_REQUIRED
+
+The `trace_events.createTracing()` method requires at least one trace event
+category.
+
+<a id="ERR_TRACE_EVENTS_UNAVAILABLE"></a>
+### ERR_TRACE_EVENTS_UNAVAILABLE
+
+The `trace_events` module could not be loaded because Node.js was compiled with
+the `--without-v8-platform` flag.
 
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 ### ERR_TRANSFORM_ALREADY_TRANSFORMING

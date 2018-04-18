@@ -31,10 +31,9 @@ const testServer = new http.Server(function(req, res) {
 
 testServer.listen(0, function() {
   http.get({ port: this.address().port }, function(res) {
-    assert.strictEqual(res.readable, true, 'res.readable initially true');
+    assert.strictEqual(res.readable, true);
     res.on('end', function() {
-      assert.strictEqual(res.readable, false,
-                         'res.readable set to false after end');
+      assert.strictEqual(res.readable, false);
       testServer.close();
     });
     res.resume();

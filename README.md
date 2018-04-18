@@ -264,6 +264,8 @@ For more information about the governance of the Node.js project, see
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
+* [TimothyGu](https://github.com/TimothyGu) -
+**Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [Trott](https://github.com/Trott) -
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
@@ -428,8 +430,6 @@ For more information about the governance of the Node.js project, see
 **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; (he/him)
 * [micnic](https://github.com/micnic) -
 **Nicu Micleușanu** &lt;micnic90@gmail.com&gt; (he/him)
-* [mikeal](https://github.com/mikeal) -
-**Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [misterdjules](https://github.com/misterdjules) -
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mmarchini](https://github.com/mmarchini) -
@@ -472,6 +472,8 @@ For more information about the governance of the Node.js project, see
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
+* [ryzokuken](https://github.com/ryzokuken) -
+**Ujjwal Sharma** &lt;usharma1998@gmail.com&gt; (he/him)
 * [saghul](https://github.com/saghul) -
 **Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
 * [sam-github](https://github.com/sam-github) -
@@ -541,6 +543,8 @@ For more information about the governance of the Node.js project, see
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
 **Matthew Loring** &lt;mattloring@google.com&gt;
+* [mikeal](https://github.com/mikeal) -
+**Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) -
 **Christopher Monsanto** &lt;chris@monsan.to&gt;
 * [Olegas](https://github.com/Olegas) -

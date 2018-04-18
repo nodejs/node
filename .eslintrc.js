@@ -156,8 +156,12 @@ module.exports = {
         message: "Please replace `assert.doesNotThrow()` and add a comment next to the code instead."
       },
       {
+        selector: `CallExpression[callee.object.name='assert'][callee.property.name='rejects'][arguments.length<2]`,
+        message: 'assert.rejects() must be invoked with at least two arguments.',
+      },
+      {
         selector: `CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])`,
-        message: 'use a regular expression for second argument of assert.throws()',
+        message: 'Use an object as second argument of assert.throws()',
       },
       {
         selector: `CallExpression[callee.object.name='assert'][callee.property.name='throws'][arguments.length<2]`,
@@ -185,7 +189,7 @@ module.exports = {
     'no-this-before-super': 'error',
     'no-throw-literal': 'error',
     'no-trailing-spaces': 'error',
-    'no-undef': 'error',
+    'no-undef': ['error', { typeof: true }],
     'no-undef-init': 'error',
     'no-unexpected-multiline': 'error',
     'no-unreachable': 'error',

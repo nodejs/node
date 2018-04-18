@@ -24,6 +24,7 @@
 #include "node_internals.h"
 #include "node_stat_watcher.h"
 #include "node_file.h"
+#include "tracing/trace_event.h"
 
 #include "req_wrap-inl.h"
 #include "stream_base-inl.h"
@@ -75,6 +76,18 @@ using v8::Value;
 #endif
 
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a).As<Integer>()->Value() : -1)
+#define TRACE_NAME(name) "fs.sync." #name
+#define GET_TRACE_ENABLED                                                  \
+  (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                             \
+  (TRACING_CATEGORY_NODE2(fs, sync)) != 0)
+#define FS_SYNC_TRACE_BEGIN(syscall, ...)                                  \
+  if (GET_TRACE_ENABLED)                                                   \
+  TRACE_EVENT_BEGIN(TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall), \
+  ##__VA_ARGS__);
+#define FS_SYNC_TRACE_END(syscall, ...)                                    \
+  if (GET_TRACE_ENABLED)                                                   \
+  TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall),   \
+  ##__VA_ARGS__);
 
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
@@ -95,13 +108,13 @@ FileHandle::FileHandle(Environment* env, int fd, Local<Object> obj)
                               attr).FromJust();
 }
 
-void FileHandle::New(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsInt32());
 
   FileHandle* handle =
-      new FileHandle(env, args[0].As<v8::Int32>()->Value(), args.This());
+      new FileHandle(env, args[0].As<Int32>()->Value(), args.This());
   if (args[1]->IsNumber())
     handle->read_offset_ = args[1]->IntegerValue(env->context()).FromJust();
   if (args[2]->IsNumber())
@@ -316,7 +329,7 @@ int FileHandle::ReadStart() {
 
     // ReadStart() checks whether current_read_ is set to determine whether
     // a read is in progress. Moving it into a local variable makes sure that
-    // the ReadStart() call below doesn’t think we’re still actively reading.
+    // the ReadStart() call below doesn't think we're still actively reading.
     std::unique_ptr<FileHandleReadWrap> read_wrap =
         std::move(handle->current_read_);
 
@@ -658,7 +671,7 @@ inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value) {
   if (value->IsObject()) {
     return Unwrap<FSReqBase>(value.As<Object>());
   } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
-    return new FSReqPromise<double, v8::Float64Array>(env);
+    return new FSReqPromise<double, Float64Array>(env);
   }
   return nullptr;
 }
@@ -683,7 +696,9 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   } else {  // access(path, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(access);
     SyncCall(env, args[3], &req_wrap_sync, "access", uv_fs_access, *path, mode);
+    FS_SYNC_TRACE_END(access);
   }
 }
 
@@ -704,7 +719,9 @@ void Close(const FunctionCallbackInfo<Value>& args) {
   } else {  // close(fd, undefined, ctx)
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(close);
     SyncCall(env, args[2], &req_wrap_sync, "close", uv_fs_close, fd);
+    FS_SYNC_TRACE_END(close);
   }
 }
 
@@ -812,7 +829,9 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   } else {  // stat(path, undefined, ctx)
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(stat);
     int err = SyncCall(env, args[2], &req_wrap_sync, "stat", uv_fs_stat, *path);
+    FS_SYNC_TRACE_END(stat);
     if (err == 0) {
       node::FillGlobalStatsArray(env,
           static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
@@ -836,8 +855,10 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   } else {  // lstat(path, undefined, ctx)
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(lstat);
     int err = SyncCall(env, args[2], &req_wrap_sync, "lstat", uv_fs_lstat,
                        *path);
+    FS_SYNC_TRACE_END(lstat);
     if (err == 0) {
       node::FillGlobalStatsArray(env,
           static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
@@ -861,7 +882,9 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
   } else {  // fstat(fd, undefined, ctx)
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(fstat);
     int err = SyncCall(env, args[2], &req_wrap_sync, "fstat", uv_fs_fstat, fd);
+    FS_SYNC_TRACE_END(fstat);
     if (err == 0) {
       node::FillGlobalStatsArray(env,
           static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
@@ -890,8 +913,10 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   } else {  // symlink(target, path, flags, undefinec, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(symlink);
     SyncCall(env, args[4], &req_wrap_sync, "symlink",
              uv_fs_symlink, *target, *path, flags);
+    FS_SYNC_TRACE_END(symlink);
   }
 }
 
@@ -914,8 +939,10 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   } else {  // link(src, dest)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(link);
     SyncCall(env, args[3], &req_wrap_sync, "link",
              uv_fs_link, *src, *dest);
+    FS_SYNC_TRACE_END(link);
   }
 }
 
@@ -937,8 +964,10 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   } else {
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(readlink);
     int err = SyncCall(env, args[3], &req_wrap_sync, "readlink",
                        uv_fs_readlink, *path);
+    FS_SYNC_TRACE_END(readlink);
     if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -978,8 +1007,10 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   } else {
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(rename);
     SyncCall(env, args[3], &req_wrap_sync, "rename", uv_fs_rename,
              *old_path, *new_path);
+    FS_SYNC_TRACE_END(rename);
   }
 }
 
@@ -1002,8 +1033,10 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   } else {
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(ftruncate);
     SyncCall(env, args[3], &req_wrap_sync, "ftruncate", uv_fs_ftruncate, fd,
              len);
+    FS_SYNC_TRACE_END(ftruncate);
   }
 }
 
@@ -1023,7 +1056,9 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   } else {
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(fdatasync);
     SyncCall(env, args[2], &req_wrap_sync, "fdatasync", uv_fs_fdatasync, fd);
+    FS_SYNC_TRACE_END(fdatasync);
   }
 }
 
@@ -1043,7 +1078,9 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
   } else {
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(fsync);
     SyncCall(env, args[2], &req_wrap_sync, "fsync", uv_fs_fsync, fd);
+    FS_SYNC_TRACE_END(fsync);
   }
 }
 
@@ -1063,7 +1100,9 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   } else {
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(unlink);
     SyncCall(env, args[2], &req_wrap_sync, "unlink", uv_fs_unlink, *path);
+    FS_SYNC_TRACE_END(unlink);
   }
 }
 
@@ -1083,8 +1122,10 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   } else {  // rmdir(path, undefined, ctx)
     CHECK_EQ(argc, 3);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(rmdir);
     SyncCall(env, args[2], &req_wrap_sync, "rmdir",
              uv_fs_rmdir, *path);
+    FS_SYNC_TRACE_END(rmdir);
   }
 }
 
@@ -1107,8 +1148,10 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   } else {  // mkdir(path, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(mkdir);
     SyncCall(env, args[3], &req_wrap_sync, "mkdir",
              uv_fs_mkdir, *path, mode);
+    FS_SYNC_TRACE_END(mkdir);
   }
 }
 
@@ -1130,8 +1173,10 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
   } else {  // realpath(path, encoding, undefined, ctx)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(realpath);
     int err = SyncCall(env, args[3], &req_wrap_sync, "realpath",
                        uv_fs_realpath, *path);
+    FS_SYNC_TRACE_END(realpath);
     if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1171,8 +1216,10 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   } else {  // readdir(path, encoding, undefined, ctx)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(readdir);
     int err = SyncCall(env, args[3], &req_wrap_sync, "scandir",
                        uv_fs_scandir, *path, 0 /*flags*/);
+    FS_SYNC_TRACE_END(readdir);
     if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1255,8 +1302,10 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   } else {  // open(path, flags, mode, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(open);
     int result = SyncCall(env, args[4], &req_wrap_sync, "open",
                           uv_fs_open, *path, flags, mode);
+    FS_SYNC_TRACE_END(open);
     args.GetReturnValue().Set(result);
   }
 }
@@ -1283,8 +1332,10 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   } else {  // openFileHandle(path, flags, mode, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(open);
     int result = SyncCall(env, args[4], &req_wrap_sync, "open",
                           uv_fs_open, *path, flags, mode);
+    FS_SYNC_TRACE_END(open);
     if (result < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1317,8 +1368,10 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   } else {  // copyFile(src, dest, flags, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(copyfile);
     SyncCall(env, args[4], &req_wrap_sync, "copyfile",
              uv_fs_copyfile, *src, *dest, flags);
+    FS_SYNC_TRACE_END(copyfile);
   }
 }
 
@@ -1368,8 +1421,10 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   } else {  // write(fd, buffer, off, len, pos, undefined, ctx)
     CHECK_EQ(argc, 7);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(write);
     int bytesWritten = SyncCall(env, args[6], &req_wrap_sync, "write",
                                 uv_fs_write, fd, &uvbuf, 1, pos);
+    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -1411,8 +1466,10 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   } else {  // writeBuffers(fd, chunks, pos, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(write);
     int bytesWritten = SyncCall(env, args[4], &req_wrap_sync, "write",
                                 uv_fs_write, fd, *iovs, iovs.length(), pos);
+    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -1503,8 +1560,10 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
       buf = *stack_buffer;
     }
     uv_buf_t uvbuf = uv_buf_init(buf, len);
+    FS_SYNC_TRACE_BEGIN(write);
     int bytesWritten = SyncCall(env, args[5], &req_wrap_sync, "write",
                                 uv_fs_write, fd, &uvbuf, 1, pos);
+    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -1556,8 +1615,10 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   } else {  // read(fd, buffer, offset, len, pos, undefined, ctx)
     CHECK_EQ(argc, 7);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(read);
     const int bytesRead = SyncCall(env, args[6], &req_wrap_sync, "read",
                                    uv_fs_read, fd, &uvbuf, 1, pos);
+    FS_SYNC_TRACE_END(read, "bytesRead", bytesRead);
     args.GetReturnValue().Set(bytesRead);
   }
 }
@@ -1585,8 +1646,10 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   } else {  // chmod(path, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(chmod);
     SyncCall(env, args[3], &req_wrap_sync, "chmod",
              uv_fs_chmod, *path, mode);
+    FS_SYNC_TRACE_END(chmod);
   }
 }
 
@@ -1613,8 +1676,10 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
   } else {  // fchmod(fd, mode, undefined, ctx)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(fchmod);
     SyncCall(env, args[3], &req_wrap_sync, "fchmod",
              uv_fs_fchmod, fd, mode);
+    FS_SYNC_TRACE_END(fchmod);
   }
 }
 
@@ -1644,8 +1709,10 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   } else {  // chown(path, uid, gid, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(chown);
     SyncCall(env, args[4], &req_wrap_sync, "chown",
              uv_fs_chown, *path, uid, gid);
+    FS_SYNC_TRACE_END(chown);
   }
 }
 
@@ -1675,8 +1742,10 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
   } else {  // fchown(fd, uid, gid, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(fchown);
     SyncCall(env, args[4], &req_wrap_sync, "fchown",
              uv_fs_fchown, fd, uid, gid);
+    FS_SYNC_TRACE_END(fchown);
   }
 }
 
@@ -1703,8 +1772,10 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
   } else {  // utimes(path, atime, mtime, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(utimes);
     SyncCall(env, args[4], &req_wrap_sync, "utime",
              uv_fs_utime, *path, atime, mtime);
+    FS_SYNC_TRACE_END(utimes);
   }
 }
 
@@ -1730,8 +1801,10 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   } else {  // futimes(fd, atime, mtime, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(futimes);
     SyncCall(env, args[4], &req_wrap_sync, "futime",
              uv_fs_futime, fd, atime, mtime);
+    FS_SYNC_TRACE_END(futimes);
   }
 }
 
@@ -1753,8 +1826,10 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   } else {  // mkdtemp(tmpl, encoding, undefined, ctx)
     CHECK_EQ(argc, 4);
     FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(mkdtemp);
     SyncCall(env, args[3], &req_wrap_sync, "mkdtemp",
              uv_fs_mkdtemp, *tmpl);
+    FS_SYNC_TRACE_END(mkdtemp);
     const char* path = static_cast<const char*>(req_wrap_sync.req.path);
 
     Local<Value> error;

@@ -42,11 +42,13 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
 }
 
 {
-  const err = new errors.codes.TEST_ERROR_1();
-  assert(err instanceof Error);
-  assert.strictEqual(err.name, 'Error [TEST_ERROR_1]');
-  assert.strictEqual(err.message, 'Error for testing purposes: %s');
-  assert.strictEqual(err.code, 'TEST_ERROR_1');
+  assert.throws(
+    () => new errors.codes.TEST_ERROR_1(),
+    {
+      message: 'Code: TEST_ERROR_1; The provided arguments ' +
+               'length (0) does not match the required ones (1).'
+    }
+  );
 }
 
 // Tests for common.expectsError
@@ -154,16 +156,6 @@ assert.strictEqual(
 assert.strictEqual(
   errors.message('ERR_INVALID_HTTP_TOKEN', ['Method', 'foo']),
   'Method must be a valid HTTP token ["foo"]'
-);
-
-assert.strictEqual(
-  errors.message('ERR_OUT_OF_RANGE', ['A']),
-  'The value of "A" is out of range.'
-);
-
-assert.strictEqual(
-  errors.message('ERR_OUT_OF_RANGE', ['A', 'some values']),
-  'The value of "A" is out of range. It must be some values.'
 );
 
 assert.strictEqual(
