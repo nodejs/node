@@ -19,6 +19,7 @@ namespace node {
 #define ERRORS_WITH_CODE(V)                                                  \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
   V(ERR_INDEX_OUT_OF_RANGE, RangeError)                                      \
+  V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
   V(ERR_MISSING_MODULE, Error)                                               \
