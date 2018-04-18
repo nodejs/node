@@ -956,7 +956,8 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   DH_get0_pqg(dh, &p, nullptr, nullptr);
   const int size = BN_num_bits(p);
   if (size < 1024) {
-    return env->ThrowError("DH parameter is less than 1024 bits");
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env, "DH parameter is less than 1024 bits");
   } else if (size < 2048) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
         env->isolate(), "DH parameter is less than 2048 bits"));
@@ -1203,7 +1204,8 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Ticket keys");
 
   if (Buffer::Length(args[0]) != 48) {
-    return env->ThrowTypeError("Ticket keys length must be 48 bytes");
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env, "Ticket keys length must be 48 bytes");
   }
 
   memcpy(wrap->ticket_key_name_, Buffer::Data(args[0]), 16);
@@ -4391,7 +4393,8 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
 
   int nid = OBJ_sn2nid(*curve);
   if (nid == NID_undef)
-    return env->ThrowTypeError("First argument should be a valid curve name");
+    return THROW_ERR_INVALID_ARG_VALUE(env,
+        "First argument should be a valid curve name");
 
   EC_KEY* key = EC_KEY_new_by_curve_name(nid);
   if (key == nullptr)
