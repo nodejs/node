@@ -89,6 +89,9 @@ static void Initialize(Local<Object> target,
   if (config_experimental_vm_modules)
     READONLY_BOOLEAN_PROPERTY("experimentalVMModules");
 
+  if (config_experimental_repl_await)
+    READONLY_BOOLEAN_PROPERTY("experimentalREPLAwait");
+
   if (config_pending_deprecation)
     READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
 

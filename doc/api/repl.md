@@ -179,6 +179,25 @@ Error: foo
 'foo'
 ```
 
+#### `await` keyword
+
+With the `--experimental-repl-await` command line option specified,
+experimental support for the `await` keyword is enabled.
+
+<!-- eslint-skip -->
+```js
+> await Promise.resolve(123)
+123
+> await Promise.reject(new Error('REPL await'))
+Error: REPL await
+    at repl:1:45
+> const timeout = util.promisify(setTimeout);
+undefined
+> const old = Date.now(); await timeout(1000); console.log(Date.now() - old);
+1002
+undefined
+```
+
 ### Custom Evaluation Functions
 
 When a new `repl.REPLServer` is created, a custom evaluation function may be
