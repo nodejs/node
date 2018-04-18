@@ -494,7 +494,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   unsigned int len = args.Length();
   if (len < 1) {
-    return env->ThrowError("Private key argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Private key argument is mandatory");
   }
 
   if (len > 2) {
@@ -692,7 +692,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Certificate argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Certificate argument is mandatory");
   }
 
   BIO* bio = LoadBIO(env, args[0]);
@@ -766,7 +766,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("CA certificate argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "CA certificate argument is mandatory");
   }
 
   BIO* bio = LoadBIO(env, args[0]);
@@ -797,7 +797,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("CRL argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "CRL argument is mandatory");
   }
 
   ClearErrorOnReturn clear_error_on_return;
@@ -900,7 +900,7 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Ciphers argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Ciphers argument is mandatory");
   }
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Ciphers");
@@ -916,7 +916,7 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = sc->env();
 
   if (args.Length() != 1)
-    return env->ThrowTypeError("ECDH curve name argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "ECDH curve name argument is mandatory");
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "ECDH curve name");
 
@@ -939,7 +939,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   // Auto DH is not supported in openssl 1.0.1, so dhparam needs
   // to be specified explicitly
   if (args.Length() != 1)
-    return env->ThrowTypeError("DH argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "DH argument is mandatory");
 
   // Invalid dhparam is silently discarded and DHE is no longer used.
   BIO* bio = LoadBIO(env, args[0]);
@@ -994,7 +994,8 @@ void SecureContext::SetSessionIdContext(
   Environment* env = sc->env();
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Session ID context argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(
+        env, "Session ID context argument is mandatory");
   }
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Session ID context");
@@ -1065,7 +1066,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() < 1) {
-    return env->ThrowTypeError("PFX certificate argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "PFX certificate argument is mandatory");
   }
 
   in = LoadBIO(env, args[0]);
@@ -1198,7 +1199,7 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
 
   if (args.Length() < 1) {
-    return env->ThrowTypeError("Ticket keys argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Ticket keys argument is mandatory");
   }
 
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Ticket keys");
@@ -1951,7 +1952,7 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
   if (args.Length() < 1) {
-    return env->ThrowError("Session argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Session argument is mandatory");
   }
 
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Session");
@@ -2076,7 +2077,7 @@ void SSLWrap<Base>::SetOCSPResponse(
   Environment* env = w->env();
 
   if (args.Length() < 1)
-    return env->ThrowTypeError("OCSP response argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "OCSP response argument is mandatory");
 
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "OCSP response");
 
@@ -4084,7 +4085,7 @@ void DiffieHellman::DiffieHellmanGroup(
   DiffieHellman* diffieHellman = new DiffieHellman(env, args.This());
 
   if (args.Length() != 1) {
-    return env->ThrowError("Group name argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Group name argument is mandatory");
   }
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Group name");
@@ -4234,7 +4235,8 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   BIGNUM* key = nullptr;
 
   if (args.Length() == 0) {
-    return env->ThrowError("Other party's public key argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(
+        env, "Other party's public key argument is mandatory");
   } else {
     THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Other party's public key");
     key = BN_bin2bn(
@@ -4304,7 +4306,7 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
 
   if (args.Length() == 0) {
     snprintf(errmsg, sizeof(errmsg), "%s argument is mandatory", what);
-    return env->ThrowError(errmsg);
+    return THROW_ERR_MISSING_ARGS(env, errmsg);
   }
 
   if (!Buffer::HasInstance(args[0])) {
