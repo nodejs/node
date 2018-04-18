@@ -1,12 +1,11 @@
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 
-const fixtures = require('../common/fixtures');
-
 if (process.platform == 'win32') {
     // Create readOnlyMod.js and set to read only
-    const readOnlyMod = fixtures.path('readOnlyMod');
+    const readOnlyMod = path.join(os.tmpdir(), 'readOnlyMod');
     const readOnlyModRelative = path.relative(__dirname, readOnlyMod);
     const readOnlyModFullPath = readOnlyMod + ".js";
     fs.writeFileSync(readOnlyModFullPath, "module.exports = 42;");
