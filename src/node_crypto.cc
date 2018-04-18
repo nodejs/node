@@ -977,7 +977,7 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1 || !args[0]->IntegerValue()) {
-    return node::THROW_ERR_INVALID_ARG_TYPE(
+    return THROW_ERR_INVALID_ARG_TYPE(
         sc->env(), "Options must be an integer value");
   }
 
@@ -1033,7 +1033,7 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1 || !args[0]->IsInt32()) {
-    return node::THROW_ERR_INVALID_ARG_TYPE(
+    return THROW_ERR_INVALID_ARG_TYPE(
         sc->env(), "Session timeout must be a 32-bit integer");
   }
 
@@ -4311,7 +4311,7 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
 
   if (!Buffer::HasInstance(args[0])) {
     snprintf(errmsg, sizeof(errmsg), "%s must be a buffer", what);
-    return node::THROW_ERR_INVALID_ARG_TYPE(env, errmsg);
+    return THROW_ERR_INVALID_ARG_TYPE(env, errmsg);
   }
 
   BIGNUM* num =
