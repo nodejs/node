@@ -125,7 +125,7 @@ probe node_gc_start = process("node").mark("gc__start")
     flags);
 }
 
-probe node_gc_stop = process("node").mark("gc__stop")
+probe node_gc_stop = process("node").mark("gc__done")
 {
   scavenge = 1 << 0;
   compact = 1 << 1;
