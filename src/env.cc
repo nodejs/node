@@ -25,6 +25,9 @@ using v8::String;
 using v8::Value;
 
 const int kNodeContextTag = 0x6e6f64;
+void *kNodeContextTagPtr = const_cast<void *>(
+  reinterpret_cast<const void *>(&kNodeContextTag)
+);
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
@@ -197,7 +200,7 @@ void Environment::Start(int argc,
   SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
 
   // Used by EnvPromiseHook to know that we are on a node context.
-  context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTag, (void *)kNodeContextTag);
+  context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTag, kNodeContextTagPtr);
 
   LoadAsyncWrapperInfo(this);
 
@@ -373,8 +376,10 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   // Grow the embedder data if necessary to make sure we are not out of bounds
   // when reading the magic number.
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTagBoundary, nullptr);
-  int magicNumber = (int)context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kContextTag);
-  if (magicNumber != kNodeContextTag) {
+  int *magicNumberPtr = reinterpret_cast<int *>(
+    context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kContextTag)
+  );
+  if (magicNumberPtr != kNodeContextTagPtr || *magicNumberPtr != kNodeContextTag) {
     return;
   }
 
