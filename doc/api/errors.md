@@ -1371,6 +1371,10 @@ An attempt was made to `require()` an [ES6 module][].
 Script execution was interrupted by `SIGINT` (For example, when Ctrl+C was
 pressed).
 
+### ERR_SCRIPT_EXECUTION_TIMEOUT
+
+Script execution timed out, possibly due to bugs in the script being executed.
+
 <a id="ERR_SERVER_ALREADY_LISTEN"></a>
 ### ERR_SERVER_ALREADY_LISTEN
 

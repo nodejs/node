@@ -286,9 +286,9 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     // which this timeout is nested, so check whether one of the watchdogs
     // from this invocation is responsible for termination.
     if (timed_out) {
-      env->ThrowError("Script execution timed out.");
+      THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, timeout);
     } else if (received_signal) {
-      env->ThrowError("Script execution interrupted.");
+      THROW_ERR_SCRIPT_EXECUTION_INTERRUPTED(env);
     }
   }
 

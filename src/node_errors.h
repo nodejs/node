@@ -8,6 +8,8 @@
 #include "env-inl.h"
 #include "v8.h"
 
+#include <inttypes.h>
+
 namespace node {
 
 // Helpers to construct errors similar to the ones provided by
@@ -24,6 +26,8 @@ namespace node {
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
   V(ERR_MISSING_ARGS, TypeError)                                             \
   V(ERR_MISSING_MODULE, Error)                                               \
+  V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
+  V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \
   V(ERR_BUFFER_TOO_LARGE, Error)
 
@@ -49,7 +53,9 @@ namespace node {
 
 #define PREDEFINED_ERROR_MESSAGES(V)                                         \
   V(ERR_INDEX_OUT_OF_RANGE, "Index out of range")                            \
-  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")
+  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
+  V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                        \
+    "Script execution was interrupted by `SIGINT`")
 
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
@@ -62,6 +68,13 @@ namespace node {
 #undef V
 
 // Errors with predefined non-static messages
+inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
+                                               int64_t timeout) {
+  char message[128];
+  snprintf(message, sizeof(message),
+      "Script execution timed out after %" PRId64 "ms", timeout);
+  THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message);
+}
 
 inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate *isolate) {
   char message[128];

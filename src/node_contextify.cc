@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "node_errors.h"
 #include "node_internals.h"
 #include "node_watchdog.h"
 #include "base_object-inl.h"
@@ -858,9 +859,9 @@ class ContextifyScript : public BaseObject {
       // which this timeout is nested, so check whether one of the watchdogs
       // from this invocation is responsible for termination.
       if (timed_out) {
-        env->ThrowError("Script execution timed out.");
+        node::THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, timeout);
       } else if (received_signal) {
-        env->ThrowError("Script execution interrupted.");
+        node::THROW_ERR_SCRIPT_EXECUTION_INTERRUPTED(env);
       }
     }
 

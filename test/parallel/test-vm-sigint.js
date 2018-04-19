@@ -24,8 +24,12 @@ if (process.argv[2] === 'child') {
   for (let i = 0; i < listeners; i++)
     process.on('SIGINT', common.mustNotCall());
 
-  assert.throws(() => { vm[method](script, ...args, options); },
-                /^Error: Script execution interrupted\.$/);
+  common.expectsError(
+    () => { vm[method](script, ...args, options); },
+    {
+      code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED',
+      message: 'Script execution was interrupted by `SIGINT`'
+    });
   return;
 }
 

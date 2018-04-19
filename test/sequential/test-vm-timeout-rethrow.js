@@ -39,6 +39,6 @@ if (process.argv[2] === 'child') {
   });
 
   process.on('exit', function() {
-    assert.ok(/Script execution timed out/.test(err));
+    assert.ok(/Script execution timed out after 1ms/.test(err));
   });
 }
