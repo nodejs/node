@@ -414,12 +414,6 @@ class BufferValue : public MaybeStackBuffer<char> {
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 };
 
-#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
-  do {                                                                      \
-    if (!Buffer::HasInstance(obj))                                          \
-      return env->ThrowTypeError("argument should be a Buffer");            \
-  } while (0)
-
 #define SPREAD_BUFFER_ARG(val, name)                                          \
   CHECK((val)->IsArrayBufferView());                                          \
   v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \

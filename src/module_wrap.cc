@@ -4,6 +4,7 @@
 #include "module_wrap.h"
 
 #include "env.h"
+#include "node_errors.h"
 #include "node_url.h"
 #include "util-inl.h"
 #include "node_internals.h"
@@ -677,15 +678,14 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
   URL url(*url_utf8, url_utf8.length());
 
   if (url.flags() & URL_FLAGS_FAILED) {
-    env->ThrowError("second argument is not a URL string");
-    return;
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env, "second argument is not a URL string");
   }
 
   Maybe<URL> result = node::loader::Resolve(env, specifier_std, url);
   if (result.IsNothing() || (result.FromJust().flags() & URL_FLAGS_FAILED)) {
     std::string msg = "Cannot find module " + specifier_std;
-    env->ThrowError(msg.c_str());
-    return;
+    return node::THROW_ERR_MISSING_MODULE(env, msg.c_str());
   }
 
   args.GetReturnValue().Set(result.FromJust().ToObject(env));
