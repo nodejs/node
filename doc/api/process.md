@@ -1208,6 +1208,14 @@ console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 
+## proces.isTopLevelNodeProcess()
+
+* Returns: {boolean}
+
+Returns true if the current node process was not launched by a parent
+node process using fork, spawn, or a like method of executing child
+processes.  Returns false in all other cases.
+
 ## process.kill(pid[, signal])
 <!-- YAML
 added: v0.0.6
