@@ -471,8 +471,9 @@ added: v0.1.94
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
-event is not being listened for, clients receiving an upgrade header will have
-their connections closed.
+event is not being listened for and the response status code is 101 Switching
+Protocols, clients receiving an upgrade header will have their connections
+closed.
 
 A client server pair demonstrating how to listen for the `'upgrade'` event.
 
@@ -587,13 +588,24 @@ added: v1.6.0
 -->
 
 * `name` {string}
-* Returns: {string}
+* Returns: {any}
 
 Reads out a header on the request. Note that the name is case insensitive.
+The type of the return value depends on the arguments provided to
+[`request.setHeader()`][].
 
 Example:
 ```js
+request.setHeader('content-type', 'text/html');
+request.setHeader('Content-Length', Buffer.byteLength(body));
+request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 const contentType = request.getHeader('Content-Type');
+// contentType is 'text/html'
+const contentLength = request.getHeader('Content-Length');
+// contentLength is of type number
+const setCookie = request.getHeader('set-cookie');
+// setCookie is of type string[]
+
 ```
 
 ### request.removeHeader(name)
@@ -616,11 +628,14 @@ added: v1.6.0
 -->
 
 * `name` {string}
-* `value` {string}
+* `value` {any}
 
 Sets a single header value for headers object. If this header already exists in
 the to-be-sent headers, its value will be replaced. Use an array of strings
-here to send multiple headers with the same name.
+here to send multiple headers with the same name. Non-string values will be
+stored without modification. Therefore, [`request.getHeader()`][] may return
+non-string values. However, the non-string values will be converted to strings
+for network transmission.
 
 Example:
 ```js
@@ -661,12 +676,11 @@ added: v0.5.9
 
 * `timeout` {number} Milliseconds before a request times out.
 * `callback` {Function} Optional function to be called when a timeout occurs.
-  Same as binding to the `timeout` event.
+  Same as binding to the `'timeout'` event.
+* Returns: {http.ClientRequest}
 
 Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
-
-Returns `request`.
 
 ### request.socket
 <!-- YAML
@@ -677,9 +691,8 @@ added: v0.3.0
 
 Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
-because of how the protocol parser attaches to the socket. After
-`response.end()`, the property is nulled. The `socket` may also be accessed
-via `request.connection`.
+because of how the protocol parser attaches to the socket. The `socket`
+may also be accessed via `request.connection`.
 
 Example:
 
@@ -706,6 +719,7 @@ added: v0.1.29
 * `chunk` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
+* Returns: {boolean}
 
 Sends a chunk of the body. By calling this method
 many times, a request body can be sent to a
@@ -774,12 +788,12 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4557
     description: The default action of calling `.destroy()` on the `socket`
                  will no longer take place if there are listeners attached
-                 for `clientError`.
+                 for `'clientError'`.
   - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/17672
     description: The rawPacket is the current buffer that just parsed. Adding
-                 this buffer to the error object of clientError event is to make
-                 it possible that developers can log the broken packet.
+                 this buffer to the error object of `'clientError'` event is to
+                 make it possible that developers can log the broken packet.
 -->
 
 * `exception` {Error}
@@ -873,6 +887,11 @@ per connection (in the case of HTTP Keep-Alive connections).
 ### Event: 'upgrade'
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Not listening to this event no longer causes the socket
+                 to be destroyed if a client sends an Upgrade header.
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
@@ -880,9 +899,8 @@ added: v0.1.94
 * `socket` {net.Socket} Network socket between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
-Emitted each time a client requests an HTTP upgrade. If this event is not
-listened for, then clients requesting an upgrade will have their connections
-closed.
+Emitted each time a client requests an HTTP upgrade. Listening to this event
+is optional and clients cannot insist on a protocol change.
 
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
@@ -928,6 +946,7 @@ added: v0.9.12
 
 * `msecs` {number} **Default:** `120000` (2 minutes)
 * `callback` {Function}
+* Returns: {http.Server}
 
 Sets the timeout value for sockets, and emits a `'timeout'` event on
 the Server object, passing the socket as an argument, if a timeout
@@ -939,8 +958,6 @@ will be called with the timed-out socket as an argument.
 By default, the Server's timeout value is 2 minutes, and sockets are
 destroyed automatically if they time out. However, if a callback is assigned
 to the Server's `'timeout'` event, timeouts must be handled explicitly.
-
-Returns `server`.
 
 ### server.timeout
 <!-- YAML
@@ -1087,15 +1104,24 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* Returns: {string}
+* Returns: {any}
 
 Reads out a header that's already been queued but not sent to the client.
-Note that the name is case insensitive.
+Note that the name is case insensitive. The type of the return value depends
+on the arguments provided to [`response.setHeader()`][].
 
 Example:
 
 ```js
+response.setHeader('Content-Type', 'text/html');
+response.setHeader('Content-Length', Buffer.byteLength(body));
+response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 const contentType = response.getHeader('content-type');
+// contentType is 'text/html'
+const contentLength = response.getHeader('Content-Length');
+// contentLength is of type number
+const setCookie = response.getHeader('set-cookie');
+// setCookie is of type string[]
 ```
 
 ### response.getHeaderNames()
@@ -1206,11 +1232,14 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* `value` {string | string[]}
+* `value` {any}
 
 Sets a single header value for implicit headers. If this header already exists
 in the to-be-sent headers, its value will be replaced. Use an array of strings
-here to send multiple headers with the same name.
+here to send multiple headers with the same name. Non-string values will be
+stored without modification. Therefore, [`response.getHeader()`][] may return
+non-string values. However, the non-string values will be converted to strings
+for network transmission.
 
 Example:
 
@@ -1248,6 +1277,7 @@ added: v0.9.12
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http.ServerResponse}
 
 Sets the Socket's timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
@@ -1257,8 +1287,6 @@ If no `'timeout'` listener is added to the request, the response, or
 the server, then sockets are destroyed when they time out. If a handler is
 assigned to the request, the response, or the server's `'timeout'` events,
 timed out sockets must be handled explicitly.
-
-Returns `response`.
 
 ### response.socket
 <!-- YAML
@@ -1579,10 +1607,9 @@ added: v0.5.9
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http.IncomingMessage}
 
 Calls `message.connection.setTimeout(msecs, callback)`.
-
-Returns `message`.
 
 ### message.socket
 <!-- YAML
@@ -1932,7 +1959,7 @@ There are a few special headers that should be noted.
 
 * Sending an 'Expect' header will immediately send the request headers.
   Usually, when sending 'Expect: 100-continue', both a timeout and a listener
-  for the `continue` event should be set. See RFC2616 Section 8.2.3 for more
+  for the `'continue'` event should be set. See RFC2616 Section 8.2.3 for more
   information.
 
 * Sending an Authorization header will override using the `auth` option
@@ -1951,45 +1978,45 @@ const req = http.request(options, (res) => {
 In a successful request, the following events will be emitted in the following
 order:
 
-* `socket`
-* `response`
-  * `data` any number of times, on the `res` object
-    (`data` will not be emitted at all if the response body is empty, for
+* `'socket'`
+* `'response'`
+  * `'data'` any number of times, on the `res` object
+    (`'data'` will not be emitted at all if the response body is empty, for
     instance, in most redirects)
-  * `end` on the `res` object
-* `close`
+  * `'end'` on the `res` object
+* `'close'`
 
 In the case of a connection error, the following events will be emitted:
 
-* `socket`
-* `error`
-* `close`
+* `'socket'`
+* `'error'`
+* `'close'`
 
 If `req.abort()` is called before the connection succeeds, the following events
 will be emitted in the following order:
 
-* `socket`
+* `'socket'`
 * (`req.abort()` called here)
-* `abort`
-* `close`
-* `error` with an error with message `Error: socket hang up` and code
-  `ECONNRESET`
+* `'abort'`
+* `'close'`
+* `'error'` with an error with message `'Error: socket hang up'` and code
+  `'ECONNRESET'`
 
 If `req.abort()` is called after the response is received, the following events
 will be emitted in the following order:
 
-* `socket`
-* `response`
-  * `data` any number of times, on the `res` object
+* `'socket'`
+* `'response'`
+  * `'data'` any number of times, on the `res` object
 * (`req.abort()` called here)
-* `abort`
-* `close`
-  * `aborted` on the `res` object
-  * `end` on the `res` object
-  * `close` on the `res` object
+* `'abort'`
+* `'close'`
+  * `'aborted'` on the `res` object
+  * `'end'` on the `res` object
+  * `'close'` on the `res` object
 
-Note that setting the `timeout` option or using the `setTimeout` function will
-not abort the request or do anything besides add a `timeout` event.
+Note that setting the `timeout` option or using the `setTimeout()` function will
+not abort the request or do anything besides add a `'timeout'` event.
 
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request
@@ -2017,11 +2044,14 @@ not abort the request or do anything besides add a `timeout` event.
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
+[`request.getHeader()`]: #http_request_getheader_name
+[`request.setHeader()`]: #http_request_setheader_name_value
 [`request.setTimeout()`]: #http_request_settimeout_timeout_callback
 [`request.socket`]: #http_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
 [`response.end()`]: #http_response_end_data_encoding_callback
+[`response.getHeader()`]: #http_response_getheader_name
 [`response.setHeader()`]: #http_response_setheader_name_value
 [`response.socket`]: #http_response_socket
 [`response.write()`]: #http_response_write_chunk_encoding_callback

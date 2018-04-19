@@ -61,10 +61,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
 
   // Raise a TypeError if the receiver is not a date.
   BIND(&receiver_not_date);
-  {
-    CallRuntime(Runtime::kThrowNotDateError, context);
-    Unreachable();
-  }
+  { ThrowTypeError(context, MessageTemplate::kNotDateObject); }
 }
 
 TF_BUILTIN(DatePrototypeGetDate, DateBuiltinsAssembler) {
@@ -240,17 +237,14 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
 
   // Raise a TypeError if the {hint} is invalid.
   BIND(&hint_is_invalid);
-  {
-    CallRuntime(Runtime::kThrowInvalidHint, context, hint);
-    Unreachable();
-  }
+  { ThrowTypeError(context, MessageTemplate::kInvalidHint, hint); }
 
   // Raise a TypeError if the {receiver} is not a JSReceiver instance.
   BIND(&receiver_is_invalid);
   {
-    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                StringConstant("Date.prototype [ @@toPrimitive ]"), receiver);
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                   StringConstant("Date.prototype [ @@toPrimitive ]"),
+                   receiver);
   }
 }
 

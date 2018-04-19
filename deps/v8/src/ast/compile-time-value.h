@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_AST_COMPILE_TIME_VALUE
-#define V8_AST_COMPILE_TIME_VALUE
+#ifndef V8_AST_COMPILE_TIME_VALUE_H_
+#define V8_AST_COMPILE_TIME_VALUE_H_
 
 #include "src/allocation.h"
 #include "src/globals.h"
@@ -43,4 +43,4 @@ class CompileTimeValue : public AllStatic {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_AST_COMPILE_TIME_VALUE
+#endif  // V8_AST_COMPILE_TIME_VALUE_H_

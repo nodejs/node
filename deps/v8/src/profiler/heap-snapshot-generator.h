@@ -113,6 +113,7 @@ class HeapEntry BASE_EMBEDDED {
 
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() const { return static_cast<Type>(type_); }
+  void set_type(Type type) { type_ = type; }
   const char* name() const { return name_; }
   void set_name(const char* name) { name_ = name; }
   SnapshotObjectId id() const { return id_; }
@@ -165,8 +166,8 @@ class HeapSnapshot {
   HeapProfiler* profiler() { return profiler_; }
   HeapEntry* root() { return &entries_[root_index_]; }
   HeapEntry* gc_roots() { return &entries_[gc_roots_index_]; }
-  HeapEntry* gc_subroot(int index) {
-    return &entries_[gc_subroot_indexes_[index]];
+  HeapEntry* gc_subroot(Root root) {
+    return &entries_[gc_subroot_indexes_[static_cast<int>(root)]];
   }
   std::vector<HeapEntry>& entries() { return entries_; }
   std::deque<HeapGraphEdge>& edges() { return edges_; }
@@ -191,12 +192,12 @@ class HeapSnapshot {
  private:
   HeapEntry* AddRootEntry();
   HeapEntry* AddGcRootsEntry();
-  HeapEntry* AddGcSubrootEntry(int tag, SnapshotObjectId id);
+  HeapEntry* AddGcSubrootEntry(Root root, SnapshotObjectId id);
 
   HeapProfiler* profiler_;
   int root_index_;
   int gc_roots_index_;
-  int gc_subroot_indexes_[VisitorSynchronization::kNumberOfSyncTags];
+  int gc_subroot_indexes_[static_cast<int>(Root::kNumberOfRoots)];
   std::vector<HeapEntry> entries_;
   std::deque<HeapGraphEdge> edges_;
   std::deque<HeapGraphEdge*> children_;
@@ -384,6 +385,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeReferences(int entry, Code* code);
   void ExtractCellReferences(int entry, Cell* cell);
+  void ExtractFeedbackCellReferences(int entry, FeedbackCell* feedback_cell);
   void ExtractWeakCellReferences(int entry, WeakCell* weak_cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
@@ -445,9 +447,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
-  void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
-  void SetGcSubrootReference(
-      VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
+  void SetGcRootsReference(Root root);
+  void SetGcSubrootReference(Root root, const char* description, bool is_weak,
+                             Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
   void TagFixedArraySubType(const FixedArray* array,
@@ -514,6 +516,8 @@ class NativeObjectsExplorer {
 
   NativeGroupRetainedObjectInfo* FindOrAddGroupInfo(const char* label);
 
+  HeapEntry* EntryForEmbedderGraphNode(EmbedderGraph::Node* node);
+
   Isolate* isolate_;
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
@@ -522,8 +526,9 @@ class NativeObjectsExplorer {
   // RetainedObjectInfo* -> std::vector<HeapObject*>*
   base::CustomMatcherHashMap objects_by_info_;
   base::CustomMatcherHashMap native_groups_;
-  HeapEntriesAllocator* synthetic_entries_allocator_;
-  HeapEntriesAllocator* native_entries_allocator_;
+  std::unique_ptr<HeapEntriesAllocator> synthetic_entries_allocator_;
+  std::unique_ptr<HeapEntriesAllocator> native_entries_allocator_;
+  std::unique_ptr<HeapEntriesAllocator> embedder_graph_entries_allocator_;
   // Used during references extraction.
   SnapshotFiller* filler_;
   v8::HeapProfiler::RetainerEdges edges_;

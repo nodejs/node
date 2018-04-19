@@ -90,4 +90,4 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& s);
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILATION_STATISTICS_H_

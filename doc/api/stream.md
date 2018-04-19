@@ -46,6 +46,9 @@ There are four fundamental stream types within Node.js:
 * [Transform][] - Duplex streams that can modify or transform the data as it
   is written and read (for example [`zlib.createDeflate()`][]).
 
+Additionally this module includes the utility functions [pipeline][] and
+[finished][].
+
 ### Object Mode
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
@@ -128,7 +131,7 @@ const server = http.createServer((req, res) => {
     body += chunk;
   });
 
-  // the end event indicates that the entire body has been received
+  // the 'end' event indicates that the entire body has been received
   req.on('end', () => {
     try {
       const data = JSON.parse(body);
@@ -361,11 +364,11 @@ added: v8.0.0
 
 * Returns: {this}
 
-Destroy the stream, and emit the passed `error` and a `close` event.
+Destroy the stream, and emit the passed `'error'` and a `'close'` event.
 After this call, the writable stream has ended and subsequent calls
-to `write` / `end` will give an `ERR_STREAM_DESTROYED` error.
+to `write()` / `end()` will give an `ERR_STREAM_DESTROYED` error.
 Implementors should not override this method,
-but instead implement [`writable._destroy`][writable-_destroy].
+but instead implement [`writable._destroy()`][writable-_destroy].
 
 ##### writable.end([chunk][, encoding][, callback])
 <!-- YAML
@@ -462,6 +465,9 @@ See also: [`writable.cork()`][].
 <!-- YAML
 added: v9.3.0
 -->
+
+* {number}
+
 Return the value of `highWaterMark` passed when constructing this
 `Writable`.
 
@@ -760,11 +766,11 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/17979
     description: >
-      'readable' is always emitted in the next tick after
-      .push() is called
+      The `'readable'` is always emitted in the next tick after `.push()`
+      is called
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18994
-    description: Using 'readable' requires calling .read().
+    description: Using `'readable'` requires calling `.read()`.
 -->
 
 The `'readable'` event is emitted when there is data available to be read from
@@ -827,11 +833,11 @@ added: v8.0.0
 * `error` {Error} Error which will be passed as payload in `'error'` event
 * Returns: {this}
 
-Destroy the stream, and emit `'error'` and `close`. After this call, the
+Destroy the stream, and emit `'error'` and `'close'`. After this call, the
 readable stream will release any internal resources and subsequent calls
-to `push` will be ignored.
+to `push()` will be ignored.
 Implementors should not override this method, but instead implement
-[`readable._destroy`][readable-_destroy].
+[`readable._destroy()`][readable-_destroy].
 
 ##### readable.isPaused()
 <!-- YAML
@@ -1013,7 +1019,8 @@ added: v0.9.4
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18994
-    description: Resume has no effect if there is a 'readable' event listening
+    description: The `resume()` has no effect if there is a `'readable'` event
+                 listening.
 -->
 
 * Returns: {this}
@@ -1146,7 +1153,7 @@ function parseHeader(stream, callback) {
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
         stream.removeListener('error', callback);
-        // remove the readable listener before unshifting
+        // remove the 'readable' listener before unshifting
         stream.removeListener('readable', onReadable);
         if (buf.length)
           stream.unshift(buf);
@@ -1202,14 +1209,14 @@ myReader.on('readable', () => {
 });
 ```
 
-##### readable[@@asyncIterator]
+##### readable\[Symbol.asyncIterator\]()
 <!-- YAML
 added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
 
-Returns an [AsyncIterator][async-iterator] to fully consume the stream.
+* Returns: {AsyncIterator} to fully consume the stream.
 
 ```js
 const fs = require('fs');
@@ -1280,8 +1287,109 @@ added: v8.0.0
 Destroy the stream, and emit `'error'`. After this call, the
 transform stream would release any internal resources.
 implementors should not override this method, but instead implement
-[`readable._destroy`][readable-_destroy].
-The default implementation of `_destroy` for `Transform` also emit `'close'`.
+[`readable._destroy()`][readable-_destroy].
+The default implementation of `_destroy()` for `Transform` also emit `'close'`.
+
+### stream.finished(stream, callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {Stream} A readable and/or writable stream.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+
+A function to get notified when a stream is no longer readable, writable
+or has experienced an error or a premature close event.
+
+```js
+const { finished } = require('stream');
+
+const rs = fs.createReadStream('archive.tar');
+
+finished(rs, (err) => {
+  if (err) {
+    console.error('Stream failed', err);
+  } else {
+    console.log('Stream is done reading');
+  }
+});
+
+rs.resume(); // drain the stream
+```
+
+Especially useful in error handling scenarios where a stream is destroyed
+prematurely (like an aborted HTTP request), and will not emit `'end'`
+or `'finish'`.
+
+The `finished` API is promisify'able as well;
+
+```js
+const finished = util.promisify(stream.finished);
+
+const rs = fs.createReadStream('archive.tar');
+
+async function run() {
+  await finished(rs);
+  console.log('Stream is done reading');
+}
+
+run().catch(console.error);
+rs.resume(); // drain the stream
+```
+
+### stream.pipeline(...streams[, callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `...streams` {Stream} Two or more streams to pipe between.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+
+A module method to pipe between streams forwarding errors and properly cleaning
+up and provide a callback when the pipeline is complete.
+
+```js
+const { pipeline } = require('stream');
+const fs = require('fs');
+const zlib = require('zlib');
+
+// Use the pipeline API to easily pipe a series of streams
+// together and get notified when the pipeline is fully done.
+
+// A pipeline to gzip a potentially huge tar file efficiently:
+
+pipeline(
+  fs.createReadStream('archive.tar'),
+  zlib.createGzip(),
+  fs.createWriteStream('archive.tar.gz'),
+  (err) => {
+    if (err) {
+      console.error('Pipeline failed', err);
+    } else {
+      console.log('Pipeline succeeded');
+    }
+  }
+);
+```
+
+The `pipeline` API is promisify'able as well:
+
+```js
+const pipeline = util.promisify(stream.pipeline);
+
+async function run() {
+  await pipeline(
+    fs.createReadStream('archive.tar'),
+    zlib.createGzip(),
+    fs.createWriteStream('archive.tar.gz')
+  );
+  console.log('Pipeline succeeded');
+}
+
+run().catch(console.error);
+```
 
 ## API for Stream Implementers
 
@@ -1420,7 +1528,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/18438
     description: >
-      Add `emitClose` option to specify if `close` is emitted on destroy
+      Add `emitClose` option to specify if `'close'` is emitted on destroy
 -->
 
 * `options` {Object}
@@ -1435,7 +1543,7 @@ changes:
     it becomes possible to write JavaScript values other than string,
     `Buffer` or `Uint8Array` if supported by the stream implementation.
     **Default:** `false`.
-  * `emitClose` {boolean} Whether or not the stream should emit `close`
+  * `emitClose` {boolean} Whether or not the stream should emit `'close'`
     after it has been destroyed. **Default:** `true`.
   * `write` {Function} Implementation for the
     [`stream._write()`][stream-_write] method.
@@ -1576,7 +1684,7 @@ by child classes, and if so, will be called by the internal Writable
 class methods only.
 
 This optional function will be called before the stream closes, delaying the
-`finish` event until `callback` is called. This is useful to close resources
+`'finish'` event until `callback` is called. This is useful to close resources
 or write buffered data before a stream ends.
 
 #### Errors While Writing
@@ -1646,8 +1754,7 @@ const { StringDecoder } = require('string_decoder');
 class StringWritable extends Writable {
   constructor(options) {
     super(options);
-    const state = this._writableState;
-    this._decoder = new StringDecoder(state.defaultEncoding);
+    this._decoder = new StringDecoder(options && options.defaultEncoding);
     this.data = '';
   }
   _write(chunk, encoding, callback) {
@@ -2281,7 +2388,7 @@ For example, consider the following code:
 // WARNING!  BROKEN!
 net.createServer((socket) => {
 
-  // we add an 'end' method, but never consume the data
+  // we add an 'end' listener, but never consume the data
   socket.on('end', () => {
     // It will never get here.
     socket.end('The message was received but was not processed.\n');
@@ -2394,6 +2501,8 @@ contain multi-byte characters.
 [http-incoming-message]: http.html#http_class_http_incomingmessage
 [zlib]: zlib.html
 [hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
+[pipeline]: #stream_stream_pipeline_streams_callback
+[finished]: #stream_stream_finished_stream_callback
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
@@ -2410,4 +2519,3 @@ contain multi-byte characters.
 [readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
-[async-iterator]: https://github.com/tc39/proposal-async-iteration

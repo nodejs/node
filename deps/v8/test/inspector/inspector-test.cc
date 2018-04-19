@@ -707,6 +707,10 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     inspector->Set(ToV8String(isolate, "scheduleWithAsyncStack"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::ScheduleWithAsyncStack));
+    inspector->Set(
+        ToV8String(isolate, "setAllowCodeGenerationFromStrings"),
+        v8::FunctionTemplate::New(
+            isolate, &InspectorExtension::SetAllowCodeGenerationFromStrings));
     global->Set(ToV8String(isolate, "inspector"), inspector);
   }
 
@@ -956,6 +960,17 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
                  new SetTimeoutTask(context_group_id, isolate,
                                     v8::Local<v8::Function>::Cast(args[0])));
     if (with_empty_stack) context->Enter();
+  }
+
+  static void SetAllowCodeGenerationFromStrings(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsBoolean()) {
+      fprintf(stderr,
+              "Internal error: setAllowCodeGenerationFromStrings(allow).");
+      Exit();
+    }
+    args.GetIsolate()->GetCurrentContext()->AllowCodeGenerationFromStrings(
+        args[0].As<v8::Boolean>()->Value());
   }
 };
 

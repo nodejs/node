@@ -101,6 +101,8 @@ def run_tests(basedir, *args, **kwargs):
     sys_args = ['--command-prefix', sys.executable] + list(args)
     if kwargs.get('infra_staging', False):
       sys_args.append('--infra-staging')
+    else:
+      sys_args.append('--no-infra-staging')
     code = standard_runner.StandardTestRunner(
         basedir=basedir).execute(sys_args)
     return Result(stdout.getvalue(), stderr.getvalue(), code)
@@ -145,7 +147,9 @@ class SystemTest(unittest.TestCase):
     sys.path.append(TOOLS_ROOT)
     global standard_runner
     from testrunner import standard_runner
+    from testrunner.local import command
     from testrunner.local import pool
+    command.setup_testing()
     pool.setup_testing()
 
   @classmethod
@@ -170,10 +174,11 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('Running 4 tests', result.stdout, result)
+      self.assertIn('Running 2 base tests', result.stdout, result)
       self.assertIn('Done running sweet/bananas: pass', result.stdout, result)
-      self.assertIn('Total time:', result.stderr, result)
-      self.assertIn('sweet/bananas', result.stderr, result)
+      # TODO(majeski): Implement for test processors
+      # self.assertIn('Total time:', result.stderr, result)
+      # self.assertIn('sweet/bananas', result.stderr, result)
       self.assertEqual(0, result.returncode, result)
 
   def testShardedProc(self):
@@ -199,6 +204,7 @@ class SystemTest(unittest.TestCase):
           self.assertIn('Done running sweet/raspberries', result.stdout, result)
         self.assertEqual(0, result.returncode, result)
 
+  @unittest.skip("incompatible with test processors")
   def testSharded(self):
     """Test running a particular shard."""
     with temp_base() as basedir:
@@ -222,7 +228,7 @@ class SystemTest(unittest.TestCase):
   def testFailProc(self):
     self.testFail(infra_staging=True)
 
-  def testFail(self, infra_staging=False):
+  def testFail(self, infra_staging=True):
     """Test running only failing tests in two variants."""
     with temp_base() as basedir:
       result = run_tests(
@@ -269,7 +275,7 @@ class SystemTest(unittest.TestCase):
   def testFailWithRerunAndJSONProc(self):
     self.testFailWithRerunAndJSON(infra_staging=True)
 
-  def testFailWithRerunAndJSON(self, infra_staging=False):
+  def testFailWithRerunAndJSON(self, infra_staging=True):
     """Test re-running a failing test and output to json."""
     with temp_base() as basedir:
       json_path = os.path.join(basedir, 'out.json')
@@ -303,12 +309,13 @@ class SystemTest(unittest.TestCase):
       # flags field of the test result.
       # After recent changes we report all flags, including the file names.
       # This is redundant to the command. Needs investigation.
+      self.maxDiff = None
       self.check_cleaned_json_output('expected_test_results1.json', json_path)
 
   def testFlakeWithRerunAndJSONProc(self):
     self.testFlakeWithRerunAndJSON(infra_staging=True)
 
-  def testFlakeWithRerunAndJSON(self, infra_staging=False):
+  def testFlakeWithRerunAndJSON(self, infra_staging=True):
     """Test re-running a failing test and output to json."""
     with temp_base(baseroot='testroot2') as basedir:
       json_path = os.path.join(basedir, 'out.json')
@@ -334,6 +341,7 @@ class SystemTest(unittest.TestCase):
             'Done running sweet/bananaflakes: pass', result.stdout, result)
         self.assertIn('All tests succeeded', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
+      self.maxDiff = None
       self.check_cleaned_json_output('expected_test_results2.json', json_path)
 
   def testAutoDetect(self):
@@ -374,7 +382,7 @@ class SystemTest(unittest.TestCase):
   def testSkipsProc(self):
     self.testSkips(infra_staging=True)
 
-  def testSkips(self, infra_staging=False):
+  def testSkips(self, infra_staging=True):
     """Test skipping tests in status file for a specific variant."""
     with temp_base() as basedir:
       result = run_tests(
@@ -390,12 +398,12 @@ class SystemTest(unittest.TestCase):
       else:
         self.assertIn('Running 1 base tests', result.stdout, result)
         self.assertIn('0 tests ran', result.stdout, result)
-      self.assertEqual(0, result.returncode, result)
+      self.assertEqual(2, result.returncode, result)
 
   def testDefaultProc(self):
     self.testDefault(infra_staging=True)
 
-  def testDefault(self, infra_staging=False):
+  def testDefault(self, infra_staging=True):
     """Test using default test suites, though no tests are run since they don't
     exist in a test setting.
     """
@@ -410,14 +418,14 @@ class SystemTest(unittest.TestCase):
       else:
         self.assertIn('Running 0 base tests', result.stdout, result)
         self.assertIn('0 tests ran', result.stdout, result)
-      self.assertEqual(0, result.returncode, result)
+      self.assertEqual(2, result.returncode, result)
 
   def testNoBuildConfig(self):
     """Test failing run when build config is not found."""
     with temp_base() as basedir:
       result = run_tests(basedir)
       self.assertIn('Failed to load build config', result.stdout, result)
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testGNOption(self):
     """Test using gn option, but no gn build folder is found."""
@@ -433,7 +441,7 @@ class SystemTest(unittest.TestCase):
       result = run_tests(basedir, '--mode=Release')
       self.assertIn('execution mode (release) for release is inconsistent '
                     'with build config (debug)', result.stdout, result)
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testInconsistentArch(self):
     """Test failing run when attempting to wrongly override the arch."""
@@ -442,13 +450,13 @@ class SystemTest(unittest.TestCase):
       self.assertIn(
           '--arch value (ia32) inconsistent with build config (x64).',
           result.stdout, result)
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testWrongVariant(self):
     """Test using a bogus variant."""
     with temp_base() as basedir:
       result = run_tests(basedir, '--mode=Release', '--variants=meh')
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testModeFromBuildConfig(self):
     """Test auto-detection of mode from build config."""
@@ -457,6 +465,7 @@ class SystemTest(unittest.TestCase):
       self.assertIn('Running tests for x64.release', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
+  @unittest.skip("not available with test processors")
   def testReport(self):
     """Test the report feature.
 
@@ -475,6 +484,7 @@ class SystemTest(unittest.TestCase):
           result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
+  @unittest.skip("not available with test processors")
   def testWarnUnusedRules(self):
     """Test the unused-rules feature."""
     with temp_base() as basedir:
@@ -489,6 +499,7 @@ class SystemTest(unittest.TestCase):
       self.assertIn( 'Unused rule: regress/', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
+  @unittest.skip("not available with test processors")
   def testCatNoSources(self):
     """Test printing sources, but the suite's tests have none available."""
     with temp_base() as basedir:
@@ -506,7 +517,7 @@ class SystemTest(unittest.TestCase):
   def testPredictableProc(self):
     self.testPredictable(infra_staging=True)
 
-  def testPredictable(self, infra_staging=False):
+  def testPredictable(self, infra_staging=True):
     """Test running a test in verify-predictable mode.
 
     The test will fail because of missing allocation output. We verify that and
@@ -547,7 +558,10 @@ class SystemTest(unittest.TestCase):
       # timeout was used.
       self.assertEqual(0, result.returncode, result)
 
-  def testRandomSeedStressWithDefault(self):
+  def testRandomSeedStressWithDefaultProc(self):
+    self.testRandomSeedStressWithDefault(infra_staging=True)
+
+  def testRandomSeedStressWithDefault(self, infra_staging=True):
     """Test using random-seed-stress feature has the right number of tests."""
     with temp_base() as basedir:
       result = run_tests(
@@ -557,8 +571,13 @@ class SystemTest(unittest.TestCase):
           '--variants=default',
           '--random-seed-stress-count=2',
           'sweet/bananas',
+          infra_staging=infra_staging,
       )
-      self.assertIn('Running 2 tests', result.stdout, result)
+      if infra_staging:
+        self.assertIn('Running 1 base tests', result.stdout, result)
+        self.assertIn('2 tests ran', result.stdout, result)
+      else:
+        self.assertIn('Running 2 tests', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testRandomSeedStressWithSeed(self):
@@ -573,7 +592,8 @@ class SystemTest(unittest.TestCase):
           '--random-seed=123',
           'sweet/strawberries',
       )
-      self.assertIn('Running 2 tests', result.stdout, result)
+      self.assertIn('Running 1 base tests', result.stdout, result)
+      self.assertIn('2 tests ran', result.stdout, result)
       # We use a failing test so that the command is printed and we can verify
       # that the right random seed was passed.
       self.assertIn('--random-seed=123', result.stdout, result)
@@ -598,7 +618,8 @@ class SystemTest(unittest.TestCase):
       )
       # Both tests are either marked as running in only default or only
       # slow variant.
-      self.assertIn('Running 2 tests', result.stdout, result)
+      self.assertIn('Running 2 base tests', result.stdout, result)
+      self.assertIn('2 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testStatusFilePresubmit(self):
@@ -611,7 +632,7 @@ class SystemTest(unittest.TestCase):
   def testDotsProgressProc(self):
     self.testDotsProgress(infra_staging=True)
 
-  def testDotsProgress(self, infra_staging=False):
+  def testDotsProgress(self, infra_staging=True):
     with temp_base() as basedir:
       result = run_tests(
           basedir,

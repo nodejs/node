@@ -66,11 +66,9 @@ static Handle<JSFunction> Compile(const char* source) {
       CStrVector(source)).ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          source_code, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
-          MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
+          source_code, Compiler::ScriptDetails(), v8::ScriptOriginOptions(),
           nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
-          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
-          MaybeHandle<FixedArray>())
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared, isolate->native_context());

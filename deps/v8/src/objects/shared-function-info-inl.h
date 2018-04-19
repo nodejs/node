@@ -27,8 +27,6 @@ ACCESSORS(SharedFunctionInfo, raw_name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
-ACCESSORS(SharedFunctionInfo, instance_class_name, String,
-          kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
@@ -127,9 +125,10 @@ FunctionKind SharedFunctionInfo::kind() const {
 }
 
 void SharedFunctionInfo::set_kind(FunctionKind kind) {
-  DCHECK(IsValidFunctionKind(kind));
   int hints = compiler_hints();
   hints = FunctionKindBits::update(hints, kind);
+  hints = IsClassConstructorBit::update(hints, IsClassConstructor(kind));
+  hints = IsDerivedConstructorBit::update(hints, IsDerivedConstructor(kind));
   set_compiler_hints(hints);
   UpdateFunctionMapIndex();
 }

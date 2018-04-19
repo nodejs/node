@@ -98,18 +98,13 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
   if (!raw_call_data->IsUndefined(isolate)) {
     DCHECK(raw_call_data->IsCallHandlerInfo());
     CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
-    Object* callback_obj = call_data->callback();
-    v8::FunctionCallback callback =
-        v8::ToCData<v8::FunctionCallback>(callback_obj);
     Object* data_obj = call_data->data();
 
-    LOG(isolate, ApiObjectAccess("call", JSObject::cast(*js_receiver)));
 
     FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
                                      *new_target, &args[0] - 1,
                                      args.length() - 1);
-
-    Handle<Object> result = custom.Call(callback);
+    Handle<Object> result = custom.Call(call_data);
 
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.is_null()) {
@@ -154,7 +149,7 @@ class RelocatableArguments : public BuiltinArguments, public Relocatable {
 
   virtual inline void IterateInstance(RootVisitor* v) {
     if (length() == 0) return;
-    v->VisitRootPointers(Root::kRelocatable, lowest_address(),
+    v->VisitRootPointers(Root::kRelocatable, nullptr, lowest_address(),
                          highest_address() + 1);
   }
 
@@ -256,12 +251,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   Object* handler =
       constructor->shared()->get_api_func_data()->instance_call_handler();
   DCHECK(!handler->IsUndefined(isolate));
-  // TODO(ishell): remove this debugging code.
-  CHECK(handler->IsCallHandlerInfo());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
-  Object* callback_obj = call_data->callback();
-  v8::FunctionCallback callback =
-      v8::ToCData<v8::FunctionCallback>(callback_obj);
 
   // Get the data for the call and perform the callback.
   Object* result;
@@ -272,7 +262,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     FunctionCallbackArguments custom(isolate, call_data->data(), constructor,
                                      obj, new_target, &args[0] - 1,
                                      args.length() - 1);
-    Handle<Object> result_handle = custom.Call(callback);
+    Handle<Object> result_handle = custom.Call(call_data);
     if (result_handle.is_null()) {
       result = isolate->heap()->undefined_value();
     } else {

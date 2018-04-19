@@ -86,7 +86,6 @@ class GlobalTimeline extends HTMLElement {
   }
 
   getInstanceTypeData() {
-    const categories = Object.keys(this.selection.categories);
     const instance_types =
         Object.values(this.selection.categories)
             .reduce((accu, current) => accu.concat(current), []);

@@ -634,33 +634,53 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                 first_unused_stack_slot);
 }
 
+// Check that {kJavaScriptCallCodeStartRegister} is correct.
+void CodeGenerator::AssembleCodeStartRegisterCheck() {
+  __ ComputeCodeStartAddress(at);
+  __ Assert(eq, AbortReason::kWrongFunctionCodeStart,
+            kJavaScriptCallCodeStartRegister, Operand(at));
+}
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
-//    1. load the address of the current instruction;
-//    2. read from memory the word that contains that bit, which can be found in
+//    1. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
-//    3. test kMarkedForDeoptimizationBit in those flags; and
-//    4. if it is not zero then it jumps to the builtin.
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  Label current;
-  // This push on ra and the pop below together ensure that we restore the
-  // register ra, which is needed while computing frames for deoptimization.
-  __ push(ra);
-  // The bal instruction puts the address of the current instruction into
-  // the return address (ra) register, which we can use later on.
-  __ bal(&current);
-  __ nop();
-  int pc = __ pc_offset();
-  __ bind(&current);
-  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc);
-  __ Ld(a2, MemOperand(ra, offset));
-  __ pop(ra);
-  __ Lw(a2, FieldMemOperand(a2, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ And(a2, a2, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  __ Ld(at, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ Lw(at, FieldMemOperand(at, CodeDataContainer::kKindSpecificFlagsOffset));
+  __ And(at, at, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
-  __ Jump(code, RelocInfo::CODE_TARGET, ne, a2, Operand(zero_reg));
+  __ Jump(code, RelocInfo::CODE_TARGET, ne, at, Operand(zero_reg));
+}
+
+void CodeGenerator::GenerateSpeculationPoison() {
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong PC.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ ComputeCodeStartAddress(at);
+  __ Move(kSpeculationPoisonRegister, at);
+  __ subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+          kJavaScriptCallCodeStartRegister);
+  __ subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
+          at);
+  __ or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kJavaScriptCallCodeStartRegister);
+  __ sra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kBitsPerPointer - 1);
+  __ nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kSpeculationPoisonRegister);
+}
+
+void CodeGenerator::AssembleRegisterArgumentPoisoning() {
+  __ And(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
+  __ And(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
+  __ And(sp, sp, kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -746,9 +766,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
                   Operand(kScratchReg));
       }
-      __ Ld(at, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(at);
+      static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
+      __ Ld(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ Daddu(a2, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
+      __ Call(a2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1153,124 +1174,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Ctz: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      if (kArchVariant == kMips64r6) {
-        // We don't have an instruction to count the number of trailing zeroes.
-        // Start by flipping the bits end-for-end so we can count the number of
-        // leading zeroes instead.
-        __ rotr(dst, src, 16);
-        __ wsbh(dst, dst);
-        __ bitswap(dst, dst);
-        __ Clz(dst, dst);
-      } else {
-        // Convert trailing zeroes to trailing ones, and bits to their left
-        // to zeroes.
-        __ Daddu(kScratchReg, src, -1);
-        __ Xor(dst, kScratchReg, src);
-        __ And(dst, dst, kScratchReg);
-        // Count number of leading zeroes.
-        __ Clz(dst, dst);
-        // Subtract number of leading zeroes from 32 to get number of trailing
-        // ones. Remember that the trailing ones were formerly trailing zeroes.
-        __ li(kScratchReg, 32);
-        __ Subu(dst, kScratchReg, dst);
-      }
+      __ Ctz(dst, src);
     } break;
     case kMips64Dctz: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      if (kArchVariant == kMips64r6) {
-        // We don't have an instruction to count the number of trailing zeroes.
-        // Start by flipping the bits end-for-end so we can count the number of
-        // leading zeroes instead.
-        __ dsbh(dst, src);
-        __ dshd(dst, dst);
-        __ dbitswap(dst, dst);
-        __ dclz(dst, dst);
-      } else {
-        // Convert trailing zeroes to trailing ones, and bits to their left
-        // to zeroes.
-        __ Daddu(kScratchReg, src, -1);
-        __ Xor(dst, kScratchReg, src);
-        __ And(dst, dst, kScratchReg);
-        // Count number of leading zeroes.
-        __ dclz(dst, dst);
-        // Subtract number of leading zeroes from 64 to get number of trailing
-        // ones. Remember that the trailing ones were formerly trailing zeroes.
-        __ li(kScratchReg, 64);
-        __ Dsubu(dst, kScratchReg, dst);
-      }
+      __ Dctz(dst, src);
     } break;
     case kMips64Popcnt: {
-      // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
-      //
-      // A generalization of the best bit counting method to integers of
-      // bit-widths up to 128 (parameterized by type T) is this:
-      //
-      // v = v - ((v >> 1) & (T)~(T)0/3);                           // temp
-      // v = (v & (T)~(T)0/15*3) + ((v >> 2) & (T)~(T)0/15*3);      // temp
-      // v = (v + (v >> 4)) & (T)~(T)0/255*15;                      // temp
-      // c = (T)(v * ((T)~(T)0/255)) >> (sizeof(T) - 1) * BITS_PER_BYTE; //count
-      //
-      // For comparison, for 32-bit quantities, this algorithm can be executed
-      // using 20 MIPS instructions (the calls to LoadConst32() generate two
-      // machine instructions each for the values being used in this algorithm).
-      // A(n unrolled) loop-based algorithm requires 25 instructions.
-      //
-      // For a 64-bit operand this can be performed in 24 instructions compared
-      // to a(n unrolled) loop based algorithm which requires 38 instructions.
-      //
-      // There are algorithms which are faster in the cases where very few
-      // bits are set but the algorithm here attempts to minimize the total
-      // number of instructions executed even when a large number of bits
-      // are set.
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      uint32_t B0 = 0x55555555;     // (T)~(T)0/3
-      uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
-      uint32_t B2 = 0x0F0F0F0F;     // (T)~(T)0/255*15
-      uint32_t value = 0x01010101;  // (T)~(T)0/255
-      uint32_t shift = 24;          // (sizeof(T) - 1) * BITS_PER_BYTE
-      __ srl(kScratchReg, src, 1);
-      __ li(kScratchReg2, B0);
-      __ And(kScratchReg, kScratchReg, kScratchReg2);
-      __ Subu(kScratchReg, src, kScratchReg);
-      __ li(kScratchReg2, B1);
-      __ And(dst, kScratchReg, kScratchReg2);
-      __ srl(kScratchReg, kScratchReg, 2);
-      __ And(kScratchReg, kScratchReg, kScratchReg2);
-      __ Addu(kScratchReg, dst, kScratchReg);
-      __ srl(dst, kScratchReg, 4);
-      __ Addu(dst, dst, kScratchReg);
-      __ li(kScratchReg2, B2);
-      __ And(dst, dst, kScratchReg2);
-      __ li(kScratchReg, value);
-      __ Mul(dst, dst, kScratchReg);
-      __ srl(dst, dst, shift);
+      __ Popcnt(dst, src);
     } break;
     case kMips64Dpopcnt: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
-      uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
-      uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
-      uint64_t value = 0x0101010101010101l;  // (T)~(T)0/255
-      uint64_t shift = 24;                   // (sizeof(T) - 1) * BITS_PER_BYTE
-      __ dsrl(kScratchReg, src, 1);
-      __ li(kScratchReg2, B0);
-      __ And(kScratchReg, kScratchReg, kScratchReg2);
-      __ Dsubu(kScratchReg, src, kScratchReg);
-      __ li(kScratchReg2, B1);
-      __ And(dst, kScratchReg, kScratchReg2);
-      __ dsrl(kScratchReg, kScratchReg, 2);
-      __ And(kScratchReg, kScratchReg, kScratchReg2);
-      __ Daddu(kScratchReg, dst, kScratchReg);
-      __ dsrl(dst, kScratchReg, 4);
-      __ Daddu(dst, dst, kScratchReg);
-      __ li(kScratchReg2, B2);
-      __ And(dst, dst, kScratchReg2);
-      __ li(kScratchReg, value);
-      __ Dmul(dst, dst, kScratchReg);
-      __ dsrl32(dst, dst, shift);
+      __ Dpopcnt(dst, src);
     } break;
     case kMips64Shl:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1901,7 +1820,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Peek: {
       // The incoming value is 0-based, but we need a 1-based value.
-      int reverse_slot = MiscField::decode(instr->opcode()) + 1;
+      int reverse_slot = i.InputInt32(0) + 1;
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
       if (instr->OutputAt(0)->IsFPRegister()) {
@@ -1924,7 +1843,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMips64StoreToStackSlot: {
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        if (instr->InputAt(0)->IsSimd128Register()) {
+          CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+          __ st_b(i.InputSimd128Register(0), MemOperand(sp, i.InputInt32(1)));
+        } else {
+          __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        }
       } else {
         __ Sd(i.InputRegister(0), MemOperand(sp, i.InputInt32(1)));
       }
@@ -1939,75 +1863,75 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ dsrl32(i.OutputRegister(0), i.OutputRegister(0), 0);
       break;
     }
-    case kAtomicLoadInt8:
+    case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);
       break;
-    case kAtomicLoadUint8:
+    case kWord32AtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lbu);
       break;
-    case kAtomicLoadInt16:
+    case kWord32AtomicLoadInt16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lh);
       break;
-    case kAtomicLoadUint16:
+    case kWord32AtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lhu);
       break;
-    case kAtomicLoadWord32:
+    case kWord32AtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
-    case kAtomicStoreWord8:
+    case kWord32AtomicStoreWord8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sb);
       break;
-    case kAtomicStoreWord16:
+    case kWord32AtomicStoreWord16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sh);
       break;
-    case kAtomicStoreWord32:
+    case kWord32AtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
-    case kAtomicExchangeInt8:
+    case kWord32AtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 8);
       break;
-    case kAtomicExchangeUint8:
+    case kWord32AtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 8);
       break;
-    case kAtomicExchangeInt16:
+    case kWord32AtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 16);
       break;
-    case kAtomicExchangeUint16:
+    case kWord32AtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 16);
       break;
-    case kAtomicExchangeWord32:
+    case kWord32AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER();
       break;
-    case kAtomicCompareExchangeInt8:
+    case kWord32AtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 8);
       break;
-    case kAtomicCompareExchangeUint8:
+    case kWord32AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 8);
       break;
-    case kAtomicCompareExchangeInt16:
+    case kWord32AtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 16);
       break;
-    case kAtomicCompareExchangeUint16:
+    case kWord32AtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 16);
       break;
-    case kAtomicCompareExchangeWord32:
+    case kWord32AtomicCompareExchangeWord32:
       __ sll(i.InputRegister(2), i.InputRegister(2), 0);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER();
       break;
 #define ATOMIC_BINOP_CASE(op, inst)             \
-  case kAtomic##op##Int8:                       \
+  case kWord32Atomic##op##Int8:                 \
     ASSEMBLE_ATOMIC_BINOP_EXT(true, 8, inst);   \
     break;                                      \
-  case kAtomic##op##Uint8:                      \
+  case kWord32Atomic##op##Uint8:                \
     ASSEMBLE_ATOMIC_BINOP_EXT(false, 8, inst);  \
     break;                                      \
-  case kAtomic##op##Int16:                      \
+  case kWord32Atomic##op##Int16:                \
     ASSEMBLE_ATOMIC_BINOP_EXT(true, 16, inst);  \
     break;                                      \
-  case kAtomic##op##Uint16:                     \
+  case kWord32Atomic##op##Uint16:               \
     ASSEMBLE_ATOMIC_BINOP_EXT(false, 16, inst); \
     break;                                      \
-  case kAtomic##op##Word32:                     \
+  case kWord32Atomic##op##Word32:               \
     ASSEMBLE_ATOMIC_BINOP(inst);                \
     break;
       ATOMIC_BINOP_CASE(Add, Addu)
@@ -3240,6 +3164,11 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
                          branch->fallthru);
 }
 
+void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
+                                            Instruction* instr) {
+  UNREACHABLE();
+}
+
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
                                             BranchInfo* branch) {
   AssembleArchBranch(instr, branch);
@@ -3285,8 +3214,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              tasm()->isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count = static_cast<int>(descriptor->StackParameterCount());
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count =
+            static_cast<int>(call_descriptor->StackParameterCount());
         pop_count += (pop_count & 1);  // align
         __ Drop(pop_count);
         __ Ret();
@@ -3523,9 +3453,8 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   Register input = i.InputRegister(0);
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     __ li(at, Operand(i.InputInt32(index + 0)));
-    __ beq(input, at, GetLabel(i.InputRpo(index + 1)));
+    __ Branch(GetLabel(i.InputRpo(index + 1)), eq, input, Operand(at));
   }
-  __ nop();  // Branch delay slot of the last beq.
   AssembleArchJump(i.InputRpo(1));
 }
 
@@ -3541,9 +3470,9 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fpu != 0) {
     int count = base::bits::CountPopulation(saves_fpu);
     DCHECK_EQ(kNumCalleeSavedFPU, count);
@@ -3551,7 +3480,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
                                             (kDoubleSize / kPointerSize));
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     int count = base::bits::CountPopulation(saves);
     DCHECK_EQ(kNumCalleeSaved, count + 1);
@@ -3560,15 +3489,15 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   if (frame_access_state()->has_frame()) {
-    if (descriptor->IsCFunctionCall()) {
+    if (call_descriptor->IsCFunctionCall()) {
       __ Push(ra, fp);
       __ mov(fp, sp);
-    } else if (descriptor->IsJSFunctionCall()) {
+    } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (descriptor->PushArgumentCount()) {
+      if (call_descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
     } else {
@@ -3576,8 +3505,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -3592,8 +3521,8 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
-  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
+  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   const int returns = frame()->GetReturnSlotCount();
 
   // Skip callee-saved and return slots, which are pushed below.
@@ -3623,7 +3552,7 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
@@ -3631,19 +3560,19 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 
   // Restore GP registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ MultiPop(saves);
   }
 
   // Restore FPU registers.
-  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fpu != 0) {
     __ MultiPopFPU(saves_fpu);
   }
 
   MipsOperandConverter g(this, nullptr);
-  if (descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now unless they have an variable
@@ -3660,7 +3589,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       AssembleDeconstructFrame();
     }
   }
-  int pop_count = static_cast<int>(descriptor->StackParameterCount());
+  int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
   if (pop->IsImmediate()) {
     pop_count += g.ToConstant(pop).ToInt32();
   } else {
@@ -3770,23 +3699,50 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     }
   } else if (source->IsFPRegister()) {
-    FPURegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      FPURegister dst = g.ToDoubleRegister(destination);
-      __ Move(dst, src);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister src = g.ToSimd128Register(source);
+      if (destination->IsSimd128Register()) {
+        MSARegister dst = g.ToSimd128Register(destination);
+        __ move_v(dst, src);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        __ st_b(src, g.ToMemOperand(destination));
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      __ Sdc1(src, g.ToMemOperand(destination));
+      FPURegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        FPURegister dst = g.ToDoubleRegister(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        __ Sdc1(src, g.ToMemOperand(destination));
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
-    if (destination->IsFPRegister()) {
-      __ Ldc1(g.ToDoubleRegister(destination), src);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      if (destination->IsSimd128Register()) {
+        __ ld_b(g.ToSimd128Register(destination), src);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        MSARegister temp = kSimd128ScratchReg;
+        __ ld_b(temp, src);
+        __ st_b(temp, g.ToMemOperand(destination));
+      }
     } else {
-      FPURegister temp = kScratchDoubleReg;
-      __ Ldc1(temp, src);
-      __ Sdc1(temp, g.ToMemOperand(destination));
+      if (destination->IsFPRegister()) {
+        __ Ldc1(g.ToDoubleRegister(destination), src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        FPURegister temp = kScratchDoubleReg;
+        __ Ldc1(temp, src);
+        __ Sdc1(temp, g.ToMemOperand(destination));
+      }
     }
   } else {
     UNREACHABLE();
@@ -3826,34 +3782,73 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ Sd(temp_0, dst);
     __ Sd(temp_1, src);
   } else if (source->IsFPRegister()) {
-    FPURegister temp = kScratchDoubleReg;
-    FPURegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      FPURegister dst = g.ToDoubleRegister(destination);
-      __ Move(temp, src);
-      __ Move(src, dst);
-      __ Move(dst, temp);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister temp = kSimd128ScratchReg;
+      MSARegister src = g.ToSimd128Register(source);
+      if (destination->IsSimd128Register()) {
+        MSARegister dst = g.ToSimd128Register(destination);
+        __ move_v(temp, src);
+        __ move_v(src, dst);
+        __ move_v(dst, temp);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ move_v(temp, src);
+        __ ld_b(src, dst);
+        __ st_b(temp, dst);
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ Move(temp, src);
-      __ Ldc1(src, dst);
-      __ Sdc1(temp, dst);
+      FPURegister temp = kScratchDoubleReg;
+      FPURegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        FPURegister dst = g.ToDoubleRegister(destination);
+        __ Move(temp, src);
+        __ Move(src, dst);
+        __ Move(dst, temp);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ Move(temp, src);
+        __ Ldc1(src, dst);
+        __ Sdc1(temp, dst);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
-    FPURegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
     MemOperand src1(src0.rm(), src0.offset() + kIntSize);
     MemOperand dst0 = g.ToMemOperand(destination);
     MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
-    __ Ldc1(temp_1, dst0);  // Save destination in temp_1.
-    __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
-    __ Sw(temp_0, dst0);
-    __ Lw(temp_0, src1);
-    __ Sw(temp_0, dst1);
-    __ Sdc1(temp_1, src0);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      MemOperand src2(src0.rm(), src0.offset() + 2 * kIntSize);
+      MemOperand src3(src0.rm(), src0.offset() + 3 * kIntSize);
+      MemOperand dst2(dst0.rm(), dst0.offset() + 2 * kIntSize);
+      MemOperand dst3(dst0.rm(), dst0.offset() + 3 * kIntSize);
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister temp_1 = kSimd128ScratchReg;
+      __ ld_b(temp_1, dst0);  // Save destination in temp_1.
+      __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ Sw(temp_0, dst0);
+      __ Lw(temp_0, src1);
+      __ Sw(temp_0, dst1);
+      __ Lw(temp_0, src2);
+      __ Sw(temp_0, dst2);
+      __ Lw(temp_0, src3);
+      __ Sw(temp_0, dst3);
+      __ st_b(temp_1, src0);
+    } else {
+      FPURegister temp_1 = kScratchDoubleReg;
+      __ Ldc1(temp_1, dst0);  // Save destination in temp_1.
+      __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ Sw(temp_0, dst0);
+      __ Lw(temp_0, src1);
+      __ Sw(temp_0, dst1);
+      __ Sdc1(temp_1, src0);
+    }
   } else {
     // No other combinations are possible.
     UNREACHABLE();
@@ -3865,7 +3860,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   // On 64-bit MIPS we emit the jump tables inline.
   UNREACHABLE();
 }
-
 
 #undef __
 

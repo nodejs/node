@@ -21,6 +21,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 
 #include "env-inl.h"
 #include "string_bytes.h"
@@ -36,9 +37,12 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, obj, "argument")
+
 #define THROW_AND_RETURN_IF_OOB(r)                                          \
   do {                                                                      \
-    if (!(r)) return env->ThrowRangeError("Index out of range");            \
+    if (!(r)) return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);               \
   } while (0)
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
@@ -544,7 +548,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
     return args.GetReturnValue().Set(0);
 
   if (source_start > ts_obj_length)
-    return env->ThrowRangeError("Index out of range");
+    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
 
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
@@ -656,8 +660,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_BUFFER_ARG(args.This(), ts_obj);
 
-  if (!args[0]->IsString())
-    return env->ThrowTypeError("Argument must be a string");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "argument");
 
   Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
@@ -665,8 +668,10 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   size_t max_length;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[1], 0, &offset));
-  if (offset > ts_obj_length)
-    return env->ThrowRangeError("Offset is out of bounds");
+  if (offset > ts_obj_length) {
+    return node::THROW_ERR_BUFFER_OUT_OF_BOUNDS(
+        env, "\"offset\" is outside of buffer bounds");
+  }
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[2], ts_obj_length - offset,
                                           &max_length));
@@ -728,9 +733,9 @@ void CompareOffset(const FunctionCallbackInfo<Value> &args) {
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
 
   if (source_start > ts_obj_length)
-    return env->ThrowRangeError("Index out of range");
+    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
   if (target_start > target_length)
-    return env->ThrowRangeError("Index out of range");
+    return node::THROW_ERR_INDEX_OUT_OF_RANGE(env);
 
   CHECK_LE(source_start, source_end);
   CHECK_LE(target_start, target_end);

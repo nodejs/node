@@ -19,7 +19,10 @@ function test(host) {
         `${module}.${fn} should not connect to ${host}`
       );
       const throws = () => { modules[module][fn](host, doNotCall); };
-      common.expectsError(throws, { code: 'ERR_INVALID_DOMAIN_NAME' });
+      common.expectsError(throws, {
+        type: TypeError,
+        code: 'ERR_INVALID_DOMAIN_NAME'
+      });
     });
   });
 }

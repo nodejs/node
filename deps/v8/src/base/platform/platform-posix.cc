@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -53,6 +52,12 @@
 
 #if V8_OS_LINUX
 #include <sys/prctl.h>  // NOLINT, for prctl
+#endif
+
+#if defined(V8_OS_FUCHSIA)
+#include <zircon/process.h>
+#else
+#include <sys/resource.h>
 #endif
 
 #if !defined(_AIX) && !defined(V8_OS_FUCHSIA)
@@ -245,6 +250,10 @@ void* OS::GetRandomMmapAddr() {
   // Little-endian Linux: 48 bits of virtual addressing.
   raw_addr &= uint64_t{0x3FFFFFFFF000};
 #endif
+#elif V8_TARGET_ARCH_MIPS64
+  // We allocate code in 256 MB aligned segments because of optimizations using
+  // J instruction that require that all code is within a single 256 MB segment
+  raw_addr &= uint64_t{0x3FFFE0000000};
 #elif V8_TARGET_ARCH_S390X
   // Linux on Z uses bits 22-32 for Region Indexing, which translates to 42 bits
   // of virtual addressing.  Truncate to 40 bits to allow kernel chance to
@@ -474,7 +483,7 @@ int OS::GetCurrentThreadId() {
 #elif V8_OS_AIX
   return static_cast<int>(thread_self());
 #elif V8_OS_FUCHSIA
-  return static_cast<int>(pthread_self());
+  return static_cast<int>(zx_thread_self());
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
 #else
@@ -487,6 +496,7 @@ int OS::GetCurrentThreadId() {
 // POSIX date/time support.
 //
 
+#if !defined(V8_OS_FUCHSIA)
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   struct rusage usage;
 
@@ -495,7 +505,7 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   *usecs = static_cast<uint32_t>(usage.ru_utime.tv_usec);
   return 0;
 }
-
+#endif
 
 double OS::TimeCurrentMillis() {
   return Time::Now().ToJsTime();
@@ -788,7 +798,7 @@ static void InitializeTlsBaseOffset() {
   size_t buffer_size = kBufferSize;
   int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
   if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
-    V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
+    FATAL("V8 failed to get kernel version");
   }
   // The buffer now contains a string of the form XX.YY.ZZ, where
   // XX is the major kernel version component.
@@ -822,8 +832,7 @@ static void CheckFastTls(Thread::LocalStorageKey key) {
   Thread::SetThreadLocal(key, expected);
   void* actual = Thread::GetExistingThreadLocal(key);
   if (expected != actual) {
-    V8_Fatal(__FILE__, __LINE__,
-             "V8 failed to initialize fast TLS on current kernel");
+    FATAL("V8 failed to initialize fast TLS on current kernel");
   }
   Thread::SetThreadLocal(key, nullptr);
 }

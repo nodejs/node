@@ -23,6 +23,8 @@ class Node;
 // out-of-line data associated with each node.
 typedef uint32_t NodeId;
 
+// Possible outcomes for decisions.
+enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
 
 // Represents the result of trying to reduce a node in the graph.
 class Reduction final {

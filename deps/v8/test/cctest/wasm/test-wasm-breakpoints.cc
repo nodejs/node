@@ -88,7 +88,6 @@ class BreakHandler : public debug::DebugDelegate {
 
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              v8::Local<v8::Object> exec_state,
-                             v8::Local<v8::Value> break_points_hit,
                              const std::vector<int>&) override {
     printf("Break #%d\n", count_);
     CHECK_GT(expected_breaks_.size(), count_);
@@ -114,26 +113,6 @@ class BreakHandler : public debug::DebugDelegate {
   }
 };
 
-Handle<JSObject> MakeFakeBreakpoint(Isolate* isolate, int position) {
-  Handle<JSObject> obj =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  // Generate an "isTriggered" method that always returns true.
-  // This can/must be refactored once we remove remaining JS parts from the
-  // debugger (bug 5530).
-  Handle<String> source = isolate->factory()->NewStringFromStaticChars("true");
-  Handle<Context> context(isolate->context(), isolate);
-  Handle<JSFunction> triggered_fun =
-      Compiler::GetFunctionFromString(context, source, NO_PARSE_RESTRICTION,
-                                      kNoSourcePosition)
-          .ToHandleChecked();
-  PropertyDescriptor desc;
-  desc.set_value(triggered_fun);
-  Handle<String> name =
-      isolate->factory()->InternalizeUtf8String(CStrVector("isTriggered"));
-  CHECK(JSObject::DefineOwnProperty(isolate, obj, name, &desc, kDontThrow)
-            .FromMaybe(false));
-  return obj;
-}
 
 void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
                    int expected_set_byte_offset = -1) {
@@ -143,10 +122,12 @@ void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
   Handle<WasmInstanceObject> instance = runner.builder().instance_object();
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module());
-  Handle<JSObject> fake_breakpoint_object =
-      MakeFakeBreakpoint(runner.main_isolate(), code_offset);
+  static int break_index = 0;
+  Handle<BreakPoint> break_point =
+      runner.main_isolate()->factory()->NewBreakPoint(
+          break_index++, runner.main_isolate()->factory()->empty_string());
   CHECK(WasmCompiledModule::SetBreakPoint(compiled_module, &code_offset,
-                                          fake_breakpoint_object));
+                                          break_point));
   int set_byte_offset = code_offset - func_offset;
   CHECK_EQ(expected_set_byte_offset, set_byte_offset);
   // Also set breakpoint on the debug info of the instance directly, since the
@@ -212,7 +193,6 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
 
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              v8::Local<v8::Object> exec_state,
-                             v8::Local<v8::Value> break_points_hit,
                              const std::vector<int>&) override {
     printf("Break #%d\n", count_);
     CHECK_GT(expected_values_.size(), count_);

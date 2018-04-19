@@ -416,7 +416,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       if (!follow_expected) {
         // If the expected transition failed, parse an internalized string and
         // try to find a matching transition.
-        key = ParseJsonInternalizedString();
+        key = ParseJsonString();
         if (key.is_null()) return ReportUnexpectedCharacter();
 
         target = TransitionsAccessor(map).FindTransitionToField(key);
@@ -491,7 +491,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         Handle<String> key;
         Handle<Object> value;
 
-        key = ParseJsonInternalizedString();
+        key = ParseJsonString();
         if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
 
         AdvanceSkipWhitespace();
@@ -812,7 +812,6 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
 }
 
 template <bool seq_one_byte>
-template <bool is_internalized>
 Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   DCHECK_EQ('"', c0_);
   Advance();
@@ -821,7 +820,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     return factory()->empty_string();
   }
 
-  if (seq_one_byte && is_internalized) {
+  if (seq_one_byte) {
     // Fast path for existing internalized strings.  If the the string being
     // parsed is not a known internalized string, contains backslashes or
     // unexpectedly reaches the end of string, return with an empty handle.
@@ -829,9 +828,13 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     // We intentionally use local variables instead of fields, compute hash
     // while we are iterating a string and manually inline StringTable lookup
     // here.
-    uint32_t running_hash = isolate()->heap()->HashSeed();
+
     int position = position_;
     uc32 c0 = c0_;
+    uint32_t running_hash = isolate()->heap()->HashSeed();
+    uint32_t index = 0;
+    bool is_array_index = true;
+
     do {
       if (c0 == '\\') {
         c0_ = c0;
@@ -845,6 +848,16 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
         position_ = position;
         return Handle<String>::null();
       }
+      if (is_array_index) {
+        // With leading zero, the string has to be "0" to be a valid index.
+        if (!IsDecimalDigit(c0) || (position > position_ && index == 0)) {
+          is_array_index = false;
+        } else {
+          int d = c0 - '0';
+          is_array_index = index <= 429496729U - ((d + 3) >> 3);
+          index = (index * 10) + d;
+        }
+      }
       running_hash = StringHasher::AddCharacterCore(running_hash,
                                                     static_cast<uint16_t>(c0));
       position++;
@@ -856,9 +869,15 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
       c0 = seq_source_->SeqOneByteStringGet(position);
     } while (c0 != '"');
     int length = position - position_;
-    uint32_t hash = (length <= String::kMaxHashCalcLength)
-                        ? StringHasher::GetHashCore(running_hash)
-                        : static_cast<uint32_t>(length);
+    uint32_t hash;
+    if (is_array_index) {
+      hash =
+          StringHasher::MakeArrayIndexHash(index, length) >> String::kHashShift;
+    } else if (length <= String::kMaxHashCalcLength) {
+      hash = StringHasher::GetHashCore(running_hash);
+    } else {
+      hash = static_cast<uint32_t>(length);
+    }
     Vector<const uint8_t> string_vector(seq_source_->GetChars() + position_,
                                         length);
     StringTable* string_table = isolate()->heap()->string_table();
@@ -877,12 +896,8 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
       if (!element->IsTheHole(isolate()) &&
           String::cast(element)->IsOneByteEqualTo(string_vector)) {
         result = Handle<String>(String::cast(element), isolate());
-#ifdef DEBUG
-        uint32_t hash_field =
-            (hash << String::kHashShift) | String::kIsNotArrayIndexMask;
-        DCHECK_EQ(static_cast<int>(result->Hash()),
-                  static_cast<int>(hash_field >> String::kHashShift));
-#endif
+        DCHECK_EQ(result->Hash(),
+                  (hash << String::kHashShift) >> String::kHashShift);
         break;
       }
       entry = StringTable::NextProbe(entry, count++, capacity);

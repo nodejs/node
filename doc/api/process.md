@@ -194,7 +194,7 @@ down the process. **It is not safe to resume normal operation after
 `'uncaughtException'`.**
 
 To restart a crashed application in a more reliable way, whether
-`uncaughtException` is emitted or not, an external monitor should be employed
+`'uncaughtException'` is emitted or not, an external monitor should be employed
 in a separate process to detect application failures and recover or restart as
 needed.
 
@@ -272,7 +272,7 @@ lead to sub-optimal application performance, bugs, or security vulnerabilities.
 The listener function is called with a single `warning` argument whose value is
 an `Error` object. There are three key properties that describe the warning:
 
-* `name` {string} The name of the warning (currently `Warning` by default).
+* `name` {string} The name of the warning (currently `'Warning'` by default).
 * `message` {string} A system-provided description of the warning.
 * `stack` {string} A stack trace to the location in the code where the warning
   was issued.
@@ -326,7 +326,7 @@ Using the `--no-deprecation` command line flag will suppress all reporting
 of the custom deprecation.
 
 The `*-deprecation` command line flags only affect warnings that use the name
-`DeprecationWarning`.
+`'DeprecationWarning'`.
 
 #### Emitting custom warnings
 
@@ -340,7 +340,7 @@ custom or application-specific warnings.
 
 Signal events will be emitted when the Node.js process receives a signal. Please
 refer to signal(7) for a listing of standard POSIX signal names such as
-`SIGINT`, `SIGHUP`, etc.
+`'SIGINT'`, `'SIGHUP'`, etc.
 
 The signal handler will receive the signal's name (`'SIGINT'`,
  `'SIGTERM'`, etc.) as the first argument.
@@ -365,37 +365,38 @@ process.on('SIGINT', handle);
 process.on('SIGTERM', handle);
 ```
 
-* `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
+* `'SIGUSR1'` is reserved by Node.js to start the [debugger][]. It's possible to
   install a listener but doing so might interfere with the debugger.
-* `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
+* `'SIGTERM'` and `'SIGINT'` have default handlers on non-Windows platforms that
   reset the terminal mode before exiting with code `128 + signal number`. If one
   of these signals has a listener installed, its default behavior will be
   removed (Node.js will no longer exit).
-* `SIGPIPE` is ignored by default. It can have a listener installed.
-* `SIGHUP` is generated on Windows when the console window is closed, and on
+* `'SIGPIPE'` is ignored by default. It can have a listener installed.
+* `'SIGHUP'` is generated on Windows when the console window is closed, and on
   other platforms under various similar conditions, see signal(7). It can have a
   listener installed, however Node.js will be unconditionally terminated by
   Windows about 10 seconds later. On non-Windows platforms, the default
   behavior of `SIGHUP` is to terminate Node.js, but once a listener has been
   installed its default behavior will be removed.
-* `SIGTERM` is not supported on Windows, it can be listened on.
-* `SIGINT` from the terminal is supported on all platforms, and can usually be
+* `'SIGTERM'` is not supported on Windows, it can be listened on.
+* `'SIGINT'` from the terminal is supported on all platforms, and can usually be
   generated with `<Ctrl>+C` (though this may be configurable). It is not
   generated when terminal raw mode is enabled.
-* `SIGBREAK` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
+* `'SIGBREAK'` is delivered on Windows when `<Ctrl>+<Break>` is pressed, on
   non-Windows platforms it can be listened on, but there is no way to send or
   generate it.
-* `SIGWINCH` is delivered when the console has been resized. On Windows, this
+* `'SIGWINCH'` is delivered when the console has been resized. On Windows, this
   will only happen on write to the console when the cursor is being moved, or
   when a readable tty is used in raw mode.
-* `SIGKILL` cannot have a listener installed, it will unconditionally terminate
-  Node.js on all platforms.
-* `SIGSTOP` cannot have a listener installed.
-* `SIGBUS`, `SIGFPE`, `SIGSEGV` and `SIGILL`, when not raised artificially
-   using kill(2), inherently leave the process in a state from which it is not
-   safe to attempt to call JS listeners. Doing so might lead to the process
-   hanging in an endless loop, since listeners attached using `process.on()` are
-   called asynchronously and therefore unable to correct the underlying problem.
+* `'SIGKILL'` cannot have a listener installed, it will unconditionally
+  terminate Node.js on all platforms.
+* `'SIGSTOP'` cannot have a listener installed.
+* `'SIGBUS'`, `'SIGFPE'`, `'SIGSEGV'` and `'SIGILL'`, when not raised
+   artificially using kill(2), inherently leave the process in a state from
+   which it is not safe to attempt to call JS listeners. Doing so might lead to
+   the process hanging in an endless loop, since listeners attached using
+   `process.on()` are called asynchronously and therefore unable to correct the
+   underlying problem.
 
 Windows does not support sending signals, but Node.js offers some emulation
 with [`process.kill()`][], and [`subprocess.kill()`][]. Sending signal `0` can
@@ -709,7 +710,7 @@ added: v8.0.0
 
 The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
-[`process.on('warning')`][process_warning] event.
+[`'warning'`][process_warning] event.
 
 ```js
 // Emit a warning with a code and additional detail.
@@ -724,7 +725,7 @@ process.emitWarning('Something happened!', {
 
 In this example, an `Error` object is generated internally by
 `process.emitWarning()` and passed through to the
-[`process.on('warning')`][process_warning] event.
+[`'warning'`][process_warning] handler.
 
 ```js
 process.on('warning', (warning) => {
@@ -753,7 +754,7 @@ added: v6.0.0
 
 The `process.emitWarning()` method can be used to emit custom or application
 specific process warnings. These can be listened for by adding a handler to the
-[`process.on('warning')`][process_warning] event.
+[`'warning'`][process_warning] event.
 
 ```js
 // Emit a warning using a string.
@@ -773,8 +774,8 @@ process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
 ```
 
 In each of the previous examples, an `Error` object is generated internally by
-`process.emitWarning()` and passed through to the
-[`process.on('warning')`][process_warning] event.
+`process.emitWarning()` and passed through to the [`'warning'`][process_warning]
+handler.
 
 ```js
 process.on('warning', (warning) => {
@@ -786,7 +787,7 @@ process.on('warning', (warning) => {
 ```
 
 If `warning` is passed as an `Error` object, it will be passed through to the
-`process.on('warning')` event handler unmodified (and the optional `type`,
+`'warning'` event handler unmodified (and the optional `type`,
 `code` and `ctor` arguments will be ignored):
 
 ```js
@@ -807,7 +808,7 @@ Note that while process warnings use `Error` objects, the process warning
 mechanism is **not** a replacement for normal error handling mechanisms.
 
 The following additional handling is implemented if the warning `type` is
-`DeprecationWarning`:
+`'DeprecationWarning'`:
 
 * If the `--throw-deprecation` command-line flag is used, the deprecation
   warning is thrown as an exception rather than being emitted as an event.
@@ -1181,13 +1182,13 @@ setTimeout(() => {
 ```
 
 
-## process.initgroups(user, extra_group)
+## process.initgroups(user, extraGroup)
 <!-- YAML
 added: v0.9.4
 -->
 
 * `user` {string|number} The user name or numeric identifier.
-* `extra_group` {string|number} A group name or numeric identifier.
+* `extraGroup` {string|number} A group name or numeric identifier.
 
 The `process.initgroups()` method reads the `/etc/group` file and initializes
 the group access list, using all groups of which the user is a member. This is
@@ -1416,8 +1417,8 @@ added: v0.8.0
 
 The `process.noDeprecation` property indicates whether the `--no-deprecation`
 flag is set on the current Node.js process. See the documentation for
-the [`warning` event][process_warning] and the
-[`emitWarning` method][process_emit_warning] for more information about this
+the [`'warning'` event][process_warning] and the
+[`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
 ## process.pid
@@ -1481,6 +1482,9 @@ changes:
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3212
     description: The `lts` property is now supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19587
+    description: Add SemVer properties.
 -->
 
 * {Object}
@@ -1509,6 +1513,10 @@ tarball.
   - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
   - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
   - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
+* `majorVersion` {number} The major version of this release.
+* `minorVersion` {number} The minor version of this release.
+* `patchVersion` {number} The patch version of this release.
+* `prereleaseTag` {string} The SemVer pre-release tag for Node.js.
 
 <!-- eslint-skip -->
 ```js
@@ -1517,13 +1525,34 @@ tarball.
   lts: 'Argon',
   sourceUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5.tar.gz',
   headersUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib'
+  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib',
+  majorVersion: 4,
+  minorVersion: 4,
+  patchVersion: 5,
+  prereleaseTag: '',
+  compareVersion: [Function: compareVersion]
 }
 ```
 
+
 In custom builds from non-release versions of the source tree, only the
-`name` property may be present. The additional properties should not be
-relied upon to exist.
+`name` property and SemVer properties may be present. The additional properties
+should not be relied upon to exist.
+
+## process.release.compareVersion(major, minor, patch[, tag])
+<!-- YAML
+added: REPLACEME
+-->
+
+Perform a SemVer comparison to the release version.
+
+* `major` {number} The major version to compare.
+* `minor` {number} The minor version to compare.
+* `patch` {number} The patch version to compare.
+* `tag` {string} The pre-release tag to compare.
+* Returns: {number} `1` if the given version is lower than the current release
+  version, `0` if the given version matches the process version, and `-1`
+  if the given version is greater than the release version.
 
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
@@ -1680,7 +1709,7 @@ The `process.setUncaughtExceptionCapture` function sets a function that will
 be invoked when an uncaught exception occurs, which will receive the exception
 value itself as its first argument.
 
-If such a function is set, the [`process.on('uncaughtException')`][] event will
+If such a function is set, the [`'uncaughtException'`][] event will
 not be emitted. If `--abort-on-uncaught-exception` was passed from the
 command line or set through [`v8.setFlagsFromString()`][], the process will
 not abort.
@@ -1812,8 +1841,8 @@ added: v0.9.12
 
 The `process.throwDeprecation` property indicates whether the
 `--throw-deprecation` flag is set on the current Node.js process. See the
-documentation for the [`warning` event][process_warning] and the
-[`emitWarning` method][process_emit_warning] for more information about this
+documentation for the [`'warning'` event][process_warning] and the
+[`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
 ## process.title
@@ -1845,8 +1874,8 @@ added: v0.8.0
 
 The `process.traceDeprecation` property indicates whether the
 `--trace-deprecation` flag is set on the current Node.js process. See the
-documentation for the [`warning` event][process_warning] and the
-[`emitWarning` method][process_emit_warning] for more information about this
+documentation for the [`'warning'` event][process_warning] and the
+[`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
 ## process.umask([mask])
@@ -2010,7 +2039,6 @@ cases:
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
-[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require

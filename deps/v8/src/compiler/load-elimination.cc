@@ -821,9 +821,11 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
     state = state->SetMaps(
         node, ZoneHandleSet<Map>(factory()->fixed_double_array_map()), zone());
   } else {
-    // We know that the resulting elements have the fixed array map.
-    state = state->SetMaps(
-        node, ZoneHandleSet<Map>(factory()->fixed_array_map()), zone());
+    // We know that the resulting elements have the fixed array map or the COW
+    // version thereof (if we didn't grow and it was already COW before).
+    ZoneHandleSet<Map> fixed_array_maps(factory()->fixed_array_map());
+    fixed_array_maps.insert(factory()->fixed_cow_array_map(), zone());
+    state = state->SetMaps(node, fixed_array_maps, zone());
   }
   // Kill the previous elements on {object}.
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
@@ -1344,7 +1346,7 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
       if (kDoubleSize != kPointerSize) {
         return -1;  // We currently only track pointer size fields.
       }
-    // Fall through.
+      break;
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:

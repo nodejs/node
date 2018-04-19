@@ -7,6 +7,22 @@
 load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
+(function testLiftoffFlag() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('i32_add', kSig_i_ii)
+      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add])
+      .exportFunc();
+
+  const module = new WebAssembly.Module(builder.toBuffer());
+  const instance = new WebAssembly.Instance(module);
+  const instance2 = new WebAssembly.Instance(module);
+
+  assertEquals(%IsLiftoffFunction(instance.exports.i32_add),
+               %IsLiftoffFunction(instance2.exports.i32_add));
+})();
+
+
 (function testLiftoffSync() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();

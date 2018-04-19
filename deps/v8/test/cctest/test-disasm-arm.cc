@@ -1568,6 +1568,9 @@ TEST(Barrier) {
   COMPARE(mcr(p15, 0, r0, cr7, cr10, 4, ne), "1e070f9a       mcrne (CP15DSB)");
   COMPARE(mcr(p15, 0, r0, cr7, cr5, 4, mi), "4e070f95       mcrmi (CP15ISB)");
 
+  // Conditional speculation barrier.
+  COMPARE(csdb(), "e320f014       csdb");
+
   VERIFY_RUN();
 }
 

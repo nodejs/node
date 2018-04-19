@@ -134,8 +134,6 @@ size_t hash_value(CheckTaggedInputMode);
 
 std::ostream& operator<<(std::ostream&, CheckTaggedInputMode);
 
-CheckTaggedInputMode CheckTaggedInputModeOf(const Operator*);
-
 class CheckTaggedInputParameters {
  public:
   CheckTaggedInputParameters(CheckTaggedInputMode mode,
@@ -353,6 +351,28 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 NumberOperationHint NumberOperationHintOf(const Operator* op)
     WARN_UNUSED_RESULT;
 
+class NumberOperationParameters {
+ public:
+  NumberOperationParameters(NumberOperationHint hint,
+                            const VectorSlotPair& feedback)
+      : hint_(hint), feedback_(feedback) {}
+
+  NumberOperationHint hint() const { return hint_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  NumberOperationHint hint_;
+  VectorSlotPair feedback_;
+};
+
+size_t hash_value(NumberOperationParameters const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           const NumberOperationParameters&);
+bool operator==(NumberOperationParameters const&,
+                NumberOperationParameters const&);
+const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
+    WARN_UNUSED_RESULT;
+
 int FormalParameterCountOf(const Operator* op) WARN_UNUSED_RESULT;
 bool IsRestLengthOf(const Operator* op) WARN_UNUSED_RESULT;
 
@@ -494,7 +514,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SameValue();
 
   const Operator* TypeOf();
-  const Operator* ClassOf();
 
   const Operator* ToBoolean();
 
@@ -504,19 +523,21 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringCharAt();
   const Operator* StringCharCodeAt();
   const Operator* SeqStringCharCodeAt();
-  const Operator* StringCodePointAt();
-  const Operator* SeqStringCodePointAt();
+  const Operator* StringCodePointAt(UnicodeEncoding encoding);
+  const Operator* SeqStringCodePointAt(UnicodeEncoding encoding);
   const Operator* StringFromCharCode();
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
   const Operator* StringLength();
   const Operator* StringToLowerCaseIntl();
   const Operator* StringToUpperCaseIntl();
+  const Operator* StringSubstring();
 
   const Operator* FindOrderedHashMapEntry();
   const Operator* FindOrderedHashMapEntryForInt32Key();
 
-  const Operator* SpeculativeToNumber(NumberOperationHint hint);
+  const Operator* SpeculativeToNumber(NumberOperationHint hint,
+                                      const VectorSlotPair& feedback);
 
   const Operator* StringToNumber();
   const Operator* PlainPrimitiveToNumber();
@@ -570,7 +591,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Sub();
   const Operator* CheckedInt32ToTaggedSigned(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedSignedToInt32(const VectorSlotPair& feedback);
-  const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode);
+  const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode,
+                                         const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode,
                                        const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const VectorSlotPair& feedback);

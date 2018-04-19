@@ -254,11 +254,12 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 
 class TapProgressIndicator(SimpleProgressIndicator):
 
-  def _printDiagnostic(self, traceback, severity):
-    logger.info('  severity: %s', severity)
+  def _printDiagnostic(self):
+    logger.info('  severity: %s', self.severity)
+    self.exitcode and logger.info('  exitcode: %s', self.exitcode)
     logger.info('  stack: |-')
 
-    for l in traceback.splitlines():
+    for l in self.traceback.splitlines():
       logger.info('    ' + l)
 
   def Starting(self):
@@ -273,6 +274,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     self._done += 1
     self.traceback = ''
     self.severity = 'ok'
+    self.exitcode = ''
 
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
@@ -284,6 +286,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
       self.severity = 'fail'
+      self.exitcode = output.output.exit_code
       self.traceback = output.output.stdout + output.output.stderr
 
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
@@ -330,7 +333,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     if self.severity is not 'ok' or self.traceback is not '':
       if output.HasTimedOut():
         self.traceback = 'timeout'
-      self._printDiagnostic(self.traceback, self.severity)
+      self._printDiagnostic()
     logger.info('  ...')
 
   def Done(self):
@@ -579,8 +582,7 @@ class TestOutput(object):
       # Timed out tests will have exit_code -signal.SIGTERM.
       if self.output.timed_out:
         return False
-      return self.output.exit_code < 0 and \
-             self.output.exit_code != -signal.SIGABRT
+      return self.output.exit_code < 0
 
   def HasTimedOut(self):
     return self.output.timed_out;

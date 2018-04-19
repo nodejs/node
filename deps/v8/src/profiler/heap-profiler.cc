@@ -17,28 +17,22 @@ namespace internal {
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
       names_(new StringsStorage(heap)),
-      is_tracking_object_moves_(false),
-      get_retainer_infos_callback_(nullptr) {}
+      is_tracking_object_moves_(false) {}
 
-static void DeleteHeapSnapshot(HeapSnapshot* snapshot_ptr) {
-  delete snapshot_ptr;
-}
-
-
-HeapProfiler::~HeapProfiler() {
-  std::for_each(snapshots_.begin(), snapshots_.end(), &DeleteHeapSnapshot);
-}
-
+HeapProfiler::~HeapProfiler() = default;
 
 void HeapProfiler::DeleteAllSnapshots() {
-  std::for_each(snapshots_.begin(), snapshots_.end(), &DeleteHeapSnapshot);
   snapshots_.clear();
   names_.reset(new StringsStorage(heap()));
 }
 
 
 void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
-  snapshots_.erase(std::find(snapshots_.begin(), snapshots_.end(), snapshot));
+  snapshots_.erase(
+      std::find_if(snapshots_.begin(), snapshots_.end(),
+                   [&](const std::unique_ptr<HeapSnapshot>& entry) {
+                     return entry.get() == snapshot;
+                   }));
 }
 
 
@@ -75,6 +69,18 @@ v8::HeapProfiler::RetainerInfos HeapProfiler::GetRetainerInfos(
   return infos;
 }
 
+void HeapProfiler::SetBuildEmbedderGraphCallback(
+    v8::HeapProfiler::BuildEmbedderGraphCallback callback) {
+  build_embedder_graph_callback_ = callback;
+}
+
+void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
+                                      v8::EmbedderGraph* graph) {
+  if (build_embedder_graph_callback_ != nullptr)
+    build_embedder_graph_callback_(reinterpret_cast<v8::Isolate*>(isolate),
+                                   graph);
+}
+
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver) {
@@ -85,7 +91,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
       delete result;
       result = nullptr;
     } else {
-      snapshots_.push_back(result);
+      snapshots_.emplace_back(result);
     }
   }
   ids_->RemoveDeadEntries();
@@ -153,7 +159,7 @@ int HeapProfiler::GetSnapshotsCount() {
 }
 
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  return snapshots_.at(index);
+  return snapshots_.at(index).get();
 }
 
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {

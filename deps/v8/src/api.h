@@ -180,6 +180,10 @@ class Utils {
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Float64Array> ToLocalFloat64Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<BigInt64Array> ToLocalBigInt64Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<BigUint64Array> ToLocalBigUint64Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
 
   static inline Local<SharedArrayBuffer> ToLocalShared(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);

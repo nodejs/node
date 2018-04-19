@@ -219,27 +219,6 @@ TEST(IntrinsicAsStubCall) {
                has_property_helper.NewObject("({ x: 20 })")));
 }
 
-TEST(ClassOf) {
-  HandleAndZoneScope handles;
-  Isolate* isolate = handles.main_isolate();
-  Factory* factory = isolate->factory();
-  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
-                               Runtime::kInlineClassOf);
-  CHECK_EQ(*helper.Invoke(helper.NewObject("123")), *factory->null_value());
-  CHECK_EQ(*helper.Invoke(helper.NewObject("'true'")), *factory->null_value());
-  CHECK_EQ(*helper.Invoke(helper.NewObject("'foo'")), *factory->null_value());
-  CHECK(helper.Invoke(helper.NewObject("({a:1})"))
-            ->SameValue(*helper.NewObject("'Object'")));
-  CHECK(helper.Invoke(helper.NewObject("(function foo() {})"))
-            ->SameValue(*helper.NewObject("'Function'")));
-  CHECK(helper.Invoke(helper.NewObject("new Date()"))
-            ->SameValue(*helper.NewObject("'Date'")));
-  CHECK(helper.Invoke(helper.NewObject("new Set"))
-            ->SameValue(*helper.NewObject("'Set'")));
-  CHECK(helper.Invoke(helper.NewObject("/x/"))
-            ->SameValue(*helper.NewObject("'RegExp'")));
-}
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

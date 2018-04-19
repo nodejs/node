@@ -36,4 +36,4 @@ class StressScavengeObserver : public AllocationObserver {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_HEAP_STRESS_SCAVENGE_OBSERVER_H_

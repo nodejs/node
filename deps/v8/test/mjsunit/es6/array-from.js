@@ -161,6 +161,14 @@ assertThrows(function () { Array.from.call(exotic, [1]); }, TypeError);
 // The setter wasn't called
 assertEquals(0, setterCalled);
 
+// Non-callable iterators should cause a TypeError before calling the target
+// constructor.
+items = {};
+items[Symbol.iterator] = 7;
+function TestError() {}
+function ArrayLike() { throw new TestError() }
+assertThrows(function() { Array.from.call(ArrayLike, items); }, TypeError);
+
 // Check that array properties defined are writable, enumerable, configurable
 function ordinary() { }
 var x = Array.from.call(ordinary, [2]);

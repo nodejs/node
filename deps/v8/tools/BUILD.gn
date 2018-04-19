@@ -11,7 +11,6 @@ group("gn_all") {
     deps = [
       ":check-static-initializers_run",
       ":jsfunfuzz_run",
-      ":run-deopt-fuzzer_run",
       ":run-gcmole_run",
       ":run-num-fuzzer_run",
     ]
@@ -32,14 +31,6 @@ v8_isolate_run("jsfunfuzz") {
   ]
 
   isolate = "jsfunfuzz/jsfunfuzz.isolate"
-}
-
-v8_isolate_run("run-deopt-fuzzer") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "run-deopt-fuzzer.isolate"
 }
 
 v8_isolate_run("run-gcmole") {

@@ -229,7 +229,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen9;
         *exponent = 9;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 29:
     case 28:
     case 27:
@@ -237,7 +238,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen8;
         *exponent = 8;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 26:
     case 25:
     case 24:
@@ -245,7 +247,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen7;
         *exponent = 7;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 23:
     case 22:
     case 21:
@@ -254,7 +257,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen6;
         *exponent = 6;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 19:
     case 18:
     case 17:
@@ -262,7 +266,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen5;
         *exponent = 5;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 16:
     case 15:
     case 14:
@@ -270,7 +275,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = kTen4;
         *exponent = 4;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 13:
     case 12:
     case 11:
@@ -279,7 +285,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 1000;
         *exponent = 3;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 9:
     case 8:
     case 7:
@@ -287,7 +294,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 100;
         *exponent = 2;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 6:
     case 5:
     case 4:
@@ -295,7 +303,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 10;
         *exponent = 1;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 3:
     case 2:
     case 1:
@@ -303,7 +312,8 @@ static void BiggestPowerTen(uint32_t number,
         *power = 1;
         *exponent = 0;
         break;
-      }  // else fallthrough
+      }
+      V8_FALLTHROUGH;
     case 0:
       *power = 0;
       *exponent = -1;

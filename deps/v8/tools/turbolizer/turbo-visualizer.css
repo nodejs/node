@@ -242,15 +242,20 @@ span.linkable-text:hover {
 
 
 #left {
-    float: left; height: 100%; background-color: #FFFFFF;
+    float: left;
 }
 
 #middle {
-    float:left; height: 100%; background-color: #F8F8F8;
+    float:left; background-color: #F8F8F8;
 }
 
 #right {
-    float: right; background-color: #FFFFFF;
+    float: right;
+}
+
+.viewpane {
+    height: 100vh;
+    background-color: #FFFFFF;
 }
 
 

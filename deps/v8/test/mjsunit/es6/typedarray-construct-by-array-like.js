@@ -120,6 +120,31 @@ tests.push(function TestConstructFromArrayNoIteratorWithGetter(constr) {
   assertArrayEquals([1, 2, 22], ta);
 });
 
+tests.push(function TestConstructFromArrayNullIterator(constr) {
+  var arr = [1, 2, 3];
+  arr[Symbol.iterator] = null;
+
+  var ta = new Uint8Array(arr);
+
+  assertArrayEquals([1, 2, 3], ta);
+});
+
+tests.push(function TestConstructFromArrayUndefinedIterator(constr) {
+  var arr = [1, 2, 3];
+  arr[Symbol.iterator] = undefined;
+
+  var ta = new Uint8Array(arr);
+
+  assertArrayEquals([1, 2, 3], ta);
+});
+
+tests.push(function TestConstructFromArrayNonCallableIterator(constr) {
+  var arr = [1, 2, 3];
+  arr[Symbol.iterator] = 1;
+
+  assertThrows(() => new Uint8Array(arr), TypeError);
+});
+
 tests.push(function TestConstructFromArray(constr) {
   var n = 64;
   var jsArray = [];
@@ -148,6 +173,44 @@ tests.push(function TestConstructFromTypedArray(constr) {
   for (var i = 0; i < n; i++) {
     assertEquals(i, arr[i]);
   }
+});
+
+tests.push(function TestFromTypedArraySpecies(constr) {
+  var b = new ArrayBuffer(16);
+  var a1 = new constr(b);
+
+  var constructor_read = 0;
+  var cons = b.constructor;
+
+  Object.defineProperty(b, 'constructor', {
+    get: function() {
+      constructor_read++;
+      return cons;
+    }
+  });
+
+  var a2 = new constr(a1);
+
+  assertEquals(1, constructor_read);
+});
+
+tests.push(function TestFromTypedArraySpeciesNeutersBuffer(constr) {
+  var b = new ArrayBuffer(16);
+  var a1 = new constr(b);
+
+  var constructor_read = 0;
+  var cons = b.constructor;
+
+  Object.defineProperty(b, 'constructor', {
+    get: function() {
+      %ArrayBufferNeuter(b);
+      return cons;
+    }
+  });
+
+  var a2 = new constr(a1);
+
+  assertArrayEquals([], a2);
 });
 
 tests.push(function TestLengthIsMaxSmi(constr) {

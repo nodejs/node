@@ -935,9 +935,13 @@ Buffer.poolSize = 0;
 assert(Buffer.allocUnsafe(1).parent instanceof ArrayBuffer);
 Buffer.poolSize = ps;
 
-// Test Buffer.copy() segfault
-assert.throws(() => Buffer.allocUnsafe(10).copy(),
-              /TypeError: argument should be a Buffer/);
+common.expectsError(
+  () => Buffer.allocUnsafe(10).copy(),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'argument must be a buffer'
+  });
 
 const regErrorMsg =
   new RegExp('The first argument must be one of type string, Buffer, ' +
@@ -982,7 +986,11 @@ common.expectsError(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}, { code: undefined, type: RangeError, message: 'Index out of range' });
+}, {
+  code: 'ERR_INDEX_OUT_OF_RANGE',
+  type: RangeError,
+  message: 'Index out of range'
+});
 
 // Unpooled buffer (replaces SlowBuffer)
 {

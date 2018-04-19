@@ -31,8 +31,6 @@ class StringsStorage {
   const char* GetFunctionName(const char* name);
 
  private:
-  static const int kMaxNameSize = 1024;
-
   static bool StringsMatch(void* key1, void* key2);
   const char* AddOrDisposeString(char* str, int len);
   base::CustomMatcherHashMap::Entry* GetEntry(const char* str, int len);

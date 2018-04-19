@@ -163,7 +163,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   if (exponent_type() != INTEGER) {
     Label fast_power, try_arithmetic_simplification;
     __ DoubleToI(exponent, double_exponent, double_scratch,
-                 TREAT_MINUS_ZERO_AS_ZERO, &try_arithmetic_simplification,
                  &try_arithmetic_simplification,
                  &try_arithmetic_simplification);
     __ jmp(&int_exponent);

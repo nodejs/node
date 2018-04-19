@@ -84,7 +84,7 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   }
 
   // Should not block.
-  dispatcher.Flush(OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
+  dispatcher.Flush(BlockingBehavior::kDontBlock);
 
   // Unblock the job & finish.
   job->Signal();

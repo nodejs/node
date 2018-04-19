@@ -4,6 +4,7 @@
 
 
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -15,6 +16,19 @@ from ..objects import output
 
 SEM_INVALID_VALUE = -1
 SEM_NOGPFAULTERRORBOX = 0x0002  # Microsoft Platform SDK WinBase.h
+
+
+def setup_testing():
+  """For testing only: We use threading under the hood instead of
+  multiprocessing to make coverage work. Signal handling is only supported
+  in the main thread, so we disable it for testing.
+  """
+  signal.signal = lambda *_: None
+
+
+class AbortException(Exception):
+  """Indicates early abort on SIGINT, SIGTERM or internal hard timeout."""
+  pass
 
 
 class BaseCommand(object):
@@ -35,10 +49,16 @@ class BaseCommand(object):
 
     process = self._start_process(**additional_popen_kwargs)
 
+    # Variable to communicate with the signal handler.
+    abort_occured = [False]
+    def handler(signum, frame):
+      self._abort(process, abort_occured)
+    signal.signal(signal.SIGTERM, handler)
+
     # Variable to communicate with the timer.
     timeout_occured = [False]
     timer = threading.Timer(
-        self.timeout, self._on_timeout, [process, timeout_occured])
+        self.timeout, self._abort, [process, timeout_occured])
     timer.start()
 
     start_time = time.time()
@@ -46,6 +66,9 @@ class BaseCommand(object):
     duration = time.time() - start_time
 
     timer.cancel()
+
+    if abort_occured[0]:
+      raise AbortException()
 
     return output.Output(
       process.returncode,
@@ -85,12 +108,12 @@ class BaseCommand(object):
   def _kill_process(self, process):
     raise NotImplementedError()
 
-  def _on_timeout(self, process, timeout_occured):
-    timeout_occured[0] = True
+  def _abort(self, process, abort_called):
+    abort_called[0] = True
     try:
       self._kill_process(process)
     except OSError:
-      sys.stderr.write('Error: Process %s already ended.\n' % process.pid)
+      pass
 
   def __str__(self):
     return self.to_string()

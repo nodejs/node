@@ -112,6 +112,8 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 added: v0.1.90
 -->
 
+* Returns: {Object}
+
 Returns the bound address, the address family name, and port of the server
 as reported by the operating system if listening on an IP socket.
 Useful to find which port was assigned when getting an OS-assigned address.
@@ -147,13 +149,11 @@ added: v0.1.90
 * Returns: {net.Server}
 
 Stops the server from accepting new connections and keeps existing
-connections. This function is asynchronous, the server is finally
-closed when all connections are ended and the server emits a [`'close'`][] event.
+connections. This function is asynchronous, the server is finally closed
+when all connections are ended and the server emits a [`'close'`][] event.
 The optional `callback` will be called once the `'close'` event occurs. Unlike
 that event, it will be called with an Error as its only argument if the server
 was not open when it was closed.
-
-Returns `server`.
 
 ### server.connections
 <!-- YAML
@@ -206,9 +206,9 @@ on Linux. The default value of this parameter is 511 (not 512).
 
 All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for details).
 
-The `server.listen()` method can be called again if and only if there was an error
-during the first `server.listen()` call or `server.close()` has been called.
-Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
+The `server.listen()` method can be called again if and only if there was an
+error during the first `server.listen()` call or `server.close()` has been
+called. Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 One of the most common errors raised when listening is `EADDRINUSE`.
 This happens when another server is already listening on the requested
@@ -346,9 +346,9 @@ added: v0.9.1
 
 * Returns: {net.Server}
 
-Opposite of `unref`, calling `ref` on a previously `unref`d server will *not*
-let the program exit if it's the only server left (the default behavior). If
-the server is `ref`d calling `ref` again will have no effect.
+Opposite of `unref()`, calling `ref()` on a previously `unref`ed server will
+*not* let the program exit if it's the only server left (the default behavior).
+If the server is `ref`ed calling `ref()` again will have no effect.
 
 ### server.unref()
 <!-- YAML
@@ -357,9 +357,9 @@ added: v0.9.1
 
 * Returns: {net.Server}
 
-Calling `unref` on a server will allow the program to exit if this is the only
-active server in the event system. If the server is already `unref`d calling
-`unref` again will have no effect.
+Calling `unref()` on a server will allow the program to exit if this is the only
+active server in the event system. If the server is already `unref`ed calling
+`unref()` again will have no effect.
 
 ## Class: net.Socket
 <!-- YAML
@@ -407,9 +407,9 @@ endpoint, depending on what it [`connect()`][`socket.connect()`] to.
 added: v0.1.90
 -->
 
-* `had_error` {boolean} `true` if the socket had a transmission error.
+* `hadError` {boolean} `true` if the socket had a transmission error.
 
-Emitted once the socket is fully closed. The argument `had_error` is a boolean
+Emitted once the socket is fully closed. The argument `hadError` is a boolean
 which says if the socket was closed due to a transmission error.
 
 ### Event: 'connect'
@@ -425,7 +425,7 @@ See [`net.createConnection()`][].
 added: v0.1.90
 -->
 
-* {Buffer}
+* {Buffer|string}
 
 Emitted when data is received. The argument `data` will be a `Buffer` or
 `String`. Encoding of data is set by [`socket.setEncoding()`][].
@@ -485,6 +485,15 @@ Not applicable to UNIX sockets.
 * `family` {string|null} The address type. See [`dns.lookup()`][].
 * `host` {string} The hostname.
 
+### Event: 'ready'
+<!-- YAML
+added: v9.11.0
+-->
+
+Emitted when a socket is ready to be used.
+
+Triggered immediately after `'connect'`.
+
 ### Event: 'timeout'
 <!-- YAML
 added: v0.1.90
@@ -499,6 +508,8 @@ See also: [`socket.setTimeout()`][]
 <!-- YAML
 added: v0.1.90
 -->
+
+* Returns: {Object}
 
 Returns the bound address, the address family name and port of the
 socket as reported by the operating system. Returns an object with
@@ -601,8 +612,6 @@ For [IPC][] connections, available `options` are:
   See [Identifying paths for IPC connections][]. If provided, the TCP-specific
   options above are ignored.
 
-Returns `socket`.
-
 #### socket.connect(path[, connectListener])
 
 * `path` {string} Path the client should connect to. See
@@ -616,8 +625,6 @@ Initiate an [IPC][] connection on the given socket.
 Alias to
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 called with `{ path: path }` as `options`.
-
-Returns `socket`.
 
 #### socket.connect(port[, host][, connectListener])
 <!-- YAML
@@ -636,8 +643,6 @@ Alias to
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 called with `{port: port, host: host}` as `options`.
 
-Returns `socket`.
-
 ### socket.connecting
 <!-- YAML
 added: v6.1.0
@@ -646,7 +651,7 @@ added: v6.1.0
 If `true` -
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 was called and haven't yet finished. Will be set to `false` before emitting
-`connect` event and/or calling
+`'connect'` event and/or calling
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]'s
 callback.
 
@@ -713,9 +718,9 @@ added: v0.9.1
 
 * Returns: {net.Socket} The socket itself.
 
-Opposite of `unref`, calling `ref` on a previously `unref`d socket will *not*
-let the program exit if it's the only socket left (the default behavior). If
-the socket is `ref`d calling `ref` again will have no effect.
+Opposite of `unref()`, calling `ref()` on a previously `unref`ed socket will
+*not* let the program exit if it's the only socket left (the default behavior).
+If the socket is `ref`ed calling `ref` again will have no effect.
 
 ### socket.remoteAddress
 <!-- YAML
@@ -820,14 +825,19 @@ added: v0.9.1
 
 * Returns: {net.Socket} The socket itself.
 
-Calling `unref` on a socket will allow the program to exit if this is the only
-active socket in the event system. If the socket is already `unref`d calling
-`unref` again will have no effect.
+Calling `unref()` on a socket will allow the program to exit if this is the only
+active socket in the event system. If the socket is already `unref`ed calling
+`unref()` again will have no effect.
 
 ### socket.write(data[, encoding][, callback])
 <!-- YAML
 added: v0.1.90
 -->
+
+* `data` {string|Buffer|Uint8Array}
+* `encoding` {string} Only used when data is `string`. **Default:** `utf8`.
+* `callback` {Function}
+* Returns: {boolean}
 
 Sends data on the socket. The second parameter specifies the encoding in the
 case of a string — it defaults to UTF8 encoding.
@@ -838,6 +848,9 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
+
+See Writable stream [`write()`][stream_writable_write] method for more
+information.
 
 ## net.connect()
 
@@ -1068,24 +1081,29 @@ $ nc -U /tmp/echo.sock
 added: v0.3.0
 -->
 
-Tests if input is an IP address. Returns 0 for invalid strings,
-returns 4 for IP version 4 addresses, and returns 6 for IP version 6 addresses.
+* Returns: {integer}
 
+Tests if input is an IP address. Returns `0` for invalid strings,
+returns `4` for IP version 4 addresses, and returns `6` for IP version 6
+addresses.
 
 ## net.isIPv4(input)
 <!-- YAML
 added: v0.3.0
 -->
 
-Returns true if input is a version 4 IP address, otherwise returns false.
+* Returns: {boolean}
 
+Returns `true` if input is a version 4 IP address, otherwise returns `false`.
 
 ## net.isIPv6(input)
 <!-- YAML
 added: v0.3.0
 -->
 
-Returns true if input is a version 6 IP address, otherwise returns false.
+* Returns: {boolean}
+
+Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 
 [`'close'`]: #net_event_close
 [`'connect'`]: #net_event_connect
@@ -1137,5 +1155,6 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [duplex stream]: stream.html#stream_class_stream_duplex
 [half-closed]: https://tools.ietf.org/html/rfc1122
 [socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
+[stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address

@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(cbruni): enable always opt once v8:7438
-// Flags: --expose-gc --no-always-opt
+// Flags: --expose-gc
 
 const f = eval(`(function f(i) {
   if (i == 0) {

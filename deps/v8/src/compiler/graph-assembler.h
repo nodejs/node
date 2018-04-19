@@ -220,7 +220,7 @@ class GraphAssembler {
   Node* DeoptimizeIfNot(DeoptimizeReason reason, VectorSlotPair const& feedback,
                         Node* condition, Node* frame_state);
   template <typename... Args>
-  Node* Call(const CallDescriptor* desc, Args... args);
+  Node* Call(const CallDescriptor* call_descriptor, Args... args);
   template <typename... Args>
   Node* Call(const Operator* op, Args... args);
 
@@ -406,8 +406,9 @@ void GraphAssembler::GotoIfNot(Node* condition,
 }
 
 template <typename... Args>
-Node* GraphAssembler::Call(const CallDescriptor* desc, Args... args) {
-  const Operator* op = common()->Call(desc);
+Node* GraphAssembler::Call(const CallDescriptor* call_descriptor,
+                           Args... args) {
+  const Operator* op = common()->Call(call_descriptor);
   return Call(op, args...);
 }
 

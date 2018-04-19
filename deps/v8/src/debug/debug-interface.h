@@ -5,7 +5,6 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
-#include "include/v8-debug.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
 
@@ -181,12 +180,10 @@ class DebugDelegate {
                                     bool is_blackboxed) {}
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
-  // |break_points_hit| contains installed by JS debug API breakpoint objects.
   // |inspector_break_points_hit| contains id of breakpoints installed with
   // debug::Script::SetBreakpoint API.
   virtual void BreakProgramRequested(
       v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
-      v8::Local<v8::Value> break_points_hit,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Object> exec_state,
@@ -499,6 +496,9 @@ int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
                                 v8::Local<v8::Name> name);
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
+
+v8::MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
+                                         v8::Local<v8::String> source);
 
 }  // namespace debug
 }  // namespace v8

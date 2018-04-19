@@ -144,7 +144,7 @@ exports.obsoleteFunction = util.deprecate(() => {
 ```
 
 When called, `util.deprecate()` will return a function that will emit a
-`DeprecationWarning` using the `process.on('warning')` event. The warning will
+`DeprecationWarning` using the [`'warning'`][] event. The warning will
 be emitted and printed to `stderr` the first time the returned function is
 called. After the warning is emitted, the wrapped function is called without
 emitting a warning.
@@ -253,6 +253,24 @@ Please note that `util.format()` is a synchronous method that is mainly
 intended as a debugging tool. Some input values can have a significant
 performance overhead that can block the event loop. Use this function
 with care and never in a hot code path.
+
+## util.formatWithOptions(inspectOptions, format[, ...args])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `inspectOptions` {Object}
+* `format` {string}
+
+This function is identical to [`util.format()`][], except in that it takes
+an `inspectOptions` argument which specifies options that are passed along to
+[`util.inspect()`][].
+
+```js
+util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
+// Returns 'See object { foo: 42 }', where `42` is colored as a number
+// when printed to a terminal.
+```
 
 ## util.getSystemErrorName(err)
 <!-- YAML
@@ -938,6 +956,8 @@ useful for addon developers who prefer to do type checking in JavaScript.
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`ArrayBuffer`][] or
 [`SharedArrayBuffer`][] instance.
 
@@ -956,6 +976,8 @@ util.types.isAnyArrayBuffer(new SharedArrayBuffer());  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is an `arguments` object.
 
 For example:
@@ -971,6 +993,8 @@ function foo() {
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a built-in [`ArrayBuffer`][] instance.
 This does *not* include [`SharedArrayBuffer`][] instances. Usually, it is
@@ -988,6 +1012,8 @@ util.types.isArrayBuffer(new SharedArrayBuffer());  // Returns false
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is an [async function][].
 Note that this only reports back what the JavaScript engine is seeing;
 in particular, the return value may not match the original source code if
@@ -1004,6 +1030,8 @@ util.types.isAsyncFunction(async function foo() {});  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a boolean object, e.g. created
 by `new Boolean()`.
@@ -1024,6 +1052,8 @@ util.types.isBooleanObject(Boolean(true)); // Returns false
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`DataView`][] instance.
 
 For example:
@@ -1041,6 +1071,8 @@ See also [`ArrayBuffer.isView()`][].
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Date`][] instance.
 
 For example:
@@ -1054,12 +1086,16 @@ util.types.isDate(new Date());  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a native `External` value.
 
 ### util.types.isFloat32Array(value)
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Float32Array`][] instance.
 
@@ -1076,6 +1112,8 @@ util.types.isFloat32Array(new Float64Array());  // Returns false
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Float64Array`][] instance.
 
 For example:
@@ -1090,6 +1128,8 @@ util.types.isFloat64Array(new Float64Array());  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a generator function.
 Note that this only reports back what the JavaScript engine is seeing;
@@ -1107,6 +1147,8 @@ util.types.isGeneratorFunction(function* foo() {});  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a generator object as returned from a
 built-in generator function.
@@ -1127,6 +1169,8 @@ util.types.isGeneratorObject(generator);  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Int8Array`][] instance.
 
 For example:
@@ -1141,6 +1185,8 @@ util.types.isInt8Array(new Float64Array());  // Returns false
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Int16Array`][] instance.
 
@@ -1157,6 +1203,8 @@ util.types.isInt16Array(new Float64Array());  // Returns false
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Int32Array`][] instance.
 
 For example:
@@ -1172,6 +1220,8 @@ util.types.isInt32Array(new Float64Array());  // Returns false
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Map`][] instance.
 
 For example:
@@ -1184,6 +1234,8 @@ util.types.isMap(new Map());  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is an iterator returned for a built-in
 [`Map`][] instance.
@@ -1203,6 +1255,8 @@ util.types.isMapIterator(map[Symbol.iterator]());  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is an instance of a built-in [`Error`][] type.
 
 For example:
@@ -1217,6 +1271,8 @@ util.types.isNativeError(new RangeError());  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a number object, e.g. created
 by `new Number()`.
@@ -1233,6 +1289,8 @@ util.types.isNumberObject(new Number(0));   // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Promise`][].
 
 For example:
@@ -1245,6 +1303,8 @@ util.types.isPromise(Promise.resolve(42));  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a [`Proxy`][] instance.
 
@@ -1262,6 +1322,8 @@ util.types.isProxy(proxy);  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a regular expression object.
 
 For example:
@@ -1276,6 +1338,8 @@ util.types.isRegExp(new RegExp('abc'));  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Set`][] instance.
 
 For example:
@@ -1288,6 +1352,8 @@ util.types.isSet(new Set());  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is an iterator returned for a built-in
 [`Set`][] instance.
@@ -1307,6 +1373,8 @@ util.types.isSetIterator(set[Symbol.iterator]());  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`SharedArrayBuffer`][] instance.
 This does *not* include [`ArrayBuffer`][] instances. Usually, it is
 desirable to test for both; See [`util.types.isAnyArrayBuffer()`][] for that.
@@ -1323,6 +1391,8 @@ util.types.isSharedArrayBuffer(new SharedArrayBuffer());  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a string object, e.g. created
 by `new String()`.
 
@@ -1337,6 +1407,8 @@ util.types.isStringObject(new String('foo'));   // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a symbol object, created
 by calling `Object()` on a `Symbol` primitive.
@@ -1353,6 +1425,8 @@ util.types.isSymbolObject(Object(symbol));   // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a built-in [`TypedArray`][] instance.
 
@@ -1371,6 +1445,8 @@ See also [`ArrayBuffer.isView()`][].
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Uint8Array`][] instance.
 
 For example:
@@ -1385,6 +1461,8 @@ util.types.isUint8Array(new Float64Array());  // Returns false
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint8ClampedArray`][] instance.
 
@@ -1401,6 +1479,8 @@ util.types.isUint8ClampedArray(new Float64Array());  // Returns false
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`Uint16Array`][] instance.
 
 For example:
@@ -1415,6 +1495,8 @@ util.types.isUint16Array(new Float64Array());  // Returns false
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a built-in [`Uint32Array`][] instance.
 
@@ -1431,6 +1513,8 @@ util.types.isUint32Array(new Float64Array());  // Returns false
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`WeakMap`][] instance.
 
 For example:
@@ -1444,6 +1528,8 @@ util.types.isWeakMap(new WeakMap());  // Returns true
 added: REPLACEME
 -->
 
+* Returns: {boolean}
+
 Returns `true` if the value is a built-in [`WeakSet`][] instance.
 
 For example:
@@ -1456,6 +1542,8 @@ util.types.isWeakSet(new WeakSet());  // Returns true
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {boolean}
 
 Returns `true` if the value is a built-in [`WebAssembly.Module`][] instance.
 
@@ -1960,6 +2048,7 @@ deprecated: v0.11.3
 Deprecated predecessor of `console.log`.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
+[`'warning'`]: process.html#process_event_warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
@@ -1983,6 +2072,7 @@ Deprecated predecessor of `console.log`.
 [`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
 [`util.types.isAnyArrayBuffer()`]: #util_util_types_isanyarraybuffer_value

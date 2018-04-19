@@ -168,11 +168,6 @@ void Decoder<V>::DecodeBranchSystemException(Instruction* instr) {
                 (instr->Mask(0x0039E000) == 0x00002000) ||
                 (instr->Mask(0x003AE000) == 0x00002000) ||
                 (instr->Mask(0x003CE000) == 0x00042000) ||
-                (instr->Mask(0x003FFFC0) == 0x000320C0) ||
-                (instr->Mask(0x003FF100) == 0x00032100) ||
-                (instr->Mask(0x003FF200) == 0x00032200) ||
-                (instr->Mask(0x003FF400) == 0x00032400) ||
-                (instr->Mask(0x003FF800) == 0x00032800) ||
                 (instr->Mask(0x0038F000) == 0x00005000) ||
                 (instr->Mask(0x0038E000) == 0x00006000)) {
               V::VisitUnallocated(instr);
@@ -467,6 +462,7 @@ void Decoder<V>::DecodeDataProcessing(Instruction* instr) {
             }
             break;
           }
+          V8_FALLTHROUGH;
         }
         case 1:
         case 3:

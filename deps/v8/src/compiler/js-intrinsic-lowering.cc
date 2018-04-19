@@ -41,6 +41,14 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCreateJSGeneratorObject(node);
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
       return ReduceGeneratorGetInputOrDebugPos(node);
+    case Runtime::kInlineAsyncFunctionAwaitCaught:
+      return ReduceAsyncFunctionAwaitCaught(node);
+    case Runtime::kInlineAsyncFunctionAwaitUncaught:
+      return ReduceAsyncFunctionAwaitUncaught(node);
+    case Runtime::kInlineAsyncGeneratorAwaitCaught:
+      return ReduceAsyncGeneratorAwaitCaught(node);
+    case Runtime::kInlineAsyncGeneratorAwaitUncaught:
+      return ReduceAsyncGeneratorAwaitUncaught(node);
     case Runtime::kInlineAsyncGeneratorReject:
       return ReduceAsyncGeneratorReject(node);
     case Runtime::kInlineAsyncGeneratorResolve:
@@ -49,8 +57,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceAsyncGeneratorYield(node);
     case Runtime::kInlineGeneratorGetResumeMode:
       return ReduceGeneratorGetResumeMode(node);
-    case Runtime::kInlineGeneratorGetContext:
-      return ReduceGeneratorGetContext(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
@@ -69,6 +75,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
+    case Runtime::kInlineRejectPromise:
+      return ReduceRejectPromise(node);
+    case Runtime::kInlineResolvePromise:
+      return ReduceResolvePromise(node);
     case Runtime::kInlineToInteger:
       return ReduceToInteger(node);
     case Runtime::kInlineToLength:
@@ -83,12 +93,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
-    case Runtime::kInlineArrayBufferViewGetByteLength:
-      return ReduceArrayBufferViewField(
-          node, AccessBuilder::ForJSArrayBufferViewByteLength());
-    case Runtime::kInlineArrayBufferViewGetByteOffset:
-      return ReduceArrayBufferViewField(
-          node, AccessBuilder::ForJSArrayBufferViewByteOffset());
     case Runtime::kInlineArrayBufferViewWasNeutered:
       return ReduceArrayBufferViewWasNeutered(node);
     case Runtime::kInlineMaxSmi:
@@ -98,8 +102,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
                                         AccessBuilder::ForJSTypedArrayLength());
     case Runtime::kInlineTheHole:
       return ReduceTheHole(node);
-    case Runtime::kInlineClassOf:
-      return ReduceClassOf(node);
     case Runtime::kInlineStringMaxLength:
       return ReduceStringMaxLength(node);
     default:
@@ -183,6 +185,33 @@ Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
   return Change(node, op, generator, effect, control);
 }
 
+Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwaitCaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitCaught), 0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwaitUncaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitUncaught),
+      0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorAwaitCaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorAwaitCaught),
+      0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorAwaitUncaught(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorAwaitUncaught),
+      0);
+}
+
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
   return Change(
       node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorReject),
@@ -199,16 +228,6 @@ Reduction JSIntrinsicLowering::ReduceAsyncGeneratorYield(Node* node) {
   return Change(
       node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorYield),
       0);
-}
-
-Reduction JSIntrinsicLowering::ReduceGeneratorGetContext(Node* node) {
-  Node* const generator = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op =
-      simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectContext());
-
-  return Change(node, op, generator, effect, control);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorGetResumeMode(Node* node) {
@@ -272,6 +291,17 @@ Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
 }
 
+Reduction JSIntrinsicLowering::ReduceRejectPromise(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->RejectPromise());
+  return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceResolvePromise(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->ResolvePromise());
+  return Changed(node);
+}
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   // Replace all effect uses of {node} with the effect dependency.
@@ -384,16 +414,6 @@ Reduction JSIntrinsicLowering::ReduceTheHole(Node* node) {
   return Replace(value);
 }
 
-Reduction JSIntrinsicLowering::ReduceClassOf(Node* node) {
-  RelaxEffectsAndControls(node);
-  // The ClassOf operator has a single value input and control input.
-  Node* control_input = NodeProperties::GetControlInput(node, 0);
-  node->TrimInputCount(2);
-  node->ReplaceInput(1, control_input);
-  NodeProperties::ChangeOp(node, simplified()->ClassOf());
-  return Changed(node);
-}
-
 Reduction JSIntrinsicLowering::ReduceStringMaxLength(Node* node) {
   Node* value = jsgraph()->Constant(String::kMaxLength);
   ReplaceWithValue(node, value);
@@ -438,12 +458,12 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 
 Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
                                       int stack_parameter_count) {
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), stack_parameter_count,
       CallDescriptor::kNeedsFrameState, node->op()->properties());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(callable.code()));
-  NodeProperties::ChangeOp(node, common()->Call(desc));
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
 

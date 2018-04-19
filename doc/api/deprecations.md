@@ -1,6 +1,7 @@
 # Deprecated APIs
 
 <!--introduced_in=v7.7.0-->
+<!-- type=misc -->
 
 Node.js may deprecate APIs when either: (a) use of the API is considered to be
 unsafe, (b) an improved alternative API has been made available, or (c)
@@ -806,7 +807,7 @@ API instead.
 
 Type: End-of-Life
 
-`runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
+`runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
 cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
 details.
 
@@ -822,14 +823,13 @@ same as the legacy assert but it will always use strict equality checks.
 <a id="DEP0090"></a>
 ### DEP0090: Invalid GCM authentication tag lengths
 
-Type: Runtime
+Type: End-of-Life
 
-Node.js supports all GCM authentication tag lengths which are accepted by
-OpenSSL when calling [`decipher.setAuthTag()`][]. This behavior will change in
-a future version at which point only authentication tag lengths of 128, 120,
-112, 104, 96, 64, and 32 bits will be allowed. Authentication tags whose length
-is not included in this list will be considered invalid in compliance with
-[NIST SP 800-38D][].
+Node.js used to support all GCM authentication tag lengths which are accepted by
+OpenSSL when calling [`decipher.setAuthTag()`][]. Beginning with node REPLACEME,
+only authentication tag lengths of 128, 120, 112, 104, 96, 64, and 32 bits are
+allowed. Authentication tags whose length is not included in this list are
+considered invalid in compliance with [NIST SP 800-38D][].
 
 <a id="DEP0091"></a>
 ### DEP0091: crypto.DEFAULT_ENCODING
@@ -958,11 +958,11 @@ property to a string before assigning it to `process.env`.
 <a id="DEP0105"></a>
 ### DEP0105: decipher.finaltol
 
-Type: Runtime
+Type: End-of-Life
 
-`decipher.finaltol()` has never been documented and is currently an alias for
-[`decipher.final()`][]. In the future, this API will likely be removed, and it
-is recommended to use [`decipher.final()`][] instead.
+`decipher.finaltol()` has never been documented and was an alias for
+[`decipher.final()`][]. This API has been removed, and it is recommended to use
+[`decipher.final()`][] instead.
 
 <a id="DEP0106"></a>
 ### DEP0106: crypto.createCipher and crypto.createDecipher

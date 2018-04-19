@@ -13,6 +13,7 @@ assertThrows("/\\c/u", SyntaxError);
 assertThrows("/\\c0/u", SyntaxError);
 // test262/built-ins/RegExp/unicode_restricted_quantifiable_assertion
 assertThrows("/(?=.)*/u", SyntaxError);
+assertThrows("/(?=.){1,2}/u", SyntaxError);
 // test262/built-ins/RegExp/unicode_restricted_octal_escape
 assertThrows("/[\\1]/u", SyntaxError);
 assertThrows("/\\00/u", SyntaxError);

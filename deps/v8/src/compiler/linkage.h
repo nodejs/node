@@ -184,7 +184,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // Push argument count as part of function prologue.
     kPushArgumentCount = 1u << 5,
     // Use retpoline for this call if indirect.
-    kRetpoline = 1u << 6
+    kRetpoline = 1u << 6,
+    // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
+    // indirect target address when calling.
+    kFixedTargetRegister = 1u << 7
   };
   typedef base::Flags<Flag> Flags;
 

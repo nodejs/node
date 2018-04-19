@@ -176,7 +176,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateObjectLiteral(0, 0, 0, reg);
 
   // Emit tagged template operations.
-  builder.GetTemplateObject(0);
+  builder.GetTemplateObject(0, 0);
 
   // Call operations.
   builder.CallAnyReceiver(reg, reg_list, 1)
@@ -384,9 +384,17 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreModuleVariable(1, 42);
 
   // Emit generator operations.
-  builder.SuspendGenerator(reg, reg_list, 0)
-      .RestoreGeneratorState(reg)
-      .ResumeGenerator(reg, reg, reg_list);
+  {
+    // We have to skip over suspend because it returns and marks the remaining
+    // bytecode dead.
+    BytecodeLabel after_suspend;
+    builder.JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_suspend)
+        .SuspendGenerator(reg, reg_list, 0)
+        .Bind(&after_suspend)
+        .ResumeGenerator(reg, reg_list);
+  }
+  BytecodeJumpTable* gen_jump_table = builder.AllocateJumpTable(1, 0);
+  builder.SwitchOnGeneratorState(reg, gen_jump_table).Bind(gen_jump_table, 0);
 
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg_list);
@@ -438,6 +446,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       operand_scale = Bytecodes::PrefixBytecodeToOperandScale(final_bytecode);
       prefix_offset = 1;
       code = the_array->get(i + 1);
+      scorecard[code] += 1;
       final_bytecode = Bytecodes::FromByte(code);
     }
     i += prefix_offset + Bytecodes::Size(final_bytecode, operand_scale);
@@ -457,7 +466,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 #define CHECK_BYTECODE_PRESENT(Name, ...)                                \
   /* Check Bytecode is marked in scorecard, unless it's a debug break */ \
   if (!Bytecodes::IsDebugBreak(Bytecode::k##Name)) {                     \
-    CHECK_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);        \
+    EXPECT_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);       \
   }
   BYTECODE_LIST(CHECK_BYTECODE_PRESENT)
 #undef CHECK_BYTECODE_PRESENT

@@ -105,9 +105,6 @@ double StringToDouble(UnicodeCache* unicode_cache,
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix);
 
-// This follows BigInt.parseInt semantics: "" => SyntaxError.
-MaybeHandle<BigInt> BigIntParseInt(Isolate* isolate, Handle<String> string,
-                                   int radix);
 // This follows https://tc39.github.io/proposal-bigint/#sec-string-to-bigint
 // semantics: "" => 0n.
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);

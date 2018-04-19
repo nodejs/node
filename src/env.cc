@@ -4,6 +4,7 @@
 #include "node_platform.h"
 #include "node_file.h"
 #include "node_context_data.h"
+#include "tracing/agent.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -93,9 +94,11 @@ void InitThreadLocalOnce() {
 }
 
 Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context)
+                         Local<Context> context,
+                         tracing::Agent* tracing_agent)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
+      tracing_agent_(tracing_agent),
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),

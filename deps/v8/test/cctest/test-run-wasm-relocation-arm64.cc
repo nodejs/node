@@ -64,8 +64,7 @@ TEST(WasmRelocationArm64ContextReference) {
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     DCHECK(RelocInfo::IsWasmContextReference(it.rinfo()->rmode()));
     it.rinfo()->set_wasm_context_reference(
-        isolate, it.rinfo()->wasm_context_reference() + offset,
-        SKIP_ICACHE_FLUSH);
+        it.rinfo()->wasm_context_reference() + offset, SKIP_ICACHE_FLUSH);
   }
 
   // Call into relocated code object

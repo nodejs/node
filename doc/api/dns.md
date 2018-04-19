@@ -56,7 +56,7 @@ dns.resolve4('archive.org', (err, addresses) => {
 There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
 
-## Class dns.Resolver
+## Class: dns.Resolver
 <!-- YAML
 added: v8.3.0
 -->
@@ -109,6 +109,8 @@ callbacks will be called with an error with code `ECANCELLED`.
 <!-- YAML
 added: v0.11.3
 -->
+
+* Returns: {string[]}
 
 Returns an array of IP address strings, formatted according to [rfc5952][],
 that are currently configured for DNS resolution. A string will include a port

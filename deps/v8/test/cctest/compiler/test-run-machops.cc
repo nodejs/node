@@ -6742,7 +6742,7 @@ TEST(RunComputedCodeObject) {
   CallDescriptor* c = Linkage::GetSimplifiedCDescriptor(r.zone(), &sig);
   LinkageLocation ret[] = {c->GetReturnLocation(0)};
   Signature<LinkageLocation> loc(1, 0, ret);
-  CallDescriptor* desc = new (r.zone()) CallDescriptor(  // --
+  auto call_descriptor = new (r.zone()) CallDescriptor(  // --
       CallDescriptor::kCallCodeObject,                   // kind
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc
@@ -6753,7 +6753,7 @@ TEST(RunComputedCodeObject) {
       c->CalleeSavedFPRegisters(),                       // callee saved FP
       CallDescriptor::kNoFlags,                          // flags
       "c-call-as-code");
-  Node* call = r.AddNode(r.common()->Call(desc), phi);
+  Node* call = r.AddNode(r.common()->Call(call_descriptor), phi);
   r.Return(call);
 
   CHECK_EQ(33, r.Call(1));
@@ -6916,7 +6916,7 @@ TEST(Regression6640) {
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(code->GetHeap());
     it.rinfo()->update_wasm_function_table_size_reference(
-        code->GetIsolate(), old_value, new_value, FLUSH_ICACHE_IF_NEEDED);
+        old_value, new_value, FLUSH_ICACHE_IF_NEEDED);
   }
 
   CHECK(m.Call());

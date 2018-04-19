@@ -745,6 +745,12 @@ void AsmJsParser::ValidateFunction() {
 
   CachedVector<AsmType*> params(cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
+
+  // Check against limit on number of parameters.
+  if (params.size() >= kV8MaxWasmFunctionParams) {
+    FAIL("Number of parameters exceeds internal limit");
+  }
+
   CachedVector<ValueType> locals(cached_valuetype_vectors_);
   ValidateFunctionLocals(params.size(), &locals);
 

@@ -70,7 +70,7 @@ namespace internal {
   ASM(JSConstructStubGenericUnrestrictedReturn)                                \
   ASM(JSBuiltinsConstructStub)                                                 \
   TFC(FastNewObject, FastNewObject, 1)                                         \
-  TFC(FastNewClosure, FastNewClosure, 1)                                       \
+  TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
   TFC(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
   TFC(FastNewFunctionContextFunction, FastNewFunctionContext, 1)               \
   TFS(CreateRegExpLiteral, kFeedbackVector, kSlot, kPattern, kFlags)           \
@@ -92,8 +92,8 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFC(StringCharAt, StringAt, 1)                                               \
-  TFC(StringCharCodeAt, StringAt, 1)                                           \
-  TFC(StringCodePointAt, StringAt, 1)                                          \
+  TFC(StringCodePointAtUTF16, StringAt, 1)                                     \
+  TFC(StringCodePointAtUTF32, StringAt, 1)                                     \
   TFC(StringEqual, Compare, 1)                                                 \
   TFC(StringGreaterThan, Compare, 1)                                           \
   TFC(StringGreaterThanOrEqual, Compare, 1)                                    \
@@ -101,7 +101,7 @@ namespace internal {
   TFC(StringLessThan, Compare, 1)                                              \
   TFC(StringLessThanOrEqual, Compare, 1)                                       \
   TFS(StringRepeat, kString, kCount)                                           \
-  TFS(SubString, kString, kFrom, kTo)                                          \
+  TFC(StringSubstring, StringSubstring, 1)                                     \
                                                                                \
   /* OrderedHashTable helpers */                                               \
   TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \
@@ -193,7 +193,6 @@ namespace internal {
   TFC(ToInteger, TypeConversion, 1)                                            \
   TFC(ToInteger_TruncateMinusZero, TypeConversion, 1)                          \
   TFC(ToLength, TypeConversion, 1)                                             \
-  TFC(ClassOf, Typeof, 1)                                                      \
   TFC(Typeof, Typeof, 1)                                                       \
   TFC(GetSuperConstructor, Typeof, 1)                                          \
                                                                                \
@@ -216,14 +215,9 @@ namespace internal {
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_Uninitialized, StoreWithVector)                                  \
                                                                                \
-  /* Promise helpers */                                                        \
-  TFS(ResolveNativePromise, kPromise, kValue)                                  \
-  TFS(RejectNativePromise, kPromise, kValue, kDebugEvent)                      \
-  TFS(PerformNativePromiseThen, kPromise, kResolveReaction, kRejectReaction,   \
-      kResultPromise)                                                          \
+  /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
   TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
-  TFS(PromiseResolveThenableJob, kMicrotask)                                   \
                                                                                \
   /* Object property helpers */                                                \
   TFS(HasProperty, kKey, kObject)                                              \
@@ -247,6 +241,10 @@ namespace internal {
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kArg)                                                   \
+  /* ES6 #sec-array.from */                                                    \
+  TFJ(ArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
+  /* ES6 #sec-array.of */                                                      \
+  TFJ(ArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES7 #sec-array.prototype.includes */                                      \
   TFJ(ArrayIncludes, SharedFunctionInfo::kDontAdaptArgumentsSentinel)          \
   /* ES6 #sec-array.prototype.indexof */                                       \
@@ -313,6 +311,7 @@ namespace internal {
   /* ES6 #sec-array.prototype.reduce */                                        \
   TFS(ArrayReduceLoopContinuation, kReceiver, kCallbackFn, kThisArg,           \
       kAccumulator, kObject, kInitialK, kLength, kTo)                          \
+  TFJ(ArrayReducePreLoopEagerDeoptContinuation, 2, kCallbackFn, kLength)       \
   TFJ(ArrayReduceLoopEagerDeoptContinuation, 4, kCallbackFn, kInitialK,        \
       kLength, kAccumulator)                                                   \
   TFJ(ArrayReduceLoopLazyDeoptContinuation, 4, kCallbackFn, kInitialK,         \
@@ -321,6 +320,7 @@ namespace internal {
   /* ES6 #sec-array.prototype.reduceRight */                                   \
   TFS(ArrayReduceRightLoopContinuation, kReceiver, kCallbackFn, kThisArg,      \
       kAccumulator, kObject, kInitialK, kLength, kTo)                          \
+  TFJ(ArrayReduceRightPreLoopEagerDeoptContinuation, 2, kCallbackFn, kLength)  \
   TFJ(ArrayReduceRightLoopEagerDeoptContinuation, 4, kCallbackFn, kInitialK,   \
       kLength, kAccumulator)                                                   \
   TFJ(ArrayReduceRightLoopLazyDeoptContinuation, 4, kCallbackFn, kInitialK,    \
@@ -365,17 +365,16 @@ namespace internal {
   CPP(ArrayBufferPrototypeSlice)                                               \
                                                                                \
   /* AsyncFunction */                                                          \
-  TFJ(AsyncFunctionAwaitCaught, 3, kGenerator, kAwaited, kOuterPromise)        \
-  TFJ(AsyncFunctionAwaitUncaught, 3, kGenerator, kAwaited, kOuterPromise)      \
-  TFJ(AsyncFunctionAwaitRejectClosure, 1, kSentError)                          \
-  TFJ(AsyncFunctionAwaitResolveClosure, 1, kSentValue)                         \
+  TFC(AsyncFunctionAwaitFulfill, PromiseReactionHandler, 1)                    \
+  TFC(AsyncFunctionAwaitReject, PromiseReactionHandler, 1)                     \
+  TFS(AsyncFunctionAwaitCaught, kGenerator, kValue, kOuterPromise)             \
+  TFS(AsyncFunctionAwaitUncaught, kGenerator, kValue, kOuterPromise)           \
   TFJ(AsyncFunctionPromiseCreate, 0)                                           \
   TFJ(AsyncFunctionPromiseRelease, 1, kPromise)                                \
                                                                                \
   /* BigInt */                                                                 \
   CPP(BigIntConstructor)                                                       \
   CPP(BigIntConstructor_ConstructStub)                                         \
-  CPP(BigIntParseInt)                                                          \
   CPP(BigIntAsUintN)                                                           \
   CPP(BigIntAsIntN)                                                            \
   CPP(BigIntPrototypeToLocaleString)                                           \
@@ -457,6 +456,10 @@ namespace internal {
   CPP(DataViewPrototypeSetFloat32)                                             \
   CPP(DataViewPrototypeGetFloat64)                                             \
   CPP(DataViewPrototypeSetFloat64)                                             \
+  CPP(DataViewPrototypeGetBigInt64)                                            \
+  CPP(DataViewPrototypeSetBigInt64)                                            \
+  CPP(DataViewPrototypeGetBigUint64)                                           \
+  CPP(DataViewPrototypeSetBigUint64)                                           \
                                                                                \
   /* Date */                                                                   \
   CPP(DateConstructor)                                                         \
@@ -755,7 +758,7 @@ namespace internal {
   CPP(ObjectDefineProperties)                                                  \
   CPP(ObjectDefineProperty)                                                    \
   CPP(ObjectDefineSetter)                                                      \
-  CPP(ObjectEntries)                                                           \
+  TFJ(ObjectEntries, 1, kObject)                                               \
   CPP(ObjectFreeze)                                                            \
   TFJ(ObjectGetOwnPropertyDescriptor,                                          \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
@@ -785,7 +788,7 @@ namespace internal {
   /* ES #sec-object.prototype.tolocalestring */                                \
   TFJ(ObjectPrototypeToLocaleString, 0)                                        \
   CPP(ObjectSeal)                                                              \
-  CPP(ObjectValues)                                                            \
+  TFJ(ObjectValues, 1, kObject)                                                \
                                                                                \
   /* instanceof */                                                             \
   TFC(OrdinaryHasInstance, Compare, 1)                                         \
@@ -796,36 +799,42 @@ namespace internal {
   TFS(ForInFilter, kKey, kObject)                                              \
                                                                                \
   /* Promise */                                                                \
+  /* ES #sec-fulfillpromise */                                                 \
+  TFS(FulfillPromise, kPromise, kValue)                                        \
+  /* ES #sec-rejectpromise */                                                  \
+  TFS(RejectPromise, kPromise, kReason, kDebugEvent)                           \
+  /* ES #sec-promise-resolve-functions */                                      \
+  /* Starting at step 6 of "Promise Resolve Functions" */                      \
+  TFS(ResolvePromise, kPromise, kResolution)                                   \
+  /* ES #sec-promise-reject-functions */                                       \
+  TFJ(PromiseCapabilityDefaultReject, 1, kReason)                              \
+  /* ES #sec-promise-resolve-functions */                                      \
+  TFJ(PromiseCapabilityDefaultResolve, 1, kResolution)                         \
   /* ES6 #sec-getcapabilitiesexecutor-functions */                             \
   TFJ(PromiseGetCapabilitiesExecutor, 2, kResolve, kReject)                    \
   /* ES6 #sec-newpromisecapability */                                          \
-  TFJ(NewPromiseCapability, 2, kConstructor, kDebugEvent)                      \
+  TFS(NewPromiseCapability, kConstructor, kDebugEvent)                         \
+  TFJ(PromiseConstructorLazyDeoptContinuation, 2, kPromise, kResult)           \
   /* ES6 #sec-promise-executor */                                              \
   TFJ(PromiseConstructor, 1, kExecutor)                                        \
-  TFJ(PromiseInternalConstructor, 1, kParent)                                  \
   CPP(IsPromise)                                                               \
-  /* ES #sec-promise-resolve-functions */                                      \
-  TFJ(PromiseResolveClosure, 1, kValue)                                        \
-  /* ES #sec-promise-reject-functions */                                       \
-  TFJ(PromiseRejectClosure, 1, kValue)                                         \
-  TFJ(PromiseAllResolveElementClosure, 1, kValue)                              \
   /* ES #sec-promise.prototype.then */                                         \
-  TFJ(PromisePrototypeThen, 2, kOnFullfilled, kOnRejected)                     \
+  TFJ(PromisePrototypeThen, 2, kOnFulfilled, kOnRejected)                      \
+  /* ES #sec-performpromisethen */                                             \
+  TFS(PerformPromiseThen, kPromise, kOnFulfilled, kOnRejected, kResultPromise) \
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kOnRejected)                                   \
-  /* ES #sec-fulfillpromise */                                                 \
-  TFJ(ResolvePromise, 2, kPromise, kValue)                                     \
-  TFS(PromiseHandleReject, kPromise, kOnReject, kException)                    \
-  TFS(PromiseHandle, kValue, kHandler, kDeferredPromise, kDeferredOnResolve,   \
-      kDeferredOnReject)                                                       \
-  TFJ(PromiseHandleJS, 5, kValue, kHandler, kDeferredPromise,                  \
-      kDeferredOnResolve, kDeferredOnReject)                                   \
+  /* ES #sec-promisereactionjob */                                             \
+  TFS(PromiseRejectReactionJob, kReason, kHandler, kPayload)                   \
+  TFS(PromiseFulfillReactionJob, kValue, kHandler, kPayload)                   \
+  /* ES #sec-promiseresolvethenablejob */                                      \
+  TFS(PromiseResolveThenableJob, kPromiseToResolve, kThenable, kThen)          \
   /* ES #sec-promise.resolve */                                                \
-  TFJ(PromiseResolveWrapper, 1, kValue)                                        \
+  TFJ(PromiseResolveTrampoline, 1, kValue)                                     \
+  /* ES #sec-promise-resolve */                                                \
   TFS(PromiseResolve, kConstructor, kValue)                                    \
   /* ES #sec-promise.reject */                                                 \
   TFJ(PromiseReject, 1, kReason)                                               \
-  TFJ(InternalPromiseReject, 3, kPromise, kReason, kDebugEvent)                \
   TFJ(PromisePrototypeFinally, 1, kOnFinally)                                  \
   TFJ(PromiseThenFinally, 1, kValue)                                           \
   TFJ(PromiseCatchFinally, 1, kReason)                                         \
@@ -833,8 +842,15 @@ namespace internal {
   TFJ(PromiseThrowerFinally, 0)                                                \
   /* ES #sec-promise.all */                                                    \
   TFJ(PromiseAll, 1, kIterable)                                                \
+  TFJ(PromiseAllResolveElementClosure, 1, kValue)                              \
   /* ES #sec-promise.race */                                                   \
   TFJ(PromiseRace, 1, kIterable)                                               \
+  /* V8 Extras: v8.createPromise(parent) */                                    \
+  TFJ(PromiseInternalConstructor, 1, kParent)                                  \
+  /* V8 Extras: v8.rejectPromise(promise, reason) */                           \
+  TFJ(PromiseInternalReject, 2, kPromise, kReason)                             \
+  /* V8 Extras: v8.resolvePromise(promise, resolution) */                      \
+  TFJ(PromiseInternalResolve, 2, kPromise, kResolution)                        \
                                                                                \
   /* Proxy */                                                                  \
   TFJ(ProxyConstructor, 0)                                                     \
@@ -1032,9 +1048,8 @@ namespace internal {
   /* ES6 #sec-string.prototype.tostring */                                     \
   TFJ(StringPrototypeToString, 0)                                              \
   TFJ(StringPrototypeTrim, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
-  TFJ(StringPrototypeTrimLeft,                                                 \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  TFJ(StringPrototypeTrimRight,                                                \
+  TFJ(StringPrototypeTrimEnd, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
+  TFJ(StringPrototypeTrimStart,                                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.valueof */                                      \
   TFJ(StringPrototypeValueOf, 0)                                               \
@@ -1062,16 +1077,13 @@ namespace internal {
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
   /* TypedArray */                                                             \
+  TFS(IterableToList, kIterable, kIteratorFn)                                  \
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
       kByteOffset)                                                             \
-  /* ES6 #sec-typedarray-buffer-byteoffset-length */                           \
-  TFJ(TypedArrayConstructByArrayBuffer, 5, kHolder, kBuffer, kByteOffset,      \
-      kLength, kElementSize)                                                   \
-  TFJ(TypedArrayConstructByArrayLike, 4, kHolder, kArrayLike, kLength,         \
-      kElementSize)                                                            \
-  /* ES6 #sec-typedarray-length */                                             \
-  TFJ(TypedArrayConstructByLength, 3, kHolder, kLength, kElementSize)          \
+  TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
+  TFJ(TypedArrayConstructor_ConstructStub,                                     \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \
@@ -1089,6 +1101,9 @@ namespace internal {
   CPP(TypedArrayPrototypeCopyWithin)                                           \
   /* ES6 #sec-%typedarray%.prototype.fill */                                   \
   CPP(TypedArrayPrototypeFill)                                                 \
+  /* ES6 #sec-%typedarray%.prototype.filter */                                 \
+  TFJ(TypedArrayPrototypeFilter,                                               \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.prototype.find */                                        \
   TFJ(TypedArrayPrototypeFind,                                                 \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
@@ -1106,7 +1121,11 @@ namespace internal {
   /* ES6 %TypedArray%.prototype.set */                                         \
   TFJ(TypedArrayPrototypeSet, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 #sec-%typedarray%.prototype.slice */                                  \
-  CPP(TypedArrayPrototypeSlice)                                                \
+  TFJ(TypedArrayPrototypeSlice,                                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  /* ES6 %TypedArray%.prototype.subarray */                                    \
+  TFJ(TypedArrayPrototypeSubArray,                                             \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \
   TFJ(TypedArrayPrototypeToStringTag, 0)                                       \
   /* ES6 %TypedArray%.prototype.every */                                       \
@@ -1126,6 +1145,10 @@ namespace internal {
   /* ES6 %TypedArray%.prototype.forEach */                                     \
   TFJ(TypedArrayPrototypeForEach,                                              \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  /* ES6 %TypedArray%.of */                                                    \
+  TFJ(TypedArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
+  /* ES6 %TypedArray%.from */                                                  \
+  TFJ(TypedArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
@@ -1159,6 +1182,17 @@ namespace internal {
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
+  /* Await (proposal-async-iteration/#await), with resume behaviour */         \
+  /* specific to Async Generators. Internal / Not exposed to JS code. */       \
+  TFS(AsyncGeneratorAwaitCaught, kGenerator, kValue)                           \
+  TFS(AsyncGeneratorAwaitUncaught, kGenerator, kValue)                         \
+  TFC(AsyncGeneratorAwaitFulfill, PromiseReactionHandler, 1)                   \
+  TFC(AsyncGeneratorAwaitReject, PromiseReactionHandler, 1)                    \
+  TFC(AsyncGeneratorYieldFulfill, PromiseReactionHandler, 1)                   \
+  TFC(AsyncGeneratorReturnClosedFulfill, PromiseReactionHandler, 1)            \
+  TFC(AsyncGeneratorReturnClosedReject, PromiseReactionHandler, 1)             \
+  TFC(AsyncGeneratorReturnFulfill, PromiseReactionHandler, 1)                  \
+                                                                               \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \
   TFS(AsyncGeneratorReject, kGenerator, kValue)                                \
   TFS(AsyncGeneratorYield, kGenerator, kValue, kIsCaught)                      \
@@ -1180,17 +1214,6 @@ namespace internal {
   /* proposal-async-iteration/#sec-asyncgenerator-prototype-throw */           \
   TFJ(AsyncGeneratorPrototypeThrow,                                            \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-                                                                               \
-  /* Await (proposal-async-iteration/#await), with resume behaviour */         \
-  /* specific to Async Generators. Internal / Not exposed to JS code. */       \
-  TFJ(AsyncGeneratorAwaitCaught, 2, kGenerator, kAwaited)                      \
-  TFJ(AsyncGeneratorAwaitUncaught, 2, kGenerator, kAwaited)                    \
-  TFJ(AsyncGeneratorAwaitResolveClosure, 1, kValue)                            \
-  TFJ(AsyncGeneratorAwaitRejectClosure, 1, kValue)                             \
-  TFJ(AsyncGeneratorYieldResolveClosure, 1, kValue)                            \
-  TFJ(AsyncGeneratorReturnClosedResolveClosure, 1, kValue)                     \
-  TFJ(AsyncGeneratorReturnClosedRejectClosure, 1, kValue)                      \
-  TFJ(AsyncGeneratorReturnResolveClosure, 1, kValue)                           \
                                                                                \
   /* Async-from-Sync Iterator */                                               \
                                                                                \
@@ -1240,25 +1263,16 @@ namespace internal {
   V(AsyncFromSyncIteratorPrototypeNext)              \
   V(AsyncFromSyncIteratorPrototypeReturn)            \
   V(AsyncFromSyncIteratorPrototypeThrow)             \
-  V(AsyncFunctionAwaitCaught)                        \
-  V(AsyncFunctionAwaitUncaught)                      \
   V(AsyncGeneratorResolve)                           \
-  V(AsyncGeneratorAwaitCaught)                       \
-  V(AsyncGeneratorAwaitUncaught)                     \
-  V(PerformNativePromiseThen)                        \
   V(PromiseAll)                                      \
   V(PromiseConstructor)                              \
-  V(PromiseHandle)                                   \
+  V(PromiseFulfillReactionJob)                       \
   V(PromiseRace)                                     \
-  V(PromiseResolve)                                  \
-  V(PromiseResolveClosure)                           \
-  V(RejectNativePromise)                             \
-  V(ResolveNativePromise)                            \
   V(ResolvePromise)
 
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown
-#define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)
+#define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseRejectReactionJob)
 
 #define IGNORE_BUILTIN(...)
 

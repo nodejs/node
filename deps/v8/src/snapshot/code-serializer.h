@@ -11,6 +11,38 @@
 namespace v8 {
 namespace internal {
 
+class ScriptData {
+ public:
+  ScriptData(const byte* data, int length);
+  ~ScriptData() {
+    if (owns_data_) DeleteArray(data_);
+  }
+
+  const byte* data() const { return data_; }
+  int length() const { return length_; }
+  bool rejected() const { return rejected_; }
+
+  void Reject() { rejected_ = true; }
+
+  void AcquireDataOwnership() {
+    DCHECK(!owns_data_);
+    owns_data_ = true;
+  }
+
+  void ReleaseDataOwnership() {
+    DCHECK(owns_data_);
+    owns_data_ = false;
+  }
+
+ private:
+  bool owns_data_ : 1;
+  bool rejected_ : 1;
+  const byte* data_;
+  int length_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScriptData);
+};
+
 class CodeSerializer : public Serializer<> {
  public:
   static ScriptData* Serialize(Isolate* isolate,

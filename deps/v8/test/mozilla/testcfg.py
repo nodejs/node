@@ -56,11 +56,11 @@ TEST_DIRS = """
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(TestSuite, self).__init__(name, root)
-    self.testroot = os.path.join(root, "data")
+  def __init__(self, *args, **kwargs):
+    super(TestSuite, self).__init__(*args, **kwargs)
+    self.testroot = os.path.join(self.root, "data")
 
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for testdir in TEST_DIRS:
       current_root = os.path.join(self.testroot, testdir)
@@ -86,7 +86,7 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.TestCase):
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
     testfilename = self.path + ".js"
     testfilepath = testfilename.split("/")
@@ -100,7 +100,7 @@ class TestCase(testcase.TestCase):
     files.append(os.path.join(self.suite.testroot, testfilename))
     return files
 
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return ['--expose-gc']
 
   def _get_source_path(self):
@@ -118,5 +118,5 @@ class TestCase(testcase.TestCase):
 
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

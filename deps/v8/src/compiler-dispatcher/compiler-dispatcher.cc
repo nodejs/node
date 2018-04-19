@@ -92,7 +92,7 @@ MemoryPressureTask::MemoryPressureTask(Isolate* isolate,
 MemoryPressureTask::~MemoryPressureTask() {}
 
 void MemoryPressureTask::RunInternal() {
-  dispatcher_->AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+  dispatcher_->AbortAll(BlockingBehavior::kDontBlock);
 }
 
 }  // namespace

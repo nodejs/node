@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INVALIDATED_SLOTS_INL_H
-#define V8_INVALIDATED_SLOTS_INL_H
+#ifndef V8_HEAP_INVALIDATED_SLOTS_INL_H_
+#define V8_HEAP_INVALIDATED_SLOTS_INL_H_
 
 #include <map>
 
@@ -67,4 +67,4 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_INVALIDATED_SLOTS_INL_H
+#endif  // V8_HEAP_INVALIDATED_SLOTS_INL_H_

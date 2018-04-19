@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_WORKLIST_
-#define V8_HEAP_WORKLIST_
+#ifndef V8_HEAP_WORKLIST_H_
+#define V8_HEAP_WORKLIST_H_
 
 #include <cstddef>
 #include <utility>
@@ -388,4 +388,4 @@ class Worklist {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_WORKLIST_
+#endif  // V8_HEAP_WORKLIST_H_

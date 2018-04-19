@@ -34,30 +34,10 @@ from . import command
 from . import statusfile
 from . import utils
 from ..objects.testcase import TestCase
-from variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
+from .variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
 
 
 STANDARD_VARIANT = set(["default"])
-
-
-class LegacyVariantsGenerator(object):
-  def __init__(self, suite, variants):
-    self.suite = suite
-    self.all_variants = ALL_VARIANTS & variants
-    self.standard_variant = STANDARD_VARIANT & variants
-
-  def FilterVariantsByTest(self, test):
-    if test.only_standard_variant:
-      return self.standard_variant
-    return self.all_variants
-
-  def GetFlagSets(self, test, variant):
-    return ALL_VARIANT_FLAGS[variant]
-
-
-class StandardLegacyVariantsGenerator(LegacyVariantsGenerator):
-  def FilterVariantsByTest(self, testcase):
-    return self.standard_variant
 
 
 class VariantsGenerator(object):
@@ -80,45 +60,58 @@ class VariantsGenerator(object):
     return self._all_variants
 
 
+class TestCombiner(object):
+  def get_group_key(self, test):
+    """To indicate what tests can be combined with each other we define a group
+    key for each test. Tests with the same group key can be combined. Test
+    without a group key (None) is not combinable with any other test.
+    """
+    raise NotImplementedError()
+
+  def combine(self, name, tests):
+    """Returns test combined from `tests`. Since we identify tests by their
+    suite and name, `name` parameter should be unique within one suite.
+    """
+    return self._combined_test_class()(name, tests)
+
+  def _combined_test_class(self):
+    raise NotImplementedError()
+
+
 class TestSuite(object):
   @staticmethod
-  def LoadTestSuite(root):
+  def LoadTestSuite(root, test_config):
     name = root.split(os.path.sep)[-1]
     f = None
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
       module = imp.load_module(name + "_testcfg", f, pathname, description)
-      return module.GetSuite(name, root)
+      return module.GetSuite(name, root, test_config)
     finally:
       if f:
         f.close()
 
-  def __init__(self, name, root):
-    # Note: This might be called concurrently from different processes.
+  def __init__(self, name, root, test_config):
     self.name = name  # string
     self.root = root  # string containing path
+    self.test_config = test_config
     self.tests = None  # list of TestCase objects
     self.statusfile = None
+    self.suppress_internals = False
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
 
-  def ListTests(self, context):
-    raise NotImplementedError
+  def do_suppress_internals(self):
+    """Specifies if this test suite should suppress asserts based on internals.
 
-  def _LegacyVariantsGeneratorFactory(self):
-    """The variant generator class to be used."""
-    return LegacyVariantsGenerator
-
-  def CreateLegacyVariantsGenerator(self, variants):
-    """Return a generator for the testing variants of this suite.
-
-    Args:
-      variants: List of variant names to be run as specified by the test
-                runner.
-    Returns: An object of type LegacyVariantsGenerator.
+    Internals are e.g. testing against the outcome of native runtime functions.
+    This is switched off on some fuzzers that violate these contracts.
     """
-    return self._LegacyVariantsGeneratorFactory()(self, set(variants))
+    self.suppress_internals = True
+
+  def ListTests(self):
+    raise NotImplementedError
 
   def get_variants_gen(self, variants):
     return self._variants_gen_class()(variants)
@@ -126,11 +119,26 @@ class TestSuite(object):
   def _variants_gen_class(self):
     return VariantsGenerator
 
+  def test_combiner_available(self):
+    return bool(self._test_combiner_class())
+
+  def get_test_combiner(self):
+    cls = self._test_combiner_class()
+    if cls:
+      return cls()
+    return None
+
+  def _test_combiner_class(self):
+    """Returns Combiner subclass. None if suite doesn't support combining
+    tests.
+    """
+    return None
+
   def ReadStatusFile(self, variables):
     self.statusfile = statusfile.StatusFile(self.status_file(), variables)
 
-  def ReadTestCases(self, context):
-    self.tests = self.ListTests(context)
+  def ReadTestCases(self):
+    self.tests = self.ListTests()
 
 
   def FilterTestCasesByStatus(self,
@@ -196,8 +204,19 @@ class TestSuite(object):
     self.tests = filtered
 
   def _create_test(self, path, **kwargs):
-    test = self._test_class()(self, path, self._path_to_name(path), **kwargs)
-    return test
+    if self.suppress_internals:
+      test_class = self._suppressed_test_class()
+    else:
+      test_class = self._test_class()
+    return test_class(self, path, self._path_to_name(path), self.test_config,
+                      **kwargs)
+
+  def _suppressed_test_class(self):
+    """Optional testcase that suppresses assertions. Used by fuzzers that are
+    only interested in dchecks or tsan and that might violate the assertions
+    through fuzzing.
+    """
+    return self._test_class()
 
   def _test_class(self):
     raise NotImplementedError

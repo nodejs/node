@@ -1150,10 +1150,6 @@ Type* Typer::Visitor::TypeJSNegate(Node* node) {
   return TypeUnaryOp(node, Negate);
 }
 
-Type* Typer::Visitor::TypeClassOf(Node* node) {
-  return Type::InternalizedStringOrNull();
-}
-
 Type* Typer::Visitor::TypeTypeOf(Node* node) {
   return Type::InternalizedString();
 }
@@ -1229,7 +1225,15 @@ Type* Typer::Visitor::TypeJSCreateIterResultObject(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSCreateStringIterator(Node* node) {
+  return Type::OtherObject();
+}
+
 Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
+  return Type::OtherObject();
+}
+
+Type* Typer::Visitor::TypeJSCreatePromise(Node* node) {
   return Type::OtherObject();
 }
 
@@ -1576,8 +1580,8 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kStringToString:
         case kStringToUpperCase:
         case kStringTrim:
-        case kStringTrimLeft:
-        case kStringTrimRight:
+        case kStringTrimEnd:
+        case kStringTrimStart:
         case kStringValueOf:
           return Type::String();
 
@@ -1768,8 +1772,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToObject);
     case Runtime::kInlineToString:
       return TypeUnaryOp(node, ToString);
-    case Runtime::kInlineClassOf:
-      return Type::InternalizedStringOrNull();
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:
@@ -1822,6 +1824,10 @@ Type* Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {
   return Type::SignedSmall();
 }
 
+Type* Typer::Visitor::TypeJSGeneratorRestoreContext(Node* node) {
+  return Type::Any();
+}
+
 Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {
   return Type::Any();
 }
@@ -1833,6 +1839,26 @@ Type* Typer::Visitor::TypeJSGeneratorRestoreInputOrDebugPos(Node* node) {
 Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
+
+Type* Typer::Visitor::TypeJSFulfillPromise(Node* node) {
+  return Type::Undefined();
+}
+
+Type* Typer::Visitor::TypeJSPerformPromiseThen(Node* node) {
+  return Type::Receiver();
+}
+
+Type* Typer::Visitor::TypeJSPromiseResolve(Node* node) {
+  return Type::Receiver();
+}
+
+Type* Typer::Visitor::TypeJSRejectPromise(Node* node) {
+  return Type::Undefined();
+}
+
+Type* Typer::Visitor::TypeJSResolvePromise(Node* node) {
+  return Type::Undefined();
+}
 
 // Simplified operators.
 
@@ -1936,9 +1962,13 @@ Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
 
 Type* Typer::Visitor::TypeStringCharAt(Node* node) { return Type::String(); }
 
-Type* Typer::Visitor::TypeStringToLowerCaseIntl(Node* node) { UNREACHABLE(); }
+Type* Typer::Visitor::TypeStringToLowerCaseIntl(Node* node) {
+  return Type::String();
+}
 
-Type* Typer::Visitor::TypeStringToUpperCaseIntl(Node* node) { UNREACHABLE(); }
+Type* Typer::Visitor::TypeStringToUpperCaseIntl(Node* node) {
+  return Type::String();
+}
 
 Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
   return typer_->cache_.kUint16;
@@ -1971,6 +2001,8 @@ Type* Typer::Visitor::TypeStringIndexOf(Node* node) {
 Type* Typer::Visitor::TypeStringLength(Node* node) {
   return typer_->cache_.kStringLengthType;
 }
+
+Type* Typer::Visitor::TypeStringSubstring(Node* node) { return Type::String(); }
 
 Type* Typer::Visitor::TypeMaskIndexWithBound(Node* node) {
   return Type::Union(Operand(node, 0), typer_->cache_.kSingletonZero, zone());

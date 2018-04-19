@@ -21,12 +21,14 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_constants.h"
 #include "node_crypto.h"
 #include "node_crypto_bio.h"
 #include "node_crypto_groups.h"
 #include "node_crypto_clienthello-inl.h"
 #include "node_mutex.h"
+#include "node_internals.h"
 #include "tls_wrap.h"  // TLSWrap
 
 #include "async_wrap-inl.h"
@@ -43,20 +45,6 @@
 #include <algorithm>
 #include <memory>
 #include <vector>
-
-#define THROW_AND_RETURN_IF_NOT_BUFFER(val, prefix)           \
-  do {                                                        \
-    if (!Buffer::HasInstance(val)) {                          \
-      return env->ThrowTypeError(prefix " must be a buffer"); \
-    }                                                         \
-  } while (0)
-
-#define THROW_AND_RETURN_IF_NOT_STRING(val, prefix)           \
-  do {                                                        \
-    if (!val->IsString()) {                                   \
-      return env->ThrowTypeError(prefix " must be a string"); \
-    }                                                         \
-  } while (0)
 
 static const char PUBLIC_KEY_PFX[] =  "-----BEGIN PUBLIC KEY-----";
 static const int PUBLIC_KEY_PFX_LEN = sizeof(PUBLIC_KEY_PFX) - 1;
@@ -506,7 +494,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   unsigned int len = args.Length();
   if (len < 1) {
-    return env->ThrowError("Private key argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Private key argument is mandatory");
   }
 
   if (len > 2) {
@@ -517,7 +505,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
     if (args[1]->IsUndefined() || args[1]->IsNull())
       len = 1;
     else
-      THROW_AND_RETURN_IF_NOT_STRING(args[1], "Pass phrase");
+      THROW_AND_RETURN_IF_NOT_STRING(env, args[1], "Pass phrase");
   }
 
   BIO *bio = LoadBIO(env, args[0]);
@@ -704,7 +692,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Certificate argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Certificate argument is mandatory");
   }
 
   BIO* bio = LoadBIO(env, args[0]);
@@ -778,7 +766,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("CA certificate argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "CA certificate argument is mandatory");
   }
 
   BIO* bio = LoadBIO(env, args[0]);
@@ -809,7 +797,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("CRL argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "CRL argument is mandatory");
   }
 
   ClearErrorOnReturn clear_error_on_return;
@@ -912,10 +900,10 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Ciphers argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Ciphers argument is mandatory");
   }
 
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Ciphers");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Ciphers");
 
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
   SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
@@ -928,9 +916,9 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = sc->env();
 
   if (args.Length() != 1)
-    return env->ThrowTypeError("ECDH curve name argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "ECDH curve name argument is mandatory");
 
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "ECDH curve name");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "ECDH curve name");
 
   node::Utf8Value curve(env->isolate(), args[0]);
 
@@ -951,7 +939,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   // Auto DH is not supported in openssl 1.0.1, so dhparam needs
   // to be specified explicitly
   if (args.Length() != 1)
-    return env->ThrowTypeError("DH argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "DH argument is mandatory");
 
   // Invalid dhparam is silently discarded and DHE is no longer used.
   BIO* bio = LoadBIO(env, args[0]);
@@ -968,7 +956,8 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   DH_get0_pqg(dh, &p, nullptr, nullptr);
   const int size = BN_num_bits(p);
   if (size < 1024) {
-    return env->ThrowError("DH parameter is less than 1024 bits");
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env, "DH parameter is less than 1024 bits");
   } else if (size < 2048) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
         env->isolate(), "DH parameter is less than 2048 bits"));
@@ -988,7 +977,8 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1 || !args[0]->IntegerValue()) {
-    return sc->env()->ThrowTypeError("Options must be an integer value");
+    return THROW_ERR_INVALID_ARG_TYPE(
+        sc->env(), "Options must be an integer value");
   }
 
   SSL_CTX_set_options(
@@ -1004,10 +994,11 @@ void SecureContext::SetSessionIdContext(
   Environment* env = sc->env();
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Session ID context argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(
+        env, "Session ID context argument is mandatory");
   }
 
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Session ID context");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Session ID context");
 
   const node::Utf8Value sessionIdContext(args.GetIsolate(), args[0]);
   const unsigned char* sid_ctx =
@@ -1042,8 +1033,8 @@ void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   if (args.Length() != 1 || !args[0]->IsInt32()) {
-    return sc->env()->ThrowTypeError(
-        "Session timeout must be a 32-bit integer");
+    return THROW_ERR_INVALID_ARG_TYPE(
+        sc->env(), "Session timeout must be a 32-bit integer");
   }
 
   int32_t sessionTimeout = args[0]->Int32Value();
@@ -1075,7 +1066,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   if (args.Length() < 1) {
-    return env->ThrowTypeError("PFX certificate argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "PFX certificate argument is mandatory");
   }
 
   in = LoadBIO(env, args[0]);
@@ -1084,7 +1075,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args.Length() >= 2) {
-    THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Pass phrase");
+    THROW_AND_RETURN_IF_NOT_BUFFER(env, args[1], "Pass phrase");
     size_t passlen = Buffer::Length(args[1]);
     pass = new char[passlen + 1];
     memcpy(pass, Buffer::Data(args[1]), passlen);
@@ -1208,13 +1199,14 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
 
   if (args.Length() < 1) {
-    return env->ThrowTypeError("Ticket keys argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Ticket keys argument is mandatory");
   }
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Ticket keys");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Ticket keys");
 
   if (Buffer::Length(args[0]) != 48) {
-    return env->ThrowTypeError("Ticket keys length must be 48 bytes");
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env, "Ticket keys length must be 48 bytes");
   }
 
   memcpy(wrap->ticket_key_name_, Buffer::Data(args[0]), 16);
@@ -1960,10 +1952,10 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
   if (args.Length() < 1) {
-    return env->ThrowError("Session argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Session argument is mandatory");
   }
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Session");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Session");
   size_t slen = Buffer::Length(args[0]);
   char* sbuf = new char[slen];
   memcpy(sbuf, Buffer::Data(args[0]), slen);
@@ -2085,9 +2077,9 @@ void SSLWrap<Base>::SetOCSPResponse(
   Environment* env = w->env();
 
   if (args.Length() < 1)
-    return env->ThrowTypeError("OCSP response argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "OCSP response argument is mandatory");
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "OCSP response");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "OCSP response");
 
   w->ocsp_response_.Reset(args.GetIsolate(), args[0].As<Object>());
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
@@ -2911,11 +2903,10 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_);
   if (mode == EVP_CIPH_GCM_MODE) {
     if (tag_len > 16 || (tag_len < 12 && tag_len != 8 && tag_len != 4)) {
-      char msg[125];
+      char msg[50];
       snprintf(msg, sizeof(msg),
-          "Permitting authentication tag lengths of %u bytes is deprecated. "
-          "Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.", tag_len);
-      ProcessEmitDeprecationWarning(cipher->env(), msg, "DEP0090");
+          "Invalid GCM authentication tag length: %u", tag_len);
+      return cipher->env()->ThrowError(msg);
     }
   }
 
@@ -3937,11 +3928,11 @@ template <PublicKeyCipher::Operation operation,
 void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Key");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Key");
   char* kbuf = Buffer::Data(args[0]);
   ssize_t klen = Buffer::Length(args[0]);
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Data");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[1], "Data");
   char* buf = Buffer::Data(args[1]);
   ssize_t len = Buffer::Length(args[1]);
 
@@ -4094,10 +4085,10 @@ void DiffieHellman::DiffieHellmanGroup(
   DiffieHellman* diffieHellman = new DiffieHellman(env, args.This());
 
   if (args.Length() != 1) {
-    return env->ThrowError("Group name argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(env, "Group name argument is mandatory");
   }
 
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Group name");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Group name");
 
   bool initialized = false;
 
@@ -4244,9 +4235,10 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   BIGNUM* key = nullptr;
 
   if (args.Length() == 0) {
-    return env->ThrowError("Other party's public key argument is mandatory");
+    return THROW_ERR_MISSING_ARGS(
+        env, "Other party's public key argument is mandatory");
   } else {
-    THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Other party's public key");
+    THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Other party's public key");
     key = BN_bin2bn(
         reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
         Buffer::Length(args[0]),
@@ -4314,12 +4306,12 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
 
   if (args.Length() == 0) {
     snprintf(errmsg, sizeof(errmsg), "%s argument is mandatory", what);
-    return env->ThrowError(errmsg);
+    return THROW_ERR_MISSING_ARGS(env, errmsg);
   }
 
   if (!Buffer::HasInstance(args[0])) {
     snprintf(errmsg, sizeof(errmsg), "%s must be a buffer", what);
-    return env->ThrowTypeError(errmsg);
+    return THROW_ERR_INVALID_ARG_TYPE(env, errmsg);
   }
 
   BIGNUM* num =
@@ -4397,12 +4389,13 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   // TODO(indutny): Support raw curves?
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "ECDH curve name");
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "ECDH curve name");
   node::Utf8Value curve(env->isolate(), args[0]);
 
   int nid = OBJ_sn2nid(*curve);
   if (nid == NID_undef)
-    return env->ThrowTypeError("First argument should be a valid curve name");
+    return THROW_ERR_INVALID_ARG_VALUE(env,
+        "First argument should be a valid curve name");
 
   EC_KEY* key = EC_KEY_new_by_curve_name(nid);
   if (key == nullptr)
@@ -4454,7 +4447,7 @@ EC_POINT* ECDH::BufferToPoint(Environment* env,
 void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Data");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Data");
 
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
@@ -4557,7 +4550,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Private key");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Private key");
 
   BIGNUM* priv = BN_bin2bn(
       reinterpret_cast<unsigned char*>(Buffer::Data(args[0].As<Object>())),
@@ -4611,7 +4604,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
+  THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Public key");
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 

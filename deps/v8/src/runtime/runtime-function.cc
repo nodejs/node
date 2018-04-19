@@ -88,17 +88,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   return fun->native_context()->debug_context_id();
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  CONVERT_SMI_ARG_CHECKED(length, 1);
-  fun->shared()->set_length(length);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -156,10 +145,10 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   Handle<Context> context(source->context());
   target->set_context(*context);
 
-  // Make sure we get a fresh copy of the literal vector to avoid cross
-  // context contamination, and that the literal vector makes it's way into
+  // Make sure we get a fresh copy of the feedback vector to avoid cross
+  // context contamination, and that the feedback vector makes it's way into
   // the target_shared optimized code map.
-  JSFunction::EnsureLiterals(target);
+  JSFunction::EnsureFeedbackVector(target);
 
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     isolate->logger()->LogExistingFunction(

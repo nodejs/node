@@ -29,4 +29,4 @@ class BasicBlockInstrumentor : public AllStatic {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILER_BASIC_BLOCK_INSTRUMENTOR_H_

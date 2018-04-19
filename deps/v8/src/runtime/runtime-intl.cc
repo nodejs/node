@@ -15,6 +15,7 @@
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/factory.h"
+#include "src/global-handles.h"
 #include "src/intl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"

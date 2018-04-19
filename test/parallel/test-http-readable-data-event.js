@@ -6,16 +6,21 @@ const http = require('http');
 const helloWorld = 'Hello World!';
 const helloAgainLater = 'Hello again later!';
 
+let next = null;
+
 const server = http.createServer((req, res) => {
   res.writeHead(200, {
     'Content-Length': '' + (helloWorld.length + helloAgainLater.length)
   });
-  res.write(helloWorld);
 
   // we need to make sure the data is flushed
-  setTimeout(() => {
+  // before writing again
+  next = () => {
     res.end(helloAgainLater);
-  }, common.platformTimeout(10));
+    next = () => {};
+  };
+
+  res.write(helloWorld);
 }).listen(0, function() {
   const opts = {
     hostname: 'localhost',
@@ -27,7 +32,7 @@ const server = http.createServer((req, res) => {
   const expectedRead = [helloWorld, null, helloAgainLater, null];
 
   const req = http.request(opts, (res) => {
-    res.on('error', common.mustNotCall);
+    res.on('error', common.mustNotCall());
 
     res.on('readable', common.mustCall(() => {
       let data;
@@ -35,6 +40,7 @@ const server = http.createServer((req, res) => {
       do {
         data = res.read();
         assert.strictEqual(data, expectedRead.shift());
+        next();
       } while (data !== null);
     }, 2));
 

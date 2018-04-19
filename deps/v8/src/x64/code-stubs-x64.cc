@@ -135,7 +135,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     Label fast_power, try_arithmetic_simplification;
     // Detect integer exponents stored as double.
     __ DoubleToI(exponent, double_exponent, double_scratch,
-                 TREAT_MINUS_ZERO_AS_ZERO, &try_arithmetic_simplification,
                  &try_arithmetic_simplification,
                  &try_arithmetic_simplification);
     __ jmp(&int_exponent);
@@ -425,6 +424,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ movp(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
   __ bind(&skip);
 
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
+
   // Compute the handler entry address and jump to it.
   __ movp(rdi, masm->ExternalOperand(pending_handler_entrypoint_address));
   __ jmp(rdi);
@@ -609,7 +614,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Call the entry hook function.
   __ Move(rax, FUNCTION_ADDR(isolate()->function_entry_hook()),
-          Assembler::RelocInfoNone());
+          RelocInfo::NONE);
 
   AllowExternalCallThatCantCauseGC scope(masm);
 

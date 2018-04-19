@@ -19,7 +19,8 @@ template <int kArrayLength>
 class CustomArgumentsBase : public Relocatable {
  public:
   virtual inline void IterateInstance(RootVisitor* v) {
-    v->VisitRootPointers(Root::kRelocatable, values_, values_ + kArrayLength);
+    v->VisitRootPointers(Root::kRelocatable, nullptr, values_,
+                         values_ + kArrayLength);
   }
 
  protected:
@@ -215,9 +216,13 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  Handle<Object> Call(FunctionCallback f);
+  Handle<Object> Call(CallHandlerInfo* handler);
 
  private:
+  inline JSObject* holder() {
+    return JSObject::cast(this->begin()[T::kHolderIndex]);
+  }
+
   internal::Object** argv_;
   int argc_;
 };

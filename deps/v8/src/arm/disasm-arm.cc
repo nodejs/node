@@ -937,8 +937,14 @@ void Decoder::DecodeType01(Instruction* instr) {
     } else {
       Unknown(instr);  // not used by V8
     }
-  } else if ((type == 1) && instr->IsNopType1()) {
-    Format(instr, "nop'cond");
+  } else if ((type == 1) && instr->IsNopLikeType1()) {
+    if (instr->BitField(7, 0) == 0) {
+      Format(instr, "nop'cond");
+    } else if (instr->BitField(7, 0) == 20) {
+      Format(instr, "csdb");
+    } else {
+      Unknown(instr);  // Not used in V8.
+    }
   } else {
     switch (instr->OpcodeField()) {
       case AND: {

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef SRC_LIBPLATFORM_TRACING_TRACE_WRITER_H_
-#define SRC_LIBPLATFORM_TRACING_TRACE_WRITER_H_
+#ifndef V8_LIBPLATFORM_TRACING_TRACE_WRITER_H_
+#define V8_LIBPLATFORM_TRACING_TRACE_WRITER_H_
 
 #include "include/libplatform/v8-tracing.h"
 
@@ -30,4 +30,4 @@ class JSONTraceWriter : public TraceWriter {
 }  // namespace platform
 }  // namespace v8
 
-#endif  // SRC_LIBPLATFORM_TRACING_TRACE_WRITER_H_
+#endif  // V8_LIBPLATFORM_TRACING_TRACE_WRITER_H_

@@ -56,8 +56,20 @@
       "path": ["Generators"],
       "main": "run.js",
       "resources": ["generators.js"],
-      "flags": ["--harmony-function-sent"],
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "ArrayLiteralSpread",
+      "path": ["ArrayLiteralSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "ForOfPush"},
+        {"name": "ForOfSet"},
+        {"name": "Spread"}
+      ]
     },
     {
       "name": "RestParameters",
@@ -190,7 +202,14 @@
         {"name": "StringIndexOfConstant"},
         {"name": "StringIndexOfNonConstant"},
         {"name": "StringCharCodeAtConstant"},
-        {"name": "StringCharCodeAtNonConstant"}
+        {"name": "StringCharCodeAtNonConstant"},
+        {"name": "StringCharCodeAtConstantInbounds"},
+        {"name": "StringCharCodeAtNonConstantInbounds"},
+        {"name": "StringCodePointAtConstant"},
+        {"name": "StringCodePointAtNonConstant"},
+        {"name": "StringCodePointAtConstantInbounds"},
+        {"name": "StringCodePointAtNonConstantInbounds"}
+
       ]
     },
     {
@@ -397,7 +416,7 @@
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
         "reduce.js", "reduce-right.js", "to-string.js", "find.js",
-        "find-index.js", "of.js"
+        "find-index.js", "from.js", "of.js", "for-each.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -473,7 +492,16 @@
         {"name": "SmallTransplantedArrayOf"},
         {"name": "SmallDoubleArrayOf"},
         {"name": "SmallStringArrayOf"},
-        {"name": "SmallMixedArrayOf"}
+        {"name": "SmallMixedArrayOf"},
+        {"name": "SmiFrom"},
+        {"name": "SmallSmiFrom"},
+        {"name": "SmiNoMapFrom"},
+        {"name": "SmiNoIteratorFrom"},
+        {"name": "TransplantedFrom"},
+        {"name": "DoubleFrom"},
+        {"name": "StringFrom"},
+        {"name": "StringNoMapFrom"},
+        {"name": "MixedFrom"}
       ]
     },
     {

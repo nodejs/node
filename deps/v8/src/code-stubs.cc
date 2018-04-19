@@ -71,9 +71,9 @@ void CodeStubDescriptor::Initialize(Register stack_parameter_count,
 
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
-  NumberDictionary* stubs = isolate()->heap()->code_stubs();
+  SimpleNumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(isolate(), GetKey());
-  if (index != NumberDictionary::kNotFound) {
+  if (index != SimpleNumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
     return true;
   }
@@ -97,10 +97,10 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
 
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
-  Handle<NumberDictionary> dict(heap->code_stubs());
+  Handle<SimpleNumberDictionary> dict(heap->code_stubs());
   int entry = dict->FindEntry(GetKey());
-  DCHECK_NE(NumberDictionary::kNotFound, entry);
-  dict = NumberDictionary::DeleteEntry(dict, entry);
+  DCHECK_NE(SimpleNumberDictionary::kNotFound, entry);
+  dict = SimpleNumberDictionary::DeleteEntry(dict, entry);
   heap->SetRootCodeStubs(*dict);
 }
 
@@ -121,17 +121,17 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
     Generate(&masm);
   }
 
-  // Allocate the handler table.
-  Handle<HandlerTable> table = GenerateHandlerTable();
+  // Generate the handler table.
+  int handler_table_offset = GenerateHandlerTable(&masm);
 
   // Create the code object.
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Handle<Code> new_object = factory->NewCode(
-      desc, Code::STUB, masm.CodeObject(), Builtins::kNoBuiltinId, table,
+      desc, Code::STUB, masm.CodeObject(), Builtins::kNoBuiltinId,
       MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate()),
-      NeedsImmovableCode(), GetKey());
+      NeedsImmovableCode(), GetKey(), false, 0, 0, handler_table_offset);
   return new_object;
 }
 
@@ -166,8 +166,8 @@ Handle<Code> CodeStub::GetCode() {
 #endif
 
     // Update the dictionary and the root in Heap.
-    Handle<NumberDictionary> dict =
-        NumberDictionary::Set(handle(heap->code_stubs()), GetKey(), new_object);
+    Handle<SimpleNumberDictionary> dict = SimpleNumberDictionary::Set(
+        handle(heap->code_stubs()), GetKey(), new_object);
     heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }
@@ -225,9 +225,7 @@ void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
   }
 }
 
-Handle<HandlerTable> PlatformCodeStub::GenerateHandlerTable() {
-  return HandlerTable::Empty(isolate());
-}
+int PlatformCodeStub::GenerateHandlerTable(MacroAssembler* masm) { return 0; }
 
 static void InitializeDescriptorDispatchedCall(CodeStub* stub,
                                                void** value_out) {
@@ -289,7 +287,7 @@ TF_STUB(StringAddStub, CodeStubAssembler) {
     CodeStubAssembler::AllocationFlag allocation_flags =
         (pretenure_flag == TENURED) ? CodeStubAssembler::kPretenured
                                     : CodeStubAssembler::kNone;
-    Return(StringAdd(context, left, right, allocation_flags));
+    Return(StringAdd(context, CAST(left), CAST(right), allocation_flags));
   } else {
     Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
                                                pretenure_flag);
@@ -332,7 +330,7 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
     TransitionElementsKind(receiver, map, stub->from_kind(), stub->to_kind(),
                            stub->is_jsarray(), &miss);
     EmitElementStore(receiver, key, value, stub->is_jsarray(), stub->to_kind(),
-                     stub->store_mode(), &miss);
+                     stub->store_mode(), &miss, context);
     Return(value);
   }
 
@@ -434,11 +432,10 @@ TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
                   vector);
 }
 
-Handle<HandlerTable> JSEntryStub::GenerateHandlerTable() {
-  Handle<FixedArray> handler_table =
-      isolate()->factory()->NewFixedArray(1, TENURED);
-  handler_table->set(0, Smi::FromInt(handler_offset_));
-  return Handle<HandlerTable>::cast(handler_table);
+int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
+  int handler_table_offset = HandlerTable::EmitReturnTableStart(masm, 1);
+  HandlerTable::EmitReturnEntry(masm, 0, handler_offset_);
+  return handler_table_offset;
 }
 
 
@@ -524,7 +521,7 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
   Label miss(this);
 
   EmitElementStore(receiver, key, value, stub->is_js_array(),
-                   stub->elements_kind(), stub->store_mode(), &miss);
+                   stub->elements_kind(), stub->store_mode(), &miss, context);
   Return(value);
 
   BIND(&miss);
@@ -541,12 +538,13 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
   StoreFastElementStub(isolate, false, HOLEY_ELEMENTS, STANDARD_STORE)
       .GetCode();
   StoreFastElementStub(isolate, false, HOLEY_ELEMENTS,
-                       STORE_AND_GROW_NO_TRANSITION)
+                       STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
       .GetCode();
   for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
     ElementsKind kind = static_cast<ElementsKind>(i);
     StoreFastElementStub(isolate, true, kind, STANDARD_STORE).GetCode();
-    StoreFastElementStub(isolate, true, kind, STORE_AND_GROW_NO_TRANSITION)
+    StoreFastElementStub(isolate, true, kind,
+                         STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
         .GetCode();
   }
 }

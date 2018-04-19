@@ -475,6 +475,10 @@ opportunity for the contributor to learn a bit more about the project.
 It is always good to clearly indicate nits when you comment: e.g.
 `Nit: change foo() to bar(). But this is not blocking.`
 
+If your comments were addressed but were not folded automatically after new
+commits or if they proved to be mistaken, please, [hide them][hiding-a-comment]
+with the appropriate reason to keep the conversation flow concise and relevant.
+
 ### Be aware of the person behind the code
 
 Be aware that *how* you communicate requests and reviews in your feedback can
@@ -658,3 +662,4 @@ you can take a look at the
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Onboarding guide]: ../../onboarding.md
+[hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment

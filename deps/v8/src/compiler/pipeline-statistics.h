@@ -98,4 +98,4 @@ class PhaseScope {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILER_PIPELINE_STATISTICS_H_

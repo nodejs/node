@@ -319,12 +319,14 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
       GotoIf(Float64Equal(input_value, ChangeInt32ToFloat64(input_value32)),
              &if_inputissigned32);
 
-      // Check if the absolute {input} value is in the ]0.01,1e9[ range.
+      // Check if the absolute {input} value is in the [1,1<<31[ range.
+      // Take the generic path for the range [0,1[ because the result
+      // could be -0.
       Node* input_value_abs = Float64Abs(input_value);
 
-      GotoIfNot(Float64LessThan(input_value_abs, Float64Constant(1e9)),
+      GotoIfNot(Float64LessThan(input_value_abs, Float64Constant(1u << 31)),
                 &if_generic);
-      Branch(Float64LessThan(Float64Constant(0.01), input_value_abs),
+      Branch(Float64LessThanOrEqual(Float64Constant(1), input_value_abs),
              &if_inputissigned32, &if_generic);
 
       // Return the truncated int32 value, and return the tagged result.
@@ -904,8 +906,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     }
     BIND(&dividend_is_not_zero);
 
-    Node* untagged_divisor = SmiToWord32(divisor);
-    Node* untagged_dividend = SmiToWord32(dividend);
+    Node* untagged_divisor = SmiToInt32(divisor);
+    Node* untagged_dividend = SmiToInt32(dividend);
 
     // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
     // if the Smi size is 31) and {divisor} is -1.
@@ -929,7 +931,7 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     Node* truncated = Int32Mul(untagged_result, untagged_divisor);
     // Do floating point division if the remainder is not 0.
     GotoIf(Word32NotEqual(untagged_dividend, truncated), &bailout);
-    Return(SmiFromWord32(untagged_result));
+    Return(SmiFromInt32(untagged_result));
 
     // Bailout: convert {dividend} and {divisor} to double and do double
     // division.

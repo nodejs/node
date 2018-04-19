@@ -1,6 +1,7 @@
 # N-API
 
 <!--introduced_in=v7.10.0-->
+<!-- type=misc -->
 
 > Stability: 2 - Stable
 
@@ -550,9 +551,9 @@ napi_status napi_fatal_exception(napi_env env, napi_value err);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] err`: The error you want to pass to `uncaughtException`.
+- `[in] err`: The error you want to pass to `'uncaughtException'`.
 
-Trigger an `uncaughtException` in JavaScript. Useful if an async
+Trigger an `'uncaughtException'` in JavaScript. Useful if an async
 callback throws an exception with no way to recover.
 
 ### Fatal Errors
@@ -3474,7 +3475,7 @@ is sufficient and appropriate. Use of the `napi_make_callback` function
 may be required when implementing custom async behavior that does not use
 `napi_create_async_work`.
 
-### *napi_open_callback_scope*
+### napi_open_callback_scope
 <!-- YAML
 added: v9.6.0
 -->
@@ -3499,7 +3500,7 @@ the stack the [`napi_open_callback_scope`][] and
 [`napi_close_callback_scope`][] functions can be used to open/close
 the required scope.
 
-### *napi_close_callback_scope*
+### napi_close_callback_scope
 <!-- YAML
 added: v9.6.0
 -->

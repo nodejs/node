@@ -98,6 +98,26 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(clone.constructor, compiled_module.constructor);
 })();
 
+(function SerializeWrappersWithSameSignature() {
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("main", kSig_i_v)
+    .addBody([kExprI32Const, 42])
+    .exportFunc();
+  builder.addFunction("main_same_signature", kSig_i_v)
+    .addBody([kExprI32Const, 23])
+    .exportFunc();
+
+  var wire_bytes = builder.toBuffer();
+  var compiled_module = new WebAssembly.Module(wire_bytes);
+  var serialized = %SerializeWasmModule(compiled_module);
+  var clone = %DeserializeWasmModule(serialized, wire_bytes);
+
+  assertNotNull(clone);
+  assertFalse(clone == undefined);
+  assertFalse(clone == compiled_module);
+  assertEquals(clone.constructor, compiled_module.constructor);
+})();
+
 (function SerializeAfterInstantiation() {
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_v)

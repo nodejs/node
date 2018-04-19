@@ -28,11 +28,13 @@ functions that can be used to control this default behavior.
 added: v9.7.0
 -->
 
+* Returns: {Immediate}
+
 When called, requests that the Node.js event loop *not* exit so long as the
 `Immediate` is active. Calling `immediate.ref()` multiple times will have no
 effect.
 
-By default, all `Immediate` objects are "ref'd", making it normally unnecessary
+By default, all `Immediate` objects are "ref'ed", making it normally unnecessary
 to call `immediate.ref()` unless `immediate.unref()` had been called previously.
 
 Returns a reference to the `Immediate`.
@@ -41,6 +43,8 @@ Returns a reference to the `Immediate`.
 <!-- YAML
 added: v9.7.0
 -->
+
+* Returns: {Immediate}
 
 When called, the active `Immediate` object will not require the Node.js event
 loop to remain active. If there is no other activity keeping the event loop
@@ -52,8 +56,8 @@ Returns a reference to the `Immediate`.
 ## Class: Timeout
 
 This object is created internally and is returned from [`setTimeout()`][] and
-[`setInterval()`][]. It can be passed to [`clearTimeout()`][] or
-[`clearInterval()`][] (respectively) in order to cancel the scheduled actions.
+[`setInterval()`][]. It can be passed to either [`clearTimeout()`][] or
+[`clearInterval()`][] in order to cancel the scheduled actions.
 
 By default, when a timer is scheduled using either [`setTimeout()`][] or
 [`setInterval()`][], the Node.js event loop will continue running as long as the
@@ -66,10 +70,12 @@ control this default behavior.
 added: v0.9.1
 -->
 
+* Returns: {Timeout}
+
 When called, requests that the Node.js event loop *not* exit so long as the
 `Timeout` is active. Calling `timeout.ref()` multiple times will have no effect.
 
-By default, all `Timeout` objects are "ref'd", making it normally unnecessary
+By default, all `Timeout` objects are "ref'ed", making it normally unnecessary
 to call `timeout.ref()` unless `timeout.unref()` had been called previously.
 
 Returns a reference to the `Timeout`.
@@ -78,6 +84,8 @@ Returns a reference to the `Timeout`.
 <!-- YAML
 added: v0.9.1
 -->
+
+* Returns: {Timeout}
 
 When called, the active `Timeout` object will not require the Node.js event loop
 to remain active. If there is no other activity keeping the event loop running,
@@ -147,6 +155,7 @@ added: v0.0.1
 * `delay` {number} The number of milliseconds to wait before calling the
   `callback`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
+* Returns: {Timeout}
 
 Schedules repeated execution of `callback` every `delay` milliseconds.
 Returns a `Timeout` for use with [`clearInterval()`][].
@@ -165,6 +174,7 @@ added: v0.0.1
 * `delay` {number} The number of milliseconds to wait before calling the
   `callback`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
+* Returns: {Timeout}
 
 Schedules execution of a one-time `callback` after `delay` milliseconds.
 Returns a `Timeout` for use with [`clearTimeout()`][].

@@ -298,6 +298,7 @@ added: v0.1.26
 -->
 - `eventName` {string|symbol}
 - `...args` {any}
+- Returns: {boolean}
 
 Synchronously calls each of the listeners registered for the event named
 `eventName`, in the order they were registered, passing the supplied arguments
@@ -309,6 +310,8 @@ Returns `true` if the event had listeners, `false` otherwise.
 <!-- YAML
 added: v6.0.0
 -->
+
+- Returns: {Array}
 
 Returns an array listing the events for which the emitter has registered
 listeners. The values in the array will be strings or Symbols.
@@ -331,6 +334,8 @@ console.log(myEE.eventNames());
 added: v1.0.0
 -->
 
+- Returns: {integer}
+
 Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
 [`EventEmitter.defaultMaxListeners`][].
@@ -341,6 +346,7 @@ added: v3.2.0
 -->
 
 * `eventName` {string|symbol} The name of the event being listened for
+* Returns: {integer}
 
 Returns the number of listeners listening to the event named `eventName`.
 
@@ -354,6 +360,7 @@ changes:
                  original listeners instead of wrapper functions now.
 -->
 - `eventName` {string|symbol}
+- Returns: {Function[]}
 
 Returns a copy of the array of listeners for the event named `eventName`.
 
@@ -372,6 +379,7 @@ added: v0.1.101
 
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
+* Returns: {EventEmitter}
 
 Adds the `listener` function to the end of the listeners array for the
 event named `eventName`. No checks are made to see if the `listener` has
@@ -408,6 +416,7 @@ added: v0.3.0
 
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
+* Returns: {EventEmitter}
 
 Adds a **one-time** `listener` function for the event named `eventName`. The
 next time `eventName` is triggered, this listener is removed and then invoked.
@@ -441,6 +450,7 @@ added: v6.0.0
 
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
+* Returns: {EventEmitter}
 
 Adds the `listener` function to the *beginning* of the listeners array for the
 event named `eventName`. No checks are made to see if the `listener` has
@@ -463,6 +473,7 @@ added: v6.0.0
 
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
+* Returns: {EventEmitter}
 
 Adds a **one-time** `listener` function for the event named `eventName` to the
 *beginning* of the listeners array. The next time `eventName` is triggered, this
@@ -481,6 +492,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 added: v0.1.26
 -->
 - `eventName` {string|symbol}
+- Returns: {EventEmitter}
 
 Removes all listeners, or those of the specified `eventName`.
 
@@ -496,6 +508,7 @@ added: v0.1.26
 -->
 - `eventName` {string|symbol}
 - `listener` {Function}
+- Returns: {EventEmitter}
 
 Removes the specified `listener` from the listener array for the event named
 `eventName`.
@@ -509,9 +522,9 @@ server.on('connection', callback);
 server.removeListener('connection', callback);
 ```
 
-`removeListener` will remove, at most, one instance of a listener from the
+`removeListener()` will remove, at most, one instance of a listener from the
 listener array. If any single listener has been added multiple times to the
-listener array for the specified `eventName`, then `removeListener` must be
+listener array for the specified `eventName`, then `removeListener()` must be
 called multiple times to remove each instance.
 
 Note that once an event has been emitted, all listeners attached to it at the
@@ -564,6 +577,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 added: v0.3.5
 -->
 - `n` {integer}
+- Returns: {EventEmitter}
 
 By default EventEmitters will print a warning if more than `10` listeners are
 added for a particular event. This is a useful default that helps finding
@@ -579,9 +593,10 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 added: v9.4.0
 -->
 - `eventName` {string|symbol}
+- Returns: {Function[]}
 
 Returns a copy of the array of listeners for the event named `eventName`,
-including any wrappers (such as those created by `.once`).
+including any wrappers (such as those created by `.once()`).
 
 ```js
 const emitter = new EventEmitter();
@@ -599,7 +614,7 @@ logFnWrapper.listener();
 logFnWrapper();
 
 emitter.on('log', () => console.log('log persistently'));
-// will return a new Array with a single function bound by `on` above
+// will return a new Array with a single function bound by `.on()` above
 const newListeners = emitter.rawListeners('log');
 
 // logs "log persistently" twice

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOCKED_QUEUE_INL_
-#define V8_LOCKED_QUEUE_INL_
+#ifndef V8_LOCKED_QUEUE_INL_H_
+#define V8_LOCKED_QUEUE_INL_H_
 
 #include "src/base/atomic-utils.h"
 #include "src/locked-queue.h"
@@ -88,4 +88,4 @@ inline bool LockedQueue<Record>::Peek(Record* record) const {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOCKED_QUEUE_INL_
+#endif  // V8_LOCKED_QUEUE_INL_H_

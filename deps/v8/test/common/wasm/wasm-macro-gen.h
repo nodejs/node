@@ -564,6 +564,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I32_UCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI32UConvertSatF32)
 #define WASM_I32_SCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI32SConvertSatF64)
 #define WASM_I32_UCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI32UConvertSatF64)
+#define WASM_I64_SCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI64SConvertSatF32)
+#define WASM_I64_UCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI64UConvertSatF32)
+#define WASM_I64_SCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI64SConvertSatF64)
+#define WASM_I64_UCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI64UConvertSatF64)
 
 //------------------------------------------------------------------------------
 // Memory Operations.
@@ -615,5 +619,14 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_ATOMICS_STORE_OP(op, x, y, representation) \
   x, y, WASM_ATOMICS_OP(op),                            \
       static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+
+//------------------------------------------------------------------------------
+// Sign Externsion Operations.
+//------------------------------------------------------------------------------
+#define WASM_I32_SIGN_EXT_I8(x) x, kExprI32SExtendI8
+#define WASM_I32_SIGN_EXT_I16(x) x, kExprI32SExtendI16
+#define WASM_I64_SIGN_EXT_I8(x) x, kExprI64SExtendI8
+#define WASM_I64_SIGN_EXT_I16(x) x, kExprI64SExtendI16
+#define WASM_I64_SIGN_EXT_I32(x) x, kExprI64SExtendI32
 
 #endif  // V8_WASM_MACRO_GEN_H_

@@ -19,8 +19,8 @@ compatibility with the existing [HTTP/1][] module API. However,
 the [Compatibility API][] is.
 
 The `http2` Core API is much more symmetric between client and server than the
-`http` API. For instance, most events, like `error`, `connect` and `stream`, can
-be emitted either by client-side code or server-side code.
+`http` API. For instance, most events, like `'error'`, `'connect'` and
+`'stream'`, can be emitted either by client-side code or server-side code.
 
 ### Server-side example
 
@@ -128,7 +128,8 @@ solely on the API of the `Http2Session`.
 added: v8.4.0
 -->
 
-The `'close'` event is emitted once the `Http2Session` has been destroyed.
+The `'close'` event is emitted once the `Http2Session` has been destroyed. Its
+listener does not expect any arguments.
 
 #### Event: 'connect'
 <!-- YAML
@@ -175,13 +176,13 @@ immediately following the `'frameError'` event.
 added: v8.4.0
 -->
 
-The `'goaway'` event is emitted when a GOAWAY frame is received. When invoked,
+The `'goaway'` event is emitted when a `GOAWAY` frame is received. When invoked,
 the handler function will receive three arguments:
 
-* `errorCode` {number} The HTTP/2 error code specified in the GOAWAY frame.
+* `errorCode` {number} The HTTP/2 error code specified in the `GOAWAY` frame.
 * `lastStreamID` {number} The ID of the last stream the remote peer successfully
   processed (or `0` if no ID is specified).
-* `opaqueData` {Buffer} If additional opaque data was included in the GOAWAY
+* `opaqueData` {Buffer} If additional opaque data was included in the `GOAWAY`
   frame, a `Buffer` instance will be passed containing that data.
 
 The `Http2Session` instance will be shut down automatically when the `'goaway'`
@@ -192,7 +193,7 @@ event is emitted.
 added: v8.4.0
 -->
 
-The `'localSettings'` event is emitted when an acknowledgment SETTINGS frame
+The `'localSettings'` event is emitted when an acknowledgment `SETTINGS` frame
 has been received. When invoked, the handler function will receive a copy of
 the local settings.
 
@@ -212,7 +213,7 @@ session.on('localSettings', (settings) => {
 added: v8.4.0
 -->
 
-The `'remoteSettings'` event is emitted when a new SETTINGS frame is received
+The `'remoteSettings'` event is emitted when a new `SETTINGS` frame is received
 from the connected peer. When invoked, the handler function will receive a copy
 of the remote settings.
 
@@ -382,7 +383,7 @@ added: v9.4.0
 * `code` {number} An HTTP/2 error code
 * `lastStreamID` {number} The numeric ID of the last processed `Http2Stream`
 * `opaqueData` {Buffer|TypedArray|DataView} A `TypedArray` or `DataView`
-  instance containing additional data to be carried within the GOAWAY frame.
+  instance containing additional data to be carried within the `GOAWAY` frame.
 
 Transmits a `GOAWAY` frame to the connected peer *without* shutting down the
 `Http2Session`.
@@ -416,7 +417,7 @@ added: v8.4.0
 * {boolean}
 
 Indicates whether or not the `Http2Session` is currently waiting for an
-acknowledgment for a sent SETTINGS frame. Will be `true` after calling the
+acknowledgment for a sent `SETTINGS` frame. Will be `true` after calling the
 `http2session.settings()` method. Will be `false` once all sent SETTINGS
 frames have been acknowledged.
 
@@ -463,7 +464,7 @@ If the `payload` argument is not specified, the default payload will be the
 added: v9.4.0
 -->
 
-Calls [`ref()`][`net.Socket.prototype.ref`] on this `Http2Session`
+Calls [`ref()`][`net.Socket.prototype.ref()`] on this `Http2Session`
 instance's underlying [`net.Socket`].
 
 #### http2session.remoteSettings
@@ -550,9 +551,9 @@ Once called, the `http2session.pendingSettingsAck` property will be `true`
 while the session is waiting for the remote peer to acknowledge the new
 settings.
 
-The new settings will not become effective until the SETTINGS acknowledgment is
-received and the `'localSettings'` event is emitted. It is possible to send
-multiple SETTINGS frames while acknowledgment is still pending.
+The new settings will not become effective until the `SETTINGS` acknowledgment
+is received and the `'localSettings'` event is emitted. It is possible to send
+multiple `SETTINGS` frames while acknowledgment is still pending.
 
 #### http2session.type
 <!-- YAML
@@ -571,7 +572,7 @@ client.
 added: v9.4.0
 -->
 
-Calls [`unref()`][`net.Socket.prototype.unref`] on this `Http2Session`
+Calls [`unref()`][`net.Socket.prototype.unref()`] on this `Http2Session`
 instance's underlying [`net.Socket`].
 
 ### Class: ServerHttp2Session
@@ -694,8 +695,8 @@ added: v8.4.0
   * `weight` {number} Specifies the relative dependency of a stream in relation
     to other streams with the same `parent`. The value is a number between `1`
     and `256` (inclusive).
-  * `getTrailers` {Function} Callback function invoked to collect trailer
-    headers.
+  * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
+    `'wantTrailers'` event after the final `DATA` frame has been sent.
 
 * Returns: {ClientHttp2Stream}
 
@@ -722,14 +723,15 @@ req.on('response', (headers) => {
 });
 ```
 
-When set, the `options.getTrailers()` function is called immediately after
-queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+When the `options.waitForTrailers` option is set, the `'wantTrailers'` event
+is emitted immediately after queuing the last chunk of payload data to be sent.
+The `http2stream.sendTrailers()` method can then be called to send trailing
+headers to the peer.
 
-The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
-fields (e.g. `':method'`, `':path'`, etc). An `'error'` event will be emitted
-if the `getTrailers` callback attempts to set such header fields.
+It is important to note that when `options.waitForTrailers` is set, the
+`Http2Stream` will *not* automatically close when the final `DATA` frame is
+transmitted. User code *must* call either `http2stream.sendTrailers()` or
+`http2stream.close()` to close the `Http2Stream`.
 
 The `:method` and `:path` pseudo-headers are not specified within `headers`,
 they respectively default to:
@@ -856,7 +858,7 @@ added: v8.4.0
 -->
 
 The `'timeout'` event is emitted after no activity is received for this
-`'Http2Stream'` within the number of milliseconds set using
+`Http2Stream` within the number of milliseconds set using
 `http2stream.setTimeout()`.
 
 #### Event: 'trailers'
@@ -873,6 +875,16 @@ stream.on('trailers', (headers, flags) => {
   console.log(headers);
 });
 ```
+
+#### Event: 'wantTrailers'
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'wantTrailers'` event is emitted when the `Http2Stream` has queued the
+final `DATA` frame to be sent on a frame and the `Http2Stream` is ready to send
+trailing headers. When initiating a request or response, the `waitForTrailers`
+option must be set for this event to be emitted.
 
 #### http2stream.aborted
 <!-- YAML
@@ -1035,6 +1047,35 @@ Provides miscellaneous information about the current state of the
   * `weight` {number} The priority weight of this `Http2Stream`.
 
 A current state of this `Http2Stream`.
+
+#### http2stream.sendTrailers(headers)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {HTTP/2 Headers Object}
+
+Sends a trailing `HEADERS` frame to the connected HTTP/2 peer. This method
+will cause the `Http2Stream` to be immediately closed and must only be
+called after the `'wantTrailers'`  event has been emitted. When sending a
+request or sending a response, the `options.waitForTrailers` option must be set
+in order to keep the `Http2Stream` open after the final `DATA` frame so that
+trailers can be sent.
+
+```js
+const http2 = require('http2');
+const server = http2.createServer();
+server.on('stream', (stream) => {
+  stream.respond(undefined, { waitForTrailers: true });
+  stream.on('wantTrailers', () => {
+    stream.sendTrailers({ xyz: 'abc' });
+  });
+  stream.end('Hello World');
+});
+```
+
+The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
+fields (e.g. `':method'`, `':path'`, etc).
 
 ### Class: ClientHttp2Stream
 <!-- YAML
@@ -1200,8 +1241,8 @@ added: v8.4.0
 * `options` {Object}
   * `endStream` {boolean} Set to `true` to indicate that the response will not
     include payload data.
-  * `getTrailers` {Function} Callback function invoked to collect trailer
-    headers.
+  * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
+    `'wantTrailers'` event after the final `DATA` frame has been sent.
 
 ```js
 const http2 = require('http2');
@@ -1212,27 +1253,27 @@ server.on('stream', (stream) => {
 });
 ```
 
-When set, the `options.getTrailers()` function is called immediately after
-queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+When the `options.waitForTrailers` option is set, the `'wantTrailers'` event
+will be emitted immediately after queuing the last chunk of payload data to be
+sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
+header fields to the peer.
+
+It is important to note that when `options.waitForTrailers` is set, the
+`Http2Stream` will *not* automatically close when the final `DATA` frame is
+transmitted. User code *must* call either `http2stream.sendTrailers()` or
+`http2stream.close()` to close the `Http2Stream`.
 
 ```js
 const http2 = require('http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
-  stream.respond({ ':status': 200 }, {
-    getTrailers(trailers) {
-      trailers.ABC = 'some value to send';
-    }
+  stream.respond({ ':status': 200 }, { waitForTrailers: true });
+  stream.on('wantTrailers', () => {
+    stream.sendTrailers({ ABC: 'some value to send' });
   });
   stream.end('some data');
 });
 ```
-
-The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
-fields (e.g. `':status'`, `':path'`, etc). An `'error'` event will be emitted
-if the `getTrailers` callback attempts to set such header fields.
 
 #### http2stream.respondWithFD(fd[, headers[, options]])
 <!-- YAML
@@ -1248,8 +1289,8 @@ changes:
 * `headers` {HTTP/2 Headers Object}
 * `options` {Object}
   * `statCheck` {Function}
-  * `getTrailers` {Function} Callback function invoked to collect trailer
-    headers.
+  * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
+    `'wantTrailers'` event after the final `DATA` frame has been sent.
   * `offset` {number} The offset position at which to begin reading.
   * `length` {number} The amount of data from the fd to send.
 
@@ -1296,10 +1337,15 @@ Note that using the same file descriptor concurrently for multiple streams
 is not supported and may result in data loss. Re-using a file descriptor
 after a stream has finished is supported.
 
-When set, the `options.getTrailers()` function is called immediately after
-queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+When the `options.waitForTrailers` option is set, the `'wantTrailers'` event
+will be emitted immediately after queuing the last chunk of payload data to be
+sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
+header fields to the peer.
+
+It is important to note that when `options.waitForTrailers` is set, the
+`Http2Stream` will *not* automatically close when the final `DATA` frame is
+transmitted. User code *must* call either `http2stream.sendTrailers()` or
+`http2stream.close()` to close the `Http2Stream`.
 
 ```js
 const http2 = require('http2');
@@ -1315,19 +1361,14 @@ server.on('stream', (stream) => {
     'last-modified': stat.mtime.toUTCString(),
     'content-type': 'text/plain'
   };
-  stream.respondWithFD(fd, headers, {
-    getTrailers(trailers) {
-      trailers.ABC = 'some value to send';
-    }
+  stream.respondWithFD(fd, headers, { waitForTrailers: true });
+  stream.on('wantTrailers', () => {
+    stream.sendTrailers({ ABC: 'some value to send' });
   });
 
   stream.on('close', () => fs.closeSync(fd));
 });
 ```
-
-The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
-fields (e.g. `':status'`, `':path'`, etc). An `'error'` event will be emitted
-if the `getTrailers` callback attempts to set such header fields.
 
 #### http2stream.respondWithFile(path[, headers[, options]])
 <!-- YAML
@@ -1345,8 +1386,8 @@ changes:
   * `statCheck` {Function}
   * `onError` {Function} Callback function invoked in the case of an
     Error before send.
-  * `getTrailers` {Function} Callback function invoked to collect trailer
-    headers.
+  * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
+    `'wantTrailers'` event after the final `DATA` frame has been sent.
   * `offset` {number} The offset position at which to begin reading.
   * `length` {number} The amount of data from the fd to send.
 
@@ -1420,27 +1461,28 @@ The `options.onError` function may also be used to handle all the errors
 that could happen before the delivery of the file is initiated. The
 default behavior is to destroy the stream.
 
-When set, the `options.getTrailers()` function is called immediately after
-queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may use to specify
-the trailing header fields to send to the peer.
+When the `options.waitForTrailers` option is set, the `'wantTrailers'` event
+will be emitted immediately after queuing the last chunk of payload data to be
+sent. The `http2stream.sendTrilers()` method can then be used to sent trailing
+header fields to the peer.
+
+It is important to note that when `options.waitForTrailers` is set, the
+`Http2Stream` will *not* automatically close when the final `DATA` frame is
+transmitted. User code *must* call either `http2stream.sendTrailers()` or
+`http2stream.close()` to close the `Http2Stream`.
 
 ```js
 const http2 = require('http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
-  function getTrailers(trailers) {
-    trailers.ABC = 'some value to send';
-  }
   stream.respondWithFile('/some/file',
                          { 'content-type': 'text/plain' },
-                         { getTrailers });
+                         { waitForTrailers: true });
+  stream.on('wantTrailers', () => {
+    stream.sendTrailers({ ABC: 'some value to send' });
+  });
 });
 ```
-
-The HTTP/1 specification forbids trailers from containing HTTP/2 pseudo-header
-fields (e.g. `':status'`, `':path'`, etc). An `'error'` event will be emitted
-if the `getTrailers` callback attempts to set such header fields.
 
 ### Class: Http2Server
 <!-- YAML
@@ -1708,7 +1750,7 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, current data
-    queued to be sent, and unacknowledged PING and SETTINGS frames are all
+    queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     The minimum value is `4`. **Default:** `128`.
@@ -1719,7 +1761,7 @@ changes:
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for HEADERS and DATA frames. **Default:**
+     amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
      `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
      * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
        to be applied.
@@ -1737,7 +1779,7 @@ changes:
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
-    streams for the remote peer as if a SETTINGS frame had been received. Will
+    streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
@@ -1818,7 +1860,7 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, current data
-    queued to be sent, and unacknowledged PING and SETTINGS frames are all
+    queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     The minimum value is `4`. **Default:** `128`.
@@ -1829,7 +1871,7 @@ changes:
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for HEADERS and DATA frames. **Default:**
+     amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
      `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
      * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
        to be applied.
@@ -1847,7 +1889,7 @@ changes:
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
-    streams for the remote peer as if a SETTINGS frame had been received. Will
+    streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
@@ -1910,7 +1952,7 @@ changes:
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
     the current memory use of the header compression tables, current data
-    queued to be sent, and unacknowledged PING and SETTINGS frames are all
+    queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     The minimum value is `1`. **Default:** `128`.
@@ -1925,7 +1967,7 @@ changes:
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for HEADERS and DATA frames. **Default:**
+     amount of padding to use for `HEADERS` and `DATA` frames. **Default:**
      `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
      * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
        to be applied.
@@ -1943,7 +1985,7 @@ changes:
        calculated amount needed to ensure alignment, the maximum will be used
        and the total frame length will *not* necessarily be aligned at 8 bytes.
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
-    streams for the remote peer as if a SETTINGS frame had been received. Will
+    streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
@@ -2114,7 +2156,7 @@ All additional properties on the settings object are ignored.
 When `options.paddingStrategy` is equal to
 `http2.constants.PADDING_STRATEGY_CALLBACK`, the HTTP/2 implementation will
 consult the `options.selectPadding` callback function, if provided, to determine
-the specific amount of padding to use per HEADERS and DATA frame.
+the specific amount of padding to use per `HEADERS` and `DATA` frame.
 
 The `options.selectPadding` function receives two numeric arguments,
 `frameLen` and `maxFrameLen` and must return a number `N` such that
@@ -2130,8 +2172,8 @@ const server = http2.createServer({
 });
 ```
 
-The `options.selectPadding` function is invoked once for *every* HEADERS and
-DATA frame. This has a definite noticeable impact on performance.
+The `options.selectPadding` function is invoked once for *every* `HEADERS` and
+`DATA` frame. This has a definite noticeable impact on performance.
 
 ### Error Handling
 
@@ -2489,6 +2531,7 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http2.Http2ServerRequest}
 
 Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
@@ -2498,8 +2541,6 @@ If no `'timeout'` listener is added to the request, the response, or
 the server, then [`Http2Stream`]()s are destroyed when they time out. If a
 handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
-
-Returns `request`.
 
 #### request.socket
 <!-- YAML
@@ -2866,6 +2907,7 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http2.Http2ServerResponse}
 
 Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
@@ -2875,8 +2917,6 @@ If no `'timeout'` listener is added to the request, the response, or
 the server, then [`Http2Stream`]()s are destroyed when they time out. If a
 handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
-
-Returns `response`.
 
 #### response.socket
 <!-- YAML
@@ -3094,9 +3134,9 @@ The `name` property of the `PerformanceEntry` will be equal to either
 If `name` is equal to `Http2Stream`, the `PerformanceEntry` will contain the
 following additional properties:
 
-* `bytesRead` {number} The number of DATA frame bytes received for this
+* `bytesRead` {number} The number of `DATA` frame bytes received for this
   `Http2Stream`.
-* `bytesWritten` {number} The number of DATA frame bytes sent for this
+* `bytesWritten` {number} The number of `DATA` frame bytes sent for this
   `Http2Stream`.
 * `id` {number} The identifier of the associated `Http2Stream`
 * `timeToFirstByte` {number} The number of milliseconds elapsed between the
@@ -3160,8 +3200,8 @@ following additional properties:
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Socket`]: net.html#net_class_net_socket
-[`net.Socket.prototype.ref`]: net.html#net_socket_ref
-[`net.Socket.prototype.unref`]: net.html#net_socket_unref
+[`net.Socket.prototype.ref()`]: net.html#net_socket_ref
+[`net.Socket.prototype.unref()`]: net.html#net_socket_unref
 [`net.connect()`]: net.html#net_net_connect
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback

@@ -25,7 +25,7 @@ class SourceCodeCache final BASE_EMBEDDED {
   void Initialize(Isolate* isolate, bool create_heap_objects);
 
   void Iterate(RootVisitor* v) {
-    v->VisitRootPointer(Root::kExtensions,
+    v->VisitRootPointer(Root::kExtensions, nullptr,
                         bit_cast<Object**, FixedArray**>(&cache_));
   }
 

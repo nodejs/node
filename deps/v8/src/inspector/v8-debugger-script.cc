@@ -7,12 +7,14 @@
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/wasm-translation.h"
+#include "src/utils.h"
 
 namespace v8_inspector {
 
 namespace {
 
 const char hexDigits[17] = "0123456789ABCDEF";
+const char kGlobalDebuggerScriptHandleLabel[] = "DevTools debugger";
 
 void appendUnsignedAsHex(uint64_t number, String16Builder* destination) {
   for (size_t i = 0; i < 8; ++i) {
@@ -43,11 +45,12 @@ String16 calculateHash(const String16& str) {
   const uint32_t* data = nullptr;
   size_t sizeInBytes = sizeof(UChar) * str.length();
   data = reinterpret_cast<const uint32_t*>(str.characters16());
-  for (size_t i = 0; i < sizeInBytes / 4; i += 4) {
+  for (size_t i = 0; i < sizeInBytes / 4; ++i) {
+    uint32_t d = v8::internal::ReadUnalignedUInt32(data + i);
 #if V8_TARGET_LITTLE_ENDIAN
-    uint32_t v = data[i];
+    uint32_t v = d;
 #else
-    uint32_t v = (data[i] << 16) | (data[i] >> 16);
+    uint32_t v = (d << 16) | (d >> 16);
 #endif
     uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
     hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
@@ -56,15 +59,16 @@ String16 calculateHash(const String16& str) {
   }
   if (sizeInBytes % 4) {
     uint32_t v = 0;
+    const uint8_t* data_8b = reinterpret_cast<const uint8_t*>(data);
     for (size_t i = sizeInBytes - sizeInBytes % 4; i < sizeInBytes; ++i) {
       v <<= 8;
 #if V8_TARGET_LITTLE_ENDIAN
-      v |= reinterpret_cast<const uint8_t*>(data)[i];
+      v |= data_8b[i];
 #else
       if (i % 2) {
-        v |= reinterpret_cast<const uint8_t*>(data)[i - 1];
+        v |= data_8b[i - 1];
       } else {
-        v |= reinterpret_cast<const uint8_t*>(data)[i + 1];
+        v |= data_8b[i + 1];
       }
 #endif
     }
@@ -147,6 +151,7 @@ class ActualScript : public V8DebuggerScript {
     m_isModule = script->IsModule();
 
     m_script.Reset(m_isolate, script);
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
   }
 
   bool isLiveEdit() const override { return m_isLiveEdit; }
@@ -264,6 +269,7 @@ class WasmVirtualScript : public V8DebuggerScript {
       : V8DebuggerScript(isolate, std::move(id), std::move(url)),
         m_script(isolate, script),
         m_wasmTranslation(wasmTranslation) {
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
     int num_lines = 0;
     int last_newline = -1;
     size_t next_newline = source.find('\n', last_newline + 1);

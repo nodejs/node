@@ -30,7 +30,7 @@ namespace internal {
 
 void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
   __ Mov(x5, Operand(x0, LSL, kPointerSizeLog2));
-  __ Str(x1, MemOperand(__ StackPointer(), x5));
+  __ Poke(x1, Operand(x5));
   __ Push(x1, x2);
   __ Add(x0, x0, Operand(3));
   __ TailCallRuntime(Runtime::kNewArray);
@@ -314,7 +314,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ EnterExitFrame(
       save_doubles(), x10, extra_stack_space,
       is_builtin_exit() ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
-  DCHECK(csp.Is(__ StackPointer()));
 
   // Poke callee-saved registers into reserved space.
   __ Poke(argv, 1 * kPointerSize);
@@ -349,12 +348,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   //   fp -> fp[0]:    CallerFP (old fp)
   //         fp[-8]:   Space reserved for SPOffset.
   //         fp[-16]:  CodeObject()
-  //         csp[...]: Saved doubles, if saved_doubles is true.
-  //         csp[32]:  Alignment padding, if necessary.
-  //         csp[24]:  Preserved x23 (used for target).
-  //         csp[16]:  Preserved x22 (used for argc).
-  //         csp[8]:   Preserved x21 (used for argv).
-  //  csp -> csp[0]:   Space reserved for the return address.
+  //         sp[...]:  Saved doubles, if saved_doubles is true.
+  //         sp[32]:   Alignment padding, if necessary.
+  //         sp[24]:   Preserved x23 (used for target).
+  //         sp[16]:   Preserved x22 (used for argc).
+  //         sp[8]:    Preserved x21 (used for argv).
+  //   sp -> sp[0]:    Space reserved for the return address.
   //
   // After a successful call, the exit frame, preserved registers (x21-x23) and
   // the arguments (including the receiver) are dropped or popped as
@@ -363,8 +362,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // After an unsuccessful call, the exit frame and suchlike are left
   // untouched, and the stub either throws an exception by jumping to one of
   // the exception_returned label.
-
-  DCHECK(csp.Is(__ StackPointer()));
 
   // Prepare AAPCS64 arguments to pass to the builtin.
   __ Mov(x0, argc);
@@ -437,7 +434,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // contain the current pending exception, don't clobber it.
   ExternalReference find_handler(Runtime::kUnwindAndFindExceptionHandler,
                                  isolate());
-  DCHECK(csp.Is(masm->StackPointer()));
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ Mov(x0, 0);  // argc.
@@ -454,7 +450,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     Register scratch = temps.AcquireX();
     __ Mov(scratch, Operand(pending_handler_sp_address));
     __ Ldr(scratch, MemOperand(scratch));
-    __ Mov(csp, scratch);
+    __ Mov(sp, scratch);
   }
   __ Mov(fp, Operand(pending_handler_fp_address));
   __ Ldr(fp, MemOperand(fp));
@@ -465,6 +461,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Cbz(cp, &not_js_frame);
   __ Str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ Bind(&not_js_frame);
+
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
 
   // Compute the handler entry address and jump to it.
   __ Mov(x10, Operand(pending_handler_entrypoint_address));
@@ -511,7 +513,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   __ Push(x13, x12, xzr, x10);
   // Set up fp.
-  __ Sub(fp, __ StackPointer(), EntryFrameConstants::kCallerFPOffset);
+  __ Sub(fp, sp, EntryFrameConstants::kCallerFPOffset);
 
   // Push the JS entry frame marker. Also set js_entry_sp if this is the
   // outermost JS call.
@@ -582,7 +584,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.AcquireX();
-    __ Mov(scratch, __ StackPointer());
+    __ Mov(scratch, sp);
     __ Str(scratch, MemOperand(x11));
   }
 
@@ -740,10 +742,6 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-  // Make sure the caller configured the stack pointer (see comment in
-  // DirectCEntryStub::Generate).
-  DCHECK(csp.Is(__ StackPointer()));
-
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Mov(lr, Operand(code, RelocInfo::CODE_TARGET));
@@ -1260,7 +1258,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // Prepare arguments.
   Register args = x6;
-  __ Mov(args, masm->StackPointer());
+  __ Mov(args, sp);
 
   // Allocate the v8::Arguments structure in the arguments' space, since it's
   // not controlled by GC.
@@ -1344,7 +1342,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
                 "slots must be a multiple of 2 for stack pointer alignment");
 
   // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
-  __ Mov(x0, masm->StackPointer());  // x0 = Handle<Name>
+  __ Mov(x0, sp);                    // x0 = Handle<Name>
   __ Add(x1, x0, 1 * kPointerSize);  // x1 = v8::PCI::args_
 
   const int kApiStackSpace = 1;

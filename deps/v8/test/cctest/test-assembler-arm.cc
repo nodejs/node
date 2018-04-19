@@ -3923,6 +3923,101 @@ TEST(use_scratch_register_scope) {
   CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
 }
 
+TEST(use_scratch_vfp_register_scope) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, nullptr, 0);
+
+  VfpRegList orig_scratches = *assm.GetScratchVfpRegisterList();
+
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    CHECK_EQ(orig_scratches, d14.ToVfpRegList() | d15.ToVfpRegList());
+  } else {
+    CHECK_EQ(orig_scratches, d14.ToVfpRegList());
+  }
+
+  // Test each configuration of scratch registers we can have at the same time.
+
+  {
+    UseScratchRegisterScope temps(&assm);
+
+    SwVfpRegister s1_scratch = temps.AcquireS();
+    CHECK_EQ(s1_scratch, s28);
+
+    SwVfpRegister s2_scratch = temps.AcquireS();
+    CHECK_EQ(s2_scratch, s29);
+
+    if (CpuFeatures::IsSupported(VFP32DREGS)) {
+      SwVfpRegister s3_scratch = temps.AcquireS();
+      CHECK_EQ(s3_scratch, s30);
+
+      SwVfpRegister s4_scratch = temps.AcquireS();
+      CHECK_EQ(s4_scratch, s31);
+    }
+  }
+
+  CHECK_EQ(*assm.GetScratchVfpRegisterList(), orig_scratches);
+
+  {
+    UseScratchRegisterScope temps(&assm);
+
+    SwVfpRegister s1_scratch = temps.AcquireS();
+    CHECK_EQ(s1_scratch, s28);
+
+    SwVfpRegister s2_scratch = temps.AcquireS();
+    CHECK_EQ(s2_scratch, s29);
+
+    if (CpuFeatures::IsSupported(VFP32DREGS)) {
+      DwVfpRegister d_scratch = temps.AcquireD();
+      CHECK_EQ(d_scratch, d15);
+    }
+  }
+
+  CHECK_EQ(*assm.GetScratchVfpRegisterList(), orig_scratches);
+
+  {
+    UseScratchRegisterScope temps(&assm);
+
+    DwVfpRegister d_scratch = temps.AcquireD();
+    CHECK_EQ(d_scratch, d14);
+
+    if (CpuFeatures::IsSupported(VFP32DREGS)) {
+      SwVfpRegister s1_scratch = temps.AcquireS();
+      CHECK_EQ(s1_scratch, s30);
+
+      SwVfpRegister s2_scratch = temps.AcquireS();
+      CHECK_EQ(s2_scratch, s31);
+    }
+  }
+
+  CHECK_EQ(*assm.GetScratchVfpRegisterList(), orig_scratches);
+
+  {
+    UseScratchRegisterScope temps(&assm);
+
+    DwVfpRegister d1_scratch = temps.AcquireD();
+    CHECK_EQ(d1_scratch, d14);
+
+    if (CpuFeatures::IsSupported(VFP32DREGS)) {
+      DwVfpRegister d2_scratch = temps.AcquireD();
+      CHECK_EQ(d2_scratch, d15);
+    }
+  }
+
+  CHECK_EQ(*assm.GetScratchVfpRegisterList(), orig_scratches);
+
+  if (CpuFeatures::IsSupported(NEON)) {
+    UseScratchRegisterScope temps(&assm);
+
+    QwNeonRegister q_scratch = temps.AcquireQ();
+    CHECK_EQ(q_scratch, q7);
+  }
+
+  CHECK_EQ(*assm.GetScratchVfpRegisterList(), orig_scratches);
+}
+
 TEST(split_add_immediate) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

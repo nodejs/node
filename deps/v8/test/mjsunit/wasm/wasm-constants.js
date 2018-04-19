@@ -114,7 +114,7 @@ let kSig_i_dd = makeSig([kWasmF64, kWasmF64], [kWasmI32]);
 let kSig_v_v = makeSig([], []);
 let kSig_i_v = makeSig([], [kWasmI32]);
 let kSig_l_v = makeSig([], [kWasmI64]);
-let kSig_f_v = makeSig([], [kWasmF64]);
+let kSig_f_v = makeSig([], [kWasmF32]);
 let kSig_d_v = makeSig([], [kWasmF64]);
 let kSig_v_i = makeSig([kWasmI32], []);
 let kSig_v_ii = makeSig([kWasmI32, kWasmI32], []);
@@ -374,7 +374,7 @@ let kTrapRemByZero            = 4;
 let kTrapFloatUnrepresentable = 5;
 let kTrapFuncInvalid          = 6;
 let kTrapFuncSigMismatch      = 7;
-let kTrapInvalidIndex         = 8;
+let kTrapTypeError            = 8;
 
 let kTrapMsgs = [
   "unreachable",
@@ -382,10 +382,10 @@ let kTrapMsgs = [
   "divide by zero",
   "divide result unrepresentable",
   "remainder by zero",
-  "integer result unrepresentable",
-  "invalid function",
+  "float unrepresentable in integer range",
+  "invalid index into function table",
   "function signature mismatch",
-  "invalid index into function table"
+  "wasm function signature contains illegal type"
 ];
 
 function assertTraps(trap, code) {

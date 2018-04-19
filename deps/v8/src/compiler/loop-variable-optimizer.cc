@@ -29,6 +29,7 @@ LoopVariableOptimizer::LoopVariableOptimizer(Graph* graph,
       common_(common),
       zone_(zone),
       limits_(graph->NodeCount(), zone),
+      reduced_(graph->NodeCount(), zone),
       induction_vars_(zone) {}
 
 void LoopVariableOptimizer::Run() {
@@ -40,13 +41,13 @@ void LoopVariableOptimizer::Run() {
     queue.pop();
     queued.Set(node, false);
 
-    DCHECK_NULL(limits_[node->id()]);
+    DCHECK(!reduced_.Get(node));
     bool all_inputs_visited = true;
     int inputs_end = (node->opcode() == IrOpcode::kLoop)
                          ? kFirstBackedge
                          : node->op()->ControlInputCount();
     for (int i = 0; i < inputs_end; i++) {
-      if (limits_[NodeProperties::GetControlInput(node, i)->id()] == nullptr) {
+      if (!reduced_.Get(NodeProperties::GetControlInput(node, i))) {
         all_inputs_visited = false;
         break;
       }
@@ -54,7 +55,7 @@ void LoopVariableOptimizer::Run() {
     if (!all_inputs_visited) continue;
 
     VisitNode(node);
-    DCHECK_NOT_NULL(limits_[node->id()]);
+    reduced_.Set(node, true);
 
     // Queue control outputs.
     for (Edge edge : node->use_edges()) {
@@ -72,80 +73,6 @@ void LoopVariableOptimizer::Run() {
     }
   }
 }
-
-class LoopVariableOptimizer::Constraint : public ZoneObject {
- public:
-  InductionVariable::ConstraintKind kind() const { return kind_; }
-  Node* left() const { return left_; }
-  Node* right() const { return right_; }
-
-  const Constraint* next() const { return next_; }
-
-  Constraint(Node* left, InductionVariable::ConstraintKind kind, Node* right,
-             const Constraint* next)
-      : left_(left), right_(right), kind_(kind), next_(next) {}
-
- private:
-  Node* left_;
-  Node* right_;
-  InductionVariable::ConstraintKind kind_;
-  const Constraint* next_;
-};
-
-class LoopVariableOptimizer::VariableLimits : public ZoneObject {
- public:
-  static VariableLimits* Empty(Zone* zone) {
-    return new (zone) VariableLimits();
-  }
-
-  VariableLimits* Copy(Zone* zone) const {
-    return new (zone) VariableLimits(this);
-  }
-
-  void Add(Node* left, InductionVariable::ConstraintKind kind, Node* right,
-           Zone* zone) {
-    head_ = new (zone) Constraint(left, kind, right, head_);
-    limit_count_++;
-  }
-
-  void Merge(const VariableLimits* other) {
-    // Change the current condition list to a longest common tail
-    // of this condition list and the other list. (The common tail
-    // should correspond to the list from the common dominator.)
-
-    // First, we throw away the prefix of the longer list, so that
-    // we have lists of the same length.
-    size_t other_size = other->limit_count_;
-    const Constraint* other_limit = other->head_;
-    while (other_size > limit_count_) {
-      other_limit = other_limit->next();
-      other_size--;
-    }
-    while (limit_count_ > other_size) {
-      head_ = head_->next();
-      limit_count_--;
-    }
-
-    // Then we go through both lists in lock-step until we find
-    // the common tail.
-    while (head_ != other_limit) {
-      DCHECK_LT(0, limit_count_);
-      limit_count_--;
-      other_limit = other_limit->next();
-      head_ = head_->next();
-    }
-  }
-
-  const Constraint* head() const { return head_; }
-
- private:
-  VariableLimits() {}
-  explicit VariableLimits(const VariableLimits* other)
-      : head_(other->head_), limit_count_(other->limit_count_) {}
-
-  const Constraint* head_ = nullptr;
-  size_t limit_count_ = 0;
-};
 
 void InductionVariable::AddUpperBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
@@ -173,21 +100,19 @@ void LoopVariableOptimizer::VisitBackedge(Node* from, Node* loop) {
 
   // Go through the constraints, and update the induction variables in
   // this loop if they are involved in the constraint.
-  const VariableLimits* limits = limits_[from->id()];
-  for (const Constraint* constraint = limits->head(); constraint != nullptr;
-       constraint = constraint->next()) {
-    if (constraint->left()->opcode() == IrOpcode::kPhi &&
-        NodeProperties::GetControlInput(constraint->left()) == loop) {
-      auto var = induction_vars_.find(constraint->left()->id());
+  for (Constraint constraint : limits_.Get(from)) {
+    if (constraint.left->opcode() == IrOpcode::kPhi &&
+        NodeProperties::GetControlInput(constraint.left) == loop) {
+      auto var = induction_vars_.find(constraint.left->id());
       if (var != induction_vars_.end()) {
-        var->second->AddUpperBound(constraint->right(), constraint->kind());
+        var->second->AddUpperBound(constraint.right, constraint.kind);
       }
     }
-    if (constraint->right()->opcode() == IrOpcode::kPhi &&
-        NodeProperties::GetControlInput(constraint->right()) == loop) {
-      auto var = induction_vars_.find(constraint->right()->id());
+    if (constraint.right->opcode() == IrOpcode::kPhi &&
+        NodeProperties::GetControlInput(constraint.right) == loop) {
+      auto var = induction_vars_.find(constraint.right->id());
       if (var != induction_vars_.end()) {
-        var->second->AddLowerBound(constraint->left(), constraint->kind());
+        var->second->AddLowerBound(constraint.left, constraint.kind);
       }
     }
   }
@@ -214,11 +139,11 @@ void LoopVariableOptimizer::VisitNode(Node* node) {
 
 void LoopVariableOptimizer::VisitMerge(Node* node) {
   // Merge the limits of all incoming edges.
-  VariableLimits* merged = limits_[node->InputAt(0)->id()]->Copy(zone());
+  VariableLimits merged = limits_.Get(node->InputAt(0));
   for (int i = 1; i < node->InputCount(); i++) {
-    merged->Merge(limits_[node->InputAt(i)->id()]);
+    merged.ResetToCommonAncestor(limits_.Get(node->InputAt(i)));
   }
-  limits_[node->id()] = merged;
+  limits_.Set(node, merged);
 }
 
 void LoopVariableOptimizer::VisitLoop(Node* node) {
@@ -230,27 +155,27 @@ void LoopVariableOptimizer::VisitLoop(Node* node) {
 void LoopVariableOptimizer::VisitIf(Node* node, bool polarity) {
   Node* branch = node->InputAt(0);
   Node* cond = branch->InputAt(0);
-  VariableLimits* limits = limits_[branch->id()]->Copy(zone());
+  VariableLimits limits = limits_.Get(branch);
   // Normalize to less than comparison.
   switch (cond->opcode()) {
     case IrOpcode::kJSLessThan:
     case IrOpcode::kSpeculativeNumberLessThan:
-      AddCmpToLimits(limits, cond, InductionVariable::kStrict, polarity);
+      AddCmpToLimits(&limits, cond, InductionVariable::kStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThan:
-      AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, !polarity);
+      AddCmpToLimits(&limits, cond, InductionVariable::kNonStrict, !polarity);
       break;
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
-      AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, polarity);
+      AddCmpToLimits(&limits, cond, InductionVariable::kNonStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThanOrEqual:
-      AddCmpToLimits(limits, cond, InductionVariable::kStrict, !polarity);
+      AddCmpToLimits(&limits, cond, InductionVariable::kStrict, !polarity);
       break;
     default:
       break;
   }
-  limits_[node->id()] = limits;
+  limits_.Set(node, limits);
 }
 
 void LoopVariableOptimizer::AddCmpToLimits(
@@ -260,19 +185,17 @@ void LoopVariableOptimizer::AddCmpToLimits(
   Node* right = node->InputAt(1);
   if (FindInductionVariable(left) || FindInductionVariable(right)) {
     if (polarity) {
-      limits->Add(left, kind, right, zone());
+      limits->PushFront(Constraint{left, kind, right}, zone());
     } else {
       kind = (kind == InductionVariable::kStrict)
                  ? InductionVariable::kNonStrict
                  : InductionVariable::kStrict;
-      limits->Add(right, kind, left, zone());
+      limits->PushFront(Constraint{right, kind, left}, zone());
     }
   }
 }
 
-void LoopVariableOptimizer::VisitStart(Node* node) {
-  limits_[node->id()] = VariableLimits::Empty(zone());
-}
+void LoopVariableOptimizer::VisitStart(Node* node) { limits_.Set(node, {}); }
 
 void LoopVariableOptimizer::VisitLoopExit(Node* node) {
   return TakeConditionsFromFirstControl(node);
@@ -284,10 +207,7 @@ void LoopVariableOptimizer::VisitOtherControl(Node* node) {
 }
 
 void LoopVariableOptimizer::TakeConditionsFromFirstControl(Node* node) {
-  const VariableLimits* limits =
-      limits_[NodeProperties::GetControlInput(node, 0)->id()];
-  DCHECK_NOT_NULL(limits);
-  limits_[node->id()] = limits;
+  limits_.Set(node, limits_.Get(NodeProperties::GetControlInput(node, 0)));
 }
 
 const InductionVariable* LoopVariableOptimizer::FindInductionVariable(

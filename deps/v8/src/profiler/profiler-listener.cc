@@ -5,10 +5,12 @@
 #include "src/profiler/profiler-listener.h"
 
 #include "src/deoptimizer.h"
+#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/source-position-table.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
@@ -81,10 +83,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = abstract_code->address();
-  JITLineInfoTable* line_table = nullptr;
+  std::unique_ptr<JITLineInfoTable> line_table;
   if (shared->script()->IsScript()) {
     Script* script = Script::cast(shared->script());
-    line_table = new JITLineInfoTable();
+    line_table.reset(new JITLineInfoTable());
     int offset = abstract_code->IsCode() ? Code::kHeaderSize
                                          : BytecodeArray::kHeaderSize;
     for (SourcePositionTableIterator it(abstract_code->source_position_table());
@@ -101,12 +103,30 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   }
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(shared->DebugName()), CodeEntry::kEmptyNamePrefix,
-      GetName(InferScriptName(script_name, shared)), line, column, line_table,
-      abstract_code->instruction_start());
+      GetName(InferScriptName(script_name, shared)), line, column,
+      std::move(line_table), abstract_code->instruction_start());
   RecordInliningInfo(rec->entry, abstract_code);
   RecordDeoptInlinedFrames(rec->entry, abstract_code);
   rec->entry->FillFunctionInfo(shared);
   rec->size = abstract_code->ExecutableSize();
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                                       wasm::WasmCode* code,
+                                       wasm::WasmName name) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = code->instructions().start();
+  // TODO(herhut): Instead of sanitizing here, make sure all wasm functions
+  //               have names.
+  const char* name_ptr =
+      name.start() == nullptr ? "<anonymous>" : GetFunctionName(name.start());
+  rec->entry = NewCodeEntry(
+      tag, name_ptr, CodeEntry::kEmptyNamePrefix, CodeEntry::kEmptyResourceName,
+      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
+      nullptr, code->instructions().start());
+  rec->size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -164,6 +184,20 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
   DispatchCodeEvent(evt_rec);
 }
 
+void ProfilerListener::InstructionStreamCreateEvent(
+    CodeEventListener::LogEventsAndTags tag, const InstructionStream* stream,
+    const char* description) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = stream->bytes();
+  rec->entry = NewCodeEntry(
+      tag, description, CodeEntry::kEmptyNamePrefix,
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, stream->bytes());
+  rec->size = static_cast<unsigned>(stream->byte_length());
+  DispatchCodeEvent(evt_rec);
+}
+
 void ProfilerListener::SetterCallbackEvent(Name* name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -199,7 +233,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
     DCHECK_EQ(Translation::BEGIN, opcode);
     it.Skip(Translation::NumberOfOperandsFor(opcode));
     int depth = 0;
-    std::vector<CodeEntry*> inline_stack;
+    std::vector<std::unique_ptr<CodeEntry>> inline_stack;
     while (it.HasNext() &&
            Translation::BEGIN !=
                (opcode = static_cast<Translation::Opcode>(it.Next()))) {
@@ -227,7 +261,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
                         CpuProfileNode::kNoColumnNumberInfo, nullptr,
                         code->instruction_start());
       inline_entry->FillFunctionInfo(shared_info);
-      inline_stack.push_back(inline_entry);
+      inline_stack.emplace_back(inline_entry);
     }
     if (!inline_stack.empty()) {
       entry->AddInlineStack(pc_offset, std::move(inline_stack));
@@ -276,10 +310,11 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
 CodeEntry* ProfilerListener::NewCodeEntry(
     CodeEventListener::LogEventsAndTags tag, const char* name,
     const char* name_prefix, const char* resource_name, int line_number,
-    int column_number, JITLineInfoTable* line_info, Address instruction_start) {
+    int column_number, std::unique_ptr<JITLineInfoTable> line_info,
+    Address instruction_start) {
   std::unique_ptr<CodeEntry> code_entry = base::make_unique<CodeEntry>(
       tag, name, name_prefix, resource_name, line_number, column_number,
-      line_info, instruction_start);
+      std::move(line_info), instruction_start);
   CodeEntry* raw_code_entry = code_entry.get();
   code_entries_.push_back(std::move(code_entry));
   return raw_code_entry;

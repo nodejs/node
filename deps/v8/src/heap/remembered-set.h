@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_REMEMBERED_SET_H
-#define V8_REMEMBERED_SET_H
+#ifndef V8_HEAP_REMEMBERED_SET_H_
+#define V8_HEAP_REMEMBERED_SET_H_
 
 #include "src/assembler.h"
 #include "src/heap/heap.h"
@@ -298,8 +298,7 @@ class UpdateTypedSlotHelper {
     Object* new_target = old_target;
     SlotCallbackResult result = callback(&new_target);
     if (new_target != old_target) {
-      rinfo->set_target_address(old_target->GetIsolate(),
-                                Code::cast(new_target)->instruction_start());
+      rinfo->set_target_address(Code::cast(new_target)->instruction_start());
     }
     return result;
   }
@@ -359,4 +358,4 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REMEMBERED_SET_H
+#endif  // V8_HEAP_REMEMBERED_SET_H_

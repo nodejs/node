@@ -314,7 +314,7 @@ class String : public Name {
   uint32_t inline ToValidIndex(Object* number);
 
   // Trimming.
-  enum TrimMode { kTrim, kTrimLeft, kTrimRight };
+  enum TrimMode { kTrim, kTrimStart, kTrimEnd };
   static Handle<String> Trim(Handle<String> string, TrimMode mode);
 
   DECL_CAST(String)

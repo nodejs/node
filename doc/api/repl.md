@@ -179,6 +179,25 @@ Error: foo
 'foo'
 ```
 
+#### `await` keyword
+
+With the [`--experimental-repl-await`][] command line option specified,
+experimental support for the `await` keyword is enabled.
+
+<!-- eslint-skip -->
+```js
+> await Promise.resolve(123)
+123
+> await Promise.reject(new Error('REPL await'))
+Error: REPL await
+    at repl:1:45
+> const timeout = util.promisify(setTimeout);
+undefined
+> const old = Date.now(); await timeout(1000); console.log(Date.now() - old);
+1002
+undefined
+```
+
 ### Custom Evaluation Functions
 
 When a new `repl.REPLServer` is created, a custom evaluation function may be
@@ -411,6 +430,7 @@ deprecated: v9.0.0
 
 * `keyword` {string} the potential keyword to parse and execute
 * `rest` {any} any parameters to the keyword command
+* Returns: {boolean}
 
 > Stability: 0 - Deprecated.
 
@@ -592,6 +612,7 @@ a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 For an example of running a REPL instance over [curl(1)][],
 see: https://gist.github.com/2053342
 
+[`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [`readline.Interface`]: readline.html#readline_class_interface
 [`util.inspect()`]: util.html#util_util_inspect_object_options

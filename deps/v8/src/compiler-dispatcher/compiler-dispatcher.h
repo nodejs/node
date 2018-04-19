@@ -72,8 +72,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
  public:
   typedef uintptr_t JobId;
 
-  enum class BlockingBehavior { kBlock, kDontBlock };
-
   CompilerDispatcher(Isolate* isolate, Platform* platform,
                      size_t max_stack_size);
   ~CompilerDispatcher();

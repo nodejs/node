@@ -164,8 +164,8 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionFeedbackVector() {
-  FieldAccess access = {kTaggedBase,         JSFunction::kFeedbackVectorOffset,
+FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
+  FieldAccess access = {kTaggedBase,         JSFunction::kFeedbackCellOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -289,12 +289,12 @@ FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectQueue() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitedPromise() {
+FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectIsAwaiting() {
   FieldAccess access = {
-      kTaggedBase,         JSAsyncGeneratorObject::kAwaitedPromiseOffset,
+      kTaggedBase,         JSAsyncGeneratorObject::kIsAwaitingOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
-      Type::NonInternal(), MachineType::AnyTagged(),
-      kFullWriteBarrier};
+      Type::SignedSmall(), MachineType::TaggedSigned(),
+      kNoWriteBarrier};
   return access;
 }
 
@@ -1001,6 +1001,10 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
                               MachineType::Float64(), kNoWriteBarrier};
       return access;
     }
+    case kExternalBigInt64Array:
+    case kExternalBigUint64Array:
+      // TODO(neis/jkummerow): Define appropriate types.
+      UNIMPLEMENTED();
   }
   UNREACHABLE();
 }

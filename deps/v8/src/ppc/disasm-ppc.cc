@@ -269,6 +269,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
             converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
         return 8;
       }
+      break;
       case 's': {
         DCHECK_EQ(format[1], 'h');
         int32_t value = 0;

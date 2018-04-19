@@ -15,15 +15,27 @@ namespace compiler {
 // Forward declarations.
 class Node;
 
-template <class T, T def()>
+template <class T>
+T DefaultConstruct() {
+  return T();
+}
+
+template <class T, T def() = DefaultConstruct<T>>
 class NodeAuxData {
  public:
   explicit NodeAuxData(Zone* zone) : aux_data_(zone) {}
+  explicit NodeAuxData(size_t initial_size, Zone* zone)
+      : aux_data_(initial_size, zone) {}
 
-  void Set(Node* node, T const& data) {
+  // Update entry. Returns true iff entry was changed.
+  bool Set(Node* node, T const& data) {
     size_t const id = node->id();
     if (id >= aux_data_.size()) aux_data_.resize(id + 1, def());
-    aux_data_[id] = data;
+    if (aux_data_[id] != data) {
+      aux_data_[id] = data;
+      return true;
+    }
+    return false;
   }
 
   T Get(Node* node) const {

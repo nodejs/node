@@ -134,7 +134,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprCallIndirect: {
         CallIndirectOperand<Decoder::kNoValidate> operand(&i, i.pc());
         DCHECK_EQ(0, operand.table_index);
-        os << "call_indirect " << operand.index;
+        os << "call_indirect " << operand.sig_index;
         break;
       }
       case kExprCallFunction: {
@@ -208,6 +208,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
             UNREACHABLE();
             break;
         }
+        break;
       }
 
         // This group is just printed by their internal opcode name, as they

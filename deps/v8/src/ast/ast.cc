@@ -311,7 +311,7 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
     : LiteralProperty(key, value, is_computed_name),
       kind_(kind),
       is_static_(is_static),
-      computed_name_var_(nullptr) {}
+      private_or_computed_name_var_(nullptr) {}
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
@@ -683,8 +683,8 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       }
     }
   }
-  return isolate->factory()->NewTemplateObjectDescription(
-      this->hash(), raw_strings, cooked_strings);
+  return isolate->factory()->NewTemplateObjectDescription(raw_strings,
+                                                          cooked_strings);
 }
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {

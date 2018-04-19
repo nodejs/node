@@ -47,11 +47,14 @@ FEATURE_FLAGS = {
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
   'Promise.prototype.finally': '--harmony-promise-finally',
-  'class-fields-public': '--harmony-class-fields',
+  'class-fields-public': '--harmony-public-fields',
   'optional-catch-binding': '--harmony-optional-catch-binding',
+  'class-fields-private': '--harmony-private-fields',
 }
 
-SKIPPED_FEATURES = set(['class-fields-private'])
+SKIPPED_FEATURES = set(['Array.prototype.flatten',
+                        'Array.prototype.flatMap',
+                        'numeric-separator-literal'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"
@@ -69,32 +72,6 @@ TEST_262_RELPATH_REGEXP = re.compile(
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              *TEST_262_TOOLS_PATH))
-
-ALL_VARIANT_FLAGS_STRICT = dict(
-    (v, [flags + ["--use-strict"] for flags in flag_sets])
-    for v, flag_sets in testsuite.ALL_VARIANT_FLAGS.iteritems()
-)
-
-ALL_VARIANT_FLAGS_BOTH = dict(
-    (v, [flags for flags in testsuite.ALL_VARIANT_FLAGS[v] +
-                            ALL_VARIANT_FLAGS_STRICT[v]])
-    for v in testsuite.ALL_VARIANT_FLAGS
-)
-
-ALL_VARIANTS = {
-  'nostrict': testsuite.ALL_VARIANT_FLAGS,
-  'strict': ALL_VARIANT_FLAGS_STRICT,
-  'both': ALL_VARIANT_FLAGS_BOTH,
-}
-
-class LegacyVariantsGenerator(testsuite.LegacyVariantsGenerator):
-  def GetFlagSets(self, test, variant):
-    test_record = test.test_record
-    if "noStrict" in test_record:
-      return ALL_VARIANTS["nostrict"][variant]
-    if "onlyStrict" in test_record:
-      return ALL_VARIANTS["strict"][variant]
-    return ALL_VARIANTS["both"][variant]
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -116,8 +93,8 @@ class TestSuite(testsuite.TestSuite):
   # Match the (...) in '/path/to/v8/test/test262/subdir/test/(...).js'
   # In practice, subdir is data or local-tests
 
-  def __init__(self, name, root):
-    super(TestSuite, self).__init__(name, root)
+  def __init__(self, *args, **kwargs):
+    super(TestSuite, self).__init__(*args, **kwargs)
     self.testroot = os.path.join(self.root, *TEST_262_SUITE_PATH)
     self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
     self.harness = [os.path.join(self.harnesspath, f)
@@ -158,13 +135,13 @@ class TestSuite(testsuite.TestSuite):
       if f:
         f.close()
 
-  def ListTests(self, context):
+  def ListTests(self):
     testnames = set()
     for dirname, dirs, files in itertools.chain(os.walk(self.testroot),
                                                 os.walk(self.localtestroot)):
       for dotted in [x for x in dirs if x.startswith(".")]:
         dirs.remove(dotted)
-      if context.noi18n and "intl402" in dirs:
+      if self.test_config.noi18n and "intl402" in dirs:
         dirs.remove("intl402")
       dirs.sort()
       files.sort()
@@ -184,9 +161,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def _LegacyVariantsGeneratorFactory(self):
-    return LegacyVariantsGenerator
-
   def _variants_gen_class(self):
     return VariantsGenerator
 
@@ -203,7 +177,7 @@ class TestCase(testcase.TestCase):
           .get('type', None)
     )
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return (
         list(self.suite.harness) +
         ([os.path.join(self.suite.root, "harness-agent.js")]
@@ -213,7 +187,7 @@ class TestCase(testcase.TestCase):
         [self._get_source_path()]
     )
 
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return (
         (["--throws"] if "negative" in self.test_record else []) +
         (["--allow-natives-syntax"]
@@ -250,5 +224,5 @@ class TestCase(testcase.TestCase):
     return test262.NoExceptionOutProc(self.expected_outcomes)
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)
