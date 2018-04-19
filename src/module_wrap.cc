@@ -279,7 +279,9 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     result = module->Evaluate(context);
   }
 
+  // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
+    env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in
     // which this timeout is nested, so check whether one of the watchdogs
     // from this invocation is responsible for termination.
@@ -288,7 +290,6 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     } else if (received_signal) {
       env->ThrowError("Script execution interrupted.");
     }
-    env->isolate()->CancelTerminateExecution();
   }
 
   if (try_catch.HasCaught()) {
