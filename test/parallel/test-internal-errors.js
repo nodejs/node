@@ -77,7 +77,7 @@ common.expectsError(() => {
   }, { code: 'TEST_ERROR_1', type: RangeError });
 }, {
   code: 'ERR_ASSERTION',
-  message: /^.+ is not instance of \S/
+  message: /-   type: \[Function: TypeError]\n\+   type: \[Function: RangeError]/
 });
 
 common.expectsError(() => {

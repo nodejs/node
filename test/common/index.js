@@ -718,8 +718,6 @@ exports.expectsError = function expectsError(fn, settings, exact) {
       if (type !== Error && !Error.isPrototypeOf(type)) {
         throw new TypeError('`settings.type` must inherit from `Error`');
       }
-      assert(error instanceof type,
-             `${error.name} is not instance of ${type.name}`);
       let constructor = error.constructor;
       if (constructor.name === 'NodeError' && type.name !== 'NodeError') {
         constructor = Object.getPrototypeOf(error.constructor);
@@ -729,14 +727,14 @@ exports.expectsError = function expectsError(fn, settings, exact) {
         error.type = constructor;
     }
 
-    if ('message' in settings && typeof settings.message === 'object') {
-      if (settings.message.test(error.message)) {
-        // Make a copy so we are able to modify the settings.
-        innerSettings = Object.create(
-          settings, Object.getOwnPropertyDescriptors(settings));
-        // Visualize the message as identical in case of other errors.
-        innerSettings.message = error.message;
-      }
+    if ('message' in settings &&
+        typeof settings.message === 'object' &&
+        settings.message.test(error.message)) {
+      // Make a copy so we are able to modify the settings.
+      innerSettings = Object.create(
+        settings, Object.getOwnPropertyDescriptors(settings));
+      // Visualize the message as identical in case of other errors.
+      innerSettings.message = error.message;
     }
 
     // Check all error properties.
@@ -753,8 +751,7 @@ exports.expectsError = function expectsError(fn, settings, exact) {
           actual: a,
           expected: b,
           operator: 'strictEqual',
-          stackStartFn: assert.throws,
-          errorDiff: 2
+          stackStartFn: assert.throws
         });
         Error.stackTraceLimit = tmpLimit;
 
