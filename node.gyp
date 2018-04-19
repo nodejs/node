@@ -682,10 +682,31 @@
         [ 'v8_enable_inspector==1', {
           'actions': [
             {
+              'action_name': 'v8_inspector_copy_protocol_to_intermediate_folder',
+              'inputs': [ 'deps/v8/src/inspector/js_protocol.pdl' ],
+              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/js_protocol.pdl' ],
+              'action': [ 'cp', '<@(_inputs)', '<(SHARED_INTERMEDIATE_DIR)' ],
+            },
+            {
+              'action_name': 'v8_inspector_convert_protocol_to_json',
+              'inputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/js_protocol.pdl',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/js_protocol.json',
+              ],
+              'action': [
+                'python',
+                'deps/v8/third_party/inspector_protocol/ConvertProtocolToJSON.py',
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+            {
               'action_name': 'v8_inspector_compress_protocol_json',
               'process_outputs_as_sources': 1,
               'inputs': [
-                'deps/v8/src/inspector/js_protocol.json',
+                '<(SHARED_INTERMEDIATE_DIR)/js_protocol.json',
               ],
               'outputs': [
                 '<(SHARED_INTERMEDIATE_DIR)/v8_inspector_protocol_json.h',
