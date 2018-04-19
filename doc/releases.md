@@ -138,7 +138,22 @@ $ git reset --hard upstream/v1.x-staging
 ```
 
 If the staging branch is not up to date relative to `master`, bring the
-appropriate commits into it. To determine the relevant commits, use
+appropriate PRs and commits into it.
+
+Go through PRs with the label `vN.x`. e.g. [PRs with the `v8.x` label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x).
+
+For each PR:
+- Run or check that there is a passing CI.
+- Check approvals (you can approve yourself).
+- Check that the commit metadata was not changed from the `master` commit.
+- If there are merge conflicts, ask the PR author to rebase.
+Simple conflicts can be resolved when landing.
+
+When landing the PR add the `Backport-PR-URL:` line to each commit. Close the
+backport PR with `Landed in ...`. Update the label on the original PR from
+`backport-requested-vN.x` to `backported-to-vN.x`.
+
+To determine the relevant commits, use
 [`branch-diff`](https://github.com/nodejs/branch-diff). The tool is available on
 npm and should be installed globally or run with `npx`. It depends on our commit
 metadata, as well as the GitHub labels such as `semver-minor` and
@@ -152,14 +167,24 @@ For a list of commits that could be landed in a patch release on v1.x:
 $ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x --filter-release --format=simple
 ```
 
-Carefully review the list of commits looking for errors (incorrect `PR-URL`,
-incorrect semver, etc.). Commits labeled as `semver-minor` or `semver-major`
-should only be cherry-picked when appropriate for the type of release being
-made. Previous release commits and version bumps do not need to be
+Previous release commits and version bumps do not need to be
 cherry-picked.
 
-If commits were cherry-picked in this step, push to the staging branch to keep
-it up-to-date.
+Carefully review the list of commits:
+- Checking for errors (incorrect `PR-URL`)
+- Checking semver status - Commits labeled as `semver-minor` or `semver-major`
+should only be cherry-picked when appropriate for the type of release being
+made.
+- If you think it's risky so should wait for a while, add the `baking-for-lts`
+   tag.
+
+When cherry-picking commits, if there are simple conflicts you can resolve
+them. Otherwise, add the `backport-requested-vN.x` label to the original PR
+and post a comment stating that it does not land cleanly and will require a
+backport PR.
+
+If commits were cherry-picked in this step, check that the test still pass and
+push to the staging branch to keep it up-to-date.
 
 ```console
 $ git push upstream v1.x-staging
