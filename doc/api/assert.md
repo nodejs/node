@@ -389,11 +389,8 @@ the promise is not rejected.
 If `block` is a function and it throws an error synchronously,
 `assert.doesNotReject()` will return a rejected Promise with that error. If the
 function does not return a promise, `assert.doesNotReject()` will return a
-rejected Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases
-without checking the error handler.
-
-If `block` is a function and it does not return a promise, an
-[`ERR_INVALID_RETURN_VALUE`][] error is going to be rejected.
+rejected Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the
+error handler is skipped.
 
 Please note: Using `assert.doesNotReject()` is actually not useful because there
 is little benefit by catching a rejection and then rejecting it again. Instead,
@@ -936,8 +933,8 @@ the promise is rejected.
 If `block` is a function and it throws an error synchronously,
 `assert.rejects()` will return a rejected Promise with that error. If the
 function does not return a promise, `assert.rejects()` will return a rejected
-Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases without
-checking the error handler.
+Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
+handler is skipped.
 
 Besides the async nature to await the completion behaves identically to
 [`assert.throws()`][].
