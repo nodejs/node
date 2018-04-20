@@ -54,10 +54,10 @@ createReadStreamErr(example, { start: -1 }, rangeError);
 createReadStreamErr(example, { end: -1 }, rangeError);
 createReadStreamErr(example, { start: -1, end: -1 }, rangeError);
 
-// Case 4: Should not throw if either start or end is fractional
-fs.createReadStream(example, { start: 0.1 });
-fs.createReadStream(example, { end: 0.1 });
-fs.createReadStream(example, { start: 0.1, end: 0.1 });
+// Case 4: Should throw RangeError if either start or end is fractional
+createReadStreamErr(example, { start: 0.1 }, rangeError);
+createReadStreamErr(example, { end: 0.1 }, rangeError);
+createReadStreamErr(example, { start: 0.1, end: 0.1 }, rangeError);
 
 // Case 5: Should not throw if both start and end are whole numbers
 fs.createReadStream(example, { start: 1, end: 5 });
