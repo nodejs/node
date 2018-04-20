@@ -32,5 +32,5 @@ server.on('listening', common.mustCall(() => {
   }));
   req.resume();
   req.on('data', common.mustNotCall());
-  req.on('end', common.mustCall(() => server.close()));
+  req.on('close', common.mustCall(() => server.close()));
 }));

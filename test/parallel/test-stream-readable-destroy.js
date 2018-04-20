@@ -189,3 +189,18 @@ const { inherits } = require('util');
   read.push('hi');
   read.on('data', common.mustNotCall());
 }
+
+{
+  // double error case
+  const read = new Readable({
+    read() {}
+  });
+
+  read.on('close', common.mustCall());
+  read.on('error', common.mustCall());
+
+  read.destroy(new Error('kaboom 1'));
+  read.destroy(new Error('kaboom 2'));
+  assert.strictEqual(read._readableState.errorEmitted, true);
+  assert.strictEqual(read.destroyed, true);
+}
