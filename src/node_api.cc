@@ -2376,6 +2376,51 @@ napi_status napi_coerce_to_string(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status napi_serialize_value(napi_env env,
+                                 napi_value value,
+                                 napi_serialized_data* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::ValueSerializer serializer(isolate);
+  serializer.WriteHeader();
+
+  v8::Local<v8::Value> v8_value = v8impl::V8LocalValueFromJsValue(value);
+  if (serializer.WriteValue(context, v8_value).FromMaybe(false)) {
+    auto data = serializer.Release();
+    napi_serialized_data serialized = {data.first, data.second};
+    *result = serialized;
+    return GET_RETURN_STATUS(env);
+  }
+
+  return napi_set_last_error(env, napi_generic_failure);
+}
+
+napi_status napi_deserialize_value(napi_env env,
+                                   napi_serialized_data data,
+                                   napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::ValueDeserializer deserializer(isolate, data.data, data.size);
+
+  if (deserializer.ReadHeader(context).FromMaybe(false)) {
+    v8::MaybeLocal<v8::Value> value = deserializer.ReadValue(context);
+    if (!value.IsEmpty()) {
+      *result = v8impl::JsValueFromV8LocalValue(value.ToLocalChecked());
+      return GET_RETURN_STATUS(env);
+    }
+  }
+
+  return napi_set_last_error(env, napi_generic_failure);
+}
+
 napi_status napi_wrap(napi_env env,
                       napi_value js_object,
                       void* native_object,

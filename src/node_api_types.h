@@ -114,4 +114,9 @@ typedef struct {
   const char* release;
 } napi_node_version;
 
+typedef struct {
+  const uint8_t* data;
+  size_t size;
+} napi_serialized_data;
+
 #endif  // SRC_NODE_API_TYPES_H_
