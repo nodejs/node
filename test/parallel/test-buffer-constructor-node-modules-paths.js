@@ -20,16 +20,18 @@ function test(main, callSite, expected) {
     assert.strictEqual(stderr.trim(), '');
 }
 
-test('/a/node_modules/b.js', '/a/node_modules/x.js', true);
+test('/a/node_modules/b.js', '/a/node_modules/x.js', false);
 test('/a/node_modules/b.js', '/a/node_modules/foo/node_modules/x.js', false);
 test('/a/node_modules/foo/node_modules/b.js', '/a/node_modules/x.js', false);
 test('/node_modules/foo/b.js', '/node_modules/foo/node_modules/x.js', false);
 test('/a.js', '/b.js', true);
 test('/a.js', '/node_modules/b.js', false);
-test('c:\\a\\node_modules\\b.js', 'c:\\a\\node_modules\\x.js', true);
+test('/node_modules/a.js.js', '/b.js', true);
+test('c:\\a\\node_modules\\b.js', 'c:\\a\\node_modules\\x.js', false);
 test('c:\\a\\node_modules\\b.js',
      'c:\\a\\node_modules\\foo\\node_modules\\x.js', false);
 test('c:\\node_modules\\foo\\b.js',
      'c:\\node_modules\\foo\\node_modules\\x.js', false);
 test('c:\\a.js', 'c:\\b.js', true);
 test('c:\\a.js', 'c:\\node_modules\\b.js', false);
+test('c:\\node_modules\\a.js', 'c:\\b.js', true);
