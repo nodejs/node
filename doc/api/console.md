@@ -425,7 +425,7 @@ added: v0.1.104
 * `message` {any}
 * `...args` {any}
 
-Prints to `stderr` the string `'Trace :'`, followed by the [`util.format()`][]
+Prints to `stderr` the string `'Trace: '`, followed by the [`util.format()`][]
 formatted message and stack trace to the current position in the code.
 
 ```js
