@@ -260,8 +260,8 @@ void NodePlatform::CallDelayedOnForegroundThread(Isolate* isolate,
     std::unique_ptr<Task>(task), delay_in_seconds);
 }
 
-void NodePlatform::FlushForegroundTasks(v8::Isolate* isolate) {
-  ForIsolate(isolate)->FlushForegroundTasksInternal();
+bool NodePlatform::FlushForegroundTasks(v8::Isolate* isolate) {
+  return ForIsolate(isolate)->FlushForegroundTasksInternal();
 }
 
 void NodePlatform::CancelPendingDelayedTasks(v8::Isolate* isolate) {

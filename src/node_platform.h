@@ -66,9 +66,9 @@ class PerIsolatePlatformData :
   void ref();
   int unref();
 
-  // Returns true iff work was dispatched or executed.
-  // New tasks that are posted during flushing of the queue are postponed until
-  // the next flushing.
+  // Returns true iff work was dispatched or executed. New tasks that are
+  // posted during flushing of the queue are postponed until the next
+  // flushing.
   bool FlushForegroundTasksInternal();
   void CancelPendingDelayedTasks();
 
@@ -133,7 +133,10 @@ class NodePlatform : public MultiIsolatePlatform {
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
 
-  void FlushForegroundTasks(v8::Isolate* isolate);
+  // Returns true iff work was dispatched or executed. New tasks that are
+  // posted during flushing of the queue are postponed until the next
+  // flushing.
+  bool FlushForegroundTasks(v8::Isolate* isolate);
 
   void RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) override;
   void UnregisterIsolate(IsolateData* isolate_data) override;

@@ -45,10 +45,11 @@ TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
   int run_count = 0;
   platform->CallOnForegroundThread(
       isolate_, new RepostingTask(2, &run_count, isolate_, platform.get()));
-  platform->FlushForegroundTasks(isolate_);
+  EXPECT_TRUE(platform->FlushForegroundTasks(isolate_));
   EXPECT_EQ(1, run_count);
-  platform->FlushForegroundTasks(isolate_);
+  EXPECT_TRUE(platform->FlushForegroundTasks(isolate_));
   EXPECT_EQ(2, run_count);
-  platform->FlushForegroundTasks(isolate_);
+  EXPECT_TRUE(platform->FlushForegroundTasks(isolate_));
   EXPECT_EQ(3, run_count);
+  EXPECT_FALSE(platform->FlushForegroundTasks(isolate_));
 }

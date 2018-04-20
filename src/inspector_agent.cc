@@ -316,7 +316,7 @@ class NodeInspectorClient : public V8InspectorClient {
     terminated_ = false;
     running_nested_loop_ = true;
     while (!terminated_ && channel_->waitForFrontendMessage()) {
-      platform_->FlushForegroundTasks(env_->isolate());
+      while (platform_->FlushForegroundTasks(env_->isolate())) {}
     }
     terminated_ = false;
     running_nested_loop_ = false;
