@@ -930,7 +930,6 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     CHECK(!object.IsEmpty());
   }
 
-  HandleScope handle_scope(env->isolate());
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(Environment::GetCurrent(env->isolate()), env);
 
@@ -956,7 +955,6 @@ InternalCallbackScope::~InternalCallbackScope() {
 void InternalCallbackScope::Close() {
   if (closed_) return;
   closed_ = true;
-  HandleScope handle_scope(env_->isolate());
 
   if (pushed_ids_)
     env_->async_hooks()->pop_async_id(async_context_.async_id);
