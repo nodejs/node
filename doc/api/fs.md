@@ -4583,7 +4583,7 @@ string:
 * `'rs+'` - Open file for reading and writing in synchronous mode. Instructs
   the operating system to bypass the local file system cache.
 
-  This is primarily useful for opening files on NFS mounts as it allows	
+  This is primarily useful for opening files on NFS mounts as it allows
   skipping the potentially stale local cache. It has a very real impact on 
   I/O performance so using this flag is not recommended unless it is needed.
 
@@ -4622,7 +4622,7 @@ The behavior of some flags are platform-specific. As such, opening a directory
 on macOS and Linux with the `'a+'` flag - see example below - will return an 
 error. In contrast, on Windows and FreeBSD, a file descriptor or a `FileHandle`
 will be returned.
-	
+
 ```js
 // macOS and Linux
 fs.open('<directory>', 'a+', (err, fd) => {
