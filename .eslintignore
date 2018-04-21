@@ -8,7 +8,6 @@ test/message/esm_display_syntax_error.mjs
 tools/node_modules
 tools/icu
 tools/remark-*
-node_modules
 benchmark/tmp
 doc/**/*.js
 !.eslintrc.js
