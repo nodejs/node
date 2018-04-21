@@ -187,7 +187,7 @@ var formData = {
   // Pass a simple key-value pair
   my_field: 'my_value',
   // Pass data via Buffers
-  my_buffer: new Buffer([1, 2, 3]),
+  my_buffer: Buffer.from([1, 2, 3]),
   // Pass data via Streams
   my_file: fs.createReadStream(__dirname + '/unicycle.jpg'),
   // Pass multiple values /w an Array
@@ -221,7 +221,7 @@ For advanced cases, you can access the form-data object itself via `r.form()`. T
 var r = request.post('http://service.com/upload', function optionalCallback(err, httpResponse, body) {...})
 var form = r.form();
 form.append('my_field', 'my_value');
-form.append('my_buffer', new Buffer([1, 2, 3]));
+form.append('my_buffer', Buffer.from([1, 2, 3]));
 form.append('custom_file', fs.createReadStream(__dirname + '/unicycle.jpg'), {filename: 'unicycle.jpg'});
 ```
 See the [form-data README](https://github.com/form-data/form-data) for more information & examples.

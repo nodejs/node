@@ -1,5 +1,0 @@
-parserOptions:
-  ecmaVersion: 2016
-rules:
-  no-invalid-this: 0
-  no-console: 0

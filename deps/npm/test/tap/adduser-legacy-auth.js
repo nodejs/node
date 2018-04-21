@@ -11,7 +11,7 @@ var opts = { cwd: __dirname }
 var pkg = path.resolve(__dirname, 'adduser-legacy-auth')
 var outfile = path.resolve(pkg, '_npmrc')
 
-var contents = '_auth=' + new Buffer('u:x').toString('base64') + '\n' +
+var contents = '_auth=' + Buffer.from('u:x').toString('base64') + '\n' +
                'registry=https://nonexistent.lvh.me/registry\n' +
                'email=u@p.me\n'
 
@@ -25,8 +25,11 @@ function mocks (server) {
   server.filteringRequestBody(function (r) {
     if (r.match(/"_id":"org\.couchdb\.user:u"/)) {
       return 'auth'
+    } else {
+      return 'invalid'
     }
   })
+  server.post('/-/v1/login', 'invalid').reply(404, 'not found')
   server.put('/-/user/org.couchdb.user:u', 'auth')
     .reply(409, { error: 'user exists' })
   server.get('/-/user/org.couchdb.user:u?write=true')
@@ -35,7 +38,7 @@ function mocks (server) {
     '/-/user/org.couchdb.user:u/-rev/3-deadcafebabebeef',
     'auth',
     { authorization: 'Basic dTpw' }
-    ).reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
+  ).reply(201, { username: 'u', password: 'p', email: 'u@p.me' })
 }
 
 test('setup', function (t) {

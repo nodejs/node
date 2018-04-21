@@ -28,7 +28,9 @@ function write (cache, data, opts) {
   if (typeof opts.size === 'number' && data.length !== opts.size) {
     return BB.reject(sizeError(opts.size, data.length))
   }
-  const sri = ssri.fromData(data, opts)
+  const sri = ssri.fromData(data, {
+    algorithms: opts.algorithms
+  })
   if (opts.integrity && !ssri.checkData(data, opts.integrity, opts)) {
     return BB.reject(checksumError(opts.integrity, sri))
   }

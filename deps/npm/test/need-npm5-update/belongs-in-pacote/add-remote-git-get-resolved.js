@@ -88,7 +88,7 @@ test('add-remote-git#get-resolved edge cases', function (t) {
     'git+ssh://user@bananaboat.com:galbi/blah.git#decadacefadabade',
     'don\'t break non-hosted scp-style locations'
   )
-/*
+  /*
   t.equal(
     tryGetResolved('git+ssh://bananaboat:galbi/blah', 'decadacefadabade'),
     'git+ssh://bananaboat:galbi/blah#decadacefadabade',

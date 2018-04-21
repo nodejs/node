@@ -1,4 +1,5 @@
 'use strict'
+/* eslint-disable camelcase */
 var fs = require('graceful-fs')
 var path = require('path')
 
@@ -177,11 +178,11 @@ test('go go test racer', function (t) {
       },
       stdio: 'pipe'
     }).spread((code, stdout, stderr) => {
-      t.comment(stdout.trim())
-      t.comment(stderr.trim())
-      t.is(code, 0, 'npm install exited with code 0')
-      t.notOk(/not ok/.test(stdout), 'should not contain the string \'not ok\'')
-    })
+    t.comment(stdout.trim())
+    t.comment(stderr.trim())
+    t.is(code, 0, 'npm install exited with code 0')
+    t.notOk(/not ok/.test(stdout), 'should not contain the string \'not ok\'')
+  })
 })
 
 test('verify results', function (t) {

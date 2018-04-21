@@ -103,7 +103,8 @@ If you don't provide an `options` object then the following defaults will be use
 
 ```js
 {
-    maxCallsPerWorker           : Infinity
+    workerOptions               : {}
+  , maxCallsPerWorker           : Infinity
   , maxConcurrentWorkers        : require('os').cpus().length
   , maxConcurrentCallsPerWorker : 10
   , maxConcurrentCalls          : Infinity
@@ -112,6 +113,8 @@ If you don't provide an `options` object then the following defaults will be use
   , autoStart                   : false
 }
 ```
+
+  * **<code>workerOptions</code>** allows you to customize all the parameters passed to child nodes. This object supports [all possible options of `child_process.fork`](https://nodejs.org/api/child_process.html#child_process_child_process_fork_modulepath_args_options). The default options passed are the parent `execArgv`, `cwd` and `env`. Any (or all) of them can be overridden, and others can be added as well.
 
   * **<code>maxCallsPerWorker</code>** allows you to control the lifespan of your child processes. A positive number will indicate that you only want each child to accept that many calls before it is terminated. This may be useful if you need to control memory leaks or similar in child processes.
 
