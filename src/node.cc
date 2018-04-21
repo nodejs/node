@@ -2290,6 +2290,13 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   // -1 is used for N-API modules
   if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
+    // Even if the module did self-register, it may have done so with the wrong
+    // version. We must only give up after having checked to see if it has an
+    // appropriate initializer callback.
+    if (auto callback = GetInitializerCallback(&dlib)) {
+      callback(exports, module, context);
+      return;
+    }
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
