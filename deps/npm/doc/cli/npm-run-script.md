@@ -40,7 +40,7 @@ you should write:
 
 instead of
 
-	"scripts": {"test": "node_modules/.bin/tap test/\*.js"}  
+	"scripts": {"test": "node_modules/.bin/tap test/\*.js"}
 
 to run your tests.
 
@@ -67,6 +67,10 @@ If you try to run a script without having a `node_modules` directory and it fail
 you will be given a warning to run `npm install`, just in case you've forgotten.
 
 You can use the `--silent` flag to prevent showing `npm ERR!` output on error.
+
+You can use the `--if-present` flag to avoid exiting with a non-zero exit code
+when the script is undefined. This lets you run potentially undefined scripts
+without breaking the execution chain.
 
 ## SEE ALSO
 

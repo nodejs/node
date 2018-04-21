@@ -1,72 +1,79 @@
 'use strict'
 var validate = require('aproba')
-var asyncMap = require('slide').asyncMap
 var npm = require('../npm.js')
 
 module.exports = function (differences, decomposed, next) {
   validate('AAF', arguments)
-  asyncMap(differences, function (action, done) {
+  differences.forEach((action) => {
     var cmd = action[0]
     var pkg = action[1]
     switch (cmd) {
       case 'add':
-        addSteps(decomposed, pkg, done)
+        addSteps(decomposed, pkg)
         break
       case 'update':
-        updateSteps(decomposed, pkg, done)
+        updateSteps(decomposed, pkg)
         break
       case 'move':
-        moveSteps(decomposed, pkg, done)
+        moveSteps(decomposed, pkg)
         break
       case 'remove':
-        removeSteps(decomposed, pkg, done)
+        removeSteps(decomposed, pkg)
         break
       default:
-        defaultSteps(decomposed, cmd, pkg, done)
+        defaultSteps(decomposed, cmd, pkg)
     }
-  }, next)
+  })
+  next()
 }
 
-function addSteps (decomposed, pkg, done) {
+function addAction (decomposed, action, pkg) {
+  if (decomposed.some((_) => _[0] === action && _[1] === pkg)) return
+  decomposed.push([action, pkg])
+}
+
+function addSteps (decomposed, pkg) {
+  if (pkg.fromBundle) {
+    // make sure our source module exists to extract ourselves from
+    // if we're installing our source module anyway, the duplication
+    // of these steps will be elided by `addAction` automatically
+    addAction(decomposed, 'fetch', pkg.fromBundle)
+    addAction(decomposed, 'extract', pkg.fromBundle)
+  }
   if (!pkg.fromBundle && !pkg.isLink) {
-    decomposed.push(['fetch', pkg])
-    decomposed.push(['extract', pkg])
+    addAction(decomposed, 'fetch', pkg)
+    addAction(decomposed, 'extract', pkg)
   }
   if (!pkg.fromBundle || npm.config.get('rebuild-bundle')) {
-    decomposed.push(['preinstall', pkg])
-    decomposed.push(['build', pkg])
-    decomposed.push(['install', pkg])
-    decomposed.push(['postinstall', pkg])
+    addAction(decomposed, 'preinstall', pkg)
+    addAction(decomposed, 'build', pkg)
+    addAction(decomposed, 'install', pkg)
+    addAction(decomposed, 'postinstall', pkg)
   }
   if (!pkg.fromBundle || !pkg.isLink) {
-    decomposed.push(['finalize', pkg])
+    addAction(decomposed, 'finalize', pkg)
   }
-  decomposed.push(['refresh-package-json', pkg])
-  done()
+  addAction(decomposed, 'refresh-package-json', pkg)
 }
 
-function updateSteps (decomposed, pkg, done) {
-  removeSteps(decomposed, pkg.oldPkg, () => {
-    addSteps(decomposed, pkg, done)
-  })
+function updateSteps (decomposed, pkg) {
+  removeSteps(decomposed, pkg.oldPkg)
+  addSteps(decomposed, pkg)
 }
 
-function removeSteps (decomposed, pkg, done) {
-  decomposed.push(['unbuild', pkg])
-  decomposed.push(['remove', pkg])
-  done()
+function removeSteps (decomposed, pkg) {
+  addAction(decomposed, 'unbuild', pkg)
+  addAction(decomposed, 'remove', pkg)
 }
 
-function moveSteps (decomposed, pkg, done) {
-  decomposed.push(['move', pkg])
-  decomposed.push(['build', pkg])
-  decomposed.push(['install', pkg])
-  decomposed.push(['postinstall', pkg])
-  decomposed.push(['refresh-package-json', pkg])
-  done()
+function moveSteps (decomposed, pkg) {
+  addAction(decomposed, 'move', pkg)
+  addAction(decomposed, 'build', pkg)
+  addAction(decomposed, 'install', pkg)
+  addAction(decomposed, 'postinstall', pkg)
+  addAction(decomposed, 'refresh-package-json', pkg)
 }
 
-function defaultSteps (decomposed, cmd, pkg, done) {
-  decomposed.push([cmd, pkg])
-  done()
+function defaultSteps (decomposed, cmd, pkg) {
+  addAction(decomposed, cmd, pkg)
 }

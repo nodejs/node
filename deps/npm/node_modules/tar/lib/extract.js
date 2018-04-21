@@ -4,6 +4,7 @@
 const hlo = require('./high-level-opt.js')
 const Unpack = require('./unpack.js')
 const fs = require('fs')
+const fsm = require('fs-minipass')
 const path = require('path')
 
 const x = module.exports = (opt_, files, cb) => {
@@ -64,28 +65,15 @@ const extractFileSync = opt => {
   const file = opt.file
   let threw = true
   let fd
-  try {
-    const stat = fs.statSync(file)
-    const readSize = opt.maxReadSize || 16*1024*1024
-    if (stat.size < readSize)
-      u.end(fs.readFileSync(file))
-    else {
-      let pos = 0
-      const buf = Buffer.allocUnsafe(readSize)
-      fd = fs.openSync(file, 'r')
-      while (pos < stat.size) {
-        let bytesRead = fs.readSync(fd, buf, 0, readSize, pos)
-        pos += bytesRead
-        u.write(buf.slice(0, bytesRead))
-      }
-      u.end()
-      fs.closeSync(fd)
-    }
-    threw = false
-  } finally {
-    if (threw && fd)
-      try { fs.closeSync(fd) } catch (er) {}
-  }
+  const stat = fs.statSync(file)
+  // This trades a zero-byte read() syscall for a stat
+  // However, it will usually result in less memory allocation
+  const readSize = opt.maxReadSize || 16*1024*1024
+  const stream = new fsm.ReadStreamSync(file, {
+    readSize: readSize,
+    size: stat.size
+  })
+  stream.pipe(u)
 }
 
 const extractFile = (opt, cb) => {
@@ -97,18 +85,15 @@ const extractFile = (opt, cb) => {
     u.on('error', reject)
     u.on('close', resolve)
 
+    // This trades a zero-byte read() syscall for a stat
+    // However, it will usually result in less memory allocation
     fs.stat(file, (er, stat) => {
       if (er)
         reject(er)
-      else if (stat.size < readSize)
-        fs.readFile(file, (er, data) => {
-          if (er)
-            return reject(er)
-          u.end(data)
-        })
       else {
-        const stream = fs.createReadStream(file, {
-          highWaterMark: readSize
+        const stream = new fsm.ReadStream(file, {
+          readSize: readSize,
+          size: stat.size
         })
         stream.on('error', reject)
         stream.pipe(u)

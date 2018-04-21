@@ -11,8 +11,9 @@ function isOptional (node, seen) {
     return false
   }
   seen.add(node)
-
+  const swOptional = node.fromShrinkwrap && node.package._optional
   return node.requiredBy.every(function (req) {
+    if (req.fakeChild && swOptional) return true
     return isOptDep(req, node.package.name) || isOptional(req, seen)
   })
 }
