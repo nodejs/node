@@ -927,8 +927,8 @@ convenience. If `Init` returns NULL, the parameter passed as `exports` is
 exported by the module. N-API modules cannot modify the `module` object but can
 specify anything as the `exports` property of the module.
 
-For example, to add the method `hello` as a function so that it can be called
-as a method provided by the addon:
+To add the method `hello` as a function so that it can be called as a method
+provided by the addon:
 
 ```C
 napi_value Init(napi_env env, napi_value exports) {
@@ -942,7 +942,7 @@ napi_value Init(napi_env env, napi_value exports) {
 }
 ```
 
-For example, to set a function to be returned by the `require()` for the addon:
+To set a function to be returned by the `require()` for the addon:
 
 ```C
 napi_value Init(napi_env env, napi_value exports) {
@@ -954,8 +954,8 @@ napi_value Init(napi_env env, napi_value exports) {
 }
 ```
 
-For example, to define a class so that new instances can be created
-(often used with [Object Wrap][]):
+To define a class so that new instances can be created (often used with
+[Object Wrap][]):
 
 ```C
 // NOTE: partial example, not all referenced code is included
