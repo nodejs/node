@@ -858,16 +858,23 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
                              v8::Local<v8::Value> module,
                              v8::Local<v8::Context> context,
                              void* priv) {
-  napi_module* mod = static_cast<napi_module*>(priv);
+  napi_module_register_by_symbol(exports, module, context,
+      static_cast<napi_module*>(priv)->nm_register_func);
+}
 
+}  // end of anonymous namespace
+
+void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
+                                    v8::Local<v8::Value> module,
+                                    v8::Local<v8::Context> context,
+                                    napi_addon_register_func init) {
   // Create a new napi_env for this module or reference one if a pre-existing
   // one is found.
   napi_env env = v8impl::GetEnv(context);
 
   napi_value _exports;
   NAPI_CALL_INTO_MODULE_THROW(env,
-      _exports = mod->nm_register_func(env,
-          v8impl::JsValueFromV8LocalValue(exports)));
+      _exports = init(env, v8impl::JsValueFromV8LocalValue(exports)));
 
   // If register function returned a non-null exports object different from
   // the exports object we passed it, set that as the "exports" property of
@@ -878,8 +885,6 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
     napi_set_named_property(env, _module, "exports", _exports);
   }
 }
-
-}  // end of anonymous namespace
 
 // Registers a NAPI module.
 void napi_module_register(napi_module* mod) {

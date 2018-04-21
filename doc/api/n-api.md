@@ -982,6 +982,32 @@ napi_value Init(napi_env env, napi_value exports) {
 }
 ```
 
+If you expect that your module will be loaded multiple times during the lifetime
+of the Node.js process, you can use the `NAPI_MODULE_INIT` macro to initialize
+your module:
+
+```C
+NAPI_MODULE_INIT() {
+  napi_value answer;
+  napi_status result;
+
+  status = napi_create_int64(env, 42, &answer);
+  if (status != napi_ok) return NULL;
+
+  status = napi_set_named_property(env, exports, "answer", answer);
+  if (status != napi_ok) return NULL;
+
+  return exports;
+}
+```
+
+This macro includes `NAPI_MODULE`, and declares an `Init` function with a
+special name and with visibility beyond the addon. This will allow Node.js to
+initialize the module even if it is loaded multiple times.
+
+The variables `env` and `exports` will be available inside the function body
+following the macro invocation.
+
 For more details on setting properties on objects, see the section on
 [Working with JavaScript Properties][].
 

@@ -33,6 +33,7 @@
 #include "tracing/trace_event.h"
 #include "node_perf_common.h"
 #include "node_debug_options.h"
+#include "node_api.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -840,6 +841,10 @@ static inline const char *errno_string(int errorno) {
 
 }  // namespace node
 
+void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
+                                    v8::Local<v8::Value> module,
+                                    v8::Local<v8::Context> context,
+                                    napi_addon_register_func init);
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
