@@ -10,10 +10,8 @@ napi_value Method(napi_env env, napi_callback_info info) {
   return world;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+NAPI_MODULE_INIT() {
   napi_property_descriptor desc = DECLARE_NAPI_PROPERTY("hello", Method);
   NAPI_CALL(env, napi_define_properties(env, exports, 1, &desc));
   return exports;
 }
-
-NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
