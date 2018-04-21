@@ -2911,7 +2911,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  // Note: we don't use std::max() here to work around a header conflict.
+  // Note: we don't use std::min() here to work around a header conflict.
   cipher->auth_tag_len_ = tag_len;
   if (cipher->auth_tag_len_ > sizeof(cipher->auth_tag_))
     cipher->auth_tag_len_ = sizeof(cipher->auth_tag_);
