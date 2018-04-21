@@ -994,6 +994,16 @@ because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
+<a id="DEP00XX"></a>
+### DEP00XX: http.request() and http.get() URL parsing
+
+Type: Runtime
+
+Some previously supported (but strictly invalid) URLs were accepted through the
+[`http.request()`][] and related APIs. This behavior is now deprecated. It is
+recommended that one passes a [`URL`][] object to the API as the first argument
+which ensures URL validity.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
@@ -1009,6 +1019,7 @@ expose values under these names.
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
 [`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`URL`]: url.html#url_class_url
 [`asyncResource.runInAsyncScope()`]: async_hooks.html#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`child_process`]: child_process.html
 [`console.error()`]: console.html#console_console_error_data_args
@@ -1035,6 +1046,7 @@ expose values under these names.
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
 [`fs.stat()`]: fs.html#fs_fs_stat_path_callback
+[`http.request()`]: http.html#http_http_request_options_callback
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
