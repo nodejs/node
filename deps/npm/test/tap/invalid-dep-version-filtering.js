@@ -14,7 +14,7 @@ var fixture = new Tacks(Dir({
   cache: Dir(),
   node_modules: Dir(),
   tarballs: Dir({
-    'pkgA.tgz': File(new Buffer(
+    'pkgA.tgz': File(Buffer.from(
       '1f8b0800000000000003edcfcf0a0221100670cf3ec5e0396cfcb703bd8d' +
       '842cb5e4ca5a5da2776f5da153b78408fc5d3e6684e133f9e3e4c7b04f35' +
       'e539cf9135868883b5509206b725ea3a6f9c01a634598d8e48134365d0e0' +
@@ -23,7 +23,7 @@ var fixture = new Tacks(Dir({
       '0000',
       'hex'
     )),
-    'pkgB1.tgz': File(new Buffer(
+    'pkgB1.tgz': File(Buffer.from(
       '1f8b0800000000000003edcfc10a0221140550d77ec5c375d8d3d111fa1b' +
       '0b196ac891b16913fd7be308adda2544f0cee6e25d3caec99f463f847daa' +
       '292f798aac3144ec8d8192aeb75ba2aeef8ded8029ed8c46eb1c1a86aa43' +

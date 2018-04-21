@@ -10,11 +10,10 @@ var common = require('../common-tap.js')
 
 var pkg = path.resolve(__dirname, 'outdated-symlink')
 var cache = path.resolve(pkg, 'cache')
-var extend = Object.assign || require('util')._extend
 
 var fakeRoot = path.join(pkg, 'fakeRoot')
 var OPTS = {
-  env: extend(extend({}, process.env), {
+  env: Object.assign({}, process.env, {
     'npm_config_prefix': fakeRoot,
     'registry': common.registry
   })

@@ -21,12 +21,15 @@ var versions = [
   ['v2.3.1', true, true],
   ['v3.0.0', true, true],
   ['v4.5.0', true, true],
-  ['v4.8.4', false, false],
+  ['v4.8.4', false, true],
   ['v5.7.1', false, true],
   ['v6.8.1', false, false],
-  ['v7.0.0-beta23', false, false],
-  ['v7.2.3', false, false],
-  ['v8.4.0', false, false]
+  ['v7.0.0-beta23', false, true],
+  ['v7.2.3', false, true],
+  ['v8.4.0', false, false],
+  ['v9.3.0', false, false],
+  ['v10.0.0-0', false, false],
+  ['v11.0.0-0', false, false]
 ]
 
 test('versions', function (t) {

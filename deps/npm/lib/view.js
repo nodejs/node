@@ -1,6 +1,15 @@
+'use strict'
+
 // npm view [pkg [pkg ...]]
 module.exports = view
 
+const BB = require('bluebird')
+
+const byteSize = require('byte-size')
+const color = require('ansicolors')
+const columns = require('cli-columns')
+const relativeDate = require('tiny-relative-date')
+const style = require('ansistyles')
 var npm = require('./npm.js')
 var readJson = require('read-package-json')
 var log = require('npmlog')
@@ -111,7 +120,7 @@ function fetchAndRead (nv, args, silent, cb) {
 
     npm.registry.get(uri, { auth: auth }, function (er, data) {
       if (er) return cb(er)
-      if (data['dist-tags'] && data['dist-tags'].hasOwnProperty(version)) {
+      if (data['dist-tags'] && data['dist-tags'][version]) {
         version = data['dist-tags'][version]
       }
 
@@ -146,17 +155,159 @@ function fetchAndRead (nv, args, silent, cb) {
           })
         }
       })
-      results = results.reduce(reducer, {})
-      var retval = results
+      var retval = results.reduce(reducer, {})
 
       if (args.length === 1 && args[0] === '') {
         retval = cleanBlanks(retval)
         log.silly('cleanup', retval)
       }
 
-      if (error || silent) cb(error, retval)
-      else printData(results, data._id, cb.bind(null, error, retval))
+      if (error || silent) {
+        cb(error, retval)
+      } else if (
+        !npm.config.get('json') &&
+        args.length === 1 &&
+        args[0] === ''
+      ) {
+        data.version = version
+        BB.all(results.map((v) => prettyView(data, v[Object.keys(v)[0]][''])))
+          .nodeify(cb)
+          .then(() => retval)
+      } else {
+        printData(retval, data._id, cb.bind(null, error, retval))
+      }
     })
+  })
+}
+
+function prettyView (packument, manifest) {
+  // More modern, pretty printing of default view
+  const unicode = npm.config.get('unicode')
+  return BB.try(() => {
+    if (!manifest) {
+      log.error(
+        'view',
+        'No matching versions.\n' +
+        'To see a list of versions, run:\n' +
+        `> npm view ${packument.name} versions`
+      )
+      return
+    }
+    const tags = []
+    Object.keys(packument['dist-tags']).forEach((t) => {
+      const version = packument['dist-tags'][t]
+      tags.push(`${style.bright(color.green(t))}: ${version}`)
+    })
+    const unpackedSize = manifest.dist.unpackedSize &&
+      byteSize(manifest.dist.unpackedSize)
+    const licenseField = manifest.license || manifest.licence || 'Proprietary'
+    const info = {
+      name: color.green(manifest.name),
+      version: color.green(manifest.version),
+      bins: Object.keys(manifest.bin || {}).map(color.yellow),
+      versions: color.yellow(packument.versions.length + ''),
+      description: manifest.description,
+      deprecated: manifest.deprecated,
+      keywords: (packument.keywords || []).map(color.yellow),
+      license: typeof licenseField === 'string'
+        ? licenseField
+        : (licenseField.type || 'Proprietary'),
+      deps: Object.keys(manifest.dependencies || {}).map((dep) => {
+        return `${color.yellow(dep)}: ${manifest.dependencies[dep]}`
+      }),
+      publisher: manifest._npmUser && unparsePerson({
+        name: color.yellow(manifest._npmUser.name),
+        email: color.cyan(manifest._npmUser.email)
+      }),
+      modified: color.yellow(relativeDate(packument.time[packument.version])),
+      maintainers: (packument.maintainers || []).map((u) => unparsePerson({
+        name: color.yellow(u.name),
+        email: color.cyan(u.email)
+      })),
+      repo: (
+        manifest.bugs && (manifest.bugs.url || manifest.bugs)
+      ) || (
+        manifest.repository && (manifest.repository.url || manifest.repository)
+      ),
+      site: (
+        manifest.homepage && (manifest.homepage.url || manifest.homepage)
+      ),
+      stars: color.yellow('' + packument.users ? Object.keys(packument.users || {}).length : 0),
+      tags,
+      tarball: color.cyan(manifest.dist.tarball),
+      shasum: color.yellow(manifest.dist.shasum),
+      integrity: manifest.dist.integrity && color.yellow(manifest.dist.integrity),
+      fileCount: manifest.dist.fileCount && color.yellow(manifest.dist.fileCount),
+      unpackedSize: unpackedSize && color.yellow(unpackedSize.value) + ' ' + unpackedSize.unit
+    }
+    if (info.license.toLowerCase().trim() === 'proprietary') {
+      info.license = style.bright(color.red(info.license))
+    } else {
+      info.license = color.green(info.license)
+    }
+    console.log('')
+    console.log(
+      style.underline(style.bright(`${info.name}@${info.version}`)) +
+      ' | ' + info.license +
+      ' | deps: ' + (info.deps.length ? color.cyan(info.deps.length) : color.green('none')) +
+      ' | versions: ' + info.versions
+    )
+    info.description && console.log(info.description)
+    if (info.repo || info.site) {
+      info.site && console.log(color.cyan(info.site))
+    }
+
+    const warningSign = unicode ? ' ⚠️ ' : '!!'
+    info.deprecated && console.log(
+      `\n${style.bright(color.red('DEPRECATED'))}${
+        warningSign
+      } - ${info.deprecated}`
+    )
+
+    if (info.keywords.length) {
+      console.log('')
+      console.log('keywords:', info.keywords.join(', '))
+    }
+
+    if (info.bins.length) {
+      console.log('')
+      console.log('bin:', info.bins.join(', '))
+    }
+
+    console.log('')
+    console.log('dist')
+    console.log('.tarball', info.tarball)
+    console.log('.shasum:', info.shasum)
+    info.integrity && console.log('.integrity:', info.integrity)
+    info.unpackedSize && console.log('.unpackedSize:', info.unpackedSize)
+
+    const maxDeps = 24
+    if (info.deps.length) {
+      console.log('')
+      console.log('dependencies:')
+      console.log(columns(info.deps.slice(0, maxDeps), {padding: 1}))
+      if (info.deps.length > maxDeps) {
+        console.log(`(...and ${info.deps.length - maxDeps} more.)`)
+      }
+    }
+
+    if (info.maintainers && info.maintainers.length) {
+      console.log('')
+      console.log('maintainers:')
+      info.maintainers.forEach((u) => console.log('-', u))
+    }
+
+    console.log('')
+    console.log('dist-tags:')
+    console.log(columns(info.tags))
+
+    if (info.publisher || info.modified) {
+      let publishInfo = 'published'
+      if (info.modified) { publishInfo += ` ${info.modified}` }
+      if (info.publisher) { publishInfo += ` by ${info.publisher}` }
+      console.log('')
+      console.log(publishInfo)
+    }
   })
 }
 
@@ -323,8 +474,8 @@ function cleanup (data) {
   if (keys.length <= 3 &&
       data.name &&
       (keys.length === 1 ||
-       keys.length === 3 && data.email && data.url ||
-       keys.length === 2 && (data.email || data.url))) {
+       (keys.length === 3 && data.email && data.url) ||
+       (keys.length === 2 && (data.email || data.url)))) {
     data = unparsePerson(data)
   }
   return data

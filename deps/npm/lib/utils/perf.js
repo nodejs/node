@@ -18,10 +18,9 @@ function time (name) {
 
 function timeEnd (name) {
   if (name in timings) {
-    process.emit('timing', name, Date.now() - timings[name])
+    perf.emit('timing', name, Date.now() - timings[name])
     delete timings[name]
   } else {
     log.silly('timing', "Tried to end timer that doesn't exist:", name)
-    return
   }
 }

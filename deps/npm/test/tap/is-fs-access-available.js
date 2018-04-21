@@ -3,13 +3,12 @@ var fs = require('fs')
 var test = require('tap').test
 var requireInject = require('require-inject')
 var semver = require('semver')
-var extend = Object.assign || require('util')._extend
 
 var globalProcess = global.process
 
 function loadIsFsAccessAvailable (newProcess, newFs) {
-  global.process = extend(extend({}, global.process), newProcess)
-  var mocks = {fs: extend(extend({}, fs), newFs)}
+  global.process = Object.assign({}, global.process, newProcess)
+  var mocks = {fs: Object.assign({}, fs, newFs)}
   var isFsAccessAvailable = requireInject('../../lib/install/is-fs-access-available.js', mocks)
   global.process = globalProcess
   return isFsAccessAvailable

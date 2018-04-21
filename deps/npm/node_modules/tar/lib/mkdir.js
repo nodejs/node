@@ -145,7 +145,6 @@ const mkdirSync = module.exports.sync = (dir, opt) => {
       chownr.sync(created, uid, gid)
     if (needChmod)
       fs.chmodSync(dir, mode)
-    cache.set(dir, true)
   }
 
   if (cache && cache.get(dir) === true)

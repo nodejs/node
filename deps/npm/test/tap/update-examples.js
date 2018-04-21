@@ -149,7 +149,7 @@ test('setup', function (t) {
     t.pass('mock registry active')
     npm.load({ cache: CACHE_DIR,
       registry: common.registry,
-    cwd: PKG_DIR }, function (err) {
+      cwd: PKG_DIR }, function (err) {
       t.ifError(err, 'started server')
       mockServer = server
 

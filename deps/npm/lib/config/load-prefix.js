@@ -34,7 +34,7 @@ function loadPrefix (cb) {
   Object.defineProperty(this, 'localPrefix',
     { set: function (prefix) { p = prefix },
       get: function () { return p },
-    enumerable: true })
+      enumerable: true })
 
   // try to guess at a good node_modules location.
   // If we are *explicitly* given a prefix on the cli, then

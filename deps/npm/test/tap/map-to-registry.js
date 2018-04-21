@@ -6,7 +6,7 @@ var mapRegistry = require('../../lib/utils/map-to-registry.js')
 
 var creds = {
   '//registry.npmjs.org/:username': 'u',
-  '//registry.npmjs.org/:_password': new Buffer('p').toString('base64'),
+  '//registry.npmjs.org/:_password': Buffer.from('p').toString('base64'),
   '//registry.npmjs.org/:email': 'e',
   cache: common.npm_config_cache
 }

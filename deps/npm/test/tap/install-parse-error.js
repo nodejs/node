@@ -39,7 +39,7 @@ test('failing to parse package.json should be error', function (t) {
     function (err, code, stdout, stderr) {
       if (err) throw err
       t.equal(code, 1, 'exit not ok')
-      t.similar(stderr, /npm ERR! Failed to parse json/)
+      t.similar(stderr, /npm ERR! JSON.parse Failed to parse json/)
       t.end()
     }
   )
@@ -49,4 +49,3 @@ test('cleanup', function (t) {
   cleanup()
   t.end()
 })
-

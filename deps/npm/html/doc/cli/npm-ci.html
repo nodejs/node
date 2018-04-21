@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <title>npm-ci</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-ci.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../cli/npm-ci.html">npm-ci</a></h1> <p>Install a project with a clean slate</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm ci
+</code></pre><h2 id="example">EXAMPLE</h2>
+<p>Make sure you have a package-lock and an up-to-date install:</p>
+<pre><code>$ cd ./my/npm/project
+$ npm install
+added 154 packages in 10s
+$ ls | grep package-lock
+</code></pre><p>Run <code>npm ci</code> in that project</p>
+<pre><code>$ npm ci
+added 154 packages in 5s
+</code></pre><p>Configure Travis to build using <code>npm ci</code> instead of <code>npm install</code>:</p>
+<pre><code># .travis.yml
+install:
+- npm ci
+# keep the npm cache around to speed up installs
+cache:
+  directories:
+  - &quot;$HOME/.npm&quot;
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This command is similar to <code><a href="../cli/npm-install.html">npm-install(1)</a></code>, except it&#39;s meant to be used in
+automated environments such as test platforms, continuous integration, and
+deployment. It can be significantly faster than a regular npm install by
+skipping certain user-oriented features. It is also more strict than a regular
+install, which can help catch errors or inconsistencies caused by the
+incrementally-installed local environments of most npm users.</p>
+<p>In short, the main differences between using <code>npm install</code> and <code>npm ci</code> are:</p>
+<ul>
+<li>The project <strong>must</strong> have an existing <code>package-lock.json</code> or <code>npm-shrinkwrap.json</code>.</li>
+<li>If dependencies in the package lock do not match those in <code>package.json</code>, <code>npm ci</code> will exit with an error, instead of updating the package lock.</li>
+<li><code>npm ci</code> can only install entire projects at a time: individual dependencies cannot be added with this command.</li>
+<li>If a <code>node_modules</code> is already present, it will be automatically removed before <code>npm ci</code> begins its install.</li>
+<li>It will never write to <code>package.json</code> or any of the package-locks: installs are essentially frozen.</li>
+</ul>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../files/npm-package-locks.html">npm-package-locks(5)</a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-ci &mdash; npm@6.1.0</p>

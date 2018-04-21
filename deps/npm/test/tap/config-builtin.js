@@ -15,7 +15,6 @@ var biData = { 'builtin-config': true }
 var cli = { foo: 'bar', heading: 'foo', 'git-tag-version': false }
 
 var projectData = {
-  'legacy-bundling': true
 }
 
 var expectList = [

@@ -2,15 +2,59 @@
 
 module.exports = init
 
+var path = require('path')
 var log = require('npmlog')
+var npa = require('npm-package-arg')
 var npm = require('./npm.js')
+var npx = require('libnpx')
 var initJson = require('init-package-json')
+var isRegistry = require('./utils/is-registry.js')
 var output = require('./utils/output.js')
 var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
+var usage = require('./utils/usage')
 
-init.usage = 'npm init [--force|-f|--yes|-y]'
+init.usage = usage(
+  'init',
+  '\nnpm init [--force|-f|--yes|-y|--scope]' +
+  '\nnpm init <@scope> (same as `npx <@scope>/create`)' +
+  '\nnpm init [<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)'
+)
 
 function init (args, cb) {
+  if (args.length) {
+    var NPM_PATH = path.resolve(__dirname, '../bin/npm-cli.js')
+    var initerName = args[0]
+    var packageName = initerName
+    if (/^@[^/]+$/.test(initerName)) {
+      packageName = initerName + '/create'
+    } else {
+      var req = npa(initerName)
+      if (req.type === 'git' && req.hosted) {
+        var { user, project } = req.hosted
+        packageName = initerName
+          .replace(user + '/' + project, user + '/create-' + project)
+      } else if (isRegistry(req)) {
+        packageName = req.name.replace(/^(@[^/]+\/)?/, '$1create-')
+        if (req.rawSpec) {
+          packageName += '@' + req.rawSpec
+        }
+      } else {
+        var err = new Error(
+          'Unrecognized initializer: ' + initerName +
+          '\nFor more package binary executing power check out `npx`:' +
+          '\nhttps://www.npmjs.com/package/npx'
+        )
+        err.code = 'EUNSUPPORTED'
+        throw err
+      }
+    }
+    var npxArgs = [process.argv0, '[fake arg]', '--always-spawn', packageName, ...process.argv.slice(4)]
+    var parsed = npx.parseArgs(npxArgs, NPM_PATH)
+
+    return npx(parsed)
+      .then(() => cb())
+      .catch(cb)
+  }
   var dir = process.cwd()
   log.pause()
   var initFile = npm.config.get('init-module')

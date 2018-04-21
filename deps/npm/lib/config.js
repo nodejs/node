@@ -1,3 +1,4 @@
+/* eslint-disable standard/no-callback-literal */
 module.exports = config
 
 var log = require('npmlog')
@@ -9,6 +10,8 @@ var types = npmconf.defs.types
 var ini = require('ini')
 var editor = require('editor')
 var os = require('os')
+var path = require('path')
+var mkdirp = require('mkdirp')
 var umask = require('./utils/umask')
 var usage = require('./utils/usage')
 var output = require('./utils/output')
@@ -39,7 +42,7 @@ config.completion = function (opts, cb) {
       // todo: complete with valid values, if possible.
       if (argv.length > 3) return cb(null, [])
       // fallthrough
-      /*eslint no-fallthrough:0*/
+      /* eslint no-fallthrough:0 */
     case 'get':
     case 'delete':
     case 'rm':
@@ -89,7 +92,7 @@ function edit (cb) {
       data = [
         ';;;;',
         '; npm ' + (npm.config.get('global')
-                  ? 'globalconfig' : 'userconfig') + ' file',
+          ? 'globalconfig' : 'userconfig') + ' file',
         '; this is a simple ini-formatted file',
         '; lines that start with semi-colons are comments.',
         '; read `npm help config` for help on the various options',
@@ -111,16 +114,19 @@ function edit (cb) {
             .replace(/\n/g, '\n; ')
             .split('\n'))
       }, []))
-      .concat([''])
-      .join(os.EOL)
-      writeFileAtomic(
-        f,
-        data,
-        function (er) {
-          if (er) return cb(er)
-          editor(f, { editor: e }, noProgressTillDone(cb))
-        }
-      )
+        .concat([''])
+        .join(os.EOL)
+      mkdirp(path.dirname(f), function (er) {
+        if (er) return cb(er)
+        writeFileAtomic(
+          f,
+          data,
+          function (er) {
+            if (er) return cb(er)
+            editor(f, { editor: e }, noProgressTillDone(cb))
+          }
+        )
+      })
     })
   })
 }

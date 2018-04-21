@@ -57,7 +57,7 @@ least, you need:
   use the name to specify that it runs on node, or is in JavaScript.
   You can use the "engines" field to explicitly state the versions of
   node (or whatever else) that your program requires, and it's pretty
-  well assumed that it's javascript.
+  well assumed that it's JavaScript.
 
   It does not necessarily need to match your github repository name.
 

@@ -1,3 +1,4 @@
+/* eslint-disable standard/no-callback-literal */
 module.exports = owner
 
 var npm = require('./npm.js')
@@ -53,7 +54,7 @@ owner.completion = function (opts, cb) {
           })
         }
         // else fallthrough
-        /*eslint no-fallthrough:0*/
+        /* eslint no-fallthrough:0 */
       case 'add':
         if (argv.length > 3) {
           theUser = encodeURIComponent(argv[3])

@@ -32,7 +32,7 @@ runScript.completion = function (opts, cb) {
       if (scripts.indexOf(argv[2]) !== -1) return cb()
       // ok, try to find out which package it was, then
       var pref = npm.config.get('global') ? npm.config.get('prefix')
-               : npm.localPrefix
+        : npm.localPrefix
       var pkgDir = path.resolve(pref, 'node_modules', argv[2], 'package.json')
       readJson(pkgDir, function (er, d) {
         if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)

@@ -1,3 +1,4 @@
+/* eslint-disable standard/no-callback-literal */
 module.exports = distTag
 
 var log = require('npmlog')

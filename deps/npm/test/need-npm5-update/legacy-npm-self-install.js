@@ -9,7 +9,6 @@ var osenv = require('osenv')
 var npmpath = path.resolve(__dirname, '../..')
 var basepath = path.resolve(osenv.tmpdir(), path.basename(__filename, '.js'))
 var globalpath = path.resolve(basepath, 'global')
-var extend = Object.assign || require('util')._extend
 var isWin32 = process.platform === 'win32'
 
 test('setup', function (t) {
@@ -41,7 +40,7 @@ function exists () {
 test('npm-self-install', function (t) {
   if (!tarball) return t.done()
 
-  var env = extend({}, process.env)
+  var env = Object.assign({}, process.env)
   var pathsep = isWin32 ? ';' : ':'
   env.npm_config_prefix = globalpath
   env.npm_config_global = 'true'

@@ -23,7 +23,7 @@ function setCredentialsByURI (uri, c) {
 
     this.del(nerfed + ':_authToken', 'user')
 
-    var encoded = new Buffer(c.password, 'utf8').toString('base64')
+    var encoded = Buffer.from(c.password, 'utf8').toString('base64')
     this.set(nerfed + ':_password', encoded, 'user')
     this.set(nerfed + ':username', c.username, 'user')
     this.set(nerfed + ':email', c.email, 'user')

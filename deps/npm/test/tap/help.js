@@ -2,7 +2,7 @@ var test = require('tap').test
 var common = require('../common-tap')
 
 test('npm food', function (t) {
-  common.npm('food', {}, function (err, code, stdout, stderr) {
+  common.npm('docz', {}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.equal(code, 1, 'command ran with error')
 

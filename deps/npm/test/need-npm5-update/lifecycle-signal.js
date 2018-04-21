@@ -19,7 +19,7 @@ asyncScript += '});setInterval(function(){},10);'
 var zombieScript = 'console.error(process.pid);process.on(\'SIGINT\',function (){'
 zombieScript += '});setInterval(function(){console.error(process.pid)},10);'
 
-var SIGSEGV = require('constants').SIGSEGV
+var SIGSEGV = require('constants').SIGSEGV // eslint-disable-line node/no-deprecated-api
 
 var json = {
   name: 'lifecycle-signal',

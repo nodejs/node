@@ -164,9 +164,9 @@ test('no arguments provided should error', function (t) {
     t.equal(code, 1, 'search finished unsuccessfully')
 
     t.match(
-        stderr,
-        /search must be called with arguments/,
-        'should have correct error message'
+      stderr,
+      /search must be called with arguments/,
+      'should have correct error message'
     )
     t.end()
   })

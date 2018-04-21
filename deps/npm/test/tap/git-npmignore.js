@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 var child_process = require('child_process')
 var readdir = require('graceful-fs').readdirSync
 var path = require('path')

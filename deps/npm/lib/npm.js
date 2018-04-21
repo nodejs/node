@@ -1,6 +1,6 @@
 ;(function () {
   // windows: running 'npm blah' in this folder will invoke WSH, not node.
-  /*globals WScript*/
+  /* globals WScript */
   if (typeof WScript !== 'undefined') {
     WScript.echo(
       'npm does not work when run\n' +
@@ -164,11 +164,13 @@
       })
 
       return commandCache[a]
-    }, enumerable: fullList.indexOf(c) !== -1, configurable: true })
+    },
+    enumerable: fullList.indexOf(c) !== -1,
+    configurable: true })
 
     // make css-case commands callable via camelCase as well
-    if (c.match(/\-([a-z])/)) {
-      addCommand(c.replace(/\-([a-z])/g, function (a, b) {
+    if (c.match(/-([a-z])/)) {
+      addCommand(c.replace(/-([a-z])/g, function (a, b) {
         return b.toUpperCase()
       }))
     }
@@ -189,7 +191,9 @@
     }
     if (plumbing.indexOf(c) !== -1) return c
     var a = abbrevs[c]
-    if (aliases[a]) a = aliases[a]
+    while (aliases[a]) {
+      a = aliases[a]
+    }
     return a
   }
 
@@ -288,7 +292,11 @@
 
         var color = config.get('color')
 
-        log.level = config.get('loglevel')
+        if (npm.config.get('timing') && npm.config.get('loglevel') === 'notice') {
+          log.level = 'timing'
+        } else {
+          log.level = config.get('loglevel')
+        }
         log.heading = config.get('heading') || 'npm'
         log.stream = config.get('logstream')
 
@@ -411,8 +419,8 @@
     {
       get: function () {
         return (process.platform !== 'win32')
-             ? path.resolve(npm.globalPrefix, 'lib', 'node_modules')
-             : path.resolve(npm.globalPrefix, 'node_modules')
+          ? path.resolve(npm.globalPrefix, 'lib', 'node_modules')
+          : path.resolve(npm.globalPrefix, 'node_modules')
       },
       enumerable: true
     })
@@ -455,7 +463,9 @@
         }
         npm.commands[n](args, cb)
       }
-    }, enumerable: false, configurable: true })
+    },
+    enumerable: false,
+    configurable: true })
   })
 
   if (require.main === module) {

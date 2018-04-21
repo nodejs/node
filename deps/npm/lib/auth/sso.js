@@ -1,7 +1,7 @@
 var log = require('npmlog')
 var npm = require('../npm.js')
 var output = require('../utils/output')
-var opener = require('opener')
+var openUrl = require('../utils/open-url')
 
 module.exports.login = function login (creds, registry, scope, cb) {
   var ssoType = npm.config.get('sso-type')
@@ -22,10 +22,7 @@ module.exports.login = function login (creds, registry, scope, cb) {
     if (!doc || !doc.token) return cb(new Error('no SSO token returned'))
     if (!doc.sso) return cb(new Error('no SSO URL returned by services'))
 
-    output('If your browser doesn\'t open, visit ' +
-           doc.sso +
-           ' to complete authentication')
-    opener(doc.sso, { command: npm.config.get('browser') }, function () {
+    openUrl(doc.sso, 'to complete your login please visit', function () {
       pollForSession(registry, doc.token, function (err, username) {
         if (err) return cb(err)
 

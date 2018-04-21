@@ -9,26 +9,44 @@
   <body>
     <div id="wrapper">
 
-<h1><a href="../cli/npm-init.html">npm-init</a></h1> <p>Interactively create a package.json file</p>
+<h1><a href="../cli/npm-init.html">npm-init</a></h1> <p>create a package.json file</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm init [-f|--force|-y|--yes]
+<pre><code>npm init [--force|-f|--yes|-y|--scope]
+npm init &lt;@scope&gt; (same as `npx &lt;@scope&gt;/create`)
+npm init [&lt;@scope&gt;/]&lt;name&gt; (same as `npx [&lt;@scope&gt;/]create-&lt;name&gt;`)
+</code></pre><h2 id="examples">EXAMPLES</h2>
+<p>Create a new React-based project using <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>:</p>
+<pre><code>$ npm init react-app ./my-react-app
+</code></pre><p>Create a new <code>esm</code>-compatible package using <a href="https://npm.im/create-esm"><code>create-esm</code></a>:</p>
+<pre><code>$ mkdir my-esm-lib &amp;&amp; cd my-esm-lib
+$ npm init esm --yes
+</code></pre><p>Generate a plain old package.json using legacy init:</p>
+<pre><code>$ mkdir my-npm-pkg &amp;&amp; cd my-npm-pkg
+$ git init
+$ npm init
+</code></pre><p>Generate it without having it ask any questions:</p>
+<pre><code>$ npm init -y
 </code></pre><h2 id="description">DESCRIPTION</h2>
-<p>This will ask you a bunch of questions, and then write a package.json for you.</p>
-<p>It attempts to make reasonable guesses about what you want things to be set to,
-and then writes a package.json file with the options you&#39;ve selected.</p>
-<p>If you already have a package.json file, it&#39;ll read that first, and default to
-the options in there.</p>
-<p>It is strictly additive, so it does not delete options from your package.json
-without a really good reason to do so.</p>
-<p>If you invoke it with <code>-f</code>, <code>--force</code>, <code>-y</code>, or <code>--yes</code>, it will use only
-defaults and not prompt you for any options.</p>
-<h2 id="configuration">CONFIGURATION</h2>
-<h3 id="scope">scope</h3>
+<p><code>npm init &lt;initializer&gt;</code> can be used to set up a new or existing npm package.</p>
+<p><code>initializer</code> in this case is an npm package named <code>create-&lt;initializer&gt;</code>, which
+will be installed by <a href="https://npm.im/npx"><code><a href="../cli/npx.html">npx(1)</a></code></a>, and then have its main bin
+executed -- presumably creating or updating <code>package.json</code> and running any other
+initialization-related operations.</p>
+<p>The init command is transformed to a corresponding <code>npx</code> operation as follows:</p>
 <ul>
-<li>Default: none</li>
-<li>Type: String</li>
+<li><code>npm init foo</code> -&gt; <code>npx create-foo</code></li>
+<li><code>npm init @usr/foo</code> -&gt; <code>npx @usr/create-foo</code></li>
+<li><code>npm init @usr</code> -&gt; <code>npx @usr/create</code></li>
 </ul>
-<p>The scope under which the new module should be created.</p>
+<p>Any additional options will be passed directly to the command, so <code>npm init foo
+--hello</code> will map to <code>npx create-foo --hello</code>.</p>
+<p>If the initializer is omitted (by just calling <code>npm init</code>), init will fall back
+to legacy init behavior. It will ask you a bunch of questions, and then write a
+package.json for you. It will attempt to make reasonable guesses based on
+existing fields, dependencies, and options selected. It is strictly additive, so
+it will keep any fields and values that were already set. You can also use
+<code>-y</code>/<code>--yes</code> to skip the questionnaire altogether. If you pass <code>--scope</code>, it
+will create a scoped package.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="https://github.com/isaacs/init-package-json">https://github.com/isaacs/init-package-json</a></li>
@@ -48,5 +66,5 @@ defaults and not prompt you for any options.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-init &mdash; npm@5.6.0</p>
+<p id="footer">npm-init &mdash; npm@6.1.0</p>
 

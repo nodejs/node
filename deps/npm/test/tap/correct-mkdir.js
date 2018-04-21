@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 var test = require('tap').test
 var assert = require('assert')
 var path = require('path')
@@ -71,7 +72,7 @@ test('correct-mkdir: ignore ENOENTs from chownr', function (t) {
     }
   }
   var mock_chownr = function (path, uid, gid, cb) {
-    cb({code: 'ENOENT'})
+    cb(Object.assign(new Error(), {code: 'ENOENT'}))
   }
   var mocks = {
     'graceful-fs': mock_fs,
@@ -147,7 +148,7 @@ test('correct-mkdir: SUDO_UID and SUDO_GID Windows', function (t) {
   }
   var mock_chownr = function (path, uid, gid, cb) {
     t.fail('chownr should not be called at all on Windows')
-    cb('nope')
+    cb(new Error('nope'))
   }
   var mocks = {
     'graceful-fs': mock_fs,

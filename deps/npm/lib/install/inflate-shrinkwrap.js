@@ -14,6 +14,9 @@ const realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier.js')
 const validate = require('aproba')
 const path = require('path')
 const isRegistry = require('../utils/is-registry.js')
+const hasModernMeta = require('./has-modern-meta.js')
+const ssri = require('ssri')
+const npa = require('npm-package-arg')
 
 module.exports = function (tree, sw, opts, finishInflating) {
   if (!fetchPackageMetadata) {
@@ -66,11 +69,43 @@ function normalizePackageDataNoErrors (pkg) {
   }
 }
 
+function quotemeta (str) {
+  return str.replace(/([^A-Za-z_0-9/])/g, '\\$1')
+}
+
+function tarballToVersion (name, tb) {
+  const registry = quotemeta(npm.config.get('registry'))
+    .replace(/https?:/, 'https?:')
+    .replace(/([^/])$/, '$1/')
+  let matchRegTarball
+  if (name) {
+    const nameMatch = quotemeta(name)
+    matchRegTarball = new RegExp(`^${registry}${nameMatch}/-/${nameMatch}-(.*)[.]tgz$`)
+  } else {
+    matchRegTarball = new RegExp(`^${registry}(.*)?/-/\\1-(.*)[.]tgz$`)
+  }
+  const match = tb.match(matchRegTarball)
+  if (!match) return
+  return match[2] || match[1]
+}
+
 function inflatableChild (onDiskChild, name, topPath, tree, sw, requested, opts) {
   validate('OSSOOOO|ZSSOOOO', arguments)
-  if (onDiskChild && childIsEquivalent(sw, requested, onDiskChild)) {
+  const usesIntegrity = (
+    requested.registry ||
+    requested.type === 'remote' ||
+    requested.type === 'file'
+  )
+  const regTarball = tarballToVersion(name, sw.version)
+  if (regTarball) {
+    sw.resolved = sw.version
+    sw.version = regTarball
+  }
+  if (sw.requires) Object.keys(sw.requires).map(_ => { sw.requires[_] = tarballToVersion(_, sw.requires[_]) || sw.requires[_] })
+  const modernLink = requested.type === 'directory' && !sw.from
+  if (hasModernMeta(onDiskChild) && childIsEquivalent(sw, requested, onDiskChild)) {
     // The version on disk matches the shrinkwrap entry.
-    if (!onDiskChild.fromShrinkwrap) onDiskChild.fromShrinkwrap = true
+    if (!onDiskChild.fromShrinkwrap) onDiskChild.fromShrinkwrap = requested
     onDiskChild.package._requested = requested
     onDiskChild.package._spec = requested.rawSpec
     onDiskChild.package._where = topPath
@@ -88,7 +123,7 @@ function inflatableChild (onDiskChild, name, topPath, tree, sw, requested, opts)
     onDiskChild.swRequires = sw.requires
     tree.children.push(onDiskChild)
     return BB.resolve(onDiskChild)
-  } else if ((sw.version && sw.integrity) || sw.bundled) {
+  } else if ((sw.version && (sw.integrity || !usesIntegrity) && (requested.type !== 'directory' || modernLink)) || sw.bundled) {
     // The shrinkwrap entry has an integrity field. We can fake a pkg to get
     // the installer to do a content-address fetch from the cache, if possible.
     return BB.resolve(makeFakeChild(name, topPath, tree, sw, requested))
@@ -100,13 +135,18 @@ function inflatableChild (onDiskChild, name, topPath, tree, sw, requested, opts)
   }
 }
 
+function isGit (sw) {
+  const version = npa.resolve(sw.name, sw.version)
+  return (version && version.type === 'git')
+}
+
 function makeFakeChild (name, topPath, tree, sw, requested) {
   const from = sw.from || requested.raw
   const pkg = {
     name: name,
     version: sw.version,
     _id: name + '@' + sw.version,
-    _resolved: adaptResolved(requested, sw.resolved),
+    _resolved: sw.resolved || (isGit(sw) && sw.version),
     _requested: requested,
     _optional: sw.optional,
     _development: sw.dev,
@@ -127,38 +167,21 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
   }
   const child = createChild({
     package: pkg,
-    loaded: true,
+    loaded: false,
     parent: tree,
     children: [],
-    fromShrinkwrap: true,
+    fromShrinkwrap: requested,
     fakeChild: sw,
     fromBundle: sw.bundled ? tree.fromBundle || tree : null,
     path: childPath(tree.path, pkg),
-    realpath: childPath(tree.realpath, pkg),
-    location: tree.location + '/' + pkg.name,
+    realpath: requested.type === 'directory' ? requested.fetchSpec : childPath(tree.realpath, pkg),
+    location: (tree.location === '/' ? '' : tree.location + '/') + pkg.name,
     isLink: requested.type === 'directory',
     isInLink: tree.isLink,
     swRequires: sw.requires
   })
   tree.children.push(child)
   return child
-}
-
-function adaptResolved (requested, resolved) {
-  const registry = requested.scope
-  ? npm.config.get(`${requested.scope}:registry`) || npm.config.get('registry')
-  : npm.config.get('registry')
-  if (!isRegistry(requested) || (resolved && resolved.indexOf(registry) === 0)) {
-    // Nothing to worry about here. Pass it through.
-    return resolved
-  } else {
-    // We could fast-path for registry.npmjs.org here, but if we do, it
-    // would end up getting written back to the `resolved` field. By always
-    // returning `null` for other registries, `pacote.extract()` will take
-    // care of any required metadata fetches internally, without altering
-    // the tree we're going to write out to shrinkwrap/lockfile.
-    return null
-  }
 }
 
 function fetchChild (topPath, tree, sw, requested) {
@@ -178,7 +201,7 @@ function fetchChild (topPath, tree, sw, requested) {
       path: childPath(tree.path, pkg),
       realpath: isLink ? requested.fetchSpec : childPath(tree.realpath, pkg),
       children: pkg._bundled || [],
-      location: tree.location + '/' + pkg.name,
+      location: (tree.location === '/' ? '' : tree.location + '/') + pkg.name,
       fromBundle: null,
       isLink: isLink,
       isInLink: tree.isLink,
@@ -196,7 +219,11 @@ function fetchChild (topPath, tree, sw, requested) {
 function childIsEquivalent (sw, requested, child) {
   if (!child) return false
   if (child.fromShrinkwrap) return true
-  if (sw.integrity && child.package._integrity === sw.integrity) return true
+  if (
+    sw.integrity &&
+    child.package._integrity &&
+    ssri.parse(sw.integrity).match(child.package._integrity)
+  ) return true
   if (child.isLink && requested.type === 'directory') return path.relative(child.realpath, requested.fetchSpec) === ''
 
   if (sw.resolved) return child.package._resolved === sw.resolved

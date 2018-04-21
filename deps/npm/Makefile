@@ -65,9 +65,9 @@ dev: install
 link: uninstall
 	node bin/npm-cli.js link -f
 
-clean: markedclean marked-manclean doc-clean uninstall
+clean: markedclean marked-manclean doc-clean
 	rm -rf npmrc
-	node bin/npm-cli.js cache clean
+	node bin/npm-cli.js cache clean --force
 
 uninstall:
 	node bin/npm-cli.js rm npm -g -f

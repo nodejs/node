@@ -6,7 +6,7 @@ var mkdirp = require('mkdirp')
 var common = require('../common-tap.js')
 
 var pkg = path.resolve(__dirname, 'config-list')
-var opts = { cwd: pkg }
+var opts = { cwd: pkg, env: common.emptyEnv() }
 var npmrc = path.resolve(pkg, '.npmrc')
 var npmrcContents = `
 _private=private;

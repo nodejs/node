@@ -9,6 +9,17 @@ function errorMessage (er) {
   var short = []
   var detail = []
   switch (er.code) {
+    case 'ENOAUDIT':
+      short.push(['audit', er.message])
+      break
+    case 'EAUDITNOPJSON':
+      short.push(['audit', er.message])
+      break
+    case 'EAUDITNOLOCK':
+      short.push(['audit', er.message])
+      detail.push(['audit', 'Try creating one first with: npm i --package-lock-only'])
+      break
+
     case 'ECONNREFUSED':
       short.push(['', er])
       detail.push([
@@ -23,8 +34,17 @@ function errorMessage (er) {
     case 'EACCES':
     case 'EPERM':
       short.push(['', er])
-      detail.push(['', ['\nPlease try running this command again as root/Administrator.'
-                ].join('\n')])
+      detail.push([
+        '',
+        [
+          '\nThe operation was rejected by your operating system.',
+          (process.platform === 'win32'
+            ? 'It\'s possible that the file was already in use (by a text editor or antivirus),\nor that you lack permissions to access it.'
+            : 'It is likely you do not have the permissions to access this file as the current user'),
+          '\nIf you believe this might be a permissions issue, please double-check the',
+          'permissions of the file and its containing directories, or try running',
+          'the command again as root/Administrator (though this is not recommended).'
+        ].join('\n')])
       break
 
     case 'ELIFECYCLE':
@@ -52,17 +72,32 @@ function errorMessage (er) {
       break
 
     case 'EJSONPARSE':
-      short.push(['', er.message])
-      short.push(['', 'File: ' + er.file])
+      const path = require('path')
+      // Check whether we ran into a conflict in our own package.json
+      if (er.file === path.join(npm.prefix, 'package.json')) {
+        const isDiff = require('../install/read-shrinkwrap.js')._isDiff
+        const txt = require('fs').readFileSync(er.file, 'utf8')
+        if (isDiff(txt)) {
+          detail.push([
+            '',
+            [
+              'Merge conflict detected in your package.json.',
+              '',
+              'Please resolve the package.json conflict and retry the command:',
+              '',
+              `$ ${process.argv.join(' ')}`
+            ].join('\n')
+          ])
+          break
+        }
+      }
+      short.push(['JSON.parse', er.message])
       detail.push([
-        '',
+        'JSON.parse',
         [
           'Failed to parse package.json data.',
-          'package.json must be actual JSON, not just JavaScript.',
-          '',
-          'Tell the package author to fix their package.json file.'
-        ].join('\n'),
-        'JSON.parse'
+          'package.json must be actual JSON, not just JavaScript.'
+        ].join('\n')
       ])
       break
 
@@ -70,7 +105,7 @@ function errorMessage (er) {
     case 'E401':
       // the E401 message checking is a hack till we replace npm-registry-client with something
       // OTP aware.
-      if (er.code === 'EOTP' || (er.code === 'E401' && /one-time pass/.test(er.message))) {
+      if (er.code === 'EOTP' || /one-time pass/.test(er.message)) {
         short.push(['', 'This operation requires a one-time password from your authenticator.'])
         detail.push([
           '',
@@ -80,42 +115,40 @@ function errorMessage (er) {
             'it, or it timed out. Please try again.'
           ].join('\n')
         ])
-        break
       } else {
         // npm ERR! code E401
         // npm ERR! Unable to authenticate, need: Basic
-        if (er.headers && er.headers['www-authenticate']) {
-          const auth = er.headers['www-authenticate'].map((au) => au.split(/,\s*/))[0] || []
-          if (auth.indexOf('Bearer') !== -1) {
-            short.push(['', 'Unable to authenticate, your authentication token seems to be invalid.'])
-            detail.push([
+        const auth = (er.headers && er.headers['www-authenticate'] && er.headers['www-authenticate'].map((au) => au.split(/,\s*/))[0]) || []
+        if (auth.indexOf('Bearer') !== -1) {
+          short.push(['', 'Unable to authenticate, your authentication token seems to be invalid.'])
+          detail.push([
+            '',
+            [
+              'To correct this please trying logging in again with:',
+              '    npm login'
+            ].join('\n')
+          ])
+        } else if (auth.indexOf('Basic') !== -1) {
+          short.push(['', 'Incorrect or missing password.'])
+          detail.push([
+            '',
+            [
+              'If you were trying to login, change your password, create an',
+              'authentication token or enable two-factor authentication then',
+              'that means you likely typed your password in incorrectly.',
+              'Please try again, or recover your password at:',
+              '    https://www.npmjs.com/forgot',
               '',
-              [
-                'To correct this please trying logging in again with:',
-                '    npm login'
-              ].join('\n')
-            ])
-            break
-          } else if (auth.indexOf('Basic') !== -1) {
-            short.push(['', 'Incorrect or missing password.'])
-            detail.push([
-              '',
-              [
-                'If you were trying to login, change your password, create an',
-                'authentication token or enable two-factor authentication then',
-                'that means you likely typed your password in incorrectly.',
-                'Please try again, or recover your password at:',
-                '    https://www.npmjs.com/forgot',
-                '',
-                'If you were doing some other operation then your saved credentials are',
-                'probably out of date. To correct this please try logging in again with:',
-                '    npm login'
-              ].join('\n')
-            ])
-            break
-          }
+              'If you were doing some other operation then your saved credentials are',
+              'probably out of date. To correct this please try logging in again with:',
+              '    npm login'
+            ].join('\n')
+          ])
+        } else {
+          short.push(['', er.message || er])
         }
       }
+      break
 
     case 'E404':
       // There's no need to have 404 in the message as well.
@@ -271,7 +304,7 @@ function errorMessage (er) {
         ])
         break
       } // else passthrough
-      /*eslint no-fallthrough:0*/
+      /* eslint no-fallthrough:0 */
 
     case 'ENOSPC':
       short.push(['nospc', er.message])

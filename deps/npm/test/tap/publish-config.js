@@ -19,7 +19,7 @@ fs.writeFileSync(pkg + '/package.json', JSON.stringify({
 fs.writeFileSync(pkg + '/fixture_npmrc',
   '//localhost:1337/:email = fancy@feast.net\n' +
   '//localhost:1337/:username = fancy\n' +
-  '//localhost:1337/:_password = ' + new Buffer('feast').toString('base64'))
+  '//localhost:1337/:_password = ' + Buffer.from('feast').toString('base64'))
 
 test(function (t) {
   let child

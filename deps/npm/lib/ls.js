@@ -139,9 +139,9 @@ function filterByEnv (data) {
       return
     }
 
-    if ((dev && inList(devKeys, name)) ||            // only --dev
-        (production && inList(prodKeys, name)) ||    // only --production
-        (!dev && !production)) {                            // no --production|--dev|--only=xxx
+    if ((dev && inList(devKeys, name)) || // only --dev
+        (production && inList(prodKeys, name)) || // only --production
+        (!dev && !production)) { // no --production|--dev|--only=xxx
       dependencies[name] = data.dependencies[name]
     }
   })
@@ -165,7 +165,7 @@ function alphasort (a, b) {
   a = a.toLowerCase()
   b = b.toLowerCase()
   return a > b ? 1
-       : a < b ? -1 : 0
+    : a < b ? -1 : 0
 }
 
 function isCruft (data) {
@@ -520,16 +520,16 @@ function makeParseable_ (data, long, dir, depth, parent, d) {
   if (data.missing) {
     if (depth < npm.config.get('depth')) {
       data = npm.config.get('long')
-           ? path.resolve(parent.path, 'node_modules', d) +
+        ? path.resolve(parent.path, 'node_modules', d) +
              ':' + d + '@' + JSON.stringify(data.requiredBy) + ':INVALID:MISSING'
-           : ''
+        : ''
     } else {
       data = path.resolve(dir || '', 'node_modules', d || '') +
              (npm.config.get('long')
-             ? ':' + d + '@' + JSON.stringify(data.requiredBy) +
+               ? ':' + d + '@' + JSON.stringify(data.requiredBy) +
                ':' + // no realpath resolved
                ':MAXDEPTH'
-             : '')
+               : '')
     }
 
     return data
