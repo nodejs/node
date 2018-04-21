@@ -1,4 +1,5 @@
 'use strict'
+/* eslint-disable standard/no-callback-literal */
 
 var resolve = require('path').resolve
 
@@ -21,7 +22,7 @@ access.usage =
   'npm access edit [<package>]'
 
 access.subcommands = ['public', 'restricted', 'grant', 'revoke',
-                      'ls-packages', 'ls-collaborators', 'edit']
+  'ls-packages', 'ls-collaborators', 'edit']
 
 access.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain

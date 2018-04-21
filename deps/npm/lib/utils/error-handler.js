@@ -247,6 +247,6 @@ function writeLogFile () {
     log.record.length = 0
     wroteLogFile = true
   } catch (ex) {
-    return
+
   }
 }

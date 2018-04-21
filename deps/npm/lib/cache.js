@@ -1,4 +1,5 @@
 'use strict'
+/* eslint-disable standard/no-callback-literal */
 
 const BB = require('bluebird')
 

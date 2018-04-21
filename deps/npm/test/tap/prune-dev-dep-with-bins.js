@@ -50,7 +50,7 @@ var fixture = new Tacks(
           ') ELSE (\n' +
           '@SETLOCAL\n' +
           '@SET PATHEXT=%PATHEXT:;.JS;=;%\n' +
-          'node  "%~dp0\..\yes\yes.js" %*')
+          'node  "%~dp0\\..\\yes\\yes.js" %*')
       })
     }),
     'package.json': File({

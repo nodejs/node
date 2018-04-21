@@ -50,8 +50,8 @@ function prettify (data, num, opts) {
   var pkg = normalizePackage(data, opts)
 
   var columns = opts.description
-  ? ['name', 'description', 'author', 'date', 'version', 'keywords']
-  : ['name', 'author', 'date', 'version', 'keywords']
+    ? ['name', 'description', 'author', 'date', 'version', 'keywords']
+    : ['name', 'author', 'date', 'version', 'keywords']
 
   if (opts.parseable) {
     return columns.map(function (col) {
@@ -157,16 +157,16 @@ function normalizePackage (data, opts) {
       return '=' + m.username
     }).join(' '),
     keywords: Array.isArray(data.keywords)
-    ? data.keywords.join(' ')
-    : typeof data.keywords === 'string'
-    ? data.keywords.replace(/[,\s]+/, ' ')
-    : '',
+      ? data.keywords.join(' ')
+      : typeof data.keywords === 'string'
+        ? data.keywords.replace(/[,\s]+/, ' ')
+        : '',
     version: data.version,
-    date: data.date &&
+    date: (data.date &&
           (data.date.toISOString() // remove time
             .split('T').join(' ')
             .replace(/:[0-9]{2}\.[0-9]{3}Z$/, ''))
-            .slice(0, -5) ||
+            .slice(0, -5)) ||
           'prehistoric'
   }
 }

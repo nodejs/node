@@ -59,6 +59,9 @@ not found in the <code>PATH</code>.</p>
 <p>If you try to run a script without having a <code>node_modules</code> directory and it fails,
 you will be given a warning to run <code>npm install</code>, just in case you&#39;ve forgotten.</p>
 <p>You can use the <code>--silent</code> flag to prevent showing <code>npm ERR!</code> output on error.</p>
+<p>You can use the <code>--if-present</code> flag to avoid exiting with a non-zero exit code
+when the script is undefined. This lets you run potentially undefined scripts
+without breaking the execution chain.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
@@ -80,5 +83,5 @@ you will be given a warning to run <code>npm install</code>, just in case you&#3
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-run-script &mdash; npm@5.6.0</p>
+<p id="footer">npm-run-script &mdash; npm@6.1.0</p>
 

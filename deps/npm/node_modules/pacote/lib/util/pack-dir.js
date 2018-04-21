@@ -14,8 +14,8 @@ function packDir (manifest, label, dir, target, opts) {
   opts = optCheck(opts)
 
   const packer = opts.dirPacker
-  ? BB.resolve(opts.dirPacker(manifest, dir))
-  : mkPacker(dir)
+    ? BB.resolve(opts.dirPacker(manifest, dir))
+    : mkPacker(dir)
 
   if (!opts.cache) {
     return packer.then(packer => pipe(packer, target))

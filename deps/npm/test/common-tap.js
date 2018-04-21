@@ -1,8 +1,9 @@
 'use strict'
+/* eslint-disable camelcase */
+
 var fs = require('graceful-fs')
 var readCmdShim = require('read-cmd-shim')
 var isWindows = require('../lib/utils/is-windows.js')
-var extend = Object.assign || require('util')._extend
 var Bluebird = require('bluebird')
 
 // cheesy hackaround for test deps (read: nock) that rely on setImmediate
@@ -21,6 +22,8 @@ exports.registry = 'http://localhost:' + port
 const ourenv = {}
 ourenv.npm_config_loglevel = 'error'
 ourenv.npm_config_progress = 'false'
+ourenv.npm_config_metrics = 'false'
+ourenv.npm_config_audit = 'false'
 
 var npm_config_cache = path.resolve(__dirname, 'npm_cache')
 ourenv.npm_config_cache = exports.npm_config_cache = npm_config_cache
@@ -52,7 +55,7 @@ exports.npm = function (cmd, opts, cb) {
   }
   cb = once(cb)
   cmd = [bin].concat(cmd)
-  opts = extend({}, opts || {})
+  opts = Object.assign({}, opts || {})
 
   opts.env = opts.env || process.env
   if (opts.env._storage) opts.env = Object.assign({}, opts.env._storage)
@@ -61,6 +64,9 @@ exports.npm = function (cmd, opts, cb) {
   }
   if (!opts.env.npm_config_send_metrics) {
     opts.env.npm_config_send_metrics = 'false'
+  }
+  if (!opts.env.npm_config_audit) {
+    opts.env.npm_config_audit = 'false'
   }
 
   nodeBin = opts.nodeExecPath || nodeBin
@@ -139,6 +145,20 @@ exports.pendIfWindows = function (why) {
   process.exit(0)
 }
 
+let mr
+exports.withServer = cb => {
+  if (!mr) { mr = Bluebird.promisify(require('npm-registry-mock')) }
+  return mr({port: port++, throwOnUnmatched: true})
+    .tap(server => {
+      server.registry = exports.registry.replace(exports.port, server.port)
+      return cb(server)
+    })
+    .then((server) => {
+      server.done()
+      return server.close()
+    })
+}
+
 exports.newEnv = function () {
   return new Environment(process.env)
 }
@@ -158,7 +178,7 @@ function Environment (env) {
   if (env instanceof Environment) return env.clone()
 
   Object.defineProperty(this, '_storage', {
-    value: extend({}, env)
+    value: Object.assign({}, env)
   })
 }
 Environment.prototype = {}

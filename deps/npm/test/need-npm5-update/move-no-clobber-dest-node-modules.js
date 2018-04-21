@@ -15,8 +15,8 @@ function File (contents) {
   return {
     type: 'file',
     contents: typeof contents === 'object'
-    ? JSON.stringify(contents)
-    : contents
+      ? JSON.stringify(contents)
+      : contents
   }
 }
 
@@ -64,7 +64,7 @@ var fixtures = Dir({
       version: '1.0.0'
     })
   }),
-// The local config
+  // The local config
   'package.json': File({
     dependencies: {
       moda: fixturepath('moda@1.0.1'),

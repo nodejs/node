@@ -98,6 +98,12 @@ $ npx --node-arg=--inspect cowsay
 Debugger listening on ws://127.0.0.1:9229/....
 ```
 
+### Specify a node version to run npm scripts (or anything else!)
+
+```
+npx -p node@8 npm run build
+```
+
 ## SHELL AUTO FALLBACK
 
 You can configure `npx` to run as your default fallback command when you type something in the command line with an `@` but the command is not found. This includes installing packages that were not found in the local prefix either.

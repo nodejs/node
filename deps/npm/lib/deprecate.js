@@ -1,3 +1,4 @@
+/* eslint-disable standard/no-callback-literal */
 var npm = require('./npm.js')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var npa = require('npm-package-arg')

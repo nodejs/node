@@ -31,12 +31,12 @@ test('setup', function (t) {
 test('install npm into first folder', function (t) {
   t.plan(1)
   var args = ['install', npm, '-g',
-              '--prefix=' + folder + '/first',
-              '--ignore-scripts',
-              '--cache=' + folder + '/cache',
-              '--tmp=' + folder + '/tmp',
-              '--loglevel=warn',
-              '--progress']
+    '--prefix=' + folder + '/first',
+    '--ignore-scripts',
+    '--cache=' + folder + '/cache',
+    '--tmp=' + folder + '/tmp',
+    '--loglevel=warn',
+    '--progress']
   common.npm(args, {}, function (er, code) {
     if (er) throw er
     t.equal(code, 0)
@@ -47,17 +47,17 @@ test('install npm into first folder', function (t) {
 test('write npmrc file', function (t) {
   t.plan(1)
   common.npm(['explore', 'npm', '-g',
-              '--prefix=' + folder + '/first',
-              '--cache=' + folder + '/cache',
-              '--tmp=' + folder + '/tmp',
-              '--', node, __filename, 'write-builtin', process.pid
-             ],
-             {'stdio': 'inherit'},
-             function (er, code) {
-               if (er) throw er
-               t.equal(code, 0)
-               t.end()
-             })
+    '--prefix=' + folder + '/first',
+    '--cache=' + folder + '/cache',
+    '--tmp=' + folder + '/tmp',
+    '--', node, __filename, 'write-builtin', process.pid
+  ],
+  {'stdio': 'inherit'},
+  function (er, code) {
+    if (er) throw er
+    t.equal(code, 0)
+    t.end()
+  })
 })
 
 test('use first npm to install second npm', function (t) {
@@ -91,11 +91,11 @@ test('use first npm to install second npm', function (t) {
         ],
         {}
       )
-      .on('error', function (er) { throw er })
-      .on('close', function (code) {
-        t.equal(code, 0, 'second npm install')
-        t.end()
-      })
+        .on('error', function (er) { throw er })
+        .on('close', function (code) {
+          t.equal(code, 0, 'second npm install')
+          t.end()
+        })
     }
   )
 })
@@ -103,31 +103,31 @@ test('use first npm to install second npm', function (t) {
 test('verify that the builtin config matches', function (t) {
   t.plan(3)
   common.npm([ 'root', '-g',
-               '--prefix=' + folder + '/first',
-               '--cache=' + folder + '/cache',
-               '--tmp=' + folder + '/tmp'
-             ], {},
-             function (er, code, so) {
-               if (er) throw er
-               t.equal(code, 0)
-               var firstRoot = so.trim()
-               common.npm([ 'root', '-g',
-                            '--prefix=' + folder + '/second',
-                            '--cache=' + folder + '/cache',
-                            '--tmp=' + folder + '/tmp'
-                          ], {},
-                          function (er, code, so) {
-                            if (er) throw er
-                            t.equal(code, 0)
-                            var secondRoot = so.trim()
-                            var firstRc = path.resolve(firstRoot, 'npm', 'npmrc')
-                            var secondRc = path.resolve(secondRoot, 'npm', 'npmrc')
-                            var firstData = fs.readFileSync(firstRc, 'utf8').split(/\r?\n/)
-                            var secondData = fs.readFileSync(secondRc, 'utf8').split(/\r?\n/)
-                            t.isDeeply(firstData, secondData)
-                            t.end()
-                          })
-             })
+    '--prefix=' + folder + '/first',
+    '--cache=' + folder + '/cache',
+    '--tmp=' + folder + '/tmp'
+  ], {},
+  function (er, code, so) {
+    if (er) throw er
+    t.equal(code, 0)
+    var firstRoot = so.trim()
+    common.npm([ 'root', '-g',
+      '--prefix=' + folder + '/second',
+      '--cache=' + folder + '/cache',
+      '--tmp=' + folder + '/tmp'
+    ], {},
+    function (er, code, so) {
+      if (er) throw er
+      t.equal(code, 0)
+      var secondRoot = so.trim()
+      var firstRc = path.resolve(firstRoot, 'npm', 'npmrc')
+      var secondRc = path.resolve(secondRoot, 'npm', 'npmrc')
+      var firstData = fs.readFileSync(firstRc, 'utf8').split(/\r?\n/)
+      var secondData = fs.readFileSync(secondRc, 'utf8').split(/\r?\n/)
+      t.isDeeply(firstData, secondData)
+      t.end()
+    })
+  })
 })
 
 test('clean', function (t) {

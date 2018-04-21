@@ -162,8 +162,8 @@ function checkPath (testconfig, t) {
     })
 
     // get the ones we tacked on, then the system-specific requirements
-    var expectedPaths = ['{{ROOT}}/bin/node-gyp-bin',
-                         '{{PKG}}/node_modules/.bin']
+    var expectedPaths = ['{{ROOT}}/node_modules/npm-lifecycle/node-gyp-bin',
+      '{{PKG}}/node_modules/.bin']
 
     // Check that the behaviour matches the configuration that was actually
     // used by the child process, as the coverage tooling may set the

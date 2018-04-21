@@ -29,6 +29,7 @@ Fetcher.impl(fetchDirectory, {
         pkg._hasShrinkwrap = !!sr
         pkg._resolved = spec.fetchSpec
         pkg._integrity = false // Don't auto-calculate integrity
+        pkg._shasum = false // Don't auto-calculate shasum either
         return pkg
       }
     ).then(pkg => {
