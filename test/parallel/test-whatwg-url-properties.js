@@ -148,6 +148,25 @@ assert.strictEqual(url.searchParams, oldParams);
   assert.strictEqual(hostname, '::1');
 }
 
+// Ensure urlToOptions works on URL with prototype that has been tampered with.
+{
+  const url = new URL('http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test');
+  Object.setPrototypeOf(url, Object.create(null));
+  const opts = urlToOptions(url);
+  assert.strictEqual(opts instanceof URL, false);
+  assert.strictEqual(opts.protocol, 'http:');
+  assert.strictEqual(opts.auth, 'user:pass');
+  assert.strictEqual(opts.hostname, 'foo.bar.com');
+  assert.strictEqual(opts.port, 21);
+  assert.strictEqual(opts.path, '/aaa/zzz?l=24');
+  assert.strictEqual(opts.pathname, '/aaa/zzz');
+  assert.strictEqual(opts.search, '?l=24');
+  assert.strictEqual(opts.hash, '#test');
+
+  const { hostname } = urlToOptions(new URL('http://[::1]:21'));
+  assert.strictEqual(hostname, '::1');
+}
+
 // Test special origins
 [
   { expected: 'https://whatwg.org',
