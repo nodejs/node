@@ -1,68 +1,52 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const marked = require('marked');
+const { mkdir, readFileSync, writeFile } = require('fs');
+const { resolve } = require('path');
+const { lexer } = require('marked');
 
-const rootDir = path.resolve(__dirname, '..', '..');
-const doc = path.resolve(rootDir, 'doc', 'api', 'addons.md');
-const verifyDir = path.resolve(rootDir, 'test', 'addons');
+const rootDir = resolve(__dirname, '..', '..');
+const doc = resolve(rootDir, 'doc', 'api', 'addons.md');
+const verifyDir = resolve(rootDir, 'test', 'addons');
 
-const contents = fs.readFileSync(doc).toString();
-
-const tokens = marked.lexer(contents);
-let id = 0;
-
-let currentHeader;
+const tokens = lexer(readFileSync(doc, 'utf8'));
 const addons = {};
-tokens.forEach((token) => {
-  if (token.type === 'heading' && token.text) {
-    currentHeader = token.text;
-    addons[currentHeader] = {
-      files: {}
-    };
+let id = 0;
+let currentHeader;
+
+const validNames = /^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/;
+tokens.forEach(({ type, text }) => {
+  if (type === 'heading') {
+    currentHeader = text;
+    addons[currentHeader] = { files: {} };
   }
-  if (token.type === 'code') {
-    var match = token.text.match(/^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/);
+  if (type === 'code') {
+    const match = text.match(validNames);
     if (match !== null) {
-      addons[currentHeader].files[match[1]] = token.text;
+      addons[currentHeader].files[match[1]] = text;
     }
   }
 });
-for (var header in addons) {
-  verifyFiles(addons[header].files,
-              header,
-              console.log.bind(null, 'wrote'),
-              function(err) { if (err) throw err; });
-}
 
-function once(fn) {
-  var once = false;
-  return function() {
-    if (once)
-      return;
-    once = true;
-    fn.apply(this, arguments);
-  };
-}
+Object.keys(addons).forEach((header) => {
+  verifyFiles(addons[header].files, header);
+});
 
-function verifyFiles(files, blockName, onprogress, ondone) {
+function verifyFiles(files, blockName) {
+  const fileNames = Object.keys(files);
+
   // Must have a .cc and a .js to be a valid test.
-  if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
-      !Object.keys(files).some((name) => /\.js$/.test(name))) {
+  if (!fileNames.some((name) => name.endsWith('.cc')) ||
+      !fileNames.some((name) => name.endsWith('.js'))) {
     return;
   }
 
-  blockName = blockName
-    .toLowerCase()
-    .replace(/\s/g, '_')
-    .replace(/[^a-z\d_]/g, '');
-  const dir = path.resolve(
+  blockName = blockName.toLowerCase().replace(/\s/g, '_').replace(/\W/g, '');
+  const dir = resolve(
     verifyDir,
-    `${(++id < 10 ? '0' : '') + id}_${blockName}`
+    `${String(++id).padStart(2, '0')}_${blockName}`
   );
 
-  files = Object.keys(files).map(function(name) {
+  files = fileNames.map((name) => {
     if (name === 'test.js') {
       files[name] = `'use strict';
 const common = require('../../common');
@@ -73,42 +57,34 @@ ${files[name].replace(
 `;
     }
     return {
-      path: path.resolve(dir, name),
+      path: resolve(dir, name),
       name: name,
       content: files[name]
     };
   });
 
   files.push({
-    path: path.resolve(dir, 'binding.gyp'),
+    path: resolve(dir, 'binding.gyp'),
     content: JSON.stringify({
       targets: [
         {
           target_name: 'addon',
           defines: [ 'V8_DEPRECATION_WARNINGS=1' ],
-          sources: files.map(function(file) {
-            return file.name;
-          })
+          sources: files.map(({ name }) => name)
         }
       ]
     })
   });
 
-  fs.mkdir(dir, function() {
+  mkdir(dir, () => {
     // Ignore errors.
 
-    const done = once(ondone);
-    var waiting = files.length;
-    files.forEach(function(file) {
-      fs.writeFile(file.path, file.content, function(err) {
+    files.forEach(({ path, content }) => {
+      writeFile(path, content, (err) => {
         if (err)
-          return done(err);
+          throw err;
 
-        if (onprogress)
-          onprogress(file.path);
-
-        if (--waiting === 0)
-          done();
+        console.log(`Wrote ${path}`);
       });
     });
   });
