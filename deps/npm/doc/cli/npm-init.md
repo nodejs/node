@@ -1,34 +1,62 @@
-npm-init(1) -- Interactively create a package.json file
+npm-init(1) -- create a package.json file
 =======================================================
 
 ## SYNOPSIS
 
-    npm init [-f|--force|-y|--yes]
+    npm init [--force|-f|--yes|-y|--scope]
+    npm init <@scope> (same as `npx <@scope>/create`)
+    npm init [<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)
+
+## EXAMPLES
+
+Create a new React-based project using [`create-react-app`](https://npm.im/create-react-app):
+```
+$ npm init react-app ./my-react-app
+```
+
+Create a new `esm`-compatible package using [`create-esm`](https://npm.im/create-esm):
+```
+$ mkdir my-esm-lib && cd my-esm-lib
+$ npm init esm --yes
+```
+
+Generate a plain old package.json using legacy init:
+```
+$ mkdir my-npm-pkg && cd my-npm-pkg
+$ git init
+$ npm init
+```
+
+Generate it without having it ask any questions:
+```
+$ npm init -y
+```
 
 ## DESCRIPTION
 
-This will ask you a bunch of questions, and then write a package.json for you.
+`npm init <initializer>` can be used to set up a new or existing npm package.
 
-It attempts to make reasonable guesses about what you want things to be set to,
-and then writes a package.json file with the options you've selected.
+`initializer` in this case is an npm package named `create-<initializer>`, which
+will be installed by [`npx(1)`](https://npm.im/npx), and then have its main bin
+executed -- presumably creating or updating `package.json` and running any other
+initialization-related operations.
 
-If you already have a package.json file, it'll read that first, and default to
-the options in there.
+The init command is transformed to a corresponding `npx` operation as follows:
 
-It is strictly additive, so it does not delete options from your package.json
-without a really good reason to do so.
+* `npm init foo` -> `npx create-foo`
+* `npm init @usr/foo` -> `npx @usr/create-foo`
+* `npm init @usr` -> `npx @usr/create`
 
-If you invoke it with `-f`, `--force`, `-y`, or `--yes`, it will use only
-defaults and not prompt you for any options.
+Any additional options will be passed directly to the command, so `npm init foo
+--hello` will map to `npx create-foo --hello`.
 
-## CONFIGURATION
-
-### scope
-
-* Default: none
-* Type: String
-
-The scope under which the new module should be created.
+If the initializer is omitted (by just calling `npm init`), init will fall back
+to legacy init behavior. It will ask you a bunch of questions, and then write a
+package.json for you. It will attempt to make reasonable guesses based on
+existing fields, dependencies, and options selected. It is strictly additive, so
+it will keep any fields and values that were already set. You can also use
+`-y`/`--yes` to skip the questionnaire altogether. If you pass `--scope`, it
+will create a scoped package.
 
 ## SEE ALSO
 

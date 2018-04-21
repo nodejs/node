@@ -17,7 +17,7 @@ adduser.usage = usage(
 function adduser (args, cb) {
   if (!crypto) {
     return cb(new Error(
-    'You must compile node with ssl support to use the adduser feature'
+      'You must compile node with ssl support to use the adduser feature'
     ))
   }
 

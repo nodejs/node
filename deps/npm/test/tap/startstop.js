@@ -16,8 +16,8 @@ var json = {
   name: 'startstop',
   version: '1.2.3',
   scripts: {
-    start: 'node -e \"console.log(\'start\')\"',
-    stop: 'node -e \"console.log(\'stop\')\"'
+    start: 'node -e "console.log(\'start\')"',
+    stop: 'node -e "console.log(\'stop\')"'
   }
 }
 

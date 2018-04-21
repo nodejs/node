@@ -7,7 +7,6 @@ var Symlink = Tacks.Symlink
 var Dir = Tacks.Dir
 var common = require('../common-tap.js')
 var mr = require('npm-registry-mock')
-var extend = Object.assign || require('util')._extend
 
 var testdir = path.join(__dirname, path.basename(__filename, '.js'))
 var bugdir = path.join(testdir, 'modules', 'bug')
@@ -122,7 +121,7 @@ test('setup', function (t) {
 test('shared-linked', function (t) {
   var options = {
     cwd: bugdir,
-    env: extend(extend({}, process.env), {
+    env: Object.assign({}, process.env, {
       npm_config_prefix: path.join(testdir, 'global')
     })
   }

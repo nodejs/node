@@ -9,7 +9,6 @@ var Tacks = require('tacks')
 var File = Tacks.File
 var Dir = Tacks.Dir
 var Symlink = Tacks.Symlink
-var extend = Object.assign || require('util')._extend
 var isWindows = require('../../lib/utils/is-windows.js')
 
 var base = resolve(__dirname, basename(__filename, '.js'))
@@ -35,7 +34,7 @@ var workingDir = resolve(base, 'working-dir')
 var toInstall = resolve(base, 'test-module')
 var linkedGlobal = resolve(base, 'linked-global-dir')
 
-var env = extend({}, process.env)
+var env = Object.assign({}, process.env)
 
 // We set the global install location via env var here
 // instead of passing it in via `--prefix` because

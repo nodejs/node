@@ -35,15 +35,15 @@ test('setup', function (t) {
 
 test('npm publish should honor scoping', function (t) {
   server.filteringRequestBody(verify)
-        .put('/@bigco%2fpublish-organized', true)
-        .reply(201, {ok: true})
+    .put('/@bigco%2fpublish-organized', true)
+    .reply(201, {ok: true})
 
   var configuration = [
     'progress=false',
     'cache=' + path.join(pkg, 'cache'),
     'registry=http://nonexistent.lvh.me',
     '//localhost:1337/:username=username',
-    '//localhost:1337/:_password=' + new Buffer('password').toString('base64'),
+    '//localhost:1337/:_password=' + Buffer.from('password').toString('base64'),
     '//localhost:1337/:email=' + 'ogd@aoaioxxysz.net',
     '@bigco:registry=' + common.registry
   ]

@@ -15,7 +15,7 @@ var hasSymbol = typeof Symbol === 'function'
 var makeSymbol
 if (hasSymbol) {
   makeSymbol = function (key) {
-    return Symbol.for(key)
+    return Symbol(key)
   }
 } else {
   makeSymbol = function (key) {

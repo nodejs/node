@@ -21,6 +21,10 @@ Set access level on published packages
 
 Add a registry user account
 
+### npm-audit(1)
+
+Run a security audit
+
 ### npm-bin(1)
 
 Display npm bin folder
@@ -40,6 +44,10 @@ REMOVED
 ### npm-cache(1)
 
 Manipulates packages cache
+
+### npm-ci(1)
+
+Install a project with a clean slate
 
 ### npm-completion(1)
 
@@ -85,9 +93,17 @@ Search npm help documentation
 
 Get help on npm
 
+### npm-hook(1)
+
+Manage registry hooks
+
 ### npm-init(1)
 
-Interactively create a package.json file
+create a package.json file
+
+### npm-install-ci-test(1)
+
+Install a project with a clean slate and run tests
 
 ### npm-install-test(1)
 

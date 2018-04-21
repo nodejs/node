@@ -82,7 +82,7 @@ if (home) process.env.HOME = home
 else home = path.resolve(temp, 'npm-' + uidOrPid)
 
 var cacheExtra = process.platform === 'win32' ? 'npm-cache' : '.npm'
-var cacheRoot = process.platform === 'win32' && process.env.APPDATA || home
+var cacheRoot = (process.platform === 'win32' && process.env.APPDATA) || home
 var cache = path.resolve(cacheRoot, cacheExtra)
 
 var globalPrefix
@@ -109,6 +109,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'allow-same-version': false,
     'always-auth': false,
     also: null,
+    audit: true,
     'auth-type': 'legacy',
 
     'bin-links': true,
@@ -130,7 +131,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
 
     cidr: null,
 
-    color: true,
+    color: process.env.NO_COLOR == null,
     depth: Infinity,
     description: true,
     dev: false,
@@ -152,7 +153,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     globalconfig: path.resolve(globalPrefix, 'etc', 'npmrc'),
     'global-style': false,
     group: process.platform === 'win32' ? 0
-            : process.env.SUDO_GID || (process.getgid && process.getgid()),
+      : process.env.SUDO_GID || (process.getgid && process.getgid()),
     'ham-it-up': false,
     heading: 'npm',
     'if-present': false,
@@ -193,6 +194,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'progress': !process.env.TRAVIS && !process.env.CI,
     proxy: null,
     'https-proxy': null,
+    'no-proxy': null,
     'user-agent': 'npm/{npm-version} ' +
                     'node/{node-version} ' +
                     '{platform} ' +
@@ -251,6 +253,7 @@ exports.types = {
   'allow-same-version': Boolean,
   'always-auth': Boolean,
   also: [null, 'dev', 'development'],
+  audit: Boolean,
   'auth-type': ['legacy', 'sso', 'saml', 'oauth'],
   'bin-links': Boolean,
   browser: [null, String],
@@ -312,12 +315,13 @@ exports.types = {
   'metrics-registry': [null, String],
   'node-options': [null, String],
   'node-version': [null, semver],
+  'no-proxy': [null, String, Array],
   offline: Boolean,
   'onload-script': [null, String],
   only: [null, 'dev', 'development', 'prod', 'production'],
   optional: Boolean,
   'package-lock': Boolean,
-  otp: Number,
+  otp: [null, String],
   'package-lock-only': Boolean,
   parseable: Boolean,
   'prefer-offline': Boolean,
@@ -382,9 +386,9 @@ function getLocalAddresses () {
     return interfaces[nic].filter(function (addr) {
       return addr.family === 'IPv4'
     })
-    .map(function (addr) {
-      return addr.address
-    })
+      .map(function (addr) {
+        return addr.address
+      })
   }).reduce(function (curr, next) {
     return curr.concat(next)
   }, []).concat(undefined)

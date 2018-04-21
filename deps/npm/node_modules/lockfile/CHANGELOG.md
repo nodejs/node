@@ -1,6 +1,14 @@
 # Changes
 
 
+## 1.0.4
+
+* test parallel
+* upgrade tap
+* upgrade node versions in travis.yml
+* Use signal-exit package to detect exit instead of process.on('exit')
+* added some debugging lines
+
 ## v1.0.3
 
 * handle the case where callback is not passed by user
