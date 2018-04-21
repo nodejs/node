@@ -391,7 +391,7 @@ clear-stalled:
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
-		echo $${PS_OUT} | xargs kill; \
+		echo $${PS_OUT} | xargs kill -9; \
 	fi
 
 .PHONY: test-gc
@@ -437,7 +437,7 @@ test-ci-js: | clear-stalled
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
-		echo $${PS_OUT} | xargs kill; exit 1; \
+		echo $${PS_OUT} | xargs kill -9; exit 1; \
 	fi
 
 .PHONY: test-ci
@@ -452,7 +452,7 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
-		echo $${PS_OUT} | xargs kill; exit 1; \
+		echo $${PS_OUT} | xargs kill -9; exit 1; \
 	fi
 
 .PHONY: build-ci
