@@ -13,7 +13,7 @@ var json = {
   name: 'bad-dep-format',
   version: '0.0.0',
   dependencies: {
-    'not-legit': 'npm:not-legit@1.0'
+    'not-legit': 'bad:not-legit@1.0'
   }
 }
 

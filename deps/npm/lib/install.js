@@ -1,4 +1,6 @@
 'use strict'
+/* eslint-disable camelcase */
+/* eslint-disable standard/no-callback-literal */
 // npm install <pkg> <pkg> <pkg>
 //
 // See doc/cli/npm-install.md for more description
@@ -135,6 +137,7 @@ var validateTree = require('./install/validate-tree.js')
 var validateArgs = require('./install/validate-args.js')
 var saveRequested = require('./install/save.js').saveRequested
 var saveShrinkwrap = require('./install/save.js').saveShrinkwrap
+var audit = require('./install/audit.js')
 var getSaveType = require('./install/save.js').getSaveType
 var doSerialActions = require('./install/actions.js').doSerial
 var doReverseSerialActions = require('./install/actions.js').doReverseSerial
@@ -181,8 +184,8 @@ function install (where, args, cb) {
   var globalTop = path.resolve(npm.globalDir, '..')
   if (!where) {
     where = npm.config.get('global')
-          ? globalTop
-          : npm.prefix
+      ? globalTop
+      : npm.prefix
   }
   validate('SAF', [where, args, cb])
   // the /path/to/node_modules/..
@@ -220,6 +223,8 @@ function Installer (where, dryrun, args, opts) {
   this.noPackageJsonOk = !!args.length
   this.topLevelLifecycles = !args.length
 
+  this.autoPrune = npm.config.get('package-lock')
+
   const dev = npm.config.get('dev')
   const only = npm.config.get('only')
   const onlyProd = /^prod(uction)?$/.test(only)
@@ -234,6 +239,7 @@ function Installer (where, dryrun, args, opts) {
   this.link = opts.link != null ? opts.link : npm.config.get('link')
   this.saveOnlyLock = opts.saveOnlyLock
   this.global = opts.global != null ? opts.global : this.where === path.resolve(npm.globalDir, '..')
+  this.audit = npm.config.get('audit') && !this.global
   this.started = Date.now()
 }
 Installer.prototype = {}
@@ -294,7 +300,9 @@ Installer.prototype.run = function (_cb) {
     [this, this.finishTracker, 'generateActionsToTake'],
 
     [this, this.debugActions, 'diffTrees', 'differences'],
-    [this, this.debugActions, 'decomposeActions', 'todo'])
+    [this, this.debugActions, 'decomposeActions', 'todo'],
+    [this, this.startAudit]
+  )
 
   if (this.packageLockOnly) {
     postInstallSteps.push(
@@ -436,8 +444,8 @@ Installer.prototype.pruneIdealTree = function (cb) {
   // if our lock file didn't have the requires field and there
   // are any fake children then forgo pruning until we have more info.
   if (!this.idealTree.hasRequiresFromLock && this.idealTree.children.some((n) => n.fakeChild)) return cb()
-  var toPrune = this.idealTree.children
-    .filter(isExtraneous)
+  const toPrune = this.idealTree.children
+    .filter((child) => isExtraneous(child) && (this.autoPrune || child.removing))
     .map((n) => ({name: moduleName(n)}))
   return removeExtraneous(toPrune, this.idealTree, cb)
 }
@@ -456,21 +464,13 @@ Installer.prototype.loadAllDepsIntoIdealTree = function (cb) {
     steps.push([loadRequestedDeps, this.args, this.idealTree, saveDeps, cg.newGroup('loadRequestedDeps')])
   } else {
     const depsToPreload = Object.assign({},
-      this.dev ? this.idealTree.package.devDependencies : {},
-      this.prod ? this.idealTree.package.dependencies : {}
+      this.idealTree.package.devDependencies,
+      this.idealTree.package.dependencies
     )
-    if (this.prod || this.dev) {
-      steps.push(
-        [prefetchDeps, this.idealTree, depsToPreload, cg.newGroup('prefetchDeps')])
-    }
-    if (this.prod) {
-      steps.push(
-        [loadDeps, this.idealTree, cg.newGroup('loadDeps')])
-    }
-    if (this.dev) {
-      steps.push(
-        [loadDevDeps, this.idealTree, cg.newGroup('loadDevDeps')])
-    }
+    steps.push(
+      [prefetchDeps, this.idealTree, depsToPreload, cg.newGroup('prefetchDeps')],
+      [loadDeps, this.idealTree, cg.newGroup('loadDeps')],
+      [loadDevDeps, this.idealTree, cg.newGroup('loadDevDeps')])
   }
   steps.push(
     [loadExtraneous.andResolveDeps, this.idealTree, cg.newGroup('loadExtraneous')])
@@ -630,6 +630,16 @@ Installer.prototype.runPostinstallTopLevelLifecycles = function (cb) {
   chain(steps, cb)
 }
 
+Installer.prototype.startAudit = function (cb) {
+  if (!this.audit) return cb()
+  this.auditSubmission = Bluebird.try(() => {
+    return audit.generateFromInstall(this.idealTree, this.differences, this.args, this.remove)
+  }).then((auditData) => {
+    return audit.submitForInstallReport(auditData)
+  }).catch(_ => {})
+  cb()
+}
+
 Installer.prototype.saveToDependencies = function (cb) {
   validate('F', arguments)
   if (this.failing) return cb()
@@ -692,27 +702,19 @@ Installer.prototype.readLocalPackageData = function (cb) {
 Installer.prototype.cloneCurrentTreeToIdealTree = function (cb) {
   validate('F', arguments)
   log.silly('install', 'cloneCurrentTreeToIdealTree')
-  this.idealTree = copyTree(this.currentTree, (child) => {
-    // Filter out any children we didn't install ourselves. They need to be
-    // reinstalled in order for things to be correct.
-    return child.isTop || isLink(child) || (
-      child.package &&
-      child.package._resolved &&
-      (child.package._integrity || child.package._shasum)
-    )
-  })
+
+  this.idealTree = copyTree(this.currentTree)
   this.idealTree.warnings = []
   cb()
-}
-
-function isLink (child) {
-  return child.isLink || (child.parent && isLink(child.parent))
 }
 
 Installer.prototype.loadShrinkwrap = function (cb) {
   validate('F', arguments)
   log.silly('install', 'loadShrinkwrap')
-  readShrinkwrap.andInflate(this.idealTree, cb)
+  readShrinkwrap.andInflate(this.idealTree, iferr(cb, () => {
+    computeMetadata(this.idealTree)
+    cb()
+  }))
 }
 
 Installer.prototype.getInstalledModules = function () {
@@ -760,20 +762,29 @@ Installer.prototype.printInstalled = function (cb) {
       diffs.push(['remove', r])
     })
   }
-  if (npm.config.get('json')) {
-    return this.printInstalledForJSON(diffs, cb)
-  } else if (npm.config.get('parseable')) {
-    return this.printInstalledForParseable(diffs, cb)
-  } else {
-    return this.printInstalledForHuman(diffs, cb)
-  }
+  return Bluebird.try(() => {
+    if (!this.auditSubmission) return
+    return Bluebird.resolve(this.auditSubmission).timeout(10000).catch(() => null)
+  }).then((auditResult) => {
+    // maybe write audit report w/ hash of pjson & shrinkwrap for later reading by `npm audit`
+    if (npm.config.get('json')) {
+      return this.printInstalledForJSON(diffs, auditResult)
+    } else if (npm.config.get('parseable')) {
+      return this.printInstalledForParseable(diffs, auditResult)
+    } else {
+      return this.printInstalledForHuman(diffs, auditResult)
+    }
+  }).asCallback(cb)
 }
 
-Installer.prototype.printInstalledForHuman = function (diffs, cb) {
+Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   var removed = 0
   var added = 0
   var updated = 0
   var moved = 0
+  // Count the number of contributors to packages added, tracking
+  // contributors we've seen, so we can produce a running unique count.
+  var contributors = new Set()
   diffs.forEach(function (action) {
     var mutation = action[0]
     var pkg = action[1]
@@ -784,6 +795,26 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
       ++moved
     } else if (mutation === 'add') {
       ++added
+      // Count contributors to added packages. Start by combining `author`
+      // and `contributors` data into a single array of contributor-people
+      // for this package.
+      var people = []
+      var meta = pkg.package
+      if (meta.author) people.push(meta.author)
+      if (meta.contributors && Array.isArray(meta.contributors)) {
+        people = people.concat(meta.contributors)
+      }
+      // Make sure a normalized string for every person behind this
+      // package is in `contributors`.
+      people.forEach(function (person) {
+        // Ignore errors from malformed `author` and `contributors`.
+        try {
+          var normalized = normalizePerson(person)
+        } catch (error) {
+          return
+        }
+        if (!contributors.has(normalized)) contributors.add(normalized)
+      })
     } else if (mutation === 'update' || mutation === 'update-linked') {
       ++updated
     }
@@ -795,10 +826,17 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
     }).join('\n') + '\n'
   }
   var actions = []
-  if (added) actions.push('added ' + packages(added))
+  if (added) {
+    var action = 'added ' + packages(added)
+    if (contributors.size) action += from(contributors.size)
+    actions.push(action)
+  }
   if (removed) actions.push('removed ' + packages(removed))
   if (updated) actions.push('updated ' + packages(updated))
   if (moved) actions.push('moved ' + packages(moved))
+  if (auditResult && auditResult.metadata.totalDependencies) {
+    actions.push('audited ' + packages(auditResult.metadata.totalDependencies))
+  }
   if (actions.length === 0) {
     report += 'up to date'
   } else if (actions.length === 1) {
@@ -810,14 +848,31 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
   report += ' in ' + ((Date.now() - this.started) / 1000) + 's'
 
   output(report)
-  return cb()
+  return auditResult && audit.printInstallReport(auditResult)
 
   function packages (num) {
     return num + ' package' + (num > 1 ? 's' : '')
   }
+
+  function from (num) {
+    return ' from ' + num + ' contributor' + (num > 1 ? 's' : '')
+  }
+
+  // Values of `author` and elements of `contributors` in `package.json`
+  // files can be e-mail style strings or Objects with `name`, `email,
+  // and `url` String properties.  Convert Objects to Strings so that
+  // we can efficiently keep a set of contributors we have already seen.
+  function normalizePerson (argument) {
+    if (typeof argument === 'string') return argument
+    var returned = ''
+    if (argument.name) returned += argument.name
+    if (argument.email) returned += ' <' + argument.email + '>'
+    if (argument.url) returned += ' (' + argument.email + ')'
+    return returned
+  }
 }
 
-Installer.prototype.printInstalledForJSON = function (diffs, cb) {
+Installer.prototype.printInstalledForJSON = function (diffs, auditResult) {
   var result = {
     added: [],
     removed: [],
@@ -825,6 +880,7 @@ Installer.prototype.printInstalledForJSON = function (diffs, cb) {
     moved: [],
     failed: [],
     warnings: [],
+    audit: auditResult,
     elapsed: Date.now() - this.started
   }
   var self = this
@@ -855,7 +911,6 @@ Installer.prototype.printInstalledForJSON = function (diffs, cb) {
     }
   })
   output(JSON.stringify(result, null, 2))
-  cb()
 
   function flattenMessage (msg) {
     return msg.map(function (logline) { return logline.slice(1).join(' ') }).join('\n')
@@ -879,7 +934,7 @@ Installer.prototype.printInstalledForJSON = function (diffs, cb) {
   }
 }
 
-Installer.prototype.printInstalledForParseable = function (diffs, cb) {
+Installer.prototype.printInstalledForParseable = function (diffs) {
   var self = this
   diffs.forEach(function (action) {
     var mutation = action[0]
@@ -897,7 +952,6 @@ Installer.prototype.printInstalledForParseable = function (diffs, cb) {
       (previousVersion || '') + '\t' +
       (previousPath || ''))
   })
-  return cb()
 }
 
 Installer.prototype.debugActions = function (name, actionListName, cb) {

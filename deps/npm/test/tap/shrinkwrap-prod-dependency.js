@@ -7,7 +7,7 @@ var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
-var npm = npm = require('../../')
+var npm = require('../../')
 
 var common = require('../common-tap.js')
 var pkg = path.resolve(__dirname, 'shrinkwrap-prod-dependency')

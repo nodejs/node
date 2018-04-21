@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "December 2017" "" ""
+.TH "NPM\-INSTALL" "1" "May 2018" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -62,6 +62,11 @@ after packing it up into a tarball (b)\.
   With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment variable
   is set to \fBproduction\fP), npm will not install modules listed in
   \fBdevDependencies\fP\|\.
+.QP
+NOTE: The \fB\-\-production\fP flag has no particular meaning when adding a
+  dependency to a project\.
+
+.
 .IP \(bu 2
 \fBnpm install <folder>\fP:
   Install the package in the directory as a symlink in the current project\.
@@ -397,13 +402,17 @@ The \fB\-\-no\-shrinkwrap\fP argument, which will ignore an available
 package lock or shrinkwrap file and use the package\.json instead\.
 .P
 The \fB\-\-no\-package\-lock\fP argument will prevent npm from creating a
-\fBpackage\-lock\.json\fP file\.
+\fBpackage\-lock\.json\fP file\.  When running with package\-lock's disabled npm
+will not automatically prune your node modules when installing\.
 .P
 The \fB\-\-nodedir=/path/to/node/source\fP argument will allow npm to find the
 node source code so that npm can compile native modules\.
 .P
 The \fB\-\-only={prod[uction]|dev[elopment]}\fP argument will cause either only
 \fBdevDependencies\fP or only non\-\fBdevDependencies\fP to be installed regardless of the \fBNODE_ENV\fP\|\.
+.P
+The \fB\-\-no\-audit\fP argument can be used to disable sending of audit reports to
+the configured registries\.  See npm help \fBnpm\-audit\fP for details on what is sent\.
 .P
 See npm help 7 \fBnpm\-config\fP\|\.  Many of the configuration params have some
 effect on installation, since that's most of what npm does\.
@@ -495,6 +504,8 @@ affects a real use\-case, it will be investigated\.
 npm help 5 folders
 .IP \(bu 2
 npm help update
+.IP \(bu 2
+npm help audit
 .IP \(bu 2
 npm help link
 .IP \(bu 2
