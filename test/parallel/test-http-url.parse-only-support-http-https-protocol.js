@@ -28,7 +28,7 @@ const invalidUrls = [
   'file:///whatever',
   'mailto:asdf@asdf.com',
   'ftp://www.example.com',
-  'javascript:alert(\'hello\');',
+  "javascript:alert('hello');",
   'xmpp:foo@bar.com',
   'f://some.host/path'
 ];

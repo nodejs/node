@@ -214,7 +214,10 @@ module.exports = {
     'one-var-declaration-per-line': 'error',
     'operator-linebreak': ['error', 'after'],
     'prefer-const': ['error', { ignoreReadBeforeAssign: true }],
-    'quotes': ['error', 'single', { avoidEscape: true }],
+    'quotes': ['error', 'single', {
+      avoidEscape: true,
+      allowTemplateLiterals: true
+    }],
     'quote-props': ['error', 'consistent'],
     'rest-spread-spacing': 'error',
     'semi': 'error',

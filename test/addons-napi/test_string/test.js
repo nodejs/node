@@ -32,7 +32,7 @@ assert.strictEqual(test_string.TestUtf16Insufficient(str2), str2.slice(0, 3));
 assert.strictEqual(test_string.Utf16Length(str2), 62);
 assert.strictEqual(test_string.Utf8Length(str2), 62);
 
-const str3 = '?!@#$%^&*()_+-=[]{}/.,<>\'"\\';
+const str3 = `?!@#$%^&*()_+-=[]{}/.,<>'"\\`;
 assert.strictEqual(test_string.TestLatin1(str3), str3);
 assert.strictEqual(test_string.TestUtf8(str3), str3);
 assert.strictEqual(test_string.TestUtf16(str3), str3);

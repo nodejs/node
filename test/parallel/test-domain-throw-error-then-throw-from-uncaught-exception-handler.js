@@ -58,9 +58,9 @@ function runTestWithoutAbortOnUncaughtException() {
       // process' uncaughtException handler.
       assert(stderr.includes(uncaughtExceptionHandlerErrMsg),
              'stderr output must include proper uncaughtException ' +
-             'handler\'s error\'s message');
+             "handler's error's message");
       assert(!stderr.includes(domainErrMsg),
-             'stderr output must not include domain\'s error\'s message');
+             "stderr output must not include domain's error's message");
 
       assert.notStrictEqual(err.code, 0,
                             'child process should have exited with a ' +

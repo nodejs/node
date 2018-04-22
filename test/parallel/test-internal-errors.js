@@ -136,7 +136,7 @@ assert.strictEqual(
 // Test ERR_TLS_CERT_ALTNAME_INVALID
 assert.strictEqual(
   errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
-  'Hostname/IP does not match certificate\'s altnames: altname');
+  "Hostname/IP does not match certificate's altnames: altname");
 
 assert.strictEqual(
   errors.message('ERR_INVALID_PROTOCOL', ['bad protocol', 'http']),
@@ -202,17 +202,17 @@ assert.strictEqual(
   const error = new errors.codes.ERR_INVALID_ARG_VALUE('foo', '\u0000bar');
   assert.strictEqual(
     error.message,
-    'The argument \'foo\' is invalid. Received \'\\u0000bar\''
+    "The argument 'foo' is invalid. Received '\\u0000bar'"
   );
 }
 
 {
   const error = new errors.codes.ERR_INVALID_ARG_VALUE(
-    'foo', { a: 1 }, 'must have property \'b\''
+    'foo', { a: 1 }, "must have property 'b'"
   );
   assert.strictEqual(
     error.message,
-    'The argument \'foo\' must have property \'b\'. Received { a: 1 }'
+    "The argument 'foo' must have property 'b'. Received { a: 1 }"
   );
 }
 

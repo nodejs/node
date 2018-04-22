@@ -26,7 +26,7 @@ const http = require('http');
 const net = require('net');
 
 const server = http.createServer(function(req, res) {
-  throw new Error('This shouldn\'t happen.');
+  throw new Error("This shouldn't happen.");
 });
 
 server.on('upgrade', function(req, socket, upgradeHead) {

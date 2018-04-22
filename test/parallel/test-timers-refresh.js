@@ -24,7 +24,7 @@ const { setUnrefTimeout, refreshFnSymbol } = require('internal/timers');
   // This relies on implicit timers handle sorting withing libuv.
 
   setTimeout(common.mustCall(() => {
-    strictEqual(called, false, 'unref()\'d timer returned before check');
+    strictEqual(called, false, "unref()'d timer returned before check");
   }), 1);
 
   timer[refreshFnSymbol]();

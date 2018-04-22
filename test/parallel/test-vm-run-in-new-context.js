@@ -32,12 +32,12 @@ assert.strictEqual(typeof global.gc, 'function',
 common.globalCheck = false;
 
 // Run a string
-const result = vm.runInNewContext('\'passed\';');
+const result = vm.runInNewContext("'passed';");
 assert.strictEqual(result, 'passed');
 
 // Thrown error
 assert.throws(() => {
-  vm.runInNewContext('throw new Error(\'test\');');
+  vm.runInNewContext("throw new Error('test');");
 }, /^Error: test$/);
 
 global.hello = 5;
@@ -48,7 +48,7 @@ assert.strictEqual(global.hello, 5);
 // Pass values in and out
 global.code = 'foo = 1;' +
               'bar = 2;' +
-              'if (baz !== 3) throw new Error(\'test fail\');';
+              "if (baz !== 3) throw new Error('test fail');";
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */

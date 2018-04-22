@@ -1419,7 +1419,7 @@ Then call the `callback` argument with either true or false. Example:
 
 ```js
 fs.exists('/etc/passwd', (exists) => {
-  console.log(exists ? 'it\'s there' : 'no passwd!');
+  console.log(exists ? "it's there" : 'no passwd!');
 });
 ```
 

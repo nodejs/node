@@ -10,7 +10,7 @@ const assert = require('assert');
 // Array of [useGlobal, expectedResult] pairs
 const globalTestCases = [
   [false, 'undefined'],
-  [true, '\'tacos\''],
+  [true, "'tacos'"],
   [undefined, 'undefined']
 ];
 

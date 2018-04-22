@@ -27,7 +27,7 @@ const assert = require('assert');
 const Script = require('vm').Script;
 
 {
-  const script = new Script('\'passed\';');
+  const script = new Script("'passed';");
   const result1 = script.runInNewContext();
   const result2 = script.runInNewContext();
   assert.strictEqual('passed', result1);
@@ -35,7 +35,7 @@ const Script = require('vm').Script;
 }
 
 {
-  const script = new Script('throw new Error(\'test\');');
+  const script = new Script("throw new Error('test');");
   assert.throws(() => {
     script.runInNewContext();
   }, /^Error: test$/);
@@ -61,7 +61,7 @@ const Script = require('vm').Script;
 {
   global.code = 'foo = 1;' +
                 'bar = 2;' +
-                'if (baz !== 3) throw new Error(\'test fail\');';
+                "if (baz !== 3) throw new Error('test fail');";
   global.foo = 2;
   global.obj = { foo: 0, baz: 3 };
   const script = new Script(global.code);
@@ -102,6 +102,6 @@ const Script = require('vm').Script;
 {
   const script = new Script('');
   assert.throws(() => {
-    script.runInNewContext.call('\'hello\';');
+    script.runInNewContext.call("'hello';");
   }, /^TypeError: this\.runInContext is not a function$/);
 }

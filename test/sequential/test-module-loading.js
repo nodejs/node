@@ -30,7 +30,7 @@ const backslash = /\\/g;
 console.error('load test-module-loading.js');
 
 // assert that this is the main module.
-assert.strictEqual(require.main.id, '.', 'main module should have id of \'.\'');
+assert.strictEqual(require.main.id, '.', "main module should have id of '.'");
 assert.strictEqual(require.main, module, 'require.main should === module');
 assert.strictEqual(process.mainModule, module,
                    'process.mainModule should === module');
@@ -145,7 +145,7 @@ require.extensions['.test'] = function(module, filename) {
   let content = fs.readFileSync(filename).toString();
   assert.strictEqual(content, 'this is custom source\n');
   content = content.replace('this is custom source',
-                            'exports.test = \'passed\'');
+                            "exports.test = 'passed'");
   module._compile(content, filename);
 };
 
@@ -170,7 +170,7 @@ assert.strictEqual(require('../fixtures/foo').foo, 'ok',
 try {
   require('../fixtures/empty');
 } catch (err) {
-  assert.strictEqual(err.message, 'Cannot find module \'../fixtures/empty\'');
+  assert.strictEqual(err.message, "Cannot find module '../fixtures/empty'");
 }
 
 {

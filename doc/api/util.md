@@ -104,7 +104,7 @@ The `section` supports wildcard also:
 const util = require('util');
 const debuglog = util.debuglog('foo-bar');
 
-debuglog('hi there, it\'s foo-bar [%d]', 2333);
+debuglog("hi there, it's foo-bar [%d]", 2333);
 ```
 
 if it is run with `NODE_DEBUG=foo*` in the environment, then it will output

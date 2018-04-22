@@ -22,7 +22,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   '$et-Cookie',
   '%%Test%%',
   'Test&123',
-  'It\'s_fun',
+  "It's_fun",
   '2*3',
   '4+2',
   '3.14159265359'

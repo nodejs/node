@@ -666,7 +666,7 @@ assert.deepEqual(4, '4');
 assert.deepEqual(true, 1);
 assert.throws(() => assert.deepEqual(4, '5'),
               AssertionError,
-              'deepEqual( 4, \'5\')');
+              "deepEqual( 4, '5')");
 
 // Having the same number of owned properties && the same set of keys.
 assert.deepEqual({ a: 4 }, { a: 4 });
@@ -901,7 +901,7 @@ assert.throws(() => assert.deepStrictEqual(new Boolean(true), {}),
     () => assert.deepStrictEqual(a, b),
     {
       message: `${defaultMsgStart}\n\n` +
-               '  [TypeError: foo] {\n-   foo: \'bar\'\n+   foo: \'baz\'\n  }'
+               "  [TypeError: foo] {\n-   foo: 'bar'\n+   foo: 'baz'\n  }"
     }
   );
 }

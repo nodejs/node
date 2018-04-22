@@ -883,7 +883,7 @@ assert.ok();
 // throws:
 // "AssertionError: No value argument passed to `assert.ok`.
 
-assert.ok(false, 'it\'s false');
+assert.ok(false, "it's false");
 // throws "AssertionError: it's false"
 
 // In the repl:

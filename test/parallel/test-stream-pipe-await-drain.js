@@ -36,7 +36,7 @@ writer1.once('chunk-received', function() {
 writer2._write = common.mustCall(function(chunk, encoding, cb) {
   assert.strictEqual(
     reader._readableState.awaitDrain, 1,
-    'awaitDrain isn\'t 1 after first push'
+    "awaitDrain isn't 1 after first push"
   );
   // Not calling cb here to "simulate" slow stream.
   // This should be called exactly once, since the first .write() call
@@ -46,7 +46,7 @@ writer2._write = common.mustCall(function(chunk, encoding, cb) {
 writer3._write = common.mustCall(function(chunk, encoding, cb) {
   assert.strictEqual(
     reader._readableState.awaitDrain, 2,
-    'awaitDrain isn\'t 2 after second push'
+    "awaitDrain isn't 2 after second push"
   );
   // Not calling cb here to "simulate" slow stream.
   // This should be called exactly once, since the first .write() call

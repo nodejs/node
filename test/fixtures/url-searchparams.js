@@ -11,7 +11,7 @@ module.exports = [
   [
     "my%20weird%20field=q1!2%22'w%245%267%2Fz8)%3F",
     'my+weird+field=q1%212%22%27w%245%267%2Fz8%29%3F',
-    [['my weird field', 'q1!2"\'w$5&7/z8)?']]
+    [['my weird field', `q1!2"'w$5&7/z8)?`]]
   ],
   ['foo%3Dbaz=bar', 'foo%3Dbaz=bar', [['foo=baz', 'bar']]],
   ['foo=baz=bar', 'foo=baz%3Dbar', [['foo', 'baz=bar']]],

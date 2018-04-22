@@ -27,12 +27,12 @@ const Script = require('vm').Script;
 common.globalCheck = false;
 
 // Run a string
-let script = new Script('\'passed\';');
+let script = new Script("'passed';");
 const result = script.runInThisContext(script);
 assert.strictEqual('passed', result);
 
 // Thrown error
-script = new Script('throw new Error(\'test\');');
+script = new Script("throw new Error('test');");
 assert.throws(() => {
   script.runInThisContext(script);
 }, /^Error: test$/);

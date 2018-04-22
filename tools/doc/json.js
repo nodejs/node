@@ -564,8 +564,8 @@ const ctorPrefix = '^(?:[Cc]onstructor: +)?new +';
 const classMethodPrefix = '^Class Method: +';
 const maybeClassPropertyPrefix = '(?:Class Property: +)?';
 
-const maybeQuote = '[\'"]?';
-const notQuotes = '[^\'"]+';
+const maybeQuote = `['"]?`;
+const notQuotes = `[^'"]+`;
 
 // To include constructs like `readable\[Symbol.asyncIterator\]()`
 // or `readable.\_read(size)` (with Markdown escapes).

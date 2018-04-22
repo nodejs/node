@@ -11,7 +11,7 @@ assert.throws(
   () => { throw new errors.SystemError(); },
   {
     name: 'TypeError',
-    message: 'Cannot read property \'match\' of undefined'
+    message: "Cannot read property 'match' of undefined"
   }
 );
 

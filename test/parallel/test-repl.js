@@ -113,7 +113,7 @@ const unixTests = [
   },
   {
     send: 'invoke_me(987)',
-    expect: '\'invoked 987\''
+    expect: "'invoked 987'"
   },
   {
     send: 'a = 12345',
@@ -135,7 +135,7 @@ const strictModeTests = [
 const errorTests = [
   // Uncaught error throws and prints out
   {
-    send: 'throw new Error(\'test error\');',
+    send: "throw new Error('test error');",
     expect: /^Error: test error/
   },
   // Common syntax error is treated as multiline command
@@ -180,7 +180,7 @@ const errorTests = [
   },
   {
     send: '"1.0" + ".2"}`',
-    expect: '\'io.js 1.0.2\''
+    expect: "'io.js 1.0.2'"
   },
   // Dot prefix in multiline commands aren't treated as commands
   {
@@ -189,7 +189,7 @@ const errorTests = [
   },
   {
     send: '.charAt(0))',
-    expect: '\'a\''
+    expect: "'a'"
   },
   // Floating point numbers are not interpreted as REPL commands.
   {
@@ -203,24 +203,24 @@ const errorTests = [
   },
   // Can parse valid JSON
   {
-    send: 'JSON.parse(\'{"valid": "json"}\');',
-    expect: '{ valid: \'json\' }'
+    send: `JSON.parse('{"valid": "json"}');`,
+    expect: "{ valid: 'json' }"
   },
   // invalid input to JSON.parse error is special case of syntax error,
   // should throw
   {
-    send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
+    send: "JSON.parse('{invalid: \\'json\\'}');",
     expect: [/^SyntaxError: /, '']
   },
   // end of input to JSON.parse error is special case of syntax error,
   // should throw
   {
-    send: 'JSON.parse(\'066\');',
+    send: "JSON.parse('066');",
     expect: [/^SyntaxError: /, '']
   },
   // should throw
   {
-    send: 'JSON.parse(\'{\');',
+    send: "JSON.parse('{');",
     expect: [/^SyntaxError: /, '']
   },
   // invalid RegExps are a special case of syntax error,
@@ -367,7 +367,7 @@ const errorTests = [
   },
   {
     send: 'url.format("http://google.com")',
-    expect: '\'http://google.com/\''
+    expect: "'http://google.com/'"
   },
   {
     send: 'var path = 42; path',
@@ -398,8 +398,8 @@ const errorTests = [
   },
   // do not fail when a String is created with line continuation
   {
-    send: '\'the\\\nfourth\\\neye\'',
-    expect: ['... ... \'thefourtheye\'']
+    send: "'the\\\nfourth\\\neye'",
+    expect: ["... ... 'thefourtheye'"]
   },
   // Don't fail when a partial String is created and line continuation is used
   // with whitespace characters at the end of the string. We are to ignore it.
@@ -411,22 +411,22 @@ const errorTests = [
   },
   // multiline strings preserve whitespace characters in them
   {
-    send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
-    expect: '... ... \'the    fourth\\t\\t  eye  \''
+    send: "'the \\\n   fourth\t\t\\\n  eye  '",
+    expect: "... ... 'the    fourth\\t\\t  eye  '"
   },
   // more than one multiline strings also should preserve whitespace chars
   {
-    send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
-    expect: '... ... \'the    fourth\\t\\t  eye  \''
+    send: "'the \\\n   fourth' +  '\t\t\\\n  eye  '",
+    expect: "... ... 'the    fourth\\t\\t  eye  '"
   },
   // using REPL commands within a string literal should still work
   {
-    send: '\'\\\n.break',
+    send: "'\\\n.break",
     expect: '... ' + prompt_unix
   },
   // using REPL command "help" within a string literal should still work
   {
-    send: '\'thefourth\\\n.help\neye\'',
+    send: "'thefourth\\\n.help\neye'",
     expect: [
       /\.break/,
       /\.clear/,
@@ -445,33 +445,32 @@ const errorTests = [
   },
   // empty lines in the string literals should not affect the string
   {
-    send: '\'the\\\n\\\nfourtheye\'\n',
-    expect: '... ... \'thefourtheye\''
+    send: "'the\\\n\\\nfourtheye'\n",
+    expect: "... ... 'thefourtheye'"
   },
   // Regression test for https://github.com/nodejs/node/issues/597
   {
-    send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
+    send: "/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test('123456789')\n",
     expect: 'true'
   },
   // the following test's result depends on the RegExp's match from the above
   {
     send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
           'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
-    expect: ['\'1\'', '\'2\'', '\'3\'', '\'4\'', '\'5\'', '\'6\'',
-             '\'7\'', '\'8\'', '\'9\'']
+    expect: ["'1'", "'2'", "'3'", "'4'", "'5'", "'6'", "'7'", "'8'", "'9'"]
   },
   // regression tests for https://github.com/nodejs/node/issues/2749
   {
-    send: 'function x() {\nreturn \'\\n\';\n }',
+    send: "function x() {\nreturn '\\n';\n }",
     expect: '... ... undefined'
   },
   {
-    send: 'function x() {\nreturn \'\\\\\';\n }',
+    send: "function x() {\nreturn '\\\\';\n }",
     expect: '... ... undefined'
   },
   // regression tests for https://github.com/nodejs/node/issues/3421
   {
-    send: 'function x() {\n//\'\n }',
+    send: "function x() {\n//'\n }",
     expect: '... ... undefined'
   },
   {
@@ -479,7 +478,7 @@ const errorTests = [
     expect: '... ... undefined'
   },
   {
-    send: 'function x() {//\'\n }',
+    send: "function x() {//'\n }",
     expect: '... undefined'
   },
   {
@@ -487,7 +486,7 @@ const errorTests = [
     expect: '... undefined'
   },
   {
-    send: 'function x() {\nvar i = "\'";\n }',
+    send: `function x() {\nvar i = "'";\n }`,
     expect: '... ... undefined'
   },
   {
@@ -504,18 +503,18 @@ const errorTests = [
   },
   {
     send: '"//"',
-    expect: '\'//\''
+    expect: "'//'"
   },
   {
     send: '"data /*with*/ comment"',
-    expect: '\'data /*with*/ comment\''
+    expect: "'data /*with*/ comment'"
   },
   {
-    send: 'function x(/*fn\'s optional params*/) {}',
+    send: "function x(/*fn's optional params*/) {}",
     expect: 'undefined'
   },
   {
-    send: '/* \'\n"\n\'"\'\n*/',
+    send: `/* '\n"\n'"'\n*/`,
     expect: '... ... ... undefined'
   },
   // REPL should get a normal require() function, not one that allows
@@ -566,11 +565,11 @@ const errorTests = [
   // Mitigate https://github.com/nodejs/node/issues/548
   {
     send: 'function name(){ return "node"; };name()',
-    expect: '\'node\''
+    expect: "'node'"
   },
   {
     send: 'function name(){ return "nodejs"; };name()',
-    expect: '\'nodejs\''
+    expect: "'nodejs'"
   },
   // Avoid emitting repl:line-number for SyntaxError
   {
@@ -645,7 +644,7 @@ const errorTests = [
   // Newline within template string maintains whitespace.
   {
     send: '`foo \n`',
-    expect: '... \'foo \\n\''
+    expect: "... 'foo \\n'"
   },
   // Whitespace is not evaluated.
   {
@@ -725,7 +724,7 @@ const tcpTests = [
   },
   {
     send: 'invoke_me(333)',
-    expect: '\'invoked 333\''
+    expect: "'invoked 333'"
   },
   {
     send: 'a += 1',

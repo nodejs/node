@@ -11,7 +11,7 @@ const utils = require('./rules-utils.js');
 // Rule Definition
 //------------------------------------------------------------------------------
 const msg = 'Please add a skipIfInspectorDisabled() call to allow this ' +
-            'test to be skippped when Node is built \'--without-inspector\'.';
+            "test to be skippped when Node is built '--without-inspector'.";
 
 module.exports = function(context) {
   const missingCheckNodes = [];
