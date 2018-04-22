@@ -27,6 +27,9 @@ TEST_IMPL(pipe_set_chmod) {
   uv_pipe_t pipe_handle;
   uv_loop_t* loop;
   int r;
+#ifndef _WIN32
+  struct stat stat_buf;
+#endif
 
   loop = uv_default_loop();
 
@@ -44,12 +47,33 @@ TEST_IMPL(pipe_set_chmod) {
     RETURN_SKIP("Insufficient privileges to alter pipe fmode");
   }
   ASSERT(r == 0);
+#ifndef _WIN32
+  stat(TEST_PIPENAME, &stat_buf);
+  ASSERT(stat_buf.st_mode & S_IRUSR);
+  ASSERT(stat_buf.st_mode & S_IRGRP);
+  ASSERT(stat_buf.st_mode & S_IROTH);
+#endif
 
   r = uv_pipe_chmod(&pipe_handle, UV_WRITABLE);
   ASSERT(r == 0);
+#ifndef _WIN32
+  stat(TEST_PIPENAME, &stat_buf);
+  ASSERT(stat_buf.st_mode & S_IWUSR);
+  ASSERT(stat_buf.st_mode & S_IWGRP);
+  ASSERT(stat_buf.st_mode & S_IWOTH);
+#endif
 
   r = uv_pipe_chmod(&pipe_handle, UV_WRITABLE | UV_READABLE);
   ASSERT(r == 0);
+#ifndef _WIN32
+  stat(TEST_PIPENAME, &stat_buf);
+  ASSERT(stat_buf.st_mode & S_IRUSR);
+  ASSERT(stat_buf.st_mode & S_IRGRP);
+  ASSERT(stat_buf.st_mode & S_IROTH);
+  ASSERT(stat_buf.st_mode & S_IWUSR);
+  ASSERT(stat_buf.st_mode & S_IWGRP);
+  ASSERT(stat_buf.st_mode & S_IWOTH);
+#endif
 
   r = uv_pipe_chmod(NULL, UV_WRITABLE | UV_READABLE);
   ASSERT(r == UV_EBADF);

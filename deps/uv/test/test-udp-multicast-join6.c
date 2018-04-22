@@ -123,7 +123,8 @@ TEST_IMPL(udp_multicast_join6) {
     defined(_AIX)               || \
     defined(__MVS__)            || \
     defined(__FreeBSD_kernel__) || \
-    defined(__NetBSD__)
+    defined(__NetBSD__)         || \
+    defined(__OpenBSD__)
   r = uv_udp_set_membership(&client, "ff02::1", "::1%lo0", UV_JOIN_GROUP);
 #else
   r = uv_udp_set_membership(&client, "ff02::1", NULL, UV_JOIN_GROUP);
