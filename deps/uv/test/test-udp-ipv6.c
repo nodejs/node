@@ -174,6 +174,8 @@ TEST_IMPL(udp_dual_stack) {
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
   if (!can_ipv6_ipv4_dual())
     RETURN_SKIP("IPv6-IPv4 dual stack not supported");
+#elif defined(__OpenBSD__)
+  RETURN_SKIP("IPv6-IPv4 dual stack not supported");
 #endif
 
   do_test(ipv6_recv_ok, 0);

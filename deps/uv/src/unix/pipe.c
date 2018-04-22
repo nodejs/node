@@ -319,21 +319,6 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
       mode != (UV_WRITABLE | UV_READABLE))
     return UV_EINVAL;
 
-  if (fstat(uv__stream_fd(handle), &pipe_stat) == -1)
-    return UV__ERR(errno);
-
-  desired_mode = 0;
-  if (mode & UV_READABLE)
-    desired_mode |= S_IRUSR | S_IRGRP | S_IROTH;
-  if (mode & UV_WRITABLE)
-    desired_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
-
-  /* Exit early if pipe already has desired mode. */
-  if ((pipe_stat.st_mode & desired_mode) == desired_mode)
-    return 0;
-
-  pipe_stat.st_mode |= desired_mode;
-
   /* Unfortunately fchmod does not work on all platforms, we will use chmod. */
   name_len = 0;
   r = uv_pipe_getsockname(handle, NULL, &name_len);
@@ -349,6 +334,26 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
     uv__free(name_buffer);
     return r;
   }
+
+  /* stat must be used as fstat has a bug on Darwin */
+  if (stat(name_buffer, &pipe_stat) == -1) {
+    uv__free(name_buffer);
+    return -errno;
+  }
+
+  desired_mode = 0;
+  if (mode & UV_READABLE)
+    desired_mode |= S_IRUSR | S_IRGRP | S_IROTH;
+  if (mode & UV_WRITABLE)
+    desired_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+
+  /* Exit early if pipe already has desired mode. */
+  if ((pipe_stat.st_mode & desired_mode) == desired_mode) {
+    uv__free(name_buffer);
+    return 0;
+  }
+
+  pipe_stat.st_mode |= desired_mode;
 
   r = chmod(name_buffer, pipe_stat.st_mode);
   uv__free(name_buffer);
