@@ -3032,6 +3032,36 @@ status = napi_new_instance(env, constructor, argc, argv, &value);
 
 Returns `napi_ok` if the API succeeded.
 
+## Value Serialization
+
+### napi_serialize_value
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_serialize_value(napi_env env,
+                     napi_value value,
+                     napi_serialized_data* result);
+```
+
+ - `[in] env`: The environment that the API is invoked under.
+ - `[in] value`: The JavaScript object that will be serialized.
+ - `[out] result`: Reference to napi_serialized_data.
+
+### napi_deserialize_value
+<!-- YAML
+added: REPLACEME
+-->
+```C
+napi_deserialize_value(napi_env env,
+                       napi_serialized_data data,
+                       napi_value* result);
+```
+
+ - `[in] env`: The environment that the API is invoked under.
+ - `[in] data`: napi_serialized_data to be deserialized.
+ - `[out] result`: Reference to a napi_value.
+
 ## Object Wrap
 
 N-API offers a way to "wrap" C++ classes and instances so that the class
