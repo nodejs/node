@@ -558,11 +558,11 @@ function cloneValue(src) {
 // To reduse escape slashes in RegExp string components.
 const r = String.raw;
 
-const eventPrefix = r`^Event:\s+`;
-const classPrefix = r`^[Cc]lass:\s+`;
-const ctorPrefix = r`^(?:[Cc]onstructor:\s+)?new\s+`;
-const classMethodPrefix = r`^Class Method:\s+`;
-const maybeClassPropertyPrefix = r`(?:Class Property:\s+)?`;
+const eventPrefix = '^Event: +';
+const classPrefix = '^[Cc]lass: +';
+const ctorPrefix = '^(?:[Cc]onstructor: +)?new +';
+const classMethodPrefix = '^Class Method: +';
+const maybeClassPropertyPrefix = '(?:Class Property: +)?';
 
 const maybeQuote = '[\'"]?';
 const notQuotes = '[^\'"]+';
@@ -581,7 +581,7 @@ const callWithParams = r`\([^)]*\)`;
 
 const noCallOrProp = '(?![.[(])';
 
-const maybeExtends = r`(?:\s+extends\s+${maybeAncestors}${classId})?`;
+const maybeExtends = `(?: +extends +${maybeAncestors}${classId})?`;
 
 const headingExpressions = [
   { type: 'event', re: RegExp(
