@@ -1367,28 +1367,6 @@ TEST_IMPL(fs_chmod) {
 
   check_permission("test_file", 0600);
 
-#ifdef _WIN32
-  /* Test clearing read-only flag from files with Archive flag cleared */
-  /* Make the file read-only and clear archive flag */
-  r = SetFileAttributes("test_file", FILE_ATTRIBUTE_READONLY);
-  ASSERT(r != 0);
-  check_permission("test_file", 0400);
-
-  r = uv_fs_open(NULL, &req, "test_file", 0, 0, NULL);
-  ASSERT(r >= 0);
-  ASSERT(req.result >= 0);
-  uv_fs_req_cleanup(&req);
-
-  r = uv_fs_fchmod(NULL, &req, file, 0600, NULL);
-  ASSERT(r == 0);
-  ASSERT(req.result == 0);
-  uv_fs_req_cleanup(&req);
-
-  check_permission("test_file", 0600);
-  /* Restore Archive flag for rest of the tests */
-  r = SetFileAttributes("test_file", FILE_ATTRIBUTE_ARCHIVE);
-  ASSERT(r != 0);
-#endif
 #ifndef _WIN32
   /* async chmod */
   {
