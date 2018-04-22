@@ -1,3 +1,39 @@
+2018.04.23, Version 1.20.2 (Stable), c51fd3f66bbb386a1efdeba6812789f35a372d1e
+
+Changes since version 1.20.1:
+
+* zos: use custom semaphore (jBarz)
+
+* win: fix registry API error handling (Kyle Farnung)
+
+* build: add support for 64-bit AIX (Richard Lau)
+
+* aix: guard STATIC_ASSERT for glibc work around (Richard Lau)
+
+
+2018.04.19, Version 1.20.1 (Stable), 36ac2fc8edfd5ff3e9be529be1d4a3f0d5364e94
+
+Changes since version 1.20.0:
+
+* doc,fs: improve documentation (Bob Burger)
+
+* win: return a floored double from uv_uptime() (Refael Ackermann)
+
+* doc: clarify platform specific pipe naming (Thomas Versteeg)
+
+* unix: fix uv_pipe_chmod() on macOS (zzzjim)
+
+* unix: work around glibc semaphore race condition (Anna Henningsen)
+
+* tcp,openbsd: disable Unix TCP check for IPV6_ONLY (Alex Arslan)
+
+* test,openbsd: use RETURN_SKIP in UDP IPv6 tests (Alex Arslan)
+
+* test,openbsd: fix multicast test (Alex Arslan)
+
+* Revert "win, fs: use FILE_WRITE_ATTRIBUTES when opening files" (cjihrig)
+
+
 2018.04.03, Version 1.20.0 (Stable), 0012178ee2b04d9e4a2c66c27cf8891ad8325ceb
 
 Changes since version 1.19.2:

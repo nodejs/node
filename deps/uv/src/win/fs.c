@@ -434,8 +434,6 @@ void fs__open(uv_fs_t* req) {
     access |= FILE_APPEND_DATA;
   }
 
-  access |= FILE_WRITE_ATTRIBUTES;
-
   /*
    * Here is where we deviate significantly from what CRT's _open()
    * does. We indiscriminately use all the sharing modes, to match
