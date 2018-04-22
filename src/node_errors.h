@@ -8,7 +8,9 @@
 #include "env-inl.h"
 #include "v8.h"
 
-#include <inttypes.h>
+// Use ostringstream to print exact-width integer types
+// because the format specifiers are not available on AIX.
+#include <sstream>
 
 namespace node {
 
@@ -70,10 +72,10 @@ namespace node {
 // Errors with predefined non-static messages
 inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
                                                int64_t timeout) {
-  char message[128];
-  snprintf(message, sizeof(message),
-      "Script execution timed out after %" PRId64 "ms", timeout);
-  THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message);
+  std::ostringstream message;
+  message << "Script execution timed out after ";
+  message << timeout << "ms";
+  THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(env, message.str().c_str());
 }
 
 inline v8::Local<v8::Value> ERR_BUFFER_TOO_LARGE(v8::Isolate *isolate) {
