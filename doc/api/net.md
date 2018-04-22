@@ -192,7 +192,7 @@ Possible signatures:
 * [`server.listen(options[, callback])`][`server.listen(options)`]
 * [`server.listen(path[, backlog][, callback])`][`server.listen(path)`]
   for [IPC][] servers
-* [`server.listen([[[port[, hostname[, backlog]]][, callback])`][`server.listen(port, host)`]
+* [`server.listen([[[port[, host[, backlog]]][, callback])`][`server.listen(port, host)`]
   for TCP servers
 
 This function is asynchronous. When the server starts listening, the
@@ -264,7 +264,7 @@ added: v0.11.14
 * Returns: {net.Server}
 
 If `port` is specified, it behaves the same as
-[`server.listen([[[port[, hostname[, backlog]]][, callback])`][`server.listen(port, host)`].
+[`server.listen([[[port[, host[, backlog]]][, callback])`][`server.listen(port, host)`].
 Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
@@ -296,7 +296,7 @@ added: v0.1.90
 
 Start a [IPC][] server listening for connections on the given `path`.
 
-#### server.listen([port][, host][, backlog][, callback])
+#### server.listen([[[port[, host[, backlog]]][, callback])
 <!-- YAML
 added: v0.1.90
 -->
