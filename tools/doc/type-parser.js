@@ -31,6 +31,8 @@ const customTypesMap = {
 
   'AsyncIterator': 'https://github.com/tc39/proposal-async-iteration',
 
+  'bigint': 'https://github.com/tc39/proposal-bigint',
+
   'Iterable':
     `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
   'Iterator':
