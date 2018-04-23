@@ -51,6 +51,7 @@ and:
 * `code` {string} This is always set to the string `ERR_ASSERTION` to indicate
   that the error is actually an assertion error.
 * `operator` {string} Set to the passed in operator value.
+* `rawMessage` {string} Identical to the message, but without any colors.
 
 ```js
 const assert = require('assert');

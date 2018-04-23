@@ -12,7 +12,8 @@ assert.throws(
     message: 'Failed',
     operator: undefined,
     actual: undefined,
-    expected: undefined
+    expected: undefined,
+    rawMessage: 'Failed'
   }
 );
 
@@ -25,7 +26,8 @@ assert.throws(() => {
   message: 'custom message',
   operator: undefined,
   actual: undefined,
-  expected: undefined
+  expected: undefined,
+  rawMessage: 'custom message'
 });
 
 // One arg = Error
