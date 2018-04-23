@@ -68,10 +68,13 @@ server.listen(0, common.mustCall(() => {
     message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
   }));
 
-  // These events should not fire as the server should receive the RST_STREAM
-  // frame before it ever has a chance to reply.
+  // The `response` event should not fire as the server should receive the
+  // RST_STREAM frame before it ever has a chance to reply.
   req.on('response', common.mustNotCall());
-  req.on('end', common.mustNotCall());
+
+  // The `end` event should still fire as we close the readable stream by
+  // pushing a `null` chunk.
+  req.on('end', common.mustCall());
 
   req.resume();
   req.end();
