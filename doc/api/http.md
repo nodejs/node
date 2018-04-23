@@ -608,6 +608,12 @@ const setCookie = request.getHeader('set-cookie');
 
 ```
 
+### request.maxHeadersCount
+
+* {number} **Default:** `2000`
+
+Limits maximum response headers count. If set to 0, no limit will be applied.
+
 ### request.removeHeader(name)
 <!-- YAML
 added: v1.6.0
@@ -937,7 +943,7 @@ added: v0.7.0
 
 * {number} **Default:** `2000`
 
-Limits maximum incoming headers count. If set to 0 - no limit will be applied.
+Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
