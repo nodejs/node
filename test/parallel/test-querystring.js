@@ -51,8 +51,8 @@ const qsTestCases = [
   ['foo=bar&foo=quux', 'foo=bar&foo=quux', { 'foo': ['bar', 'quux'] }],
   ['foo=1&bar=2', 'foo=1&bar=2', { 'foo': '1', 'bar': '2' }],
   ['my+weird+field=q1%212%22%27w%245%267%2Fz8%29%3F',
-   'my%20weird%20field=q1!2%22\'w%245%267%2Fz8)%3F',
-   { 'my weird field': 'q1!2"\'w$5&7/z8)?' }],
+   `my%20weird%20field=q1!2%22'w%245%267%2Fz8)%3F`,
+   { 'my weird field': `q1!2"'w$5&7/z8)?` }],
   ['foo%3Dbaz=bar', 'foo%3Dbaz=bar', { 'foo=baz': 'bar' }],
   ['foo=baz=bar', 'foo=baz%3Dbar', { 'foo': 'baz=bar' }],
   ['str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
@@ -156,7 +156,7 @@ const qsNoMungeTestCases = [
   ['foo=bar&foo=baz', { 'foo': ['bar', 'baz'] }],
   ['foo=bar&foo=baz', foreignObject],
   ['blah=burp', { 'blah': 'burp' }],
-  ['a=!-._~\'()*', { 'a': '!-._~\'()*' }],
+  ["a=!-._~'()*", { 'a': "!-._~'()*" }],
   ['a=abcdefghijklmnopqrstuvwxyz', { 'a': 'abcdefghijklmnopqrstuvwxyz' }],
   ['a=ABCDEFGHIJKLMNOPQRSTUVWXYZ', { 'a': 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' }],
   ['a=0123456789', { 'a': '0123456789' }],
@@ -174,7 +174,7 @@ const qsUnescapeTestCases = [
   ['there%2Qare%0-fake%escaped values in%%%%this%9Hstring',
    'there%2Qare%0-fake%escaped values in%%%%this%9Hstring'],
   ['%20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2D%2E%2F%30%31%32%33%34%35%36%37',
-   ' !"#$%&\'()*+,-./01234567']
+   ` !"#$%&'()*+,-./01234567`]
 ];
 
 assert.strictEqual('918854443121279438895193',

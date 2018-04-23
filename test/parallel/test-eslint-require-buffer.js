@@ -14,15 +14,15 @@ const ruleTester = new RuleTester({
 const message = "Use const Buffer = require('buffer').Buffer; " +
                 'at the beginning of this file';
 
-const useStrict = '\'use strict\';\n\n';
-const bufferModule = 'const { Buffer } = require(\'buffer\');\n';
+const useStrict = "'use strict';\n\n";
+const bufferModule = "const { Buffer } = require('buffer');\n";
 const mockComment = '// Some Comment\n//\n// Another Comment\n\n';
 const useBuffer = 'Buffer;';
 ruleTester.run('require-buffer', rule, {
   valid: [
     'foo',
     'const Buffer = require("Buffer"); Buffer;',
-    'const { Buffer } = require(\'buffer\'); Buffer;',
+    "const { Buffer } = require('buffer'); Buffer;",
   ],
   invalid: [
     {

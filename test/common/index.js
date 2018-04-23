@@ -162,7 +162,7 @@ Object.defineProperty(exports, 'localhostIPv4', {
       if (process.env.LOCALHOST) {
         localhostIPv4 = process.env.LOCALHOST;
       } else {
-        console.error('Looks like we\'re in a FreeBSD Jail. ' +
+        console.error("Looks like we're in a FreeBSD Jail. " +
                       'Please provide your default interface address ' +
                       'as LOCALHOST or expect some tests to fail.');
       }

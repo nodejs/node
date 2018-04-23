@@ -134,7 +134,7 @@ const parseTests = {
     path: '/'
   },
 
-  'http://x.com/path?that\'s#all, folks': {
+  "http://x.com/path?that's#all, folks": {
     href: 'http://x.com/path?that%27s#all,%20folks',
     protocol: 'http:',
     slashes: true,
@@ -409,11 +409,11 @@ const parseTests = {
     path: '?subject=hello'
   },
 
-  'javascript:alert(\'hello\');': {
-    href: 'javascript:alert(\'hello\');',
+  "javascript:alert('hello');": {
+    href: "javascript:alert('hello');",
     protocol: 'javascript:',
-    pathname: 'alert(\'hello\');',
-    path: 'alert(\'hello\');'
+    pathname: "alert('hello');",
+    path: "alert('hello');"
   },
 
   'xmpp:isaacschlueter@jabber.org': {
@@ -849,7 +849,7 @@ const parseTests = {
   'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
     protocol: 'http:',
     slashes: true,
-    auth: 'a\r" \t\n<\'b:b',
+    auth: `a\r" \t\n<'b:b`,
     host: 'c',
     port: null,
     hostname: 'c',
@@ -858,7 +858,7 @@ const parseTests = {
     query: 'f',
     pathname: '%0D%0Ad/e',
     path: '%0D%0Ad/e?f',
-    href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+    href: "http://a%0D%22%20%09%0A%3C'b:b@c/%0D%0Ad/e?f"
   },
 
   // git urls used by npm

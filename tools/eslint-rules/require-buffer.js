@@ -1,5 +1,5 @@
 'use strict';
-const BUFFER_REQUIRE = 'const { Buffer } = require(\'buffer\');';
+const BUFFER_REQUIRE = "const { Buffer } = require('buffer');";
 
 module.exports = function(context) {
 

@@ -13,8 +13,8 @@ function test() {
     'var foo = {m: 1};',
     '',
     'function bar() {',
-    '\'use strict\';',
-    'return foo; // foo isn\'t captured in 0.10',
+    "'use strict';",
+    "return foo; // foo isn't captured in 0.10",
     '};'
   ].join('\n');
 

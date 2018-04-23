@@ -16,7 +16,7 @@ assert.throws(() => {
 }, {
   code: 'ERR_ASSERTION',
   name: 'AssertionError [ERR_ASSERTION]',
-  message: '\'first\' != \'second\'',
+  message: "'first' != 'second'",
   operator: '!=',
   actual: 'first',
   expected: 'second'
@@ -48,7 +48,7 @@ assert.throws(() => {
 }, {
   code: 'ERR_ASSERTION',
   name: 'AssertionError [ERR_ASSERTION]',
-  message: '\'first\' operator \'second\'',
+  message: "'first' operator 'second'",
   operator: 'operator',
   actual: 'first',
   expected: 'second'

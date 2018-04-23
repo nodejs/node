@@ -23,7 +23,7 @@ common.crashOnUnhandledRejection();
 
 // A rejection
 {
-  const expected_result = 'It\'s not you, it\'s me.';
+  const expected_result = "It's not you, it's me.";
   const promise = test_promise.createPromise();
   promise.then(
     common.mustNotCall(),

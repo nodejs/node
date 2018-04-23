@@ -53,7 +53,7 @@ const tests = [
     expected: 'let x y;\n      ^\n\nSyntaxError: Unexpected identifier\n'
   },
   {
-    command: 'throw new Error(\'Whoops!\')',
+    command: "throw new Error('Whoops!')",
     expected: 'Error: Whoops!\n'
   },
   {
@@ -62,7 +62,7 @@ const tests = [
   },
   // test anonymous IIFE
   {
-    command: '(function() { throw new Error(\'Whoops!\'); })()',
+    command: "(function() { throw new Error('Whoops!'); })()",
     expected: 'Error: Whoops!--->\nrepl:1:21\n'
   }
 ];

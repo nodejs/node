@@ -44,7 +44,7 @@ assert.throws(() => a(false), a.AssertionError, 'ok(false)');
 assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
 
 a(true);
-a('test', 'ok(\'test\')');
+a('test', "ok('test')");
 a.ok(true);
 a.ok('test');
 
@@ -62,7 +62,7 @@ assert.throws(() => a.notEqual(true, true),
               a.AssertionError, 'notEqual(true, true)');
 
 assert.throws(() => a.strictEqual(2, '2'),
-              a.AssertionError, 'strictEqual(2, \'2\')');
+              a.AssertionError, "strictEqual(2, '2')");
 
 assert.throws(() => a.strictEqual(null, undefined),
               a.AssertionError, 'strictEqual(null, undefined)');
@@ -277,7 +277,7 @@ testAssertionMessage(NaN, 'NaN');
 testAssertionMessage(Infinity, 'Infinity');
 testAssertionMessage(-Infinity, '-Infinity');
 testAssertionMessage('', '""');
-testAssertionMessage('foo', '\'foo\'');
+testAssertionMessage('foo', "'foo'");
 testAssertionMessage([], '[]');
 testAssertionMessage([1, 2, 3], '[\n-   1,\n-   2,\n-   3\n- ]');
 testAssertionMessage(/a/, '/a/');

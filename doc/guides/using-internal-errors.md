@@ -107,7 +107,7 @@ message string. A simple example is:
 // Test ERR_TLS_CERT_ALTNAME_INVALID
 assert.strictEqual(
   errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
-  'Hostname/IP does not match certificate\'s altnames: altname');
+  "Hostname/IP does not match certificate's altnames: altname");
 ```
 
 In addition, there should also be tests which validate the use of the

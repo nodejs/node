@@ -9,7 +9,7 @@ const testScript = fixtures.path('catch-stdout-error.js');
 const cmd = `${JSON.stringify(process.execPath)} ` +
             `${JSON.stringify(testScript)} | ` +
             `${JSON.stringify(process.execPath)} ` +
-            '-pe "process.stdin.on(\'data\' , () => process.exit(1))"';
+            `-pe "process.stdin.on('data' , () => process.exit(1))"`;
 
 const child = child_process.exec(cmd);
 let output = '';

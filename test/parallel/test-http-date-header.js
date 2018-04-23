@@ -45,7 +45,7 @@ server.addListener('listening', () => {
   };
   const req = http.request(options, (res) => {
     assert.ok('date' in res.headers,
-              'Response headers didn\'t contain a Date.');
+              "Response headers didn't contain a Date.");
     res.addListener('end', () => {
       server.close();
       process.exit();

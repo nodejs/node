@@ -206,14 +206,14 @@ testMe.complete('toSt', common.mustCall(function(error, data) {
 // Tab complete provides built in libs for require()
 putIn.run(['.clear']);
 
-testMe.complete('require(\'', common.mustCall(function(error, data) {
+testMe.complete("require('", common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   repl._builtinLibs.forEach(function(lib) {
     assert(data[0].includes(lib), `${lib} not found`);
   });
 }));
 
-testMe.complete('require(\'n', common.mustCall(function(error, data) {
+testMe.complete("require('n", common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   assert.strictEqual(data.length, 2);
   assert.strictEqual(data[1], 'n');
@@ -228,7 +228,7 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
 {
   const expected = ['@nodejsscope', '@nodejsscope/'];
   putIn.run(['.clear']);
-  testMe.complete('require(\'@nodejs', common.mustCall((err, data) => {
+  testMe.complete("require('@nodejs", common.mustCall((err, data) => {
     assert.strictEqual(err, null);
     assert.deepStrictEqual(data, [expected, '@nodejs']);
   }));
@@ -241,7 +241,7 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
   const cwd = process.cwd();
   process.chdir(__dirname);
 
-  ['require(\'.', 'require(".'].forEach((input) => {
+  ["require('.", 'require(".'].forEach((input) => {
     testMe.complete(input, common.mustCall((err, data) => {
       assert.strictEqual(err, null);
       assert.strictEqual(data.length, 2);
@@ -252,7 +252,7 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
     }));
   });
 
-  ['require(\'..', 'require("..'].forEach((input) => {
+  ["require('..", 'require("..'].forEach((input) => {
     testMe.complete(input, common.mustCall((err, data) => {
       assert.strictEqual(err, null);
       assert.deepStrictEqual(data, [['../'], '..']);

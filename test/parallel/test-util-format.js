@@ -121,79 +121,79 @@ const nestedObj2 = {
 };
 assert.strictEqual(util.format('%o'), '%o');
 assert.strictEqual(util.format('%o', 42), '42');
-assert.strictEqual(util.format('%o', 'foo'), '\'foo\'');
+assert.strictEqual(util.format('%o', 'foo'), "'foo'");
 assert.strictEqual(
   util.format('%o', obj),
-  '{ foo: \'bar\',\n' +
+  "{ foo: 'bar',\n" +
   '  foobar: 1,\n' +
   '  func: \n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
+  "     [name]: 'func',\n" +
   '     [prototype]: func { [constructor]: [Circular] } } }');
 assert.strictEqual(
   util.format('%o', nestedObj2),
-  '{ foo: \'bar\',\n' +
+  "{ foo: 'bar',\n" +
   '  foobar: 1,\n' +
   '  func: \n' +
   '   [ { a: \n' +
   '        { [Function: a]\n' +
   '          [length]: 0,\n' +
-  '          [name]: \'a\',\n' +
+  "          [name]: 'a',\n" +
   '          [prototype]: a { [constructor]: [Circular] } } },\n' +
   '     [length]: 1 ] }');
 assert.strictEqual(
   util.format('%o', nestedObj),
-  '{ foo: \'bar\',\n' +
+  "{ foo: 'bar',\n" +
   '  foobar: \n' +
-  '   { foo: \'bar\',\n' +
+  "   { foo: 'bar',\n" +
   '     func: \n' +
   '      { [Function: func]\n' +
   '        [length]: 0,\n' +
-  '        [name]: \'func\',\n' +
+  "        [name]: 'func',\n" +
   '        [prototype]: func { [constructor]: [Circular] } } } }');
 assert.strictEqual(
   util.format('%o %o', obj, obj),
-  '{ foo: \'bar\',\n' +
+  "{ foo: 'bar',\n" +
   '  foobar: 1,\n' +
   '  func: \n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
+  "     [name]: 'func',\n" +
   '     [prototype]: func { [constructor]: [Circular] } } }' +
-  ' { foo: \'bar\',\n' +
+  " { foo: 'bar',\n" +
   '  foobar: 1,\n' +
   '  func: \n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
+  "     [name]: 'func',\n" +
   '     [prototype]: func { [constructor]: [Circular] } } }');
 assert.strictEqual(
   util.format('%o %o', obj),
-  '{ foo: \'bar\',\n' +
+  "{ foo: 'bar',\n" +
   '  foobar: 1,\n' +
   '  func: \n' +
   '   { [Function: func]\n' +
   '     [length]: 0,\n' +
-  '     [name]: \'func\',\n' +
+  "     [name]: 'func',\n" +
   '     [prototype]: func { [constructor]: [Circular] } } } %o');
 
 assert.strictEqual(util.format('%O'), '%O');
 assert.strictEqual(util.format('%O', 42), '42');
-assert.strictEqual(util.format('%O', 'foo'), '\'foo\'');
+assert.strictEqual(util.format('%O', 'foo'), "'foo'");
 assert.strictEqual(
   util.format('%O', obj),
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] }');
+  "{ foo: 'bar', foobar: 1, func: [Function: func] }");
 assert.strictEqual(
   util.format('%O', nestedObj),
-  '{ foo: \'bar\', foobar: { foo: \'bar\', func: [Function: func] } }');
+  "{ foo: 'bar', foobar: { foo: 'bar', func: [Function: func] } }");
 assert.strictEqual(
   util.format('%O %O', obj, obj),
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] } ' +
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] }');
+  "{ foo: 'bar', foobar: 1, func: [Function: func] } " +
+  "{ foo: 'bar', foobar: 1, func: [Function: func] }");
 assert.strictEqual(
   util.format('%O %O', obj),
-  '{ foo: \'bar\', foobar: 1, func: [Function: func] } %O');
+  "{ foo: 'bar', foobar: 1, func: [Function: func] } %O");
 
 // Various format specifiers
 assert.strictEqual(util.format('%%s%s', 'foo'), '%sfoo');

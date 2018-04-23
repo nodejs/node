@@ -31,5 +31,5 @@ server.listen(options, function() {
 process.on('exit', function() {
   assert.strictEqual(false, /Cannot find module/.test(answer));
   assert.strictEqual(false, /Error/.test(answer));
-  assert.strictEqual(answer, '\'eye catcher\'\n\'perhaps I work\'\n');
+  assert.strictEqual(answer, "'eye catcher'\n'perhaps I work'\n");
 });

@@ -384,11 +384,11 @@ assert.throws(function() {
   // Test SHA512 as assumed latin1
   assert.strictEqual(
     a3,
-    '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
+    "\u00c1(4\u00f1\u0003\u001fd\u0097!O'\u00d4C/&Qz\u00d4" +
     '\u0094\u0015l\u00b8\u008dQ+\u00db\u001d\u00c4\u00b5}\u00b2' +
     '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
     '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
-    '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\''
+    "\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed'"
   );
 
   assert.deepStrictEqual(

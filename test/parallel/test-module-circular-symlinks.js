@@ -54,11 +54,11 @@ try {
 }
 
 fs.writeFileSync(path.join(tmpDir, 'index.js'),
-                 'module.exports = require(\'moduleA\');', 'utf8');
+                 "module.exports = require('moduleA');", 'utf8');
 fs.writeFileSync(path.join(moduleA, 'index.js'),
-                 'module.exports = {b: require(\'moduleB\')};', 'utf8');
+                 "module.exports = {b: require('moduleB')};", 'utf8');
 fs.writeFileSync(path.join(moduleB, 'index.js'),
-                 'module.exports = {a: require(\'moduleA\')};', 'utf8');
+                 "module.exports = {a: require('moduleA')};", 'utf8');
 
 // Ensure that the symlinks are not followed forever...
 const obj = require(path.join(tmpDir, 'index'));

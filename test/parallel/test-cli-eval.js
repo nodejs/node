@@ -204,7 +204,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 ].forEach(function(args) {
 
   // Ensure that arguments are successfully passed to eval.
-  const opt = ' --eval "console.log(process.argv.slice(1).join(\' \'))"';
+  const opt = ` --eval "console.log(process.argv.slice(1).join(' '))"`;
   const cmd = `${nodejs}${opt} -- ${args}`;
   child.exec(cmd, common.mustCall(function(err, stdout, stderr) {
     assert.strictEqual(stdout, `${args}\n`);
@@ -213,7 +213,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   }));
 
   // Ensure that arguments are successfully passed to print.
-  const popt = ' --print "process.argv.slice(1).join(\' \')"';
+  const popt = ` --print "process.argv.slice(1).join(' ')"`;
   const pcmd = `${nodejs}${popt} -- ${args}`;
   child.exec(pcmd, common.mustCall(function(err, stdout, stderr) {
     assert.strictEqual(stdout, `${args}\n`);

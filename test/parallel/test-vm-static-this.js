@@ -27,12 +27,12 @@ const vm = require('vm');
 common.globalCheck = false;
 
 // Run a string
-const result = vm.runInThisContext('\'passed\';');
+const result = vm.runInThisContext("'passed';");
 assert.strictEqual('passed', result);
 
 // thrown error
 assert.throws(function() {
-  vm.runInThisContext('throw new Error(\'test\');');
+  vm.runInThisContext("throw new Error('test');");
 }, /test/);
 
 global.hello = 5;
@@ -43,8 +43,8 @@ assert.strictEqual(2, global.hello);
 // pass values
 const code = 'foo = 1;' +
              'bar = 2;' +
-             'if (typeof baz !== \'undefined\')' +
-             'throw new Error(\'test fail\');';
+             "if (typeof baz !== 'undefined')" +
+             "throw new Error('test fail');";
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */

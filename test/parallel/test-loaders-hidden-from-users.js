@@ -9,7 +9,7 @@ common.expectsError(
     require('internal/bootstrap/loaders');
   }, {
     code: 'MODULE_NOT_FOUND',
-    message: 'Cannot find module \'internal/bootstrap/loaders\''
+    message: "Cannot find module 'internal/bootstrap/loaders'"
   }
 );
 
@@ -20,6 +20,6 @@ common.expectsError(
     require('owo');
   }, {
     code: 'MODULE_NOT_FOUND',
-    message: 'Cannot find module \'owo\''
+    message: "Cannot find module 'owo'"
   }
 );

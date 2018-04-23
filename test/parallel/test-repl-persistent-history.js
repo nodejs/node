@@ -90,14 +90,14 @@ const tests = [
   },
   {
     env: {},
-    test: [UP, '\'42\'', ENTER],
-    expected: [prompt, '\'', '4', '2', '\'', '\'42\'\n', prompt, prompt],
+    test: [UP, "'42'", ENTER],
+    expected: [prompt, "'", '4', '2', "'", "'42'\n", prompt, prompt],
     clean: false
   },
   { // Requires the above test case
     env: {},
     test: [UP, UP, ENTER],
-    expected: [prompt, `${prompt}'42'`, '\'42\'\n', prompt]
+    expected: [prompt, `${prompt}'42'`, "'42'\n", prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,

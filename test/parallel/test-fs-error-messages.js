@@ -177,7 +177,7 @@ function re(literals, ...values) {
     assert.ok(err.dest.endsWith('foo'),
               `expect ${err.dest} to end with 'foo'`);
     const regexp = new RegExp('^ENOENT: no such file or directory, link ' +
-                              re`'${nonexistentFile}' -> ` + '\'.*foo\'');
+                              re`'${nonexistentFile}' -> ` + "'.*foo'");
     assert.ok(regexp.test(err.message),
               `Expect ${err.message} to match ${regexp}`);
     assert.strictEqual(err.errno, uv.UV_ENOENT);
@@ -269,7 +269,7 @@ function re(literals, ...values) {
     assert.ok(err.dest.endsWith('foo'),
               `expect ${err.dest} to end with 'foo'`);
     const regexp = new RegExp('ENOENT: no such file or directory, rename ' +
-                              re`'${nonexistentFile}' -> ` + '\'.*foo\'');
+                              re`'${nonexistentFile}' -> ` + "'.*foo'");
     assert.ok(regexp.test(err.message),
               `Expect ${err.message} to match ${regexp}`);
     assert.strictEqual(err.errno, uv.UV_ENOENT);

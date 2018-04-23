@@ -60,7 +60,7 @@ server.listen(0, common.mustCall(function() {
       console.log('client end');
       request.removeListener('end', onEnd);
       if (!wasUpgrade) {
-        throw new Error('hasn\'t received upgrade event');
+        throw new Error("hasn't received upgrade event");
       } else {
         fn && process.nextTick(fn);
       }

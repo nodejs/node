@@ -236,7 +236,7 @@ asyncTest('When re-throwing new errors in a promise catch, only the re-thrown' +
 
 asyncTest(
   'unhandledRejection should not be triggered if a promise catch is' +
-  ' attached synchronously upon the promise\'s creation',
+  " attached synchronously upon the promise's creation",
   function(done) {
     const e = new Error();
     onUnhandledFail(done);
@@ -246,7 +246,7 @@ asyncTest(
 
 asyncTest(
   'unhandledRejection should not be triggered if a promise catch is' +
-  ' attached synchronously upon the promise\'s creation',
+  " attached synchronously upon the promise's creation",
   function(done) {
     const e = new Error();
     onUnhandledFail(done);

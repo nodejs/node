@@ -59,7 +59,7 @@ assert.throws(function() {
 assert.throws(function() {
   const context = {
     runInVM: function(timeout) {
-      vm.runInNewContext('throw new Error(\'foobar\')', context, { timeout });
+      vm.runInNewContext("throw new Error('foobar')", context, { timeout });
     }
   };
   vm.runInNewContext('runInVM(10000)', context, { timeout: 100000 });

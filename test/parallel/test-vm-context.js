@@ -87,7 +87,7 @@ const contextifiedSandboxError = {
 
 // Issue GH-693:
 // Test RegExp as argument to assert.throws
-script = vm.createScript('const assert = require(\'assert\'); assert.throws(' +
+script = vm.createScript("const assert = require('assert'); assert.throws(" +
                          'function() { throw "hello world"; }, /hello/);',
                          'some.js');
 script.runInNewContext({ require });

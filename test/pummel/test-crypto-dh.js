@@ -32,7 +32,7 @@ assert.throws(
     crypto.getDiffieHellman('unknown-group');
   },
   /^Error: Unknown group$/,
-  'crypto.getDiffieHellman(\'unknown-group\') ' +
+  "crypto.getDiffieHellman('unknown-group') " +
   'failed to throw the expected error.'
 );
 assert.throws(
@@ -41,7 +41,7 @@ assert.throws(
   },
   new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
   'setPrivateKey is not a function$'),
-  'crypto.getDiffieHellman(\'modp1\').setPrivateKey(\'\') ' +
+  "crypto.getDiffieHellman('modp1').setPrivateKey('') " +
   'failed to throw the expected error.'
 );
 assert.throws(
@@ -50,7 +50,7 @@ assert.throws(
   },
   new RegExp('^TypeError: crypto\\.getDiffieHellman\\(\\.\\.\\.\\)\\.' +
   'setPublicKey is not a function$'),
-  'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
+  "crypto.getDiffieHellman('modp1').setPublicKey('') " +
   'failed to throw the expected error.'
 );
 
