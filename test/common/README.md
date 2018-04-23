@@ -219,6 +219,11 @@ Platform check for Advanced Interactive eXecutive (AIX).
 
 Attempts to 'kill' `pid`
 
+### isAlpine
+* [&lt;boolean>]
+
+Platform check for Alpine Linux.
+
 ### isFreeBSD
 * [&lt;boolean>]
 
