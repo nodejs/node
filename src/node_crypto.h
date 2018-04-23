@@ -364,14 +364,15 @@ class CipherBase : public BaseObject {
   void Init(const char* cipher_type,
             const char* key_buf,
             int key_buf_len,
-            int auth_tag_len);
+            unsigned int auth_tag_len);
   void InitIv(const char* cipher_type,
               const char* key,
               int key_len,
               const char* iv,
               int iv_len,
-              int auth_tag_len);
-  bool InitAuthenticated(const char *cipher_type, int iv_len, int auth_tag_len);
+              unsigned int auth_tag_len);
+  bool InitAuthenticated(const char *cipher_type, int iv_len,
+                         unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
   UpdateResult Update(const char* data, int len, unsigned char** out,
                       int* out_len);
