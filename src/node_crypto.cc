@@ -2791,7 +2791,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
 
 static bool IsValidGCMTagLength(unsigned int tag_len) {
-  return tag_len == 4 || tag_len == 8 || tag_len >= 12 && tag_len <= 16;
+  return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
 }
 
 bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
