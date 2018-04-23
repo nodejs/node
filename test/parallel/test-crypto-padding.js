@@ -27,8 +27,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
 // Input data.
 const ODD_LENGTH_PLAIN = 'Hello node world!';
 const EVEN_LENGTH_PLAIN = 'Hello node world!AbC09876dDeFgHi';

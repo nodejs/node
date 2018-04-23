@@ -29,8 +29,6 @@ const crypto = require('crypto');
 const { Certificate } = crypto;
 const fixtures = require('../common/fixtures');
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
 // Test Certificates
 const spkacValid = fixtures.readSync('spkac.valid');
 const spkacFail = fixtures.readSync('spkac.fail');
