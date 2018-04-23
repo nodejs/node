@@ -2798,7 +2798,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
 
 static bool IsValidGCMTagLength(unsigned int tag_len) {
-  return tag_len == 4 || tag_len == 8 || tag_len >= 12 && tag_len <= 16;
+  return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
 }
 
 bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
@@ -2922,8 +2922,8 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   unsigned int tag_len = Buffer::Length(args[0]);
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_);
   if (mode == EVP_CIPH_GCM_MODE) {
-    if (cipher->auth_tag_len_ != kNoAuthTagLength &&
-        cipher->auth_tag_len_ != tag_len ||
+    if ((cipher->auth_tag_len_ != kNoAuthTagLength &&
+        cipher->auth_tag_len_ != tag_len) ||
         !IsValidGCMTagLength(tag_len)) {
       char msg[50];
       snprintf(msg, sizeof(msg),
