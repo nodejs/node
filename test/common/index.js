@@ -60,6 +60,16 @@ exports.isOpenBSD = process.platform === 'openbsd';
 exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
+Object.defineProperty(exports, 'isAlpine', {
+  get: () => {
+    if (!exports.isLinux)
+      return false;
+    const lddVersion = spawnSync('ldd', ['--version'], { encoding: 'utf8' });
+    return !lddVersion.includes('LIBC');
+  },
+  enumerable: true
+});
+
 exports.enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
 const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&
