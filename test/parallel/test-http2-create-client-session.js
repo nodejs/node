@@ -55,9 +55,8 @@ server.on('listening', common.mustCall(() => {
     const req = client.request();
 
     req.on('response', common.mustCall(function(headers) {
-      assert.strictEqual(headers[':status'], 200, 'status code is set');
-      assert.strictEqual(headers['content-type'], 'text/html',
-                         'content type is set');
+      assert.strictEqual(headers[':status'], 200);
+      assert.strictEqual(headers['content-type'], 'text/html');
       assert(headers.date);
     }));
 
