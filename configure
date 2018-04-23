@@ -1106,6 +1106,8 @@ def configure_openssl(o):
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
 
   if not options.shared_openssl and not options.openssl_no_asm:
+    is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
+
     # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
     # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
     openssl110_asm_supported = \
@@ -1114,7 +1116,7 @@ def configure_openssl(o):
       ('llvm_version' in variables and float(variables['llvm_version']) >= 3.3) or \
       ('nasm_version' in variables and float(variables['nasm_version']) >= 2.10)
 
-    if not openssl110_asm_supported:
+    if is_x86 and not openssl110_asm_supported:
       error('''Did not find a new enough assembler, install one or build with
        --openssl-no-asm.
        Please refer to BUILDING.md''')
