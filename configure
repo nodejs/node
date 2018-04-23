@@ -573,6 +573,11 @@ options.prefix = os.path.expanduser(options.prefix or '')
 auto_downloads = nodedownload.parse(options.download_list)
 
 
+def error(msg):
+  prefix = '\033[1m\033[31mERROR\033[0m' if os.isatty(1) else 'ERROR'
+  print('%s: %s' % (prefix, msg))
+  sys.exit(1)
+
 def warn(msg):
   warn.warned = True
   prefix = '\033[1m\033[93mWARNING\033[0m' if os.isatty(1) else 'WARNING'
@@ -634,20 +639,18 @@ def get_version_helper(cc, regexp):
     proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
   except OSError:
-    print('''Node.js configure error: No acceptable C compiler found!
+    error('''No acceptable C compiler found!
 
-        Please make sure you have a C compiler installed on your system and/or
-        consider adjusting the CC environment variable if you installed
-        it in a non-standard prefix.
-        ''')
-    sys.exit()
+       Please make sure you have a C compiler installed on your system and/or
+       consider adjusting the CC environment variable if you installed
+       it in a non-standard prefix.''')
 
   match = re.search(regexp, proc.communicate()[1])
 
   if match:
     return match.group(2)
   else:
-    return 0
+    return '0'
 
 def get_nasm_version(asm):
   try:
@@ -656,9 +659,9 @@ def get_nasm_version(asm):
                             stdout=subprocess.PIPE)
   except OSError:
     warn('''No acceptable ASM compiler found!
-         Please make sure you have installed nasm from http://www.nasm.us
+         Please make sure you have installed NASM from http://www.nasm.us
          and refer BUILDING.md.''')
-    return 0
+    return '0'
 
   match = re.match(r"NASM version ([2-9]\.[0-9][0-9]+)",
                    proc.communicate()[0])
@@ -666,7 +669,7 @@ def get_nasm_version(asm):
   if match:
     return match.group(1)
   else:
-    return 0
+    return '0'
 
 def get_llvm_version(cc):
   return get_version_helper(
@@ -684,13 +687,11 @@ def get_gas_version(cc):
                             stdin=subprocess.PIPE, stderr=subprocess.PIPE,
                             stdout=subprocess.PIPE)
   except OSError:
-    print('''Node.js configure error: No acceptable C compiler found!
+    error('''No acceptable C compiler found!
 
-        Please make sure you have a C compiler installed on your system and/or
-        consider adjusting the CC environment variable if you installed
-        it in a non-standard prefix.
-        ''')
-    sys.exit()
+       Please make sure you have a C compiler installed on your system and/or
+       consider adjusting the CC environment variable if you installed
+       it in a non-standard prefix.''')
 
   match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)",
                    proc.communicate()[1])
@@ -698,7 +699,7 @@ def get_gas_version(cc):
   if match:
     return match.group(1)
   else:
-    return 0
+    return '0'
 
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
@@ -750,13 +751,11 @@ def cc_macros(cc=None):
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
   except OSError:
-    print('''Node.js configure error: No acceptable C compiler found!
+    error('''No acceptable C compiler found!
 
-        Please make sure you have a C compiler installed on your system and/or
-        consider adjusting the CC environment variable if you installed
-        it in a non-standard prefix.
-        ''')
-    sys.exit()
+       Please make sure you have a C compiler installed on your system and/or
+       consider adjusting the CC environment variable if you installed
+       it in a non-standard prefix.''')
 
   p.stdin.write('\n')
   out = p.communicate()[0]
@@ -1085,6 +1084,19 @@ def configure_openssl(o):
   variables['node_use_openssl'] = b(not options.without_ssl)
   variables['node_shared_openssl'] = b(options.shared_openssl)
   variables['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
+  variables['openssl_fips'] = ''
+
+  if options.without_ssl:
+    def without_ssl_error(option):
+      error('--without-ssl is incompatible with %s' % option)
+    if options.shared_openssl:
+      without_ssl_error('--shared-openssl')
+    if options.openssl_no_asm:
+      without_ssl_error('--openssl-no-asm')
+    if options.openssl_fips:
+      without_ssl_error('--openssl-fips')
+    return
+
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
   if options.openssl_system_ca_path:
@@ -1093,36 +1105,31 @@ def configure_openssl(o):
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
 
-  # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
-  # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
-  openssl110_asm_supported = \
-  ('gas_version' in variables and variables['gas_version'] >= '2.23') or \
-  ('xcode_version' in variables and variables['xcode_version'] >= '5.0') or \
-  ('llvm_version' in variables and variables['llvm_version'] >= '3.3') or \
-  ('nasm_version' in variables and variables['nasm_version'] >= '2.10')
+  if not options.shared_openssl and not options.openssl_no_asm:
+    # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
+    # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
+    openssl110_asm_supported = \
+      ('gas_version' in variables and float(variables['gas_version']) >= 2.23) or \
+      ('xcode_version' in variables and float(variables['xcode_version']) >= 5.0) or \
+      ('llvm_version' in variables and float(variables['llvm_version']) >= 3.3) or \
+      ('nasm_version' in variables and float(variables['nasm_version']) >= 2.10)
 
-  if not options.without_ssl and not openssl110_asm_supported and \
-	  variables['openssl_no_asm'] == 0:
-    warn('''openssl_no_asm is enabled due to missed or old assembler.
-            Please refer BUILDING.md''')
-    variables['openssl_no_asm'] = 1
+    if not openssl110_asm_supported:
+      error('''Did not find a new enough assembler, install one or build with
+       --openssl-no-asm.
+       Please refer to BUILDING.md''')
+
+  elif options.openssl_no_asm:
+    warn('''--openssl-no-asm will result in binaries that do not take advantage
+         of modern CPU cryptographic instructions and will therefore be slower.
+         Please refer to BUILDING.md''')
+
+  if options.openssl_no_asm and options.shared_openssl:
+    error('--openssl-no-asm is incompatible with --shared-openssl')
 
   if options.openssl_fips:
-     print('Error: FIPS is not supported yet in this version')
-     exit(1)
-  variables['openssl_fips'] = ''
+     error('FIPS is not supported in this version of Node.js')
 
-  if options.without_ssl:
-    def without_ssl_error(option):
-      print('Error: --without-ssl is incompatible with %s' % option)
-      exit(1)
-    if options.shared_openssl:
-      without_ssl_error('--shared-openssl')
-    if options.openssl_no_asm:
-      without_ssl_error('--openssl-no-asm')
-    if options.openssl_fips:
-      without_ssl_error('--openssl-fips')
-    return
   configure_library('openssl', o)
 
 
@@ -1178,9 +1185,8 @@ def configure_intl(o):
   def icu_download(path):
     # download ICU, if needed
     if not os.access(options.download_path, os.W_OK):
-      print('Error: cannot write to desired download path. ' \
-            'Either create it or verify permissions.')
-      sys.exit(1)
+      error('''Cannot write to desired download path.
+        Either create it or verify permissions.''')
     for icu in icus:
       url = icu['url']
       md5 = icu['md5']
@@ -1219,8 +1225,7 @@ def configure_intl(o):
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
   if have_icu_path and with_intl != 'none':
-    print('Error: Cannot specify both --with-icu-path and --with-intl')
-    sys.exit(1)
+    error('Cannot specify both --with-icu-path and --with-intl')
   elif have_icu_path:
     # Chromium .gyp mode: --with-icu-path
     o['variables']['v8_enable_i18n_support'] = 1
@@ -1248,9 +1253,8 @@ def configure_intl(o):
     o['variables']['v8_enable_i18n_support'] = 1
     pkgicu = pkg_config('icu-i18n')
     if pkgicu[0] is None:
-      print('Error: could not load pkg-config data for "icu-i18n".')
-      print('See above errors or the README.md.')
-      sys.exit(1)
+      error('''Could not load pkg-config data for "icu-i18n".
+       See above errors or the README.md.''')
     (libs, cflags, libpath) = pkgicu
     # libpath provides linker path which may contain spaces
     if libpath:
@@ -1336,10 +1340,9 @@ def configure_intl(o):
         os.rename(tmp_icu, icu_full_path)
         shutil.rmtree(icu_tmp_path)
       else:
-        print('Error: --with-icu-source=%s did not result in an "icu" dir.' % \
-               with_icu_source)
         shutil.rmtree(icu_tmp_path)
-        sys.exit(1)
+        error('--with-icu-source=%s did not result in an "icu" dir.' % \
+               with_icu_source)
 
   # ICU mode. (icu-generic.gyp)
   o['variables']['icu_gyp_path'] = 'tools/icu/icu-generic.gyp'
@@ -1352,17 +1355,15 @@ def configure_intl(o):
     if localzip:
       nodedownload.unpack(localzip, icu_parent_path)
   if not os.path.isdir(icu_full_path):
-    print('Cannot build Intl without ICU in %s.' % icu_full_path)
-    print('(Fix, or disable with "--with-intl=none" )')
-    sys.exit(1)
+    error('''Cannot build Intl without ICU in %s.
+       Fix, or disable with "--with-intl=none"''' % icu_full_path)
   else:
     print('* Using ICU in %s' % icu_full_path)
   # Now, what version of ICU is it? We just need the "major", such as 54.
   # uvernum.h contains it as a #define.
   uvernum_h = os.path.join(icu_full_path, 'source/common/unicode/uvernum.h')
   if not os.path.isfile(uvernum_h):
-    print('Error: could not load %s - is ICU installed?' % uvernum_h)
-    sys.exit(1)
+    error('Could not load %s - is ICU installed?' % uvernum_h)
   icu_ver_major = None
   matchVerExp = r'^\s*#define\s+U_ICU_VERSION_SHORT\s+"([^"]*)".*'
   match_version = re.compile(matchVerExp)
@@ -1371,8 +1372,7 @@ def configure_intl(o):
     if m:
       icu_ver_major = m.group(1)
   if not icu_ver_major:
-    print('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
-    sys.exit(1)
+    error('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
   icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
@@ -1396,10 +1396,9 @@ def configure_intl(o):
   # may be little-endian if from a icu-project.org tarball
   o['variables']['icu_data_in'] = icu_data_in
   if not os.path.isfile(icu_data_path):
-    print('Error: ICU prebuilt data file %s does not exist.' % icu_data_path)
-    print('See the README.md.')
     # .. and we're not about to build it from .gyp!
-    sys.exit(1)
+    error('''ICU prebuilt data file %s does not exist.
+       See the README.md.''' % icu_data_path)
   # map from variable name to subdirs
   icu_src = {
     'stubdata': 'stubdata',
