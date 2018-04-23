@@ -2622,7 +2622,7 @@ void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
 void CipherBase::Init(const char* cipher_type,
                       const char* key_buf,
                       int key_buf_len,
-                      int auth_tag_len) {
+                      unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
 
 #ifdef NODE_FIPS_MODE
@@ -2693,10 +2693,16 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   const node::Utf8Value cipher_type(args.GetIsolate(), args[0]);
   const char* key_buf = Buffer::Data(args[1]);
   ssize_t key_buf_len = Buffer::Length(args[1]);
-  CHECK(args[2]->IsInt32());
+
   // Don't assign to cipher->auth_tag_len_ directly; the value might not
   // represent a valid length at this point.
-  int auth_tag_len = args[2].As<v8::Int32>()->Value();
+  unsigned int auth_tag_len;
+  if (args[2]->IsUint32()) {
+    auth_tag_len = args[2].As<v8::Uint32>()->Value();
+  } else {
+    CHECK(args[2]->IsInt32() && args[2].As<v8::Int32>()->Value() == -1);
+    auth_tag_len = kNoAuthTagLength;
+  }
 
   cipher->Init(*cipher_type, key_buf, key_buf_len, auth_tag_len);
 }
@@ -2707,7 +2713,7 @@ void CipherBase::InitIv(const char* cipher_type,
                         int key_len,
                         const char* iv,
                         int iv_len,
-                        int auth_tag_len) {
+                        unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
@@ -2781,10 +2787,16 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
     iv_buf = Buffer::Data(args[2]);
     iv_len = Buffer::Length(args[2]);
   }
-  CHECK(args[3]->IsInt32());
+
   // Don't assign to cipher->auth_tag_len_ directly; the value might not
   // represent a valid length at this point.
-  int auth_tag_len = args[3].As<v8::Int32>()->Value();
+  unsigned int auth_tag_len;
+  if (args[3]->IsUint32()) {
+    auth_tag_len = args[3].As<v8::Uint32>()->Value();
+  } else {
+    CHECK(args[3]->IsInt32() && args[3].As<v8::Int32>()->Value() == -1);
+    auth_tag_len = kNoAuthTagLength;
+  }
 
   cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len, auth_tag_len);
 }
@@ -2795,7 +2807,7 @@ static bool IsValidGCMTagLength(unsigned int tag_len) {
 }
 
 bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
-                                   int auth_tag_len) {
+                                   unsigned int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
 
   if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_AEAD_SET_IVLEN, iv_len, nullptr)) {
@@ -2805,7 +2817,7 @@ bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_);
   if (mode == EVP_CIPH_CCM_MODE) {
-    if (auth_tag_len < 0) {
+    if (auth_tag_len == kNoAuthTagLength) {
       char msg[128];
       snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
       env()->ThrowError(msg);
@@ -2840,7 +2852,7 @@ bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
   } else {
     CHECK_EQ(mode, EVP_CIPH_GCM_MODE);
 
-    if (auth_tag_len >= 0) {
+    if (auth_tag_len != kNoAuthTagLength) {
       if (!IsValidGCMTagLength(auth_tag_len)) {
         char msg[50];
         snprintf(msg, sizeof(msg),
