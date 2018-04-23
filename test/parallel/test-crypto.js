@@ -30,8 +30,6 @@ const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
 // Test Certificates
 const caPem = fixtures.readSync('test_ca.pem', 'ascii');
 const certPem = fixtures.readSync('test_cert.pem', 'ascii');
