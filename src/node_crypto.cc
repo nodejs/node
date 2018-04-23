@@ -5170,7 +5170,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 
 
 bool VerifySpkac(const char* data, unsigned int len) {
-  bool i = false;
+  bool verify_result = false;
   EVP_PKEY* pkey = nullptr;
   NETSCAPE_SPKI* spki = nullptr;
 
@@ -5182,7 +5182,7 @@ bool VerifySpkac(const char* data, unsigned int len) {
   if (pkey == nullptr)
     goto exit;
 
-  i = NETSCAPE_SPKI_verify(spki, pkey) > 0;
+  verify_result = NETSCAPE_SPKI_verify(spki, pkey) > 0;
 
  exit:
   if (pkey != nullptr)
@@ -5191,23 +5191,23 @@ bool VerifySpkac(const char* data, unsigned int len) {
   if (spki != nullptr)
     NETSCAPE_SPKI_free(spki);
 
-  return i;
+  return verify_result;
 }
 
 
 void VerifySpkac(const FunctionCallbackInfo<Value>& args) {
-  bool i = false;
+  bool verify_result = false;
 
   size_t length = Buffer::Length(args[0]);
   if (length == 0)
-    return args.GetReturnValue().Set(i);
+    return args.GetReturnValue().Set(verify_result);
 
   char* data = Buffer::Data(args[0]);
   CHECK_NE(data, nullptr);
 
-  i = VerifySpkac(data, length);
+  verify_result = VerifySpkac(data, length);
 
-  args.GetReturnValue().Set(i);
+  args.GetReturnValue().Set(verify_result);
 }
 
 
