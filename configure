@@ -573,6 +573,11 @@ options.prefix = os.path.expanduser(options.prefix or '')
 auto_downloads = nodedownload.parse(options.download_list)
 
 
+def error(msg):
+  prefix = '\033[1m\033[31mERROR\033[0m' if os.isatty(1) else 'ERROR'
+  print('%s: %s' % (prefix, msg))
+  sys.exit(1)
+
 def warn(msg):
   warn.warned = True
   prefix = '\033[1m\033[93mWARNING\033[0m' if os.isatty(1) else 'WARNING'
@@ -634,13 +639,11 @@ def get_version_helper(cc, regexp):
     proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
   except OSError:
-    print('''Node.js configure error: No acceptable C compiler found!
+    error('''No acceptable C compiler found!
 
-        Please make sure you have a C compiler installed on your system and/or
-        consider adjusting the CC environment variable if you installed
-        it in a non-standard prefix.
-        ''')
-    sys.exit()
+       Please make sure you have a C compiler installed on your system and/or
+       consider adjusting the CC environment variable if you installed
+       it in a non-standard prefix.''')
 
   match = re.search(regexp, proc.communicate()[1])
 
@@ -656,7 +659,7 @@ def get_nasm_version(asm):
                             stdout=subprocess.PIPE)
   except OSError:
     warn('''No acceptable ASM compiler found!
-         Please make sure you have installed nasm from http://www.nasm.us
+         Please make sure you have installed NASM from http://www.nasm.us
          and refer BUILDING.md.''')
     return 0
 
@@ -684,13 +687,11 @@ def get_gas_version(cc):
                             stdin=subprocess.PIPE, stderr=subprocess.PIPE,
                             stdout=subprocess.PIPE)
   except OSError:
-    print('''Node.js configure error: No acceptable C compiler found!
+    error('''No acceptable C compiler found!
 
-        Please make sure you have a C compiler installed on your system and/or
-        consider adjusting the CC environment variable if you installed
-        it in a non-standard prefix.
-        ''')
-    sys.exit()
+       Please make sure you have a C compiler installed on your system and/or
+       consider adjusting the CC environment variable if you installed
+       it in a non-standard prefix.''')
 
   match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)",
                    proc.communicate()[1])
@@ -750,13 +751,11 @@ def cc_macros(cc=None):
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
   except OSError:
-    print('''Node.js configure error: No acceptable C compiler found!
+    error('''No acceptable C compiler found!
 
-        Please make sure you have a C compiler installed on your system and/or
-        consider adjusting the CC environment variable if you installed
-        it in a non-standard prefix.
-        ''')
-    sys.exit()
+       Please make sure you have a C compiler installed on your system and/or
+       consider adjusting the CC environment variable if you installed
+       it in a non-standard prefix.''')
 
   p.stdin.write('\n')
   out = p.communicate()[0]
@@ -1108,8 +1107,7 @@ def configure_openssl(o):
     variables['openssl_no_asm'] = 1
 
   if options.openssl_fips:
-     print('Error: FIPS is not supported yet in this version')
-     exit(1)
+     error('FIPS is not supported in this version')
   variables['openssl_fips'] = ''
 
   if options.without_ssl:
@@ -1178,9 +1176,8 @@ def configure_intl(o):
   def icu_download(path):
     # download ICU, if needed
     if not os.access(options.download_path, os.W_OK):
-      print('Error: cannot write to desired download path. ' \
-            'Either create it or verify permissions.')
-      sys.exit(1)
+      error('''Cannot write to desired download path.
+        Either create it or verify permissions.''')
     for icu in icus:
       url = icu['url']
       md5 = icu['md5']
@@ -1219,8 +1216,7 @@ def configure_intl(o):
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
   if have_icu_path and with_intl != 'none':
-    print('Error: Cannot specify both --with-icu-path and --with-intl')
-    sys.exit(1)
+    error('Cannot specify both --with-icu-path and --with-intl')
   elif have_icu_path:
     # Chromium .gyp mode: --with-icu-path
     o['variables']['v8_enable_i18n_support'] = 1
@@ -1248,9 +1244,8 @@ def configure_intl(o):
     o['variables']['v8_enable_i18n_support'] = 1
     pkgicu = pkg_config('icu-i18n')
     if pkgicu[0] is None:
-      print('Error: could not load pkg-config data for "icu-i18n".')
-      print('See above errors or the README.md.')
-      sys.exit(1)
+      error('''Could not load pkg-config data for "icu-i18n".
+       See above errors or the README.md.''')
     (libs, cflags, libpath) = pkgicu
     # libpath provides linker path which may contain spaces
     if libpath:
@@ -1336,10 +1331,9 @@ def configure_intl(o):
         os.rename(tmp_icu, icu_full_path)
         shutil.rmtree(icu_tmp_path)
       else:
-        print('Error: --with-icu-source=%s did not result in an "icu" dir.' % \
-               with_icu_source)
         shutil.rmtree(icu_tmp_path)
-        sys.exit(1)
+        error('--with-icu-source=%s did not result in an "icu" dir.' % \
+               with_icu_source)
 
   # ICU mode. (icu-generic.gyp)
   o['variables']['icu_gyp_path'] = 'tools/icu/icu-generic.gyp'
@@ -1352,17 +1346,15 @@ def configure_intl(o):
     if localzip:
       nodedownload.unpack(localzip, icu_parent_path)
   if not os.path.isdir(icu_full_path):
-    print('Cannot build Intl without ICU in %s.' % icu_full_path)
-    print('(Fix, or disable with "--with-intl=none" )')
-    sys.exit(1)
+    error('''Cannot build Intl without ICU in %s.
+       Fix, or disable with "--with-intl=none"''' % icu_full_path)
   else:
     print('* Using ICU in %s' % icu_full_path)
   # Now, what version of ICU is it? We just need the "major", such as 54.
   # uvernum.h contains it as a #define.
   uvernum_h = os.path.join(icu_full_path, 'source/common/unicode/uvernum.h')
   if not os.path.isfile(uvernum_h):
-    print('Error: could not load %s - is ICU installed?' % uvernum_h)
-    sys.exit(1)
+    error('Could not load %s - is ICU installed?' % uvernum_h)
   icu_ver_major = None
   matchVerExp = r'^\s*#define\s+U_ICU_VERSION_SHORT\s+"([^"]*)".*'
   match_version = re.compile(matchVerExp)
@@ -1371,8 +1363,7 @@ def configure_intl(o):
     if m:
       icu_ver_major = m.group(1)
   if not icu_ver_major:
-    print('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
-    sys.exit(1)
+    error('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
   icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
@@ -1396,10 +1387,9 @@ def configure_intl(o):
   # may be little-endian if from a icu-project.org tarball
   o['variables']['icu_data_in'] = icu_data_in
   if not os.path.isfile(icu_data_path):
-    print('Error: ICU prebuilt data file %s does not exist.' % icu_data_path)
-    print('See the README.md.')
     # .. and we're not about to build it from .gyp!
-    sys.exit(1)
+    error('''ICU prebuilt data file %s does not exist.
+       See the README.md.''' % icu_data_path)
   # map from variable name to subdirs
   icu_src = {
     'stubdata': 'stubdata',
