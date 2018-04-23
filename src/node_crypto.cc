@@ -5170,7 +5170,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 
 
 bool VerifySpkac(const char* data, unsigned int len) {
-  bool i = 0;
+  bool i = false;
   EVP_PKEY* pkey = nullptr;
   NETSCAPE_SPKI* spki = nullptr;
 
