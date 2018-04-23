@@ -65,6 +65,8 @@ Object.defineProperty(exports, 'isAlpine', {
     if (!exports.isLinux)
       return false;
     const lddVersion = spawnSync('ldd', ['--version'], { encoding: 'utf8' });
+    if (!lddVersion)
+      return false;
     return !lddVersion.includes('LIBC');
   },
   enumerable: true
