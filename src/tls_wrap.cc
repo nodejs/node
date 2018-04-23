@@ -74,8 +74,10 @@ TLSWrap::TLSWrap(Environment* env,
   CHECK_NE(sc, nullptr);
 
   // We've our own session callbacks
-  SSL_CTX_sess_set_get_cb(sc_->ctx_, SSLWrap<TLSWrap>::GetSessionCallback);
-  SSL_CTX_sess_set_new_cb(sc_->ctx_, SSLWrap<TLSWrap>::NewSessionCallback);
+  SSL_CTX_sess_set_get_cb(sc_->ctx_.get(),
+                          SSLWrap<TLSWrap>::GetSessionCallback);
+  SSL_CTX_sess_set_new_cb(sc_->ctx_.get(),
+                          SSLWrap<TLSWrap>::NewSessionCallback);
 
   stream->PushStreamListener(this);
 
@@ -116,35 +118,36 @@ void TLSWrap::InitSSL() {
   crypto::NodeBIO::FromBIO(enc_in_)->AssignEnvironment(env());
   crypto::NodeBIO::FromBIO(enc_out_)->AssignEnvironment(env());
 
-  SSL_set_bio(ssl_, enc_in_, enc_out_);
+  SSL_set_bio(ssl_.get(), enc_in_, enc_out_);
 
   // NOTE: This could be overridden in SetVerifyMode
-  SSL_set_verify(ssl_, SSL_VERIFY_NONE, crypto::VerifyCallback);
+  SSL_set_verify(ssl_.get(), SSL_VERIFY_NONE, crypto::VerifyCallback);
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
-  long mode = SSL_get_mode(ssl_);  // NOLINT(runtime/int)
-  SSL_set_mode(ssl_, mode | SSL_MODE_RELEASE_BUFFERS);
+  long mode = SSL_get_mode(ssl_.get());  // NOLINT(runtime/int)
+  SSL_set_mode(ssl_.get(), mode | SSL_MODE_RELEASE_BUFFERS);
 #endif  // SSL_MODE_RELEASE_BUFFERS
 
-  SSL_set_app_data(ssl_, this);
-  SSL_set_info_callback(ssl_, SSLInfoCallback);
+  SSL_set_app_data(ssl_.get(), this);
+  SSL_set_info_callback(ssl_.get(), SSLInfoCallback);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server()) {
-    SSL_CTX_set_tlsext_servername_callback(sc_->ctx_, SelectSNIContextCallback);
+    SSL_CTX_set_tlsext_servername_callback(sc_->ctx_.get(),
+                                           SelectSNIContextCallback);
   }
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
   ConfigureSecureContext(sc_);
 
-  SSL_set_cert_cb(ssl_, SSLWrap<TLSWrap>::SSLCertCallback, this);
+  SSL_set_cert_cb(ssl_.get(), SSLWrap<TLSWrap>::SSLCertCallback, this);
 
   if (is_server()) {
-    SSL_set_accept_state(ssl_);
+    SSL_set_accept_state(ssl_.get());
   } else if (is_client()) {
     // Enough space for server response (hello, cert)
     crypto::NodeBIO::FromBIO(enc_in_)->set_initial(kInitialClientBufferLength);
-    SSL_set_connect_state(ssl_);
+    SSL_set_connect_state(ssl_.get());
   } else {
     // Unexpected
     ABORT();
@@ -342,7 +345,7 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, std::string* msg) {
   if (ssl_ == nullptr)
     return Local<Value>();
 
-  *err = SSL_get_error(ssl_, status);
+  *err = SSL_get_error(ssl_.get(), status);
   switch (*err) {
     case SSL_ERROR_NONE:
     case SSL_ERROR_WANT_READ:
@@ -395,7 +398,7 @@ void TLSWrap::ClearOut() {
   char out[kClearOutChunkSize];
   int read;
   for (;;) {
-    read = SSL_read(ssl_, out, sizeof(out));
+    read = SSL_read(ssl_.get(), out, sizeof(out));
 
     if (read <= 0)
       break;
@@ -421,7 +424,7 @@ void TLSWrap::ClearOut() {
     }
   }
 
-  int flags = SSL_get_shutdown(ssl_);
+  int flags = SSL_get_shutdown(ssl_.get());
   if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
     eof_ = true;
     EmitRead(UV_EOF);
@@ -469,7 +472,7 @@ bool TLSWrap::ClearIn() {
   for (i = 0; i < buffers.size(); ++i) {
     size_t avail = buffers[i].len;
     char* data = buffers[i].base;
-    written = SSL_write(ssl_, data, avail);
+    written = SSL_write(ssl_.get(), data, avail);
     CHECK(written == -1 || written == static_cast<int>(avail));
     if (written == -1)
       break;
@@ -610,7 +613,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   int written = 0;
   for (i = 0; i < count; i++) {
-    written = SSL_write(ssl_, bufs[i].base, bufs[i].len);
+    written = SSL_write(ssl_.get(), bufs[i].base, bufs[i].len);
     CHECK(written == -1 || written == static_cast<int>(bufs[i].len));
     if (written == -1)
       break;
@@ -690,8 +693,8 @@ ShutdownWrap* TLSWrap::CreateShutdownWrap(Local<Object> req_wrap_object) {
 int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  if (ssl_ != nullptr && SSL_shutdown(ssl_) == 0)
-    SSL_shutdown(ssl_);
+  if (ssl_ && SSL_shutdown(ssl_.get()) == 0)
+    SSL_shutdown(ssl_.get());
 
   shutdown_ = true;
   EncOut();
@@ -726,7 +729,7 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Always allow a connection. We'll reject in javascript.
-  SSL_set_verify(wrap->ssl_, verify_mode, crypto::VerifyCallback);
+  SSL_set_verify(wrap->ssl_.get(), verify_mode, crypto::VerifyCallback);
 }
 
 
@@ -783,7 +786,7 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_NE(wrap->ssl_, nullptr);
 
-  const char* servername = SSL_get_servername(wrap->ssl_,
+  const char* servername = SSL_get_servername(wrap->ssl_.get(),
                                               TLSEXT_NAMETYPE_host_name);
   if (servername != nullptr) {
     args.GetReturnValue().Set(OneByteString(env->isolate(), servername));
@@ -808,7 +811,7 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   node::Utf8Value servername(env->isolate(), args[0].As<String>());
-  SSL_set_tlsext_host_name(wrap->ssl_, *servername);
+  SSL_set_tlsext_host_name(wrap->ssl_.get(), *servername);
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 }
 
