@@ -35,6 +35,18 @@ async function validateEmptyWrite() {
   assert.deepStrictEqual(buffer, readFileData);
 }
 
-validateWrite()
-  .then(validateEmptyWrite)
-  .then(common.mustCall());
+async function validateNonUint8ArrayWrite() {
+  const filePathForHandle = path.resolve(tmpDir, 'tmp-data-write.txt');
+  const fileHandle = await open(filePathForHandle, 'w+');
+  const buffer = Buffer.from('Hello world', 'utf8').toString('base64');
+
+  await fileHandle.write(buffer, 0, buffer.length);
+  const readFileData = fs.readFileSync(filePathForHandle);
+  assert.deepStrictEqual(Buffer.from(buffer, 'utf8'), readFileData);
+}
+
+Promise.all([
+  validateWrite(),
+  validateEmptyWrite(),
+  validateNonUint8ArrayWrite()
+]).then(common.mustCall());
