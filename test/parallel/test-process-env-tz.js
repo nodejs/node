@@ -9,6 +9,9 @@ if (common.isWindows)  // Using a different TZ format.
 if (common.isAIX || common.isSunOS)  // Reports 2018 CEST as CET.
   common.skip('tzdata too old');
 
+if (common.isAlpine)  // Reports UTC
+  common.skip('reports utc');
+
 const date = new Date('2018-04-14T12:34:56.789Z');
 
 process.env.TZ = 'Europe/Amsterdam';
