@@ -101,8 +101,9 @@ support on x86_64 and ia32.
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Otherwise, `configure` is failed. Install one or build with
-`--openssl-no-asm`.
+Otherwise `configure` will fail with an error. This can be avoided by
+either providing a new enough assembler as per the list above or by
+using the `--openssl-no-asm` flag.
 
 *Note:* The forthcoming OpenSSL-1.1.1 will require higher
  version. Please refer
