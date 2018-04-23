@@ -650,7 +650,7 @@ def get_version_helper(cc, regexp):
   if match:
     return match.group(2)
   else:
-    return 0
+    return '0'
 
 def get_nasm_version(asm):
   try:
@@ -661,7 +661,7 @@ def get_nasm_version(asm):
     warn('''No acceptable ASM compiler found!
          Please make sure you have installed NASM from http://www.nasm.us
          and refer BUILDING.md.''')
-    return 0
+    return '0'
 
   match = re.match(r"NASM version ([2-9]\.[0-9][0-9]+)",
                    proc.communicate()[0])
@@ -669,7 +669,7 @@ def get_nasm_version(asm):
   if match:
     return match.group(1)
   else:
-    return 0
+    return '0'
 
 def get_llvm_version(cc):
   return get_version_helper(
@@ -699,7 +699,7 @@ def get_gas_version(cc):
   if match:
     return match.group(1)
   else:
-    return 0
+    return '0'
 
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
@@ -1084,6 +1084,19 @@ def configure_openssl(o):
   variables['node_use_openssl'] = b(not options.without_ssl)
   variables['node_shared_openssl'] = b(options.shared_openssl)
   variables['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
+  variables['openssl_fips'] = ''
+
+  if options.without_ssl:
+    def without_ssl_error(option):
+      error('--without-ssl is incompatible with %s' % option)
+    if options.shared_openssl:
+      without_ssl_error('--shared-openssl')
+    if options.openssl_no_asm:
+      without_ssl_error('--openssl-no-asm')
+    if options.openssl_fips:
+      without_ssl_error('--openssl-fips')
+    return
+
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
   if options.openssl_system_ca_path:
@@ -1092,35 +1105,31 @@ def configure_openssl(o):
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
 
-  # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
-  # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
-  openssl110_asm_supported = \
-  ('gas_version' in variables and variables['gas_version'] >= '2.23') or \
-  ('xcode_version' in variables and variables['xcode_version'] >= '5.0') or \
-  ('llvm_version' in variables and variables['llvm_version'] >= '3.3') or \
-  ('nasm_version' in variables and variables['nasm_version'] >= '2.10')
+  if not options.shared_openssl and not options.openssl_no_asm:
+    # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
+    # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
+    openssl110_asm_supported = \
+      ('gas_version' in variables and float(variables['gas_version']) >= 2.23) or \
+      ('xcode_version' in variables and float(variables['xcode_version']) >= 5.0) or \
+      ('llvm_version' in variables and float(variables['llvm_version']) >= 3.3) or \
+      ('nasm_version' in variables and float(variables['nasm_version']) >= 2.10)
 
-  if not options.without_ssl and not openssl110_asm_supported and \
-	  variables['openssl_no_asm'] == 0:
-    warn('''openssl_no_asm is enabled due to missed or old assembler.
-            Please refer BUILDING.md''')
-    variables['openssl_no_asm'] = 1
+    if not openssl110_asm_supported:
+      error('''Did not find a new enough assembler, install one or build with
+       --openssl-no-asm.
+       Please refer to BUILDING.md''')
+
+  elif options.openssl_no_asm:
+    warn('''--openssl-no-asm will result in binaries that do not take advantage
+         of modern CPU cryptographic instructions and will therefore be slower.
+         Please refer to BUILDING.md''')
+
+  if options.openssl_no_asm and options.shared_openssl:
+    error('--openssl-no-asm is incompatible with --shared-openssl')
 
   if options.openssl_fips:
-     error('FIPS is not supported in this version')
-  variables['openssl_fips'] = ''
+     error('FIPS is not supported in this version of Node.js')
 
-  if options.without_ssl:
-    def without_ssl_error(option):
-      print('Error: --without-ssl is incompatible with %s' % option)
-      exit(1)
-    if options.shared_openssl:
-      without_ssl_error('--shared-openssl')
-    if options.openssl_no_asm:
-      without_ssl_error('--openssl-no-asm')
-    if options.openssl_fips:
-      without_ssl_error('--openssl-fips')
-    return
   configure_library('openssl', o)
 
 
