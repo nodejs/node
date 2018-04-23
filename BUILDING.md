@@ -102,7 +102,7 @@ support on x86_64 and ia32.
 * nasm version 2.10 or higher in Windows
 
 Otherwise `configure` will fail with an error. This can be avoided by
-either providing a new enough assembler as per the list above or by
+either providing a newer assembler as per the list above or by
 using the `--openssl-no-asm` flag.
 
 *Note:* The forthcoming OpenSSL-1.1.1 will require higher
