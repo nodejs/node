@@ -690,6 +690,15 @@ Object.defineProperty(exports, 'hasSmallICU', {
   }
 });
 
+class Comparison {
+  constructor(obj, keys) {
+    for (const key of keys) {
+      if (key in obj)
+        this[key] = obj[key];
+    }
+  }
+}
+
 // Useful for testing expected internal/error objects
 exports.expectsError = function expectsError(fn, settings, exact) {
   if (typeof fn !== 'function') {
@@ -697,45 +706,63 @@ exports.expectsError = function expectsError(fn, settings, exact) {
     settings = fn;
     fn = undefined;
   }
+
   function innerFn(error) {
     const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
     assert.strictEqual(descriptor.enumerable,
                        false, 'The error message should be non-enumerable');
+
+    let innerSettings = settings;
     if ('type' in settings) {
       const type = settings.type;
       if (type !== Error && !Error.isPrototypeOf(type)) {
         throw new TypeError('`settings.type` must inherit from `Error`');
       }
-      assert(error instanceof type,
-             `${error.name} is not instance of ${type.name}`);
-      let typeName = error.constructor.name;
-      if (typeName === 'NodeError' && type.name !== 'NodeError') {
-        typeName = Object.getPrototypeOf(error.constructor).name;
+      let constructor = error.constructor;
+      if (constructor.name === 'NodeError' && type.name !== 'NodeError') {
+        constructor = Object.getPrototypeOf(error.constructor);
       }
-      assert.strictEqual(typeName, type.name);
+      // Add the `type` to the error to properly compare and visualize it.
+      if (!('type' in error))
+        error.type = constructor;
     }
-    if ('info' in settings) {
-      assert.deepStrictEqual(error.info, settings.info);
-    }
-    if ('message' in settings) {
-      const message = settings.message;
-      if (typeof message === 'string') {
-        assert.strictEqual(error.message, message);
-      } else {
-        assert(message.test(error.message),
-               `${error.message} does not match ${message}`);
-      }
+
+    if ('message' in settings &&
+        typeof settings.message === 'object' &&
+        settings.message.test(error.message)) {
+      // Make a copy so we are able to modify the settings.
+      innerSettings = Object.create(
+        settings, Object.getOwnPropertyDescriptors(settings));
+      // Visualize the message as identical in case of other errors.
+      innerSettings.message = error.message;
     }
 
     // Check all error properties.
     const keys = Object.keys(settings);
     for (const key of keys) {
-      if (key === 'message' || key === 'type' || key === 'info')
-        continue;
-      const actual = error[key];
-      const expected = settings[key];
-      assert.strictEqual(actual, expected,
-                         `${key}: expected ${expected}, not ${actual}`);
+      if (!util.isDeepStrictEqual(error[key], innerSettings[key])) {
+        // Create placeholder objects to create a nice output.
+        const a = new Comparison(error, keys);
+        const b = new Comparison(innerSettings, keys);
+
+        const tmpLimit = Error.stackTraceLimit;
+        Error.stackTraceLimit = 0;
+        const err = new assert.AssertionError({
+          actual: a,
+          expected: b,
+          operator: 'strictEqual',
+          stackStartFn: assert.throws
+        });
+        Error.stackTraceLimit = tmpLimit;
+
+        throw new assert.AssertionError({
+          actual: error,
+          expected: settings,
+          operator: 'common.expectsError',
+          message: err.message
+        });
+      }
+
     }
     return true;
   }
