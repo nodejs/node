@@ -9,11 +9,6 @@ const h2 = require('http2');
 const server = h2.createServer();
 server.on('stream', (stream) => {
   stream.on('close', common.mustCall());
-  stream.on('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    type: Error,
-    message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
-  }));
   stream.respond();
   stream.end('ok');
 });
