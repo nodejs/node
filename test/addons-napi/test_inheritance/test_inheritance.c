@@ -60,11 +60,11 @@ static napi_value SubclassConstructor(napi_env env, napi_callback_info info) {
   RETURN_UNDEFINED(env);
 }
 
-static napi_value CreateClasses(napi_env env, napi_callback_info info) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor superclass_descriptors[] = {
     DECLARE_NAPI_PROPERTY("superclassMethod", SuperclassMethod),
   };
-  napi_value superclass, subclass, result;
+  napi_value superclass, subclass;
 
   NAPI_CALL(env, napi_define_class(env, "Superclass", NAPI_AUTO_LENGTH,
       SuperclassConstructor, NULL,
@@ -76,23 +76,7 @@ static napi_value CreateClasses(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_inherit(env, subclass, superclass));
 
-  NAPI_CALL(env, napi_create_object(env, &result));
-
-  NAPI_CALL(env, napi_set_named_property(env, result, "Subclass", subclass));
-
-  NAPI_CALL(env,
-      napi_set_named_property(env, result, "Superclass", superclass));
-
-  return result;
-}
-
-static napi_value Init(napi_env env, napi_value exports) {
-  napi_property_descriptor descriptors[] = {
-    DECLARE_NAPI_PROPERTY("createClasses", CreateClasses),
-  };
-
-  NAPI_CALL(env, napi_define_properties(
-      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "Subclass", subclass));
 
   return exports;
 }
