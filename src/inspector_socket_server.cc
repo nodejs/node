@@ -587,7 +587,8 @@ int ServerSocket::Listen(InspectorSocketServer* inspector_server,
   CHECK_EQ(0, uv_tcp_init(loop, server));
   int err = uv_tcp_bind(server, addr, 0);
   if (err == 0) {
-    err = uv_listen(reinterpret_cast<uv_stream_t*>(server), 1,
+    // 511 is the value used by a 'net' module by default
+    err = uv_listen(reinterpret_cast<uv_stream_t*>(server), 511,
                     ServerSocket::SocketConnectedCallback);
   }
   if (err == 0) {
