@@ -1,7 +1,7 @@
 #include <node_api.h>
 #include "../common.h"
 
-napi_value compare(napi_env env, napi_callback_info info) {
+static napi_value compare(napi_env env, napi_callback_info info) {
   napi_value external;
   size_t argc = 1;
   void* data;
@@ -14,7 +14,7 @@ napi_value compare(napi_env env, napi_callback_info info) {
   return return_value;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   NAPI_CALL(env, napi_create_function(
       env, "exports", NAPI_AUTO_LENGTH, compare, NULL, &exports));
   return exports;
