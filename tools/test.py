@@ -333,7 +333,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
       (total_seconds, duration.microseconds / 1000))
     if self.severity is not 'ok' or self.traceback is not '':
       if output.HasTimedOut():
-        self.traceback = 'timeout'
+        self.traceback = 'timeout\n' + output.output.stdout + output.output.stderr
       self._printDiagnostic()
     logger.info('  ...')
 
