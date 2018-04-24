@@ -14,7 +14,7 @@ function main({ duplicates, n }) {
     'Transfer-Encoding': 'chunked',
   };
 
-  for (var i = 0; i < n; i++) {
+  for (var i = 0; i < n / duplicates; i++) {
     headers[`foo${i}`] = [];
     for (var j = 0; j < duplicates; j++) {
       headers[`foo${i}`].push(`some header value ${i}`);
@@ -28,7 +28,7 @@ function main({ duplicates, n }) {
   server.listen(common.PORT, function() {
     bench.http({
       path: '/',
-      connections: 1
+      connections: 10
     }, function() {
       server.close();
     });
