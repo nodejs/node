@@ -37,12 +37,6 @@ function checkException(message) {
                      'An exception occurred during execution');
 }
 
-function assertNoUrlsWhileConnected(response) {
-  assert.strictEqual(1, response.length);
-  assert.ok(!response[0].hasOwnProperty('devtoolsFrontendUrl'));
-  assert.ok(!response[0].hasOwnProperty('webSocketDebuggerUrl'));
-}
-
 function assertScopeValues({ result }, expected) {
   const unmatched = new Set(Object.keys(expected));
   for (const actual of result) {
@@ -290,7 +284,6 @@ async function runTest() {
   await child.httpGet(null, '/json/badpath').catch(checkBadPath);
 
   const session = await child.connectInspectorSession();
-  assertNoUrlsWhileConnected(await child.httpGet(null, '/json/list'));
   await testBreakpointOnStart(session);
   await testBreakpoint(session);
   await testI18NCharacters(session);

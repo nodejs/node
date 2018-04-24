@@ -189,9 +189,9 @@ const int CONTEXT_GROUP_ID = 1;
 
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
  public:
-  explicit ChannelImpl(V8Inspector* inspector,
-                       InspectorSessionDelegate* delegate)
-                       : delegate_(delegate) {
+  explicit ChannelImpl(const std::unique_ptr<V8Inspector>& inspector,
+                       std::unique_ptr<InspectorSessionDelegate> delegate)
+                       : delegate_(std::move(delegate)) {
     session_ = inspector->connect(1, this, StringView());
   }
 
@@ -201,17 +201,9 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
     session_->dispatchProtocolMessage(message);
   }
 
-  bool waitForFrontendMessage() {
-    return delegate_->WaitForFrontendMessageWhilePaused();
-  }
-
   void schedulePauseOnNextStatement(const std::string& reason) {
     std::unique_ptr<StringBuffer> buffer = Utf8ToStringView(reason);
     session_->schedulePauseOnNextStatement(buffer->string(), buffer->string());
-  }
-
-  InspectorSessionDelegate* delegate() {
-    return delegate_;
   }
 
  private:
@@ -232,7 +224,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
     delegate_->SendMessageToFrontend(message);
   }
 
-  InspectorSessionDelegate* const delegate_;
+  std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
 };
 
@@ -300,8 +292,7 @@ class InspectorTimerHandle {
 class NodeInspectorClient : public V8InspectorClient {
  public:
   NodeInspectorClient(node::Environment* env, node::NodePlatform* platform)
-      : env_(env), platform_(platform), terminated_(false),
-        running_nested_loop_(false) {
+      : env_(env), platform_(platform) {
     client_ = V8Inspector::create(env->isolate(), this);
     // TODO(bnoordhuis) Make name configurable from src/node.cc.
     ContextInfo info(GetHumanReadableProcessName());
@@ -310,16 +301,26 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
-    CHECK_NE(channel_, nullptr);
+    runMessageLoop(false);
+  }
+
+  void runMessageLoop(bool ignore_terminated) {
     if (running_nested_loop_)
       return;
     terminated_ = false;
     running_nested_loop_ = true;
-    while (!terminated_ && channel_->waitForFrontendMessage()) {
+    while ((ignore_terminated || !terminated_) && waitForFrontendEvent()) {
       while (platform_->FlushForegroundTasks(env_->isolate())) {}
     }
     terminated_ = false;
     running_nested_loop_ = false;
+  }
+
+  bool waitForFrontendEvent() {
+    InspectorIo* io = env_->inspector_agent()->io();
+    if (io == nullptr)
+      return false;
+    return io->WaitForFrontendEvent();
   }
 
   double currentTimeMS() override {
@@ -363,20 +364,22 @@ class NodeInspectorClient : public V8InspectorClient {
     terminated_ = true;
   }
 
-  void connectFrontend(InspectorSessionDelegate* delegate) {
-    CHECK_EQ(channel_, nullptr);
-    channel_ = std::unique_ptr<ChannelImpl>(
-        new ChannelImpl(client_.get(), delegate));
+  int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate) {
+    events_dispatched_ = true;
+    int session_id = next_session_id_++;
+    channels_[session_id] =
+        std::make_unique<ChannelImpl>(client_, std::move(delegate));
+    return session_id;
   }
 
-  void disconnectFrontend() {
-    quitMessageLoopOnPause();
-    channel_.reset();
+  void disconnectFrontend(int session_id) {
+    events_dispatched_ = true;
+    channels_.erase(session_id);
   }
 
-  void dispatchMessageFromFrontend(const StringView& message) {
-    CHECK_NE(channel_, nullptr);
-    channel_->dispatchProtocolMessage(message);
+  void dispatchMessageFromFrontend(int session_id, const StringView& message) {
+    events_dispatched_ = true;
+    channels_[session_id]->dispatchProtocolMessage(message);
   }
 
   Local<Context> ensureDefaultContextInGroup(int contextGroupId) override {
@@ -426,10 +429,6 @@ class NodeInspectorClient : public V8InspectorClient {
         script_id);
   }
 
-  ChannelImpl* channel() {
-    return channel_.get();
-  }
-
   void startRepeatingTimer(double interval_s,
                            TimerCallback callback,
                            void* data) override {
@@ -464,20 +463,31 @@ class NodeInspectorClient : public V8InspectorClient {
     client_->allAsyncTasksCanceled();
   }
 
+  void schedulePauseOnNextStatement(const std::string& reason) {
+    for (const auto& id_channel : channels_) {
+      id_channel.second->schedulePauseOnNextStatement(reason);
+    }
+  }
+
+  bool hasConnectedSessions() {
+    return !channels_.empty();
+  }
+
  private:
   node::Environment* env_;
   node::NodePlatform* platform_;
-  bool terminated_;
-  bool running_nested_loop_;
+  bool terminated_ = false;
+  bool running_nested_loop_ = false;
   std::unique_ptr<V8Inspector> client_;
-  std::unique_ptr<ChannelImpl> channel_;
+  std::unordered_map<int, std::unique_ptr<ChannelImpl>> channels_;
   std::unordered_map<void*, InspectorTimerHandle> timers_;
+  int next_session_id_ = 1;
+  bool events_dispatched_ = false;
 };
 
 Agent::Agent(Environment* env) : parent_env_(env),
                                  client_(nullptr),
                                  platform_(nullptr),
-                                 enabled_(false),
                                  pending_enable_async_hook_(false),
                                  pending_disable_async_hook_(false) {}
 
@@ -491,7 +501,7 @@ bool Agent::Start(node::NodePlatform* platform, const char* path,
   path_ = path == nullptr ? "" : path;
   debug_options_ = options;
   client_ =
-      std::unique_ptr<NodeInspectorClient>(
+      std::shared_ptr<NodeInspectorClient>(
           new NodeInspectorClient(parent_env_, platform));
   platform_ = platform;
   CHECK_EQ(0, uv_async_init(uv_default_loop(),
@@ -515,7 +525,6 @@ bool Agent::StartIoThread(bool wait_for_connect) {
 
   CHECK_NE(client_, nullptr);
 
-  enabled_ = true;
   io_ = std::unique_ptr<InspectorIo>(
       new InspectorIo(parent_env_, platform_, path_, debug_options_,
                       wait_for_connect));
@@ -554,13 +563,13 @@ void Agent::Stop() {
   if (io_ != nullptr) {
     io_->Stop();
     io_.reset();
-    enabled_ = false;
   }
 }
 
-void Agent::Connect(InspectorSessionDelegate* delegate) {
-  enabled_ = true;
-  client_->connectFrontend(delegate);
+std::unique_ptr<InspectorSession> Agent::Connect(
+    std::unique_ptr<InspectorSessionDelegate> delegate) {
+  int session_id = client_->connectFrontend(std::move(delegate));
+  return std::make_unique<InspectorSession>(session_id, client_);
 }
 
 void Agent::WaitForDisconnect() {
@@ -568,6 +577,11 @@ void Agent::WaitForDisconnect() {
   client_->contextDestroyed(parent_env_->context());
   if (io_ != nullptr) {
     io_->WaitForDisconnect();
+    // There is a bug in V8 Inspector (https://crbug.com/834056) that
+    // calls V8InspectorClient::quitMessageLoopOnPause when a session
+    // disconnects. We are using this flag to ignore those calls so the message
+    // loop is spinning as long as there's a reason to expect inspector messages
+    client_->runMessageLoop(true);
   }
 }
 
@@ -578,33 +592,8 @@ void Agent::FatalException(Local<Value> error, Local<v8::Message> message) {
   WaitForDisconnect();
 }
 
-void Agent::Dispatch(const StringView& message) {
-  CHECK_NE(client_, nullptr);
-  client_->dispatchMessageFromFrontend(message);
-}
-
-void Agent::Disconnect() {
-  CHECK_NE(client_, nullptr);
-  client_->disconnectFrontend();
-}
-
-void Agent::RunMessageLoop() {
-  CHECK_NE(client_, nullptr);
-  client_->runMessageLoopOnPause(CONTEXT_GROUP_ID);
-}
-
-InspectorSessionDelegate* Agent::delegate() {
-  CHECK_NE(client_, nullptr);
-  ChannelImpl* channel = client_->channel();
-  if (channel == nullptr)
-    return nullptr;
-  return channel->delegate();
-}
-
 void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
-  ChannelImpl* channel = client_->channel();
-  if (channel != nullptr)
-    channel->schedulePauseOnNextStatement(reason);
+  client_->schedulePauseOnNextStatement(reason);
 }
 
 void Agent::RegisterAsyncHook(Isolate* isolate,
@@ -699,5 +688,20 @@ bool Agent::IsWaitingForConnect() {
   return debug_options_.wait_for_connect();
 }
 
+bool Agent::HasConnectedSessions() {
+  return client_->hasConnectedSessions();
+}
+
+InspectorSession::InspectorSession(int session_id,
+                                   std::shared_ptr<NodeInspectorClient> client)
+                                   : session_id_(session_id), client_(client) {}
+
+InspectorSession::~InspectorSession() {
+  client_->disconnectFrontend(session_id_);
+}
+
+void InspectorSession::Dispatch(const StringView& message) {
+  client_->dispatchMessageFromFrontend(session_id_, message);
+}
 }  // namespace inspector
 }  // namespace node
