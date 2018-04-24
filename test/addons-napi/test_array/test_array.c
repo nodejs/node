@@ -2,7 +2,7 @@
 #include <string.h>
 #include "../common.h"
 
-napi_value TestGetElement(napi_env env, napi_callback_info info) {
+static napi_value TestGetElement(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -45,7 +45,7 @@ napi_value TestGetElement(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value TestHasElement(napi_env env, napi_callback_info info) {
+static napi_value TestHasElement(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -84,7 +84,7 @@ napi_value TestHasElement(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value TestDeleteElement(napi_env env, napi_callback_info info) {
+static napi_value TestDeleteElement(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
 
@@ -119,7 +119,7 @@ napi_value TestDeleteElement(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value New(napi_env env, napi_callback_info info) {
+static napi_value New(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -147,7 +147,7 @@ napi_value New(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value NewWithLength(napi_env env, napi_callback_info info) {
+static napi_value NewWithLength(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -169,7 +169,7 @@ napi_value NewWithLength(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("TestGetElement", TestGetElement),
     DECLARE_NAPI_PROPERTY("TestHasElement", TestHasElement),
