@@ -1130,7 +1130,18 @@ napi_status napi_define_class(napi_env env,
   tpl->SetClassName(name_string);
 
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Value> v8_result_value = tpl->GetFunction();
+  v8::Local<v8::Object> v8_result_object = v8_result_value.As<v8::Object>();
+  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(v8_result_value));
 
+  napi_value proto;
+  napi_status status =
+      napi_get_named_property(env, *result, "prototype", &proto);
+  if (status != napi_ok) return status;
+
+  auto v8_proto = v8impl::V8LocalValueFromJsValue(proto).As<v8::Object>();
+
+/*
   size_t static_property_count = 0;
   for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = properties + i;
@@ -1184,20 +1195,20 @@ napi_status napi_define_class(napi_env env,
     }
   }
 
-  v8::Local<v8::Value> v8_result_value = tpl->GetFunction();
-  v8::Local<v8::Object> v8_result_object = v8_result_value.As<v8::Object>();
-  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(v8_result_value));
-
-  if (static_property_count > 0) {
+  if (static_property_count > 0) { */
     for (size_t i = 0; i < property_count; i++) {
       const napi_property_descriptor* p = properties + i;
       if ((p->attributes & napi_static) != 0) {
-        napi_status status = v8impl::DefineSingleProperty(env, isolate, context,
-            v8_result_object,p);
+        status = v8impl::DefineSingleProperty(env, isolate, context,
+            v8_result_object, p);
+        if (status != napi_ok) return status;
+      } else {
+        status = v8impl::DefineSingleProperty(env, isolate, context,
+            v8_proto, p);
         if (status != napi_ok) return status;
       }
-    }
-  }
+    }/*
+  }*/
 
   return GET_RETURN_STATUS(env);
 }
