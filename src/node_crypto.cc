@@ -4055,8 +4055,8 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
 
 bool DiffieHellman::Init(int primeLength, int g) {
-  dh = DH_new();
-  if (!DH_generate_parameters_ex(dh, primeLength, g, 0))
+  dh_ = DH_new();
+  if (!DH_generate_parameters_ex(dh_, primeLength, g, 0))
     return false;
   bool result = VerifyContext();
   if (!result)
@@ -4067,12 +4067,12 @@ bool DiffieHellman::Init(int primeLength, int g) {
 
 
 bool DiffieHellman::Init(const char* p, int p_len, int g) {
-  dh = DH_new();
+  dh_ = DH_new();
   BIGNUM* bn_p =
       BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, nullptr);
   BIGNUM* bn_g = BN_new();
   if (!BN_set_word(bn_g, g) ||
-      !DH_set0_pqg(dh, bn_p, nullptr, bn_g)) {
+      !DH_set0_pqg(dh_, bn_p, nullptr, bn_g)) {
     BN_free(bn_p);
     BN_free(bn_g);
     return false;
@@ -4086,10 +4086,10 @@ bool DiffieHellman::Init(const char* p, int p_len, int g) {
 
 
 bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
-  dh = DH_new();
+  dh_ = DH_new();
   BIGNUM *bn_p = BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, 0);
   BIGNUM *bn_g = BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, 0);
-  if (!DH_set0_pqg(dh, bn_p, nullptr, bn_g)) {
+  if (!DH_set0_pqg(dh_, bn_p, nullptr, bn_g)) {
     BN_free(bn_p);
     BN_free(bn_g);
     return false;
@@ -4177,12 +4177,12 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
   }
 
-  if (!DH_generate_key(diffieHellman->dh)) {
+  if (!DH_generate_key(diffieHellman->dh_)) {
     return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
   }
 
   const BIGNUM* pub_key;
-  DH_get0_key(diffieHellman->dh, &pub_key, nullptr);
+  DH_get0_key(diffieHellman->dh_, &pub_key, nullptr);
   size_t size = BN_num_bytes(pub_key);
   char* data = Malloc(size);
   BN_bn2bin(pub_key, reinterpret_cast<unsigned char*>(data));
@@ -4199,7 +4199,7 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
   ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
   if (!dh->initialised_) return env->ThrowError("Not initialized");
 
-  const BIGNUM* num = get_field(dh->dh);
+  const BIGNUM* num = get_field(dh->dh_);
   if (num == nullptr) return env->ThrowError(err_if_null);
 
   size_t size = BN_num_bytes(num);
@@ -4268,18 +4268,18 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
         0);
   }
 
-  int dataSize = DH_size(diffieHellman->dh);
+  int dataSize = DH_size(diffieHellman->dh_);
   char* data = Malloc(dataSize);
 
   int size = DH_compute_key(reinterpret_cast<unsigned char*>(data),
                             key,
-                            diffieHellman->dh);
+                            diffieHellman->dh_);
 
   if (size == -1) {
     int checkResult;
     int checked;
 
-    checked = DH_check_pub_key(diffieHellman->dh, key, &checkResult);
+    checked = DH_check_pub_key(diffieHellman->dh_, key, &checkResult);
     BN_free(key);
     free(data);
 
@@ -4341,7 +4341,7 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
       BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
                 Buffer::Length(args[0]), nullptr);
   CHECK_NE(num, nullptr);
-  CHECK_EQ(1, set_field(dh->dh, num));
+  CHECK_EQ(1, set_field(dh->dh_, num));
 }
 
 
@@ -4380,7 +4380,7 @@ void DiffieHellman::VerifyErrorGetter(const FunctionCallbackInfo<Value>& args) {
 
 bool DiffieHellman::VerifyContext() {
   int codes;
-  if (!DH_check(dh, &codes))
+  if (!DH_check(dh_, &codes))
     return false;
   verifyError_ = codes;
   return true;
