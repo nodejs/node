@@ -4,7 +4,7 @@
 napi_value checkError(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
   bool r;
   NAPI_CALL(env, napi_is_error(env, args[0], &r));
@@ -20,43 +20,43 @@ napi_value throwExistingError(napi_env env, napi_callback_info info) {
   napi_value error;
   NAPI_CALL(env, napi_create_string_utf8(
       env, "existing error", NAPI_AUTO_LENGTH, &message));
-  NAPI_CALL(env, napi_create_error(env, nullptr,  message, &error));
+  NAPI_CALL(env, napi_create_error(env, NULL,  message, &error));
   NAPI_CALL(env, napi_throw(env, error));
-  return nullptr;
+  return NULL;
 }
 
 napi_value throwError(napi_env env, napi_callback_info info) {
-  NAPI_CALL(env, napi_throw_error(env, nullptr, "error"));
-  return nullptr;
+  NAPI_CALL(env, napi_throw_error(env, NULL, "error"));
+  return NULL;
 }
 
 napi_value throwRangeError(napi_env env, napi_callback_info info) {
-  NAPI_CALL(env, napi_throw_range_error(env, nullptr, "range error"));
-  return nullptr;
+  NAPI_CALL(env, napi_throw_range_error(env, NULL, "range error"));
+  return NULL;
 }
 
 napi_value throwTypeError(napi_env env, napi_callback_info info) {
-  NAPI_CALL(env, napi_throw_type_error(env, nullptr, "type error"));
-  return nullptr;
+  NAPI_CALL(env, napi_throw_type_error(env, NULL, "type error"));
+  return NULL;
 }
 
 napi_value throwErrorCode(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_throw_error(env, "ERR_TEST_CODE", "Error [error]"));
-  return nullptr;
+  return NULL;
 }
 
 napi_value throwRangeErrorCode(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_throw_range_error(env,
                                         "ERR_TEST_CODE",
                                         "RangeError [range error]"));
-  return nullptr;
+  return NULL;
 }
 
 napi_value throwTypeErrorCode(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_throw_type_error(env,
                                        "ERR_TEST_CODE",
                                        "TypeError [type error]"));
-  return nullptr;
+  return NULL;
 }
 
 
@@ -65,7 +65,7 @@ napi_value createError(napi_env env, napi_callback_info info) {
   napi_value message;
   NAPI_CALL(env, napi_create_string_utf8(
       env, "error", NAPI_AUTO_LENGTH, &message));
-  NAPI_CALL(env, napi_create_error(env, nullptr, message, &result));
+  NAPI_CALL(env, napi_create_error(env, NULL, message, &result));
   return result;
 }
 
@@ -74,7 +74,7 @@ napi_value createRangeError(napi_env env, napi_callback_info info) {
   napi_value message;
   NAPI_CALL(env, napi_create_string_utf8(
       env, "range error", NAPI_AUTO_LENGTH, &message));
-  NAPI_CALL(env, napi_create_range_error(env, nullptr, message, &result));
+  NAPI_CALL(env, napi_create_range_error(env, NULL, message, &result));
   return result;
 }
 
@@ -83,7 +83,7 @@ napi_value createTypeError(napi_env env, napi_callback_info info) {
   napi_value message;
   NAPI_CALL(env, napi_create_string_utf8(
       env, "type error", NAPI_AUTO_LENGTH, &message));
-  NAPI_CALL(env, napi_create_type_error(env, nullptr, message, &result));
+  NAPI_CALL(env, napi_create_type_error(env, NULL, message, &result));
   return result;
 }
 
