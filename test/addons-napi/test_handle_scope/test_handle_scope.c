@@ -7,7 +7,7 @@
 // the right right thing would be quite hard so we keep it
 // simple for now.
 
-napi_value NewScope(napi_env env, napi_callback_info info) {
+static napi_value NewScope(napi_env env, napi_callback_info info) {
   napi_handle_scope scope;
   napi_value output = NULL;
 
@@ -17,7 +17,7 @@ napi_value NewScope(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value NewScopeEscape(napi_env env, napi_callback_info info) {
+static napi_value NewScopeEscape(napi_env env, napi_callback_info info) {
   napi_escapable_handle_scope scope;
   napi_value output = NULL;
   napi_value escapee = NULL;
@@ -29,7 +29,7 @@ napi_value NewScopeEscape(napi_env env, napi_callback_info info) {
   return escapee;
 }
 
-napi_value NewScopeEscapeTwice(napi_env env, napi_callback_info info) {
+static napi_value NewScopeEscapeTwice(napi_env env, napi_callback_info info) {
   napi_escapable_handle_scope scope;
   napi_value output = NULL;
   napi_value escapee = NULL;
@@ -44,7 +44,7 @@ napi_value NewScopeEscapeTwice(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
+static napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
   napi_handle_scope scope;
   size_t argc;
   napi_value exception_function;
@@ -68,7 +68,7 @@ napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("NewScope", NewScope),
     DECLARE_NAPI_PROPERTY("NewScopeEscape", NewScopeEscape),

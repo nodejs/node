@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "../common.h"
 
-napi_value testStrictEquals(napi_env env, napi_callback_info info) {
+static napi_value testStrictEquals(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -15,7 +15,7 @@ napi_value testStrictEquals(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value testGetPrototype(napi_env env, napi_callback_info info) {
+static napi_value testGetPrototype(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -26,7 +26,7 @@ napi_value testGetPrototype(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value testGetVersion(napi_env env, napi_callback_info info) {
+static napi_value testGetVersion(napi_env env, napi_callback_info info) {
   uint32_t version;
   napi_value result;
   NAPI_CALL(env, napi_get_version(env, &version));
@@ -34,7 +34,7 @@ napi_value testGetVersion(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value testGetNodeVersion(napi_env env, napi_callback_info info) {
+static napi_value testGetNodeVersion(napi_env env, napi_callback_info info) {
   const napi_node_version* node_version;
   napi_value result, major, minor, patch, release;
   NAPI_CALL(env, napi_get_node_version(env, &node_version));
@@ -53,7 +53,7 @@ napi_value testGetNodeVersion(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value doInstanceOf(napi_env env, napi_callback_info info) {
+static napi_value doInstanceOf(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -67,19 +67,19 @@ napi_value doInstanceOf(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value getNull(napi_env env, napi_callback_info info) {
+static napi_value getNull(napi_env env, napi_callback_info info) {
   napi_value result;
   NAPI_CALL(env, napi_get_null(env, &result));
   return result;
 }
 
-napi_value getUndefined(napi_env env, napi_callback_info info) {
+static napi_value getUndefined(napi_env env, napi_callback_info info) {
   napi_value result;
   NAPI_CALL(env, napi_get_undefined(env, &result));
   return result;
 }
 
-napi_value createNapiError(napi_env env, napi_callback_info info) {
+static napi_value createNapiError(napi_env env, napi_callback_info info) {
   napi_value value;
   NAPI_CALL(env, napi_create_string_utf8(env, "xyz", 3, &value));
 
@@ -99,7 +99,7 @@ napi_value createNapiError(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value testNapiErrorCleanup(napi_env env, napi_callback_info info) {
+static napi_value testNapiErrorCleanup(napi_env env, napi_callback_info info) {
   const napi_extended_error_info *error_info = 0;
   NAPI_CALL(env, napi_get_last_error_info(env, &error_info));
 
@@ -110,7 +110,7 @@ napi_value testNapiErrorCleanup(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
+static napi_value testNapiTypeof(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -157,7 +157,7 @@ static void deref_item(napi_env env, void* data, void* hint) {
   deref_item_called = true;
 }
 
-napi_value deref_item_was_called(napi_env env, napi_callback_info info) {
+static napi_value deref_item_was_called(napi_env env, napi_callback_info info) {
   napi_value it_was_called;
 
   NAPI_CALL(env, napi_get_boolean(env, deref_item_called, &it_was_called));
@@ -165,7 +165,7 @@ napi_value deref_item_was_called(napi_env env, napi_callback_info info) {
   return it_was_called;
 }
 
-napi_value wrap(napi_env env, napi_callback_info info) {
+static napi_value wrap(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value to_wrap;
 
@@ -177,7 +177,7 @@ napi_value wrap(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value remove_wrap(napi_env env, napi_callback_info info) {
+static napi_value remove_wrap(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value wrapped;
   void* data;
@@ -193,7 +193,7 @@ static void test_finalize(napi_env env, void* data, void* hint) {
   finalize_called = true;
 }
 
-napi_value test_finalize_wrap(napi_env env, napi_callback_info info) {
+static napi_value test_finalize_wrap(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value js_object;
 
@@ -203,7 +203,7 @@ napi_value test_finalize_wrap(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value finalize_was_called(napi_env env, napi_callback_info info) {
+static napi_value finalize_was_called(napi_env env, napi_callback_info info) {
   napi_value it_was_called;
 
   NAPI_CALL(env, napi_get_boolean(env, finalize_called, &it_was_called));
@@ -211,7 +211,7 @@ napi_value finalize_was_called(napi_env env, napi_callback_info info) {
   return it_was_called;
 }
 
-napi_value testAdjustExternalMemory(napi_env env, napi_callback_info info) {
+static napi_value testAdjustExternalMemory(napi_env env, napi_callback_info info) {
   napi_value result;
   int64_t adjustedValue;
 
@@ -221,7 +221,7 @@ napi_value testAdjustExternalMemory(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value testNapiRun(napi_env env, napi_callback_info info) {
+static napi_value testNapiRun(napi_env env, napi_callback_info info) {
   napi_value script, result;
   size_t argc = 1;
 
@@ -232,7 +232,7 @@ napi_value testNapiRun(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testStrictEquals", testStrictEquals),
     DECLARE_NAPI_PROPERTY("testGetPrototype", testGetPrototype),

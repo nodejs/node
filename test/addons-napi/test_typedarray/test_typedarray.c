@@ -2,7 +2,7 @@
 #include <string.h>
 #include "../common.h"
 
-napi_value Multiply(napi_env env, napi_callback_info info) {
+static napi_value Multiply(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -73,7 +73,7 @@ napi_value Multiply(napi_env env, napi_callback_info info) {
   return output_array;
 }
 
-napi_value External(napi_env env, napi_callback_info info) {
+static napi_value External(napi_env env, napi_callback_info info) {
   static int8_t externalData[] = {0, 1, 2};
 
   napi_value output_buffer;
@@ -96,7 +96,7 @@ napi_value External(napi_env env, napi_callback_info info) {
   return output_array;
 }
 
-napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
+static napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
   size_t argc = 4;
   napi_value args[4];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -165,7 +165,7 @@ napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
   return output_array;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Multiply", Multiply),
     DECLARE_NAPI_PROPERTY("External", External),
