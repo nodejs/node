@@ -42,10 +42,6 @@ class JSBindingsConnection : public AsyncWrap {
                                 connection_(connection) {
     }
 
-    bool WaitForFrontendMessageWhilePaused() override {
-      return false;
-    }
-
     void SendMessageToFrontend(const v8_inspector::StringView& message)
         override {
       Isolate* isolate = env_->isolate();
@@ -58,12 +54,6 @@ class JSBindingsConnection : public AsyncWrap {
       connection_->OnMessage(argument);
     }
 
-    void Disconnect() {
-      Agent* agent = env_->inspector_agent();
-      if (agent->delegate() == this)
-        agent->Disconnect();
-    }
-
    private:
     Environment* env_;
     JSBindingsConnection* connection_;
@@ -73,29 +63,15 @@ class JSBindingsConnection : public AsyncWrap {
                        Local<Object> wrap,
                        Local<Function> callback)
                        : AsyncWrap(env, wrap, PROVIDER_INSPECTORJSBINDING),
-                         delegate_(env, this),
                          callback_(env->isolate(), callback) {
     Wrap(wrap, this);
-
     Agent* inspector = env->inspector_agent();
-    if (inspector->delegate() != nullptr) {
-      // This signals JS code that it has to throw an error.
-      Local<String> session_attached =
-          FIXED_ONE_BYTE_STRING(env->isolate(), "sessionAttached");
-      wrap->Set(env->context(), session_attached,
-                Boolean::New(env->isolate(), true)).ToChecked();
-      return;
-    }
-    inspector->Connect(&delegate_);
+    session_ = inspector->Connect(
+        std::make_unique<JSBindingsSessionDelegate>(env, this));
   }
 
   void OnMessage(Local<Value> value) {
     MakeCallback(callback_.Get(env()->isolate()), 1, &value);
-  }
-
-  void CheckIsCurrent() {
-    Agent* inspector = env()->inspector_agent();
-    CHECK_EQ(&delegate_, inspector->delegate());
   }
 
   static void New(const FunctionCallbackInfo<Value>& info) {
@@ -106,7 +82,7 @@ class JSBindingsConnection : public AsyncWrap {
   }
 
   void Disconnect() {
-    delegate_.Disconnect();
+    session_.reset();
     if (!persistent().IsEmpty()) {
       ClearWrap(object());
     }
@@ -125,18 +101,23 @@ class JSBindingsConnection : public AsyncWrap {
     ASSIGN_OR_RETURN_UNWRAP(&session, info.Holder());
     CHECK(info[0]->IsString());
 
-    session->CheckIsCurrent();
-    Agent* inspector = env->inspector_agent();
-    inspector->Dispatch(ToProtocolString(env->isolate(), info[0])->string());
+    if (session->session_) {
+      session->session_->Dispatch(
+          ToProtocolString(env->isolate(), info[0])->string());
+    }
   }
 
   size_t self_size() const override { return sizeof(*this); }
 
  private:
-  JSBindingsSessionDelegate delegate_;
+  std::unique_ptr<InspectorSession> session_;
   Persistent<Function> callback_;
 };
 
+static bool InspectorEnabled(Environment* env) {
+  Agent* agent = env->inspector_agent();
+  return agent->io() != nullptr || agent->HasConnectedSessions();
+}
 
 void AddCommandLineAPI(const FunctionCallbackInfo<Value>& info) {
   auto env = Environment::GetCurrent(info);
@@ -178,7 +159,7 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
     call_args.push_back(info[i]);
   }
   Environment* env = Environment::GetCurrent(isolate);
-  if (env->inspector_agent()->enabled()) {
+  if (InspectorEnabled(env)) {
     Local<Value> inspector_method = info[0];
     CHECK(inspector_method->IsFunction());
     Local<Value> config_value = info[2];
@@ -256,7 +237,7 @@ static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
 
 void IsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(env->inspector_agent()->enabled());
+  args.GetReturnValue().Set(InspectorEnabled(env));
 }
 
 void Open(const FunctionCallbackInfo<Value>& args) {

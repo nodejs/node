@@ -154,8 +154,9 @@ class InspectorSession {
     return this._terminationPromise;
   }
 
-  disconnect() {
+  async disconnect() {
     this._socket.destroy();
+    return this.waitForServerDisconnect();
   }
 
   _onMessage(message) {
@@ -444,6 +445,7 @@ class NodeInstance {
 
   kill() {
     this._process.kill();
+    return this.expectShutdown();
   }
 
   scriptPath() {

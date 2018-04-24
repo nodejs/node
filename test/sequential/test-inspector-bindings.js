@@ -76,15 +76,6 @@ function testSampleDebugSession() {
   };
   const session = new inspector.Session();
   session.connect();
-  let secondSessionOpened = false;
-  const secondSession = new inspector.Session();
-  try {
-    secondSession.connect();
-    secondSessionOpened = true;
-  } catch (error) {
-    // expected as the session already exists
-  }
-  assert.strictEqual(secondSessionOpened, false);
   session.on('Debugger.paused',
              (notification) => debuggerPausedCallback(session, notification));
   let cbAsSecondArgCalled = false;
