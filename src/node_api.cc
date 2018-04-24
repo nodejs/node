@@ -1129,9 +1129,9 @@ napi_status napi_define_class(napi_env env,
   CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);
   tpl->SetClassName(name_string);
 
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::Value> v8_result_value = tpl->GetFunction();
-  v8::Local<v8::Object> v8_result_object = v8_result_value.As<v8::Object>();
+  auto context = isolate->GetCurrentContext();
+  auto v8_result_value = tpl->GetFunction();
+  auto v8_result_object = v8_result_value.As<v8::Object>();
   *result = v8impl::JsValueFromV8LocalValue(scope.Escape(v8_result_value));
 
   napi_value proto;
