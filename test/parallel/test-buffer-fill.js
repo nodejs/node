@@ -329,6 +329,22 @@ Buffer.alloc(8, '');
   assert.strictEqual(buf.toString(), 'էէէէէ');
 }
 
+{
+  for (const fill of [
+    '',
+    [],
+    Buffer.from(''),
+    new Uint8Array(0),
+    { toString: () => '' },
+    { toString: () => '', length: 10 }
+  ]) {
+    assert.deepStrictEqual(
+      Buffer.alloc(10, 'abc').fill(fill),
+      Buffer.alloc(10)
+    );
+  }
+}
+
 // Testing public API. Make sure "start" is properly checked, even if it's
 // magically mangled using Symbol.toPrimitive.
 {
