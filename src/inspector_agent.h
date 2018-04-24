@@ -23,17 +23,25 @@ class Environment;
 struct ContextInfo;
 
 namespace inspector {
+class InspectorIo;
+class NodeInspectorClient;
+
+class InspectorSession {
+ public:
+  InspectorSession(int session_id, std::shared_ptr<NodeInspectorClient> client);
+  ~InspectorSession();
+  void Dispatch(const v8_inspector::StringView& message);
+ private:
+  int session_id_;
+  std::shared_ptr<NodeInspectorClient> client_;
+};
 
 class InspectorSessionDelegate {
  public:
   virtual ~InspectorSessionDelegate() = default;
-  virtual bool WaitForFrontendMessageWhilePaused() = 0;
   virtual void SendMessageToFrontend(const v8_inspector::StringView& message)
                                      = 0;
 };
-
-class InspectorIo;
-class NodeInspectorClient;
 
 class Agent {
  public:
@@ -66,18 +74,18 @@ class Agent {
   void RegisterAsyncHook(v8::Isolate* isolate,
     v8::Local<v8::Function> enable_function,
     v8::Local<v8::Function> disable_function);
+  void EnableAsyncHook();
+  void DisableAsyncHook();
 
-  // These methods are called by the WS protocol and JS binding to create
-  // inspector sessions.  The inspector responds by using the delegate to send
-  // messages back.
-  void Connect(InspectorSessionDelegate* delegate);
-  void Disconnect();
-  void Dispatch(const v8_inspector::StringView& message);
-  InspectorSessionDelegate* delegate();
+  // Called by the WS protocol and JS binding to create inspector sessions.
+  // The inspector responds by using the delegate to send messages back.
+  std::unique_ptr<InspectorSession> Connect(
+      std::unique_ptr<InspectorSessionDelegate> delegate);
 
-  void RunMessageLoop();
-  bool enabled() { return enabled_; }
   void PauseOnNextJavascriptStatement(const std::string& reason);
+
+  // Returns true as long as there is at least one connected session.
+  bool HasConnectedSessions();
 
   InspectorIo* io() {
     return io_.get();
@@ -92,18 +100,14 @@ class Agent {
   DebugOptions& options() { return debug_options_; }
   void ContextCreated(v8::Local<v8::Context> context, const ContextInfo& info);
 
-  void EnableAsyncHook();
-  void DisableAsyncHook();
-
  private:
   void ToggleAsyncHook(v8::Isolate* isolate,
                        const Persistent<v8::Function>& fn);
 
   node::Environment* parent_env_;
-  std::unique_ptr<NodeInspectorClient> client_;
+  std::shared_ptr<NodeInspectorClient> client_;
   std::unique_ptr<InspectorIo> io_;
   v8::Platform* platform_;
-  bool enabled_;
   std::string path_;
   DebugOptions debug_options_;
 
