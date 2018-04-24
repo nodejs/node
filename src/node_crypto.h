@@ -572,8 +572,8 @@ class PublicKeyCipher {
 class DiffieHellman : public BaseObject {
  public:
   ~DiffieHellman() override {
-    if (dh != nullptr) {
-      DH_free(dh);
+    if (dh_ != nullptr) {
+      DH_free(dh_);
     }
   }
 
@@ -602,7 +602,7 @@ class DiffieHellman : public BaseObject {
       : BaseObject(env, wrap),
         initialised_(false),
         verifyError_(0),
-        dh(nullptr) {
+        dh_(nullptr) {
     MakeWeak<DiffieHellman>(this);
   }
 
@@ -616,7 +616,7 @@ class DiffieHellman : public BaseObject {
 
   bool initialised_;
   int verifyError_;
-  DH* dh;
+  DH* dh_;
 };
 
 class ECDH : public BaseObject {
