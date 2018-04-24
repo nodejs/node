@@ -92,7 +92,7 @@
   * Support for NPN (next protocol negotiation) has been dropped. [[`5bfbe5ceae`](https://github.com/nodejs/node/commit/5bfbe5ceae)]
   * The `ecdhCurve` default is now `'auto'`. [[`af78840b19`](https://github.com/nodejs/node/commit/af78840b19)]
 * Trace Events
-  * A new `trace_events` top-level module allows trace event categories to be enabled/disabld at runtime. [[`da5d818a54`](https://github.com/nodejs/node/commit/da5d818a54)]
+  * A new `trace_events` top-level module allows trace event categories to be enabled/disabled at runtime. [[`da5d818a54`](https://github.com/nodejs/node/commit/da5d818a54)]
 * URL
   * The WHATWG URL API is now a global. [[`312414662b`](https://github.com/nodejs/node/commit/312414662b)]
 * Util
@@ -113,7 +113,7 @@ The following APIs have been deprecated in Node.js 10.0.0
 * Previously deprecated internal getters/setters on `net.Server` has reached end-of-life and have been removed. [[`3701b02309`](https://github.com/nodejs/node/commit/3701b02309)]
 * Use of non-string values for `process.env` has been deprecated in documentation. [[`5826fe4e79`](https://github.com/nodejs/node/commit/5826fe4e79)]
 * Use of `process.assert()` will emit a runtime deprecation warning. [[`703e37cf3f`](https://github.com/nodejs/node/commit/703e37cf3f)]
-* Previously deprecated `NODE\_REPL\_HISTORY\_FILE` environment variable has reached end-of-life and has been removed. [[`60c9ad7979`](https://github.com/nodejs/node/commit/60c9ad7979)]
+* Previously deprecated `NODE_REPL_HISTORY_FILE` environment variable has reached end-of-life and has been removed. [[`60c9ad7979`](https://github.com/nodejs/node/commit/60c9ad7979)]
 * Use of the `timers.enroll()` and `timers.unenroll()` methods will emit a runtime deprecation warning. [[`68783ae0b8`](https://github.com/nodejs/node/commit/68783ae0b8)]
 * Use of the `tls.convertNPNProtocols()` method will emit a runtime deprecation warning. Support for NPN has been removed from Node.js. [[`9204a0db6e`](https://github.com/nodejs/node/commit/9204a0db6e)]
 * The `crypto.fips` property has been deprecated in documentation. [[`6e7992e8b8`](https://github.com/nodejs/node/commit/6e7992e8b8)]
@@ -138,7 +138,7 @@ The following APIs have been deprecated in Node.js 10.0.0
 * [[`876836b135`](https://github.com/nodejs/node/commit/876836b135)] - **(SEMVER-MAJOR)** **benchmark**: rename file (Ruben Bridgewater) [#18790](https://github.com/nodejs/node/pull/18790)
 * [[`e9ec9ff269`](https://github.com/nodejs/node/commit/e9ec9ff269)] - **(SEMVER-MAJOR)** **benchmark**: add buffer fill benchmark (Ruben Bridgewater) [#18790](https://github.com/nodejs/node/pull/18790)
 * [[`94d64877ff`](https://github.com/nodejs/node/commit/94d64877ff)] - **(SEMVER-MAJOR)** **benchmark**: improve buffer.readInt(B|L)E benchmarks (Rich Trott) [#11146](https://github.com/nodejs/node/pull/11146)
-* [[`9d4ab90117`](https://github.com/nodejs/node/commit/9d4ab90117)] - **(SEMVER-MAJOR)** **buffer**: do deprecation warning outside `node\_modules` (Anna Henningsen) [#19524](https://github.com/nodejs/node/pull/19524)
+* [[`9d4ab90117`](https://github.com/nodejs/node/commit/9d4ab90117)] - **(SEMVER-MAJOR)** **buffer**: do deprecation warning outside `node_modules` (Anna Henningsen) [#19524](https://github.com/nodejs/node/pull/19524)
 * [[`e8bb1f35df`](https://github.com/nodejs/node/commit/e8bb1f35df)] - **(SEMVER-MAJOR)** **buffer**: refactor all read/write functions (Ruben Bridgewater) [#18395](https://github.com/nodejs/node/pull/18395)
 * [[`a6c490cc8e`](https://github.com/nodejs/node/commit/a6c490cc8e)] - **(SEMVER-MAJOR)** **buffer**: remove double ln (Ruben Bridgewater) [#18395](https://github.com/nodejs/node/pull/18395)
 * [[`1411b30f46`](https://github.com/nodejs/node/commit/1411b30f46)] - **(SEMVER-MAJOR)** **buffer**: move c++ float functions to js (Ruben Bridgewater) [#18395](https://github.com/nodejs/node/pull/18395)
@@ -710,12 +710,12 @@ The following APIs have been deprecated in Node.js 10.0.0
 * [[`070a82e82c`](https://github.com/nodejs/node/commit/070a82e82c)] - **module**: replace "magic" numbers by constants (Sergey Golovin) [#18869](https://github.com/nodejs/node/pull/18869)
 * [[`c86fe511f4`](https://github.com/nodejs/node/commit/c86fe511f4)] - **module**: replace magic numbers by constants (Sergey Golovin) [#18785](https://github.com/nodejs/node/pull/18785)
 * [[`3b9cc424a4`](https://github.com/nodejs/node/commit/3b9cc424a4)] - **module**: remove unused code in module.js (Rich Trott) [#18768](https://github.com/nodejs/node/pull/18768)
-* [[`c529168249`](https://github.com/nodejs/node/commit/c529168249)] - **n-api**: add more `int64\_t` tests (Kyle Farnung) [#19402](https://github.com/nodejs/node/pull/19402)
+* [[`c529168249`](https://github.com/nodejs/node/commit/c529168249)] - **n-api**: add more `int64_t` tests (Kyle Farnung) [#19402](https://github.com/nodejs/node/pull/19402)
 * [[`a342cd693c`](https://github.com/nodejs/node/commit/a342cd693c)] - **net**: honor default values in Socket constructor (Santiago Gimeno) [#19971](https://github.com/nodejs/node/pull/19971)
 * [[`923fb5cc18`](https://github.com/nodejs/node/commit/923fb5cc18)] - **net**: track bytesWritten in C++ land (Anna Henningsen) [#19551](https://github.com/nodejs/node/pull/19551)
 * [[`7c73cd4c70`](https://github.com/nodejs/node/commit/7c73cd4c70)] - **net**: emit error on invalid address family (cjihrig) [#19415](https://github.com/nodejs/node/pull/19415)
 * [[`67b5985c08`](https://github.com/nodejs/node/commit/67b5985c08)] - **net**: fix usage of writeBuffer in makeSyncWrite (Joyee Cheung) [#19103](https://github.com/nodejs/node/pull/19103)
-* [[`03ddd13d8a`](https://github.com/nodejs/node/commit/03ddd13d8a)] - **net**: use `\_final` instead of `on('finish')` (Anna Henningsen) [#18608](https://github.com/nodejs/node/pull/18608)
+* [[`03ddd13d8a`](https://github.com/nodejs/node/commit/03ddd13d8a)] - **net**: use `_final` instead of `on('finish')` (Anna Henningsen) [#18608](https://github.com/nodejs/node/pull/18608)
 * [[`e85c20b511`](https://github.com/nodejs/node/commit/e85c20b511)] - **net,http2**: merge write error handling & property names (Anna Henningsen) [#19734](https://github.com/nodejs/node/pull/19734)
 * [[`496d6023e0`](https://github.com/nodejs/node/commit/496d6023e0)] - **net,stream**: remove DuplexBase (Luigi Pinca) [#19779](https://github.com/nodejs/node/pull/19779)
 * [[`2ec6995555`](https://github.com/nodejs/node/commit/2ec6995555)] - **perf_hooks**: simplify perf\_hooks (James M Snell) [#19563](https://github.com/nodejs/node/pull/19563)
