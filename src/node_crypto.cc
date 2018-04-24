@@ -2705,9 +2705,9 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   // represent a valid length at this point.
   unsigned int auth_tag_len;
   if (args[2]->IsUint32()) {
-    auth_tag_len = args[2]->Uint32Value();
+    auth_tag_len = args[2].As<v8::Uint32>()->Value();
   } else {
-    CHECK(args[2]->IsInt32() && args[2]->Int32Value() == -1);
+    CHECK(args[2]->IsInt32() && args[2].As<v8::Int32>()->Value() == -1);
     auth_tag_len = kNoAuthTagLength;
   }
 
@@ -2799,9 +2799,9 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   // represent a valid length at this point.
   unsigned int auth_tag_len;
   if (args[3]->IsUint32()) {
-    auth_tag_len = args[3]->Uint32Value();
+    auth_tag_len = args[3].As<v8::Uint32>()->Value();
   } else {
-    CHECK(args[3]->IsInt32() && args[3]->Int32Value() == -1);
+    CHECK(args[3]->IsInt32() && args[3].As<v8::Int32>()->Value() == -1);
     auth_tag_len = kNoAuthTagLength;
   }
 
