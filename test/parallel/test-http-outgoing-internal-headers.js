@@ -21,8 +21,10 @@ const { OutgoingMessage } = require('http');
     Origin: 'localhost'
   };
 
-  assert.deepStrictEqual(outgoingMessage[outHeadersKey], {
-    host: ['host', 'risingstack.com'],
-    origin: ['Origin', 'localhost']
-  });
+  assert.deepStrictEqual(
+    Object.entries(outgoingMessage[outHeadersKey]),
+    Object.entries({
+      host: ['host', 'risingstack.com'],
+      origin: ['Origin', 'localhost']
+    }));
 }
