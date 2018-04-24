@@ -2,7 +2,7 @@
 #include <string.h>
 #include "../common.h"
 
-napi_value CreateDataView(napi_env env, napi_callback_info info) {
+static napi_value CreateDataView(napi_env env, napi_callback_info info) {
   size_t argc = 3;
   napi_value args [3];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -49,7 +49,7 @@ napi_value CreateDataView(napi_env env, napi_callback_info info) {
   return output_dataview;
 }
 
-napi_value CreateDataViewFromJSDataView(napi_env env, napi_callback_info info) {
+static napi_value CreateDataViewFromJSDataView(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args [1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -85,7 +85,7 @@ napi_value CreateDataViewFromJSDataView(napi_env env, napi_callback_info info) {
   return output_dataview;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("CreateDataView", CreateDataView),
     DECLARE_NAPI_PROPERTY("CreateDataViewFromJSDataView",

@@ -2,7 +2,7 @@
 #include "../common.h"
 #include <string.h>
 
-napi_value RunCallback(napi_env env, napi_callback_info info) {
+static napi_value RunCallback(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -34,7 +34,7 @@ napi_value RunCallback(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value RunCallbackWithRecv(napi_env env, napi_callback_info info) {
+static napi_value RunCallbackWithRecv(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -45,7 +45,7 @@ napi_value RunCallbackWithRecv(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor desc[2] = {
     DECLARE_NAPI_PROPERTY("RunCallback", RunCallback),
     DECLARE_NAPI_PROPERTY("RunCallbackWithRecv", RunCallbackWithRecv),

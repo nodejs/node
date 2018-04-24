@@ -1,7 +1,7 @@
 #include <node_api.h>
 #include "../common.h"
 
-napi_value Test(napi_env env, napi_callback_info info) {
+static napi_value Test(napi_env env, napi_callback_info info) {
   napi_value err;
   size_t argc = 1;
 
@@ -12,7 +12,7 @@ napi_value Test(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("Test", Test),
   };

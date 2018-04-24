@@ -4,7 +4,7 @@
 
 static int test_value = 3;
 
-napi_value Get(napi_env env, napi_callback_info info) {
+static napi_value Get(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -30,7 +30,7 @@ napi_value Get(napi_env env, napi_callback_info info) {
   return output;
 }
 
-napi_value Set(napi_env env, napi_callback_info info) {
+static napi_value Set(napi_env env, napi_callback_info info) {
   size_t argc = 3;
   napi_value args[3];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -57,7 +57,7 @@ napi_value Set(napi_env env, napi_callback_info info) {
   return valuetrue;
 }
 
-napi_value Has(napi_env env, napi_callback_info info) {
+static napi_value Has(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -85,7 +85,7 @@ napi_value Has(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value HasOwn(napi_env env, napi_callback_info info) {
+static napi_value HasOwn(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -113,7 +113,7 @@ napi_value HasOwn(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value Delete(napi_env env, napi_callback_info info) {
+static napi_value Delete(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
 
@@ -138,7 +138,7 @@ napi_value Delete(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value New(napi_env env, napi_callback_info info) {
+static napi_value New(napi_env env, napi_callback_info info) {
   napi_value ret;
   NAPI_CALL(env, napi_create_object(env, &ret));
 
@@ -157,7 +157,7 @@ napi_value New(napi_env env, napi_callback_info info) {
   return ret;
 }
 
-napi_value Inflate(napi_env env, napi_callback_info info) {
+static napi_value Inflate(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -193,7 +193,7 @@ napi_value Inflate(napi_env env, napi_callback_info info) {
   return obj;
 }
 
-napi_value Wrap(napi_env env, napi_callback_info info) {
+static napi_value Wrap(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value arg;
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
@@ -202,7 +202,7 @@ napi_value Wrap(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value Unwrap(napi_env env, napi_callback_info info) {
+static napi_value Unwrap(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value arg;
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
@@ -216,7 +216,7 @@ napi_value Unwrap(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Get", Get),
     DECLARE_NAPI_PROPERTY("Set", Set),
