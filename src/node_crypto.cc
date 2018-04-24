@@ -72,6 +72,7 @@ using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -84,6 +85,7 @@ using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 
@@ -2698,9 +2700,9 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   // represent a valid length at this point.
   unsigned int auth_tag_len;
   if (args[2]->IsUint32()) {
-    auth_tag_len = args[2].As<v8::Uint32>()->Value();
+    auth_tag_len = args[2].As<Uint32>()->Value();
   } else {
-    CHECK(args[2]->IsInt32() && args[2].As<v8::Int32>()->Value() == -1);
+    CHECK(args[2]->IsInt32() && args[2].As<Int32>()->Value() == -1);
     auth_tag_len = kNoAuthTagLength;
   }
 
@@ -2792,9 +2794,9 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   // represent a valid length at this point.
   unsigned int auth_tag_len;
   if (args[3]->IsUint32()) {
-    auth_tag_len = args[3].As<v8::Uint32>()->Value();
+    auth_tag_len = args[3].As<Uint32>()->Value();
   } else {
-    CHECK(args[3]->IsInt32() && args[3].As<v8::Int32>()->Value() == -1);
+    CHECK(args[3]->IsInt32() && args[3].As<Int32>()->Value() == -1);
     auth_tag_len = kNoAuthTagLength;
   }
 
@@ -2998,7 +3000,7 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 2);
   CHECK(args[1]->IsInt32());
-  int plaintext_len = args[1].As<v8::Int32>()->Value();
+  int plaintext_len = args[1].As<Int32>()->Value();
 
   if (!cipher->SetAAD(Buffer::Data(args[0]), Buffer::Length(args[0]),
                       plaintext_len))
