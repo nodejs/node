@@ -654,6 +654,12 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   size_t in_there = str_length;
   char* ptr = ts_obj_data + start + str_length;
 
+  if (in_there == 0) {
+    // Just use zero-fill if the input was empty
+    memset(ts_obj_data + start, 0, fill_length);
+    return;
+  }
+
   while (in_there < fill_length - in_there) {
     memcpy(ptr, ts_obj_data + start, in_there);
     ptr += in_there;
