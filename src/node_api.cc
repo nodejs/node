@@ -1129,6 +1129,8 @@ napi_status napi_define_class(napi_env env,
   CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);
   tpl->SetClassName(name_string);
 
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
   size_t static_property_count = 0;
   for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = properties + i;
@@ -1182,25 +1184,19 @@ napi_status napi_define_class(napi_env env,
     }
   }
 
-  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(tpl->GetFunction()));
+  v8::Local<v8::Value> v8_result_value = tpl->GetFunction();
+  v8::Local<v8::Object> v8_result_object = v8_result_value.As<v8::Object>();
+  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(v8_result_value));
 
   if (static_property_count > 0) {
-    std::vector<napi_property_descriptor> static_descriptors;
-    static_descriptors.reserve(static_property_count);
-
     for (size_t i = 0; i < property_count; i++) {
       const napi_property_descriptor* p = properties + i;
       if ((p->attributes & napi_static) != 0) {
-        static_descriptors.push_back(*p);
+        napi_status status = v8impl::DefineSingleProperty(env, isolate, context,
+            v8_result_object,p);
+        if (status != napi_ok) return status;
       }
     }
-
-    napi_status status =
-        napi_define_properties(env,
-                               *result,
-                               static_descriptors.size(),
-                               static_descriptors.data());
-    if (status != napi_ok) return status;
   }
 
   return GET_RETURN_STATUS(env);
