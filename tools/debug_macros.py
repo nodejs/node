@@ -1,4 +1,6 @@
-macro DCHECK(x) = do { if (!(x)) (process._rawDebug("DCHECK: x == true"), process.abort()) } while (0);
+macro DLOG(x) = internalBinding("debug").debug(x);
+
+macro DCHECK(x) = do { if (!(x)) (DLOG("DCHECK: x == true"), process.abort()) } while (0);
 macro DCHECK_EQ(a, b) = DCHECK((a) === (b));
 macro DCHECK_GE(a, b) = DCHECK((a) >= (b));
 macro DCHECK_GT(a, b) = DCHECK((a) > (b));

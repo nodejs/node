@@ -40,3 +40,5 @@ globals:
   DCHECK_LE: false
   DCHECK_LT: false
   DCHECK_NE: false
+  DLOG: false
+  internalBinding: false

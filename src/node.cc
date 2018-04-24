@@ -3317,6 +3317,12 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   PrintErrorString("%s\n", *message);
   fflush(stderr);
 }
+static void InitializeInternalDebug(
+    Local<Object> target, Local<Value>, Local<Context> context) {
+  Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "debug", RawDebug);
+}
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(debug, InitializeInternalDebug);
 
 
 static Local<Function> GetBootstrapper(Environment* env, Local<String> source,
@@ -4672,6 +4678,8 @@ void RegisterBuiltinModules() {
 #define V(modname) _register_##modname();
   NODE_BUILTIN_MODULES(V)
 #undef V
+  // defined in this file
+  _register_debug();
 }
 
 }  // namespace node
