@@ -621,8 +621,6 @@ if options.use_clang_cl:
   else:
     clang_base_path = os.path.abspath(os.path.join(
         'deps', 'v8', 'third_party', 'llvm-build', 'Release+Asserts'))
-  # CC sets the path for GYP-compiled files.
-  os.environ['CC'] = os.path.join(clang_base_path, 'bin', 'clang-cl.exe')
   # GN arg sets the path for --build-v8-using-gn.
   if options.build_v8_with_gn_extra_gn_args:
     options.build_v8_with_gn_extra_gn_args += ' '
@@ -1638,6 +1636,11 @@ if 'make_fips_settings' in output:
   del output['make_fips_settings']
   write('config_fips.gypi', do_not_edit +
         pprint.pformat(config_fips, indent=2) + '\n')
+
+if options.use_clang_cl:
+  make_global_settings = output.setdefault('make_global_settings', [])
+  make_global_settings.append(
+      ['CC', os.path.join(clang_base_path, 'bin', 'clang-cl')])
 
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:
