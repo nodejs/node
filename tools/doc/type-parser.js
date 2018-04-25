@@ -117,7 +117,12 @@ const customTypesMap = {
   'Tracing': 'tracing.html#tracing_tracing_object',
 
   'URL': 'url.html#url_the_whatwg_url_api',
-  'URLSearchParams': 'url.html#url_class_urlsearchparams'
+  'URLSearchParams': 'url.html#url_class_urlsearchparams',
+
+  'vm.Script': 'vm.html#vm_class_vm_script',
+  'vm.Module': 'vm.html#vm_class_vm_module',
+
+  'Module Namespace Object': 'https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects', // eslint-disable-line max-len
 };
 
 const arrayPart = /(?:\[])+$/;

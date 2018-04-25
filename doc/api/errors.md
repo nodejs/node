@@ -1036,6 +1036,12 @@ is set for the `Http2Stream`.
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
 
+<a id="ERR_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
+### ERR_DYNAMIC_IMPORT_CALLBACK_MISSING
+
+There was a dynamic import request but the script or module did not provide
+a callback to handle it.
+
 <a id="ERR_INDEX_OUT_OF_RANGE"></a>
 ### ERR_INDEX_OUT_OF_RANGE
 

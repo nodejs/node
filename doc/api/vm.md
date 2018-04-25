@@ -437,6 +437,9 @@ changes:
     `cachedData` property of the returned `vm.Script` instance.
     The `cachedDataProduced` value will be set to either `true` or `false`
     depending on whether code cache data is produced successfully.
+  * `resolveDynamicImport` {Function} See [`module.link()`][]
+    * `specifier` {string}
+    * `scriptOrModule` {vm.Script|vm.Module|Module Namespace Object}
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. The `code` is not bound to
@@ -894,6 +897,7 @@ associating it with the `sandbox` object is what this document refers to as
 [`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
+[`module.link()`]: #vm_module_link_linker
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
 [`url.origin`]: url.html#url_url_origin

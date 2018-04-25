@@ -32,6 +32,9 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Context> context,
       v8::Local<v8::Module> module,
       v8::Local<v8::Object> meta);
+  static ModuleWrap* GetFromID(Environment*, int);
+
+  inline int GetID() { return id_; }
 
  private:
   ModuleWrap(Environment* env,
@@ -59,9 +62,9 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Context> context,
       v8::Local<v8::String> specifier,
       v8::Local<v8::Module> referrer);
-  static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
+  static ModuleWrap* GetFromModule(Environment*, v8::Local<v8::Module>);
 
-
+  int id_;
   Persistent<v8::Module> module_;
   Persistent<v8::String> url_;
   bool linked_ = false;

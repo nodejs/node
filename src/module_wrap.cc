@@ -34,6 +34,7 @@ using v8::MaybeLocal;
 using v8::Module;
 using v8::Nothing;
 using v8::Object;
+using v8::PrimitiveArray;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -50,31 +51,40 @@ ModuleWrap::ModuleWrap(Environment* env,
                        Local<String> url) : BaseObject(env, object) {
   module_.Reset(env->isolate(), module);
   url_.Reset(env->isolate(), url);
+  id_ = env->get_next_module_id();
 }
 
 ModuleWrap::~ModuleWrap() {
   HandleScope scope(env()->isolate());
   Local<Module> module = module_.Get(env()->isolate());
-  auto range = env()->module_map.equal_range(module->GetIdentityHash());
+  env()->id_to_module_wrap_map.erase(id_);
+  auto range = env()->module_to_module_wrap_map.equal_range(
+      module->GetIdentityHash());
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == this) {
-      env()->module_map.erase(it);
+      env()->module_to_module_wrap_map.erase(it);
       break;
     }
   }
 }
 
+ModuleWrap* ModuleWrap::GetFromID(Environment* env, int id) {
+  auto module_wrap_it = env->id_to_module_wrap_map.find(id);
+  if (module_wrap_it == env->id_to_module_wrap_map.end())
+    return nullptr;
+
+  return module_wrap_it->second;
+}
+
 ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
                                       Local<Module> module) {
-  ModuleWrap* ret = nullptr;
-  auto range = env->module_map.equal_range(module->GetIdentityHash());
+  auto range = env->module_to_module_wrap_map.equal_range(
+      module->GetIdentityHash());
   for (auto it = range.first; it != range.second; ++it) {
-    if (it->second->module_ == module) {
-      ret = it->second;
-      break;
-    }
+    if (it->second->module_ == module)
+      return it->second;
   }
-  return ret;
+  return nullptr;
 }
 
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
@@ -126,6 +136,8 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   TryCatch try_catch(isolate);
   Local<Module> module;
 
+  Local<PrimitiveArray> host_defined_options = PrimitiveArray::New(isolate, 2);
+
   // compile
   {
     ScriptOrigin origin(url,
@@ -136,7 +148,8 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                         Local<Value>(),                       // source map URL
                         False(isolate),                       // is opaque (?)
                         False(isolate),                       // is WASM
-                        True(isolate));                       // is ES6 module
+                        True(isolate),                        // is ES6 module
+                        host_defined_options);
     Context::Scope context_scope(context);
     ScriptCompiler::Source source(source_text, origin);
     if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
@@ -157,7 +170,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   ModuleWrap* obj = new ModuleWrap(env, that, module, url);
   obj->context_.Reset(isolate, context);
 
-  env->module_map.emplace(module->GetIdentityHash(), obj);
+  host_defined_options->Set(0,
+      Integer::New(isolate, contextify::SourceType::kModule));
+  host_defined_options->Set(1, Integer::New(isolate, obj->GetID()));
+
+  env->id_to_module_wrap_map[obj->GetID()] = obj;
+  env->module_to_module_wrap_map.emplace(module->GetIdentityHash(), obj);
+
   Wrap(that, obj);
 
   that->SetIntegrityLevel(context, IntegrityLevel::kFrozen);
@@ -365,15 +384,10 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
                                                Local<Module> referrer) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  if (env->module_map.count(referrer->GetIdentityHash()) == 0) {
-    env->ThrowError("linking error, unknown module");
-    return MaybeLocal<Module>();
-  }
 
   ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
-
   if (dependent == nullptr) {
-    env->ThrowError("linking error, null dep");
+    env->ThrowError("linking error, unknown module");
     return MaybeLocal<Module>();
   }
 
@@ -700,29 +714,37 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   Environment* env = Environment::GetCurrent(context);
   v8::EscapableHandleScope handle_scope(iso);
 
-  if (env->context() != context) {
-    auto maybe_resolver = Promise::Resolver::New(context);
-    Local<Promise::Resolver> resolver;
-    if (maybe_resolver.ToLocal(&resolver)) {
-      // TODO(jkrems): Turn into proper error object w/ code
-      Local<Value> error = v8::Exception::Error(
-        OneByteString(iso, "import() called outside of main context"));
-      if (resolver->Reject(context, error).IsJust()) {
-        return handle_scope.Escape(resolver.As<Promise>());
-      }
-    }
-    return MaybeLocal<Promise>();
-  }
-
   Local<Function> import_callback =
     env->host_import_module_dynamically_callback();
+
   Local<Value> import_args[] = {
     referrer->GetResourceName(),
-    Local<Value>(specifier)
+    Local<Value>(specifier),
+    Undefined(iso),
   };
+
+  Local<PrimitiveArray> host_defined_options =
+    referrer->GetHostDefinedOptions();
+
+  if (host_defined_options->Length() == 2) {
+    int type = host_defined_options->Get(0).As<Integer>()->Value();
+    if (type == contextify::SourceType::kScript) {
+      int id = host_defined_options->Get(1).As<Integer>()->Value();
+      contextify::ContextifyScript* wrap =
+          contextify::ContextifyScript::GetFromID(env, id);
+      CHECK_NE(wrap, nullptr);
+      import_args[2] = wrap->object();
+    } else if (type == contextify::SourceType::kModule) {
+      int id = host_defined_options->Get(1).As<Integer>()->Value();
+      ModuleWrap* wrap = ModuleWrap::GetFromID(env, id);
+      CHECK_NE(wrap, nullptr);
+      import_args[2] = wrap->object();
+    }
+  }
+
   MaybeLocal<Value> maybe_result = import_callback->Call(context,
                                                          v8::Undefined(iso),
-                                                         2,
+                                                         3,
                                                          import_args);
 
   Local<Value> result;
@@ -752,16 +774,18 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
   Environment* env = Environment::GetCurrent(context);
   ModuleWrap* module_wrap = ModuleWrap::GetFromModule(env, module);
 
-  if (module_wrap == nullptr) {
+  if (module_wrap == nullptr)
     return;
-  }
 
-  Local<Object> wrap = module_wrap->object();
   Local<Function> callback =
       env->host_initialize_import_meta_object_callback();
-  Local<Value> args[] = { wrap, meta };
-  callback->Call(context, Undefined(isolate), arraysize(args), args)
-      .ToLocalChecked();
+
+  Local<Value> args[] = { meta, module_wrap->object() };
+
+  TryCatch try_catch(isolate);
+  USE(callback->Call(context, Undefined(isolate), 2, args));
+  if (try_catch.HasCaught())
+    try_catch.ReThrow();
 }
 
 void ModuleWrap::SetInitializeImportMetaObjectCallback(
