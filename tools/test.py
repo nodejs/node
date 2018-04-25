@@ -299,7 +299,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
       if output.HasCrashed():
         self.severity = 'crashed'
         exit_code = output.output.exit_code
-        self.traceback = "oh no!\nexit code: " + PrintCrashed(exit_code)
+        self.traceback += "oh no!\nexit code: " + PrintCrashed(exit_code)
 
       if output.HasTimedOut():
         self.severity = 'fail'
