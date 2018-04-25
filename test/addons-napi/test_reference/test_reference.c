@@ -11,7 +11,7 @@ static napi_value GetFinalizeCount(napi_env env, napi_callback_info info) {
   return result;
 }
 
-void FinalizeExternal(napi_env env, void* data, void* hint) {
+static void FinalizeExternal(napi_env env, void* data, void* hint) {
   int *actual_value = data;
   NAPI_ASSERT_RETURN_VOID(env, actual_value == &test_value,
       "The correct pointer was passed to the finalizer");
