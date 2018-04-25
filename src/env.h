@@ -260,7 +260,6 @@ struct PackageConfig {
   V(promise_string, "promise")                                                \
   V(pubkey_string, "pubkey")                                                  \
   V(query_string, "query")                                                    \
-  V(produce_cached_data_string, "produceCachedData")                          \
   V(psk_string, "psk")                                                        \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
