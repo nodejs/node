@@ -25,7 +25,6 @@ const common = require('./common.js');
 const fs = require('fs');
 const marked = require('marked');
 const path = require('path');
-const preprocess = require('./preprocess.js');
 const typeParser = require('./type-parser.js');
 
 module.exports = toHTML;
@@ -42,76 +41,36 @@ marked.setOptions({
   renderer: renderer
 });
 
-// TODO(chrisdickinson): never stop vomiting / fix this.
-const gtocPath = path.resolve(path.join(
-  __dirname,
-  '..',
-  '..',
-  'doc',
-  'api',
-  '_toc.md'
-));
-var gtocLoading = null;
-var gtocData = null;
+const docPath = path.resolve(__dirname, '..', '..', 'doc');
+
+const gtocPath = path.join(docPath, 'api', '_toc.md');
+const gtocMD = fs.readFileSync(gtocPath, 'utf8').replace(/^@\/\/.*$/gm, '');
+const gtocHTML = marked(gtocMD).replace(
+  /<a href="(.*?)"/g,
+  (all, href) => `<a class="nav-${toID(href)}" href="${href}"`
+);
+
+const templatePath = path.join(docPath, 'template.html');
+const template = fs.readFileSync(templatePath, 'utf8');
+
 var docCreated = null;
 var nodeVersion = null;
 
 /**
- * opts: input, filename, template, nodeVersion.
+ * opts: input, filename, nodeVersion.
  */
 function toHTML(opts, cb) {
-  const template = opts.template;
-
   nodeVersion = opts.nodeVersion || process.version;
   docCreated = opts.input.match(DOC_CREATED_REG_EXP);
 
-  if (gtocData) {
-    return onGtocLoaded();
-  }
-
-  if (gtocLoading === null) {
-    gtocLoading = [onGtocLoaded];
-    return loadGtoc(function(err, data) {
-      if (err) throw err;
-      gtocData = data;
-      gtocLoading.forEach(function(xs) {
-        xs();
-      });
-    });
-  }
-
-  if (gtocLoading) {
-    return gtocLoading.push(onGtocLoaded);
-  }
-
-  function onGtocLoaded() {
-    const lexed = marked.lexer(opts.input);
-    fs.readFile(template, 'utf8', function(er, template) {
-      if (er) return cb(er);
-      render({
-        lexed: lexed,
-        filename: opts.filename,
-        template: template,
-        nodeVersion: nodeVersion,
-        analytics: opts.analytics,
-      }, cb);
-    });
-  }
-}
-
-function loadGtoc(cb) {
-  fs.readFile(gtocPath, 'utf8', function(err, data) {
-    if (err) return cb(err);
-
-    preprocess(gtocPath, data, function(err, data) {
-      if (err) return cb(err);
-
-      data = marked(data).replace(/<a href="(.*?)"/gm, function(a, m) {
-        return `<a class="nav-${toID(m)}" href="${m}"`;
-      });
-      return cb(null, data);
-    });
-  });
+  const lexed = marked.lexer(opts.input);
+  render({
+    lexed: lexed,
+    filename: opts.filename,
+    template: template,
+    nodeVersion: nodeVersion,
+    analytics: opts.analytics,
+  }, cb);
 }
 
 function toID(filename) {
@@ -150,7 +109,7 @@ function render(opts, cb) {
     template = template.replace(/__TOC__/g, toc);
     template = template.replace(
       /__GTOC__/g,
-      gtocData.replace(`class="nav-${id}`, `class="nav-${id} active`)
+      gtocHTML.replace(`class="nav-${id}`, `class="nav-${id} active`)
     );
 
     if (opts.analytics) {

@@ -29,7 +29,6 @@ const fs = require('fs');
 
 const args = process.argv.slice(2);
 let format = 'json';
-let template = null;
 let filename = null;
 let nodeVersion = null;
 let analytics = null;
@@ -39,8 +38,6 @@ args.forEach(function(arg) {
     filename = arg;
   } else if (arg.startsWith('--format=')) {
     format = arg.replace(/^--format=/, '');
-  } else if (arg.startsWith('--template=')) {
-    template = arg.replace(/^--template=/, '');
   } else if (arg.startsWith('--node-version=')) {
     nodeVersion = arg.replace(/^--node-version=/, '');
   } else if (arg.startsWith('--analytics=')) {
@@ -71,7 +68,7 @@ function next(er, input) {
       break;
 
     case 'html':
-      require('./html')({ input, filename, template, nodeVersion, analytics },
+      require('./html')({ input, filename, nodeVersion, analytics },
                         (err, html) => {
                           if (err) throw err;
                           console.log(html);

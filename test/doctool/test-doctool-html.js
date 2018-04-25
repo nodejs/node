@@ -10,7 +10,6 @@ try {
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const fixtures = require('../common/fixtures');
 const processIncludes = require('../../tools/doc/preprocess.js');
 const html = require('../../tools/doc/html.js');
@@ -107,7 +106,6 @@ testData.forEach((item) => {
         {
           input: preprocessed,
           filename: 'foo',
-          template: path.resolve(__dirname, '../../doc/template.html'),
           nodeVersion: process.version,
           analytics: item.analyticsId,
         },
