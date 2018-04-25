@@ -2388,38 +2388,29 @@ void FatalException(Isolate* isolate,
   Local<Function> fatal_exception_function =
       process_object->Get(fatal_exception_string).As<Function>();
 
-  int exit_code = 0;
   if (!fatal_exception_function->IsFunction()) {
-    // failed before the process._fatalException function was added!
+    // Failed before the process._fatalException function was added!
     // this is probably pretty bad.  Nothing to do but report and exit.
     ReportException(env, error, message);
-    exit_code = 6;
-  }
-
-  if (exit_code == 0) {
+    exit(6);
+  } else {
     TryCatch fatal_try_catch(isolate);
 
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
 
-    // this will return true if the JS layer handled it, false otherwise
+    // This will return true if the JS layer handled it, false otherwise
     Local<Value> caught =
         fatal_exception_function->Call(process_object, 1, &error);
 
     if (fatal_try_catch.HasCaught()) {
-      // the fatal exception function threw, so we must exit
+      // The fatal exception function threw, so we must exit
       ReportException(env, fatal_try_catch);
-      exit_code = 7;
-    }
-
-    if (exit_code == 0 && false == caught->BooleanValue()) {
+      exit(7);
+    } else if (caught->IsFalse()) {
       ReportException(env, error, message);
-      exit_code = 1;
+      exit(1);
     }
-  }
-
-  if (exit_code) {
-    exit(exit_code);
   }
 }
 
