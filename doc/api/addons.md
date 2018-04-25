@@ -595,6 +595,8 @@ class MyObject : public node::ObjectWrap {
   static void PlusOne(const v8::FunctionCallbackInfo<v8::Value>& args);
   static v8::Persistent<v8::Function> constructor;
   double value_;
+  napi_env env_;
+  napi_ref wrapper_;
 };
 
 }  // namespace demo
@@ -609,6 +611,8 @@ prototype:
 ```cpp
 // myobject.cc
 #include "myobject.h"
+#include <iostream>
+using std::cout;
 
 namespace demo {
 
@@ -630,6 +634,9 @@ MyObject::MyObject(double value) : value_(value) {
 }
 
 MyObject::~MyObject() {
+  cout << "Deleting object \n";
+  napi_delete_reference(env_, wrapper_);
+  cout << "Deleted object \n";
 }
 
 void MyObject::Init(Local<Object> exports) {
@@ -704,14 +711,20 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-const obj = new addon.MyObject(10);
+let obj = new addon.MyObject(10);
 console.log(obj.plusOne());
 // Prints: 11
 console.log(obj.plusOne());
 // Prints: 12
 console.log(obj.plusOne());
 // Prints: 13
+
+obj = null;
+global.gc();
+// Prints: Deleting object
 ```
+Note that, in this example, the garbage collector is executed explicitly to
+properly invoke the wrapper objects' destructor. 
 
 ### Factory of wrapped objects
 
