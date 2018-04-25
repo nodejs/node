@@ -144,8 +144,7 @@ tcp port and communicate using the [Chrome DevTools Protocol][].
 added: v7.10.0
 -->
 
-Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
-(experimental).
+This option is a no-op. It is kept for compatibility.
 
 
 ### `--no-deprecation`
