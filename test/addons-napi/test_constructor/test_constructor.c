@@ -4,7 +4,7 @@
 static double value_ = 1;
 static double static_value_ = 10;
 
-napi_value GetValue(napi_env env, napi_callback_info info) {
+static napi_value GetValue(napi_env env, napi_callback_info info) {
   size_t argc = 0;
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, NULL, NULL, NULL));
 
@@ -16,7 +16,7 @@ napi_value GetValue(napi_env env, napi_callback_info info) {
   return number;
 }
 
-napi_value SetValue(napi_env env, napi_callback_info info) {
+static napi_value SetValue(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -28,7 +28,7 @@ napi_value SetValue(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value Echo(napi_env env, napi_callback_info info) {
+static napi_value Echo(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
@@ -38,14 +38,14 @@ napi_value Echo(napi_env env, napi_callback_info info) {
   return args[0];
 }
 
-napi_value New(napi_env env, napi_callback_info info) {
+static napi_value New(napi_env env, napi_callback_info info) {
   napi_value _this;
   NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
 
   return _this;
 }
 
-napi_value GetStaticValue(napi_env env, napi_callback_info info) {
+static napi_value GetStaticValue(napi_env env, napi_callback_info info) {
   size_t argc = 0;
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, NULL, NULL, NULL));
 
@@ -58,7 +58,7 @@ napi_value GetStaticValue(napi_env env, napi_callback_info info) {
 }
 
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_value number;
   NAPI_CALL(env, napi_create_double(env, value_, &number));
 

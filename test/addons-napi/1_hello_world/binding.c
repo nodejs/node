@@ -2,7 +2,7 @@
 #include "../common.h"
 #include <string.h>
 
-napi_value Method(napi_env env, napi_callback_info info) {
+static napi_value Method(napi_env env, napi_callback_info info) {
   napi_value world;
   const char* str = "world";
   size_t str_len = strlen(str);
