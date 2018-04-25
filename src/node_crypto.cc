@@ -2096,7 +2096,8 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
   EVP_PKEY* key;
 
   if (SSL_get_server_tmp_key(w->ssl_, &key)) {
-    switch (EVP_PKEY_id(key)) {
+    int kid = EVP_PKEY_id(key);
+    switch (kid) {
       case EVP_PKEY_DH:
         info->Set(context, env->type_string(),
                   FIXED_ONE_BYTE_STRING(env->isolate(), "DH")).FromJust();
@@ -2104,19 +2105,29 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
                   Integer::New(env->isolate(), EVP_PKEY_bits(key))).FromJust();
         break;
       case EVP_PKEY_EC:
+      // TODO(shigeki) Change this to EVP_PKEY_X25519 and add EVP_PKEY_X448
+      // after upgrading to 1.1.1.
+      case NID_X25519:
         {
-          EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
-          int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
-          EC_KEY_free(ec);
+          const char* curve_name;
+          if (kid == EVP_PKEY_EC) {
+            EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
+            int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
+            curve_name = OBJ_nid2sn(nid);
+            EC_KEY_free(ec);
+          } else {
+            curve_name = OBJ_nid2sn(kid);
+          }
           info->Set(context, env->type_string(),
                     FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH")).FromJust();
           info->Set(context, env->name_string(),
                     OneByteString(args.GetIsolate(),
-                                  OBJ_nid2sn(nid))).FromJust();
+                                  curve_name)).FromJust();
           info->Set(context, env->size_string(),
                     Integer::New(env->isolate(),
                                  EVP_PKEY_bits(key))).FromJust();
         }
+        break;
     }
     EVP_PKEY_free(key);
   }
