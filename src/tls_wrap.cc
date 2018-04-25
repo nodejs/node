@@ -291,12 +291,22 @@ void TLSWrap::EncOut() {
 
   NODE_COUNT_NET_BYTES_SENT(write_size_);
 
-  if (!res.async) {
-    // Simulate asynchronous finishing, TLS cannot handle this at the moment.
-    env()->isolate()->EnqueueMicrotask([](void* data) {
-      static_cast<TLSWrap*>(data)->OnStreamAfterWrite(nullptr, 0);
-    }, this);
-  }
+  if (!res.async)
+    SyncAfterWrite();
+}
+
+// Simulate asynchronous finishing, TLS cannot handle this at the moment.
+void TLSWrap::SyncAfterWrite() {
+  env()->isolate()->EnqueueMicrotask([](void* data) {
+    TLSWrap* wrap = static_cast<TLSWrap*>(data);
+    wrap->MakeWeak(wrap);
+    wrap->OnStreamAfterWrite(nullptr, 0);
+  }, this);
+  ClearWeak();
+  // This is a cheap way for us to ensure that microtasks will get to run
+  // at some point in the near future.
+  if (env()->immediate_info()->count() == 0)
+    env()->SetImmediate([](Environment* env, void* data) {}, this);
 }
 
 
