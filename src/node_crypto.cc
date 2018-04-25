@@ -1391,14 +1391,15 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetPskIdentity(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
+  Environment* env = wrap->env();
 
-  if (!args[0]->IsString()) {
-    return wrap->env()->ThrowTypeError("Argument must be a string");
-  }
+  CHECK(args[0]->IsString());
 
   String::Utf8Value identity(args.GetIsolate(), args[0]);
   if (!SSL_CTX_use_psk_identity_hint(wrap->ctx_, *identity)) {
-    return wrap->env()->ThrowError("Failed to set PSK identity hint");
+    return ThrowCryptoError(env,
+                            ERR_get_error(),
+                            "Failed to set PSK identity hint");
   }
 }
 
@@ -1412,9 +1413,9 @@ void SecureContext::EnablePskCallback(
                                   SecureContext::PskClientCallback);
 }
 
-unsigned int SecureContext::PskServerCallback(SSL *ssl,
-                                              const char *identity,
-                                              unsigned char *psk,
+unsigned int SecureContext::PskServerCallback(SSL* ssl,
+                                              const char* identity,
+                                              unsigned char* psk,
                                               unsigned int max_psk_len) {
   SecureContext* sc = static_cast<SecureContext*>(
       SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
@@ -1423,35 +1424,30 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
-  MaybeLocal<String> hint_str = String::NewFromUtf8(
+  MaybeLocal<String> maybe_hint_str = String::NewFromOneByte(
     isolate,
-    identity,
-    v8::NewStringType::kNormal,
-    strlen(identity));
+    reinterpret_cast<const uint8_t*>(identity),
+    v8::NewStringType::kNormal);
 
-  if (hint_str.IsEmpty()) {
+  Local<String> hint_str;
+  if (!maybe_hint_str.ToLocal(&hint_str))
     return 0;
-  }
 
   Local<Value> argv[] = {
-    hint_str.ToLocalChecked(),
+    hint_str,
     Integer::NewFromUnsigned(isolate, max_psk_len),
     Integer::NewFromUnsigned(isolate, 0)
   };
 
-  Local<Value> value = sc->object()->Get(env->onpskexchange_string());
+  MaybeLocal<Value> maybe_ret = node::MakeCallback(env->isolate(),
+                                                   sc->object(),
+                                                   env->onpskexchange_string(),
+                                                   arraysize(argv),
+                                                   argv,
+                                                   {0, 0});
 
-  MaybeLocal<Value> maybe_ret;
-  if (value->IsFunction()) {
-    Local<Function> func = value.As<Function>();
-    maybe_ret = func->Call(env->context(), sc->object(), arraysize(argv), argv);
-  } else {
+  if (maybe_ret.IsEmpty())
     return 0;
-  }
-
-  if (maybe_ret.IsEmpty()) {
-    return 0;
-  }
 
   Local<Value> ret = maybe_ret.ToLocalChecked();
 
@@ -1464,7 +1460,9 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
 
   Local<Value> psk_val = obj->Get(env->context(),
                                   env->psk_string()).ToLocalChecked();
-  CHECK(psk_val->IsString());
+  if (!psk_val->IsString())
+    return 0;
+
   Local<String> psk_str = psk_val.As<String>();
 
   Local<String> enc = String::Empty(isolate);
@@ -1475,17 +1473,19 @@ unsigned int SecureContext::PskServerCallback(SSL *ssl,
   char* psk_buf = decoder.out();
   size_t psk_len = decoder.size();
 
-  CHECK_LE(psk_len, max_psk_len);
+  if (psk_len > max_psk_len)
+    return 0;
+
   memcpy(psk, psk_buf, psk_len);
 
   return psk_len;
 }
 
-unsigned int SecureContext::PskClientCallback(SSL *ssl,
-                                              const char *hint,
-                                              char *identity,
+unsigned int SecureContext::PskClientCallback(SSL* ssl,
+                                              const char* hint,
+                                              char* identity,
                                               unsigned int max_identity_len,
-                                              unsigned char *psk,
+                                              unsigned char* psk,
                                               unsigned int max_psk_len) {
   SecureContext* sc = static_cast<SecureContext*>(
       SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
@@ -1500,44 +1500,41 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
     Integer::NewFromUnsigned(isolate, max_identity_len)
   };
   if (hint != nullptr) {
-    MaybeLocal<String> hint_str = String::NewFromUtf8(
+    MaybeLocal<String> maybe_hint_str = String::NewFromOneByte(
       isolate,
-      hint,
-      v8::NewStringType::kNormal,
-      strlen(hint));
+      reinterpret_cast<const uint8_t*>(hint),
+      v8::NewStringType::kNormal);
 
-    if (hint_str.IsEmpty()) {
+    Local<String> hint_str;
+    if (!maybe_hint_str.ToLocal(&hint_str))
       return 0;
-    }
 
-    argv[0] = hint_str.ToLocalChecked();
+    argv[0] = hint_str;
   }
-  Local<Value> value = sc->object()->Get(env->onpskexchange_string());
+  MaybeLocal<Value> maybe_ret = node::MakeCallback(env->isolate(),
+                                                   sc->object(),
+                                                   env->onpskexchange_string(),
+                                                   arraysize(argv),
+                                                   argv,
+                                                   {0, 0});
 
-  MaybeLocal<Value> maybe_ret;
-  if (value->IsFunction()) {
-    Local<Function> func = value.As<Function>();
-    maybe_ret = func->Call(env->context(), sc->object(), arraysize(argv), argv);
-  } else {
+  if (maybe_ret.IsEmpty())
     return 0;
-  }
-
-  if (maybe_ret.IsEmpty()) {
-    return 0;
-  }
 
   Local<Value> ret = maybe_ret.ToLocalChecked();
 
   // The result is expected to be an object. If it isn't, then return 0,
   // indicating the identity wasn't found.
-  if (!ret->IsObject()) {
+  if (!ret->IsObject())
     return 0;
-  }
+
   Local<Object> obj = ret.As<Object>();
 
   Local<Value> psk_val = obj->Get(env->context(),
                                   env->psk_string()).ToLocalChecked();
-  CHECK(psk_val->IsString());
+  if (!psk_val->IsString())
+    return 0;
+
   Local<String> psk_str = psk_val.As<String>();
 
   Local<String> enc = String::Empty(isolate);
@@ -1548,19 +1545,24 @@ unsigned int SecureContext::PskClientCallback(SSL *ssl,
   char* psk_buf = decoder.out();
   size_t psk_len = decoder.size();
 
-  CHECK_LE(psk_len, max_psk_len);
+  if (psk_len > max_psk_len)
+    return 0;
+
   memcpy(psk, psk_buf, psk_len);
 
   Local<Value> identity_val = obj->Get(
     env->context(),
     env->identity_string()).ToLocalChecked();
-  CHECK(identity_val->IsString());
+  if (!identity_val->IsString())
+    return 0;
 
   Local<String> identity_str = identity_val.As<String>();
   size_t identity_len = identity_str->Length();
   String::Utf8Value identity_buf(isolate, identity_str);
 
-  CHECK_LE(identity_len, max_identity_len);
+  if (identity_len > max_identity_len)
+    return 0;
+
   memcpy(identity, *identity_buf, identity_len);
 
   return psk_len;

@@ -154,10 +154,7 @@ struct PackageConfig {
   V(duration_string, "duration")                                              \
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
-  V(enumerable_string, "enumerable")                                          \
   V(identity_string, "identity")                                              \
-  V(idle_string, "idle")                                                      \
-  V(irq_string, "irq")                                                        \
   V(enablepush_string, "enablePush")                                          \
   V(encoding_string, "encoding")                                              \
   V(entries_string, "entries")                                                \

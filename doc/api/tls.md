@@ -115,9 +115,6 @@ SNI (Server Name Indication) are TLS handshake extensions:
 * SNI - Allows the use of one TLS server for multiple hostnames with different
   SSL certificates.
 
-*Note*: Use of ALPN is recommended over NPN. The NPN extension has never been
-formally defined or documented and generally not recommended for use.
-
 ### Pre-shared keys
 
 <!-- type=misc -->
@@ -922,12 +919,6 @@ changes:
     session.
     * *Note*: `psk` must be a hexadecimal string,
     `identity` must use UTF-8 encoding.
-  * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
-    `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
-    format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
-    first byte is the length of the next protocol name. Passing an array is
-    usually much simpler, e.g. `['hello', 'world']`.
   * `ALPNProtocols`: {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
     An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing the supported ALPN protocols. `Buffer`s should have
