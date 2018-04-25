@@ -2130,7 +2130,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
       // after upgrading to 1.1.1.
       case NID_X25519:
         {
-          const char *curve_name;
+          const char* curve_name;
           if (kid == EVP_PKEY_EC) {
             EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
             int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
@@ -2148,6 +2148,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
                     Integer::New(env->isolate(),
                                  EVP_PKEY_bits(key))).FromJust();
         }
+        break;
     }
     EVP_PKEY_free(key);
   }
