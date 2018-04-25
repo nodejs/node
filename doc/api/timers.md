@@ -74,6 +74,21 @@ When called, requests that the Node.js event loop *not* exit so long as the
 By default, all `Timeout` objects are "ref'ed", making it normally unnecessary
 to call `timeout.ref()` unless `timeout.unref()` had been called previously.
 
+### timeout.refresh()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Timeout} a reference to `timeout`
+
+Sets the timer's start time to the current time, and reschedules the timer to
+call its callback at the previously specified duration adjusted to the current
+time. This is useful for refreshing a timer without allocating a new
+JavaScript object.
+
+Using this on a timer that has already called its callback will reactivate the
+timer.
+
 ### timeout.unref()
 <!-- YAML
 added: v0.9.1
