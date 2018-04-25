@@ -1674,7 +1674,6 @@ TEST(FunctionDetailsInlining) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
-  ProfilerHelper helper(env);
 
   // alpha is in a_script, beta in b_script. beta is
   // inlined in alpha, but it should be attributed to b_script.
