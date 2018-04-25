@@ -292,12 +292,10 @@ void TLSWrap::EncOut() {
   NODE_COUNT_NET_BYTES_SENT(write_size_);
 
   if (!res.async) {
-    HandleScope handle_scope(env()->isolate());
-
     // Simulate asynchronous finishing, TLS cannot handle this at the moment.
-    env()->SetImmediate([](Environment* env, void* data) {
+    env()->isolate()->EnqueueMicrotask([](void* data) {
       static_cast<TLSWrap*>(data)->OnStreamAfterWrite(nullptr, 0);
-    }, this, object());
+    }, this);
   }
 }
 
