@@ -88,7 +88,7 @@ const caArrDataView = toDataView(caCert);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "key" argument must be one of type string, Buffer, ' +
+    message: 'The "options.key" property must be one of type string, Buffer, ' +
              `TypedArray, or DataView. Received type ${type}`
   });
 });
@@ -113,8 +113,8 @@ const caArrDataView = toDataView(caCert);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "cert" argument must be one of type string, Buffer, ' +
-             `TypedArray, or DataView. Received type ${type}`
+    message: 'The "options.cert" property must be one of type string, Buffer,' +
+             ` TypedArray, or DataView. Received type ${type}`
   });
 });
 
@@ -147,7 +147,7 @@ const caArrDataView = toDataView(caCert);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "ca" argument must be one of type string, Buffer, ' +
+    message: 'The "options.ca" property must be one of type string, Buffer, ' +
              `TypedArray, or DataView. Received type ${type}`
   });
 });
