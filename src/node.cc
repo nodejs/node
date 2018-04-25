@@ -2388,15 +2388,12 @@ void FatalException(Isolate* isolate,
   Local<Function> fatal_exception_function =
       process_object->Get(fatal_exception_string).As<Function>();
 
-  int exit_code = 0;
   if (!fatal_exception_function->IsFunction()) {
     // failed before the process._fatalException function was added!
     // this is probably pretty bad.  Nothing to do but report and exit.
     ReportException(env, error, message);
-    exit_code = 6;
-  }
-
-  if (exit_code == 0) {
+    exit(6);
+  } else {
     TryCatch fatal_try_catch(isolate);
 
     // Do not call FatalException when _fatalException handler throws
@@ -2409,17 +2406,11 @@ void FatalException(Isolate* isolate,
     if (fatal_try_catch.HasCaught()) {
       // the fatal exception function threw, so we must exit
       ReportException(env, fatal_try_catch);
-      exit_code = 7;
-    }
-
-    if (exit_code == 0 && false == caught->BooleanValue()) {
+      exit(7);
+    } else if (false == caught->BooleanValue()) {
       ReportException(env, error, message);
-      exit_code = 1;
+      exit(1);
     }
-  }
-
-  if (exit_code) {
-    exit(exit_code);
   }
 }
 
