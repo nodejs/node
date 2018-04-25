@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 const includeExpr = /^@include\s+([\w-]+)(?:\.md)?$/gmi;
-const commentExpr = /^@\/\/.*$/gmi;
+const commentExpr = /^@\/\/.*$/gm;
 
 function processIncludes(inputFile, input, cb) {
   const includes = input.match(includeExpr);
