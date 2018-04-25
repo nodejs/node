@@ -44,6 +44,8 @@
 #endif  // !OPENSSL_NO_ENGINE
 #include <openssl/err.h>
 #include <openssl/evp.h>
+// TODO(shigeki) Remove this after upgrading to 1.1.1
+#include <openssl/obj_mac.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
