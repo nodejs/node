@@ -71,6 +71,11 @@
                 '--extra-gn-args', '<(build_v8_with_gn_extra_gn_args)',
               ],
             }],
+            ['build_v8_with_gn_bundled_win_toolchain_root != ""', {
+              'action': [
+                '--bundled-win-toolchain-root', '<(build_v8_with_gn_bundled_win_toolchain_root)',
+              ],
+            }],
           ],
         },
         {
