@@ -680,13 +680,13 @@
       'toolsets': ['host'],
       'conditions': [
         [ 'v8_enable_inspector==1', {
-          'actions': [
+          'copies': [
             {
-              'action_name': 'v8_inspector_copy_protocol_to_intermediate_folder',
-              'inputs': [ 'deps/v8/src/inspector/js_protocol.pdl' ],
-              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/js_protocol.pdl' ],
-              'action': [ 'cp', '<@(_inputs)', '<(SHARED_INTERMEDIATE_DIR)' ],
-            },
+              'destination': '<(SHARED_INTERMEDIATE_DIR)',
+              'files': ['deps/v8/src/inspector/js_protocol.pdl']
+            }
+          ],
+          'actions': [
             {
               'action_name': 'v8_inspector_convert_protocol_to_json',
               'inputs': [
