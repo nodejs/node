@@ -1892,7 +1892,7 @@ Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
-string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
+string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
 The optional `callback` parameter will be added as a one-time listener for
@@ -2027,6 +2027,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`TypeError`]: errors.html#errors_class_typeerror
 [`URL`]: url.html#url_the_whatwg_url_api
+[`new URL()`]: url.html#url_constructor_new_url_input_base
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
