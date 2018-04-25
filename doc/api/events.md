@@ -372,6 +372,17 @@ console.log(util.inspect(server.listeners('connection')));
 // Prints: [ [Function] ]
 ```
 
+### emitter.off(eventName, listener)
+<!-- YAML
+added: v10.0.0
+-->
+
+* `eventName` {string|symbol}
+* `listener` {Function}
+* Returns: {EventEmitter}
+
+Alias for `emitter.removeListener(eventName, listener)`.
+
 ### emitter.on(eventName, listener)
 <!-- YAML
 added: v0.1.101
