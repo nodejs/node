@@ -411,6 +411,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4777
     description: The `cachedData` and `produceCachedData` options are
                  supported now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20300
+    description: The `produceCachedData` is deprecated in favour of
+                 `script.createCachedData()`
 -->
 
 * `code` {string} The JavaScript code to compile.
@@ -431,10 +435,38 @@ changes:
     `cachedData` property of the returned `vm.Script` instance.
     The `cachedDataProduced` value will be set to either `true` or `false`
     depending on whether code cache data is produced successfully.
+    This option is deprecated in favor of `script.createCachedData`.
 
 Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. The `code` is not bound to
 any global object; rather, it is bound before each run, just for that run.
+
+### script.createCachedData()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Buffer}
+
+Creates a code cache that can be used with the Script constructor's
+`cachedData` option. Returns a Buffer. This method may be called at any
+time and any number of times.
+
+```js
+const script = new vm.Script(`
+function add(a, b) {
+  return a + b;
+}
+
+const x = add(1, 2);
+`);
+
+const cacheWithoutX = script.createCachedData();
+
+script.runInThisContext();
+
+const cacheWithX = script.createCachedData();
+```
 
 ### script.runInContext(contextifiedSandbox[, options])
 <!-- YAML
