@@ -107,7 +107,7 @@ pass or fail).
 
 For *all* [`EventEmitter`][] objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
-unhandled exception and crash unless either: The [`domain`][domains] module is
+uncaught exception and crash unless either: The [`domain`][domains] module is
 used appropriately or a handler has been registered for the
 [`'uncaughtException'`][] event.
 
