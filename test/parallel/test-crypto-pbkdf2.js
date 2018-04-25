@@ -123,7 +123,8 @@ assert.throws(
   });
 
 [1, {}, [], true, undefined, null].forEach((input) => {
-  const msgPart2 = `Buffer, or TypedArray. Received type ${typeof input}`;
+  const msgPart2 = 'Buffer, TypedArray, or DataView.' +
+                   ` Received type ${typeof input}`;
   assert.throws(
     () => crypto.pbkdf2(input, 'salt', 8, 8, 'sha256', common.mustNotCall()),
     {
