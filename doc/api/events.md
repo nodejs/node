@@ -372,6 +372,17 @@ console.log(util.inspect(server.listeners('connection')));
 // Prints: [ [Function] ]
 ```
 
+### emitter.off(eventName, listener)
+<!-- YAML
+added: v10.0.0
+-->
+
+* `eventName` {string|symbol}
+* `listener` {Function}
+* Returns: {EventEmitter}
+
+Alias for [`emitter.removeListener()`][].
+
 ### emitter.on(eventName, listener)
 <!-- YAML
 added: v0.1.101
@@ -626,6 +637,7 @@ emitter.emit('log');
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`domain`]: domain.html
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
+[`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server
