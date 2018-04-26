@@ -687,7 +687,9 @@ class Environment {
   inline v8::Local<v8::FunctionTemplate>
       NewFunctionTemplate(v8::FunctionCallback callback,
                           v8::Local<v8::Signature> signature =
-                              v8::Local<v8::Signature>());
+                              v8::Local<v8::Signature>(),
+                          v8::ConstructorBehavior behavior =
+                              v8::ConstructorBehavior::kAllow);
 
   // Convenience methods for NewFunctionTemplate().
   inline void SetMethod(v8::Local<v8::Object> that,
