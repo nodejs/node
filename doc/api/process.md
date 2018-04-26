@@ -45,6 +45,8 @@ the IPC channel is closed.
 added: v0.1.7
 -->
 
+* `code` {integer}
+
 The `'exit'` event is emitted when the Node.js process is about to exit as a
 result of either:
 
@@ -56,7 +58,7 @@ all `'exit'` listeners have finished running the Node.js process will terminate.
 
 The listener callback function is invoked with the exit code specified either
 by the [`process.exitCode`][] property, or the `exitCode` argument passed to the
-[`process.exit()`] method, as the only argument.
+[`process.exit()`] method.
 
 ```js
 process.on('exit', (code) => {
@@ -82,15 +84,14 @@ process.on('exit', (code) => {
 added: v0.5.10
 -->
 
+* `message` {Object} a parsed JSON object or primitive value.
+* `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
+  object, or undefined.
+
 If the Node.js process is spawned with an IPC channel (see the [Child Process][]
 and [Cluster][] documentation), the `'message'` event is emitted whenever a
 message sent by a parent process using [`childprocess.send()`][] is received by
 the child process.
-
-The listener callback is invoked with the following arguments:
-* `message` {Object} a parsed JSON object or primitive value.
-* `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
-  object, or undefined.
 
 The message goes through serialization and parsing. The resulting message might
 not be the same as what is originally sent.
@@ -100,12 +101,11 @@ not be the same as what is originally sent.
 added: v1.4.1
 -->
 
+* `promise` {Promise} The late handled promise.
+
 The `'rejectionHandled'` event is emitted whenever a `Promise` has been rejected
 and an error handler was attached to it (using [`promise.catch()`][], for
 example) later than one turn of the Node.js event loop.
-
-The listener callback is invoked with a reference to the rejected `Promise` as
-the only argument.
 
 The `Promise` object would have previously been emitted in an
 `'unhandledRejection'` event, but during the course of processing gained a
@@ -129,11 +129,11 @@ when the list of unhandled rejections shrinks.
 
 ```js
 const unhandledRejections = new Map();
-process.on('unhandledRejection', (reason, p) => {
-  unhandledRejections.set(p, reason);
+process.on('unhandledRejection', (reason, promise) => {
+  unhandledRejections.set(promise, reason);
 });
-process.on('rejectionHandled', (p) => {
-  unhandledRejections.delete(p);
+process.on('rejectionHandled', (promise) => {
+  unhandledRejections.delete(promise);
 });
 ```
 
@@ -261,6 +261,12 @@ being emitted. Alternatively, the [`'rejectionHandled'`][] event may be used.
 added: v6.0.0
 -->
 
+* `warning` {Error} Key properties of the warning are:
+  * `name` {string} The name of the warning. **Default:** `'Warning'`.
+  * `message` {string} A system-provided description of the warning.
+  * `stack` {string} A stack trace to the location in the code where the warning
+    was issued.
+
 The `'warning'` event is emitted whenever Node.js emits a process warning.
 
 A process warning is similar to an error in that it describes exceptional
@@ -268,14 +274,6 @@ conditions that are being brought to the user's attention. However, warnings
 are not part of the normal Node.js and JavaScript error handling flow.
 Node.js can emit warnings whenever it detects bad coding practices that could
 lead to sub-optimal application performance, bugs, or security vulnerabilities.
-
-The listener function is called with a single `warning` argument whose value is
-an `Error` object. There are three key properties that describe the warning:
-
-* `name` {string} The name of the warning (currently `'Warning'` by default).
-* `message` {string} A system-provided description of the warning.
-* `stack` {string} A stack trace to the location in the code where the warning
-  was issued.
 
 ```js
 process.on('warning', (warning) => {

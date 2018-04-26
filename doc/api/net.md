@@ -388,7 +388,7 @@ added: v0.3.4
 Creates a new socket object.
 
 * `options` {Object} Available options are:
-  * `fd`: {number} If specified, wrap around an existing socket with
+  * `fd` {number} If specified, wrap around an existing socket with
     the given file descriptor, otherwise a new socket will be created.
   * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
     are allowed. See [`net.createServer()`][] and the [`'end'`][] event
