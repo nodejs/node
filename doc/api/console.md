@@ -364,9 +364,7 @@ console.table(Symbol());
 
 console.table(undefined);
 // undefined
-```
 
-```js
 console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }]);
 // ┌─────────┬─────┬─────┐
 // │ (index) │  a  │  b  │
@@ -374,9 +372,7 @@ console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }]);
 // │    0    │  1  │ 'Y' │
 // │    1    │ 'Z' │  2  │
 // └─────────┴─────┴─────┘
-```
 
-```js
 console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 // ┌─────────┬─────┐
 // │ (index) │  a  │
@@ -494,17 +490,6 @@ This method does not display anything unless used in the inspector. Stops the
 current JavaScript CPU profiling session if one has been started and prints
 the report to the **Profiles** panel of the inspector. See
 [`console.profile()`][] for an example.
-
-### console.table(array[, columns])
-<!-- YAML
-added: v8.0.0
--->
-* `array` {Array|Object}
-* `columns` {string[]} Display only selected properties of objects in the
-  `array`.
-
-This method does not display anything unless used in the inspector. Prints to
-`stdout` the array `array` formatted as a table.
 
 ### console.timeStamp([label])
 <!-- YAML
