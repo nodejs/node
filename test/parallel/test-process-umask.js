@@ -43,8 +43,17 @@ assert.strictEqual(old, process.umask());
 
 assert.throws(() => {
   process.umask({});
-}, /argument must be an integer or octal string/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "mask" argument must be one of type number, string, or ' +
+    'undefined. Received type object'
+});
 
-assert.throws(() => {
-  process.umask('123x');
-}, /invalid octal string/);
+['123x', 'abc', '999'].forEach((value) => {
+  assert.throws(() => {
+    process.umask(value);
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: `The argument 'mask' must be an octal string. Received '${value}'`
+  });
+});
