@@ -583,9 +583,11 @@ inline void Environment::ThrowUVException(int errorno,
 
 inline v8::Local<v8::FunctionTemplate>
     Environment::NewFunctionTemplate(v8::FunctionCallback callback,
-                                     v8::Local<v8::Signature> signature) {
+                                     v8::Local<v8::Signature> signature,
+                                     v8::ConstructorBehavior behavior) {
   v8::Local<v8::External> external = as_external();
-  return v8::FunctionTemplate::New(isolate(), callback, external, signature);
+  return v8::FunctionTemplate::New(isolate(), callback, external,
+                                   signature, 0, behavior);
 }
 
 inline void Environment::SetMethod(v8::Local<v8::Object> that,
@@ -605,7 +607,8 @@ inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
                                         const char* name,
                                         v8::FunctionCallback callback) {
   v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
-  v8::Local<v8::FunctionTemplate> t = NewFunctionTemplate(callback, signature);
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, signature, v8::ConstructorBehavior::kThrow);
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
