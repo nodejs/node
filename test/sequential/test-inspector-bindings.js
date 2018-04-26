@@ -81,7 +81,7 @@ function testSampleDebugSession() {
   try {
     secondSession.connect();
     secondSessionOpened = true;
-  } catch (error) {
+  } catch {
     // expected as the session already exists
   }
   assert.strictEqual(secondSessionOpened, false);

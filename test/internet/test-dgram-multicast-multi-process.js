@@ -170,7 +170,7 @@ if (process.argv[2] !== 'child') {
     const buf = messages[i++];
 
     if (!buf) {
-      try { sendSocket.close(); } catch (e) {}
+      try { sendSocket.close(); } catch {}
       return;
     }
 
