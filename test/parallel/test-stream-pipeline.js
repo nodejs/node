@@ -142,7 +142,7 @@ common.crashOnUnhandledRejection();
       }
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   server.listen(0, () => {
@@ -177,7 +177,7 @@ common.crashOnUnhandledRejection();
       })
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   server.listen(0, () => {
@@ -206,7 +206,7 @@ common.crashOnUnhandledRejection();
       })
     });
 
-    pipeline(rs, res);
+    pipeline(rs, res, () => {});
   });
 
   let cnt = 10;
@@ -480,4 +480,36 @@ common.crashOnUnhandledRejection();
   }
 
   run();
+}
+
+{
+  const read = new Readable({
+    read() {}
+  });
+
+  const transform = new Transform({
+    transform(data, enc, cb) {
+      cb(new Error('kaboom'));
+    }
+  });
+
+  const write = new Writable({
+    write(data, enc, cb) {
+      cb();
+    }
+  });
+
+  read.on('close', common.mustCall());
+  transform.on('close', common.mustCall());
+  write.on('close', common.mustCall());
+
+  process.on('uncaughtException', common.mustCall((err) => {
+    assert.deepStrictEqual(err, new Error('kaboom'));
+  }));
+
+  const dst = pipeline(read, transform, write);
+
+  assert.strictEqual(dst, write);
+
+  read.push('hello');
 }
