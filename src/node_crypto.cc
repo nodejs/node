@@ -3032,13 +3032,27 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
     auth_tag_set_ = true;
   }
 
-  *out_len = len + EVP_CIPHER_CTX_block_size(ctx_);
-  *out = Malloc<unsigned char>(static_cast<size_t>(*out_len));
+  *out_len = 0;
+  int buff_len = len + EVP_CIPHER_CTX_block_size(ctx_);
+  // For key wrapping algorithms, get output size by calling
+  // EVP_CipherUpdate() with null output.
+  if (mode == EVP_CIPH_WRAP_MODE &&
+      EVP_CipherUpdate(ctx_,
+                       nullptr,
+                       &buff_len,
+                       reinterpret_cast<const unsigned char*>(data),
+                       len) != 1) {
+    return kErrorState;
+  }
+
+  *out = Malloc<unsigned char>(buff_len);
   int r = EVP_CipherUpdate(ctx_,
                            *out,
                            out_len,
                            reinterpret_cast<const unsigned char*>(data),
                            len);
+
+  CHECK_LE(*out_len, buff_len);
 
   // When in CCM mode, EVP_CipherUpdate will fail if the authentication tag is
   // invalid. In that case, remember the error and throw in final().
