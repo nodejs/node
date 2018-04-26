@@ -120,16 +120,11 @@ async function tests() {
     const readable = new Readable({
       read() {}
     });
+    const iterator = readable[Symbol.asyncIterator]();
 
-    let err;
-    try {
-      const iterator = readable[Symbol.asyncIterator]();
-      readable.destroy(new Error('kaboom'));
-      await iterator.next();
-    } catch (e) {
-      err = e;
-    }
-    assert.strictEqual(err.message, 'kaboom');
+    const err = new Error('kaboom');
+    readable.destroy(new Error('kaboom'));
+    await assert.rejects(iterator.next.bind(iterator), err)
   })();
 
   await (async function() {
