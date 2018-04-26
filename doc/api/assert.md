@@ -102,31 +102,25 @@ It can be accessed using:
 const assert = require('assert').strict;
 ```
 
-Example error diff (the `expected`, `actual`, and `Lines skipped` will be on a
-single row):
+Example error diff:
 
 ```js
 const assert = require('assert').strict;
 
 assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
-```
-
-```diff
-AssertionError [ERR_ASSERTION]: Input A expected to strictly deep-equal input B:
-+ expected
-- actual
-... Lines skipped
-
-  [
-    [
-...
-      2,
--     3
-+     '3'
-    ],
-...
-    5
-  ]
+// AssertionError: Input A expected to strictly deep-equal input B:
+// + expected - actual ... Lines skipped
+//
+//   [
+//     [
+// ...
+//       2,
+// -     3
+// +     '3'
+//     ],
+// ...
+//     5
+//   ]
 ```
 
 To deactivate the colors, use the `NODE_DISABLE_COLORS` environment variable.
