@@ -119,9 +119,9 @@ async function tests() {
     console.log('call next() after error');
     const readable = new Readable({
       read() {}
-    })
+    });
 
-    let err
+    let err;
     try {
       const iterator = readable[Symbol.asyncIterator]();
       readable.destroy(new Error('kaboom'));
