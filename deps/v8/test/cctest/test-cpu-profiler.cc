@@ -1744,7 +1744,7 @@ TEST(FunctionDetailsInlining) {
   const v8::CpuProfileNode* beta = FindChild(env, alpha, "beta");
   if (!beta) return;
   CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b",
-                       script_b->GetUnboundScript()->GetId(), 0, 0);
+                       script_b->GetUnboundScript()->GetId(), 1, 14);
 }
 
 TEST(DontStopOnFinishedProfileDelete) {
