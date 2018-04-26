@@ -529,10 +529,16 @@ in the response to be dropped and the socket to be destroyed.
 ### request.aborted
 <!-- YAML
 added: v0.11.14
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20230
+    description: The `aborted` property is no longer a timestamp number.
 -->
 
-If a request has been aborted, this value is the time when the request was
-aborted, in milliseconds since 1 January 1970 00:00:00 UTC.
+* {boolean}
+
+The `request.aborted` property will be `true` if the request has
+been aborted.
 
 ### request.connection
 <!-- YAML
