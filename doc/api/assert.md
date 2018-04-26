@@ -383,7 +383,7 @@ weakMap3.unequal = true;
 assert.deepStrictEqual(weakMap1, weakMap2);
 // OK, because it is impossible to compare the entries
 
-// Fail because weakMap3 has a property that weakMap1 does not contain:
+// Fails because weakMap3 has a property that weakMap1 does not contain:
 assert.deepStrictEqual(weakMap1, weakMap3);
 // AssertionError: Input A expected to strictly deep-equal input B:
 // + expected - actual
@@ -666,8 +666,8 @@ changes:
 
 Throws `value` if `value` is not `undefined` or `null`. This is useful when
 testing the `error` argument in callbacks. The stack trace contains all frames
-from the error passed to `ifError` including the potential new frames for
-`ifError` itself. See below for an example.
+from the error passed to `ifError()` including the potential new frames for
+`ifError()` itself. See below for an example.
 
 ```js
 const assert = require('assert').strict;
@@ -921,7 +921,7 @@ assert.ok(1);
 // OK
 
 assert.ok();
-// AssertionError: No value argument passed to `assert.ok`.
+// AssertionError: No value argument passed to `assert.ok()`.
 
 assert.ok(false, 'it\'s false');
 // AssertionError: it's false"
