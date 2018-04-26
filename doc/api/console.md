@@ -367,7 +367,7 @@ console.table(undefined);
 ```
 
 ```js
-console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }]);
+console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a', 'b']);
 // ┌─────────┬─────┬─────┐
 // │ (index) │  a  │  b  │
 // ├─────────┼─────┼─────┤
