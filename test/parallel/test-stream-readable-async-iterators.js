@@ -116,6 +116,18 @@ async function tests() {
   })();
 
   await (async function() {
+    console.log('call next() after error');
+    const readable = new Readable({
+      read() {}
+    });
+    const iterator = readable[Symbol.asyncIterator]();
+
+    const err = new Error('kaboom');
+    readable.destroy(new Error('kaboom'));
+    await assert.rejects(iterator.next.bind(iterator), err);
+  })();
+
+  await (async function() {
     console.log('read object mode');
     const max = 42;
     let readed = 0;
