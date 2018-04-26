@@ -501,11 +501,6 @@ parser.add_option('--without-node-options',
     dest='without_node_options',
     help='build without NODE_OPTIONS support')
 
-parser.add_option('--xcode',
-    action='store_true',
-    dest='use_xcode',
-    help='generate build files for use with xcode')
-
 parser.add_option('--ninja',
     action='store_true',
     dest='use_ninja',
@@ -1004,9 +999,6 @@ def configure_node(o):
     o['variables']['library_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
-
-  if options.use_xcode and options.use_ninja:
-    raise Exception('--xcode and --ninja cannot be used together.')
 
   if options.coverage:
     o['variables']['coverage'] = 'true'
@@ -1530,7 +1522,6 @@ write('config.gypi', do_not_edit +
 
 config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
-  'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
   'NODE_TARGET_TYPE': variables['node_target_type'],
 }
@@ -1549,9 +1540,7 @@ write('config.mk', do_not_edit + config)
 
 gyp_args = ['--no-parallel']
 
-if options.use_xcode:
-  gyp_args += ['-f', 'xcode']
-elif options.use_ninja:
+if options.use_ninja:
   gyp_args += ['-f', 'ninja']
 elif flavor == 'win' and sys.platform != 'msys':
   gyp_args += ['-f', 'msvs', '-G', 'msvs_version=auto']
