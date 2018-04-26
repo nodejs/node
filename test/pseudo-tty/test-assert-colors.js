@@ -13,8 +13,8 @@ try {
     '  [\n' +
     '\u001b[31m-\u001b[39m   1,\n' +
     '\u001b[32m+\u001b[39m   2,\n' +
-    '    2\n,' +
-    '\u001b[34m...\u001b[39m' +
+    '    2,\n' +
+    '\u001b[34m...\u001b[39m\n' +
     '    2\n' +
     '  ]';
   assert.strictEqual(err.message, expected);
