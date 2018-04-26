@@ -19,7 +19,7 @@ if (common.isWindows) {
     if (!o.includes('SeCreateSymbolicLinkPrivilege')) {
       skipSymlinks = true;
     }
-  } catch (er) {
+  } catch {
     // better safe than sorry
     skipSymlinks = true;
   }

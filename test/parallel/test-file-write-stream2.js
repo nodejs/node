@@ -56,7 +56,7 @@ process.on('exit', function() {
 function removeTestFile() {
   try {
     fs.unlinkSync(filepath);
-  } catch (e) {}
+  } catch {}
 }
 
 
