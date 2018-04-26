@@ -639,6 +639,7 @@ if (!common.isAIX) {
 // Check copyFile with invalid flags.
 {
   const validateError = {
+    // TODO: Make sure the error message always also contains the src.
     message: `EINVAL: invalid argument, copyfile -> '${nonexistentFile}'`,
     errno: uv.UV_EINVAL,
     code: 'EINVAL',
