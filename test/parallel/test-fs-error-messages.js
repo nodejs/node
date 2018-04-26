@@ -639,8 +639,7 @@ if (!common.isAIX) {
 // Check copyFile with invalid flags.
 {
   const validateError = {
-    message: 'EINVAL: invalid argument, copyfile ' +
-             `'${existingFile}' -> '${nonexistentFile}'`,
+    message: `EINVAL: invalid argument, copyfile -> '${nonexistentFile}'`,
     errno: uv.UV_EINVAL,
     code: 'EINVAL',
     syscall: 'copyfile'
@@ -649,6 +648,8 @@ if (!common.isAIX) {
   fs.copyFile(existingFile, nonexistentFile, -1,
               common.expectsError(validateError));
 
+  validateError.message = 'EINVAL: invalid argument, copyfile ' +
+                          `'${existingFile}' -> '${nonexistentFile}'`;
   assert.throws(
     () => fs.copyFileSync(existingFile, nonexistentFile, -1),
     validateError
