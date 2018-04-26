@@ -124,7 +124,7 @@ async function tests() {
 
     const err = new Error('kaboom');
     readable.destroy(new Error('kaboom'));
-    await assert.rejects(iterator.next.bind(iterator), err)
+    await assert.rejects(iterator.next.bind(iterator), err);
   })();
 
   await (async function() {
