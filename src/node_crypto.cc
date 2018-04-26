@@ -2798,10 +2798,7 @@ bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
                                    unsigned int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
 
-  // TODO(tniessen) Use EVP_CTRL_AEAD_SET_IVLEN when migrating to OpenSSL 1.1.0
-  static_assert(EVP_CTRL_CCM_SET_IVLEN == EVP_CTRL_GCM_SET_IVLEN,
-                "OpenSSL constants differ between GCM and CCM");
-  if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
+  if (!EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_AEAD_SET_IVLEN, iv_len, nullptr)) {
     env()->ThrowError("Invalid IV length");
     return false;
   }
@@ -3111,10 +3108,7 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
       // be given by the user.
       if (mode == EVP_CIPH_GCM_MODE && auth_tag_len_ == kNoAuthTagLength)
         auth_tag_len_ = sizeof(auth_tag_);
-      // TOOD(tniessen) Use EVP_CTRL_AEAP_GET_TAG in OpenSSL 1.1.0
-      static_assert(EVP_CTRL_CCM_GET_TAG == EVP_CTRL_GCM_GET_TAG,
-                    "OpenSSL constants differ between GCM and CCM");
-      CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_GET_TAG, auth_tag_len_,
+      CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_AEAD_GET_TAG, auth_tag_len_,
                       reinterpret_cast<unsigned char*>(auth_tag_)));
     }
   }
