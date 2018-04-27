@@ -195,9 +195,10 @@ event is emitted.
 added: v8.4.0
 -->
 
+* `settings` {HTTP/2 Settings Object} A copy of the `SETTINGS` frame received.
+
 The `'localSettings'` event is emitted when an acknowledgment `SETTINGS` frame
-has been received. When invoked, the handler function will receive a copy of
-the local settings.
+has been received.
 
 *Note*: When using `http2session.settings()` to submit new settings, the
 modified settings do not take effect until the `'localSettings'` event is
@@ -216,9 +217,10 @@ session.on('localSettings', (settings) => {
 added: v8.4.0
 -->
 
+* `settings` {HTTP/2 Settings Object} A copy of the `SETTINGS` frame received.
+
 The `'remoteSettings'` event is emitted when a new `SETTINGS` frame is received
-from the connected peer. When invoked, the handler function will receive a copy
-of the remote settings.
+from the connected peer.
 
 ```js
 session.on('remoteSettings', (settings) => {
