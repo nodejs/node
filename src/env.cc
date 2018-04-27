@@ -310,7 +310,8 @@ void Environment::RunCleanup() {
     // Copy into a vector, since we can't sort an unordered_set in-place.
     std::vector<CleanupHookCallback> callbacks(
         cleanup_hooks_.begin(), cleanup_hooks_.end());
-    cleanup_hooks_.clear();
+    // We can't erase the copied elements from `cleanup_hooks_` yet, because we
+    // need to be able to check whether they were un-scheduled by another hook.
 
     std::sort(callbacks.begin(), callbacks.end(),
               [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
@@ -320,7 +321,14 @@ void Environment::RunCleanup() {
     });
 
     for (const CleanupHookCallback& cb : callbacks) {
+      if (cleanup_hooks_.count(cb) == 0) {
+        // This hook was removed from the `cleanup_hooks_` set during another
+        // hook that was run earlier. Nothing to do here.
+        continue;
+      }
+
       cb.fn_(cb.arg_);
+      cleanup_hooks_.erase(cb);
       CleanupHandles();
     }
   }
