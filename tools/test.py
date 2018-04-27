@@ -1749,7 +1749,7 @@ def Main():
     timed_tests.sort(lambda a, b: a.CompareTime(b))
     index = 1
     for entry in timed_tests[:20]:
-      t = FormatTime(entry.duration)
+      t = FormatTime(entry.duration.total_seconds())
       sys.stderr.write("%4i (%s) %s\n" % (index, t, entry.GetLabel()))
       index += 1
 
