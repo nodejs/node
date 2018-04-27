@@ -93,6 +93,7 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
                  provider),
       StreamBase(env),
       stream_(stream) {
+  stream_resource_flags_ |= StreamResource::kFlagDoTryWrite;
 }
 
 

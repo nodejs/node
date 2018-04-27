@@ -573,8 +573,6 @@ class Http2Stream : public AsyncWrap,
   // Required for StreamBase
   int DoShutdown(ShutdownWrap* req_wrap) override;
 
-  bool HasWantsWrite() const override { return true; }
-
   // Initiate a response on this stream.
   int SubmitResponse(nghttp2_nv* nva, size_t len, int options);
 

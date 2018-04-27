@@ -33,8 +33,6 @@ const net = require('net');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 
-let gotRequest = false;
-
 const key = fixtures.readKey('agent1-key.pem');
 const cert = fixtures.readKey('agent1-cert.pem');
 
@@ -55,6 +53,7 @@ const proxy = net.createServer((clientSocket) => {
   let serverSocket = null;
 
   clientSocket.on('data', (chunk) => {
+    console.log('PROXY: write to SERVER');
     if (!serverSocket) {
       // Verify the CONNECT request
       assert.strictEqual(`CONNECT localhost:${server.address().port} ` +
@@ -73,27 +72,45 @@ const proxy = net.createServer((clientSocket) => {
 
         // Send the response
         clientSocket.write('HTTP/1.1 200 OK\r\nProxy-Connections: keep' +
-          '-alive\r\nConnections: keep-alive\r\nVia: ' +
+          '-alive\r\nConnection: keep-alive\r\nVia: ' +
           `localhost:${proxy.address().port}\r\n\r\n`);
       }));
 
       serverSocket.on('data', (chunk) => {
-        clientSocket.write(chunk);
+        console.log('PROXY: write to CLIENT');
+        if (clientSocket.writable)
+          clientSocket.write(chunk);
       });
 
-      serverSocket.on('end', common.mustCall(() => {
+      serverSocket.on('end', () => {
+        console.log('PROXY: server readable end');
         clientSocket.destroy();
+      });
+      serverSocket.on('close', common.mustCall(() => {
+        console.log('PROXY: got internal CLOSE event');
+        maybeFinish();
       }));
-    } else {
+    } else if (serverSocket.writable) {
       serverSocket.write(chunk);
     }
   });
 
   clientSocket.on('end', () => {
+    console.log('PROXY: client readable end');
     serverSocket.destroy();
   });
-});
+  clientSocket.on('close', common.mustCall(() => {
+    console.log('PROXY: got external CLOSE event');
+    maybeFinish();
+  }));
 
+  function maybeFinish() {
+    if (!serverSocket.writable && !clientSocket.writable) {
+      proxy.close();
+      server.close();
+    }
+  }
+});
 server.listen(0);
 
 proxy.listen(0, common.mustCall(() => {
@@ -107,38 +124,12 @@ proxy.listen(0, common.mustCall(() => {
       'Proxy-Connections': 'keep-alive'
     }
   });
-  req.useChunkedEncodingByDefault = false; // for v0.6
-  req.on('response', onResponse); // for v0.6
-  req.on('upgrade', onUpgrade);   // for v0.6
   req.on('connect', onConnect);   // for v0.7 or later
   req.end();
-
-  function onResponse(res) {
-    // Very hacky. This is necessary to avoid http-parser leaks.
-    res.upgrade = true;
-  }
-
-  function onUpgrade(res, socket, head) {
-    // Hacky.
-    process.nextTick(() => {
-      onConnect(res, socket, head);
-    });
-  }
 
   function onConnect(res, socket, header) {
     assert.strictEqual(200, res.statusCode);
     console.log('CLIENT: got CONNECT response');
-
-    // detach the socket
-    socket.removeAllListeners('data');
-    socket.removeAllListeners('close');
-    socket.removeAllListeners('error');
-    socket.removeAllListeners('drain');
-    socket.removeAllListeners('end');
-    socket.ondata = null;
-    socket.onend = null;
-    socket.ondrain = null;
-
     console.log('CLIENT: Making HTTPS request');
 
     https.get({
@@ -148,29 +139,15 @@ proxy.listen(0, common.mustCall(() => {
       socket: socket,  // reuse the socket
       agent: false,
       rejectUnauthorized: false
-    }, (res) => {
+    }, common.mustCall((res) => {
       assert.strictEqual(200, res.statusCode);
 
       res.on('data', common.mustCall((chunk) => {
         assert.strictEqual('hello world\n', chunk.toString());
         console.log('CLIENT: got HTTPS response');
-        gotRequest = true;
       }));
 
-      res.on('end', common.mustCall(() => {
-        proxy.close();
-        server.close();
-      }));
-    }).on('error', (er) => {
-      // We're ok with getting ECONNRESET in this test, but it's
-      // timing-dependent, and thus unreliable. Any other errors
-      // are just failures, though.
-      if (er.code !== 'ECONNRESET')
-        throw er;
-    }).end();
+      res.on('end', common.mustCall());
+    }));
   }
 }));
-
-process.on('exit', () => {
-  assert.ok(gotRequest);
-});

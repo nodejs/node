@@ -78,6 +78,7 @@ TLSWrap::TLSWrap(Environment* env,
   SSL_CTX_sess_set_get_cb(sc_->ctx_, SSLWrap<TLSWrap>::GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc_->ctx_, SSLWrap<TLSWrap>::NewSessionCallback);
 
+  stream->DisableDoTryWrite();
   stream->PushStreamListener(this);
 
   InitSSL();
@@ -91,17 +92,12 @@ TLSWrap::~TLSWrap() {
 }
 
 
-bool TLSWrap::InvokeQueued(int status, const char* error_str) {
-  if (!write_callback_scheduled_)
-    return false;
-
+void TLSWrap::InvokeQueued(int status, const char* error_str) {
   if (current_write_ != nullptr) {
     WriteWrap* w = current_write_;
     current_write_ = nullptr;
     w->Done(status, error_str);
   }
-
-  return true;
 }
 
 
@@ -256,16 +252,12 @@ void TLSWrap::EncOut() {
   if (is_waiting_new_session())
     return;
 
-  // Split-off queue
-  if (established_ && current_write_ != nullptr)
-    write_callback_scheduled_ = true;
-
   if (ssl_ == nullptr)
     return;
 
   // No data to write
   if (BIO_pending(enc_out_) == 0) {
-    if (pending_cleartext_input_.empty())
+    if (established_ && pending_cleartext_input_.empty())
       InvokeQueued(0);
     return;
   }
@@ -291,22 +283,13 @@ void TLSWrap::EncOut() {
 
   NODE_COUNT_NET_BYTES_SENT(write_size_);
 
-  if (!res.async) {
-    HandleScope handle_scope(env()->isolate());
-
-    // Simulate asynchronous finishing, TLS cannot handle this at the moment.
-    env()->SetImmediate([](Environment* env, void* data) {
-      static_cast<TLSWrap*>(data)->OnStreamAfterWrite(nullptr, 0);
-    }, this, object());
-  }
+  CHECK(res.async);
 }
 
 
 void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
-  if (current_empty_write_ != nullptr) {
-    WriteWrap* finishing = current_empty_write_;
-    current_empty_write_ = nullptr;
-    finishing->Done(status);
+  if (write_size_ == 0) {
+    InvokeQueued(status);
     return;
   }
 
@@ -460,6 +443,9 @@ bool TLSWrap::ClearIn() {
   if (ssl_ == nullptr)
     return false;
 
+  if (pending_cleartext_input_.empty())
+    return true;
+
   std::vector<uv_buf_t> buffers;
   buffers.swap(pending_cleartext_input_);
 
@@ -490,7 +476,6 @@ bool TLSWrap::ClearIn() {
   std::string error_str;
   Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
-    write_callback_scheduled_ = true;
     InvokeQueued(UV_EPROTO, error_str.c_str());
   } else {
     // Push back the not-yet-written pending buffers into their queue.
@@ -569,6 +554,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
     return UV_EPROTO;
   }
 
+  // Store the current write wrap
+  CHECK_EQ(current_write_, nullptr);
+  current_write_ = w;
+
   bool empty = true;
 
   // Empty writes should not go through encryption process
@@ -583,26 +572,13 @@ int TLSWrap::DoWrite(WriteWrap* w,
     // However, if there is any data that should be written to the socket,
     // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0) {
-      CHECK_EQ(current_empty_write_, nullptr);
-      current_empty_write_ = w;
       StreamWriteResult res =
           underlying_stream()->Write(bufs, count, send_handle);
-      if (!res.async) {
-        env()->SetImmediate([](Environment* env, void* data) {
-          TLSWrap* self = static_cast<TLSWrap*>(data);
-          self->OnStreamAfterWrite(self->current_empty_write_, 0);
-        }, this, object());
-      }
+      CHECK(res.async);
       return 0;
     }
-  }
 
-  // Store the current write wrap
-  CHECK_EQ(current_write_, nullptr);
-  current_write_ = w;
-
-  // Write queued data
-  if (empty) {
+    // Write queued data
     EncOut();
     return 0;
   }
@@ -748,10 +724,7 @@ void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  // If there is a write happening, mark it as finished.
-  wrap->write_callback_scheduled_ = true;
-
-  // And destroy
+  // Finish current write, if one exists.
   wrap->InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
 
   // Destroy the SSL structure and friends

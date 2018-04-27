@@ -1649,6 +1649,8 @@ Http2Stream::Http2Stream(
   MakeWeak<Http2Stream>(this);
   statistics_.start_time = uv_hrtime();
 
+  stream_resource_flags_ |= StreamResource::kFlagWantsWrite;
+
   // Limit the number of header pairs
   max_header_pairs_ = session->GetMaxHeaderPairs();
   if (max_header_pairs_ == 0)

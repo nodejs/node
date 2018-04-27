@@ -104,7 +104,7 @@ class TLSWrap : public AsyncWrap,
   void EncOut();
   bool ClearIn();
   void ClearOut();
-  bool InvokeQueued(int status, const char* error_str = nullptr);
+  void InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
     // Prevent recursion
@@ -151,8 +151,6 @@ class TLSWrap : public AsyncWrap,
   std::vector<uv_buf_t> pending_cleartext_input_;
   size_t write_size_;
   WriteWrap* current_write_ = nullptr;
-  WriteWrap* current_empty_write_ = nullptr;
-  bool write_callback_scheduled_ = false;
   bool started_;
   bool established_;
   bool shutdown_;

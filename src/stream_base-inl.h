@@ -78,6 +78,10 @@ inline StreamResource::~StreamResource() {
   }
 }
 
+inline void StreamResource::DisableDoTryWrite() {
+  stream_resource_flags_ &= ~kFlagDoTryWrite;
+}
+
 inline void StreamResource::PushStreamListener(StreamListener* listener) {
   CHECK_NE(listener, nullptr);
   CHECK_EQ(listener->stream_, nullptr);
@@ -199,7 +203,7 @@ inline StreamWriteResult StreamBase::Write(
     total_bytes += bufs[i].len;
   bytes_written_ += total_bytes;
 
-  if (send_handle == nullptr) {
+  if (HasDoTryWrite() && send_handle == nullptr) {
     err = DoTryWrite(&bufs, &count);
     if (err != 0 || count == 0) {
       return StreamWriteResult { false, err, nullptr, total_bytes };

@@ -62,7 +62,7 @@ function onexit() {
         id: 'getaddrinforeq:1', triggerAsyncId: 'tls:1' },
       { type: 'TCPCONNECTWRAP',
         id: 'tcpconnect:1', triggerAsyncId: 'tcp:1' },
-      { type: 'WRITEWRAP', id: 'write:1', triggerAsyncId: 'tcpconnect:1' },
+      { type: 'WRITEWRAP', id: 'write:1', triggerAsyncId: 'tcp:1' },
       { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcpserver:1' },
       { type: 'TLSWRAP', id: 'tls:2', triggerAsyncId: 'tcpserver:1' },
       { type: 'TIMERWRAP', id: 'timer:1', triggerAsyncId: 'tcpserver:1' },

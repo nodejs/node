@@ -228,7 +228,8 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   size_t synchronously_written = 0;
   uv_buf_t buf;
 
-  bool try_write = storage_size <= sizeof(stack_storage) &&
+  bool try_write = HasDoTryWrite() &&
+                   storage_size <= sizeof(stack_storage) &&
                    (!IsIPCPipe() || send_handle_obj.IsEmpty());
   if (try_write) {
     data_size = StringBytes::Write(env->isolate(),

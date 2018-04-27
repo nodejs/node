@@ -189,6 +189,12 @@ class EmitToJSStreamListener : public ReportWritesToJSStreamListener {
 // A stream is always controlled through one `StreamListener` instance.
 class StreamResource {
  public:
+  enum Flags {
+    kFlagNone = 0x0,
+    kFlagDoTryWrite = 0x1,
+    kFlagWantsWrite = 0x2
+  };
+
   virtual ~StreamResource();
 
   // These need to be implemented on the readable side of this stream:
@@ -216,8 +222,18 @@ class StreamResource {
                       size_t count,
                       uv_stream_t* send_handle) = 0;
 
+  // Return true if the stream supports `DoTryWrite`.
+  inline bool HasDoTryWrite() const {
+    return stream_resource_flags_ & kFlagDoTryWrite;
+  }
   // Returns true if the stream supports the `OnStreamWantsWrite()` interface.
-  virtual bool HasWantsWrite() const { return false; }
+  inline bool HasWantsWrite() const {
+    return stream_resource_flags_ & kFlagWantsWrite;
+  }
+
+  // Disable DoTryWrite for this StreamResource, useful for consumers such
+  // as TLSWrap that don't support sync writes.
+  inline void DisableDoTryWrite();
 
   // Optionally, this may provide an error message to be used for
   // failing writes.
@@ -248,6 +264,8 @@ class StreamResource {
   StreamListener* listener_ = nullptr;
   uint64_t bytes_read_ = 0;
   uint64_t bytes_written_ = 0;
+
+  int stream_resource_flags_ = kFlagNone;
 
   friend class StreamListener;
 };
