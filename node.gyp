@@ -755,8 +755,8 @@
             }]
           ],
           'action': [
-            'python',
-            'tools/js2c.py',
+            'node',
+            'tools/js2c.js',
             '<@(_outputs)',
             '<@(_inputs)',
           ],
