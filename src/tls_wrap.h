@@ -164,6 +164,8 @@ class TLSWrap : public AsyncWrap,
   bool eof_;
 
  private:
+  void SyncAfterWrite();
+
   static void GetWriteQueueSize(
       const v8::FunctionCallbackInfo<v8::Value>& info);
 };
