@@ -195,7 +195,7 @@ event is emitted.
 added: v8.4.0
 -->
 
-* `settings` {Object} A copy of the `SETTINGS` frame received.
+* `settings` {HTTP/2 Settings Object} A copy of the `SETTINGS` frame received.
 
 The `'localSettings'` event is emitted when an acknowledgment `SETTINGS` frame
 has been received.
@@ -216,7 +216,7 @@ session.on('localSettings', (settings) => {
 added: v8.4.0
 -->
 
-* `settings` {Object} A copy of the `SETTINGS` frame received.
+* `settings` {HTTP/2 Settings Object} A copy of the `SETTINGS` frame received.
 
 The `'remoteSettings'` event is emitted when a new `SETTINGS` frame is received
 from the connected peer.
