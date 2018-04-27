@@ -652,7 +652,7 @@ tools/doc/node_modules/js-yaml/package.json:
 
 gen-json = tools/doc/generate.js --format=json $< > $@
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
-			--template=doc/template.html --analytics=$(DOCS_ANALYTICS) $< > $@
+			--analytics=$(DOCS_ANALYTICS) $< > $@
 
 out/doc/api/%.json: doc/api/%.md
 	$(call available-node, $(gen-json))
