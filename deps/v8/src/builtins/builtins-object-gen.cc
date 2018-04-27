@@ -268,7 +268,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel));
 
   // In case, we found enum_cache in object,
-  // we use it as array_length becuase it has same size for
+  // we use it as array_length because it has same size for
   // Object.(entries/values) result array object length.
   // So object_enum_length use less memory space than
   // NumberOfOwnDescriptorsBits value.
@@ -285,7 +285,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
                            INTPTR_PARAMETERS, kAllowLargeObjectAllocation));
 
     // If in case we have enum_cache,
-    // we can't detect accessor of object until loop through descritpros.
+    // we can't detect accessor of object until loop through descriptors.
     // So if object might have accessor,
     // we will remain invalid addresses of FixedArray.
     // Because in that case, we need to jump to runtime call.
@@ -299,7 +299,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     Variable* vars[] = {&var_descriptor_number, &var_result_index};
     // Let desc be ? O.[[GetOwnProperty]](key).
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-    Label loop(this, 2, vars), after_loop(this), loop_condition(this);
+    Label loop(this, 2, vars), after_loop(this), next_descriptor(this);
     Branch(IntPtrEqual(var_descriptor_number.value(), object_enum_length),
            &after_loop, &loop);
 
@@ -316,7 +316,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       Node* next_key = DescriptorArrayGetKey(descriptors, descriptor_index);
 
       // Skip Symbols.
-      GotoIf(IsSymbol(next_key), &loop_condition);
+      GotoIf(IsSymbol(next_key), &next_descriptor);
 
       TNode<Uint32T> details = TNode<Uint32T>::UncheckedCast(
           DescriptorArrayGetDetails(descriptors, descriptor_index));
@@ -326,8 +326,9 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       GotoIf(IsPropertyKindAccessor(kind), if_call_runtime_with_fast_path);
       CSA_ASSERT(this, IsPropertyKindData(kind));
 
-      // If desc is not undefined and desc.[[Enumerable]] is true, then
-      GotoIfNot(IsPropertyEnumerable(details), &loop_condition);
+      // If desc is not undefined and desc.[[Enumerable]] is true, then skip to
+      // the next descriptor.
+      GotoIfNot(IsPropertyEnumerable(details), &next_descriptor);
 
       VARIABLE(var_property_value, MachineRepresentation::kTagged,
                UndefinedConstant());
@@ -357,12 +358,12 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       StoreFixedArrayElement(values_or_entries, var_result_index.value(),
                              value);
       Increment(&var_result_index, 1);
-      Goto(&loop_condition);
+      Goto(&next_descriptor);
 
-      BIND(&loop_condition);
+      BIND(&next_descriptor);
       {
         Increment(&var_descriptor_number, 1);
-        Branch(IntPtrEqual(var_descriptor_number.value(), object_enum_length),
+        Branch(IntPtrEqual(var_result_index.value(), object_enum_length),
                &after_loop, &loop);
       }
     }
