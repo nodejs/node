@@ -185,8 +185,7 @@ added: v8.4.0
 * `opaqueData` {Buffer} If additional opaque data was included in the `GOAWAY`
   frame, a `Buffer` instance will be passed containing that data.
 
-The `'goaway'` event is emitted when a `GOAWAY` frame is received. When invoked,
-the handler function will receive three arguments:
+The `'goaway'` event is emitted when a `GOAWAY` frame is received.
 
 The `Http2Session` instance will be shut down automatically when the `'goaway'`
 event is emitted.
