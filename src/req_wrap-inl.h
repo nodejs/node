@@ -59,7 +59,7 @@ struct CallLibuvFunction;
 // Detect `int uv_foo(uv_loop_t* loop, uv_req_t* request, ...);`.
 template <typename ReqT, typename... Args>
 struct CallLibuvFunction<ReqT, int(*)(uv_loop_t*, ReqT*, Args...)> {
-  typedef int(*T)(uv_loop_t*, ReqT*, Args...);
+  using T = int(*)(uv_loop_t*, ReqT*, Args...);
   template <typename... PassedArgs>
   static int Call(T fn, uv_loop_t* loop, ReqT* req, PassedArgs... args) {
     return fn(loop, req, args...);
@@ -69,7 +69,7 @@ struct CallLibuvFunction<ReqT, int(*)(uv_loop_t*, ReqT*, Args...)> {
 // Detect `int uv_foo(uv_req_t* request, ...);`.
 template <typename ReqT, typename... Args>
 struct CallLibuvFunction<ReqT, int(*)(ReqT*, Args...)> {
-  typedef int(*T)(ReqT*, Args...);
+  using T = int(*)(ReqT*, Args...);
   template <typename... PassedArgs>
   static int Call(T fn, uv_loop_t* loop, ReqT* req, PassedArgs... args) {
     return fn(req, args...);
@@ -79,7 +79,7 @@ struct CallLibuvFunction<ReqT, int(*)(ReqT*, Args...)> {
 // Detect `void uv_foo(uv_req_t* request, ...);`.
 template <typename ReqT, typename... Args>
 struct CallLibuvFunction<ReqT, void(*)(ReqT*, Args...)> {
-  typedef void(*T)(ReqT*, Args...);
+  using T= void(*)(ReqT*, Args...);
   template <typename... PassedArgs>
   static int Call(T fn, uv_loop_t* loop, ReqT* req, PassedArgs... args) {
     fn(req, args...);
