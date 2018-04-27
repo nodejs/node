@@ -132,8 +132,6 @@ and a `base` is provided, it is advised to validate that the `origin` of
 the `URL` object is what is expected.
 
 ```js
-const { URL } = require('url');
-
 let myURL = new URL('http://anotherExample.org/', 'https://example.org/');
 // http://anotherexample.org/
 
