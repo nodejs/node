@@ -494,7 +494,7 @@ exports.fileExists = function(pathname) {
 
 exports.skipIfEslintMissing = function() {
   if (!exports.fileExists(
-    path.join('..', '..', 'tools', 'node_modules', 'eslint')
+    path.join(__dirname, '..', '..', 'tools', 'node_modules', 'eslint')
   )) {
     exports.skip('missing ESLint');
   }
