@@ -11,5 +11,5 @@ runBenchmark('zlib',
                'options=true',
                'type=Deflate',
                'inputLen=1024',
-               'duration=0.1'
+               'duration=1'
              ]);
