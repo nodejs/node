@@ -79,7 +79,7 @@ struct CallLibuvFunction<ReqT, int(*)(ReqT*, Args...)> {
 // Detect `void uv_foo(uv_req_t* request, ...);`.
 template <typename ReqT, typename... Args>
 struct CallLibuvFunction<ReqT, void(*)(ReqT*, Args...)> {
-  using T= void(*)(ReqT*, Args...);
+  using T = void(*)(ReqT*, Args...);
   template <typename... PassedArgs>
   static int Call(T fn, uv_loop_t* loop, ReqT* req, PassedArgs... args) {
     fn(req, args...);
