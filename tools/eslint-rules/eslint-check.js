@@ -1,7 +1,6 @@
 /**
- * @fileoverview Check that common.skipIfInspectorDisabled is used if
- *               the inspector module is required.
- * @author Daniel Bevenius <daniel.bevenius@gmail.com>
+ * @fileoverview Check that common.skipIfEslintMissing is used if
+ *               the eslint module is required.
  */
 'use strict';
 
@@ -10,16 +9,16 @@ const utils = require('./rules-utils.js');
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-const msg = 'Please add a skipIfInspectorDisabled() call to allow this ' +
-            'test to be skipped when Node is built \'--without-inspector\'.';
+const msg = 'Please add a skipIfEslintMissing() call to allow this test to ' +
+            'be skipped when Node.js is built from a source tarball.';
 
 module.exports = function(context) {
   const missingCheckNodes = [];
   var commonModuleNode = null;
-  var hasInspectorCheck = false;
+  var hasEslintCheck = false;
 
-  function testInspectorUsage(context, node) {
-    if (utils.isRequired(node, ['inspector'])) {
+  function testEslintUsage(context, node) {
+    if (utils.isRequired(node, ['../../tools/node_modules/eslint'])) {
       missingCheckNodes.push(node);
     }
 
@@ -29,13 +28,13 @@ module.exports = function(context) {
   }
 
   function checkMemberExpression(context, node) {
-    if (utils.usesCommonProperty(node, ['skipIfInspectorDisabled'])) {
-      hasInspectorCheck = true;
+    if (utils.usesCommonProperty(node, ['skipIfEslintMissing'])) {
+      hasEslintCheck = true;
     }
   }
 
   function reportIfMissing(context) {
-    if (!hasInspectorCheck) {
+    if (!hasEslintCheck) {
       missingCheckNodes.forEach((node) => {
         context.report({
           node,
@@ -44,7 +43,7 @@ module.exports = function(context) {
             if (commonModuleNode) {
               return fixer.insertTextAfter(
                 commonModuleNode,
-                '\ncommon.skipIfInspectorDisabled();'
+                '\ncommon.skipIfEslintMissing();'
               );
             }
           }
@@ -54,7 +53,7 @@ module.exports = function(context) {
   }
 
   return {
-    'CallExpression': (node) => testInspectorUsage(context, node),
+    'CallExpression': (node) => testEslintUsage(context, node),
     'MemberExpression': (node) => checkMemberExpression(context, node),
     'Program:exit': (node) => reportIfMissing(context, node)
   };
