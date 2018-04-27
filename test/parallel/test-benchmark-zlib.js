@@ -11,5 +11,8 @@ runBenchmark('zlib',
                'options=true',
                'type=Deflate',
                'inputLen=1024',
-               'duration=1'
-             ]);
+               'duration=0.001'
+             ],
+             {
+               'NODEJS_BENCHMARK_ZERO_ALLOWED': 1
+             });
