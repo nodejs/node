@@ -921,10 +921,10 @@ assert.ok(1);
 // OK
 
 assert.ok();
-// AssertionError: No value argument passed to `assert.ok()`.
+// AssertionError: No value argument passed to `assert.ok()`
 
 assert.ok(false, 'it\'s false');
-// AssertionError: it's false"
+// AssertionError: it's false
 
 // In the repl:
 assert.ok(typeof 123 === 'string');
@@ -1076,6 +1076,34 @@ each property will be tested for including the non-enumerable `message` and
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
 
+Custom error object / error instance:
+
+```js
+const err = new TypeError('Wrong value');
+err.code = 404;
+
+assert.throws(
+  () => {
+    throw err;
+  },
+  {
+    name: 'TypeError',
+    message: 'Wrong value'
+    // Note that only properties on the error object will be tested!
+  }
+);
+
+// Fails due to the different `message` and `name` properties:
+assert.throws(
+  () => {
+    const otherErr = new Error('Not found');
+    otherErr.code = 404;
+    throw otherErr;
+  },
+  err // This tests for `message`, `name` and `code`.
+);
+```
+
 Validate instanceof using constructor:
 
 ```js
@@ -1114,34 +1142,6 @@ assert.throws(
     }
   },
   'unexpected error'
-);
-```
-
-Custom error object / error instance:
-
-```js
-const err = new TypeError('Wrong value');
-err.code = 404;
-
-assert.throws(
-  () => {
-    throw err;
-  },
-  {
-    name: 'TypeError',
-    message: 'Wrong value'
-    // Note that only properties on the error object will be tested!
-  }
-);
-
-// Fails due to the different `message` and `name` properties:
-assert.throws(
-  () => {
-    const otherErr = new Error('Not found');
-    otherErr.code = 404;
-    throw otherErr;
-  },
-  err // This tests for `message`, `name` and `code`.
 );
 ```
 
