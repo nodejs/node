@@ -11,7 +11,7 @@ const ruleTester = new RuleTester({
   env: { node: true }
 });
 
-const message = "Use const Buffer = require('buffer').Buffer; " +
+const message = "Use const { Buffer } = require('buffer'); " +
                 'at the beginning of this file';
 
 const useStrict = '\'use strict\';\n\n';
