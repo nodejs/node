@@ -1541,7 +1541,7 @@ napi_status napi_create_string_latin1(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `String` object from a ISO-8859-1-encoded C
-string.
+string. The native string is copied.
 
 The JavaScript `String` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
@@ -1566,6 +1566,7 @@ napi_status napi_create_string_utf16(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `String` object from a UTF16-LE-encoded C string.
+The native string is copied.
 
 The JavaScript `String` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
@@ -1590,6 +1591,7 @@ if it is null-terminated.
 Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `String` object from a UTF8-encoded C string.
+The native string is copied.
 
 The JavaScript `String` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
