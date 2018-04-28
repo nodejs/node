@@ -48,9 +48,9 @@ zlib.unzip(buffer, (err, buffer) => {
 ## Threadpool Usage
 
 Note that all zlib APIs except those that are explicitly synchronous use libuv's
-threadpool, which can have surprising and negative performance implications for
-some applications, see the [`UV_THREADPOOL_SIZE`][] documentation for more
-information.
+threadpool. This can lead to surprising effects in some applications, such as
+subpar performance (which can be mitigated by adjusting the [pool size][])
+and/or unrecoverable and catastrophic memory fragmentation.
 
 ## Compressing HTTP requests and responses
 
@@ -777,9 +777,9 @@ Decompress a chunk of data with [`Unzip`][].
 [`Inflate`]: #zlib_class_zlib_inflate
 [`InflateRaw`]: #zlib_class_zlib_inflateraw
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
-[`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`Unzip`]: #zlib_class_zlib_unzip
 [`options`]: #zlib_class_options
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
+[pool size]: cli.html#cli_uv_threadpool_size_size
 [zlib documentation]: https://zlib.net/manual.html#Constants
