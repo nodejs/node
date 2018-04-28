@@ -357,8 +357,8 @@ std::vector<std::string> InspectorIo::GetTargetIds() const {
 TransportAction InspectorIo::Attach(int session_id) {
   Agent* agent = parent_env_->inspector_agent();
   fprintf(stderr, "Debugger attached.\n");
-  sessions_[session_id] =
-      agent->Connect(std::make_unique<IoSessionDelegate>(this, session_id));
+  sessions_[session_id] = agent->Connect(std::unique_ptr<IoSessionDelegate>(
+      new IoSessionDelegate(this, session_id)));
   return TransportAction::kAcceptSession;
 }
 
