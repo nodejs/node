@@ -66,8 +66,8 @@ class JSBindingsConnection : public AsyncWrap {
                          callback_(env->isolate(), callback) {
     Wrap(wrap, this);
     Agent* inspector = env->inspector_agent();
-    session_ = inspector->Connect(
-        std::make_unique<JSBindingsSessionDelegate>(env, this));
+    session_ = inspector->Connect(std::unique_ptr<JSBindingsSessionDelegate>(
+        new JSBindingsSessionDelegate(env, this)));
   }
 
   void OnMessage(Local<Value> value) {

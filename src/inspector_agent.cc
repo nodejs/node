@@ -367,8 +367,9 @@ class NodeInspectorClient : public V8InspectorClient {
   int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate) {
     events_dispatched_ = true;
     int session_id = next_session_id_++;
-    channels_[session_id] =
-        std::make_unique<ChannelImpl>(client_, std::move(delegate));
+    // TODO(addaleax): Revert back to using make_unique once we get issues
+    // with CI resolved (i.e. revert the patch that added this comment).
+    channels_[session_id].reset(new ChannelImpl(client_, std::move(delegate)));
     return session_id;
   }
 
@@ -569,7 +570,8 @@ void Agent::Stop() {
 std::unique_ptr<InspectorSession> Agent::Connect(
     std::unique_ptr<InspectorSessionDelegate> delegate) {
   int session_id = client_->connectFrontend(std::move(delegate));
-  return std::make_unique<InspectorSession>(session_id, client_);
+  return std::unique_ptr<InspectorSession>(
+      new InspectorSession(session_id, client_));
 }
 
 void Agent::WaitForDisconnect() {
