@@ -61,7 +61,7 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
-  LibuvStreamWrap::AddMethods(env, t, StreamBase::kFlagNoShutdown);
+  LibuvStreamWrap::AddMethods(env, t);
 
   env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);
