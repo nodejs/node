@@ -416,14 +416,15 @@ longer be used.
 
 Node.js uses three Deprecation levels:
 
-* *Documentation-Only Deprecation* refers to elements of the Public API that are
-  being staged for deprecation in a future Node.js major release. An explicit
-  notice indicating the deprecated status is added to the API documentation
-  but no functional changes are implemented in the code. There will be no
-  runtime deprecation warnings emitted for such deprecations by default.
-  Documentation-only deprecations may trigger a runtime warning when Node.js
-  is started with the [`--pending-deprecation`][] flag or the
-  `NODE_PENDING_DEPRECATION=1` environment variable is set.
+* *Documentation-Only Deprecation* refers to elements of the Public API that
+  should be avoided by developers and that might be staged for deprecation in a
+  future Node.js major release. An explicit notice indicating the deprecation
+  status is added to the API documentation but no functional changes are
+  implemented in the code. There will be no runtime deprecation warnings emitted
+  for such deprecations at runtime by default. Documentation-only deprecations
+  may trigger a runtime warning when Node.js is started with the
+  [`--pending-deprecation`][] flag or the `NODE_PENDING_DEPRECATION=1`
+  environment variable is set.
 
 * *Runtime Deprecation* refers to the use of process warnings emitted at
   runtime the first time that a deprecated API is used. A command-line
