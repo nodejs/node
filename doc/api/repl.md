@@ -141,6 +141,17 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 > fs.createReadStream('./some/file');
 ```
 
+#### Global Uncaught Exceptions
+
+The REPL uses the [`domain`][] module to catch all uncaught exceptions for that
+REPL session.
+
+This use of the [`domain`][] module in the REPL has these side effects:
+
+* Uncaught exceptions do not emit the [`'uncaughtException'`][] event.
+* Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
+  an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
+
 #### Assignment of the `_` (underscore) variable
 <!-- YAML
 changes:
@@ -618,4 +629,9 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`readline.Interface`]: readline.html#readline_class_interface
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
+[`domain`]: domain.html
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
 [stream]: stream.html
+
