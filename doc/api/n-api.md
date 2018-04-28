@@ -1051,6 +1051,9 @@ the ECMAScript Language Specification.
 In addition to types in that section, `napi_valuetype` can also represent
 `Function`s and `Object`s with external data.
 
+A JavaScript value of type `napi_external` appears in JavaScript as a plain
+object such that no properties can be set on it, and no prototype.
+
 #### napi_typedarray_type
 ```C
 typedef enum {
