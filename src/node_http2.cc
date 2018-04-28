@@ -1366,6 +1366,8 @@ void Http2Session::ClearOutgoing(int status) {
   CHECK_NE(flags_ & SESSION_STATE_SENDING, 0);
 
   if (outgoing_buffers_.size() > 0) {
+    outgoing_storage_.clear();
+
     for (const nghttp2_stream_write& wr : outgoing_buffers_) {
       WriteWrap* wrap = wr.req_wrap;
       if (wrap != nullptr)
@@ -1373,7 +1375,6 @@ void Http2Session::ClearOutgoing(int status) {
     }
 
     outgoing_buffers_.clear();
-    outgoing_storage_.clear();
   }
 
   flags_ &= ~SESSION_STATE_SENDING;
