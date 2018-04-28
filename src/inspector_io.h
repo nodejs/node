@@ -7,7 +7,7 @@
 #include "uv.h"
 
 #include <deque>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <stddef.h>
 

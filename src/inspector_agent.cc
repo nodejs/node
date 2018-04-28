@@ -1,6 +1,9 @@
 #include "inspector_agent.h"
 
 #include "inspector_io.h"
+#include "inspector/node_string.h"
+#include "inspector/tracing_agent.h"
+#include "node/inspector/protocol/Protocol.h"
 #include "node_internals.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
@@ -187,18 +190,35 @@ static int StartDebugSignalHandler() {
 const int NANOS_PER_MSEC = 1000000;
 const int CONTEXT_GROUP_ID = 1;
 
-class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
+class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
+                          public protocol::FrontendChannel {
  public:
-  explicit ChannelImpl(const std::unique_ptr<V8Inspector>& inspector,
+  explicit ChannelImpl(Environment* env,
+                       const std::unique_ptr<V8Inspector>& inspector,
                        std::unique_ptr<InspectorSessionDelegate> delegate)
                        : delegate_(std::move(delegate)) {
     session_ = inspector->connect(1, this, StringView());
+    node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
+    tracing_agent_ = std::make_unique<protocol::TracingAgent>(env);
+    tracing_agent_->Wire(node_dispatcher_.get());
   }
 
-  virtual ~ChannelImpl() {}
+  virtual ~ChannelImpl() {
+    tracing_agent_->disable();
+    tracing_agent_.reset();  // Dispose before the dispatchers
+  }
 
   void dispatchProtocolMessage(const StringView& message) {
-    session_->dispatchProtocolMessage(message);
+    std::unique_ptr<protocol::DictionaryValue> parsed;
+    std::string method;
+    node_dispatcher_->getCommandName(
+        protocol::StringUtil::StringViewToUtf8(message), &method, &parsed);
+    if (v8_inspector::V8InspectorSession::canDispatchMethod(
+            Utf8ToStringView(method)->string())) {
+      session_->dispatchProtocolMessage(message);
+    } else {
+      node_dispatcher_->dispatch(std::move(parsed));
+    }
   }
 
   void schedulePauseOnNextStatement(const std::string& reason) {
@@ -224,8 +244,25 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
     delegate_->SendMessageToFrontend(message);
   }
 
+  void sendMessageToFrontend(const std::string& message) {
+    sendMessageToFrontend(Utf8ToStringView(message)->string());
+  }
+
+  using Serializable = protocol::Serializable;
+
+  void sendProtocolResponse(int callId,
+                            std::unique_ptr<Serializable> message) override {
+    sendMessageToFrontend(message->serialize());
+  }
+  void sendProtocolNotification(
+      std::unique_ptr<Serializable> message) override {
+    sendMessageToFrontend(message->serialize());
+  }
+
+  std::unique_ptr<protocol::TracingAgent> tracing_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
+  std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;
 };
 
 class InspectorTimer {
@@ -369,7 +406,8 @@ class NodeInspectorClient : public V8InspectorClient {
     int session_id = next_session_id_++;
     // TODO(addaleax): Revert back to using make_unique once we get issues
     // with CI resolved (i.e. revert the patch that added this comment).
-    channels_[session_id].reset(new ChannelImpl(client_, std::move(delegate)));
+    channels_[session_id].reset(
+        new ChannelImpl(env_, client_, std::move(delegate)));
     return session_id;
   }
 
@@ -638,7 +676,8 @@ void Agent::DisableAsyncHook() {
   }
 }
 
-void Agent::ToggleAsyncHook(Isolate* isolate, const Persistent<Function>& fn) {
+void Agent::ToggleAsyncHook(Isolate* isolate,
+                            const node::Persistent<Function>& fn) {
   HandleScope handle_scope(isolate);
   CHECK(!fn.IsEmpty());
   auto context = parent_env_->context();

@@ -126,12 +126,6 @@ void NodeTraceWriter::FlushSignalCb(uv_async_t* signal) {
   trace_writer->FlushPrivate();
 }
 
-// TODO(matthewloring): Remove (is it necessary to change the API?
-// Since because of WriteSuffix it no longer matters whether it's true or false)
-void NodeTraceWriter::Flush() {
-  Flush(true);
-}
-
 void NodeTraceWriter::Flush(bool blocking) {
   Mutex::ScopedLock scoped_lock(request_mutex_);
   if (!json_trace_writer_) {
