@@ -813,8 +813,8 @@ release-only:
 		exit 1 ; \
 	fi
 	@if [ "$(DISTTYPE)" != "nightly" ] && [ "$(DISTTYPE)" != "next-nightly" ] && \
-		`grep -q DEP00XX doc/api/deprecations.md`; then \
-		echo 'Please update DEP00XX in doc/api/deprecations.md (See doc/releases.md)' ; \
+		`grep -q DEP...X doc/api/deprecations.md`; then \
+		echo 'Please update DEP...X in doc/api/deprecations.md (See doc/releases.md)' ; \
 		exit 1 ; \
 	fi
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
