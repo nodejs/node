@@ -624,14 +624,13 @@ a `net.Server` and `net.Socket` instance, see:
 For an example of running a REPL instance over [curl(1)][], see:
 [https://gist.github.com/2053342](https://gist.github.com/2053342).
 
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
+[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
+[`domain`]: domain.html
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [`readline.Interface`]: readline.html#readline_class_interface
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
-[`domain`]: domain.html
-[`'uncaughtException'`]: process.html#process_event_uncaughtexception
-[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
-[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
 [stream]: stream.html
-
