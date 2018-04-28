@@ -1,6 +1,7 @@
 #include "inspector_io.h"
 
 #include "inspector_socket_server.h"
+#include "inspector/node_string.h"
 #include "env-inl.h"
 #include "node.h"
 #include "node_crypto.h"
@@ -60,31 +61,6 @@ std::string GenerateID() {
            buffer[6],
            buffer[7]);
   return uuid;
-}
-
-std::string StringViewToUtf8(const StringView& view) {
-  if (view.is8Bit()) {
-    return std::string(reinterpret_cast<const char*>(view.characters8()),
-                       view.length());
-  }
-  const uint16_t* source = view.characters16();
-  const UChar* unicodeSource = reinterpret_cast<const UChar*>(source);
-  static_assert(sizeof(*source) == sizeof(*unicodeSource),
-                "sizeof(*source) == sizeof(*unicodeSource)");
-
-  size_t result_length = view.length() * sizeof(*source);
-  std::string result(result_length, '\0');
-  icu::UnicodeString utf16(unicodeSource, view.length());
-  // ICU components for std::string compatibility are not enabled in build...
-  bool done = false;
-  while (!done) {
-    icu::CheckedArrayByteSink sink(&result[0], result_length);
-    utf16.toUTF8(sink);
-    result_length = sink.NumberOfBytesAppended();
-    result.resize(result_length);
-    done = !sink.Overflowed();
-  }
-  return result;
 }
 
 void HandleSyncCloseCb(uv_handle_t* handle) {
@@ -272,7 +248,8 @@ void InspectorIo::IoThreadAsyncCb(uv_async_t* async) {
       break;
     case TransportAction::kSendMessage:
       transport->Send(session_id,
-                      StringViewToUtf8(std::get<2>(outgoing)->string()));
+                      protocol::StringUtil::StringViewToUtf8(
+                          std::get<2>(outgoing)->string()));
       break;
     case TransportAction::kAcceptSession:
       transport->AcceptSession(session_id);

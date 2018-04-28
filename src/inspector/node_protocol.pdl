@@ -1,0 +1,39 @@
+# Please notify @nodejs/v8-inspector and @nodejs/trace-events before modifying this file
+version
+  major 1
+  minor 0
+
+experimental domain NodeTracing
+  type TraceConfig extends object
+    properties
+      # Controls how the trace buffer stores data.
+      optional enum recordMode
+        recordUntilFull
+        recordContinuously
+        recordAsMuchAsPossible
+      # Included category filters.
+      array of string includedCategories
+
+  # Gets supported tracing categories.
+  command getCategories
+    returns
+      # A list of supported tracing categories.
+      array of string categories
+
+  # Start trace events collection.
+  command start
+    parameters
+      TraceConfig traceConfig
+
+  # Stop trace events collection. Remaining collected events will be sent as a sequence of
+  # dataCollected events followed by tracingComplete event.
+  command stop
+
+  # Contains an bucket of collected trace events.
+  event dataCollected
+    parameters
+      array of object value
+
+  # Signals that tracing is stopped and there is no trace buffers pending flush, all data were
+  # delivered via dataCollected events.
+  event tracingComplete
