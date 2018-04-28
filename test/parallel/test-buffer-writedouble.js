@@ -67,8 +67,9 @@ assert.strictEqual(buffer.readDoubleLE(8), -Infinity);
 buffer.writeDoubleBE(NaN, 0);
 buffer.writeDoubleLE(NaN, 8);
 
-// Mips processors use a different NaN.
-if (process.arch === 'mips') {
+// JS only knows a single NaN but there exist two platform specific
+// implementations. Therefore, allow both quiet and signalling NaNs.
+if (buffer[1] === 0xF7) {
   assert.ok(buffer.equals(new Uint8Array([
     0x7F, 0xF7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF7, 0x7F
