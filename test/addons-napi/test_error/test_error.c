@@ -127,6 +127,14 @@ napi_value createTypeErrorCode(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value throwArbitrary(napi_env env, napi_callback_info info) {
+  napi_value arbitrary;
+  size_t argc = 1;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arbitrary, NULL, NULL));
+  NAPI_CALL(env, napi_throw(env, arbitrary));
+  return NULL;
+}
+
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("checkError", checkError),
@@ -137,6 +145,7 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NAPI_PROPERTY("throwErrorCode", throwErrorCode),
     DECLARE_NAPI_PROPERTY("throwRangeErrorCode", throwRangeErrorCode),
     DECLARE_NAPI_PROPERTY("throwTypeErrorCode", throwTypeErrorCode),
+    DECLARE_NAPI_PROPERTY("throwArbitrary", throwArbitrary),
     DECLARE_NAPI_PROPERTY("createError", createError),
     DECLARE_NAPI_PROPERTY("createRangeError", createRangeError),
     DECLARE_NAPI_PROPERTY("createTypeError", createTypeError),
