@@ -654,7 +654,7 @@ child registers an event handler for the [`'disconnect'`][] event
 or the [`'message'`][] event. This allows the child to exit
 normally without the process being held open by the open IPC channel.*
 
-See also: [`child_process.exec()`][] and [`child_process.fork()`][]
+See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
 ## Synchronous Process Creation
 
@@ -778,7 +778,7 @@ process has exited.*
 
 If the process times out or has a non-zero exit code, this method ***will***
 throw. The [`Error`][] object will contain the entire result from
-[`child_process.spawnSync()`][]
+[`child_process.spawnSync()`][].
 
 **Never pass unsanitized user input to this function. Any input containing shell
 metacharacters may be used to trigger arbitrary command execution.**
@@ -1058,7 +1058,7 @@ does not indicate that the child process has been terminated.
 added: v0.1.90
 -->
 
-* {number} Integer
+* {integer}
 
 Returns the process identifier (PID) of the child process.
 

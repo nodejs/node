@@ -1666,7 +1666,7 @@ entry types were found.
 <a id="ERR_VALUE_OUT_OF_RANGE"></a>
 ### ERR_VALUE_OUT_OF_RANGE
 
-Superseded by `ERR_OUT_OF_RANGE`
+Superseded by `ERR_OUT_OF_RANGE`.
 
 <a id="ERR_VM_MODULE_ALREADY_LINKED"></a>
 ### ERR_VM_MODULE_ALREADY_LINKED

@@ -404,7 +404,7 @@ added: v3.0.0
 * Returns: {Buffer}
 
 Returns a `Buffer` instance holding the keys currently used for
-encryption/decryption of the [TLS Session Tickets][]
+encryption/decryption of the [TLS Session Tickets][].
 
 ### server.listen()
 
@@ -517,10 +517,9 @@ added: v0.11.4
 
 * Returns: {Object}
 
-Returns the bound address, the address family name, and port of the
-underlying socket as reported by the operating system. Returns an
-object with three properties, e.g.
-`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
+Returns the bound `address`, the address `family` name, and `port` of the
+underlying socket as reported by the operating system:
+`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
 
 ### tlsSocket.authorizationError
 <!-- YAML
@@ -566,7 +565,7 @@ added: v0.11.4
 Returns an object representing the cipher name. The `version` key is a legacy
 field which always contains the value `'TLSv1/SSLv3'`.
 
-For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
+For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`.
 
 See `SSL_CIPHER_get_name()` in
 https://www.openssl.org/docs/man1.1.0/ssl/SSL_CIPHER_get_name.html for more
@@ -586,7 +585,7 @@ ephemeral. As this is only supported on a client socket; `null` is returned
 if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 `name` property is available only when type is 'ECDH'.
 
-For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
+For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
 ### tlsSocket.getFinished()
 <!-- YAML
@@ -1219,7 +1218,6 @@ const options = {
 
   // This is necessary only if using the client certificate authentication.
   requestCert: true,
-
 };
 
 const server = tls.createServer(options, (socket) => {
@@ -1345,7 +1343,7 @@ changes:
   * `session` {Buffer} An optional `Buffer` instance containing a TLS session.
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
-    will be emitted on the socket before establishing a secure communication
+    will be emitted on the socket before establishing a secure communication.
 
 Creates a new secure pair object with two streams, one of which reads and writes
 the encrypted data and the other of which reads and writes the cleartext data.

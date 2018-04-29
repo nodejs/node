@@ -290,7 +290,7 @@ command-line option can be used to suppress the default console output but the
 `'warning'` event will still be emitted by the `process` object.
 
 The following example illustrates the warning that is printed to `stderr` when
-too many listeners have been added to an event
+too many listeners have been added to an event:
 
 ```txt
 $ node

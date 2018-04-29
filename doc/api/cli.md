@@ -63,7 +63,7 @@ added: v6.0.0
 -->
 
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-`./configure --openssl-fips`)
+`./configure --openssl-fips`.)
 
 
 ### `--experimental-modules`
@@ -96,7 +96,7 @@ added: v6.0.0
 -->
 
 Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as `--enable-fips`)
+(Same requirements as `--enable-fips`.)
 
 
 ### `--icu-data-dir=file`
@@ -104,7 +104,7 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 added: v0.11.15
 -->
 
-Specify ICU data load path. (overrides `NODE_ICU_DATA`)
+Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 
 
 ### `--inspect-brk[=[host:]port]`
@@ -271,7 +271,7 @@ added: v4.0.0
 -->
 
 Specify an alternative default TLS cipher list. (Requires Node.js to be built
-with crypto support. (Default))
+with crypto support. Default.)
 
 
 ### `--trace-deprecation`

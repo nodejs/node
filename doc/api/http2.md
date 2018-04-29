@@ -640,7 +640,7 @@ protocol is available on the host `'example.org'` on TCP/IP port 81. The
 host and port *must* be contained within the quote (`"`) characters.
 
 Multiple alternatives may be specified, for instance: `'h2="example.org:81",
-h2=":82"'`
+h2=":82"'`.
 
 The protocol identifier (`'h2'` in the examples) may be any valid
 [ALPN Protocol ID][].

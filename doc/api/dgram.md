@@ -111,7 +111,7 @@ properties.
 added: v0.1.99
 -->
 
-* `port` {number} Integer.
+* `port` {integer}
 * `address` {string}
 * `callback` {Function} with no parameters. Called when binding is complete.
 
@@ -279,9 +279,9 @@ changes:
 -->
 
 * `msg` {Buffer|Uint8Array|string|Array} Message to be sent.
-* `offset` {number} Integer. Offset in the buffer where the message starts.
-* `length` {number} Integer. Number of bytes in the message.
-* `port` {number} Integer. Destination port.
+* `offset` {integer} Offset in the buffer where the message starts.
+* `length` {integer} Number of bytes in the message.
+* `port` {integer} Destination port.
 * `address` {string} Destination hostname or IP address.
 * `callback` {Function} Called when the message has been sent.
 
@@ -480,7 +480,7 @@ multicast packets will also be received on the local interface.
 added: v0.3.8
 -->
 
-* `ttl` {number} Integer.
+* `ttl` {integer}
 
 Sets the `IP_MULTICAST_TTL` socket option. While TTL generally stands for
 "Time to Live", in this context it specifies the number of IP hops that a
@@ -496,7 +496,7 @@ between 0 and 255. The default on most systems is `1` but can vary.
 added: v8.7.0
 -->
 
-* `size` {number} Integer
+* `size` {integer}
 
 Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
 in bytes.
@@ -506,7 +506,7 @@ in bytes.
 added: v8.7.0
 -->
 
-* `size` {number} Integer
+* `size` {integer}
 
 Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
 in bytes.
@@ -516,7 +516,7 @@ in bytes.
 added: v0.1.101
 -->
 
-* `ttl` {number} Integer.
+* `ttl` {integer}
 
 Sets the `IP_TTL` socket option. While TTL generally stands for "Time to Live",
 in this context it specifies the number of IP hops that a packet is allowed to

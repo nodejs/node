@@ -40,7 +40,7 @@ The following special commands are supported by all REPL instances:
   `> .save ./file/to/save.js`
 * `.load` - Load a file into the current REPL session.
   `> .load ./file/to/load.js`
-* `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
+* `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel).
 
 <!-- eslint-skip -->
 ```js
@@ -607,10 +607,11 @@ By starting a REPL from a Unix socket-based server instead of stdin, it is
 possible to connect to a long-running Node.js process without restarting it.
 
 For an example of running a "full-featured" (`terminal`) REPL over
-a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
+a `net.Server` and `net.Socket` instance, see:
+[https://gist.github.com/2209310](https://gist.github.com/2209310).
 
-For an example of running a REPL instance over [curl(1)][],
-see: https://gist.github.com/2053342
+For an example of running a REPL instance over [curl(1)][], see:
+[https://gist.github.com/2053342](https://gist.github.com/2053342).
 
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
