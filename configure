@@ -676,11 +676,13 @@ def get_xcode_version(cc):
 
 def get_gas_version(cc):
   try:
+    custom_env = os.environ.copy()
+    custom_env["LC_ALL"] = "en_US"
     proc = subprocess.Popen(shlex.split(cc) + ['-Wa,-v', '-c', '-o',
                                                '/dev/null', '-x',
                                                'assembler',  '/dev/null'],
                             stdin=subprocess.PIPE, stderr=subprocess.PIPE,
-                            stdout=subprocess.PIPE)
+                            stdout=subprocess.PIPE, env=custom_env)
   except OSError:
     error('''No acceptable C compiler found!
 
