@@ -599,14 +599,13 @@ assert.throws(
   });
 
   // notDeepEqual tests
-  message = 'Identical input passed to notDeepStrictEqual:\n\n' +
-            '  [\n    1\n  ]\n';
+  message = 'Identical input passed to notDeepStrictEqual:\n\n[\n  1\n]\n';
   assert.throws(
     () => assert.notDeepEqual([1], [1]),
     { message });
 
   message = 'Identical input passed to notDeepStrictEqual:' +
-        `\n\n  [${'\n    1,'.repeat(25)}\n  ...\n`;
+        `\n\n[${'\n  1,'.repeat(25)}\n...\n`;
   const data = Array(31).fill(1);
   assert.throws(
     () => assert.notDeepEqual(data, data),
@@ -901,7 +900,7 @@ assert.throws(() => { throw null; }, 'foo');
 assert.throws(
   () => assert.strictEqual([], []),
   {
-    message: 'Input object identical but not reference equal:\n\n  []\n'
+    message: 'Input objects identical but not reference equal:\n\n[]\n'
   }
 );
 
