@@ -33,22 +33,6 @@ properties:
   using `napi_get_last_error_info`. More information can be found in the error
   handling section [Error Handling][].
 
-The documentation for N-API is structured as follows:
-
-* [Basic N-API Data Types][]
-* [Error Handling][]
-* [Object Lifetime Management][]
-* [Module Registration][]
-* [Working with JavaScript Values][]
-* [Working with JavaScript Values - Abstract Operations][]
-* [Working with JavaScript Properties][]
-* [Working with JavaScript Functions][]
-* [Object Wrap][]
-* [Simple Asynchronous Operations][]
-* [Custom Asynchronous Operations][]
-* [Promises][]
-* [Script Execution][]
-
 The N-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. However, we also understand that a C++
 API can be easier to use in many cases. To support these cases we expect
@@ -3795,17 +3779,11 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[out] loop`: The current libuv loop instance.
 
-[Promises]: #n_api_promises
-[Simple Asynchronous Operations]: #n_api_simple_asynchronous_operations
-[Custom Asynchronous Operations]: #n_api_custom_asynchronous_operations
-[Basic N-API Data Types]: #n_api_basic_n_api_data_types
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error Handling]: #n_api_error_handling
-[Module Registration]: #n_api_module_registration
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [Object Lifetime Management]: #n_api_object_lifetime_management
 [Object Wrap]: #n_api_object_wrap
-[Script Execution]: #n_api_script_execution
 [Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
 [Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
 [Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
