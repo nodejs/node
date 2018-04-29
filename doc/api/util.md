@@ -20,10 +20,10 @@ added: v8.2.0
 * `original` {Function} An `async` function
 * Returns: {Function} a callback style function
 
-Takes an `async` function (or a function that returns a Promise) and returns a
+Takes an `async` function (or a function that returns a `Promise`) and returns a
 function following the error-first callback style, i.e. taking
-a `(err, value) => ...` callback as the last argument. In the callback, the
-first argument will be the rejection reason (or `null` if the Promise
+an `(err, value) => ...` callback as the last argument. In the callback, the
+first argument will be the rejection reason (or `null` if the `Promise`
 resolved), and the second argument will be the resolved value.
 
 ```js
@@ -197,18 +197,18 @@ The first argument is a string containing zero or more *placeholder* tokens.
 Each placeholder token is replaced with the converted value from the
 corresponding argument. Supported placeholders are:
 
-* `%s` - String.
-* `%d` - Number (integer or floating point value).
+* `%s` - `String`.
+* `%d` - `Number` (integer or floating point value).
 * `%i` - Integer.
 * `%f` - Floating point value.
 * `%j` - JSON. Replaced with the string `'[Circular]'` if the argument
 contains circular references.
-* `%o` - Object. A string representation of an object
+* `%o` - `Object`. A string representation of an object
   with generic JavaScript object formatting.
   Similar to `util.inspect()` with options
   `{ showHidden: true, showProxy: true }`. This will show the full object
   including non-enumerable properties and proxies.
-* `%O` - Object. A string representation of an object with generic JavaScript
+* `%O` - `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
@@ -362,7 +362,7 @@ added: v0.3.0
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19259
-    description: WeakMap and WeakSet entries can now be inspected as well.
+    description: The `WeakMap` and `WeakSet` entries can now be inspected.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17576
     description: The `compact` option is supported now.
@@ -381,7 +381,7 @@ changes:
     description: The `showProxy` option is supported now.
 -->
 
-* `object` {any} Any JavaScript primitive or Object.
+* `object` {any} Any JavaScript primitive or `Object`.
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
     properties will be included in the formatted result as well as [`WeakMap`][]
@@ -623,7 +623,7 @@ util.inspect(obj);
 added: v6.6.0
 -->
 
-A Symbol that can be used to declare custom inspect functions, see
+A {symbol} that can be used to declare custom inspect functions, see
 [Custom inspection functions on Objects][].
 
 ### util.inspect.defaultOptions
@@ -670,7 +670,7 @@ added: v8.0.0
 * Returns: {Function}
 
 Takes a function following the common error-first callback style, i.e. taking
-a `(err, value) => ...` callback as the last argument, and returns a version
+an `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
 
 ```js
@@ -752,7 +752,7 @@ added: v8.0.0
 
 * {symbol}
 
-A Symbol that can be used to declare custom promisified variants of functions,
+A {symbol} that can be used to declare custom promisified variants of functions,
 see [Custom promisified functions][].
 
 ## Class: util.TextDecoder
@@ -859,7 +859,7 @@ supported encodings or an alias.
 ### textDecoder.decode([input[, options]])
 
 * `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView` or
-  Typed Array instance containing the encoded data.
+  `Typed Array` instance containing the encoded data.
 * `options` {Object}
   * `stream` {boolean} `true` if additional chunks of data are expected.
     **Default:** `false`.
