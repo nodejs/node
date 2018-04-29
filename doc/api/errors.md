@@ -479,7 +479,6 @@ The following properties are provided:
 * `dest` {Buffer} When reporting a file system error, the `dest` will identify
   the file path destination (if any).
 
-
 #### error.code
 
 * {string}

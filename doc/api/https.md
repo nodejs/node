@@ -165,7 +165,6 @@ changes:
   - `agent` **Default:** `https.globalAgent`
 - `callback` {Function}
 
-
 Makes a request to a secure web server.
 
 The following additional `options` from [`tls.connect()`][] are also accepted:
@@ -326,9 +325,10 @@ req.on('error', (e) => {
   console.error(e.message);
 });
 req.end();
-
 ```
- Outputs for example:
+
+Outputs for example:
+
 ```text
 Subject Common Name: github.com
   Certificate SHA256 fingerprint: 25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:D8:3E:4C:1D:98:DB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16

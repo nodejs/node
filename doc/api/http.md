@@ -605,7 +605,6 @@ const contentLength = request.getHeader('Content-Length');
 // contentLength is of type number
 const setCookie = request.getHeader('set-cookie');
 // setCookie is of type string[]
-
 ```
 
 ### request.removeHeader(name)
@@ -1053,7 +1052,6 @@ response.end();
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
-
 
 ### response.connection
 <!-- YAML

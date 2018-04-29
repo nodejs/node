@@ -134,7 +134,6 @@ added: v0.1.25
 -->
 * `str` {string}
 
-
 The `querystring.unescape()` method performs decoding of URL percent-encoded
 characters on the given `str`.
 
