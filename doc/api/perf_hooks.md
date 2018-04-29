@@ -339,7 +339,6 @@ added: v8.5.0
 The high resolution millisecond timestamp at which the V8 platform was
 initialized.
 
-
 ## Class: PerformanceObserver
 
 ### new PerformanceObserver(callback)
@@ -476,7 +475,6 @@ added: v8.5.0
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
 is equal to `type`.
-
 
 ## Examples
 

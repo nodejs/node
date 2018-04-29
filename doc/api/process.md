@@ -966,7 +966,6 @@ that started the Node.js process.
 '/usr/local/bin/node'
 ```
 
-
 ## process.exit([code])
 <!-- YAML
 added: v0.1.13
@@ -1045,7 +1044,6 @@ a code.
 
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
-
 
 ## process.getegid()
 <!-- YAML
@@ -1180,7 +1178,6 @@ setTimeout(() => {
   // benchmark took 1000000552 nanoseconds
 }, 1000);
 ```
-
 
 ## process.initgroups(user, extraGroup)
 <!-- YAML
@@ -1574,7 +1571,6 @@ if (process.getegid && process.setegid) {
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 
-
 ## process.seteuid(id)
 <!-- YAML
 added: v2.0.0
@@ -1870,7 +1866,6 @@ console.log(
 );
 ```
 
-
 ## process.uptime()
 <!-- YAML
 added: v0.5.0
@@ -1986,7 +1981,6 @@ cases:
   the high-order bit, and then contain the value of the signal code.
   For example, signal `SIGABRT` has value `6`, so the expected exit
   code will be `128` + `6`, or `134`.
-
 
 [`'exit'`]: #process_event_exit
 [`'finish'`]: stream.html#stream_event_finish

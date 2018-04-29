@@ -428,7 +428,6 @@ more information on how it is used.
 Changes to the ticket keys are effective only for future server connections.
 Existing or currently pending server connections will use the previous keys.
 
-
 ## Class: tls.TLSSocket
 <!-- YAML
 added: v0.11.4
@@ -1008,7 +1007,6 @@ as arguments instead of options.
 A port or host option, if specified, will take precedence over any port or host
 argument.
 
-
 ## tls.createSecureContext(options)
 <!-- YAML
 added: v0.11.13
@@ -1120,7 +1118,6 @@ A key is *required* for ciphers that make use of certificates. Either `key` or
 If the 'ca' option is not given, then Node.js will use the default
 publicly trusted list of CAs as given in
 <https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt>.
-
 
 ## tls.createServer([options][, secureConnectionListener])
 <!-- YAML
@@ -1263,7 +1260,6 @@ added: v0.11.13
 The default curve name to use for ECDH key agreement in a tls server. The
 default value is `'auto'`. See [`tls.createSecureContext()`] for further
 information.
-
 
 ## Deprecated APIs
 

@@ -3178,7 +3178,6 @@ following additional properties:
 * `type` {string} Either `'server'` or `'client'` to identify the type of
   `Http2Session`.
 
-
 [ALPN negotiation]: #http2_alpn_negotiation
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [Compatibility API]: #http2_compatibility_api

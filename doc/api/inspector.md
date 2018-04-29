@@ -166,7 +166,6 @@ session.post('Profiler.enable', () => {
 });
 ```
 
-
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`session.connect()`]: #inspector_session_connect
