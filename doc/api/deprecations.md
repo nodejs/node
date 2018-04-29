@@ -177,16 +177,16 @@ v10.0.0 onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562)
 
 Type: End-of-Life
 
-The [`fs.read()`][] legacy String interface is deprecated. Use the Buffer API as
-mentioned in the documentation instead.
+The [`fs.read()`][] legacy `String` interface is deprecated. Use the `Buffer`
+API as mentioned in the documentation instead.
 
 <a id="DEP0015"></a>
 ### DEP0015: fs.readSync legacy String interface
 
 Type: End-of-Life
 
-The [`fs.readSync()`][] legacy String interface is deprecated. Use the Buffer
-API as mentioned in the documentation instead.
+The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
+`Buffer` API as mentioned in the documentation instead.
 
 <a id="DEP0016"></a>
 ### DEP0016: GLOBAL/root

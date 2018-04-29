@@ -167,7 +167,7 @@ added: v8.1.0
 * `socket` {net.Socket}
 
 Called when `socket` is detached from a request and could be persisted by the
-Agent. Default behavior is to:
+`Agent`. Default behavior is to:
 
 ```js
 socket.setKeepAlive(true, this.keepAliveMsecs);
@@ -257,7 +257,7 @@ added: v0.3.6
 
 * {number}
 
-By default set to Infinity. Determines how many concurrent sockets the agent
+By default set to `Infinity`. Determines how many concurrent sockets the agent
 can have open per origin. Origin is the returned value of [`agent.getName()`][].
 
 ### agent.requests
@@ -790,7 +790,7 @@ changes:
                  for `'clientError'`.
   - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/17672
-    description: The rawPacket is the current buffer that just parsed. Adding
+    description: The `rawPacket` is the current buffer that just parsed. Adding
                  this buffer to the error object of `'clientError'` event is to
                  make it possible that developers can log the broken packet.
 -->
@@ -924,10 +924,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 added: v5.7.0
 -->
 
-* {boolean}
-
-A Boolean indicating whether or not the server is listening for
-connections.
+* {boolean} Indicates whether or not the server is listening for connections.
 
 ### server.maxHeadersCount
 <!-- YAML
@@ -1761,11 +1758,11 @@ changes:
     description: The `options` argument is supported now.
 -->
 - `options` {Object}
-  * `IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage class
-    to be used. Useful for extending the original `IncomingMessage`.
+  * `IncomingMessage` {http.IncomingMessage} Specifies the `IncomingMessage`
+    class to be used. Useful for extending the original `IncomingMessage`.
     **Default:** `IncomingMessage`.
-  * `ServerResponse` {http.ServerResponse} Specifies the ServerResponse class to
-    be used. Useful for extending the original `ServerResponse`. **Default:**
+  * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
+    to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
 - `requestListener` {Function}
 
@@ -1868,8 +1865,8 @@ changes:
     v6 will be used.
   * `port` {number} Port of remote server. **Default:** `80`.
   * `localAddress` {string} Local interface to bind for network connections.
-  * `socketPath` {string} Unix Domain Socket (use one of host:port or
-    socketPath).
+  * `socketPath` {string} Unix Domain Socket (use one of `host:port` or
+    `socketPath`).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.

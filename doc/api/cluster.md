@@ -117,7 +117,7 @@ also be used for other use cases requiring worker processes.
 added: v0.7.0
 -->
 
-A Worker object contains all public information and method about a worker.
+A `Worker` object contains all public information and method about a worker.
 In the master it can be obtained using `cluster.workers`. In a worker
 it can be obtained using `cluster.worker`.
 
@@ -813,10 +813,10 @@ A hash that stores the active worker objects, keyed by `id` field. Makes it
 easy to loop through all the workers. It is only available in the master
 process.
 
-A worker is removed from cluster.workers after the worker has disconnected _and_
-exited. The order between these two events cannot be determined in advance.
-However, it is guaranteed that the removal from the cluster.workers list happens
-before last `'disconnect'` or `'exit'` event is emitted.
+A worker is removed from `cluster.workers` after the worker has disconnected
+_and_ exited. The order between these two events cannot be determined in
+advance. However, it is guaranteed that the removal from the `cluster.workers`
+list happens before last `'disconnect'` or `'exit'` event is emitted.
 
 ```js
 // Go through all workers

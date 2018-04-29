@@ -18,7 +18,7 @@ errors:
   as attempting to open a file that does not exist, attempting to send data
   over a closed socket, etc;
 - And User-specified errors triggered by application code.
-- Assertion Errors are a special class of error that can be triggered whenever
+- `AssertionError`s are a special class of error that can be triggered whenever
   Node.js detects an exceptional logic violation that should never occur. These
   are raised typically by the `assert` module.
 
@@ -32,7 +32,7 @@ to provide *at least* the properties available on that class.
 
 Node.js supports several mechanisms for propagating and handling errors that
 occur while an application is running. How these errors are reported and
-handled depends entirely on the type of Error and the style of the API that is
+handled depends entirely on the type of `Error` and the style of the API that is
 called.
 
 All JavaScript errors are handled as exceptions that *immediately* generate
@@ -137,7 +137,7 @@ pattern referred to as an _error-first callback_ (sometimes referred to as
 a _Node.js style callback_). With this pattern, a callback function is passed
 to the method as an argument. When the operation either completes or an error
 is raised, the callback function is called with
-the Error object (if any) passed as the first argument. If no error was
+the `Error` object (if any) passed as the first argument. If no error was
 raised, the first argument will be passed as `null`.
 
 ```js
@@ -422,7 +422,7 @@ they may only be caught by other contexts.
 
 A subclass of `Error` that indicates that a provided argument is not an
 allowable type. For example, passing a function to a parameter which expects a
-string would be considered a TypeError.
+string would be considered a `TypeError`.
 
 ```js
 require('url').parse(() => { });
@@ -440,7 +440,7 @@ A JavaScript exception is a value that is thrown as a result of an invalid
 operation or as the target of a `throw` statement. While it is not required
 that these values are instances of `Error` or classes which inherit from
 `Error`, all exceptions thrown by Node.js or the JavaScript runtime *will* be
-instances of Error.
+instances of `Error`.
 
 Some exceptions are *unrecoverable* at the JavaScript layer. Such exceptions
 will *always* cause the Node.js process to crash. Examples include `assert()`
@@ -492,7 +492,7 @@ typically `E` followed by a sequence of capital letters.
 
 The `error.errno` property is a number or a string.
 The number is a **negative** value which corresponds to the error code defined
-in [`libuv Error handling`]. See uv-errno.h header file
+in [`libuv Error handling`]. See `uv-errno.h` header file
 (`deps/uv/include/uv-errno.h` in the Node.js source tree) for details. In case
 of a string, it is the same as `error.code`.
 
@@ -1081,7 +1081,7 @@ An invalid or unsupported value was passed for a given argument.
 <a id="ERR_INVALID_ARRAY_LENGTH"></a>
 ### ERR_INVALID_ARRAY_LENGTH
 
-An Array was not of the expected length or in a valid range.
+An array was not of the expected length or in a valid range.
 
 <a id="ERR_INVALID_ASYNC_ID"></a>
 ### ERR_INVALID_ASYNC_ID
@@ -1515,7 +1515,7 @@ length.
 ### ERR_TLS_CERT_ALTNAME_INVALID
 
 While using TLS, the hostname/IP of the peer did not match any of the
-subjectAltNames in its certificate.
+`subjectAltNames` in its certificate.
 
 <a id="ERR_TLS_DH_PARAM_SIZE"></a>
 ### ERR_TLS_DH_PARAM_SIZE
@@ -1569,12 +1569,12 @@ the `--without-v8-platform` flag.
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 ### ERR_TRANSFORM_ALREADY_TRANSFORMING
 
-A Transform stream finished while it was still transforming.
+A `Transform` stream finished while it was still transforming.
 
 <a id="ERR_TRANSFORM_WITH_LENGTH_0"></a>
 ### ERR_TRANSFORM_WITH_LENGTH_0
 
-A Transform stream finished with data still in the write buffer.
+A `Transform` stream finished with data still in the write buffer.
 
 <a id="ERR_TTY_INIT_FAILED"></a>
 ### ERR_TTY_INIT_FAILED
@@ -1649,7 +1649,7 @@ itself, although it is possible for user code to trigger it.
 <a id="ERR_V8BREAKITERATOR"></a>
 ### ERR_V8BREAKITERATOR
 
-The V8 BreakIterator API was used but the full ICU data set is not installed.
+The V8 `BreakIterator` API was used but the full ICU data set is not installed.
 
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 ### ERR_VALID_PERFORMANCE_ENTRY_TYPE

@@ -303,7 +303,7 @@ rl.write('Delete this!');
 rl.write(null, { ctrl: true, name: 'u' });
 ```
 
-The `rl.write()` method will write the data to the `readline` Interface's
+The `rl.write()` method will write the data to the `readline` `Interface`'s
 `input` *as if it were provided by the user*.
 
 ## readline.clearLine(stream, dir)
@@ -401,9 +401,9 @@ a `'resize'` event on the `output` if or when the columns ever change
 ### Use of the `completer` Function
 
 The `completer` function takes the current line entered by the user
-as an argument, and returns an Array with 2 entries:
+as an argument, and returns an `Array` with 2 entries:
 
-* An Array with matching entries for the completion.
+* An `Array` with matching entries for the completion.
 * The substring that was used for the matching.
 
 For instance: `[[substr1, substr2, ...], originalsubstring]`.

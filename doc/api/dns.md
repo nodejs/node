@@ -194,7 +194,7 @@ dns.lookup('example.com', options, (err, addresses) =>
 ```
 
 If this method is invoked as its [`util.promisify()`][]ed version, and `all`
-is not set to `true`, it returns a Promise for an object with `address` and
+is not set to `true`, it returns a `Promise` for an `Object` with `address` and
 `family` properties.
 
 ### Supported getaddrinfo flags
@@ -238,7 +238,7 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 ```
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns a
-Promise for an object with `hostname` and `service` properties.
+`Promise` for an `Object` with `hostname` and `service` properties.
 
 ## dns.resolve(hostname[, rrtype], callback)
 <!-- YAML
@@ -593,8 +593,8 @@ Each DNS query can return one of the following error codes:
 - `dns.NONAME`: Given hostname is not numeric.
 - `dns.BADHINTS`: Illegal hints flags specified.
 - `dns.NOTINITIALIZED`: c-ares library initialization not yet performed.
-- `dns.LOADIPHLPAPI`: Error loading iphlpapi.dll.
-- `dns.ADDRGETNETWORKPARAMS`: Could not find GetNetworkParams function.
+- `dns.LOADIPHLPAPI`: Error loading `iphlpapi.dll`.
+- `dns.ADDRGETNETWORKPARAMS`: Could not find `GetNetworkParams` function.
 - `dns.CANCELLED`: DNS query cancelled.
 
 ## Implementation considerations

@@ -162,20 +162,20 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   * `url` {string} URL used in module resolution and stack traces. **Default:**
     `'vm:module(i)'` where `i` is a context-specific ascending index.
   * `context` {Object} The [contextified][] object as returned by the
-    `vm.createContext()` method, to compile and evaluate this Module in.
+    `vm.createContext()` method, to compile and evaluate this `Module` in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
-    in stack traces produced by this Module.
-  * `columnOffset` {integer} Spcifies the column number offset that is displayed
-    in stack traces produced by this Module.
-  * `initalizeImportMeta` {Function} Called during evaluation of this Module to
-    initialize the `import.meta`. This function has the signature `(meta,
-    module)`, where `meta` is the `import.meta` object in the Module, and
+    in stack traces produced by this `Module`.
+  * `columnOffset` {integer} Specifies the column number offset that is
+    displayed in stack traces produced by this `Module`.
+  * `initalizeImportMeta` {Function} Called during evaluation of this `Module`
+    to initialize the `import.meta`. This function has the signature `(meta,
+    module)`, where `meta` is the `import.meta` object in the `Module`, and
     `module` is this `vm.Module` object.
 
 Creates a new ES `Module` object.
 
 *Note*: Properties assigned to the `import.meta` object that are objects may
-allow the Module to access information outside the specified `context`, if the
+allow the `Module` to access information outside the specified `context`, if the
 object is created in the top level context. Use `vm.runInContext()` to create
 objects in a specific context.
 
@@ -217,8 +217,8 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 The specifiers of all dependencies of this module. The returned array is frozen
 to disallow any changes to it.
 
-Corresponds to the [[RequestedModules]] field of [Source Text Module Record][]s
-in the ECMAScript specification.
+Corresponds to the `[[RequestedModules]]` field of
+[Source Text Module Record][]s in the ECMAScript specification.
 
 ### module.error
 
@@ -231,7 +231,7 @@ accessing this property will result in a thrown exception.
 The value `undefined` cannot be used for cases where there is not a thrown
 exception due to possible ambiguity with `throw undefined;`.
 
-Corresponds to the [[EvaluationError]] field of [Source Text Module Record][]s
+Corresponds to the `[[EvaluationError]]` field of [Source Text Module Record][]s
 in the ECMAScript specification.
 
 ### module.linkingStatus
@@ -246,8 +246,8 @@ The current linking status of `module`. It will be one of the following values:
 - `'linked'`: `module.link()` has been called, and all its dependencies have
   been successfully linked.
 - `'errored'`: `module.link()` has been called, but at least one of its
-  dependencies failed to link, either because the callback returned a Promise
-  that is rejected, or because the Module the callback returned is invalid.
+  dependencies failed to link, either because the callback returned a `Promise`
+  that is rejected, or because the `Module` the callback returned is invalid.
 
 ### module.namespace
 
@@ -289,9 +289,9 @@ The current status of the module. Will be one of:
 - `'errored'`: The module has been evaluated, but an exception was thrown.
 
 Other than `'errored'`, this status string corresponds to the specification's
-[Source Text Module Record][]'s [[Status]] field. `'errored'` corresponds to
-`'evaluated'` in the specification, but with [[EvaluationError]] set to a value
-that is not `undefined`.
+[Source Text Module Record][]'s `[[Status]]` field. `'errored'` corresponds to
+`'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
+value that is not `undefined`.
 
 ### module.url
 

@@ -57,7 +57,7 @@ option:
 | [`require('buffer').transcode()`][]     | none (function does not exist)    | full                         | full                   | full       |
 | [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full       |
 | [`require('util').TextDecoder`][]       | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
-| [RegExp Unicode Property Escapes][]     | none (invalid RegExp error)       | full                         | full                   | full       |
+| [RegExp Unicode Property Escapes][]     | none (invalid `RegExp` error)     | full                         | full                   | full       |
 
 The "(not locale-aware)" designation denotes that the function carries out its
 operation just like the non-`Locale` version of the function, if one

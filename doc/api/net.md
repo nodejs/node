@@ -152,7 +152,7 @@ Stops the server from accepting new connections and keeps existing
 connections. This function is asynchronous, the server is finally closed
 when all connections are ended and the server emits a [`'close'`][] event.
 The optional `callback` will be called once the `'close'` event occurs. Unlike
-that event, it will be called with an Error as its only argument if the server
+that event, it will be called with an `Error` as its only argument if the server
 was not open when it was closed.
 
 ### server.connections
@@ -184,7 +184,7 @@ Callback should take two arguments `err` and `count`.
 ### server.listen()
 
 Start a server listening for connections. A `net.Server` can be a TCP or
-a [IPC][] server depending on what it listens to.
+an [IPC][] server depending on what it listens to.
 
 Possible signatures:
 
@@ -294,7 +294,7 @@ added: v0.1.90
 * `callback` {Function} Common parameter of [`server.listen()`][] functions.
 * Returns: {net.Server}
 
-Start a [IPC][] server listening for connections on the given `path`.
+Start an [IPC][] server listening for connections on the given `path`.
 
 #### server.listen([port[, host[, backlog]]][, callback])
 <!-- YAML
@@ -325,8 +325,7 @@ may cause the `net.Server` to also listen on the [unspecified IPv4 address][]
 added: v5.7.0
 -->
 
-A Boolean indicating whether or not the server is listening for
-connections.
+* {boolean} Indicates whether or not the server is listening for connections.
 
 ### server.maxConnections
 <!-- YAML
@@ -369,7 +368,7 @@ added: v0.3.4
 This class is an abstraction of a TCP socket or a streaming [IPC][] endpoint
 (uses named pipes on Windows, and UNIX domain sockets otherwise). A
 `net.Socket` is also a [duplex stream][], so it can be both readable and
-writable, and it is also a [`EventEmitter`][].
+writable, and it is also an [`EventEmitter`][].
 
 A `net.Socket` can be created by the user and used directly to interact with
 a server. For example, it is returned by [`net.createConnection()`][],
@@ -670,8 +669,8 @@ listeners for that event will receive `exception` as an argument.
 
 ### socket.destroyed
 
-A Boolean value that indicates if the connection is destroyed or not. Once a
-connection is destroyed no further data can be transferred using it.
+* {boolean} Indicates if the connection is destroyed or not. Once a
+  connection is destroyed no further data can be transferred using it.
 
 ### socket.end([data][, encoding])
 <!-- YAML
@@ -775,8 +774,8 @@ Enable/disable keep-alive functionality, and optionally set the initial
 delay before the first keepalive probe is sent on an idle socket.
 
 Set `initialDelay` (in milliseconds) to set the delay between the last
-data packet received and the first keepalive probe. Setting 0 for
-initialDelay will leave the value unchanged from the default
+data packet received and the first keepalive probe. Setting `0` for
+`initialDelay` will leave the value unchanged from the default
 (or previous) setting.
 
 ### socket.setNoDelay([noDelay])
@@ -849,7 +848,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
 
-See Writable stream [`write()`][stream_writable_write] method for more
+See `Writable` stream [`write()`][stream_writable_write] method for more
 information.
 
 ## net.connect()
@@ -1030,7 +1029,7 @@ This allows connections to be passed between processes without any data being
 read by the original process. To begin reading data from a paused socket, call
 [`socket.resume()`][].
 
-The server can be a TCP server or a [IPC][] server, depending on what it
+The server can be a TCP server or an [IPC][] server, depending on what it
 [`listen()`][`server.listen()`] to.
 
 Here is an example of an TCP echo server which listens for connections

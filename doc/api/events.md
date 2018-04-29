@@ -8,7 +8,7 @@
 
 Much of the Node.js core API is built around an idiomatic asynchronous
 event-driven architecture in which certain kinds of objects (called "emitters")
-periodically emit named events that cause Function objects ("listeners") to be
+periodically emit named events that cause `Function` objects ("listeners") to be
 called.
 
 For instance: a [`net.Server`][] object emits an event each time a peer
@@ -167,7 +167,7 @@ The `EventEmitter` class is defined and exposed by the `events` module:
 const EventEmitter = require('events');
 ```
 
-All EventEmitters emit the event `'newListener'` when new listeners are
+All `EventEmitter`s emit the event `'newListener'` when new listeners are
 added and `'removeListener'` when existing listeners are removed.
 
 ### Event: 'newListener'
@@ -314,7 +314,7 @@ added: v6.0.0
 - Returns: {Array}
 
 Returns an array listing the events for which the emitter has registered
-listeners. The values in the array will be strings or Symbols.
+listeners. The values in the array will be strings or `Symbol`s.
 
 ```js
 const EventEmitter = require('events');
@@ -589,7 +589,7 @@ added: v0.3.5
 - `n` {integer}
 - Returns: {EventEmitter}
 
-By default EventEmitters will print a warning if more than `10` listeners are
+By default `EventEmitter`s will print a warning if more than `10` listeners are
 added for a particular event. This is a useful default that helps finding
 memory leaks. Obviously, not all events should be limited to just 10 listeners.
 The `emitter.setMaxListeners()` method allows the limit to be modified for this

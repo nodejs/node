@@ -322,7 +322,7 @@ A required module prefixed with `'./'` is relative to the file calling
 `require()`. That is, `circle.js` must be in the same directory as `foo.js` for
 `require('./circle')` to find it.
 
-Without a leading '/', './', or '../' to indicate a file, the module must
+Without a leading `'/'`, `'./'`, or `'../'` to indicate a file, the module must
 either be a core module or is loaded from a `node_modules` folder.
 
 If the given path does not exist, `require()` will throw an [`Error`][] with its
@@ -338,7 +338,7 @@ There are three ways in which a folder may be passed to `require()` as
 an argument.
 
 The first is to create a `package.json` file in the root of the folder,
-which specifies a `main` module. An example package.json file might
+which specifies a `main` module. An example `package.json` file might
 look like this:
 
 ```json
@@ -350,7 +350,7 @@ If this was in a folder at `./some-library`, then
 `require('./some-library')` would attempt to load
 `./some-library/lib/some-library.js`.
 
-This is the extent of Node.js's awareness of package.json files.
+This is the extent of Node.js's awareness of `package.json` files.
 
 If the file specified by the `'main'` entry of `package.json` is missing and
 can not be resolved, Node.js will report the entire module as missing with the
@@ -360,9 +360,9 @@ default error:
 Error: Cannot find module 'some-library'
 ```
 
-If there is no package.json file present in the directory, then Node.js
+If there is no `package.json` file present in the directory, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
-directory. For example, if there was no package.json file in the above
+directory. For example, if there was no `package.json` file in the above
 example, then `require('./some-library')` would attempt to load:
 
 * `./some-library/index.js`
@@ -563,7 +563,7 @@ added: v0.3.0
 Modules are cached in this object when they are required. By deleting a key
 value from this object, the next `require` will reload the module. Note that
 this does not apply to [native addons][], for which reloading will result in an
-Error.
+error.
 
 #### require.extensions
 <!-- YAML
@@ -700,7 +700,7 @@ added: v0.1.16
 
 * {Object}
 
-The `module.exports` object is created by the Module system. Sometimes this is
+The `module.exports` object is created by the `Module` system. Sometimes this is
 not acceptable; many want their module to be an instance of some class. To do
 this, assign the desired export object to `module.exports`. Note that assigning
 the desired object to `exports` will simply rebind the local `exports` variable,
@@ -725,14 +725,14 @@ Then in another file we could do
 ```js
 const a = require('./a');
 a.on('ready', () => {
-  console.log('module a is ready');
+  console.log('module "a" is ready');
 });
 ```
 
 Note that assignment to `module.exports` must be done immediately. It cannot be
 done in any callbacks. This does not work:
 
-x.js:
+`x.js`:
 
 ```js
 setTimeout(() => {
@@ -740,7 +740,7 @@ setTimeout(() => {
 }, 0);
 ```
 
-y.js:
+`y.js`:
 
 ```js
 const x = require('./x');
@@ -828,7 +828,7 @@ loading.
 added: v0.1.16
 -->
 
-* {Object} Module object
+* {module}
 
 The module that first required this one.
 

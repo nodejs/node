@@ -583,7 +583,7 @@ an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
 connection. It returns an empty object when the key exchange is not
 ephemeral. As this is only supported on a client socket; `null` is returned
 if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
-`name` property is available only when type is 'ECDH'.
+`name` property is available only when type is `'ECDH'`.
 
 For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 
@@ -616,7 +616,7 @@ added: v0.11.4
 Returns an object representing the peer's certificate. The returned object has
 some properties corresponding to the fields of the certificate.
 
-If the full certificate chain was requested, each certificate will include a
+If the full certificate chain was requested, each certificate will include an
 `issuerCertificate` property containing an object representing its issuer's
 certificate.
 
@@ -638,7 +638,7 @@ For example:
      OU: 'Test TLS Certificate',
      CN: 'localhost' },
   issuerCertificate:
-   { ... another certificate, possibly with a .issuerCertificate ... },
+   { ... another certificate, possibly with an .issuerCertificate ... },
   raw: < RAW DER buffer >,
   pubkey: < RAW DER buffer >,
   valid_from: 'Nov 11 09:52:22 2009 GMT',
@@ -1017,7 +1017,7 @@ changes:
   - version: v7.3.0
     pr-url: https://github.com/nodejs/node/pull/10294
     description: If the `key` option is an array, individual entries do not
-                 need a `passphrase` property anymore. Array entries can also
+                 need a `passphrase` property anymore. `Array` entries can also
                  just be `string`s or `Buffer`s now.
   - version: v5.2.0
     pr-url: https://github.com/nodejs/node/pull/4099
@@ -1057,9 +1057,9 @@ changes:
   * `ca` {string|string[]|Buffer|Buffer[]} Optionally override the trusted CA
     certificates. Default is to trust the well-known CAs curated by Mozilla.
     Mozilla's CAs are completely replaced when CAs are explicitly specified
-    using this option. The value can be a string or Buffer, or an Array of
-    strings and/or Buffers. Any string or Buffer can contain multiple PEM CAs
-    concatenated together. The peer's certificate must be chainable to a CA
+    using this option. The value can be a string or `Buffer`, or an `Array` of
+    strings and/or `Buffer`s. Any string or `Buffer` can contain multiple PEM
+    CAs concatenated together. The peer's certificate must be chainable to a CA
     trusted by the server for the connection to be authenticated. When using
     certificates that are not chainable to a well-known CA, the certificate's CA
     must be explicitly specified as a trusted or the connection will fail to
@@ -1157,9 +1157,9 @@ changes:
   * `SNICallback(servername, cb)` {Function} A function that will be called if
     the client supports SNI TLS extension. Two arguments will be passed when
     called: `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`,
-    where `ctx` is a SecureContext instance. (`tls.createSecureContext(...)` can
-    be used to get a proper SecureContext.) If `SNICallback` wasn't provided the
-    default callback with high-level API will be used (see below).
+    where `ctx` is a `SecureContext` instance. (`tls.createSecureContext(...)`
+    can be used to get a proper `SecureContext`.) If `SNICallback` wasn't
+    provided the default callback with high-level API will be used (see below).
   * `sessionTimeout` {number} An integer specifying the number of seconds after
     which the TLS session identifiers and TLS session tickets created by the
     server will time out. See [SSL_CTX_set_timeout] for more details.
