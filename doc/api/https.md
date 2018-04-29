@@ -119,7 +119,7 @@ changes:
 Like [`http.get()`][] but for HTTPS.
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
-string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
+string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
 Example:
@@ -173,7 +173,7 @@ The following additional `options` from [`tls.connect()`][] are also accepted:
 `secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
-string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
+string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
 Example:
@@ -358,8 +358,8 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
 [`net.Server`]: net.html#net_class_net_server
+[`new URL()`]: url.html#url_constructor_new_url_input_base
 [`server.listen()`]: net.html#net_server_listen
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost

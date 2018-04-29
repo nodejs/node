@@ -1111,11 +1111,6 @@ Invalid characters were detected in headers.
 A cursor on a given stream cannot be moved to a specified row without a
 specified column.
 
-<a id="ERR_INVALID_DOMAIN_NAME"></a>
-### ERR_INVALID_DOMAIN_NAME
-
-`hostname` can not be parsed from a provided URL.
-
 <a id="ERR_INVALID_FD"></a>
 ### ERR_INVALID_FD
 

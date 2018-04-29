@@ -149,11 +149,6 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  errors.message('ERR_INVALID_DOMAIN_NAME'),
-  'Unable to determine the domain name'
-);
-
-assert.strictEqual(
   errors.message('ERR_INVALID_HTTP_TOKEN', ['Method', 'foo']),
   'Method must be a valid HTTP token ["foo"]'
 );
