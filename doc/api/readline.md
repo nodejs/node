@@ -320,7 +320,6 @@ added: v0.7.7
 The `readline.clearLine()` method clears current line of given [TTY][] stream
 in a specified direction identified by `dir`.
 
-
 ## readline.clearScreenDown(stream)
 <!-- YAML
 added: v0.7.7
@@ -476,7 +475,6 @@ added: v0.7.7
 
 The `readline.moveCursor()` method moves the cursor *relative* to its current
 position in a given [TTY][] `stream`.
-
 
 ## Example: Tiny CLI
 

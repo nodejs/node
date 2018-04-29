@@ -572,7 +572,6 @@ myEmitter.emit('event');
 myEmitter.emit('event');
 // Prints:
 //   A
-
 ```
 
 Because listeners are managed using an internal array, calling this will

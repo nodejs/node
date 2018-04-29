@@ -63,7 +63,6 @@ changes:
                  will now be ignored by default.
 -->
 
-
 <!--type=class-->
 
 The `Console` class can be used to create a simple logger with configurable

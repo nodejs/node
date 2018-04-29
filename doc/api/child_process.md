@@ -456,7 +456,6 @@ ls.on('close', (code) => {
 });
 ```
 
-
 Example: A very elaborate way to run `ps ax | grep ssh`
 
 ```js
@@ -493,7 +492,6 @@ grep.on('close', (code) => {
   }
 });
 ```
-
 
 Example of checking for failed `spawn`:
 
