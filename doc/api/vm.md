@@ -867,7 +867,7 @@ const code = `
 })`;
 
 vm.runInThisContext(code)(require);
- ```
+```
 
 The `require()` in the above case shares the state with the context it is
 passed from. This may introduce risks when untrusted code is executed, e.g.

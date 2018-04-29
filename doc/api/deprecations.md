@@ -170,7 +170,7 @@ explicitly via error event handlers set on the domain instead.
 Type: End-of-Life
 
 Calling an asynchronous function without a callback throws a `TypeError`
-v10.0.0 onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562)
+v10.0.0 onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562).
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface

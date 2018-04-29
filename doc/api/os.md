@@ -254,7 +254,7 @@ The properties available on the assigned network address object include:
   is `IPv6`)
 * `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
   in CIDR notation. If the `netmask` is invalid, this property is set
-  to `null`
+  to `null`.
 
 <!-- eslint-skip -->
 ```js

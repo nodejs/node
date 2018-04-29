@@ -459,7 +459,7 @@ added: v0.7.8
 Emitted when the underlying socket times out from inactivity. This only notifies
 that the socket has been idle. The request must be aborted manually.
 
-See also: [`request.setTimeout()`][]
+See also: [`request.setTimeout()`][].
 
 ### Event: 'upgrade'
 <!-- YAML
@@ -541,7 +541,7 @@ added: v0.3.0
 
 * {net.Socket}
 
-See [`request.socket`][]
+See [`request.socket`][].
 
 ### request.end([data[, encoding]][, callback])
 <!-- YAML
@@ -1798,7 +1798,7 @@ automatically. Note that the callback must take care to consume the response
 data for reasons stated in [`http.ClientRequest`][] section.
 
 The `callback` is invoked with a single argument that is an instance of
-[`http.IncomingMessage`][]
+[`http.IncomingMessage`][].
 
 JSON Fetching Example:
 
