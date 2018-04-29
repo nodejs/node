@@ -141,7 +141,6 @@ future. This is subject to change in the future if a comprehensive analysis is
 performed to ensure an exception can follow the normal control flow without
 unintentional side effects.
 
-
 ##### Printing in AsyncHooks callbacks
 
 Because printing to the console is an asynchronous operation, `console.log()`
@@ -256,7 +255,6 @@ listening to the hooks.
 the new resource to initialize and that caused `init` to call. This is different
 from `async_hooks.executionAsyncId()` that only shows *when* a resource was
 created, while `triggerAsyncId` shows *why* a resource was created.
-
 
 The following is a simple demonstration of `triggerAsyncId`:
 
@@ -395,7 +393,6 @@ API the user's callback is placed in a `process.nextTick()`.
 The graph only shows *when* a resource was created, not *why*, so to track
 the *why* use `triggerAsyncId`.
 
-
 ##### before(asyncId)
 
 * `asyncId` {number}
@@ -413,7 +410,6 @@ asynchronous resources like a TCP server will typically call the `before`
 callback multiple times, while other operations like `fs.open()` will call
 it only once.
 
-
 ##### after(asyncId)
 
 * `asyncId` {number}
@@ -423,7 +419,6 @@ Called immediately after the callback specified in `before` is completed.
 If an uncaught exception occurs during execution of the callback, then `after`
 will run *after* the `'uncaughtException'` event is emitted or a `domain`'s
 handler runs.
-
 
 ##### destroy(asyncId)
 

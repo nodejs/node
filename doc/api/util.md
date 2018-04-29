@@ -356,7 +356,6 @@ stream.on('data', (data) => {
   console.log(`Received data: "${data}"`);
 });
 stream.write('With ES6');
-
 ```
 
 ## util.inspect(object[, options])
@@ -1553,7 +1552,6 @@ For example:
 const module = new WebAssembly.Module(wasmBuffer);
 util.types.isWebAssemblyCompiledModule(module);  // Returns true
 ```
-
 
 ## Deprecated APIs
 

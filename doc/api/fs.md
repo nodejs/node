@@ -4297,7 +4297,6 @@ Any specified `FileHandle` has to support writing.
 It is unsafe to use `fsPromises.writeFile()` multiple times on the same file
 without waiting for the `Promise` to be resolved (or rejected).
 
-
 ## FS Constants
 
 The following constants are exported by `fs.constants`.

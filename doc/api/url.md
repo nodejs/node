@@ -1061,7 +1061,6 @@ The formatting process operates as follows:
   string, an [`Error`][] is thrown.
 * `result` is returned.
 
-
 ### url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
 <!-- YAML
 added: v0.1.25
