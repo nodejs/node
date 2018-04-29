@@ -2635,7 +2635,7 @@ napi_status napi_set_named_property(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This method is equivalent to calling [`napi_set_property`][] with a `napi_value`
-created from the string passed in as `utf8Name`
+created from the string passed in as `utf8Name`.
 
 #### napi_get_named_property
 <!-- YAML
@@ -2656,7 +2656,7 @@ napi_status napi_get_named_property(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This method is equivalent to calling [`napi_get_property`][] with a `napi_value`
-created from the string passed in as `utf8Name`
+created from the string passed in as `utf8Name`.
 
 #### napi_has_named_property
 <!-- YAML
@@ -2677,7 +2677,7 @@ napi_status napi_has_named_property(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This method is equivalent to calling [`napi_has_property`][] with a `napi_value`
-created from the string passed in as `utf8Name`
+created from the string passed in as `utf8Name`.
 
 #### napi_set_element
 <!-- YAML

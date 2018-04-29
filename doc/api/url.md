@@ -884,42 +884,42 @@ double slashes (if present) and precedes the `host` component, delimited by an
 ASCII "at sign" (`@`). The format of the string is `{username}[:{password}]`,
 with the `[:{password}]` portion being optional.
 
-For example: `'user:pass'`
+For example: `'user:pass'`.
 
 #### urlObject.hash
 
 The `hash` property consists of the "fragment" portion of the URL including
 the leading ASCII hash (`#`) character.
 
-For example: `'#hash'`
+For example: `'#hash'`.
 
 #### urlObject.host
 
 The `host` property is the full lower-cased host portion of the URL, including
 the `port` if specified.
 
-For example: `'sub.host.com:8080'`
+For example: `'sub.host.com:8080'`.
 
 #### urlObject.hostname
 
 The `hostname` property is the lower-cased host name portion of the `host`
 component *without* the `port` included.
 
-For example: `'sub.host.com'`
+For example: `'sub.host.com'`.
 
 #### urlObject.href
 
 The `href` property is the full URL string that was parsed with both the
 `protocol` and `host` components converted to lower-case.
 
-For example: `'http://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash'`
+For example: `'http://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash'`.
 
 #### urlObject.path
 
 The `path` property is a concatenation of the `pathname` and `search`
 components.
 
-For example: `'/p/a/t/h?query=string'`
+For example: `'/p/a/t/h?query=string'`.
 
 No decoding of the `path` is performed.
 
@@ -930,7 +930,7 @@ is everything following the `host` (including the `port`) and before the start
 of the `query` or `hash` components, delimited by either the ASCII question
 mark (`?`) or hash (`#`) characters.
 
-For example `'/p/a/t/h'`
+For example `'/p/a/t/h'`.
 
 No decoding of the path string is performed.
 
@@ -938,13 +938,13 @@ No decoding of the path string is performed.
 
 The `port` property is the numeric port portion of the `host` component.
 
-For example: `'8080'`
+For example: `'8080'`.
 
 #### urlObject.protocol
 
 The `protocol` property identifies the URL's lower-cased protocol scheme.
 
-For example: `'http:'`
+For example: `'http:'`.
 
 #### urlObject.query
 
@@ -953,7 +953,7 @@ question mark (`?`), or an object returned by the [`querystring`][] module's
 `parse()` method. Whether the `query` property is a string or object is
 determined by the `parseQueryString` argument passed to `url.parse()`.
 
-For example: `'query=string'` or `{'query': 'string'}`
+For example: `'query=string'` or `{'query': 'string'}`.
 
 If returned as a string, no decoding of the query string is performed. If
 returned as an object, both keys and values are decoded.
@@ -963,7 +963,7 @@ returned as an object, both keys and values are decoded.
 The `search` property consists of the entire "query string" portion of the
 URL, including the leading ASCII question mark (`?`) character.
 
-For example: `'?query=string'`
+For example: `'?query=string'`.
 
 No decoding of the query string is performed.
 

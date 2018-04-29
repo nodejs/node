@@ -114,11 +114,10 @@ added: v0.1.90
 
 * Returns: {Object}
 
-Returns the bound address, the address family name, and port of the server
-as reported by the operating system if listening on an IP socket.
-Useful to find which port was assigned when getting an OS-assigned address.
-Returns an object with `port`, `family`, and `address` properties:
-`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
+Returns the bound `address`, the address `family` name, and `port` of the server
+as reported by the operating system if listening on an IP socket
+(useful to find which port was assigned when getting an OS-assigned address):
+`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
 
 For a server listening on a pipe or UNIX domain socket, the name is returned
 as a string.
@@ -442,7 +441,7 @@ added: v0.1.90
 
 Emitted when the write buffer becomes empty. Can be used to throttle uploads.
 
-See also: the return values of `socket.write()`
+See also: the return values of `socket.write()`.
 
 ### Event: 'end'
 <!-- YAML
@@ -504,7 +503,7 @@ added: v0.1.90
 Emitted if the socket times out from inactivity. This is only to notify that
 the socket has been idle. The user must manually close the connection.
 
-See also: [`socket.setTimeout()`][]
+See also: [`socket.setTimeout()`][].
 
 ### socket.address()
 <!-- YAML
@@ -513,9 +512,8 @@ added: v0.1.90
 
 * Returns: {Object}
 
-Returns the bound address, the address family name and port of the
-socket as reported by the operating system. Returns an object with
-three properties, e.g.
+Returns the bound `address`, the address `family` name and `port` of the
+socket as reported by the operating system:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### socket.bufferSize
@@ -954,7 +952,7 @@ client.on('end', () => {
 ```
 
 To connect on the socket `/tmp/echo.sock` the second line would just be
-changed to
+changed to:
 
 ```js
 const client = net.createConnection({ path: '/tmp/echo.sock' });
@@ -1064,7 +1062,7 @@ $ telnet localhost 8124
 ```
 
 To listen on the socket `/tmp/echo.sock` the third line from the last would
-just be changed to
+just be changed to:
 
 ```js
 server.listen('/tmp/echo.sock', () => {
