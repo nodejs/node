@@ -422,8 +422,7 @@ added: v3.0.0
 Updates the keys for encryption/decryption of the [TLS Session Tickets][].
 
 The key's `Buffer` should be 48 bytes long. See `ticketKeys` option in
-[tls.createServer](#tls_tls_createserver_options_secureconnectionlistener) for
-more information on how it is used.
+[`tls.createServer()`] for more information on how it is used.
 
 Changes to the ticket keys are effective only for future server connections.
 Existing or currently pending server connections will use the previous keys.
@@ -582,7 +581,7 @@ an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
 connection. It returns an empty object when the key exchange is not
 ephemeral. As this is only supported on a client socket; `null` is returned
 if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
-`name` property is available only when type is 'ECDH'.
+`name` property is available only when type is `'ECDH'`.
 
 For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
@@ -615,7 +614,7 @@ added: v0.11.4
 Returns an object representing the peer's certificate. The returned object has
 some properties corresponding to the fields of the certificate.
 
-If the full certificate chain was requested, each certificate will include a
+If the full certificate chain was requested, each certificate will include an
 `issuerCertificate` property containing an object representing its issuer's
 certificate.
 
@@ -637,7 +636,7 @@ For example:
      OU: 'Test TLS Certificate',
      CN: 'localhost' },
   issuerCertificate:
-   { ... another certificate, possibly with a .issuerCertificate ... },
+   { ... another certificate, possibly with an .issuerCertificate ... },
   raw: < RAW DER buffer >,
   pubkey: < RAW DER buffer >,
   valid_from: 'Nov 11 09:52:22 2009 GMT',
@@ -1016,7 +1015,7 @@ changes:
   - version: v7.3.0
     pr-url: https://github.com/nodejs/node/pull/10294
     description: If the `key` option is an array, individual entries do not
-                 need a `passphrase` property anymore. Array entries can also
+                 need a `passphrase` property anymore. `Array` entries can also
                  just be `string`s or `Buffer`s now.
   - version: v5.2.0
     pr-url: https://github.com/nodejs/node/pull/4099
@@ -1056,9 +1055,9 @@ changes:
   * `ca` {string|string[]|Buffer|Buffer[]} Optionally override the trusted CA
     certificates. Default is to trust the well-known CAs curated by Mozilla.
     Mozilla's CAs are completely replaced when CAs are explicitly specified
-    using this option. The value can be a string or Buffer, or an Array of
-    strings and/or Buffers. Any string or Buffer can contain multiple PEM CAs
-    concatenated together. The peer's certificate must be chainable to a CA
+    using this option. The value can be a string or `Buffer`, or an `Array` of
+    strings and/or `Buffer`s. Any string or `Buffer` can contain multiple PEM
+    CAs concatenated together. The peer's certificate must be chainable to a CA
     trusted by the server for the connection to be authenticated. When using
     certificates that are not chainable to a well-known CA, the certificate's CA
     must be explicitly specified as a trusted or the connection will fail to
@@ -1156,12 +1155,12 @@ changes:
   * `SNICallback(servername, cb)` {Function} A function that will be called if
     the client supports SNI TLS extension. Two arguments will be passed when
     called: `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`,
-    where `ctx` is a SecureContext instance. (`tls.createSecureContext(...)` can
-    be used to get a proper SecureContext.) If `SNICallback` wasn't provided the
-    default callback with high-level API will be used (see below).
+    where `ctx` is a `SecureContext` instance. (`tls.createSecureContext(...)`
+    can be used to get a proper `SecureContext`.) If `SNICallback` wasn't
+    provided the default callback with high-level API will be used (see below).
   * `sessionTimeout` {number} An integer specifying the number of seconds after
     which the TLS session identifiers and TLS session tickets created by the
-    server will time out. See [SSL_CTX_set_timeout] for more details.
+    server will time out. See [`SSL_CTX_set_timeout`] for more details.
   * `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
     a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
     session tickets on multiple instances of the TLS server.
@@ -1169,7 +1168,7 @@ changes:
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `secureConnectionListener` {Function}
 
-Creates a new [tls.Server][]. The `secureConnectionListener`, if provided, is
+Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
 
 The `ticketKeys` options is automatically shared between `cluster` module
@@ -1371,13 +1370,16 @@ where `secureSocket` has the same API as `pair.cleartext`.
 
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
+[`SSL_CTX_set_timeout`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`server.getConnections()`]: net.html#net_server_getconnections_callback
 [`server.listen()`]: net.html#net_server_listen
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
+[`tls.Server`]: #tls_class_tls_server
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
 [`tls.connect()`]: #tls_tls_connect_options_callback
@@ -1392,7 +1394,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.1.0/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
+[RFC 5929]: https://tools.ietf.org/html/rfc5929
 [SSL_METHODS]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html#Dealing-with-Protocol-Methods
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
@@ -1400,6 +1402,3 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [asn1.js]: https://npmjs.org/package/asn1.js
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[tls.Server]: #tls_class_tls_server
-[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
-[RFC 5929]: https://tools.ietf.org/html/rfc5929

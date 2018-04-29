@@ -165,10 +165,10 @@ added: v0.1.21
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -208,7 +208,7 @@ the [`RegExp`][] object are not enumerable:
 assert.deepEqual(/a/gi, new Date());
 ```
 
-An exception is made for [`Map`][] and [`Set`][]. Maps and Sets have their
+An exception is made for [`Map`][] and [`Set`][]. `Map`s and `Set`s have their
 contained items compared too, as expected.
 
 "Deep" equality means that the enumerable "own" properties of child objects
@@ -264,15 +264,15 @@ changes:
     description: Enumerable symbol properties are now compared.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the
+    description: The `NaN` is now compared using the
               [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
               comparison.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -303,8 +303,8 @@ are recursively evaluated also by the following rules.
   enumerable properties.
 * Enumerable own [`Symbol`][] properties are compared as well.
 * [Object wrappers][] are compared both as objects and unwrapped values.
-* Object properties are compared unordered.
-* Map keys and Set items are compared unordered.
+* `Object` properties are compared unordered.
+* `Map` keys and `Set` items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
 * [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values. See
@@ -413,10 +413,10 @@ function and awaits the returned promise to complete. It will then check that
 the promise is not rejected.
 
 If `block` is a function and it throws an error synchronously,
-`assert.doesNotReject()` will return a rejected Promise with that error. If the
-function does not return a promise, `assert.doesNotReject()` will return a
-rejected Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the
-error handler is skipped.
+`assert.doesNotReject()` will return a rejected `Promise` with that error. If
+the function does not return a promise, `assert.doesNotReject()` will return a
+rejected `Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases
+the error handler is skipped.
 
 Please note: Using `assert.doesNotReject()` is actually not useful because there
 is little benefit by catching a rejection and then rejecting it again. Instead,
@@ -494,7 +494,7 @@ assert.doesNotThrow(
 ```
 
 However, the following will result in an `AssertionError` with the message
-'Got unwanted exception (TypeError)..':
+'Got unwanted exception...':
 
 <!-- eslint-disable no-restricted-syntax -->
 ```js
@@ -519,7 +519,7 @@ assert.doesNotThrow(
   /Wrong value/,
   'Whoops'
 );
-// Throws: AssertionError: Got unwanted exception (TypeError). Whoops
+// Throws: AssertionError: Got unwanted exception: Whoops
 ```
 
 ## assert.equal(actual, expected[, message])
@@ -656,7 +656,7 @@ changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18247
     description: Instead of throwing the original error it is now wrapped into
-                 a AssertionError that contains the full stack trace.
+                 an `AssertionError` that contains the full stack trace.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18247
     description: Value may now only be `undefined` or `null`. Before any truthy
@@ -701,10 +701,10 @@ added: v0.1.21
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -774,18 +774,18 @@ added: v1.2.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15398
-    description: -0 and +0 are not considered equal anymore.
+    description: The `-0` and `+0` are not considered equal anymore.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the
+    description: The `NaN` is now compared using the
               [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
               comparison.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -893,7 +893,8 @@ added: v0.1.21
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18319
-    description: assert.ok() (no arguments) will now use a predefined error msg.
+    description: The `assert.ok()` (no arguments) will now use a predefined
+                 error message.
 -->
 * `value` {any}
 * `message` {any}
@@ -907,7 +908,7 @@ parameter is `undefined`, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 If no arguments are passed in at all `message` will be set to the string:
-"No value argument passed to assert.ok".
+``'No value argument passed to `assert.ok()`'``.
 
 Be aware that in the `repl` the error message will be different to the one
 thrown in a file! See below for further details.
@@ -966,9 +967,9 @@ function and awaits the returned promise to complete. It will then check that
 the promise is rejected.
 
 If `block` is a function and it throws an error synchronously,
-`assert.rejects()` will return a rejected Promise with that error. If the
+`assert.rejects()` will return a rejected `Promise` with that error. If the
 function does not return a promise, `assert.rejects()` will return a rejected
-Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
+`Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
 handler is skipped.
 
 Besides the async nature to await the completion behaves identically to

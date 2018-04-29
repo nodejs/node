@@ -43,7 +43,7 @@ part of N-API, nor will they be maintained as part of Node.js. One such
 example is: [node-api](https://github.com/nodejs/node-api).
 
 In order to use the N-API functions, include the file
-[node_api.h](https://github.com/nodejs/node/blob/master/src/node_api.h)
+[`node_api.h`](https://github.com/nodejs/node/blob/master/src/node_api.h)
 which is located in the src directory in the node development tree:
 
 ```C
@@ -434,7 +434,7 @@ NODE_EXTERN napi_status napi_create_error(napi_env env,
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] code`: Optional `napi_value` with the string for the error code to
-               be associated with the error.
+be associated with the error.
 - `[in] msg`: `napi_value` that references a JavaScript `String` to be
 used as the message for the `Error`.
 - `[out] result`: `napi_value` representing the error created.
@@ -455,7 +455,7 @@ NODE_EXTERN napi_status napi_create_type_error(napi_env env,
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] code`: Optional `napi_value` with the string for the error code to
-               be associated with the error.
+be associated with the error.
 - `[in] msg`: `napi_value` that references a JavaScript `String` to be
 used as the message for the `Error`.
 - `[out] result`: `napi_value` representing the error created.
@@ -476,7 +476,7 @@ NODE_EXTERN napi_status napi_create_range_error(napi_env env,
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] code`: Optional `napi_value` with the string for the error code to
-               be associated with the error.
+be associated with the error.
 - `[in] msg`: `napi_value` that references a JavaScript `String` to be
 used as the message for the `Error`.
 - `[out] result`: `napi_value` representing the error created.
@@ -1275,7 +1275,7 @@ This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
 structure, in most cases using a `TypedArray` will suffice.
 
-For Node.js >=4 `Buffers` are Uint8Arrays.
+For Node.js >=4 `Buffers` are `Uint8Array`s.
 
 #### napi_create_function
 <!-- YAML
@@ -1293,7 +1293,7 @@ napi_status napi_create_function(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] utf8name`: A string representing the name of the function encoded as
 UTF8.
-- `[in] length`: The length of the utf8name in bytes, or
+- `[in] length`: The length of the `utf8name` in bytes, or
 `NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[in] cb`: A function pointer to the native function to be invoked when the
 created function is invoked from JavaScript.
@@ -1306,7 +1306,7 @@ Returns `napi_ok` if the API succeeded.
 This API returns an N-API value corresponding to a JavaScript `Function` object.
 It's used to wrap native functions so that they can be invoked from JavaScript.
 
-JavaScript Functions are described in
+JavaScript `Function`s are described in
 [Section 19.2](https://tc39.github.io/ecma262/#sec-function-objects)
 of the ECMAScript Language Specification.
 
@@ -1520,14 +1520,14 @@ napi_status napi_create_string_latin1(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] str`: Character buffer representing a ISO-8859-1-encoded string.
+- `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
 - `[in] length`: The length of the string in bytes, or
 `NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript `String`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `String` object from a ISO-8859-1-encoded C
+This API creates a JavaScript `String` object from an ISO-8859-1-encoded C
 string. The native string is copied.
 
 The JavaScript `String` type is described in
@@ -1807,19 +1807,20 @@ napi_status napi_get_value_int32(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: `napi_value` representing JavaScript `Number`.
-- `[out] result`: C int32 primitive equivalent of the given JavaScript `Number`.
+- `[out] result`: C `int32` primitive equivalent of the given JavaScript
+  `Number`.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in `napi_number_expected`.
 
-This API returns the C int32 primitive equivalent
+This API returns the C `int32` primitive equivalent
 of the given JavaScript `Number`.
 
 If the number exceeds the range of the 32 bit integer, then the result is
 truncated to the equivalent of the bottom 32 bits. This can result in a large
 positive number becoming a negative number if the value is > 2^31 -1.
 
-Non-finite number values (NaN, positive infinity, or negative infinity) set the
+Non-finite number values (`NaN`, `+Infinity`, or `-Infinity`) set the
 result to zero.
 
 #### napi_get_value_int64
@@ -1834,12 +1835,13 @@ napi_status napi_get_value_int64(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: `napi_value` representing JavaScript `Number`.
-- `[out] result`: C int64 primitive equivalent of the given JavaScript `Number`.
+- `[out] result`: C `int64` primitive equivalent of the given JavaScript
+  `Number`.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in it returns `napi_number_expected`.
 
-This API returns the C int64 primitive equivalent of the given JavaScript
+This API returns the C `int64` primitive equivalent of the given JavaScript
 `Number`.
 
 `Number` values outside the range of
@@ -1848,7 +1850,7 @@ This API returns the C int64 primitive equivalent of the given JavaScript
 [`Number.MAX_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.max_safe_integer)
 (2^53 - 1) will lose precision.
 
-Non-finite number values (NaN, positive infinity, or negative infinity) set the
+Non-finite number values (`NaN`, `+Infinity`, or `-Infinity`) set the
 result to zero.
 
 #### napi_get_value_string_latin1
@@ -3100,7 +3102,7 @@ napi_status napi_define_class(napi_env env,
  - `[in] utf8name`: Name of the JavaScript constructor function; this is
    not required to be the same as the C++ class name, though it is recommended
    for clarity.
- - `[in] length`: The length of the utf8name in bytes, or `NAPI_AUTO_LENGTH`
+ - `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
 if it is null-terminated.
  - `[in] constructor`: Callback function that handles constructing instances
    of the class. (This should be a static method on the class, not an actual

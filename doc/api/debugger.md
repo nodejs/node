@@ -117,8 +117,8 @@ To begin watching an expression, type `watch('my_expression')`. The command
 * `setBreakpoint('fn()')`, `sb(...)` - Set breakpoint on a first statement in
 functions body
 * `setBreakpoint('script.js', 1)`, `sb(...)` - Set breakpoint on first line of
-script.js
-* `clearBreakpoint('script.js', 1)`, `cb(...)` - Clear breakpoint in script.js
+`script.js`
+* `clearBreakpoint('script.js', 1)`, `cb(...)` - Clear breakpoint in `script.js`
 on line 1
 
 It is also possible to set a breakpoint in a file (module) that

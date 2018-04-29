@@ -101,25 +101,25 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 added: v7.6.0
 -->
 
-Activate inspector on host:port and break at start of user script.
-Default host:port is 127.0.0.1:9229.
+Activate inspector on `host:port` and break at start of user script.
+Default `host:port` is `127.0.0.1:9229`.
 
 ### `--inspect-port=[host:]port`
 <!-- YAML
 added: v7.6.0
 -->
 
-Set the host:port to be used when the inspector is activated.
+Set the `host:port` to be used when the inspector is activated.
 Useful when activating the inspector by sending the `SIGUSR1` signal.
 
-Default host is 127.0.0.1.
+Default host is `127.0.0.1`.
 
 ### `--inspect[=[host:]port]`
 <!-- YAML
 added: v6.3.0
 -->
 
-Activate inspector on host:port. Default is 127.0.0.1:9229.
+Activate inspector on `host:port`. Default is `127.0.0.1:9229`.
 
 V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
@@ -461,7 +461,7 @@ options property is explicitly specified for a TLS or HTTPS client or server.
 added: v0.11.15
 -->
 
-Data path for ICU (Intl object) data. Will extend linked-in data when compiled
+Data path for ICU (`Intl` object) data. Will extend linked-in data when compiled
 with small-icu support.
 
 ### `NODE_NO_WARNINGS=1`

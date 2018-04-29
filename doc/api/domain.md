@@ -203,26 +203,26 @@ are added to it.
 
 <!--type=misc-->
 
-If domains are in use, then all **new** EventEmitter objects (including
+If domains are in use, then all **new** `EventEmitter` objects (including
 Stream objects, requests, responses, etc.) will be implicitly bound to
 the active domain at the time of their creation.
 
 Additionally, callbacks passed to lowlevel event loop requests (such as
-to fs.open, or other callback-taking methods) will automatically be
+to `fs.open()`, or other callback-taking methods) will automatically be
 bound to the active domain. If they throw, then the domain will catch
 the error.
 
-In order to prevent excessive memory usage, Domain objects themselves
+In order to prevent excessive memory usage, `Domain` objects themselves
 are not implicitly added as children of the active domain. If they
 were, then it would be too easy to prevent request and response objects
 from being properly garbage collected.
 
-To nest Domain objects as children of a parent Domain they must be explicitly
-added.
+To nest `Domain` objects as children of a parent `Domain` they must be
+explicitly added.
 
 Implicit binding routes thrown errors and `'error'` events to the
-Domain's `'error'` event, but does not register the EventEmitter on the
-Domain.
+`Domain`'s `'error'` event, but does not register the `EventEmitter` on the
+`Domain`.
 Implicit binding only takes care of thrown errors and `'error'` events.
 
 ## Explicit Binding
@@ -271,14 +271,12 @@ serverDomain.run(() => {
 
 * Returns: {Domain}
 
-Returns a new Domain object.
-
 ## Class: Domain
 
-The Domain class encapsulates the functionality of routing errors and
-uncaught exceptions to the active Domain object.
+The `Domain` class encapsulates the functionality of routing errors and
+uncaught exceptions to the active `Domain` object.
 
-Domain is a child class of [`EventEmitter`][]. To handle the errors that it
+`Domain` is a child class of [`EventEmitter`][]. To handle the errors that it
 catches, listen to its `'error'` event.
 
 ### domain.members
@@ -301,7 +299,7 @@ This also works with timers that are returned from [`setInterval()`][] and
 [`setTimeout()`][]. If their callback function throws, it will be caught by
 the domain `'error'` handler.
 
-If the Timer or EventEmitter was already bound to a domain, it is removed
+If the Timer or `EventEmitter` was already bound to a domain, it is removed
 from that one, and bound to this one instead.
 
 ### domain.bind(callback)
@@ -444,7 +442,7 @@ than crashing the program.
 ## Domains and Promises
 
 As of Node.js 8.0.0, the handlers of Promises are run inside the domain in
-which the call to `.then` or `.catch` itself was made:
+which the call to `.then()` or `.catch()` itself was made:
 
 ```js
 const d1 = domain.create();
@@ -481,7 +479,7 @@ d2.run(() => {
 ```
 
 Note that domains will not interfere with the error handling mechanisms for
-Promises, i.e. no `'error'` event will be emitted for unhandled Promise
+Promises, i.e. no `'error'` event will be emitted for unhandled `Promise`
 rejections.
 
 [`Error`]: errors.html#errors_class_error

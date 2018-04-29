@@ -63,7 +63,7 @@ The following key combinations in the REPL have these special effects:
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
 * `<ctrl>-D` - Has the same effect as the `.exit` command.
-* `<tab>` - When pressed on a blank line, displays global and local(scope)
+* `<tab>` - When pressed on a blank line, displays global and local (scope)
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
@@ -251,7 +251,7 @@ function isRecoverableError(error) {
 ### Customizing REPL Output
 
 By default, `repl.REPLServer` instances format output using the
-[`util.inspect()`][] method before writing the output to the provided Writable
+[`util.inspect()`][] method before writing the output to the provided `Writable`
 stream (`process.stdout` by default). The `useColors` boolean option can be
 specified at construction to instruct the default writer to use ANSI style
 codes to colorize the output from the `util.inspect()` method.
@@ -356,7 +356,7 @@ added: v0.3.0
 
 The `replServer.defineCommand()` method is used to add new `.`-prefixed commands
 to the REPL instance. Such commands are invoked by typing a `.` followed by the
-`keyword`. The `cmd` is either a Function or an object with the following
+`keyword`. The `cmd` is either a `Function` or an `Object` with the following
 properties:
 
 * `help` {string} Help text to be displayed when `.help` is entered (Optional).
@@ -443,7 +443,7 @@ added: v0.1.91
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/v10.0.0
-    description: The `REPL_MAGIC_MODE` replMode was removed.
+    description: The `REPL_MAGIC_MODE` `replMode` was removed.
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5388
     description: The `options` parameter is optional now.
@@ -452,10 +452,10 @@ changes:
 * `options` {Object|string}
   * `prompt` {string} The input prompt to display. **Default:** `'> '`
     (with a trailing space).
-  * `input` {stream.Readable} The Readable stream from which REPL input will be
-    read. **Default:** `process.stdin`.
-  * `output` {stream.Writable} The Writable stream to which REPL output will be
-    written. **Default:** `process.stdout`.
+  * `input` {stream.Readable} The `Readable` stream from which REPL input will
+    be read. **Default:** `process.stdin`.
+  * `output` {stream.Writable} The `Writable` stream to which REPL output will
+    be written. **Default:** `process.stdout`.
   * `terminal` {boolean} If `true`, specifies that the `output` should be
     treated as a TTY terminal, and have ANSI/VT100 escape codes written to it.
     **Default:** checking the value of the `isTTY` property on the `output`
