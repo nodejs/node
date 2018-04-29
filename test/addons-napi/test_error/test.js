@@ -60,6 +60,18 @@ assert.throws(() => {
   test_error.throwTypeError();
 }, /^TypeError: type error$/);
 
+function testThrowArbitrary(value) {
+  assert.throws(() => {
+    test_error.throwArbitrary(value);
+  }, value);
+}
+
+testThrowArbitrary(42);
+testThrowArbitrary({});
+testThrowArbitrary([]);
+testThrowArbitrary(Symbol('xyzzy'));
+testThrowArbitrary(true);
+
 common.expectsError(
   () => test_error.throwErrorCode(),
   {
