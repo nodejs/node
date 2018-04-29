@@ -192,7 +192,8 @@ Possible signatures:
 * [`server.listen(options[, callback])`][`server.listen(options)`]
 * [`server.listen(path[, backlog][, callback])`][`server.listen(path)`]
   for [IPC][] servers
-* [`server.listen([port[, host[, backlog]]][, callback])`][`server.listen(port, host)`]
+* <a href="#net_server_listen_port_host_backlog_callback">
+  <code>server.listen([port[, host[, backlog]]][, callback])</code></a>
   for TCP servers
 
 This function is asynchronous. When the server starts listening, the
@@ -264,7 +265,8 @@ added: v0.11.14
 * Returns: {net.Server}
 
 If `port` is specified, it behaves the same as
-[`server.listen([port[, host[, backlog]]][, callback])`][`server.listen(port, host)`].
+<a href="#net_server_listen_port_host_backlog_callback">
+<code>server.listen([port[, host[, backlog]]][, callback])</code></a>.
 Otherwise, if `path` is specified, it behaves the same as
 [`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
@@ -1136,7 +1138,6 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
-[`server.listen(port, host)`]: #net_server_listen_port_host_backlog_callback
 [`socket.connect()`]: #net_socket_connect
 [`socket.connect(options)`]: #net_socket_connect_options_connectlistener
 [`socket.connect(path)`]: #net_socket_connect_path_connectlistener
