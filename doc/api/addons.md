@@ -217,7 +217,6 @@ Addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
 
-
 ## N-API
 
 > Stability: 1 - Experimental
@@ -307,7 +306,6 @@ built using `node-gyp`:
 $ node-gyp configure build
 ```
 
-
 ### Function arguments
 
 Addons will typically expose objects and functions that can be accessed from
@@ -380,7 +378,6 @@ const addon = require('./build/Release/addon');
 
 console.log('This should be eight:', addon.add(3, 5));
 ```
-
 
 ### Callbacks
 
@@ -488,7 +485,6 @@ console.log(obj1.msg, obj2.msg);
 // Prints: 'hello world'
 ```
 
-
 ### Function factory
 
 Another common scenario is creating JavaScript functions that wrap C++
@@ -545,7 +541,6 @@ const fn = addon();
 console.log(fn());
 // Prints: 'hello world'
 ```
-
 
 ### Wrapping C++ objects
 
@@ -915,7 +910,6 @@ console.log(obj2.plusOne());
 console.log(obj2.plusOne());
 // Prints: 23
 ```
-
 
 ### Passing wrapped objects around
 

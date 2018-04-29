@@ -230,7 +230,6 @@ added: v0.0.1
 
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
-
 [`TypeError`]: errors.html#errors_class_typeerror
 [`clearImmediate()`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout

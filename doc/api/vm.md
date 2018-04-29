@@ -472,7 +472,6 @@ changes:
     during script execution, but will continue to work after that.
     If execution is terminated, an [`Error`][] will be thrown.
 
-
 Runs the compiled code contained by the `vm.Script` object within the given
 `contextifiedSandbox` and returns the result. Running code does not have access
 to local scope.

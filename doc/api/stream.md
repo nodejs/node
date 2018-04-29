@@ -2422,7 +2422,6 @@ In addition to new Readable streams switching into flowing mode,
 pre-v0.10 style streams can be wrapped in a Readable class using the
 [`readable.wrap()`][`stream.wrap()`] method.
 
-
 ### `readable.read(0)`
 
 There are some cases where it is necessary to trigger a refresh of the
