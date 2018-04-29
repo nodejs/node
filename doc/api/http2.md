@@ -108,7 +108,7 @@ have occasion to work with the `Http2Session` object directly, with most
 actions typically taken through interactions with either the `Http2Server` or
 `Http2Stream` objects.
 
-#### Http2Session and Sockets
+#### `Http2Session` and Sockets
 
 Every `Http2Session` instance is associated with exactly one [`net.Socket`][] or
 [`tls.TLSSocket`][] when it is created. When either the `Socket` or the
@@ -410,7 +410,7 @@ added: v9.4.0
 * {string[]|undefined}
 
 If the `Http2Session` is connected to a `TLSSocket`, the `originSet` property
-will return an Array of origins for which the `Http2Session` may be
+will return an `Array` of origins for which the `Http2Session` may be
 considered authoritative.
 
 #### http2session.pendingSettingsAck
@@ -500,12 +500,12 @@ added: v8.4.0
 
 * {net.Socket|tls.TLSSocket}
 
-Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
+Returns a `Proxy` object that acts as a `net.Socket` (or `tls.TLSSocket`) but
 limits available methods to ones safe to use with HTTP/2.
 
 `destroy`, `emit`, `end`, `pause`, `read`, `resume`, and `write` will throw
 an error with code `ERR_HTTP2_NO_SOCKET_MANIPULATION`. See
-[Http2Session and Sockets][] for more information.
+[`Http2Session` and Sockets][] for more information.
 
 `setTimeout` method will be called on this `Http2Session`.
 
@@ -592,8 +592,9 @@ added: v9.4.0
 * `alt` {string} A description of the alternative service configuration as
   defined by [RFC 7838][].
 * `originOrStream` {number|string|URL|Object} Either a URL string specifying
-  the origin (or an Object with an `origin` property) or the numeric identifier
-  of an active `Http2Stream` as given by the `http2stream.id` property.
+  the origin (or an `Object` with an `origin` property) or the numeric
+  identifier of an active `Http2Stream` as given by the `http2stream.id`
+  property.
 
 Submits an `ALTSVC` frame (as defined by [RFC 7838][]) to the connected client.
 
@@ -1041,7 +1042,7 @@ Provides miscellaneous information about the current state of the
   * `localWindowSize` {number} The number of bytes the connected peer may send
     for this `Http2Stream` without receiving a `WINDOW_UPDATE`.
   * `state` {number} A flag indicating the low-level current state of the
-    `Http2Stream` as determined by nghttp2.
+    `Http2Stream` as determined by `nghttp2`.
   * `localClose` {number} `true` if this `Http2Stream` has been closed locally.
   * `remoteClose` {number} `true` if this `Http2Stream` has been closed
     remotely.
@@ -1140,7 +1141,7 @@ added: v8.4.0
 
 The `'response'` event is emitted when a response `HEADERS` frame has been
 received for this stream from the connected HTTP/2 server. The listener is
-invoked with two arguments: an Object containing the received
+invoked with two arguments: an `Object` containing the received
 [HTTP/2 Headers Object][], and flags associated with the headers.
 
 ```js
@@ -1180,7 +1181,7 @@ added: v8.4.0
 
 * {boolean}
 
-Boolean (read-only). True if headers were sent, false otherwise.
+True if headers were sent, false otherwise (read-only).
 
 #### http2stream.pushAllowed
 <!-- YAML
@@ -1210,8 +1211,8 @@ added: v8.4.0
 * `callback` {Function} Callback that is called once the push stream has been
   initiated.
   * `err` {Error}
-  * `pushStream` {ServerHttp2Stream} The returned pushStream object.
-  * `headers` {HTTP/2 Headers Object} Headers object the pushStream was
+  * `pushStream` {ServerHttp2Stream} The returned `pushStream` object.
+  * `headers` {HTTP/2 Headers Object} Headers object the `pushStream` was
   initiated with.
 
 Initiates a push stream. The callback is invoked with the new `Http2Stream`
@@ -1303,7 +1304,7 @@ validation is performed on the given file descriptor. If an error occurs while
 attempting to read data using the file descriptor, the `Http2Stream` will be
 closed using an `RST_STREAM` frame using the standard `INTERNAL_ERROR` code.
 
-When used, the `Http2Stream` object's Duplex interface will be closed
+When used, the `Http2Stream` object's `Duplex` interface will be closed
 automatically.
 
 ```js
@@ -1389,7 +1390,7 @@ changes:
 * `options` {Object}
   * `statCheck` {Function}
   * `onError` {Function} Callback function invoked in the case of an
-    Error before send.
+    error before send.
   * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
     `'wantTrailers'` event after the final `DATA` frame has been sent.
   * `offset` {number} The offset position at which to begin reading.
@@ -1398,7 +1399,7 @@ changes:
 Sends a regular file as the response. The `path` must specify a regular file
 or an `'error'` event will be emitted on the `Http2Stream` object.
 
-When used, the `Http2Stream` object's Duplex interface will be closed
+When used, the `Http2Stream` object's `Duplex` interface will be closed
 automatically.
 
 The optional `options.statCheck` function may be specified to give user code
@@ -1773,8 +1774,8 @@ changes:
        amount of padding, as determined by the internal implementation, is to
        be applied.
      * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding` callback is to be used to determine the
-       amount of padding.
+       provided `options.selectPadding()` callback is to be used to determine
+       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -1788,21 +1789,21 @@ changes:
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using options.selectPadding][].
+    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
-  * `Http1IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage
-    class to used for HTTP/1 fallback. Useful for extending the original
-    `http.IncomingMessage`. **Default:** `http.IncomingMessage`.
-  * `Http1ServerResponse` {http.ServerResponse} Specifies the ServerResponse
+  * `Http1IncomingMessage` {http.IncomingMessage} Specifies the
+    `IncomingMessage` class to used for HTTP/1 fallback. Useful for extending
+    the original `http.IncomingMessage`. **Default:** `http.IncomingMessage`.
+  * `Http1ServerResponse` {http.ServerResponse} Specifies the `ServerResponse`
     class to used for HTTP/1 fallback. Useful for extending the original
     `http.ServerResponse`. **Default:** `http.ServerResponse`.
   * `Http2ServerRequest` {http2.Http2ServerRequest} Specifies the
-    Http2ServerRequest class to use.
+    `Http2ServerRequest` class to use.
     Useful for extending the original `Http2ServerRequest`.
     **Default:** `Http2ServerRequest`.
   * `Http2ServerResponse` {http2.Http2ServerResponse} Specifies the
-    Http2ServerResponse class to use.
+    `Http2ServerResponse` class to use.
     Useful for extending the original `Http2ServerResponse`.
     **Default:** `Http2ServerResponse`.
 * `onRequestHandler` {Function} See [Compatibility API][]
@@ -1883,8 +1884,8 @@ changes:
        amount of padding, as determined by the internal implementation, is to
        be applied.
      * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding` callback is to be used to determine the
-       amount of padding.
+       provided `options.selectPadding()` callback is to be used to determine
+       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -1898,7 +1899,7 @@ changes:
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using options.selectPadding][].
+    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * ...: Any [`tls.createServer()`][] options can be provided. For
@@ -1979,8 +1980,8 @@ changes:
        amount of padding, as determined by the internal implementation, is to
        be applied.
      * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding` callback is to be used to determine the
-       amount of padding.
+       provided `options.selectPadding()` callback is to be used to determine
+       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -1994,7 +1995,7 @@ changes:
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using options.selectPadding][].
+    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `createConnection` {Function} An optional callback that receives the `URL`
@@ -2023,22 +2024,22 @@ added: v8.4.0
 #### Error Codes for RST_STREAM and GOAWAY
 <a id="error_codes"></a>
 
-| Value | Name                | Constant                                      |
-|-------|---------------------|-----------------------------------------------|
-| 0x00  | No Error            | `http2.constants.NGHTTP2_NO_ERROR`            |
-| 0x01  | Protocol Error      | `http2.constants.NGHTTP2_PROTOCOL_ERROR`      |
-| 0x02  | Internal Error      | `http2.constants.NGHTTP2_INTERNAL_ERROR`      |
-| 0x03  | Flow Control Error  | `http2.constants.NGHTTP2_FLOW_CONTROL_ERROR`  |
-| 0x04  | Settings Timeout    | `http2.constants.NGHTTP2_SETTINGS_TIMEOUT`    |
-| 0x05  | Stream Closed       | `http2.constants.NGHTTP2_STREAM_CLOSED`       |
-| 0x06  | Frame Size Error    | `http2.constants.NGHTTP2_FRAME_SIZE_ERROR`    |
-| 0x07  | Refused Stream      | `http2.constants.NGHTTP2_REFUSED_STREAM`      |
-| 0x08  | Cancel              | `http2.constants.NGHTTP2_CANCEL`              |
-| 0x09  | Compression Error   | `http2.constants.NGHTTP2_COMPRESSION_ERROR`   |
-| 0x0a  | Connect Error       | `http2.constants.NGHTTP2_CONNECT_ERROR`       |
-| 0x0b  | Enhance Your Calm   | `http2.constants.NGHTTP2_ENHANCE_YOUR_CALM`   |
-| 0x0c  | Inadequate Security | `http2.constants.NGHTTP2_INADEQUATE_SECURITY` |
-| 0x0d  | HTTP/1.1 Required   | `http2.constants.NGHTTP2_HTTP_1_1_REQUIRED`   |
+| Value  | Name                | Constant                                      |
+|--------|---------------------|-----------------------------------------------|
+| `0x00` | No Error            | `http2.constants.NGHTTP2_NO_ERROR`            |
+| `0x01` | Protocol Error      | `http2.constants.NGHTTP2_PROTOCOL_ERROR`      |
+| `0x02` | Internal Error      | `http2.constants.NGHTTP2_INTERNAL_ERROR`      |
+| `0x03` | Flow Control Error  | `http2.constants.NGHTTP2_FLOW_CONTROL_ERROR`  |
+| `0x04` | Settings Timeout    | `http2.constants.NGHTTP2_SETTINGS_TIMEOUT`    |
+| `0x05` | Stream Closed       | `http2.constants.NGHTTP2_STREAM_CLOSED`       |
+| `0x06` | Frame Size Error    | `http2.constants.NGHTTP2_FRAME_SIZE_ERROR`    |
+| `0x07` | Refused Stream      | `http2.constants.NGHTTP2_REFUSED_STREAM`      |
+| `0x08` | Cancel              | `http2.constants.NGHTTP2_CANCEL`              |
+| `0x09` | Compression Error   | `http2.constants.NGHTTP2_COMPRESSION_ERROR`   |
+| `0x0a` | Connect Error       | `http2.constants.NGHTTP2_CONNECT_ERROR`       |
+| `0x0b` | Enhance Your Calm   | `http2.constants.NGHTTP2_ENHANCE_YOUR_CALM`   |
+| `0x0c` | Inadequate Security | `http2.constants.NGHTTP2_INADEQUATE_SECURITY` |
+| `0x0d` | HTTP/1.1 Required   | `http2.constants.NGHTTP2_HTTP_1_1_REQUIRED`   |
 
 The `'timeout'` event is emitted when there is no activity on the Server for
 a given number of milliseconds set using `http2server.setTimeout()`.
@@ -2090,7 +2091,7 @@ the given `Buffer` as generated by `http2.getPackedSettings()`.
 
 Headers are represented as own-properties on JavaScript objects. The property
 keys will be serialized to lower-case. Property values should be strings (if
-they are not they will be coerced to strings) or an Array of strings (in order
+they are not they will be coerced to strings) or an `Array` of strings (in order
 to send more than one value per header field).
 
 ```js
@@ -2155,14 +2156,14 @@ properties.
 
 All additional properties on the settings object are ignored.
 
-### Using `options.selectPadding`
+### Using `options.selectPadding()`
 
 When `options.paddingStrategy` is equal to
 `http2.constants.PADDING_STRATEGY_CALLBACK`, the HTTP/2 implementation will
-consult the `options.selectPadding` callback function, if provided, to determine
-the specific amount of padding to use per `HEADERS` and `DATA` frame.
+consult the `options.selectPadding()` callback function, if provided, to
+determine the specific amount of padding to use per `HEADERS` and `DATA` frame.
 
-The `options.selectPadding` function receives two numeric arguments,
+The `options.selectPadding()` function receives two numeric arguments,
 `frameLen` and `maxFrameLen` and must return a number `N` such that
 `frameLen <= N <= maxFrameLen`.
 
@@ -2176,7 +2177,7 @@ const server = http2.createServer({
 });
 ```
 
-The `options.selectPadding` function is invoked once for *every* `HEADERS` and
+The `options.selectPadding()` function is invoked once for *every* `HEADERS` and
 `DATA` frame. This has a definite noticeable impact on performance.
 
 ### Error Handling
@@ -2184,19 +2185,19 @@ The `options.selectPadding` function is invoked once for *every* `HEADERS` and
 There are several types of error conditions that may arise when using the
 `http2` module:
 
-Validation Errors occur when an incorrect argument, option, or setting value is
+Validation errors occur when an incorrect argument, option, or setting value is
 passed in. These will always be reported by a synchronous `throw`.
 
-State Errors occur when an action is attempted at an incorrect time (for
+State errors occur when an action is attempted at an incorrect time (for
 instance, attempting to send data on a stream after it has closed). These will
 be reported using either a synchronous `throw` or via an `'error'` event on
 the `Http2Stream`, `Http2Session` or HTTP/2 Server objects, depending on where
 and when the error occurs.
 
-Internal Errors occur when an HTTP/2 session fails unexpectedly. These will be
+Internal errors occur when an HTTP/2 session fails unexpectedly. These will be
 reported via an `'error'` event on the `Http2Session` or HTTP/2 Server objects.
 
-Protocol Errors occur when various HTTP/2 protocol constraints are violated.
+Protocol errors occur when various HTTP/2 protocol constraints are violated.
 These will be reported using either a synchronous `throw` or via an `'error'`
 event on the `Http2Stream`, `Http2Session` or HTTP/2 Server objects, depending
 on where and when the error occurs.
@@ -2563,7 +2564,7 @@ added: v8.4.0
 
 * {net.Socket|tls.TLSSocket}
 
-Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
+Returns a `Proxy` object that acts as a `net.Socket` (or `tls.TLSSocket`) but
 applies getters, setters, and methods based on HTTP/2 logic.
 
 `destroyed`, `readable`, and `writable` properties will be retrieved from and
@@ -2575,7 +2576,7 @@ set on `request.stream`.
 `setTimeout` method will be called on `request.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session` and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket. With TLS support,
@@ -2843,7 +2844,7 @@ added: v8.4.0
 
 * {boolean}
 
-Boolean (read-only). True if headers were sent, false otherwise.
+True if headers were sent, false otherwise (read-only).
 
 #### response.removeHeader(name)
 <!-- YAML
@@ -2939,7 +2940,7 @@ added: v8.4.0
 
 * {net.Socket|tls.TLSSocket}
 
-Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
+Returns a `Proxy` object that acts as a `net.Socket` (or `tls.TLSSocket`) but
 applies getters, setters, and methods based on HTTP/2 logic.
 
 `destroyed`, `readable`, and `writable` properties will be retrieved from and
@@ -2951,7 +2952,7 @@ set on `response.stream`.
 `setTimeout` method will be called on `response.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session` and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket.
@@ -3189,11 +3190,10 @@ following additional properties:
 [HTTP/2 Headers Object]: #http2_headers_object
 [HTTP/2 Settings Object]: #http2_settings_object
 [HTTPS]: https.html
-[Http2Session and Sockets]: #http2_http2session_and_sockets
 [Performance Observer]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
-[Using options.selectPadding]: #http2_using_options_selectpadding
+[Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [Writable Stream]: stream.html#stream_writable_streams
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'request'`]: #http2_event_request
@@ -3202,6 +3202,7 @@ following additional properties:
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
+[`Http2Session` and Sockets]: #http2_http2session_and_sockets
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.html#errors_class_typeerror

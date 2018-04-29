@@ -57,7 +57,7 @@ added: v0.1.99
 * `exception` {Error}
 
 The `'error'` event is emitted whenever any error occurs. The event handler
-function is passed a single Error object.
+function is passed a single `Error` object.
 
 ### Event: 'listening'
 <!-- YAML
@@ -264,7 +264,7 @@ added: v0.1.99
 changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11985
-    description: The `msg` parameter can be an Uint8Array now.
+    description: The `msg` parameter can be an `Uint8Array` now.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10473
     description: The `address` parameter is always optional now.

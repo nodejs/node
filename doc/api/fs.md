@@ -177,7 +177,7 @@ Using WHATWG [`URL`][] objects might introduce platform-specific behaviors.
 
 On Windows, `file:` URLs with a hostname convert to UNC paths, while `file:`
 URLs with drive letters convert to local absolute paths. `file:` URLs without a
-hostname nor a drive letter will result in a throw :
+hostname nor a drive letter will result in a throw:
 
 ```js
 // On Windows :
@@ -1730,7 +1730,7 @@ fs.ftruncate(fd, 4, (err) => {
 ```
 
 If the file previously was shorter than `len` bytes, it is extended, and the
-extended part is filled with null bytes ('\0'). For example,
+extended part is filled with null bytes (`'\0'`). For example,
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf8'));
@@ -1748,7 +1748,7 @@ fs.ftruncate(fd, 10, (err) => {
 // ('Node.js\0\0\0' in UTF8)
 ```
 
-The last three bytes are null bytes ('\0'), to compensate the over-truncation.
+The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
 
 ## fs.ftruncateSync(fd[, len])
 <!-- YAML
@@ -2189,7 +2189,7 @@ If `position` is an integer, the file position will remain unchanged.
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `bytesRead` and `buffer` properties.
+a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
 ## fs.readdir(path[, options], callback)
 <!-- YAML
@@ -2943,7 +2943,7 @@ The `atime` and `mtime` arguments follow these rules:
 - Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
 - If the value can not be converted to a number, or is `NaN`, `Infinity` or
-  `-Infinity`, a `Error` will be thrown.
+  `-Infinity`, an `Error` will be thrown.
 
 ## fs.utimesSync(path, atime, mtime)
 <!-- YAML
@@ -3067,7 +3067,7 @@ content, and one for truncation).
 Providing `filename` argument in the callback is only supported on Linux,
 macOS, Windows, and AIX. Even on supported platforms, `filename` is not always
 guaranteed to be provided. Therefore, don't assume that `filename` argument is
-always provided in the callback, and have some fallback logic if it is null.
+always provided in the callback, and have some fallback logic if it is `null`.
 
 ```js
 fs.watch('somedir', (eventType, filename) => {
@@ -3185,7 +3185,7 @@ The callback will be given three arguments `(err, bytesWritten, buffer)` where
 `bytesWritten` specifies how many _bytes_ were written from `buffer`.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `bytesWritten` and `buffer` properties.
+a `Promise` for an `Object` with `bytesWritten` and `buffer` properties.
 
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
@@ -3561,7 +3561,7 @@ doTruncate().catch(console.error);
 ```
 
 If the file previously was shorter than `len` bytes, it is extended, and the
-extended part is filled with null bytes ('\0'). For example,
+extended part is filled with null bytes (`'\0'`). For example,
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf8'));
@@ -3576,14 +3576,14 @@ async function doTruncate() {
 doTruncate().catch(console.error);
 ```
 
-The last three bytes are null bytes ('\0'), to compensate the over-truncation.
+The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
 
 #### filehandle.utimes(atime, mtime)
 <!-- YAML
 added: v10.0.0
 -->
 * `atime` {number|string|Date}
-* `mtime` {number|string|Date}`
+* `mtime` {number|string|Date}
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the `FileHandle`
@@ -3878,7 +3878,7 @@ doTruncate().catch(console.error);
 ```
 
 If the file previously was shorter than `len` bytes, it is extended, and the
-extended part is filled with null bytes ('\0'). For example,
+extended part is filled with null bytes (`'\0'`). For example,
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf8'));
@@ -3893,7 +3893,7 @@ async function doTruncate() {
 doTruncate().catch(console.error);
 ```
 
-The last three bytes are null bytes ('\0'), to compensate the over-truncation.
+The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
 
 ### fsPromises.futimes(filehandle, atime, mtime)
 <!-- YAML
@@ -3902,7 +3902,7 @@ added: v10.0.0
 
 * `filehandle` {FileHandle}
 * `atime` {number|string|Date}
-* `mtime` {number|string|Date}`
+* `mtime` {number|string|Date}
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the supplied
@@ -4599,7 +4599,7 @@ The file is created (if it does not exist) or truncated (if it exists).
 `flag` can also be a number as documented by open(2); commonly used constants
 are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
-or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
+or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by `CreateFileW`.
 
 The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that path is newly
 created. On POSIX systems, path is considered to exist even if it is a symlink

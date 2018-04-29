@@ -221,7 +221,7 @@ elements, and not as a byte array of the target type. That is,
    `[0x1020304]` or `[0x4030201]`.
 
 It is possible to create a new `Buffer` that shares the same allocated memory as
-a [`TypedArray`] instance by using the TypeArray object's `.buffer` property.
+a [`TypedArray`] instance by using the `TypeArray` object's `.buffer` property.
 
 ```js
 const arr = new Uint16Array(2);
@@ -427,7 +427,8 @@ changes:
                  run from code outside the `node_modules` directory.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12141
-    description: new Buffer(size) will return zero-filled memory by default.
+    description: The `new Buffer(size)` will return zero-filled memory by
+                 default.
   - version: v7.2.1
     pr-url: https://github.com/nodejs/node/pull/9529
     description: Calling this constructor no longer emits a deprecation warning.
@@ -980,8 +981,8 @@ console.log(buf.toString('ascii'));
 
 ### buf.buffer
 
-The `buffer` property references the underlying `ArrayBuffer` object based on
-which this Buffer object is created.
+* {ArrayBuffer} The underlying `ArrayBuffer` object based on
+  which this `Buffer` object is created.
 
 ```js
 const arrayBuffer = new ArrayBuffer(16);
@@ -1507,8 +1508,8 @@ added: v0.11.15
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1537,8 +1538,8 @@ added: v0.11.15
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1566,8 +1567,8 @@ added: v0.5.0
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1596,8 +1597,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1628,8 +1629,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1660,8 +1661,8 @@ added: v0.11.15
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset and
-                 byteLength to uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 and `byteLength` to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1693,8 +1694,8 @@ added: v0.5.0
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1721,8 +1722,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1755,8 +1756,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1785,8 +1786,8 @@ added: v0.11.15
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset and
-                 byteLength to uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 and `byteLength` to `uint32` anymore.
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -2102,8 +2103,8 @@ added: v0.11.15
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {number} Number to be written to `buf`.
@@ -2137,8 +2138,8 @@ added: v0.11.15
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {number} Number to be written to `buf`.
@@ -2171,8 +2172,8 @@ added: v0.5.0
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2203,8 +2204,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2236,8 +2237,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2269,8 +2270,8 @@ added: v0.11.15
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset and
-                 byteLength to uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 and `byteLength` to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2304,8 +2305,8 @@ added: v0.5.0
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2336,8 +2337,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2373,8 +2374,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset to
-                 uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
@@ -2408,8 +2409,8 @@ added: v0.5.5
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18395
-    description: Removed noAssert and no implicit coercion of the offset and
-                 byteLength to uint32 anymore.
+    description: Removed `noAssert` and no implicit coercion of the offset
+                 and `byteLength` to `uint32` anymore.
 -->
 
 * `value` {integer} Number to be written to `buf`.
