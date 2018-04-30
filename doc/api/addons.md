@@ -848,6 +848,13 @@ console.log(obj.plusOne());
 // Prints: 13
 ```
 
+The destructor for a wrapper object will run when the object is
+garbage-collected. For destructor testing, there are command-line flags that
+can be used to make it possible to force garbage collection. These flags are
+provided by the underlying V8 JavaScript engine. They are subject to change
+or removal at any time. They are not documented by Node.js or V8, and they
+should never be used outside of testing.
+
 ### Factory of wrapped objects
 
 Alternatively, it is possible to use a factory pattern to avoid explicitly
