@@ -417,12 +417,12 @@ inline void Environment::set_http_parser_buffer(char* buffer) {
   http_parser_buffer_ = buffer;
 }
 
-inline http2::http2_state* Environment::http2_state() const {
+inline http2::Http2State* Environment::http2_state() const {
   return http2_state_.get();
 }
 
 inline void Environment::set_http2_state(
-    std::unique_ptr<http2::http2_state> buffer) {
+    std::unique_ptr<http2::Http2State> buffer) {
   CHECK(!http2_state_);  // Should be set only once.
   http2_state_ = std::move(buffer);
 }

@@ -2868,7 +2868,7 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
-  std::unique_ptr<http2_state> state(new http2_state(isolate));
+  std::unique_ptr<Http2State> state(new Http2State(isolate));
 
 #define SET_STATE_TYPEDARRAY(name, field)             \
   target->Set(context,                                \
