@@ -16,7 +16,6 @@ namespace http2 {
 
 using v8::Array;
 using v8::Context;
-using v8::EscapableHandleScope;
 using v8::Isolate;
 using v8::MaybeLocal;
 
