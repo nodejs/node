@@ -599,7 +599,7 @@ whether the failure was caused by the changes in the Pull Request.
 
 ### Commit Squashing
 
-In most cases, do not squash commits that you add to your pull request during
+In most cases, do not squash commits that you add to your Pull Request during
 the review process. When the commits in your Pull Request land, they may be
 squashed into one commit per logical change. Metadata will be added to the
 commit message (including links to the Pull Request, links to relevant issues,
