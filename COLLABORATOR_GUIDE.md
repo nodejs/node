@@ -489,8 +489,7 @@ The TSC should serve as the final arbiter where required.
 1. Never use GitHub's green ["Merge Pull Request"][] button. Reasons for not
    using the web interface button:
    * The merge method will add an unnecessary merge commit.
-   * The squash & merge method has been known to add metadata to the commit
-     title (the PR #).
+   * The squash & merge method can add metadata (the PR #) to the commit title.
    * If more than one author has contributed to the PR, keep the most recent
      author when squashing.
 1. Make sure the CI is done and the result is green. If the CI is not green,
