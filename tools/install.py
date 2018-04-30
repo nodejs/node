@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
+import ast
 import errno
-import json
 import os
 import re
 import shutil
@@ -20,9 +20,7 @@ def abspath(*args):
 
 def load_config():
   s = open('config.gypi').read()
-  s = re.sub(r'#.*?\n', '', s) # strip comments
-  s = re.sub(r'\'', '"', s) # convert quotes
-  return json.loads(s)
+  return ast.literal_eval(s)
 
 def try_unlink(path):
   try:
