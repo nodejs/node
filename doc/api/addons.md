@@ -590,8 +590,6 @@ class MyObject : public node::ObjectWrap {
   static void PlusOne(const v8::FunctionCallbackInfo<v8::Value>& args);
   static v8::Persistent<v8::Function> constructor;
   double value_;
-  napi_env env_;
-  napi_ref wrapper_;
 };
 
 }  // namespace demo
@@ -606,8 +604,6 @@ prototype:
 ```cpp
 // myobject.cc
 #include "myobject.h"
-#include <iostream>
-using std::cout;
 
 namespace demo {
 
@@ -629,9 +625,6 @@ MyObject::MyObject(double value) : value_(value) {
 }
 
 MyObject::~MyObject() {
-  cout << "Deleting object \n";
-  napi_delete_reference(env_, wrapper_);
-  cout << "Deleted object \n";
 }
 
 void MyObject::Init(Local<Object> exports) {
@@ -706,20 +699,21 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-let obj = new addon.MyObject(10);
+const obj = new addon.MyObject(10);
 console.log(obj.plusOne());
 // Prints: 11
 console.log(obj.plusOne());
 // Prints: 12
 console.log(obj.plusOne());
 // Prints: 13
-
-obj = null;
-global.gc();
-// Prints: Deleting object
 ```
-Note that, in this example, the garbage collector is executed explicitly to
-properly invoke the wrapper objects' destructor. 
+
+The garbage collector can execute forcefully using V8 command line flags
+` --gc_global ` and ` --gc_interval `, where ` --gc_global ` forces V8 to
+perform a full garbage collection and ` --gc_interval ` forces V8 to 
+perform garbage collection after a given amount of allocations. Although,
+it is recommended to limit V8 command line flags for testing purposes
+only, since these are primarily debug flags. 
 
 ### Factory of wrapped objects
 
