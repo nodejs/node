@@ -708,6 +708,13 @@ console.log(obj.plusOne());
 // Prints: 13
 ```
 
+When it comes to destructing wrapper objects, garbage collector can execute
+forcefully using V8 command line flags ` --gc_global ` and ` gc_interval `,
+where ` --gc_global ` forces V8 to perform a full garbage collection and
+` gc_interval ` forces V8 to perform garbage collection after a given amount
+of allocations. Although, it is recommended to limit V8 command line flags
+for testing purposes only, since these are primarily debug flags.
+
 ### Factory of wrapped objects
 
 Alternatively, it is possible to use a factory pattern to avoid explicitly
