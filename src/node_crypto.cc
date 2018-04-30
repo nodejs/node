@@ -3108,7 +3108,8 @@ bool CipherBase::Final(unsigned char** out, int *out_len) {
       // be given by the user.
       if (mode == EVP_CIPH_GCM_MODE && auth_tag_len_ == kNoAuthTagLength)
         auth_tag_len_ = sizeof(auth_tag_);
-      CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_AEAD_GET_TAG, auth_tag_len_,
+      CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_AEAD_GET_TAG,
+                      auth_tag_len_,
                       reinterpret_cast<unsigned char*>(auth_tag_)));
     }
   }
