@@ -892,3 +892,37 @@ exports.isCPPSymbolsNotMapped = exports.isWindows ||
                                 exports.isAIX ||
                                 exports.isLinuxPPCBE ||
                                 exports.isFreeBSD;
+
+// Run test for both fs.method and fsPromises.method with args.
+// The last value in args must be a callback that is expected to run once for
+// each call to the method named in `method`.
+exports.fsTest = (method, args, options = {}) => {
+  const fsPromises = fs.promises;
+
+  if (options.differentFiles)
+    args.unshift(options.differentFiles[0]);
+
+  if (options.setup)
+    options.setup();
+  const checkResults = args.pop();
+
+  const wrappedCheck = (...callbackArgs) => {
+    checkResults(...callbackArgs);
+    if (options.setup)
+      options.setup();
+    const callbackified = util.callbackify(fsPromises[method]);
+    if (options.differentFiles)
+      args[0] = options.differentFiles[1];
+    callbackified(...args, exports.mustCall(checkResults));
+    return true;
+  };
+
+  if (options.throws) {
+    assert.throws(
+      () => { fs[method](...args, exports.mustNotCall()); },
+      wrappedCheck
+    );
+  } else {
+    fs[method](...args, exports.mustCall(wrappedCheck));
+  }
+};
