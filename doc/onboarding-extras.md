@@ -97,4 +97,3 @@ to update from nodejs/node:
 ## Best practices
 
 * When making PRs, spend time writing a thorough description.
-* Usually only squash at the end of your work.
