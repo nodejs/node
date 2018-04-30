@@ -90,30 +90,46 @@ function verifyStatObject(stat) {
     await fsync(handle);
     await handle.sync();
 
-    const buf = Buffer.from('hello world');
+    const buf = Buffer.from('hello fsPromises');
+    const bufLen = buf.length;
     await write(handle, buf);
-    const ret = await read(handle, Buffer.alloc(11), 0, 11, 0);
-    assert.strictEqual(ret.bytesRead, 11);
+    const ret = await read(handle, Buffer.alloc(bufLen), 0, bufLen, 0);
+    assert.strictEqual(ret.bytesRead, bufLen);
     assert.deepStrictEqual(ret.buffer, buf);
 
-    const buf2 = Buffer.from('HELLO WORLD');
-    await handle.write(buf2);
-    const ret2 = await handle.read(Buffer.alloc(11), 0, 11, 0);
-    assert.strictEqual(ret2.bytesRead, 11);
-    assert.deepStrictEqual(ret2.buffer, buf);
+    const buf2 = Buffer.from('hello FileHandle');
+    const buf2Len = buf2.length;
+    await handle.write(buf2, 0, buf2Len, 0);
+    const ret2 = await handle.read(Buffer.alloc(buf2Len), 0, buf2Len, 0);
+    assert.strictEqual(ret2.bytesRead, buf2Len);
+    assert.deepStrictEqual(ret2.buffer, buf2);
 
     await chmod(dest, 0o666);
     await fchmod(handle, 0o666);
     handle.chmod(0o666);
-    try {
-      await fchmod(handle, (0o777 + 1));
-    } catch (err) {
-      // mode can't be > 0o777
-      common.expectsError({
+
+    // `mode` can't be > 0o777
+    assert.rejects(
+      () => chmod(handle, (0o777 + 1)),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      }
+    );
+    assert.rejects(
+      () => fchmod(handle, (0o777 + 1)),
+      {
         code: 'ERR_OUT_OF_RANGE',
-        type: RangeError
-      })(err);
-    }
+        name: 'RangeError [ERR_OUT_OF_RANGE]'
+      }
+    );
+    assert.rejects(
+      () => handle.chmod(handle, (0o777 + 1)),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      }
+    );
 
     await utimes(dest, new Date(), new Date());
 
@@ -167,16 +183,15 @@ function verifyStatObject(stat) {
     await rmdir(newdir);
 
     await mkdtemp(path.resolve(tmpDir, 'FOO'));
-    try {
-      await mkdtemp(1);
-    } catch (err) {
+    assert.rejects(
       // mkdtemp() expects to get a string prefix.
-      console.log('err', err);
-      common.expectsError({
+      async () => mkdtemp(1),
+      {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
-      })(err);
-    }
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      }
+    );
+
   }
 
   doTest().then(common.mustCall());
