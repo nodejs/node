@@ -599,9 +599,10 @@ whether the failure was caused by the changes in the Pull Request.
 
 ### Commit Squashing
 
-When the commits in your Pull Request land, they may be squashed
-into one commit per logical change. Metadata will be added to the commit
-message (including links to the Pull Request, links to relevant issues,
+In most cases, do not squash commits that you add to your Pull Request during
+the review process. When the commits in your Pull Request land, they may be
+squashed into one commit per logical change. Metadata will be added to the
+commit message (including links to the Pull Request, links to relevant issues,
 and the names of the reviewers). The commit history of your Pull Request,
 however, will stay intact on the Pull Request page.
 
