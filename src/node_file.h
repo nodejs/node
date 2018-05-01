@@ -28,11 +28,6 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 
   FSReqBase(Environment* env, Local<Object> req, AsyncWrap::ProviderType type)
       : ReqWrap(env, req, type) {
-    Wrap(object(), this);
-  }
-
-  virtual ~FSReqBase() {
-    ClearWrap(object());
   }
 
   void Init(const char* syscall,
@@ -249,10 +244,10 @@ class FileHandle : public AsyncWrap, public StreamBase {
                   env->fdclose_constructor_template()
                       ->NewInstance(env->context()).ToLocalChecked(),
                   AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
-      Wrap(object(), this);
       promise_.Reset(env->isolate(), promise);
       ref_.Reset(env->isolate(), ref);
     }
+
     ~CloseReq() {
       uv_fs_req_cleanup(req());
       promise_.Reset();

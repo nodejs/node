@@ -158,7 +158,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   obj->context_.Reset(isolate, context);
 
   env->module_map.emplace(module->GetIdentityHash(), obj);
-  Wrap(that, obj);
 
   that->SetIntegrityLevel(context, IntegrityLevel::kFrozen);
   args.GetReturnValue().Set(that);

@@ -93,7 +93,6 @@ HandleWrap::HandleWrap(Environment* env,
       handle_(handle) {
   handle_->data = this;
   HandleScope scope(env->isolate());
-  Wrap(object, this);
   env->handle_wrap_queue()->PushBack(this);
 }
 
@@ -114,7 +113,6 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   if (have_close_callback)
     wrap->MakeCallback(env->onclose_string(), 0, nullptr);
 
-  ClearWrap(wrap->object());
   delete wrap;
 }
 
