@@ -217,25 +217,6 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                     length).ToLocalChecked();
 }
 
-template <typename TypeName>
-void Wrap(v8::Local<v8::Object> object, TypeName* pointer) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
-  object->SetAlignedPointerInInternalField(0, pointer);
-}
-
-void ClearWrap(v8::Local<v8::Object> object) {
-  Wrap<void>(object, nullptr);
-}
-
-template <typename TypeName>
-TypeName* Unwrap(v8::Local<v8::Object> object) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
-  void* pointer = object->GetAlignedPointerFromInternalField(0);
-  return static_cast<TypeName*>(pointer);
-}
-
 void SwapBytes16(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
 

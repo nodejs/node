@@ -244,11 +244,6 @@ Http2Session::Http2Settings::Http2Settings(
   Init();
 }
 
-Http2Session::Http2Settings::~Http2Settings() {
-  if (!object().IsEmpty())
-    ClearWrap(object());
-}
-
 // Generates a Buffer that contains the serialized payload of a SETTINGS
 // frame. This can be used, for instance, to create the Base64-encoded
 // content of an Http2-Settings header field.
@@ -458,7 +453,7 @@ Http2Session::Http2Session(Environment* env,
                            nghttp2_session_type type)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
       session_type_(type) {
-  MakeWeak<Http2Session>(this);
+  MakeWeak();
   statistics_.start_time = uv_hrtime();
 
   // Capture the configuration options for this session
@@ -1668,7 +1663,7 @@ Http2Stream::Http2Stream(
                    session_(session),
                    id_(id),
                    current_headers_category_(category) {
-  MakeWeak<Http2Stream>(this);
+  MakeWeak();
   statistics_.start_time = uv_hrtime();
 
   // Limit the number of header pairs
@@ -2614,11 +2609,6 @@ Http2Session::Http2Ping::Http2Ping(
                     AsyncWrap::PROVIDER_HTTP2PING),
           session_(session),
           startTime_(uv_hrtime()) { }
-
-Http2Session::Http2Ping::~Http2Ping() {
-  if (!object().IsEmpty())
-    ClearWrap(object());
-}
 
 void Http2Session::Http2Ping::Send(uint8_t* payload) {
   uint8_t data[8];

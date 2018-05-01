@@ -68,8 +68,7 @@ TLSWrap::TLSWrap(Environment* env,
       shutdown_(false),
       cycle_depth_(0),
       eof_(false) {
-  node::Wrap(object(), this);
-  MakeWeak(this);
+  MakeWeak();
 
   // sc comes from an Unwrap. Make sure it was assigned.
   CHECK_NE(sc, nullptr);
@@ -873,16 +872,9 @@ void TLSWrap::Initialize(Local<Object> target,
 
   env->SetMethod(target, "wrap", TLSWrap::Wrap);
 
-  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    args.This()->SetAlignedPointerInInternalField(0, nullptr);
-  };
-
+  Local<FunctionTemplate> t = BaseObject::MakeLazilyInitializedJSTemplate(env);
   Local<String> tlsWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap");
-
-  auto t = env->NewFunctionTemplate(constructor);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(tlsWrapString);
 
   Local<FunctionTemplate> get_write_queue_size =

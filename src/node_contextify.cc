@@ -884,7 +884,7 @@ class ContextifyScript : public BaseObject {
 
   ContextifyScript(Environment* env, Local<Object> object)
       : BaseObject(env, object) {
-    MakeWeak<ContextifyScript>(this);
+    MakeWeak();
   }
 };
 

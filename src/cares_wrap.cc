@@ -187,7 +187,7 @@ ChannelWrap::ChannelWrap(Environment* env,
     is_servers_default_(true),
     library_inited_(false),
     active_query_count_(0) {
-  MakeWeak<ChannelWrap>(this);
+  MakeWeak();
 
   Setup();
 }
@@ -205,7 +205,6 @@ class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
   GetAddrInfoReqWrap(Environment* env,
                      Local<Object> req_wrap_obj,
                      bool verbatim);
-  ~GetAddrInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
   bool verbatim() const { return verbatim_; }
@@ -219,18 +218,12 @@ GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
                                        bool verbatim)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP)
     , verbatim_(verbatim) {
-  Wrap(req_wrap_obj, this);
-}
-
-GetAddrInfoReqWrap::~GetAddrInfoReqWrap() {
-  ClearWrap(object());
 }
 
 
 class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
  public:
   GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
-  ~GetNameInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
 };
@@ -238,11 +231,6 @@ class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
 GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
                                        Local<Object> req_wrap_obj)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP) {
-  Wrap(req_wrap_obj, this);
-}
-
-GetNameInfoReqWrap::~GetNameInfoReqWrap() {
-  ClearWrap(object());
 }
 
 
@@ -587,8 +575,6 @@ class QueryWrap : public AsyncWrap {
   QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
       : AsyncWrap(channel->env(), req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP),
         channel_(channel) {
-    Wrap(req_wrap_obj, this);
-
     // Make sure the channel object stays alive during the query lifetime.
     req_wrap_obj->Set(env()->context(),
                       env()->channel_string(),
@@ -597,7 +583,6 @@ class QueryWrap : public AsyncWrap {
 
   ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
-    ClearWrap(object());
   }
 
   // Subclasses should implement the appropriate Send method.
@@ -2143,14 +2128,8 @@ void Initialize(Local<Object> target,
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
               Integer::New(env->isolate(), AI_V4MAPPED));
 
-  auto is_construct_call_callback =
-      [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    ClearWrap(args.This());
-  };
   Local<FunctionTemplate> aiw =
-      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  aiw->InstanceTemplate()->SetInternalFieldCount(1);
+      BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, aiw);
   Local<String> addrInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap");
@@ -2158,8 +2137,7 @@ void Initialize(Local<Object> target,
   target->Set(addrInfoWrapString, aiw->GetFunction());
 
   Local<FunctionTemplate> niw =
-      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  niw->InstanceTemplate()->SetInternalFieldCount(1);
+      BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, niw);
   Local<String> nameInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap");
@@ -2167,8 +2145,7 @@ void Initialize(Local<Object> target,
   target->Set(nameInfoWrapString, niw->GetFunction());
 
   Local<FunctionTemplate> qrw =
-      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  qrw->InstanceTemplate()->SetInternalFieldCount(1);
+      BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, qrw);
   Local<String> queryWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap");

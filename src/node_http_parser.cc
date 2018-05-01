@@ -151,13 +151,7 @@ class Parser : public AsyncWrap, public StreamListener {
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
-    Wrap(object(), this);
     Init(type);
-  }
-
-
-  ~Parser() override {
-    ClearWrap(object());
   }
 
 

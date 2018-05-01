@@ -115,7 +115,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
+    TimerWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
     CHECK(HandleWrap::IsAlive(wrap));
 
@@ -125,7 +126,8 @@ class TimerWrap : public HandleWrap {
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
+    TimerWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
     CHECK(HandleWrap::IsAlive(wrap));
 

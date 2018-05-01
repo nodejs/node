@@ -37,7 +37,7 @@ class NodeCategorySet : public BaseObject {
                   Local<Object> wrap,
                   std::set<std::string> categories) :
         BaseObject(env, wrap), categories_(categories) {
-    MakeWeak<NodeCategorySet>(this);
+    MakeWeak();
   }
 
   bool enabled_ = false;

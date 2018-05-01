@@ -175,7 +175,7 @@ class SecureContext : public BaseObject {
         ctx_(nullptr),
         cert_(nullptr),
         issuer_(nullptr) {
-    MakeWeak<SecureContext>(this);
+    MakeWeak();
     env->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
   }
 
@@ -401,7 +401,7 @@ class CipherBase : public BaseObject {
         auth_tag_set_(false),
         auth_tag_len_(0),
         pending_auth_failed_(false) {
-    MakeWeak<CipherBase>(this);
+    MakeWeak();
   }
 
  private:
@@ -432,7 +432,7 @@ class Hmac : public BaseObject {
   Hmac(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
         ctx_(nullptr) {
-    MakeWeak<Hmac>(this);
+    MakeWeak();
   }
 
  private:
@@ -457,7 +457,7 @@ class Hash : public BaseObject {
       : BaseObject(env, wrap),
         mdctx_(nullptr),
         finalized_(false) {
-    MakeWeak<Hash>(this);
+    MakeWeak();
   }
 
  private:
@@ -512,7 +512,7 @@ class Sign : public SignBase {
   static void SignFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Sign(Environment* env, v8::Local<v8::Object> wrap) : SignBase(env, wrap) {
-    MakeWeak<Sign>(this);
+    MakeWeak();
   }
 };
 
@@ -535,7 +535,7 @@ class Verify : public SignBase {
   static void VerifyFinal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   Verify(Environment* env, v8::Local<v8::Object> wrap) : SignBase(env, wrap) {
-    MakeWeak<Verify>(this);
+    MakeWeak();
   }
 };
 
@@ -603,7 +603,7 @@ class DiffieHellman : public BaseObject {
         initialised_(false),
         verifyError_(0),
         dh(nullptr) {
-    MakeWeak<DiffieHellman>(this);
+    MakeWeak();
   }
 
  private:
@@ -639,7 +639,7 @@ class ECDH : public BaseObject {
       : BaseObject(env, wrap),
         key_(key),
         group_(EC_KEY_get0_group(key_)) {
-    MakeWeak<ECDH>(this);
+    MakeWeak();
     CHECK_NE(group_, nullptr);
   }
 

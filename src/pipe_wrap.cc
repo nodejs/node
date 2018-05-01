@@ -102,12 +102,7 @@ void PipeWrap::Initialize(Local<Object> target,
   env->set_pipe_constructor_template(t);
 
   // Create FunctionTemplate for PipeConnectWrap.
-  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    ClearWrap(args.This());
-  };
-  auto cwt = FunctionTemplate::New(env->isolate(), constructor);
-  cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  auto cwt = BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, cwt);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap");

@@ -35,7 +35,6 @@
 #include <string.h>
 
 #include <functional>  // std::function
-#include <type_traits>  // std::remove_reference
 
 namespace node {
 
@@ -83,8 +82,6 @@ void LowMemoryNotification();
 NO_RETURN void Abort();
 NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
-
-template <typename T> using remove_reference = std::remove_reference<T>;
 
 #define FIXED_ONE_BYTE_STRING(isolate, string)                                \
   (node::OneByteString((isolate), (string), sizeof(string) - 1))
@@ -134,14 +131,6 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
 #define UNREACHABLE() ABORT()
-
-#define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                \
-  do {                                                                        \
-    *ptr =                                                                    \
-        Unwrap<typename node::remove_reference<decltype(**ptr)>::type>(obj);  \
-    if (*ptr == nullptr)                                                      \
-      return __VA_ARGS__;                                                     \
-  } while (0)
 
 // TAILQ-style intrusive list node.
 template <typename T>
@@ -249,13 +238,6 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const unsigned char* data,
                                            int length = -1);
-
-inline void Wrap(v8::Local<v8::Object> object, void* pointer);
-
-inline void ClearWrap(v8::Local<v8::Object> object);
-
-template <typename TypeName>
-inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
 // Swaps bytes in place. nbytes is the number of bytes to swap and must be a
 // multiple of the word size (checked by function).
