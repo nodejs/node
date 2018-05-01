@@ -243,12 +243,6 @@ SimpleShutdownWrap<OtherBase>::SimpleShutdownWrap(
     OtherBase(stream->stream_env(),
               req_wrap_obj,
               AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
-  Wrap(req_wrap_obj, static_cast<AsyncWrap*>(this));
-}
-
-template <typename OtherBase>
-SimpleShutdownWrap<OtherBase>::~SimpleShutdownWrap() {
-  ClearWrap(static_cast<AsyncWrap*>(this)->object());
 }
 
 inline ShutdownWrap* StreamBase::CreateShutdownWrap(
@@ -264,12 +258,6 @@ SimpleWriteWrap<OtherBase>::SimpleWriteWrap(
     OtherBase(stream->stream_env(),
               req_wrap_obj,
               AsyncWrap::PROVIDER_WRITEWRAP) {
-  Wrap(req_wrap_obj, static_cast<AsyncWrap*>(this));
-}
-
-template <typename OtherBase>
-SimpleWriteWrap<OtherBase>::~SimpleWriteWrap() {
-  ClearWrap(static_cast<AsyncWrap*>(this)->object());
 }
 
 inline WriteWrap* StreamBase::CreateWriteWrap(
@@ -461,7 +449,7 @@ inline void StreamReq::ResetObject(v8::Local<v8::Object> obj) {
 #ifdef DEBUG
   CHECK_GT(obj->InternalFieldCount(), StreamReq::kStreamReqField);
 #endif
-  ClearWrap(obj);
+  obj->SetAlignedPointerInInternalField(0, nullptr);  // BaseObject field.
   obj->SetAlignedPointerInInternalField(StreamReq::kStreamReqField, nullptr);
 }
 

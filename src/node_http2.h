@@ -1149,7 +1149,6 @@ class Http2StreamPerformanceEntry : public PerformanceEntry {
 class Http2Session::Http2Ping : public AsyncWrap {
  public:
   explicit Http2Ping(Http2Session* session);
-  ~Http2Ping();
 
   size_t self_size() const override { return sizeof(*this); }
 
@@ -1170,7 +1169,6 @@ class Http2Session::Http2Settings : public AsyncWrap {
  public:
   explicit Http2Settings(Environment* env);
   explicit Http2Settings(Http2Session* session);
-  ~Http2Settings();
 
   size_t self_size() const override { return sizeof(*this); }
 

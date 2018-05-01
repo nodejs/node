@@ -26,7 +26,6 @@
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_internals.h"
-#include "node_wrap.h"
 #include "connect_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
@@ -117,12 +116,8 @@ void TCPWrap::Initialize(Local<Object> target,
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
-  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    ClearWrap(args.This());
-  };
-  auto cwt = FunctionTemplate::New(env->isolate(), constructor);
-  cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  Local<FunctionTemplate> cwt =
+      BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, cwt);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");

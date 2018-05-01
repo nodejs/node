@@ -99,7 +99,7 @@ FileHandle::FileHandle(Environment* env, int fd, Local<Object> obj)
                 AsyncWrap::PROVIDER_FILEHANDLE),
       StreamBase(env),
       fd_(fd) {
-  MakeWeak<FileHandle>(this);
+  MakeWeak();
   v8::PropertyAttribute attr =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
   object()->DefineOwnProperty(env->context(),
