@@ -72,7 +72,11 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
   const Argv argv;
   Env env{handle_scope, argv};
 
-  v8::Local<v8::Object> object = v8::Object::New(isolate_);
+  v8::Local<v8::ObjectTemplate> obj_templ = v8::ObjectTemplate::New(isolate_);
+  obj_templ->SetInternalFieldCount(1);
+
+  v8::Local<v8::Object> object =
+      obj_templ->NewInstance(env.context()).ToLocalChecked();
   node::BaseObject obj(*env, object);
 
   auto expected = reinterpret_cast<uintptr_t>(&obj.persistent());

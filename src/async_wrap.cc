@@ -123,8 +123,8 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
   Local<Object> object = wrapper.As<Object>();
   CHECK_GT(object->InternalFieldCount(), 0);
 
-  AsyncWrap* wrap = Unwrap<AsyncWrap>(object);
-  if (wrap == nullptr) return nullptr;  // ClearWrap() already called.
+  AsyncWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, object, nullptr);
 
   return new RetainedAsyncInfo(class_id, wrap);
 }
@@ -231,7 +231,7 @@ class PromiseWrap : public AsyncWrap {
  public:
   PromiseWrap(Environment* env, Local<Object> object, bool silent)
       : AsyncWrap(env, object, PROVIDER_PROMISE, -1, silent) {
-    MakeWeak(this);
+    MakeWeak();
   }
   size_t self_size() const override { return sizeof(*this); }
 

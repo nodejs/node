@@ -259,7 +259,7 @@ class ConverterObject : public BaseObject, Converter {
                   BaseObject(env, wrap),
                   Converter(converter, sub),
                   ignoreBOM_(ignoreBOM) {
-    MakeWeak<ConverterObject>(this);
+    MakeWeak();
 
     switch (ucnv_getType(converter)) {
       case UCNV_UTF8:

@@ -89,8 +89,6 @@ class ZCtx : public AsyncWrap {
         refs_(0),
         gzip_id_bytes_read_(0),
         write_result_(nullptr) {
-    MakeWeak<ZCtx>(this);
-    Wrap(wrap, this);
   }
 
 
@@ -662,7 +660,7 @@ class ZCtx : public AsyncWrap {
   void Unref() {
     CHECK_GT(refs_, 0);
     if (--refs_ == 0) {
-      MakeWeak<ZCtx>(this);
+      MakeWeak();
     }
   }
 
