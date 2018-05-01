@@ -1,4 +1,4 @@
-all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem ca2-crl.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem dsa1025.pem dsa_private_1025.pem dsa_public_1025.pem rsa_private_1024.pem rsa_private_2048.pem rsa_private_4096.pem rsa_public_1024.pem rsa_public_2048.pem rsa_public_4096.pem
+all: agent1-cert.pem agent1-pfx.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem agent6-cert.pem agent7-cert.pem agent8-cert.pem agent9-cert.pem ca1-cert.pem ca2-crl.pem ca3-cert.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem dsa1025.pem dsa_private_1025.pem dsa_public_1025.pem rsa_private_1024.pem rsa_private_2048.pem rsa_private_4096.pem rsa_public_1024.pem rsa_public_2048.pem rsa_public_4096.pem
 
 
 #
@@ -280,7 +280,7 @@ agent8-csr.pem: agent8.cnf agent8-key.pem
 	openssl req -new -config agent8.cnf -key agent8-key.pem \
 	-out agent8-csr.pem
 
-agent8-cert.pem: agent8-csr.pem
+agent8-cert.pem: agent8-csr.pem fake-startcom-root-cert.pem fake-startcom-root-key.pem
 	openssl ca \
 		-config fake-startcom-root.cnf \
 		-keyfile fake-startcom-root-key.pem \
@@ -289,7 +289,7 @@ agent8-cert.pem: agent8-csr.pem
 		-days 9999 \
 		-passin "pass:password" \
 		-in agent8-csr.pem \
-		-startdate 20161020235959Z \
+		-startdate 161020235959Z \
 		-notext -out agent8-cert.pem
 
 
@@ -319,7 +319,7 @@ agent9-cert.pem: agent9-csr.pem
 		-days 9999 \
 		-passin "pass:password" \
 		-in agent9-csr.pem \
-		-startdate 20161021000001Z \
+		-startdate 161021000001Z \
 		-notext -out agent9-cert.pem
 
 ec-key.pem:
@@ -380,7 +380,8 @@ rsa_public_4096.pem: rsa_private_4096.pem
 	openssl rsa -in rsa_private_4096.pem -out rsa_public_4096.pem
 
 clean:
-	rm -f *.pem *.srl ca2-database.txt ca2-serial
+	rm -f *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial
+	@> fake-startcom-root-database.txt
 
 test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify
 

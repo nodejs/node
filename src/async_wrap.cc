@@ -21,6 +21,7 @@
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "node_internals.h"
 #include "util-inl.h"
 
 #include "v8.h"

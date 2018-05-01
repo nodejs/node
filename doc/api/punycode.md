@@ -145,6 +145,8 @@ punycode.ucs2.encode([0x1D306]); // '\uD834\uDF06'
 added: v0.6.1
 -->
 
+* {string}
+
 Returns a string identifying the current [Punycode.js][] version number.
 
 [Punycode.js]: https://mths.be/punycode

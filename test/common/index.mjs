@@ -1,5 +1,5 @@
 // Flags: --experimental-modules
-/* eslint-disable required-modules */
+/* eslint-disable node-core/required-modules */
 
 import assert from 'assert';
 
@@ -27,7 +27,7 @@ export function allowGlobals(...whitelist) {
 }
 
 export function leakedGlobals() {
-  //add possible expected globals
+  // Add possible expected globals
   if (global.gc) {
     knownGlobals.push(global.gc);
   }

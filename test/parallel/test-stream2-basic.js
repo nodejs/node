@@ -65,8 +65,6 @@ class TestReader extends R {
   }
 }
 
-/////
-
 class TestWriter extends EE {
   constructor() {
     super();

@@ -56,7 +56,7 @@ dns.resolve4('archive.org', (err, addresses) => {
 There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
 
-## Class dns.Resolver
+## Class: dns.Resolver
 <!-- YAML
 added: v8.3.0
 -->
@@ -110,6 +110,8 @@ callbacks will be called with an error with code `ECANCELLED`.
 added: v0.11.3
 -->
 
+* Returns: {string[]}
+
 Returns an array of IP address strings, formatted according to [rfc5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
@@ -143,7 +145,7 @@ changes:
   - `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
     addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
-    **Default:** currently `false` (addresses are reordered) but this is 
+    **Default:** currently `false` (addresses are reordered) but this is
     expected to change in the not too distant future.
     New code should use `{ verbatim: true }`.
 - `callback` {Function}

@@ -19,8 +19,8 @@ compatibility with the existing [HTTP/1][] module API. However,
 the [Compatibility API][] is.
 
 The `http2` Core API is much more symmetric between client and server than the
-`http` API. For instance, most events, like `error`, `connect` and `stream`, can
-be emitted either by client-side code or server-side code.
+`http` API. For instance, most events, like `'error'`, `'connect'` and
+`'stream'`, can be emitted either by client-side code or server-side code.
 
 ### Server-side example
 
@@ -128,7 +128,8 @@ solely on the API of the `Http2Session`.
 added: v8.4.0
 -->
 
-The `'close'` event is emitted once the `Http2Session` has been destroyed.
+The `'close'` event is emitted once the `Http2Session` has been destroyed. Its
+listener does not expect any arguments.
 
 #### Event: 'connect'
 <!-- YAML
@@ -203,7 +204,7 @@ settings do not take effect until the `'localSettings'` event is emitted.
 session.settings({ enablePush: false });
 
 session.on('localSettings', (settings) => {
-  /** use the new settings **/
+  /* Use the new settings */
 });
 ```
 
@@ -218,7 +219,7 @@ of the remote settings.
 
 ```js
 session.on('remoteSettings', (settings) => {
-  /** use the new settings **/
+  /* Use the new settings */
 });
 ```
 
@@ -280,7 +281,7 @@ activity on the `Http2Session` after the configured number of milliseconds.
 
 ```js
 session.setTimeout(2000);
-session.on('timeout', () => { /** .. **/ });
+session.on('timeout', () => { /* .. */ });
 ```
 
 #### http2session.alpnProtocol
@@ -463,7 +464,7 @@ If the `payload` argument is not specified, the default payload will be the
 added: v9.4.0
 -->
 
-Calls [`ref()`][`net.Socket.prototype.ref`] on this `Http2Session`
+Calls [`ref()`][`net.Socket.prototype.ref()`] on this `Http2Session`
 instance's underlying [`net.Socket`].
 
 #### http2session.remoteSettings
@@ -571,7 +572,7 @@ client.
 added: v9.4.0
 -->
 
-Calls [`unref()`][`net.Socket.prototype.unref`] on this `Http2Session`
+Calls [`unref()`][`net.Socket.prototype.unref()`] on this `Http2Session`
 instance's underlying [`net.Socket`].
 
 ### Class: ServerHttp2Session
@@ -717,8 +718,8 @@ const {
 const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
 req.on('response', (headers) => {
   console.log(headers[HTTP2_HEADER_STATUS]);
-  req.on('data', (chunk) => { /** .. **/ });
-  req.on('end', () => { /** .. **/ });
+  req.on('data', (chunk) => { /* .. */ });
+  req.on('end', () => { /* .. */ });
 });
 ```
 
@@ -856,7 +857,7 @@ added: v8.4.0
 -->
 
 The `'timeout'` event is emitted after no activity is received for this
-`'Http2Stream'` within the number of milliseconds set using
+`Http2Stream` within the number of milliseconds set using
 `http2stream.setTimeout()`.
 
 #### Event: 'trailers'
@@ -1457,9 +1458,9 @@ a request with an HTTP `Expect: 100-continue` is received. If this event is
 not listened for, the server will automatically respond with a status
 `100 Continue` as appropriate.
 
-Handling this event involves calling [`response.writeContinue()`][] if the 
-client should continue to send the request body, or generating an appropriate 
-HTTP response (e.g. 400 Bad Request) if the client should not continue to send 
+Handling this event involves calling [`response.writeContinue()`][] if the
+client should continue to send the request body, or generating an appropriate
+HTTP response (e.g. 400 Bad Request) if the client should not continue to send
 the request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
@@ -1572,9 +1573,9 @@ time a request with an HTTP `Expect: 100-continue` is received. If this event
 is not listened for, the server will automatically respond with a status
 `100 Continue` as appropriate.
 
-Handling this event involves calling [`response.writeContinue()`][] if the 
-client should continue to send the request body, or generating an appropriate 
-HTTP response (e.g. 400 Bad Request) if the client should not continue to send 
+Handling this event involves calling [`response.writeContinue()`][] if the
+client should continue to send the request body, or generating an appropriate
+HTTP response (e.g. 400 Bad Request) if the client should not continue to send
 the request body.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
@@ -1954,7 +1955,7 @@ Returns a `ClientHttp2Session` instance.
 const http2 = require('http2');
 const client = http2.connect('https://localhost:1234');
 
-/** use the client **/
+/* Use the client */
 
 client.close();
 ```
@@ -2480,6 +2481,7 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http2.Http2ServerRequest}
 
 Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
@@ -2489,8 +2491,6 @@ If no `'timeout'` listener is added to the request, the response, or
 the server, then [`Http2Stream`]()s are destroyed when they time out. If a
 handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
-
-Returns `request`.
 
 #### request.socket
 <!-- YAML
@@ -2523,7 +2523,7 @@ authentication details.
 added: v8.4.0
 -->
 
-* {http2.Http2Stream}
+* {Http2Stream}
 
 The [`Http2Stream`][] object backing the request.
 
@@ -2852,6 +2852,7 @@ added: v8.4.0
 
 * `msecs` {number}
 * `callback` {Function}
+* Returns: {http2.Http2ServerResponse}
 
 Sets the [`Http2Stream`]()'s timeout value to `msecs`. If a callback is
 provided, then it is added as a listener on the `'timeout'` event on
@@ -2861,8 +2862,6 @@ If no `'timeout'` listener is added to the request, the response, or
 the server, then [`Http2Stream`]()s are destroyed when they time out. If a
 handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
-
-Returns `response`.
 
 #### response.socket
 <!-- YAML
@@ -2934,7 +2933,7 @@ an empty string.
 added: v8.4.0
 -->
 
-* {http2.Http2Stream}
+* {Http2Stream}
 
 The [`Http2Stream`][] object backing the response.
 
@@ -3146,8 +3145,8 @@ following additional properties:
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Socket`]: net.html#net_class_net_socket
-[`net.Socket.prototype.ref`]: net.html#net_socket_ref
-[`net.Socket.prototype.unref`]: net.html#net_socket_unref
+[`net.Socket.prototype.ref()`]: net.html#net_socket_ref
+[`net.Socket.prototype.unref()`]: net.html#net_socket_unref
 [`net.connect()`]: net.html#net_net_connect
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback

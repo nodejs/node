@@ -25,6 +25,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 #include "node_wrap.h"
 #include "connect_wrap.h"
 #include "stream_base-inl.h"

@@ -116,13 +116,24 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable: `NODE_DEBUG=fs,net,tls`.
 
-## util.deprecate(function, string)
+## util.deprecate(function, string[, code])
 <!-- YAML
 added: v0.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16393
+    description: Deprecation warnings are only emitted once for each code.
 -->
 
-The `util.deprecate()` method wraps the given `function` or class in such a way
-that it is marked as deprecated.
+* `fn` {Function} The function that is being deprecated.
+* `msg` {string} A warning message to display when the deprecated function is
+  invoked.
+* `code` {string} A deprecation code. See the [list of deprecated APIs][] for a
+  list of codes.
+* Returns: {Function} The deprecated function wrapped to emit a warning.
+
+The `util.deprecate()` method wraps `fn` (which may be a function or class) in
+such a way that it is marked as deprecated.
 
 <!-- eslint-disable prefer-rest-params -->
 ```js
@@ -134,10 +145,22 @@ exports.obsoleteFunction = util.deprecate(() => {
 ```
 
 When called, `util.deprecate()` will return a function that will emit a
-`DeprecationWarning` using the `process.on('warning')` event. By default,
-this warning will be emitted and printed to `stderr` exactly once, the first
-time it is called. After the warning is emitted, the wrapped `function`
-is called.
+`DeprecationWarning` using the [`'warning'`][] event. The warning will
+be emitted and printed to `stderr` the first time the returned function is
+called. After the warning is emitted, the wrapped function is called without
+emitting a warning.
+
+If the same optional `code` is supplied in multiple calls to `util.deprecate()`,
+the warning will be emitted only once for that `code`.
+
+```js
+const util = require('util');
+
+const fn1 = util.deprecate(someFunction, someMessage, 'DEP0001');
+const fn2 = util.deprecate(someOtherFunction, someOtherMessage, 'DEP0001');
+fn1(); // emits a deprecation warning with code DEP0001
+fn2(); // does not emit a deprecation warning because it has the same code
+```
 
 If either the `--no-deprecation` or `--no-warnings` command line flags are
 used, or if the `process.noDeprecation` property is set to `true` *prior* to
@@ -230,6 +253,24 @@ Please note that `util.format()` is a synchronous method that is mainly
 intended as a debugging tool. Some input values can have a significant
 performance overhead that can block the event loop. Use this function
 with care and never in a hot code path.
+
+## util.formatWithOptions(inspectOptions, format[, ...args])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `inspectOptions` {Object}
+* `format` {string}
+
+This function is identical to [`util.format()`][], except in that it takes
+an `inspectOptions` argument which specifies options that are passed along to
+[`util.inspect()`][].
+
+```js
+util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
+// Returns 'See object { foo: 42 }', where `42` is colored as a number
+// when printed to a terminal.
+```
 
 ## util.getSystemErrorName(err)
 <!-- YAML
@@ -646,8 +687,8 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
-For example, with a function that takes in `(foo, onSuccessCallback,
-onErrorCallback)`:
+For example, with a function that takes in
+`(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
 doSomething[util.promisify.custom] = (foo) => {
@@ -833,6 +874,625 @@ encoded bytes.
 
 The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
+## util.types
+<!-- YAML
+added: REPLACEME
+-->
+
+`util.types` provides a number of type checks for different kinds of built-in
+objects. Unlike `instanceof` or `Object.prototype.toString.call(value)`,
+these checks do not inspect properties of the object that are accessible from
+JavaScript (like their prototype), and usually have the overhead of
+calling into C++.
+
+The result generally does not make any guarantees about what kinds of
+properties or behavior a value exposes in JavaScript. They are primarily
+useful for addon developers who prefer to do type checking in JavaScript.
+
+### util.types.isAnyArrayBuffer(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`ArrayBuffer`][] or
+[`SharedArrayBuffer`][] instance.
+
+See also [`util.types.isArrayBuffer()`][] and
+[`util.types.isSharedArrayBuffer()`][].
+
+For example:
+
+```js
+util.types.isAnyArrayBuffer(new ArrayBuffer());  // Returns true
+util.types.isAnyArrayBuffer(new SharedArrayBuffer());  // Returns true
+```
+
+### util.types.isArgumentsObject(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is an `arguments` object.
+
+For example:
+
+<!-- eslint-disable prefer-rest-params -->
+```js
+function foo() {
+  util.types.isArgumentsObject(arguments);  // Returns true
+}
+```
+
+### util.types.isArrayBuffer(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`ArrayBuffer`][] instance.
+This does *not* include [`SharedArrayBuffer`][] instances. Usually, it is
+desirable to test for both; See [`util.types.isAnyArrayBuffer()`][] for that.
+
+For example:
+
+```js
+util.types.isArrayBuffer(new ArrayBuffer());  // Returns true
+util.types.isArrayBuffer(new SharedArrayBuffer());  // Returns false
+```
+
+### util.types.isAsyncFunction(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is an [async function][].
+Note that this only reports back what the JavaScript engine is seeing;
+in particular, the return value may not match the original source code if
+a transpilation tool was used.
+
+For example:
+
+```js
+util.types.isAsyncFunction(function foo() {});  // Returns false
+util.types.isAsyncFunction(async function foo() {});  // Returns true
+```
+
+### util.types.isBooleanObject(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a boolean object, e.g. created
+by `new Boolean()`.
+
+For example:
+
+```js
+util.types.isBooleanObject(false);  // Returns false
+util.types.isBooleanObject(true);   // Returns false
+util.types.isBooleanObject(new Boolean(false));   // Returns true
+util.types.isBooleanObject(new Boolean(true));    // Returns true
+util.types.isBooleanObject(Boolean(false)); // Returns false
+util.types.isBooleanObject(Boolean(true)); // Returns false
+```
+
+### util.types.isDataView(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`DataView`][] instance.
+
+For example:
+
+```js
+const ab = new ArrayBuffer(20);
+util.types.isDataView(new DataView(ab));  // Returns true
+util.types.isDataView(new Float64Array());  // Returns false
+```
+
+See also [`ArrayBuffer.isView()`][].
+
+### util.types.isDate(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Date`][] instance.
+
+For example:
+
+```js
+util.types.isDate(new Date());  // Returns true
+```
+
+### util.types.isExternal(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a native `External` value.
+
+### util.types.isFloat32Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Float32Array`][] instance.
+
+For example:
+
+```js
+util.types.isFloat32Array(new ArrayBuffer());  // Returns false
+util.types.isFloat32Array(new Float32Array());  // Returns true
+util.types.isFloat32Array(new Float64Array());  // Returns false
+```
+
+### util.types.isFloat64Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Float64Array`][] instance.
+
+For example:
+
+```js
+util.types.isFloat64Array(new ArrayBuffer());  // Returns false
+util.types.isFloat64Array(new Uint8Array());  // Returns false
+util.types.isFloat64Array(new Float64Array());  // Returns true
+```
+
+### util.types.isGeneratorFunction(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a generator function.
+Note that this only reports back what the JavaScript engine is seeing;
+in particular, the return value may not match the original source code if
+a transpilation tool was used.
+
+For example:
+
+```js
+util.types.isGeneratorFunction(function foo() {});  // Returns false
+util.types.isGeneratorFunction(function* foo() {});  // Returns true
+```
+
+### util.types.isGeneratorObject(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a generator object as returned from a
+built-in generator function.
+Note that this only reports back what the JavaScript engine is seeing;
+in particular, the return value may not match the original source code if
+a transpilation tool was used.
+
+For example:
+
+```js
+function* foo() {}
+const generator = foo();
+util.types.isGeneratorObject(generator);  // Returns true
+```
+
+### util.types.isInt8Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Int8Array`][] instance.
+
+For example:
+
+```js
+util.types.isInt8Array(new ArrayBuffer());  // Returns false
+util.types.isInt8Array(new Int8Array());  // Returns true
+util.types.isInt8Array(new Float64Array());  // Returns false
+```
+
+### util.types.isInt16Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Int16Array`][] instance.
+
+For example:
+
+```js
+util.types.isInt16Array(new ArrayBuffer());  // Returns false
+util.types.isInt16Array(new Int16Array());  // Returns true
+util.types.isInt16Array(new Float64Array());  // Returns false
+```
+
+### util.types.isInt32Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Int32Array`][] instance.
+
+For example:
+
+```js
+util.types.isInt32Array(new ArrayBuffer());  // Returns false
+util.types.isInt32Array(new Int32Array());  // Returns true
+util.types.isInt32Array(new Float64Array());  // Returns false
+```
+
+### util.types.isMap(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Map`][] instance.
+
+For example:
+
+```js
+util.types.isMap(new Map());  // Returns true
+```
+
+### util.types.isMapIterator(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is an iterator returned for a built-in
+[`Map`][] instance.
+
+For example:
+
+```js
+const map = new Map();
+util.types.isMapIterator(map.keys());  // Returns true
+util.types.isMapIterator(map.values());  // Returns true
+util.types.isMapIterator(map.entries());  // Returns true
+util.types.isMapIterator(map[Symbol.iterator]());  // Returns true
+```
+
+### util.types.isNativeError(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is an instance of a built-in [`Error`][] type.
+
+For example:
+
+```js
+util.types.isNativeError(new Error());  // Returns true
+util.types.isNativeError(new TypeError());  // Returns true
+util.types.isNativeError(new RangeError());  // Returns true
+```
+
+### util.types.isNumberObject(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a number object, e.g. created
+by `new Number()`.
+
+For example:
+
+```js
+util.types.isNumberObject(0);  // Returns false
+util.types.isNumberObject(new Number(0));   // Returns true
+```
+
+### util.types.isPromise(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Promise`][].
+
+For example:
+
+```js
+util.types.isPromise(Promise.resolve(42));  // Returns true
+```
+
+### util.types.isProxy(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a [`Proxy`][] instance.
+
+For example:
+
+```js
+const target = {};
+const proxy = new Proxy(target, {});
+util.types.isProxy(target);  // Returns false
+util.types.isProxy(proxy);  // Returns true
+```
+
+### util.types.isRegExp(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a regular expression object.
+
+For example:
+
+```js
+util.types.isRegExp(/abc/);  // Returns true
+util.types.isRegExp(new RegExp('abc'));  // Returns true
+```
+
+### util.types.isSet(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Set`][] instance.
+
+For example:
+
+```js
+util.types.isSet(new Set());  // Returns true
+```
+
+### util.types.isSetIterator(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is an iterator returned for a built-in
+[`Set`][] instance.
+
+For example:
+
+```js
+const set = new Set();
+util.types.isSetIterator(set.keys());  // Returns true
+util.types.isSetIterator(set.values());  // Returns true
+util.types.isSetIterator(set.entries());  // Returns true
+util.types.isSetIterator(set[Symbol.iterator]());  // Returns true
+```
+
+### util.types.isSharedArrayBuffer(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`SharedArrayBuffer`][] instance.
+This does *not* include [`ArrayBuffer`][] instances. Usually, it is
+desirable to test for both; See [`util.types.isAnyArrayBuffer()`][] for that.
+
+For example:
+
+```js
+util.types.isSharedArrayBuffer(new ArrayBuffer());  // Returns false
+util.types.isSharedArrayBuffer(new SharedArrayBuffer());  // Returns true
+```
+
+### util.types.isStringObject(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a string object, e.g. created
+by `new String()`.
+
+For example:
+
+```js
+util.types.isStringObject('foo');  // Returns false
+util.types.isStringObject(new String('foo'));   // Returns true
+```
+
+### util.types.isSymbolObject(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a symbol object, created
+by calling `Object()` on a `Symbol` primitive.
+
+For example:
+
+```js
+const symbol = Symbol('foo');
+util.types.isSymbolObject(symbol);  // Returns false
+util.types.isSymbolObject(Object(symbol));   // Returns true
+```
+
+### util.types.isTypedArray(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`TypedArray`][] instance.
+
+For example:
+
+```js
+util.types.isTypedArray(new ArrayBuffer());  // Returns false
+util.types.isTypedArray(new Uint8Array());  // Returns true
+util.types.isTypedArray(new Float64Array());  // Returns true
+```
+
+See also [`ArrayBuffer.isView()`][].
+
+### util.types.isUint8Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Uint8Array`][] instance.
+
+For example:
+
+```js
+util.types.isUint8Array(new ArrayBuffer());  // Returns false
+util.types.isUint8Array(new Uint8Array());  // Returns true
+util.types.isUint8Array(new Float64Array());  // Returns false
+```
+
+### util.types.isUint8ClampedArray(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Uint8ClampedArray`][] instance.
+
+For example:
+
+```js
+util.types.isUint8ClampedArray(new ArrayBuffer());  // Returns false
+util.types.isUint8ClampedArray(new Uint8ClampedArray());  // Returns true
+util.types.isUint8ClampedArray(new Float64Array());  // Returns false
+```
+
+### util.types.isUint16Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Uint16Array`][] instance.
+
+For example:
+
+```js
+util.types.isUint16Array(new ArrayBuffer());  // Returns false
+util.types.isUint16Array(new Uint16Array());  // Returns true
+util.types.isUint16Array(new Float64Array());  // Returns false
+```
+
+### util.types.isUint32Array(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`Uint32Array`][] instance.
+
+For example:
+
+```js
+util.types.isUint32Array(new ArrayBuffer());  // Returns false
+util.types.isUint32Array(new Uint32Array());  // Returns true
+util.types.isUint32Array(new Float64Array());  // Returns false
+```
+
+### util.types.isWeakMap(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`WeakMap`][] instance.
+
+For example:
+
+```js
+util.types.isWeakMap(new WeakMap());  // Returns true
+```
+
+### util.types.isWeakSet(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`WeakSet`][] instance.
+
+For example:
+
+```js
+util.types.isWeakSet(new WeakSet());  // Returns true
+```
+
+### util.types.isWebAssemblyCompiledModule(value)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`WebAssembly.Module`][] instance.
+
+For example:
+
+```js
+const module = new WebAssembly.Module(wasmBuffer);
+util.types.isWebAssemblyCompiledModule(module);  // Returns true
+```
+
+
 ## Deprecated APIs
 
 The following APIs have been deprecated and should no longer be used. Existing
@@ -882,12 +1542,12 @@ added: v0.6.0
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use [`Array.isArray()`][] instead.
 
 * `object` {any}
 * Returns: {boolean}
 
-Internal alias for [`Array.isArray`][].
+Alias for [`Array.isArray()`][].
 
 Returns `true` if the given `object` is an `Array`. Otherwise, returns `false`.
 
@@ -908,7 +1568,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'boolean'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -956,7 +1616,7 @@ added: v0.6.0
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use [`util.types.isDate()`][] instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -980,7 +1640,7 @@ added: v0.6.0
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use [`util.types.isNativeError()`][] instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1020,7 +1680,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'function'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1048,7 +1708,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `value === null` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1073,7 +1733,8 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use
+> `value === undefined || value === null` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1098,7 +1759,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'number'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1124,13 +1785,15 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated:
+> Use `value !== null && typeof value === 'object'` instead.
 
 * `object` {any}
 * Returns: {boolean}
 
 Returns `true` if the given `object` is strictly an `Object` **and** not a
-`Function`. Otherwise, returns `false`.
+`Function` (even though functions are objects in JavaScript).
+Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -1151,7 +1814,9 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use
+> `(typeof value !== 'object' && typeof value !== 'function') || value === null`
+> instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1212,7 +1877,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'string'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1238,7 +1903,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `typeof value === 'symbol'` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1262,7 +1927,7 @@ added: v0.11.5
 deprecated: v4.0.0
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 0 - Deprecated: Use `value === undefined` instead.
 
 * `object` {any}
 * Returns: {boolean}
@@ -1321,15 +1986,45 @@ deprecated: v0.11.3
 Deprecated predecessor of `console.log`.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
-[`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
-[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
-[`Error`]: errors.html#errors_class_error
-[`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`'warning'`]: process.html#process_event_warning
+[`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
+[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
+[async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
+[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[`Date`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
+[`Error`]: errors.html#errors_class_error
+[`Float32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array
+[`Float64Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
+[`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
+[`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
+[`Int32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array
+[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
+[`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`Promise`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
+[`Proxy`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
+[`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
+[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
+[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
+[`util.types.isAnyArrayBuffer()`]: #util_util_types_isanyarraybuffer_value
+[`util.types.isArrayBuffer()`]: #util_util_types_isarraybuffer_value
+[`util.types.isDate()`]: #util_util_types_isdate_value
+[`util.types.isNativeError()`]: #util_util_types_isnativeerror_value
+[`util.types.isSharedArrayBuffer()`]: #util_util_types_issharedarraybuffer_value
+[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
+[`Uint8ClampedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray
+[`Uint16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array
+[`Uint32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array
+[`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
+[`WeakSet`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
+[`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
 [Custom promisified functions]: #util_custom_promisified_functions
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors

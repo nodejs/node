@@ -54,7 +54,7 @@ const Script = require('vm').Script;
   script.runInNewContext();
   assert.strictEqual(5, global.hello);
 
-  // cleanup
+  // Cleanup
   delete global.hello;
 }
 
@@ -72,7 +72,7 @@ const Script = require('vm').Script;
   assert.strictEqual(2, global.obj.bar);
   assert.strictEqual(2, global.foo);
 
-  //cleanup
+  // cleanup
   delete global.code;
   delete global.foo;
   delete global.obj;

@@ -233,9 +233,8 @@ added: v0.1.94
 -->
 - `outputEncoding` {string}
 - Returns: {Buffer | string} Any remaining enciphered contents.
-  If `outputEncoding` parameter is one of `'latin1'`, `'base64'` or `'hex'`,
-  a string is returned. If an `outputEncoding` is not provided, a [`Buffer`][]
-  is returned.
+  If `outputEncoding` is one of `'latin1'`, `'base64'` or `'hex'`, a string is
+  returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `cipher.final()` method has been called, the `Cipher` object can no
 longer be used to encrypt data. Attempts to call `cipher.final()` more than
@@ -387,9 +386,8 @@ added: v0.1.94
 -->
 - `outputEncoding` {string}
 - Returns: {Buffer | string} Any remaining deciphered contents.
-  If `outputEncoding` parameter is one of `'latin1'`, `'ascii'` or `'utf8'`,
-  a string is returned. If an `outputEncoding` is not provided, a [`Buffer`][]
-  is returned.
+  If `outputEncoding` is one of `'latin1'`, `'ascii'` or `'utf8'`, a string is
+  returned. If an `outputEncoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `decipher.final()` method has been called, the `Decipher` object can
 no longer be used to decrypt data. Attempts to call `decipher.final()` more
@@ -1288,10 +1286,14 @@ become deprecated in a future Node.js release.
 ### crypto.fips
 <!-- YAML
 added: v6.0.0
+deprecated: REPLACEME
 -->
 
 Property for checking and controlling whether a FIPS compliant crypto provider
 is currently in use. Setting to true requires a FIPS build of Node.js.
+
+This property is deprecated. Please use `crypto.setFips()` and
+`crypto.getFips()` instead.
 
 ### crypto.createCipher(algorithm, password[, options])
 <!-- YAML
@@ -1373,6 +1375,7 @@ deprecated: v0.11.13
 > Stability: 0 - Deprecated: Use [`tls.createSecureContext()`][] instead.
 
 - `details` {Object} Identical to [`tls.createSecureContext()`][].
+- Returns: {tls.SecureContext}
 
 The `crypto.createCredentials()` method is a deprecated function for creating
 and returning a `tls.SecureContext`. It should not be used. Replace it with
@@ -1664,6 +1667,13 @@ const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 /* aliceSecret and bobSecret should be the same */
 console.log(aliceSecret === bobSecret);
 ```
+
+### crypto.getFips()
+<!-- YAML
+added: REPLACEME
+-->
+- Returns: {boolean} `true` if and only if a FIPS compliant crypto provider is
+  currently in use.
 
 ### crypto.getHashes()
 <!-- YAML
@@ -2085,6 +2095,15 @@ is a bit field taking one of or a mix of the following flags (defined in
 * `crypto.constants.ENGINE_METHOD_PKEY_ASN1_METHS`
 * `crypto.constants.ENGINE_METHOD_ALL`
 * `crypto.constants.ENGINE_METHOD_NONE`
+
+### crypto.setFips(bool)
+<!-- YAML
+added: REPLACEME
+-->
+* `bool` {boolean} `true` to enable FIPS mode.
+
+Enables the FIPS compliant crypto provider in a FIPS-enabled Node.js build.
+Throws an error if FIPS mode is not available.
 
 ### crypto.timingSafeEqual(a, b)
 <!-- YAML

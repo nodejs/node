@@ -27131,6 +27131,35 @@ TEST(DynamicImport) {
   CHECK(result->Equals(i::String::cast(promise->result())));
 }
 
+TEST(GetModuleNamespace) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("export default 5; export const a = 10;");
+  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
+                          Local<v8::Boolean>(), Local<v8::Integer>(),
+                          Local<v8::Value>(), Local<v8::Boolean>(),
+                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
+      .ToChecked();
+  module->Evaluate(context.local()).ToLocalChecked();
+
+  Local<Value> ns_val = module->GetModuleNamespace();
+  CHECK(ns_val->IsModuleNamespaceObject());
+  Local<Object> ns = ns_val.As<Object>();
+  CHECK(ns->Get(context.local(), v8_str("default"))
+            .ToLocalChecked()
+            ->StrictEquals(v8::Number::New(isolate, 5)));
+  CHECK(ns->Get(context.local(), v8_str("a"))
+            .ToLocalChecked()
+            ->StrictEquals(v8::Number::New(isolate, 10)));
+}
+
 TEST(GlobalTemplateWithDoubleProperty) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);

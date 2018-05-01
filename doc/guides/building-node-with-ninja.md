@@ -35,14 +35,14 @@ runner directly, like so:
 
 ## Alias
 
-`alias nnode='./configure --ninja && ninja -C out/Release && ln -fs 
+`alias nnode='./configure --ninja && ninja -C out/Release && ln -fs
 out/Release/node node'`
 
 ## Producing a debug build
 
 The above alias can be modified slightly to produce a debug build, rather than a
 release build as shown below:
-`alias nnodedebug='./configure --ninja && ninja -C out/Debug && ln -fs 
+`alias nnodedebug='./configure --ninja && ninja -C out/Debug && ln -fs
 out/Debug/node node_g'`
 
 

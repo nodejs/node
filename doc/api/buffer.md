@@ -426,9 +426,9 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 Prior to Node.js 8.0.0, the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created
@@ -502,9 +502,9 @@ console.log(buf);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
 [`buf.fill(fill)`][`buf.fill()`].
@@ -543,9 +543,9 @@ changes:
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -587,9 +587,9 @@ added: v5.12.0
 
 * `size` {integer} The desired length of the new `Buffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -1030,8 +1030,8 @@ console.log(buf1.compare(buf2, 5, 6, 5));
 // Prints: 1
 ```
 
-A `RangeError` will be thrown if: `targetStart < 0`, `sourceStart < 0`,
-`targetEnd > target.byteLength` or `sourceEnd > source.byteLength`.
+[`ERR_INDEX_OUT_OF_RANGE`] is thrown if `targetStart < 0`, `sourceStart < 0`,
+`targetEnd > target.byteLength`, or `sourceEnd > source.byteLength`.
 
 ### buf.copy(target[, targetStart[, sourceStart[, sourceEnd]]])
 <!-- YAML
@@ -1465,8 +1465,9 @@ The `buf.parent` property is a deprecated alias for `buf.buffer`.
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 8`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {number}
 
 Reads a 64-bit double from `buf` at the specified `offset` with specified
@@ -1496,8 +1497,9 @@ console.log(buf.readDoubleLE(1, true));
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 4`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {number}
 
 Reads a 32-bit float from `buf` at the specified `offset` with specified
@@ -1526,8 +1528,9 @@ console.log(buf.readFloatLE(1, true));
 added: v0.5.0
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 1`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads a signed 8-bit integer from `buf` at the specified `offset`.
@@ -1554,8 +1557,9 @@ console.log(buf.readInt8(2));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 2`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads a signed 16-bit integer from `buf` at the specified `offset` with
@@ -1584,8 +1588,9 @@ console.log(buf.readInt16LE(1));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 4`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads a signed 32-bit integer from `buf` at the specified `offset` with
@@ -1614,9 +1619,11 @@ console.log(buf.readInt32LE(1));
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`.
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - byteLength`.
+* `byteLength` {integer} Number of bytes to read. Must satisfy
+  `0 < byteLength <= 6`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
@@ -1642,8 +1649,9 @@ console.log(buf.readIntBE(1, 6).toString(16));
 added: v0.5.0
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 1`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
@@ -1668,8 +1676,9 @@ console.log(buf.readUInt8(2));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 2`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads an unsigned 16-bit integer from `buf` at the specified `offset` with
@@ -1700,8 +1709,9 @@ console.log(buf.readUInt16LE(2).toString(16));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - 4`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads an unsigned 32-bit integer from `buf` at the specified `offset` with
@@ -1728,9 +1738,11 @@ console.log(buf.readUInt32LE(1).toString(16));
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read. Must
+  satisfy `0 <= offset <= buf.length - byteLength`.
+* `byteLength` {integer} Number of bytes to read. Must satisfy
+  `0 < byteLength <= 6`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
@@ -1827,8 +1839,9 @@ added: v5.10.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of unsigned 16-bit integers and swaps the byte-order
-*in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 2.
+Interprets `buf` as an array of unsigned 16-bit integers and swaps the
+byte-order *in-place*. Throws [`ERR_INVALID_BUFFER_SIZE`] if [`buf.length`] is
+not a multiple of 2.
 
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
@@ -1854,8 +1867,9 @@ added: v5.10.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of unsigned 32-bit integers and swaps the byte-order
-*in-place*. Throws a `RangeError` if [`buf.length`] is not a multiple of 4.
+Interprets `buf` as an array of unsigned 32-bit integers and swaps the
+byte-order *in-place*. Throws [`ERR_INVALID_BUFFER_SIZE`] if [`buf.length`] is
+not a multiple of 4.
 
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
@@ -1881,8 +1895,9 @@ added: v6.3.0
 
 * Returns: {Buffer} A reference to `buf`.
 
-Interprets `buf` as an array of 64-bit numbers and swaps the byte-order *in-place*.
-Throws a `RangeError` if [`buf.length`] is not a multiple of 8.
+Interprets `buf` as an array of 64-bit numbers and swaps the byte-order
+*in-place*. Throws [`ERR_INVALID_BUFFER_SIZE`] if [`buf.length`] is not a
+multiple of 8.
 
 ```js
 const buf1 = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
@@ -2039,8 +2054,9 @@ added: v0.11.15
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 8`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 8`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2072,8 +2088,9 @@ added: v0.11.15
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 4`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2104,8 +2121,9 @@ added: v0.5.0
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 1`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a valid
@@ -2134,8 +2152,9 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 2`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2165,8 +2184,9 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 4`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2196,10 +2216,11 @@ added: v0.11.15
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to write. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
-  **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - byteLength`.
+* `byteLength` {integer} Number of bytes to write. Must satisfy
+  `0 < byteLength <= 6`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`.
@@ -2229,8 +2250,9 @@ added: v0.5.0
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 1`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 1`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a
@@ -2259,8 +2281,9 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 2`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 2`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2294,8 +2317,9 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
-* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - 4`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2327,10 +2351,11 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to write. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
-  **Default:** `false`.
+* `offset` {integer} Number of bytes to skip before starting to write. Must
+  satisfy `0 <= offset <= buf.length - byteLength`.
+* `byteLength` {integer} Number of bytes to write. Must satisfy
+  `0 < byteLength <= 6`.
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`.
@@ -2462,9 +2487,9 @@ deprecated: v6.0.0
 
 * `size` {integer} The desired length of the new `SlowBuffer`.
 
-Allocates a new `Buffer` of `size` bytes. If the `size` is larger than
-[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
-thrown. A zero-length `Buffer` will be created if `size` is 0.
+Allocates a new `Buffer` of `size` bytes. If `size` is larger than
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, [`ERR_INVALID_OPT_VALUE`] is
+thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
 contents of a newly created `SlowBuffer` are unknown and may contain sensitive
@@ -2528,8 +2553,10 @@ This value may depend on the JS engine that is being used.
 [`Buffer.from(string)`]: #buffer_class_method_buffer_from_string_encoding
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[`ERR_INDEX_OUT_OF_RANGE`]: errors.html#ERR_INDEX_OUT_OF_RANGE
+[`ERR_INVALID_BUFFER_SIZE`]: errors.html#ERR_INVALID_BUFFER_SIZE
+[`ERR_INVALID_OPT_VALUE`]: errors.html#ERR_INVALID_OPT_VALUE
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`RangeError`]: errors.html#errors_class_rangeerror
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String#lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf

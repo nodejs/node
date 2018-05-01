@@ -67,7 +67,7 @@ added: v0.3.4
 -->
 - `options` {Object} Accepts `options` from [`tls.createServer()`][],
  [`tls.createSecureContext()`][] and [`http.createServer()`][].
-- `requestListener` {Function} A listener to be added to the `request` event.
+- `requestListener` {Function} A listener to be added to the `'request'` event.
 
 Example:
 
@@ -158,7 +158,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
-- `options` {Object | string | URL} Accepts all `options` from 
+- `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
   - `protocol` **Default:** `'https:'`
   - `port` **Default:** `443`

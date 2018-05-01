@@ -21,12 +21,15 @@
 
 'use strict';
 
-/* eslint-disable prefer-common-expectserror */
+/* eslint-disable node-core/prefer-common-expectserror */
 
 const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
 const a = assert;
+
+const start = 'Input A expected to deepStrictEqual input B:';
+const actExp = '+ expected - actual';
 
 assert.ok(a.AssertionError.prototype instanceof Error,
           'a.AssertionError instanceof Error');
@@ -110,6 +113,7 @@ assert.throws(() => thrower(TypeError));
   } catch (e) {
     threw = true;
     assert.ok(e instanceof a.AssertionError);
+    assert.ok(!e.stack.includes('at Function.doesNotThrow'));
   }
   assert.ok(threw, 'a.doesNotThrow is not catching type matching errors');
 }
@@ -194,32 +198,50 @@ a.throws(() => thrower(TypeError), (err) => {
   const noop = () => {};
   assert.throws(
     () => { a.throws((noop)); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception\.$/,
-      operator: 'throws'
-    }));
+      message: 'Missing expected exception.',
+      operator: 'throws',
+      actual: undefined,
+      expected: undefined
+    });
 
   assert.throws(
     () => { a.throws(noop, TypeError); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception \(TypeError\)\.$/
-    }));
+      message: 'Missing expected exception (TypeError).',
+      actual: undefined,
+      expected: TypeError
+    });
 
   assert.throws(
     () => { a.throws(noop, 'fhqwhgads'); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception: fhqwhgads$/
-    }));
+      message: 'Missing expected exception: fhqwhgads',
+      actual: undefined,
+      expected: undefined
+    });
 
   assert.throws(
     () => { a.throws(noop, TypeError, 'fhqwhgads'); },
-    common.expectsError({
+    {
       code: 'ERR_ASSERTION',
-      message: /^Missing expected exception \(TypeError\): fhqwhgads$/
-    }));
+      message: 'Missing expected exception (TypeError): fhqwhgads',
+      actual: undefined,
+      expected: TypeError
+    });
+
+  let threw = false;
+  try {
+    a.throws(noop);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof a.AssertionError);
+    assert.ok(!e.stack.includes('at Function.throws'));
+  }
+  assert.ok(threw);
 }
 
 const circular = { y: 1 };
@@ -419,14 +441,7 @@ common.expectsError(
     }
   );
 
-  // Test error diffs
-  const colors = process.stdout.isTTY && process.stdout.getColorDepth() > 1;
-  const start = 'Input A expected to deepStrictEqual input B:';
-  const actExp = colors ?
-    '\u001b[32m+ expected\u001b[39m \u001b[31m- actual\u001b[39m' :
-    '+ expected - actual';
-  const plus = colors ? '\u001b[32m+\u001b[39m' : '+';
-  const minus = colors ? '\u001b[31m-\u001b[39m' : '-';
+  // Test error diffs.
   let message = [
     start,
     `${actExp} ... Lines skipped`,
@@ -435,8 +450,8 @@ common.expectsError(
     '    [',
     '...',
     '        2,',
-    `${minus}       3`,
-    `${plus}       '3'`,
+    '-       3',
+    "+       '3'",
     '      ]',
     '...',
     '    5',
@@ -453,7 +468,7 @@ common.expectsError(
     '    1,',
     '...',
     '    0,',
-    `${plus}   1,`,
+    '+   1,',
     '    1,',
     '...',
     '    1',
@@ -473,7 +488,7 @@ common.expectsError(
     '    1,',
     '...',
     '    0,',
-    `${minus}   1,`,
+    '-   1,',
     '    1,',
     '...',
     '    1',
@@ -491,12 +506,12 @@ common.expectsError(
     '',
     '  [',
     '    1,',
-    `${minus}   2,`,
-    `${plus}   1,`,
+    '-   2,',
+    '+   1,',
     '    1,',
     '    1,',
     '    0,',
-    `${minus}   1,`,
+    '-   1,',
     '    1',
     '  ]'
   ].join('\n');
@@ -510,12 +525,12 @@ common.expectsError(
     start,
     actExp,
     '',
-    `${minus} [`,
-    `${minus}   1,`,
-    `${minus}   2,`,
-    `${minus}   1`,
-    `${minus} ]`,
-    `${plus} undefined`,
+    '- [',
+    '-   1,',
+    '-   2,',
+    '-   1',
+    '- ]',
+    '+ undefined',
   ].join('\n');
   assert.throws(
     () => assert.deepEqual([1, 2, 1]),
@@ -526,7 +541,7 @@ common.expectsError(
     actExp,
     '',
     '  [',
-    `${minus}   1,`,
+    '-   1,',
     '    2,',
     '    1',
     '  ]'
@@ -539,9 +554,9 @@ common.expectsError(
     `${actExp} ... Lines skipped\n` +
     '\n' +
     '  [\n' +
-    `${minus}   1,\n`.repeat(10) +
+    '-   1,\n'.repeat(10) +
     '...\n' +
-    `${plus}   2,\n`.repeat(10) +
+    '+   2,\n'.repeat(10) +
     '...';
   assert.throws(
     () => assert.deepEqual(Array(12).fill(1), Array(12).fill(2)),
@@ -555,11 +570,11 @@ common.expectsError(
     message: `${start}\n` +
     `${actExp}\n` +
     '\n' +
-    `${minus} {}\n` +
-    `${plus} {\n` +
-    `${plus}   loop: 'forever',\n` +
-    `${plus}   [Symbol(util.inspect.custom)]: [Function]\n` +
-    `${plus} }`
+    '- {}\n' +
+    '+ {\n' +
+    "+   loop: 'forever',\n" +
+    '+   [Symbol(util.inspect.custom)]: [Function]\n' +
+    '+ }'
   });
 
   // notDeepEqual tests
@@ -592,8 +607,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "error" argument must be one of type Function or RegExp. ' +
-             'Received type string'
+    message: 'The "error" argument must be one of type Object, Error, ' +
+             'Function, or RegExp. Received type string'
   }
 );
 

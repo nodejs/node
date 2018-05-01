@@ -1,4 +1,4 @@
-/* eslint-disable crypto-check */
+/* eslint-disable node-core/crypto-check */
 
 'use strict';
 

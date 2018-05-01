@@ -3,6 +3,11 @@ const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
+const rootUser = common.isWindows ? false : process.getuid() === 0;
+
+const invalidArgTypeError = common.expectsError(
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
+  common.isWindows || rootUser ? 42 : 62);
 
 function pass(option, value) {
   // Run the command with the specified option. Since it's not a real command,
@@ -53,43 +58,39 @@ function fail(option, value, message) {
 if (!common.isWindows) {
   {
     // Validate the uid option
-    if (process.getuid() !== 0) {
-      const err = /^TypeError: "uid" must be an integer$/;
-
+    if (!rootUser) {
       pass('uid', undefined);
       pass('uid', null);
       pass('uid', process.getuid());
-      fail('uid', __dirname, err);
-      fail('uid', true, err);
-      fail('uid', false, err);
-      fail('uid', [], err);
-      fail('uid', {}, err);
-      fail('uid', common.mustNotCall(), err);
-      fail('uid', NaN, err);
-      fail('uid', Infinity, err);
-      fail('uid', 3.1, err);
-      fail('uid', -3.1, err);
+      fail('uid', __dirname, invalidArgTypeError);
+      fail('uid', true, invalidArgTypeError);
+      fail('uid', false, invalidArgTypeError);
+      fail('uid', [], invalidArgTypeError);
+      fail('uid', {}, invalidArgTypeError);
+      fail('uid', common.mustNotCall(), invalidArgTypeError);
+      fail('uid', NaN, invalidArgTypeError);
+      fail('uid', Infinity, invalidArgTypeError);
+      fail('uid', 3.1, invalidArgTypeError);
+      fail('uid', -3.1, invalidArgTypeError);
     }
   }
 
   {
     // Validate the gid option
     if (process.getgid() !== 0) {
-      const err = /^TypeError: "gid" must be an integer$/;
-
       pass('gid', undefined);
       pass('gid', null);
       pass('gid', process.getgid());
-      fail('gid', __dirname, err);
-      fail('gid', true, err);
-      fail('gid', false, err);
-      fail('gid', [], err);
-      fail('gid', {}, err);
-      fail('gid', common.mustNotCall(), err);
-      fail('gid', NaN, err);
-      fail('gid', Infinity, err);
-      fail('gid', 3.1, err);
-      fail('gid', -3.1, err);
+      fail('gid', __dirname, invalidArgTypeError);
+      fail('gid', true, invalidArgTypeError);
+      fail('gid', false, invalidArgTypeError);
+      fail('gid', [], invalidArgTypeError);
+      fail('gid', {}, invalidArgTypeError);
+      fail('gid', common.mustNotCall(), invalidArgTypeError);
+      fail('gid', NaN, invalidArgTypeError);
+      fail('gid', Infinity, invalidArgTypeError);
+      fail('gid', 3.1, invalidArgTypeError);
+      fail('gid', -3.1, invalidArgTypeError);
     }
   }
 }

@@ -6,7 +6,17 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
 const binding = process.binding('util');
-const kArrowMessagePrivateSymbolIndex = binding.arrow_message_private_symbol;
+const {
+  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex,
+  safeGetenv
+} = binding;
+
+for (const oneEnv in process.env) {
+  assert.strictEqual(
+    safeGetenv(oneEnv),
+    process.env[oneEnv]
+  );
+}
 
 function getHiddenValue(obj, index) {
   return function() {

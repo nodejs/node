@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/* eslint-disable required-modules, crypto-check */
+/* eslint-disable node-core/required-modules, node-core/crypto-check */
 'use strict';
 const process = global.process;  // Some tests tamper with the process global.
 const path = require('path');
@@ -681,7 +681,9 @@ exports.expectsError = function expectsError(fn, settings, exact) {
     fn = undefined;
   }
   function innerFn(error) {
-    assert.strictEqual(error.code, settings.code);
+    const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
+    assert.strictEqual(descriptor.enumerable,
+                       false, 'The error message should be non-enumerable');
     if ('type' in settings) {
       const type = settings.type;
       if (type !== Error && !Error.isPrototypeOf(type)) {
@@ -704,18 +706,16 @@ exports.expectsError = function expectsError(fn, settings, exact) {
                `${error.message} does not match ${message}`);
       }
     }
-    if ('name' in settings) {
-      assert.strictEqual(error.name, settings.name);
-    }
-    if (error.constructor.name === 'AssertionError') {
-      ['generatedMessage', 'actual', 'expected', 'operator'].forEach((key) => {
-        if (key in settings) {
-          const actual = error[key];
-          const expected = settings[key];
-          assert.strictEqual(actual, expected,
-                             `${key}: expected ${expected}, not ${actual}`);
-        }
-      });
+
+    // Check all error properties.
+    const keys = Object.keys(settings);
+    for (const key of keys) {
+      if (key === 'message' || key === 'type')
+        continue;
+      const actual = error[key];
+      const expected = settings[key];
+      assert.strictEqual(actual, expected,
+                         `${key}: expected ${expected}, not ${actual}`);
     }
     return true;
   }
@@ -773,6 +773,23 @@ exports.getBufferSources = function getBufferSources(buf) {
 exports.crashOnUnhandledRejection = function() {
   process.on('unhandledRejection',
              (err) => process.nextTick(() => { throw err; }));
+};
+
+exports.getTTYfd = function getTTYfd() {
+  // Do our best to grab a tty fd.
+  const tty = require('tty');
+  // Don't attempt fd 0 as it is not writable on Windows.
+  // Ref: ef2861961c3d9e9ed6972e1e84d969683b25cf95
+  const ttyFd = [1, 2, 4, 5].find(tty.isatty);
+  if (ttyFd === undefined) {
+    try {
+      return fs.openSync('/dev/tty');
+    } catch (e) {
+      // There aren't any tty fd's available to use.
+      return -1;
+    }
+  }
+  return ttyFd;
 };
 
 // Hijack stdout and stderr

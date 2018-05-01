@@ -81,7 +81,7 @@ const bases = [
   'http:///s//a/b/c'
 ];
 
-//[to, from, result]
+// [to, from, result]
 const relativeTests2 = [
   // http://lists.w3.org/Archives/Public/uri/2004Feb/0114.html
   ['../c', 'foo:a/b', 'foo:c'],
@@ -106,11 +106,11 @@ const relativeTests2 = [
   ['/g', bases[0], 'http://a/g'],
   ['//g', bases[0], 'http://g/'],
   // changed with RFC 2396bis
-  //('?y', bases[0], 'http://a/b/c/d;p?y'],
+  // ('?y', bases[0], 'http://a/b/c/d;p?y'],
   ['?y', bases[0], 'http://a/b/c/d;p?y'],
   ['g?y', bases[0], 'http://a/b/c/g?y'],
   // changed with RFC 2396bis
-  //('#s', bases[0], CURRENT_DOC_URI + '#s'],
+  // ('#s', bases[0], CURRENT_DOC_URI + '#s'],
   ['#s', bases[0], 'http://a/b/c/d;p?q#s'],
   ['g#s', bases[0], 'http://a/b/c/g#s'],
   ['g?y#s', bases[0], 'http://a/b/c/g?y#s'],
@@ -118,7 +118,7 @@ const relativeTests2 = [
   ['g;x', bases[0], 'http://a/b/c/g;x'],
   ['g;x?y#s', bases[0], 'http://a/b/c/g;x?y#s'],
   // changed with RFC 2396bis
-  //('', bases[0], CURRENT_DOC_URI],
+  // ('', bases[0], CURRENT_DOC_URI],
   ['', bases[0], 'http://a/b/c/d;p?q'],
   ['.', bases[0], 'http://a/b/c/'],
   ['./', bases[0], 'http://a/b/c/'],
@@ -131,10 +131,10 @@ const relativeTests2 = [
   ['../../../g', bases[0], ('http://a/../g', 'http://a/g')],
   ['../../../../g', bases[0], ('http://a/../../g', 'http://a/g')],
   // changed with RFC 2396bis
-  //('/./g', bases[0], 'http://a/./g'],
+  // ('/./g', bases[0], 'http://a/./g'],
   ['/./g', bases[0], 'http://a/g'],
   // changed with RFC 2396bis
-  //('/../g', bases[0], 'http://a/../g'],
+  // ('/../g', bases[0], 'http://a/../g'],
   ['/../g', bases[0], 'http://a/g'],
   ['g.', bases[0], 'http://a/b/c/g.'],
   ['.g', bases[0], 'http://a/b/c/.g'],
@@ -163,7 +163,7 @@ const relativeTests2 = [
   ['/g', bases[1], 'http://a/g'],
   ['//g', bases[1], 'http://g/'],
   // changed in RFC 2396bis
-  //('?y', bases[1], 'http://a/b/c/?y'],
+  // ('?y', bases[1], 'http://a/b/c/?y'],
   ['?y', bases[1], 'http://a/b/c/d;p?y'],
   ['g?y', bases[1], 'http://a/b/c/g?y'],
   ['g?y/./x', bases[1], 'http://a/b/c/g?y/./x'],
@@ -345,7 +345,7 @@ const relativeTests2 = [
    'file:///C:/DEV/Haskell/lib/HXmlToolbox-3.01/examples/mini1.xml'],
   ['../b/c', 'foo:a/y/z', 'foo:a/b/c'],
 
-  //changeing auth
+  // changeing auth
   ['http://diff:auth@www.example.com',
    'http://asdf:qwer@www.example.com',
    'http://diff:auth@www.example.com/'],
@@ -383,10 +383,10 @@ relativeTests2.forEach(function(relativeTest) {
                      ` == ${e}\n  actual=${a}`);
 });
 
-//if format and parse are inverse operations then
-//resolveObject(parse(x), y) == parse(resolve(x, y))
+// If format and parse are inverse operations then
+// resolveObject(parse(x), y) == parse(resolve(x, y))
 
-//format: [from, path, expected]
+// format: [from, path, expected]
 relativeTests.forEach(function(relativeTest) {
   let actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]);
   let expected = url.parse(relativeTest[2]);
@@ -402,7 +402,7 @@ relativeTests.forEach(function(relativeTest) {
                      `actual: ${actual}`);
 });
 
-//format: [to, from, result]
+// format: [to, from, result]
 // the test: ['.//g', 'f:/a', 'f://g'] is a fundamental problem
 // url.parse('f:/a') does not have a host
 // url.resolve('f:/a', './/g') does not have a host because you have moved

@@ -21,6 +21,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"

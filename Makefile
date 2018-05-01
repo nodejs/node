@@ -1108,7 +1108,7 @@ endif
 LINT_JS_TARGETS = benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--rulesdir=tools/eslint-rules --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
+	--ext=.js,.mjs,.md $(LINT_JS_TARGETS) --ignore-pattern '!.eslintrc.js'
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix
@@ -1137,7 +1137,8 @@ lint-js-ci:
 jslint-ci: lint-js-ci
 	@echo "Please use lint-js-ci instead of jslint-ci"
 
-LINT_CPP_ADDON_DOC_FILES = $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
+LINT_CPP_ADDON_DOC_FILES_GLOB = test/addons/??_*/*.cc test/addons/??_*/*.h
+LINT_CPP_ADDON_DOC_FILES = $(wildcard $(LINT_CPP_ADDON_DOC_FILES_GLOB))
 LINT_CPP_EXCLUDE ?=
 LINT_CPP_EXCLUDE += src/node_root_certs.h
 LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
@@ -1180,7 +1181,7 @@ tools/.cpplintstamp: $(LINT_CPP_FILES)
 
 lint-addon-docs: test/addons/.docbuildstamp
 	@echo "Running C++ linter on addon docs..."
-	@$(PYTHON) tools/cpplint.py --filter=$(ADDON_DOC_LINT_FLAGS) $(LINT_CPP_ADDON_DOC_FILES)
+	@$(PYTHON) tools/cpplint.py --filter=$(ADDON_DOC_LINT_FLAGS) $(LINT_CPP_ADDON_DOC_FILES_GLOB)
 
 cpplint: lint-cpp
 	@echo "Please use lint-cpp instead of cpplint"

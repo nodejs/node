@@ -1,8 +1,8 @@
 <p align="center">
   <a href="https://nodejs.org/">
-    <img 
-      alt="Node.js" 
-      src="https://nodejs.org/static/images/logo-light.svg" 
+    <img
+      alt="Node.js"
+      src="https://nodejs.org/static/images/logo-light.svg"
       width="400"
     />
   </a>
@@ -213,7 +213,7 @@ us a report nonetheless.
 
 - [#5507](https://github.com/nodejs/node/pull/5507): _Fix a defect that makes
   the CacheBleed Attack possible_. Many, though not all, OpenSSL vulnerabilities
-  in the TLS/SSL protocols also effect Node.js.
+  in the TLS/SSL protocols also affect Node.js.
 
 - [CVE-2016-2216](https://nodejs.org/en/blog/vulnerability/february-2016-security-releases/):
   _Fix defects in HTTP header parsing for requests and responses that can allow
@@ -257,15 +257,13 @@ For more information about the governance of the Node.js project, see
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
 * [ofrobots](https://github.com/ofrobots) -
-**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt;
+**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
-* [trevnorris](https://github.com/trevnorris) -
-**Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
@@ -293,6 +291,8 @@ For more information about the governance of the Node.js project, see
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
+* [trevnorris](https://github.com/trevnorris) -
+**Trevor Norris** &lt;trev.norris@gmail.com&gt;
 
 ### Collaborators
 
@@ -443,7 +443,7 @@ For more information about the governance of the Node.js project, see
 * [not-an-aardvark](https://github.com/not-an-aardvark) -
 **Teddy Katz** &lt;teddy.katz@gmail.com&gt;
 * [ofrobots](https://github.com/ofrobots) -
-**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt;
+**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [orangemocha](https://github.com/orangemocha) -
 **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -

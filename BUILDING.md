@@ -34,7 +34,7 @@ Support is divided into three tiers:
 ### Supported platforms
 
 The community does not build or test against end-of-life distributions (EoL).
-Thus we do not recommend that you use Node on end-of-life or unsupported 
+Thus we do not recommend that you use Node on end-of-life or unsupported
 platforms in production.
 
 |  System      | Support type | Version                          | Architectures        | Notes            |
@@ -107,18 +107,20 @@ On macOS, you will need to install the `Xcode Command Line Tools` by running
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
-* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
-to avoid popups asking to accept incoming network connections when running 
-tests:
 
-If the path to your build directory contains a space, the build will likely 
+If the path to your build directory contains a space, the build will likely
 fail.
+
+After building, setting up [firewall rules](tools/macosx-firewall.sh) can avoid
+popups asking to accept incoming network connections when running tests.
+
+Running the following script on macOS will add the firewall rules for the
+executable `node` in the `out` directory and the symbolic `node` link in the
+project's root directory.
 
 ```console
 $ sudo ./tools/macosx-firewall.sh
 ```
-Running this script will add rules for the executable `node` in the `out`
-directory and the symbolic `node` link in the project's root directory.
 
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
@@ -244,7 +246,7 @@ Prerequisites:
 * **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
   and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
 
-If the path to your build directory contains a space or a non-ASCII character, 
+If the path to your build directory contains a space or a non-ASCII character,
 the build will likely fail.
 
 ```console

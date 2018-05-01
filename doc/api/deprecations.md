@@ -1,6 +1,7 @@
 # Deprecated APIs
 
 <!--introduced_in=v7.7.0-->
+<!-- type=misc -->
 
 Node.js may deprecate APIs when either: (a) use of the API is considered to be
 unsafe, (b) an improved alternative API has been made available, or (c)
@@ -82,15 +83,15 @@ is strongly recommended:
 
 * [`Buffer.alloc(size[, fill[, encoding]])`][alloc] - Create a `Buffer` with
   *initialized* memory.
-* [`Buffer.allocUnsafe(size)`][alloc_unsafe_size] - Create a `Buffer` with 
+* [`Buffer.allocUnsafe(size)`][alloc_unsafe_size] - Create a `Buffer` with
   *uninitialized* memory.
 * [`Buffer.allocUnsafeSlow(size)`][] - Create a `Buffer` with *uninitialized*
    memory.
 * [`Buffer.from(array)`][] - Create a `Buffer` with a copy of `array`
-* [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][from_arraybuffer] - 
+* [`Buffer.from(arrayBuffer[, byteOffset[, length]])`][from_arraybuffer] -
   Create a `Buffer` that wraps the given `arrayBuffer`.
 * [`Buffer.from(buffer)`][] - Create a `Buffer` that copies `buffer`.
-* [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer` 
+* [`Buffer.from(string[, encoding])`][from_string_encoding] - Create a `Buffer`
   that copies `string`.
 
 <a id="DEP0006"></a>
@@ -699,8 +700,8 @@ Type: Runtime
 
 `Module._debug()` has been deprecated.
 
-The `Module._debug()` function was never documented as an officially
-supported API.
+The `Module._debug()` function was never documented as an officially supported
+API.
 
 <a id="DEP0078"></a>
 ### DEP0078: REPLServer.turnOffEditorMode()
@@ -771,7 +772,7 @@ API instead.
 
 Type: Runtime
 
-`runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
+`runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
 cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
 details.
 
@@ -784,13 +785,22 @@ Importing assert directly is not recommended as the exposed functions will use
 loose equality checks. Use `require('assert').strict` instead. The API is the
 same as the legacy assert but it will always use strict equality checks.
 
+<a id="DEP0093"></a>
+### DEP0093: crypto.fips is deprecated and replaced.
+
+Type: Documentation-only
+
+The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
+and `crypto.getFips()` instead.
+
 <a id="DEP0098"></a>
-### DEP0098: AsyncHooks Embedder AsyncResource.emit{Before,After} APIs
+### DEP0098: AsyncHooks Embedder AsyncResource.emitBefore and AsyncResource.emitAfter APIs
 
 Type: Runtime
 
-The embedded API provided by AsyncHooks exposes emit{Before,After} methods
-which are very easy to use incorrectly which can lead to unrecoverable errors.
+The embedded API provided by AsyncHooks exposes `.emitBefore()` and
+`.emitAfter()` methods which are very easy to use incorrectly which can lead
+to unrecoverable errors.
 
 Use [`asyncResource.runInAsyncScope()`][] API instead which provides a much
 safer, and more convenient, alternative. See
@@ -806,6 +816,25 @@ because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
+<a id="DEP0103"></a>
+### DEP0103: process.binding('util').is[...] typechecks
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Using `process.binding()` in general should be avoided. The type checking
+methods in particular can be replaced by using [`util.types`][].
+
+<a id="DEP0108"></a>
+### DEP0108: zlib.bytesRead
+
+Type: Documentation-only
+
+Deprecated alias for [`zlib.bytesWritten`][]. This original name was chosen
+because it also made sense to interpret the value as the number of bytes
+read by the engine, but is inconsistent with other streams in Node.js that
+expose values under these names.
+
+[`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
@@ -820,6 +849,7 @@ expose values under these names.
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
+[`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`domain`]: domain.html
 [`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
@@ -865,6 +895,7 @@ expose values under these names.
 [`util.log()`]: util.html#util_util_log_string
 [`util.print()`]: util.html#util_util_print_strings
 [`util.puts()`]: util.html#util_util_puts_strings
+[`util.types`]: util.html#util_util_types
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
 [`zlib.bytesWritten`]: zlib.html#zlib_zlib_byteswritten

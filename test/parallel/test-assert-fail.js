@@ -1,6 +1,6 @@
 'use strict';
 
-/* eslint-disable prefer-common-expectserror */
+/* eslint-disable node-core/prefer-common-expectserror */
 
 const common = require('../common');
 const assert = require('assert');
@@ -70,10 +70,7 @@ common.expectsError(() => {
   assert.fail(typeof 1, 'object', new TypeError('another custom message'));
 }, {
   type: TypeError,
-  message: 'another custom message',
-  operator: undefined,
-  actual: 'number',
-  expected: 'object'
+  message: 'another custom message'
 });
 
 // No third arg (but a fourth arg)

@@ -38,7 +38,6 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
   const observer = new PerformanceObserver(common.mustNotCall());
 
   [1, null, undefined].forEach((i) => {
-    //observer.observe(i);
     common.expectsError(
       () => observer.observe(i),
       {

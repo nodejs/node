@@ -1,6 +1,7 @@
 # C++ Addons
 
 <!--introduced_in=v0.10.0-->
+<!-- type=misc -->
 
 Node.js Addons are dynamically-linked shared objects, written in C++, that
 can be loaded into Node.js using the [`require()`][require] function, and used
@@ -1096,8 +1097,10 @@ has ended but before the JavaScript VM is terminated and Node.js shuts down.
 
 #### void AtExit(callback, args)
 
-* `callback` {void (\*)(void\*)} A pointer to the function to call at exit.
-* `args` {void\*} A pointer to pass to the callback at exit.
+* `callback` <span class="type">&lt;void (\*)(void\*)&gt;</span>
+  A pointer to the function to call at exit.
+* `args` <span class="type">&lt;void\*&gt;</span>
+  A pointer to pass to the callback at exit.
 
 Registers exit hooks that run after the event loop has ended but before the VM
 is killed.

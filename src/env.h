@@ -123,6 +123,7 @@ struct PackageConfig {
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(bytes_read_string, "bytesRead")                                           \
+  V(bytes_written_string, "bytesWritten")                                     \
   V(cached_data_string, "cachedData")                                         \
   V(cached_data_produced_string, "cachedDataProduced")                        \
   V(cached_data_rejected_string, "cachedDataRejected")                        \
@@ -562,6 +563,9 @@ class Environment {
   template <typename T>
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
+
+  static uv_key_t thread_local_env;
+  static inline Environment* GetThreadLocalEnv();
 
   inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
   inline ~Environment();

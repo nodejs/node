@@ -109,7 +109,7 @@ For *all* [`EventEmitter`][] objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
 unhandled exception and crash unless either: The [`domain`][domains] module is
 used appropriately or a handler has been registered for the
-[`process.on('uncaughtException')`][] event.
+[`'uncaughtException'`][] event.
 
 ```js
 const EventEmitter = require('events');
@@ -227,8 +227,8 @@ Error.captureStackTrace(myObject);
 myObject.stack;  // similar to `new Error().stack`
 ```
 
-The first line of the trace will be prefixed with `${myObject.name}: 
-${myObject.message}`.
+The first line of the trace will be prefixed with
+`${myObject.name}: ${myObject.message}`.
 
 The optional `constructorOpt` argument accepts a function. If given, all frames
 above `constructorOpt`, including `constructorOpt`, will be omitted from the
@@ -973,6 +973,11 @@ The `inspector` module is not available for use.
 While using the `inspector` module, an attempt was made to use the inspector
 before it was connected.
 
+<a id="ERR_INVALID_ADDRESS_FAMILY"></a>
+### ERR_INVALID_ADDRESS_FAMILY
+
+The provided address family is not understood by the Node.js API.
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
@@ -1330,6 +1335,12 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
 An attempt was made to call [`stream.write()`][] with a `null` chunk.
 
+<a id="ERR_STREAM_PREMATURE_CLOSE"></a>
+### ERR_STREAM_PREMATURE_CLOSE
+
+An error returned by `stream.finished()` and `stream.pipeline()`, when a stream
+or a pipeline ends non gracefully with no explicit error.
+
 <a id="ERR_STREAM_PUSH_AFTER_EOF"></a>
 ### ERR_STREAM_PUSH_AFTER_EOF
 
@@ -1345,7 +1356,7 @@ An attempt was made to use a readable stream that did not implement
 <a id="ERR_STREAM_UNSHIFT_AFTER_END_EVENT"></a>
 ### ERR_STREAM_UNSHIFT_AFTER_END_EVENT
 
-An attempt was made to call [`stream.unshift()`][] after the `end` event was
+An attempt was made to call [`stream.unshift()`][] after the `'end'` event was
 emitted.
 
 <a id="ERR_STREAM_WRAP"></a>
@@ -1533,6 +1544,7 @@ An attempt was made to use a `zlib` object after it has already been closed.
 
 Creation of a [`zlib`][] object failed due to incorrect configuration.
 
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--force-fips`]: cli.html#cli_force_fips
 [`child_process`]: child_process.html
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
@@ -1560,7 +1572,6 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`net`]: net.html
 [`new URL(input)`]: url.html#url_constructor_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
-[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
