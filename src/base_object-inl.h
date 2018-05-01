@@ -74,7 +74,7 @@ BaseObject* BaseObject::FromJSObject(v8::Local<v8::Object> obj) {
 }
 
 
-template<typename T>
+template <typename T>
 T* BaseObject::FromJSObject(v8::Local<v8::Object> object) {
   return static_cast<T*>(FromJSObject(object));
 }

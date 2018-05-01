@@ -35,7 +35,6 @@
 #include <string.h>
 
 #include <functional>  // std::function
-#include <type_traits>  // std::remove_reference
 
 namespace node {
 

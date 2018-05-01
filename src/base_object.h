@@ -26,6 +26,7 @@
 
 #include "node_persistent.h"
 #include "v8.h"
+#include <type_traits>  // std::remove_reference
 
 namespace node {
 
@@ -51,7 +52,7 @@ class BaseObject {
   // This may return `nullptr` if the C++ object has not been constructed yet,
   // e.g. when the JS object used `MakeLazilyInitializedJSTemplate`.
   static inline BaseObject* FromJSObject(v8::Local<v8::Object> object);
-  template<typename T>
+  template <typename T>
   static inline T* FromJSObject(v8::Local<v8::Object> object);
 
   // Make the `Persistent` a weak reference and, `delete` this object once
@@ -82,7 +83,7 @@ class BaseObject {
 
 
 // Global alias for FromJSObject() to avoid churn.
-template<typename T>
+template <typename T>
 inline T* Unwrap(v8::Local<v8::Object> obj) {
   return BaseObject::FromJSObject<T>(obj);
 }
