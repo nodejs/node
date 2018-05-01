@@ -618,6 +618,11 @@ An attempt was made to register something that is not a function as an
 The type of an asynchronous resource was invalid. Note that users are also able
 to define their own types if using the public embedder API.
 
+<a id="ERR_BROTLI_INITIALIZATION_FAILED"></a>
+### ERR_BROTLI_INITIALIZATION_FAILED
+
+Creation of a [`brotli`][] object failed due to incorrect configuration.
+
 <a id="ERR_BUFFER_OUT_OF_BOUNDS"></a>
 ### ERR_BUFFER_OUT_OF_BOUNDS
 
@@ -1706,6 +1711,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--force-fips`]: cli.html#cli_force_fips
+[`brotli`]: brotli.html
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b

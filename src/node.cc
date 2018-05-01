@@ -3472,7 +3472,7 @@ static void PrintHelp() {
          "  --experimental-vm-modules  experimental ES Module support\n"
          "                             in vm module\n"
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
-         "  --expose-brotli            enable experimental brotli support\n"
+         "  --expose-brotli            expose the experimental brotli module\n"
 #if HAVE_OPENSSL && NODE_FIPS_MODE
          "  --force-fips               force FIPS crypto (cannot be disabled)\n"
 #endif  // HAVE_OPENSSL && NODE_FIPS_MODE

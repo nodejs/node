@@ -1,3 +1,4 @@
+// Flags: --expose-brotli
 'use strict';
 
 const common = require('../common');
@@ -140,6 +141,12 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const Gzip = require('zlib').Gzip;
   testInitialized(new Gzip()._handle, 'Zlib');
 }
+
+{
+  const Compress = require('brotli').Compress;
+  testInitialized(new Compress()._handle, 'Brotli');
+}
+
 
 {
   const binding = process.binding('pipe_wrap');

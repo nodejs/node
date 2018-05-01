@@ -81,6 +81,10 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
+### `--expose-brotli`
+
+Expose the experimental `brotli` module.
+
 ### `--force-fips`
 <!-- YAML
 added: v6.0.0
@@ -611,6 +615,7 @@ on synchronous system APIs. Node.js APIs that use the threadpool are:
 
 - all `fs` APIs, other than the file watcher APIs and those that are explicitly
   synchronous
+- all `brotli` APIs, other than those that are explicitly synchronous
 - `crypto.pbkdf2()`
 - `crypto.randomBytes()`, unless it is used without a callback
 - `crypto.randomFill()`

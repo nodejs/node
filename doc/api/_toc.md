@@ -10,6 +10,7 @@
 
 * [Assertion Testing](assert.html)
 * [Async Hooks](async_hooks.html)
+* [Brotli](brotli.html)
 * [Buffer](buffer.html)
 * [C++ Addons](addons.html)
 * [C/C++ Addons - N-API](n-api.html)

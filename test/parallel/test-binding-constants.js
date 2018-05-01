@@ -5,7 +5,7 @@ const constants = process.binding('constants');
 const assert = require('assert');
 
 assert.deepStrictEqual(
-  Object.keys(constants).sort(), ['crypto', 'fs', 'os', 'zlib']
+  Object.keys(constants).sort(), ['brotli', 'crypto', 'fs', 'os', 'zlib']
 );
 
 assert.deepStrictEqual(

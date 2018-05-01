@@ -3,6 +3,7 @@
 @include synopsis
 @include assert
 @include async_hooks
+@include brotli
 @include buffer
 @include addons
 @include n-api
