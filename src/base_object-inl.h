@@ -42,11 +42,14 @@ BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
 
 BaseObject::~BaseObject() {
   if (persistent_handle_.IsEmpty()) {
-    // This most likely happened because the weak callback below
+    // This most likely happened because the weak callback below cleared it.
     return;
   }
 
-  object()->SetAlignedPointerInInternalField(0, nullptr);
+  {
+    v8::HandleScope handle_scope(env_->isolate());
+    object()->SetAlignedPointerInInternalField(0, nullptr);
+  }
 }
 
 
