@@ -760,12 +760,45 @@ no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
-argument will be an `Error` object. The following example checks if the file
-`/etc/passwd` can be read and written by the current process.
+argument will be an `Error` object. The following examples check if
+`package.json` exists, and/or if it could be written to.
 
 ```js
-fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
-  console.log(err ? 'no access!' : 'can read/write');
+// Check if `package.json` exists in the current directory.
+fs.access('./package.json', fs.constants.F_OK, (err) => {
+  console.log(err ? 'package.json does not exist' : 'package.json exists');
+});
+
+// Check if package.json file could be read.
+fs.access('./package.json', fs.constants.R_OK, (err) => {
+  console.log(err ? 'package.json could not be read' : 'package.json read');
+});
+
+// Check if `package.json` could be written to.
+fs.access('./package.json', fs.constants.W_OK, (err) => {
+  console.log(
+    err ?
+      'package.json could not be written to' :
+      'package.json could be written to'
+  );
+});
+
+// Check if `package.json` exists in the current directory and it could be
+// written to.
+fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
+  // If there is an error, print the error in console and exit.
+  const isNonExistenceError = err && err.code === 'ENOENT';
+  const isReadOnlyError = err && err.code === 'EPERM';
+
+  if (isNonExistenceError || isReadOnlyError) {
+    console.error(
+      isNonExistenceError ?
+        'package.json does not exist' :
+        'package.json is read-only'
+    );
+  } else {
+    console.log('package.json exists, and it could be written to');
+  }
 });
 ```
 
