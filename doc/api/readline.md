@@ -447,7 +447,7 @@ added: v0.7.7
 * `interface` {readline.Interface}
 
 The `readline.emitKeypressEvents()` method causes the given [Readable][]
-`stream` to begin emitting `'keypress'` events corresponding to received input.
+stream to begin emitting `'keypress'` events corresponding to received input.
 
 Optionally, `interface` specifies a `readline.Interface` instance for which
 autocompletion is disabled when copy-pasted input is detected.

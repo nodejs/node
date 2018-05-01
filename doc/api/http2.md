@@ -108,7 +108,7 @@ have occasion to work with the `Http2Session` object directly, with most
 actions typically taken through interactions with either the `Http2Server` or
 `Http2Stream` objects.
 
-#### Http2Session and Sockets
+#### `Http2Session` and Sockets
 
 Every `Http2Session` instance is associated with exactly one [`net.Socket`][] or
 [`tls.TLSSocket`][] when it is created. When either the `Socket` or the
@@ -505,7 +505,7 @@ limits available methods to ones safe to use with HTTP/2.
 
 `destroy`, `emit`, `end`, `pause`, `read`, `resume`, and `write` will throw
 an error with code `ERR_HTTP2_NO_SOCKET_MANIPULATION`. See
-[Http2Session and Sockets][] for more information.
+[`Http2Session` and Sockets][] for more information.
 
 `setTimeout` method will be called on this `Http2Session`.
 
@@ -1774,8 +1774,8 @@ changes:
        amount of padding, as determined by the internal implementation, is to
        be applied.
      * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding` callback is to be used to determine the
-       amount of padding.
+       provided `options.selectPadding()` callback is to be used to determine
+       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -1789,7 +1789,7 @@ changes:
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using options.selectPadding][].
+    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `Http1IncomingMessage` {http.IncomingMessage} Specifies the
@@ -1884,8 +1884,8 @@ changes:
        amount of padding, as determined by the internal implementation, is to
        be applied.
      * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding` callback is to be used to determine the
-       amount of padding.
+       provided `options.selectPadding()` callback is to be used to determine
+       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -1899,7 +1899,7 @@ changes:
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using options.selectPadding][].
+    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * ...: Any [`tls.createServer()`][] options can be provided. For
@@ -1980,8 +1980,8 @@ changes:
        amount of padding, as determined by the internal implementation, is to
        be applied.
      * `http2.constants.PADDING_STRATEGY_CALLBACK` - Specifies that the user
-       provided `options.selectPadding` callback is to be used to determine the
-       amount of padding.
+       provided `options.selectPadding()` callback is to be used to determine
+       the amount of padding.
      * `http2.constants.PADDING_STRATEGY_ALIGNED` - Will *attempt* to apply
        enough padding to ensure that the total frame length, including the
        9-byte header, is a multiple of 8. For each frame, however, there is a
@@ -1995,7 +1995,7 @@ changes:
     `maxConcurrentStreams`. **Default:** `100`.
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
-    used to determine the padding. See [Using options.selectPadding][].
+    used to determine the padding. See [Using `options.selectPadding()`][].
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `createConnection` {Function} An optional callback that receives the `URL`
@@ -2156,14 +2156,14 @@ properties.
 
 All additional properties on the settings object are ignored.
 
-### Using `options.selectPadding`
+### Using `options.selectPadding()`
 
 When `options.paddingStrategy` is equal to
 `http2.constants.PADDING_STRATEGY_CALLBACK`, the HTTP/2 implementation will
-consult the `options.selectPadding` callback function, if provided, to determine
-the specific amount of padding to use per `HEADERS` and `DATA` frame.
+consult the `options.selectPadding()` callback function, if provided, to
+determine the specific amount of padding to use per `HEADERS` and `DATA` frame.
 
-The `options.selectPadding` function receives two numeric arguments,
+The `options.selectPadding()` function receives two numeric arguments,
 `frameLen` and `maxFrameLen` and must return a number `N` such that
 `frameLen <= N <= maxFrameLen`.
 
@@ -2177,7 +2177,7 @@ const server = http2.createServer({
 });
 ```
 
-The `options.selectPadding` function is invoked once for *every* `HEADERS` and
+The `options.selectPadding()` function is invoked once for *every* `HEADERS` and
 `DATA` frame. This has a definite noticeable impact on performance.
 
 ### Error Handling
@@ -2576,7 +2576,7 @@ set on `request.stream`.
 `setTimeout` method will be called on `request.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session` and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket. With TLS support,
@@ -2952,7 +2952,7 @@ set on `response.stream`.
 `setTimeout` method will be called on `response.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session` and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket.
@@ -3190,11 +3190,10 @@ following additional properties:
 [HTTP/2 Headers Object]: #http2_headers_object
 [HTTP/2 Settings Object]: #http2_settings_object
 [HTTPS]: https.html
-[Http2Session and Sockets]: #http2_http2session_and_sockets
 [Performance Observer]: perf_hooks.html
 [Readable Stream]: stream.html#stream_class_stream_readable
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
-[Using options.selectPadding]: #http2_using_options_selectpadding
+[Using `options.selectPadding()`]: #http2_using_options_selectpadding
 [Writable Stream]: stream.html#stream_writable_streams
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'request'`]: #http2_event_request
@@ -3203,6 +3202,7 @@ following additional properties:
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
+[`Http2Session` and Sockets]: #http2_http2session_and_sockets
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.html#errors_class_typeerror

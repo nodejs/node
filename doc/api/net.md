@@ -557,10 +557,10 @@ Initiate a connection on a given socket.
 
 Possible signatures:
 
-* [socket.connect(options[, connectListener])][`socket.connect(options)`]
-* [socket.connect(path[, connectListener])][`socket.connect(path)`]
+* [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
+* [`socket.connect(path[, connectListener])`][`socket.connect(path)`]
   for [IPC][] connections.
-* [socket.connect(port[, host][, connectListener])][`socket.connect(port, host)`]
+* [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`]
   for TCP connections.
 * Returns: {net.Socket} The socket itself.
 

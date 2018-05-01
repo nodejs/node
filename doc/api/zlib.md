@@ -473,14 +473,14 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
-Creates and returns a new [Deflate][] object with the given [`options`][].
+Creates and returns a new [`Deflate`][] object with the given [`options`][].
 
 ## zlib.createDeflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [DeflateRaw][] object with the given [`options`][].
+Creates and returns a new [`DeflateRaw`][] object with the given [`options`][].
 
 An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when `windowBits`
 is set to 8 for raw deflate streams. zlib would automatically set `windowBits`
@@ -494,35 +494,35 @@ that effectively uses an 8-bit window only.
 added: v0.5.8
 -->
 
-Creates and returns a new [Gunzip][] object with the given [`options`][].
+Creates and returns a new [`Gunzip`][] object with the given [`options`][].
 
 ## zlib.createGzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Gzip][] object with the given [`options`][].
+Creates and returns a new [`Gzip`][] object with the given [`options`][].
 
 ## zlib.createInflate([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Inflate][] object with the given [`options`][].
+Creates and returns a new [`Inflate`][] object with the given [`options`][].
 
 ## zlib.createInflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [InflateRaw][] object with the given [`options`][].
+Creates and returns a new [`InflateRaw`][] object with the given [`options`][].
 
 ## zlib.createUnzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Creates and returns a new [Unzip][] object with the given [`options`][].
+Creates and returns a new [`Unzip`][] object with the given [`options`][].
 
 ## Convenience Methods
 
@@ -567,7 +567,7 @@ changes:
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
-Compress a chunk of data with [Deflate][].
+Compress a chunk of data with [`Deflate`][].
 
 ### zlib.deflateRaw(buffer[, options], callback)
 <!-- YAML
@@ -597,7 +597,7 @@ changes:
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
-Compress a chunk of data with [DeflateRaw][].
+Compress a chunk of data with [`DeflateRaw`][].
 
 ### zlib.gunzip(buffer[, options], callback)
 <!-- YAML
@@ -630,7 +630,7 @@ changes:
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
-Decompress a chunk of data with [Gunzip][].
+Decompress a chunk of data with [`Gunzip`][].
 
 ### zlib.gzip(buffer[, options], callback)
 <!-- YAML
@@ -663,7 +663,7 @@ changes:
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
-Compress a chunk of data with [Gzip][].
+Compress a chunk of data with [`Gzip`][].
 
 ### zlib.inflate(buffer[, options], callback)
 <!-- YAML
@@ -696,7 +696,7 @@ changes:
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
-Decompress a chunk of data with [Inflate][].
+Decompress a chunk of data with [`Inflate`][].
 
 ### zlib.inflateRaw(buffer[, options], callback)
 <!-- YAML
@@ -729,7 +729,7 @@ changes:
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
-Decompress a chunk of data with [InflateRaw][].
+Decompress a chunk of data with [`InflateRaw`][].
 
 ### zlib.unzip(buffer[, options], callback)
 <!-- YAML
@@ -762,7 +762,7 @@ changes:
 
 - `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
 
-Decompress a chunk of data with [Unzip][].
+Decompress a chunk of data with [`Unzip`][].
 
 [`.flush()`]: #zlib_zlib_flush_kind_callback
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
@@ -770,16 +770,16 @@ Decompress a chunk of data with [Unzip][].
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[`Deflate`]: #zlib_class_zlib_deflate
+[`DeflateRaw`]: #zlib_class_zlib_deflateraw
+[`Gunzip`]: #zlib_class_zlib_gunzip
+[`Gzip`]: #zlib_class_zlib_gzip
+[`Inflate`]: #zlib_class_zlib_inflate
+[`InflateRaw`]: #zlib_class_zlib_inflateraw
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
-[`options`]: #zlib_class_options
-[DeflateRaw]: #zlib_class_zlib_deflateraw
-[Deflate]: #zlib_class_zlib_deflate
-[Gunzip]: #zlib_class_zlib_gunzip
-[Gzip]: #zlib_class_zlib_gzip
-[InflateRaw]: #zlib_class_zlib_inflateraw
-[Inflate]: #zlib_class_zlib_inflate
-[Memory Usage Tuning]: #zlib_memory_usage_tuning
-[Unzip]: #zlib_class_zlib_unzip
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
+[`Unzip`]: #zlib_class_zlib_unzip
+[`options`]: #zlib_class_options
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
+[Memory Usage Tuning]: #zlib_memory_usage_tuning
 [zlib documentation]: https://zlib.net/manual.html#Constants

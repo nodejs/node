@@ -422,8 +422,7 @@ added: v3.0.0
 Updates the keys for encryption/decryption of the [TLS Session Tickets][].
 
 The key's `Buffer` should be 48 bytes long. See `ticketKeys` option in
-[tls.createServer](#tls_tls_createserver_options_secureconnectionlistener) for
-more information on how it is used.
+[`tls.createServer()`] for more information on how it is used.
 
 Changes to the ticket keys are effective only for future server connections.
 Existing or currently pending server connections will use the previous keys.
@@ -1162,7 +1161,7 @@ changes:
     provided the default callback with high-level API will be used (see below).
   * `sessionTimeout` {number} An integer specifying the number of seconds after
     which the TLS session identifiers and TLS session tickets created by the
-    server will time out. See [SSL_CTX_set_timeout] for more details.
+    server will time out. See [`SSL_CTX_set_timeout`] for more details.
   * `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
     a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
     session tickets on multiple instances of the TLS server.
@@ -1170,7 +1169,7 @@ changes:
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `secureConnectionListener` {Function}
 
-Creates a new [tls.Server][]. The `secureConnectionListener`, if provided, is
+Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
 
 The `ticketKeys` options is automatically shared between `cluster` module
@@ -1373,13 +1372,16 @@ where `secureSocket` has the same API as `pair.cleartext`.
 
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
+[`SSL_CTX_set_timeout`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`server.getConnections()`]: net.html#net_server_getconnections_callback
 [`server.listen()`]: net.html#net_server_listen
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
+[`tls.Server`]: #tls_class_tls_server
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
 [`tls.connect()`]: #tls_tls_connect_options_callback
@@ -1394,7 +1396,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.1.0/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-[SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
+[RFC 5929]: https://tools.ietf.org/html/rfc5929
 [SSL_METHODS]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html#Dealing-with-Protocol-Methods
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
@@ -1402,6 +1404,3 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [asn1.js]: https://npmjs.org/package/asn1.js
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[tls.Server]: #tls_class_tls_server
-[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
-[RFC 5929]: https://tools.ietf.org/html/rfc5929

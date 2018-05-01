@@ -59,7 +59,7 @@ part of N-API, nor will they be maintained as part of Node.js. One such
 example is: [node-api](https://github.com/nodejs/node-api).
 
 In order to use the N-API functions, include the file
-[node_api.h](https://github.com/nodejs/node/blob/master/src/node_api.h)
+[`node_api.h`](https://github.com/nodejs/node/blob/master/src/node_api.h)
 which is located in the src directory in the node development tree:
 
 ```C

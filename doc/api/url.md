@@ -86,8 +86,8 @@ The `URL` class is also available on the global object.
 
 In accordance with browser conventions, all properties of `URL` objects
 are implemented as getters and setters on the class prototype, rather than as
-data properties on the object itself. Thus, unlike [legacy urlObject][]s, using
-the `delete` keyword on any properties of `URL` objects (e.g. `delete
+data properties on the object itself. Thus, unlike [legacy `urlObject`][]s,
+using the `delete` keyword on any properties of `URL` objects (e.g. `delete
 myURL.protocol`, `delete myURL.pathname`, etc) has no effect but will still
 return `true`.
 
@@ -871,7 +871,7 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 
 ## Legacy URL API
 
-### Legacy urlObject
+### Legacy `urlObject`
 
 The legacy `urlObject` (`require('url').Url`) is created and returned by the
 `url.parse()` function.
@@ -1205,6 +1205,6 @@ console.log(myURL.origin);
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [WHATWG URL]: #url_the_whatwg_url_api
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
-[legacy urlObject]: #url_legacy_urlobject
+[legacy `urlObject`]: #url_legacy_urlobject
 [percent-encoded]: #whatwg-percent-encoding
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
