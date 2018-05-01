@@ -62,6 +62,19 @@ assert(existing.length > 0);
   ]);
 }
 
+{
+  // Various invalidities, all of which should throw a clean error.
+  const invalidServers = [
+    ' ',
+    '\n',
+    '\0',
+    '1'.repeat(3 * 4)
+  ];
+  invalidServers.forEach((serv) => {
+    assert.throws(() => dns.setServers([serv]), /TypeError.*ERR_INVALID_IP_ADDRESS/, `Unexpected error thrown for ${serv}`);
+  });
+}
+
 const goog = [
   '8.8.8.8',
   '8.8.4.4',
