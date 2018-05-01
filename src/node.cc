@@ -4425,7 +4425,7 @@ void FreeEnvironment(Environment* env) {
 }
 
 
-MultiIsolatePlatform* GetNodeMultiIsolatePlatform() {
+MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
   return v8_platform.Platform();
 }
 

@@ -251,9 +251,10 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
-// This returns the MultiIsolatePlatform used by node main.
-// If NODE_USE_V8_PLATFORM is not defined, it will return nullptr.
-NODE_EXTERN MultiIsolatePlatform* GetNodeMultiIsolatePlatform();
+// This returns the MultiIsolatePlatform used in the main thread of Node.js.
+// If NODE_USE_V8_PLATFORM haven't been defined when Node.js was built,
+// it would return nullptr.
+NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
 
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
