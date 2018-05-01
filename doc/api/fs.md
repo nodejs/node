@@ -1316,9 +1316,8 @@ changes:
   * `highWaterMark` {integer} **Default:** `64 * 1024`
 * Returns: {fs.ReadStream} See [Readable Streams][].
 
-Be aware that, unlike the default value set for `highWaterMark` on a
-readable stream (16 kb), the stream returned by this method has a
-default value of 64 kb for the same parameter.
+Unlike the 16 kb default `highWaterMark` for a readable stream, the stream
+returned by this method has a default `highWaterMark` of 64 kb.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
