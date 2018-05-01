@@ -57,6 +57,11 @@
 #define Z_MAX_LEVEL 9
 #define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
 
+#define BROTLI_MIN_CHUNK Z_MIN_CHUNK
+#define BROTLI_MAX_CHUNK Z_MAX_CHUNK
+#define BROTLI_DEFAULT_CHUNK Z_DEFAULT_CHUNK
+#define BROTLI_MAX_NPOSTFIX 3
+
 enum {
   NM_F_BUILTIN  = 1 << 0,
   NM_F_LINKED   = 1 << 1,
@@ -102,6 +107,7 @@ struct sockaddr;
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                      \
     V(async_wrap)                                                             \
+    V(brotli)                                                                 \
     V(buffer)                                                                 \
     V(cares_wrap)                                                             \
     V(config)                                                                 \
@@ -197,6 +203,9 @@ extern std::string config_userland_loader;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/internal/bootstrap/node.js
 extern bool config_expose_internals;
+
+// Set in node.cc by ParseArgs when --expose-brotli or --expose_brotli is used.
+extern bool config_expose_brotli;
 
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
 // Used to redirect warning output to a file rather than sending

@@ -98,6 +98,9 @@ static void Initialize(Local<Object> target,
   if (config_expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
 
+  if (config_expose_brotli)
+    READONLY_BOOLEAN_PROPERTY("exposeBrotli");
+
   if (env->abort_on_uncaught_exception())
     READONLY_BOOLEAN_PROPERTY("shouldAbortOnUncaughtException");
 

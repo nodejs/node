@@ -52,6 +52,7 @@
 
 #include "ares.h"
 #include "async_wrap-inl.h"
+#include "brotli/encode.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "http_parser.h"
@@ -266,6 +267,9 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/internal/bootstrap/node.js
 bool config_expose_internals = false;
+
+// Set in node.cc by ParseArgs when --expose-brotli or --expose_brotli is used.
+bool config_expose_brotli = false;
 
 bool v8_initialized = false;
 
@@ -2973,6 +2977,17 @@ void SetupProcessObject(Environment* env,
       "napi",
       FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
 
+  std::string brotli_version =
+    std::to_string(BrotliEncoderVersion() >> 24) +
+    "." +
+    std::to_string((BrotliEncoderVersion() & 0xFFF000) >> 12) +
+    "." +
+    std::to_string(BrotliEncoderVersion() & 0xFFF);
+  READONLY_PROPERTY(
+      versions,
+      "brotli",
+      OneByteString(env->isolate(), brotli_version.c_str()));
+
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
   {  // NOLINT(whitespace/braces)
@@ -3457,6 +3472,7 @@ static void PrintHelp() {
          "  --experimental-vm-modules  experimental ES Module support\n"
          "                             in vm module\n"
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
+         "  --expose-brotli            enable experimental brotli support\n"
 #if HAVE_OPENSSL && NODE_FIPS_MODE
          "  --force-fips               force FIPS crypto (cannot be disabled)\n"
 #endif  // HAVE_OPENSSL && NODE_FIPS_MODE
@@ -3611,6 +3627,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
 
   static const char* whitelist[] = {
     // Node options, sorted in `node --help` order for ease of comparison.
+    "--expose-brotli",
     "--enable-fips",
     "--experimental-modules",
     "--experimental-repl-await",
@@ -3866,6 +3883,9 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-http2") == 0 ||
                strcmp(arg, "--expose_http2") == 0) {
       // Keep as a non-op through v9.x
+    } else if (strcmp(arg, "--expose-brotli") == 0 ||
+               strcmp(arg, "--expose_brotli") == 0) {
+      config_expose_brotli = true;
     } else if (strcmp(arg, "-") == 0) {
       break;
     } else if (strcmp(arg, "--") == 0) {
