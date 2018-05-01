@@ -138,6 +138,20 @@ console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
+// make sure calling time twice without timeEnd doesn't reset the timer.
+console.time('test');
+const time = console._times.get('test');
+setTimeout(() => {
+  assert.deepStrictEqual(console._times.get('test'), time);
+  common.expectWarning(
+    'Warning',
+    'Label \'test\' already exists for console.time()',
+    common.noWarnCode);
+  console.time('test');
+  console.timeEnd('test');
+}, 1);
+
+
 console.assert(false, '%s should', 'console.assert', 'not throw');
 assert.strictEqual(errStrings[errStrings.length - 1],
                    'Assertion failed: console.assert should not throw\n');
