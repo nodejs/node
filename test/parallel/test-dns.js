@@ -62,6 +62,31 @@ assert(existing.length > 0);
   ]);
 }
 
+{
+  // Various invalidities, all of which should throw a clean error.
+  const invalidServers = [
+    ' ',
+    '\n',
+    '\0',
+    '1'.repeat(3 * 4),
+    // Check for REDOS issues.
+    ':'.repeat(100000),
+    '['.repeat(100000),
+    '['.repeat(100000) + ']'.repeat(100000) + 'a'
+  ];
+  invalidServers.forEach((serv) => {
+    assert.throws(
+      () => {
+        dns.setServers([serv]);
+      },
+      {
+        name: 'TypeError [ERR_INVALID_IP_ADDRESS]',
+        code: 'ERR_INVALID_IP_ADDRESS'
+      }
+    );
+  });
+}
+
 const goog = [
   '8.8.8.8',
   '8.8.4.4',
