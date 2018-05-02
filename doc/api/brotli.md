@@ -344,14 +344,14 @@ added: REPLACEME
 -->
 
 Reset the encoder/decoder to factory defaults. This will undo any
-changes you have made via [`.setParameter()`][]
+changes you have made via [`.setParameter()`][].
 
 ### brotli.setParameter(param, value)
 <!-- YAML
 added: REPLACEME
 -->
 
-- `param` {number} A valid parameter from [Parameters][]
+- `param` {number} a valid parameter from [Parameters][]
 - `value` {number}
 
 Dynamically set a parameter.
@@ -474,7 +474,7 @@ Decompress a chunk of data.
 [`.setParameter()`]: #brotli_brotli_setparameter_param_value
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`brotli.constants`]: #brotli_constants
+[`brotli.constants`]: #brotli_brotli_constants
 [`brotli/decode.h`]: https://github.com/google/brotli/blob/v1.0.4/c/include/brotli/decode.h
 [`brotli/encode.h`]: https://github.com/google/brotli/blob/v1.0.4/c/include/brotli/encode.h
 [`Buffer`]: buffer.html#buffer_class_buffer
