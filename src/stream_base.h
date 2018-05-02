@@ -265,7 +265,7 @@ class StreamResource {
   uint64_t bytes_read_ = 0;
   uint64_t bytes_written_ = 0;
 
-  int stream_resource_flags_ = kFlagNone;
+  unsigned int stream_resource_flags_ = kFlagNone;
 
   friend class StreamListener;
 };
