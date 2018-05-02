@@ -23,6 +23,7 @@
 const common = require('../common');
 const http = require('http');
 const Countdown = require('../common/countdown');
+const assert = require('assert');
 
 const N = 8;
 
@@ -38,7 +39,10 @@ server.listen(0, common.mustCall(() => {
 
   const requests = [];
   const reqCountdown = new Countdown(N, () => {
-    requests.forEach((req) => req.abort());
+    requests.forEach((req) => {
+      assert.strictEqual(req.abort, req.destroy);
+      req.abort();
+    });
   });
 
   const options = { port: server.address().port };
