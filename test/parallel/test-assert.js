@@ -772,6 +772,21 @@ common.expectsError(
   }
 );
 
+[
+  1,
+  false,
+  Symbol()
+].forEach((input) => {
+  assert.throws(
+    () => assert.throws(() => {}, input),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "error" argument must be one of type Object, Error, ' +
+               `Function, or RegExp. Received type ${typeof input}`
+    }
+  );
+});
+
 {
   const errFn = () => {
     const err = new TypeError('Wrong value');
@@ -870,6 +885,14 @@ common.expectsError(
     }
   );
 }
+
+assert.throws(
+  () => assert.throws(() => { throw new Error(); }, {}),
+  {
+    message: "The argument 'error' may not be an empty object. Received {}",
+    code: 'ERR_INVALID_ARG_VALUE'
+  }
+);
 
 assert.throws(
   () => a.throws(
@@ -981,7 +1004,3 @@ assert.throws(
     }
   );
 }
-
-// TODO: This case is only there to make sure there is no breaking change.
-// eslint-disable-next-line no-restricted-syntax, no-throw-literal
-assert.throws(() => { throw 4; }, 4);
