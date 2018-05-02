@@ -130,7 +130,7 @@ function toLink(typeInput) {
   typeTexts.forEach((typeText) => {
     typeText = typeText.trim();
     if (typeText) {
-      let typeUrl = null;
+      let typeUrl;
 
       // To support type[], type[][] etc., we store the full string
       // and use the bracket-less version to lookup the type URL.
@@ -143,7 +143,7 @@ function toLink(typeInput) {
         typeUrl = `${jsDataStructuresUrl}#${primitive}_type`;
       } else if (jsGlobalTypes.includes(typeText)) {
         typeUrl = `${jsGlobalObjectsUrl}${typeText}`;
-      } else if (customTypesMap[typeText]) {
+      } else {
         typeUrl = customTypesMap[typeText];
       }
 
