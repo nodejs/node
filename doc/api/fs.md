@@ -771,7 +771,8 @@ fs.access('./package.json', fs.constants.F_OK, (err) => {
 
 // Check if `package.json` file is readable.
 fs.access('./package.json', fs.constants.R_OK, (err) => {
-  console.log(err ? 'package.json is not readable' : 'package.json is readable');
+  console
+    .log(err ? 'package.json is not readable' : 'package.json is readable');
 });
 
 // Check if `package.json` is writable.
@@ -783,7 +784,8 @@ fs.access('./package.json', fs.constants.W_OK, (err) => {
   );
 });
 
-// Check if `package.json` exists in the current directory, and if it is writable.
+// Check if `package.json` exists in the current directory, and if it is
+// writable.
 fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
   // If there is an error, print the error in console and exit.
   const isNonExistenceError = err && err.code === 'ENOENT';
