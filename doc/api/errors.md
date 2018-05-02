@@ -1078,11 +1078,6 @@ An argument of the wrong type was passed to a Node.js API.
 
 An invalid or unsupported value was passed for a given argument.
 
-<a id="ERR_INVALID_ARRAY_LENGTH"></a>
-### ERR_INVALID_ARRAY_LENGTH
-
-An array was not of the expected length or in a valid range.
-
 <a id="ERR_INVALID_ASYNC_ID"></a>
 ### ERR_INVALID_ASYNC_ID
 
