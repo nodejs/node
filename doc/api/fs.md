@@ -764,41 +764,30 @@ argument will be an `Error` object. The following examples check if
 `package.json` exists, and if it is readable or writable.
 
 ```js
-// Check if `package.json` exists in the current directory.
+const file = 'package.json';
+
+// Check if the file exists in the current directory.
 fs.access('./package.json', fs.constants.F_OK, (err) => {
-  console.log(err ? 'package.json does not exist' : 'package.json exists');
+  console.log(`${file} ${err ? 'does not exist' : 'exists'}`);
 });
 
-// Check if `package.json` file is readable.
+// Check if the file is readable.
 fs.access('./package.json', fs.constants.R_OK, (err) => {
-  console
-    .log(err ? 'package.json is not readable' : 'package.json is readable');
+  console.log(`${file} ${err ? 'is not readable' : 'is readable'}`);
 });
 
-// Check if `package.json` is writable.
+// Check if the file is writable.
 fs.access('./package.json', fs.constants.W_OK, (err) => {
-  console.log(
-    err ?
-      'package.json is not writable' :
-      'package.json is writable'
-  );
+  console.log(`${file} ${err ? 'is not writable' : 'is writable'}`);
 });
 
-// Check if `package.json` exists in the current directory, and if it is
-// writable.
+// Check if the file exists in the current directory, and if it is writable.
 fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
-  // If there is an error, print the error in console and exit.
-  const isNonExistenceError = err && err.code === 'ENOENT';
-  const isReadOnlyError = err && err.code === 'EPERM';
-
-  if (isNonExistenceError || isReadOnlyError) {
+  if (err) {
     console.error(
-      isNonExistenceError ?
-        'package.json does not exist' :
-        'package.json is read-only'
-    );
+      `${file} ${err.code === 'ENOENT' ? 'does not exist' : 'is read-only'}`);
   } else {
-    console.log('package.json exists, and it is writable');
+    console.log(`${file} exists, and it is writable`);
   }
 });
 ```
