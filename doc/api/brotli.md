@@ -98,7 +98,7 @@ const http = require('http');
 const fs = require('fs');
 http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
-  let acceptEncoding = request.headers['accept-encoding'] || '';
+  const acceptEncoding = request.headers['accept-encoding'] || '';
 
   // Note: This is not a conformant accept-encoding parser.
   // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
