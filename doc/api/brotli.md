@@ -1,4 +1,5 @@
 # Brotli
+<!--introduced_in=REPLACEME-->
 
 > Stability: 1 - Experimental
 
@@ -46,7 +47,7 @@ brotli.decompress(buffer, (err, buffer) => {
 
 ## Threadpool Usage
 
-Note that all brotli APIs except those that are explicitly synchronous use
+Note that all `brotli` APIs except those that are explicitly synchronous use
 libuv's threadpool, which can have surprising and negative performance
 implications for some applications, see the [`UV_THREADPOOL_SIZE`][]
 documentation for more information.
@@ -57,7 +58,7 @@ The `brotli` module can be used to implement support for the `br`
 content-encoding mechanism defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
-The HTTP [`Accept-Encoding`][] header is used within an http request to identify
+The HTTP [`Accept-Encoding`][] header is used within an HTTP request to identify
 the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.
@@ -97,17 +98,15 @@ const http = require('http');
 const fs = require('fs');
 http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
-  let acceptEncoding = request.headers['accept-encoding'];
-  if (!acceptEncoding) {
-    acceptEncoding = '';
-  }
+  let acceptEncoding = request.headers['accept-encoding'] || '';
 
   // Note: This is not a conformant accept-encoding parser.
   // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-  // Note: A quality of 4 is a good balace of speed and quality.
-  // See https://blogs.akamai.com/2016/02/understanding-brotlis-potential.html
   if (/\bbr\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'br' });
+
+    // Note: A quality of 4 is a good balance of speed and quality.
+    // See https://blogs.akamai.com/2016/02/understanding-brotlis-potential.html
     raw.pipe(new brotli.Compress({ quality: 4 })).pipe(response);
   } else {
     response.writeHead(200, {});
@@ -147,27 +146,36 @@ http.createServer((request, response) => {
 ```
 
 ## Constants
+<!-- YAML
+added: REPLACEME
+-->
 
 <!--type=misc-->
 
 All of the constants defined in [`brotli/encode.h`][] and [`brotli/decode.h`][]
-are also defined on `require('brotli').constants`. In the normal course of
+are also defined on [`brotli.constants`][]. In the normal course of
 operations, it will not be necessary to use these constants. They are documented
 so that their presence is not surprising.
 
-Allowed op values.
+### Operations
 
 * `brotli.constants.BROTLI_OPERATION_PROCESS`
 * `brotli.constants.BROTLI_OPERATION_FLUSH`
 * `brotli.constants.BROTLI_OPERATION_FINISH`
 
-Return codes for the compression functions. 
+### Error Codes for Compression
+
+These also can be found in [`Compress.codes`][].
 
 * `brotli.constants.BROTLI_TRUE`
 * `brotli.constants.BROTLI_FALSE`
 
-Return codes for the decompression functions. Negative values are errors,
-positive values are used for special but normal events.
+### Error Codes for Decompression
+
+These also can be found in [`Decompress.codes`][].
+
+Negative values are errors, positive values are used for special but normal
+events.
 
 * `brotli.constants.BROTLI_DECODER_NO_ERROR`
 * `brotli.constants.BROTLI_DECODER_SUCCESS`
@@ -199,42 +207,42 @@ positive values are used for special but normal events.
 * `brotli.constants.BROTLI_DECODER_ERROR_ALLOC_BLOCK_TYPE_TREES`
 * `brotli.constants.BROTLI_DECODER_ERROR_UNREACHABLE`
 
-Chunk sizes.
+### Chunk Sizes
 
 * `brotli.constants.BROTLI_MIN_CHUNK`
 * `brotli.constants.BROTLI_MAX_CHUNK`
 * `brotli.constants.BROTLI_DEFAULT_CHUNK`
 
-Compression mode.
+### Compression Mode
 
 * `brotli.constants.BROTLI_MODE_GENERIC`
 * `brotli.constants.BROTLI_MODE_TEXT`
 * `brotli.constants.BROTLI_MODE_FONT`
 * `brotli.constants.BROTLI_DEFAULT_MODE`
 
-Quality levels.
+### Quality Levels
 
 * `brotli.constants.BROTLI_MIN_QUALITY`
 * `brotli.constants.BROTLI_MAX_QUALITY`
 * `brotli.constants.BROTLI_DEFAULT_QUALITY`
 
-LGWIN values.
+### LGWIN Values
 
 * `brotli.constants.BROTLI_MIN_WINDOW_BITS`
 * `brotli.constants.BROTLI_MAX_WINDOW_BITS`
 * `brotli.constants.BROTLI_LARGE_MAX_WINDOW_BITS`
 * `brotli.constants.BROTLI_DEFAULT_WINDOW`
 
-LGBLOCK values.
+### LGBLOCK values
 
 * `brotli.constants.BROTLI_MIN_INPUT_BLOCK_BITS`
 * `brotli.constants.BROTLI_MAX_INPUT_BLOCK_BITS`
 
-NPOSTFIX values.
+### NPOSTFIX values
 
 * `brotli.constants.BROTLI_MAX_NPOSTFIX`
 
-Parameters.
+### Parameters
 
 * `brotli.constants.BROTLI_PARAM_MODE`
 * `brotli.constants.BROTLI_PARAM_QUALITY`
@@ -248,47 +256,57 @@ Parameters.
 * `brotli.constants.BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION`
 * `brotli.constants.BROTLI_DECODER_PARAM_LARGE_WINDOW`
 
-## Class: Options
+## Options Object
+<!-- YAML
+added: REPLACEME
+-->
+
 <!--type=misc-->
 
 Each class takes an `options` object. All options are optional.
 
-Note that some options are only relevant when compressing, and are
-ignored by the decompression classes.
+Note that some options are only relevant when compressing or decompressing,
+and are simply ignored.
 
 * `chunkSize` {integer}
-**Default:** `16 * 1024`
+  **Default:** `16 * 1024`
 * `mode` {integer} (compression only)
-**Default:** `brotli.constants.BROTLI_DEFAULT_MODE`
+  **Default:** `brotli.constants.BROTLI_DEFAULT_MODE`
 * `quality` {integer} (compression only)
-**Default:** `brotli.constants.BROTLI_DEFAULT_QUALITY`
+  **Default:** `brotli.constants.BROTLI_DEFAULT_QUALITY`
 * `lgwin` {integer} (compression only)
-**Default:** `brotli.constants.BROTLI_DEFAULT_WINDOW`
+  **Default:** `brotli.constants.BROTLI_DEFAULT_WINDOW`
 * `lgblock` {integer} (compression only)
-**Default:** `0`
+  **Default:** `0`
 * `disableLiteralContextModeling` {boolean} (compression only)
-**Default:** `false`
+  **Default:** `false`
 * `sizeHint` {integer} (compression only)
-**Default:** `0`
+  **Default:** `0`
 * `npostfix` {integer} (compression only)
-**Default:** `0`
+  **Default:** `0`
 * `ndirect` {integer} (compression only)
-**Default:** `0`
+  **Default:** `0`
 * `disableRingBufferReallocation` {boolean} (decompression only)
-**Default:** `false`
+  **Default:** `false`
 * `largeWindow` {boolean}
-**Default:** `false`
+  **Default:** `false`
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`)
 
 See [`brotli/encode.h`][] and [`brotli/decode.h`][] for more information on
 these.
 
 ## Class: brotli.Brotli
+<!-- YAML
+added: REPLACEME
+-->
 
 Not exported by the `brotli` module. It is documented here because it is the
-base class of the compressor/decompressor classes.
+base class of the compression/decompression classes.
 
 ### brotli.bytesWritten
+<!-- YAML
+added: REPLACEME
+-->
 
 * {number}
 
@@ -297,10 +315,20 @@ the engine, before the bytes are processed (compressed or decompressed,
 as appropriate for the derived class).
 
 ### brotli.close([callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+- `callback` {Function}
 
 Close the underlying handle.
 
-### brotli.flush(callback)
+### brotli.flush([callback])
+<!-- YAML
+added: REPLACEME
+-->
+
+- `callback` {Function}
 
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
@@ -310,45 +338,81 @@ perform flushing of any kind on the streams level. Rather, it behaves like a
 normal call to `.write()`, i.e. it will be queued up behind other pending
 writes and will only produce output when data is being read from the stream.
 
-### brotli.setParameter(param, value)
+### brotli.reset()
+<!-- YAML
+added: REPLACEME
+-->
 
-- `param` {number} A valid parameter from [Constants][]
+Reset the encoder/decoder to factory defaults. This will undo any
+changes you have made via [`.setParameter()`][]
+
+### brotli.setParameter(param, value)
+<!-- YAML
+added: REPLACEME
+-->
+
+- `param` {number} A valid parameter from [Parameters][]
 - `value` {number}
 
 Dynamically set a parameter.
 
-### brotli.reset()
-
-Reset the compressor/decompressor to factory defaults. Only applicable to
-the inflate and deflate algorithms.
-
 ## Class: brotli.Compress
+<!-- YAML
+added: REPLACEME
+-->
 
-Compress a stream.
+Compression stream.
 
-### new brotli.Compress(options)
+### new brotli.Compress([options])
+<!-- YAML
+added: REPLACEME
+-->
 
-Creates and returns a new [Compress][] object with the given [`options`][].
+- `options` {Object} an [options][] object.
 
-### Class Property: brotli.Compress.codes
+Initializes an encoder with the given [options][].
+
+### Class Property: Compress.codes
+<!-- YAML
+added: REPLACEME
+-->
 
 Error codes for compression operations.
+More info can be found at [Error Codes for Compression][].
 
 ## Class: brotli.Decompress
+<!-- YAML
+added: REPLACEME
+-->
 
-Decompress a stream.
+Decompression stream.
 
-### new brotli.Decompress(options)
+### new brotli.Decompress([options])
+<!-- YAML
+added: REPLACEME
+-->
 
-Creates and returns a new [Decompress][] object with the given [`options`][].
+- `options` {Object} an [options][] object.
 
-### Class Property: brotli.Decompress.codes
+Initializes an decoder with the given [options][].
+
+### Class Property: Decompress.codes
+<!-- YAML
+added: REPLACEME
+-->
 
 Error codes for decompression operations.
+More info can be found at [Error Codes for Decompression][].
 
 ## brotli.constants
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
 
 Provides an object enumerating Brotli-related constants.
+More info can be found at [Constants][]
 
 ## Convenience Methods
 
@@ -359,46 +423,69 @@ All of these take a [`Buffer`][], [`TypedArray`][], [`DataView`][],
 to supply options to the `brotli` classes and will call the supplied callback
 with `callback(error, result)`.
 
-Every method has a `*Sync` counterpart, which accept the same arguments, but
+Every method has a `*Sync` counterpart, which accepts the same arguments, but
 without a callback.
 
-### brotli.compress(buffer[, options][, callback])
+### brotli.compress(data[, options][, callback])
+<!-- YAML
+added: REPLACEME
+-->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {Object} an [options][] object.
+- `callback` {Function}
 
-Decompress a chunk of data with [Decompress][].
-If callback is omitted a Promise will be returned.
+Compress a chunk of data.
+If callback is omitted a {Promise} will be returned.
 
-### brotli.compressSync(buffer[, options])
+### brotli.compressSync(data[, options])
+<!-- YAML
+added: REPLACEME
+-->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {Object} an [options][] object.
 
-Compress a chunk of data with [Compress][].
+Compress a chunk of data.
 
-### brotli.decompress(buffer[, options][, callback])
+### brotli.decompress(data[, options][, callback])
+<!-- YAML
+added: REPLACEME
+-->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {Object} an [options][] object.
 
-Decompress a chunk of data with [Decompress][].
-If callback is omitted a Promise will be returned.
+Decompress a chunk of data.
+If callback is omitted a {Promise} will be returned.
 
-### brotli.decompressSync(buffer[, options])
+### brotli.decompressSync(data[, options])
+<!-- YAML
+added: REPLACEME
+-->
 
-- `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+- `options` {Object} an [options][] object.
+- `callback` {Function}
 
-Decompress a chunk of data with [Decompress][].
+Decompress a chunk of data.
 
-[`.flush()`]: #brotli_brotli_flush_kind_callback
+[`.flush()`]: #brotli_brotli_flush_callback
+[`.setParameter()`]: #brotli_brotli_setparameter_param_value
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-[`brotli/encode.h`]: https://github.com/google/brotli/blob/v1.0.4/c/include/brotli/encode.h
+[`brotli.constants`]: #brotli_constants
 [`brotli/decode.h`]: https://github.com/google/brotli/blob/v1.0.4/c/include/brotli/decode.h
+[`brotli/encode.h`]: https://github.com/google/brotli/blob/v1.0.4/c/include/brotli/encode.h
 [`Buffer`]: buffer.html#buffer_class_buffer
-[Decompress]: #brotli_class_brotli_decompress
-[Compress]: #brotli_class_brotli_compress
+[`Compress.codes`]: #brotli_class_property_compress_codes
 [Constants]: #brotli_constants
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[`Decompress.codes`]: #brotli_class_property_decompress_codes
+[Error Codes for Compression]: #brotli_error_codes_for_compression
+[Error Codes for Decompression]: #brotli_error_codes_for_decompression
+[Parameters]: #brotli_parameters
+[options]: #brotli_options_object
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
-[`options`]: #brotli_class_options
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
