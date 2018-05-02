@@ -90,4 +90,7 @@ addlicense "remark-cli" "tools/remark-cli" "$(cat ${rootdir}/tools/remark-cli/LI
 # node-inspect
 addlicense "node-inspect" "deps/node-inspect" "$(cat ${rootdir}/deps/node-inspect/LICENSE)"
 
+# brotli
+addlicense "brotli" "deps/brotli" "$(cat ${rootdir}/deps/brotli/LICENSE)"
+
 mv $tmplicense $licensefile
