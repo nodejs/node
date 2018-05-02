@@ -77,7 +77,14 @@ void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
       Handle<String>::cast(key)->AsArrayIndex(&index)) {
     key = isolate_->factory()->NewNumberFromUint(index);
   }
-  keys_ = OrderedHashSet::Add(keys(), key);
+  Handle<OrderedHashSet> new_set = OrderedHashSet::Add(keys(), key);
+  if (*new_set != *keys_) {
+    // The keys_ Set is converted directly to a FixedArray in GetKeys which can
+    // be left-trimmer. Hence the previous Set should not keep a pointer to the
+    // new one.
+    keys_->set(OrderedHashTableBase::kNextTableIndex, Smi::kZero);
+    keys_ = new_set;
+  }
 }
 
 void KeyAccumulator::AddKeys(Handle<FixedArray> array,
