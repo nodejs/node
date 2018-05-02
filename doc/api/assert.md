@@ -1069,18 +1069,26 @@ changes:
 Expects the function `block` to throw an error.
 
 If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
-an object where each property will be tested for, or an instance of error where
-each property will be tested for including the non-enumerable `message` and
-`name` properties.
+an validation object where each property will be tested for strict deep
+equality, or an instance of error where each property will be tested for strict
+deep equality including the non-enumerable `message` and `name` properties. When
+using an validation object, it is also possible to use a regular expression,
+when validating against a string property. See below for examples.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
 
-Custom error object / error instance:
+Custom validation object / error instance:
 
 ```js
 const err = new TypeError('Wrong value');
 err.code = 404;
+err.foo = 'bar';
+err.info = {
+  nested: true,
+  baz: 'text'
+};
+err.reg = /abc/i;
 
 assert.throws(
   () => {
@@ -1088,8 +1096,35 @@ assert.throws(
   },
   {
     name: 'TypeError',
-    message: 'Wrong value'
-    // Note that only properties on the error object will be tested!
+    message: 'Wrong value',
+    info: {
+      nested: true,
+      baz: 'text'
+    }
+    // Note that only properties on the validation object will be tested for.
+    // Using nested objects requires all properties to be present. Otherwise
+    // the validation is going to fail.
+  }
+);
+
+// Using regular expressions to validate the error properties:
+assert.throws(
+  () => {
+    throw err;
+  },
+  {
+    name: /^TypeError$/,
+    message: /Wrong/,
+    foo: 'bar',
+    info: {
+      nested: true,
+      // Note that it is not possible to use regular expressions for nested
+      // properties!
+      baz: 'text'
+    },
+    // This will strictly validate that the regular expression is identical to
+    // the regular expression on the error.
+    reg: /abc/i
   }
 );
 
