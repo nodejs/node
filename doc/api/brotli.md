@@ -100,12 +100,12 @@ http.createServer((request, response) => {
   const raw = fs.createReadStream('index.html');
   const acceptEncoding = request.headers['accept-encoding'] || '';
 
-  // Note: This is not a conformant accept-encoding parser.
+  // This is not a conformant accept-encoding parser.
   // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
   if (/\bbr\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'br' });
 
-    // Note: A quality of 4 is a good balance of speed and quality.
+    // A quality of 4 is a good balance of speed and quality.
     // See https://blogs.akamai.com/2016/02/understanding-brotlis-potential.html
     raw.pipe(new brotli.Compress({ quality: 4 })).pipe(response);
   } else {
@@ -266,7 +266,7 @@ added: REPLACEME
 Each class takes an `options` object. All options are optional.
 
 Note that some options are only relevant when compressing or decompressing,
-and are simply ignored.
+and invalid options are simply ignored.
 
 * `chunkSize` {integer}
   **Default:** `16 * 1024`
