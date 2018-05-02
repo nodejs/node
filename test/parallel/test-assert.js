@@ -914,3 +914,29 @@ assert.throws(
     }
   );
 }
+
+assert.throws(
+  () => { throw new TypeError('foobar'); },
+  {
+    message: /foo/,
+    name: /^TypeError$/
+  }
+);
+
+assert.throws(
+  () => assert.throws(
+    () => { throw new TypeError('foobar'); },
+    {
+      message: /fooa/,
+      name: /^TypeError$/
+    }
+  ),
+  {
+    message: `${start}\n${actExp}\n\n` +
+             '  Comparison {\n' +
+             "-   message: 'foobar',\n" +
+             '+   message: /fooa/,\n' +
+             "    name: 'TypeError'\n" +
+             '  }'
+  }
+);
