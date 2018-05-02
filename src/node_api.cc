@@ -854,7 +854,9 @@ DefineSingleProperty(napi_env env,
                      v8::Isolate* isolate,
                      v8::Local<v8::Context> context,
                      v8::Local<v8::Object> obj,
-                     const napi_property_descriptor* p) {
+                     const napi_property_descriptor* p,
+                     v8::Local<v8::FunctionTemplate> tpl =
+                        v8::Local<v8::FunctionTemplate>()) {
   v8::Local<v8::Name> property_name;
   napi_status status =
       v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
@@ -891,8 +893,15 @@ DefineSingleProperty(napi_env env,
 
     RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
 
-    v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(
-        isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
+    v8::Local<v8::FunctionTemplate> t;
+    if (tpl.IsEmpty()) {
+      t = v8::FunctionTemplate::New(isolate,
+          v8impl::FunctionCallbackWrapper::Invoke, cbdata);
+    } else {
+      t = v8::FunctionTemplate::New(isolate,
+          v8impl::FunctionCallbackWrapper::Invoke, cbdata,
+          v8::Signature::New(isolate, tpl));
+    }
 
     auto define_maybe = obj->DefineOwnProperty(
       context, property_name, t->GetFunction(), attributes);
@@ -1144,7 +1153,8 @@ napi_status napi_define_class(napi_env env,
   for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = properties + i;
     status = v8impl::DefineSingleProperty(env, isolate, context,
-        ((p->attributes & napi_static) == 0) ? v8_proto : v8_result_object, p);
+        ((p->attributes & napi_static) == 0) ? v8_proto : v8_result_object, p,
+        tpl);
     if (status != napi_ok) return status;
   }
 
