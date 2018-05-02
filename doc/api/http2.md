@@ -286,7 +286,7 @@ session.on('timeout', () => { /** .. **/ });
 
 #### http2session.alpnProtocol
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {string|undefined}
@@ -298,7 +298,7 @@ property.
 
 #### http2session.close([callback])
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * `callback` {Function}
@@ -313,7 +313,7 @@ If specified, the `callback` function is registered as a handler for the
 
 #### http2session.closed
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {boolean}
@@ -323,7 +323,7 @@ Will be `true` if this `Http2Session` instance has been closed, otherwise
 
 #### http2session.connecting
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * {boolean}
@@ -366,7 +366,7 @@ longer be used, otherwise `false`.
 
 #### http2session.encrypted
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {boolean|undefined}
@@ -378,7 +378,7 @@ or stream.
 
 #### http2session.goaway([code, [lastStreamID, [opaqueData]]])
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * `code` {number} An HTTP/2 error code
@@ -401,7 +401,7 @@ A prototype-less object describing the current local settings of this
 
 #### http2session.originSet
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {string[]|undefined}
@@ -462,7 +462,7 @@ If the `payload` argument is not specified, the default payload will be the
 
 #### http2session.ref()
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 Calls [`ref()`][`net.Socket.prototype.ref`] on this `Http2Session`
@@ -572,7 +572,7 @@ client.
 
 #### http2session.unref()
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 Calls [`unref()`][`net.Socket.prototype.unref`] on this `Http2Session`
@@ -585,7 +585,7 @@ added: v8.4.0
 
 #### serverhttp2session.altsvc(alt, originOrStream)
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * `alt` {string} A description of the alternative service configuration as
@@ -656,7 +656,7 @@ added: v8.4.0
 
 #### Event: 'altsvc'
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * `alt`: {string}
@@ -906,7 +906,7 @@ connected HTTP/2 peer.
 
 #### http2stream.closed
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {boolean}
@@ -925,7 +925,7 @@ usable.
 
 #### http2stream.pending
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {boolean}
@@ -968,7 +968,7 @@ calling `http2stream.close()`, or `http2stream.destroy()`. Will be
 
 #### http2stream.sentHeaders
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {HTTP/2 Headers Object}
@@ -977,7 +977,7 @@ An object containing the outbound headers sent for this `Http2Stream`.
 
 #### http2stream.sentInfoHeaders
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {HTTP/2 Headers Object[]}
@@ -987,7 +987,7 @@ sent for this `Http2Stream`.
 
 #### http2stream.sentTrailers
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 
 * Value: {HTTP/2 Headers Object}

@@ -543,7 +543,7 @@ This API can be called even if there is a pending JavaScript exception.
 
 #### napi_fatal_exception
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 ```C
 napi_status napi_fatal_exception(napi_env env, napi_value err);
@@ -3491,7 +3491,7 @@ may be required when implementing custom async behavior that does not use
 
 ### *napi_open_callback_scope*
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 ```C
 NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
@@ -3516,7 +3516,7 @@ the required scope.
 
 ### *napi_close_callback_scope*
 <!-- YAML
-added: REPLACEME
+added: v8.11.2
 -->
 ```C
 NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
