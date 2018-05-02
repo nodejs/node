@@ -5,13 +5,14 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
-
-  bench.start();
-  for (var i = 0; i < n; i++) {
-    process.nextTick(onNextTick, i);
-  }
   function onNextTick(i) {
     if (i + 1 === n)
       bench.end(n);
   }
+
+  for (var i = 0; i < n; i++) {
+    process.nextTick(onNextTick, i);
+  }
+
+  bench.start();
 }
