@@ -69,8 +69,7 @@ testTransform(0, 0, {
   }, {
     type: TypeError,
     code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "NaN" is invalid for option ' +
-      '"options.readableHighWaterMark"'
+    message: 'The value "NaN" is invalid for option "readableHighWaterMark"'
   });
 
   common.expectsError(() => {
@@ -78,8 +77,7 @@ testTransform(0, 0, {
   }, {
     type: TypeError,
     code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "NaN" is invalid for option ' +
-      '"options.writableHighWaterMark"'
+    message: 'The value "NaN" is invalid for option "writableHighWaterMark"'
   });
 }
 
