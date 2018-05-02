@@ -368,14 +368,16 @@ Compression stream.
 added: REPLACEME
 -->
 
-- `options` {Object} an [options][] object.
+- `options` {Object} an [`options`][] object.
 
-Initializes an encoder with the given [options][].
+Initializes an encoder with the given [`options`][].
 
 ### Class Property: Compress.codes
 <!-- YAML
 added: REPLACEME
 -->
+
+* {Object}
 
 Error codes for compression operations.
 More info can be found at [Error Codes for Compression][].
@@ -392,14 +394,16 @@ Decompression stream.
 added: REPLACEME
 -->
 
-- `options` {Object} an [options][] object.
+- `options` {Object} an [`options`][] object.
 
-Initializes an decoder with the given [options][].
+Initializes an decoder with the given [`options`][].
 
 ### Class Property: Decompress.codes
 <!-- YAML
 added: REPLACEME
 -->
+
+* {Object}
 
 Error codes for decompression operations.
 More info can be found at [Error Codes for Decompression][].
@@ -432,7 +436,7 @@ added: REPLACEME
 -->
 
 - `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {Object} an [options][] object.
+- `options` {Object} an [`options`][] object.
 - `callback` {Function}
 
 Compress a chunk of data.
@@ -444,7 +448,7 @@ added: REPLACEME
 -->
 
 - `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {Object} an [options][] object.
+- `options` {Object} an [`options`][] object.
 
 Compress a chunk of data.
 
@@ -454,7 +458,8 @@ added: REPLACEME
 -->
 
 - `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {Object} an [options][] object.
+- `options` {Object} an [`options`][] object.
+- `callback` {Function}
 
 Decompress a chunk of data.
 If callback is omitted a {Promise} will be returned.
@@ -465,8 +470,7 @@ added: REPLACEME
 -->
 
 - `data` {Buffer|TypedArray|DataView|ArrayBuffer|string}
-- `options` {Object} an [options][] object.
-- `callback` {Function}
+- `options` {Object} an [`options`][] object.
 
 Decompress a chunk of data.
 
@@ -474,10 +478,10 @@ Decompress a chunk of data.
 [`.setParameter()`]: #brotli_brotli_setparameter_param_value
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`Buffer`]: buffer.html#buffer_class_buffer
 [`brotli.constants`]: #brotli_brotli_constants
 [`brotli/decode.h`]: https://github.com/google/brotli/blob/v1.0.4/c/include/brotli/decode.h
 [`brotli/encode.h`]: https://github.com/google/brotli/blob/v1.0.4/c/include/brotli/encode.h
-[`Buffer`]: buffer.html#buffer_class_buffer
 [`Compress.codes`]: #brotli_class_property_compress_codes
 [Constants]: #brotli_constants
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
@@ -486,6 +490,6 @@ Decompress a chunk of data.
 [Error Codes for Compression]: #brotli_error_codes_for_compression
 [Error Codes for Decompression]: #brotli_error_codes_for_decompression
 [Parameters]: #brotli_parameters
-[options]: #brotli_options_object
+[`options`]: #brotli_options_object
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
