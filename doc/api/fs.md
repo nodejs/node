@@ -761,7 +761,7 @@ no effect on Windows (will behave like `fs.constants.F_OK`).
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
 argument will be an `Error` object. The following examples check if
-`package.json` exists, and/or if it could be written to.
+`package.json` exists, and if it is readable or writable.
 
 ```js
 // Check if `package.json` exists in the current directory.
@@ -769,22 +769,21 @@ fs.access('./package.json', fs.constants.F_OK, (err) => {
   console.log(err ? 'package.json does not exist' : 'package.json exists');
 });
 
-// Check if package.json file could be read.
+// Check if `package.json` file is readable.
 fs.access('./package.json', fs.constants.R_OK, (err) => {
-  console.log(err ? 'package.json could not be read' : 'package.json read');
+  console.log(err ? 'package.json is not readable' : 'package.json is readable');
 });
 
-// Check if `package.json` could be written to.
+// Check if `package.json` is writable.
 fs.access('./package.json', fs.constants.W_OK, (err) => {
   console.log(
     err ?
-      'package.json could not be written to' :
-      'package.json could be written to'
+      'package.json is not writable' :
+      'package.json is writable'
   );
 });
 
-// Check if `package.json` exists in the current directory and it could be
-// written to.
+// Check if `package.json` exists in the current directory, and if it is writable.
 fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
   // If there is an error, print the error in console and exit.
   const isNonExistenceError = err && err.code === 'ENOENT';
@@ -797,7 +796,7 @@ fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
         'package.json is read-only'
     );
   } else {
-    console.log('package.json exists, and it could be written to');
+    console.log('package.json exists, and it is writable');
   }
 });
 ```
