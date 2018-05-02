@@ -500,7 +500,7 @@ added: v0.1.10
 
 Returns `true` if the `fs.Stats` object describes a symbolic link.
 
-This method is only valid when using [`fs.lstat()`][]
+This method is only valid when using [`fs.lstat()`][].
 
 ### stats.dev
 
@@ -1038,7 +1038,7 @@ changes:
 Asynchronously changes the permissions of a file. No arguments other than a
 possible exception are given to the completion callback.
 
-See also: chmod(2)
+See also: chmod(2).
 
 ### File modes
 
@@ -1097,7 +1097,7 @@ changes:
 Synchronously changes the permissions of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chmod()`][].
 
-See also: chmod(2)
+See also: chmod(2).
 
 ## fs.chown(path, uid, gid, callback)
 <!-- YAML
@@ -1126,7 +1126,7 @@ changes:
 Asynchronously changes owner and group of a file. No arguments other than a
 possible exception are given to the completion callback.
 
-See also: chown(2)
+See also: chown(2).
 
 ## fs.chownSync(path, uid, gid)
 <!-- YAML
@@ -1145,7 +1145,7 @@ changes:
 Synchronously changes owner and group of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chown()`][].
 
-See also: chown(2)
+See also: chown(2).
 
 ## fs.close(fd, callback)
 <!-- YAML
@@ -1711,7 +1711,8 @@ given to the completion callback.
 If the file referred to by the file descriptor was larger than `len` bytes, only
 the first `len` bytes will be retained in the file.
 
-For example, the following program retains only the first four bytes of the file
+For example, the following program retains only the first four bytes of the
+file:
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf8'));
@@ -1985,7 +1986,7 @@ changes:
 Asynchronously creates a directory. No arguments other than a possible exception
 are given to the completion callback.
 
-See also: mkdir(2)
+See also: mkdir(2).
 
 ## fs.mkdirSync(path[, mode])
 <!-- YAML
@@ -2003,7 +2004,7 @@ changes:
 Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
 
-See also: mkdir(2)
+See also: mkdir(2).
 
 ## fs.mkdtemp(prefix[, options], callback)
 <!-- YAML
@@ -2868,7 +2869,7 @@ fs.unlink('path/file.txt', (err) => {
 `fs.unlink()` will not work on a directory, empty or otherwise. To remove a
 directory, use [`fs.rmdir()`][].
 
-See also: unlink(2)
+See also: unlink(2).
 
 ## fs.unlinkSync(path)
 <!-- YAML

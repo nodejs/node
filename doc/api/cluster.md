@@ -363,7 +363,7 @@ Each new worker is given its own unique id, this id is stored in the
 `id`.
 
 While a worker is alive, this is the key that indexes it in
-cluster.workers
+`cluster.workers`.
 
 ### worker.isConnected()
 <!-- YAML
@@ -412,7 +412,7 @@ All workers are created using [`child_process.fork()`][], the returned object
 from this function is stored as `.process`. In a worker, the global `process`
 is stored.
 
-See: [Child Process module][]
+See: [Child Process module][].
 
 Note that workers will call `process.exit(0)` if the `'disconnect'` event occurs
 on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
@@ -748,7 +748,7 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-* `settings` {Object} see [`cluster.settings`][]
+* `settings` {Object} See [`cluster.settings`][].
 
 `setupMaster` is used to change the default 'fork' behavior. Once called,
 the settings will be present in `cluster.settings`.

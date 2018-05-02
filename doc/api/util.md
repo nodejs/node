@@ -54,18 +54,19 @@ Since `null` has a special meaning as the first argument to a callback, if a
 wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
-  ```js
-  function fn() {
-    return Promise.reject(null);
-  }
-  const callbackFunction = util.callbackify(fn);
 
-  callbackFunction((err, ret) => {
-    // When the Promise was rejected with `null` it is wrapped with an Error and
-    // the original value is stored in `reason`.
-    err && err.hasOwnProperty('reason') && err.reason === null;  // true
-  });
-  ```
+```js
+function fn() {
+  return Promise.reject(null);
+}
+const callbackFunction = util.callbackify(fn);
+
+callbackFunction((err, ret) => {
+  // When the Promise was rejected with `null` it is wrapped with an Error and
+  // the original value is stored in `reason`.
+  err && err.hasOwnProperty('reason') && err.reason === null;  // true
+});
+```
 
 ## util.debuglog(section)
 <!-- YAML
@@ -339,7 +340,7 @@ stream.on('data', (data) => {
 stream.write('It works!'); // Received data: "It works!"
 ```
 
-ES6 example using `class` and `extends`
+ES6 example using `class` and `extends`:
 
 ```js
 const EventEmitter = require('events');
