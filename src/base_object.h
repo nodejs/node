@@ -40,6 +40,8 @@ class BaseObject {
   // persistent.IsEmpty() is true.
   inline v8::Local<v8::Object> object();
 
+  inline v8::MaybeLocal<v8::Value> GetField(std::string const& field);
+
   inline Persistent<v8::Object>& persistent();
 
   inline Environment* env() const;

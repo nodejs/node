@@ -52,6 +52,15 @@ inline v8::Local<v8::Object> BaseObject::object() {
 }
 
 
+inline v8::MaybeLocal<v8::Value> BaseObject::GetField(
+        std::string const&  field) {
+    return object()->Get(env()->context(),
+                    v8::String::NewFromUtf8(env()->isolate(),
+                    field.c_str(),
+                    v8::NewStringType::kNormal).ToLocalChecked());
+}
+
+
 inline Environment* BaseObject::env() const {
   return env_;
 }
