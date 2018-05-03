@@ -1585,7 +1585,8 @@ behavior.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list-message-digest-algorithms` will
+On recent releases of OpenSSL, `openssl list -digest-algorithms` 
+(`openssl list-message-digest-algorithms` for older versions of OpenSSL) will
 display the available digest algorithms.
 
 Example: generating the sha256 sum of a file
@@ -1622,7 +1623,8 @@ Optional `options` argument controls stream behavior.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list-message-digest-algorithms` will
+On recent releases of OpenSSL, `openssl list -digest-algorithms`
+(`openssl list-message-digest-algorithms` for older versions of OpenSSL) will
 display the available digest algorithms.
 
 The `key` is the HMAC key used to generate the cryptographic HMAC hash.
