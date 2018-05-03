@@ -291,7 +291,10 @@
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
-
+    [ 'OS in "freebsd linux"', {
+      'ldflags': [ '-Wl,-z,relro',
+                   '-Wl,-z,now' ]
+    }],
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [
