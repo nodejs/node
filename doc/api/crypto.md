@@ -1346,8 +1346,9 @@ option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
-available cipher algorithms.
+recent OpenSSL releases, `openssl list -cipher-algorithms` 
+(`openssl list-cipher-algorithms`  for older versions of OpenSSL) will 
+display the available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
 The value must be either a `'latin1'` encoded string, a [`Buffer`][], a
@@ -1399,8 +1400,9 @@ option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
-available cipher algorithms.
+recent OpenSSL releases, `openssl list -cipher-algorithms` 
+(`openssl list-cipher-algorithms`  for older versions of OpenSSL) will 
+display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
@@ -1496,8 +1498,9 @@ option is not required but can be used to restrict accepted authentication tags
 to those with the specified length.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
-available cipher algorithms.
+recent OpenSSL releases,  `openssl list -cipher-algorithms` 
+(`openssl list-cipher-algorithms`  for older versions of OpenSSL) will 
+display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
