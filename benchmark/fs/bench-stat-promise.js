@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const fsPromises = require('fs/promises');
+const fsPromises = require('fs').promises;
 
 const bench = common.createBenchmark(main, {
   n: [20e4],

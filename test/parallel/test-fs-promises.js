@@ -5,7 +5,7 @@ const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const path = require('path');
-const fsPromises = require('fs/promises');
+const fsPromises = require('fs').promises;
 const {
   access,
   chmod,
