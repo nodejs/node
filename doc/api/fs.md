@@ -892,7 +892,7 @@ try {
 }
 ```
 
-## fs.appendFile(file, data[, options], callback)
+## fs.appendFile(path, data[, options], callback)
 <!-- YAML
 added: v0.6.7
 changes:
@@ -912,7 +912,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|URL|number} filename or file descriptor
+* `path` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -939,7 +939,7 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
 
-The `file` may be specified as a numeric file descriptor that has been opened
+The `path` may be specified as a numeric file descriptor that has been opened
 for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
@@ -955,7 +955,7 @@ fs.open('message.txt', 'a', (err, fd) => {
 });
 ```
 
-## fs.appendFileSync(file, data[, options])
+## fs.appendFileSync(path, data[, options])
 <!-- YAML
 added: v0.6.7
 changes:
@@ -967,7 +967,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|URL|number} filename or file descriptor
+* `path` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -994,7 +994,7 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.appendFileSync('message.txt', 'data to append', 'utf8');
 ```
 
-The `file` may be specified as a numeric file descriptor that has been opened
+The `path` may be specified as a numeric file descriptor that has been opened
 for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
@@ -3687,12 +3687,12 @@ condition, since other processes may change the file's state between the two
 calls. Instead, user code should open/read/write the file directly and handle
 the error raised if the file is not accessible.
 
-### fsPromises.appendFile(file, data[, options])
+### fsPromises.appendFile(path, data[, options])
 <!-- YAML
 added: v10.0.0
 -->
 
-* `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
+* `path` {string|Buffer|URL|FileHandle} filename or `FileHandle`
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -3706,7 +3706,7 @@ resolved with no arguments upon success.
 
 If `options` is a string, then it specifies the encoding.
 
-The `file` may be specified as a `FileHandle` that has been opened
+The `path` may be specified as a `FileHandle` that has been opened
 for appending (using `fsPromises.open()`).
 
 ### fsPromises.chmod(path, mode)
