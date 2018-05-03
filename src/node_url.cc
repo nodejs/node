@@ -667,13 +667,6 @@ inline bool IsSpecial(const std::string& scheme) {
   return false;
 }
 
-inline bool IsDefaultSchemePort(const std::string& scheme, int p) {
-#define XX(name, port) if (scheme == name && p == port) return true;
-  SPECIALS(XX);
-#undef XX
-  return false;
-}
-
 // https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
 inline bool StartsWithWindowsDriveLetter(const char* p, const char* end) {
   const size_t length = end - p;
@@ -1755,10 +1748,10 @@ void URL::Parse(const char* input,
               return;
             }
             // the port is valid
-            if (IsDefaultSchemePort(url->scheme, static_cast<int>(port))) {
+            url->port = NormalizePort(url->scheme, static_cast<int>(port));
+            if (url->port == -1) {
               url->flags |= URL_FLAGS_IS_DEFAULT_SCHEME_PORT;
             }
-            url->port = NormalizePort(url->scheme, static_cast<int>(port));
             buffer.clear();
           } else if (has_state_override) {
             // TODO(TimothyGu): Similar case as above.
