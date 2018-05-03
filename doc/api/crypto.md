@@ -1334,8 +1334,9 @@ cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
 authentication tag in bytes, see [CCM mode][].
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
-available cipher algorithms.
+recent OpenSSL releases, `openssl list -cipher-algorithms`
+(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+display the available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
 The value must be either a `'latin1'` encoded string, a [`Buffer`][], a
@@ -1381,8 +1382,9 @@ cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
 authentication tag in bytes, see [CCM mode][].
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
-available cipher algorithms.
+recent OpenSSL releases, `openssl list -cipher-algorithms`
+(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
@@ -1472,8 +1474,9 @@ cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
 authentication tag in bytes, see [CCM mode][].
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
-available cipher algorithms.
+recent OpenSSL releases, `openssl list -cipher-algorithms`
+(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
