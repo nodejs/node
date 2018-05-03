@@ -83,8 +83,7 @@ static void Delete(uv_handle_t* handle) {
 StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_STATWATCHER),
       watcher_(new uv_fs_poll_t) {
-  MakeWeak<StatWatcher>(this);
-  Wrap(wrap, this);
+  MakeWeak();
   uv_fs_poll_init(env->event_loop(), watcher_);
   watcher_->data = static_cast<void*>(this);
 }
@@ -191,7 +190,7 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
 
 void StatWatcher::Stop() {
   uv_fs_poll_stop(watcher_);
-  MakeWeak<StatWatcher>(this);
+  MakeWeak();
 }
 
 

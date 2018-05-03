@@ -55,6 +55,9 @@ class ContextifyContext {
         context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject));
   }
 
+  template <typename T>
+  static ContextifyContext* Get(const v8::PropertyCallbackInfo<T>& args);
+
  private:
   static void MakeContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -131,7 +131,7 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
   CHECK_NE(wrap, nullptr);
   CHECK(!wrap->initialized_);
 

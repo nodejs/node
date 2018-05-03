@@ -4690,7 +4690,6 @@ class PBKDF2Request : public AsyncWrap {
         keylen_(keylen),
         key_(node::Malloc(keylen)),
         iter_(iter) {
-    Wrap(object, this);
   }
 
   ~PBKDF2Request() override {
@@ -4705,8 +4704,6 @@ class PBKDF2Request : public AsyncWrap {
     free(key_);
     key_ = nullptr;
     keylen_ = 0;
-
-    ClearWrap(object());
   }
 
   uv_work_t* work_req() {
@@ -4868,11 +4865,6 @@ class RandomBytesRequest : public AsyncWrap {
         size_(size),
         data_(data),
         free_mode_(free_mode) {
-    Wrap(object, this);
-  }
-
-  ~RandomBytesRequest() override {
-    ClearWrap(object());
   }
 
   uv_work_t* work_req() {

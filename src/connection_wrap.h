@@ -29,7 +29,6 @@ class ConnectionWrap : public LibuvStreamWrap {
   UVType handle_;
 };
 
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

@@ -16,8 +16,6 @@ class JSStream : public AsyncWrap, public StreamBase {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
 
-  ~JSStream();
-
   bool IsAlive() override;
   bool IsClosing() override;
   int ReadStart() override;

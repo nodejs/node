@@ -286,12 +286,6 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   uv_stream_t* send_handle = nullptr;
 
   if (IsIPCPipe() && !send_handle_obj.IsEmpty()) {
-    // TODO(addaleax): This relies on the fact that HandleWrap comes first
-    // as a superclass of each individual subclass.
-    // There are similar assumptions in other places in the code base.
-    // A better idea would be having all BaseObject's internal pointers
-    // refer to the BaseObject* itself; this would require refactoring
-    // throughout the code base but makes Node rely much less on C++ quirks.
     HandleWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
     send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());

@@ -17,7 +17,7 @@ StreamPipe::StreamPipe(StreamBase* source,
                        StreamBase* sink,
                        Local<Object> obj)
     : AsyncWrap(source->stream_env(), obj, AsyncWrap::PROVIDER_STREAMPIPE) {
-  MakeWeak(this);
+  MakeWeak();
 
   CHECK_NE(sink, nullptr);
   CHECK_NE(source, nullptr);
