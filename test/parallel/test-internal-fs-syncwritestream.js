@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const SyncWriteStream = require('internal/fs').SyncWriteStream;
+const SyncWriteStream = require('internal/fs/utils').SyncWriteStream;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
