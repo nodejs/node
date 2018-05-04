@@ -260,8 +260,8 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   if (wrap == nullptr) return;
 
   if (type == PromiseHookType::kBefore) {
-    env->async_hooks()->push_async_ids(
-      wrap->get_async_id(), wrap->get_trigger_async_id());
+    env->async_hooks()->push_async_context(wrap->get_async_id(),
+      wrap->get_trigger_async_id(), wrap->object());
     wrap->EmitTraceEventBefore();
     AsyncWrap::EmitBefore(wrap->env(), wrap->get_async_id());
   } else if (type == PromiseHookType::kAfter) {
@@ -273,7 +273,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       // Popping it off the stack can be skipped in that case, because it is
       // known that it would correspond to exactly one call with
       // PromiseHookType::kBefore that was not witnessed by the PromiseHook.
-      env->async_hooks()->pop_async_id(wrap->get_async_id());
+      env->async_hooks()->pop_async_context(wrap->get_async_id());
     }
   } else if (type == PromiseHookType::kResolve) {
     AsyncWrap::EmitPromiseResolve(wrap->env(), wrap->get_async_id());
@@ -382,7 +382,6 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
   p->target.SetWeak(p, AsyncWrap::WeakCallback, WeakCallbackType::kParameter);
 }
 
-
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   args.GetReturnValue().Set(kInvalidAsyncId);
@@ -391,20 +390,20 @@ void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void AsyncWrap::PushAsyncIds(const FunctionCallbackInfo<Value>& args) {
+void AsyncWrap::PushAsyncContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   // No need for CHECK(IsNumber()) on args because if FromJust() doesn't fail
   // then the checks in push_async_ids() and pop_async_id() will.
   double async_id = args[0]->NumberValue(env->context()).FromJust();
   double trigger_async_id = args[1]->NumberValue(env->context()).FromJust();
-  env->async_hooks()->push_async_ids(async_id, trigger_async_id);
+  env->async_hooks()->push_async_context(async_id, trigger_async_id, args[2]);
 }
 
 
-void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
+void AsyncWrap::PopAsyncContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   double async_id = args[0]->NumberValue(env->context()).FromJust();
-  args.GetReturnValue().Set(env->async_hooks()->pop_async_id(async_id));
+  args.GetReturnValue().Set(env->async_hooks()->pop_async_context(async_id));
 }
 
 
@@ -433,6 +432,7 @@ void AsyncWrap::EmitDestroy() {
   AsyncWrap::EmitDestroy(env(), async_id_);
   // Ensure no double destroy is emitted via AsyncReset().
   async_id_ = kInvalidAsyncId;
+  resource_.Reset();
 }
 
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
@@ -464,8 +464,8 @@ void AsyncWrap::Initialize(Local<Object> target,
   HandleScope scope(isolate);
 
   env->SetMethod(target, "setupHooks", SetupHooks);
-  env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
-  env->SetMethod(target, "popAsyncIds", PopAsyncIds);
+  env->SetMethod(target, "pushAsyncContext", PushAsyncContext);
+  env->SetMethod(target, "popAsyncContext", PopAsyncContext);
   env->SetMethod(target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
@@ -501,6 +501,10 @@ void AsyncWrap::Initialize(Local<Object> target,
   FORCE_SET_TARGET_FIELD(target,
                          "async_id_fields",
                          env->async_hooks()->async_id_fields().GetJSArray());
+
+  FORCE_SET_TARGET_FIELD(target,
+                         "execution_async_resources",
+                         env->async_hooks()->execution_async_resources());
 
   target->Set(context,
               env->async_ids_stack_string(),
@@ -670,6 +674,12 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                                                      : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
 
+  if (resource != object()) {
+    // TODO(addaleax): Using a strong reference here makes it very easy to
+    // introduce memory leaks. Move away from using a strong reference.
+    resource_.Reset(env()->isolate(), resource);
+  }
+
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
@@ -774,6 +784,14 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
 
     obj = owner.As<Object>();
   }
+}
+
+Local<Object> AsyncWrap::GetResource() {
+  if (resource_.IsEmpty()) {
+    return object();
+  }
+
+  return resource_.Get(env()->isolate());
 }
 
 }  // namespace node
