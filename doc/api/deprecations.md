@@ -861,9 +861,9 @@ and `crypto.getFips()` instead.
 
 Type: Runtime
 
-Using `assert.fail()` with more than one argument has no benefit over writing an
-individual error message. Either use `assert.fail()` with one argument or switch
-to one of the other assert methods.
+Using `assert.fail()` with more than one argument is deprecated. Use
+`assert.fail()` with only one argument or use a different `assert` module
+method.
 
 <a id="DEP0095"></a>
 ### DEP0095: timers.enroll()
