@@ -23,11 +23,12 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const join = require('path').join;
+const fsPromises = fs.promises;
+const { join } = require('path');
+const util = require('util');
 
 const tmpdir = require('../common/tmpdir');
-
-const filename = join(tmpdir.path, 'append.txt');
+tmpdir.refresh();
 
 const currentFileData = 'ABCD';
 
@@ -40,122 +41,114 @@ const s = '南越国是前203年至前111年存在于岭南地区的一个国家
           '历经五代君主。南越国是岭南地区的第一个有记载的政权国家，采用封建制和郡县制并存的制度，' +
           '它的建立保证了秦末乱世岭南地区社会秩序的稳定，有效的改善了岭南地区落后的政治、##济现状。\n';
 
-let ncallbacks = 0;
-
-tmpdir.refresh();
-
 // test that empty file will be created and have content added
-fs.appendFile(filename, s, function(e) {
-  assert.ifError(e);
+{
+  const filename = join(tmpdir.path, 'append.txt');
 
-  ncallbacks++;
-
-  fs.readFile(filename, function(e, buffer) {
+  common.fsTest('appendFile', [filename, s, function(e) {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(Buffer.byteLength(s), buffer.length);
-  });
-});
+
+    const buffer = fs.readFileSync(filename);
+    assert.strictEqual(buffer.length, Buffer.byteLength(s));
+    fs.unlinkSync(filename);
+  }]);
+}
 
 // test that appends data to a non empty file
-const filename2 = join(tmpdir.path, 'append2.txt');
-fs.writeFileSync(filename2, currentFileData);
+{
+  const filename = join(tmpdir.path, 'append2.txt');
 
-fs.appendFile(filename2, s, function(e) {
-  assert.ifError(e);
+  const setup = () => {
+    fs.writeFileSync(filename, currentFileData);
+  };
 
-  ncallbacks++;
-
-  fs.readFile(filename2, function(e, buffer) {
+  common.fsTest('appendFile', [filename, s, function(e) {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
-                       buffer.length);
-  });
-});
+
+    const buffer = fs.readFileSync(filename);
+    assert.strictEqual(buffer.length,
+                       Buffer.byteLength(s) + currentFileData.length);
+  }], { setup: setup });
+}
 
 // test that appendFile accepts buffers
-const filename3 = join(tmpdir.path, 'append3.txt');
-fs.writeFileSync(filename3, currentFileData);
+{
+  const filename = join(tmpdir.path, 'append3.txt');
 
-const buf = Buffer.from(s, 'utf8');
+  const setup = () => {
+    fs.writeFileSync(filename, currentFileData);
+  };
 
-fs.appendFile(filename3, buf, function(e) {
-  assert.ifError(e);
+  const buf = Buffer.from(s, 'utf8');
 
-  ncallbacks++;
-
-  fs.readFile(filename3, function(e, buffer) {
+  common.fsTest('appendFile', [filename, buf, function(e) {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(buf.length + currentFileData.length, buffer.length);
-  });
-});
+
+    const buffer = fs.readFileSync(filename);
+    assert.strictEqual(buffer.length, buf.length + currentFileData.length);
+  }], { setup: setup });
+}
 
 // test that appendFile accepts numbers.
-const filename4 = join(tmpdir.path, 'append4.txt');
-fs.writeFileSync(filename4, currentFileData);
+{
+  const filename = join(tmpdir.path, 'append4.txt');
 
-const m = 0o600;
-fs.appendFile(filename4, n, { mode: m }, function(e) {
-  assert.ifError(e);
+  const setup = () => { fs.writeFileSync(filename, currentFileData); };
 
-  ncallbacks++;
-
-  // windows permissions aren't unix
-  if (!common.isWindows) {
-    const st = fs.statSync(filename4);
-    assert.strictEqual(st.mode & 0o700, m);
-  }
-
-  fs.readFile(filename4, function(e, buffer) {
+  const m = 0o600;
+  common.fsTest('appendFile', [filename, n, { mode: m }, function(e) {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
-                       buffer.length);
-  });
-});
+
+    // windows permissions aren't unix
+    if (!common.isWindows) {
+      const st = fs.statSync(filename);
+      assert.strictEqual(st.mode & 0o700, m);
+    }
+
+    const buffer = fs.readFileSync(filename);
+    assert.strictEqual(buffer.length,
+                       Buffer.byteLength(String(n)) + currentFileData.length);
+  }], { setup: setup });
+}
 
 // test that appendFile accepts file descriptors
-const filename5 = join(tmpdir.path, 'append5.txt');
-fs.writeFileSync(filename5, currentFileData);
+{
+  const filename = join(tmpdir.path, 'append5a.txt');
+  const otherFilename = join(tmpdir.path, 'append5b.txt');
 
-fs.open(filename5, 'a+', function(e, fd) {
-  assert.ifError(e);
+  fs.writeFileSync(filename, currentFileData);
+  fs.writeFileSync(otherFilename, currentFileData);
 
-  ncallbacks++;
+  const runTest = (err, fd) => {
+    assert.ifError(err);
 
-  fs.appendFile(fd, s, function(e) {
-    assert.ifError(e);
+    let appendFile, close;
+    if (typeof fd === 'number') {
+      appendFile = fs.appendFile;
+      close = fs.close.bind(fs, fd);
+    } else {
+      appendFile = util.callbackify(fsPromises.appendFile);
+      close = util.callbackify(fd.close.bind(fd));
+    }
 
-    ncallbacks++;
-
-    fs.close(fd, function(e) {
+    appendFile(fd, s, common.mustCall((e) => {
       assert.ifError(e);
-
-      ncallbacks++;
-
-      fs.readFile(filename5, function(e, buffer) {
+      close(common.mustCall((e) => {
         assert.ifError(e);
+        const buffer = fs.readFileSync(filename);
+        assert.strictEqual(buffer.length,
+                           Buffer.byteLength(s) + currentFileData.length);
+      }));
+    }));
+  };
 
-        ncallbacks++;
-        assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
-                           buffer.length);
-      });
-    });
-  });
-});
+  common.fsTest(
+    'open',
+    ['a+', runTest],
+    { differentFiles: [filename, otherFilename] }
+  );
+}
 
 assert.throws(
   () => fs.appendFile(join(tmpdir.path, 'append6.txt'), console.log),
   { code: 'ERR_INVALID_CALLBACK' });
-
-process.on('exit', function() {
-  assert.strictEqual(12, ncallbacks);
-
-  fs.unlinkSync(filename);
-  fs.unlinkSync(filename2);
-  fs.unlinkSync(filename3);
-  fs.unlinkSync(filename4);
-  fs.unlinkSync(filename5);
-});
