@@ -55,6 +55,7 @@ search these unofficial resources:
 * [Questions tagged 'node.js' on StackOverflow][]
 * [#node.js channel on chat.freenode.net][]. See <http://nodeirc.info/> for more
   information.
+* [Node.js Discord Community](https://discordapp.com/invite/v7rrPdE)
 * [Node.js Slack Community](https://node-js.slack.com/): Visit
   [nodeslackers.com](http://www.nodeslackers.com/) to register.
 
