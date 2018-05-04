@@ -518,6 +518,8 @@ exports.canCreateSymLink = function() {
       return false;
     }
   }
+  // On non-Windows platforms, this always returns `true`
+  return true;
 };
 
 exports.getCallSite = function getCallSite(top) {
