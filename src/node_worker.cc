@@ -346,10 +346,9 @@ void Worker::Run() {
         HandleScope handle_scope(isolate_);
         InternalCallbackScope callback_scope(
             env_.get(),
-            Local<Object>(),
+            Object::New(isolate_),
             { 1, 0 },
-            InternalCallbackScope::kAllowEmptyResource |
-                InternalCallbackScope::kSkipAsyncHooks);
+            InternalCallbackScope::kSkipAsyncHooks);
 
         if (!env_->RunBootstrapping().IsEmpty()) {
           CreateEnvMessagePort(env_.get());

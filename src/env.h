@@ -649,14 +649,16 @@ class AsyncHooks : public MemoryRetainer {
   inline AliasedUint32Array& fields();
   inline AliasedFloat64Array& async_id_fields();
   inline AliasedFloat64Array& async_ids_stack();
+  inline v8::Local<v8::Array> execution_async_resources();
 
   inline v8::Local<v8::String> provider_string(int idx);
 
   inline void no_force_checks();
   inline Environment* env();
 
-  inline void push_async_ids(double async_id, double trigger_async_id);
-  inline bool pop_async_id(double async_id);
+  inline void push_async_context(double async_id, double trigger_async_id,
+      v8::Local<v8::Value> execution_async_resource_);
+  inline bool pop_async_context(double async_id);
   inline void clear_async_id_stack();  // Used in fatal exceptions.
 
   AsyncHooks(const AsyncHooks&) = delete;
@@ -701,6 +703,8 @@ class AsyncHooks : public MemoryRetainer {
   AliasedFloat64Array async_id_fields_;
 
   void grow_async_ids_stack();
+
+  v8::Global<v8::Array> execution_async_resources_;
 };
 
 class ImmediateInfo : public MemoryRetainer {
