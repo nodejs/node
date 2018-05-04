@@ -42,7 +42,8 @@ common.expectsError(() => {
 
 common.expectsError(() => {
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.setHeader.call({ _header: 'test' }, 'test', 'value');
+  outgoingMessage._header = 'test';
+  outgoingMessage.setHeader('test', 'value');
 }, {
   code: 'ERR_HTTP_HEADERS_SENT',
   type: Error,
