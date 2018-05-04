@@ -58,7 +58,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   if (asyncContext.async_id != 0) {
     // No need to check a return value because the application will exit if
     // an exception occurs.
-    AsyncWrap::EmitBefore(env, asyncContext.async_id);
+    AsyncWrap::EmitBefore(env, asyncContext.async_id, object);
   }
 
   if (!IsInnerMakeCallback()) {

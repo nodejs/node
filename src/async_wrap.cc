@@ -27,6 +27,10 @@
 #include "v8.h"
 #include "v8-profiler.h"
 
+// TODO(mcollina): should this be moved in a more public space?
+// embedders will not be able to use this field
+#define CURRENT_RESOURCE_FIELD 10
+
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -199,7 +203,11 @@ void AsyncWrap::EmitTraceEventBefore() {
 }
 
 
-void AsyncWrap::EmitBefore(Environment* env, double async_id) {
+void AsyncWrap::EmitBefore(Environment* env, double async_id,
+    v8::Local<v8::Object> resource) {
+  v8::Local<v8::Context> context = env->isolate()->GetCurrentContext();
+  context->SetEmbedderData(CURRENT_RESOURCE_FIELD, resource);
+
   Emit(env, async_id, AsyncHooks::kBefore,
        env->async_hooks_before_function());
 }
@@ -222,10 +230,15 @@ void AsyncWrap::EmitTraceEventAfter(ProviderType type, double async_id) {
 
 
 void AsyncWrap::EmitAfter(Environment* env, double async_id) {
+  Isolate* isolate = env->isolate();
+  v8::Local<v8::Context> context = env->isolate()->GetCurrentContext();
+
   // If the user's callback failed then the after() hooks will be called at the
   // end of _fatalException().
   Emit(env, async_id, AsyncHooks::kAfter,
        env->async_hooks_after_function());
+
+  context->SetEmbedderData(CURRENT_RESOURCE_FIELD, v8::Null(isolate));
 }
 
 class PromiseWrap : public AsyncWrap {
@@ -307,6 +320,10 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
     } else {
       wrap = PromiseWrap::New(env, promise, nullptr, silent);
+
+      // needed for async functions :/
+      // the top level will not emit before and after
+      env->context()->SetEmbedderData(CURRENT_RESOURCE_FIELD, wrap->object());
     }
   }
 
@@ -315,7 +332,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     env->async_hooks()->push_async_ids(
       wrap->get_async_id(), wrap->get_trigger_async_id());
     wrap->EmitTraceEventBefore();
-    AsyncWrap::EmitBefore(wrap->env(), wrap->get_async_id());
+    AsyncWrap::EmitBefore(wrap->env(), wrap->get_async_id(), wrap->object());
   } else if (type == PromiseHookType::kAfter) {
     wrap->EmitTraceEventAfter(wrap->provider_type(), wrap->get_async_id());
     AsyncWrap::EmitAfter(wrap->env(), wrap->get_async_id());
@@ -433,6 +450,17 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
     p, AsyncWrap::WeakCallback, v8::WeakCallbackType::kParameter);
 }
 
+static void CurrentResource(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  args.GetReturnValue().Set(context->GetEmbedderData(CURRENT_RESOURCE_FIELD));
+}
+
+static void SetCurrentResource(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  context->SetEmbedderData(CURRENT_RESOURCE_FIELD, args[0]);
+}
 
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
@@ -497,6 +525,10 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
   env->SetMethod(target, "registerDestroyHook", RegisterDestroyHook);
+  env->SetMethod(target, "currentResource", CurrentResource);
+  env->SetMethod(target, "setCurrentResource", SetCurrentResource);
+
+  context->SetEmbedderData(CURRENT_RESOURCE_FIELD, v8::Null(isolate));
 
   v8::PropertyAttribute ReadOnlyDontDelete =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
