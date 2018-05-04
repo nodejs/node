@@ -925,7 +925,7 @@ This was never a documented feature.
 
 Type: End-of-Life
 
-The `--with-lttng` compile time option is removed.
+The `--with-lttng` compile-time option has been removed.
 
 <a id="DEP0102"></a>
 ### DEP0102: Using `noAssert` in Buffer#(read|write) operations.
