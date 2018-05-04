@@ -748,9 +748,8 @@ file descriptors.
 
 Type: Runtime
 
-`REPLServer.prototype.memory()` is a function only necessary for the
-internal mechanics of the `REPLServer` itself, and is therefore not
-necessary in user space.
+`REPLServer.prototype.memory()` is only necessary for the internal mechanics of
+the `REPLServer` itself. Do not use this function.
 
 <a id="DEP0083"></a>
 ### DEP0083: Disabling ECDH by setting ecdhCurve to false
