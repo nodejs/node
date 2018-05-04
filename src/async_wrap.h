@@ -134,8 +134,8 @@ class AsyncWrap : public BaseObject {
                          void* priv);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void PushAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void PopAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PushAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PopAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProviderType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyAsyncId(
@@ -202,6 +202,7 @@ class AsyncWrap : public BaseObject {
                                         v8::Local<v8::Object> obj);
 
   bool IsDoneInitializing() const override;
+  v8::Local<v8::Object> GetResource();
 
  private:
   friend class PromiseWrap;
@@ -216,6 +217,7 @@ class AsyncWrap : public BaseObject {
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
   double trigger_async_id_;
+  v8::Global<v8::Object> resource_;
 };
 
 }  // namespace node

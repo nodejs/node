@@ -10,7 +10,6 @@
 namespace node {
 
 using v8::Isolate;
-using v8::Local;
 using v8::Object;
 using v8::Platform;
 using v8::Task;
@@ -388,8 +387,9 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   DebugSealHandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   if (env != nullptr) {
-    InternalCallbackScope cb_scope(env, Local<Object>(), { 0, 0 },
-                                   InternalCallbackScope::kAllowEmptyResource);
+    v8::HandleScope scope(isolate);
+    InternalCallbackScope cb_scope(env, Object::New(isolate), { 0, 0 },
+                                   InternalCallbackScope::kNoFlags);
     task->Run();
   } else {
     task->Run();
