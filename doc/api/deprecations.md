@@ -30,12 +30,11 @@ cause an error to be thrown.
 An End-of-Life deprecation is used to identify code that either has been
 removed or will soon be removed from Node.js.
 
-## Un-deprecation
+## Revoking deprecations
 
-From time-to-time the deprecation of an API may be reversed. Such action may
-happen in either a semver-minor or semver-major release. In such situations,
+Occasionally, the deprecation of an API may be reversed. In such situations,
 this document will be updated with information relevant to the decision.
-*However, the deprecation identifier will not be modified*.
+However, the deprecation identifier will not be modified.
 
 ## List of Deprecated APIs
 
