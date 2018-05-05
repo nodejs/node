@@ -78,8 +78,8 @@ function main({ dur, size, securing }) {
   }
 
   function securePair(conn, client) {
-    const serverCtxt = tls.createSecureContext(options);
-    const serverPair = tls.createSecurePair(serverCtxt, true, true, false);
+    const serverCtx = tls.createSecureContext(options);
+    const serverPair = tls.createSecurePair(serverCtx, true, true, false);
     conn.pipe(serverPair.encrypted);
     serverPair.encrypted.pipe(conn);
     serverPair.on('error', (error) => {
