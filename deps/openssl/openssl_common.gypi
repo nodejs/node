@@ -5,6 +5,8 @@
     'openssl/crypto/',
     'openssl/crypto/include/',
     'openssl/crypto/modes/',
+    'openssl/crypto/ec/curve448',
+    'openssl/crypto/ec/curve448/arch_32',
     'config/',
   ],
   # build options specific to OS

@@ -2,10 +2,26 @@
   'variables': {
     'openssl_defines_%%-$arch-%%': [
 %%- foreach $define (@{$config{defines}}) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@lib_cppflags) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{$target{defines}}) {
+      $OUT .= "      '$define',\n";
+    }
+    foreach $define (@{$config{lib_defines}}) {
   $OUT .= "      '$define',\n";
 } -%%    ],
     'openssl_cflags_%%-$arch-%%': [
+%%- foreach $cflag (@{$config{cflags}}) {
+      $OUT .= "      '$cflag',\n";
+    }
+    foreach $cflag (@{$config{CFLAGS}}) {
+      $OUT .= "      '$cflag',\n";
+    } -%%
       '%%-$target{cflags}-%%',
+      '%%-$target{CFLAGS}-%%',
     ],
     'openssl_ex_libs_%%-$arch-%%': [
       '%%-$target{ex_libs}-%%',
