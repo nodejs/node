@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "node_mutex.h"
 #include "node_persistent.h"
 #include "util-inl.h"
 #include "env-inl.h"
