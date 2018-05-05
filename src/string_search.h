@@ -80,12 +80,12 @@ class StringSearchBase {
   static const int kBMMinPatternLength = 8;
 
   // Store for the BoyerMoore(Horspool) bad char shift table.
-  static int kBadCharShiftTable[kUC16AlphabetSize];
+  int bad_char_shift_table_[kUC16AlphabetSize];
   // Store for the BoyerMoore good suffix shift table.
-  static int kGoodSuffixShiftTable[kBMMaxShift + 1];
+  int good_suffix_shift_table_[kBMMaxShift + 1];
   // Table used temporarily while building the BoyerMoore good suffix
   // shift table.
-  static int kSuffixTable[kBMMaxShift + 1];
+  int suffix_table_[kBMMaxShift + 1];
 };
 
 template <typename Char>
@@ -150,26 +150,6 @@ class StringSearch : private StringSearchBase {
     // Both pattern and subject are UC16. Reduce character to equivalence class.
     int equiv_class = char_code % kUC16AlphabetSize;
     return bad_char_occurrence[equiv_class];
-  }
-
-  // Store for the BoyerMoore(Horspool) bad char shift table.
-  // Return a table covering the last kBMMaxShift+1 positions of
-  // pattern.
-  int* bad_char_table() { return kBadCharShiftTable; }
-
-  // Store for the BoyerMoore good suffix shift table.
-  int* good_suffix_shift_table() {
-    // Return biased pointer that maps the range  [start_..pattern_.length()
-    // to the kGoodSuffixShiftTable array.
-    return kGoodSuffixShiftTable - start_;
-  }
-
-  // Table used temporarily while building the BoyerMoore good suffix
-  // shift table.
-  int* suffix_table() {
-    // Return biased pointer that maps the range  [start_..pattern_.length()
-    // to the kSuffixTable array.
-    return kSuffixTable - start_;
   }
 
   // The pattern to search for.
@@ -345,8 +325,8 @@ size_t StringSearch<Char>::BoyerMooreSearch(
   // Only preprocess at most kBMMaxShift last characters of pattern.
   size_t start = start_;
 
-  int* bad_char_occurrence = bad_char_table();
-  int* good_suffix_shift = good_suffix_shift_table();
+  int* bad_char_occurrence = bad_char_shift_table_;
+  int* good_suffix_shift = good_suffix_shift_table_ - start_;
 
   Char last_char = pattern_[pattern_length - 1];
   size_t index = start_index;
@@ -397,8 +377,8 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
 
   // Biased tables so that we can use pattern indices as table indices,
   // even if we only cover the part of the pattern from offset start.
-  int* shift_table = good_suffix_shift_table();
-  int* suffix_table = this->suffix_table();
+  int* shift_table = good_suffix_shift_table_ - start_;
+  int* suffix_table = suffix_table_ - start_;
 
   // Initialize table.
   for (size_t i = start; i < pattern_length; i++) {
@@ -462,7 +442,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
     size_t start_index) {
   const size_t subject_length = subject.length();
   const size_t pattern_length = pattern_.length();
-  int* char_occurrences = bad_char_table();
+  int* char_occurrences = bad_char_shift_table_;
   int64_t badness = -pattern_length;
 
   // How bad we are doing without a good-suffix table.
@@ -511,7 +491,7 @@ template <typename Char>
 void StringSearch<Char>::PopulateBoyerMooreHorspoolTable() {
   const size_t pattern_length = pattern_.length();
 
-  int* bad_char_occurrence = bad_char_table();
+  int* bad_char_occurrence = bad_char_shift_table_;
 
   // Only preprocess at most kBMMaxShift last characters of pattern.
   const size_t start = start_;
