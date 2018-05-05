@@ -514,8 +514,6 @@ For more information about the governance of the Node.js project, see
 **Trivikram Kamat** &lt;trivikr.dev@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
-* [tunniclm](https://github.com/tunniclm) -
-**Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vdeturckheim](https://github.com/vdeturckheim) -
 **Vladimir de Turckheim** &lt;vlad2t@hotmail.com&gt; (he/him)
 * [vkurchatkin](https://github.com/vkurchatkin) -
@@ -559,6 +557,8 @@ For more information about the governance of the Node.js project, see
 **Alex Kocharin** &lt;alex@kocharin.ru&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
+* [tunniclm](https://github.com/tunniclm) -
+**Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
