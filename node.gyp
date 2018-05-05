@@ -346,7 +346,6 @@
         'src/spawn_sync.cc',
         'src/string_bytes.cc',
         'src/string_decoder.cc',
-        'src/string_search.cc',
         'src/stream_base.cc',
         'src/stream_pipe.cc',
         'src/stream_wrap.cc',
