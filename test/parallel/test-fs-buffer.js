@@ -9,14 +9,21 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-fs.access(Buffer.from(tmpdir.path), common.mustCall(assert.ifError));
+{
+  common.fsTest('access', [Buffer.from(tmpdir.path), assert.ifError]);
+}
 
-const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
-fs.open(buf, 'w+', common.mustCall((err, fd) => {
-  assert.ifError(err);
-  assert(fd);
-  fs.close(fd, common.mustCall(assert.ifError));
-}));
+{
+  const buf = Buffer.from(path.join(tmpdir.path, 'a.txt'));
+  common.fsTest('open', [buf, 'w+', (err, fd) => {
+    assert.ifError(err);
+    assert(fd);
+    if (typeof fd === 'number')
+      fs.close(fd, common.mustCall(assert.ifError));
+    else
+      fd.close().catch((e) => { setTimeout((e) => { throw e; }, 1); });
+  }]);
+}
 
 common.expectsError(
   () => {
@@ -30,18 +37,26 @@ common.expectsError(
   }
 );
 
-const dir = Buffer.from(fixtures.fixturesDir);
-fs.readdir(dir, 'hex', common.mustCall((err, hexList) => {
-  assert.ifError(err);
-  fs.readdir(dir, common.mustCall((err, stringList) => {
+{
+  const dir = Buffer.from(fixtures.fixturesDir);
+  const results = [];
+
+  const check = common.mustCall((results) => {
+    for (let i = 1; i < results.length; i++) {
+      assert.deepStrictEqual(results[i], results[0]);
+    }
+  });
+
+  common.fsTest('readdir', [dir, 'hex', (err, hexList) => {
     assert.ifError(err);
-    stringList.forEach((val, idx) => {
-      const fromHexList = Buffer.from(hexList[idx], 'hex').toString();
-      assert.strictEqual(
-        fromHexList,
-        val,
-        `expected ${val}, got ${fromHexList} by hex decoding ${hexList[idx]}`
-      );
-    });
-  }));
-}));
+    results.push(hexList.map((val) => Buffer.from(val, 'hex').toString()));
+    if (results.length > 3)
+      check(results);
+  }]);
+  common.fsTest('readdir', [dir, (err, stringList) => {
+    assert.ifError(err);
+    results.push(stringList);
+    if (results.length > 3)
+      check(results);
+  }]);
+}
