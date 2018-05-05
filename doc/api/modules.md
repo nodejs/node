@@ -175,7 +175,7 @@ LOAD_AS_DIRECTORY(X)
 2. LOAD_INDEX(X)
 
 LOAD_NODE_MODULES(X, START)
-1. let DIRS=NODE_MODULES_PATHS(START)
+1. let DIRS = NODE_MODULES_PATHS(START)
 2. for each DIR in DIRS:
    a. LOAD_AS_FILE(DIR/X)
    b. LOAD_AS_DIRECTORY(DIR/X)
@@ -183,7 +183,7 @@ LOAD_NODE_MODULES(X, START)
 NODE_MODULES_PATHS(START)
 1. let PARTS = path split(START)
 2. let I = count of PARTS - 1
-3. let DIRS = []
+3. let DIRS = [GLOBAL_FOLDERS]
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
@@ -419,7 +419,7 @@ when people are unaware that `NODE_PATH` must be set. Sometimes a
 module's dependencies change, causing a different version (or even a
 different module) to be loaded as the `NODE_PATH` is searched.
 
-Additionally, Node.js will search in the following locations:
+Additionally, Node.js will search in the following list of GLOBAL_FOLDERS:
 
 * 1: `$HOME/.node_modules`
 * 2: `$HOME/.node_libraries`
@@ -649,9 +649,11 @@ changes:
 * `request` {string} The module path to resolve.
 * `options` {Object}
   * `paths` {string[]} Paths to resolve module location from. If present, these
-    paths are used instead of the default resolution paths. Note that each of
-    these paths is used as a starting point for the module resolution algorithm,
-    meaning that the `node_modules` hierarchy is checked from this location.
+    paths are used instead of the default resolution paths, with the exception
+    of [GLOBAL_FOLDERS][] like `$HOME/.node_modules`, which are always
+    included. Note that each of these paths is used as a starting point for
+    the module resolution algorithm, meaning that the `node_modules` hierarchy
+    is checked from this location.
 * Returns: {string}
 
 Use the internal `require()` machinery to look up the location of a module,
@@ -891,6 +893,7 @@ const builtin = require('module').builtinModules;
 [`Error`]: errors.html#errors_class_error
 [`module` object]: #modules_the_module_object
 [`path.dirname()`]: path.html#path_path_dirname_path
+[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
 [module wrapper]: #modules_the_module_wrapper
