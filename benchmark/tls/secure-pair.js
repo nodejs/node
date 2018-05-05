@@ -53,7 +53,7 @@ function main({ dur, size, securing }) {
         write();
       });
       conn.on('error', (e) => {
-        throw new Error('Client error: ' + e);
+        throw new Error(`Client error: ${e}`);
       });
 
       function write() {
@@ -83,7 +83,7 @@ function main({ dur, size, securing }) {
     conn.pipe(serverPair.encrypted);
     serverPair.encrypted.pipe(conn);
     serverPair.on('error', (error) => {
-      throw new Error('Pair error: ' + error);
+      throw new Error(`Pair error: ${error}`);
     });
     serverPair.cleartext.pipe(client);
   }
@@ -91,7 +91,7 @@ function main({ dur, size, securing }) {
   function secureTLSSocket(conn, client) {
     const serverSocket = new tls.TLSSocket(conn, options);
     serverSocket.on('error', (e) => {
-      throw new Error('Socket error: ' + e);
+      throw new Error(`Socket error: ${e}`);
     });
     serverSocket.pipe(client);
   }
