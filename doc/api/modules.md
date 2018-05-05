@@ -175,7 +175,7 @@ LOAD_AS_DIRECTORY(X)
 2. LOAD_INDEX(X)
 
 LOAD_NODE_MODULES(X, START)
-1. let DIRS=NODE_MODULES_PATHS(START)
+1. let DIRS = NODE_MODULES_PATHS(START)
 2. for each DIR in DIRS:
    a. LOAD_AS_FILE(DIR/X)
    b. LOAD_AS_DIRECTORY(DIR/X)
@@ -183,7 +183,7 @@ LOAD_NODE_MODULES(X, START)
 NODE_MODULES_PATHS(START)
 1. let PARTS = path split(START)
 2. let I = count of PARTS - 1
-3. let DIRS = []
+3. let DIRS = [ GLOBAL_FOLDERS ]
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
@@ -649,9 +649,11 @@ changes:
 * `request` {string} The module path to resolve.
 * `options` {Object}
   * `paths` {string[]} Paths to resolve module location from. If present, these
-    paths are used instead of the default resolution paths. Note that each of
-    these paths is used as a starting point for the module resolution algorithm,
-    meaning that the `node_modules` hierarchy is checked from this location.
+    paths are used instead of the default resolution paths, with the exception
+    of global folders like `~/.node_modules`, which are always included. Note
+    that each of these paths is used as a starting point for the module
+    resolution algorithm, meaning that the `node_modules` hierarchy is checked
+    from this location.
 * Returns: {string}
 
 Use the internal `require()` machinery to look up the location of a module,
