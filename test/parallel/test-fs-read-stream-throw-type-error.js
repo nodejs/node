@@ -29,35 +29,36 @@ const rangeError = {
   type: RangeError
 };
 
-createReadStreamErr(example, 123, typeError);
-createReadStreamErr(example, 0, typeError);
-createReadStreamErr(example, true, typeError);
-createReadStreamErr(example, false, typeError);
+[123, 0, true, false].forEach((opts) =>
+  createReadStreamErr(example, opts, typeError)
+);
 
 // Case 0: Should not throw if either start or end is undefined
-fs.createReadStream(example, {});
-fs.createReadStream(example, { start: 0 });
-fs.createReadStream(example, { end: Infinity });
+[{}, { start: 0 }, { end: Infinity }].forEach((opts) =>
+  fs.createReadStream(example, opts)
+);
 
 // Case 1: Should throw TypeError if either start or end is not of type 'number'
-createReadStreamErr(example, { start: 'invalid' }, typeError);
-createReadStreamErr(example, { end: 'invalid' }, typeError);
-createReadStreamErr(example, { start: 'invalid', end: 'invalid' }, typeError);
+[
+  { start: 'invalid' },
+  { end: 'invalid' },
+  { start: 'invalid', end: 'invalid' }
+].forEach((opts) => createReadStreamErr(example, opts, typeError));
 
 // Case 2: Should throw RangeError if either start or end is NaN
-createReadStreamErr(example, { start: NaN }, rangeError);
-createReadStreamErr(example, { end: NaN }, rangeError);
-createReadStreamErr(example, { start: NaN, end: NaN }, rangeError);
+[{ start: NaN }, { end: NaN }, { start: NaN, end: NaN }].forEach((opts) =>
+  createReadStreamErr(example, opts, rangeError)
+);
 
 // Case 3: Should throw RangeError if either start or end is negative
-createReadStreamErr(example, { start: -1 }, rangeError);
-createReadStreamErr(example, { end: -1 }, rangeError);
-createReadStreamErr(example, { start: -1, end: -1 }, rangeError);
+[{ start: -1 }, { end: -1 }, { start: -1, end: -1 }].forEach((opts) =>
+  createReadStreamErr(example, opts, rangeError)
+);
 
 // Case 4: Should throw RangeError if either start or end is fractional
-createReadStreamErr(example, { start: 0.1 }, rangeError);
-createReadStreamErr(example, { end: 0.1 }, rangeError);
-createReadStreamErr(example, { start: 0.1, end: 0.1 }, rangeError);
+[{ start: 0.1 }, { end: 0.1 }, { start: 0.1, end: 0.1 }].forEach((opts) =>
+  createReadStreamErr(example, opts, rangeError)
+);
 
 // Case 5: Should not throw if both start and end are whole numbers
 fs.createReadStream(example, { start: 1, end: 5 });
