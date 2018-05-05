@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "node_mutex.h"
 #include "node_persistent.h"
 #include "util-inl.h"
 #include "env-inl.h"
@@ -214,6 +215,9 @@ extern bool v8_initialized;
 // Set in node.cc.
 // Used in node_config.cc.
 extern node::DebugOptions debug_options;
+
+// Used to protect the process title in multi-threading situations.
+extern Mutex process_title_mutex;
 
 // Forward declaration
 class Environment;
