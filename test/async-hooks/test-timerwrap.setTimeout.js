@@ -23,7 +23,6 @@ checkInvocations(t1, { init: 1 }, 't1: when first timer installed');
 function ontimeout() {
   checkInvocations(t1, { init: 1, before: 1 }, 't1: when first timer fired');
 
-  // install second timeout with same TIMEOUT to see timer wrap being reused
   setTimeout(onsecondTimeout, TIMEOUT);
   const as = hooks.activitiesOfTypes('TIMERWRAP');
   assert.strictEqual(as.length, 1);
@@ -31,35 +30,21 @@ function ontimeout() {
                    't1: when second timer installed');
 }
 
-// even though we install 3 timers we only have two timerwrap resources created
-// as one is reused for the two timers with the same timeout
-let t2;
-
 function onsecondTimeout() {
-  let as = hooks.activitiesOfTypes('TIMERWRAP');
+  const as = hooks.activitiesOfTypes('TIMERWRAP');
   assert.strictEqual(as.length, 1);
   checkInvocations(t1, { init: 1, before: 2, after: 1 },
                    't1: when second timer fired');
 
   // install third timeout with different TIMEOUT
   setTimeout(onthirdTimeout, TIMEOUT + 1);
-  as = hooks.activitiesOfTypes('TIMERWRAP');
-  assert.strictEqual(as.length, 2);
-  t2 = as[1];
-  assert.strictEqual(t2.type, 'TIMERWRAP');
-  assert.strictEqual(typeof t2.uid, 'number');
-  assert.strictEqual(typeof t2.triggerAsyncId, 'number');
   checkInvocations(t1, { init: 1, before: 2, after: 1 },
                    't1: when third timer installed');
-  checkInvocations(t2, { init: 1 },
-                   't2: when third timer installed');
 }
 
 function onthirdTimeout() {
-  checkInvocations(t1, { init: 1, before: 2, after: 2, destroy: 1 },
+  checkInvocations(t1, { init: 1, before: 3, after: 2 },
                    't1: when third timer fired');
-  checkInvocations(t2, { init: 1, before: 1 },
-                   't2: when third timer fired');
   tick(2);
 }
 
@@ -69,8 +54,6 @@ function onexit() {
   hooks.disable();
   hooks.sanityCheck('TIMERWRAP');
 
-  checkInvocations(t1, { init: 1, before: 2, after: 2, destroy: 1 },
+  checkInvocations(t1, { init: 1, before: 3, after: 3 },
                    't1: when process exits');
-  checkInvocations(t2, { init: 1, before: 1, after: 1, destroy: 1 },
-                   't2: when process exits');
 }

@@ -62,7 +62,6 @@ class TimerWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
 
     env->SetProtoMethod(constructor, "start", Start);
-    env->SetProtoMethod(constructor, "stop", Stop);
 
     target->Set(timerString, constructor->GetFunction());
 
@@ -125,32 +124,17 @@ class TimerWrap : public HandleWrap {
     args.GetReturnValue().Set(err);
   }
 
-  static void Stop(const FunctionCallbackInfo<Value>& args) {
-    TimerWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-
-    CHECK(HandleWrap::IsAlive(wrap));
-
-    int err = uv_timer_stop(&wrap->handle_);
-    args.GetReturnValue().Set(err);
-  }
-
   static void OnTimeout(uv_timer_t* handle) {
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
     Environment* env = wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
     Local<Value> ret;
-    Local<Value> args[1];
+    Local<Value> args[] = { env->GetNow() };
     do {
-      args[0] = env->GetNow();
       ret = wrap->MakeCallback(env->timers_callback_function(), 1, args)
                 .ToLocalChecked();
-    } while (ret->IsUndefined() &&
-             !env->tick_info()->has_thrown() &&
-             wrap->object()->Get(env->context(),
-                                 env->owner_string()).ToLocalChecked()
-                                                     ->IsUndefined());
+    } while (ret->IsUndefined() && !env->tick_info()->has_thrown());
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
