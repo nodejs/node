@@ -9,21 +9,8 @@ const traceFile = 'node_trace.1.log';
 
 let gid = 1;
 let uid = 1;
-let skipSymlinks = false;
 
-// On Windows, creating symlinks requires admin privileges.
-// We'll check if we have enough privileges.
-if (common.isWindows) {
-  try {
-    const o = cp.execSync('whoami /priv');
-    if (!o.includes('SeCreateSymbolicLinkPrivilege')) {
-      skipSymlinks = true;
-    }
-  } catch (er) {
-    // better safe than sorry
-    skipSymlinks = true;
-  }
-} else {
+if (!common.isWindows) {
   gid = process.getgid();
   uid = process.getuid();
 }
@@ -111,7 +98,7 @@ tests['fs.sync.write'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
 
 // On windows, we need permissions to test symlink and readlink.
 // We'll only try to run these tests if we have enough privileges.
-if (!skipSymlinks) {
+if (common.canCreateSymLink()) {
   tests['fs.sync.symlink'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                              'fs.symlinkSync("fs.txt", "linkx");' +
                              'fs.unlinkSync("linkx");' +
