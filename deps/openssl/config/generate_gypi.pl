@@ -115,6 +115,9 @@ foreach my $src (@generated_srcs) {
   system("$cmd") == 0 or die "Error in system($cmd)";
 }
 
+$target{'lib_cppflags'} =~ s/-D//g;
+my @lib_cppflags = split(/ /, $target{'lib_cppflags'});
+
 # Create openssl.gypi
 my $template =
     Text::Template->new(TYPE => 'FILE',
@@ -131,6 +134,7 @@ my $gypi = $template->fill_in(
         target => \%target,
         asm => \$asm,
         arch => \$arch,
+        lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,
     });
 
@@ -152,6 +156,7 @@ my $clgypi = $cltemplate->fill_in(
         config => \%config,
         target => \%target,
         arch => \$arch,
+        lib_cppflags => \@lib_cppflags,
         is_win => \$is_win,
     });
 
