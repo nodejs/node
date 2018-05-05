@@ -334,8 +334,9 @@ async function processLineByLine(readable) {
 processLineByLine(fs.createReadStream('file')).catch(console.error);
 ```
 
-If the loop terminates with a `break` or a `throw`, the stream will be destroyed.
-In other terms, iterating over a stream will consume the stream fully.
+If the loop terminates with a `break` or a `throw`, the stream will be 
+destroyed. In other terms, iterating over a stream will consume the stream 
+fully.
 
 ## readline.clearLine(stream, dir)
 <!-- YAML
