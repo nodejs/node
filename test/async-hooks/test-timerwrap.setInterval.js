@@ -51,6 +51,6 @@ function onexit() {
   hooks.disable();
   hooks.sanityCheck('TIMERWRAP');
 
-  checkInvocations(t, { init: 1, before: 3, after: 3, destroy: 1 },
+  checkInvocations(t, { init: 1, before: 3, after: 3 },
                    't: when process exits');
 }
