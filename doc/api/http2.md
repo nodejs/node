@@ -233,10 +233,13 @@ session.on('remoteSettings', (settings) => {
 added: v8.4.0
 -->
 
-The `'stream'` event is emitted when a new `Http2Stream` is created. When
-invoked, the handler function will receive a reference to the `Http2Stream`
-object, a [HTTP/2 Headers Object][], and numeric flags associated with the
-creation of the stream.
+* `stream` {Http2Stream} A reference to the stream
+* `headers` {HTTP/2 Headers Object} An object describing the headers
+* `flags` {number} The associated numeric flags
+* `rawHeaders` {Array} An array containing the raw header names followed by
+  their respective values.
+
+The `'stream'` event is emitted when a new `Http2Stream` is created.
 
 ```js
 const http2 = require('http2');
