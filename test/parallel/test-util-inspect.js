@@ -1404,3 +1404,15 @@ util.inspect(process);
   const args = (function() { return arguments; })('a');
   assert.strictEqual(util.inspect(args), "[Arguments] { '0': 'a' }");
 }
+
+{
+  // Test that a long linked list can be inspected without throwing an error.
+  const list = {};
+  let head = list;
+  // The real cutoff value is closer to 1400 stack frames as of May 2018,
+  // but let's be generous here – even a linked listed of length 100k should be
+  // inspectable in some way.
+  for (let i = 0; i < 100000; i++)
+    head = head.next = {};
+  util.inspect(list);
+}
