@@ -46,28 +46,45 @@ exports.connect = function connect(options, callback) {
   const client = {};
   const pair = { server, client };
 
-  tls.createServer(options.server, function(conn) {
-    server.conn = conn;
-    conn.pipe(conn);
-    maybeCallback()
-  }).listen(0, function() {
-    server.server = this;
+  try {
+    tls.createServer(options.server, function(conn) {
+      server.conn = conn;
+      conn.pipe(conn);
+      maybeCallback()
+    }).listen(0, function() {
+      server.server = this;
 
-    const optClient = util._extend({
-      port: this.address().port,
-    }, options.client);
+      const optClient = util._extend({
+        port: this.address().port,
+      }, options.client);
 
-    tls.connect(optClient)
-      .on('secureConnect', function() {
-        client.conn = this;
-        maybeCallback();
-      })
-      .on('error', function(err) {
+      try {
+        tls.connect(optClient)
+          .on('secureConnect', function() {
+            client.conn = this;
+            maybeCallback();
+          })
+          .on('error', function(err) {
+            client.err = err;
+            client.conn = this;
+            maybeCallback();
+          });
+      } catch (err) {
         client.err = err;
-        client.conn = this;
-        maybeCallback();
-      });
-  });
+        // The server won't get a connection, we are done.
+        callback(err, pair, cleanup);
+        callback = null;
+      }
+    }).on('tlsClientError', function(err, sock) {
+      server.conn = sock;
+      server.err = err;
+      maybeCallback();
+    });
+  } catch (err) {
+    // Invalid options can throw, report the error.
+    pair.server.err = err;
+    callback(err, pair, () => {});
+  }
 
   function maybeCallback() {
     if (!callback)
@@ -76,13 +93,13 @@ exports.connect = function connect(options, callback) {
       const err = pair.client.err || pair.server.err;
       callback(err, pair, cleanup);
       callback = null;
-
-      function cleanup() {
-        if (server.server)
-          server.server.close();
-        if (client.conn)
-          client.conn.end();
-      }
     }
+  }
+
+  function cleanup() {
+    if (server.server)
+      server.server.close();
+    if (client.conn)
+      client.conn.end();
   }
 }
