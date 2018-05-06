@@ -21,9 +21,12 @@
 
 'use strict';
 const common = require('../common');
+
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
+const fsPromises = fs.promises;
+const path = require('path');
+const util = require('util');
 
 let mode_async;
 let mode_sync;
@@ -74,99 +77,124 @@ if (common.isWindows) {
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const file1 = path.join(tmpdir.path, 'a.js');
-const file2 = path.join(tmpdir.path, 'a1.js');
+{
+  const file1 = path.join(tmpdir.path, 'a.js');
 
-// Create file1.
-fs.closeSync(fs.openSync(file1, 'w'));
+  const setup = () => {
+    // Create file, removing it if it existed previously.
+    fs.closeSync(fs.openSync(file1, 'w'));
+  };
 
-fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
-  assert.ifError(err);
-
-  if (common.isWindows) {
-    assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
-  } else {
-    assert.strictEqual(mode_async, fs.statSync(file1).mode & 0o777);
-  }
-
-  fs.chmodSync(file1, mode_sync);
-  if (common.isWindows) {
-    assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
-  } else {
-    assert.strictEqual(mode_sync, fs.statSync(file1).mode & 0o777);
-  }
-}));
-
-fs.open(file2, 'w', common.mustCall((err, fd) => {
-  assert.ifError(err);
-
-  fs.fchmod(fd, mode_async.toString(8), common.mustCall((err) => {
+  common.fsTest('chmod', [file1, mode_async.toString(8), (err) => {
     assert.ifError(err);
 
     if (common.isWindows) {
-      assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
+      assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
     } else {
-      assert.strictEqual(mode_async, fs.fstatSync(fd).mode & 0o777);
+      assert.strictEqual(mode_async, fs.statSync(file1).mode & 0o777);
     }
 
-    common.expectsError(
-      () => fs.fchmod(fd, {}),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "mode" argument must be of type number. ' +
-                 'Received type object'
-      }
-    );
-
-    fs.fchmodSync(fd, mode_sync);
+    fs.chmodSync(file1, mode_sync);
     if (common.isWindows) {
-      assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
+      assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
     } else {
-      assert.strictEqual(mode_sync, fs.fstatSync(fd).mode & 0o777);
+      assert.strictEqual(mode_sync, fs.statSync(file1).mode & 0o777);
     }
+  }], { setup: setup });
+}
 
-    fs.close(fd, assert.ifError);
-  }));
-}));
+{
+  const file1 = path.join(tmpdir.path, 'b.js');
+  const file2 = path.join(tmpdir.path, 'c.js');
+
+  common.fsTest('open', ['w', (err, fd) => {
+    assert.ifError(err);
+
+    let fchmod, close;
+
+    if (typeof fd === 'number') {
+      fchmod = fs.fchmod.bind(fs, fd);
+      close = fs.close.bind(fs, fd);
+    } else {
+      fchmod = util.callbackify(fsPromises.fchmod.bind(fs, fd));
+      close = util.callbackify(fd.close.bind(fd));
+      fd = fd.fd;
+    }
+    fchmod(mode_async.toString(8), (err) => {
+      assert.ifError(err);
+
+      if (common.isWindows) {
+        assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
+      } else {
+        assert.strictEqual(mode_async, fs.fstatSync(fd).mode & 0o777);
+      }
+
+      common.expectsError(
+        () => fs.fchmod(fd, {}),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "mode" argument must be of type number. ' +
+                   'Received type object'
+        }
+      );
+
+      fs.fchmodSync(fd, mode_sync);
+      if (common.isWindows) {
+        assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
+      } else {
+        assert.strictEqual(mode_sync, fs.fstatSync(fd).mode & 0o777);
+      }
+
+      close(assert.ifError);
+    });
+  }], { differentFiles: [file1, file2] });
+}
 
 // lchmod
-if (fs.lchmod) {
+{
+  const file = path.join(tmpdir.path, 'd.js');
   const link = path.join(tmpdir.path, 'symbolic-link');
 
-  fs.symlinkSync(file2, link);
+  const setup = () => {
+    fs.closeSync(fs.openSync(file, 'w'));
+    fs.symlinkSync(file, link);
+  };
 
-  fs.lchmod(link, mode_async, common.mustCall((err) => {
-    assert.ifError(err);
+  if (fs.lchmod) {
+    common.fsTest('lchmod', [link, mode_async, (err) => {
+      assert.ifError(err);
 
-    assert.strictEqual(mode_async, fs.lstatSync(link).mode & 0o777);
+      assert.strictEqual(mode_async, fs.lstatSync(link).mode & 0o777);
 
-    fs.lchmodSync(link, mode_sync);
-    assert.strictEqual(mode_sync, fs.lstatSync(link).mode & 0o777);
+      fs.lchmodSync(link, mode_sync);
+      assert.strictEqual(mode_sync, fs.lstatSync(link).mode & 0o777);
 
-  }));
+      fs.unlinkSync(link);
+    }], { setup: setup });
+  }
 }
 
 ['', false, null, undefined, {}, []].forEach((input) => {
-  const errObj = {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "fd" argument must be of type number. ' +
-             `Received type ${typeof input}`
+  const checkErr = (e) => {
+    assert.strictEqual(e.code, 'ERR_INVALID_ARG_TYPE');
+    assert(e instanceof TypeError);
+    assert(e.message.includes(typeof input));
+    return true;
   };
-  assert.throws(() => fs.fchmod(input, 0o000), errObj);
-  assert.throws(() => fs.fchmodSync(input, 0o000), errObj);
+  common.fsTest('fchmod', [input, 0o000, checkErr], { throws: true });
+  assert.throws(() => { fs.fchmodSync(input, 0o000); }, checkErr);
 });
 
 [false, 1, {}, [], null, undefined].forEach((input) => {
-  const errObj = {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ` Received type ${typeof input}`
+  const checkErr = (e) => {
+    assert.strictEqual(e.code, 'ERR_INVALID_ARG_TYPE');
+    assert(e instanceof TypeError);
+    assert(e.message.includes(typeof input));
+    return true;
   };
-  assert.throws(() => fs.chmod(input, 1, common.mustNotCall()), errObj);
-  assert.throws(() => fs.chmodSync(input, 1), errObj);
+  common.fsTest('chmod', [input, 1, checkErr], { throws: true });
+  assert.throws(() => fs.chmodSync(input, 1), checkErr);
 });
 
 process.on('exit', function() {
