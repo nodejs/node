@@ -5,8 +5,11 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
+  function onNextTick(i) {
+    if (i + 1 === n)
+      bench.end(n);
+  }
 
-  bench.start();
   for (var i = 0; i < n; i++) {
     if (i % 4 === 0)
       process.nextTick(onNextTick, i, true, 10, 'test');
@@ -17,8 +20,6 @@ function main({ n }) {
     else
       process.nextTick(onNextTick, i);
   }
-  function onNextTick(i) {
-    if (i + 1 === n)
-      bench.end(n);
-  }
+
+  bench.start();
 }
