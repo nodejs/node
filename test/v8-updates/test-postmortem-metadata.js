@@ -105,7 +105,7 @@ function getExpectedSymbols() {
     'v8dbg_class_SlicedString__parent__String',
     'v8dbg_class_String__length__SMI',
     'v8dbg_class_ThinString__actual__String',
-    'v8dbg_context_idx_closure',
+    'v8dbg_context_idx_scope_info',
     'v8dbg_context_idx_prev',
     'v8dbg_context_min_slots',
     'v8dbg_frametype_ArgumentsAdaptorFrame',
