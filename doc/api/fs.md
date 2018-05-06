@@ -746,17 +746,10 @@ changes:
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. The following constants define the possible values of
+checks to be performed. Check
+[`File Access Contants`](#fs_file_access_constants) for possible values of
 `mode`. It is possible to create a mask consisting of the bitwise OR of two or
 more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
-
-* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
-for determining if a file exists, but says nothing about `rwx` permissions.
-Default if no `mode` is specified.
-* `fs.constants.R_OK` - `path` can be read by the calling process.
-* `fs.constants.W_OK` - `path` can be written by the calling process.
-* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
-no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
@@ -891,17 +884,9 @@ changes:
 
 Synchronously tests a user's permissions for the file or directory specified by
 `path`. The `mode` argument is an optional integer that specifies the
-accessibility checks to be performed. The following constants define the
+accessibility checks to be performed. Check [`File Access Contants`](#fs_file_access_constants) for
 possible values of `mode`. It is possible to create a mask consisting of the
 bitwise OR of two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
-
-* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
-for determining if a file exists, but says nothing about `rwx` permissions.
-Default if no `mode` is specified.
-* `fs.constants.R_OK` - `path` can be read by the calling process.
-* `fs.constants.W_OK` - `path` can be written by the calling process.
-* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
-no effect on Windows (will behave like `fs.constants.F_OK`).
 
 If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
 the method will return `undefined`.
@@ -4329,7 +4314,9 @@ The following constants are meant for use with [`fs.access()`][].
   </tr>
   <tr>
     <td><code>F_OK</code></td>
-    <td>Flag indicating that the file is visible to the calling process.</td>
+    <td>Flag indicating that the file is visible to the calling process.
+     This is useful for determining if a file exists, but says nothing
+     about rwx permissions. Default if no mode is specified.</td>
   </tr>
   <tr>
     <td><code>R_OK</code></td>
@@ -4343,7 +4330,8 @@ The following constants are meant for use with [`fs.access()`][].
   <tr>
     <td><code>X_OK</code></td>
     <td>Flag indicating that the file can be executed by the calling
-    process.</td>
+    process. This has no effect on Windows
+    (will behave like fs.constants.F_OK).</td>
   </tr>
 </table>
 
