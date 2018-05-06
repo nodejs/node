@@ -216,9 +216,6 @@ extern bool v8_initialized;
 // Used in node_config.cc.
 extern node::DebugOptions debug_options;
 
-// Used to protect the process title in multi-threading situations.
-extern Mutex process_title_mutex;
-
 // Forward declaration
 class Environment;
 

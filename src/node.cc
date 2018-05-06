@@ -172,7 +172,6 @@ using v8::Value;
 
 using AsyncHooks = Environment::AsyncHooks;
 
-Mutex process_title_mutex;
 static Mutex process_mutex;
 static Mutex environ_mutex;
 
@@ -2608,7 +2607,6 @@ static void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
 static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
-  Mutex::ScopedLock lock(process_title_mutex);
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
   info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer));
@@ -2619,7 +2617,6 @@ static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
-  Mutex::ScopedLock lock(process_title_mutex);
   uv_set_process_title(*title);
 }
 
