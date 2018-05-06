@@ -1655,6 +1655,17 @@ recommended to use 2048 bits or larger for stronger security.
 A TLS/SSL handshake timed out. In this case, the server must also abort the
 connection.
 
+<a id="ERR_TLS_INVALID_PROTOCOL_VERSION"></a>
+### ERR_TLS_INVALID_PROTOCOL_VERSION
+
+Valid TLS protocol versions are `'TLSv1'`, `'TLSv1.1'`, or `'TLSv1.2'`.
+
+<a id="ERR_TLS_PROTOCOL_VERSION_CONFLICT"></a>
+### ERR_TLS_PROTOCOL_VERSION_CONFLICT
+
+Attempting to set a TLS protocol `minVersion` or `maxVersion` conflicts with an
+attempt to set the `secureProtocol` explicitly. Use one mechanism or the other.
+
 <a id="ERR_TLS_RENEGOTIATE"></a>
 ### ERR_TLS_RENEGOTIATE
 
