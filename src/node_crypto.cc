@@ -405,14 +405,15 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();
 
-  int min_version = TLS1_2_VERSION;
-  int max_version = 0;
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[1]->IsInt32());
+  CHECK(args[2]->IsInt32());
+
+  int min_version = args[1].As<Int32>()->Value();
+  int max_version = args[2].As<Int32>()->Value();
   const SSL_METHOD* method = TLS_method();
 
-  if (env->options()->tls_v1_1) min_version = TLS1_1_VERSION;
-  if (env->options()->tls_v1_0) min_version = TLS1_VERSION;
-
-  if (args.Length() == 1 && args[0]->IsString()) {
+  if (args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
 
     // Note that SSLv2 and SSLv3 are disallowed but SSLv23_method and friends
@@ -509,6 +510,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 
   SSL_CTX_set_min_proto_version(sc->ctx_.get(), min_version);
   SSL_CTX_set_max_proto_version(sc->ctx_.get(), max_version);
+
   // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
   // exposed in the public API. To retain compatibility, install a callback
   // which restores the old algorithm.

@@ -1070,6 +1070,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4099
     description: The `ca` option can now be a single string containing multiple
                  CA certificates.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `minVersion` and `maxVersion` can be used to restrict
+                 the allowed TLS protocol versions.
 -->
 
 * `options` {Object}
@@ -1130,6 +1134,16 @@ changes:
     passphrase: <string>]}`. The object form can only occur in an array.
     `object.passphrase` is optional. Encrypted keys will be decrypted with
     `object.passphrase` if provided, or `options.passphrase` if it is not.
+  * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
+    of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
+    `secureProtocol` option, use one or the other.  **Default:** `'TLSv1.2'`.
+  * `minVersion` {string} Optionally set the minimum TLS version to allow. One
+    of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
+    `secureProtocol` option, use one or the other.  It is not recommended to use
+    less than TLSv1.2, but it may be required for interoperability.
+    **Default:** `'TLSv1.2'`, unless changed using CLI options. Using
+    `--tls-v1.0` changes the default to `'TLSv1'`. Using `--tls-v1.1` changes
+    the default to `'TLSv1.1'`.
   * `passphrase` {string} Shared passphrase used for a single private key and/or
     a PFX.
   * `pfx` {string|string[]|Buffer|Buffer[]|Object[]} PFX or PKCS12 encoded
@@ -1150,10 +1164,7 @@ changes:
     example, use `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'`
     to allow any TLS protocol version. It is not recommended to use TLS versions
     less than 1.2, but it may be required for interoperability.  **Default:**
-    `'TLSv1_2_method'`, unless changed using CLI options. Using the `--tlsv1.0`
-    CLI option is like `'TLS_method'` except protocols earlier than TLSv1.0 are
-    not allowed, and using the `--tlsv1.1` CLI option is like `'TLS_method'`
-    except that protocols earlier than TLSv1.1 are not allowed.
+    none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
 

@@ -12,7 +12,7 @@ const agent = new https.Agent();
 // empty options
 assert.strictEqual(
   agent.getName({}),
-  'localhost:::::::::::::::::'
+  'localhost:::::::::::::::::::'
 );
 
 // pass all options arguments
@@ -40,5 +40,5 @@ const options = {
 assert.strictEqual(
   agent.getName(options),
   '0.0.0.0:443:192.168.1.1:ca:cert:dynamic:ciphers:key:pfx:false:localhost:' +
-    'secureProtocol:c,r,l:false:ecdhCurve:dhparam:0:sessionIdContext'
+    '::secureProtocol:c,r,l:false:ecdhCurve:dhparam:0:sessionIdContext'
 );
