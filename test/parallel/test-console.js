@@ -142,12 +142,12 @@ console.timeEnd(NaN);
 console.time('test');
 const time = console._times.get('test');
 setTimeout(() => {
-  assert.deepStrictEqual(console._times.get('test'), time);
   common.expectWarning(
     'Warning',
     'Label \'test\' already exists for console.time()',
     common.noWarnCode);
   console.time('test');
+  assert.deepStrictEqual(console._times.get('test'), time);
   console.timeEnd('test');
 }, 1);
 
