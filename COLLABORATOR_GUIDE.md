@@ -831,7 +831,6 @@ LTS working group and the Release team.
 | Subsystem                                | Maintainers                                                           |
 | ---                                      | ---                                                                   |
 | `benchmark/*`                            | @nodejs/benchmarking, @mscdex                                         |
-| `bootstrap_node.js`                      | @nodejs/process                                                       |
 | `doc/*`, `*.md`                          | @nodejs/documentation                                                 |
 | `lib/assert`                             | @nodejs/testing                                                       |
 | `lib/async_hooks`                        | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
@@ -844,6 +843,7 @@ LTS working group and the Release team.
 | `lib/fs`, `src/{fs,file}`                | @nodejs/fs                                                            |
 | `lib/{_}http{*}`                         | @nodejs/http                                                          |
 | `lib/inspector.js`, `src/inspector_*`    | @nodejs/V8-inspector                                                  |
+| `lib/internal/bootstrap/*`               | @nodejs/process                                                       |
 | `lib/internal/url`, `src/node_url`       | @nodejs/url                                                           |
 | `lib/net`                                | @bnoordhuis, @indutny, @nodejs/streams                                |
 | `lib/repl`                               | @nodejs/repl                                                          |
@@ -851,13 +851,13 @@ LTS working group and the Release team.
 | `lib/timers`                             | @nodejs/timers                                                        |
 | `lib/util`                               | @nodejs/util                                                          |
 | `lib/zlib`                               | @nodejs/zlib                                                          |
-| `src/async-wrap.*`                       | @nodejs/async\_hooks                                                  |
+| `src/async_wrap.*`                       | @nodejs/async\_hooks                                                  |
 | `src/node_api.*`                         | @nodejs/n-api                                                         |
 | `src/node_crypto.*`                      | @nodejs/crypto                                                        |
 | `test/*`                                 | @nodejs/testing                                                       |
 | `tools/node_modules/eslint`, `.eslintrc` | @nodejs/linting                                                       |
 | build                                    | @nodejs/build                                                         |
-| `src/module_wrap.*`, `lib/internal/loader/*`, `lib/internal/vm/Module.js` | @nodejs/modules                      |
+| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                     |
 | GYP                                      | @nodejs/gyp                                                           |
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
