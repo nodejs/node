@@ -1237,6 +1237,19 @@ void DefineCryptoConstants(Local<Object> target) {
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCipherList",
                               per_process_opts->tls_cipher_list.c_str());
+
+  Environment* env = Environment::GetCurrent(target->GetIsolate());
+
+  if (env->options()->tls_v1_0)
+    NODE_DEFINE_STRING_CONSTANT(target, "defaultMinTLSVersion", "TLSv1");
+  else if (env->options()->tls_v1_1)
+    NODE_DEFINE_STRING_CONSTANT(target, "defaultMinTLSVersion", "TLSv1.1");
+  else
+    NODE_DEFINE_STRING_CONSTANT(target, "defaultMinTLSVersion", "TLSv1.2");
+
+  NODE_DEFINE_CONSTANT(target, TLS1_VERSION);
+  NODE_DEFINE_CONSTANT(target, TLS1_1_VERSION);
+  NODE_DEFINE_CONSTANT(target, TLS1_2_VERSION);
 #endif
   NODE_DEFINE_CONSTANT(target, INT_MAX);
 }
