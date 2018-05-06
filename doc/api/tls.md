@@ -1134,6 +1134,14 @@ changes:
     passphrase: <string>]}`. The object form can only occur in an array.
     `object.passphrase` is optional. Encrypted keys will be decrypted with
     `object.passphrase` if provided, or `options.passphrase` if it is not.
+  * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
+    of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
+    `secureProtocol` option, use one or the other.  **Default:** `'TLSv1.2'`.
+  * `minVersion` {string} Optionally set the minimum TLS version to allow. One
+    of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
+    `secureProtocol` option, use one or the other.  It is not recommended to use
+    less than TLSv1.2, but it may be required for interoperability.
+    **Default:** `'TLSv1'`.
   * `passphrase` {string} Shared passphrase used for a single private key and/or
     a PFX.
   * `pfx` {string|string[]|Buffer|Buffer[]|Object[]} PFX or PKCS12 encoded
@@ -1149,9 +1157,12 @@ changes:
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
-  * `secureProtocol` {string} SSL method to use. The possible values are listed
-    as [SSL_METHODS][], use the function names as strings. For example,
-    `'TLSv1_2_method'` to force TLS version 1.2. **Default:** `'TLS_method'`.
+  * `secureProtocol` {string} The TLS protocol version to use. The possible
+    values are listed as [SSL_METHODS][], use the function names as strings. For
+    example, use `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'`
+    to allow any TLS protocol version. It is not recommended to use TLS versions
+    less than 1.2, but it may be required for interoperability.  **Default:**
+    none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
 
