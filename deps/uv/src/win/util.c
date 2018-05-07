@@ -37,7 +37,7 @@
 #include <tlhelp32.h>
 #include <windows.h>
 #include <userenv.h>
-
+#include <math.h>
 
 /*
  * Max title length; the only thing MSDN tells us about the maximum length
