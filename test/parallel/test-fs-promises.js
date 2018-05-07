@@ -12,6 +12,7 @@ const {
   chmod,
   copyFile,
   link,
+  lchmod,
   lstat,
   mkdir,
   mkdtemp,
@@ -129,7 +130,6 @@ function verifyStatObject(stat) {
     if (common.canCreateSymLink()) {
       const newLink = path.resolve(tmpDir, 'baz3.js');
       await symlink(newPath, newLink);
-
       stats = await lstat(newLink);
       verifyStatObject(stats);
 
@@ -137,6 +137,14 @@ function verifyStatObject(stat) {
                          (await realpath(newLink)).toLowerCase());
       assert.strictEqual(newPath.toLowerCase(),
                          (await readlink(newLink)).toLowerCase());
+      if (common.isOSX) {
+        // lchmod is only available on macOS
+        const newMode = 0o666;
+        await lchmod(newLink, newMode);
+        stats = await lstat(newLink);
+        assert.strictEqual(stats.mode & 0o777, newMode);
+      }
+
 
       await unlink(newLink);
     }
