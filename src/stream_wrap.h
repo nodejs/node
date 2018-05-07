@@ -89,7 +89,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
                          int flags = StreamBase::kFlagNone);
 
  protected:
-  inline void store_fd(int fd) {
+  inline void set_fd(int fd) {
 #ifdef _WIN32
     fd_ = fd;
 #endif
