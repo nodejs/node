@@ -31,12 +31,12 @@
 
 namespace node {
 
-BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
-    : persistent_handle_(env->isolate(), handle),
+BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
+    : persistent_handle_(env->isolate(), object),
       env_(env) {
-  CHECK_EQ(false, handle.IsEmpty());
-  CHECK_GT(handle->InternalFieldCount(), 0);
-  handle->SetAlignedPointerInInternalField(0, static_cast<void*>(this));
+  CHECK_EQ(false, object.IsEmpty());
+  CHECK_GT(object->InternalFieldCount(), 0);
+  object->SetAlignedPointerInInternalField(0, static_cast<void*>(this));
 }
 
 
