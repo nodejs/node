@@ -1,3 +1,22 @@
+2018.05.08, Version 1.20.3 (Stable), 8cfd67e59195251dff793ee47c185c9d6a8f3818
+
+Changes since version 1.20.2:
+
+* win: add Windows XP support to uv_if_indextoname() (ssrlive)
+
+* win: fix `'floor' undefined` compiler warning (ssrlive)
+
+* win, pipe: stop read for overlapped pipe (Bartosz Sosnowski)
+
+* build: fix utf-8 name of copyright holder (Jérémy Lal)
+
+* zos: initialize pollfd revents (jBarz)
+
+* zos,doc: add system V message queue note (jBarz)
+
+* linux: don't use uv__nonblock_ioctl() on sparc (Ben Noordhuis)
+
+
 2018.04.23, Version 1.20.2 (Stable), c51fd3f66bbb386a1efdeba6812789f35a372d1e
 
 Changes since version 1.20.1:
