@@ -5,7 +5,7 @@ const common = require('../common');
 common.skipIfEslintMissing();
 
 const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
-const rule = require('../../tools/eslint-rules/require-buffer');
+const rule = require('../../tools/eslint-rules/require-globals');
 const ruleTester = new RuleTester({
   parserOptions: { ecmaVersion: 6 },
   env: { node: true }
@@ -18,7 +18,7 @@ const useStrict = '\'use strict\';\n\n';
 const bufferModule = 'const { Buffer } = require(\'buffer\');\n';
 const mockComment = '// Some Comment\n//\n// Another Comment\n\n';
 const useBuffer = 'Buffer;';
-ruleTester.run('require-buffer', rule, {
+ruleTester.run('require-globals', rule, {
   valid: [
     'foo',
     'const Buffer = require("Buffer"); Buffer;',
