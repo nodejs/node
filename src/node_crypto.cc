@@ -3007,7 +3007,7 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
   int buff_len = len + EVP_CIPHER_CTX_block_size(ctx_.get());
   // For key wrapping algorithms, get output size by calling
   // EVP_CipherUpdate() with null output.
-  if (mode == EVP_CIPH_WRAP_MODE &&
+  if (kind_ == kCipher && mode == EVP_CIPH_WRAP_MODE &&
       EVP_CipherUpdate(ctx_.get(),
                        nullptr,
                        &buff_len,
