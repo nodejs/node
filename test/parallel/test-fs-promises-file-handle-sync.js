@@ -4,7 +4,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
-const { access, copyFile, open, read, write } = require('fs/promises');
+const { access, copyFile, open } = require('fs/promises');
 const path = require('path');
 
 common.crashOnUnhandledRejection();
@@ -18,8 +18,8 @@ async function validateSync() {
   await handle.datasync();
   await handle.sync();
   const buf = Buffer.from('hello world');
-  await write(handle, buf);
-  const ret = await read(handle, Buffer.alloc(11), 0, 11, 0);
+  await handle.write(buf);
+  const ret = await handle.read(Buffer.alloc(11), 0, 11, 0);
   assert.strictEqual(ret.bytesRead, 11);
   assert.deepStrictEqual(ret.buffer, buf);
 }
