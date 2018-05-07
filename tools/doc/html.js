@@ -168,6 +168,7 @@ function altDocs(filename) {
   }
 
   const versions = [
+    { num: '10.x' },
     { num: '9.x' },
     { num: '8.x', lts: true },
     { num: '7.x' },
