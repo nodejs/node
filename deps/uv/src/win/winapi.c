@@ -55,12 +55,16 @@ sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
 /* User32.dll function pointer */
 sSetWinEventHook pSetWinEventHook;
 
+/* iphlpapi.dll function pointer */
+sConvertInterfaceIndexToLuid pConvertInterfaceIndexToLuid = NULL;
+sConvertInterfaceLuidToNameW pConvertInterfaceLuidToNameW = NULL;
 
 void uv_winapi_init(void) {
   HMODULE ntdll_module;
   HMODULE kernel32_module;
   HMODULE powrprof_module;
   HMODULE user32_module;
+  HMODULE iphlpapi_module;
 
   ntdll_module = GetModuleHandleA("ntdll.dll");
   if (ntdll_module == NULL) {
@@ -166,4 +170,11 @@ void uv_winapi_init(void) {
       GetProcAddress(user32_module, "SetWinEventHook");
   }
 
+  iphlpapi_module = LoadLibraryA("iphlpapi.dll");
+  if (iphlpapi_module != NULL) {
+    pConvertInterfaceIndexToLuid = (sConvertInterfaceIndexToLuid)
+      GetProcAddress(iphlpapi_module, "ConvertInterfaceIndexToLuid");
+    pConvertInterfaceLuidToNameW = (sConvertInterfaceLuidToNameW)
+      GetProcAddress(iphlpapi_module, "ConvertInterfaceLuidToNameW");
+  }
 }
