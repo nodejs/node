@@ -41,7 +41,6 @@ server.listen(0, common.mustCall(() => {
 
   req.on('response', common.mustCall());
   req.resume();
-  req.on('end', common.mustCall());
   req.on('close', common.mustCall(() => {
     server.close();
     client.close();

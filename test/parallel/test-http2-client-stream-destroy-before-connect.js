@@ -45,5 +45,4 @@ server.listen(0, common.mustCall(() => {
 
   req.on('response', common.mustNotCall());
   req.resume();
-  req.on('end', common.mustCall());
 }));

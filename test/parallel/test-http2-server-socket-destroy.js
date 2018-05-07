@@ -52,5 +52,4 @@ server.on('listening', common.mustCall(() => {
 
   req.on('aborted', common.mustCall());
   req.resume();
-  req.on('end', common.mustCall());
 }));
