@@ -333,8 +333,8 @@ void Environment::RunCleanup() {
 
       cb.fn_(cb.arg_);
       cleanup_hooks_.erase(cb);
-      CleanupHandles();
     }
+    CleanupHandles();
   }
 }
 
