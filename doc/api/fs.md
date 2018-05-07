@@ -3665,8 +3665,8 @@ added: v10.0.0
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
 checks to be performed. Check [File Access Constants][] for possible values
-`mode`. It is possible to create a mask consisting of the bitwise OR of two
-or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+of `mode`. It is possible to create a mask consisting of the bitwise OR of
+two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
 If the accessibility check is successful, the `Promise` is resolved with no
 value. If any of the accessibility checks fail, the `Promise` is rejected
