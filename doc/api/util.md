@@ -363,13 +363,13 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `depth` default changed to 10.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19259
     description: The `WeakMap` and `WeakSet` entries can now be inspected
                  as well.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/17907
-    description: The `depth` default changed to `Infinity`.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17576
     description: The `compact` option is supported now.
@@ -422,7 +422,7 @@ changes:
   * `depth` {number} Specifies the number of visible nested `Object`s in an
     `object`. This is useful to minimize the inspection output for large
     complicated objects. To make it recurse indefinitely pass `null` or
-    `Infinity`. **Default:** `Infinity`.
+    `Infinity`. **Default:** `10`.
 * Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
