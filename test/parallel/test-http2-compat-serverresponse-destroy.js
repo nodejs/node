@@ -63,6 +63,7 @@ server.listen(0, common.mustCall(() => {
     req.on('close', common.mustCall(() => countdown.dec()));
 
     req.resume();
+    req.on('end', common.mustCall());
   }
 
   {
@@ -77,5 +78,6 @@ server.listen(0, common.mustCall(() => {
     req.on('close', common.mustCall(() => countdown.dec()));
 
     req.resume();
+    req.on('end', common.mustCall());
   }
 }));
