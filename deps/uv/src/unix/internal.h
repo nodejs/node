@@ -185,6 +185,18 @@ struct uv__stream_queued_fds_s {
 #define uv__nonblock uv__nonblock_fcntl
 #endif
 
+/* On Linux, uv__nonblock_fcntl() and uv__nonblock_ioctl() do not commute
+ * when O_NDELAY is not equal to O_NONBLOCK.  Case in point: linux/sparc32
+ * and linux/sparc64, where O_NDELAY is O_NONBLOCK + another bit.
+ *
+ * Libuv uses uv__nonblock_fcntl() directly sometimes so ensure that it
+ * commutes with uv__nonblock().
+ */
+#if defined(__linux__) && O_NDELAY != O_NONBLOCK
+#undef uv__nonblock
+#define uv__nonblock uv__nonblock_fcntl
+#endif
+
 /* core */
 int uv__cloexec_ioctl(int fd, int set);
 int uv__cloexec_fcntl(int fd, int set);
