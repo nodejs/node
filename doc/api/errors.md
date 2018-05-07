@@ -728,6 +728,12 @@ An invalid [crypto digest algorithm][] was specified.
 A crypto method was used on an object that was in an invalid state. For
 instance, calling [`cipher.getAuthTag()`][] before calling `cipher.final()`.
 
+<a id="ERR_CRYPTO_ROLL_MY_OWN"></a>
+### ERR_CRYPTO_ROLL_MY_OWN
+
+The `rollMyOwn` function from the `crypto` module was called. This is a fun
+easter egg to remind you to never roll your own cryptographic library.
+
 <a id="ERR_CRYPTO_SIGN_KEY_REQUIRED"></a>
 ### ERR_CRYPTO_SIGN_KEY_REQUIRED
 
