@@ -7,8 +7,8 @@
 <!--type=module-->
 
 Much of the Node.js core API is built around an idiomatic asynchronous
-event-driven architecture in which certain kinds of objects (called "emitters")
-periodically emit named events that cause `Function` objects ("listeners") to be
+event-driven architecture in which certain kinds of objects (called "emitters") 
+emit named events that cause `Function` objects ("listeners") to be
 called.
 
 For instance: a [`net.Server`][] object emits an event each time a peer
