@@ -322,6 +322,13 @@ describes the package in more detail.
 
 AIX support for filesystem events is not compiled when building with `gyp`.
 
+### z/OS Notes
+
+z/OS creates System V semaphores and message queues. These persist on the system
+after the process terminates unless the event loop is closed.
+
+Use the `ipcrm` command to manually clear up System V resources.
+
 ## Patches
 
 See the [guidelines for contributing][].

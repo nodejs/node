@@ -215,6 +215,7 @@ uv__os390_epoll* epoll_create1(int flags) {
     maybe_resize(lst, 1);
     lst->items[lst->size - 1].fd = lst->msg_queue;
     lst->items[lst->size - 1].events = POLLIN;
+    lst->items[lst->size - 1].revents = 0;
     uv_once(&once, epoll_init);
     uv_mutex_lock(&global_epoll_lock);
     QUEUE_INSERT_TAIL(&global_epoll_queue, &lst->member);
@@ -252,6 +253,7 @@ int epoll_ctl(uv__os390_epoll* lst,
     }
     lst->items[fd].fd = fd;
     lst->items[fd].events = event->events;
+    lst->items[fd].revents = 0;
   } else if (op == EPOLL_CTL_MOD) {
     if (fd >= lst->size || lst->items[fd].fd == -1) {
       uv_mutex_unlock(&global_epoll_lock);
