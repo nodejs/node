@@ -1069,11 +1069,11 @@ changes:
 Expects the function `block` to throw an error.
 
 If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
-an validation object where each property will be tested for strict deep
-equality, or an instance of error where each property will be tested for strict
-deep equality including the non-enumerable `message` and `name` properties. When
-using an validation object, it is also possible to use a regular expression,
-when validating against a string property. See below for examples.
+a validation object where each property will be tested for strict deep equality,
+or an instance of error where each property will be tested for strict deep
+equality including the non-enumerable `message` and `name` properties. When
+using a object, it is also possible to use a regular expression, when validating
+against a string property. See below for examples.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
@@ -1107,23 +1107,26 @@ assert.throws(
   }
 );
 
-// Using regular expressions to validate the error properties:
+// Using regular expressions to validate error properties:
 assert.throws(
   () => {
     throw err;
   },
   {
+    // The `name` and `message` properties are strings and using regular
+    // expressions on those will match against the string. If they fail, an
+    // error is thrown.
     name: /^TypeError$/,
     message: /Wrong/,
     foo: 'bar',
     info: {
       nested: true,
-      // Note that it is not possible to use regular expressions for nested
-      // properties!
+      // It is not possible to use regular expressions for nested properties!
       baz: 'text'
     },
-    // This will strictly validate that the regular expression is identical to
-    // the regular expression on the error.
+    // The `reg` property contains a regular expression and only if the
+    // validation object contains an identical regular expression, it is going
+    // to pass.
     reg: /abc/i
   }
 );
