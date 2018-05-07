@@ -111,7 +111,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   uv_stream_t* const stream_;
 
 #ifdef _WIN32
-  // We don't always an FD that we could look up on the stream_
+  // We don't always have an FD that we could look up on the stream_
   // object itself on Windows. However, for some cases, we open handles
   // using FDs; In that case, we can store and provide the value.
   // This became necessary because it allows to detect situations
