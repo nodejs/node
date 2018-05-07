@@ -30,12 +30,11 @@ cause an error to be thrown.
 An End-of-Life deprecation is used to identify code that either has been
 removed or will soon be removed from Node.js.
 
-## Un-deprecation
+## Revoking deprecations
 
-From time-to-time the deprecation of an API may be reversed. Such action may
-happen in either a semver-minor or semver-major release. In such situations,
+Occasionally, the deprecation of an API may be reversed. In such situations,
 this document will be updated with information relevant to the decision.
-*However, the deprecation identifier will not be modified*.
+However, the deprecation identifier will not be modified.
 
 ## List of Deprecated APIs
 
@@ -161,7 +160,7 @@ instead.
 
 Type: End-of-Life
 
-`Domain.dispose()` is removed. Recover from failed I/O actions
+`Domain.dispose()` has been removed. Recover from failed I/O actions
 explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
@@ -170,7 +169,7 @@ explicitly via error event handlers set on the domain instead.
 Type: End-of-Life
 
 Calling an asynchronous function without a callback throws a `TypeError`
-v10.0.0 onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562).
+in Node.js 10.0.0 onwards. (See https://github.com/nodejs/node/pull/12562.)
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface
@@ -569,7 +568,7 @@ Type: End-of-Life
 
 The `repl` module's `REPL_MODE_MAGIC` constant, used for `replMode` option, has
 been removed. Its behavior has been functionally identical to that of
-`REPL_MODE_SLOPPY` since Node.js v6.0.0, when V8 5.0 was imported. Please use
+`REPL_MODE_SLOPPY` since Node.js 6.0.0, when V8 5.0 was imported. Please use
 `REPL_MODE_SLOPPY` instead.
 
 The `NODE_REPL_MODE` environment variable is used to set the underlying
@@ -722,7 +721,7 @@ Type: Runtime
 
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
-instead. For backwards compatibility with Node.js prior to version 6.4.0, both
+instead. For backward compatibility with Node.js prior to version 6.4.0, both
 may be specified.
 
 <a id="DEP0080"></a>
@@ -748,9 +747,8 @@ file descriptors.
 
 Type: Runtime
 
-`REPLServer.prototype.memory()` is a function only necessary for the
-internal mechanics of the `REPLServer` itself, and is therefore not
-necessary in user space.
+`REPLServer.prototype.memory()` is only necessary for the internal mechanics of
+the `REPLServer` itself. Do not use this function.
 
 <a id="DEP0083"></a>
 ### DEP0083: Disabling ECDH by setting ecdhCurve to false
@@ -798,8 +796,8 @@ code modification is necessary if that is done.
 
 Type: End-of-Life
 
-The AsyncHooks Sensitive API was never documented and had various of minor
-issues, see https://github.com/nodejs/node/issues/15572. Use the `AsyncResource`
+The AsyncHooks Sensitive API was never documented and had various minor issues.
+(See https://github.com/nodejs/node/issues/15572.) Use the `AsyncResource`
 API instead.
 
 <a id="DEP0086"></a>
@@ -860,9 +858,9 @@ and `crypto.getFips()` instead.
 
 Type: Runtime
 
-Using `assert.fail()` with more than one argument has no benefit over writing an
-individual error message. Either use `assert.fail()` with one argument or switch
-to one of the other assert methods.
+Using `assert.fail()` with more than one argument is deprecated. Use
+`assert.fail()` with only one argument or use a different `assert` module
+method.
 
 <a id="DEP0095"></a>
 ### DEP0095: timers.enroll()
@@ -925,7 +923,7 @@ This was never a documented feature.
 
 Type: End-of-Life
 
-The `--with-lttng` compile time option is removed.
+The `--with-lttng` compile-time option has been removed.
 
 <a id="DEP0102"></a>
 ### DEP0102: Using `noAssert` in Buffer#(read|write) operations.
@@ -949,11 +947,11 @@ methods in particular can be replaced by using [`util.types`][].
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
-Currently when assigning a property to [`process.env`][], the assigned value is
-implicitly converted to a string if it is not a string. This behavior is
-deprecated if the assigned value is not a string, boolean, or number. In the
-future, such assignment may result in a thrown error. Please convert the
-property to a string before assigning it to `process.env`.
+When assigning a non-string property to [`process.env`][], the assigned value is
+implicitly converted to a string. This behavior is deprecated if the assigned
+value is not a string, boolean, or number. In the future, such assignment may
+result in a thrown error. Please convert the property to a string before
+assigning it to `process.env`.
 
 <a id="DEP0105"></a>
 ### DEP0105: decipher.finaltol
