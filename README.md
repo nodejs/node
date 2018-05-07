@@ -14,7 +14,7 @@ more information on using Node.js, see the
 
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
-policies, and releases are managed under an
+policies and releases are managed under an
 [open governance model](./GOVERNANCE.md).
 
 **This project is bound by a [Code of Conduct][].**
