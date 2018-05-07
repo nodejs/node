@@ -1072,8 +1072,8 @@ If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
 a validation object where each property will be tested for strict deep equality,
 or an instance of error where each property will be tested for strict deep
 equality including the non-enumerable `message` and `name` properties. When
-using a object, it is also possible to use a regular expression, when validating
-against a string property. See below for examples.
+using an object, it is also possible to use a regular expression, when
+validating against a string property. See below for examples.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
