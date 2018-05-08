@@ -693,6 +693,8 @@ bool Agent::IsWaitingForConnect() {
 }
 
 bool Agent::HasConnectedSessions() {
+  if (client_ == nullptr)
+    return false;
   return client_->hasConnectedSessions();
 }
 
