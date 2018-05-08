@@ -17,8 +17,8 @@ The sandboxed code uses a different V8 Context, meaning that
 it has a different global object than the rest of the code.
 
 One can provide the context by ["contextifying"][contextified] a sandbox
-object. The sandboxed code treats any property on the sandbox like a
-global variable. Any changes on global variables caused by the sandboxed
+object. The sandboxed code treats any property in the sandbox like a
+global variable. Any changes to global variables caused by the sandboxed
 code are reflected in the sandbox object.
 
 ```js
