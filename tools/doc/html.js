@@ -103,51 +103,6 @@ function toHTML({ input, filename, nodeVersion, analytics }, cb) {
   cb(null, HTML);
 }
 
-// Replace placeholders in text tokens.
-function replaceInText(text) {
-  if (text === '') return text;
-  return linkJsTypeDocs(linkManPages(text));
-}
-
-function altDocs(filename, docCreated) {
-  const [, docCreatedMajor, docCreatedMinor] = docCreated.map(Number);
-  const host = 'https://nodejs.org';
-  const versions = [
-    { num: '10.x' },
-    { num: '9.x' },
-    { num: '8.x', lts: true },
-    { num: '7.x' },
-    { num: '6.x', lts: true },
-    { num: '5.x' },
-    { num: '4.x', lts: true },
-    { num: '0.12.x' },
-    { num: '0.10.x' }
-  ];
-
-  const getHref = (versionNum) =>
-    `${host}/docs/latest-v${versionNum}/api/${filename}.html`;
-
-  const wrapInListItem = (version) =>
-    `<li><a href="${getHref(version.num)}">${version.num}` +
-    `${version.lts ? ' <b>LTS</b>' : ''}</a></li>`;
-
-  function isDocInVersion(version) {
-    const [versionMajor, versionMinor] = version.num.split('.').map(Number);
-    if (docCreatedMajor > versionMajor) return false;
-    if (docCreatedMajor < versionMajor) return true;
-    return docCreatedMinor <= versionMinor;
-  }
-
-  const list = versions.filter(isDocInVersion).map(wrapInListItem).join('\n');
-
-  return list ? `
-    <li class="version-picker">
-      <a href="#">View another version <span>&#x25bc;</span></a>
-      <ol class="version-picker">${list}</ol>
-    </li>
-  ` : '';
-}
-
 // Handle general body-text replacements.
 // For example, link man page references to the actual page.
 function preprocessText(lexed) {
@@ -166,6 +121,53 @@ function preprocessText(lexed) {
       token.text = replaceInText(token.text);
     }
   });
+}
+
+// Replace placeholders in text tokens.
+function replaceInText(text) {
+  if (text === '') return text;
+  return linkJsTypeDocs(linkManPages(text));
+}
+
+// Syscalls which appear in the docs, but which only exist in BSD / macOS.
+const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
+const MAN_PAGE = /(^|\s)([a-z.]+)\((\d)([a-z]?)\)/gm;
+
+// Handle references to man pages, eg "open(2)" or "lchmod(2)".
+// Returns modified text, with such refs replaced with HTML links, for example
+// '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'.
+function linkManPages(text) {
+  return text.replace(
+    MAN_PAGE, (match, beginning, name, number, optionalCharacter) => {
+      // Name consists of lowercase letters,
+      // number is a single digit with an optional lowercase letter.
+      const displayAs = `${name}(${number}${optionalCharacter})`;
+
+      if (BSD_ONLY_SYSCALLS.has(name)) {
+        return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi` +
+          `?query=${name}&sektion=${number}">${displayAs}</a>`;
+      }
+      return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
+        `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
+    });
+}
+
+const TYPE_SIGNATURE = /\{[^}]+\}/g;
+function linkJsTypeDocs(text) {
+  const parts = text.split('`');
+
+  // Handle types, for example the source Markdown might say
+  // "This argument should be a {number} or {string}".
+  for (let i = 0; i < parts.length; i += 2) {
+    const typeMatches = parts[i].match(TYPE_SIGNATURE);
+    if (typeMatches) {
+      typeMatches.forEach((typeMatch) => {
+        parts[i] = parts[i].replace(typeMatch, typeParser.toLink(typeMatch));
+      });
+    }
+  }
+
+  return parts.join('`');
 }
 
 // Preprocess stability blockquotes and YAML blocks.
@@ -257,45 +259,15 @@ function parseYAML(text) {
   return html;
 }
 
-// Syscalls which appear in the docs, but which only exist in BSD / macOS.
-const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
-const MAN_PAGE = /(^|\s)([a-z.]+)\((\d)([a-z]?)\)/gm;
-
-// Handle references to man pages, eg "open(2)" or "lchmod(2)".
-// Returns modified text, with such refs replaced with HTML links, for example
-// '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'.
-function linkManPages(text) {
-  return text.replace(
-    MAN_PAGE, (match, beginning, name, number, optionalCharacter) => {
-      // Name consists of lowercase letters,
-      // number is a single digit with an optional lowercase letter.
-      const displayAs = `${name}(${number}${optionalCharacter})`;
-
-      if (BSD_ONLY_SYSCALLS.has(name)) {
-        return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi` +
-          `?query=${name}&sektion=${number}">${displayAs}</a>`;
-      }
-      return `${beginning}<a href="http://man7.org/linux/man-pages/man${number}` +
-        `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
-    });
-}
-
-const TYPE_SIGNATURE = /\{[^}]+\}/g;
-function linkJsTypeDocs(text) {
-  const parts = text.split('`');
-
-  // Handle types, for example the source Markdown might say
-  // "This argument should be a {number} or {string}".
-  for (let i = 0; i < parts.length; i += 2) {
-    const typeMatches = parts[i].match(TYPE_SIGNATURE);
-    if (typeMatches) {
-      typeMatches.forEach((typeMatch) => {
-        parts[i] = parts[i].replace(typeMatch, typeParser.toLink(typeMatch));
-      });
-    }
-  }
-
-  return parts.join('`');
+const numberRe = /^\d*/;
+function versionSort(a, b) {
+  a = a.trim();
+  b = b.trim();
+  let i = 0; // Common prefix length.
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  a = a.substr(i);
+  b = b.substr(i);
+  return +b.match(numberRe)[0] - +a.match(numberRe)[0];
 }
 
 function buildToc(lexed, filename) {
@@ -354,13 +326,41 @@ function getId(text, idCounters) {
   return text;
 }
 
-const numberRe = /^\d*/;
-function versionSort(a, b) {
-  a = a.trim();
-  b = b.trim();
-  let i = 0; // Common prefix length.
-  while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  a = a.substr(i);
-  b = b.substr(i);
-  return +b.match(numberRe)[0] - +a.match(numberRe)[0];
+function altDocs(filename, docCreated) {
+  const [, docCreatedMajor, docCreatedMinor] = docCreated.map(Number);
+  const host = 'https://nodejs.org';
+  const versions = [
+    { num: '10.x' },
+    { num: '9.x' },
+    { num: '8.x', lts: true },
+    { num: '7.x' },
+    { num: '6.x', lts: true },
+    { num: '5.x' },
+    { num: '4.x', lts: true },
+    { num: '0.12.x' },
+    { num: '0.10.x' }
+  ];
+
+  const getHref = (versionNum) =>
+    `${host}/docs/latest-v${versionNum}/api/${filename}.html`;
+
+  const wrapInListItem = (version) =>
+    `<li><a href="${getHref(version.num)}">${version.num}` +
+    `${version.lts ? ' <b>LTS</b>' : ''}</a></li>`;
+
+  function isDocInVersion(version) {
+    const [versionMajor, versionMinor] = version.num.split('.').map(Number);
+    if (docCreatedMajor > versionMajor) return false;
+    if (docCreatedMajor < versionMajor) return true;
+    return docCreatedMinor <= versionMinor;
+  }
+
+  const list = versions.filter(isDocInVersion).map(wrapInListItem).join('\n');
+
+  return list ? `
+    <li class="version-picker">
+      <a href="#">View another version <span>&#x25bc;</span></a>
+      <ol class="version-picker">${list}</ol>
+    </li>
+  ` : '';
 }
