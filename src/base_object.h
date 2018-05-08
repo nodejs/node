@@ -34,7 +34,7 @@ class Environment;
 
 class BaseObject {
  public:
-  // Associates this object with `handle`. It uses the 0th internal field for
+  // Associates this object with `object`. It uses the 0th internal field for
   // that, and in particular aborts if there is no such field.
   inline BaseObject(Environment* env, v8::Local<v8::Object> object);
   virtual inline ~BaseObject();
