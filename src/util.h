@@ -410,7 +410,6 @@ class BufferValue : public MaybeStackBuffer<char> {
 // Use this when a variable or parameter is unused in order to explicitly
 // silence a compiler warning about that.
 template <typename T> inline void USE(T&&) {}
-}  // namespace node
 
 // Run a function when exiting the current scope.
 struct OnScopeLeave {
@@ -419,6 +418,37 @@ struct OnScopeLeave {
   explicit OnScopeLeave(std::function<void()> fn) : fn_(fn) {}
   ~OnScopeLeave() { fn_(); }
 };
+
+// Simple RAII wrapper for contiguous data that uses malloc()/free().
+template<typename T>
+struct MallocedBuffer {
+  T* data;
+  size_t size;
+
+  T* release() {
+    T* ret = data;
+    data = nullptr;
+    return ret;
+  }
+
+  MallocedBuffer() : data(nullptr) {}
+  explicit MallocedBuffer(size_t size) : data(Malloc<T>(size)), size(size) {}
+  MallocedBuffer(MallocedBuffer&& other) : data(other.data), size(other.size) {
+    other.data = nullptr;
+  }
+  MallocedBuffer& operator=(MallocedBuffer&& other) {
+    this->~MallocedBuffer();
+    return *new(this) MallocedBuffer(other);
+  }
+  ~MallocedBuffer() {
+    free(data);
+  }
+  MallocedBuffer(const MallocedBuffer&) = delete;
+  MallocedBuffer& operator=(const MallocedBuffer&) = delete;
+};
+
+}  // namespace node
+
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
