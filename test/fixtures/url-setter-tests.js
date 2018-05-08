@@ -728,6 +728,17 @@ module.exports =
             }
         },
         {
+            "comment": "Port number is removed if new port is scheme default and existing URL has a non-default port",
+            "href": "http://example.net:8080",
+            "new_value": "example.com:80",
+            "expected": {
+                "href": "http://example.com/",
+                "host": "example.com",
+                "hostname": "example.com",
+                "port": ""
+            }
+        },
+        {
             "comment": "Stuff after a / delimiter is ignored",
             "href": "http://example.net/path",
             "new_value": "example.com/stuff",
@@ -975,17 +986,6 @@ module.exports =
                 "host": "test:12",
                 "hostname": "test",
                 "port": "12"
-            }
-        },
-        {
-            "comment": "Port number is removed if new port is scheme default",
-            "href": "http://example.net:8080",
-            "new_value": "example.com:80",
-            "expected": {
-                "href": "http://example.com/",
-                "host": "example.com",
-                "hostname": "example.com",
-                "port": ""
             }
         }
     ],
