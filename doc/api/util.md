@@ -407,7 +407,7 @@ changes:
     -->
   * `maxArrayLength` {number} Specifies the maximum number of `Array`,
     [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
-    formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
+    formatting. Set to `Infinity` or `null` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
@@ -421,8 +421,9 @@ changes:
     example below. **Default:** `true`.
   * `depth` {number} Specifies the number of visible nested `Object`s in an
     `object`. This is useful to minimize the inspection output for large
-    complicated objects. To make it recurse indefinitely pass `null` or
-    `Infinity`. **Default:** `10`.
+    complicated objects. To make it recurse almost indefinitely pass any high
+    number, `Infinity` or `null`. The real value is capped at 1000.
+    **Default:** `10`.
 * Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
