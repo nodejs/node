@@ -664,23 +664,23 @@ added: v8.4.0
 added: v9.4.0
 -->
 
-* `alt`: {string}
-* `origin`: {string}
-* `streamId`: {number}
+* `alt` {string}
+* `origin` {string}
+* `stream` {number}
 
 The `'altsvc'` event is emitted whenever an `ALTSVC` frame is received by
-the client. The event is emitted with the `ALTSVC` value, origin, and stream
-ID. If no `origin` is provided in the `ALTSVC` frame, `origin` will
+the client. The event is emitted with the `ALTSVC` value, origin, and stream.
+If no `origin` is provided in the `ALTSVC` frame, `origin` will
 be an empty string.
 
 ```js
 const http2 = require('http2');
 const client = http2.connect('https://example.org');
 
-client.on('altsvc', (alt, origin, streamId) => {
+client.on('altsvc', (alt, origin, stream) => {
   console.log(alt);
   console.log(origin);
-  console.log(streamId);
+  console.log(stream);
 });
 ```
 
