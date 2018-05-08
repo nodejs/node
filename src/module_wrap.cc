@@ -224,8 +224,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
   TryCatch try_catch(isolate);
-  Maybe<bool> ok =
-      module->InstantiateModule(context, ModuleWrap::ResolveCallback);
+  Maybe<bool> ok = module->InstantiateModule(context, ResolveCallback);
 
   // clear resolve cache on instantiate
   obj->resolve_cache_.clear();
@@ -369,7 +368,7 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
     return MaybeLocal<Module>();
   }
 
-  ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
+  ModuleWrap* dependent = GetFromModule(env, referrer);
 
   if (dependent == nullptr) {
     env->ThrowError("linking error, null dep");
@@ -749,7 +748,7 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
     Local<Context> context, Local<Module> module, Local<Object> meta) {
   Isolate* isolate = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
-  ModuleWrap* module_wrap = ModuleWrap::GetFromModule(env, module);
+  ModuleWrap* module_wrap = GetFromModule(env, module);
 
   if (module_wrap == nullptr) {
     return;
@@ -797,13 +796,13 @@ void ModuleWrap::Initialize(Local<Object> target,
                       GetStaticDependencySpecifiers);
 
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"), tpl->GetFunction());
-  env->SetMethod(target, "resolve", node::loader::ModuleWrap::Resolve);
+  env->SetMethod(target, "resolve", Resolve);
   env->SetMethod(target,
                  "setImportModuleDynamicallyCallback",
-                 node::loader::ModuleWrap::SetImportModuleDynamicallyCallback);
+                 SetImportModuleDynamicallyCallback);
   env->SetMethod(target,
                  "setInitializeImportMetaObjectCallback",
-                 ModuleWrap::SetInitializeImportMetaObjectCallback);
+                 SetInitializeImportMetaObjectCallback);
 
 #define V(name)                                                                \
     target->Set(context,                                                       \
