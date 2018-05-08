@@ -859,9 +859,13 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   Label process_bytecode, extra_wide;
   STATIC_ASSERT(0 == static_cast<int>(interpreter::Bytecode::kWide));
   STATIC_ASSERT(1 == static_cast<int>(interpreter::Bytecode::kExtraWide));
-  __ cmp(bytecode, Operand(0x1));
+  STATIC_ASSERT(2 == static_cast<int>(interpreter::Bytecode::kDebugBreakWide));
+  STATIC_ASSERT(3 ==
+                static_cast<int>(interpreter::Bytecode::kDebugBreakExtraWide));
+  __ cmp(bytecode, Operand(0x3));
   __ b(hi, &process_bytecode);
-  __ b(eq, &extra_wide);
+  __ tst(bytecode, Operand(0x1));
+  __ b(ne, &extra_wide);
 
   // Load the next bytecode and update table to the wide scaled table.
   __ add(bytecode_offset, bytecode_offset, Operand(1));
