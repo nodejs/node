@@ -44,9 +44,9 @@ myEmitter.emit('event');
 ## Passing arguments and `this` to listeners
 
 The `eventEmitter.emit()` method allows an arbitrary set of arguments to be
-passed to the listener functions. It is important to keep in mind that when an
-ordinary listener function is called, the standard `this`
-keyword is intentionally set to reference the `EventEmitter` instance to which the
+passed to the listener functions. It is important to keep in mind that when
+an ordinary listener function is called, the standard `this` keyword
+is intentionally set to reference the `EventEmitter` instance to which the
 listener is attached.
 
 ```js
