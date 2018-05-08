@@ -183,7 +183,7 @@ LOAD_NODE_MODULES(X, START)
 NODE_MODULES_PATHS(START)
 1. let PARTS = path split(START)
 2. let I = count of PARTS - 1
-3. let DIRS = [GLOBAL_FOLDERS](#modules_loading_from_the_global_folders)
+3. let DIRS = [GLOBAL_FOLDERS]
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
    b. DIR = path join(PARTS[0 .. I] + "node_modules")
@@ -650,10 +650,10 @@ changes:
 * `options` {Object}
   * `paths` {string[]} Paths to resolve module location from. If present, these
     paths are used instead of the default resolution paths, with the exception
-    of [GLOBAL_FOLDERS](#modules_loading_from_the_global_folders) like
-    `~/.node_modules`, which are always included. Note that each of these paths
-    is used as a starting point for the module resolution algorithm, meaning
-    that the `node_modules` hierarchy is checked from this location.
+    of [GLOBAL_FOLDERS][] like `$HOME/.node_modules`, which are always 
+    included. Note that each of these paths is used as a starting point for
+    the module resolution algorithm, meaning that the `node_modules` hierarchy
+    is checked from this location.
 * Returns: {string}
 
 Use the internal `require()` machinery to look up the location of a module,
@@ -897,3 +897,4 @@ const builtin = require('module').builtinModules;
 [module resolution]: #modules_all_together
 [module wrapper]: #modules_the_module_wrapper
 [native addons]: addons.html
+[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
