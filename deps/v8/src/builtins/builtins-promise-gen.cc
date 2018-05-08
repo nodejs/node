@@ -999,7 +999,7 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
       // We need to reject the {thenable}.
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-          native_context, UndefinedConstant(), var_exception.value());
+          native_context, reject, UndefinedConstant(), var_exception.value());
       Return(result);
     }
   }
