@@ -1496,7 +1496,7 @@ Just like `'end'`, this event occurs only once per response.
 
 ### message.aborted
 <!-- YAML
-added: REPLACEME
+added: v10.1.0
 -->
 
 * {boolean}
