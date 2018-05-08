@@ -164,7 +164,7 @@ operates similarly to the `clear` shell command. On Windows, `console.clear()`
 will clear only the output in the current terminal viewport for the Node.js
 binary.
 
-### console.count([label])
+### console.count([label='default'])
 <!-- YAML
 added: v8.3.0
 -->
