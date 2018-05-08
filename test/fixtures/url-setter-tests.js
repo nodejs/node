@@ -2,7 +2,7 @@
 
 /* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
-   https://github.com/w3c/web-platform-tests/blob/ed4bb727ed/url/setters_tests.json
+   https://github.com/w3c/web-platform-tests/blob/f0fe479/url/setters_tests.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
