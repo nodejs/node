@@ -118,6 +118,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSPromiseResolve:
     case IrOpcode::kJSRejectPromise:
     case IrOpcode::kJSResolvePromise:
+    case IrOpcode::kJSPerformPromiseThen:
       return true;
 
     default:
