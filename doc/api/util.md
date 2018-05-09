@@ -1271,6 +1271,24 @@ util.types.isMapIterator(map.entries());  // Returns true
 util.types.isMapIterator(map[Symbol.iterator]());  // Returns true
 ```
 
+### util.types.isModuleNamespaceObject(value)
+<!-- YAML
+added: v10.0.0
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is an instance of a [Module Namespace Object][].
+
+For example:
+
+<!-- eslint-skip -->
+```js
+import * as ns from './a.js';
+
+util.types.isModuleNamespaceObject(ns);  // Returns true
+```
+
 ### util.types.isNativeError(value)
 <!-- YAML
 added: v10.0.0
@@ -2111,6 +2129,7 @@ Deprecated predecessor of `console.log`.
 [Custom promisified functions]: #util_custom_promisified_functions
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [Internationalization]: intl.html
+[Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [Common System Errors]: errors.html#errors_common_system_errors
 [constructor]: https://developer.mozilla.org/en-US/JavaScript/Reference/Global_Objects/Object/constructor
