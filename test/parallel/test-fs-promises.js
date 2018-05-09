@@ -5,7 +5,8 @@ const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const path = require('path');
-const fsPromises = require('fs').promises;
+const fs = require('fs');
+const fsPromises = fs.promises;
 const {
   access,
   chmod,
@@ -37,6 +38,10 @@ const {
 const tmpDir = tmpdir.path;
 
 common.crashOnUnhandledRejection();
+
+// fs.promises should not be enumerable as long as it causes a warning to be
+// emitted.
+assert.strictEqual(Object.keys(fs).includes('promises'), false);
 
 {
   access(__filename, 'r')
