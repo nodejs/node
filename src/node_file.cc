@@ -421,7 +421,9 @@ void FSReqWrap::Resolve(Local<Value> value) {
     Null(env()->isolate()),
     value
   };
-  MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
+  MakeCallback(env()->oncomplete_string(),
+               value->IsUndefined() ? 1 : arraysize(argv),
+               argv);
 }
 
 void FSReqWrap::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
