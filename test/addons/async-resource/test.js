@@ -5,6 +5,8 @@ const assert = require('assert');
 const binding = require(`./build/${common.buildType}/binding`);
 const async_hooks = require('async_hooks');
 
+binding.runSubclassTest();
+
 const kObjectTag = Symbol('kObjectTag');
 const rootAsyncId = async_hooks.executionAsyncId();
 
