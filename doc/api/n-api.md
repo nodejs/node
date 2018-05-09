@@ -1697,8 +1697,9 @@ napi_status napi_get_typedarray_info(napi_env env,
 - `[in] typedarray`: `napi_value` representing the `TypedArray` whose
 properties to query.
 - `[out] type`: Scalar datatype of the elements within the `TypedArray`.
-- `[out] length`: `Number` of elements in the `TypedArray`.
-- `[out] data`: The data buffer underlying the typed array.
+- `[out] length`: The number of elements in the `TypedArray`.
+- `[out] data`: The data buffer underlying the `TypedArray`.
+- `[out] arraybuffer`: The `ArrayBuffer` underlying the `TypedArray`.
 - `[out] byte_offset`: The byte offset within the data buffer from which
 to start projecting the `TypedArray`.
 
