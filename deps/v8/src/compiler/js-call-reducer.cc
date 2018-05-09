@@ -5135,6 +5135,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
   // Check that promises aren't being observed through (debug) hooks.
   if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
@@ -5193,9 +5194,9 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
       graph()->NewNode(javascript()->CreatePromise(), context, effect);
 
   // Chain {result} onto {receiver}.
-  result = effect = graph()->NewNode(javascript()->PerformPromiseThen(),
-                                     receiver, on_fulfilled, on_rejected,
-                                     result, context, effect, control);
+  result = effect = graph()->NewNode(
+      javascript()->PerformPromiseThen(), receiver, on_fulfilled, on_rejected,
+      result, context, frame_state, effect, control);
   ReplaceWithValue(node, result, effect, control);
   return Replace(result);
 }
