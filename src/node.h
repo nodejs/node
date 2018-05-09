@@ -229,7 +229,7 @@ class MultiIsolatePlatform : public v8::Platform {
   // posted during flushing of the queue are postponed until the next
   // flushing.
   virtual bool FlushForegroundTasks(v8::Isolate* isolate) = 0;
-  virtual void DrainBackgroundTasks(v8::Isolate* isolate) = 0;
+  virtual void DrainTasks(v8::Isolate* isolate) = 0;
   virtual void CancelPendingDelayedTasks(v8::Isolate* isolate) = 0;
 
   // These will be called by the `IsolateData` creation/destruction functions.
