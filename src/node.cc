@@ -326,7 +326,8 @@ static struct {
   }
 
   void StopTracingAgent() {
-    tracing_agent_->Stop();
+    if (tracing_agent_)
+      tracing_agent_->Stop();
   }
 
   tracing::Agent* GetTracingAgent() const {
