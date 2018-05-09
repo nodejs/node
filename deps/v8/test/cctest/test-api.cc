@@ -18107,6 +18107,12 @@ TEST(PromiseHook) {
   CHECK_EQ(v8::Promise::kFulfilled, GetPromise("p")->State());
   CHECK_EQ(9, promise_hook_data->promise_hook_count);
 
+  promise_hook_data->Reset();
+  source = "(async() => await p)();\n";
+
+  CompileRun(source);
+  CHECK_EQ(11, promise_hook_data->promise_hook_count);
+
   delete promise_hook_data;
   isolate->SetPromiseHook(nullptr);
 }
