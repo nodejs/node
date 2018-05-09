@@ -28,7 +28,7 @@ SPDX-License-Identifier: MIT
 namespace node {
   namespace largepages {
     bool isLargePagesEnabled(); 
-    void map_static_code_to_large_pages();
+    int map_static_code_to_large_pages();
   }  // namespace largepages
 } // namespace node
 

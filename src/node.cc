@@ -4487,8 +4487,9 @@ int Start(int argc, char** argv) {
 
 #ifdef NODE_ENABLE_LARGE_CODE_PAGES
   if (node::largepages::isLargePagesEnabled()) {
-    //    fprintf(stderr, "Mapping static code to large pages\n");
-    node::largepages::map_static_code_to_large_pages();
+    if ( (node::largepages::map_static_code_to_large_pages()) != 0) {
+      fprintf(stderr, "Warning: Mapping of static code to large pages failed.\n");
+    }
   }
 #endif
 

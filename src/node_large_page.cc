@@ -52,11 +52,11 @@ namespace node {
 #define PAGE_ALIGN_DOWN(x,a) ((x) & ~((a) - 1))
 
     struct TextRegion {
-      int    found_text_region;
       void * from;
       void * to;
       int    totalHugePages;
       long   offset;
+      bool   found_text_region;
       char   name[PATH_MAX];
     };
 
@@ -73,7 +73,7 @@ namespace node {
       const size_t hugePageSize = 2L * 1024 * 1024;
       struct TextRegion nregion;
 
-      nregion.found_text_region = 0;
+      nregion.found_text_region = false;
 
       f = fopen("/proc/self/maps", "r");
       ret = fscanf(f, "%lx-%lx %4s %lx %5s %ld %s\n",
@@ -90,7 +90,7 @@ namespace node {
 
         if (from < to) {
           size_t size = (intptr_t)to - (intptr_t)from;
-          nregion.found_text_region = 1;
+          nregion.found_text_region = true;
           nregion.from = from;
           nregion.to = to;
           nregion.offset = offset;
@@ -156,7 +156,7 @@ namespace node {
     //    1. We map a new area and copy the original code there
     //    2. We mmap using HUGE_TLB
     //    3. If successful we copy the code there and unmap the original region.
-    void
+    int
       __attribute__((__section__(".eh_frame")))
       __attribute__((__aligned__(2 * 1024 * 1024)))
       __attribute__((__noinline__))
@@ -173,16 +173,10 @@ namespace node {
                     PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (nmem == MAP_FAILED) {
           printSystemError(errno);
-          return;
+          return -1;
         }
 
         memcpy(nmem, r.from, size);
-
-#if 0   // use for explicit huge pages
-        mmap(start, size,
-             PROT_READ | PROT_WRITE | PROT_EXEC,
-             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_HUGETLB, -1 , 0);
-#endif
 
         // use for transparent huge pages if enabled
         if (isTransparentHugePagesEnabled()) {
@@ -192,7 +186,7 @@ namespace node {
           if (tmem == MAP_FAILED) {
             printSystemError(errno);
             munmap(nmem, size);
-            return;
+            return -1;
           }
 
           ret = madvise(start, size, MADV_HUGEPAGE);
@@ -207,7 +201,7 @@ namespace node {
               printSystemError(errno);
             }
 
-            return;
+            return -1;
           }
         }
 
@@ -223,7 +217,7 @@ namespace node {
           if (ret == -1) {
             printSystemError(errno);
           }
-          return;
+          return -1;
         }
 
         // Release the old/temporary mapped region
@@ -232,21 +226,21 @@ namespace node {
           printSystemError(errno);
         }
 
-        return;
+        return ret;
     }
 
     // This is the primary API called from main
-    void map_static_code_to_large_pages() {
+    int map_static_code_to_large_pages() {
       struct TextRegion n = find_node_text_region();
-      if (n.found_text_region != 1) {
+      if (n.found_text_region == false) {
         fprintf(stderr, "Hugepages WARNING: failed to map static code\n");
-        return;
+        return -1;
       }
 
       if (n.to <= (void *) & move_text_region_to_large_pages)
-        move_text_region_to_large_pages(n);
+        return move_text_region_to_large_pages(n);
 
-      return;
+      return -1;
     }
 
     bool isLargePagesEnabled() {
