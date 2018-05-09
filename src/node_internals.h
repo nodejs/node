@@ -508,6 +508,41 @@ class InternalCallbackScope {
   bool closed_ = false;
 };
 
+class ThreadPoolWork {
+ public:
+  explicit inline ThreadPoolWork(Environment* env) : env_(env) {}
+  inline void ScheduleWork();
+  inline int CancelWork();
+
+  virtual void DoThreadPoolWork() = 0;
+  virtual void AfterThreadPoolWork(int status) = 0;
+
+ private:
+  Environment* env_;
+  uv_work_t work_req_;
+};
+
+void ThreadPoolWork::ScheduleWork() {
+  env_->IncreaseWaitingRequestCounter();
+  int status = uv_queue_work(
+      env_->event_loop(),
+      &work_req_,
+      [](uv_work_t* req) {
+        ThreadPoolWork* self = ContainerOf(&ThreadPoolWork::work_req_, req);
+        self->DoThreadPoolWork();
+      },
+      [](uv_work_t* req, int status) {
+        ThreadPoolWork* self = ContainerOf(&ThreadPoolWork::work_req_, req);
+        self->env_->DecreaseWaitingRequestCounter();
+        self->AfterThreadPoolWork(status);
+      });
+  CHECK_EQ(status, 0);
+}
+
+int ThreadPoolWork::CancelWork() {
+  return uv_cancel(reinterpret_cast<uv_req_t*>(&work_req_));
+}
+
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
   switch (errorno) {
