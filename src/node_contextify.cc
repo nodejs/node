@@ -228,10 +228,10 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsBoolean());
 
   ContextOptions options {
-    .name = args[1].As<String>(),
-    .origin = args[2]->IsString() ? args[2].As<String>() : Local<String>(),
-    .allow_code_gen_strings = args[3].As<Boolean>(),
-    .allow_code_gen_wasm = args[4].As<Boolean>()
+    args[1].As<String>(),
+    args[2]->IsString() ? args[2].As<String>() : Local<String>(),
+    args[3].As<Boolean>(),
+    args[4].As<Boolean>()
   };
 
   TryCatch try_catch(env->isolate());
