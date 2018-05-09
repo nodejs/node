@@ -699,7 +699,7 @@ class AsyncResource {
                                      trigger_async_id);
     }
 
-    ~AsyncResource() {
+    virtual ~AsyncResource() {
       EmitAsyncDestroy(isolate_, async_context_);
     }
 
