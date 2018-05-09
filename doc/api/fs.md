@@ -1089,6 +1089,10 @@ For example, the octal value `0o765` means:
 * The group may read and write the file.
 * Others may read and execute the file.
 
+Caveats: on Windows only the write permission can be changed, and the
+distinction among the permissions of group, owner or others is not
+implemented.
+
 ## fs.chmodSync(path, mode)
 <!-- YAML
 added: v0.6.7
@@ -1992,7 +1996,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `0o777`
+* `mode` {integer} Not supported on Windows. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
 
@@ -2012,7 +2016,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `0o777`
+* `mode` {integer} Not supported on Windows. **Default:** `0o777`.
 
 Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
@@ -2132,7 +2136,8 @@ changes:
 Asynchronous file open. See open(2).
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created.
+created. Note that on Windows only the write permission can be manipulated,
+see [`fs.chmod()`][].
 
 The callback gets two arguments `(err, fd)`.
 
