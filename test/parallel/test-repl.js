@@ -132,6 +132,29 @@ const strictModeTests = [
   }
 ];
 
+const friendlyExitTests = [
+  {
+    send: 'exit',
+    expect: '(To exit, press ^D or type .exit)'
+  },
+  {
+    send: 'quit',
+    expect: '(To exit, press ^D or type .exit)'
+  },
+  {
+    send: 'quit = 1',
+    expect: '1'
+  },
+  {
+    send: 'quit',
+    expect: '1'
+  },
+  {
+    send: 'exit',
+    expect: '(To exit, press ^D or type .exit)'
+  },
+];
+
 const errorTests = [
   // Uncaught error throws and prints out
   {
@@ -742,6 +765,7 @@ const tcpTests = [
     const [ socket, replServer ] = await startUnixRepl();
 
     await runReplTests(socket, prompt_unix, unixTests);
+    await runReplTests(socket, prompt_unix, friendlyExitTests);
     await runReplTests(socket, prompt_unix, errorTests);
     replServer.replMode = repl.REPL_MODE_STRICT;
     await runReplTests(socket, prompt_unix, strictModeTests);
