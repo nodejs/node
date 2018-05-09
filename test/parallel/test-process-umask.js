@@ -33,20 +33,20 @@ if (common.isWindows) {
 
 const old = process.umask(mask);
 
-assert.strictEqual(parseInt(mask, 8), process.umask(old));
+assert.strictEqual(process.umask(old), parseInt(mask, 8));
 
 // confirm reading the umask does not modify it.
 // 1. If the test fails, this call will succeed, but the mask will be set to 0
-assert.strictEqual(old, process.umask());
+assert.strictEqual(process.umask(), old);
 // 2. If the test fails, process.umask() will return 0
-assert.strictEqual(old, process.umask());
+assert.strictEqual(process.umask(), old);
 
 assert.throws(() => {
   process.umask({});
 }, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "mask" argument must be one of type number, string, or ' +
-    'undefined. Received type object'
+  code: 'ERR_INVALID_ARG_VALUE',
+  message: 'The argument \'mask\' must be a 32-bit unsigned integer ' +
+           'or an octal string. Received {}'
 });
 
 ['123x', 'abc', '999'].forEach((value) => {
@@ -54,6 +54,7 @@ assert.throws(() => {
     process.umask(value);
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
-    message: `The argument 'mask' must be an octal string. Received '${value}'`
+    message: 'The argument \'mask\' must be a 32-bit unsigned integer ' +
+             `or an octal string. Received '${value}'`
   });
 });
