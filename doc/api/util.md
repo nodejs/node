@@ -1025,6 +1025,44 @@ util.types.isAsyncFunction(function foo() {});  // Returns false
 util.types.isAsyncFunction(async function foo() {});  // Returns true
 ```
 
+### util.types.isBigInt64Array(value)
+<!-- YAML
+added: v10.0.0
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a `BigInt64Array` instance. The
+`--harmony-bigint` command line flag is required in order to use the
+`BigInt64Array` type, but it is not required in order to use
+`isBigInt64Array()`.
+
+For example:
+
+```js
+util.types.isBigInt64Array(new BigInt64Array());   // Returns true
+util.types.isBigInt64Array(new BigUint64Array());  // Returns false
+```
+
+### util.types.isBigUint64Array(value)
+<!-- YAML
+added: v10.0.0
+-->
+
+* Returns: {boolean}
+
+Returns `true` if the value is a `BigUint64Array` instance. The
+`--harmony-bigint` command line flag is required in order to use the
+`BigUint64Array` type, but it is not required in order to use
+`isBigUint64Array()`.
+
+For example:
+
+```js
+util.types.isBigUint64Array(new BigInt64Array());   // Returns false
+util.types.isBigUint64Array(new BigUint64Array());  // Returns true
+```
+
 ### util.types.isBooleanObject(value)
 <!-- YAML
 added: v10.0.0
