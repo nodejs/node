@@ -222,21 +222,17 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
           env->context(),
           env->contextify_context_private_symbol()).FromJust());
 
-  ContextOptions options;
-
   CHECK(args[1]->IsString());
-  options.name = args[1].As<String>();
-
   CHECK(args[2]->IsString() || args[2]->IsUndefined());
-  if (args[2]->IsString()) {
-    options.origin = args[2].As<String>();
-  }
-
   CHECK(args[3]->IsBoolean());
-  options.allow_code_gen_strings = args[3].As<Boolean>();
-
   CHECK(args[4]->IsBoolean());
-  options.allow_code_gen_wasm = args[4].As<Boolean>();
+
+  ContextOptions options {
+    args[1].As<String>(),
+    args[2]->IsString() ? args[2].As<String>() : Local<String>(),
+    args[3].As<Boolean>(),
+    args[4].As<Boolean>()
+  };
 
   TryCatch try_catch(env->isolate());
   ContextifyContext* context = new ContextifyContext(env, sandbox, options);
