@@ -17,6 +17,17 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+int custom_async_resource_destructor_calls = 0;
+
+class CustomAsyncResource : public AsyncResource {
+ public:
+  CustomAsyncResource(Isolate* isolate, Local<Object> resource)
+      : AsyncResource(isolate, resource, "CustomAsyncResource") {}
+  ~CustomAsyncResource() {
+    custom_async_resource_destructor_calls++;
+  }
+};
+
 void CreateAsyncResource(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   assert(args[0]->IsObject());
@@ -98,6 +109,16 @@ void GetResource(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(r->get_resource());
 }
 
+void RunSubclassTest(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Object> obj = Object::New(isolate);
+
+  assert(custom_async_resource_destructor_calls == 0);
+  CustomAsyncResource* resource = new CustomAsyncResource(isolate, obj);
+  delete static_cast<AsyncResource*>(resource);
+  assert(custom_async_resource_destructor_calls == 1);
+}
+
 void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "createAsyncResource", CreateAsyncResource);
   NODE_SET_METHOD(exports, "destroyAsyncResource", DestroyAsyncResource);
@@ -107,6 +128,7 @@ void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "getAsyncId", GetAsyncId);
   NODE_SET_METHOD(exports, "getTriggerAsyncId", GetTriggerAsyncId);
   NODE_SET_METHOD(exports, "getResource", GetResource);
+  NODE_SET_METHOD(exports, "runSubclassTest", RunSubclassTest);
 }
 
 }  // anonymous namespace
