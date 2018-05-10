@@ -219,7 +219,7 @@ illustration of how it can be used.
 
 ## N-API
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 N-API is an API for building native Addons. It is independent from
 the underlying JavaScript runtime (e.g. V8) and is maintained as part of
