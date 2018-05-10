@@ -73,6 +73,15 @@ export function leakedGlobals() {
     knownGlobals.push(Symbol);
   }
 
+  // WHATWG APIs
+  if (global.TextEncoder) {
+    knownGlobals.push(TextEncoder);
+  }
+
+  if (global.TextDecoder) {
+    knownGlobals.push(TextDecoder)
+  }
+
   const leaked = [];
 
   for (const val in global) {

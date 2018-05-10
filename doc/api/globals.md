@@ -156,6 +156,24 @@ added: v10.0.0
 
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
+## TextEncoder
+<!-- YAML
+added: v11.0.0
+-->
+
+<!-- type=global -->
+
+The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
+
+## TextDecoder
+<!-- YAML
+added: v11.0.0
+-->
+
+<!-- type=global -->
+
+The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
+
 [`__dirname`]: modules.html#modules_dirname
 [`__filename`]: modules.html#modules_filename
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediate
@@ -171,6 +189,8 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
 [`URL`]: url.html#url_class_url
 [`URLSearchParams`]: url.html#url_class_urlsearchparams
+[`TextEncoder`]: util.html#util_class_textencoder
+[`TextDecoder`]: util.html#util_class_textdecoder
 [buffer section]: buffer.html
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.html
