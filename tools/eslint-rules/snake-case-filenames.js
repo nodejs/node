@@ -8,14 +8,21 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = {
-  create: function(context) {
-    return {
-      'Program:exit': function(node) {
-        var filename = context.getFilename();
-        context.report(node, `Filename ${filename} does 
-                              not match the naming convention.`);
+const path = require('path');
+
+module.exports = function(context) {
+  const snakeCaseRegex = new RegExp('^[a-z_]+$');
+
+  return {
+    'Program': function(node) {
+      const filename = path.resolve(context.getFilename());
+      const name = path.basename(filename, path.extname(filename));
+
+      if (snakeCaseRegex.test(name)) {
+        context.report(node, "Filename '{{name}}' is not in snake_case.", {
+          name
+        });
       }
-    };
-  }
+    }
+  };
 };
