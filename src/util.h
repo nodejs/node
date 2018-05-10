@@ -211,7 +211,7 @@ inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
     const Persistent<TypeName>& persistent);
 
-// Unchecked conversion from a non-weak Persistent<T> to Local<TLocal<T>,
+// Unchecked conversion from a non-weak Persistent<T> to Local<T>,
 // use with care!
 //
 // Do not call persistent.Reset() while the returned Local<T> is still in
