@@ -1070,18 +1070,26 @@ changes:
 Expects the function `block` to throw an error.
 
 If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
-an object where each property will be tested for, or an instance of error where
-each property will be tested for including the non-enumerable `message` and
-`name` properties.
+a validation object where each property will be tested for strict deep equality,
+or an instance of error where each property will be tested for strict deep
+equality including the non-enumerable `message` and `name` properties. When
+using an object, it is also possible to use a regular expression, when
+validating against a string property. See below for examples.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
 
-Custom error object / error instance:
+Custom validation object / error instance:
 
 ```js
 const err = new TypeError('Wrong value');
 err.code = 404;
+err.foo = 'bar';
+err.info = {
+  nested: true,
+  baz: 'text'
+};
+err.reg = /abc/i;
 
 assert.throws(
   () => {
@@ -1089,8 +1097,38 @@ assert.throws(
   },
   {
     name: 'TypeError',
-    message: 'Wrong value'
-    // Note that only properties on the error object will be tested!
+    message: 'Wrong value',
+    info: {
+      nested: true,
+      baz: 'text'
+    }
+    // Note that only properties on the validation object will be tested for.
+    // Using nested objects requires all properties to be present. Otherwise
+    // the validation is going to fail.
+  }
+);
+
+// Using regular expressions to validate error properties:
+assert.throws(
+  () => {
+    throw err;
+  },
+  {
+    // The `name` and `message` properties are strings and using regular
+    // expressions on those will match against the string. If they fail, an
+    // error is thrown.
+    name: /^TypeError$/,
+    message: /Wrong/,
+    foo: 'bar',
+    info: {
+      nested: true,
+      // It is not possible to use regular expressions for nested properties!
+      baz: 'text'
+    },
+    // The `reg` property contains a regular expression and only if the
+    // validation object contains an identical regular expression, it is going
+    // to pass.
+    reg: /abc/i
   }
 );
 
