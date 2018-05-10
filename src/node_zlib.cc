@@ -70,10 +70,11 @@ enum node_zlib_mode {
 /**
  * Deflate/Inflate
  */
-class ZCtx : public AsyncWrap {
+class ZCtx : public AsyncWrap, public ThreadPoolWork {
  public:
   ZCtx(Environment* env, Local<Object> wrap, node_zlib_mode mode)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
+        ThreadPoolWork(env),
         dictionary_(nullptr),
         dictionary_len_(0),
         err_(0),
@@ -191,9 +192,6 @@ class ZCtx : public AsyncWrap {
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
-    // build up the work request
-    uv_work_t* work_req = &(ctx->work_req_);
-
     ctx->strm_.avail_in = in_len;
     ctx->strm_.next_in = in;
     ctx->strm_.avail_out = out_len;
@@ -203,7 +201,7 @@ class ZCtx : public AsyncWrap {
     if (!async) {
       // sync version
       env->PrintSyncTrace();
-      Process(work_req);
+      ctx->DoThreadPoolWork();
       if (CheckError(ctx)) {
         ctx->write_result_[0] = ctx->strm_.avail_out;
         ctx->write_result_[1] = ctx->strm_.avail_in;
@@ -214,17 +212,24 @@ class ZCtx : public AsyncWrap {
     }
 
     // async version
-    uv_queue_work(env->event_loop(), work_req, ZCtx::Process, ZCtx::After);
+    ctx->ScheduleWork();
   }
 
+  // TODO(addaleax): Make these methods non-static. It's a significant bunch
+  // of churn that's better left for a separate PR.
+  void DoThreadPoolWork() {
+    Process(this);
+  }
+
+  void AfterThreadPoolWork(int status) {
+    After(this, status);
+  }
 
   // thread pool!
   // This function may be called multiple times on the uv_work pool
   // for a single write() call, until all of the input bytes have
   // been consumed.
-  static void Process(uv_work_t* work_req) {
-    ZCtx *ctx = ContainerOf(&ZCtx::work_req_, work_req);
-
+  static void Process(ZCtx* ctx) {
     const Bytef* next_expected_header_byte = nullptr;
 
     // If the avail_out is left at 0, then it means that it ran out
@@ -360,11 +365,16 @@ class ZCtx : public AsyncWrap {
 
 
   // v8 land!
-  static void After(uv_work_t* work_req, int status) {
-    CHECK_EQ(status, 0);
-
-    ZCtx* ctx = ContainerOf(&ZCtx::work_req_, work_req);
+  static void After(ZCtx* ctx, int status) {
     Environment* env = ctx->env();
+    ctx->write_in_progress_ = false;
+
+    if (status == UV_ECANCELED) {
+      ctx->Close();
+      return;
+    }
+
+    CHECK_EQ(status, 0);
 
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
@@ -374,7 +384,6 @@ class ZCtx : public AsyncWrap {
 
     ctx->write_result_[0] = ctx->strm_.avail_out;
     ctx->write_result_[1] = ctx->strm_.avail_in;
-    ctx->write_in_progress_ = false;
 
     // call the write() cb
     Local<Function> cb = PersistentToLocal(env->isolate(),
@@ -678,7 +687,6 @@ class ZCtx : public AsyncWrap {
   int strategy_;
   z_stream strm_;
   int windowBits_;
-  uv_work_t work_req_;
   bool write_in_progress_;
   bool pending_close_;
   unsigned int refs_;

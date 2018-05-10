@@ -107,7 +107,6 @@ Environment::Environment(IsolateData* isolate_data,
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
 #endif
-      handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
       context_(context->GetIsolate(), context) {
@@ -134,6 +133,10 @@ Environment::Environment(IsolateData* isolate_data,
 }
 
 Environment::~Environment() {
+  // Make sure there are no re-used libuv wrapper objects.
+  // CleanupHandles() should have removed all of them.
+  CHECK(file_handle_read_wrap_freelist_.empty());
+
   v8::HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
@@ -209,9 +212,7 @@ void Environment::RegisterHandleCleanups() {
                                         void* arg) {
     handle->data = env;
 
-    uv_close(handle, [](uv_handle_t* handle) {
-      static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-    });
+    env->CloseHandle(handle, [](uv_handle_t* handle) {});
   };
 
   RegisterHandleCleanup(
@@ -233,14 +234,23 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
-  for (HandleCleanup& hc : handle_cleanup_queue_) {
-    handle_cleanup_waiting_++;
+  for (ReqWrap<uv_req_t>* request : req_wrap_queue_)
+    request->Cancel();
+
+  for (HandleWrap* handle : handle_wrap_queue_)
+    handle->Close();
+
+  for (HandleCleanup& hc : handle_cleanup_queue_)
     hc.cb_(this, hc.handle_, hc.arg_);
-  }
   handle_cleanup_queue_.clear();
 
-  while (handle_cleanup_waiting_ != 0)
+  while (handle_cleanup_waiting_ != 0 ||
+         request_waiting_ != 0 ||
+         !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
+  }
+
+  file_handle_read_wrap_freelist_.clear();
 }
 
 void Environment::StartProfilerIdleNotifier() {
@@ -303,6 +313,37 @@ void Environment::PrintSyncTrace() const {
     }
   }
   fflush(stderr);
+}
+
+void Environment::RunCleanup() {
+  CleanupHandles();
+
+  while (!cleanup_hooks_.empty()) {
+    // Copy into a vector, since we can't sort an unordered_set in-place.
+    std::vector<CleanupHookCallback> callbacks(
+        cleanup_hooks_.begin(), cleanup_hooks_.end());
+    // We can't erase the copied elements from `cleanup_hooks_` yet, because we
+    // need to be able to check whether they were un-scheduled by another hook.
+
+    std::sort(callbacks.begin(), callbacks.end(),
+              [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
+      // Sort in descending order so that the most recently inserted callbacks
+      // are run first.
+      return a.insertion_order_counter_ > b.insertion_order_counter_;
+    });
+
+    for (const CleanupHookCallback& cb : callbacks) {
+      if (cleanup_hooks_.count(cb) == 0) {
+        // This hook was removed from the `cleanup_hooks_` set during another
+        // hook that was run earlier. Nothing to do here.
+        continue;
+      }
+
+      cb.fn_(cb.arg_);
+      cleanup_hooks_.erase(cb);
+    }
+    CleanupHandles();
+  }
 }
 
 void Environment::RunBeforeExitCallbacks() {

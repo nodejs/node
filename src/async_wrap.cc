@@ -141,6 +141,7 @@ static void DestroyAsyncIdsCallback(Environment* env, void* data) {
   do {
     std::vector<double> destroy_async_id_list;
     destroy_async_id_list.swap(*env->destroy_async_id_list());
+    if (!env->can_call_into_js()) return;
     for (auto async_id : destroy_async_id_list) {
       // Want each callback to be cleaned up after itself, instead of cleaning
       // them all up after the while() loop completes.
@@ -166,7 +167,7 @@ void Emit(Environment* env, double async_id, AsyncHooks::Fields type,
           Local<Function> fn) {
   AsyncHooks* async_hooks = env->async_hooks();
 
-  if (async_hooks->fields()[type] == 0)
+  if (async_hooks->fields()[type] == 0 || !env->can_call_into_js())
     return;
 
   v8::HandleScope handle_scope(env->isolate());
@@ -625,8 +626,10 @@ void AsyncWrap::EmitTraceEventDestroy() {
 }
 
 void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
-  if (env->async_hooks()->fields()[AsyncHooks::kDestroy] == 0)
+  if (env->async_hooks()->fields()[AsyncHooks::kDestroy] == 0 ||
+      !env->can_call_into_js()) {
     return;
+  }
 
   if (env->destroy_async_id_list()->empty()) {
     env->SetUnrefImmediate(DestroyAsyncIdsCallback, nullptr);

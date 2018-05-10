@@ -37,9 +37,6 @@ VALGRIND_ARGUMENTS = [
   'valgrind',
   '--error-exitcode=1',
   '--smc-check=all',
-  # Node.js does not clean up on exit so don't complain about
-  # memory leaks but do complain about invalid memory access.
-  '--quiet',
 ]
 
 if len(sys.argv) < 2:

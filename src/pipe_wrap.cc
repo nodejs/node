@@ -204,6 +204,7 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0]->Int32Value();
 
   int err = uv_pipe_open(&wrap->handle_, fd);
+  wrap->set_fd(fd);
 
   if (err != 0)
     env->isolate()->ThrowException(UVException(err, "uv_pipe_open"));
@@ -224,11 +225,10 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   ConnectWrap* req_wrap =
       new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP);
-  uv_pipe_connect(req_wrap->req(),
-                  &wrap->handle_,
-                  *name,
-                  AfterConnect);
-  req_wrap->Dispatched();
+  req_wrap->Dispatch(uv_pipe_connect,
+                     &wrap->handle_,
+                     *name,
+                     AfterConnect);
 
   args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
 }

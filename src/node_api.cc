@@ -902,6 +902,28 @@ void napi_module_register(napi_module* mod) {
   node::node_module_register(nm);
 }
 
+napi_status napi_add_env_cleanup_hook(napi_env env,
+                                      void (*fun)(void* arg),
+                                      void* arg) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, fun);
+
+  node::AddEnvironmentCleanupHook(env->isolate, fun, arg);
+
+  return napi_ok;
+}
+
+napi_status napi_remove_env_cleanup_hook(napi_env env,
+                                         void (*fun)(void* arg),
+                                         void* arg) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, fun);
+
+  node::RemoveEnvironmentCleanupHook(env->isolate, fun, arg);
+
+  return napi_ok;
+}
+
 // Warning: Keep in-sync with napi_status enum
 static
 const char* error_messages[] = {nullptr,
@@ -3316,7 +3338,7 @@ static napi_status ConvertUVErrorCode(int code) {
 }
 
 // Wrapper around uv_work_t which calls user-provided callbacks.
-class Work : public node::AsyncResource {
+class Work : public node::AsyncResource, public node::ThreadPoolWork {
  private:
   explicit Work(napi_env env,
                 v8::Local<v8::Object> async_resource,
@@ -3327,15 +3349,14 @@ class Work : public node::AsyncResource {
     : AsyncResource(env->isolate,
                     async_resource,
                     *v8::String::Utf8Value(env->isolate, async_resource_name)),
-    _env(env),
-    _data(data),
-    _execute(execute),
-    _complete(complete) {
-    memset(&_request, 0, sizeof(_request));
-    _request.data = this;
+      ThreadPoolWork(node::Environment::GetCurrent(env->isolate)),
+      _env(env),
+      _data(data),
+      _execute(execute),
+      _complete(complete) {
   }
 
-  ~Work() { }
+  virtual ~Work() { }
 
  public:
   static Work* New(napi_env env,
@@ -3352,44 +3373,36 @@ class Work : public node::AsyncResource {
     delete work;
   }
 
-  static void ExecuteCallback(uv_work_t* req) {
-    Work* work = static_cast<Work*>(req->data);
-    work->_execute(work->_env, work->_data);
+  void DoThreadPoolWork() override {
+    _execute(_env, _data);
   }
 
-  static void CompleteCallback(uv_work_t* req, int status) {
-    Work* work = static_cast<Work*>(req->data);
+  void AfterThreadPoolWork(int status) {
+    if (_complete == nullptr)
+      return;
 
-    if (work->_complete != nullptr) {
-      napi_env env = work->_env;
+    // Establish a handle scope here so that every callback doesn't have to.
+    // Also it is needed for the exception-handling below.
+    v8::HandleScope scope(_env->isolate);
 
-      // Establish a handle scope here so that every callback doesn't have to.
-      // Also it is needed for the exception-handling below.
-      v8::HandleScope scope(env->isolate);
-      CallbackScope callback_scope(work);
+    CallbackScope callback_scope(this);
 
-      NAPI_CALL_INTO_MODULE(env,
-          work->_complete(env, ConvertUVErrorCode(status), work->_data),
-          [env] (v8::Local<v8::Value> local_err) {
-            // If there was an unhandled exception in the complete callback,
-            // report it as a fatal exception. (There is no JavaScript on the
-            // callstack that can possibly handle it.)
-            v8impl::trigger_fatal_exception(env, local_err);
-          });
+    NAPI_CALL_INTO_MODULE(_env,
+        _complete(_env, ConvertUVErrorCode(status), _data),
+        [this] (v8::Local<v8::Value> local_err) {
+          // If there was an unhandled exception in the complete callback,
+          // report it as a fatal exception. (There is no JavaScript on the
+          // callstack that can possibly handle it.)
+          v8impl::trigger_fatal_exception(_env, local_err);
+        });
 
-      // Note: Don't access `work` after this point because it was
-      // likely deleted by the complete callback.
-    }
-  }
-
-  uv_work_t* Request() {
-    return &_request;
+    // Note: Don't access `work` after this point because it was
+    // likely deleted by the complete callback.
   }
 
  private:
   napi_env _env;
   void* _data;
-  uv_work_t _request;
   napi_async_execute_callback _execute;
   napi_async_complete_callback _complete;
 };
@@ -3466,10 +3479,7 @@ napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
 
   uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
 
-  CALL_UV(env, uv_queue_work(event_loop,
-                             w->Request(),
-                             uvimpl::Work::ExecuteCallback,
-                             uvimpl::Work::CompleteCallback));
+  w->ScheduleWork();
 
   return napi_clear_last_error(env);
 }
@@ -3480,7 +3490,7 @@ napi_status napi_cancel_async_work(napi_env env, napi_async_work work) {
 
   uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
 
-  CALL_UV(env, uv_cancel(reinterpret_cast<uv_req_t*>(w->Request())));
+  CALL_UV(env, w->CancelWork());
 
   return napi_clear_last_error(env);
 }

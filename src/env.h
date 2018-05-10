@@ -42,6 +42,7 @@
 #include <stdint.h>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 struct nghttp2_rcbuf;
 
@@ -576,10 +577,14 @@ class Environment {
 
   void RegisterHandleCleanups();
   void CleanupHandles();
+
+  // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
                                     HandleCleanupCb cb,
                                     void *arg);
-  inline void FinishHandleCleanup(uv_handle_t* handle);
+
+  template <typename T, typename OnCloseCallback>
+  inline void CloseHandle(T* handle, OnCloseCallback callback);
 
   inline void AssignToContext(v8::Local<v8::Context> context,
                               const ContextInfo& info);
@@ -595,6 +600,9 @@ class Environment {
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
+
+  inline void IncreaseWaitingRequestCounter();
+  inline void DecreaseWaitingRequestCounter();
 
   inline AsyncHooks* async_hooks();
   inline ImmediateInfo* immediate_info();
@@ -670,6 +678,12 @@ class Environment {
                               const char* message = nullptr,
                               const char* path = nullptr,
                               const char* dest = nullptr);
+
+  // If this flag is set, calls into JS (if they would be observable
+  // from userland) must be avoided.  This flag does not indicate whether
+  // calling into JS is allowed from a VM perspective at this point.
+  inline bool can_call_into_js() const;
+  inline void set_can_call_into_js(bool can_call_into_js);
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -775,6 +789,10 @@ class Environment {
 
   v8::Local<v8::Value> GetNow();
 
+  inline void AddCleanupHook(void (*fn)(void*), void* arg);
+  inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
+  void RunCleanup();
+
  private:
   inline void CreateImmediate(native_immediate_callback cb,
                               void* data,
@@ -809,6 +827,7 @@ class Environment {
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
+  bool can_call_into_js_ = true;
 
 #if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;
@@ -824,7 +843,8 @@ class Environment {
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
   std::list<HandleCleanup> handle_cleanup_queue_;
-  int handle_cleanup_waiting_;
+  int handle_cleanup_waiting_ = 0;
+  int request_waiting_ = 0;
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
@@ -862,6 +882,32 @@ class Environment {
   std::vector<NativeImmediateCallback> native_immediate_callbacks_;
   void RunAndClearNativeImmediates();
   static void CheckImmediate(uv_check_t* handle);
+
+  struct CleanupHookCallback {
+    void (*fn_)(void*);
+    void* arg_;
+
+    // We keep track of the insertion order for these objects, so that we can
+    // call the callbacks in reverse order when we are cleaning up.
+    uint64_t insertion_order_counter_;
+
+    // Only hashes `arg_`, since that is usually enough to identify the hook.
+    struct Hash {
+      inline size_t operator()(const CleanupHookCallback& cb) const;
+    };
+
+    // Compares by `fn_` and `arg_` being equal.
+    struct Equal {
+      inline bool operator()(const CleanupHookCallback& a,
+                             const CleanupHookCallback& b) const;
+    };
+  };
+
+  // Use an unordered_set, so that we have efficient insertion and removal.
+  std::unordered_set<CleanupHookCallback,
+                     CleanupHookCallback::Hash,
+                     CleanupHookCallback::Equal> cleanup_hooks_;
+  uint64_t cleanup_hook_counter_ = 0;
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,

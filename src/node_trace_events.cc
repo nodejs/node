@@ -21,11 +21,6 @@ using v8::Value;
 
 class NodeCategorySet : public BaseObject {
  public:
-  ~NodeCategorySet() override {
-    // Verify that the thing was properly disabled before gc
-    CHECK_NE(enabled_, true);
-  }
-
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Enable(const FunctionCallbackInfo<Value>& args);
   static void Disable(const FunctionCallbackInfo<Value>& args);

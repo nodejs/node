@@ -115,12 +115,14 @@ void LibuvStreamWrap::AddMethods(Environment* env,
 
 
 int LibuvStreamWrap::GetFD() {
+#ifdef _WIN32
+  return fd_;
+#else
   int fd = -1;
-#if !defined(_WIN32)
   if (stream() != nullptr)
     uv_fileno(reinterpret_cast<uv_handle_t*>(stream()), &fd);
-#endif
   return fd;
+#endif
 }
 
 
@@ -369,6 +371,11 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
+}
+
+void LibuvStreamWrap::Close(v8::Local<v8::Value> close_callback) {
+  ReadStop();
+  HandleWrap::Close(close_callback);
 }
 
 }  // namespace node

@@ -349,8 +349,35 @@ inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
   handle_cleanup_queue_.push_back(HandleCleanup{handle, cb, arg});
 }
 
-inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
-  handle_cleanup_waiting_--;
+template <typename T, typename OnCloseCallback>
+inline void Environment::CloseHandle(T* handle, OnCloseCallback callback) {
+  handle_cleanup_waiting_++;
+  static_assert(sizeof(T) >= sizeof(uv_handle_t), "T is a libuv handle");
+  static_assert(offsetof(T, data) == offsetof(uv_handle_t, data),
+                "T is a libuv handle");
+  static_assert(offsetof(T, close_cb) == offsetof(uv_handle_t, close_cb),
+                "T is a libuv handle");
+  struct CloseData {
+    Environment* env;
+    OnCloseCallback callback;
+    void* original_data;
+  };
+  handle->data = new CloseData { this, callback, handle->data };
+  uv_close(reinterpret_cast<uv_handle_t*>(handle), [](uv_handle_t* handle) {
+    std::unique_ptr<CloseData> data { static_cast<CloseData*>(handle->data) };
+    data->env->handle_cleanup_waiting_--;
+    handle->data = data->original_data;
+    data->callback(reinterpret_cast<T*>(handle));
+  });
+}
+
+void Environment::IncreaseWaitingRequestCounter() {
+  request_waiting_++;
+}
+
+void Environment::DecreaseWaitingRequestCounter() {
+  request_waiting_--;
+  CHECK_GE(request_waiting_, 0);
 }
 
 inline uv_loop_t* Environment::event_loop() const {
@@ -532,6 +559,14 @@ void Environment::SetUnrefImmediate(native_immediate_callback cb,
   CreateImmediate(cb, data, obj, false);
 }
 
+inline bool Environment::can_call_into_js() const {
+  return can_call_into_js_;
+}
+
+inline void Environment::set_can_call_into_js(bool can_call_into_js) {
+  can_call_into_js_ = can_call_into_js;
+}
+
 inline performance::performance_state* Environment::performance_state() {
   return performance_state_.get();
 }
@@ -627,6 +662,29 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
       v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
   that->Set(name_string, t);
   t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void Environment::AddCleanupHook(void (*fn)(void*), void* arg) {
+  auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
+    fn, arg, cleanup_hook_counter_++
+  });
+  // Make sure there was no existing element with these values.
+  CHECK_EQ(insertion_info.second, true);
+}
+
+void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
+  CleanupHookCallback search { fn, arg, 0 };
+  cleanup_hooks_.erase(search);
+}
+
+size_t Environment::CleanupHookCallback::Hash::operator()(
+    const CleanupHookCallback& cb) const {
+  return std::hash<void*>()(cb.arg_);
+}
+
+bool Environment::CleanupHookCallback::Equal::operator()(
+    const CleanupHookCallback& a, const CleanupHookCallback& b) const {
+  return a.fn_ == b.fn_ && a.arg_ == b.arg_;
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)

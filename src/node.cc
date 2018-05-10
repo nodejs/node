@@ -904,6 +904,22 @@ void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
   env->AddPromiseHook(fn, arg);
 }
 
+void AddEnvironmentCleanupHook(v8::Isolate* isolate,
+                               void (*fun)(void* arg),
+                               void* arg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  env->AddCleanupHook(fun, arg);
+}
+
+
+void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
+                                  void (*fun)(void* arg),
+                                  void* arg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  env->RemoveCleanupHook(fun, arg);
+}
+
+
 CallbackScope::CallbackScope(Isolate* isolate,
                              Local<Object> object,
                              async_context asyncContext)
@@ -936,6 +952,11 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     callback_scope_(env) {
   if (expect == kRequireResource) {
     CHECK(!object.IsEmpty());
+  }
+
+  if (!env->can_call_into_js()) {
+    failed_ = true;
+    return;
   }
 
   HandleScope handle_scope(env->isolate());
@@ -981,6 +1002,7 @@ void InternalCallbackScope::Close() {
 
   Environment::TickInfo* tick_info = env_->tick_info();
 
+  if (!env_->can_call_into_js()) return;
   if (!tick_info->has_scheduled()) {
     env_->isolate()->RunMicrotasks();
   }
@@ -997,6 +1019,8 @@ void InternalCallbackScope::Close() {
   }
 
   Local<Object> process = env_->process_object();
+
+  if (!env_->can_call_into_js()) return;
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     env_->tick_info()->set_has_thrown(true);
@@ -4435,7 +4459,7 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 
 
 void FreeEnvironment(Environment* env) {
-  env->CleanupHandles();
+  env->RunCleanup();
   delete env;
 }
 
@@ -4533,11 +4557,15 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   env.set_trace_sync_io(false);
 
   const int exit_code = EmitExit(&env);
+
+  WaitForInspectorDisconnect(&env);
+
+  env.set_can_call_into_js(false);
+  env.RunCleanup();
   RunAtExit(&env);
 
   v8_platform.DrainVMTasks(isolate);
   v8_platform.CancelVMTasks(isolate);
-  WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
 #endif

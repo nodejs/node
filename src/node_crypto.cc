@@ -4556,7 +4556,7 @@ bool ECDH::IsKeyPairValid() {
 }
 
 
-class PBKDF2Request : public AsyncWrap {
+class PBKDF2Request : public AsyncWrap, public ThreadPoolWork {
  public:
   PBKDF2Request(Environment* env,
                 Local<Object> object,
@@ -4566,6 +4566,7 @@ class PBKDF2Request : public AsyncWrap {
                 int keylen,
                 int iteration_count)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_PBKDF2REQUEST),
+        ThreadPoolWork(env),
         digest_(digest),
         success_(false),
         pass_(std::move(pass)),
@@ -4574,21 +4575,14 @@ class PBKDF2Request : public AsyncWrap {
         iteration_count_(iteration_count) {
   }
 
-  uv_work_t* work_req() {
-    return &work_req_;
-  }
-
   size_t self_size() const override { return sizeof(*this); }
 
-  static void Work(uv_work_t* work_req);
-  void Work();
+  void DoThreadPoolWork() override;
+  void AfterThreadPoolWork(int status) override;
 
-  static void After(uv_work_t* work_req, int status);
   void After(Local<Value> (*argv)[2]);
-  void After();
 
  private:
-  uv_work_t work_req_;
   const EVP_MD* digest_;
   bool success_;
   MallocedBuffer<char> pass_;
@@ -4598,7 +4592,7 @@ class PBKDF2Request : public AsyncWrap {
 };
 
 
-void PBKDF2Request::Work() {
+void PBKDF2Request::DoThreadPoolWork() {
   success_ =
       PKCS5_PBKDF2_HMAC(
           pass_.data, pass_.size,
@@ -4608,12 +4602,6 @@ void PBKDF2Request::Work() {
           reinterpret_cast<unsigned char*>(key_.data));
   OPENSSL_cleanse(pass_.data, pass_.size);
   OPENSSL_cleanse(salt_.data, salt_.size);
-}
-
-
-void PBKDF2Request::Work(uv_work_t* work_req) {
-  PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
-  req->Work();
 }
 
 
@@ -4629,20 +4617,17 @@ void PBKDF2Request::After(Local<Value> (*argv)[2]) {
 }
 
 
-void PBKDF2Request::After() {
+void PBKDF2Request::AfterThreadPoolWork(int status) {
+  std::unique_ptr<PBKDF2Request> req(this);
+  if (status == UV_ECANCELED)
+    return;
+  CHECK_EQ(status, 0);
+
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   Local<Value> argv[2];
   After(&argv);
   MakeCallback(env()->ondone_string(), arraysize(argv), argv);
-}
-
-
-void PBKDF2Request::After(uv_work_t* work_req, int status) {
-  CHECK_EQ(status, 0);
-  std::unique_ptr<PBKDF2Request> req(
-      ContainerOf(&PBKDF2Request::work_req_, work_req));
-  req->After();
 }
 
 
@@ -4692,13 +4677,10 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   if (args[5]->IsFunction()) {
     obj->Set(env->context(), env->ondone_string(), args[5]).FromJust();
 
-    uv_queue_work(env->event_loop(),
-                  req.release()->work_req(),
-                  PBKDF2Request::Work,
-                  PBKDF2Request::After);
+    req.release()->ScheduleWork();
   } else {
     env->PrintSyncTrace();
-    req->Work();
+    req->DoThreadPoolWork();
     Local<Value> argv[2];
     req->After(&argv);
 
@@ -4711,7 +4693,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 
 
 // Only instantiate within a valid HandleScope.
-class RandomBytesRequest : public AsyncWrap {
+class RandomBytesRequest : public AsyncWrap, public ThreadPoolWork {
  public:
   enum FreeMode { FREE_DATA, DONT_FREE_DATA };
 
@@ -4721,14 +4703,11 @@ class RandomBytesRequest : public AsyncWrap {
                      char* data,
                      FreeMode free_mode)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_RANDOMBYTESREQUEST),
+        ThreadPoolWork(env),
         error_(0),
         size_(size),
         data_(data),
         free_mode_(free_mode) {
-  }
-
-  uv_work_t* work_req() {
-    return &work_req_;
   }
 
   inline size_t size() const {
@@ -4768,7 +4747,8 @@ class RandomBytesRequest : public AsyncWrap {
 
   size_t self_size() const override { return sizeof(*this); }
 
-  uv_work_t work_req_;
+  void DoThreadPoolWork() override;
+  void AfterThreadPoolWork(int status) override;
 
  private:
   unsigned long error_;  // NOLINT(runtime/int)
@@ -4778,21 +4758,17 @@ class RandomBytesRequest : public AsyncWrap {
 };
 
 
-void RandomBytesWork(uv_work_t* work_req) {
-  RandomBytesRequest* req =
-      ContainerOf(&RandomBytesRequest::work_req_, work_req);
-
+void RandomBytesRequest::DoThreadPoolWork() {
   // Ensure that OpenSSL's PRNG is properly seeded.
   CheckEntropy();
 
-  const int r = RAND_bytes(reinterpret_cast<unsigned char*>(req->data()),
-                           req->size());
+  const int r = RAND_bytes(reinterpret_cast<unsigned char*>(data_), size_);
 
   // RAND_bytes() returns 0 on error.
   if (r == 0) {
-    req->set_error(ERR_get_error());  // NOLINT(runtime/int)
+    set_error(ERR_get_error());  // NOLINT(runtime/int)
   } else if (r == -1) {
-    req->set_error(static_cast<unsigned long>(-1));  // NOLINT(runtime/int)
+    set_error(static_cast<unsigned long>(-1));  // NOLINT(runtime/int)
   }
 }
 
@@ -4830,16 +4806,16 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> (*argv)[2]) {
 }
 
 
-void RandomBytesAfter(uv_work_t* work_req, int status) {
+void RandomBytesRequest::AfterThreadPoolWork(int status) {
+  std::unique_ptr<RandomBytesRequest> req(this);
+  if (status == UV_ECANCELED)
+    return;
   CHECK_EQ(status, 0);
-  std::unique_ptr<RandomBytesRequest> req(
-      ContainerOf(&RandomBytesRequest::work_req_, work_req));
-  Environment* env = req->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   Local<Value> argv[2];
-  RandomBytesCheck(req.get(), &argv);
-  req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+  RandomBytesCheck(this, &argv);
+  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
 }
 
 
@@ -4847,7 +4823,7 @@ void RandomBytesProcessSync(Environment* env,
                             std::unique_ptr<RandomBytesRequest> req,
                             Local<Value> (*argv)[2]) {
   env->PrintSyncTrace();
-  RandomBytesWork(req->work_req());
+  req->DoThreadPoolWork();
   RandomBytesCheck(req.get(), argv);
 
   if (!(*argv)[0]->IsNull())
@@ -4874,10 +4850,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsFunction()) {
     obj->Set(env->context(), env->ondone_string(), args[1]).FromJust();
 
-    uv_queue_work(env->event_loop(),
-                  req.release()->work_req(),
-                  RandomBytesWork,
-                  RandomBytesAfter);
+    req.release()->ScheduleWork();
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
@@ -4913,10 +4886,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
   if (args[3]->IsFunction()) {
     obj->Set(env->context(), env->ondone_string(), args[3]).FromJust();
 
-    uv_queue_work(env->event_loop(),
-                  req.release()->work_req(),
-                  RandomBytesWork,
-                  RandomBytesAfter);
+    req.release()->ScheduleWork();
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];

@@ -172,6 +172,9 @@ TTYWrap::TTYWrap(Environment* env,
                       reinterpret_cast<uv_stream_t*>(&handle_),
                       AsyncWrap::PROVIDER_TTYWRAP) {
   *init_err = uv_tty_init(env->event_loop(), &handle_, fd, readable);
+  set_fd(fd);
+  if (*init_err != 0)
+    MarkAsUninitialized();
 }
 
 }  // namespace node
