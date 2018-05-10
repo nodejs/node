@@ -1404,3 +1404,21 @@ util.inspect(process);
   const args = (function() { return arguments; })('a');
   assert.strictEqual(util.inspect(args), "[Arguments] { '0': 'a' }");
 }
+
+{
+  // Test that a long linked list can be inspected without throwing an error.
+  const list = {};
+  let head = list;
+  // A linked list of length 100k should be inspectable in some way, even though
+  // the real cutoff value is much lower than 100k.
+  for (let i = 0; i < 100000; i++)
+    head = head.next = {};
+  assert.strictEqual(
+    util.inspect(list),
+    '{ next: \n   { next: \n      { next: \n         { next: \n            { ' +
+      'next: \n               { next: { next: { next: { next: { next: { ' +
+      'next: [Object] } } } } } } } } } } }'
+  );
+  const longList = util.inspect(list, { depth: Infinity });
+  assert.strictEqual(longList.match(/next/g).length, 1001);
+}
