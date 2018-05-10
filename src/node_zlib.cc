@@ -217,11 +217,11 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
   // TODO(addaleax): Make these methods non-static. It's a significant bunch
   // of churn that's better left for a separate PR.
-  void DoThreadPoolWork() {
+  void DoThreadPoolWork() override {
     Process(this);
   }
 
-  void AfterThreadPoolWork(int status) {
+  void AfterThreadPoolWork(int status) override {
     After(this, status);
   }
 
