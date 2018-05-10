@@ -21,6 +21,10 @@ const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   const dest = stream.pipe(fs.createWriteStream(fn));
 
+  // we might get an ECONNRESET here
+  // or not
+  stream.on('error', () => {});
+
   dest.on('finish', () => {
     assert.strictEqual(fs.readFileSync(loc).length,
                        fs.readFileSync(fn).length);
@@ -33,6 +37,11 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
   const req = client.request({ ':method': 'POST' });
+
+  // we might get an ECONNRESET here
+  // or not
+  req.on('error', () => {});
+
   req.on('response', common.mustCall());
   req.resume();
 
