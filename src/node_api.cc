@@ -3377,7 +3377,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
     _execute(_env, _data);
   }
 
-  void AfterThreadPoolWork(int status) {
+  void AfterThreadPoolWork(int status) override {
     if (_complete == nullptr)
       return;
 
