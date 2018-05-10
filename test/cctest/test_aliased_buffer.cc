@@ -124,9 +124,9 @@ void SharedBufferTest(
   AliasedBuffer<NativeT_C, V8T_C> ab_C(
       isolate, sizeInBytes_A + sizeInBytes_B, count_C, rootBuffer);
 
-  NativeT_A* oracle_A = new NativeT_A[count_A];
-  NativeT_B* oracle_B = new NativeT_B[count_B];
-  NativeT_C* oracle_C = new NativeT_C[count_C];
+  NativeT_A oracle_A[count_A];
+  NativeT_B oracle_B[count_B];
+  NativeT_C oracle_C[count_C];
   CreateOracleValues(oracle_A, count_A);
   CreateOracleValues(oracle_B, count_B);
   CreateOracleValues(oracle_C, count_C);
