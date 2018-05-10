@@ -47,11 +47,37 @@ static napi_value isPromise(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value getPromiseState(napi_env env, napi_callback_info info) {
+  napi_value promise;
+  napi_promise_state state;
+  napi_value result;
+  size_t argc = 1;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &promise, NULL, NULL));
+  NAPI_CALL(env, napi_get_promise_state(env, promise, &state));
+  NAPI_CALL(env, napi_create_int32(env, state, &result));
+
+  return result;
+}
+
+static napi_value getPromiseResult(napi_env env, napi_callback_info info) {
+  napi_value promise;
+  napi_value result;
+  size_t argc = 1;
+
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &promise, NULL, NULL));
+  NAPI_CALL(env, napi_get_promise_result(env, promise, &result));
+
+  return result;
+}
+
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("createPromise", createPromise),
     DECLARE_NAPI_PROPERTY("concludeCurrentPromise", concludeCurrentPromise),
     DECLARE_NAPI_PROPERTY("isPromise", isPromise),
+    DECLARE_NAPI_PROPERTY("getPromiseState", getPromiseState),
+    DECLARE_NAPI_PROPERTY("getPromiseResult", getPromiseResult),
   };
 
   NAPI_CALL(env, napi_define_properties(

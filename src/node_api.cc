@@ -3528,6 +3528,49 @@ napi_status napi_is_promise(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status napi_get_promise_state(napi_env env,
+                                   napi_value promise,
+                                   napi_promise_state* state) {
+  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
+  CHECK_ARG(env, promise);
+  CHECK_ARG(env, state);
+
+  v8::Local<v8::Promise> p =
+    v8impl::V8LocalValueFromJsValue(promise).As<v8::Promise>();
+
+  v8::Promise::PromiseState s = p->State();
+  switch (s) {
+    case v8::Promise::PromiseState::kPending:
+      *state = napi_promise_pending;
+      break;
+    case v8::Promise::PromiseState::kFulfilled:
+      *state = napi_promise_fulfilled;
+      break;
+    case v8::Promise::PromiseState::kRejected:
+      *state = napi_promise_rejected;
+      break;
+  }
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_get_promise_result(napi_env env,
+                                    napi_value promise,
+                                    napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
+  CHECK_ARG(env, promise);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Promise> p =
+    v8impl::V8LocalValueFromJsValue(promise).As<v8::Promise>();
+
+  *result = v8impl::JsValueFromV8LocalValue(p->Result());
+
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_run_script(napi_env env,
                             napi_value script,
                             napi_value* result) {

@@ -3747,6 +3747,36 @@ napi_status napi_is_promise(napi_env env,
 - `[out] is_promise`: Flag indicating whether `promise` is a native promise
 object - that is, a promise object created by the underlying engine.
 
+### napi_get_promise_state
+<!-- YAML
+added: REPLACEME
+-->
+
+```C
+napi_status napi_get_promise_state(napi_env env,
+                                   napi_value promise,
+                                   napi_promise_state* state);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] promise`: The promise to examine.
+- `[out] state`: The current state of the promise.
+
+### napi_get_promise_result
+<!-- YAML
+added: REPLACEME
+-->
+
+```C
+napi_status napi_get_promise_result(napi_env env,
+                                    napi_value promise,
+                                    napi_value* result);
+```
+
+- `[in] env`: THe environment that the API is invoked under.
+- `[in] promise`: The promise to examine.
+- `[out] result`: The value that the promise was resolved or rejected with.
+
 ## Script execution
 
 N-API provides an API for executing a string containing JavaScript using the

@@ -592,6 +592,12 @@ NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
 NAPI_EXTERN napi_status napi_is_promise(napi_env env,
                                         napi_value promise,
                                         bool* is_promise);
+NAPI_EXTERN napi_status napi_get_promise_state(napi_env env,
+                                               napi_value promise,
+                                               napi_promise_state* state);
+NAPI_EXTERN napi_status napi_get_promise_result(napi_env env,
+                                                napi_value promise,
+                                                napi_value* result);
 
 // Memory management
 NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
