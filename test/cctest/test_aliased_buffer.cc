@@ -8,28 +8,26 @@ using node::AliasedBuffer;
 class AliasBufferTest : public NodeTestFixture {};
 
 template<class NativeT>
-void CreateOracleValues(NativeT* buf, size_t count) {
-  for (size_t i = 0, j = count; i < count; i++, j--) {
-    buf[i] = static_cast<NativeT>(j);
+void CreateOracleValues(std::vector<NativeT>* buf) {
+  for (size_t i = 0, j = buf->size(); i < buf->size(); i++, j--) {
+    (*buf)[i] = static_cast<NativeT>(j);
   }
 }
 
 template<class NativeT, class V8T>
 void WriteViaOperator(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
-                      size_t size,
-                      NativeT* oracle) {
+                      const std::vector<NativeT>& oracle) {
   // write through the API
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < oracle.size(); i++) {
     (*aliasedBuffer)[i] = oracle[i];
   }
 }
 
 template<class NativeT, class V8T>
 void WriteViaSetValue(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
-                      size_t size,
-                      NativeT* oracle) {
+                      const std::vector<NativeT>& oracle) {
   // write through the API
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < oracle.size(); i++) {
     aliasedBuffer->SetValue(i, oracle[i]);
   }
 }
@@ -38,10 +36,9 @@ template<class NativeT, class V8T>
 void ReadAndValidate(v8::Isolate* isolate,
                      v8::Local<v8::Context> context,
                      AliasedBuffer<NativeT, V8T>* aliasedBuffer,
-                     size_t size,
-                     NativeT* oracle) {
+                     const std::vector<NativeT>& oracle) {
   // read through the API
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < oracle.size(); i++) {
     NativeT v1 = (*aliasedBuffer)[i];
     NativeT v2 = aliasedBuffer->GetValue(i);
     EXPECT_TRUE(v1 == oracle[i]);
@@ -49,16 +46,16 @@ void ReadAndValidate(v8::Isolate* isolate,
   }
 
   // validate size of JS Buffer
-  EXPECT_TRUE(aliasedBuffer->GetJSArray()->Length() == size);
+  EXPECT_TRUE(aliasedBuffer->GetJSArray()->Length() == oracle.size());
   EXPECT_TRUE(
     aliasedBuffer->GetJSArray()->ByteLength() ==
-    (size * sizeof(NativeT)));
+    (oracle.size() * sizeof(NativeT)));
 
   // validate operator * and GetBuffer are the same
   EXPECT_TRUE(aliasedBuffer->GetNativeBuffer() == *(*aliasedBuffer));
 
   // read through the JS API
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < oracle.size(); i++) {
     v8::Local<V8T> v8TypedArray = aliasedBuffer->GetJSArray();
     v8::MaybeLocal<v8::Value> v = v8TypedArray->Get(context, i);
     EXPECT_TRUE(v.IsEmpty() == false);
@@ -80,21 +77,19 @@ void ReadWriteTest(v8::Isolate* isolate) {
 
   const size_t size = 100;
   AliasedBuffer<NativeT, V8T> ab(isolate, size);
-  NativeT* oracle = new NativeT[size];
-  CreateOracleValues(oracle, size);
-  WriteViaOperator(&ab, size, oracle);
-  ReadAndValidate(isolate, context, &ab, size, oracle);
+  std::vector<NativeT> oracle(size);
+  CreateOracleValues(&oracle);
+  WriteViaOperator(&ab, oracle);
+  ReadAndValidate(isolate, context, &ab, oracle);
 
-  WriteViaSetValue(&ab, size, oracle);
+  WriteViaSetValue(&ab, oracle);
 
   // validate copy constructor
   {
     AliasedBuffer<NativeT, V8T> ab2(ab);
-    ReadAndValidate(isolate, context, &ab2, size, oracle);
+    ReadAndValidate(isolate, context, &ab2, oracle);
   }
-  ReadAndValidate(isolate, context, &ab, size, oracle);
-
-  delete[] oracle;
+  ReadAndValidate(isolate, context, &ab, oracle);
 }
 
 template<
@@ -124,28 +119,28 @@ void SharedBufferTest(
   AliasedBuffer<NativeT_C, V8T_C> ab_C(
       isolate, sizeInBytes_A + sizeInBytes_B, count_C, rootBuffer);
 
-  NativeT_A oracle_A[count_A];
-  NativeT_B oracle_B[count_B];
-  NativeT_C oracle_C[count_C];
-  CreateOracleValues(oracle_A, count_A);
-  CreateOracleValues(oracle_B, count_B);
-  CreateOracleValues(oracle_C, count_C);
+  std::vector<NativeT_A> oracle_A(count_A);
+  std::vector<NativeT_B> oracle_B(count_B);
+  std::vector<NativeT_C> oracle_C(count_C);
+  CreateOracleValues(&oracle_A);
+  CreateOracleValues(&oracle_B);
+  CreateOracleValues(&oracle_C);
 
-  WriteViaOperator(&ab_A, count_A, oracle_A);
-  WriteViaOperator(&ab_B, count_B, oracle_B);
-  WriteViaOperator(&ab_C, count_C, oracle_C);
+  WriteViaOperator(&ab_A, oracle_A);
+  WriteViaOperator(&ab_B, oracle_B);
+  WriteViaOperator(&ab_C, oracle_C);
 
-  ReadAndValidate(isolate, context, &ab_A, count_A, oracle_A);
-  ReadAndValidate(isolate, context, &ab_B, count_B, oracle_B);
-  ReadAndValidate(isolate, context, &ab_C, count_C, oracle_C);
+  ReadAndValidate(isolate, context, &ab_A, oracle_A);
+  ReadAndValidate(isolate, context, &ab_B, oracle_B);
+  ReadAndValidate(isolate, context, &ab_C, oracle_C);
 
-  WriteViaSetValue(&ab_A, count_A, oracle_A);
-  WriteViaSetValue(&ab_B, count_B, oracle_B);
-  WriteViaSetValue(&ab_C, count_C, oracle_C);
+  WriteViaSetValue(&ab_A, oracle_A);
+  WriteViaSetValue(&ab_B, oracle_B);
+  WriteViaSetValue(&ab_C, oracle_C);
 
-  ReadAndValidate(isolate, context, &ab_A, count_A, oracle_A);
-  ReadAndValidate(isolate, context, &ab_B, count_B, oracle_B);
-  ReadAndValidate(isolate, context, &ab_C, count_C, oracle_C);
+  ReadAndValidate(isolate, context, &ab_A, oracle_A);
+  ReadAndValidate(isolate, context, &ab_B, oracle_B);
+  ReadAndValidate(isolate, context, &ab_C, oracle_C);
 }
 
 TEST_F(AliasBufferTest, Uint8Array) {
