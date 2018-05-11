@@ -3313,7 +3313,6 @@ void SetupProcessObject(Environment* env,
 
 
 void SignalExit(int signo) {
-
   PlatformExit();
   v8_platform.StopTracingAgent();
 #ifdef __FreeBSD__
@@ -4203,17 +4202,12 @@ inline void PlatformInit() {
     s.flags = GetFileDescriptorFlags(fd);
     CHECK_NE(s.flags, -1);
 
+    if ( !isatty(fd) ) continue;
+    s.isatty = true;
     do {
       err = tcgetattr(fd, &s.termios);
     } while (err == -1 && errno == EINTR);
-
-    if (err == 0) {
-      s.isatty = true;
-    } else {
-      // tcgetattr() is not supposed to return ENODEV or EOPNOTSUPP
-      // but it does so anyway on MacOS.
-      CHECK(errno == ENODEV || errno == ENOTTY || errno == EOPNOTSUPP);
-    }
+    CHECK_EQ(err, 0);
   }
 
   RegisterSignalHandler(SIGINT, SignalExit, true);
