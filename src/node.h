@@ -714,6 +714,7 @@ class AsyncResource {
 
     ~AsyncResource() {
       EmitAsyncDestroy(isolate_, async_context_);
+      resource_.Reset();
     }
 
     v8::MaybeLocal<v8::Value> MakeCallback(
