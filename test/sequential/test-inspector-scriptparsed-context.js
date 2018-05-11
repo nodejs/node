@@ -51,7 +51,7 @@ async function runTests() {
     { 'method': 'Debugger.enable' },
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
-  await session.waitForBreakOnLine(0, '[eval]');
+  await session.waitForBreakOnLine(4, '[eval]');
 
   await session.send({ 'method': 'Runtime.enable' });
   await getContext(session);

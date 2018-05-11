@@ -31,7 +31,7 @@ async function runTests() {
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
 
-  await session.waitForBreakOnLine(0, '[eval]');
+  await session.waitForBreakOnLine(2, '[eval]');
   await session.send({ 'method': 'Debugger.resume' });
 
   console.error('[test] Waiting for break1');

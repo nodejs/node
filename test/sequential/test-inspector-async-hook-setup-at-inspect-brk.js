@@ -14,7 +14,7 @@ setTimeout(() => {
 `;
 
 async function skipBreakpointAtStart(session) {
-  await session.waitForBreakOnLine(0, '[eval]');
+  await session.waitForBreakOnLine(3, '[eval]');
   await session.send({ 'method': 'Debugger.resume' });
 }
 
