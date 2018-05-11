@@ -7,7 +7,6 @@ const h2 = require('http2');
 
 const serverTimeout = common.platformTimeout(200);
 const callTimeout = common.platformTimeout(20);
-const minRuns = Math.ceil(serverTimeout / callTimeout) * 2;
 const mustNotCall = common.mustNotCall();
 
 const server = h2.createServer();
@@ -21,9 +20,10 @@ server.listen(0, common.mustCall(() => {
 
   const url = `http://localhost:${port}`;
   const client = h2.connect(url);
-  makeReq(minRuns);
+  const startTime = process.hrtime();
+  makeReq();
 
-  function makeReq(attempts) {
+  function makeReq() {
     const request = client.request({
       ':path': '/foobar',
       ':method': 'GET',
@@ -34,12 +34,14 @@ server.listen(0, common.mustCall(() => {
     request.end();
 
     request.on('end', () => {
-      if (attempts) {
-        setTimeout(() => makeReq(attempts - 1), callTimeout);
+      const diff = process.hrtime(startTime);
+      const milliseconds = (diff[0] * 1e3 + diff[1] / 1e6);
+      if (milliseconds < serverTimeout * 2) {
+        setTimeout(makeReq, callTimeout);
       } else {
         server.removeListener('timeout', mustNotCall);
-        client.close();
         server.close();
+        client.close();
       }
     });
   }
