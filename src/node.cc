@@ -4426,7 +4426,7 @@ int EmitExit(Environment* env) {
 
 
 ArrayBufferAllocator* CreateArrayBufferAllocator() {
-  return new ArrayBufferAllocator;
+  return new ArrayBufferAllocator();
 }
 
 
@@ -4623,8 +4623,8 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
-  ArrayBufferAllocator* allocator = CreateArrayBufferAllocator();
-  Isolate* const isolate = NewIsolate(allocator);
+  std::unique_ptr<ArrayBufferAllocator> allocator(CreateArrayBufferAllocator());
+  Isolate* const isolate = NewIsolate(allocator.get());
   if (isolate == nullptr)
     return 12;  // Signal internal error.
 
@@ -4639,16 +4639,17 @@ inline int Start(uv_loop_t* event_loop,
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData* isolate_data = CreateIsolateData(
+    std::unique_ptr<IsolateData> isolate_data(
+      CreateIsolateData(
         isolate,
         event_loop,
         v8_platform.Platform(),
-        allocator);
+        allocator.get()));
     if (track_heap_objects) {
       isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
     }
-    exit_code = Start(isolate, isolate_data, argc, argv, exec_argc, exec_argv);
-    FreeIsolateData(isolate_data);
+    exit_code =
+      Start(isolate, isolate_data.get(), argc, argv, exec_argc, exec_argv);
   }
 
   {
@@ -4658,7 +4659,6 @@ inline int Start(uv_loop_t* event_loop,
   }
 
   isolate->Dispose();
-  FreeArrayBufferAllocator(allocator);
 
   return exit_code;
 }
