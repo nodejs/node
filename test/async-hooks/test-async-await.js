@@ -7,70 +7,80 @@ const common = require('../common');
 // 2. Checking that for each 'before' corresponding hook 'after' hook is called
 
 const assert = require('assert');
-const asyncHooks = require('async_hooks');
+const initHooks = require('./init-hooks');
+
 const util = require('util');
 
 const sleep = util.promisify(setTimeout);
-const promiseCallbacks = new Map();
-const resolvedPromises = new Set();
+// either 'inited' or 'resolved'
+const promisesInitState = new Map();
+// either 'before' or 'after' AND asyncId must be present in the other map
+const promisesExecutionState = new Map();
 
-const asyncHook = asyncHooks.createHook({
-  init, before, after, promiseResolve
+const hooks = initHooks({
+  oninit,
+  onbefore,
+  onafter,
+  ondestroy: null,  // Intentionally not tested, since it will be removed soon
+  onpromiseResolve
 });
-asyncHook.enable();
+hooks.enable();
 
-function init(asyncId, type, triggerAsyncId, resource) {
+function oninit(asyncId, type, triggerAsyncId, resource) {
   if (type === 'PROMISE') {
-    promiseCallbacks.set(asyncId, 0);
+    promisesInitState.set(asyncId, 'inited');
   }
 }
 
-function before(asyncId) {
-  if (promiseCallbacks.has(asyncId)) {
-    assert.strictEqual(promiseCallbacks.get(asyncId), 0,
-                       'before hook called for promise without prior call' +
-                       'to init hook');
-    promiseCallbacks.set(asyncId, 1);
+function onbefore(asyncId) {
+  if (!promisesInitState.has(asyncId)) {
+    return;
   }
+  promisesExecutionState.set(asyncId, 'before');
 }
 
-function after(asyncId) {
-  if (promiseCallbacks.has(asyncId)) {
-    assert.strictEqual(promiseCallbacks.get(asyncId), 1,
-                       'after hook called for promise without prior call' +
-                       'to before hook');
-    promiseCallbacks.set(asyncId, 0);
+function onafter(asyncId) {
+  if (!promisesInitState.has(asyncId)) {
+    return;
   }
+
+  assert.strictEqual(promisesExecutionState.get(asyncId), 'before',
+                     'after hook called for promise without prior call' +
+                     'to before hook');
+  assert.strictEqual(promisesInitState.get(asyncId), 'resolved',
+                     'after hook called for promise without prior call' +
+                     'to resolve hook');
+  promisesExecutionState.set(asyncId, 'after');
 }
 
-function promiseResolve(asyncId) {
-  assert(promiseCallbacks.has(asyncId),
+function onpromiseResolve(asyncId) {
+  assert(promisesInitState.has(asyncId),
          'resolve hook called for promise without prior call to init hook');
 
-  resolvedPromises.add(asyncId);
+  promisesInitState.set(asyncId, 'resolved');
 }
 
 const timeout = common.platformTimeout(10);
 
-function checkPromiseCallbacks() {
-  for (const balance of promiseCallbacks.values()) {
-    assert.strictEqual(balance, 0,
+function checkPromisesInitState() {
+  for (const initState of promisesInitState.values()) {
+    assert.strictEqual(initState, 'resolved',
+                       'promise initialized without being resolved');
+  }
+}
+
+function checkPromisesExecutionState() {
+  for (const executionState of promisesExecutionState.values()) {
+    assert.strictEqual(executionState, 'after',
                        'mismatch between before and after hook calls');
   }
 }
 
-function checkPromiseResolution() {
-  for (const id of promiseCallbacks.keys()) {
-    assert(resolvedPromises.has(id),
-           'promise initialized without being resolved');
-  }
-}
-
 process.on('beforeExit', common.mustCall(() => {
-  asyncHook.disable();
+  hooks.disable();
 
-  checkPromiseResolution();
-  checkPromiseCallbacks();
+  checkPromisesInitState();
+  checkPromisesExecutionState();
 }));
 
 async function asyncFunc(callback) {
