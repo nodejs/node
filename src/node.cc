@@ -4453,15 +4453,35 @@ int EmitExit(Environment* env) {
 }
 
 
+ArrayBufferAllocator* CreateArrayBufferAllocator() {
+  return new ArrayBufferAllocator();
+}
+
+
+void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
+  delete allocator;
+}
+
+
 IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
   return new IsolateData(isolate, loop, nullptr);
 }
+
 
 IsolateData* CreateIsolateData(
     Isolate* isolate,
     uv_loop_t* loop,
     MultiIsolatePlatform* platform) {
   return new IsolateData(isolate, loop, platform);
+}
+
+
+IsolateData* CreateIsolateData(
+    Isolate* isolate,
+    uv_loop_t* loop,
+    MultiIsolatePlatform* platform,
+    ArrayBufferAllocator* allocator) {
+  return new IsolateData(isolate, loop, platform, allocator->zero_fill_field());
 }
 
 
@@ -4608,25 +4628,34 @@ bool AllowWasmCodeGenerationCallback(
   return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
 }
 
-inline int Start(uv_loop_t* event_loop,
-                 int argc, const char* const* argv,
-                 int exec_argc, const char* const* exec_argv) {
+Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
   Isolate::CreateParams params;
-  ArrayBufferAllocator allocator;
-  params.array_buffer_allocator = &allocator;
+  params.array_buffer_allocator = allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
 
-  Isolate* const isolate = Isolate::New(params);
+  Isolate* isolate = Isolate::New(params);
   if (isolate == nullptr)
-    return 12;  // Signal internal error.
+    return nullptr;
 
   isolate->AddMessageListener(OnMessage);
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);
   isolate->SetAllowWasmCodeGenerationCallback(AllowWasmCodeGenerationCallback);
+
+  return isolate;
+}
+
+inline int Start(uv_loop_t* event_loop,
+                 int argc, const char* const* argv,
+                 int exec_argc, const char* const* exec_argv) {
+  std::unique_ptr<ArrayBufferAllocator, decltype(&FreeArrayBufferAllocator)>
+      allocator(CreateArrayBufferAllocator(), &FreeArrayBufferAllocator);
+  Isolate* const isolate = NewIsolate(allocator.get());
+  if (isolate == nullptr)
+    return 12;  // Signal internal error.
 
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
@@ -4639,15 +4668,18 @@ inline int Start(uv_loop_t* event_loop,
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(
-        isolate,
-        event_loop,
-        v8_platform.Platform(),
-        allocator.zero_fill_field());
+    std::unique_ptr<IsolateData, decltype(&FreeIsolateData)> isolate_data(
+        CreateIsolateData(
+            isolate,
+            event_loop,
+            v8_platform.Platform(),
+            allocator.get()),
+        &FreeIsolateData);
     if (track_heap_objects) {
       isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
     }
-    exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
+    exit_code =
+        Start(isolate, isolate_data.get(), argc, argv, exec_argc, exec_argv);
   }
 
   {
