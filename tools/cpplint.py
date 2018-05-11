@@ -4230,6 +4230,10 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
     error(filename, linenum, 'whitespace/tab', 1,
           'Tab found; better to use spaces')
 
+  if line.find('template<') != -1:
+    error(filename, linenum, 'whitespace/template', 1,
+          'Leave a single space after template, as in `template <...>`')
+
   # One or three blank spaces at the beginning of the line is weird; it's
   # hard to reconcile that with 2-space indents.
   # NOTE: here are the conditions rob pike used for his tests.  Mine aren't
