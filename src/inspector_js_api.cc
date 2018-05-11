@@ -194,7 +194,7 @@ static void* GetAsyncTask(int64_t asyncId) {
   return reinterpret_cast<void*>(asyncId << 1);
 }
 
-template<void (Agent::*asyncTaskFn)(void*)>
+template <void (Agent::*asyncTaskFn)(void*)>
 static void InvokeAsyncTaskFnWithId(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsNumber());

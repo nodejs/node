@@ -548,7 +548,7 @@ enum ResolveExtensionsOptions {
   ONLY_VIA_EXTENSIONS
 };
 
-template<ResolveExtensionsOptions options>
+template <ResolveExtensionsOptions options>
 Maybe<URL> ResolveExtensions(const URL& search) {
   if (options == TRY_EXACT_NAME) {
     std::string filePath = search.ToFilePath();
