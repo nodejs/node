@@ -145,7 +145,7 @@ module.exports = {
       {
         property: '__defineSetter__',
         message: '__defineSetter__ is deprecated.',
-      }
+      },
     ],
     /* eslint-disable max-len, quotes */
     // If this list is modified, please copy the change to lib/.eslintrc.yaml
@@ -178,7 +178,7 @@ module.exports = {
       {
         selector: 'ThrowStatement > CallExpression[callee.name=/Error$/]',
         message: 'Use new keyword when throwing an Error.',
-      }
+      },
     ],
     /* eslint-enable max-len, quotes */
     'no-return-await': 'error',

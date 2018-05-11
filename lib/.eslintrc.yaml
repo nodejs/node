@@ -25,6 +25,15 @@ rules:
   node-core/no-let-in-for-declaration: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
+  # Rules specific to /lib
+  comma-dangle: [error, {
+      arrays: "always-multiline",
+      objects: "only-multiline",
+      imports: "only-multiline",
+      exports: "only-multiline",
+      functions: "only-multiline"
+  }]
+
 globals:
   CHECK: false
   CHECK_EQ: false
