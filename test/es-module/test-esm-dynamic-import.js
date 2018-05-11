@@ -52,6 +52,7 @@ function expectFsNamespace(result) {
   Promise.resolve(result)
     .then(common.mustCall(ns => {
       assert.strictEqual(typeof ns.default.writeFile, 'function');
+      assert.strictEqual(typeof ns.writeFile, 'function');
     }));
 }
 
