@@ -214,6 +214,11 @@ NODE_EXTERN void Init(int* argc,
                       int* exec_argc,
                       const char*** exec_argv);
 
+class ArrayBufferAllocator;
+
+NODE_EXTERN ArrayBufferAllocator* CreateArrayBufferAllocator();
+NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
+
 class IsolateData;
 class Environment;
 
@@ -229,9 +234,21 @@ class MultiIsolatePlatform : public v8::Platform {
   virtual void UnregisterIsolate(IsolateData* isolate_data) = 0;
 };
 
+// Creates a new isolate with Node.js-specific settings.
+NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator);
+
+// Creates a new context with Node.js-specific tweaks.  Currently, it removes
+// the `v8BreakIterator` property from the global `Intl` object if present.
+// See https://github.com/nodejs/node/issues/14909 for more info.
+NODE_EXTERN v8::Local<v8::Context> NewContext(
+    v8::Isolate* isolate,
+    v8::Local<v8::ObjectTemplate> object_template =
+        v8::Local<v8::ObjectTemplate>());
+
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
 // Environments that use this `IsolateData` will not work.
+// TODO(helloshuangzi): switch to default parameters.
 NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop);
@@ -239,6 +256,11 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop,
     MultiIsolatePlatform* platform);
+NODE_EXTERN IsolateData* CreateIsolateData(
+    v8::Isolate* isolate,
+    struct uv_loop_s* loop,
+    MultiIsolatePlatform* platform,
+    ArrayBufferAllocator* allocator);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
