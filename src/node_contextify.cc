@@ -63,6 +63,7 @@ using v8::Uint8Array;
 using v8::UnboundScript;
 using v8::Value;
 using v8::WeakCallbackInfo;
+using v8::WeakCallbackType;
 
 // The vm module executes code in a sandboxed environment with a different
 // global object than the rest of the code. This is achieved by applying
@@ -103,7 +104,7 @@ ContextifyContext::ContextifyContext(
   // Allocation failure or maximum call stack size reached
   if (context_.IsEmpty())
     return;
-  context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  context_.SetWeak(this, WeakCallback, WeakCallbackType::kParameter);
 }
 
 
@@ -420,7 +421,7 @@ void ContextifyContext::PropertyDefinerCallback(
     return;
 
   Local<Context> context = ctx->context();
-  v8::Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = context->GetIsolate();
 
   auto attributes = PropertyAttribute::None;
   bool is_declared =
@@ -453,13 +454,13 @@ void ContextifyContext::PropertyDefinerCallback(
 
   if (desc.has_get() || desc.has_set()) {
     PropertyDescriptor desc_for_sandbox(
-        desc.has_get() ? desc.get() : v8::Undefined(isolate).As<Value>(),
-        desc.has_set() ? desc.set() : v8::Undefined(isolate).As<Value>());
+        desc.has_get() ? desc.get() : Undefined(isolate).As<Value>(),
+        desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
 
     define_prop_on_sandbox(&desc_for_sandbox);
   } else {
     Local<Value> value =
-        desc.has_value() ? desc.value() : v8::Undefined(isolate).As<Value>();
+        desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
 
     if (desc.has_writable()) {
       PropertyDescriptor desc_for_sandbox(value, desc.writable());
