@@ -722,7 +722,7 @@ class QueryWrap : public AsyncWrap {
 };
 
 
-template<typename T>
+template <typename T>
 Local<Array> AddrTTLToArray(Environment* env,
                             const T* addrttls,
                             size_t naddrttls) {
