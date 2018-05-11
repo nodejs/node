@@ -17,10 +17,6 @@ struct ContextOptions {
 };
 
 class ContextifyContext {
- protected:
-  Environment* const env_;
-  Persistent<v8::Context> context_;
-
  public:
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
@@ -99,6 +95,8 @@ class ContextifyContext {
   static void IndexedPropertyDeleterCallback(
       uint32_t index,
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
+  Environment* const env_;
+  Persistent<v8::Context> context_;
 };
 
 }  // namespace contextify
