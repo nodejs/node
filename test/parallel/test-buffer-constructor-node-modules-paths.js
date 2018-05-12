@@ -8,16 +8,24 @@ if (process.env.NODE_PENDING_DEPRECATION)
   common.skip('test does not work when NODE_PENDING_DEPRECATION is set');
 
 function test(main, callSite, expected) {
-  const { stderr } = child_process.spawnSync(process.execPath, ['-p', `
-  process.mainModule = { filename: ${JSON.stringify(main)} };
+  const child = child_process.spawn(process.execPath, [
+    '-p',
+    `process.mainModule = { filename: ${JSON.stringify(main)} };` +
+      "vm.runInNewContext('new Buffer(10)', { Buffer }, {" +
+      `  filename: ${JSON.stringify(callSite)}` +
+      '});'
+  ], { encoding: 'utf8' });
 
-  vm.runInNewContext('new Buffer(10)', { Buffer }, {
-    filename: ${JSON.stringify(callSite)}
-  });`], { encoding: 'utf8' });
-  if (expected)
-    assert(stderr.includes('[DEP0005] DeprecationWarning'), stderr);
-  else
-    assert.strictEqual(stderr.trim(), '');
+  let stderr = '';
+  child.stderr.on('data', (value) => {
+    stderr += value.toString();
+  });
+  child.on('exit', () => {
+    if (expected)
+      assert(stderr.includes('[DEP0005] DeprecationWarning'));
+    else
+      assert.strictEqual(stderr.trim(), '');
+  });
 }
 
 test('/a/node_modules/b.js', '/a/node_modules/x.js', false);
