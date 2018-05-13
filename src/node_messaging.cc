@@ -24,6 +24,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Value;
 using v8::ValueDeserializer;
@@ -43,8 +44,13 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
  public:
   DeserializerDelegate(Message* m,
                        Environment* env,
-                       const std::vector<MessagePort*>& message_ports)
-    : env_(env), msg_(m), message_ports_(message_ports) {}
+                       const std::vector<MessagePort*>& message_ports,
+                       const std::vector<Local<SharedArrayBuffer>>&
+                           shared_array_buffers)
+    : env_(env),
+      msg_(m),
+      message_ports_(message_ports),
+      shared_array_buffers_(shared_array_buffers) {}
 
   MaybeLocal<Object> ReadHostObject(Isolate* isolate) override {
     // Currently, only MessagePort hosts objects are supported, so identifying
@@ -56,12 +62,19 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
     return message_ports_[id]->object();
   };
 
+  MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
+      Isolate* isolate, uint32_t clone_id) override {
+    CHECK_LE(clone_id, shared_array_buffers_.size());
+    return shared_array_buffers_[clone_id];
+  }
+
   ValueDeserializer* deserializer = nullptr;
 
  private:
   Environment* env_;
   Message* msg_;
   const std::vector<MessagePort*>& message_ports_;
+  const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
 };
 
 }  // anonymous namespace
@@ -87,7 +100,18 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   }
   message_ports_.clear();
 
-  DeserializerDelegate delegate(this, env, ports);
+  std::vector<Local<SharedArrayBuffer>> shared_array_buffers;
+  // Attach all transfered SharedArrayBuffers to their new Isolate.
+  for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
+    Local<SharedArrayBuffer> sab;
+    if (!shared_array_buffers_[i]->GetSharedArrayBuffer(env, context)
+            .ToLocal(&sab))
+      return MaybeLocal<Value>();
+    shared_array_buffers.push_back(sab);
+  }
+  shared_array_buffers_.clear();
+
+  DeserializerDelegate delegate(this, env, ports, shared_array_buffers);
   ValueDeserializer deserializer(
       env->isolate(),
       reinterpret_cast<const uint8_t*>(main_message_buf_.data),
@@ -110,6 +134,11 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
     return MaybeLocal<Value>();
   return handle_scope.Escape(
       deserializer.ReadValue(context).FromMaybe(Local<Value>()));
+}
+
+void Message::AddSharedArrayBuffer(
+    SharedArrayBufferMetadataReference reference) {
+  shared_array_buffers_.push_back(reference);
 }
 
 void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
@@ -139,6 +168,27 @@ class SerializerDelegate : public ValueSerializer::Delegate {
     return Nothing<bool>();
   }
 
+  Maybe<uint32_t> GetSharedArrayBufferId(
+      Isolate* isolate,
+      Local<SharedArrayBuffer> shared_array_buffer) override {
+    uint32_t i;
+    for (i = 0; i < seen_shared_array_buffers_.size(); ++i) {
+      if (seen_shared_array_buffers_[i] == shared_array_buffer)
+        return Just(i);
+    }
+
+    auto reference = SharedArrayBufferMetadata::ForSharedArrayBuffer(
+        env_,
+        context_,
+        shared_array_buffer);
+    if (!reference) {
+      return Nothing<uint32_t>();
+    }
+    seen_shared_array_buffers_.push_back(shared_array_buffer);
+    msg_->AddSharedArrayBuffer(reference);
+    return Just(i);
+  }
+
   void Finish() {
     // Only close the MessagePort handles and actually transfer them
     // once we know that serialization succeeded.
@@ -166,6 +216,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   Environment* env_;
   Local<Context> context_;
   Message* msg_;
+  std::vector<Local<SharedArrayBuffer>> seen_shared_array_buffers_;
   std::vector<MessagePort*> ports_;
 
   friend class worker::Message;
