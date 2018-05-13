@@ -438,7 +438,7 @@ struct MallocedBuffer {
   }
   MallocedBuffer& operator=(MallocedBuffer&& other) {
     this->~MallocedBuffer();
-    return *new(this) MallocedBuffer(other);
+    return *new(this) MallocedBuffer(std::move(other));
   }
   ~MallocedBuffer() {
     free(data);
