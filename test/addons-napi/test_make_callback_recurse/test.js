@@ -78,9 +78,8 @@ assert.throws(function() {
         }));
       });
     } else if (arg === 2) {
-      // setTimeout runs via the TimerWrap, which runs through
-      // AsyncWrap::MakeCallback(). Make sure there are no conflicts using
-      // node::MakeCallback() within it.
+      // Make sure there are no conflicts using node::MakeCallback()
+      // within timers.
       setTimeout(common.mustCall(function() {
         verifyExecutionOrder(3);
       }), 10);

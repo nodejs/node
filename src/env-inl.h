@@ -334,6 +334,14 @@ inline tracing::Agent* Environment::tracing_agent() const {
   return tracing_agent_;
 }
 
+inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
+  return ContainerOf(&Environment::timer_handle_, handle);
+}
+
+inline uv_timer_t* Environment::timer_handle() {
+  return &timer_handle_;
+}
+
 inline Environment* Environment::from_immediate_check_handle(
     uv_check_t* handle) {
   return ContainerOf(&Environment::immediate_check_handle_, handle);

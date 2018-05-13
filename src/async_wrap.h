@@ -63,7 +63,6 @@ namespace node {
   V(TCPCONNECTWRAP)                                                           \
   V(TCPSERVERWRAP)                                                            \
   V(TCPWRAP)                                                                  \
-  V(TIMERWRAP)                                                                \
   V(TTYWRAP)                                                                  \
   V(UDPSENDWRAP)                                                              \
   V(UDPWRAP)                                                                  \

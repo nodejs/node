@@ -13,6 +13,7 @@
 namespace node {
 
 using v8::Context;
+using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
@@ -25,6 +26,7 @@ using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
+using v8::TryCatch;
 using v8::Value;
 using worker::Worker;
 
@@ -173,6 +175,9 @@ void Environment::Start(int argc,
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
+  CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
+  uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+
   uv_check_init(event_loop(), immediate_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
 
@@ -227,6 +232,10 @@ void Environment::RegisterHandleCleanups() {
     env->CloseHandle(handle, [](uv_handle_t* handle) {});
   };
 
+  RegisterHandleCleanup(
+      reinterpret_cast<uv_handle_t*>(timer_handle()),
+      close_and_finish,
+      nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(immediate_check_handle()),
       close_and_finish,
@@ -466,6 +475,78 @@ void Environment::RunAndClearNativeImmediates() {
 #endif
     immediate_info()->count_dec(count);
     immediate_info()->ref_count_dec(ref_count);
+  }
+}
+
+
+void Environment::ScheduleTimer(int64_t duration_ms) {
+  uv_timer_start(timer_handle(), RunTimers, duration_ms, 0);
+}
+
+void Environment::ToggleTimerRef(bool ref) {
+  if (ref) {
+    uv_ref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  } else {
+    uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  }
+}
+
+void Environment::RunTimers(uv_timer_t* handle) {
+  Environment* env = Environment::from_timer_handle(handle);
+
+  if (!env->can_call_into_js())
+    return;
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Object> process = env->process_object();
+  InternalCallbackScope scope(env, process, {0, 0});
+
+  Local<Function> cb = env->timers_callback_function();
+  MaybeLocal<Value> ret;
+  Local<Value> arg = env->GetNow();
+  // This code will loop until all currently due timers will process. It is
+  // impossible for us to end up in an infinite loop due to how the JS-side
+  // is structured.
+  do {
+    TryCatch try_catch(env->isolate());
+    try_catch.SetVerbose(true);
+    ret = cb->Call(env->context(), process, 1, &arg);
+  } while (ret.IsEmpty() && env->can_call_into_js());
+
+  // NOTE(apapirovski): If it ever becomes possibble that `call_into_js` above
+  // is reset back to `true` after being previously set to `false` then this
+  // code becomes invalid and needs to be rewritten. Otherwise catastrophic
+  // timers corruption will occurr and all timers behaviour will become
+  // entirely unpredictable.
+  if (ret.IsEmpty())
+    return;
+
+  // To allow for less JS-C++ boundary crossing, the value returned from JS
+  // serves a few purposes:
+  // 1. If it's 0, no more timers exist and the handle should be unrefed
+  // 2. If it's > 0, the value represents the next timer's expiry and there
+  //    is at least one timer remaining that is refed.
+  // 3. If it's < 0, the absolute value represents the next timer's expiry
+  //    and there are no timers that are refed.
+  int64_t expiry_ms =
+      ret.ToLocalChecked()->IntegerValue(env->context()).FromJust();
+
+  uv_handle_t* h = reinterpret_cast<uv_handle_t*>(handle);
+
+  if (expiry_ms != 0) {
+    int64_t duration_ms =
+        llabs(expiry_ms) - (uv_now(env->event_loop()) - env->timer_base());
+
+    env->ScheduleTimer(duration_ms > 0 ? duration_ms : 1);
+
+    if (expiry_ms > 0)
+      uv_ref(h);
+    else
+      uv_unref(h);
+  } else {
+    uv_unref(h);
   }
 }
 

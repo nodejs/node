@@ -129,7 +129,7 @@ struct sockaddr;
     V(string_decoder)                                                         \
     V(symbols)                                                                \
     V(tcp_wrap)                                                               \
-    V(timer_wrap)                                                             \
+    V(timers)                                                             \
     V(trace_events)                                                           \
     V(tty_wrap)                                                               \
     V(types)                                                                  \
