@@ -2,8 +2,6 @@
 #define SRC_NODE_CONTEXTIFY_H_
 
 #include "node_internals.h"
-#include "node_watchdog.h"
-#include "base_object-inl.h"
 #include "node_context_data.h"
 
 namespace node {
