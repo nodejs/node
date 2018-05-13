@@ -240,7 +240,7 @@ Most Node.js APIs are available inside of it.
 Notable differences inside a Worker environment are:
 
 - The [`process.stdin`][], [`process.stdout`][] and [`process.stderr`][]
-  properties are set to `null`.
+  may be redirected by the parent thread.
 - The [`require('worker').isMainThread`][] property is set to `false`.
 - The [`require('worker').parentPort`][] message port is available,
 - [`process.exit()`][] does not stop the whole program, just the single thread,
@@ -313,6 +313,13 @@ if (isMainThread) {
     described in the [HTML structured clone algorithm][], and an error will be
     thrown if the object cannot be cloned (e.g. because it contains
     `function`s).
+  * stdin {boolean} If this is set to `true`, then `worker.stdin` will
+    provide a writable stream whose contents will appear as `process.stdin`
+    inside the Worker. By default, no data is provided.
+  * stdout {boolean} If this is set to `true`, then `worker.stdout` will
+    not automatically be piped through to `process.stdout` in the parent.
+  * stderr {boolean} If this is set to `true`, then `worker.stderr` will
+    not automatically be piped through to `process.stderr` in the parent.
 
 ### Event: 'error'
 <!-- YAML
@@ -376,6 +383,41 @@ Opposite of `unref()`, calling `ref()` on a previously `unref()`ed worker will
 *not* let the program exit if it's the only active handle left (the default
 behavior). If the worker is `ref()`ed, calling `ref()` again will have
 no effect.
+
+### worker.stderr
+<!-- YAML
+added: REPLACEME
+-->
+
+* {stream.Readable}
+
+This is a readable stream which contains data written to [`process.stderr`][]
+inside the worker thread. If `stderr: true` was not passed to the
+[`Worker`][] constructor, then data will be piped to the parent thread's
+[`process.stderr`][] stream.
+
+### worker.stdin
+<!-- YAML
+added: REPLACEME
+-->
+
+* {null|stream.Writable}
+
+If `stdin: true` was passed to the [`Worker`][] constructor, this is a
+writable stream. The data written to this stream will be made available in
+the worker thread as [`process.stdin`][].
+
+### worker.stdout
+<!-- YAML
+added: REPLACEME
+-->
+
+* {stream.Readable}
+
+This is a readable stream which contains data written to [`process.stdout`][]
+inside the worker thread. If `stdout: true` was not passed to the
+[`Worker`][] constructor, then data will be piped to the parent thread's
+[`process.stdout`][] stream.
 
 ### worker.terminate([callback])
 <!-- YAML
