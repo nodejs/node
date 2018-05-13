@@ -1413,8 +1413,10 @@ static void ReportException(Environment* env,
                             Local<Value> er,
                             Local<Message> message) {
   CHECK(!er.IsEmpty());
-  CHECK(!message.IsEmpty());
   HandleScope scope(env->isolate());
+
+  if (message.IsEmpty())
+    message = Exception::CreateMessage(env->isolate(), er);
 
   AppendExceptionLine(env, er, message, FATAL_ERROR);
 
