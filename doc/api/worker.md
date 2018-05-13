@@ -85,13 +85,15 @@ to stringify.
 
 `transferList` may be a list of `ArrayBuffer` and `MessagePort` objects.
 After transferring, they will not be usable on the sending side of the channel
-anymore (even if they are not contained in `value`).
+anymore (even if they are not contained in `value`). Unlike with
+[child processes][], transferring handles such as network sockets is currently
+not supported.
+
+If `value` contains [`SharedArrayBuffer`][] instances, those will be accessible
+from either thread. They cannot be listed in `transferList`.
 
 `value` may still contain `ArrayBuffer` instances that are not in
 `transferList`; in that case, the underlying memory is copied rather than moved.
-
-For more information on the serialization and deserialization mechanisms
-behind this API, see the [serialization API of the `v8` module][v8.serdes].
 
 Because the object cloning uses the structured clone algorithm,
 non-enumerable properties, property accessors, and object prototypes are
@@ -100,6 +102,9 @@ plain [`Uint8Array`][]s on the receiving side.
 
 The message object will be cloned immediately, and can be modified after
 posting without having side effects.
+
+For more information on the serialization and deserialization mechanisms
+behind this API, see the [serialization API of the `v8` module][v8.serdes].
 
 ### port.ref()
 <!-- YAML
@@ -137,10 +142,12 @@ be `ref()`ed and `unref()`ed automatically depending on whether
 listeners for the event exist.
 
 [`Buffer`]: buffer.html
+[child processes]: child_process.html
 [`EventEmitter`]: events.html
 [`MessagePort`]: #worker_class_messageport
 [`port.postMessage()`]: #worker_port_postmessage_value_transferlist
 [v8.serdes]: v8.html#v8_serialization_api
+[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm

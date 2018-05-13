@@ -106,6 +106,7 @@ struct PackageConfig {
   V(decorated_private_symbol, "node:decorated")                               \
   V(napi_env, "node:napi:env")                                                \
   V(napi_wrapper, "node:napi:wrapper")                                        \
+  V(sab_lifetimepartner_symbol, "node:sharedArrayBufferLifetimePartner")      \
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
@@ -338,6 +339,7 @@ struct PackageConfig {
   V(promise_wrap_template, v8::ObjectTemplate)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(randombytes_constructor_template, v8::ObjectTemplate)                     \
+  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)           \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \

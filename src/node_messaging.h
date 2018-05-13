@@ -5,8 +5,8 @@
 
 #include "env.h"
 #include "node_mutex.h"
+#include "sharedarraybuffer_metadata.h"
 #include <list>
-#include <memory>
 
 namespace node {
 namespace worker {
@@ -37,6 +37,9 @@ class Message {
                             v8::Local<v8::Value> input,
                             v8::Local<v8::Value> transfer_list);
 
+  // Internal method of Message that is called when a new SharedArrayBuffer
+  // object is encountered in the incoming value's structure.
+  void AddSharedArrayBuffer(SharedArrayBufferMetadataReference ref);
   // Internal method of Message that is called once serialization finishes
   // and that transfers ownership of `data` to this message.
   void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
@@ -44,6 +47,7 @@ class Message {
  private:
   MallocedBuffer<char> main_message_buf_;
   std::vector<MallocedBuffer<char>> array_buffer_contents_;
+  std::vector<SharedArrayBufferMetadataReference> shared_array_buffers_;
   std::vector<std::unique_ptr<MessagePortData>> message_ports_;
 
   friend class MessagePort;
