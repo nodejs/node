@@ -37,7 +37,7 @@ server.listen(0, common.mustCall(() => {
       const diff = process.hrtime(startTime);
       const milliseconds = (diff[0] * 1e3 + diff[1] / 1e6);
       if (milliseconds < serverTimeout * 2) {
-        setTimeout(() => makeReq(), callTimeout);
+        setTimeout(makeReq, callTimeout);
       } else {
         server.removeListener('timeout', mustNotCall);
         server.close();
