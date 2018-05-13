@@ -364,7 +364,7 @@
         'src/stream_pipe.cc',
         'src/stream_wrap.cc',
         'src/tcp_wrap.cc',
-        'src/timer_wrap.cc',
+        'src/timers.cc',
         'src/tracing/agent.cc',
         'src/tracing/node_trace_buffer.cc',
         'src/tracing/node_trace_writer.cc',

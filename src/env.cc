@@ -13,6 +13,7 @@
 namespace node {
 
 using v8::Context;
+using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
@@ -25,6 +26,7 @@ using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
+using v8::TryCatch;
 using v8::Value;
 using worker::Worker;
 
@@ -172,6 +174,9 @@ void Environment::Start(int argc,
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
+  uv_timer_init(event_loop(), timer_handle());
+  uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+
   uv_check_init(event_loop(), immediate_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
 
@@ -226,6 +231,10 @@ void Environment::RegisterHandleCleanups() {
     env->CloseHandle(handle, [](uv_handle_t* handle) {});
   };
 
+  RegisterHandleCleanup(
+      reinterpret_cast<uv_handle_t*>(timer_handle()),
+      close_and_finish,
+      nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(immediate_check_handle()),
       close_and_finish,
@@ -465,6 +474,59 @@ void Environment::RunAndClearNativeImmediates() {
 #endif
     immediate_info()->count_dec(count);
     immediate_info()->ref_count_dec(ref_count);
+  }
+}
+
+
+void Environment::ScheduleTimer(int64_t duration) {
+  uv_timer_start(timer_handle(), RunTimers, duration, 0);
+}
+
+void Environment::ToggleTimerRef(bool ref) {
+  if (ref) {
+    uv_ref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  } else {
+    uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  }
+}
+
+void Environment::RunTimers(uv_timer_t* handle) {
+  Environment* env = Environment::from_timer_handle(handle);
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Object> process = env->process_object();
+  InternalCallbackScope scope(env, process, {0, 0});
+
+  Local<Function> cb = env->timers_callback_function();
+  MaybeLocal<Value> ret;
+  Local<Value> args[] = { env->GetNow() };
+  do {
+    TryCatch try_catch(env->isolate());
+    try_catch.SetVerbose(true);
+    ret = cb->Call(env->context(), process, 1, args);
+  } while (ret.IsEmpty());
+
+  int64_t expiry =
+      ret.ToLocalChecked()->IntegerValue(env->context()).FromJust();
+
+  uv_handle_t* h = reinterpret_cast<uv_handle_t*>(handle);
+  bool has_ref = uv_has_ref(h);
+
+  if (expiry != 0) {
+    int64_t duration =
+      abs(expiry) - (uv_now(env->event_loop()) - env->timer_base());
+
+    env->ScheduleTimer(duration > 0 ? duration : 1);
+
+    if (!has_ref && expiry > 0) {
+      uv_ref(h);
+    } else if (has_ref && expiry < 0) {
+      uv_unref(h);
+    }
+  } else if (has_ref) {
+    uv_unref(h);
   }
 }
 

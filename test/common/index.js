@@ -29,7 +29,6 @@ const os = require('os');
 const { exec, execSync, spawn, spawnSync } = require('child_process');
 const stream = require('stream');
 const util = require('util');
-const Timer = process.binding('timer_wrap').Timer;
 const { hasTracing } = process.binding('config');
 const { fixturesDir } = require('./fixtures');
 const tmpdir = require('./tmpdir');
@@ -583,9 +582,9 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
 };
 
 exports.busyLoop = function busyLoop(time) {
-  const startTime = Timer.now();
+  const startTime = Date.now();
   const stopTime = startTime + time;
-  while (Timer.now() < stopTime) {}
+  while (Date.now() < stopTime) {}
 };
 
 exports.isAlive = function isAlive(pid) {

@@ -23,11 +23,11 @@
 require('../common');
 const assert = require('assert');
 
-const Timer = process.binding('timer_wrap').Timer;
 const N = 30;
 
 let last_i = 0;
-let last_ts = 0;
+const [seconds, nanoseconds] = process.hrtime();
+let last_ts = (seconds * 1e3 + nanoseconds * 1e-6) | 0;
 
 function f(i) {
   if (i <= N) {
@@ -36,8 +36,8 @@ function f(i) {
     last_i = i;
 
     // check that this iteration is fired at least 1ms later than the previous
-    const now = Timer.now();
-    console.log(i, now);
+    const [seconds, nanoseconds] = process.hrtime();
+    const now = (seconds * 1e3 + nanoseconds * 1e-6) | 0;
     assert(now >= last_ts + 1,
            `current ts ${now} < prev ts ${last_ts} + 1`);
     last_ts = now;
@@ -46,4 +46,4 @@ function f(i) {
     setTimeout(f, 1, i + 1);
   }
 }
-f(1);
+setTimeout(f, 1, 1);
