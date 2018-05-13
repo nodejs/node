@@ -382,7 +382,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       Close();
   }
 
-  // TODO(addaleax): Switch to modern error system.
+  // TODO(addaleax): Switch to modern error system (node_errors.h).
   void Error(const char* message) {
     // If you hit this assertion, you forgot to enter the v8::Context first.
     CHECK_EQ(env()->context(), env()->isolate()->GetCurrentContext());
