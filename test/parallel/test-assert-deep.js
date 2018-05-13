@@ -7,6 +7,12 @@ const { AssertionError } = assert;
 const defaultMsgStart = 'Input A expected to strictly deep-equal input B:\n' +
                         '+ expected - actual';
 
+// Disable colored output to prevent color codes from breaking assertion
+// message comparisons. This should only be an issue when process.stdout
+// is a TTY.
+if (process.stdout.isTTY)
+  process.env.NODE_DISABLE_COLORS = '1';
+
 // Template tag function turning an error message into a RegExp
 // for assert.throws()
 function re(literals, ...values) {
