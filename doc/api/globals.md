@@ -158,7 +158,7 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
 ## TextEncoder
 <!-- YAML
-added: v11.0.0
+added: REPLACEME
 -->
 
 <!-- type=global -->
@@ -167,7 +167,7 @@ The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 
 ## TextDecoder
 <!-- YAML
-added: v11.0.0
+added: REPLACEME
 -->
 
 <!-- type=global -->

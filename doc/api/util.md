@@ -775,7 +775,7 @@ see [Custom promisified functions][].
 <!-- YAML
 added: v8.3.0
 changes:
-  - version: v11.0.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/20662
     description: The class is now available on the global object.
 -->
@@ -916,7 +916,7 @@ mark.
 <!-- YAML
 added: v8.3.0
 changes:
-  - version: v11.0.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/20662
     description: The class is now available on the global object.
 -->
