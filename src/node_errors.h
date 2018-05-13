@@ -18,6 +18,7 @@ namespace node {
 
 #define ERRORS_WITH_CODE(V)                                                  \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
+  V(ERR_BUFFER_TOO_LARGE, Error)                                             \
   V(ERR_INDEX_OUT_OF_RANGE, RangeError)                                      \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
@@ -25,7 +26,6 @@ namespace node {
   V(ERR_MISSING_ARGS, TypeError)                                             \
   V(ERR_MISSING_MODULE, Error)                                               \
   V(ERR_STRING_TOO_LONG, Error)                                              \
-  V(ERR_BUFFER_TOO_LARGE, Error)
 
 #define V(code, type)                                                         \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
