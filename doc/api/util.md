@@ -776,7 +776,7 @@ see [Custom promisified functions][].
 added: v8.3.0
 changes:
   - version: v11.0.0
-    pr-url: https://github.com/nodejs/node/pull/TO_DO
+    pr-url: https://github.com/nodejs/node/pull/20662
     description: The class is now available on the global object.
 -->
 
@@ -917,7 +917,7 @@ mark.
 added: v8.3.0
 changes:
   - version: v11.0.0
-    pr-url: https://github.com/nodejs/node/pull/TO_DO
+    pr-url: https://github.com/nodejs/node/pull/20662
     description: The class is now available on the global object.
 -->
 
