@@ -640,6 +640,16 @@ common.expectsError(
   }
 );
 
+common.expectsError(
+  () => assert(false, Symbol('foo')),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    generatedMessage: false,
+    message: 'Symbol(foo)'
+  }
+);
+
 {
   // Test caching.
   const fs = process.binding('fs');
