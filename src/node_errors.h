@@ -37,6 +37,7 @@ namespace node {
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \
+  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)              \
 
 #define V(code, type)                                                         \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
@@ -68,7 +69,9 @@ namespace node {
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                               \
     "MessagePort was found in message but not listed in transferList")       \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                        \
-    "Script execution was interrupted by `SIGINT`")
+    "Script execution was interrupted by `SIGINT`")                          \
+  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                         \
+    "Cannot serialize externalized SharedArrayBuffer")                       \
 
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
