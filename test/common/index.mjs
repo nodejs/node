@@ -14,7 +14,9 @@ let knownGlobals = [
   process,
   setImmediate,
   setInterval,
-  setTimeout
+  setTimeout,
+  TextDecoder,
+  TextEncoder
 ];
 
 if (process.env.NODE_TEST_KNOWN_GLOBALS) {
@@ -71,15 +73,6 @@ export function leakedGlobals() {
 
   if (global.Symbol) {
     knownGlobals.push(Symbol);
-  }
-
-  // WHATWG APIs
-  if (global.TextEncoder) {
-    knownGlobals.push(TextEncoder);
-  }
-
-  if (global.TextDecoder) {
-    knownGlobals.push(TextDecoder)
   }
 
   const leaked = [];

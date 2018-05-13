@@ -316,7 +316,9 @@ let knownGlobals = [
   process,
   setImmediate,
   setInterval,
-  setTimeout
+  setTimeout,
+  TextDecoder,
+  TextEncoder
 ];
 
 if (global.gc) {
