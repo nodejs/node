@@ -2474,7 +2474,7 @@ Big thanks to @addaleax who prepared the vast majority of this release.
 * [[`16f2600ecf`](https://github.com/nodejs/node/commit/16f2600ecf)] - **child_process**: emit IPC messages on next tick (cjihrig) [#13856](https://github.com/nodejs/node/pull/13856)
 * [[`dfc46e262a`](https://github.com/nodejs/node/commit/dfc46e262a)] - **(SEMVER-MINOR)** **cluster**: overriding inspector port (cornholio) [#14140](https://github.com/nodejs/node/pull/14140)
 * [[`26f85e75f9`](https://github.com/nodejs/node/commit/26f85e75f9)] - **cluster**: remove obsolete todo (Ruben Bridgewater) [#13734](https://github.com/nodejs/node/pull/13734)
-* [[`816f98f5d0`](https://github.com/nodejs/node/commit/816f98f5d0)] - **console**: use a plain object for the the error stack (Ruben Bridgewater) [#13743](https://github.com/nodejs/node/pull/13743)
+* [[`816f98f5d0`](https://github.com/nodejs/node/commit/816f98f5d0)] - **console**: use a plain object for the error stack (Ruben Bridgewater) [#13743](https://github.com/nodejs/node/pull/13743)
 * [[`932791063b`](https://github.com/nodejs/node/commit/932791063b)] - **(SEMVER-MINOR)** **deps**: hotfix to bump npx version (Kat Marchán) [#14235](https://github.com/nodejs/node/pull/14235)
 * [[`dc3f6b9ac1`](https://github.com/nodejs/node/commit/dc3f6b9ac1)] - **(SEMVER-MINOR)** **deps**: upgrade npm to 5.3.0 (Kat Marchán) [#14235](https://github.com/nodejs/node/pull/14235)
 * [[`fe6ca44f84`](https://github.com/nodejs/node/commit/fe6ca44f84)] - **deps**: upgrade libuv to 1.13.1 (cjihrig) [#14117](https://github.com/nodejs/node/pull/14117)
