@@ -27,7 +27,7 @@ using v8::Value;
 
 const int kNodeContextTag = 0x6e6f64;
 void *kNodeContextTagPtr = const_cast<void *>(
-  reinterpret_cast<const void *>(&kNodeContextTag)
+  static_cast<const void*>(&kNodeContextTag)
 );
 
 IsolateData::IsolateData(Isolate* isolate,
@@ -379,7 +379,7 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   // Grow the embedder data if necessary to make sure we are not out of bounds
   // when reading the magic number.
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTagBoundary, nullptr);
-  int *magicNumberPtr = reinterpret_cast<int *>(
+  int* magicNumberPtr = reinterpret_cast<int*>(
     context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kContextTag)
   );
   if (magicNumberPtr != kNodeContextTagPtr || *magicNumberPtr != kNodeContextTag) {
