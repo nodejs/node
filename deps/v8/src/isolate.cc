@@ -8,6 +8,7 @@
 
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
+#include <unordered_map>
 
 #include "src/api.h"
 #include "src/assembler-inl.h"
@@ -136,8 +137,6 @@ void ThreadLocalTop::Free() {
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::thread_id_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-base::LazyMutex Isolate::thread_data_table_mutex_ = LAZY_MUTEX_INITIALIZER;
-Isolate::ThreadDataTable* Isolate::thread_data_table_ = nullptr;
 base::Atomic32 Isolate::isolate_counter_ = 0;
 #if DEBUG
 base::Atomic32 Isolate::isolate_key_created_ = 0;
@@ -148,13 +147,13 @@ Isolate::PerIsolateThreadData*
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = nullptr;
   {
-    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-    per_thread = thread_data_table_->Lookup(this, thread_id);
+    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread == nullptr) {
       per_thread = new PerIsolateThreadData(this, thread_id);
-      thread_data_table_->Insert(per_thread);
+      thread_data_table_.Insert(per_thread);
     }
-    DCHECK(thread_data_table_->Lookup(this, thread_id) == per_thread);
+    DCHECK(thread_data_table_.Lookup(thread_id) == per_thread);
   }
   return per_thread;
 }
@@ -165,12 +164,11 @@ void Isolate::DiscardPerThreadDataForThisThread() {
   if (thread_id_int) {
     ThreadId thread_id = ThreadId(thread_id_int);
     DCHECK(!thread_manager_->mutex_owner_.Equals(thread_id));
-    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-    PerIsolateThreadData* per_thread =
-        thread_data_table_->Lookup(this, thread_id);
+    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    PerIsolateThreadData* per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread) {
       DCHECK(!per_thread->thread_state_);
-      thread_data_table_->Remove(per_thread);
+      thread_data_table_.Remove(per_thread);
     }
   }
 }
@@ -186,23 +184,20 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
   PerIsolateThreadData* per_thread = nullptr;
   {
-    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-    per_thread = thread_data_table_->Lookup(this, thread_id);
+    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    per_thread = thread_data_table_.Lookup(thread_id);
   }
   return per_thread;
 }
 
 
 void Isolate::InitializeOncePerProcess() {
-  base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-  CHECK_NULL(thread_data_table_);
   isolate_key_ = base::Thread::CreateThreadLocalKey();
 #if DEBUG
   base::Relaxed_Store(&isolate_key_created_, 1);
 #endif
   thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-  thread_data_table_ = new Isolate::ThreadDataTable();
 }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
@@ -2240,14 +2235,9 @@ char* Isolate::RestoreThread(char* from) {
   return from + sizeof(ThreadLocalTop);
 }
 
-Isolate::ThreadDataTable::ThreadDataTable() : list_(nullptr) {}
+Isolate::ThreadDataTable::ThreadDataTable() : table_() {}
 
-Isolate::ThreadDataTable::~ThreadDataTable() {
-  // TODO(svenpanne) The assertion below would fire if an embedder does not
-  // cleanly dispose all Isolates before disposing v8, so we are conservative
-  // and leave it out for now.
-  // DCHECK_NULL(list_);
-}
+Isolate::ThreadDataTable::~ThreadDataTable() {}
 
 void Isolate::ReleaseManagedObjects() {
   Isolate::ManagedObjectFinalizer* current =
@@ -2294,40 +2284,30 @@ Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 #endif
 }
 
-
-Isolate::PerIsolateThreadData*
-    Isolate::ThreadDataTable::Lookup(Isolate* isolate,
-                                     ThreadId thread_id) {
-  for (PerIsolateThreadData* data = list_; data != nullptr;
-       data = data->next_) {
-    if (data->Matches(isolate, thread_id)) return data;
-  }
-  return nullptr;
+Isolate::PerIsolateThreadData* Isolate::ThreadDataTable::Lookup(
+    ThreadId thread_id) {
+  auto t = table_.find(thread_id);
+  if (t == table_.end()) return nullptr;
+  return t->second;
 }
 
 
 void Isolate::ThreadDataTable::Insert(Isolate::PerIsolateThreadData* data) {
-  if (list_ != nullptr) list_->prev_ = data;
-  data->next_ = list_;
-  list_ = data;
+  bool inserted = table_.insert(std::make_pair(data->thread_id_, data)).second;
+  CHECK(inserted);
 }
 
 
 void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
-  if (list_ == data) list_ = data->next_;
-  if (data->next_ != nullptr) data->next_->prev_ = data->prev_;
-  if (data->prev_ != nullptr) data->prev_->next_ = data->next_;
+  table_.erase(data->thread_id_);
   delete data;
 }
 
-
-void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
-  PerIsolateThreadData* data = list_;
-  while (data != nullptr) {
-    PerIsolateThreadData* next = data->next_;
-    if (data->isolate() == isolate) Remove(data);
-    data = next;
+void Isolate::ThreadDataTable::RemoveAllThreads() {
+  for (auto& x : table_) {
+    delete x.second;
   }
+  table_.clear();
 }
 
 
@@ -2502,10 +2482,6 @@ Isolate::Isolate(bool enable_serializer)
       cancelable_task_manager_(new CancelableTaskManager()),
       abort_on_uncaught_exception_callback_(nullptr),
       total_regexp_code_generated_(0) {
-  {
-    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-    CHECK(thread_data_table_);
-  }
   id_ = base::Relaxed_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
@@ -2563,8 +2539,8 @@ void Isolate::TearDown() {
   Deinit();
 
   {
-    base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-    thread_data_table_->RemoveAllThreads(this);
+    base::LockGuard<base::Mutex> lock_guard(&thread_data_table_mutex_);
+    thread_data_table_.RemoveAllThreads();
   }
 
 #ifdef DEBUG
@@ -2575,12 +2551,6 @@ void Isolate::TearDown() {
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);
-}
-
-
-void Isolate::GlobalTearDown() {
-  delete thread_data_table_;
-  thread_data_table_ = nullptr;
 }
 
 
