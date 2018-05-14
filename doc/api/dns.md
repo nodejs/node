@@ -66,7 +66,7 @@ An independent resolver for DNS requests.
 Note that creating a new resolver uses the default server settings. Setting
 the servers used for a resolver using
 [`resolver.setServers()`][`dns.setServers()`] does not affect
-other resolver:
+other resolvers:
 
 ```js
 const { Resolver } = require('dns');
