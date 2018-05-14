@@ -63,11 +63,7 @@ export function leakedGlobals() {
   }
 }
 
-// Turn this off if the test should not check for global leaks.
-export let globalCheck = true;  // eslint-disable-line
-
 process.on('exit', function() {
-  if (!globalCheck) return;
   const leaked = leakedGlobals();
   if (leaked.length > 0) {
     assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
