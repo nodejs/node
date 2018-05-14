@@ -360,6 +360,10 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Inspecting linked lists and similar objects is now possible
+                 up to the maximum call stack size.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19259
     description: The `WeakMap` and `WeakSet` entries can now be inspected
@@ -388,8 +392,9 @@ changes:
     properties will be included in the formatted result as well as [`WeakMap`][]
     and [`WeakSet`][] entries. **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
-    the `object`. This is useful for inspecting large complicated objects.
-    To make it recurse indefinitely pass `null`. **Default:** `2`.
+    the `object`. This is useful for inspecting large complicated objects. To
+    make it recurse up to the maximum call stack size pass `Infinity` or `null`.
+    **Default:** `2`.
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Colors are customizable, see [Customizing `util.inspect` colors][].
     **Default:** `false`.

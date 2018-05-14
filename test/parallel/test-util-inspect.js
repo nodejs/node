@@ -1410,10 +1410,23 @@ util.inspect(process);
   // Test that a long linked list can be inspected without throwing an error.
   const list = {};
   let head = list;
-  // The real cutoff value is closer to 1400 stack frames as of May 2018,
-  // but let's be generous here – even a linked listed of length 100k should be
-  // inspectable in some way.
+  // A linked list of length 100k should be inspectable in some way, even though
+  // the real cutoff value is much lower than 100k.
   for (let i = 0; i < 100000; i++)
     head = head.next = {};
-  util.inspect(list);
+  assert.strictEqual(
+    util.inspect(list),
+    '{ next: { next: { next: [Object] } } }'
+  );
+  common.expectWarning({
+    Warning: [
+      'Inspection reached the maximum call stack size. ' +
+        'Incomplete inspected object returned.',
+      common.noWarnCode
+    ]
+  });
+  const longList = util.inspect(list, { depth: Infinity });
+  const match = longList.match(/next/g);
+  assert(match.length > 1000 && match.length < 10000);
+  assert(longList.includes('[Object]'));
 }
