@@ -417,7 +417,7 @@ def FixVCMacroSlashes(s):
 
 
 def ConvertVCMacrosToMSBuild(s):
-  """Convert the the MSVS macros found in the string to the MSBuild equivalent.
+  """Convert the MSVS macros found in the string to the MSBuild equivalent.
 
   This list is probably not exhaustive.  Add as needed.
   """
