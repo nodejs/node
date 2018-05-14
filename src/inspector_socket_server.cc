@@ -261,7 +261,7 @@ class ServerSocket {
  private:
   explicit ServerSocket(InspectorSocketServer* server)
       : tcp_socket_(uv_tcp_t()), server_(server), port_(-1) {}
-  template<typename UvHandle>
+  template <typename UvHandle>
   static ServerSocket* FromTcpSocket(UvHandle* socket) {
     return node::ContainerOf(&ServerSocket::tcp_socket_,
                              reinterpret_cast<uv_tcp_t*>(socket));

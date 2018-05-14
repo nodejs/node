@@ -1222,7 +1222,7 @@ class ExternalHeader :
                                   vec.len);
   }
 
-  template<bool may_internalize>
+  template <bool may_internalize>
   static MaybeLocal<String> New(Environment* env, nghttp2_rcbuf* buf) {
     if (nghttp2_rcbuf_is_static(buf)) {
       auto& static_str_map = env->isolate_data()->http2_static_strs;

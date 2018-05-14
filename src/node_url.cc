@@ -988,7 +988,7 @@ void URLHost::ParseHost(const char* input,
 
 // Locates the longest sequence of 0 segments in an IPv6 address
 // in order to use the :: compression when serializing
-template<typename T>
+template <typename T>
 inline T* FindLongestZeroSequence(T* values, size_t len) {
   T* start = values;
   T* end = start + len;

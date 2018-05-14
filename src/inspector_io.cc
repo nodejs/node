@@ -23,7 +23,7 @@ using AsyncAndAgent = std::pair<uv_async_t, Agent*>;
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
 
-template<typename Transport>
+template <typename Transport>
 using TransportAndIo = std::pair<Transport*, InspectorIo*>;
 
 std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
@@ -284,7 +284,7 @@ void InspectorIo::IoThreadAsyncCb(uv_async_t* async) {
   }
 }
 
-template<typename Transport>
+template <typename Transport>
 void InspectorIo::ThreadMain() {
   uv_loop_t loop;
   loop.data = nullptr;

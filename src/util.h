@@ -420,7 +420,7 @@ struct OnScopeLeave {
 };
 
 // Simple RAII wrapper for contiguous data that uses malloc()/free().
-template<typename T>
+template <typename T>
 struct MallocedBuffer {
   T* data;
   size_t size;
@@ -448,10 +448,10 @@ struct MallocedBuffer {
 };
 
 // Test whether some value can be called with ().
-template<typename T, typename = void>
+template <typename T, typename = void>
 struct is_callable : std::is_function<T> { };
 
-template<typename T>
+template <typename T>
 struct is_callable<T, typename std::enable_if<
     std::is_same<decltype(void(&T::operator())), void>::value
     >::type> : std::true_type { };

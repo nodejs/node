@@ -7,14 +7,14 @@ using node::AliasedBuffer;
 
 class AliasBufferTest : public NodeTestFixture {};
 
-template<class NativeT>
+template <class NativeT>
 void CreateOracleValues(std::vector<NativeT>* buf) {
   for (size_t i = 0, j = buf->size(); i < buf->size(); i++, j--) {
     (*buf)[i] = static_cast<NativeT>(j);
   }
 }
 
-template<class NativeT, class V8T>
+template <class NativeT, class V8T>
 void WriteViaOperator(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
                       const std::vector<NativeT>& oracle) {
   // write through the API
@@ -23,7 +23,7 @@ void WriteViaOperator(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
   }
 }
 
-template<class NativeT, class V8T>
+template <class NativeT, class V8T>
 void WriteViaSetValue(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
                       const std::vector<NativeT>& oracle) {
   // write through the API
@@ -32,7 +32,7 @@ void WriteViaSetValue(AliasedBuffer<NativeT, V8T>* aliasedBuffer,
   }
 }
 
-template<class NativeT, class V8T>
+template <class NativeT, class V8T>
 void ReadAndValidate(v8::Isolate* isolate,
                      v8::Local<v8::Context> context,
                      AliasedBuffer<NativeT, V8T>* aliasedBuffer,
@@ -68,7 +68,7 @@ void ReadAndValidate(v8::Isolate* isolate,
   }
 }
 
-template<class NativeT, class V8T>
+template <class NativeT, class V8T>
 void ReadWriteTest(v8::Isolate* isolate) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
@@ -92,7 +92,7 @@ void ReadWriteTest(v8::Isolate* isolate) {
   ReadAndValidate(isolate, context, &ab, oracle);
 }
 
-template<
+template <
     class NativeT_A, class V8T_A,
     class NativeT_B, class V8T_B,
     class NativeT_C, class V8T_C>
