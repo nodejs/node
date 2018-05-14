@@ -112,6 +112,7 @@ class PerProcessOptions {
   bool zero_fill_all_buffers = false;
 
   std::vector<std::string> security_reverts;
+  bool print_bash_completion = false;
   bool print_help = false;
   bool print_v8_help = false;
   bool print_version = false;
