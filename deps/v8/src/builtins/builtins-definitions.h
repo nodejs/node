@@ -1076,6 +1076,10 @@ namespace internal {
   /* ES6 #sec-symbol.prototype.valueof */                                      \
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
+  /* Trace */                                                                  \
+  CPP(IsTraceCategoryEnabled)                                                  \
+  CPP(Trace)                                                                   \
+                                                                               \
   /* TypedArray */                                                             \
   TFS(IterableToList, kIterable, kIteratorFn)                                  \
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \

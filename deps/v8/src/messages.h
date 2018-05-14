@@ -745,7 +745,13 @@ class ErrorUtils : public AllStatic {
   T(DataCloneDeserializationError, "Unable to deserialize cloned data.")       \
   T(DataCloneDeserializationVersionError,                                      \
     "Unable to deserialize cloned data due to invalid or unsupported "         \
-    "version.")
+    "version.")                                                                \
+  T(TraceEventData, "Trace data does not support deeply nested objects")       \
+  T(TraceEventCategory, "Trace event category must be a string.")              \
+  T(TraceEventName, "Trace event name must be a string.")                      \
+  T(TraceEventNameLength, "Trace event name must not be an empty string.")     \
+  T(TraceEventPhase, "Trace event phase must be a number.")                    \
+  T(TraceEventID, "Trace event id must be a number.")
 
 class MessageTemplate {
  public:
