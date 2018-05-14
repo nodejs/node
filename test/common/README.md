@@ -120,10 +120,32 @@ an expected warning does not have a code then `common.noWarnCode` can be used
 to indicate this.
 
 ### fileExists(pathname)
-* pathname [&lt;string>]
+* `pathname` [&lt;string>]
 * return [&lt;boolean>]
 
 Checks if `pathname` exists
+
+### fsTest(method, args, options)
+* `method` [&lt;string>]
+* `args` [&lt;Array>]
+* `options` [&lt;Object>]
+
+Run both `fs[method]()` and `fsPromises[method]()` passing `args`.
+`util.callbackify()` is used to convert the `fsPromises` version of the method
+into one that takes a callback. The last value in `args` must be a callback that
+is expected to run once for each of the two invocations.
+
+The `options` object may contain a `setup` property that is a function that is
+run before each test. This function might refresh the temporary directory if
+both tests need to use it, for example. The `options` object may also contain a
+`throws` property that is a boolean indicating if the `fs[method]()` function is
+expected to throw. The `fsPromises[method]()` function will be expected to
+reject. Lastly, the `options` object may contain a `differentFiles` array. If
+`differentFiles` is included, then the first element is inserted as the first
+argument (typically the path to a file) when testing the callback-based API and
+the second element is inserted as the first argument when testing the
+Promise-based API. This can be useful when testing APIs that modify the target
+file.
 
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]

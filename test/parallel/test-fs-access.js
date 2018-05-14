@@ -62,17 +62,17 @@ assert.strictEqual(typeof fs.R_OK, 'number');
 assert.strictEqual(typeof fs.W_OK, 'number');
 assert.strictEqual(typeof fs.X_OK, 'number');
 
-fs.access(__filename, common.mustCall(assert.ifError));
-fs.access(__filename, fs.R_OK, common.mustCall(assert.ifError));
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(assert.ifError));
+common.fsTest('access', [__filename, assert.ifError]);
+common.fsTest('access', [__filename, fs.R_OK, assert.ifError]);
+common.fsTest('access', [readOnlyFile, fs.F_OK | fs.R_OK, assert.ifError]);
 
-fs.access(doesNotExist, common.mustCall((err) => {
+common.fsTest('access', [doesNotExist, (err) => {
   assert.notStrictEqual(err, null, 'error should exist');
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(err.path, doesNotExist);
-}));
+}]);
 
-fs.access(readOnlyFile, fs.W_OK, common.mustCall(function(err) {
+common.fsTest('access', [readOnlyFile, fs.W_OK, function(err) {
   assert.strictEqual(this, undefined);
   if (hasWriteAccessForReadonlyFile) {
     assert.ifError(err);
@@ -80,20 +80,19 @@ fs.access(readOnlyFile, fs.W_OK, common.mustCall(function(err) {
     assert.notStrictEqual(err, null, 'error should exist');
     assert.strictEqual(err.path, readOnlyFile);
   }
-}));
+}]);
 
-common.expectsError(
-  () => {
-    fs.access(100, fs.F_OK, common.mustNotCall());
-  },
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ' Received type number'
-  }
-);
+{
+  const expectedError = (e) => {
+    assert.strictEqual(e.code, 'ERR_INVALID_ARG_TYPE');
+    assert(e instanceof TypeError);
+  };
 
+  common.fsTest('access', [100, fs.F_OK, expectedError], { throws: true });
+}
+
+// These tests do not use common.fsTest because the equivalent of a callback
+// is not required in fsPromises.access(). You know, because: Promises.
 common.expectsError(
   () => {
     fs.access(__filename, fs.F_OK);
