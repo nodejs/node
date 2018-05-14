@@ -43,8 +43,8 @@ class CustomWarning extends Error {
   [testMsg, { type: testType, code: testCode, detail: [] }],
   [testMsg, { type: testType, code: testCode, detail: null }],
   [testMsg, { type: testType, code: testCode, detail: 1 }]
-].forEach((i) => {
-  process.emitWarning.apply(null, i);
+].forEach((args) => {
+  process.emitWarning(...args);
 });
 
 const warningNoToString = new CustomWarning();
@@ -57,18 +57,25 @@ warningThrowToString.toString = function() {
 };
 process.emitWarning(warningThrowToString);
 
-const expectedError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
-
 // TypeError is thrown on invalid input
-assert.throws(() => process.emitWarning(1), expectedError);
-assert.throws(() => process.emitWarning({}), expectedError);
-assert.throws(() => process.emitWarning(true), expectedError);
-assert.throws(() => process.emitWarning([]), expectedError);
-assert.throws(() => process.emitWarning('', '', {}), expectedError);
-assert.throws(() => process.emitWarning('', 1), expectedError);
-assert.throws(() => process.emitWarning('', '', 1), expectedError);
-assert.throws(() => process.emitWarning('', true), expectedError);
-assert.throws(() => process.emitWarning('', '', true), expectedError);
-assert.throws(() => process.emitWarning('', []), expectedError);
-assert.throws(() => process.emitWarning('', '', []), expectedError);
+[
+  [1],
+  [{}],
+  [true],
+  [[]],
+  ['', '', {}],
+  ['', 1],
+  ['', '', 1],
+  ['', true],
+  ['', '', true],
+  ['', []],
+  ['', '', []],
+  [],
+  [undefined, 'foo', 'bar'],
+  [undefined]
+].forEach((args) => {
+  common.expectsError(
+    () => process.emitWarning(...args),
+    { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
+  );
+});
