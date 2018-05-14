@@ -1172,13 +1172,10 @@ void PromiseReactionJobTask::PromiseReactionJobTaskVerify() {
   VerifyHeapPointer(context());
   CHECK(context()->IsContext());
   VerifyHeapPointer(handler());
-  VerifyHeapPointer(payload());
-  if (handler()->IsCode()) {
-    CHECK(payload()->IsJSReceiver());
-  } else {
-    CHECK(handler()->IsUndefined(isolate) || handler()->IsCallable());
-    CHECK(payload()->IsJSPromise() || payload()->IsPromiseCapability());
-  }
+  CHECK(handler()->IsUndefined(isolate) || handler()->IsCallable());
+  VerifyHeapPointer(promise_or_capability());
+  CHECK(promise_or_capability()->IsJSPromise() ||
+        promise_or_capability()->IsPromiseCapability());
 }
 
 void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskVerify() {
@@ -1220,18 +1217,14 @@ void PromiseReaction::PromiseReactionVerify() {
   VerifyPointer(next());
   CHECK(next()->IsSmi() || next()->IsPromiseReaction());
   VerifyHeapPointer(reject_handler());
+  CHECK(reject_handler()->IsUndefined(isolate) ||
+        reject_handler()->IsCallable());
   VerifyHeapPointer(fulfill_handler());
-  VerifyHeapPointer(payload());
-  if (reject_handler()->IsCode()) {
-    CHECK(fulfill_handler()->IsCode());
-    CHECK(payload()->IsJSReceiver());
-  } else {
-    CHECK(reject_handler()->IsUndefined(isolate) ||
-          reject_handler()->IsCallable());
-    CHECK(fulfill_handler()->IsUndefined(isolate) ||
-          fulfill_handler()->IsCallable());
-    CHECK(payload()->IsJSPromise() || payload()->IsPromiseCapability());
-  }
+  CHECK(fulfill_handler()->IsUndefined(isolate) ||
+        fulfill_handler()->IsCallable());
+  VerifyHeapPointer(promise_or_capability());
+  CHECK(promise_or_capability()->IsJSPromise() ||
+        promise_or_capability()->IsPromiseCapability());
 }
 
 void JSPromise::JSPromiseVerify() {

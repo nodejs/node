@@ -263,12 +263,12 @@ KNOWN_MAPS = {
   ("MAP_SPACE", 0x04511): (173, "Tuple2Map"),
   ("MAP_SPACE", 0x04569): (171, "ScriptMap"),
   ("MAP_SPACE", 0x045c1): (163, "InterceptorInfoMap"),
-  ("MAP_SPACE", 0x04619): (154, "AccessorInfoMap"),
-  ("MAP_SPACE", 0x04671): (153, "AccessCheckInfoMap"),
-  ("MAP_SPACE", 0x046c9): (155, "AccessorPairMap"),
-  ("MAP_SPACE", 0x04721): (156, "AliasedArgumentsEntryMap"),
-  ("MAP_SPACE", 0x04779): (157, "AllocationMementoMap"),
-  ("MAP_SPACE", 0x047d1): (158, "AllocationSiteMap"),
+  ("MAP_SPACE", 0x04619): (158, "AllocationSiteMap"),
+  ("MAP_SPACE", 0x04671): (154, "AccessorInfoMap"),
+  ("MAP_SPACE", 0x046c9): (153, "AccessCheckInfoMap"),
+  ("MAP_SPACE", 0x04721): (155, "AccessorPairMap"),
+  ("MAP_SPACE", 0x04779): (156, "AliasedArgumentsEntryMap"),
+  ("MAP_SPACE", 0x047d1): (157, "AllocationMementoMap"),
   ("MAP_SPACE", 0x04829): (159, "AsyncGeneratorRequestMap"),
   ("MAP_SPACE", 0x04881): (160, "ContextExtensionMap"),
   ("MAP_SPACE", 0x048d9): (161, "DebugInfoMap"),
@@ -366,4 +366,4 @@ FRAME_MARKERS = (
   "NATIVE",
 )
 
-# This set of constants is generated from a shipping build.
+# This set of constants is generated from a non-shipping build.

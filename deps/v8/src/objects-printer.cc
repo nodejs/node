@@ -1441,7 +1441,7 @@ void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskPrint(
   os << "\n - argument: " << Brief(argument());
   os << "\n - context: " << Brief(context());
   os << "\n - handler: " << Brief(handler());
-  os << "\n - payload: " << Brief(payload());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
   os << "\n";
 }
 
@@ -1451,7 +1451,7 @@ void PromiseRejectReactionJobTask::PromiseRejectReactionJobTaskPrint(
   os << "\n - argument: " << Brief(argument());
   os << "\n - context: " << Brief(context());
   os << "\n - handler: " << Brief(handler());
-  os << "\n - payload: " << Brief(payload());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
   os << "\n";
 }
 
@@ -1478,7 +1478,7 @@ void PromiseReaction::PromiseReactionPrint(std::ostream& os) {  // NOLINT
   os << "\n - next: " << Brief(next());
   os << "\n - reject_handler: " << Brief(reject_handler());
   os << "\n - fulfill_handler: " << Brief(fulfill_handler());
-  os << "\n - payload: " << Brief(payload());
+  os << "\n - promise_or_capability: " << Brief(promise_or_capability());
   os << "\n";
 }
 

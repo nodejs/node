@@ -364,14 +364,7 @@ void LookupIterator::InternalUpdateProtector() {
     if (!isolate_->IsPromiseThenLookupChainIntact()) return;
     // Setting the "then" property on any JSPromise instance or on the
     // initial %PromisePrototype% invalidates the Promise#then protector.
-    // Also setting the "then" property on the initial %ObjectPrototype%
-    // invalidates the Promise#then protector, since we use this protector
-    // to guard the fast-path in AsyncGeneratorResolve, where we can skip
-    // the ResolvePromise step and go directly to FulfillPromise if we
-    // know that the Object.prototype doesn't contain a "then" method.
     if (holder_->IsJSPromise() ||
-        isolate_->IsInAnyContext(*holder_,
-                                 Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
         isolate_->IsInAnyContext(*holder_, Context::PROMISE_PROTOTYPE_INDEX)) {
       isolate_->InvalidatePromiseThenProtector();
     }

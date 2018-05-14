@@ -81,7 +81,6 @@ class PlatformInterfaceDescriptor;
   V(FrameDropperTrampoline)           \
   V(WasmRuntimeCall)                  \
   V(RunMicrotasks)                    \
-  V(PromiseReactionHandler)           \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -887,13 +886,6 @@ class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
   DEFINE_EMPTY_PARAMETERS()
   DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor,
                              0)
-};
-
-class PromiseReactionHandlerDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kArgument, kGenerator)
-  DECLARE_DEFAULT_DESCRIPTOR(PromiseReactionHandlerDescriptor,
-                             CallInterfaceDescriptor, 2)
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                          \
