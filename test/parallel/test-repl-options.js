@@ -24,8 +24,6 @@ const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 
-common.globalCheck = false;
-
 // Create a dummy stream that does nothing
 const stream = new common.ArrayStream();
 

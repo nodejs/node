@@ -21,7 +21,6 @@
 
 'use strict';
 const common = require('../common');
-common.globalCheck = false;
 
 const assert = require('assert');
 const repl = require('repl');
