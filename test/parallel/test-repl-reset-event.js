@@ -26,6 +26,8 @@ const assert = require('assert');
 const repl = require('repl');
 const util = require('util');
 
+common.allowGlobals(42);
+
 // Create a dummy stream that does nothing
 const dummy = new common.ArrayStream();
 

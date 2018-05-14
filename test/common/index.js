@@ -366,20 +366,14 @@ function leakedGlobals() {
 }
 exports.leakedGlobals = leakedGlobals;
 
-// Turn this off if the test should not check for global leaks.
-exports.globalCheck = true;
-
 process.on('exit', function() {
-  if (!exports.globalCheck) return;
   const leaked = leakedGlobals();
   if (leaked.length > 0) {
     assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
   }
 });
 
-
 const mustCallChecks = [];
-
 
 function runCallChecks(exitCode) {
   if (exitCode !== 0) return;

@@ -29,8 +29,6 @@ const vm = require('vm');
 assert.strictEqual(typeof global.gc, 'function',
                    'Run this test with --expose-gc');
 
-common.globalCheck = false;
-
 // Run a string
 const result = vm.runInNewContext('\'passed\';');
 assert.strictEqual(result, 'passed');
@@ -93,3 +91,10 @@ fn();
     return true;
   });
 }
+
+common.allowGlobals(
+  global.hello,
+  global.code,
+  global.foo,
+  global.obj
+);
