@@ -898,7 +898,7 @@ should be freed up.
 
 #### napi_add_env_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v10.2.0
 -->
 ```C
 NODE_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
@@ -923,7 +923,7 @@ is being torn down anyway.
 
 #### napi_remove_env_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v10.2.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
