@@ -76,7 +76,7 @@ to call `timeout.ref()` unless `timeout.unref()` had been called previously.
 
 ### timeout.refresh()
 <!-- YAML
-added: REPLACEME
+added: v10.2.0
 -->
 
 * Returns: {Timeout} a reference to `timeout`
