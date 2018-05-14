@@ -62,37 +62,64 @@ assert.strictEqual(typeof fs.R_OK, 'number');
 assert.strictEqual(typeof fs.W_OK, 'number');
 assert.strictEqual(typeof fs.X_OK, 'number');
 
+const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
+
 fs.access(__filename, common.mustCall(assert.ifError));
+fs.promises.access(__filename)
+  .then(common.mustCall())
+  .catch(throwNextTick);
 fs.access(__filename, fs.R_OK, common.mustCall(assert.ifError));
+fs.promises.access(__filename, fs.R_OK)
+  .then(common.mustCall())
+  .catch(throwNextTick);
 fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(assert.ifError));
+fs.promises.access(readOnlyFile, fs.F_OK | fs.R_OK)
+  .then(common.mustCall())
+  .catch(throwNextTick);
 
-fs.access(doesNotExist, common.mustCall((err) => {
-  assert.notStrictEqual(err, null, 'error should exist');
-  assert.strictEqual(err.code, 'ENOENT');
-  assert.strictEqual(err.path, doesNotExist);
-}));
+{
+  const expectedError = (err) => {
+    assert.notStrictEqual(err, null);
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.path, doesNotExist);
+  };
+  fs.access(doesNotExist, common.mustCall(expectedError));
+  fs.promises.access(doesNotExist)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
 
-fs.access(readOnlyFile, fs.W_OK, common.mustCall(function(err) {
-  assert.strictEqual(this, undefined);
-  if (hasWriteAccessForReadonlyFile) {
-    assert.ifError(err);
-  } else {
-    assert.notStrictEqual(err, null, 'error should exist');
-    assert.strictEqual(err.path, readOnlyFile);
+{
+  function expectedError(err) {
+    assert.strictEqual(this, undefined);
+    if (hasWriteAccessForReadonlyFile) {
+      assert.ifError(err);
+    } else {
+      assert.notStrictEqual(err, null);
+      assert.strictEqual(err.path, readOnlyFile);
+    }
   }
-}));
+  fs.access(readOnlyFile, fs.W_OK, common.mustCall(expectedError));
+  fs.promises.access(readOnlyFile, fs.W_OK)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
 
-common.expectsError(
-  () => {
-    fs.access(100, fs.F_OK, common.mustNotCall());
-  },
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ' Received type number'
-  }
-);
+{
+  const expectedError = (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+    assert.ok(err instanceof TypeError);
+    return true;
+  };
+  assert.throws(
+    () => { fs.access(100, fs.F_OK, common.mustNotCall()); },
+    expectedError
+  );
+
+  fs.promises.access(100, fs.F_OK)
+    .then(common.mustNotCall(), common.mustCall(expectedError))
+    .catch(throwNextTick);
+}
 
 common.expectsError(
   () => {
