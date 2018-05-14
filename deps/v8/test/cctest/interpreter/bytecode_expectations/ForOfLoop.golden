@@ -1196,7 +1196,7 @@ bytecodes: [
   /*   45 S> */ B(Mov), R(2), R(21),
                 B(Mov), R(0), R(22),
                 B(Mov), R(11), R(23),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwaitUncaught), R(21), U8(3),
+                B(CallJSRuntime), U8(%async_function_await_uncaught), R(21), U8(3),
   /*   45 E> */ B(SuspendGenerator), R(2), R(0), U8(21), U8(0),
                 B(ResumeGenerator), R(2), R(0), U8(21),
                 B(Star), R(21),

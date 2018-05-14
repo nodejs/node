@@ -2278,7 +2278,7 @@ ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 ACCESSORS(AccessorInfo, name, Name, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
-          kExpectedReceiverTypeOffset)
+           kExpectedReceiverTypeOffset)
 
 ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
                    Foreign::IsNormalized(value))

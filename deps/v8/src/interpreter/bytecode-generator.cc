@@ -3239,20 +3239,22 @@ void BytecodeGenerator::BuildAwait(Expression* await_expr) {
     // Await(operand) and suspend.
     RegisterAllocationScope register_scope(this);
 
-    Runtime::FunctionId id;
+    int await_builtin_context_index;
     RegisterList args;
     if (IsAsyncGeneratorFunction(function_kind())) {
-      id = catch_prediction() == HandlerTable::ASYNC_AWAIT
-               ? Runtime::kInlineAsyncGeneratorAwaitUncaught
-               : Runtime::kInlineAsyncGeneratorAwaitCaught;
+      await_builtin_context_index =
+          catch_prediction() == HandlerTable::ASYNC_AWAIT
+              ? Context::ASYNC_GENERATOR_AWAIT_UNCAUGHT
+              : Context::ASYNC_GENERATOR_AWAIT_CAUGHT;
       args = register_allocator()->NewRegisterList(2);
       builder()
           ->MoveRegister(generator_object(), args[0])
           .StoreAccumulatorInRegister(args[1]);
     } else {
-      id = catch_prediction() == HandlerTable::ASYNC_AWAIT
-               ? Runtime::kInlineAsyncFunctionAwaitUncaught
-               : Runtime::kInlineAsyncFunctionAwaitCaught;
+      await_builtin_context_index =
+          catch_prediction() == HandlerTable::ASYNC_AWAIT
+              ? Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX
+              : Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX;
       args = register_allocator()->NewRegisterList(3);
       builder()
           ->MoveRegister(generator_object(), args[0])
@@ -3265,7 +3267,7 @@ void BytecodeGenerator::BuildAwait(Expression* await_expr) {
       builder()->StoreAccumulatorInRegister(args[2]);
     }
 
-    builder()->CallRuntime(id, args);
+    builder()->CallJSRuntime(await_builtin_context_index, args);
   }
 
   BuildSuspendPoint(await_expr);

@@ -364,17 +364,12 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kAsyncFromSyncIteratorPrototypeNext:
     case kAsyncFromSyncIteratorPrototypeReturn:
     case kAsyncFromSyncIteratorPrototypeThrow:
-    case kAsyncFunctionAwaitFulfill:
-    case kAsyncFunctionAwaitReject:
+    case kAsyncFunctionAwaitCaught:
     case kAsyncFunctionPromiseCreate:
     case kAsyncFunctionPromiseRelease:
-    case kAsyncGeneratorAwaitFulfill:
-    case kAsyncGeneratorAwaitReject:
     case kAsyncGeneratorResumeNext:
-    case kAsyncGeneratorReturnClosedFulfill:
-    case kAsyncGeneratorReturnClosedReject:
-    case kAsyncGeneratorReturnFulfill:
-    case kAsyncGeneratorYieldFulfill:
+    case kAsyncGeneratorReturnClosedRejectClosure:
+    case kAsyncGeneratorReturn:
     case kAsyncIteratorValueUnwrap:
     case kBitwiseNot:
     case kBooleanPrototypeToString:

@@ -59,12 +59,6 @@ class JSPromise : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(
       Handle<JSPromise> promise, Handle<Object> resolution);
 
-  // This is a helper that extracts the JSPromise from the input
-  // {object}, which is used as a payload for PromiseReaction and
-  // PromiseReactionJobTask.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPromise> From(
-      Handle<HeapObject> object);
-
   DECL_CAST(JSPromise)
 
   // Dispatched behavior.
