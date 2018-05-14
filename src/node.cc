@@ -4369,12 +4369,6 @@ void Init(int* argc,
   }
 #endif
 
-  // Needed for access to V8 intrinsics.  Disabled again during bootstrapping,
-  // see lib/internal/bootstrap/node.js.
-  const char allow_natives_syntax[] = "--allow_natives_syntax";
-  V8::SetFlagsFromString(allow_natives_syntax,
-                         sizeof(allow_natives_syntax) - 1);
-
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
