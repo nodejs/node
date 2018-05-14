@@ -237,7 +237,6 @@
   V(error_script_symbol)               \
   V(error_start_pos_symbol)            \
   V(frozen_symbol)                     \
-  V(generator_outer_promise_symbol)    \
   V(generic_symbol)                    \
   V(home_object_symbol)                \
   V(intl_initialized_marker_symbol)    \

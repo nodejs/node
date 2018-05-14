@@ -402,30 +402,6 @@ Node* IntrinsicsGenerator::GetImportMetaObject(
   return return_value.value();
 }
 
-Node* IntrinsicsGenerator::AsyncFunctionAwaitCaught(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncFunctionAwaitCaught);
-}
-
-Node* IntrinsicsGenerator::AsyncFunctionAwaitUncaught(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncFunctionAwaitUncaught);
-}
-
-Node* IntrinsicsGenerator::AsyncGeneratorAwaitCaught(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncGeneratorAwaitCaught);
-}
-
-Node* IntrinsicsGenerator::AsyncGeneratorAwaitUncaught(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  return IntrinsicAsBuiltinCall(args, context,
-                                Builtins::kAsyncGeneratorAwaitUncaught);
-}
-
 Node* IntrinsicsGenerator::AsyncGeneratorReject(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncGeneratorReject);

@@ -2048,7 +2048,6 @@ void Isolate::PopPromise() {
 }
 
 namespace {
-
 bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
                                                 Handle<JSPromise> promise);
 
@@ -2095,27 +2094,29 @@ bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
   }
 
   if (promise->status() == Promise::kPending) {
-    Handle<Object> current(promise->reactions(), isolate);
-    while (!current->IsSmi()) {
-      Handle<PromiseReaction> current_reaction =
-          Handle<PromiseReaction>::cast(current);
-      Handle<HeapObject> payload(current_reaction->payload(), isolate);
-      Handle<JSPromise> current_promise;
-      if (JSPromise::From(payload).ToHandle(&current_promise)) {
-        if (current_reaction->reject_handler()->IsCallable()) {
-          Handle<JSReceiver> current_handler(
-              JSReceiver::cast(current_reaction->reject_handler()), isolate);
-          if (PromiseHandlerCheck(isolate, current_handler, current_promise)) {
-            return true;
-          }
-        } else {
-          if (InternalPromiseHasUserDefinedRejectHandler(isolate,
-                                                         current_promise)) {
-            return true;
-          }
+    for (Handle<Object> current(promise->reactions(), isolate);
+         !current->IsSmi();) {
+      Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
+      Handle<HeapObject> promise_or_capability(
+          reaction->promise_or_capability(), isolate);
+      Handle<JSPromise> promise = Handle<JSPromise>::cast(
+          promise_or_capability->IsJSPromise()
+              ? promise_or_capability
+              : handle(Handle<PromiseCapability>::cast(promise_or_capability)
+                           ->promise(),
+                       isolate));
+      if (reaction->reject_handler()->IsUndefined(isolate)) {
+        if (InternalPromiseHasUserDefinedRejectHandler(isolate, promise)) {
+          return true;
+        }
+      } else {
+        Handle<JSReceiver> current_handler(
+            JSReceiver::cast(reaction->reject_handler()), isolate);
+        if (PromiseHandlerCheck(isolate, current_handler, promise)) {
+          return true;
         }
       }
-      current = handle(current_reaction->next(), isolate);
+      current = handle(reaction->next(), isolate);
     }
   }
 

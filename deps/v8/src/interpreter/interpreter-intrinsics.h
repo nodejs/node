@@ -14,10 +14,6 @@ namespace interpreter {
 // List of supported intrisics, with upper case name, lower case name and
 // expected number of arguments (-1 denoting argument count is variable).
 #define INTRINSICS_LIST(V)                                            \
-  V(AsyncFunctionAwaitCaught, async_function_await_caught, 3)         \
-  V(AsyncFunctionAwaitUncaught, async_function_await_uncaught, 3)     \
-  V(AsyncGeneratorAwaitCaught, async_generator_await_caught, 2)       \
-  V(AsyncGeneratorAwaitUncaught, async_generator_await_uncaught, 2)   \
   V(AsyncGeneratorReject, async_generator_reject, 2)                  \
   V(AsyncGeneratorResolve, async_generator_resolve, 3)                \
   V(AsyncGeneratorYield, async_generator_yield, 3)                    \
