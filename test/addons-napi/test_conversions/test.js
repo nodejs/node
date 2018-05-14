@@ -118,10 +118,10 @@ assert.deepStrictEqual(new String(''), test.toObject(''));
 assert.deepStrictEqual(new Number(0), test.toObject(0));
 assert.deepStrictEqual(new Number(Number.NaN), test.toObject(Number.NaN));
 assert.deepStrictEqual(new Object(testSym), test.toObject(testSym));
-assert.notDeepStrictEqual(false, test.toObject(false));
-assert.notDeepStrictEqual(true, test.toObject(true));
-assert.notDeepStrictEqual('', test.toObject(''));
-assert.notDeepStrictEqual(0, test.toObject(0));
+assert.notDeepStrictEqual(test.toObject(false), false);
+assert.notDeepStrictEqual(test.toObject(true), true);
+assert.notDeepStrictEqual(test.toObject(''), '');
+assert.notDeepStrictEqual(test.toObject(0), 0);
 assert.ok(!Number.isNaN(test.toObject(Number.NaN)));
 
 assert.strictEqual('', test.toString(''));
