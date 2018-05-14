@@ -343,7 +343,7 @@ TypeError [ERR_ERROR_1]
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw(napi_env env, napi_value error);
+NAPI_EXTERN napi_status napi_throw(napi_env env, napi_value error);
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] error`: The JavaScript value to be thrown.
@@ -357,7 +357,7 @@ This API throws the JavaScript value provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_error(napi_env env,
+NAPI_EXTERN napi_status napi_throw_error(napi_env env,
                                          const char* code,
                                          const char* msg);
 ```
@@ -375,7 +375,7 @@ This API throws a JavaScript `Error` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_type_error(napi_env env,
+NAPI_EXTERN napi_status napi_throw_type_error(napi_env env,
                                               const char* code,
                                               const char* msg);
 ```
@@ -393,7 +393,7 @@ This API throws a JavaScript `TypeError` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_range_error(napi_env env,
+NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
                                                const char* code,
                                                const char* msg);
 ```
@@ -411,7 +411,7 @@ This API throws a JavaScript `RangeError` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_is_error(napi_env env,
+NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
 ```
@@ -429,7 +429,7 @@ This API queries a `napi_value` to check if it represents an error object.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_error(napi_env env,
+NAPI_EXTERN napi_status napi_create_error(napi_env env,
                                           napi_value code,
                                           napi_value msg,
                                           napi_value* result);
@@ -450,7 +450,7 @@ This API returns a JavaScript `Error` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_type_error(napi_env env,
+NAPI_EXTERN napi_status napi_create_type_error(napi_env env,
                                                napi_value code,
                                                napi_value msg,
                                                napi_value* result);
@@ -471,9 +471,9 @@ This API returns a JavaScript `TypeError` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_range_error(napi_env env,
+NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value code,
-                                                const char* msg,
+                                                napi_value msg,
                                                 napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
@@ -659,7 +659,7 @@ can only be called once.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_open_handle_scope(napi_env env,
+NAPI_EXTERN napi_status napi_open_handle_scope(napi_env env,
                                                napi_handle_scope* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
@@ -674,7 +674,7 @@ This API open a new scope.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_close_handle_scope(napi_env env,
+NAPI_EXTERN napi_status napi_close_handle_scope(napi_env env,
                                                 napi_handle_scope scope);
 ```
 - `[in] env`: The environment that the API is invoked under.
@@ -692,7 +692,7 @@ This API can be called even if there is a pending JavaScript exception.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status
+NAPI_EXTERN napi_status
     napi_open_escapable_handle_scope(napi_env env,
                                      napi_handle_scope* result);
 ```
@@ -709,7 +709,7 @@ to the outer scope.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status
+NAPI_EXTERN napi_status
     napi_close_escapable_handle_scope(napi_env env,
                                       napi_handle_scope scope);
 ```
@@ -793,7 +793,7 @@ individual count.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_reference(napi_env env,
+NAPI_EXTERN napi_status napi_create_reference(napi_env env,
                                               napi_value value,
                                               int initial_refcount,
                                               napi_ref* result);
@@ -815,7 +815,7 @@ to the `Object` passed in.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_delete_reference(napi_env env, napi_ref ref);
+NAPI_EXTERN napi_status napi_delete_reference(napi_env env, napi_ref ref);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -832,7 +832,7 @@ This API can be called even if there is a pending JavaScript exception.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_reference_ref(napi_env env,
+NAPI_EXTERN napi_status napi_reference_ref(napi_env env,
                                            napi_ref ref,
                                            int* result);
 ```
@@ -850,7 +850,7 @@ passed in and returns the resulting reference count.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_reference_unref(napi_env env,
+NAPI_EXTERN napi_status napi_reference_unref(napi_env env,
                                              napi_ref ref,
                                              int* result);
 ```
@@ -868,7 +868,7 @@ passed in and returns the resulting reference count.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_get_reference_value(napi_env env,
+NAPI_EXTERN napi_status napi_get_reference_value(napi_env env,
                                                  napi_ref ref,
                                                  napi_value* result);
 ```
