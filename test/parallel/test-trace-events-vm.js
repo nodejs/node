@@ -23,7 +23,7 @@ if (process.argv[2] === 'child') {
                        [ 'child' ], {
                          execArgv: [
                            '--trace-event-categories',
-                           'node.vm'
+                           'node.vm.script'
                          ]
                        });
 

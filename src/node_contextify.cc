@@ -667,10 +667,10 @@ class ContextifyScript : public BaseObject {
         new ContextifyScript(env, args.This());
 
     if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-            TRACING_CATEGORY_NODE1(vm)) != 0) {
+            TRACING_CATEGORY_NODE2(vm, script)) != 0) {
       Utf8Value fn(isolate, filename);
       TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-          TRACING_CATEGORY_NODE1(vm),
+          TRACING_CATEGORY_NODE2(vm, script),
           "ContextifyScript::New",
           contextify_script,
           "filename", TRACE_STR_COPY(*fn));
@@ -706,7 +706,7 @@ class ContextifyScript : public BaseObject {
       no_abort_scope.Close();
       try_catch.ReThrow();
       TRACE_EVENT_NESTABLE_ASYNC_END0(
-          TRACING_CATEGORY_NODE1(vm),
+          TRACING_CATEGORY_NODE2(vm, script),
           "ContextifyScript::New",
           contextify_script);
       return;
@@ -733,7 +733,7 @@ class ContextifyScript : public BaseObject {
           Boolean::New(isolate, cached_data_produced));
     }
     TRACE_EVENT_NESTABLE_ASYNC_END0(
-        TRACING_CATEGORY_NODE1(vm),
+        TRACING_CATEGORY_NODE2(vm, script),
         "ContextifyScript::New",
         contextify_script);
   }
@@ -752,7 +752,7 @@ class ContextifyScript : public BaseObject {
     ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder());
 
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-        TRACING_CATEGORY_NODE1(vm), "RunInThisContext", wrapped_script);
+        TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
 
     CHECK_EQ(args.Length(), 3);
 
@@ -769,7 +769,7 @@ class ContextifyScript : public BaseObject {
     EvalMachine(env, timeout, display_errors, break_on_sigint, args);
 
     TRACE_EVENT_NESTABLE_ASYNC_END0(
-        TRACING_CATEGORY_NODE1(vm), "RunInThisContext", wrapped_script);
+        TRACING_CATEGORY_NODE2(vm, script), "RunInThisContext", wrapped_script);
   }
 
   static void RunInContext(const FunctionCallbackInfo<Value>& args) {
@@ -791,7 +791,7 @@ class ContextifyScript : public BaseObject {
       return;
 
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-        TRACING_CATEGORY_NODE1(vm), "RunInContext", wrapped_script);
+        TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
 
     CHECK(args[1]->IsNumber());
     int64_t timeout = args[1]->IntegerValue(env->context()).FromJust();
@@ -811,7 +811,7 @@ class ContextifyScript : public BaseObject {
                 args);
 
     TRACE_EVENT_NESTABLE_ASYNC_END0(
-        TRACING_CATEGORY_NODE1(vm), "RunInContext", wrapped_script);
+        TRACING_CATEGORY_NODE2(vm, script), "RunInContext", wrapped_script);
   }
 
   static void DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
