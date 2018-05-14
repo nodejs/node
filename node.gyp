@@ -85,6 +85,7 @@
       'lib/zlib.js',
       'lib/internal/assert.js',
       'lib/internal/async_hooks.js',
+      'lib/internal/bash_completion.js',
       'lib/internal/buffer.js',
       'lib/internal/cli_table.js',
       'lib/internal/child_process.js',
