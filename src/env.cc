@@ -31,7 +31,7 @@ using v8::Value;
 using worker::Worker;
 
 const int kNodeContextTag = 0x6e6f64;
-void *kNodeContextTagPtr = const_cast<void *>(
+void* kNodeContextTagPtr = const_cast<void*>(
   static_cast<const void*>(&kNodeContextTag)
 );
 
