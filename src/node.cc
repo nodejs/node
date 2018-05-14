@@ -4623,7 +4623,8 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
-  std::unique_ptr<ArrayBufferAllocator> allocator(CreateArrayBufferAllocator());
+  std::unique_ptr<ArrayBufferAllocator, decltype(&FreeArrayBufferAllocator)>
+    allocator(CreateArrayBufferAllocator(), &FreeArrayBufferAllocator);
   Isolate* const isolate = NewIsolate(allocator.get());
   if (isolate == nullptr)
     return 12;  // Signal internal error.
@@ -4639,12 +4640,13 @@ inline int Start(uv_loop_t* event_loop,
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    std::unique_ptr<IsolateData> isolate_data(
+    std::unique_ptr<IsolateData, decltype(&FreeIsolateData)> isolate_data(
       CreateIsolateData(
         isolate,
         event_loop,
         v8_platform.Platform(),
-        allocator.get()));
+        allocator.get()),
+      &FreeIsolateData);
     if (track_heap_objects) {
       isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
     }
