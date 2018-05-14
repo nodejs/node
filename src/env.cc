@@ -382,7 +382,7 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   int* magicNumberPtr = reinterpret_cast<int*>(
     context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kContextTag)
   );
-  if (magicNumberPtr != kNodeContextTagPtr || *magicNumberPtr != kNodeContextTag) {
+  if (magicNumberPtr != kNodeContextTagPtr) {
     return;
   }
 
