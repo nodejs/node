@@ -8,8 +8,6 @@ let knownGlobals = [
   clearImmediate,
   clearInterval,
   clearTimeout,
-  console,
-  constructor, // Enumerable in V8 3.21.
   global,
   process,
   setImmediate,
@@ -48,29 +46,6 @@ export function leakedGlobals() {
     knownGlobals.push(COUNTER_HTTP_SERVER_RESPONSE);
     knownGlobals.push(COUNTER_HTTP_CLIENT_REQUEST);
     knownGlobals.push(COUNTER_HTTP_CLIENT_RESPONSE);
-  }
-
-  if (global.ArrayBuffer) {
-    knownGlobals.push(ArrayBuffer);
-    knownGlobals.push(Int8Array);
-    knownGlobals.push(Uint8Array);
-    knownGlobals.push(Uint8ClampedArray);
-    knownGlobals.push(Int16Array);
-    knownGlobals.push(Uint16Array);
-    knownGlobals.push(Int32Array);
-    knownGlobals.push(Uint32Array);
-    knownGlobals.push(Float32Array);
-    knownGlobals.push(Float64Array);
-    knownGlobals.push(DataView);
-  }
-
-  // Harmony features.
-  if (global.Proxy) {
-    knownGlobals.push(Proxy);
-  }
-
-  if (global.Symbol) {
-    knownGlobals.push(Symbol);
   }
 
   const leaked = [];
