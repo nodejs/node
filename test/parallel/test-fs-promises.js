@@ -87,24 +87,60 @@ function verifyStatObject(stat) {
     stats = await stat(dest);
     verifyStatObject(stats);
 
+    stats = await handle.stat();
+    verifyStatObject(stats);
+
     await fdatasync(handle);
+    await handle.datasync();
     await fsync(handle);
+    await handle.sync();
 
-    const buf = Buffer.from('hello world');
-
+    const buf = Buffer.from('hello fsPromises');
+    const bufLen = buf.length;
     await write(handle, buf);
-
-    const ret = await read(handle, Buffer.alloc(11), 0, 11, 0);
-    assert.strictEqual(ret.bytesRead, 11);
+    const ret = await read(handle, Buffer.alloc(bufLen), 0, bufLen, 0);
+    assert.strictEqual(ret.bytesRead, bufLen);
     assert.deepStrictEqual(ret.buffer, buf);
+
+    const buf2 = Buffer.from('hello FileHandle');
+    const buf2Len = buf2.length;
+    await handle.write(buf2, 0, buf2Len, 0);
+    const ret2 = await handle.read(Buffer.alloc(buf2Len), 0, buf2Len, 0);
+    assert.strictEqual(ret2.bytesRead, buf2Len);
+    assert.deepStrictEqual(ret2.buffer, buf2);
 
     await chmod(dest, 0o666);
     await fchmod(handle, 0o666);
+    await handle.chmod(0o666);
+
+    // `mode` can't be > 0o777
+    assert.rejects(
+      async () => chmod(handle, (0o777 + 1)),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      }
+    );
+    assert.rejects(
+      async () => fchmod(handle, (0o777 + 1)),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]'
+      }
+    );
+    assert.rejects(
+      async () => handle.chmod(handle, (0o777 + 1)),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      }
+    );
 
     await utimes(dest, new Date(), new Date());
 
     try {
       await futimes(handle, new Date(), new Date());
+      await handle.utimes(new Date(), new Date());
     } catch (err) {
       // Some systems do not have futimes. If there is an error,
       // expect it to be ENOSYS
@@ -152,6 +188,15 @@ function verifyStatObject(stat) {
     await rmdir(newdir);
 
     await mkdtemp(path.resolve(tmpDir, 'FOO'));
+    assert.rejects(
+      // mkdtemp() expects to get a string prefix.
+      async () => mkdtemp(1),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
+      }
+    );
+
   }
 
   doTest().then(common.mustCall());
