@@ -78,12 +78,13 @@ function checkPromisesExecutionState() {
 
 process.on('beforeExit', common.mustCall(() => {
   hooks.disable();
+  hooks.sanityCheck('PROMISE');
 
   checkPromisesInitState();
   checkPromisesExecutionState();
 }));
 
-async function asyncFunc(callback) {
+async function asyncFunc() {
   await sleep(timeout);
 }
 
