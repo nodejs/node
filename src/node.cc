@@ -4545,6 +4545,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Environment env(isolate_data, context, v8_platform.GetTracingAgent());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
+  TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
+                        "JavaScriptMainThread");
+
   const char* path = argc > 1 ? argv[1] : nullptr;
   StartInspector(&env, path, debug_options);
 
