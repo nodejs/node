@@ -47,7 +47,7 @@ assert.throws(() => console.timeEnd(Symbol('test')),
               TypeError);
 
 
-// An Object with a custom .inspect() function.
+// An Object with a custom inspect function.
 const custom_inspect = { foo: 'bar', [util.inspect.custom]: () => 'inspect' };
 
 const strings = [];
