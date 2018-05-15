@@ -1,12 +1,11 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
 // This test ensures that the escapeCodeTimeout option set correctly
 
 const assert = require('assert');
 const readline = require('readline');
 const EventEmitter = require('events').EventEmitter;
-const ESCAPE_CODE_TIMEOUT = 500;
 
 class FakeInput extends EventEmitter {
   resume() {}
@@ -26,46 +25,22 @@ class FakeInput extends EventEmitter {
   rli.close();
 }
 
-{
-  const fi = new FakeInput();
-  const rli = new readline.Interface({
-    input: fi,
-    output: fi,
-    escapeCodeTimeout: null
+[
+  null,
+  {},
+  NaN,
+  '50'
+].forEach((invalidInput) => {
+  common.expectsError(() => {
+    const fi = new FakeInput();
+    const rli = new readline.Interface({
+      input: fi,
+      output: fi,
+      escapeCodeTimeout: invalidInput
+    });
+    rli.close();
+  }, {
+    type: TypeError,
+    code: 'ERR_INVALID_OPT_VALUE'
   });
-  assert.strictEqual(rli.escapeCodeTimeout, ESCAPE_CODE_TIMEOUT);
-  rli.close();
-}
-
-{
-  const fi = new FakeInput();
-  const rli = new readline.Interface({
-    input: fi,
-    output: fi,
-    escapeCodeTimeout: {}
-  });
-  assert.strictEqual(rli.escapeCodeTimeout, ESCAPE_CODE_TIMEOUT);
-  rli.close();
-}
-
-{
-  const fi = new FakeInput();
-  const rli = new readline.Interface({
-    input: fi,
-    output: fi,
-    escapeCodeTimeout: NaN
-  });
-  assert.strictEqual(rli.escapeCodeTimeout, ESCAPE_CODE_TIMEOUT);
-  rli.close();
-}
-
-{
-  const fi = new FakeInput();
-  const rli = new readline.Interface({
-    input: fi,
-    output: fi,
-    escapeCodeTimeout: '50'
-  });
-  assert.strictEqual(rli.escapeCodeTimeout, ESCAPE_CODE_TIMEOUT);
-  rli.close();
-}
+});
