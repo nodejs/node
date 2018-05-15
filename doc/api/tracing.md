@@ -24,7 +24,7 @@ The available categories are:
   * `node.perf.timerify` - Enables capture of only Performance API timerify
     measurements.
 * `node.fs.sync` - Enables capture of trace data for file system sync methods.
-* `node.vm` - Enables capture of trace data for the `vm` module's
+* `node.vm.script` - Enables capture of trace data for the `vm` module's
   `runInNewContext()`, `runInContext()`, and `runInThisContext()` methods.
 * `v8` - The [V8] events are GC, compiling, and execution related.
 
