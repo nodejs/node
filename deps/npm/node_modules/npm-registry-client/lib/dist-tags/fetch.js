@@ -11,7 +11,7 @@ function fetch (uri, params, cb) {
     params && typeof params === 'object',
     'must pass params to distTags.fetch'
   )
-  assert(typeof cb === 'function', 'muss pass callback to distTags.fetch')
+  assert(typeof cb === 'function', 'must pass callback to distTags.fetch')
 
   assert(
     typeof params.package === 'string',

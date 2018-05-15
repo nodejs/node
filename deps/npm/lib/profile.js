@@ -82,7 +82,18 @@ function config () {
     registry: npm.config.get('registry'),
     otp: npm.config.get('otp')
   }
-  conf.auth = npm.config.getCredentialsByURI(conf.registry)
+  const creds = npm.config.getCredentialsByURI(conf.registry)
+  if (creds.token) {
+    conf.auth = {token: creds.token}
+  } else if (creds.username) {
+    conf.auth = {basic: {username: creds.username, password: creds.password}}
+  } else if (creds.auth) {
+    const auth = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
+    conf.auth = {basic: {username: auth[0], password: auth[1]}}
+  } else {
+    conf.auth = {}
+  }
+
   if (conf.otp) conf.auth.otp = conf.otp
   return conf
 }
@@ -155,12 +166,17 @@ function set (args) {
     return Promise.reject(Error(`"${prop}" is not a property we can set. Valid properties are: ` + writableProfileKeys.join(', ')))
   }
   return Bluebird.try(() => {
-    if (prop !== 'password') return
-    return readUserInfo.password('Current password: ').then((current) => {
-      return readPasswords().then((newpassword) => {
-        value = {old: current, new: newpassword}
+    if (prop === 'password') {
+      return readUserInfo.password('Current password: ').then((current) => {
+        return readPasswords().then((newpassword) => {
+          value = {old: current, new: newpassword}
+        })
       })
-    })
+    } else if (prop === 'email') {
+      return readUserInfo.password('Password: ').then((current) => {
+        return {password: current, email: value}
+      })
+    }
     function readPasswords () {
       return readUserInfo.password('New password: ').then((password1) => {
         return readUserInfo.password('       Again:     ').then((password2) => {

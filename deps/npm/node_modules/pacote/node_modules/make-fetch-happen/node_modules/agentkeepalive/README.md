@@ -44,8 +44,8 @@ $ npm install agentkeepalive --save
   Can have the following fields:
   * `keepAlive` {Boolean} Keep sockets around in a pool to be used by
     other requests in the future. Default = `true`.
-  * `keepAliveMsecs` {Number} When using HTTP KeepAlive, how often
-    to send TCP KeepAlive packets over sockets being kept alive.
+  * `keepAliveMsecs` {Number} When using the keepAlive option, specifies the initial delay
+    for TCP Keep-Alive packets. Ignored when the keepAlive option is false or undefined. Defaults to 1000.
     Default = `1000`.  Only relevant if `keepAlive` is set to `true`.
   * `freeSocketKeepAliveTimeout`: {Number} Sets the free socket to timeout
     after `freeSocketKeepAliveTimeout` milliseconds of inactivity on the free socket.

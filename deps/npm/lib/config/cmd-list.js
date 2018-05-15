@@ -22,6 +22,7 @@ var affordances = {
   'la': 'ls',
   'll': 'ls',
   'verison': 'version',
+  'ic': 'ci',
   'isntall': 'install',
   'dist-tags': 'dist-tag',
   'apihelp': 'help',
@@ -46,6 +47,7 @@ var affordances = {
 
 // these are filenames in .
 var cmdList = [
+  'ci',
   'install',
   'install-test',
   'uninstall',

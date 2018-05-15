@@ -10,7 +10,7 @@ import {
 import originalThen from './then';
 import originalResolve from './promise/resolve';
 
-export const PROMISE_ID = Math.random().toString(36).substring(16);
+export const PROMISE_ID = Math.random().toString(36).substring(2);
 
 function noop() {}
 
@@ -18,7 +18,7 @@ const PENDING   = void 0;
 const FULFILLED = 1;
 const REJECTED  = 2;
 
-const GET_THEN_ERROR = new ErrorObject();
+const TRY_CATCH_ERROR = { error: null };
 
 function selfFulfillment() {
   return new TypeError("You cannot resolve a promise with itself");
@@ -32,8 +32,8 @@ function getThen(promise) {
   try {
     return promise.then;
   } catch(error) {
-    GET_THEN_ERROR.error = error;
-    return GET_THEN_ERROR;
+    TRY_CATCH_ERROR.error = error;
+    return TRY_CATCH_ERROR;
   }
 }
 
@@ -87,9 +87,9 @@ function handleMaybeThenable(promise, maybeThenable, then) {
       maybeThenable.constructor.resolve === originalResolve) {
     handleOwnThenable(promise, maybeThenable);
   } else {
-    if (then === GET_THEN_ERROR) {
-      reject(promise, GET_THEN_ERROR.error);
-      GET_THEN_ERROR.error = null;
+    if (then === TRY_CATCH_ERROR) {
+      reject(promise, TRY_CATCH_ERROR.error);
+      TRY_CATCH_ERROR.error = null;
     } else if (then === undefined) {
       fulfill(promise, maybeThenable);
     } else if (isFunction(then)) {
@@ -174,11 +174,6 @@ function publish(promise) {
   promise._subscribers.length = 0;
 }
 
-function ErrorObject() {
-  this.error = null;
-}
-
-const TRY_CATCH_ERROR = new ErrorObject();
 
 function tryCatch(callback, detail) {
   try {

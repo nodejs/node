@@ -1,4 +1,9 @@
 
+2.1.1 / 2017-11-28
+==================
+
+  * Update `debug` - Security Problems with Previous Version (#38)
+
 2.1.0 / 2017-08-08
 ==================
 

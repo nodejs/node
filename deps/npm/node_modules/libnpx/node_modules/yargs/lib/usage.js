@@ -1,23 +1,25 @@
+'use strict'
 // this file handles outputting usage instructions,
 // failures, etc. keeps logging in one place.
 const stringWidth = require('string-width')
 const objFilter = require('./obj-filter')
+const path = require('path')
 const setBlocking = require('set-blocking')
 const YError = require('./yerror')
 
-module.exports = function (yargs, y18n) {
+module.exports = function usage (yargs, y18n) {
   const __ = y18n.__
   const self = {}
 
   // methods for ouputting/building failure message.
-  var fails = []
-  self.failFn = function (f) {
+  const fails = []
+  self.failFn = function failFn (f) {
     fails.push(f)
   }
 
-  var failMessage = null
-  var showHelpOnFail = true
-  self.showHelpOnFail = function (enabled, message) {
+  let failMessage = null
+  let showHelpOnFail = true
+  self.showHelpOnFail = function showHelpOnFailFn (enabled, message) {
     if (typeof enabled === 'string') {
       message = enabled
       enabled = true
@@ -29,12 +31,12 @@ module.exports = function (yargs, y18n) {
     return self
   }
 
-  var failureOutput = false
-  self.fail = function (msg, err) {
+  let failureOutput = false
+  self.fail = function fail (msg, err) {
     const logger = yargs._getLoggerInstance()
 
     if (fails.length) {
-      for (var i = fails.length - 1; i >= 0; --i) {
+      for (let i = fails.length - 1; i >= 0; --i) {
         fails[i](msg, err, self)
       }
     } else {
@@ -44,9 +46,9 @@ module.exports = function (yargs, y18n) {
       if (!failureOutput) {
         failureOutput = true
         if (showHelpOnFail) yargs.showHelp('error')
-        if (msg) logger.error(msg)
+        if (msg || err) logger.error(msg || err)
         if (failMessage) {
-          if (msg) logger.error('')
+          if (msg || err) logger.error('')
           logger.error(failMessage)
         }
       }
@@ -63,56 +65,67 @@ module.exports = function (yargs, y18n) {
   }
 
   // methods for ouputting/building help (usage) message.
-  var usage
-  self.usage = function (msg) {
-    usage = msg
+  let usages = []
+  let usageDisabled = false
+  self.usage = (msg, description) => {
+    if (msg === null) {
+      usageDisabled = true
+      usages = []
+      return
+    }
+    usageDisabled = false
+    usages.push([msg, description || ''])
+    return self
   }
-  self.getUsage = function () {
-    return usage
+  self.getUsage = () => {
+    return usages
+  }
+  self.getUsageDisabled = () => {
+    return usageDisabled
   }
 
-  var examples = []
-  self.example = function (cmd, description) {
+  self.getPositionalGroupName = () => {
+    return __('Positionals:')
+  }
+
+  let examples = []
+  self.example = (cmd, description) => {
     examples.push([cmd, description || ''])
   }
 
-  var commands = []
-  self.command = function (cmd, description, isDefault, aliases) {
+  let commands = []
+  self.command = function command (cmd, description, isDefault, aliases) {
     // the last default wins, so cancel out any previously set default
     if (isDefault) {
-      commands = commands.map(function (cmdArray) {
+      commands = commands.map((cmdArray) => {
         cmdArray[2] = false
         return cmdArray
       })
     }
     commands.push([cmd, description || '', isDefault, aliases])
   }
-  self.getCommands = function () {
-    return commands
-  }
+  self.getCommands = () => commands
 
-  var descriptions = {}
-  self.describe = function (key, desc) {
+  let descriptions = {}
+  self.describe = function describe (key, desc) {
     if (typeof key === 'object') {
-      Object.keys(key).forEach(function (k) {
+      Object.keys(key).forEach((k) => {
         self.describe(k, key[k])
       })
     } else {
       descriptions[key] = desc
     }
   }
-  self.getDescriptions = function () {
-    return descriptions
-  }
+  self.getDescriptions = () => descriptions
 
-  var epilog
-  self.epilog = function (msg) {
+  let epilog
+  self.epilog = (msg) => {
     epilog = msg
   }
 
-  var wrapSet = false
-  var wrap
-  self.wrap = function (cols) {
+  let wrapSet = false
+  let wrap
+  self.wrap = (cols) => {
     wrapSet = true
     wrap = cols
   }
@@ -126,41 +139,57 @@ module.exports = function (yargs, y18n) {
     return wrap
   }
 
-  var deferY18nLookupPrefix = '__yargsString__:'
-  self.deferY18nLookup = function (str) {
-    return deferY18nLookupPrefix + str
-  }
+  const deferY18nLookupPrefix = '__yargsString__:'
+  self.deferY18nLookup = str => deferY18nLookupPrefix + str
 
-  var defaultGroup = 'Options:'
-  self.help = function () {
+  const defaultGroup = 'Options:'
+  self.help = function help () {
     normalizeAliases()
 
     // handle old demanded API
-    var demandedOptions = yargs.getDemandedOptions()
-    var demandedCommands = yargs.getDemandedCommands()
-    var groups = yargs.getGroups()
-    var options = yargs.getOptions()
-    var keys = Object.keys(
+    const base$0 = path.basename(yargs.$0)
+    const demandedOptions = yargs.getDemandedOptions()
+    const demandedCommands = yargs.getDemandedCommands()
+    const groups = yargs.getGroups()
+    const options = yargs.getOptions()
+    let keys = Object.keys(
       Object.keys(descriptions)
       .concat(Object.keys(demandedOptions))
       .concat(Object.keys(demandedCommands))
       .concat(Object.keys(options.default))
-      .reduce(function (acc, key) {
+      .reduce((acc, key) => {
         if (key !== '_') acc[key] = true
         return acc
       }, {})
     )
 
-    var theWrap = getWrap()
-    var ui = require('cliui')({
+    const theWrap = getWrap()
+    const ui = require('cliui')({
       width: theWrap,
       wrap: !!theWrap
     })
 
     // the usage string.
-    if (usage) {
-      var u = usage.replace(/\$0/g, yargs.$0)
-      ui.div(u + '\n')
+    if (!usageDisabled) {
+      if (usages.length) {
+        // user-defined usage.
+        usages.forEach((usage) => {
+          ui.div(`${usage[0].replace(/\$0/g, base$0)}`)
+          if (usage[1]) {
+            ui.div({text: `${usage[1]}`, padding: [1, 0, 0, 0]})
+          }
+        })
+        ui.div()
+      } else if (commands.length) {
+        let u = null
+        // demonstrate how commands are used.
+        if (demandedCommands._) {
+          u = `${base$0} <${__('command')}>\n`
+        } else {
+          u = `${base$0} [${__('command')}]\n`
+        }
+        ui.div(`${u}`)
+      }
     }
 
     // your application's commands, i.e., non-option
@@ -168,15 +197,23 @@ module.exports = function (yargs, y18n) {
     if (commands.length) {
       ui.div(__('Commands:'))
 
-      commands.forEach(function (command) {
+      const context = yargs.getContext()
+      const parentCommands = context.commands.length ? `${context.commands.join(' ')} ` : ''
+
+      commands.forEach((command) => {
+        const commandString = `${base$0} ${parentCommands}${command[0].replace(/^\$0 ?/, '')}` // drop $0 from default commands.
         ui.span(
-          {text: command[0], padding: [0, 2, 0, 2], width: maxWidth(commands, theWrap) + 4},
+          {
+            text: commandString,
+            padding: [0, 2, 0, 2],
+            width: maxWidth(commands, theWrap, `${base$0}${parentCommands}`) + 4
+          },
           {text: command[1]}
         )
-        var hints = []
-        if (command[2]) hints.push('[' + __('default:').slice(0, -1) + ']') // TODO hacking around i18n here
+        const hints = []
+        if (command[2]) hints.push(`[${__('default:').slice(0, -1)}]`) // TODO hacking around i18n here
         if (command[3] && command[3].length) {
-          hints.push('[' + __('aliases:') + ' ' + command[3].join(', ') + ']')
+          hints.push(`[${__('aliases:')} ${command[3].join(', ')}]`)
         }
         if (hints.length) {
           ui.div({text: hints.join(' '), padding: [0, 0, 0, 2], align: 'right'})
@@ -190,14 +227,10 @@ module.exports = function (yargs, y18n) {
 
     // perform some cleanup on the keys array, making it
     // only include top-level keys not their aliases.
-    var aliasKeys = (Object.keys(options.alias) || [])
+    const aliasKeys = (Object.keys(options.alias) || [])
       .concat(Object.keys(yargs.parsed.newAliases) || [])
 
-    keys = keys.filter(function (key) {
-      return !yargs.parsed.newAliases[key] && aliasKeys.every(function (alias) {
-        return (options.alias[alias] || []).indexOf(key) === -1
-      })
-    })
+    keys = keys.filter(key => !yargs.parsed.newAliases[key] && aliasKeys.every(alias => (options.alias[alias] || []).indexOf(key) === -1))
 
     // populate 'Options:' group with any keys that have not
     // explicitly had a group set.
@@ -205,51 +238,54 @@ module.exports = function (yargs, y18n) {
     addUngroupedKeys(keys, options.alias, groups)
 
     // display 'Options:' table along with any custom tables:
-    Object.keys(groups).forEach(function (groupName) {
+    Object.keys(groups).forEach((groupName) => {
       if (!groups[groupName].length) return
 
       ui.div(__(groupName))
 
       // if we've grouped the key 'f', but 'f' aliases 'foobar',
       // normalizedKeys should contain only 'foobar'.
-      var normalizedKeys = groups[groupName].map(function (key) {
+      const normalizedKeys = groups[groupName].map((key) => {
         if (~aliasKeys.indexOf(key)) return key
-        for (var i = 0, aliasKey; (aliasKey = aliasKeys[i]) !== undefined; i++) {
+        for (let i = 0, aliasKey; (aliasKey = aliasKeys[i]) !== undefined; i++) {
           if (~(options.alias[aliasKey] || []).indexOf(key)) return aliasKey
         }
         return key
       })
 
       // actually generate the switches string --foo, -f, --bar.
-      var switches = normalizedKeys.reduce(function (acc, key) {
+      const switches = normalizedKeys.reduce((acc, key) => {
         acc[key] = [ key ].concat(options.alias[key] || [])
-          .map(function (sw) {
-            return (sw.length > 1 ? '--' : '-') + sw
+          .map(sw => {
+            // for the special positional group don't
+            // add '--' or '-' prefix.
+            if (groupName === self.getPositionalGroupName()) return sw
+            else return (sw.length > 1 ? '--' : '-') + sw
           })
           .join(', ')
 
         return acc
       }, {})
 
-      normalizedKeys.forEach(function (key) {
-        var kswitch = switches[key]
-        var desc = descriptions[key] || ''
-        var type = null
+      normalizedKeys.forEach((key) => {
+        const kswitch = switches[key]
+        let desc = descriptions[key] || ''
+        let type = null
 
         if (~desc.lastIndexOf(deferY18nLookupPrefix)) desc = __(desc.substring(deferY18nLookupPrefix.length))
 
-        if (~options.boolean.indexOf(key)) type = '[' + __('boolean') + ']'
-        if (~options.count.indexOf(key)) type = '[' + __('count') + ']'
-        if (~options.string.indexOf(key)) type = '[' + __('string') + ']'
-        if (~options.normalize.indexOf(key)) type = '[' + __('string') + ']'
-        if (~options.array.indexOf(key)) type = '[' + __('array') + ']'
-        if (~options.number.indexOf(key)) type = '[' + __('number') + ']'
+        if (~options.boolean.indexOf(key)) type = `[${__('boolean')}]`
+        if (~options.count.indexOf(key)) type = `[${__('count')}]`
+        if (~options.string.indexOf(key)) type = `[${__('string')}]`
+        if (~options.normalize.indexOf(key)) type = `[${__('string')}]`
+        if (~options.array.indexOf(key)) type = `[${__('array')}]`
+        if (~options.number.indexOf(key)) type = `[${__('number')}]`
 
-        var extra = [
+        const extra = [
           type,
-          (key in demandedOptions) ? '[' + __('required') + ']' : null,
-          options.choices && options.choices[key] ? '[' + __('choices:') + ' ' +
-            self.stringifiedValues(options.choices[key]) + ']' : null,
+          (key in demandedOptions) ? `[${__('required')}]` : null,
+          options.choices && options.choices[key] ? `[${__('choices:')} ${
+            self.stringifiedValues(options.choices[key])}]` : null,
           defaultString(options.default[key], options.defaultDescription[key])
         ].filter(Boolean).join(' ')
 
@@ -269,11 +305,11 @@ module.exports = function (yargs, y18n) {
     if (examples.length) {
       ui.div(__('Examples:'))
 
-      examples.forEach(function (example) {
-        example[0] = example[0].replace(/\$0/g, yargs.$0)
+      examples.forEach((example) => {
+        example[0] = example[0].replace(/\$0/g, base$0)
       })
 
-      examples.forEach(function (example) {
+      examples.forEach((example) => {
         if (example[1] === '') {
           ui.div(
             {
@@ -299,8 +335,8 @@ module.exports = function (yargs, y18n) {
 
     // the usage string.
     if (epilog) {
-      var e = epilog.replace(/\$0/g, yargs.$0)
-      ui.div(e + '\n')
+      const e = epilog.replace(/\$0/g, base$0)
+      ui.div(`${e}\n`)
     }
 
     return ui.toString()
@@ -308,19 +344,20 @@ module.exports = function (yargs, y18n) {
 
   // return the maximum width of a string
   // in the left-hand column of a table.
-  function maxWidth (table, theWrap) {
-    var width = 0
+  function maxWidth (table, theWrap, modifier) {
+    let width = 0
 
     // table might be of the form [leftColumn],
     // or {key: leftColumn}
     if (!Array.isArray(table)) {
-      table = Object.keys(table).map(function (key) {
-        return [table[key]]
-      })
+      table = Object.keys(table).map(key => [table[key]])
     }
 
-    table.forEach(function (v) {
-      width = Math.max(stringWidth(v[0]), width)
+    table.forEach((v) => {
+      width = Math.max(
+        stringWidth(modifier ? `${modifier} ${v[0]}` : v[0]),
+        width
+      )
     })
 
     // if we've enabled 'wrap' we should limit
@@ -334,11 +371,11 @@ module.exports = function (yargs, y18n) {
   // are copied to the keys being aliased.
   function normalizeAliases () {
     // handle old demanded API
-    var demandedOptions = yargs.getDemandedOptions()
-    var options = yargs.getOptions()
+    const demandedOptions = yargs.getDemandedOptions()
+    const options = yargs.getOptions()
 
-    ;(Object.keys(options.alias) || []).forEach(function (key) {
-      options.alias[key].forEach(function (alias) {
+    ;(Object.keys(options.alias) || []).forEach((key) => {
+      options.alias[key].forEach((alias) => {
         // copy descriptions.
         if (descriptions[alias]) self.describe(key, descriptions[alias])
         // copy demanded.
@@ -357,43 +394,41 @@ module.exports = function (yargs, y18n) {
   // given a set of keys, place any keys that are
   // ungrouped under the 'Options:' grouping.
   function addUngroupedKeys (keys, aliases, groups) {
-    var groupedKeys = []
-    var toCheck = null
-    Object.keys(groups).forEach(function (group) {
+    let groupedKeys = []
+    let toCheck = null
+    Object.keys(groups).forEach((group) => {
       groupedKeys = groupedKeys.concat(groups[group])
     })
 
-    keys.forEach(function (key) {
+    keys.forEach((key) => {
       toCheck = [key].concat(aliases[key])
-      if (!toCheck.some(function (k) {
-        return groupedKeys.indexOf(k) !== -1
-      })) {
+      if (!toCheck.some(k => groupedKeys.indexOf(k) !== -1)) {
         groups[defaultGroup].push(key)
       }
     })
     return groupedKeys
   }
 
-  self.showHelp = function (level) {
+  self.showHelp = (level) => {
     const logger = yargs._getLoggerInstance()
     if (!level) level = 'error'
-    var emit = typeof level === 'function' ? level : logger[level]
+    const emit = typeof level === 'function' ? level : logger[level]
     emit(self.help())
   }
 
-  self.functionDescription = function (fn) {
-    var description = fn.name ? require('decamelize')(fn.name, '-') : __('generated-value')
+  self.functionDescription = (fn) => {
+    const description = fn.name ? require('decamelize')(fn.name, '-') : __('generated-value')
     return ['(', description, ')'].join('')
   }
 
-  self.stringifiedValues = function (values, separator) {
-    var string = ''
-    var sep = separator || ', '
-    var array = [].concat(values)
+  self.stringifiedValues = function stringifiedValues (values, separator) {
+    let string = ''
+    const sep = separator || ', '
+    const array = [].concat(values)
 
     if (!values || !array.length) return string
 
-    array.forEach(function (value) {
+    array.forEach((value) => {
       if (string.length) string += sep
       string += JSON.stringify(value)
     })
@@ -404,7 +439,7 @@ module.exports = function (yargs, y18n) {
   // format the default-value-string displayed in
   // the right-hand column.
   function defaultString (value, defaultDescription) {
-    var string = '[' + __('default:') + ' '
+    let string = `[${__('default:')} `
 
     if (value === undefined && !defaultDescription) return null
 
@@ -413,7 +448,7 @@ module.exports = function (yargs, y18n) {
     } else {
       switch (typeof value) {
         case 'string':
-          string += JSON.stringify(value)
+          string += `"${value}"`
           break
         case 'object':
           string += JSON.stringify(value)
@@ -423,12 +458,12 @@ module.exports = function (yargs, y18n) {
       }
     }
 
-    return string + ']'
+    return `${string}]`
   }
 
   // guess the width of the console window, max-width 80.
   function windowWidth () {
-    var maxWidth = 80
+    const maxWidth = 80
     if (typeof process === 'object' && process.stdout && process.stdout.columns) {
       return Math.min(maxWidth, process.stdout.columns)
     } else {
@@ -437,47 +472,47 @@ module.exports = function (yargs, y18n) {
   }
 
   // logic for displaying application version.
-  var version = null
-  self.version = function (ver) {
+  let version = null
+  self.version = (ver) => {
     version = ver
   }
 
-  self.showVersion = function () {
+  self.showVersion = () => {
     const logger = yargs._getLoggerInstance()
-    if (typeof version === 'function') logger.log(version())
-    else logger.log(version)
+    logger.log(version)
   }
 
-  self.reset = function (localLookup) {
+  self.reset = function reset (localLookup) {
     // do not reset wrap here
     // do not reset fails here
     failMessage = null
     failureOutput = false
-    usage = undefined
+    usages = []
+    usageDisabled = false
     epilog = undefined
     examples = []
     commands = []
-    descriptions = objFilter(descriptions, function (k, v) {
-      return !localLookup[k]
-    })
+    descriptions = objFilter(descriptions, (k, v) => !localLookup[k])
     return self
   }
 
-  var frozen
-  self.freeze = function () {
+  let frozen
+  self.freeze = function freeze () {
     frozen = {}
     frozen.failMessage = failMessage
     frozen.failureOutput = failureOutput
-    frozen.usage = usage
+    frozen.usages = usages
+    frozen.usageDisabled = usageDisabled
     frozen.epilog = epilog
     frozen.examples = examples
     frozen.commands = commands
     frozen.descriptions = descriptions
   }
-  self.unfreeze = function () {
+  self.unfreeze = function unfreeze () {
     failMessage = frozen.failMessage
     failureOutput = frozen.failureOutput
-    usage = frozen.usage
+    usages = frozen.usages
+    usageDisabled = frozen.usageDisabled
     epilog = frozen.epilog
     examples = frozen.examples
     commands = frozen.commands

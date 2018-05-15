@@ -116,9 +116,10 @@ function lsStream (cache) {
         }, new Map())
 
         return getKeyToEntry.then(reduced => {
-          return Array.from(reduced.values()).map(
-            entry => stream.push(formatEntry(cache, entry))
-          )
+          for (let entry of reduced.values()) {
+            const formatted = formatEntry(cache, entry)
+            formatted && stream.push(formatted)
+          }
         }).catch({code: 'ENOENT'}, nop)
       })
     })

@@ -36,5 +36,8 @@
   "Path to JSON config file": "Alamat berkas konfigurasi JSON",
   "Show help": "Lihat bantuan",
   "Show version number": "Lihat nomor versi",
-  "Did you mean %s?": "Maksud Anda: %s?"
+  "Did you mean %s?": "Maksud Anda: %s?",
+  "Arguments %s and %s are mutually exclusive" : "Argumen %s dan %s saling eksklusif",
+  "Positionals:": "Posisional-posisional:",
+  "command": "perintah"
 }

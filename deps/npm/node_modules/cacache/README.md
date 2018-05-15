@@ -6,7 +6,7 @@ concurrency, and it will never give you corrupted data, even if cache files
 get corrupted or manipulated.
 
 It was originally written to be used as [npm](https://npm.im)'s local cache, but
-can just as easily be used on its own
+can just as easily be used on its own.
 
 _Translations: [español](README.es.md)_
 
@@ -117,7 +117,7 @@ translations. To use the English API as documented in this README, use
 `require('cacache')`, but may change in the future.
 
 cacache also supports other languages! You can find the list of currently
-supported ones my looking in `./locales` in the source directory. You can use
+supported ones by looking in `./locales` in the source directory. You can use
 the API in that language with `require('cacache/<lang>')`.
 
 Want to add support for a new language? Please go ahead! You should be able to

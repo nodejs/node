@@ -155,6 +155,10 @@ if (!oldPolicy.satisfiesWithoutRevalidation(newRequest)) {
 
 ![satisfiesWithoutRevalidation](fresh.jpg)
 
+## Used by
+
+* [ImageOptim API](https://imageoptim.com/api), [make-fetch-happen](https://github.com/zkat/make-fetch-happen), [cacheable-request](https://www.npmjs.com/package/cacheable-request), [npm/registry-fetch](https://github.com/npm/registry-fetch), [etc.](https://github.com/pornel/http-cache-semantics/network/dependents)
+
 ## Implemented
 
 * `Cache-Control` response header with all the quirks.
@@ -169,5 +173,5 @@ if (!oldPolicy.satisfiesWithoutRevalidation(newRequest)) {
 
 ## Unimplemented
 
-* Range requests, If-Range
+* Merging of range requests, If-Range (but correctly supports them as non-cacheable)
 * Revalidation of multiple representations

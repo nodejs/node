@@ -1,16 +1,17 @@
+'use strict'
 const fs = require('fs')
 const path = require('path')
 
 // add bash completions to your
 //  yargs-powered applications.
-module.exports = function (yargs, usage, command) {
+module.exports = function completion (yargs, usage, command) {
   const self = {
     completionKey: 'get-yargs-completions'
   }
 
   // get a list of completion commands.
   // 'args' is the array of strings from the line to be completed
-  self.getCompletion = function (args, done) {
+  self.getCompletion = function getCompletion (args, done) {
     const completions = []
     const current = args.length ? args[args.length - 1] : ''
     const argv = yargs.parse(args, true)
@@ -20,14 +21,14 @@ module.exports = function (yargs, usage, command) {
     // to completion().
     if (completionFunction) {
       if (completionFunction.length < 3) {
-        var result = completionFunction(current, argv)
+        const result = completionFunction(current, argv)
 
         // promise based completion function.
         if (typeof result.then === 'function') {
-          return result.then(function (list) {
-            process.nextTick(function () { done(list) })
-          }).catch(function (err) {
-            process.nextTick(function () { throw err })
+          return result.then((list) => {
+            process.nextTick(() => { done(list) })
+          }).catch((err) => {
+            process.nextTick(() => { throw err })
           })
         }
 
@@ -35,14 +36,14 @@ module.exports = function (yargs, usage, command) {
         return done(result)
       } else {
         // asynchronous completion function
-        return completionFunction(current, argv, function (completions) {
+        return completionFunction(current, argv, (completions) => {
           done(completions)
         })
       }
     }
 
-    var handlers = command.getCommandHandlers()
-    for (var i = 0, ii = args.length; i < ii; ++i) {
+    const handlers = command.getCommandHandlers()
+    for (let i = 0, ii = args.length; i < ii; ++i) {
       if (handlers[args[i]] && handlers[args[i]].builder) {
         const builder = handlers[args[i]].builder
         if (typeof builder === 'function') {
@@ -54,22 +55,21 @@ module.exports = function (yargs, usage, command) {
     }
 
     if (!current.match(/^-/)) {
-      usage.getCommands().forEach(function (command) {
-        if (args.indexOf(command[0]) === -1) {
-          completions.push(command[0])
+      usage.getCommands().forEach((usageCommand) => {
+        const commandName = command.parseCommand(usageCommand[0]).cmd
+        if (args.indexOf(commandName) === -1) {
+          completions.push(commandName)
         }
       })
     }
 
     if (current.match(/^-/)) {
-      Object.keys(yargs.getOptions().key).forEach(function (key) {
+      Object.keys(yargs.getOptions().key).forEach((key) => {
         // If the key and its aliases aren't in 'args', add the key to 'completions'
-        var keyAndAliases = [key].concat(aliases[key] || [])
-        var notInArgs = keyAndAliases.every(function (val) {
-          return args.indexOf('--' + val) === -1
-        })
+        const keyAndAliases = [key].concat(aliases[key] || [])
+        const notInArgs = keyAndAliases.every(val => args.indexOf(`--${val}`) === -1)
         if (notInArgs) {
-          completions.push('--' + key)
+          completions.push(`--${key}`)
         }
       })
     }
@@ -78,25 +78,26 @@ module.exports = function (yargs, usage, command) {
   }
 
   // generate the completion script to add to your .bashrc.
-  self.generateCompletionScript = function ($0) {
-    var script = fs.readFileSync(
+  self.generateCompletionScript = function generateCompletionScript ($0, cmd) {
+    let script = fs.readFileSync(
       path.resolve(__dirname, '../completion.sh.hbs'),
       'utf-8'
     )
-    var name = path.basename($0)
+    const name = path.basename($0)
 
     // add ./to applications not yet installed as bin.
-    if ($0.match(/\.js$/)) $0 = './' + $0
+    if ($0.match(/\.js$/)) $0 = `./${$0}`
 
     script = script.replace(/{{app_name}}/g, name)
+    script = script.replace(/{{completion_command}}/g, cmd)
     return script.replace(/{{app_path}}/g, $0)
   }
 
   // register a function to perform your own custom
   // completions., this function can be either
   // synchrnous or asynchronous.
-  var completionFunction = null
-  self.registerFunction = function (fn) {
+  let completionFunction = null
+  self.registerFunction = (fn) => {
     completionFunction = fn
   }
 

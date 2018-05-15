@@ -239,6 +239,8 @@ PEM format (Windows calls it &quot;Base-64 encoded X.509 (.CER)&quot;) with newl
 </ul>
 <p>If false, never shows colors.  If <code>&quot;always&quot;</code> then always shows colors.
 If true, then only prints color codes for tty file descriptors.</p>
+<p>This option can also be changed using the environment: colors are
+disabled when the environment variable <code>NO_COLOR</code> is set to any value.</p>
 <h3 id="depth">depth</h3>
 <ul>
 <li>Default: Infinity</li>
@@ -560,7 +562,7 @@ combination). Passed to the <code>http</code> <code>Agent</code> used to make th
 <p>Any &quot;%s&quot; in the message will be replaced with the version number.</p>
 <h3 id="metrics-registry">metrics-registry</h3>
 <ul>
-<li>Default: The value of  <code>registry</code> (which defaults to &quot;<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>&quot;)</li>
+<li>Default: The value of  <code>registry</code> (which defaults to &quot;<a href="https://registry.npmjs.org/&quot;">https://registry.npmjs.org/&quot;</a>)</li>
 <li>Type: String</li>
 </ul>
 <p>The registry you want to send cli metrics to if <code>send-metrics</code> is true.</p>
@@ -578,6 +580,12 @@ impact how lifecycle scripts are called.</p>
 <li>Type: semver or false</li>
 </ul>
 <p>The node version to use when checking a package&#39;s <code>engines</code> map.</p>
+<h3 id="no-proxy">no-proxy</h3>
+<ul>
+<li>Default: null</li>
+<li>Type: String or Array</li>
+</ul>
+<p>A comma-separated string or an array of domain extensions that a proxy should not be used for.</p>
 <h3 id="offline">offline</h3>
 <ul>
 <li>Default: false</li>
@@ -628,13 +636,16 @@ when publishing or changing package permissions with <code>npm access</code>.</p
 </ul>
 <p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
 will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
+<p>When package package-locks are disabled, automatic pruning of extraneous
+modules will also be disabled.  To remove extraneous modules with
+package-locks disabled use <code>npm prune</code>.</p>
 <p>This option is an alias for <code>--shrinkwrap</code>.</p>
 <h3 id="package-lock-only">package-lock-only</h3>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If set to true, it will update only the <code>package-json</code>,
+<p>If set to true, it will update only the <code>package-lock.json</code>,
 instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <h3 id="parseable">parseable</h3>
 <ul>
@@ -718,7 +729,7 @@ honored by the underlying <code>request</code> library.</p>
 <p>Remove failed installs.</p>
 <h3 id="save">save</h3>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a package.json file as dependencies.</p>
@@ -1024,5 +1035,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@5.6.0</p>
+<p id="footer">npm-config &mdash; npm@5.8.0</p>
 

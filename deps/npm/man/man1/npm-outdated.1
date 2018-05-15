@@ -1,4 +1,4 @@
-.TH "NPM\-OUTDATED" "1" "December 2017" "" ""
+.TH "NPM\-OUTDATED" "1" "April 2018" "" ""
 .SH "NAME"
 \fBnpm-outdated\fR \- Check for outdated packages
 .SH SYNOPSIS
@@ -75,10 +75,9 @@ something immutable, like a commit SHA), or it might not, so \fBnpm outdated\fP 
 \fBnpm update\fP have to fetch Git repos to check\. This is why currently doing a
 reinstall of a Git dependency always forces a new clone and install\.
 .IP \(bu 2
-\fBnpm@3\.5\.2\fP is marked as "wanted", but "latest" is \fBnpm@3\.5\.1\fP because npm
-uses dist\-tags to manage its \fBlatest\fP and \fBnext\fP release channels\. \fBnpm update\fP
-will install the \fInewest\fR version, but \fBnpm install npm\fP (with no semver range)
-will install whatever's tagged as \fBlatest\fP\|\.
+\fBis marked as "wanted", but "latest" is\fP\fBbecause npm
+uses dist\-tags to manage its\fPlatest\fBand\fPnext\fBrelease channels\.\fPnpm update\fBwill install the _newest_ version, but\fPnpm install npm\fB(with no semver range)
+will install whatever's tagged as\fPlatest`\.
 .IP \(bu 2
 \fBonce\fP is just plain out of date\. Reinstalling \fBnode_modules\fP from scratch or
 running \fBnpm update\fP will bring it up to spec\.

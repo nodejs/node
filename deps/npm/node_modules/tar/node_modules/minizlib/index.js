@@ -7,6 +7,18 @@ const binding = process.binding('zlib')
 const constants = exports.constants = require('./constants.js')
 const MiniPass = require('minipass')
 
+class ZlibError extends Error {
+  constructor (msg, errno) {
+    super('zlib: ' + msg)
+    this.errno = errno
+    this.code = codes.get(errno)
+  }
+
+  get name () {
+    return 'ZlibError'
+  }
+}
+
 // translation table for return codes.
 const codes = new Map([
   [constants.Z_OK, 'Z_OK'],
@@ -61,10 +73,10 @@ class Zlib extends MiniPass {
     this[_opts] = opts = opts || {}
     this[_chunkSize] = opts.chunkSize || constants.Z_DEFAULT_CHUNK
     if (opts.flush && !validFlushFlags.has(opts.flush)) {
-      throw new Error('Invalid flush flag: ' + opts.flush)
+      throw new TypeError('Invalid flush flag: ' + opts.flush)
     }
     if (opts.finishFlush && !validFlushFlags.has(opts.finishFlush)) {
-      throw new Error('Invalid flush flag: ' + opts.finishFlush)
+      throw new TypeError('Invalid flush flag: ' + opts.finishFlush)
     }
 
     this[_flushFlag] = opts.flush || constants.Z_NO_FLUSH
@@ -73,37 +85,37 @@ class Zlib extends MiniPass {
 
     if (opts.chunkSize) {
       if (opts.chunkSize < constants.Z_MIN_CHUNK) {
-        throw new Error('Invalid chunk size: ' + opts.chunkSize)
+        throw new RangeError('Invalid chunk size: ' + opts.chunkSize)
       }
     }
 
     if (opts.windowBits) {
       if (opts.windowBits < constants.Z_MIN_WINDOWBITS ||
           opts.windowBits > constants.Z_MAX_WINDOWBITS) {
-        throw new Error('Invalid windowBits: ' + opts.windowBits)
+        throw new RangeError('Invalid windowBits: ' + opts.windowBits)
       }
     }
 
     if (opts.level) {
       if (opts.level < constants.Z_MIN_LEVEL ||
           opts.level > constants.Z_MAX_LEVEL) {
-        throw new Error('Invalid compression level: ' + opts.level)
+        throw new RangeError('Invalid compression level: ' + opts.level)
       }
     }
 
     if (opts.memLevel) {
       if (opts.memLevel < constants.Z_MIN_MEMLEVEL ||
           opts.memLevel > constants.Z_MAX_MEMLEVEL) {
-        throw new Error('Invalid memLevel: ' + opts.memLevel)
+        throw new RangeError('Invalid memLevel: ' + opts.memLevel)
       }
     }
 
     if (opts.strategy && !(strategies.has(opts.strategy)))
-      throw new Error('Invalid strategy: ' + opts.strategy)
+      throw new TypeError('Invalid strategy: ' + opts.strategy)
 
     if (opts.dictionary) {
       if (!(opts.dictionary instanceof Buffer)) {
-        throw new Error('Invalid dictionary: it should be a Buffer instance')
+        throw new TypeError('Invalid dictionary: it should be a Buffer instance')
       }
     }
 
@@ -116,9 +128,7 @@ class Zlib extends MiniPass {
       this.close()
       this[_hadError] = true
 
-      const error = new Error(message)
-      error.errno = errno
-      error.code = codes.get(errno)
+      const error = new ZlibError(message, errno)
       this.emit('error', error)
     }
 

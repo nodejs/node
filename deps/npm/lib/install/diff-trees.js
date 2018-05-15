@@ -70,6 +70,9 @@ function sriMatch (aa, bb) {
 function pkgAreEquiv (aa, bb) {
   // coming in we know they share a path…
 
+  // if one is inside a link and the other is not, then they are not equivalent
+  // this happens when we're replacing a linked dep with a non-linked version
+  if (aa.isInLink !== bb.isInLink) return false
   // if they share package metadata _identity_, they're the same thing
   if (aa.package === bb.package) return true
   // if they share integrity information, they're the same thing

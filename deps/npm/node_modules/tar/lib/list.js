@@ -7,6 +7,7 @@
 const hlo = require('./high-level-opt.js')
 const Parser = require('./parse.js')
 const fs = require('fs')
+const fsm = require('fs-minipass')
 const path = require('path')
 
 const t = module.exports = (opt_, files, cb) => {
@@ -111,15 +112,10 @@ const listFile = (opt, cb) => {
     fs.stat(file, (er, stat) => {
       if (er)
         reject(er)
-      else if (stat.size < readSize)
-        fs.readFile(file, (er, data) => {
-          if (er)
-            return reject(er)
-          parse.end(data)
-        })
       else {
-        const stream = fs.createReadStream(file, {
-          highWaterMark: readSize
+        const stream = new fsm.ReadStream(file, {
+          readSize: readSize,
+          size: stat.size
         })
         stream.on('error', reject)
         stream.pipe(parse)

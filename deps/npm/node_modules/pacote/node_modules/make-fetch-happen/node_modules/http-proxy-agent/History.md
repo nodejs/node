@@ -1,4 +1,11 @@
 
+2.1.0 / 2018-03-03
+==================
+
+  * Add "engines" to package.json
+  * Use `Buffer.from()`
+  * Update package.json - outdated debug version (#7)
+
 2.0.0 / 2017-06-27
 ==================
 

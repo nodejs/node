@@ -1,5 +1,6 @@
 'use strict'
 
+const PassThrough = require('stream').PassThrough
 const path = require('path')
 const tar = require('tar')
 
@@ -10,7 +11,29 @@ function computeMode (fileMode, optMode, umask) {
   return (fileMode | optMode) & ~(umask || 0)
 }
 
-function extractStream (dest, opts) {
+function pkgJsonTransform (spec, opts) {
+  return entry => {
+    if (entry.path === 'package.json') {
+      const transformed = new PassThrough()
+      let str = ''
+      entry.on('end', () => transformed.end(str.replace(
+        /}\s*$/,
+        `\n,"_resolved": ${
+          JSON.stringify(opts.resolved || '')
+        }\n,"_integrity": ${
+          JSON.stringify(opts.integrity || '')
+        }\n,"_from": ${
+          JSON.stringify(spec.toString())
+        }\n}`
+      )))
+      entry.on('error', e => transformed.emit('error'))
+      entry.on('data', d => { str += d })
+      return transformed
+    }
+  }
+}
+
+function extractStream (spec, dest, opts) {
   opts = opts || {}
   const sawIgnores = new Set()
   return tar.x({
@@ -20,6 +43,7 @@ function extractStream (dest, opts) {
     onwarn: msg => opts.log && opts.log.warn('tar', msg),
     uid: opts.uid,
     gid: opts.gid,
+    transform: opts.resolved && pkgJsonTransform(spec, opts),
     onentry (entry) {
       if (entry.type.toLowerCase() === 'file') {
         entry.mode = computeMode(entry.mode, opts.fmode, opts.umask)

@@ -63,12 +63,21 @@ http.get(parsed, function (res) {
 });
 ```
 
-You can also return a Promise or use an `async` function:
+Returning a Promise or using an `async` function is also supported:
 
 ```js
 agent(async function (req, opts) {
   await sleep(1000);
   // etc…
+});
+```
+
+Return another `http.Agent` instance to "pass through" the responsibility
+for that HTTP request to that agent:
+
+```js
+agent(function (req, opts) {
+  return opts.secureEndpoint ? https.globalAgent : http.globalAgent;
 });
 ```
 

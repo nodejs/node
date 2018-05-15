@@ -26,7 +26,7 @@ exports.checkForBrokenNode = function () {
     supportedNode.forEach(function (rel) {
       if (semver.satisfies(nodejs.version, rel.ver)) {
         console.error('Node.js ' + rel.ver + " is supported but the specific version you're running has")
-        console.error(`a bug known to break npm. Please update to at least ${rel.min} to use this`)
+        console.error('a bug known to break npm. Please update to at least ' + rel.min + ' to use this')
         console.error('version of npm. You can find the latest release of Node.js at https://nodejs.org/')
         process.exit(1)
       }

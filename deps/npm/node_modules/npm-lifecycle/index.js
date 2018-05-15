@@ -53,9 +53,7 @@ function lifecycle (pkg, stage, wd, opts) {
 
       if ((wd.indexOf(opts.dir) !== 0 || _incorrectWorkingDirectory(wd, pkg)) &&
           !opts.unsafePerm && pkg.scripts[stage]) {
-        opts.log.warn('lifecycle', logid(pkg, stage), 'cannot run in wd',
-          '%s %s (wd=%s)', pkg._id, pkg.scripts[stage], wd
-        )
+        opts.log.warn('lifecycle', logid(pkg, stage), 'cannot run in wd', pkg._id, pkg.scripts[stage], `(wd=${wd})`)
         return resolve()
       }
 

@@ -95,6 +95,16 @@ function pickContentSri (cache, integrity) {
     return BB.any(sri[sri.pickAlgorithm()].map(meta => {
       return pickContentSri(cache, meta)
     }))
+    .catch(err => {
+      if ([].some.call(err, e => e.code === 'ENOENT')) {
+        throw Object.assign(
+          new Error('No matching content found for ' + sri.toString()),
+          {code: 'ENOENT'}
+        )
+      } else {
+        throw err[0]
+      }
+    })
   }
 }
 

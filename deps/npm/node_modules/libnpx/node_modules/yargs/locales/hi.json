@@ -35,5 +35,8 @@
   "Path to JSON config file": "JSON config फाइल का पथ",
   "Show help": "सहायता दिखाएँ",
   "Show version number": "Version संख्या दिखाएँ",
-  "Did you mean %s?": "क्या आपका मतलब है %s?"
+  "Did you mean %s?": "क्या आपका मतलब है %s?",
+  "Arguments %s and %s are mutually exclusive" : "तर्क %s और %s परस्पर अनन्य हैं",
+  "Positionals:": "स्थानीय:",
+  "command": "आदेश"
 }

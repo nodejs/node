@@ -120,7 +120,9 @@ function packDirectory (mani, dir, target) {
         cwd: dir,
         prefix: 'package/',
         portable: true,
-        noMtime: true,
+        // Provide a specific date in the 1980s for the benefit of zip,
+        // which is confounded by files dated at the Unix epoch 0.
+        mtime: new Date('1985-10-26T08:15:00.000Z'),
         gzip: true
       }
 
@@ -170,7 +172,7 @@ function packGitDep (manifest, dir) {
         return acc
       }, [])
       const child = cp.spawn(process.env.NODE || process.execPath, [
-        require.main.filename,
+        require.resolve('../bin/npm-cli.js'),
         'install',
         '--dev',
         '--prod',
