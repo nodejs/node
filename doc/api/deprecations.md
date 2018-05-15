@@ -977,7 +977,7 @@ objects respectively.
 <a id="DEP0107"></a>
 ### DEP0107: tls.convertNPNProtocols()
 
-Type: Runtime
+Type: End-of-Life
 
 This was an undocumented helper function not intended for use outside Node.js
 core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.
