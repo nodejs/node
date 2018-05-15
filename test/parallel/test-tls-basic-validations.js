@@ -94,24 +94,8 @@ common.expectsError(
 }
 
 {
-  const buffer = Buffer.from('abcd');
-  const out = {};
-  tls.convertNPNProtocols(buffer, out);
-  out.NPNProtocols.write('efgh');
-  assert(buffer.equals(Buffer.from('abcd')));
-  assert(out.NPNProtocols.equals(Buffer.from('efgh')));
-}
-
-{
   const buffer = new Uint8Array(Buffer.from('abcd'));
   const out = {};
   tls.convertALPNProtocols(buffer, out);
   assert(out.ALPNProtocols.equals(Buffer.from('abcd')));
-}
-
-{
-  const buffer = new Uint8Array(Buffer.from('abcd'));
-  const out = {};
-  tls.convertNPNProtocols(buffer, out);
-  assert(out.NPNProtocols.equals(Buffer.from('abcd')));
 }
