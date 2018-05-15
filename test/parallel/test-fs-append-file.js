@@ -27,8 +27,6 @@ const join = require('path').join;
 
 const tmpdir = require('../common/tmpdir');
 
-const filename = join(tmpdir.path, 'append.txt');
-
 const currentFileData = 'ABCD';
 
 const n = 220;
@@ -44,18 +42,33 @@ let ncallbacks = 0;
 
 tmpdir.refresh();
 
-// test that empty file will be created and have content added
-fs.appendFile(filename, s, function(e) {
-  assert.ifError(e);
+const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
-  ncallbacks++;
+// test that empty file will be created and have content added (callback API)
+{
+  const filename = join(tmpdir.path, 'append.txt');
 
-  fs.readFile(filename, function(e, buffer) {
+  fs.appendFile(filename, s, common.mustCall(function(e) {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(Buffer.byteLength(s), buffer.length);
-  });
-});
+
+    fs.readFile(filename, common.mustCall(function(e, buffer) {
+      assert.ifError(e);
+      assert.strictEqual(Buffer.byteLength(s), buffer.length);
+    }));
+  }));
+}
+
+// test that empty file will be created and have content added (promise API)
+{
+  const filename = join(tmpdir.path, 'append-promise.txt');
+
+  fs.promises.appendFile(filename, s)
+    .then(common.mustCall(() => fs.promises.readFile(filename)))
+    .then((buffer) => {
+      assert.strictEqual(Buffer.byteLength(s), buffer.length);
+    })
+    .catch(throwNextTick);
+}
 
 // test that appends data to a non empty file
 const filename2 = join(tmpdir.path, 'append2.txt');
@@ -151,9 +164,8 @@ assert.throws(
   { code: 'ERR_INVALID_CALLBACK' });
 
 process.on('exit', function() {
-  assert.strictEqual(12, ncallbacks);
+  assert.strictEqual(10, ncallbacks);
 
-  fs.unlinkSync(filename);
   fs.unlinkSync(filename2);
   fs.unlinkSync(filename3);
   fs.unlinkSync(filename4);
