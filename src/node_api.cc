@@ -842,6 +842,10 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
 
 }  // end of anonymous namespace
 
+napi_addon_register_func napi_module_get_entry_point(node::node_module* mp) {
+  return static_cast<napi_module*>(mp->nm_priv)->nm_register_func;
+}
+
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,

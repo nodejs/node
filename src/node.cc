@@ -194,6 +194,7 @@ static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static std::string trace_file_pattern =  // NOLINT(runtime/string)
   "node_trace.${rotation}.log";
 static bool abort_on_uncaught_exception = false;
+static std::set<void*> addon_entry_points;
 
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
@@ -1258,6 +1259,22 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
       reinterpret_cast<napi_addon_register_func>(dlib->GetSymbolAddress(name));
 }
 
+// Initialize the addon, and close the DLib if this is a second-or-later
+// initialization call.
+template <typename Initializer, typename EntryPoint>
+inline void CallAddonInitializer(Local<Object> exports,
+                                 Local<Value> module,
+                                 Local<Context> context,
+                                 const Initializer& init,
+                                 EntryPoint entry_point,
+                                 DLib* dlib) {
+  init(exports, module, context);
+  void* generic_entry_point = reinterpret_cast<void*>(entry_point);
+  if (!(addon_entry_points.insert(generic_entry_point).second)) {
+    dlib->Close();
+  }
+}
+
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
@@ -1313,9 +1330,16 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   if (mp == nullptr) {
     if (auto callback = GetInitializerCallback(&dlib)) {
-      callback(exports, module, context);
+      CallAddonInitializer(exports, module, context, callback, callback, &dlib);
     } else if (auto napi_callback = GetNapiInitializerCallback(&dlib)) {
-      napi_module_register_by_symbol(exports, module, context, napi_callback);
+      CallAddonInitializer(exports, module, context,
+          [napi_callback] (Local<Object> exports,
+                           Local<Value> module,
+                           Local<Context> context) {
+            napi_module_register_by_symbol(exports, module, context,
+                napi_callback);
+          },
+          napi_callback, &dlib);
     } else {
       dlib.Close();
       env->ThrowError("Module did not self-register.");
@@ -1329,7 +1353,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     // version. We must only give up after having checked to see if it has an
     // appropriate initializer callback.
     if (auto callback = GetInitializerCallback(&dlib)) {
-      callback(exports, module, context);
+      CallAddonInitializer(exports, module, context, callback, callback, &dlib);
       return;
     }
     char errmsg[1024];
@@ -1359,10 +1383,34 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   mp->nm_link = modlist_addon;
   modlist_addon = mp;
 
-  if (mp->nm_context_register_func != nullptr) {
-    mp->nm_context_register_func(exports, module, context, mp->nm_priv);
+  // N-API addons all hide behind a single callback, so its address is not
+  // suitable for caching. Grab the actual init callback address instead.
+  if (mp->nm_version == -1) {
+    auto napi_callback = napi_module_get_entry_point(mp);
+    CallAddonInitializer(exports, module, context,
+        [napi_callback] (Local<Object> exports,
+                         Local<Value> module,
+                         Local<Context> context) {
+          napi_module_register_by_symbol(exports, module, context,
+            napi_callback);
+        },
+        napi_callback, &dlib);
+  } else if (mp->nm_context_register_func != nullptr) {
+    CallAddonInitializer(exports, module, context,
+        [mp] (Local<Object> exports,
+              Local<Value> module,
+              Local<Context> context) {
+          mp->nm_context_register_func(exports, module, context, mp->nm_priv);
+        },
+        mp->nm_context_register_func, &dlib);
   } else if (mp->nm_register_func != nullptr) {
-    mp->nm_register_func(exports, module, mp->nm_priv);
+    CallAddonInitializer(exports, module, context,
+        [mp] (Local<Object> exports,
+              Local<Value> module,
+              Local<Context> context) {
+          mp->nm_register_func(exports, module, mp->nm_priv);
+        },
+        mp->nm_register_func, &dlib);
   } else {
     dlib.Close();
     env->ThrowError("Module has no declared entry point.");

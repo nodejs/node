@@ -964,6 +964,8 @@ void GetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node
 
+napi_addon_register_func napi_module_get_entry_point(node::node_module* mp);
+
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,
