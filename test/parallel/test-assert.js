@@ -27,7 +27,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { EOL } = require('os');
 const EventEmitter = require('events');
 const { errorCache } = require('internal/assert');
 const { writeFileSync, unlinkSync } = require('fs');
@@ -462,8 +461,8 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert.ok(typeof 123 === 'string')${EOL}`
+      message: 'The expression evaluated to a falsy value:\n\n  ' +
+               "assert.ok(typeof 123 === 'string')\n"
     }
   );
   Error.stackTraceLimit = tmpLimit;
@@ -625,8 +624,8 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     generatedMessage: true,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert.ok(null)${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(null)\n'
   }
 );
 common.expectsError(
@@ -635,8 +634,8 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     generatedMessage: true,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert(typeof 123 === 'string')${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             "assert(typeof 123 === 'string')\n"
   }
 );
 
@@ -666,8 +665,8 @@ common.expectsError(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert(Buffer.from('test') instanceof Error)${EOL}`
+      message: 'The expression evaluated to a falsy value:\n\n  ' +
+               "assert(Buffer.from('test') instanceof Error)\n"
     }
   );
   common.expectsError(
@@ -675,8 +674,8 @@ common.expectsError(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert(Buffer.from('test') instanceof Error)${EOL}`
+      message: 'The expression evaluated to a falsy value:\n\n  ' +
+               "assert(Buffer.from('test') instanceof Error)\n"
     }
   );
   fs.close = tmp;
@@ -695,12 +694,12 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert((() => 'string')()${EOL}` +
-             `      // eslint-disable-next-line${EOL}` +
-             `      ===${EOL}` +
-             `      123 instanceof${EOL}` +
-             `          Buffer)${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             "assert((() => 'string')()\n" +
+             '      // eslint-disable-next-line\n' +
+             '      ===\n' +
+             '      123 instanceof\n' +
+             '          Buffer)\n'
   }
 );
 
@@ -709,8 +708,8 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert(null, undefined)${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert(null, undefined)\n'
   }
 );
 
