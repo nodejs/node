@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
     execFile(process.execPath, args, function(err, stdout, stderr) {
       assert.strictEqual(err, null);
       assert.strictEqual(stdout, '');
-      if (/WARNING[\s\S]*fs\.readFileSync/.test(stderr))
+      if (/WARNING[\s\S]*readFileSync/.test(stderr))
         cntr++;
       if (args[0] === '--trace-sync-io') {
         assert.strictEqual(cntr, 1);
