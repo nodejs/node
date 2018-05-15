@@ -16,7 +16,7 @@
 *http* @nodejs/http
 *http2* @nodejs/http2
 *https* @nodejs/http @nodejs/crypto @nodejs/tls @nodejs/http2
-*inspector* @nodejs/V8-inspector
+*inspector* @nodejs/v8-inspector
 *net* @nodejs/streams
 *node_api* @nodejs/n-api
 *repl* @nodejs/repl
