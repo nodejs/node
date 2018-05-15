@@ -8,6 +8,9 @@ directory, see [the guide on writing tests](../doc/guides/writing-tests.md).
 On how to run tests in this directory, see
 [the contributing guide](../doc/guides/contributing/pull-requests.md#step-6-test).
 
+For the tests to successfully run on Windows, Node.js has to be checked out from
+GitHub with the `autocrlf` git config flag set to true.
+
 ## Test Directories
 
 |Directory          |Runs on CI     |Purpose        |
