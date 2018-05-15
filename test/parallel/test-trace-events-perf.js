@@ -49,7 +49,8 @@ if (process.argv[2] === 'child') {
 
     assert(common.fileExists(file));
     fs.readFile(file, common.mustCall((err, data) => {
-      const traces = JSON.parse(data.toString()).traceEvents;
+      const traces = JSON.parse(data.toString()).traceEvents
+        .filter((trace) => trace.cat !== '__metadata');
       assert.strictEqual(traces.length,
                          expectedMarks.length +
                          expectedBegins.length +
