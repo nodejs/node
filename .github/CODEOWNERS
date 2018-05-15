@@ -78,6 +78,7 @@ android-configure @nodejs/build
 /src/*.d @nodejs/diagnostics @nodejs/platform-smartos @nodejs/platform-freebsd @nodejs/platform-macos @nodejs/dtrace-mdb
 /src/node.stp @nodejs/diagnostics
 
+/.github/ @nodejs/tsc
 CODE_OF_CONDUCT.md @nodejs/tsc
 COLLABORATOR_GUIDE.md @nodejs/tsc
 CONTRIBUTING.md @nodejs/tsc
