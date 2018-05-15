@@ -178,7 +178,7 @@ function testError() {
 
       // The sync error, with individual property echoes
       /Error: ENOENT: no such file or directory, scandir '.*nonexistent.*'/,
-      /fs\.readdirSync/,
+      /Object\.readdirSync/,
       "'ENOENT'",
       "'scandir'",
 
