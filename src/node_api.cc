@@ -866,6 +866,12 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
                              void* priv) {
   napi_module* mod = static_cast<napi_module*>(priv);
 
+  if (mod->nm_register_func == nullptr) {
+    node::Environment::GetCurrent(context)->ThrowError(
+        "Module has no declared entry point.");
+    return;
+  }
+
   // Create a new napi_env for this module or reference one if a pre-existing
   // one is found.
   napi_env env = v8impl::GetEnv(context);
