@@ -74,6 +74,10 @@ android-configure @nodejs/build
 *s390* @nodejs/platform-s390
 *windows* @nodejs/platform-windows
 
+/src/node_postmortem_metadata.cc @nodejs/diagnostics @nodejs/post-mortem
+/src/*.d @nodejs/diagnostics @nodejs/platform-smartos @nodejs/platform-freebsd @nodejs/platform-macos @nodejs/dtrace-mdb
+/src/node.stp @nodejs/diagnostics
+
 CODE_OF_CONDUCT.md @nodejs/tsc
 COLLABORATOR_GUIDE.md @nodejs/tsc
 CONTRIBUTING.md @nodejs/tsc
@@ -81,7 +85,3 @@ CPP_STYLE_GUIDE.md @nodejs/tsc
 GOVERNANCE.md @nodejs/tsc
 LICENSE @nodejs/tsc
 README.md @nodejs/tsc
-
-/src/node_postmortem_metadata.cc @nodejs/diagnostics @nodejs/post-mortem
-/src/*.d @nodejs/diagnostics @nodejs/platform-smartos @nodejs/platform-freebsd @nodejs/platform-macos @nodejs/dtrace-mdb
-/src/node.stp @nodejs/diagnostics
