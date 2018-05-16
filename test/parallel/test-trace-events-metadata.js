@@ -22,5 +22,8 @@ proc.once('exit', common.mustCall(() => {
     assert(traces.some((trace) =>
       trace.cat === '__metadata' && trace.name === 'thread_name' &&
         trace.args.name === 'JavaScriptMainThread'));
+    assert(traces.some((trace) =>
+      trace.cat === '__metadata' && trace.name === 'thread_name' &&
+        trace.args.name === 'BackgroundTaskRunner'));
   }));
 }));
