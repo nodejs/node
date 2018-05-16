@@ -14,6 +14,7 @@ namespace tracing {
 class JSONTraceWriter : public TraceWriter {
  public:
   explicit JSONTraceWriter(std::ostream& stream);
+  JSONTraceWriter(std::ostream& stream, const std::string& tag);
   ~JSONTraceWriter();
   void AppendTraceEvent(TraceObject* trace_event) override;
   void Flush() override;
