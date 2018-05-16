@@ -627,22 +627,22 @@ function isWarned(emitter) {
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
 
-      // back one character
+      // Back one character
       fi.emit('keypress', '.', { ctrl: true, name: 'b' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 18);
-      // back one character
+      // Back one character
       fi.emit('keypress', '.', { ctrl: true, name: 'b' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 17);
-      // forward one character
+      // Forward one character
       fi.emit('keypress', '.', { ctrl: true, name: 'f' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 18);
-      // forward one character
+      // Forward one character
       fi.emit('keypress', '.', { ctrl: true, name: 'f' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -779,7 +779,7 @@ function isWarned(emitter) {
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
 
-      // deleteLeft
+      // Delete left character
       fi.emit('keypress', '.', { ctrl: true, name: 'h' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -802,13 +802,13 @@ function isWarned(emitter) {
       });
       fi.emit('data', 'the quick brown fox');
 
-      // go to the start of the line
+      // Go to the start of the line
       fi.emit('keypress', '.', { ctrl: true, name: 'a' });
       let cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
-      // `deleteLeft`
+      // Delete right character
       fi.emit('keypress', '.', { ctrl: true, name: 'd' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -835,7 +835,7 @@ function isWarned(emitter) {
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
 
-      // delete from current to start of line
+      // Delete from current to start of line
       fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'backspace' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -858,13 +858,13 @@ function isWarned(emitter) {
       });
       fi.emit('data', 'the quick brown fox');
 
-      // go to the start of the line
+      // Go to the start of the line
       fi.emit('keypress', '.', { ctrl: true, name: 'a' });
       let cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
-      // delete from current to end of line
+      // Delete from current to end of line
       fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
       cursorPos = rli._getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
@@ -893,7 +893,7 @@ function isWarned(emitter) {
       rli.close();
     }
 
-    // clear the whole screen
+    // Clear the whole screen
     {
       const fi = new FakeInput();
       const rli = new readline.Interface({
