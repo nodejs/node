@@ -22,16 +22,6 @@
 #ifndef SRC_NODE_H_
 #define SRC_NODE_H_
 
-#ifdef _WIN32
-# ifndef BUILDING_NODE_EXTENSION
-#   define NODE_EXTERN __declspec(dllexport)
-# else
-#   define NODE_EXTERN __declspec(dllimport)
-# endif
-#else
-# define NODE_EXTERN /* nothing */
-#endif
-
 #ifdef BUILDING_NODE_EXTENSION
 # undef BUILDING_V8_SHARED
 # undef BUILDING_UV_SHARED
@@ -60,40 +50,12 @@
 # define SIGKILL         9
 #endif
 
+#include "core.h"  // NOLINT(build/include_order)
 #include "v8.h"  // NOLINT(build/include_order)
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 #include "callback_scope.h"
-
-#define NODE_MAKE_VERSION(major, minor, patch)                                \
-  ((major) * 0x1000 + (minor) * 0x100 + (patch))
-
-#ifdef __clang__
-# define NODE_CLANG_AT_LEAST(major, minor, patch)                             \
-  (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
-      NODE_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
-#else
-# define NODE_CLANG_AT_LEAST(major, minor, patch) (0)
-#endif
-
-#ifdef __GNUC__
-# define NODE_GNUC_AT_LEAST(major, minor, patch)                              \
-  (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
-      NODE_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
-#else
-# define NODE_GNUC_AT_LEAST(major, minor, patch) (0)
-#endif
-
-#if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-# define NODE_DEPRECATED(message, declarator)                                 \
-    __attribute__((deprecated(message))) declarator
-#elif defined(_MSC_VER)
-# define NODE_DEPRECATED(message, declarator)                                 \
-    __declspec(deprecated) declarator
-#else
-# define NODE_DEPRECATED(message, declarator)                                 \
-    declarator
-#endif
+#include "exceptions.h"
 
 // Forward-declare libuv loop
 struct uv_loop_s;
@@ -106,47 +68,6 @@ class TracingController;
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
-
-NODE_EXTERN v8::Local<v8::Value> ErrnoException(v8::Isolate* isolate,
-                                                int errorno,
-                                                const char* syscall = nullptr,
-                                                const char* message = nullptr,
-                                                const char* path = nullptr);
-NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
-                                             int errorno,
-                                             const char* syscall = nullptr,
-                                             const char* message = nullptr,
-                                             const char* path = nullptr);
-NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
-                                             int errorno,
-                                             const char* syscall,
-                                             const char* message,
-                                             const char* path,
-                                             const char* dest);
-
-NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
-                inline v8::Local<v8::Value> ErrnoException(
-      int errorno,
-      const char* syscall = nullptr,
-      const char* message = nullptr,
-      const char* path = nullptr) {
-  return ErrnoException(v8::Isolate::GetCurrent(),
-                        errorno,
-                        syscall,
-                        message,
-                        path);
-})
-
-inline v8::Local<v8::Value> UVException(int errorno,
-                                        const char* syscall = nullptr,
-                                        const char* message = nullptr,
-                                        const char* path = nullptr) {
-  return UVException(v8::Isolate::GetCurrent(),
-                     errorno,
-                     syscall,
-                     message,
-                     path);
-}
 
 /*
  * These methods need to be called in a HandleScope.
@@ -451,26 +372,6 @@ NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
                                            enum encoding encoding = LATIN1) {
   return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
 })
-
-#ifdef _WIN32
-NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
-    v8::Isolate* isolate,
-    int errorno,
-    const char *syscall = nullptr,
-    const char *msg = "",
-    const char *path = nullptr);
-
-NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
-                inline v8::Local<v8::Value> WinapiErrnoException(int errorno,
-    const char *syscall = nullptr,  const char *msg = "",
-    const char *path = nullptr) {
-  return WinapiErrnoException(v8::Isolate::GetCurrent(),
-                              errorno,
-                              syscall,
-                              msg,
-                              path);
-})
-#endif
 
 const char *signo_string(int errorno);
 
