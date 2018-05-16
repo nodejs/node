@@ -1374,7 +1374,8 @@ util.inspect(process);
   expect = 'WeakMap { [ [length]: 0 ] => {}, ... more items, extra: true }';
   const expectAlt = 'WeakMap { {} => [ [length]: 0 ], ... more items, ' +
                     'extra: true }';
-  assert(out === expect || out === expectAlt);
+  assert(out === expect || out === expectAlt,
+         `Found "${out}" rather than "${expect}" or "${expectAlt}"`);
 }
 
 { // Test WeakSet
@@ -1397,7 +1398,8 @@ util.inspect(process);
   expect = 'WeakSet { {}, ... more items, extra: true }';
   const expectAlt = 'WeakSet { [ 1, [length]: 1 ], ... more items, ' +
                     'extra: true }';
-  assert(out === expect || out === expectAlt);
+  assert(out === expect || out === expectAlt,
+         `Found "${out}" rather than "${expect}" or "${expectAlt}"`);
 }
 
 { // Test argument objects.
