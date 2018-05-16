@@ -74,7 +74,7 @@ checkNodeTiming({
   duration: { around: performance.now() },
   nodeStart: { around: 0 },
   v8Start: { around: 0 },
-  bootstrapComplete: -1,
+  bootstrapComplete: { around: inited },
   environment: { around: 0 },
   loopStart: -1,
   loopExit: -1,
