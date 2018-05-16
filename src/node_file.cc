@@ -659,7 +659,7 @@ inline int SyncCall(Environment* env, Local<Value> ctx, FSReqWrapSync* req_wrap,
   if (err < 0) {
     Local<Context> context = env->context();
     Local<Object> ctx_obj = ctx.As<Object>();
-    Isolate *isolate = env->isolate();
+    Isolate* isolate = env->isolate();
     ctx_obj->Set(context,
              env->errno_string(),
              Integer::New(isolate, err)).FromJust();

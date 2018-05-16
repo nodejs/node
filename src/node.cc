@@ -315,7 +315,7 @@ static struct {
   }
 
 #if HAVE_INSPECTOR
-  bool StartInspector(Environment *env, const char* script_path,
+  bool StartInspector(Environment* env, const char* script_path,
                       const DebugOptions& options) {
     // Inspector agent can't fail to start, but if it was configured to listen
     // right away on the websocket port and fails to bind/etc, this will return
@@ -323,7 +323,7 @@ static struct {
     return env->inspector_agent()->Start(platform_, script_path, options);
   }
 
-  bool InspectorStarted(Environment *env) {
+  bool InspectorStarted(Environment* env) {
     return env->inspector_agent()->IsStarted();
   }
 #endif  // HAVE_INSPECTOR
@@ -352,7 +352,7 @@ static struct {
   void Dispose() {}
   void DrainVMTasks(Isolate* isolate) {}
   void CancelVMTasks(Isolate* isolate) {}
-  bool StartInspector(Environment *env, const char* script_path,
+  bool StartInspector(Environment* env, const char* script_path,
                       const DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return true;
@@ -374,7 +374,7 @@ static struct {
 #endif  // !NODE_USE_V8_PLATFORM
 
 #if !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
-  bool InspectorStarted(Environment *env) {
+  bool InspectorStarted(Environment* env) {
     return false;
   }
 #endif  //  !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
@@ -419,7 +419,7 @@ static void PrintErrorString(const char* format, ...) {
   va_end(ap);
 }
 
-const char *signo_string(int signo) {
+const char* signo_string(int signo) {
 #define SIGNO_CASE(e)  case e: return #e;
   switch (signo) {
 #ifdef SIGHUP
@@ -2452,7 +2452,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Local<Array> envarr = Array::New(isolate);
   WCHAR* p = environment;
   while (*p) {
-    WCHAR *s;
+    WCHAR* s;
     if (*p == L'=') {
       // If the key starts with '=' it is a hidden environment variable.
       p += wcslen(p) + 1;

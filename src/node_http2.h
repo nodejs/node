@@ -965,7 +965,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
       void* user_data);
   static int OnInvalidFrame(
       nghttp2_session* session,
-      const nghttp2_frame *frame,
+      const nghttp2_frame* frame,
       int lib_error_code,
       void* user_data);
 
