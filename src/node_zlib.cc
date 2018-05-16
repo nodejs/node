@@ -220,7 +220,6 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   // for a single write() call, until all of the input bytes have
   // been consumed.
   void DoThreadPoolWork() override {
-
     const Bytef* next_expected_header_byte = nullptr;
 
     // If the avail_out is left at 0, then it means that it ran out
