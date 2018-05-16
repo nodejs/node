@@ -157,6 +157,9 @@ A hook context consists of the following properties:
   useful if resolve is not hooked.
   - `specifier` {string} The specifier of the module to import.
   - `parentURL` {string} The URL of the module that requested the specifier.
+- `vmModuleLinkHook` {object} This value can be passed to [`module.link`][] to
+  allow linking the import requests of a [`vm.Module`][] instance to the
+  loader.
 
 ### Resolve hook
 
@@ -269,6 +272,8 @@ With the list of module exports provided upfront, the `execute` function will
 then be called at the exact point of module evaluation order for that module
 in the import tree.
 
+[`module.link`]: vm.html#vm_module_link_linker
+[`vm.Module`]: vm.html#vm_class_vm_module
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [addons]: addons.html
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
