@@ -694,14 +694,55 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: 'The expression evaluated to a falsy value:\n\n  ' +
-             "assert((() => 'string')()\n" +
-             '      // eslint-disable-next-line\n' +
-             '      ===\n' +
-             '      123 instanceof\n' +
-             '          Buffer)\n'
+    message: 'The expression evaluated to a falsy value:\n\n' +
+             '  assert((() => \'string\')()\n' +
+             '    // eslint-disable-next-line\n' +
+             '    ===\n' +
+             '    123 instanceof\n' +
+             '        Buffer)\n'
   }
 );
+
+common.expectsError(
+  () => {
+    a(
+      (() => 'string')()
+      // eslint-disable-next-line
+      ===
+  123 instanceof
+          Buffer
+    );
+  },
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: 'The expression evaluated to a falsy value:\n\n' +
+             '  assert((() => \'string\')()\n' +
+             '    // eslint-disable-next-line\n' +
+             '    ===\n' +
+             '  123 instanceof\n' +
+             '        Buffer)\n'
+  }
+);
+
+/* eslint-disable indent */
+common.expectsError(() => {
+a((
+  () => 'string')() ===
+123 instanceof
+Buffer
+);
+}, {
+  code: 'ERR_ASSERTION',
+  type: assert.AssertionError,
+  message: 'The expression evaluated to a falsy value:\n\n' +
+           '  assert((\n' +
+           '    () => \'string\')() ===\n' +
+           '  123 instanceof\n' +
+           '  Buffer)\n'
+  }
+);
+/* eslint-enable indent */
 
 common.expectsError(
   () => assert(null, undefined),
