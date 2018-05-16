@@ -360,6 +360,10 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/22756
+    description: The inspection output is now limited to about 128 MB. Data
+                 above that size will not be fully inspected.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20725
     description: Inspecting linked lists and similar objects is now possible
@@ -408,11 +412,11 @@ changes:
     TODO(BridgeAR): Deprecate `maxArrayLength` and replace it with
                     `maxEntries`.
     -->
-  * `maxArrayLength` {number} Specifies the maximum number of `Array`,
+  * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
     [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
     formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
-  * `breakLength` {number} The length at which an object's keys are split
+  * `breakLength` {integer} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. **Default:** `60` for legacy compatibility.
   * `compact` {boolean} Setting this to `false` changes the default indentation
@@ -532,9 +536,10 @@ console.log(inspect(weakSet, { showHidden: true }));
 ```
 
 Please note that `util.inspect()` is a synchronous method that is mainly
-intended as a debugging tool. Some input values can have a significant
-performance overhead that can block the event loop. Use this function
-with care and never in a hot code path.
+intended as a debugging tool. Its maximum output length is limited to
+approximately 128 MB and input values that result in output bigger than that
+will not be inspected fully. Such values can have a significant performance
+overhead that can block the event loop for a significant amount of time.
 
 ### Customizing `util.inspect` colors
 
