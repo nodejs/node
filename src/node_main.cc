@@ -27,7 +27,7 @@
 #include <VersionHelpers.h>
 #include <WinError.h>
 
-int wmain(int argc, wchar_t *wargv[]) {
+int wmain(int argc, wchar_t* wargv[]) {
   if (!IsWindows7OrGreater()) {
     fprintf(stderr, "This application is only supported on Windows 7, "
                     "Windows Server 2008 R2, or higher.");
@@ -91,7 +91,7 @@ namespace node {
   extern bool linux_at_secure;
 }  // namespace node
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 #if defined(__POSIX__) && defined(NODE_SHARED_MODE)
   // In node::PlatformInit(), we squash all signal handlers for non-shared lib
   // build. In order to run test cases against shared lib build, we also need

@@ -633,7 +633,7 @@ class QueryWrap : public AsyncWrap {
     wrap->env()->CloseHandle(handle, CaresAsyncClose);
   }
 
-  static void Callback(void *arg, int status, int timeouts,
+  static void Callback(void* arg, int status, int timeouts,
                        unsigned char* answer_buf, int answer_len) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
@@ -661,7 +661,7 @@ class QueryWrap : public AsyncWrap {
     uv_async_send(async_handle);
   }
 
-  static void Callback(void *arg, int status, int timeouts,
+  static void Callback(void* arg, int status, int timeouts,
                        struct hostent* host) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 

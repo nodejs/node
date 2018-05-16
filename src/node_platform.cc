@@ -16,7 +16,7 @@ using v8::Platform;
 using v8::Task;
 using v8::TracingController;
 
-static void BackgroundRunner(void *data) {
+static void BackgroundRunner(void* data) {
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "BackgroundTaskRunner");
   TaskQueue<Task> *background_tasks = static_cast<TaskQueue<Task> *>(data);

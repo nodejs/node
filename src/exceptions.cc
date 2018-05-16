@@ -22,9 +22,9 @@ using v8::Value;
 
 Local<Value> ErrnoException(Isolate* isolate,
                             int errorno,
-                            const char *syscall,
-                            const char *msg,
-                            const char *path) {
+                            const char* syscall,
+                            const char* msg,
+                            const char* path) {
   Environment* env = Environment::GetCurrent(isolate);
 
   Local<Value> e;
@@ -143,8 +143,8 @@ Local<Value> UVException(Isolate* isolate,
 #ifdef _WIN32
 // Does about the same as strerror(),
 // but supports all windows error messages
-static const char *winapi_strerror(const int errorno, bool* must_free) {
-  char *errmsg = nullptr;
+static const char* winapi_strerror(const int errorno, bool* must_free) {
+  char* errmsg = nullptr;
 
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
       FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, errorno,
