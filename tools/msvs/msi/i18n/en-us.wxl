@@ -22,7 +22,7 @@
     <String Id="npm_Description">Install npm, the recommended package manager for [ProductName].</String>
 
     <String Id="DocumentationShortcuts_Title">Online documentation shortcuts</String>
-    <String Id="DocumentationShortcuts_Description">Add start menu entries that link the the online documentation for [ProductName] [FullVersion] and the [ProductName] website.</String>
+    <String Id="DocumentationShortcuts_Description">Add start menu entries that link the online documentation for [ProductName] [FullVersion] and the [ProductName] website.</String>
 
     <String Id="EnvironmentPath_Title">Add to PATH</String>
     <String Id="EnvironmentPath_Description">Add [ProductName], npm, and modules that were globally installed by npm to the PATH environment variable.</String>
