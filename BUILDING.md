@@ -423,8 +423,9 @@ $ ./configure --link-module '/root/myModule.js' --link-module './myModule2.js'
 
 ### Windows
 
-To make `./myCustomModule.js` available via `require('myCustomModule')`.
+To make `./myModule.js` available via `require('myModule')` and
+`./myModule2.js` available via `require('myModule2')`:
 
 ```console
-> .\vcbuild link-module './myCustomModule.js'
+> .\vcbuild link-module './myModule.js' link-module './myModule2.js'
 ```
