@@ -2063,7 +2063,8 @@ node_module* get_linked_module(const char* name) {
   return FindModule(modlist_linked, name, NM_F_LINKED);
 }
 
-struct DLib {
+class DLib {
+ public:
 #ifdef __POSIX__
   static const int kDefaultFlags = RTLD_LAZY;
 #else
@@ -2084,7 +2085,7 @@ struct DLib {
 #ifndef __POSIX__
   uv_lib_t lib_;
 #endif
-
+ private:
   DISALLOW_COPY_AND_ASSIGN(DLib);
 };
 
