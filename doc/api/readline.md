@@ -379,6 +379,7 @@ changes:
     character (when reading an ambiguous key sequence in milliseconds one that 
     can both form a complete key sequence using the input read so far and can 
     take additional input to complete a longer key sequence).
+    **Default:** `500`.
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
