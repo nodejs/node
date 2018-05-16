@@ -84,4 +84,4 @@ CONTRIBUTING.md @nodejs/tsc
 CPP_STYLE_GUIDE.md @nodejs/tsc
 GOVERNANCE.md @nodejs/tsc
 LICENSE @nodejs/tsc
-README.md @nodejs/tsc
+/README.md @nodejs/tsc
