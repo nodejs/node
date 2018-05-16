@@ -141,7 +141,7 @@ function linkManPages(text) {
     MAN_PAGE, (match, beginning, name, number, optionalCharacter) => {
       // Name consists of lowercase letters,
       // number is a single digit with an optional lowercase letter.
-      const displayAs = `${name}(${number}${optionalCharacter})`;
+      const displayAs = `<code>${name}(${number}${optionalCharacter})</code>`;
 
       if (BSD_ONLY_SYSCALLS.has(name)) {
         return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi` +
