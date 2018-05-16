@@ -840,7 +840,7 @@ int Http2Session::OnFrameReceive(nghttp2_session* handle,
 }
 
 int Http2Session::OnInvalidFrame(nghttp2_session* handle,
-                                 const nghttp2_frame *frame,
+                                 const nghttp2_frame* frame,
                                  int lib_error_code,
                                  void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);

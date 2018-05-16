@@ -341,8 +341,8 @@ Local<Object> AddressToJS(Environment* env,
                           Local<Object> info) {
   EscapableHandleScope scope(env->isolate());
   char ip[INET6_ADDRSTRLEN];
-  const sockaddr_in *a4;
-  const sockaddr_in6 *a6;
+  const sockaddr_in* a4;
+  const sockaddr_in6* a6;
   int port;
 
   if (info.IsEmpty())
