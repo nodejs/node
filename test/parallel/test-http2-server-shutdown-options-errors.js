@@ -55,13 +55,7 @@ server.listen(
   0,
   common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
-    // On certain operating systems, an ECONNRESET may occur. We do not need
-    // to test for it here. Do not make this a mustCall
-    client.on('error', () => {});
     const req = client.request();
-    // On certain operating systems, an ECONNRESET may occur. We do not need
-    // to test for it here. Do not make this a mustCall
-    req.on('error', () => {});
     req.resume();
     req.on('close', common.mustCall(() => {
       client.close();

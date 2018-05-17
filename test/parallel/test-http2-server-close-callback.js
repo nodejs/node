@@ -9,11 +9,7 @@ const http2 = require('http2');
 const server = http2.createServer();
 
 server.listen(0, common.mustCall(() => {
-  const client = http2.connect(`http://localhost:${server.address().port}`);
-  client.on('error', (err) => {
-    if (err.code !== 'ECONNRESET')
-      throw err;
-  });
+  http2.connect(`http://localhost:${server.address().port}`);
 }));
 
 server.on('session', common.mustCall((s) => {
