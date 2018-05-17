@@ -5,6 +5,8 @@ const common = require('../common');
 // FIXME add sunos support
 if (common.isSunOS)
   common.skip(`Unsupported platform [${process.platform}]`);
+if (!common.isMainThread)
+  common.skip('Setting the process title from Workers is not supported');
 
 const assert = require('assert');
 const exec = require('child_process').exec;

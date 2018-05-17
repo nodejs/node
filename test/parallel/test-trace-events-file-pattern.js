@@ -5,6 +5,9 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 tmpdir.refresh();
 process.chdir(tmpdir.path);
 

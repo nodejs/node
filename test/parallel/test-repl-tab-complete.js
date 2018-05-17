@@ -26,6 +26,9 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const hasInspector = process.config.variables.v8_enable_inspector === 1;
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 // We have to change the directory to ../fixtures before requiring repl
 // in order to make the tests for completion of node_modules work properly
 // since repl modifies module.paths.

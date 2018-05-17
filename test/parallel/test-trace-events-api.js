@@ -5,6 +5,8 @@ const common = require('../common');
 
 if (!common.hasTracing)
   common.skip('missing trace events');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 const assert = require('assert');
 const cp = require('child_process');

@@ -5,6 +5,8 @@ const fixtures = require('../common/fixtures');
 // Refs: https://github.com/nodejs/node/pull/2253
 if (common.isSunOS)
   common.skip('unreliable on SunOS');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 const assert = require('assert');
 const childProcess = require('child_process');

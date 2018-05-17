@@ -6,6 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const names = [
   'environment',
   'nodeStart',
