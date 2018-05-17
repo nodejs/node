@@ -5,7 +5,6 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const repl = require('repl');
 
-
 function run({ command, expected }) {
   let accum = '';
 
@@ -39,8 +38,6 @@ process.on('uncaughtException', (e) => {
   Error.prepareStackTrace = origPrepareStackTrace;
   throw e;
 });
-
-process.on('exit', () => (Error.prepareStackTrace = origPrepareStackTrace));
 
 const tests = [
   {
