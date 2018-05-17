@@ -40,8 +40,6 @@ process.on('uncaughtException', (e) => {
   throw e;
 });
 
-process.on('exit', () => (Error.prepareStackTrace = origPrepareStackTrace));
-
 const tests = [
   {
     // test .load for a file that throws

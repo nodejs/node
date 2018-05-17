@@ -138,15 +138,46 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 ```
 
 #### Global Uncaught Exceptions
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/27151
+    description: The `'uncaughtException'` event is from now on triggered if the
+                 repl is used as standalone program.
+-->
 
 The REPL uses the [`domain`][] module to catch all uncaught exceptions for that
 REPL session.
 
 This use of the [`domain`][] module in the REPL has these side effects:
 
-* Uncaught exceptions do not emit the [`'uncaughtException'`][] event.
+* Uncaught exceptions only emit the [`'uncaughtException'`][] event if the
+  `repl` is used as standalone program. If the `repl` is included anywhere in
+  another application, adding a listener for this event will throw an
+  [`ERR_INVALID_REPL_INPUT`][] exception.
 * Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
   an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
+
+As standalone program:
+
+```js
+process.on('uncaughtException', () => console.log('Uncaught'));
+
+throw new Error('foobar');
+// Uncaught
+```
+
+When used in another application:
+
+```js
+process.on('uncaughtException', () => console.log('Uncaught'));
+// TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
+// cannot be used in the REPL
+
+throw new Error('foobar');
+// Thrown:
+// Error: foobar
+```
 
 #### Assignment of the `_` (underscore) variable
 <!-- YAML
@@ -661,6 +692,7 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
 [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
+[`ERR_INVALID_REPL_INPUT`]: errors.html#errors_err_invalid_repl_input
 [`domain`]: domain.html
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
