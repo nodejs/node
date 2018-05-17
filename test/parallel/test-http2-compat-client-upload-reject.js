@@ -17,17 +17,10 @@ assert(fs.existsSync(loc));
 fs.readFile(loc, common.mustCall((err, data) => {
   assert.ifError(err);
 
-  const server = http2.createServer();
-
-  server.on('stream', common.mustCall((stream) => {
-    // Wait for some data to come through.
+  const server = http2.createServer(common.mustCall((req, res) => {
     setImmediate(() => {
-      stream.on('close', common.mustCall(() => {
-        assert.strictEqual(stream.rstCode, 0);
-      }));
-
-      stream.respond({ ':status': 400 });
-      stream.end();
+      res.writeHead(400);
+      res.end();
     });
   }));
 
