@@ -3,6 +3,9 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const CODE = `console.log(
   process.binding("trace_events").categoryGroupEnabled("custom")
 );`;

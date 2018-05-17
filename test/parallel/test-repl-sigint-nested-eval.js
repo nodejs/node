@@ -4,6 +4,8 @@ if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
 }
+if (!common.isMainThread)
+  common.skip('No signal handling available in Workers');
 
 const assert = require('assert');
 const spawn = require('child_process').spawn;

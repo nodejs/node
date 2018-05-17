@@ -4,6 +4,8 @@ const common = require('../common');
 
 if (!common.canCreateSymLink())
   common.skip('insufficient privileges');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
 const assert = require('assert');
 const { spawn } = require('child_process');

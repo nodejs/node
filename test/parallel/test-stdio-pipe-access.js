@@ -1,5 +1,7 @@
 'use strict';
-require('../common');
+const common = require('../common');
+if (!common.isMainThread)
+  common.skip('Workers don’t have process-like stdio');
 
 // Test if Node handles acessing process.stdin if it is a redirected
 // pipe without deadlocking
