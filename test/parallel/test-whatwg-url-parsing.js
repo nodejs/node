@@ -40,8 +40,7 @@ const aboutBlankFailures = originalFailures
     input: 'about:blank',
     base: test.input,
     failure: true
-  })
-);
+  }));
 
 const failureTests = originalFailures
   .concat(typeFailures)
