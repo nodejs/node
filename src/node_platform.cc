@@ -82,12 +82,14 @@ void PerIsolatePlatformData::PostIdleTask(std::unique_ptr<v8::IdleTask> task) {
 }
 
 void PerIsolatePlatformData::PostTask(std::unique_ptr<Task> task) {
+  CHECK_NE(flush_tasks_, nullptr);
   foreground_tasks_.Push(std::move(task));
   uv_async_send(flush_tasks_);
 }
 
 void PerIsolatePlatformData::PostDelayedTask(
     std::unique_ptr<Task> task, double delay_in_seconds) {
+  CHECK_NE(flush_tasks_, nullptr);
   std::unique_ptr<DelayedTask> delayed(new DelayedTask());
   delayed->task = std::move(task);
   delayed->platform_data = shared_from_this();
@@ -97,6 +99,13 @@ void PerIsolatePlatformData::PostDelayedTask(
 }
 
 PerIsolatePlatformData::~PerIsolatePlatformData() {
+  Shutdown();
+}
+
+void PerIsolatePlatformData::Shutdown() {
+  if (flush_tasks_ == nullptr)
+    return;
+
   while (FlushForegroundTasksInternal()) {}
   CancelPendingDelayedTasks();
 
@@ -104,6 +113,7 @@ PerIsolatePlatformData::~PerIsolatePlatformData() {
            [](uv_handle_t* handle) {
     delete reinterpret_cast<uv_async_t*>(handle);
   });
+  flush_tasks_ = nullptr;
 }
 
 void PerIsolatePlatformData::ref() {
@@ -144,6 +154,7 @@ void NodePlatform::UnregisterIsolate(IsolateData* isolate_data) {
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
   CHECK(existing);
   if (existing->unref() == 0) {
+    existing->Shutdown();
     per_isolate_.erase(isolate);
   }
 }
