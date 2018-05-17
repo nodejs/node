@@ -568,9 +568,9 @@ terminals.
 
 <!-- type=misc -->
 
-Objects may also define their own `[util.inspect.custom](depth, opts)`
-(or the equivalent but deprecated `inspect(depth, opts)`) function that
-`util.inspect()` will invoke and use the result of when inspecting the object:
+Objects may also define their own `[util.inspect.custom](depth, opts)` function
+that `util.inspect()` will invoke and use the result of when inspecting the
+object:
 
 ```js
 const util = require('util');
