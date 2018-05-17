@@ -24,6 +24,9 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');

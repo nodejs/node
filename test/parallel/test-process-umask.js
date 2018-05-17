@@ -22,6 +22,8 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+if (!common.isMainThread)
+  common.skip('process.umask is not available in Workers');
 
 // Note in Windows one can only set the "user" bits.
 let mask;

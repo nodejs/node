@@ -28,6 +28,9 @@ const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const expectFilePath = common.isWindows ||
                        common.isLinux ||
                        common.isOSX ||
