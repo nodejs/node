@@ -16,7 +16,8 @@ const url = new URL('https://username:password@host.name:8080/path/name/?que=ry#
 assert.strictEqual(
   util.inspect(url),
   `URL {
-  href: 'https://username:password@host.name:8080/path/name/?que=ry#hash',
+  href:
+   'https://username:password@host.name:8080/path/name/?que=ry#hash',
   origin: 'https://host.name:8080',
   protocol: 'https:',
   username: 'username',
@@ -32,7 +33,8 @@ assert.strictEqual(
 assert.strictEqual(
   util.inspect(url, { showHidden: true }),
   `URL {
-  href: 'https://username:password@host.name:8080/path/name/?que=ry#hash',
+  href:
+   'https://username:password@host.name:8080/path/name/?que=ry#hash',
   origin: 'https://host.name:8080',
   protocol: 'https:',
   username: 'username',
@@ -46,7 +48,7 @@ assert.strictEqual(
   hash: '#hash',
   cannotBeBase: false,
   special: true,
-  [Symbol(context)]:\x20
+  [Symbol(context)]:
    URLContext {
      flags: 2032,
      scheme: 'https:',

@@ -1237,7 +1237,7 @@ util.inspect(process);
 
   let out = util.inspect(o, { compact: true, depth: 5, breakLength: 80 });
   let expect = [
-    '{ a: ',
+    '{ a:',
     '   [ 1,',
     '     2,',
     "     [ [ 'Lorem ipsum dolor\\nsit amet,\\tconsectetur adipiscing elit, " +
