@@ -1382,6 +1382,9 @@ def BuildOptions():
   result.add_option("--flaky-tests",
       help="Regard tests marked as flaky (run|skip|dontcare)",
       default="run")
+  result.add_option("--skip-tests",
+      help="Tests that should not be executed (comma-separated)",
+      default="")
   result.add_option("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -1424,6 +1427,7 @@ def ProcessOptions(options):
   options.arch = options.arch.split(',')
   options.mode = options.mode.split(',')
   options.run = options.run.split(',')
+  options.skip_tests = options.skip_tests.split(',')
   if options.run == [""]:
     options.run = None
   elif len(options.run) != 2:
@@ -1710,6 +1714,11 @@ def Main():
 
   result = None
   def DoSkip(case):
+    # A list of tests that should be skipped can be provided. This is
+    # useful for tests that fail in some environments, e.g., under coverage.
+    if options.skip_tests != [""]:
+        if [ st for st in options.skip_tests if st in case.case.file ]:
+            return True
     if SKIP in case.outcomes or SLOW in case.outcomes:
       return True
     return FLAKY in case.outcomes and options.flaky_tests == SKIP
