@@ -1,8 +1,10 @@
 'use strict';
 
-const { expectsError } = require('../common');
+const common = require('../common');
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
-expectsError(
+common.expectsError(
   () => {
     process.chdir('does-not-exist');
   },

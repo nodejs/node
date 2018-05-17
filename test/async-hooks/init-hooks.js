@@ -1,7 +1,7 @@
 'use strict';
 // Flags: --expose-gc
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const util = require('util');
@@ -162,6 +162,10 @@ class ActivityCollector {
         const stub = { uid, type: 'Unknown', handleIsObject: true };
         this._activities.set(uid, stub);
         return stub;
+      } else if (!common.isMainThread) {
+        // Worker threads start main script execution inside of an AsyncWrap
+        // callback, so we don't yield errors for these.
+        return null;
       } else {
         const err = new Error(`Found a handle whose ${hook}` +
                               ' hook was invoked but not its init hook');

@@ -39,6 +39,8 @@ common.crashOnUnhandledRejection();
     delete providers.STREAMPIPE;
     delete providers.MESSAGEPORT;
     delete providers.WORKER;
+    if (!common.isMainThread)
+      delete providers.INSPECTORJSBINDING;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
@@ -281,7 +283,8 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   testInitialized(req, 'SendWrap');
 }
 
-if (process.config.variables.v8_enable_inspector !== 0) {
+if (process.config.variables.v8_enable_inspector !== 0 &&
+    common.isMainThread) {
   const binding = process.binding('inspector');
   const handle = new binding.Connection(() => {});
   testInitialized(handle, 'Connection');

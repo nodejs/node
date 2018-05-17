@@ -5,6 +5,9 @@
 const common = require('../common');
 const assert = require('assert');
 
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different timing');
+
 const async_hooks = require('async_hooks');
 
 const seenEvents = [];

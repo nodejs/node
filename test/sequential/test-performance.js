@@ -4,6 +4,9 @@ const common = require('../common');
 const assert = require('assert');
 const { performance } = require('perf_hooks');
 
+if (!common.isMainThread)
+  common.skip('bootstrapping workers works differently');
+
 assert(performance);
 assert(performance.nodeTiming);
 assert.strictEqual(typeof performance.timeOrigin, 'number');
