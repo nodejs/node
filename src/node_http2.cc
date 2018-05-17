@@ -631,9 +631,9 @@ inline void Http2Session::EmitStatistics() {
 void Http2Session::Close(uint32_t code, bool socket_closed) {
   DEBUG_HTTP2SESSION(this, "closing session");
 
-  if (flags_ & SESSION_STATE_CLOSED)
+  if (flags_ & SESSION_STATE_CLOSING)
     return;
-  flags_ |= SESSION_STATE_CLOSED;
+  flags_ |= SESSION_STATE_CLOSING;
 
   // Stop reading on the i/o stream
   if (stream_ != nullptr)
@@ -641,15 +641,17 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
 
   // If the socket is not closed, then attempt to send a closing GOAWAY
   // frame. There is no guarantee that this GOAWAY will be received by
-  // the peer but the HTTP/2 spec recommends sendinng it anyway. We'll
+  // the peer but the HTTP/2 spec recommends sending it anyway. We'll
   // make a best effort.
   if (!socket_closed) {
-    Http2Scope h2scope(this);
     DEBUG_HTTP2SESSION2(this, "terminating session with code %d", code);
     CHECK_EQ(nghttp2_session_terminate_session(session_, code), 0);
+    SendPendingData();
   } else {
     Unconsume();
   }
+
+  flags_ |= SESSION_STATE_CLOSED;
 
   // If there are outstanding pings, those will need to be canceled, do
   // so on the next iteration of the event loop to avoid calling out into
@@ -1387,24 +1389,31 @@ void Http2Session::MaybeScheduleWrite() {
   }
 }
 
+void Http2Session::MaybeStopReading() {
+  int want_read = nghttp2_session_want_read(session_);
+  DEBUG_HTTP2SESSION2(this, "wants read? %d", want_read);
+  if (want_read == 0)
+    stream_->ReadStop();
+}
+
 // Unset the sending state, finish up all current writes, and reset
 // storage for data and metadata that was associated with these writes.
 void Http2Session::ClearOutgoing(int status) {
   CHECK_NE(flags_ & SESSION_STATE_SENDING, 0);
 
+  flags_ &= ~SESSION_STATE_SENDING;
+
   if (outgoing_buffers_.size() > 0) {
     outgoing_storage_.clear();
 
-    for (const nghttp2_stream_write& wr : outgoing_buffers_) {
+    std::vector<nghttp2_stream_write> current_outgoing_buffers_;
+    current_outgoing_buffers_.swap(outgoing_buffers_);
+    for (const nghttp2_stream_write& wr : current_outgoing_buffers_) {
       WriteWrap* wrap = wr.req_wrap;
       if (wrap != nullptr)
         wrap->Done(status);
     }
-
-    outgoing_buffers_.clear();
   }
-
-  flags_ &= ~SESSION_STATE_SENDING;
 
   // Now that we've finished sending queued data, if there are any pending
   // RstStreams we should try sending again and then flush them one by one.
@@ -1525,8 +1534,7 @@ uint8_t Http2Session::SendPendingData() {
     req->Dispose();
   }
 
-  DEBUG_HTTP2SESSION2(this, "wants data in return? %d",
-                      nghttp2_session_want_read(session_));
+  MaybeStopReading();
 
   return 0;
 }
@@ -1691,8 +1699,7 @@ void Http2Session::OnStreamReadImpl(ssize_t nread,
       };
       session->MakeCallback(env->error_string(), arraysize(argv), argv);
     } else {
-      DEBUG_HTTP2SESSION2(session, "processed %d bytes. wants more? %d", ret,
-                          nghttp2_session_want_read(**session));
+      session->MaybeStopReading();
     }
   }
 
@@ -1928,6 +1935,7 @@ void Http2Stream::OnTrailers() {
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
+  flags_ &= ~NGHTTP2_STREAM_FLAG_TRAILERS;
   MakeCallback(env()->ontrailers_string(), 0, nullptr);
 }
 
@@ -1936,7 +1944,16 @@ int Http2Stream::SubmitTrailers(nghttp2_nv* nva, size_t len) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
   DEBUG_HTTP2STREAM2(this, "sending %d trailers", len);
-  int ret = nghttp2_submit_trailer(**session_, id_, nva, len);
+  int ret;
+  // Sending an empty trailers frame poses problems in Safari, Edge & IE.
+  // Instead we can just send an empty data frame with NGHTTP2_FLAG_END_STREAM
+  // to indicate that the stream is ready to be closed.
+  if (len == 0) {
+    Http2Stream::Provider::Stream prov(this, 0);
+    ret = nghttp2_submit_data(**session_, NGHTTP2_FLAG_END_STREAM, id_, *prov);
+  } else {
+    ret = nghttp2_submit_trailer(**session_, id_, nva, len);
+  }
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -2562,8 +2579,7 @@ void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
 
   Headers list(isolate, context, headers);
   args.GetReturnValue().Set(stream->SubmitInfo(*list, list.length()));
-  DEBUG_HTTP2STREAM2(stream, "%d informational headers sent",
-                     headers->Length());
+  DEBUG_HTTP2STREAM2(stream, "%d informational headers sent", list.length());
 }
 
 // Submits trailing headers on the Http2Stream
@@ -2578,7 +2594,7 @@ void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
 
   Headers list(isolate, context, headers);
   args.GetReturnValue().Set(stream->SubmitTrailers(*list, list.length()));
-  DEBUG_HTTP2STREAM2(stream, "%d trailing headers sent", headers->Length());
+  DEBUG_HTTP2STREAM2(stream, "%d trailing headers sent", list.length());
 }
 
 // Grab the numeric id of the Http2Stream

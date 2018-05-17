@@ -29,9 +29,10 @@ function doTest(session) {
 
   server.listen(0, common.mustCall(() => {
     const client = h2.connect(`http://localhost:${server.address().port}`);
-    // On some operating systems, an ECONNRESET error may be emitted.
-    // On others it won't be. Do not make this a mustCall
-    client.on('error', () => {});
+    client.on('error', common.expectsError({
+      code: 'ERR_HTTP2_SESSION_ERROR',
+      message: 'Session closed with error code 2',
+    }));
     client.on('close', common.mustCall(() => server.close()));
   }));
 }

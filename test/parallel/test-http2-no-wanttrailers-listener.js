@@ -3,7 +3,6 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const assert = require('assert');
 const h2 = require('http2');
 
 const server = h2.createServer();
@@ -25,9 +24,7 @@ server.on('listening', common.mustCall(function() {
   const client = h2.connect(`http://localhost:${this.address().port}`);
   const req = client.request();
   req.resume();
-  req.on('trailers', common.mustCall((headers) => {
-    assert.strictEqual(Object.keys(headers).length, 0);
-  }));
+  req.on('trailers', common.mustNotCall());
   req.on('close', common.mustCall(() => {
     server.close();
     client.close();

@@ -18,6 +18,7 @@ server.on('stream', common.mustCall(onStream));
 function onStream(stream, headers, flags) {
   stream.on('trailers', common.mustCall((headers) => {
     assert.strictEqual(headers[trailerKey], trailerValue);
+    stream.end(body);
   }));
   stream.respond({
     'content-type': 'text/html',
@@ -41,8 +42,6 @@ function onStream(stream, headers, flags) {
       type: Error
     }
   );
-
-  stream.end(body);
 }
 
 server.listen(0);
