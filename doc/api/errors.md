@@ -1310,8 +1310,14 @@ An invalid `options.protocol` was passed to `http.request()`.
 <a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
 ### ERR_INVALID_REPL_EVAL_CONFIG
 
-Both `breakEvalOnSigint` and `eval` options were set in the REPL config, which
-is not supported.
+Both `breakEvalOnSigint` and `eval` options were set in the [`REPL`][] config,
+which is not supported.
+
+<a id="ERR_INVALID_REPL_INPUT"></a>
+### ERR_INVALID_REPL_INPUT
+
+The input may not be used in the [`REPL`][]. All prohibited inputs are
+documented in the [`REPL`][]'s documentation.
 
 <a id="ERR_INVALID_RETURN_PROPERTY"></a>
 ### ERR_INVALID_RETURN_PROPERTY
@@ -2307,6 +2313,7 @@ such as `process.stdout.on('data')`.
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`REPL`]: repl.html
 [`Writable`]: stream.html#stream_class_stream_writable
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
