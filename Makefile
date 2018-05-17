@@ -266,7 +266,6 @@ test-cov: all
 	$(MAKE) build-addons-napi
 	# $(MAKE) cctest
 	$(MAKE) jstest
-	$(MAKE) lint
 
 test-parallel: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel
