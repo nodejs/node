@@ -571,7 +571,7 @@ assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
 {
   const x = { [util.inspect.custom]: util.inspect };
   assert(util.inspect(x).includes(
-    '[Symbol(util.inspect.custom)]: \n   { [Function: inspect]'));
+    '[Symbol(util.inspect.custom)]:\n   { [Function: inspect]'));
 }
 
 // `util.inspect` should display the escaped value of a key.
@@ -1188,7 +1188,7 @@ util.inspect(process);
 
   let out = util.inspect(o, { compact: true, depth: 5, breakLength: 80 });
   let expect = [
-    '{ a: ',
+    '{ a:',
     '   [ 1,',
     '     2,',
     "     [ [ 'Lorem ipsum dolor\\nsit amet,\\tconsectetur adipiscing elit, " +
