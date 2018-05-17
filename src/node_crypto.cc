@@ -311,7 +311,7 @@ bool EntropySource(unsigned char* buffer, size_t length) {
 
 
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(SecureContext::New);
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   Local<String> secureContextString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext");
@@ -464,8 +464,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       RAND_bytes(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_)) <= 0) {
     return env->ThrowError("Error generating ticket keys");
   }
-  SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(),
-                                   SecureContext::TicketCompatibilityCallback);
+  SSL_CTX_set_tlsext_ticket_key_cb(sc->ctx_.get(), TicketCompatibilityCallback);
 }
 
 
@@ -1916,8 +1915,7 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
     sbuf.assign(p, p + slen);
 
   const unsigned char* p = reinterpret_cast<const unsigned char*>(sbuf.data());
-  SSLSessionPointer sess(
-      d2i_SSL_SESSION(nullptr, &p, slen));
+  SSLSessionPointer sess(d2i_SSL_SESSION(nullptr, &p, slen));
 
   if (sess == nullptr)
     return;
@@ -2020,8 +2018,7 @@ void SSLWrap<Base>::NewSessionDone(const FunctionCallbackInfo<Value>& args) {
 
 
 template <class Base>
-void SSLWrap<Base>::SetOCSPResponse(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void SSLWrap<Base>::SetOCSPResponse(const FunctionCallbackInfo<Value>& args) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
@@ -2038,8 +2035,7 @@ void SSLWrap<Base>::SetOCSPResponse(
 
 
 template <class Base>
-void SSLWrap<Base>::RequestOCSP(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void SSLWrap<Base>::RequestOCSP(const FunctionCallbackInfo<Value>& args) {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
@@ -2051,7 +2047,7 @@ void SSLWrap<Base>::RequestOCSP(
 
 template <class Base>
 void SSLWrap<Base>::GetEphemeralKeyInfo(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = Environment::GetCurrent(args);
@@ -2111,7 +2107,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
 #ifdef SSL_set_max_send_fragment
 template <class Base>
 void SSLWrap<Base>::SetMaxSendFragment(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() >= 1 && args[0]->IsNumber());
 
   Base* w;
@@ -2265,7 +2261,7 @@ int SSLWrap<Base>::SelectALPNCallback(SSL* s,
 
 template <class Base>
 void SSLWrap<Base>::GetALPNNegotiatedProto(
-    const FunctionCallbackInfo<v8::Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
@@ -2285,8 +2281,7 @@ void SSLWrap<Base>::GetALPNNegotiatedProto(
 
 
 template <class Base>
-void SSLWrap<Base>::SetALPNProtocols(
-    const FunctionCallbackInfo<v8::Value>& args) {
+void SSLWrap<Base>::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
@@ -3162,7 +3157,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hmac::Initialize(Environment* env, v8::Local<v8::Object> target) {
+void Hmac::Initialize(Environment* env, v8::Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3282,7 +3277,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hash::Initialize(Environment* env, v8::Local<v8::Object> target) {
+void Hash::Initialize(Environment* env, v8::Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3474,7 +3469,7 @@ static bool ApplyRSAOptions(const EVPKeyPointer& pkey,
 
 
 
-void Sign::Initialize(Environment* env, v8::Local<v8::Object> target) {
+void Sign::Initialize(Environment* env, v8::Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3640,7 +3635,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Verify::Initialize(Environment* env, v8::Local<v8::Object> target) {
+void Verify::Initialize(Environment* env, v8::Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -4220,7 +4215,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
       Buffer::New(env->isolate(), data.release(), data.size).ToLocalChecked());
 }
 
-void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
+void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<Value>& args,
                            int (*set_field)(DH*, BIGNUM*), const char* what) {
   Environment* env = Environment::GetCurrent(args);
 
