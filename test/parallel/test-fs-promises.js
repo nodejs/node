@@ -113,28 +113,10 @@ function verifyStatObject(stat) {
     await fchmod(handle, 0o666);
     await handle.chmod(0o666);
 
-    // `mode` can't be > 0o777
-    assert.rejects(
-      async () => chmod(handle, (0o777 + 1)),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
-      }
-    );
-    assert.rejects(
-      async () => fchmod(handle, (0o777 + 1)),
-      {
-        code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError [ERR_OUT_OF_RANGE]'
-      }
-    );
-    assert.rejects(
-      async () => handle.chmod(handle, (0o777 + 1)),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError [ERR_INVALID_ARG_TYPE]'
-      }
-    );
+    // Mode larger than 0o777 should be masked off.
+    await chmod(dest, (0o777 + 1));
+    await fchmod(handle, 0o777 + 1);
+    await handle.chmod(0o777 + 1);
 
     await utimes(dest, new Date(), new Date());
 
