@@ -519,11 +519,49 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   const tmp = Error.stackTraceLimit;
   Error.stackTraceLimit = 0;
   const err = new Error('foo');
-  assert.strictEqual(util.inspect(err), '[Error: foo]');
+  const err2 = new Error('foo\nbar');
+  assert.strictEqual(util.inspect(err, { compact: true }), '[Error: foo]');
   assert(err.stack);
   delete err.stack;
   assert(!err.stack);
-  assert.strictEqual(util.inspect(err), '[Error: foo]');
+  assert.strictEqual(util.inspect(err, { compact: true }), '[Error: foo]');
+  assert.strictEqual(
+    util.inspect(err2, { compact: true }),
+    '[Error: foo\nbar]'
+  );
+
+  err.bar = true;
+  err2.bar = true;
+
+  assert.strictEqual(
+    util.inspect(err, { compact: true }),
+    '{ [Error: foo] bar: true }'
+  );
+  assert.strictEqual(
+    util.inspect(err2, { compact: true }),
+    '{ [Error: foo\nbar] bar: true }'
+  );
+  assert.strictEqual(
+    util.inspect(err, { compact: true, breakLength: 5 }),
+    '{ [Error: foo]\n  bar: true }'
+  );
+  assert.strictEqual(
+    util.inspect(err, { compact: true, breakLength: 1 }),
+    '{ [Error: foo]\n  bar:\n   true }'
+  );
+  assert.strictEqual(
+    util.inspect(err2, { compact: true, breakLength: 5 }),
+    '{ [Error: foo\nbar]\n  bar: true }'
+  );
+  assert.strictEqual(
+    util.inspect(err, { compact: false }),
+    '[Error: foo] {\n  bar: true\n}'
+  );
+  assert.strictEqual(
+    util.inspect(err2, { compact: false }),
+    '[Error: foo\nbar] {\n  bar: true\n}'
+  );
+
   Error.stackTraceLimit = tmp;
 }
 
