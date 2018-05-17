@@ -393,8 +393,9 @@ changes:
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Colors are customizable, see [Customizing `util.inspect` colors][].
     **Default:** `false`.
-  * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
-    functions will not be called. **Default:** `true`.
+  * `customInspect` {boolean} If `false`, then
+    `[util.inspect.custom](depth, opts)` functions will not be called.
+    **Default:** `true`.
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
     objects. **Default:** `false`.
@@ -416,7 +417,6 @@ changes:
     objects the same as arrays. Note that no text will be reduced below 16
     characters, no matter the `breakLength` size. For more information, see the
     example below. **Default:** `true`.
-
 * Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
@@ -425,6 +425,11 @@ and should not be depended upon programmatically. Additional `options` may be
 passed that alter certain aspects of the formatted string.
 `util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
 an identifiable tag for an inspected value.
+
+Values may supply their own custom inspection function
+(`[util.inspect.custom](depth, opts)`), when called these receive the current
+`depth` in the recursive inspection, as well as the options object passed to
+`util.inspect()`.
 
 ```js
 class Foo {
@@ -449,10 +454,6 @@ const util = require('util');
 
 console.log(util.inspect(util, { showHidden: true, depth: null }));
 ```
-
-Values may supply their own custom `inspect(depth, opts)` functions, when
-called these receive the current `depth` in the recursive inspection, as well as
-the options object passed to `util.inspect()`.
 
 The following example highlights the difference with the `compact` option:
 
