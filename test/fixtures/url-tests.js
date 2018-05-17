@@ -2,7 +2,7 @@
 
 /* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
-   https://github.com/w3c/web-platform-tests/blob/ed4bb727ed/url/urltestdata.json
+   https://github.com/w3c/web-platform-tests/blob/88b75886e/url/urltestdata.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
@@ -6529,27 +6529,34 @@ module.exports =
     "search": "?a",
     "hash": "#%GH"
   },
-  "Bad bases",
+  "URLs that require a non-about:blank base. (Also serve as invalid base tests.)",
   {
-    "input": "test-a.html",
-    "base": "a",
+    "input": "a",
+    "base": "about:blank",
     "failure": true
   },
   {
-    "input": "test-a-slash.html",
-    "base": "a/",
+    "input": "a/",
+    "base": "about:blank",
     "failure": true
   },
   {
-    "input": "test-a-slash-slash.html",
-    "base": "a//",
+    "input": "a//",
+    "base": "about:blank",
     "failure": true
   },
+  "Bases that don't fail to parse but fail to be bases",
   {
     "input": "test-a-colon.html",
     "base": "a:",
     "failure": true
   },
+  {
+    "input": "test-a-colon-b.html",
+    "base": "a:b",
+    "failure": true
+  },
+  "Other base URL tests, that must succeed",
   {
     "input": "test-a-colon-slash.html",
     "base": "a:/",
@@ -6577,11 +6584,6 @@ module.exports =
     "pathname": "/test-a-colon-slash-slash.html",
     "search": "",
     "hash": ""
-  },
-  {
-    "input": "test-a-colon-b.html",
-    "base": "a:b",
-    "failure": true
   },
   {
     "input": "test-a-colon-slash-b.html",
