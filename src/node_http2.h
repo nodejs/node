@@ -433,7 +433,8 @@ enum session_state_flags {
   SESSION_STATE_HAS_SCOPE = 0x1,
   SESSION_STATE_WRITE_SCHEDULED = 0x2,
   SESSION_STATE_CLOSED = 0x4,
-  SESSION_STATE_SENDING = 0x8,
+  SESSION_STATE_CLOSING = 0x8,
+  SESSION_STATE_SENDING = 0x10,
 };
 
 // This allows for 4 default-sized frames with their frame headers
@@ -624,7 +625,7 @@ class Http2Stream : public AsyncWrap,
 
   inline bool IsClosed() const {
     return flags_ & NGHTTP2_STREAM_FLAG_CLOSED;
-    }
+  }
 
   inline bool HasTrailers() const {
     return flags_ & NGHTTP2_STREAM_FLAG_TRAILERS;
@@ -845,6 +846,9 @@ class Http2Session : public AsyncWrap {
 
   // Schedule a write if nghttp2 indicates it wants to write to the socket.
   void MaybeScheduleWrite();
+
+  // Stop reading if nghttp2 doesn't want to anymore.
+  void MaybeStopReading();
 
   // Returns pointer to the stream, or nullptr if stream does not exist
   inline Http2Stream* FindStream(int32_t id);
