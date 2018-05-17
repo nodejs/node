@@ -153,7 +153,7 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
 #endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 
 
-static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
+static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   if (u) {
     size_t buflen = static_cast<size_t>(size);
     size_t len = strlen(static_cast<const char*>(u));
@@ -206,7 +206,7 @@ static ENGINE* LoadEngineById(const char* engine_id, char (*errmsg)[1024]) {
 // for the OpenSSL CLI, but works poorly for Node.js because it involves
 // synchronous interaction with the controlling terminal, something we never
 // want, and use this function to avoid it.
-static int NoPasswordCallback(char *buf, int size, int rwflag, void *u) {
+static int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
@@ -726,7 +726,7 @@ static X509_STORE* NewRootCertStore() {
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
-      X509 *x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
+      X509* x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
       BIO_free(bp);
 
       // Parse errors from the built-in roots are fatal.
@@ -743,7 +743,7 @@ static X509_STORE* NewRootCertStore() {
   if (ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
   } else {
-    for (X509 *cert : root_certs_vector) {
+    for (X509* cert : root_certs_vector) {
       X509_up_ref(cert);
       X509_STORE_add_cert(store, cert);
     }
@@ -1994,7 +1994,7 @@ void SSLWrap<Base>::GetTLSTicket(const FunctionCallbackInfo<Value>& args) {
   if (sess == nullptr)
     return;
 
-  const unsigned char *ticket;
+  const unsigned char* ticket;
   size_t length;
   SSL_SESSION_get0_ticket(sess, &ticket, &length);
 
@@ -2771,7 +2771,7 @@ static bool IsValidGCMTagLength(unsigned int tag_len) {
   return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
 }
 
-bool CipherBase::InitAuthenticated(const char *cipher_type, int iv_len,
+bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
                                    unsigned int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
 
@@ -3085,7 +3085,7 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool CipherBase::Final(unsigned char** out, int *out_len) {
+bool CipherBase::Final(unsigned char** out, int* out_len) {
   if (!ctx_)
     return false;
 
