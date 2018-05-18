@@ -45,6 +45,7 @@ using v8::PromiseHookType;
 using v8::PropertyCallbackInfo;
 using v8::RetainedObjectInfo;
 using v8::String;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -131,6 +132,23 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 
 
 // end RetainedAsyncInfo
+
+
+struct AsyncWrapObject : public AsyncWrap {
+  static inline void New(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    CHECK(args.IsConstructCall());
+    CHECK(env->async_wrap_constructor_template()->HasInstance(args.This()));
+    CHECK(args[0]->IsUint32());
+    auto type = static_cast<ProviderType>(args[0].As<Uint32>()->Value());
+    new AsyncWrapObject(env, args.This(), type);
+  }
+
+  inline AsyncWrapObject(Environment* env, Local<Object> object,
+                         ProviderType type) : AsyncWrap(env, object, type) {}
+
+  inline size_t self_size() const override { return sizeof(*this); }
+};
 
 
 static void DestroyAsyncIdsCallback(Environment* env, void* data) {
@@ -569,6 +587,19 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_destroy_function(Local<Function>());
   env->set_async_hooks_promise_resolve_function(Local<Function>());
   env->set_async_hooks_binding(target);
+
+  {
+    auto class_name = FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap");
+    auto function_template = env->NewFunctionTemplate(AsyncWrapObject::New);
+    function_template->SetClassName(class_name);
+    AsyncWrap::AddWrapMethods(env, function_template);
+    auto instance_template = function_template->InstanceTemplate();
+    instance_template->SetInternalFieldCount(1);
+    auto function =
+        function_template->GetFunction(env->context()).ToLocalChecked();
+    target->Set(env->context(), class_name, function).FromJust();
+    env->set_async_wrap_constructor_template(function_template);
+  }
 }
 
 

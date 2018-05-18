@@ -75,6 +75,7 @@ namespace node {
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
   V(PBKDF2REQUEST)                                                            \
   V(RANDOMBYTESREQUEST)                                                       \
+  V(SCRYPTREQUEST)                                                            \
   V(TLSWRAP)
 #else
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)

@@ -739,6 +739,18 @@ An invalid [crypto digest algorithm][] was specified.
 A crypto method was used on an object that was in an invalid state. For
 instance, calling [`cipher.getAuthTag()`][] before calling `cipher.final()`.
 
+<a id="ERR_CRYPTO_SCRYPT_INVALID_PARAMETER"></a>
+### ERR_CRYPTO_SCRYPT_INVALID_PARAMETER
+
+One or more [`crypto.scrypt()`][] or [`crypto.scryptSync()`][] parameters are
+outside their legal range.
+
+<a id="ERR_CRYPTO_SCRYPT_NOT_SUPPORTED"></a>
+### ERR_CRYPTO_SCRYPT_NOT_SUPPORTED
+
+Node.js was compiled without `scrypt` support. Not possible with the official
+release binaries but can happen with custom builds, including distro builds.
+
 <a id="ERR_CRYPTO_SIGN_KEY_REQUIRED"></a>
 ### ERR_CRYPTO_SIGN_KEY_REQUIRED
 
@@ -1749,6 +1761,8 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
+[`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
+[`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptSync_password_salt_keylen_options
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE

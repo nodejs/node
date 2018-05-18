@@ -523,6 +523,8 @@ class InternalCallbackScope {
 class ThreadPoolWork {
  public:
   explicit inline ThreadPoolWork(Environment* env) : env_(env) {}
+  inline virtual ~ThreadPoolWork() = default;
+
   inline void ScheduleWork();
   inline int CancelWork();
 
