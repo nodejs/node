@@ -14,9 +14,7 @@ let knownGlobals = [
   process,
   setImmediate,
   setInterval,
-  setTimeout,
-  TextDecoder,
-  TextEncoder
+  setTimeout
 ];
 
 if (process.env.NODE_TEST_KNOWN_GLOBALS) {
