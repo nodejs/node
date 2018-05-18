@@ -287,7 +287,8 @@ added: v0.1.98
 
 The `rl.write()` method will write either `data` or a key sequence identified
 by `key` to the `output`. The `key` argument is supported only if `output` is
-a [TTY][] text terminal.
+a [TTY][] text terminal. See [`TTY keybindings`][] for a list of covered key 
+combinations.
 
 If `key` is specified, `data` is ignored.
 
@@ -535,3 +536,4 @@ rl.on('line', (line) => {
 [TTY]: tty.html
 [Writable]: stream.html#stream_writable_streams
 [reading files]: #readline_example_read_file_stream_line_by_line
+[`TTY keybindings`]: tty.html#tty_tty_keybindings
