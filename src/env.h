@@ -319,6 +319,7 @@ struct PackageConfig {
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
+  V(async_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_callback, v8::Function)                                            \

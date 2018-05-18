@@ -78,6 +78,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -204,57 +205,75 @@ static int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
 }
 
 
+struct CryptoErrorVector : public std::vector<std::string> {
+  inline void Capture() {
+    clear();
+    while (auto err = ERR_get_error()) {
+      char buf[256];
+      ERR_error_string_n(err, buf, sizeof(buf));
+      push_back(buf);
+    }
+    std::reverse(begin(), end());
+  }
+
+  inline Local<Value> ToException(
+      Environment* env,
+      Local<String> exception_string = Local<String>()) const {
+    if (exception_string.IsEmpty()) {
+      CryptoErrorVector copy(*this);
+      if (copy.empty()) copy.push_back("no error");  // But possibly a bug...
+      // Use last element as the error message, everything else goes
+      // into the .opensslErrorStack property on the exception object.
+      auto exception_string =
+          String::NewFromUtf8(env->isolate(), copy.back().data(),
+                              NewStringType::kNormal, copy.back().size())
+          .ToLocalChecked();
+      copy.pop_back();
+      return copy.ToException(env, exception_string);
+    }
+
+    Local<Value> exception_v = Exception::Error(exception_string);
+    CHECK(!exception_v.IsEmpty());
+
+    if (!empty()) {
+      Local<Array> array = Array::New(env->isolate(), size());
+      CHECK(!array.IsEmpty());
+
+      for (const std::string& string : *this) {
+        const size_t index = &string - &front();
+        Local<String> value =
+            String::NewFromUtf8(env->isolate(), string.data(),
+                                NewStringType::kNormal, string.size())
+            .ToLocalChecked();
+        array->Set(env->context(), index, value).FromJust();
+      }
+
+      CHECK(exception_v->IsObject());
+      Local<Object> exception = exception_v.As<Object>();
+      exception->Set(env->context(),
+                     env->openssl_error_stack(), array).FromJust();
+    }
+
+    return exception_v;
+  }
+};
+
+
 void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
-                      const char* default_message = nullptr) {
+                      const char* message = nullptr) {
+  char message_buffer[128] = {0};
+  if (err != 0 || message == nullptr) {
+    ERR_error_string_n(err, message_buffer, sizeof(message_buffer));
+    message = message_buffer;
+  }
   HandleScope scope(env->isolate());
-  Local<String> message;
-
-  if (err != 0 || default_message == nullptr) {
-    char errmsg[128] = { 0 };
-    ERR_error_string_n(err, errmsg, sizeof(errmsg));
-    message = String::NewFromUtf8(env->isolate(), errmsg,
-                                  v8::NewStringType::kNormal)
-                                      .ToLocalChecked();
-  } else {
-    message = String::NewFromUtf8(env->isolate(), default_message,
-                                  v8::NewStringType::kNormal)
-                                      .ToLocalChecked();
-  }
-
-  Local<Value> exception_v = Exception::Error(message);
-  CHECK(!exception_v.IsEmpty());
-  Local<Object> exception = exception_v.As<Object>();
-
-  std::vector<Local<String>> errors;
-  for (;;) {
-    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-    if (err == 0) {
-      break;
-    }
-    char tmp_str[256];
-    ERR_error_string_n(err, tmp_str, sizeof(tmp_str));
-    errors.push_back(String::NewFromUtf8(env->isolate(), tmp_str,
-                                         v8::NewStringType::kNormal)
-                     .ToLocalChecked());
-  }
-
-  // ERR_get_error returns errors in order of most specific to least
-  // specific. We wish to have the reverse ordering:
-  // opensslErrorStack: [
-  // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
-  // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
-  // ]
-  if (!errors.empty()) {
-    std::reverse(errors.begin(), errors.end());
-    Local<Array> errors_array = Array::New(env->isolate(), errors.size());
-    for (size_t i = 0; i < errors.size(); i++) {
-      errors_array->Set(env->context(), i, errors[i]).FromJust();
-    }
-    exception->Set(env->context(), env->openssl_error_stack(), errors_array)
-        .FromJust();
-  }
-
+  auto exception_string =
+      String::NewFromUtf8(env->isolate(), message, NewStringType::kNormal)
+      .ToLocalChecked();
+  CryptoErrorVector errors;
+  errors.Capture();
+  auto exception = errors.ToException(env, exception_string);
   env->isolate()->ThrowException(exception);
 }
 
@@ -4532,6 +4551,43 @@ bool ECDH::IsKeyPairValid() {
 }
 
 
+struct CryptoJob : public ThreadPoolWork {
+  Environment* const env;
+  std::unique_ptr<AsyncWrap> async_wrap;
+  inline explicit CryptoJob(Environment* env) : ThreadPoolWork(env), env(env) {}
+  inline void AfterThreadPoolWork(int status) final;
+  virtual void AfterThreadPoolWork() = 0;
+  static inline void Run(std::unique_ptr<CryptoJob> job, Local<Value> wrap);
+};
+
+
+void CryptoJob::AfterThreadPoolWork(int status) {
+  CHECK(status == 0 || status == UV_ECANCELED);
+  std::unique_ptr<CryptoJob> job(this);
+  if (status == UV_ECANCELED) return;
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+  CHECK_EQ(false, async_wrap->persistent().IsWeak());
+  AfterThreadPoolWork();
+}
+
+
+void CryptoJob::Run(std::unique_ptr<CryptoJob> job, Local<Value> wrap) {
+  CHECK(wrap->IsObject());
+  CHECK_EQ(nullptr, job->async_wrap);
+  job->async_wrap.reset(Unwrap<AsyncWrap>(wrap.As<Object>()));
+  CHECK_EQ(false, job->async_wrap->persistent().IsWeak());
+  job->ScheduleWork();
+  job.release();  // Run free, little job!
+}
+
+
+inline void CopyBuffer(Local<Value> buf, std::vector<char>* vec) {
+  vec->clear();
+  if (auto p = Buffer::Data(buf)) vec->assign(p, p + Buffer::Length(buf));
+}
+
+
 class PBKDF2Request : public AsyncWrap, public ThreadPoolWork {
  public:
   PBKDF2Request(Environment* env,
@@ -4871,6 +4927,98 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
       args.GetReturnValue().Set(argv[1]);
   }
 }
+
+
+#ifndef OPENSSL_NO_SCRYPT
+struct ScryptJob : public CryptoJob {
+  unsigned char* keybuf_data;
+  size_t keybuf_size;
+  std::vector<char> pass;
+  std::vector<char> salt;
+  uint32_t N;
+  uint32_t r;
+  uint32_t p;
+  uint32_t maxmem;
+  CryptoErrorVector errors;
+
+  inline explicit ScryptJob(Environment* env) : CryptoJob(env) {}
+
+  inline ~ScryptJob() override {
+    Cleanse();
+  }
+
+  inline bool Validate() {
+    if (1 == EVP_PBE_scrypt(nullptr, 0, nullptr, 0, N, r, p, maxmem,
+                            nullptr, 0)) {
+      return true;
+    } else {
+      // Note: EVP_PBE_scrypt() does not always put errors on the error stack.
+      errors.Capture();
+      return false;
+    }
+  }
+
+  inline void DoThreadPoolWork() override {
+    auto salt_data = reinterpret_cast<const unsigned char*>(salt.data());
+    if (1 != EVP_PBE_scrypt(pass.data(), pass.size(), salt_data, salt.size(),
+                            N, r, p, maxmem, keybuf_data, keybuf_size)) {
+      errors.Capture();
+    }
+  }
+
+  inline void AfterThreadPoolWork() override {
+    Local<Value> arg = ToResult();
+    async_wrap->MakeCallback(env->ondone_string(), 1, &arg);
+  }
+
+  inline Local<Value> ToResult() const {
+    if (errors.empty()) return Undefined(env->isolate());
+    return errors.ToException(env);
+  }
+
+  inline void Cleanse() {
+    OPENSSL_cleanse(pass.data(), pass.size());
+    OPENSSL_cleanse(salt.data(), salt.size());
+    pass.clear();
+    salt.clear();
+  }
+};
+
+
+void Scrypt(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsArrayBufferView());  // keybuf; wrap object retains ref.
+  CHECK(args[1]->IsArrayBufferView());  // pass
+  CHECK(args[2]->IsArrayBufferView());  // salt
+  CHECK(args[3]->IsUint32());  // N
+  CHECK(args[4]->IsUint32());  // r
+  CHECK(args[5]->IsUint32());  // p
+  CHECK(args[6]->IsUint32());  // maxmem
+  CHECK(args[7]->IsObject() || args[7]->IsUndefined());  // wrap object
+  std::unique_ptr<ScryptJob> job(new ScryptJob(env));
+  job->keybuf_data = reinterpret_cast<unsigned char*>(Buffer::Data(args[0]));
+  job->keybuf_size = Buffer::Length(args[0]);
+  CopyBuffer(args[1], &job->pass);
+  CopyBuffer(args[2], &job->salt);
+  job->N = args[3].As<Uint32>()->Value();
+  job->r = args[4].As<Uint32>()->Value();
+  job->p = args[5].As<Uint32>()->Value();
+  job->maxmem = args[6].As<Uint32>()->Value();
+  if (!job->Validate()) {
+    // EVP_PBE_scrypt() does not always put errors on the error stack
+    // and therefore ToResult() may or may not return an exception
+    // object.  Return a sentinel value to inform JS land it should
+    // throw an ERR_CRYPTO_SCRYPT_PARAMETER_ERROR on our behalf.
+    auto result = job->ToResult();
+    if (result->IsUndefined()) result = Null(args.GetIsolate());
+    return args.GetReturnValue().Set(result);
+  }
+  if (args[7]->IsObject()) return ScryptJob::Run(std::move(job), args[7]);
+  env->PrintSyncTrace();
+  job->DoThreadPoolWork();
+  args.GetReturnValue().Set(job->ToResult());
+}
+#endif  // OPENSSL_NO_SCRYPT
 
 
 void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
@@ -5296,6 +5444,9 @@ void Initialize(Local<Object> target,
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_verify_recover_init,
                                          EVP_PKEY_verify_recover>);
+#ifndef OPENSSL_NO_SCRYPT
+  env->SetMethod(target, "scrypt", Scrypt);
+#endif  // OPENSSL_NO_SCRYPT
 
   Local<FunctionTemplate> pb = FunctionTemplate::New(env->isolate());
   pb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "PBKDF2"));

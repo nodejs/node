@@ -97,6 +97,7 @@
       'lib/internal/crypto/hash.js',
       'lib/internal/crypto/pbkdf2.js',
       'lib/internal/crypto/random.js',
+      'lib/internal/crypto/scrypt.js',
       'lib/internal/crypto/sig.js',
       'lib/internal/crypto/util.js',
       'lib/internal/constants.js',

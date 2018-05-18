@@ -122,6 +122,12 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   crypto.randomBytes(1, common.mustCall(function rb() {
     testInitialized(this, 'RandomBytes');
   }));
+
+  if (typeof process.binding('crypto').scrypt === 'function') {
+    crypto.scrypt('password', 'salt', 8, common.mustCall(function() {
+      testInitialized(this, 'AsyncWrap');
+    }));
+  }
 }
 
 
