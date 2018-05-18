@@ -72,7 +72,6 @@ class NodeTraceBuffer : public TraceBuffer {
   Mutex exit_mutex_;
   // Used to wait until async handles have been closed.
   ConditionVariable exit_cond_;
-  Agent* agent_;
   std::atomic<InternalTraceBuffer*> current_buf_;
   InternalTraceBuffer buffer1_;
   InternalTraceBuffer buffer2_;
