@@ -447,13 +447,13 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 {
   const map = new Map();
   map.set(1, 2);
-  const vals = previewEntries(map.entries());
+  const [ vals ] = previewEntries(map.entries());
   const valsOutput = [];
   for (const o of vals) {
     valsOutput.push(o);
   }
 
-  assert.strictEqual(util.inspect(valsOutput), '[ [ 1, 2 ] ]');
+  assert.strictEqual(util.inspect(valsOutput), '[ 1, 2 ]');
 }
 
 // Test for other constructors in different context.
