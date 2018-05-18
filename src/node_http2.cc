@@ -1691,7 +1691,7 @@ void Http2Session::OnStreamReadImpl(ssize_t nread,
     // ssize_t to int. Cast here so that the < 0 check actually works on
     // Windows.
     if (static_cast<int>(ret) < 0) {
-      DEBUG_HTTP2SESSION2(this, "fatal error receiving data: %d", ret);
+      DEBUG_HTTP2SESSION2(session, "fatal error receiving data: %d", ret);
 
       Local<Value> argv[1] = {
         Integer::New(isolate, ret),
