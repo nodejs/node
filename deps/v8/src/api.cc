@@ -9526,21 +9526,20 @@ int debug::EstimatedValueSize(Isolate* v8_isolate, v8::Local<v8::Value> value) {
   return i::Handle<i::HeapObject>::cast(object)->Size();
 }
 
-v8::MaybeLocal<v8::Array> debug::EntriesPreview(Isolate* v8_isolate,
-                                                v8::Local<v8::Value> value,
-                                                bool* is_key_value) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (value->IsMap()) {
+v8::MaybeLocal<v8::Array> v8::Object::PreviewEntries(bool* is_key_value) {
+  if (IsMap()) {
     *is_key_value = true;
-    return value.As<Map>()->AsArray();
+    return Map::Cast(this)->AsArray();
   }
-  if (value->IsSet()) {
+  if (IsSet()) {
     *is_key_value = false;
-    return value.As<Set>()->AsArray();
+    return Set::Cast(this)->AsArray();
   }
 
-  i::Handle<i::Object> object = Utils::OpenHandle(*value);
+  i::Handle<i::JSReceiver> object = Utils::OpenHandle(this);
+  i::Isolate* isolate = object->GetIsolate();
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   if (object->IsJSWeakCollection()) {
     *is_key_value = object->IsJSWeakMap();
     return Utils::ToLocal(i::JSWeakCollection::GetEntries(
