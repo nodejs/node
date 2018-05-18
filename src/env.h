@@ -244,7 +244,6 @@ struct PackageConfig {
   V(password_string, "password")                                              \
   V(path_string, "path")                                                      \
   V(pending_handle_string, "pendingHandle")                                   \
-  V(pbkdf2_error_string, "PBKDF2 Error")                                      \
   V(pid_string, "pid")                                                        \
   V(pipe_string, "pipe")                                                      \
   V(pipe_target_string, "pipeTarget")                                         \
@@ -337,7 +336,6 @@ struct PackageConfig {
   V(inspector_console_api_object, v8::Object)                                 \
   V(message_port, v8::Object)                                                 \
   V(message_port_constructor_template, v8::FunctionTemplate)                  \
-  V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(performance_entry_callback, v8::Function)                                 \
   V(performance_entry_template, v8::Function)                                 \

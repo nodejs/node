@@ -739,6 +739,12 @@ An invalid [crypto digest algorithm][] was specified.
 A crypto method was used on an object that was in an invalid state. For
 instance, calling [`cipher.getAuthTag()`][] before calling `cipher.final()`.
 
+<a id="ERR_CRYPTO_PBKDF2_ERROR"></a>
+### ERR_CRYPTO_PBKDF2_ERROR
+
+The PBKDF2 algorithm failed for unspecified reasons. OpenSSL does not provide
+more details and therefore neither does Node.js.
+
 <a id="ERR_CRYPTO_SCRYPT_INVALID_PARAMETER"></a>
 ### ERR_CRYPTO_SCRYPT_INVALID_PARAMETER
 

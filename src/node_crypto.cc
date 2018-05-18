@@ -64,7 +64,6 @@ namespace crypto {
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
-using v8::DEFAULT;
 using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -75,10 +74,12 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -4585,142 +4586,6 @@ inline void CopyBuffer(Local<Value> buf, std::vector<char>* vec) {
 }
 
 
-class PBKDF2Request : public AsyncWrap, public ThreadPoolWork {
- public:
-  PBKDF2Request(Environment* env,
-                Local<Object> object,
-                const EVP_MD* digest,
-                MallocedBuffer<char>&& pass,
-                MallocedBuffer<char>&& salt,
-                int keylen,
-                int iteration_count)
-      : AsyncWrap(env, object, AsyncWrap::PROVIDER_PBKDF2REQUEST),
-        ThreadPoolWork(env),
-        digest_(digest),
-        success_(false),
-        pass_(std::move(pass)),
-        salt_(std::move(salt)),
-        key_(keylen),
-        iteration_count_(iteration_count) {
-  }
-
-  size_t self_size() const override { return sizeof(*this); }
-
-  void DoThreadPoolWork() override;
-  void AfterThreadPoolWork(int status) override;
-
-  void After(Local<Value> (*argv)[2]);
-
- private:
-  const EVP_MD* digest_;
-  bool success_;
-  MallocedBuffer<char> pass_;
-  MallocedBuffer<char> salt_;
-  MallocedBuffer<char> key_;
-  int iteration_count_;
-};
-
-
-void PBKDF2Request::DoThreadPoolWork() {
-  success_ =
-      PKCS5_PBKDF2_HMAC(
-          pass_.data, pass_.size,
-          reinterpret_cast<unsigned char*>(salt_.data), salt_.size,
-          iteration_count_, digest_,
-          key_.size,
-          reinterpret_cast<unsigned char*>(key_.data));
-  OPENSSL_cleanse(pass_.data, pass_.size);
-  OPENSSL_cleanse(salt_.data, salt_.size);
-}
-
-
-void PBKDF2Request::After(Local<Value> (*argv)[2]) {
-  if (success_) {
-    (*argv)[0] = Null(env()->isolate());
-    (*argv)[1] = Buffer::New(env(), key_.release(), key_.size)
-        .ToLocalChecked();
-  } else {
-    (*argv)[0] = Exception::Error(env()->pbkdf2_error_string());
-    (*argv)[1] = Undefined(env()->isolate());
-  }
-}
-
-
-void PBKDF2Request::AfterThreadPoolWork(int status) {
-  std::unique_ptr<PBKDF2Request> req(this);
-  if (status == UV_ECANCELED)
-    return;
-  CHECK_EQ(status, 0);
-
-  HandleScope handle_scope(env()->isolate());
-  Context::Scope context_scope(env()->context());
-  Local<Value> argv[2];
-  After(&argv);
-  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
-}
-
-
-void PBKDF2(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  const EVP_MD* digest = nullptr;
-  int keylen = -1;
-  int iteration_count = -1;
-  Local<Object> obj;
-
-  int passlen = Buffer::Length(args[0]);
-
-  MallocedBuffer<char> pass(passlen);
-  memcpy(pass.data, Buffer::Data(args[0]), passlen);
-
-  int saltlen = Buffer::Length(args[1]);
-
-  MallocedBuffer<char> salt(saltlen);
-  memcpy(salt.data, Buffer::Data(args[1]), saltlen);
-
-  iteration_count = args[2]->Int32Value(env->context()).FromJust();
-  keylen = args[3]->IntegerValue(env->context()).FromJust();
-
-  if (args[4]->IsString()) {
-    node::Utf8Value digest_name(env->isolate(), args[4]);
-    digest = EVP_get_digestbyname(*digest_name);
-    if (digest == nullptr) {
-      args.GetReturnValue().Set(-1);
-      return;
-    }
-  }
-
-  if (digest == nullptr) {
-    digest = EVP_sha1();
-  }
-
-  obj = env->pbkdf2_constructor_template()->
-      NewInstance(env->context()).ToLocalChecked();
-  std::unique_ptr<PBKDF2Request> req(
-      new PBKDF2Request(env, obj, digest,
-                        std::move(pass),
-                        std::move(salt),
-                        keylen,
-                        iteration_count));
-
-  if (args[5]->IsFunction()) {
-    obj->Set(env->context(), env->ondone_string(), args[5]).FromJust();
-
-    req.release()->ScheduleWork();
-  } else {
-    env->PrintSyncTrace();
-    req->DoThreadPoolWork();
-    Local<Value> argv[2];
-    req->After(&argv);
-
-    if (argv[0]->IsObject())
-      env->isolate()->ThrowException(argv[0]);
-    else
-      args.GetReturnValue().Set(argv[1]);
-  }
-}
-
-
 // Only instantiate within a valid HandleScope.
 class RandomBytesRequest : public AsyncWrap, public ThreadPoolWork {
  public:
@@ -4923,6 +4788,74 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
     if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
+}
+
+
+struct PBKDF2Job : public CryptoJob {
+  unsigned char* keybuf_data;
+  size_t keybuf_size;
+  std::vector<char> pass;
+  std::vector<char> salt;
+  uint32_t iteration_count;
+  const EVP_MD* digest;
+  Maybe<bool> success;
+
+  inline explicit PBKDF2Job(Environment* env)
+      : CryptoJob(env), success(Nothing<bool>()) {}
+
+  inline ~PBKDF2Job() override {
+    Cleanse();
+  }
+
+  inline void DoThreadPoolWork() override {
+    auto salt_data = reinterpret_cast<const unsigned char*>(salt.data());
+    const bool ok =
+        PKCS5_PBKDF2_HMAC(pass.data(), pass.size(), salt_data, salt.size(),
+                          iteration_count, digest, keybuf_size, keybuf_data);
+    success = Just(ok);
+    Cleanse();
+  }
+
+  inline void AfterThreadPoolWork() override {
+    Local<Value> arg = ToResult();
+    async_wrap->MakeCallback(env->ondone_string(), 1, &arg);
+  }
+
+  inline Local<Value> ToResult() const {
+    return Boolean::New(env->isolate(), success.FromJust());
+  }
+
+  inline void Cleanse() {
+    OPENSSL_cleanse(pass.data(), pass.size());
+    OPENSSL_cleanse(salt.data(), salt.size());
+    pass.clear();
+    salt.clear();
+  }
+};
+
+
+inline void PBKDF2(const FunctionCallbackInfo<Value>& args) {
+  auto rv = args.GetReturnValue();
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsArrayBufferView());  // keybuf; wrap object retains ref.
+  CHECK(args[1]->IsArrayBufferView());  // pass
+  CHECK(args[2]->IsArrayBufferView());  // salt
+  CHECK(args[3]->IsUint32());  // iteration_count
+  CHECK(args[4]->IsString());  // digest_name
+  CHECK(args[5]->IsObject() || args[5]->IsUndefined());  // wrap object
+  std::unique_ptr<PBKDF2Job> job(new PBKDF2Job(env));
+  job->keybuf_data = reinterpret_cast<unsigned char*>(Buffer::Data(args[0]));
+  job->keybuf_size = Buffer::Length(args[0]);
+  CopyBuffer(args[1], &job->pass);
+  CopyBuffer(args[2], &job->salt);
+  job->iteration_count = args[3].As<Uint32>()->Value();
+  Utf8Value digest_name(args.GetIsolate(), args[4]);
+  job->digest = EVP_get_digestbyname(*digest_name);
+  if (job->digest == nullptr) return rv.Set(-1);
+  if (args[5]->IsObject()) return PBKDF2Job::Run(std::move(job), args[5]);
+  env->PrintSyncTrace();
+  job->DoThreadPoolWork();
+  rv.Set(job->ToResult());
 }
 
 
@@ -5417,7 +5350,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
 #endif
 
-  env->SetMethod(target, "PBKDF2", PBKDF2);
+  env->SetMethod(target, "pbkdf2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethod(target, "randomFill", RandomBytesBuffer);
   env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
@@ -5444,13 +5377,6 @@ void Initialize(Local<Object> target,
 #ifndef OPENSSL_NO_SCRYPT
   env->SetMethod(target, "scrypt", Scrypt);
 #endif  // OPENSSL_NO_SCRYPT
-
-  Local<FunctionTemplate> pb = FunctionTemplate::New(env->isolate());
-  pb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "PBKDF2"));
-  AsyncWrap::AddWrapMethods(env, pb);
-  Local<ObjectTemplate> pbt = pb->InstanceTemplate();
-  pbt->SetInternalFieldCount(1);
-  env->set_pbkdf2_constructor_template(pbt);
 
   Local<FunctionTemplate> rb = FunctionTemplate::New(env->isolate());
   rb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "RandomBytes"));
