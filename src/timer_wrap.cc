@@ -134,7 +134,9 @@ class TimerWrap : public HandleWrap {
     do {
       ret = wrap->MakeCallback(env->timers_callback_function(), 1, args)
                 .ToLocalChecked();
-    } while (ret->IsUndefined() && !env->tick_info()->has_thrown());
+    } while (ret->IsUndefined() &&
+             !env->tick_info()->has_thrown() &&
+             env->can_call_into_js());
   }
 
   static void Now(const FunctionCallbackInfo<Value>& args) {
