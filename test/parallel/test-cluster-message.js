@@ -60,7 +60,7 @@ if (cluster.isWorker) {
     maybeReply();
   });
 
-  server.listen(0, '127.0.0.1');
+  server.listen();
 } else if (cluster.isMaster) {
 
   const checks = {

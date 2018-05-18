@@ -10,7 +10,7 @@ const expectedErrorCodes = ['ECONNREFUSED', 'EADDRINUSE'];
 const optionsIPv4 = {
   port: common.PORT,
   localPort: common.PORT + 1,
-  localAddress: common.localhostIPv4
+  localAddress: '127.0.0.1'
 };
 
 const optionsIPv6 = {
@@ -21,7 +21,7 @@ const optionsIPv6 = {
 };
 
 function onError(err, options) {
-  assert.ok(expectedErrorCodes.includes(err.code));
+  assert.ok(expectedErrorCodes.includes(err.code), `err.code === ${err.code}`);
   assert.strictEqual(err.syscall, 'connect');
   assert.strictEqual(err.localPort, options.localPort);
   assert.strictEqual(err.localAddress, options.localAddress);

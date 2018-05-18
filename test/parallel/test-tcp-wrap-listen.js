@@ -14,7 +14,7 @@ const {
 
 const server = new TCP(TCPConstants.SOCKET);
 
-const r = server.bind('0.0.0.0', 0);
+const r = server.bind('127.0.0.1', 0);
 assert.strictEqual(r, 0);
 let port = {};
 server.getsockname(port);
@@ -84,7 +84,7 @@ server.onconnection = (err, client) => {
 
 const net = require('net');
 
-const c = net.createConnection(port);
+const c = net.createConnection(port, '127.0.0.1');
 
 c.on('connect', common.mustCall(() => { c.end('hello world'); }));
 

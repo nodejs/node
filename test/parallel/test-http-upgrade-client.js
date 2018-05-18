@@ -47,7 +47,7 @@ const srv = net.createServer(function(c) {
   });
 });
 
-srv.listen(0, '127.0.0.1', common.mustCall(function() {
+srv.listen(0, common.mustCall(function() {
   const port = this.address().port;
   const headers = [
     {

@@ -375,6 +375,9 @@ class NodeInstance extends EventEmitter {
 
   httpGet(host, path, hostHeaderValue) {
     console.log('[test]', `Testing ${path}`);
+    // 'localhost' can either resolve to 127.0.0.1 or ::1 but
+    // the inspector only listens on 127.0.0.1 so be explicit.
+    if (!host) host = '127.0.0.1';
     const headers = hostHeaderValue ? { 'Host': hostHeaderValue } : null;
     return this.portPromise.then((port) => new Promise((resolve, reject) => {
       const req = http.get({ host, port, path, headers }, (res) => {

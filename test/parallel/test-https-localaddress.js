@@ -50,7 +50,6 @@ const server = https.createServer(options, function(req, res) {
 
 server.listen(0, '127.0.0.1', function() {
   const options = {
-    host: 'localhost',
     port: this.address().port,
     path: '/',
     method: 'GET',

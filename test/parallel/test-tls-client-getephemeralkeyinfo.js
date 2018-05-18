@@ -48,6 +48,7 @@ function test(size, type, name, next) {
 
   server.listen(0, '127.0.0.1', common.mustCall(function() {
     const client = tls.connect({
+      host: '127.0.0.1',
       port: this.address().port,
       rejectUnauthorized: false
     }, function() {

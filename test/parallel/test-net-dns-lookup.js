@@ -33,8 +33,8 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
   net.connect(this.address().port, 'localhost')
     .on('lookup', common.mustCall(function(err, ip, type, host) {
       assert.strictEqual(err, null);
-      assert.strictEqual(ip, '127.0.0.1');
-      assert.strictEqual(type, 4);
+      assert(ip === '127.0.0.1' || ip === '::1', `ip === ${ip}`);
+      assert(type === 4 || type === 6, `type === ${type}`);
       assert.strictEqual(host, 'localhost');
     }));
 }));

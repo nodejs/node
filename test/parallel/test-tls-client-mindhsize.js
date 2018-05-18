@@ -40,6 +40,7 @@ function test(size, err, next) {
     // dhparams is 1024 bits
     const client = tls.connect({
       minDHSize: 2048,
+      host: '127.0.0.1',
       port: this.address().port,
       rejectUnauthorized: false
     }, function() {
