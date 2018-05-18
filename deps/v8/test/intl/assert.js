@@ -133,6 +133,16 @@ function assertFalse(value, user_message = '') {
 
 
 /**
+ * Throws if value is null.
+ */
+function assertNotNull(value, user_message = '') {
+  if (value === null) {
+    fail("not null", value, user_message);
+  }
+}
+
+
+/**
  * Runs code() and asserts that it throws the specified exception.
  */
 function assertThrows(code, type_opt, cause_opt) {
@@ -187,5 +197,36 @@ function assertInstanceof(obj, type) {
     throw new Error('Object <' + obj + '> is not an instance of <' +
                     (type.name || type) + '>' +
                     (actualTypeName ? ' but of < ' + actualTypeName + '>' : ''));
+  }
+}
+
+
+/**
+ * Split a BCP 47 language tag into locale and extension.
+ */
+function splitLanguageTag(tag) {
+  var extRe = /(-[0-9A-Za-z](-[0-9A-Za-z]{2,8})+)+$/;
+  var match = %regexp_internal_match(extRe, tag);
+  if (match) {
+    return { locale: tag.slice(0, match.index), extension: match[0] };
+  }
+
+  return { locale: tag, extension: '' };
+}
+
+
+/**
+ * Throw if |parent| is not a more general language tag of |child|, nor |child|
+ * itself, per BCP 47 rules.
+ */
+function assertLanguageTag(child, parent) {
+  var childSplit = splitLanguageTag(child);
+  var parentSplit = splitLanguageTag(parent);
+
+  // Do not compare extensions at this moment, as %GetDefaultICULocale()
+  // doesn't always output something we support.
+  if (childSplit.locale !== parentSplit.locale &&
+      !childSplit.locale.startsWith(parentSplit.locale + '-')) {
+    fail(child, parent, 'language tag comparison');
   }
 }

@@ -8,6 +8,6 @@
 // DateTimeFormat but not Collation
 
 if (this.Intl) {
-  assertEquals('und', Intl.Collator().resolvedOptions().locale);
+  assertEquals('pt', Intl.Collator().resolvedOptions().locale);
   assertEquals('pt-BR', Intl.DateTimeFormat().resolvedOptions().locale);
 }
