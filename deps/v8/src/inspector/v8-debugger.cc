@@ -29,8 +29,10 @@ v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
   v8::Isolate* isolate = context->GetIsolate();
   v8::Local<v8::Array> entries;
   bool isKeyValue = false;
-  if (!v8::debug::EntriesPreview(isolate, value, &isKeyValue).ToLocal(&entries))
+  if (!value->IsObject() ||
+      !value.As<v8::Object>()->PreviewEntries(&isKeyValue).ToLocal(&entries)) {
     return v8::MaybeLocal<v8::Array>();
+  }
 
   v8::Local<v8::Array> wrappedEntries = v8::Array::New(isolate);
   CHECK(!isKeyValue || wrappedEntries->Length() % 2 == 0);
