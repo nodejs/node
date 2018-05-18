@@ -142,6 +142,25 @@ provided via a `--loader ./loader-name.mjs` argument to Node.js.
 When hooks are used they only apply to ES module loading and not to any
 CommonJS modules loaded.
 
+### Hook Context
+
+This context contains access to functions that are scoped to the current load
+process.
+
+A hook context consists of the following properties:
+
+- `defaultResolve` {Function} A shortcut to the resolve algorithm that ships
+  with Node.js.
+  - `specifier` {string} The specifier of the module to import.
+  - `parentURL` {string} The URL of the module that requested the specifier.
+- `resolve` {Function} A shortcut to the current resolve function. Especially
+  useful if resolve is not hooked.
+  - `specifier` {string} The specifier of the module to import.
+  - `parentURL` {string} The URL of the module that requested the specifier.
+- `vmModuleLinkHook` {object} This value can be passed to [`module.link`][] to
+  allow linking the import requests of a [`vm.Module`][] instance to the
+  loader.
+
 ### Resolve hook
 
 The resolve hook returns the resolved file URL and module format for a
@@ -153,7 +172,7 @@ baseURL.pathname = `${process.cwd()}/`;
 
 export async function resolve(specifier,
                               parentModuleURL = baseURL,
-                              defaultResolver) {
+                              hookContext) {
   return {
     url: new URL(specifier, parentModuleURL).href,
     format: 'esm'
@@ -195,7 +214,7 @@ const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 const baseURL = new URL('file://');
 baseURL.pathname = `${process.cwd()}/`;
 
-export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
+export function resolve(specifier, parentModuleURL = baseURL, hookContext) {
   if (builtins.includes(specifier)) {
     return {
       url: specifier,
@@ -204,7 +223,7 @@ export function resolve(specifier, parentModuleURL = baseURL, defaultResolve) {
   }
   if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
-    // return defaultResolve(specifier, parentModuleURL);
+    // return hookContext.defaultResolve(specifier, parentModuleURL);
     throw new Error(
       `imports must begin with '/', './', or '../'; '${specifier}' does not`);
   }
@@ -238,7 +257,7 @@ This hook is called only for modules that return `format: 'dynamic'` from
 the `resolve` hook.
 
 ```js
-export async function dynamicInstantiate(url) {
+export async function dynamicInstantiate(url, hookContext) {
   return {
     exports: ['customExportName'],
     execute: (exports) => {
@@ -253,6 +272,8 @@ With the list of module exports provided upfront, the `execute` function will
 then be called at the exact point of module evaluation order for that module
 in the import tree.
 
+[`module.link`]: vm.html#vm_module_link_linker
+[`vm.Module`]: vm.html#vm_class_vm_module
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [addons]: addons.html
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook

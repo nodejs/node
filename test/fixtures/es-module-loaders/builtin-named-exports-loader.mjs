@@ -18,12 +18,12 @@ export function dynamicInstantiate(url) {
   };
 }
 
-export function resolve(specifier, base, defaultResolver) {
+export function resolve(specifier, base, { defaultResolve }) {
   if (builtins.has(specifier)) {
     return {
       url: `node:${specifier}`,
       format: 'dynamic'
     };
   }
-  return defaultResolver(specifier, base);
+  return defaultResolve(specifier, base);
 }

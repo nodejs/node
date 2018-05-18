@@ -395,6 +395,8 @@ that point all modules would have been fully linked already, the
 [HostResolveImportedModule][] implementation is fully synchronous per
 specification.
 
+The linker may also be passed from [`hookContext.vmModuleLinkhook`][].
+
 ## Class: vm.Script
 <!-- YAML
 added: v0.3.1
@@ -893,6 +895,7 @@ associating it with the `sandbox` object is what this document refers to as
 [`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
+[`hookContext.vmModuleLinkHook`]: esm.html#esm_hook_context
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
 [`url.origin`]: url.html#url_url_origin
