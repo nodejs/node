@@ -58,6 +58,7 @@ DebugOptions::DebugOptions() :
                                inspector_enabled_(false),
                                deprecated_debug_(false),
                                break_first_line_(false),
+                               break_node_first_line_(false),
                                host_name_("127.0.0.1"), port_(-1) { }
 
 bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
@@ -90,6 +91,9 @@ bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
   } else if (option_name == "--inspect-brk") {
     inspector_enabled_ = true;
     break_first_line_ = true;
+  } else if (option_name == "--inspect-brk-node") {
+    inspector_enabled_ = true;
+    break_node_first_line_ = true;
   } else if (option_name == "--debug-brk") {
     break_first_line_ = true;
     deprecated_debug_ = true;

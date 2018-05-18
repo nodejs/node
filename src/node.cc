@@ -2716,6 +2716,11 @@ void SetupProcessObject(Environment* env,
                                 "_breakFirstLine", True(env->isolate()));
   }
 
+  if (debug_options.break_node_first_line()) {
+    READONLY_DONT_ENUM_PROPERTY(process,
+                                "_breakNodeFirstLine", True(env->isolate()));
+  }
+
   // --inspect --debug-brk
   if (debug_options.deprecated_invocation()) {
     READONLY_DONT_ENUM_PROPERTY(process,
@@ -2950,7 +2955,8 @@ void LoadEnvironment(Environment* env) {
     env->process_object(),
     get_binding_fn,
     get_linked_binding_fn,
-    get_internal_binding_fn
+    get_internal_binding_fn,
+    Boolean::New(env->isolate(), debug_options.break_node_first_line())
   };
 
   // Bootstrap internal loaders
