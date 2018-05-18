@@ -241,6 +241,7 @@ module.exports = {
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
+    'node-core/no-regex-literal-for-repl': 'error',
   },
   globals: {
     COUNTER_HTTP_CLIENT_REQUEST: false,
