@@ -843,7 +843,7 @@ LTS working group and the Release team.
 | `lib/domains`                            | @nodejs/domains                                                       |
 | `lib/fs`, `src/{fs,file}`                | @nodejs/fs                                                            |
 | `lib/{_}http{*}`                         | @nodejs/http                                                          |
-| `lib/inspector.js`, `src/inspector_*`    | @nodejs/V8-inspector                                                  |
+| `lib/inspector.js`, `src/inspector_*`    | @nodejs/v8-inspector                                                  |
 | `lib/internal/bootstrap/*`               | @nodejs/process                                                       |
 | `lib/internal/url`, `src/node_url`       | @nodejs/url                                                           |
 | `lib/net`                                | @bnoordhuis, @indutny, @nodejs/streams                                |
