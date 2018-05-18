@@ -120,7 +120,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   crypto.pbkdf2('password', 'salt', 1, 20, 'sha256', mc);
 
   crypto.randomBytes(1, common.mustCall(function rb() {
-    testInitialized(this, 'RandomBytes');
+    testInitialized(this, 'AsyncWrap');
   }));
 
   if (typeof process.binding('crypto').scrypt === 'function') {
