@@ -82,7 +82,6 @@ using v8::NewStringType;
 using v8::Nothing;
 using v8::Null;
 using v8::Object;
-using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
@@ -4586,208 +4585,50 @@ inline void CopyBuffer(Local<Value> buf, std::vector<char>* vec) {
 }
 
 
-// Only instantiate within a valid HandleScope.
-class RandomBytesRequest : public AsyncWrap, public ThreadPoolWork {
- public:
-  enum FreeMode { FREE_DATA, DONT_FREE_DATA };
+struct RandomBytesJob : public CryptoJob {
+  unsigned char* data;
+  size_t size;
+  CryptoErrorVector errors;
+  Maybe<int> rc;
 
-  RandomBytesRequest(Environment* env,
-                     Local<Object> object,
-                     size_t size,
-                     char* data,
-                     FreeMode free_mode)
-      : AsyncWrap(env, object, AsyncWrap::PROVIDER_RANDOMBYTESREQUEST),
-        ThreadPoolWork(env),
-        error_(0),
-        size_(size),
-        data_(data),
-        free_mode_(free_mode) {
+  inline explicit RandomBytesJob(Environment* env)
+      : CryptoJob(env), rc(Nothing<int>()) {}
+
+  inline void DoThreadPoolWork() override {
+    CheckEntropy();  // Ensure that OpenSSL's PRNG is properly seeded.
+    rc = Just(RAND_bytes(data, size));
+    if (0 == rc.FromJust()) errors.Capture();
   }
 
-  inline size_t size() const {
-    return size_;
+  inline void AfterThreadPoolWork() override {
+    Local<Value> arg = ToResult();
+    async_wrap->MakeCallback(env->ondone_string(), 1, &arg);
   }
 
-  inline char* data() const {
-    return data_;
+  inline Local<Value> ToResult() const {
+    if (errors.empty()) return Undefined(env->isolate());
+    return errors.ToException(env);
   }
-
-  inline void set_data(char* data) {
-    data_ = data;
-  }
-
-  inline void release() {
-    size_ = 0;
-    if (free_mode_ == FREE_DATA) {
-      free(data_);
-      data_ = nullptr;
-    }
-  }
-
-  inline void return_memory(char** d, size_t* len) {
-    *d = data_;
-    data_ = nullptr;
-    *len = size_;
-    size_ = 0;
-  }
-
-  inline unsigned long error() const {  // NOLINT(runtime/int)
-    return error_;
-  }
-
-  inline void set_error(unsigned long err) {  // NOLINT(runtime/int)
-    error_ = err;
-  }
-
-  size_t self_size() const override { return sizeof(*this); }
-
-  void DoThreadPoolWork() override;
-  void AfterThreadPoolWork(int status) override;
-
- private:
-  unsigned long error_;  // NOLINT(runtime/int)
-  size_t size_;
-  char* data_;
-  const FreeMode free_mode_;
 };
 
 
-void RandomBytesRequest::DoThreadPoolWork() {
-  // Ensure that OpenSSL's PRNG is properly seeded.
-  CheckEntropy();
-
-  const int r = RAND_bytes(reinterpret_cast<unsigned char*>(data_), size_);
-
-  // RAND_bytes() returns 0 on error.
-  if (r == 0) {
-    set_error(ERR_get_error());  // NOLINT(runtime/int)
-  } else if (r == -1) {
-    set_error(static_cast<unsigned long>(-1));  // NOLINT(runtime/int)
-  }
-}
-
-
-// don't call this function without a valid HandleScope
-void RandomBytesCheck(RandomBytesRequest* req, Local<Value> (*argv)[2]) {
-  if (req->error()) {
-    char errmsg[256] = "Operation not supported";
-
-    if (req->error() != static_cast<unsigned long>(-1))  // NOLINT(runtime/int)
-      ERR_error_string_n(req->error(), errmsg, sizeof errmsg);
-
-    (*argv)[0] = Exception::Error(OneByteString(req->env()->isolate(), errmsg));
-    (*argv)[1] = Null(req->env()->isolate());
-    req->release();
-  } else {
-    char* data = nullptr;
-    size_t size;
-    req->return_memory(&data, &size);
-    (*argv)[0] = Null(req->env()->isolate());
-    Local<Value> buffer =
-        req->object()->Get(req->env()->context(),
-                           req->env()->buffer_string()).ToLocalChecked();
-
-    if (buffer->IsArrayBufferView()) {
-      CHECK_LE(req->size(), Buffer::Length(buffer));
-      char* buf = Buffer::Data(buffer);
-      memcpy(buf, data, req->size());
-      (*argv)[1] = buffer;
-    } else {
-      (*argv)[1] = Buffer::New(req->env(), data, size)
-          .ToLocalChecked();
-    }
-  }
-}
-
-
-void RandomBytesRequest::AfterThreadPoolWork(int status) {
-  std::unique_ptr<RandomBytesRequest> req(this);
-  if (status == UV_ECANCELED)
-    return;
-  CHECK_EQ(status, 0);
-  HandleScope handle_scope(env()->isolate());
-  Context::Scope context_scope(env()->context());
-  Local<Value> argv[2];
-  RandomBytesCheck(this, &argv);
-  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
-}
-
-
-void RandomBytesProcessSync(Environment* env,
-                            std::unique_ptr<RandomBytesRequest> req,
-                            Local<Value> (*argv)[2]) {
-  env->PrintSyncTrace();
-  req->DoThreadPoolWork();
-  RandomBytesCheck(req.get(), argv);
-
-  if (!(*argv)[0]->IsNull())
-    env->isolate()->ThrowException((*argv)[0]);
-}
-
-
 void RandomBytes(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView());  // buffer; wrap object retains ref.
+  CHECK(args[1]->IsUint32());  // offset
+  CHECK(args[2]->IsUint32());  // size
+  CHECK(args[3]->IsObject() || args[3]->IsUndefined());  // wrap object
+  const uint32_t offset = args[1].As<Uint32>()->Value();
+  const uint32_t size = args[2].As<Uint32>()->Value();
+  CHECK_GE(offset + size, offset);  // Overflow check.
+  CHECK_LE(offset + size, Buffer::Length(args[0]));  // Bounds check.
   Environment* env = Environment::GetCurrent(args);
-
-  const int64_t size = args[0]->IntegerValue();
-  CHECK(size <= Buffer::kMaxLength);
-
-  Local<Object> obj = env->randombytes_constructor_template()->
-      NewInstance(env->context()).ToLocalChecked();
-  char* data = node::Malloc(size);
-  std::unique_ptr<RandomBytesRequest> req(
-      new RandomBytesRequest(env,
-                             obj,
-                             size,
-                             data,
-                             RandomBytesRequest::FREE_DATA));
-
-  if (args[1]->IsFunction()) {
-    obj->Set(env->context(), env->ondone_string(), args[1]).FromJust();
-
-    req.release()->ScheduleWork();
-    args.GetReturnValue().Set(obj);
-  } else {
-    Local<Value> argv[2];
-    RandomBytesProcessSync(env, std::move(req), &argv);
-    if (argv[0]->IsNull())
-      args.GetReturnValue().Set(argv[1]);
-  }
-}
-
-
-void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsArrayBufferView());
-  CHECK(args[1]->IsUint32());
-  CHECK(args[2]->IsUint32());
-
-  int64_t offset = args[1]->IntegerValue();
-  int64_t size = args[2]->IntegerValue();
-
-  Local<Object> obj = env->randombytes_constructor_template()->
-      NewInstance(env->context()).ToLocalChecked();
-  obj->Set(env->context(), env->buffer_string(), args[0]).FromJust();
-  char* data = Buffer::Data(args[0]);
-  data += offset;
-
-  std::unique_ptr<RandomBytesRequest> req(
-      new RandomBytesRequest(env,
-                             obj,
-                             size,
-                             data,
-                             RandomBytesRequest::DONT_FREE_DATA));
-  if (args[3]->IsFunction()) {
-    obj->Set(env->context(), env->ondone_string(), args[3]).FromJust();
-
-    req.release()->ScheduleWork();
-    args.GetReturnValue().Set(obj);
-  } else {
-    Local<Value> argv[2];
-    RandomBytesProcessSync(env, std::move(req), &argv);
-    if (argv[0]->IsNull())
-      args.GetReturnValue().Set(argv[1]);
-  }
+  std::unique_ptr<RandomBytesJob> job(new RandomBytesJob(env));
+  job->data = reinterpret_cast<unsigned char*>(Buffer::Data(args[0])) + offset;
+  job->size = size;
+  if (args[3]->IsObject()) return RandomBytesJob::Run(std::move(job), args[3]);
+  env->PrintSyncTrace();
+  job->DoThreadPoolWork();
+  args.GetReturnValue().Set(job->ToResult());
 }
 
 
@@ -5352,7 +5193,6 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "pbkdf2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
-  env->SetMethod(target, "randomFill", RandomBytesBuffer);
   env->SetMethod(target, "timingSafeEqual", TimingSafeEqual);
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
@@ -5377,13 +5217,6 @@ void Initialize(Local<Object> target,
 #ifndef OPENSSL_NO_SCRYPT
   env->SetMethod(target, "scrypt", Scrypt);
 #endif  // OPENSSL_NO_SCRYPT
-
-  Local<FunctionTemplate> rb = FunctionTemplate::New(env->isolate());
-  rb->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "RandomBytes"));
-  AsyncWrap::AddWrapMethods(env, rb);
-  Local<ObjectTemplate> rbt = rb->InstanceTemplate();
-  rbt->SetInternalFieldCount(1);
-  env->set_randombytes_constructor_template(rbt);
 }
 
 }  // namespace crypto
