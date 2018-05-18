@@ -18,7 +18,7 @@ client.on('message', common.mustCall(function onMessage(buf, info) {
 
 client.on('listening', common.mustCall(function() {
   interval = setInterval(function() {
-    client.send([], client.address().port, common.localhostIPv4);
+    client.send([], client.address().port, '127.0.0.1');
   }, 10);
 }));
 

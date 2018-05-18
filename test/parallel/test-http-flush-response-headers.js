@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -10,10 +10,10 @@ server.on('request', function(req, res) {
   res.flushHeaders();
   res.flushHeaders(); // Should be idempotent.
 });
-server.listen(0, common.localhostIPv4, function() {
+server.listen(0, '127.0.0.1', function() {
   const req = http.request({
     method: 'GET',
-    host: common.localhostIPv4,
+    host: '127.0.0.1',
     port: this.address().port,
   }, onResponse);
 

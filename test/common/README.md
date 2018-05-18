@@ -214,11 +214,6 @@ Platform check for SunOS.
 
 Platform check for Windows.
 
-### localhostIPv4
-* [&lt;string>]
-
-IP of `localhost`.
-
 ### localIPv6Hosts
 * [&lt;Array>]
 

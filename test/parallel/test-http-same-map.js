@@ -1,12 +1,12 @@
 // Flags: --allow_natives_syntax
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
 const server =
-    http.createServer(onrequest).listen(0, common.localhostIPv4, () => next(0));
+    http.createServer(onrequest).listen(0, '127.0.0.1', () => next(0));
 
 function onrequest(req, res) {
   res.end('ok');

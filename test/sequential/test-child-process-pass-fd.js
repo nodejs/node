@@ -77,8 +77,8 @@ if (process.argv[2] !== 'child') {
     });
     socketConnected();
   }).unref();
-  server.listen(0, common.localhostIPv4, () => {
+  server.listen(0, '127.0.0.1', () => {
     const { port } = server.address();
-    socket = net.connect(port, common.localhostIPv4, socketConnected).unref();
+    socket = net.connect(port, '127.0.0.1', socketConnected).unref();
   });
 }

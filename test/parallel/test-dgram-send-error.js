@@ -52,7 +52,7 @@ getSocket((socket) => {
       assert.strictEqual(err.code, 'UNKNOWN');
       assert.strictEqual(err.errno, 'UNKNOWN');
       assert.strictEqual(err.syscall, 'send');
-      assert.strictEqual(err.address, common.localhostIPv4);
+      assert.strictEqual(err.address, '127.0.0.1');
       assert.strictEqual(err.port, port);
       assert.strictEqual(
         err.message,
@@ -64,6 +64,6 @@ getSocket((socket) => {
       return UV_UNKNOWN;
     };
 
-    socket.send('foo', port, common.localhostIPv4, callback);
+    socket.send('foo', port, '127.0.0.1', callback);
   }));
 }

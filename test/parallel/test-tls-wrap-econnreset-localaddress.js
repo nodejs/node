@@ -10,18 +10,18 @@ const tls = require('tls');
 
 const server = net.createServer((c) => {
   c.end();
-}).listen(0, common.localhostIPv4, common.mustCall(() => {
+}).listen(0, '127.0.0.1', common.mustCall(() => {
   const port = server.address().port;
 
   tls.connect({
-    host: common.localhostIPv4,
+    host: '127.0.0.1',
     port: port,
-    localAddress: common.localhostIPv4
+    localAddress: '127.0.0.1'
   }).once('error', common.mustCall((e) => {
     assert.strictEqual(e.code, 'ECONNRESET');
     assert.strictEqual(e.path, undefined);
     assert.strictEqual(e.port, port);
-    assert.strictEqual(e.localAddress, common.localhostIPv4);
+    assert.strictEqual(e.localAddress, '127.0.0.1');
     server.close();
   }));
 }));

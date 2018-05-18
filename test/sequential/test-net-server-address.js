@@ -31,9 +31,9 @@ const server_ipv4 = net.createServer();
 server_ipv4.on('error', common.mustNotCall());
 
 server_ipv4
-  .listen(common.PORT + 1, common.localhostIPv4, common.mustCall(() => {
+  .listen(common.PORT + 1, '127.0.0.1', common.mustCall(() => {
     const address_ipv4 = server_ipv4.address();
-    assert.strictEqual(address_ipv4.address, common.localhostIPv4);
+    assert.strictEqual(address_ipv4.address, '127.0.0.1');
     assert.strictEqual(address_ipv4.port, common.PORT + 1);
     assert.strictEqual(address_ipv4.family, family_ipv4);
     server_ipv4.close();

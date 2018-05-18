@@ -35,8 +35,8 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 }, 3));
 
-server.listen(0, common.localhostIPv4, common.mustCall(() => {
-  const u = `http://${common.localhostIPv4}:${server.address().port}${testPath}`;
+server.listen(0, '127.0.0.1', common.mustCall(() => {
+  const u = `http://127.0.0.1:${server.address().port}${testPath}`;
   http.get(u, common.mustCall(() => {
     http.get(url.parse(u), common.mustCall(() => {
       http.get(new URL(u), common.mustCall(() => {

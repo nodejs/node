@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
@@ -12,7 +12,7 @@ if (cluster.isWorker) {
     // Wait for any data, then close connection
     socket.write('.');
     socket.on('data', () => {});
-  }).listen(0, common.localhostIPv4);
+  }).listen(0, '127.0.0.1');
 
   server.once('close', function() {
     serverClosed = true;
@@ -34,7 +34,7 @@ if (cluster.isWorker) {
 
   // Disconnect worker when it is ready
   worker.once('listening', function(address) {
-    const socket = net.createConnection(address.port, common.localhostIPv4);
+    const socket = net.createConnection(address.port, '127.0.0.1');
 
     socket.on('connect', function() {
       socket.on('data', function() {

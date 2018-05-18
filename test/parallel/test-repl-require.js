@@ -18,7 +18,7 @@ const server = net.createServer((conn) => {
   });
 });
 
-const host = common.localhostIPv4;
+const host = '127.0.0.1';
 const port = 0;
 const options = { host, port };
 

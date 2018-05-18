@@ -15,7 +15,7 @@ const buf2 = Buffer.alloc(256, 'y');
 
 client.on('listening', () => {
   const port = client.address().port;
-  client.send([buf1, buf2], port, common.localhostIPv4, messageSent);
+  client.send([buf1, buf2], port, '127.0.0.1', messageSent);
 });
 
 client.on('message', common.mustCall((buf, info) => {

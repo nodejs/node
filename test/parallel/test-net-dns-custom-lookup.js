@@ -10,7 +10,7 @@ function check(addressType, cb) {
     cb && cb();
   });
 
-  const address = addressType === 4 ? common.localhostIPv4 : '::1';
+  const address = addressType === 4 ? '127.0.0.1' : '::1';
   server.listen(0, address, common.mustCall(function() {
     net.connect({
       port: this.address().port,
@@ -28,7 +28,7 @@ function check(addressType, cb) {
     dnsopts.family = addressType;
     if (addressType === 4) {
       process.nextTick(function() {
-        cb(null, common.localhostIPv4, 4);
+        cb(null, '127.0.0.1', 4);
       });
     } else {
       process.nextTick(function() {

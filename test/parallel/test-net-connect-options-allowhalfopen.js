@@ -30,7 +30,7 @@ const net = require('net');
   let serverConnections = 0;
   let clientSentFIN = 0;
   let serverReceivedFIN = 0;
-  const host = common.localhostIPv4;
+  const host = '127.0.0.1';
 
   function serverOnConnection(socket) {
     console.log(`'connection' ${++serverConnections} emitted on server`);

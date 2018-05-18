@@ -216,7 +216,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
       socket.destroy();
     });
     socket.resume();
-  })).listen(0, common.localhostIPv4, common.mustCall(() => {
+  })).listen(0, '127.0.0.1', common.mustCall(() => {
     const handle = new tcp_wrap.TCP(tcp_wrap.constants.SOCKET);
     const req = new tcp_wrap.TCPConnectWrap();
     const sreq = new stream_wrap.ShutdownWrap();
@@ -247,7 +247,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
       }
       testInitialized(wreq, 'WriteWrap');
     }
-    req.address = common.localhostIPv4;
+    req.address = '127.0.0.1';
     req.port = server.address().port;
     const err = handle.connect(req, req.address, req.port);
     assert.strictEqual(err, 0);

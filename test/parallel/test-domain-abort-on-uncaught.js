@@ -94,8 +94,8 @@ const tests = [
       const server = net.createServer(function(conn) {
         conn.pipe(conn);
       });
-      server.listen(0, common.localhostIPv4, function() {
-        const conn = net.connect(this.address().port, common.localhostIPv4);
+      server.listen(0, '127.0.0.1', function() {
+        const conn = net.connect(this.address().port, '127.0.0.1');
         conn.once('data', function() {
           throw new Error('ok');
         });

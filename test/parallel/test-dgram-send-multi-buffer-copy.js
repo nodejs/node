@@ -15,7 +15,7 @@ const buf2 = Buffer.alloc(256, 'y');
 
 client.on('listening', function() {
   const toSend = [buf1, buf2];
-  client.send(toSend, this.address().port, common.localhostIPv4, onMessage);
+  client.send(toSend, this.address().port, '127.0.0.1', onMessage);
   toSend.splice(0, 2);
 });
 

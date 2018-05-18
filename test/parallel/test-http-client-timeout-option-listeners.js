@@ -16,7 +16,7 @@ const options = {
   agent,
   method: 'GET',
   port: undefined,
-  host: common.localhostIPv4,
+  host: '127.0.0.1',
   path: '/',
   timeout: timeout
 };

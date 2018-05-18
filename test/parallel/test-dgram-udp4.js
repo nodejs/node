@@ -27,7 +27,7 @@ const message_to_send = 'A message to send';
 
 const server = dgram.createSocket('udp4');
 server.on('message', common.mustCall((msg, rinfo) => {
-  assert.strictEqual(rinfo.address, common.localhostIPv4);
+  assert.strictEqual(rinfo.address, '127.0.0.1');
   assert.strictEqual(msg.toString(), message_to_send.toString());
   server.send(msg, 0, msg.length, rinfo.port, rinfo.address);
 }));
@@ -35,7 +35,7 @@ server.on('listening', common.mustCall(() => {
   const client = dgram.createSocket('udp4');
   const port = server.address().port;
   client.on('message', common.mustCall((msg, rinfo) => {
-    assert.strictEqual(rinfo.address, common.localhostIPv4);
+    assert.strictEqual(rinfo.address, '127.0.0.1');
     assert.strictEqual(rinfo.port, port);
     assert.strictEqual(msg.toString(), message_to_send.toString());
     client.close();

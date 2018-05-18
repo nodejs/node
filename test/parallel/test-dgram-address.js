@@ -31,7 +31,7 @@ const dgram = require('dgram');
   socket.on('listening', common.mustCall(() => {
     const address = socket.address();
 
-    assert.strictEqual(address.address, common.localhostIPv4);
+    assert.strictEqual(address.address, '127.0.0.1');
     assert.strictEqual(typeof address.port, 'number');
     assert.ok(isFinite(address.port));
     assert.ok(address.port > 0);
@@ -44,7 +44,7 @@ const dgram = require('dgram');
     assert.fail(`Unexpected error on udp4 socket. ${err.toString()}`);
   });
 
-  socket.bind(0, common.localhostIPv4);
+  socket.bind(0, '127.0.0.1');
 }
 
 if (common.hasIPv6) {

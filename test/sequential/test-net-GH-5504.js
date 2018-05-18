@@ -52,7 +52,7 @@ function server() {
       console.error('_socketEnd');
     });
     socket.write(content);
-  }).listen(common.PORT, common.localhostIPv4, function() {
+  }).listen(common.PORT, '127.0.0.1', function() {
     console.log('listening');
   });
 }
@@ -60,7 +60,7 @@ function server() {
 function client() {
   const net = require('net');
   const client = net.connect({
-    host: common.localhostIPv4,
+    host: '127.0.0.1',
     port: common.PORT
   }, function() {
     client.destroy();

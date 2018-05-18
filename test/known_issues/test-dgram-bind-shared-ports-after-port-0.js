@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 
 // This test should fail because at present `cluster` does not know how to share
 // a socket when `worker1` binds with `port: 0`, and others try to bind to the
@@ -50,7 +50,7 @@ if (cluster.isMaster) {
   const socket1 = dgram.createSocket('udp4', () => {});
   socket1.on('error', PRT1 === 0 ? () => {} : assert.fail);
   socket1.bind(
-    { address: common.localhostIPv4, port: PRT1, exclusive: false },
+    { address: '127.0.0.1', port: PRT1, exclusive: false },
     () => process.send({ message: 'success', port1: socket1.address().port })
   );
 }

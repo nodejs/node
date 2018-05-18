@@ -11,9 +11,9 @@ const server = http.createServer((req, res) => {
   // This space is intentionally left blank.
 });
 
-server.listen(0, common.localhostIPv4, common.mustCall(() => {
+server.listen(0, '127.0.0.1', common.mustCall(() => {
   const port = server.address().port;
-  const req = http.get(`http://${common.localhostIPv4}:${port}`);
+  const req = http.get(`http://127.0.0.1:${port}`);
 
   req.setTimeout(1);
   req.on('socket', common.mustCall((socket) => {

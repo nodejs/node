@@ -17,7 +17,7 @@ const UDP = internalBinding('udp_wrap').UDP;
 
 {
   // Create a bound handle.
-  const handle = _createSocketHandle(common.localhostIPv4, 0, 'udp4');
+  const handle = _createSocketHandle('127.0.0.1', 0, 'udp4');
 
   assert(handle instanceof UDP);
   assert.strictEqual(typeof handle.fd, 'number');

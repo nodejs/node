@@ -48,7 +48,7 @@ const server = https.createServer(options, common.mustCall((req, res) => {
 }, 3));
 
 server.listen(0, common.mustCall(() => {
-  const u = `https://${common.localhostIPv4}:${server.address().port}/foo?bar`;
+  const u = `https://127.0.0.1:${server.address().port}/foo?bar`;
   https.get(u, common.mustCall(() => {
     https.get(url.parse(u), common.mustCall(() => {
       https.get(new URL(u), common.mustCall(() => {

@@ -13,7 +13,7 @@ let port;
 
 function onsend() {
   if (sent++ < limit) {
-    client.send(chunk, 0, chunk.length, port, common.localhostIPv4, onsend);
+    client.send(chunk, 0, chunk.length, port, '127.0.0.1', onsend);
   } else {
     assert.strictEqual(async, true);
   }
