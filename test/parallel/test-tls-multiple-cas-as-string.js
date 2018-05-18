@@ -4,6 +4,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+// Verify that multiple CA certificates can be provided, and that for
+// convenience that can also be in newline-separated strings.
+
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
@@ -30,6 +33,8 @@ function test(ca, next) {
   }
 }
 
+// `ca1` is not actually necessary for the certificate validation -- maybe
+// the fixtures should be written in a way that requires it?
 const array = [ca1, ca2];
 const string = `${ca1}\n${ca2}`;
 test(array, common.mustCall(() => test(string)));
