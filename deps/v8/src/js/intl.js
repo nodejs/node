@@ -152,18 +152,11 @@ var AVAILABLE_LOCALES = {
  */
 var DEFAULT_ICU_LOCALE = UNDEFINED;
 
-function GetDefaultICULocaleJS(service) {
+function GetDefaultICULocaleJS() {
   if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
     DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
   }
-  // Check that this is a valid default for this service,
-  // otherwise fall back to "und"
-  // TODO(littledan,jshin): AvailableLocalesOf sometimes excludes locales
-  // which don't require tailoring, but work fine with root data. Look into
-  // exposing this fact in ICU or the way Chrome bundles data.
-  return (IS_UNDEFINED(service) ||
-          HAS_OWN_PROPERTY(getAvailableLocalesOf(service), DEFAULT_ICU_LOCALE))
-         ? DEFAULT_ICU_LOCALE : "und";
+  return DEFAULT_ICU_LOCALE;
 }
 
 /**
@@ -435,6 +428,48 @@ function resolveLocale(service, requestedLocales, options) {
 
 
 /**
+ * Look up the longest non-empty prefix of |locale| that is an element of
+ * |availableLocales|. Returns undefined when the |locale| is completely
+ * unsupported by |availableLocales|.
+ */
+function bestAvailableLocale(availableLocales, locale) {
+  do {
+    if (!IS_UNDEFINED(availableLocales[locale])) {
+      return locale;
+    }
+    // Truncate locale if possible.
+    var pos = %StringLastIndexOf(locale, '-');
+    if (pos === -1) {
+      break;
+    }
+    locale = %_Call(StringSubstring, locale, 0, pos);
+  } while (true);
+
+  return UNDEFINED;
+}
+
+
+/**
+ * Try to match any mutation of |requestedLocale| against |availableLocales|.
+ */
+function attemptSingleLookup(availableLocales, requestedLocale) {
+  // Remove all extensions.
+  var noExtensionsLocale = %RegExpInternalReplace(
+      GetAnyExtensionRE(), requestedLocale, '');
+  var availableLocale = bestAvailableLocale(
+      availableLocales, requestedLocale);
+  if (!IS_UNDEFINED(availableLocale)) {
+    // Return the resolved locale and extension.
+    var extensionMatch = %regexp_internal_match(
+        GetUnicodeExtensionRE(), requestedLocale);
+    var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
+    return {locale: availableLocale, extension: extension};
+  }
+  return UNDEFINED;
+}
+
+
+/**
  * Returns best matched supported locale and extension info using basic
  * lookup algorithm.
  */
@@ -446,31 +481,25 @@ function lookupMatcher(service, requestedLocales) {
   var availableLocales = getAvailableLocalesOf(service);
 
   for (var i = 0; i < requestedLocales.length; ++i) {
-    // Remove all extensions.
-    var locale = %RegExpInternalReplace(
-        GetAnyExtensionRE(), requestedLocales[i], '');
-    do {
-      if (!IS_UNDEFINED(availableLocales[locale])) {
-        // Return the resolved locale and extension.
-        var extensionMatch = %regexp_internal_match(
-            GetUnicodeExtensionRE(), requestedLocales[i]);
-        var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
-        return {locale: locale, extension: extension, position: i};
-      }
-      // Truncate locale if possible.
-      var pos = %StringLastIndexOf(locale, '-');
-      if (pos === -1) {
-        break;
-      }
-      locale = %_Call(StringSubstring, locale, 0, pos);
-    } while (true);
+    var result = attemptSingleLookup(availableLocales, requestedLocales[i]);
+    if (!IS_UNDEFINED(result)) {
+      return result;
+    }
+  }
+
+  var defLocale = GetDefaultICULocaleJS();
+
+  // While ECMA-402 returns defLocale directly, we have to check if it is
+  // supported, as such support is not guaranteed.
+  var result = attemptSingleLookup(availableLocales, defLocale);
+  if (!IS_UNDEFINED(result)) {
+    return result;
   }
 
   // Didn't find a match, return default.
   return {
-    locale: GetDefaultICULocaleJS(service),
-    extension: '',
-    position: -1
+    locale: 'und',
+    extension: ''
   };
 }
 
