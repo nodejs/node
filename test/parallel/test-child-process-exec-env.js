@@ -34,10 +34,10 @@ function after(err, stdout, stderr) {
     console.log(`error!: ${err.code}`);
     console.log(`stdout: ${JSON.stringify(stdout)}`);
     console.log(`stderr: ${JSON.stringify(stderr)}`);
-    assert.strictEqual(false, err.killed);
+    assert.strictEqual(err.killed, false);
   } else {
     success_count++;
-    assert.notStrictEqual('', stdout);
+    assert.notStrictEqual(stdout, '');
   }
 }
 
@@ -56,7 +56,7 @@ child.stdout.on('data', function(chunk) {
 
 process.on('exit', function() {
   console.log('response: ', response);
-  assert.strictEqual(1, success_count);
-  assert.strictEqual(0, error_count);
+  assert.strictEqual(success_count, 1);
+  assert.strictEqual(error_count, 0);
   assert.ok(response.includes('HELLO=WORLD'));
 });
