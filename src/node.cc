@@ -2843,6 +2843,11 @@ void SetupProcessObject(Environment* env,
                                 "_breakFirstLine", True(env->isolate()));
   }
 
+  if (debug_options.break_node_first_line()) {
+    READONLY_DONT_ENUM_PROPERTY(process,
+                                "_breakNodeFirstLine", True(env->isolate()));
+  }
+
   // --inspect --debug-brk
   if (debug_options.deprecated_invocation()) {
     READONLY_DONT_ENUM_PROPERTY(process,
@@ -3077,7 +3082,8 @@ void LoadEnvironment(Environment* env) {
     env->process_object(),
     get_binding_fn,
     get_linked_binding_fn,
-    get_internal_binding_fn
+    get_internal_binding_fn,
+    Boolean::New(env->isolate(), debug_options.break_node_first_line())
   };
 
   // Bootstrap internal loaders
@@ -3147,6 +3153,8 @@ static void PrintHelp() {
          "  --inspect-brk[=[host:]port]\n"
          "                             activate inspector on host:port\n"
          "                             and break at start of user script\n"
+         "  --inspect-brk-node         will break in node's bootstrap code\n"
+         "                             (default: false)\n"
          "  --inspect-port=[host:]port\n"
          "                             set host:port for inspector\n"
          "  --inspect[=[host:]port]    activate inspector on host:port\n"
