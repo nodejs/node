@@ -235,6 +235,7 @@ v8:
 .PHONY: jstest
 jstest: build-addons build-addons-napi ## Runs addon tests and JS tests
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
+		--skip-tests=$(CI_SKIP_TESTS) \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
 
@@ -265,7 +266,7 @@ test-cov: all
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	# $(MAKE) cctest
-	$(MAKE) jstest
+	CI_SKIP_TESTS=core_line_numbers.js $(MAKE) jstest
 
 test-parallel: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel
