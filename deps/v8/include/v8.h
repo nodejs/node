@@ -3503,6 +3503,17 @@ class V8_EXPORT Object : public Value {
    */
   Isolate* GetIsolate();
 
+  /**
+   * If this object is a Set, Map, WeakSet or WeakMap, this returns a
+   * representation of the elements of this object as an array.
+   * If this object is a SetIterator or MapIterator, this returns all
+   * elements of the underlying collection, starting at the iterator's current
+   * position.
+   * For other types, this will return an empty MaybeLocal<Array> (without
+   * scheduling an exception).
+   */
+  MaybeLocal<Array> PreviewEntries(bool* is_key_value);
+
   static Local<Object> New(Isolate* isolate);
 
   V8_INLINE static Object* Cast(Value* obj);
