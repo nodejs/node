@@ -115,7 +115,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   // so need to check it from the callback.
 
   const mc = common.mustCall(function pb() {
-    testInitialized(this, 'PBKDF2');
+    testInitialized(this, 'AsyncWrap');
   });
   crypto.pbkdf2('password', 'salt', 1, 20, 'sha256', mc);
 
