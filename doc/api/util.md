@@ -426,11 +426,6 @@ passed that alter certain aspects of the formatted string.
 `util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
 an identifiable tag for an inspected value.
 
-Values may supply their own custom inspection function
-(`[util.inspect.custom](depth, opts)`), when called these receive the current
-`depth` in the recursive inspection, as well as the options object passed to
-`util.inspect()`.
-
 ```js
 class Foo {
   get [Symbol.toStringTag]() {
