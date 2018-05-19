@@ -216,9 +216,6 @@ function runTest(assertCleaned) {
       throw err;
     }
 
-    // The REPL registers 'module' and 'require' globals
-    common.allowGlobals(repl.context.module, repl.context.require);
-
     repl.once('close', () => {
       if (repl._flushing) {
         repl.once('flushHistory', onClose);

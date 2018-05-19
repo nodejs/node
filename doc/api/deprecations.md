@@ -528,10 +528,11 @@ The [`util._extend()`][] API has been deprecated.
 <a id="DEP0061"></a>
 ### DEP0061: fs.SyncWriteStream
 
-Type: Runtime
+Type: End-of-Life
 
 The `fs.SyncWriteStream` class was never intended to be a publicly accessible
-API. No alternative API is available. Please use a userland alternative.
+API and has been removed. No alternative API is available. Please use a userland
+alternative.
 
 <a id="DEP0062"></a>
 ### DEP0062: node --debug
@@ -717,7 +718,7 @@ Type: Runtime
 <a id="DEP0079"></a>
 ### DEP0079: Custom inspection function on Objects via .inspect()
 
-Type: Runtime
+Type: End-of-Life
 
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
@@ -977,7 +978,7 @@ objects respectively.
 <a id="DEP0107"></a>
 ### DEP0107: tls.convertNPNProtocols()
 
-Type: Runtime
+Type: End-of-Life
 
 This was an undocumented helper function not intended for use outside Node.js
 core and obsoleted by the removal of NPN (Next Protocol Negotiation) support.

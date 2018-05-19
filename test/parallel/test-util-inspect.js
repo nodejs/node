@@ -19,14 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
-const { previewMapIterator } = require('internal/v8');
+const { previewEntries } = process.binding('util');
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -448,7 +447,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 {
   const map = new Map();
   map.set(1, 2);
-  const vals = previewMapIterator(map.entries());
+  const vals = previewEntries(map.entries());
   const valsOutput = [];
   for (const o of vals) {
     valsOutput.push(o);
@@ -532,10 +531,10 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   );
 }
 
-// GH-1941
+// https://github.com/nodejs/node-v0.x-archive/issues/1941
 assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
 
-// GH-1944
+// https://github.com/nodejs/node-v0.x-archive/issues/1944
 {
   const d = new Date();
   d.toUTCString = null;
@@ -550,20 +549,20 @@ assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
 }
 
 // Should not throw.
-const r = /regexp/;
-r.toString = null;
-util.inspect(r);
-
-// Bug with user-supplied inspect function returns non-string.
-util.inspect([{ inspect: () => 123 }]);
-
-// GH-2225
 {
-  const x = { inspect: util.inspect };
-  assert.strictEqual(util.inspect(x).includes('inspect'), true);
+  const r = /regexp/;
+  r.toString = null;
+  util.inspect(r);
 }
 
-// util.inspect should display the escaped value of a key.
+// See https://github.com/nodejs/node-v0.x-archive/issues/2225
+{
+  const x = { [util.inspect.custom]: util.inspect };
+  assert(util.inspect(x).includes(
+    '[Symbol(util.inspect.custom)]: \n   { [Function: inspect]'));
+}
+
+// `util.inspect` should display the escaped value of a key.
 {
   const w = {
     '\\': 1,
@@ -661,8 +660,8 @@ util.inspect({ hasOwnProperty: null });
 }
 
 {
-  // "customInspect" option can enable/disable calling inspect() on objects.
-  const subject = { inspect: () => 123 };
+  // "customInspect" option can enable/disable calling [util.inspect.custom]().
+  const subject = { [util.inspect.custom]: () => 123 };
 
   assert.strictEqual(
     util.inspect(subject, { customInspect: true }).includes('123'),
@@ -681,31 +680,6 @@ util.inspect({ hasOwnProperty: null });
     true
   );
 
-  // Custom inspect() functions should be able to return other Objects.
-  subject.inspect = () => ({ foo: 'bar' });
-
-  assert.strictEqual(util.inspect(subject), '{ foo: \'bar\' }');
-
-  subject.inspect = (depth, opts) => {
-    assert.strictEqual(opts.customInspectOptions, true);
-  };
-
-  util.inspect(subject, { customInspectOptions: true });
-}
-
-{
-  // "customInspect" option can enable/disable calling [util.inspect.custom]().
-  const subject = { [util.inspect.custom]: () => 123 };
-
-  assert.strictEqual(
-    util.inspect(subject, { customInspect: true }).includes('123'),
-    true
-  );
-  assert.strictEqual(
-    util.inspect(subject, { customInspect: false }).includes('123'),
-    false
-  );
-
   // A custom [util.inspect.custom]() should be able to return other Objects.
   subject[util.inspect.custom] = () => ({ foo: 'bar' });
 
@@ -719,42 +693,15 @@ util.inspect({ hasOwnProperty: null });
 }
 
 {
-  // [util.inspect.custom] takes precedence over inspect.
-  const subject = {
-    [util.inspect.custom]() { return 123; },
-    inspect() { return 456; }
-  };
-
-  assert.strictEqual(
-    util.inspect(subject, { customInspect: true }).includes('123'),
-    true
-  );
-  assert.strictEqual(
-    util.inspect(subject, { customInspect: false }).includes('123'),
-    false
-  );
-  assert.strictEqual(
-    util.inspect(subject, { customInspect: true }).includes('456'),
-    false
-  );
-  assert.strictEqual(
-    util.inspect(subject, { customInspect: false }).includes('456'),
-    false
-  );
-}
-
-{
   // Returning `this` from a custom inspection function works.
-  assert.strictEqual(util.inspect({ a: 123, inspect() { return this; } }),
-                     '{ a: 123, inspect: [Function: inspect] }');
-
   const subject = { a: 123, [util.inspect.custom]() { return this; } };
   const UIC = 'util.inspect.custom';
   assert.strictEqual(util.inspect(subject),
                      `{ a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]] }`);
 }
 
-// util.inspect with "colors" option should produce as many lines as without it.
+// Using `util.inspect` with "colors" option should produce as many lines as
+// without it.
 {
   function testLines(input) {
     const countLines = (str) => (str.match(/\n/g) || []).length;
@@ -935,8 +882,7 @@ if (typeof Symbol !== 'undefined') {
   const aSet = new Set([1, 3]);
   assert.strictEqual(util.inspect(aSet.keys()), '[Set Iterator] { 1, 3 }');
   assert.strictEqual(util.inspect(aSet.values()), '[Set Iterator] { 1, 3 }');
-  assert.strictEqual(util.inspect(aSet.entries()),
-                     '[Set Iterator] { [ 1, 1 ], [ 3, 3 ] }');
+  assert.strictEqual(util.inspect(aSet.entries()), '[Set Iterator] { 1, 3 }');
   // Make sure the iterator doesn't get consumed.
   const keys = aSet.keys();
   assert.strictEqual(util.inspect(keys), '[Set Iterator] { 1, 3 }');
@@ -1162,8 +1108,11 @@ util.inspect(process);
 
 // Setting custom inspect property to a non-function should do nothing.
 {
-  const obj = { inspect: 'fhqwhgads' };
-  assert.strictEqual(util.inspect(obj), "{ inspect: 'fhqwhgads' }");
+  const obj = { [util.inspect.custom]: 'fhqwhgads' };
+  assert.strictEqual(
+    util.inspect(obj),
+    "{ [Symbol(util.inspect.custom)]: 'fhqwhgads' }"
+  );
 }
 
 {

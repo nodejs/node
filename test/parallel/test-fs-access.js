@@ -64,15 +64,21 @@ assert.strictEqual(typeof fs.X_OK, 'number');
 
 const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
-fs.access(__filename, common.mustCall(assert.ifError));
+fs.access(__filename, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
+}));
 fs.promises.access(__filename)
   .then(common.mustCall())
   .catch(throwNextTick);
-fs.access(__filename, fs.R_OK, common.mustCall(assert.ifError));
+fs.access(__filename, fs.R_OK, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
+}));
 fs.promises.access(__filename, fs.R_OK)
   .then(common.mustCall())
   .catch(throwNextTick);
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(assert.ifError));
+fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(function(...args) {
+  assert.deepStrictEqual(args, [null]);
+}));
 fs.promises.access(readOnlyFile, fs.F_OK | fs.R_OK)
   .then(common.mustCall())
   .catch(throwNextTick);

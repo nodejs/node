@@ -52,15 +52,15 @@ const testData = [
       '<tr><td>v4.2.0</td><td><p>The <code>error</code> parameter can now be' +
       'an arrow function.</p></td></tr></table></details></div> ' +
       '<p>Describe <code>Foobar II</code> in more detail here.' +
-      '<a href="http://man7.org/linux/man-pages/man1/fg.1.html">fg(1)</a></p>' +
-      '<h2>Deprecated thingy<span><a class="mark" ' +
+      '<a href="http://man7.org/linux/man-pages/man1/fg.1.html"><code>fg(1)' +
+      '</code></a></p><h2>Deprecated thingy<span><a class="mark" ' +
       'href="#foo_deprecated_thingy" id="foo_deprecated_thingy">#</a>' +
       '</span></h2><div class="api_metadata"><span>Added in: v1.0.0</span>' +
       '<span>Deprecated since: v2.0.0</span></div><p>Describe ' +
       '<code>Deprecated thingy</code> in more detail here.' +
-      '<a href="http://man7.org/linux/man-pages/man1/fg.1p.html">fg(1p)</a>' +
-      '</p><h2>Something<span><a class="mark" href="#foo_something" ' +
-      'id="foo_something">#</a></span></h2> ' +
+      '<a href="http://man7.org/linux/man-pages/man1/fg.1p.html"><code>fg(1p)' +
+      '</code></a></p><h2>Something<span><a class="mark" href="#foo_something' +
+      '" id="foo_something">#</a></span></h2> ' +
       '<!-- This is not a metadata comment --> ' +
       '<p>Describe <code>Something</code> in more detail here. </p>'
   },

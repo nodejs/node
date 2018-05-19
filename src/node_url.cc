@@ -1749,6 +1749,8 @@ void URL::Parse(const char* input,
             }
             // the port is valid
             url->port = NormalizePort(url->scheme, static_cast<int>(port));
+            if (url->port == -1)
+              url->flags |= URL_FLAGS_IS_DEFAULT_SCHEME_PORT;
             buffer.clear();
           } else if (has_state_override) {
             // TODO(TimothyGu): Similar case as above.

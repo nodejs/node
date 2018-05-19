@@ -26,7 +26,6 @@ const assert = require('assert');
 const net = require('net');
 const repl = require('repl');
 
-common.globalCheck = false;
 common.crashOnUnhandledRejection();
 
 const message = 'Read, Eval, Print Loop';
@@ -40,7 +39,6 @@ const moduleFilename = fixtures.path('a');
 global.invoke_me = function(arg) {
   return `invoked ${arg}`;
 };
-
 
 // Helpers for describing the expected output:
 const kArrow = /^ *\^+ *$/;  // Arrow of ^ pointing to syntax error location
@@ -130,6 +128,29 @@ const strictModeTests = [
     send: 'ref = 1',
     expect: /^ReferenceError:\s/
   }
+];
+
+const friendlyExitTests = [
+  {
+    send: 'exit',
+    expect: '(To exit, press ^D or type .exit)'
+  },
+  {
+    send: 'quit',
+    expect: '(To exit, press ^D or type .exit)'
+  },
+  {
+    send: 'quit = 1',
+    expect: '1'
+  },
+  {
+    send: 'quit',
+    expect: '1'
+  },
+  {
+    send: 'exit',
+    expect: '(To exit, press ^D or type .exit)'
+  },
 ];
 
 const errorTests = [
@@ -742,6 +763,7 @@ const tcpTests = [
     const [ socket, replServer ] = await startUnixRepl();
 
     await runReplTests(socket, prompt_unix, unixTests);
+    await runReplTests(socket, prompt_unix, friendlyExitTests);
     await runReplTests(socket, prompt_unix, errorTests);
     replServer.replMode = repl.REPL_MODE_STRICT;
     await runReplTests(socket, prompt_unix, strictModeTests);
@@ -755,6 +777,7 @@ const tcpTests = [
 
     socket.end();
   }
+  common.allowGlobals(...Object.values(global));
 })();
 
 function startTCPRepl() {

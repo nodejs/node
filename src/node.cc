@@ -4355,12 +4355,6 @@ void Init(int* argc,
   }
 #endif
 
-  // Needed for access to V8 intrinsics.  Disabled again during bootstrapping,
-  // see lib/internal/bootstrap/node.js.
-  const char allow_natives_syntax[] = "--allow_natives_syntax";
-  V8::SetFlagsFromString(allow_natives_syntax,
-                         sizeof(allow_natives_syntax) - 1);
-
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
@@ -4544,6 +4538,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Context::Scope context_scope(context);
   Environment env(isolate_data, context, v8_platform.GetTracingAgent());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
+
+  TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
+                        "JavaScriptMainThread");
 
   const char* path = argc > 1 ? argv[1] : nullptr;
   StartInspector(&env, path, debug_options);

@@ -56,7 +56,7 @@ function toHTML({ input, filename, nodeVersion, analytics }, cb) {
   const section = firstHeading ? firstHeading.text : 'Index';
 
   preprocessText(lexed);
-  preprocessElements(lexed);
+  preprocessElements(lexed, filename);
 
   // Generate the table of contents. This mutates the lexed contents in-place.
   const toc = buildToc(lexed, filename);
@@ -141,7 +141,7 @@ function linkManPages(text) {
     MAN_PAGE, (match, beginning, name, number, optionalCharacter) => {
       // Name consists of lowercase letters,
       // number is a single digit with an optional lowercase letter.
-      const displayAs = `${name}(${number}${optionalCharacter})`;
+      const displayAs = `<code>${name}(${number}${optionalCharacter})</code>`;
 
       if (BSD_ONLY_SYSCALLS.has(name)) {
         return `${beginning}<a href="https://www.freebsd.org/cgi/man.cgi` +
@@ -171,7 +171,7 @@ function linkJsTypeDocs(text) {
 }
 
 // Preprocess stability blockquotes and YAML blocks.
-function preprocessElements(lexed) {
+function preprocessElements(lexed, filename) {
   const STABILITY_RE = /(.*:)\s*(\d)([\s\S]*)/;
   let state = null;
   let headingIndex = -1;
@@ -205,10 +205,16 @@ function preprocessElements(lexed) {
           headingIndex = -1;
           heading = null;
         }
+
+        // Do not link to the section we are already in.
+        const noLinking = filename === 'documentation' &&
+          heading !== null && heading.text === 'Stability Index';
         token.text = `<div class="api_stability api_stability_${number}">` +
-          '<a href="documentation.html#documentation_stability_index">' +
-          `${prefix} ${number}</a>${explication}</div>`
+          (noLinking ? '' :
+            '<a href="documentation.html#documentation_stability_index">') +
+          `${prefix} ${number}${noLinking ? '' : '</a>'}${explication}</div>`
           .replace(/\n/g, ' ');
+
         lexed[index] = { type: 'html', text: token.text };
       } else if (state === 'MAYBE_STABILITY_BQ') {
         state = null;
@@ -298,9 +304,12 @@ function buildToc(lexed, filename) {
     const realFilename = path.basename(realFilenames[0], '.md');
     const headingText = token.text.trim();
     const id = getId(`${realFilename}_${headingText}`, idCounters);
+
+    const hasStability = token.stability !== undefined;
     toc += ' '.repeat((depth - 1) * 2) +
-           `* <span class="stability_${token.stability}">` +
-           `<a href="#${id}">${token.text}</a></span>\n`;
+      (hasStability ? `* <span class="stability_${token.stability}">` : '* ') +
+      `<a href="#${id}">${token.text}</a>${hasStability ? '</span>' : ''}\n`;
+
     token.text += `<span><a class="mark" href="#${id}" id="${id}">#</a></span>`;
     if (realFilename === 'errors' && headingText.startsWith('ERR_')) {
       token.text += `<span><a class="mark" href="#${headingText}" ` +

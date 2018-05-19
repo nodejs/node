@@ -219,7 +219,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
   // This function may be called multiple times on the uv_work pool
   // for a single write() call, until all of the input bytes have
   // been consumed.
-  void DoThreadPoolWork() {
+  void DoThreadPoolWork() override {
     const Bytef* next_expected_header_byte = nullptr;
 
     // If the avail_out is left at 0, then it means that it ran out
@@ -353,7 +353,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
 
 
   // v8 land!
-  void AfterThreadPoolWork(int status) {
+  void AfterThreadPoolWork(int status) override {
     write_in_progress_ = false;
 
     if (status == UV_ECANCELED) {
