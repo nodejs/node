@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const util = require('util');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
@@ -46,8 +47,8 @@ assert.throws(() => console.timeEnd(Symbol('test')),
               TypeError);
 
 
-// an Object with a custom .inspect() function
-const custom_inspect = { foo: 'bar', inspect: () => 'inspect' };
+// An Object with a custom inspect function.
+const custom_inspect = { foo: 'bar', [util.inspect.custom]: () => 'inspect' };
 
 const strings = [];
 const errStrings = [];
@@ -192,9 +193,11 @@ for (const expected of expectedStrings) {
 }
 
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
+                    '[Function: [util.inspect.custom]] }\n');
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
+                    '[Function: [util.inspect.custom]] }\n');
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
 assert.strictEqual(strings.shift(), 'inspect inspect\n');
