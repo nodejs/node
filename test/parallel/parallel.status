@@ -12,6 +12,7 @@ test-postmortem-metadata: PASS,FLAKY
 # on.
 test-http2-client-upload-reject: PASS,FLAKY
 test-http2-pipe: PASS,FLAKY
+test-http2-client-upload: PASS,FLAKY
 
 [$system==win32]
 
