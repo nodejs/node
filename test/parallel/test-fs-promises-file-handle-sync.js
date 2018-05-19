@@ -4,7 +4,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 
-const { access, copyFile, open } = require('fs/promises');
+const { access, copyFile, open } = require('fs').promises;
 const path = require('path');
 
 common.crashOnUnhandledRejection();
