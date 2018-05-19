@@ -20,15 +20,14 @@ fs.readFile(loc, common.mustCall((err, data) => {
   const server = http2.createServer();
 
   server.on('stream', common.mustCall((stream) => {
-    // Wait for some data to come through.
-    setImmediate(() => {
-      stream.on('close', common.mustCall(() => {
-        assert.strictEqual(stream.rstCode, 0);
-      }));
+    // TODO(apapirovski): This should be wrapped in setImmediate to allow
+    // some data to come through so that it fully tests the desired condition.
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(stream.rstCode, 0);
+    }));
 
-      stream.respond({ ':status': 400 });
-      stream.end();
-    });
+    stream.respond({ ':status': 400 });
+    stream.end();
   }));
 
   server.listen(0, common.mustCall(() => {
