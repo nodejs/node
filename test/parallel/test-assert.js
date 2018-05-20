@@ -594,7 +594,7 @@ assert.throws(
     '- {}\n' +
     '+ {\n' +
     "+   loop: 'forever',\n" +
-    '+   [Symbol(util.inspect.custom)]: [Function]\n' +
+    '+   [Symbol(nodejs.util.inspect.custom)]: [Function]\n' +
     '+ }'
   });
 
