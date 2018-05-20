@@ -6,10 +6,10 @@ if (!common.hasCrypto)
 const http2 = require('http2');
 
 const server = http2.createServer();
-server.setTimeout(common.platformTimeout(1));
+server.setTimeout(common.platformTimeout(50));
 
 const onServerTimeout = common.mustCall((session) => {
-  session.close(() => session.destroy());
+  session.close();
 });
 
 server.on('stream', common.mustNotCall());
