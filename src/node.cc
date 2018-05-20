@@ -3234,7 +3234,8 @@ static void PrintHelp() {
          "  --preserve-symlinks-main   preserve symbolic links when resolving\n"
          "                             the main module\n"
 #endif
-         "  --prof-process             process v8 profiler output generated\n"
+         "  --prof                     generate V8 profiler output\n"
+         "  --prof-process             process V8 profiler output generated\n"
          "                             using --prof\n"
          "  --redirect-warnings=file\n"
          "                             write warnings to file instead of\n"
