@@ -180,6 +180,16 @@ function testFtruncate(cb) {
 
   ['', false, null, {}, []].forEach((input) => {
     assert.throws(
+      () => fs.truncate(file5, input, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+        message: 'The "len" argument must be of type number. ' +
+                 `Received type ${typeof input}`
+      }
+    );
+
+    assert.throws(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
@@ -191,6 +201,16 @@ function testFtruncate(cb) {
   });
 
   [-1.5, 1.5].forEach((input) => {
+    assert.throws(
+      () => fs.truncate(file5, input),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError [ERR_OUT_OF_RANGE]',
+        message: 'The value of "len" is out of range. It must be ' +
+                  `an integer. Received ${input}`
+      }
+    );
+
     assert.throws(
       () => fs.ftruncate(fd, input),
       {
