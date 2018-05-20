@@ -134,7 +134,7 @@ bool NodeTraceBuffer::Flush() {
 }
 
 // Attempts to set current_buf_ such that it references a buffer that can
-// can write at least one trace event. If both buffers are unavailable this
+// write at least one trace event. If both buffers are unavailable this
 // method returns false; otherwise it returns true.
 bool NodeTraceBuffer::TryLoadAvailableBuffer() {
   InternalTraceBuffer* prev_buf = current_buf_.load();
