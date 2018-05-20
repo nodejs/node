@@ -51,3 +51,4 @@ globals:
   WebAssembly: false
   BigInt64Array: false
   BigUint64Array: false
+  SharedArrayBuffer: false

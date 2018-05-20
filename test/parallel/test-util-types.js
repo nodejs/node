@@ -1,5 +1,4 @@
 // Flags: --harmony-bigint --experimental-vm-modules
-/* global SharedArrayBuffer */
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
