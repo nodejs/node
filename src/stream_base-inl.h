@@ -51,17 +51,17 @@ inline StreamListener::~StreamListener() {
 }
 
 inline void StreamListener::PassReadErrorToPreviousListener(ssize_t nread) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   previous_listener_->OnStreamRead(nread, uv_buf_init(nullptr, 0));
 }
 
 inline void StreamListener::OnStreamAfterShutdown(ShutdownWrap* w, int status) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   previous_listener_->OnStreamAfterShutdown(w, status);
 }
 
 inline void StreamListener::OnStreamAfterWrite(WriteWrap* w, int status) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   previous_listener_->OnStreamAfterWrite(w, status);
 }
 
@@ -79,8 +79,8 @@ inline StreamResource::~StreamResource() {
 }
 
 inline void StreamResource::PushStreamListener(StreamListener* listener) {
-  CHECK_NE(listener, nullptr);
-  CHECK_EQ(listener->stream_, nullptr);
+  CHECK_NOT_NULL(listener);
+  CHECK_NULL(listener->stream_);
 
   listener->previous_listener_ = listener_;
   listener->stream_ = this;
@@ -89,7 +89,7 @@ inline void StreamResource::PushStreamListener(StreamListener* listener) {
 }
 
 inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
-  CHECK_NE(listener, nullptr);
+  CHECK_NOT_NULL(listener);
 
   StreamListener* previous;
   StreamListener* current;
@@ -98,7 +98,7 @@ inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
   for (current = listener_, previous = nullptr;
        /* No loop condition because we want a crash if listener is not found */
        ; previous = current, current = current->previous_listener_) {
-    CHECK_NE(current, nullptr);
+    CHECK_NOT_NULL(current);
     if (current == listener) {
       if (previous != nullptr)
         previous->previous_listener_ = current->previous_listener_;
@@ -415,7 +415,7 @@ inline void ShutdownWrap::OnDone(int status) {
 }
 
 inline void WriteWrap::SetAllocatedStorage(char* data, size_t size) {
-  CHECK_EQ(storage_, nullptr);
+  CHECK_NULL(storage_);
   storage_ = data;
   storage_size_ = size;
 }

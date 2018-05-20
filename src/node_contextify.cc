@@ -655,7 +655,7 @@ class ContextifyScript : public BaseObject {
         ContextifyContext* sandbox =
             ContextifyContext::ContextFromContextifiedSandbox(
                 env, args[6].As<Object>());
-        CHECK_NE(sandbox, nullptr);
+        CHECK_NOT_NULL(sandbox);
         parsing_context = sandbox->context();
       }
     } else {
@@ -785,7 +785,7 @@ class ContextifyScript : public BaseObject {
     // Get the context from the sandbox
     ContextifyContext* contextify_context =
         ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
-    CHECK_NE(contextify_context, nullptr);
+    CHECK_NOT_NULL(contextify_context);
 
     if (contextify_context->context().IsEmpty())
       return;

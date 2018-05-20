@@ -106,7 +106,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       ContextifyContext* sandbox =
           ContextifyContext::ContextFromContextifiedSandbox(
               env, args[2].As<Object>());
-      CHECK_NE(sandbox, nullptr);
+      CHECK_NOT_NULL(sandbox);
       context = sandbox->context();
     }
 

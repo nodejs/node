@@ -71,7 +71,7 @@ TLSWrap::TLSWrap(Environment* env,
   MakeWeak();
 
   // sc comes from an Unwrap. Make sure it was assigned.
-  CHECK_NE(sc, nullptr);
+  CHECK_NOT_NULL(sc);
 
   // We've our own session callbacks
   SSL_CTX_sess_set_get_cb(sc_->ctx_.get(),
@@ -169,7 +169,7 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
                                   SSLWrap<TLSWrap>::kClient;
 
   StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
-  CHECK_NE(stream, nullptr);
+  CHECK_NOT_NULL(stream);
 
   TLSWrap* res = new TLSWrap(env, kind, stream, Unwrap<SecureContext>(sc));
 
@@ -563,7 +563,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
                      uv_buf_t* bufs,
                      size_t count,
                      uv_stream_t* send_handle) {
-  CHECK_EQ(send_handle, nullptr);
+  CHECK_NULL(send_handle);
 
   if (ssl_ == nullptr) {
     ClearError();
@@ -585,7 +585,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     // However, if there is any data that should be written to the socket,
     // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0) {
-      CHECK_EQ(current_empty_write_, nullptr);
+      CHECK_NULL(current_empty_write_);
       current_empty_write_ = w;
       StreamWriteResult res =
           underlying_stream()->Write(bufs, count, send_handle);
@@ -600,7 +600,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
   }
 
   // Store the current write wrap
-  CHECK_EQ(current_write_, nullptr);
+  CHECK_NULL(current_write_);
   current_write_ = w;
 
   // Write queued data
@@ -638,7 +638,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
 
 uv_buf_t TLSWrap::OnStreamAlloc(size_t suggested_size) {
-  CHECK_NE(ssl_, nullptr);
+  CHECK_NOT_NULL(ssl_);
 
   size_t size = suggested_size;
   char* base = crypto::NodeBIO::FromBIO(enc_in_)->PeekWritable(&size);
@@ -709,7 +709,7 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsBoolean());
   CHECK(args[1]->IsBoolean());
-  CHECK_NE(wrap->ssl_, nullptr);
+  CHECK_NOT_NULL(wrap->ssl_);
 
   int verify_mode;
   if (wrap->is_server()) {
@@ -737,7 +737,7 @@ void TLSWrap::EnableSessionCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-  CHECK_NE(wrap->ssl_, nullptr);
+  CHECK_NOT_NULL(wrap->ssl_);
   wrap->enable_session_callbacks();
   crypto::NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
   wrap->hello_parser_.Start(SSLWrap<TLSWrap>::OnClientHello,
@@ -784,7 +784,7 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  CHECK_NE(wrap->ssl_, nullptr);
+  CHECK_NOT_NULL(wrap->ssl_);
 
   const char* servername = SSL_get_servername(wrap->ssl_.get(),
                                               TLSEXT_NAMETYPE_host_name);
@@ -807,7 +807,7 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
   CHECK(!wrap->started_);
   CHECK(wrap->is_client());
 
-  CHECK_NE(wrap->ssl_, nullptr);
+  CHECK_NOT_NULL(wrap->ssl_);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   node::Utf8Value servername(env->isolate(), args[0].As<String>());
@@ -847,7 +847,7 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->sni_context_.Reset(env->isolate(), ctx);
 
   SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
-  CHECK_NE(sc, nullptr);
+  CHECK_NOT_NULL(sc);
   p->SetSNIContext(sc);
   return SSL_TLSEXT_ERR_OK;
 }

@@ -149,7 +149,7 @@ int SyncProcessStdioPipe::Start() {
 
   if (readable()) {
     if (input_buffer_.len > 0) {
-      CHECK_NE(input_buffer_.base, nullptr);
+      CHECK_NOT_NULL(input_buffer_.base);
 
       int r = uv_write(&write_req_,
                        uv_stream(),
@@ -547,7 +547,7 @@ void SyncProcessRunner::CloseStdioPipes() {
 
   if (stdio_pipes_initialized_) {
     CHECK(stdio_pipes_);
-    CHECK_NE(uv_loop_, nullptr);
+    CHECK_NOT_NULL(uv_loop_);
 
     for (uint32_t i = 0; i < stdio_count_; i++) {
       if (stdio_pipes_[i])
@@ -564,7 +564,7 @@ void SyncProcessRunner::CloseKillTimer() {
 
   if (kill_timer_initialized_) {
     CHECK_GT(timeout_, 0);
-    CHECK_NE(uv_loop_, nullptr);
+    CHECK_NOT_NULL(uv_loop_);
 
     uv_handle_t* uv_timer_handle = reinterpret_cast<uv_handle_t*>(&uv_timer_);
     uv_ref(uv_timer_handle);

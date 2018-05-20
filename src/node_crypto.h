@@ -621,7 +621,7 @@ class ECDH : public BaseObject {
         key_(std::move(key)),
         group_(EC_KEY_get0_group(key_.get())) {
     MakeWeak();
-    CHECK_NE(group_, nullptr);
+    CHECK_NOT_NULL(group_);
   }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
