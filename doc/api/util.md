@@ -569,8 +569,8 @@ terminals.
 
 <!-- type=misc -->
 
-Objects may also define their own `[util.inspect.custom](depth, opts)` function
-that `util.inspect()` will invoke and use the result of when inspecting the
+Objects may also define their own `[util.inspect.custom](depth, opts)` function,
+which `util.inspect()` will invoke and use the result of when inspecting the
 object:
 
 ```js
@@ -625,8 +625,34 @@ util.inspect(obj);
 added: v6.6.0
 -->
 
-* {symbol} that can be used to declare custom inspect functions, see
-[Custom inspection functions on Objects][].
+* {symbol} that can be used to declare custom inspect functions.
+
+This is a shared symbol, `Symbol.for('util.inspect.custom')`, which
+can be used to define custom inspection functions in any environment.
+
+```js
+const INSPECT = Symbol.for('util.inspect.custom');
+
+class Password {
+  constructor(value) {
+    this.value = value || document.getElementById('password').value;
+  }
+
+  toString() {
+    return 'xxxxxxxx';
+  }
+
+  [INSPECT]() {
+    return this.toString();
+  }
+}
+
+const password = new Password('r0sebud');
+console.log(password);
+// Prints xxxxxxxx
+```
+
+See [Custom inspection functions on Objects][] for more details.
 
 ### util.inspect.defaultOptions
 <!-- YAML

@@ -758,6 +758,20 @@ util.inspect({ hasOwnProperty: null });
   };
 
   util.inspect(subject, { customInspectOptions: true });
+
+  // util.inspect.custom is a shared symbol which can be accessed as
+  // Symbol.for("util.inspect.custom").
+  const inspect = Symbol.for('util.inspect.custom');
+
+  subject[inspect] = () => ({ baz: 'quux' });
+
+  assert.strictEqual(util.inspect(subject), '{ baz: \'quux\' }');
+
+  subject[inspect] = (depth, opts) => {
+    assert.strictEqual(opts.customInspectOptions, true);
+  };
+
+  util.inspect(subject, { customInspectOptions: true });
 }
 
 {
