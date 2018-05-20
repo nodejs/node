@@ -3798,7 +3798,8 @@ If the third argument is a number, then it specifies `flags`, as shown in the
 following example.
 
 ```js
-const fsPromises = require('fs').promises;
+const fs = require('fs');
+const fsPromises = fs.promises;
 const { COPYFILE_EXCL } = fs.constants;
 
 // By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
