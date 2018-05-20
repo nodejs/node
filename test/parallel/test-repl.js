@@ -25,6 +25,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const net = require('net');
 const repl = require('repl');
+const { inspect } = require('util');
 
 common.crashOnUnhandledRejection();
 
@@ -60,7 +61,7 @@ async function runReplTests(socket, prompt, tests) {
         expectedLine = send;
 
       while (!lineBuffer.includes('\n')) {
-        lineBuffer += await event(socket, 'data');
+        lineBuffer += await event(socket, expect);
 
         // Cut away the initial prompt
         while (lineBuffer.startsWith(prompt))
@@ -544,11 +545,11 @@ const errorTests = [
   {
     send: 'require("internal/repl")',
     expect: [
-      /^Error: Cannot find module 'internal\/repl'/,
+      /^{ Error: Cannot find module 'internal\/repl'/,
       /^    at .*/,
       /^    at .*/,
       /^    at .*/,
-      /^    at .*/
+      /^    at .* code: 'MODULE_NOT_FOUND' }/
     ]
   },
   // REPL should handle quotes within regexp literal in multiline mode
@@ -859,8 +860,16 @@ function startUnixRepl() {
   ]);
 }
 
-function event(ee, eventName) {
-  return new Promise((resolve) => {
-    ee.once(eventName, common.mustCall(resolve));
+function event(ee, expected) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(
+        new Error(`Repl did not reply as expected for:\n\n${inspect(expected)}`)
+      );
+    }, 500);
+    ee.once('data', common.mustCall((...args) => {
+      clearTimeout(timeout);
+      resolve(...args);
+    }));
   });
 }
