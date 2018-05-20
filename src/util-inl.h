@@ -365,21 +365,21 @@ inline T* UncheckedCalloc(size_t n) {
 template <typename T>
 inline T* Realloc(T* pointer, size_t n) {
   T* ret = UncheckedRealloc(pointer, n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 
 template <typename T>
 inline T* Malloc(size_t n) {
   T* ret = UncheckedMalloc<T>(n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 
 template <typename T>
 inline T* Calloc(size_t n) {
   T* ret = UncheckedCalloc<T>(n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 

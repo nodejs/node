@@ -676,7 +676,7 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   if (!hello_parser_.IsEnded()) {
     size_t avail = 0;
     uint8_t* data = reinterpret_cast<uint8_t*>(enc_in->Peek(&avail));
-    CHECK(avail == 0 || data != nullptr);
+    CHECK_IMPLIES(data == nullptr, avail == 0);
     return hello_parser_.Parse(data, avail);
   }
 
