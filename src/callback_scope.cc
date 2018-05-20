@@ -44,9 +44,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     async_context_(asyncContext),
     object_(object),
     callback_scope_(env) {
-  if (expect == kRequireResource) {
-    CHECK(!object.IsEmpty());
-  }
+  CHECK_IMPLIES(expect == kRequireResource, !object.IsEmpty());
 
   if (!env->can_call_into_js()) {
     failed_ = true;
