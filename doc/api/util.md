@@ -631,7 +631,7 @@ This is a shared symbol, `Symbol.for('util.inspect.custom')`, which
 can be used to define custom inspection functions in any environment.
 
 ```js
-const INSPECT = Symbol.for('util.inspect.custom');
+const inspect = Symbol.for('util.inspect.custom');
 
 class Password {
   constructor(value) {
@@ -642,7 +642,7 @@ class Password {
     return 'xxxxxxxx';
   }
 
-  [INSPECT]() {
+  [inspect]() {
     return this.toString();
   }
 }
