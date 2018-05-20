@@ -627,9 +627,9 @@ added: v6.6.0
 
 * {symbol} that can be used to declare custom inspect functions.
 
-This is a shared symbol, [`Symbol.for('util.inspect.custom')`], which is registered
-in the [global symbol registry](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for).
-It can be used to define custom inspection functions in any environment.
+This is a shared symbol, `Symbol.for('util.inspect.custom')`, which is
+registered in the [global symbol registry][]. It can be used to define
+custom inspection functions in any environment.
 
 ```js
 const inspect = Symbol.for('util.inspect.custom');
@@ -2108,6 +2108,7 @@ Deprecated predecessor of `console.log`.
 [`Error`]: errors.html#errors_class_error
 [`Float32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array
 [`Float64Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
+[global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
 [`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
 [`Int32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array
