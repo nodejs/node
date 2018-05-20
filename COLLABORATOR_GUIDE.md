@@ -411,8 +411,11 @@ recommended but not required.
 
 ### Deprecations
 
-**Deprecation** refers to the identification of Public APIs that should no
-longer be used.
+[_Deprecation_][] is "the discouragement of use of some … feature … or practice,
+typically because it has been superseded or is no longer considered efficient or
+safe, without completely removing it or prohibiting its use. It can also imply
+that a feature, design, or practice will be removed or discontinued entirely in
+the future."
 
 Node.js uses three Deprecation levels:
 
@@ -879,6 +882,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 [Enhancement Proposal]: https://github.com/nodejs/node-eps
 [Stability Index]: doc/api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
+[_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
 [`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: doc/guides/backporting-to-release-lines.md
