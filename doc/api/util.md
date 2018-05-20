@@ -644,13 +644,13 @@ class Password {
   }
 
   [inspect]() {
-    return this.toString();
+    return `Password <${this.toString()}>`;
   }
 }
 
 const password = new Password('r0sebud');
 console.log(password);
-// Prints xxxxxxxx
+// Prints Password <xxxxxxxx>
 ```
 
 See [Custom inspection functions on Objects][] for more details.
