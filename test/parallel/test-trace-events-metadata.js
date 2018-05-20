@@ -13,7 +13,8 @@ tmpdir.refresh();
 process.chdir(tmpdir.path);
 
 const proc = cp.spawn(process.execPath,
-                      [ '--trace-events-enabled', '-e', CODE ]);
+                      [ '--trace-event-categories', 'node.perf.usertiming',
+                        '-e', CODE ]);
 proc.once('exit', common.mustCall(() => {
   assert(common.fileExists(FILE_NAME));
   fs.readFile(FILE_NAME, common.mustCall((err, data) => {
@@ -25,5 +26,8 @@ proc.once('exit', common.mustCall(() => {
     assert(traces.some((trace) =>
       trace.cat === '__metadata' && trace.name === 'thread_name' &&
         trace.args.name === 'BackgroundTaskRunner'));
+    assert(traces.some((trace) =>
+      trace.cat === '__metadata' && trace.name === 'version' &&
+        trace.args.node === process.versions.node));
   }));
 }));
