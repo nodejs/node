@@ -70,22 +70,35 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appends data to a non empty file
-const filename2 = join(tmpdir.path, 'append2.txt');
-fs.writeFileSync(filename2, currentFileData);
+// test that appends data to a non-empty file (callback API)
+{
+  const filename = join(tmpdir.path, 'append-non-empty.txt');
+  fs.writeFileSync(filename, currentFileData);
 
-fs.appendFile(filename2, s, function(e) {
-  assert.ifError(e);
-
-  ncallbacks++;
-
-  fs.readFile(filename2, function(e, buffer) {
+  fs.appendFile(filename, s, common.mustCall(function(e) {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
-                       buffer.length);
-  });
-});
+
+    fs.readFile(filename, common.mustCall(function(e, buffer) {
+      assert.ifError(e);
+      assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
+                         buffer.length);
+    }));
+  }));
+}
+
+// test that appends data to a non-empty file (promise API)
+{
+  const filename = join(tmpdir.path, 'append-non-empty-promise.txt');
+  fs.writeFileSync(filename, currentFileData);
+
+  fs.promises.appendFile(filename, s)
+    .then(common.mustCall(() => fs.promises.readFile(filename)))
+    .then((buffer) => {
+      assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
+                         buffer.length);
+    })
+    .catch(throwNextTick);
+}
 
 // test that appendFile accepts buffers
 const filename3 = join(tmpdir.path, 'append3.txt');
@@ -164,9 +177,8 @@ assert.throws(
   { code: 'ERR_INVALID_CALLBACK' });
 
 process.on('exit', function() {
-  assert.strictEqual(10, ncallbacks);
+  assert.strictEqual(ncallbacks, 8);
 
-  fs.unlinkSync(filename2);
   fs.unlinkSync(filename3);
   fs.unlinkSync(filename4);
   fs.unlinkSync(filename5);
