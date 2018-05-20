@@ -197,7 +197,7 @@ bool InspectorIo::Start() {
 }
 
 void InspectorIo::Stop() {
-  CHECK(state_ == State::kAccepting || !sessions_.empty());
+  CHECK_IMPLIES(sessions_.empty(), state_ == State::kAccepting);
   Write(TransportAction::kKill, 0, StringView());
   int err = uv_thread_join(&thread_);
   CHECK_EQ(err, 0);
