@@ -34,7 +34,7 @@ std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
     uv_fs_t req;
     req.ptr = nullptr;
     if (0 == uv_fs_realpath(loop, &req, script_name.c_str(), nullptr)) {
-      CHECK_NE(req.ptr, nullptr);
+      CHECK_NOT_NULL(req.ptr);
       script_path = std::string(static_cast<char*>(req.ptr));
     }
     uv_fs_req_cleanup(&req);

@@ -518,7 +518,7 @@ NodeBIO::~NodeBIO() {
 
 
 NodeBIO* NodeBIO::FromBIO(BIO* bio) {
-  CHECK_NE(BIO_get_data(bio), nullptr);
+  CHECK_NOT_NULL(BIO_get_data(bio));
   return static_cast<NodeBIO*>(BIO_get_data(bio));
 }
 

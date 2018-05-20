@@ -88,7 +88,7 @@ FSEventWrap::~FSEventWrap() {
 
 void FSEventWrap::GetInitialized(const FunctionCallbackInfo<Value>& args) {
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
-  CHECK(wrap != nullptr);
+  CHECK_NOT_NULL(wrap);
   args.GetReturnValue().Set(wrap->initialized_);
 }
 
@@ -133,14 +133,14 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.This());
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   CHECK(!wrap->initialized_);
 
   const int argc = args.Length();
   CHECK_GE(argc, 4);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   unsigned int flags = 0;
   if (args[2]->IsTrue())
@@ -233,7 +233,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   CHECK(wrap->initialized_);
 
   wrap->initialized_ = false;

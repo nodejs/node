@@ -599,7 +599,7 @@ class HttpHandler : public ProtocolHandler {
 ProtocolHandler::ProtocolHandler(InspectorSocket* inspector,
                                  TcpHolder::Pointer tcp)
                                  : inspector_(inspector), tcp_(std::move(tcp)) {
-  CHECK_NE(nullptr, tcp_);
+  CHECK_NOT_NULL(tcp_);
   tcp_->SetHandler(this);
 }
 

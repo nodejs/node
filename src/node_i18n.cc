@@ -127,7 +127,7 @@ struct Converter {
 
   explicit Converter(UConverter* converter,
                      const char* sub = nullptr) : conv(converter) {
-    CHECK_NE(conv, nullptr);
+    CHECK_NOT_NULL(conv);
     UErrorCode status = U_ZERO_ERROR;
     if (sub != nullptr) {
       ucnv_setSubstChars(conv, sub, strlen(sub), &status);

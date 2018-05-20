@@ -104,7 +104,7 @@ int JSStream::DoWrite(WriteWrap* w,
                       uv_buf_t* bufs,
                       size_t count,
                       uv_stream_t* send_handle) {
-  CHECK_EQ(send_handle, nullptr);
+  CHECK_NULL(send_handle);
 
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());

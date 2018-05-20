@@ -317,7 +317,7 @@ class InspectorTimerHandle {
   InspectorTimerHandle(const InspectorTimerHandle&) = delete;
 
   ~InspectorTimerHandle() {
-    CHECK_NE(timer_, nullptr);
+    CHECK_NOT_NULL(timer_);
     timer_->Stop();
     timer_ = nullptr;
   }
@@ -562,7 +562,7 @@ bool Agent::StartIoThread(bool wait_for_connect) {
   if (io_ != nullptr)
     return true;
 
-  CHECK_NE(client_, nullptr);
+  CHECK_NOT_NULL(client_);
 
   io_ = std::unique_ptr<InspectorIo>(
       new InspectorIo(parent_env_, platform_, path_, debug_options_,
@@ -613,7 +613,7 @@ std::unique_ptr<InspectorSession> Agent::Connect(
 }
 
 void Agent::WaitForDisconnect() {
-  CHECK_NE(client_, nullptr);
+  CHECK_NOT_NULL(client_);
   // TODO(addaleax): Maybe this should use an at-exit hook for the Environment
   // or something similar?
   client_->contextDestroyed(parent_env_->context());

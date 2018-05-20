@@ -140,7 +140,7 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
   ArrayBuffer::Contents obj_c = object->GetContents();
   CHECK_EQ(data_, static_cast<char*>(obj_c.Data()));
   if (object->ByteLength() != 0)
-    CHECK_NE(data_, nullptr);
+    CHECK_NOT_NULL(data_);
 
   persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   persistent_.SetWrapperClassId(BUFFER_ID);
@@ -329,7 +329,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
 
   void* new_data;
   if (length > 0) {
-    CHECK_NE(data, nullptr);
+    CHECK_NOT_NULL(data);
     new_data = node::UncheckedMalloc(length);
     if (new_data == nullptr)
       return Local<Object>();
@@ -408,7 +408,7 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
 
 MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
   if (length > 0) {
-    CHECK_NE(data, nullptr);
+    CHECK_NOT_NULL(data);
     CHECK(length <= kMaxLength);
   }
 

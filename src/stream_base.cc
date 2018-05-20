@@ -318,7 +318,7 @@ void StreamBase::CallJSOnreadMethod(ssize_t nread, Local<Object> buf) {
     argv[1] = Undefined(env->isolate());
 
   AsyncWrap* wrap = GetAsyncWrap();
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   wrap->MakeCallback(env->onread_string(), arraysize(argv), argv);
 }
 
@@ -360,7 +360,7 @@ uv_buf_t StreamListener::OnStreamAlloc(size_t suggested_size) {
 
 
 void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
-  CHECK_NE(stream_, nullptr);
+  CHECK_NOT_NULL(stream_);
   StreamBase* stream = static_cast<StreamBase*>(stream_);
   Environment* env = stream->stream_env();
   HandleScope handle_scope(env->isolate());

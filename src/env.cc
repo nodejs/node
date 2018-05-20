@@ -80,7 +80,7 @@ IsolateData::~IsolateData() {
 v8::CpuProfiler* IsolateData::GetCpuProfiler() {
   if (cpu_profiler_ != nullptr) return cpu_profiler_;
   cpu_profiler_ = v8::CpuProfiler::New(isolate());
-  CHECK_NE(cpu_profiler_, nullptr);
+  CHECK_NOT_NULL(cpu_profiler_);
   return cpu_profiler_;
 }
 

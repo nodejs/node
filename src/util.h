@@ -129,6 +129,8 @@ void DumpBacktrace(FILE* fp);
 #define CHECK_LE(a, b) CHECK((a) <= (b))
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
+#define CHECK_NULL(val) CHECK((val) == nullptr)
+#define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
 #define CHECK_IMPLIES(a, b) CHECK(!(a) || (b))
 
 #define UNREACHABLE() ABORT()

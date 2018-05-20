@@ -223,7 +223,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
     CloseReq* req = new CloseReq(env(), promise, object());
     auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
       CloseReq* close = static_cast<CloseReq*>(req->data);
-      CHECK_NE(close, nullptr);
+      CHECK_NOT_NULL(close);
       close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
       if (req->result < 0) {
@@ -619,7 +619,7 @@ inline FSReqBase* AsyncDestCall(Environment* env,
     const FunctionCallbackInfo<Value>& args,
     const char* syscall, const char* dest, size_t len,
     enum encoding enc, uv_fs_cb after, Func fn, Args... fn_args) {
-  CHECK_NE(req_wrap, nullptr);
+  CHECK_NOT_NULL(req_wrap);
   req_wrap->Init(syscall, dest, len, enc);
   int err = req_wrap->Dispatch(fn, fn_args..., after);
   if (err < 0) {
@@ -690,7 +690,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   int mode = args[1].As<Int32>()->Value();
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // access(path, mode, req)
@@ -823,7 +823,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);
   if (req_wrap_async != nullptr) {  // stat(path, req)
@@ -852,7 +852,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);
   if (req_wrap_async != nullptr) {  // lstat(path, req)
@@ -911,9 +911,9 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 4);
 
   BufferValue target(env->isolate(), args[0]);
-  CHECK_NE(*target, nullptr);
+  CHECK_NOT_NULL(*target);
   BufferValue path(env->isolate(), args[1]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[2]->IsInt32());
   int flags = args[2].As<Int32>()->Value();
@@ -939,10 +939,10 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue src(env->isolate(), args[0]);
-  CHECK_NE(*src, nullptr);
+  CHECK_NOT_NULL(*src);
 
   BufferValue dest(env->isolate(), args[1]);
-  CHECK_NE(*dest, nullptr);
+  CHECK_NOT_NULL(*dest);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // link(src, dest, req)
@@ -965,7 +965,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -1007,9 +1007,9 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue old_path(env->isolate(), args[0]);
-  CHECK_NE(*old_path, nullptr);
+  CHECK_NOT_NULL(*old_path);
   BufferValue new_path(env->isolate(), args[1]);
-  CHECK_NE(*new_path, nullptr);
+  CHECK_NOT_NULL(*new_path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {
@@ -1103,7 +1103,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);
   if (req_wrap_async != nullptr) {
@@ -1125,7 +1125,7 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);  // rmdir(path, req)
   if (req_wrap_async != nullptr) {
@@ -1148,7 +1148,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
@@ -1174,7 +1174,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -1217,7 +1217,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -1299,7 +1299,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
@@ -1329,7 +1329,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
@@ -1364,10 +1364,10 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue src(env->isolate(), args[0]);
-  CHECK_NE(*src, nullptr);
+  CHECK_NOT_NULL(*src);
 
   BufferValue dest(env->isolate(), args[1]);
-  CHECK_NE(*dest, nullptr);
+  CHECK_NOT_NULL(*dest);
 
   CHECK(args[2]->IsInt32());
   const int flags = args[2].As<Int32>()->Value();
@@ -1536,7 +1536,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (is_async) {  // write(fd, string, pos, enc, req)
-    CHECK_NE(req_wrap_async, nullptr);
+    CHECK_NOT_NULL(req_wrap_async);
     len = StringBytes::StorageSize(env->isolate(), value, enc);
     FSReqBase::FSReqBuffer& stack_buffer =
         req_wrap_async->Init("write", len, enc);
@@ -1646,7 +1646,7 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   int mode = args[1].As<Int32>()->Value();
@@ -1706,7 +1706,7 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsUint32());
   const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
@@ -1769,7 +1769,7 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsNumber());
   const double atime = args[1].As<Number>()->Value();
@@ -1827,7 +1827,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(env->isolate(), args[0]);
-  CHECK_NE(*tmpl, nullptr);
+  CHECK_NOT_NULL(*tmpl);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 

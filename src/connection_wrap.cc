@@ -34,7 +34,7 @@ template <typename WrapType, typename UVType>
 void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
                                                     int status) {
   WrapType* wrap_data = static_cast<WrapType*>(handle->data);
-  CHECK_NE(wrap_data, nullptr);
+  CHECK_NOT_NULL(wrap_data);
   CHECK_EQ(&wrap_data->handle_, reinterpret_cast<UVType*>(handle));
 
   Environment* env = wrap_data->env();
@@ -78,7 +78,7 @@ template <typename WrapType, typename UVType>
 void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
                                                     int status) {
   ConnectWrap* req_wrap = static_cast<ConnectWrap*>(req->data);
-  CHECK_NE(req_wrap, nullptr);
+  CHECK_NOT_NULL(req_wrap);
   WrapType* wrap = static_cast<WrapType*>(req->handle->data);
   CHECK_EQ(req_wrap->env(), wrap->env());
   Environment* env = wrap->env();
