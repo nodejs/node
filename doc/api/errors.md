@@ -1703,6 +1703,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`--force-fips`]: cli.html#cli_force_fips
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
+[`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
@@ -1735,7 +1736,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
 [`server.listen()`]: net.html#net_server_listen
-[`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
+[`zlib`]: zlib.html
 [ES6 module]: esm.html
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
@@ -1747,8 +1748,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [ICU]: intl.html#intl_internationalization_support
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
-[syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
+[syscall]: http://man7.org/linux/man-pages/man2/syscalls.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
 [WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
-[`zlib`]: zlib.html

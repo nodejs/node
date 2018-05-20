@@ -204,7 +204,8 @@ length of the queue of pending connections. The actual length will be determined
 by the OS through sysctl settings such as `tcp_max_syn_backlog` and `somaxconn`
 on Linux. The default value of this parameter is 511 (not 512).
 
-All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for details).
+All [`net.Socket`][] are set to `SO_REUSEADDR` (see [`socket(7)`][] for
+details).
 
 The `server.listen()` method can be called again if and only if there was an
 error during the first `server.listen()` call or `server.close()` has been
@@ -1135,6 +1136,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
+[`socket(7)`]: http://man7.org/linux/man-pages/man7/socket.7.html
 [`socket.connect()`]: #net_socket_connect
 [`socket.connect(options)`]: #net_socket_connect_options_connectlistener
 [`socket.connect(path)`]: #net_socket_connect_path_connectlistener
@@ -1152,7 +1154,6 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [Readable Stream]: stream.html#stream_class_stream_readable
 [duplex stream]: stream.html#stream_class_stream_duplex
 [half-closed]: https://tools.ietf.org/html/rfc1122
-[socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
 [stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
