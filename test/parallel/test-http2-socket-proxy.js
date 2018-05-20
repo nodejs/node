@@ -52,8 +52,8 @@ server.on('stream', common.mustCall(function(stream, headers) {
   common.expectsError(() => (socket.write = undefined), errMsg);
 
   // Resetting the socket listeners to their own value should not throw.
-  socket.on = socket.on;
-  socket.once = socket.once;
+  socket.on = socket.on;  // eslint-disable-line no-self-assign
+  socket.once = socket.once;  // eslint-disable-line no-self-assign
 
   stream.respond();
 
