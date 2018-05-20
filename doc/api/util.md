@@ -636,7 +636,7 @@ const inspect = Symbol.for('util.inspect.custom');
 
 class Password {
   constructor(value) {
-    this.value = value || document.getElementById('password').value;
+    this.value = value;
   }
 
   toString() {
