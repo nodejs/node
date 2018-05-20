@@ -220,17 +220,14 @@ function testFtruncate(cb) {
                   `an integer. Received ${input}`
       }
     );
-  });
 
-  // 2 ** 31 = 2147483648
-  [2147483648, -2147483649].forEach((input) => {
     assert.throws(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError [ERR_OUT_OF_RANGE]',
         message: 'The value of "len" is out of range. It must be ' +
-                  `> -2147483649 && < 2147483648. Received ${input}`
+                  `an integer. Received ${input}`
       }
     );
   });
