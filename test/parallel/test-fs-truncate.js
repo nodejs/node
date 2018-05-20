@@ -210,7 +210,7 @@ function testFtruncate(cb) {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError [ERR_OUT_OF_RANGE]',
         message: 'The value of "len" is out of range. It must be ' +
-                  `> -2147483649 && < 2147483648. Received ${input}`
+                  `>= -2147483648 && <= 2147483647. Received ${input}`
       }
     );
   });
