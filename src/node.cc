@@ -4231,6 +4231,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Environment env(isolate_data, context, v8_platform.GetTracingAgent());
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
+  TRACE_EVENT_METADATA1("__metadata", "version", "node", NODE_VERSION_STRING);
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "JavaScriptMainThread");
 
