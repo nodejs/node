@@ -623,6 +623,10 @@ util.inspect(obj);
 ### util.inspect.custom
 <!-- YAML
 added: v6.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20857
+    description: This is now defined as a shared symbol.
 -->
 
 * {symbol} that can be used to declare custom inspect functions.
