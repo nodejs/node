@@ -624,8 +624,9 @@ util.inspect([{ inspect: () => 123 }]);
 
 // GH-2225
 {
-  const x = { inspect: util.inspect };
-  assert.strictEqual(util.inspect(x).includes('inspect'), true);
+  const x = { [util.inspect.custom]: util.inspect };
+  assert(util.inspect(x).includes(
+    '[Symbol(nodejs.util.inspect.custom)]:\n   { [Function: inspect]'));
 }
 
 // util.inspect should display the escaped value of a key.
@@ -781,6 +782,20 @@ util.inspect({ hasOwnProperty: null });
   };
 
   util.inspect(subject, { customInspectOptions: true });
+
+  // util.inspect.custom is a shared symbol which can be accessed as
+  // Symbol.for("nodejs.util.inspect.custom").
+  const inspect = Symbol.for('nodejs.util.inspect.custom');
+
+  subject[inspect] = () => ({ baz: 'quux' });
+
+  assert.strictEqual(util.inspect(subject), '{ baz: \'quux\' }');
+
+  subject[inspect] = (depth, opts) => {
+    assert.strictEqual(opts.customInspectOptions, true);
+  };
+
+  util.inspect(subject, { customInspectOptions: true });
 }
 
 {
@@ -814,7 +829,7 @@ util.inspect({ hasOwnProperty: null });
                      '{ a: 123, inspect: [Function: inspect] }');
 
   const subject = { a: 123, [util.inspect.custom]() { return this; } };
-  const UIC = 'util.inspect.custom';
+  const UIC = 'nodejs.util.inspect.custom';
   assert.strictEqual(util.inspect(subject),
                      `{ a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]] }`);
 }
@@ -1235,8 +1250,11 @@ util.inspect(process);
 
 // Setting custom inspect property to a non-function should do nothing.
 {
-  const obj = { inspect: 'fhqwhgads' };
-  assert.strictEqual(util.inspect(obj), "{ inspect: 'fhqwhgads' }");
+  const obj = { [util.inspect.custom]: 'fhqwhgads' };
+  assert.strictEqual(
+    util.inspect(obj),
+    "{ [Symbol(nodejs.util.inspect.custom)]: 'fhqwhgads' }"
+  );
 }
 
 {
