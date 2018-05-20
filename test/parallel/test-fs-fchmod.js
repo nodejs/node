@@ -35,12 +35,21 @@ const fs = require('fs');
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError [ERR_OUT_OF_RANGE]',
-    message: 'The value of "fd" is out of range. It must be >= 0 && < ' +
-             `${2 ** 32}. Received ${input}`
+    message: 'The value of "fd" is out of range. It must be >= 0 && <= ' +
+             `2147483647. Received ${input}`
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);
-  errObj.message = errObj.message.replace('fd', 'mode');
+});
+
+[-1, 2 ** 32].forEach((input) => {
+  const errObj = {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    message: 'The value of "mode" is out of range. It must be >= 0 && < ' +
+             `4294967296. Received ${input}`
+  };
+
   assert.throws(() => fs.fchmod(1, input), errObj);
   assert.throws(() => fs.fchmodSync(1, input), errObj);
 });
