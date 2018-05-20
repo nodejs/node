@@ -153,7 +153,7 @@ void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
       write_req->str.length());
   request_mutex_.Lock();
   // Manage a queue of WriteRequest objects because the behavior of uv_write is
-  // is undefined if the same WriteRequest object is used more than once
+  // undefined if the same WriteRequest object is used more than once
   // between WriteCb calls. In addition, this allows us to keep track of the id
   // of the latest write request that actually been completed.
   write_req_queue_.push(write_req);
