@@ -730,7 +730,7 @@ static X509_STORE* NewRootCertStore() {
       BIO_free(bp);
 
       // Parse errors from the built-in roots are fatal.
-      CHECK_NE(x509, nullptr);
+      CHECK_NOT_NULL(x509);
 
       root_certs_vector.push_back(x509);
     }
@@ -1578,7 +1578,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     int rv;
 
     ext = X509_get_ext(cert, index);
-    CHECK_NE(ext, nullptr);
+    CHECK_NOT_NULL(ext);
 
     if (!SafeX509ExtPrint(bio.get(), ext)) {
       rv = X509V3_EXT_print(bio.get(), ext, 0, 0);
@@ -3383,7 +3383,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
 
 SignBase::Error SignBase::Init(const char* sign_type) {
-  CHECK_EQ(mdctx_, nullptr);
+  CHECK_NULL(mdctx_);
   // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
   // exposed through the public API.
   if (strcmp(sign_type, "dss1") == 0 ||
@@ -4238,7 +4238,7 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<Value>& args,
   BIGNUM* num =
       BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
                 Buffer::Length(args[0]), nullptr);
-  CHECK_NE(num, nullptr);
+  CHECK_NOT_NULL(num);
   CHECK_EQ(1, set_field(dh->dh_.get(), num));
 }
 
@@ -4496,7 +4496,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   USE(&mark_pop_error_on_return);
 
   const BIGNUM* priv_key = EC_KEY_get0_private_key(ecdh->key_.get());
-  CHECK_NE(priv_key, nullptr);
+  CHECK_NOT_NULL(priv_key);
 
   ECPointPointer pub(EC_POINT_new(ecdh->group_));
   CHECK(pub);
@@ -5007,7 +5007,7 @@ void VerifySpkac(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(verify_result);
 
   char* data = Buffer::Data(args[0]);
-  CHECK_NE(data, nullptr);
+  CHECK_NOT_NULL(data);
 
   verify_result = VerifySpkac(data, length);
 
@@ -5052,7 +5052,7 @@ void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetEmptyString();
 
   char* data = Buffer::Data(args[0]);
-  CHECK_NE(data, nullptr);
+  CHECK_NOT_NULL(data);
 
   size_t pkey_size;
   char* pkey = ExportPublicKey(data, length, &pkey_size);
@@ -5084,7 +5084,7 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetEmptyString();
 
   char* data = Buffer::Data(args[0]);
-  CHECK_NE(data, nullptr);
+  CHECK_NOT_NULL(data);
 
   OpenSSLBuffer cert = ExportChallenge(data, len);
   if (!cert)

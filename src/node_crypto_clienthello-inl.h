@@ -65,7 +65,7 @@ inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
     return;
   Reset();
 
-  CHECK_NE(onhello_cb, nullptr);
+  CHECK_NOT_NULL(onhello_cb);
 
   state_ = kWaiting;
   onhello_cb_ = onhello_cb;

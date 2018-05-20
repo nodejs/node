@@ -125,7 +125,7 @@ bool StatWatcher::IsActive() {
 
 void StatWatcher::IsActive(const v8::FunctionCallbackInfo<v8::Value>& args) {
   StatWatcher* wrap = Unwrap<StatWatcher>(args.This());
-  CHECK(wrap != nullptr);
+  CHECK_NOT_NULL(wrap);
   args.GetReturnValue().Set(wrap->IsActive());
 }
 
@@ -134,7 +134,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 3);
 
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   if (wrap->IsActive()) {
     return;
   }
@@ -143,7 +143,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   node::Utf8Value path(args.GetIsolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   bool persistent = true;
   if (args[1]->IsFalse()) {
@@ -171,7 +171,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   if (!wrap->IsActive()) {
     return;
   }

@@ -310,7 +310,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     }
   }
 
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   if (type == PromiseHookType::kBefore) {
     env->async_hooks()->push_async_ids(
       wrap->get_async_id(), wrap->get_trigger_async_id());

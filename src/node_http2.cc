@@ -36,7 +36,7 @@ inline Http2Stream* GetStream(Http2Session* session,
   Http2Stream* stream = static_cast<Http2Stream*>(source->ptr);
   if (stream == nullptr)
     stream = session->FindStream(id);
-  CHECK_NE(stream, nullptr);
+  CHECK_NOT_NULL(stream);
   CHECK_EQ(id, stream->id());
   return stream;
 }
@@ -780,7 +780,7 @@ int Http2Session::OnHeaderCallback(nghttp2_session* handle,
   Http2Session* session = static_cast<Http2Session*>(user_data);
   int32_t id = GetFrameID(frame);
   Http2Stream* stream = session->FindStream(id);
-  CHECK_NE(stream, nullptr);
+  CHECK_NOT_NULL(stream);
   // If the stream has already been destroyed, ignore.
   if (!stream->IsDestroyed() && !stream->AddHeader(name, value, flags)) {
     // This will only happen if the connected peer sends us more
@@ -1578,7 +1578,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   Http2Scope h2scope(this);
-  CHECK_NE(stream_, nullptr);
+  CHECK_NOT_NULL(stream_);
   DEBUG_HTTP2SESSION2(this, "receiving %d bytes", nread);
   IncrementCurrentSessionMemory(buf.len);
   CHECK(stream_buf_ab_.IsEmpty());
@@ -1592,7 +1592,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
     // Only pass data on if nread > 0
 
     // Makre sure that there was no read previously active.
-    CHECK_EQ(stream_buf_.base, nullptr);
+    CHECK_NULL(stream_buf_.base);
     CHECK_EQ(stream_buf_.len, 0);
 
     // Remember the current buffer, so that OnDataChunkReceived knows the
@@ -1949,7 +1949,7 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
                          size_t nbufs,
                          uv_stream_t* send_handle) {
   CHECK(!this->IsDestroyed());
-  CHECK_EQ(send_handle, nullptr);
+  CHECK_NULL(send_handle);
   Http2Scope h2scope(this);
   if (!IsWritable()) {
     req_wrap->Done(UV_EOF);
