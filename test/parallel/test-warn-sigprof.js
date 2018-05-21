@@ -1,3 +1,4 @@
+// Flags: --inspect=0
 'use strict';
 const common = require('../common');
 
