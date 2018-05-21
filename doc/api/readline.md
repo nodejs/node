@@ -287,7 +287,7 @@ added: v0.1.98
 
 The `rl.write()` method will write either `data` or a key sequence identified
 by `key` to the `output`. The `key` argument is supported only if `output` is
-a [TTY][] text terminal. See [`TTY keybindings`][] for a list of covered key 
+a [TTY][] text terminal. See [`TTY keybindings`][] for a list of key 
 combinations.
 
 If `key` is specified, `data` is ignored.
@@ -528,6 +528,107 @@ rl.on('line', (line) => {
 });
 ```
 
+## TTY keybindings
+
+<table>
+  <tr>
+    <th>Keybindings</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>ctrl+shift+backspace</code></td>
+    <td>delete line left</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+shift+delete</code></td>
+    <td>delete line right</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+c</code></td>
+    <td>emits SIGINT</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+h</code></td>
+    <td>delete left</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+d</code></td>
+    <td>delete right or EOF</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+u</code></td>
+    <td>delete from current to line start</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+k</code></td>
+    <td>delete from current to end of line</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+a</code></td>
+    <td>goto start of line</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+e</code></td>
+    <td>goto to end of line</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+b</code></td>
+    <td>back one character</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+f</code></td>
+    <td>forward one character</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+l</code></td>
+    <td>clear screen </td>
+  </tr>
+  <tr>
+    <td><code>ctrl+n</code></td>
+    <td>next history item</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+p</code></td>
+    <td>prev history item </td>
+  </tr>
+  <tr>
+    <td><code>ctrl+z</code></td>
+    <td>(need clarification)</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+w</code> or <code>ctrl+backspace</code></td>
+    <td>delete backwards to a word boundary</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+delete</code></td>
+    <td>delete forward to a word boundary</td>
+  </tr>
+  <tr>
+    <td><code>ctrl+left</code></td>
+    <td>word left </td>
+  </tr>
+  <tr>
+    <td><code>ctrl+right</code></td>
+    <td>word right</td>
+  </tr>
+  <tr>
+    <td><code>meta+b</code></td>
+    <td>word left</td>
+  </tr>
+  <tr>
+    <td><code>meta+f</code></td>
+    <td>word right</td>
+  </tr>
+  <tr>
+    <td><code>meta+d</code> or <code>meta+delete</code></td>
+    <td>delete word right</td>
+  </tr>
+  <tr>
+    <td><code>meta+backspace</code></td>
+    <td>delete word left </td>
+  </tr>
+</table>
+
 [`'SIGCONT'`]: readline.html#readline_event_sigcont
 [`'SIGTSTP'`]: readline.html#readline_event_sigtstp
 [`process.stdin`]: process.html#process_process_stdin
@@ -536,4 +637,4 @@ rl.on('line', (line) => {
 [TTY]: tty.html
 [Writable]: stream.html#stream_writable_streams
 [reading files]: #readline_example_read_file_stream_line_by_line
-[`TTY keybindings`]: tty.html#tty_tty_keybindings
+[`TTY keybindings`]: #readline_tty_keybindings
