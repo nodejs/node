@@ -323,11 +323,12 @@ static struct {
     // Inspector agent can't fail to start, but if it was configured to listen
     // right away on the websocket port and fails to bind/etc, this will return
     // false.
-    return env->inspector_agent()->Start(script_path, options);
+    return env->inspector_agent()->Start(
+        script_path == nullptr ? "" : script_path, options);
   }
 
   bool InspectorStarted(Environment* env) {
-    return env->inspector_agent()->IsStarted();
+    return env->inspector_agent()->IsListening();
   }
 #endif  // HAVE_INSPECTOR
 
@@ -1510,7 +1511,7 @@ void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 static void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
-  if (env->inspector_agent()->HasConnectedSessions()) {
+  if (env->inspector_agent()->IsActive()) {
     // Restore signal dispositions, the app is done and is no longer
     // capable of handling signals.
 #if defined(__POSIX__) && !defined(NODE_SHARED_MODE)
@@ -3517,7 +3518,7 @@ static void ParseArgs(int* argc,
 static void StartInspector(Environment* env, const char* path,
                            DebugOptions debug_options) {
 #if HAVE_INSPECTOR
-  CHECK(!env->inspector_agent()->IsStarted());
+  CHECK(!env->inspector_agent()->IsListening());
   v8_platform.StartInspector(env, path, debug_options);
 #endif  // HAVE_INSPECTOR
 }
@@ -3660,7 +3661,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 #if HAVE_INSPECTOR
   Environment* env = Environment::GetCurrent(args);
-  if (env->inspector_agent()->IsStarted()) {
+  if (env->inspector_agent()->IsListening()) {
     env->inspector_agent()->Stop();
   }
 #endif

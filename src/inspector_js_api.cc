@@ -66,7 +66,7 @@ class JSBindingsConnection : public AsyncWrap {
                          callback_(env->isolate(), callback) {
     Agent* inspector = env->inspector_agent();
     session_ = inspector->Connect(std::unique_ptr<JSBindingsSessionDelegate>(
-        new JSBindingsSessionDelegate(env, this)));
+        new JSBindingsSessionDelegate(env, this)), false);
   }
 
   void OnMessage(Local<Value> value) {
@@ -116,7 +116,7 @@ class JSBindingsConnection : public AsyncWrap {
 
 static bool InspectorEnabled(Environment* env) {
   Agent* agent = env->inspector_agent();
-  return agent->io() != nullptr || agent->HasConnectedSessions();
+  return agent->IsActive();
 }
 
 void AddCommandLineAPI(const FunctionCallbackInfo<Value>& info) {
@@ -251,8 +251,9 @@ void Open(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() > 2 && args[2]->IsBoolean()) {
     wait_for_connect = args[2]->BooleanValue(env->context()).FromJust();
   }
-
-  agent->StartIoThread(wait_for_connect);
+  agent->StartIoThread();
+  if (wait_for_connect)
+    agent->WaitForConnect();
 }
 
 void Url(const FunctionCallbackInfo<Value>& args) {
@@ -283,7 +284,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   Agent* agent = env->inspector_agent();
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);
   env->SetMethod(target, "addCommandLineAPI", AddCommandLineAPI);
-  if (agent->IsWaitingForConnect())
+  if (agent->WillWaitForConnect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "open", Open);
   env->SetMethod(target, "url", Url);
