@@ -25,7 +25,6 @@ const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
 
-// progress tracker
 function ProgressTracker(missing, callback) {
   this.missing = missing;
   this.callback = callback;
@@ -54,7 +53,7 @@ if (process.argv[2] === 'child') {
       socket.destroy();
     });
 
-    // start making connection from parent
+    // Start making connection from parent.
     console.log('CHILD: server listening');
     process.send({ what: 'listening' });
   });
@@ -86,10 +85,10 @@ if (process.argv[2] === 'child') {
     assert.strictEqual(code, 0, message);
   }));
 
-  // send net.Server to child and test by connecting
+  // Send net.Server to child and test by connecting.
   function testServer(callback) {
 
-    // destroy server execute callback when done
+    // Destroy server execute callback when done.
     const progress = new ProgressTracker(2, function() {
       server.on('close', function() {
         console.log('PARENT: server closed');
@@ -98,11 +97,11 @@ if (process.argv[2] === 'child') {
       server.close();
     });
 
-    // we expect 4 connections and close events
+    // We expect 4 connections and close events.
     const connections = new ProgressTracker(4, progress.done.bind(progress));
     const closed = new ProgressTracker(4, progress.done.bind(progress));
 
-    // create server and send it to child
+    // Create server and send it to child.
     const server = net.createServer();
     server.on('connection', function(socket) {
       console.log('PARENT: got connection');
@@ -115,11 +114,11 @@ if (process.argv[2] === 'child') {
     });
     server.listen(0);
 
-    // handle client messages
+    // Handle client messages.
     function messageHandlers(msg) {
 
       if (msg.what === 'listening') {
-        // make connections
+        // Make connections.
         let socket;
         for (let i = 0; i < 4; i++) {
           socket = net.connect(server.address().port, function() {
@@ -143,11 +142,11 @@ if (process.argv[2] === 'child') {
     child.on('message', messageHandlers);
   }
 
-  // send net.Socket to child
+  // Send net.Socket to child.
   function testSocket(callback) {
 
-    // create a new server and connect to it,
-    // but the socket will be handled by the child
+    // Create a new server and connect to it,
+    // but the socket will be handled by the child.
     const server = net.createServer();
     server.on('connection', function(socket) {
       socket.on('close', function() {
@@ -159,14 +158,14 @@ if (process.argv[2] === 'child') {
       console.log('PARENT: server closed');
       callback();
     });
-    // don't listen on the same port, because SmartOS sometimes says
+    // Don't listen on the same port, because SmartOS sometimes says
     // that the server's fd is closed, but it still cannot listen
     // on the same port again.
     //
     // An isolated test for this would be lovely, but for now, this
     // will have to do.
     server.listen(0, function() {
-      console.error('testSocket, listening');
+      console.log('testSocket, listening');
       const connect = net.connect(server.address().port);
       let store = '';
       connect.on('data', function(chunk) {
@@ -181,7 +180,7 @@ if (process.argv[2] === 'child') {
     });
   }
 
-  // create server and send it to child
+  // Create server and send it to child.
   let serverSuccess = false;
   let socketSuccess = false;
   child.on('message', function onReady(msg) {
