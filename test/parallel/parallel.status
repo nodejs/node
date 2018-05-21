@@ -13,6 +13,7 @@ test-postmortem-metadata: PASS,FLAKY
 test-http2-client-upload-reject: PASS,FLAKY
 test-http2-pipe: PASS,FLAKY
 test-http2-client-upload: PASS,FLAKY
+test-http2-compat-client-upload-reject: PASS,FLAKY
 
 [$system==win32]
 
