@@ -1,16 +1,25 @@
-// Flags: --expose-internals
-
 'use strict';
 
+// Do not read filesystem when creating AssertionError messages for code in
+// builtin modules.
+
 require('../common');
-
 const assert = require('assert');
-const EventEmitter = require('events');
-const { errorCache } = require('internal/assert');
-const { writeFileSync, unlinkSync } = require('fs');
 
-// Do not read filesystem for error messages in builtin modules.
-{
+if (process.argv[2] !== 'child') {
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+  const { spawnSync } = require('child_process');
+  const { output, status, error } =
+    spawnSync(process.execPath,
+              ['--expose-internals', process.argv[1], 'child'],
+              { cwd: tmpdir.path, env: process.env });
+  assert.ifError(error);
+  assert.strictEqual(status, 0, `Exit code: ${status}\n${output}`);
+} else {
+  const EventEmitter = require('events');
+  const { errorCache } = require('internal/assert');
+  const { writeFileSync } = require('fs');
   const e = new EventEmitter();
 
   e.on('hello', assert);
@@ -27,18 +36,16 @@ const { writeFileSync, unlinkSync } = require('fs');
     assert.strictEqual(errorCache.size, size - 1);
     const data = `${'\n'.repeat(line - 1)}${' '.repeat(column - 1)}` +
                  'ok(failed(badly));';
-    try {
-      writeFileSync(filename, data);
-      assert.throws(
-        () => e.emit('hello', false),
-        {
-          message: 'false == true'
-        }
-      );
-      threw = true;
-    } finally {
-      unlinkSync(filename);
-    }
+
+    writeFileSync(filename, data);
+    assert.throws(
+      () => e.emit('hello', false),
+      {
+        message: 'false == true'
+      }
+    );
+    threw = true;
+
   }
   assert(threw);
 }
