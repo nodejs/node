@@ -54,10 +54,6 @@ class InspectorSocketServer {
   void Send(int session_id, const std::string& message);
   //   kKill
   void TerminateConnections();
-  //   kAcceptSession
-  void AcceptSession(int session_id);
-  //   kDeclineSession
-  void DeclineSession(int session_id);
   int Port() const;
 
   // Session connection lifecycle
