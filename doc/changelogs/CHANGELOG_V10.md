@@ -55,7 +55,7 @@
   * The `crypto.DEFAULT_ENCODING` property has been deprecated. [[`6035beea93`](https://github.com/nodejs/node/commit/6035beea93)]
   * The `ECDH.convertKey()` method has been added. [[`f2e02883e7`](https://github.com/nodejs/node/commit/f2e02883e7)]
   * The `crypto.fips` property has been deprecated. [[`6e7992e8b8`](https://github.com/nodejs/node/commit/6e7992e8b8)]
-  * The AES-CCM algorithm got implemented. [[`1e07acd476`](https://github.com/nodejs/node/commit/1e07acd476)]
+  * The AES-CCM algorithm has been implemented. [[`1e07acd476`](https://github.com/nodejs/node/commit/1e07acd476)]
 * Dependencies
   * V8 has been updated to 6.6. [[`9daebb48d6`](https://github.com/nodejs/node/commit/9daebb48d6)]
   * OpenSSL has been updated to 1.1.0h. [[`66cb29e646`](https://github.com/nodejs/node/commit/66cb29e646)]
@@ -102,7 +102,7 @@
 * Util
   * `util.types.is[…]` type checks have been added. [[`b20af8088a`](https://github.com/nodejs/node/commit/b20af8088a)]
   * Support for bigint formatting has been added to `util.inspect()`. [[`39dc947409`](https://github.com/nodejs/node/commit/39dc947409)]
-  * Runtime deprecate using a property named `inspect` on an object to specify a custom inspection with `util.inspect()`. [[`617e3e96e6`](https://github.com/nodejs/node/commit/617e3e96e6)]
+  * `util.inspect()` custom inspection with `inspect` property has been deprecated at runtime. [[`617e3e96e6`](https://github.com/nodejs/node/commit/617e3e96e6)]
 
 #### Deprecations:
 
