@@ -29,7 +29,7 @@ function onStream(stream, headers, flags) {
     common.expectsError(
       () => stream.sendTrailers({}),
       {
-        code: 'ERR_HTTP2_INVALID_STREAM',
+        code: 'ERR_HTTP2_TRAILERS_ALREADY_SENT',
         type: Error
       }
     );

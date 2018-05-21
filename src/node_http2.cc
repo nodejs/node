@@ -1821,6 +1821,7 @@ void Http2Stream::OnTrailers() {
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
   Context::Scope context_scope(context);
+  flags_ &= ~NGHTTP2_STREAM_FLAG_TRAILERS;
   MakeCallback(env()->ontrailers_string(), 0, nullptr);
 }
 
@@ -1829,7 +1830,16 @@ int Http2Stream::SubmitTrailers(nghttp2_nv* nva, size_t len) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
   DEBUG_HTTP2STREAM2(this, "sending %d trailers", len);
-  int ret = nghttp2_submit_trailer(**session_, id_, nva, len);
+  int ret;
+  // Sending an empty trailers frame poses problems in Safari, Edge & IE.
+  // Instead we can just send an empty data frame with NGHTTP2_FLAG_END_STREAM
+  // to indicate that the stream is ready to be closed.
+  if (len == 0) {
+    Http2Stream::Provider::Stream prov(this, 0);
+    ret = nghttp2_submit_data(**session_, NGHTTP2_FLAG_END_STREAM, id_, *prov);
+  } else {
+    ret = nghttp2_submit_trailer(**session_, id_, nva, len);
+  }
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -2358,8 +2368,7 @@ void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
 
   Headers list(isolate, context, headers);
   args.GetReturnValue().Set(stream->SubmitInfo(*list, list.length()));
-  DEBUG_HTTP2STREAM2(stream, "%d informational headers sent",
-                     headers->Length());
+  DEBUG_HTTP2STREAM2(stream, "%d informational headers sent", list.length());
 }
 
 // Submits trailing headers on the Http2Stream
@@ -2374,7 +2383,7 @@ void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
 
   Headers list(isolate, context, headers);
   args.GetReturnValue().Set(stream->SubmitTrailers(*list, list.length()));
-  DEBUG_HTTP2STREAM2(stream, "%d trailing headers sent", headers->Length());
+  DEBUG_HTTP2STREAM2(stream, "%d trailing headers sent", list.length());
 }
 
 // Grab the numeric id of the Http2Stream
