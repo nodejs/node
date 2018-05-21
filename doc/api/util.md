@@ -2102,7 +2102,6 @@ Deprecated predecessor of `console.log`.
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
-[async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`console.error()`]: console.html#console_console_error_data_args
@@ -2112,7 +2111,6 @@ Deprecated predecessor of `console.log`.
 [`Error`]: errors.html#errors_class_error
 [`Float32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array
 [`Float64Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
-[global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
 [`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
 [`Int32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array
@@ -2125,7 +2123,6 @@ Deprecated predecessor of `console.log`.
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
-[util.inspect.custom]: #util_util_inspect_custom
 [`util.promisify()`]: #util_util_promisify_original
 [`util.types.isAnyArrayBuffer()`]: #util_util_types_isanyarraybuffer_value
 [`util.types.isArrayBuffer()`]: #util_util_types_isarraybuffer_value
@@ -2146,6 +2143,9 @@ Deprecated predecessor of `console.log`.
 [Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [Common System Errors]: errors.html#errors_common_system_errors
+[async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
+[global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
+[util.inspect.custom]: #util_util_inspect_custom
