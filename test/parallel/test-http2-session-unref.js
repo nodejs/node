@@ -9,16 +9,20 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
+const Countdown = require('../common/countdown');
 const makeDuplexPair = require('../common/duplexpair');
 
 const server = http2.createServer();
 const { clientSide, serverSide } = makeDuplexPair();
+
+const counter = new Countdown(3, () => server.unref());
 
 // 'session' event should be emitted 3 times:
 // - the vanilla client
 // - the destroyed client
 // - manual 'connection' event emission with generic Duplex stream
 server.on('session', common.mustCallAtLeast((session) => {
+  counter.dec();
   session.unref();
 }, 3));
 
@@ -54,4 +58,3 @@ server.listen(0, common.mustCall(() => {
   }
 }));
 server.emit('connection', serverSide);
-server.unref();
