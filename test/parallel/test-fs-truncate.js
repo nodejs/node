@@ -179,13 +179,14 @@ function testFtruncate(cb) {
   process.on('exit', () => fs.closeSync(fd));
 
   ['', false, null, {}, []].forEach((input) => {
+    const inputType = input === null ? 'null' : typeof input;
     assert.throws(
       () => fs.ftruncate(fd, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError [ERR_INVALID_ARG_TYPE]',
         message: 'The "len" argument must be of type number. ' +
-                 `Received type ${typeof input}`
+                 `Received type ${inputType}`
       }
     );
   });
@@ -233,6 +234,7 @@ function testFtruncate(cb) {
 }
 
 ['', false, null, undefined, {}, []].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   ['ftruncate', 'ftruncateSync'].forEach((fnName) => {
     assert.throws(
       () => fs[fnName](input),
@@ -240,7 +242,7 @@ function testFtruncate(cb) {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError [ERR_INVALID_ARG_TYPE]',
         message: 'The "fd" argument must be of type number. ' +
-                 `Received type ${typeof input}`
+                 `Received type ${inputType}`
       }
     );
   });

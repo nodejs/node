@@ -49,13 +49,14 @@ assert.throws(
   { user: 'a' },
   { user: null, system: 'c' },
 ].forEach((value) => {
+  const userValueType = value.user === null ? 'null' : typeof value.user;
   assert.throws(
     () => process.cpuUsage(value),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
       message: 'The "prevValue.user" property must be of type number. ' +
-               `Received type ${typeof value.user}`
+               `Received type ${userValueType}`
     }
   );
 });
@@ -64,13 +65,14 @@ assert.throws(
   { user: 3, system: 'b' },
   { user: 3, system: null }
 ].forEach((value) => {
+  const systemType = value.system === null ? 'null' : typeof value.system;
   assert.throws(
     () => process.cpuUsage(value),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
       message: 'The "prevValue.system" property must be of type number. ' +
-               `Received type ${typeof value.system}`
+               `Received type ${systemType}`
     }
   );
 });

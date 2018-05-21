@@ -231,13 +231,14 @@ const values = [
 {
   // Verify that non-function inputs throw.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
+    const valueType = value === null ? 'null' : typeof value;
     common.expectsError(() => {
       callbackify(value);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "original" argument must be of type Function. ' +
-               `Received type ${typeof value}`
+               `Received type ${valueType}`
     });
   });
 }
@@ -252,6 +253,7 @@ const values = [
 
   // Verify that the last argument to the callbackified function is a function.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
+    const valueType = value === null ? 'null' : typeof value;
     args.push(value);
     common.expectsError(() => {
       cb(...args);
@@ -259,7 +261,7 @@ const values = [
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The last argument must be of type Function. ' +
-               `Received type ${typeof value}`
+               `Received type ${valueType}`
     });
   });
 }

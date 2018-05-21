@@ -16,6 +16,7 @@ const zlib = require('zlib');
   [1, 2, 3],
   { foo: 'bar' }
 ].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   common.expectsError(
     () => zlib.deflateSync(input),
     {
@@ -23,7 +24,7 @@ const zlib = require('zlib');
       type: TypeError,
       message: 'The "buffer" argument must be one of type string, Buffer, ' +
                'TypedArray, DataView, or ArrayBuffer. ' +
-               `Received type ${typeof input}`
+               `Received type ${inputType}`
     }
   );
 });

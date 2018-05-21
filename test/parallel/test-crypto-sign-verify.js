@@ -320,7 +320,7 @@ common.expectsError(
   const verify = crypto.createVerify('SHA1');
 
   [1, [], {}, undefined, null, true, Infinity].forEach((input) => {
-    const type = typeof input;
+    const type = input === null ? 'null' : typeof input;
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',

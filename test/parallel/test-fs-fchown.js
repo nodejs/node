@@ -16,11 +16,12 @@ function test(input, errObj) {
 }
 
 ['', false, null, undefined, {}, []].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
     message: 'The "fd" argument must be of type number. Received type ' +
-             typeof input
+             inputType
   };
   test(input, errObj);
 });

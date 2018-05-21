@@ -76,6 +76,7 @@ assert.throws(
 );
 
 ['str', null, undefined, [], {}].forEach((notNumber) => {
+  const notNumberType = notNumber === null ? 'null' : typeof notNumber;
   assert.throws(
     () => {
       crypto.pbkdf2Sync('password', 'salt', 1, notNumber, 'sha256');
@@ -83,7 +84,7 @@ assert.throws(
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
       message: 'The "keylen" argument must be of type number. ' +
-               `Received type ${typeof notNumber}`
+               `Received type ${notNumberType}`
     });
 });
 
@@ -123,8 +124,9 @@ assert.throws(
   });
 
 [1, {}, [], true, undefined, null].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   const msgPart2 = 'Buffer, TypedArray, or DataView.' +
-                   ` Received type ${typeof input}`;
+                   ` Received type ${inputType}`;
   assert.throws(
     () => crypto.pbkdf2(input, 'salt', 8, 8, 'sha256', common.mustNotCall()),
     {
@@ -162,10 +164,11 @@ assert.throws(
   );
 });
 
-['test', {}, [], true, undefined, null].forEach((i) => {
-  const received = `Received type ${typeof i}`;
+['test', {}, [], true, undefined, null].forEach((value) => {
+  const valueType = value === null ? 'null' : typeof value;
+  const received = `Received type ${valueType}`;
   assert.throws(
-    () => crypto.pbkdf2('pass', 'salt', i, 8, 'sha256', common.mustNotCall()),
+    () => crypto.pbkdf2('pass', 'salt', value, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
@@ -174,7 +177,7 @@ assert.throws(
   );
 
   assert.throws(
-    () => crypto.pbkdf2Sync('pass', 'salt', i, 8, 'sha256'),
+    () => crypto.pbkdf2Sync('pass', 'salt', value, 8, 'sha256'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',

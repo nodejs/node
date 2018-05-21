@@ -148,22 +148,24 @@ if (fs.lchmod) {
 }
 
 ['', false, null, undefined, {}, []].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
     message: 'The "fd" argument must be of type number. ' +
-             `Received type ${typeof input}`
+             `Received type ${inputType}`
   };
   assert.throws(() => fs.fchmod(input, 0o000), errObj);
   assert.throws(() => fs.fchmodSync(input, 0o000), errObj);
 });
 
 [false, 1, {}, [], null, undefined].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
     message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ` Received type ${typeof input}`
+             ` Received type ${inputType}`
   };
   assert.throws(() => fs.chmod(input, 1, common.mustNotCall()), errObj);
   assert.throws(() => fs.chmodSync(input, 1), errObj);

@@ -38,11 +38,12 @@ process.setMaxListeners(256);
 {
   [crypto.randomBytes, crypto.pseudoRandomBytes].forEach((f) => {
     [undefined, null, false, true, {}, []].forEach((value) => {
+      const valueType = value === null ? 'null' : typeof value;
       const errObj = {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError [ERR_INVALID_ARG_TYPE]',
         message: 'The "size" argument must be of type number. ' +
-                `Received type ${typeof value}`
+                `Received type ${valueType}`
       };
       assert.throws(() => f(value), errObj);
       assert.throws(() => f(value, common.mustNotCall()), errObj);

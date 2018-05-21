@@ -26,7 +26,7 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "listener" argument must be of type Function. ' +
-           'Received type object'
+           'Received type null'
 });
 
 // Test fallback if prependListener is undefined.

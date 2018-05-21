@@ -61,12 +61,13 @@ const {
 
 {
   [1, {}, [], null, undefined, Infinity].forEach((input) => {
+    const inputType = input === null ? 'null' : typeof input;
     common.expectsError(() => performance.timerify(input),
                         {
                           code: 'ERR_INVALID_ARG_TYPE',
                           type: TypeError,
                           message: 'The "fn" argument must be of type ' +
-                                   `Function. Received type ${typeof input}`
+                                   `Function. Received type ${inputType}`
                         });
   });
 }

@@ -93,7 +93,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received type null'
     });
 
   common.expectsError(
@@ -102,7 +102,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "key" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+               'TypedArray, or DataView. Received type null'
     });
 
   common.expectsError(
@@ -130,7 +130,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received type null'
     });
 
   common.expectsError(
@@ -139,7 +139,7 @@ function testCipher3(key, iv) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "key" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type object'
+               'TypedArray, or DataView. Received type null'
     });
 
   common.expectsError(

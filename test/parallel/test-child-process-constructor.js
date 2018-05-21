@@ -14,13 +14,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [undefined, null, 'foo', 0, 1, NaN, true, false].forEach((options) => {
+    const optionsType = options === null ? 'null' : typeName(options);
     common.expectsError(() => {
       child.spawn(options);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options" argument must be of type Object. ' +
-               `Received type ${typeName(options)}`
+               `Received type ${optionsType}`
     });
   });
 }
@@ -30,13 +31,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [undefined, null, 0, 1, NaN, true, false, {}].forEach((file) => {
+    const fileType = file === null ? 'null' : typeName(file);
     common.expectsError(() => {
       child.spawn({ file });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.file" property must be of type string. ' +
-               `Received type ${typeName(file)}`
+               `Received type ${fileType}`
     });
   });
 }
@@ -46,13 +48,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((envPairs) => {
+    const envPairsType = envPairs === null ? 'null' : typeName(envPairs);
     common.expectsError(() => {
       child.spawn({ envPairs, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.envPairs" property must be of type Array. ' +
-               `Received type ${typeName(envPairs)}`
+               `Received type ${envPairsType}`
     });
   });
 }
@@ -62,13 +65,14 @@ function typeName(value) {
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((args) => {
+    const argsType = args === null ? 'null' : typeName(args);
     common.expectsError(() => {
       child.spawn({ file: 'foo', args });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.args" property must be of type Array. ' +
-               `Received type ${typeName(args)}`
+               `Received type ${argsType}`
     });
   });
 }
