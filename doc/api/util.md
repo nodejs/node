@@ -631,9 +631,9 @@ changes:
 
 * {symbol} that can be used to declare custom inspect functions.
 
-This is a shared symbol, `Symbol.for('util.inspect.custom')`, which is
-registered in the [global symbol registry][]. It can be used to define
-custom inspection functions in any environment.
+In addition to being accessible through `util.inspect.custom`, this
+symbol is [registered globally][global symbol registry] and can be
+accessed in any environment as `Symbol.for('util.inspect.custom')`.
 
 ```js
 const inspect = Symbol.for('util.inspect.custom');
