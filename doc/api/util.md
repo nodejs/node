@@ -569,9 +569,9 @@ terminals.
 
 <!-- type=misc -->
 
-Objects may also define their own `[util.inspect.custom](depth, opts)` function,
-which `util.inspect()` will invoke and use the result of when inspecting the
-object:
+Objects may also define their own <code>[[util.inspect.custom][]](depth,
+opts)</code> function, which `util.inspect()` will invoke and use the
+result of when inspecting the object:
 
 ```js
 const util = require('util');
@@ -2125,6 +2125,7 @@ Deprecated predecessor of `console.log`.
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
+[util.inspect.custom]: #util_util_inspect_custom
 [`util.promisify()`]: #util_util_promisify_original
 [`util.types.isAnyArrayBuffer()`]: #util_util_types_isanyarraybuffer_value
 [`util.types.isArrayBuffer()`]: #util_util_types_isarraybuffer_value
