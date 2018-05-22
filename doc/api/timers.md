@@ -23,6 +23,15 @@ running as long as the immediate is active. The `Immediate` object returned by
 [`setImmediate()`][] exports both `immediate.ref()` and `immediate.unref()`
 functions that can be used to control this default behavior.
 
+### immediate.hasRef()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+If true, the `Immediate` object will keep the Node.js event loop active.
+
 ### immediate.ref()
 <!-- YAML
 added: v9.7.0
@@ -60,6 +69,15 @@ By default, when a timer is scheduled using either [`setTimeout()`][] or
 timer is active. Each of the `Timeout` objects returned by these functions
 export both `timeout.ref()` and `timeout.unref()` functions that can be used to
 control this default behavior.
+
+### timeout.hasRef()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+If true, the `Timeout` object will keep the Node.js event loop active.
 
 ### timeout.ref()
 <!-- YAML
