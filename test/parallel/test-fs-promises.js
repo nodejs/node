@@ -109,8 +109,10 @@ function verifyStatObject(stat) {
     await chmod(dest, (0o10777));
     await handle.chmod(0o10777);
 
-    await chown(dest, process.getuid(), process.getgid());
-    await handle.chown(process.getuid(), process.getgid());
+    if (!common.isWindows) {
+      await chown(dest, process.getuid(), process.getgid());
+      await handle.chown(process.getuid(), process.getgid());
+    }
 
     await utimes(dest, new Date(), new Date());
 
@@ -136,7 +138,6 @@ function verifyStatObject(stat) {
       const newLink = path.resolve(tmpDir, 'baz3.js');
       await symlink(newPath, newLink);
       if (common.isOSX) {
-        // lchown is only available on macOS
         await lchown(newLink, process.getuid(), process.getgid());
       }
       stats = await lstat(newLink);
