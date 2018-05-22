@@ -36,6 +36,8 @@
 #include "node_debug_options.h"
 #include "node_api.h"
 
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -163,6 +165,16 @@ struct sockaddr;
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_BUILTIN)
 
 namespace node {
+
+extern Mutex process_mutex;
+extern Mutex environ_mutex;
+
+extern double prog_start_time;
+extern node_module* modpending;
+extern node_module* modlist_builtin;
+extern node_module* modlist_internal;
+extern node_module* modlist_linked;
+extern node_module* modlist_addon;
 
 // Set in node.cc by ParseArgs with the value of --openssl-config.
 // Used in node_crypto.cc when initializing OpenSSL.
@@ -357,6 +369,8 @@ inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
   return node::FillStatsArray(env->fs_stats_field_array(), s, offset);
 }
 
+void SetupBootstrapObject(Environment* env,
+                          v8::Local<v8::Object> bootstrap);
 void SetupProcessObject(Environment* env,
                         int argc,
                         const char* const* argv,
@@ -860,6 +874,45 @@ static inline const char *errno_string(int errorno) {
   default: return "";
   }
 }
+
+static inline void PrintErrorString(const char* format, ...) {
+  va_list ap;
+  va_start(ap, format);
+#ifdef _WIN32
+  HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
+
+  // Check if stderr is something other than a tty/console
+  if (stderr_handle == INVALID_HANDLE_VALUE ||
+      stderr_handle == nullptr ||
+      uv_guess_handle(_fileno(stderr)) != UV_TTY) {
+    vfprintf(stderr, format, ap);
+    va_end(ap);
+    return;
+  }
+
+  // Fill in any placeholders
+  int n = _vscprintf(format, ap);
+  std::vector<char> out(n + 1);
+  vsprintf(out.data(), format, ap);
+
+  // Get required wide buffer size
+  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, nullptr, 0);
+
+  std::vector<wchar_t> wbuf(n);
+  MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
+
+  // Don't include the null character in the output
+  CHECK_GT(n, 0);
+  WriteConsoleW(stderr_handle, wbuf.data(), n - 1, nullptr, nullptr);
+#else
+  vfprintf(stderr, format, ap);
+#endif
+  va_end(ap);
+}
+
+node_module* get_builtin_module(const char* name);
+node_module* get_internal_module(const char* name);
+node_module* get_linked_module(const char* name);
 
 #define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                  \
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)

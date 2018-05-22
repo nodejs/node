@@ -479,6 +479,14 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
  */
 #define NODE_MODULE_DECL /* nothing */
 
+#ifdef __GNUC__
+#define NO_RETURN __attribute__((noreturn))
+#else
+#define NO_RETURN
+#endif
+
+NO_RETURN void Exit(Environment* env, int32_t code);
+
 /* Called after the event loop exits but before the VM is disposed.
  * Callbacks are run in reverse order of registration, i.e. newest first.
  */
