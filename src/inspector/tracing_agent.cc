@@ -56,7 +56,7 @@ TracingAgent::~TracingAgent() {
 }
 
 void TracingAgent::Wire(UberDispatcher* dispatcher) {
-  frontend_ = std::make_unique<NodeTracing::Frontend>(dispatcher->channel());
+  frontend_.reset(new NodeTracing::Frontend(dispatcher->channel()));
   NodeTracing::Dispatcher::wire(dispatcher, this);
 }
 
@@ -77,7 +77,9 @@ DispatchResponse TracingAgent::start(
     return DispatchResponse::Error("At least one category should be enabled");
 
   trace_writer_ = env_->tracing_agent()->AddClient(
-      categories_set, std::make_unique<InspectorTraceWriter>(frontend_.get()));
+      categories_set,
+      std::unique_ptr<InspectorTraceWriter>(
+          new InspectorTraceWriter(frontend_.get())));
   return DispatchResponse::OK();
 }
 

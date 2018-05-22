@@ -198,8 +198,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        std::unique_ptr<InspectorSessionDelegate> delegate)
                        : delegate_(std::move(delegate)) {
     session_ = inspector->connect(1, this, StringView());
-    node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
-    tracing_agent_ = std::make_unique<protocol::TracingAgent>(env);
+    node_dispatcher_.reset(new protocol::UberDispatcher(this));
+    tracing_agent_.reset(new protocol::TracingAgent(env));
     tracing_agent_->Wire(node_dispatcher_.get());
   }
 
