@@ -478,8 +478,8 @@ void Environment::RunAndClearNativeImmediates() {
 }
 
 
-void Environment::ScheduleTimer(int64_t duration) {
-  uv_timer_start(timer_handle(), RunTimers, duration, 0);
+void Environment::ScheduleTimer(int64_t duration_ms) {
+  uv_timer_start(timer_handle(), RunTimers, duration_ms, 0);
 }
 
 void Environment::ToggleTimerRef(bool ref) {
@@ -502,27 +502,37 @@ void Environment::RunTimers(uv_timer_t* handle) {
   Local<Function> cb = env->timers_callback_function();
   MaybeLocal<Value> ret;
   Local<Value> args[] = { env->GetNow() };
+  // This code will loop until all currently due timers will process. It is
+  // impossible for us to end up in an infinite loop due to how the JS-side
+  // is structured.
   do {
     TryCatch try_catch(env->isolate());
     try_catch.SetVerbose(true);
-    ret = cb->Call(env->context(), process, 1, args);
+    ret = cb->Call(env->context(), process, arraysize(args), args);
   } while (ret.IsEmpty());
 
-  int64_t expiry =
+  // To allow for less JS-C++ boundary crossing, the value returned from JS
+  // serves a few purposes:
+  // 1. If it's 0, no more timers exist and the handle should be unrefed
+  // 2. If it's > 0, the value represents the next timer's expiry and there
+  //    is at least one timer remaining that is refed.
+  // 3. If it's < 0, the absolute value represents the next timer's expiry
+  //    and there are no timers that are refed.
+  int64_t expiry_ms =
       ret.ToLocalChecked()->IntegerValue(env->context()).FromJust();
 
   uv_handle_t* h = reinterpret_cast<uv_handle_t*>(handle);
   bool has_ref = uv_has_ref(h);
 
-  if (expiry != 0) {
-    int64_t duration =
-      abs(expiry) - (uv_now(env->event_loop()) - env->timer_base());
+  if (expiry_ms != 0) {
+    int64_t duration_ms =
+      abs(expiry_ms) - (uv_now(env->event_loop()) - env->timer_base());
 
-    env->ScheduleTimer(duration > 0 ? duration : 1);
+    env->ScheduleTimer(duration_ms > 0 ? duration_ms : 1);
 
-    if (!has_ref && expiry > 0) {
+    if (!has_ref && expiry_ms > 0) {
       uv_ref(h);
-    } else if (has_ref && expiry < 0) {
+    } else if (has_ref && expiry_ms < 0) {
       uv_unref(h);
     }
   } else if (has_ref) {

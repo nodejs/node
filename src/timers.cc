@@ -30,7 +30,6 @@ using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
@@ -43,42 +42,24 @@ void SetupTimers(const FunctionCallbackInfo<Value>& args) {
 
   env->set_immediate_callback_function(args[0].As<Function>());
   env->set_timers_callback_function(args[1].As<Function>());
-
-  auto timer_start_cb = [] (const FunctionCallbackInfo<Value>& args) {
-    auto env = Environment::GetCurrent(args);
-    env->ScheduleTimer(args[0]->IntegerValue(env->context()).FromJust());
-  };
-  auto timer_start_function =
-      env->NewFunctionTemplate(timer_start_cb)->GetFunction(env->context())
-          .ToLocalChecked();
-
-  auto timer_toggle_ref_cb = [] (const FunctionCallbackInfo<Value>& args) {
-    Environment::GetCurrent(args)->ToggleTimerRef(args[0]->IsTrue());
-  };
-  auto timer_toggle_ref_function =
-      env->NewFunctionTemplate(timer_toggle_ref_cb)->GetFunction(env->context())
-          .ToLocalChecked();
-
-  auto imm_toggle_ref_cb = [] (const FunctionCallbackInfo<Value>& args) {
-    Environment::GetCurrent(args)->ToggleImmediateRef(args[0]->IsTrue());
-  };
-  auto imm_toggle_ref_function =
-      env->NewFunctionTemplate(imm_toggle_ref_cb)->GetFunction(env->context())
-          .ToLocalChecked();
-
-  auto result = Array::New(env->isolate(), 4);
-  result->Set(env->context(), 0, timer_start_function).FromJust();
-  result->Set(env->context(), 1, timer_toggle_ref_function).FromJust();
-  result->Set(env->context(), 2,
-              env->immediate_info()->fields().GetJSArray()).FromJust();
-  result->Set(env->context(), 3, imm_toggle_ref_function).FromJust();
-
-  args.GetReturnValue().Set(result);
 }
 
 void GetLibuvNow(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(env->GetNow());
+}
+
+void ScheduleTimer(const FunctionCallbackInfo<Value>& args) {
+  auto env = Environment::GetCurrent(args);
+  env->ScheduleTimer(args[0]->IntegerValue(env->context()).FromJust());
+}
+
+void ToggleTimerRef(const FunctionCallbackInfo<Value>& args) {
+  Environment::GetCurrent(args)->ToggleTimerRef(args[0]->IsTrue());
+}
+
+void ToggleImmediateRef(const FunctionCallbackInfo<Value>& args) {
+  Environment::GetCurrent(args)->ToggleImmediateRef(args[0]->IsTrue());
 }
 
 void Initialize(Local<Object> target,
@@ -88,6 +69,13 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getLibuvNow", GetLibuvNow);
   env->SetMethod(target, "setupTimers", SetupTimers);
+  env->SetMethod(target, "scheduleTimer", ScheduleTimer);
+  env->SetMethod(target, "toggleTimerRef", ToggleTimerRef);
+  env->SetMethod(target, "toggleImmediateRef", ToggleImmediateRef);
+
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "immediateInfo"),
+              env->immediate_info()->fields().GetJSArray()).FromJust();
 }
 
 
