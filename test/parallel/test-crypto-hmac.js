@@ -18,7 +18,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "hmac" argument must be of type string. Received type object'
+    message: 'The "hmac" argument must be of type string. Received type null'
   });
 
 common.expectsError(
@@ -27,7 +27,7 @@ common.expectsError(
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "key" argument must be one of type string, TypedArray, or ' +
-             'DataView. Received type object'
+             'DataView. Received type null'
   });
 
 {

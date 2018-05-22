@@ -221,13 +221,14 @@ function checkFormat(path, testCases) {
   });
 
   [null, undefined, 1, true, false, 'string'].forEach((pathObject) => {
+    const pathObjectType = pathObject === null ? 'null' : typeof pathObject;
     common.expectsError(() => {
       path.format(pathObject);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "pathObject" argument must be of type Object. ' +
-               `Received type ${typeof pathObject}`
+               `Received type ${pathObjectType}`
     });
   });
 }

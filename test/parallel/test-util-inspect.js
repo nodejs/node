@@ -1139,7 +1139,7 @@ if (typeof Symbol !== 'undefined') {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options" argument must be of type Object. ' +
-             'Received type object'
+             'Received type null'
   }
   );
 

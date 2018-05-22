@@ -38,13 +38,14 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
   const observer = new PerformanceObserver(common.mustNotCall());
 
   [1, null, undefined].forEach((input) => {
+    const inputType = input === null ? 'null' : typeof input;
     common.expectsError(
       () => observer.observe(input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "options" argument must be of type Object. ' +
-                 `Received type ${typeof input}`
+                 `Received type ${inputType}`
       });
   });
 

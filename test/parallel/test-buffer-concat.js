@@ -45,12 +45,13 @@ assert.strictEqual(flatLong.toString(), check);
 assert.strictEqual(flatLongLen.toString(), check);
 
 [undefined, null, Buffer.from('hello')].forEach((value) => {
+  const valueType = value === null ? 'null' : typeof value;
   assert.throws(() => {
     Buffer.concat(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "list" argument must be one of type Array, Buffer, ' +
-             `or Uint8Array. Received type ${typeof value}`
+             `or Uint8Array. Received type ${valueType}`
   });
 });
 

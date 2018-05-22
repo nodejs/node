@@ -118,14 +118,15 @@ const s = http.createServer(common.mustCall((req, res) => {
         {},
         { toString: () => 'X-TEST-HEADER2' },
         () => { }
-      ].forEach((val) => {
+      ].forEach((value) => {
+        const valueType = value === null ? 'null' : typeof value;
         common.expectsError(
-          () => res.hasHeader(val),
+          () => res.hasHeader(value),
           {
             code: 'ERR_INVALID_ARG_TYPE',
             type: TypeError,
             message: 'The "name" argument must be of type string. ' +
-                     `Received type ${typeof val}`
+                     `Received type ${valueType}`
           }
         );
       });

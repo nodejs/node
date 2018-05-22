@@ -30,11 +30,12 @@ const server = http2.createServer();
 
 server.on('stream', common.mustCall((stream) => {
   // should throw if fd isn't a number
+  // TODOkakts
   Object.keys(types).forEach((type) => {
     if (type === 'number') {
       return;
     }
-
+    const valueType = types[type] === null ? 'null' : typeof types[type];
     common.expectsError(
       () => stream.respondWithFD(types[type], {
         'content-type': 'text/plain'
@@ -43,7 +44,7 @@ server.on('stream', common.mustCall((stream) => {
         type: TypeError,
         code: 'ERR_INVALID_ARG_TYPE',
         message: 'The "fd" argument must be of type number. Received type ' +
-                 typeof types[type]
+                 valueType
       }
     );
   });

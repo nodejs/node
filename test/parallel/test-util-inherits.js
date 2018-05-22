@@ -90,7 +90,7 @@ common.expectsError(function() {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "superCtor" argument must be of type Function. ' +
-           'Received type object'
+           'Received type null'
 });
 
 common.expectsError(function() {
@@ -98,5 +98,5 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "ctor" argument must be of type Function. Received type object'
+  message: 'The "ctor" argument must be of type Function. Received type null'
 });

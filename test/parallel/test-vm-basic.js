@@ -97,13 +97,14 @@ const vm = require('vm');
 
 // Invalid arguments
 [null, 'string'].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   common.expectsError(() => {
     vm.createContext({}, input);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options" argument must be of type Object. ' +
-             `Received type ${typeof input}`
+             `Received type ${inputType}`
   });
 });
 
@@ -114,7 +115,7 @@ const vm = require('vm');
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: `The "options.${propertyName}" property must be of type string. ` +
-             'Received type object'
+             'Received type null'
   });
 });
 
@@ -125,6 +126,6 @@ const vm = require('vm');
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: `The "options.${propertyName}" property must be of type string. ` +
-             'Received type object'
+             'Received type null'
   });
 });

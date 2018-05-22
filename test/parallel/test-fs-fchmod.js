@@ -9,11 +9,12 @@ const fs = require('fs');
 
 // Check input type
 [false, null, undefined, {}, [], ''].forEach((input) => {
+  const inputType = input === null ? 'null' : typeof input;
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
     message: 'The "fd" argument must be of type number. Received type ' +
-             typeof input
+             inputType
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);
@@ -21,11 +22,12 @@ const fs = require('fs');
 
 
 [false, null, undefined, {}, [], '', '123x'].forEach((input) => {
+  const utilInspectType = input === null ? 'null' : util.inspect(input);
   const errObj = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError [ERR_INVALID_ARG_VALUE]',
     message: 'The argument \'mode\' must be a 32-bit unsigned integer or an ' +
-             `octal string. Received ${util.inspect(input)}`
+             `octal string. Received ${utilInspectType}`
   };
   assert.throws(() => fs.fchmod(1, input), errObj);
   assert.throws(() => fs.fchmodSync(1, input), errObj);

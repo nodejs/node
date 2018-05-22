@@ -10,13 +10,14 @@ const http2 = require('http2');
 // Error if options are not passed to createSecureServer
 const invalidOptions = [() => {}, 1, 'test', null];
 invalidOptions.forEach((invalidOption) => {
+  const invalidOptionType = invalidOption === null ? 'null' : typeof invalidOption;
   assert.throws(
     () => http2.createSecureServer(invalidOption),
     {
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "options" argument must be of type Object. Received ' +
-               `type ${typeof invalidOption}`
+               `type ${invalidOptionType}`
     }
   );
 });

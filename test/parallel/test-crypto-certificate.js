@@ -69,23 +69,25 @@ function stripLineEndings(obj) {
 // Direct call Certificate() should return instance
 assert(Certificate() instanceof Certificate);
 
-[1, {}, [], Infinity, true, 'test', undefined, null].forEach((val) => {
+[1, {}, [], Infinity, true, 'test', undefined, null].forEach((value) => {
+  const valueType = value === null ? 'null' : typeof value;
   assert.throws(
-    () => Certificate.verifySpkac(val),
+    () => Certificate.verifySpkac(value),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "spkac" argument must be one of type Buffer, TypedArray, ' +
-               `or DataView. Received type ${typeof val}`
+               `or DataView. Received type ${valueType}`
     }
   );
 });
 
-[1, {}, [], Infinity, true, undefined, null].forEach((val) => {
+[1, {}, [], Infinity, true, undefined, null].forEach((value) => {
+  const valueType = value === null ? 'null' : typeof value;
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "spkac" argument must be one of type string, Buffer,' +
-             ` TypedArray, or DataView. Received type ${typeof val}`
+             ` TypedArray, or DataView. Received type ${valueType}`
   };
-  assert.throws(() => Certificate.exportPublicKey(val), errObj);
-  assert.throws(() => Certificate.exportChallenge(val), errObj);
+  assert.throws(() => Certificate.exportPublicKey(value), errObj);
+  assert.throws(() => Certificate.exportChallenge(value), errObj);
 });

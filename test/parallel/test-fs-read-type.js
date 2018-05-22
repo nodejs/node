@@ -21,6 +21,7 @@ assert.throws(
 );
 
 [true, null, undefined, () => {}, {}].forEach((value) => {
+  const valueType = value === null ? 'null' : typeof value;
   assert.throws(() => {
     fs.read(value,
             Buffer.allocUnsafe(expected.length),
@@ -32,7 +33,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
     message: 'The "fd" argument must be of type number. ' +
-             `Received type ${typeof value}`
+             `Received type ${valueType}`
   });
 });
 
@@ -76,6 +77,7 @@ assert.throws(
 );
 
 [true, null, undefined, () => {}, {}].forEach((value) => {
+  const valueType = value === null ? 'null' : typeof value;
   assert.throws(() => {
     fs.readSync(value,
                 Buffer.allocUnsafe(expected.length),
@@ -86,7 +88,7 @@ assert.throws(
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError [ERR_INVALID_ARG_TYPE]',
     message: 'The "fd" argument must be of type number. ' +
-             `Received type ${typeof value}`
+             `Received type ${valueType}`
   });
 });
 

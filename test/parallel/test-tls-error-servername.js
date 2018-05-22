@@ -23,12 +23,13 @@ const client = connect({
 });
 
 [undefined, null, 1, true, {}].forEach((value) => {
+  const valueType = value === null ? 'null' : typeof value;
   common.expectsError(() => {
     client.setServername(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "name" argument must be of type string. ' +
-             `Received type ${typeof value}`
+             `Received type ${valueType}`
   });
 });
 

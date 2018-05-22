@@ -5,13 +5,14 @@ const assert = require('assert');
 const fs = require('fs');
 
 [false, 1, [], {}, null, undefined].forEach((input) => {
-  const type = `of type string, Buffer, or URL. Received type ${typeof input}`;
+  const inputType = input === null ? 'null' : typeof input;
+  const typeMessage = `of type string, Buffer, or URL. Received type ${inputType}`;
   assert.throws(
     () => fs.rename(input, 'does-not-exist', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-      message: `The "oldPath" argument must be one ${type}`
+      message: `The "oldPath" argument must be one ${typeMessage}`
     }
   );
   assert.throws(
@@ -19,7 +20,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-      message: `The "newPath" argument must be one ${type}`
+      message: `The "newPath" argument must be one ${typeMessage}`
     }
   );
   assert.throws(
@@ -27,7 +28,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-      message: `The "oldPath" argument must be one ${type}`
+      message: `The "oldPath" argument must be one ${typeMessage}`
     }
   );
   assert.throws(
@@ -35,7 +36,7 @@ const fs = require('fs');
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError [ERR_INVALID_ARG_TYPE]',
-      message: `The "newPath" argument must be one ${type}`
+      message: `The "newPath" argument must be one ${typeMessage}`
     }
   );
 });
