@@ -1435,7 +1435,7 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 #define READONLY_PROPERTY(obj, str, var)                                      \
   do {                                                                        \
     obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
+                           OneByteString(env->isolate(), #str),               \
                            var,                                               \
                            v8::ReadOnly).FromJust();                          \
   } while (0)
@@ -1443,12 +1443,25 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 #define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
   do {                                                                        \
     obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
+                           OneByteString(env->isolate(), #str),               \
                            var,                                               \
                            static_cast<v8::PropertyAttribute>(v8::ReadOnly |  \
                                                               v8::DontEnum))  \
         .FromJust();                                                          \
   } while (0)
+
+#define READONLY_FLAG(obj, str)                                               \
+  READONLY_PROPERTY(obj, str, True(env->isolate()))
+
+#define READONLY_DONT_ENUM_FLAG(obj, str)                                     \
+  READONLY_DONT_ENUM_PROPERTY(obj, str, True(env->isolate()))
+
+#define SET_READONLY_FLAG(condition, name)                                    \
+  if (condition) READONLY_FLAG(process, name)
+#define SET_READONLY_NOENUM_FLAG(condition, name)                             \
+  if (condition) READONLY_DONT_ENUM_FLAG(process, name)
+
+#define PROCESS_METHOD(name, fn) env->SetMethod(process, #name, fn)
 
 }  // anonymous namespace
 
@@ -1457,67 +1470,49 @@ void SetupProcessObject(Environment* env,
                         const char* const* argv,
                         int exec_argc,
                         const char* const* exec_argv) {
-  HandleScope scope(env->isolate());
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
 
   Local<Object> process = env->process_object();
 
-  auto title_string = FIXED_ONE_BYTE_STRING(env->isolate(), "title");
   CHECK(process->SetAccessor(env->context(),
-                             title_string,
+                             FIXED_ONE_BYTE_STRING(isolate, "title"),
                              ProcessTitleGetter,
                              ProcessTitleSetter,
                              env->as_external()).FromJust());
 
   // process.version
-  READONLY_PROPERTY(process,
-                    "version",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), NODE_VERSION));
+  READONLY_PROPERTY(process, version,
+                    FIXED_ONE_BYTE_STRING(isolate, NODE_VERSION));
 
   // process.versions
-  Local<Object> versions = Object::New(env->isolate());
-  READONLY_PROPERTY(process, "versions", versions);
+  Local<Object> versions = Object::New(isolate);
+  READONLY_PROPERTY(process, versions, versions);
 
+  const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
+  const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   const char http_parser_version[] = NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
                                      "."
                                      NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
                                      "."
                                      NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
-  READONLY_PROPERTY(versions,
-                    "http_parser",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
+  READONLY_PROPERTY(versions, http_parser,
+                    FIXED_ONE_BYTE_STRING(isolate, http_parser_version));
 
-  // +1 to get rid of the leading 'v'
-  READONLY_PROPERTY(versions,
-                    "node",
-                    OneByteString(env->isolate(), NODE_VERSION + 1));
-  READONLY_PROPERTY(versions,
-                    "v8",
-                    OneByteString(env->isolate(), V8::GetVersion()));
-  READONLY_PROPERTY(versions,
-                    "uv",
-                    OneByteString(env->isolate(), uv_version_string()));
-  READONLY_PROPERTY(versions,
-                    "zlib",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
-  READONLY_PROPERTY(versions,
-                    "ares",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
-
-  const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
-  READONLY_PROPERTY(
-      versions,
-      "modules",
-      FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
-
-  READONLY_PROPERTY(versions,
-                    "nghttp2",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
-
-  const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
-  READONLY_PROPERTY(
-      versions,
-      "napi",
-      FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
+  READONLY_PROPERTY(versions, node,
+                    FIXED_ONE_BYTE_STRING(isolate, NODE_VERSION_STRING));
+  READONLY_PROPERTY(versions, v8, OneByteString(isolate, V8::GetVersion()));
+  READONLY_PROPERTY(versions, uv, OneByteString(isolate, uv_version_string()));
+  READONLY_PROPERTY(versions, zlib,
+                    FIXED_ONE_BYTE_STRING(isolate, ZLIB_VERSION));
+  READONLY_PROPERTY(versions, ares,
+                    FIXED_ONE_BYTE_STRING(isolate, ARES_VERSION_STR));
+  READONLY_PROPERTY(versions, modules,
+                    FIXED_ONE_BYTE_STRING(isolate, node_modules_version));
+  READONLY_PROPERTY(versions, nghttp2,
+                    FIXED_ONE_BYTE_STRING(isolate, NGHTTP2_VERSION));
+  READONLY_PROPERTY(versions, napi,
+                    FIXED_ONE_BYTE_STRING(isolate, node_napi_version));
 
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
@@ -1535,30 +1530,27 @@ void SetupProcessObject(Environment* env,
         break;
       }
     }
-    READONLY_PROPERTY(
-        versions,
-        "openssl",
-        OneByteString(env->isolate(), &OPENSSL_VERSION_TEXT[i], j - i));
+    READONLY_PROPERTY(versions, openssl,
+                      OneByteString(isolate, &OPENSSL_VERSION_TEXT[i], j - i));
   }
 #endif
 
   // process.arch
-  READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
+  READONLY_PROPERTY(process, arch, FIXED_ONE_BYTE_STRING(isolate, NODE_ARCH));
 
   // process.platform
-  READONLY_PROPERTY(process,
-                    "platform",
-                    OneByteString(env->isolate(), NODE_PLATFORM));
+  READONLY_PROPERTY(process, platform,
+                    FIXED_ONE_BYTE_STRING(isolate, NODE_PLATFORM));
 
   // process.release
-  Local<Object> release = Object::New(env->isolate());
-  READONLY_PROPERTY(process, "release", release);
-  READONLY_PROPERTY(release, "name",
-                    OneByteString(env->isolate(), NODE_RELEASE));
+  Local<Object> release = Object::New(isolate);
+  READONLY_PROPERTY(process, release, release);
+  READONLY_PROPERTY(release, name,
+                    FIXED_ONE_BYTE_STRING(isolate, NODE_RELEASE));
 
 #if NODE_VERSION_IS_LTS
-  READONLY_PROPERTY(release, "lts",
-                    OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
+  READONLY_PROPERTY(release, lts,
+                    FIXED_ONE_BYTE_STRING(isolate, NODE_VERSION_LTS_CODENAME));
 #endif
 
 // if this is a release build and no explicit base has been set
@@ -1573,18 +1565,16 @@ void SetupProcessObject(Environment* env,
 #  define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
 #  define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
 
-  READONLY_PROPERTY(release,
-                    "sourceUrl",
-                    OneByteString(env->isolate(),
-                    NODE_RELEASE_URLFPFX ".tar.gz"));
-  READONLY_PROPERTY(release,
-                    "headersUrl",
-                    OneByteString(env->isolate(),
-                    NODE_RELEASE_URLFPFX "-headers.tar.gz"));
+  READONLY_PROPERTY(release, sourceUrl,
+                    FIXED_ONE_BYTE_STRING(isolate,
+                                          NODE_RELEASE_URLFPFX ".tar.gz"));
+  READONLY_PROPERTY(release, headersUrl,
+                    FIXED_ONE_BYTE_STRING(isolate,
+                                          NODE_RELEASE_URLFPFX
+                                          "-headers.tar.gz"));
 #  ifdef _WIN32
-  READONLY_PROPERTY(release,
-                    "libUrl",
-                    OneByteString(env->isolate(),
+  READONLY_PROPERTY(release, libUrl,
+                    FIXED_ONE_BYTE_STRING(isolate,
                     strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-"
                                                 NODE_ARCH "/node.lib"
                                               : NODE_RELEASE_URLPFX
@@ -1593,23 +1583,22 @@ void SetupProcessObject(Environment* env,
 #endif
 
   // process.argv
-  Local<Array> arguments = Array::New(env->isolate(), argc);
+  Local<Array> arguments = Array::New(isolate, argc);
   for (int i = 0; i < argc; ++i) {
-    arguments->Set(i, String::NewFromUtf8(env->isolate(), argv[i]));
+    arguments->Set(i, String::NewFromUtf8(isolate, argv[i]));
   }
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
+  process->Set(FIXED_ONE_BYTE_STRING(isolate, "argv"), arguments);
 
   // process.execArgv
-  Local<Array> exec_arguments = Array::New(env->isolate(), exec_argc);
+  Local<Array> exec_arguments = Array::New(isolate, exec_argc);
   for (int i = 0; i < exec_argc; ++i) {
-    exec_arguments->Set(i, String::NewFromUtf8(env->isolate(), exec_argv[i]));
+    exec_arguments->Set(i, String::NewFromUtf8(isolate, exec_argv[i]));
   }
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
-               exec_arguments);
+  process->Set(FIXED_ONE_BYTE_STRING(isolate, "execArgv"), exec_arguments);
 
   // create process.env
   Local<ObjectTemplate> process_env_template =
-      ObjectTemplate::New(env->isolate());
+      ObjectTemplate::New(isolate);
   process_env_template->SetHandler(NamedPropertyHandlerConfiguration(
           EnvGetter,
           EnvSetter,
@@ -1620,114 +1609,69 @@ void SetupProcessObject(Environment* env,
 
   Local<Object> process_env =
       process_env_template->NewInstance(env->context()).ToLocalChecked();
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "env"), process_env);
+  process->Set(FIXED_ONE_BYTE_STRING(isolate, "env"), process_env);
 
-  READONLY_PROPERTY(process, "pid",
-                    Integer::New(env->isolate(), uv_os_getpid()));
-  READONLY_PROPERTY(process, "features", GetFeatures(env));
+  READONLY_PROPERTY(process, pid, Integer::New(isolate, uv_os_getpid()));
+  READONLY_PROPERTY(process, features, GetFeatures(env));
 
   CHECK(process->SetAccessor(env->context(),
-                             FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
+                             FIXED_ONE_BYTE_STRING(isolate, "ppid"),
                              GetParentProcessId).FromJust());
 
   // -e, --eval
   if (eval_string) {
-    READONLY_PROPERTY(process,
-                      "_eval",
-                      String::NewFromUtf8(env->isolate(), eval_string));
-  }
-
-  // -p, --print
-  if (print_eval) {
-    READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
-  }
-
-  // -c, --check
-  if (syntax_check_only) {
-    READONLY_PROPERTY(process, "_syntax_check_only", True(env->isolate()));
-  }
-
-  // -i, --interactive
-  if (force_repl) {
-    READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
+    READONLY_PROPERTY(process, _eval,
+                      String::NewFromUtf8(isolate, eval_string));
   }
 
   // -r, --require
   if (!preload_modules.empty()) {
-    Local<Array> array = Array::New(env->isolate());
-    for (unsigned int i = 0; i < preload_modules.size(); ++i) {
-      Local<String> module = String::NewFromUtf8(env->isolate(),
-                                                 preload_modules[i].c_str());
-      array->Set(i, module);
-    }
-    READONLY_PROPERTY(process,
-                      "_preload_modules",
-                      array);
-
+    unsigned int i = 0;
+    Local<Array> array = Array::New(isolate, preload_modules.size());
+    for (auto module : preload_modules)
+      array->Set(i++, String::NewFromUtf8(isolate, module.c_str()));
+    READONLY_PROPERTY(process, _preload_modules, array);
     preload_modules.clear();
   }
 
+  // -p, --print
+  SET_READONLY_FLAG(print_eval, _print_eval);
+  // -c, --check
+  SET_READONLY_FLAG(syntax_check_only, _syntax_check_only);
+  // -i, --interactive
+  SET_READONLY_FLAG(force_repl, _forceRepl);
   // --no-deprecation
-  if (no_deprecation) {
-    READONLY_PROPERTY(process, "noDeprecation", True(env->isolate()));
-  }
-
+  SET_READONLY_FLAG(no_deprecation, noDeprecation);
   // --no-warnings
-  if (no_process_warnings) {
-    READONLY_PROPERTY(process, "noProcessWarnings", True(env->isolate()));
-  }
-
+  SET_READONLY_FLAG(no_process_warnings, noProcessWarnings);
   // --trace-warnings
-  if (trace_warnings) {
-    READONLY_PROPERTY(process, "traceProcessWarnings", True(env->isolate()));
-  }
-
+  SET_READONLY_FLAG(trace_warnings, traceProcessWarnings);
   // --throw-deprecation
-  if (throw_deprecation) {
-    READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
-  }
+  SET_READONLY_FLAG(throw_deprecation, throwDeprecation);
+  // --prof-process
+  SET_READONLY_FLAG(prof_process, profProcess);
+  // --trace-deprecation
+  SET_READONLY_FLAG(trace_deprecation, traceDeprecation);
 
 #ifdef NODE_NO_BROWSER_GLOBALS
   // configure --no-browser-globals
-  READONLY_PROPERTY(process, "_noBrowserGlobals", True(env->isolate()));
+  SET_READONLY_FLAG(true, _noBrowserGlobals);
 #endif  // NODE_NO_BROWSER_GLOBALS
-
-  // --prof-process
-  if (prof_process) {
-    READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
-  }
-
-  // --trace-deprecation
-  if (trace_deprecation) {
-    READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
-  }
 
   // TODO(refack): move the following 3 to `node_config`
   // --inspect-brk
-  if (debug_options.wait_for_connect()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_breakFirstLine", True(env->isolate()));
-  }
-
+  SET_READONLY_NOENUM_FLAG(debug_options.wait_for_connect(),
+                           _breakFirstLine);
   // --inspect --debug-brk
-  if (debug_options.deprecated_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_deprecatedDebugBrk", True(env->isolate()));
-  }
-
+  SET_READONLY_NOENUM_FLAG(debug_options.deprecated_invocation(),
+                           _deprecatedDebugBrk);
   // --debug or, --debug-brk without --inspect
-  if (debug_options.invalid_invocation()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_invalidDebug", True(env->isolate()));
-  }
+  SET_READONLY_NOENUM_FLAG(debug_options.invalid_invocation(),
+                           _invalidDebug);
 
   // --security-revert flags
 #define V(code, _, __)                                                        \
-  do {                                                                        \
-    if (IsReverted(SECURITY_REVERT_ ## code)) {                               \
-      READONLY_PROPERTY(process, "REVERT_" #code, True(env->isolate()));      \
-    }                                                                         \
-  } while (0);
+  SET_READONLY_FLAG(IsReverted(SECURITY_REVERT_##code), REVERT_##code);
   SECURITY_REVERSIONS(V)
 #undef V
 
@@ -1735,56 +1679,53 @@ void SetupProcessObject(Environment* env,
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
   if (uv_exepath(exec_path, &exec_path_len) == 0) {
-    exec_path_value = String::NewFromUtf8(env->isolate(),
+    exec_path_value = String::NewFromUtf8(isolate,
                                           exec_path,
                                           String::kNormalString,
                                           exec_path_len);
   } else {
-    exec_path_value = String::NewFromUtf8(env->isolate(), argv[0]);
+    exec_path_value = String::NewFromUtf8(isolate, argv[0]);
   }
-  process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
-               exec_path_value);
+  process->Set(FIXED_ONE_BYTE_STRING(isolate, "execPath"), exec_path_value);
   delete[] exec_path;
 
-  auto debug_port_string = FIXED_ONE_BYTE_STRING(env->isolate(), "debugPort");
   CHECK(process->SetAccessor(env->context(),
-                             debug_port_string,
+                             FIXED_ONE_BYTE_STRING(isolate, "debugPort"),
                              DebugPortGetter,
                              DebugPortSetter,
                              env->as_external()).FromJust());
 
   // define various internal methods
-  env->SetMethod(process,
-                 "_startProfilerIdleNotifier",
-                 StartProfilerIdleNotifier);
-  env->SetMethod(process,
-                 "_stopProfilerIdleNotifier",
-                 StopProfilerIdleNotifier);
-  env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
-  env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
-  env->SetMethod(process, "reallyExit", Exit);
-  env->SetMethod(process, "abort", Abort);
-  env->SetMethod(process, "cwd", Cwd);
+  PROCESS_METHOD(_debugProcess, DebugProcess);
+  PROCESS_METHOD(_debugEnd, DebugEnd);
+  PROCESS_METHOD(_getActiveRequests, GetActiveRequests);
+  PROCESS_METHOD(_getActiveHandles, GetActiveHandles);
+  PROCESS_METHOD(_kill, Kill);
+  PROCESS_METHOD(_startProfilerIdleNotifier, StartProfilerIdleNotifier);
+  PROCESS_METHOD(_stopProfilerIdleNotifier, StopProfilerIdleNotifier);
+
+  PROCESS_METHOD(abort, Abort);
+  PROCESS_METHOD(cwd, Cwd);
+  PROCESS_METHOD(dlopen, DLOpen);
+  PROCESS_METHOD(reallyExit, Exit);
+  PROCESS_METHOD(uptime, Uptime);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-  env->SetMethod(process, "getuid", GetUid);
-  env->SetMethod(process, "geteuid", GetEUid);
-  env->SetMethod(process, "getgid", GetGid);
-  env->SetMethod(process, "getegid", GetEGid);
-  env->SetMethod(process, "getgroups", GetGroups);
+  PROCESS_METHOD(geteuid, GetEUid);
+  PROCESS_METHOD(getegid, GetEGid);
+  PROCESS_METHOD(getgid, GetGid);
+  PROCESS_METHOD(getgroups, GetGroups);
+  PROCESS_METHOD(getuid, GetUid);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
-
-  env->SetMethod(process, "_kill", Kill);
-
-  env->SetMethod(process, "_debugProcess", DebugProcess);
-  env->SetMethod(process, "_debugEnd", DebugEnd);
-
-  env->SetMethod(process, "dlopen", DLOpen);
-  env->SetMethod(process, "uptime", Uptime);
 }
 
-
+#undef PROCESS_METHOD
 #undef READONLY_PROPERTY
+#undef READONLY_DONT_ENUM_PROPERTY
+#undef READONLY_FLAG
+#undef READONLY_DONT_ENUM_FLAG
+#undef SET_READONLY_FLAG
+#undef SET_READONLY_NOENUM_FLAG
 
 
 void SignalExit(int signo) {
@@ -1802,7 +1743,7 @@ void SignalExit(int signo) {
 
 
 static Local<Function> GetBootstrapper(Environment* env, Local<String> source,
-                                  Local<String> script_name) {
+                                       Local<String> script_name) {
   EscapableHandleScope scope(env->isolate());
 
   TryCatch try_catch(env->isolate());
