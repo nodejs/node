@@ -2377,7 +2377,7 @@ fs.readFileSync('<directory>');
 // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 
 //  FreeBSD
-fs.readFileSync('<directory>'); // => null, <data>
+fs.readFileSync('<directory>'); // => <data>
 ```
 
 ## fs.readlink(path[, options], callback)
