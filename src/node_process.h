@@ -22,6 +22,7 @@ void Chdir(const FunctionCallbackInfo<Value>& args);
 void CPUUsage(const FunctionCallbackInfo<Value>& args);
 void Cwd(const FunctionCallbackInfo<Value>& args);
 void DLOpen(const FunctionCallbackInfo<Value>& args);
+void Exit(const FunctionCallbackInfo<Value>& args);
 void GetActiveRequests(const FunctionCallbackInfo<Value>& args);
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args);
 void Hrtime(const FunctionCallbackInfo<Value>& args);

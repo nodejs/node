@@ -70,6 +70,10 @@ using v8::Uint32;
 using v8::Uint32Array;
 using v8::Value;
 
+void Exit(const FunctionCallbackInfo<Value>& args) {
+  Exit(Environment::GetCurrent(args), args[0]->Int32Value());
+}
+
 void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 

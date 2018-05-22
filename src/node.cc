@@ -1105,13 +1105,11 @@ static void WaitForInspectorDisconnect(Environment* env) {
 #endif
 }
 
-
-static void Exit(const FunctionCallbackInfo<Value>& args) {
-  WaitForInspectorDisconnect(Environment::GetCurrent(args));
+NO_RETURN void Exit(Environment* env, int32_t code) {
+  WaitForInspectorDisconnect(env);
   v8_platform.StopTracingAgent();
-  exit(args[0]->Int32Value());
+  exit(code);
 }
-
 
 extern "C" void node_module_register(void* m) {
   struct node_module* mp = reinterpret_cast<struct node_module*>(m);
