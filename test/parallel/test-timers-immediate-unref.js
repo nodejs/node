@@ -3,6 +3,14 @@
 const common = require('../common');
 const Countdown = require('../common/countdown');
 
+const assert = require('assert');
+
+const immediate = setImmediate(() => {});
+assert(immediate.hasRef());
+immediate.unref();
+assert(!immediate.hasRef());
+clearImmediate(immediate);
+
 // This immediate should execute as it was unrefed and refed again.
 // It also confirms that unref/ref are chainable.
 setImmediate(common.mustCall(firstStep)).ref().unref().unref().ref();
