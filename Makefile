@@ -516,13 +516,6 @@ test-addons-clean:
 	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
 	$(MAKE) test-addons-napi-clean
 
-test-timers:
-	$(MAKE) --directory=tools faketime
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) timers
-
-test-timers-clean:
-	$(MAKE) --directory=tools clean
-
 test-async-hooks:
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) async-hooks
 
