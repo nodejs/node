@@ -24,7 +24,7 @@
 #include <stdint.h>
 
 namespace node {
-namespace timers {
+namespace {
 
 using v8::Array;
 using v8::Context;
@@ -79,7 +79,7 @@ void Initialize(Local<Object> target,
 }
 
 
-}  // namespace timers
+}  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(timers, node::timers::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(timers, node::Initialize)

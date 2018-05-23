@@ -19,15 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --expose-internals
+
 'use strict';
 require('../common');
 const assert = require('assert');
+const { getLibuvNow } = require('internal/timers');
 
 const N = 30;
 
 let last_i = 0;
-const [seconds, nanoseconds] = process.hrtime();
-let last_ts = (seconds * 1e3 + nanoseconds * 1e-6) | 0;
+let last_ts = 0;
 
 function f(i) {
   if (i <= N) {
@@ -36,8 +38,7 @@ function f(i) {
     last_i = i;
 
     // check that this iteration is fired at least 1ms later than the previous
-    const [seconds, nanoseconds] = process.hrtime();
-    const now = (seconds * 1e3 + nanoseconds * 1e-6) | 0;
+    const now = getLibuvNow();
     assert(now >= last_ts + 1,
            `current ts ${now} < prev ts ${last_ts} + 1`);
     last_ts = now;

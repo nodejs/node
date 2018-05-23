@@ -174,7 +174,7 @@ void Environment::Start(int argc,
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
-  uv_timer_init(event_loop(), timer_handle());
+  CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
 
   uv_check_init(event_loop(), immediate_check_handle());
@@ -501,14 +501,14 @@ void Environment::RunTimers(uv_timer_t* handle) {
 
   Local<Function> cb = env->timers_callback_function();
   MaybeLocal<Value> ret;
-  Local<Value> args[] = { env->GetNow() };
+  Local<Value> arg = env->GetNow();
   // This code will loop until all currently due timers will process. It is
   // impossible for us to end up in an infinite loop due to how the JS-side
   // is structured.
   do {
     TryCatch try_catch(env->isolate());
     try_catch.SetVerbose(true);
-    ret = cb->Call(env->context(), process, arraysize(args), args);
+    ret = cb->Call(env->context(), process, 1, &arg);
   } while (ret.IsEmpty());
 
   // To allow for less JS-C++ boundary crossing, the value returned from JS
@@ -522,20 +522,18 @@ void Environment::RunTimers(uv_timer_t* handle) {
       ret.ToLocalChecked()->IntegerValue(env->context()).FromJust();
 
   uv_handle_t* h = reinterpret_cast<uv_handle_t*>(handle);
-  bool has_ref = uv_has_ref(h);
 
   if (expiry_ms != 0) {
     int64_t duration_ms =
-      abs(expiry_ms) - (uv_now(env->event_loop()) - env->timer_base());
+        llabs(expiry_ms) - (uv_now(env->event_loop()) - env->timer_base());
 
     env->ScheduleTimer(duration_ms > 0 ? duration_ms : 1);
 
-    if (!has_ref && expiry_ms > 0) {
+    if (expiry_ms > 0)
       uv_ref(h);
-    } else if (has_ref && expiry_ms < 0) {
+    else
       uv_unref(h);
-    }
-  } else if (has_ref) {
+  } else {
     uv_unref(h);
   }
 }
