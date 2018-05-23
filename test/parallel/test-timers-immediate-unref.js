@@ -6,9 +6,9 @@ const Countdown = require('../common/countdown');
 const assert = require('assert');
 
 const immediate = setImmediate(() => {});
-assert(immediate.hasRef());
+assert.strictEqual(immediate.hasRef(), true);
 immediate.unref();
-assert(!immediate.hasRef());
+assert.strictEqual(immediate.hasRef(), false);
 clearImmediate(immediate);
 
 // This immediate should execute as it was unrefed and refed again.

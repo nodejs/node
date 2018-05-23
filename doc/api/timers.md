@@ -30,8 +30,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Used to check whether the `Immediate` object will keep the Node.js event loop
-active.
+If true, the `Immediate` object will keep the Node.js event loop active.
 
 ### immediate.ref()
 <!-- YAML
@@ -78,8 +77,7 @@ added: REPLACEME
 
 * Returns: {boolean}
 
-Used to check whether the `Timeout` object will keep the Node.js event loop
-active.
+If true, the `Timeout` object will keep the Node.js event loop active.
 
 ### timeout.ref()
 <!-- YAML

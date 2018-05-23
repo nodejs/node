@@ -33,10 +33,10 @@ const LONG_TIME = 10 * 1000;
 const SHORT_TIME = 100;
 
 const timer = setTimeout(() => {}, 10);
-assert(timer.hasRef());
+assert.strictEqual(timer.hasRef(), true);
 // Should not throw.
 timer.unref().ref().unref();
-assert(!timer.hasRef());
+assert.strictEqual(timer.hasRef(), false);
 
 setInterval(() => {}, 10).unref().ref().unref();
 
