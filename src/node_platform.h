@@ -80,7 +80,6 @@ class PerIsolatePlatformData :
   static void RunForegroundTask(uv_timer_t* timer);
 
   int ref_count_ = 1;
-  v8::Isolate* isolate_;
   uv_loop_t* const loop_;
   uv_async_t* flush_tasks_ = nullptr;
   TaskQueue<v8::Task> foreground_tasks_;
