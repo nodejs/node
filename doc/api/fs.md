@@ -3572,8 +3572,8 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  const fd = await fsPromises.open('temp.txt', 'r+');
-  await fsPromises.ftruncate(fd, 4);
+  const filehandle = await fsPromises.open('temp.txt', 'r+');
+  await filehandle.truncate(4);
   console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints: Node
 }
 
@@ -3591,12 +3591,13 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  const fd = await fsPromises.open('temp.txt', 'r+');
-  await fsPromises.ftruncate(fd, 10);
+  const filehandle = await fsPromises.open('temp.txt', 'r+');
+  await filehandle.truncate(10);
   console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints Node.js\0\0\0
 }
 
 doTruncate().catch(console.error);
+
 ```
 
 The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
