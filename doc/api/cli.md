@@ -242,7 +242,7 @@ See `--preserve-symlinks` for more information.
 
 ### `--prof`
 <!-- YAML
-added: v5.2.0
+added: v2.0.0
 -->
 
 Generate V8 profiler output.
