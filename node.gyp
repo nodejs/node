@@ -309,6 +309,7 @@
 
       'sources': [
         'src/async_wrap.cc',
+        'src/bootstrapper.cc',
         'src/callback_scope.cc',
         'src/cares_wrap.cc',
         'src/connection_wrap.cc',

@@ -357,6 +357,8 @@ inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
   return node::FillStatsArray(env->fs_stats_field_array(), s, offset);
 }
 
+void SetupBootstrapObject(Environment* env,
+                          v8::Local<v8::Object> bootstrapper);
 void SetupProcessObject(Environment* env,
                         int argc,
                         const char* const* argv,
