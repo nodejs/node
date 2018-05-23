@@ -26,6 +26,8 @@ const EventEmitter = require('events');
 
 const e = new EventEmitter();
 
+common.crashOnUnhandledRejection();
+
 e.once('hello', common.mustCall());
 
 e.emit('hello', 'a', 'b');
@@ -78,4 +80,15 @@ common.expectsError(() => {
 
     EventEmitter.prototype.emit.apply(ee, args);
   }
+}
+
+{
+  // verify the promise returning version of `once`
+  async function doTest() {
+    const ee = new EventEmitter();
+    setTimeout(() => ee.emit('hello'), 0);
+    await ee.once('hello');
+  }
+
+  doTest().then(common.mustCall());
 }

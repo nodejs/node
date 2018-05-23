@@ -419,14 +419,14 @@ myEE.emit('foo');
 //   a
 ```
 
-### emitter.once(eventName, listener)
+### emitter.once(eventName[, listener])
 <!-- YAML
 added: v0.3.0
 -->
 
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
-* Returns: {EventEmitter}
+* Returns: {EventEmitter|Promise}
 
 Adds a **one-time** `listener` function for the event named `eventName`. The
 next time `eventName` is triggered, this listener is removed and then invoked.
@@ -438,6 +438,16 @@ server.once('connection', (stream) => {
 ```
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
+
+If a listener function isn't passed - returns a `Promise` for the event happening:
+
+```js
+(async () => {
+  console.log('connecting');
+  const stream = await server.once('connection');
+  console.log('connected');
+})();
+```
 
 By default, event listeners are invoked in the order they are added. The
 `emitter.prependOnceListener()` method can be used as an alternative to add the
