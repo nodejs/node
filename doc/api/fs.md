@@ -3572,8 +3572,15 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  const filehandle = await fsPromises.open('temp.txt', 'r+');
-  await filehandle.truncate(4);
+  let filehandle;
+  try {
+    filehandle = await fsPromises.open('temp.txt', 'r+');
+    await filehandle.truncate(4);
+  } finally {
+    if (filehandle !== null) {
+      await filehandle.close();
+    }
+  }
   console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints: Node
 }
 
@@ -3591,8 +3598,15 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  const filehandle = await fsPromises.open('temp.txt', 'r+');
-  await filehandle.truncate(10);
+  let filehandle;
+  try {
+    filehandle = await fsPromises.open('temp.txt', 'r+');
+    await filehandle.truncate(10);
+  } finally {
+    if (filehandle !== null) {
+      await filehandle.close();
+    }
+  }
   console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints Node.js\0\0\0
 }
 
