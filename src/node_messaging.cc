@@ -47,9 +47,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
                        const std::vector<MessagePort*>& message_ports,
                        const std::vector<Local<SharedArrayBuffer>>&
                            shared_array_buffers)
-    : env_(env),
-      msg_(m),
-      message_ports_(message_ports),
+    : message_ports_(message_ports),
       shared_array_buffers_(shared_array_buffers) {}
 
   MaybeLocal<Object> ReadHostObject(Isolate* isolate) override {
@@ -71,8 +69,6 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
   ValueDeserializer* deserializer = nullptr;
 
  private:
-  Environment* env_;
-  Message* msg_;
   const std::vector<MessagePort*>& message_ports_;
   const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
 };
