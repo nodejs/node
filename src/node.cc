@@ -158,7 +158,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
@@ -610,97 +609,6 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   Environment* env = Environment::GetCurrent(isolate);
   return env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
-}
-
-
-void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
-  args.GetIsolate()->RunMicrotasks();
-}
-
-
-void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsFunction());
-
-  env->set_push_values_to_array_function(args[0].As<Function>());
-  env->process_object()->Delete(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject")).FromJust();
-}
-
-
-void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsFunction());
-
-  env->set_tick_callback_function(args[0].As<Function>());
-
-  env->process_object()->Delete(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupNextTick")).FromJust();
-
-  v8::Local<v8::Function> run_microtasks_fn =
-      env->NewFunctionTemplate(RunMicrotasks)->GetFunction(env->context())
-          .ToLocalChecked();
-  run_microtasks_fn->SetName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "runMicrotasks"));
-
-  Local<Array> ret = Array::New(env->isolate(), 2);
-  ret->Set(env->context(), 0,
-           env->tick_info()->fields().GetJSArray()).FromJust();
-  ret->Set(env->context(), 1, run_microtasks_fn).FromJust();
-
-  args.GetReturnValue().Set(ret);
-}
-
-void PromiseRejectCallback(PromiseRejectMessage message) {
-  Local<Promise> promise = message.GetPromise();
-  Isolate* isolate = promise->GetIsolate();
-  v8::PromiseRejectEvent event = message.GetEvent();
-
-  Environment* env = Environment::GetCurrent(isolate);
-  Local<Function> callback;
-  Local<Value> value;
-
-  if (event == v8::kPromiseRejectWithNoHandler) {
-    callback = env->promise_reject_unhandled_function();
-    value = message.GetValue();
-
-    if (value.IsEmpty())
-      value = Undefined(isolate);
-  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
-    callback = env->promise_reject_handled_function();
-    value = Undefined(isolate);
-  } else {
-    UNREACHABLE();
-  }
-
-  Local<Value> args[] = { promise, value };
-  MaybeLocal<Value> ret = callback->Call(env->context(),
-                                         Undefined(isolate),
-                                         arraysize(args),
-                                         args);
-
-  if (!ret.IsEmpty() && ret.ToLocalChecked()->IsTrue())
-    env->tick_info()->promise_rejections_toggle_on();
-}
-
-void SetupPromises(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
-
-  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
-  env->set_promise_reject_unhandled_function(args[0].As<Function>());
-  env->set_promise_reject_handled_function(args[1].As<Function>());
-
-  env->process_object()->Delete(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(isolate, "_setupPromises")).FromJust();
 }
 
 }  // anonymous namespace
@@ -1310,7 +1218,7 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Chdir(const FunctionCallbackInfo<Value>& args) {
+void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 1 || !args[0]->IsString()) {
@@ -1348,7 +1256,7 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Umask(const FunctionCallbackInfo<Value>& args) {
+void Umask(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint32_t old;
 
@@ -1509,7 +1417,7 @@ static void GetEGid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetGid(const FunctionCallbackInfo<Value>& args) {
+void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -1528,7 +1436,7 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetEGid(const FunctionCallbackInfo<Value>& args) {
+void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -1547,7 +1455,7 @@ static void SetEGid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetUid(const FunctionCallbackInfo<Value>& args) {
+void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -1566,7 +1474,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetEUid(const FunctionCallbackInfo<Value>& args) {
+void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -1623,7 +1531,7 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetGroups(const FunctionCallbackInfo<Value>& args) {
+void SetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsArray()) {
@@ -1654,7 +1562,7 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void InitGroups(const FunctionCallbackInfo<Value>& args) {
+void InitGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
@@ -1743,7 +1651,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
+void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   size_t rss;
@@ -1795,7 +1703,7 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
 // broken into the upper/lower 32 bits to be converted back in JS,
 // because there is no Uint64Array in JS.
 // The third entry contains the remaining nanosecond part of the value.
-static void Hrtime(const FunctionCallbackInfo<Value>& args) {
+void Hrtime(const FunctionCallbackInfo<Value>& args) {
   uint64_t t = uv_hrtime();
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
@@ -1814,7 +1722,7 @@ static void Hrtime(const FunctionCallbackInfo<Value>& args) {
 // which are uv_timeval_t structs (long tv_sec, long tv_usec).
 // Returns those values as Float64 microseconds in the elements of the array
 // passed to the function.
-static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   uv_rusage_t rusage;
 
   // Call libuv to get the values we'll return.
@@ -2839,13 +2747,6 @@ void SetupProcessObject(Environment* env,
                              FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
                              GetParentProcessId).FromJust());
 
-  auto should_abort_on_uncaught_toggle =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_shouldAbortOnUncaughtToggle");
-  CHECK(process->Set(env->context(),
-                     should_abort_on_uncaught_toggle,
-                     env->should_abort_on_uncaught_toggle().GetJSArray())
-                         .FromJust());
-
   // -e, --eval
   if (eval_string) {
     READONLY_PROPERTY(process,
@@ -2988,17 +2889,9 @@ void SetupProcessObject(Environment* env,
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
   env->SetMethod(process, "getuid", GetUid);
   env->SetMethod(process, "geteuid", GetEUid);
-  env->SetMethod(process, "setuid", SetUid);
-  env->SetMethod(process, "seteuid", SetEUid);
-
-  env->SetMethod(process, "setgid", SetGid);
-  env->SetMethod(process, "setegid", SetEGid);
   env->SetMethod(process, "getgid", GetGid);
   env->SetMethod(process, "getegid", GetEGid);
-
   env->SetMethod(process, "getgroups", GetGroups);
-  env->SetMethod(process, "setgroups", SetGroups);
-  env->SetMethod(process, "initgroups", InitGroups);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
   env->SetMethod(process, "_kill", Kill);
@@ -3014,10 +2907,6 @@ void SetupProcessObject(Environment* env,
 
   env->SetMethod(process, "uptime", Uptime);
   env->SetMethod(process, "memoryUsage", MemoryUsage);
-
-  env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
-  env->SetMethod(process, "_setupNextTick", SetupNextTick);
-  env->SetMethod(process, "_setupPromises", SetupPromises);
 }
 
 
@@ -3042,7 +2931,7 @@ void SignalExit(int signo) {
 // to the process.stderr stream.  However, in some cases, such as
 // when debugging the stream.Writable class or the process.nextTick
 // function, it is useful to bypass JavaScript entirely.
-static void RawDebug(const FunctionCallbackInfo<Value>& args) {
+void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
@@ -3173,9 +3062,12 @@ void LoadEnvironment(Environment* env) {
   }
 
   // Bootstrap Node.js
+  Local<Object> bootstrapper = Object::New(env->isolate());
+  SetupBootstrapObject(env, bootstrapper);
   Local<Value> bootstrapped_node;
   Local<Value> node_bootstrapper_args[] = {
     env->process_object(),
+    bootstrapper,
     bootstrapped_loaders
   };
   if (!ExecuteBootstrapper(env, node_bootstrapper,
