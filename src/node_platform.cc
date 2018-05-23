@@ -65,7 +65,7 @@ size_t BackgroundTaskRunner::NumberOfAvailableBackgroundThreads() const {
 
 PerIsolatePlatformData::PerIsolatePlatformData(
     v8::Isolate* isolate, uv_loop_t* loop)
-  : isolate_(isolate), loop_(loop) {
+  : loop_(loop) {
   flush_tasks_ = new uv_async_t();
   CHECK_EQ(0, uv_async_init(loop, flush_tasks_, FlushTasks));
   flush_tasks_->data = static_cast<void*>(this);
