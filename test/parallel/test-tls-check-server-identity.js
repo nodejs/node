@@ -132,6 +132,43 @@ const tests = [
     }
   },
   {
+    host: 'a.co.uk:2443', cert: {
+      subject: { CN: '*.co.uk' }
+    }
+  },
+  {
+    host: 'a.co.uk:2443', cert: {
+      subject: { CN: '*.co.uk:2443' }
+    }
+  },
+  {
+    host: 'a.co.uk:2443', cert: {
+      subject: { CN: '*.co.uk:8443' }
+    },
+    error: 'Host: a.co.uk:2443. is not ' +
+           'cert\'s CN: *.co.uk:8443'
+  },
+  {
+    host: 'a.co.uk:2443', cert: {
+      subjectaltname: 'DNS:*.co.uk',
+      subject: { CN: 'b.com' }
+    }
+  },
+  {
+    host: 'a.co.uk:2443', cert: {
+      subjectaltname: 'DNS:*.co.uk:2443',
+      subject: { CN: 'b.com' }
+    }
+  },
+  {
+    host: 'a.co.uk:2443', cert: {
+      subjectaltname: 'DNS:*.co.uk:8443',
+      subject: { CN: 'b.com' }
+    },
+    error: 'Host: a.co.uk:2443. is not in the cert\'s ' +
+           'altnames: DNS:*.co.uk:8443'
+  },
+  {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:*.a.com',
       subject: { CN: 'a.com' }
