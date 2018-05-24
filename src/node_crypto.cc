@@ -1396,7 +1396,7 @@ void SecureContext::SetPskIdentity(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   String::Utf8Value identity(args.GetIsolate(), args[0]);
-  if (!SSL_CTX_use_psk_identity_hint(wrap->ctx_, *identity)) {
+  if (!SSL_CTX_use_psk_identity_hint(wrap->ctx_.get(), *identity)) {
     return ThrowCryptoError(env,
                             ERR_get_error(),
                             "Failed to set PSK identity hint");
@@ -1407,9 +1407,9 @@ void SecureContext::EnablePskCallback(
     const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
 
-  SSL_CTX_set_psk_server_callback(wrap->ctx_,
+  SSL_CTX_set_psk_server_callback(wrap->ctx_.get(),
                                   SecureContext::PskServerCallback);
-  SSL_CTX_set_psk_client_callback(wrap->ctx_,
+  SSL_CTX_set_psk_client_callback(wrap->ctx_.get(),
                                   SecureContext::PskClientCallback);
 }
 
