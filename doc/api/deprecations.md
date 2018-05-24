@@ -1061,7 +1061,7 @@ deprecated and support will be removed in the future.
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.SecurePair`]: tls.html#tls_class_securepair
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
-[`tls.checkServerIdentity()`]: tls.html#tls_tls_checkserveridentity_host_cert
+[`tls.checkServerIdentity()`]: tls.html#tls_tls_checkserveridentity_hostname_cert
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string

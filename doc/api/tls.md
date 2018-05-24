@@ -358,7 +358,7 @@ added: v0.5.3
   `cert`, `ca`, etc).
 
 The `server.addContext()` method adds a secure context that will be used if
-the client request's SNI hostname matches the supplied `hostname` (or wildcard).
+the client request's SNI name matches the supplied `hostname` (or wildcard).
 
 ### server.address()
 <!-- YAML
@@ -796,17 +796,17 @@ and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
 
-## tls.checkServerIdentity(host, cert)
+## tls.checkServerIdentity(hostname, cert)
 <!-- YAML
 added: v0.8.4
 -->
 
-* `host` {string} The hostname to verify the certificate against
+* `hostname` {string} The hostname to verify the certificate against
 * `cert` {Object} An object representing the peer's certificate. The returned
   object has some properties corresponding to the fields of the certificate.
 * Returns: {Error|undefined}
 
-Verifies the certificate `cert` is issued to host `host`.
+Verifies the certificate `cert` is issued to `hostname`.
 
 Returns {Error} object, populating it with the reason, host, and cert on
 failure. On success, returns {undefined}.
