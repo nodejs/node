@@ -1,5 +1,4 @@
 #include "node.h"
-#include "callback_scope.h"
 #include "async_wrap.h"
 #include "async_wrap-inl.h"
 #include "env.h"
