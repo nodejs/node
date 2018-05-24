@@ -29,7 +29,7 @@ release.
   <th><a href="doc/changelogs/CHANGELOG_V9.md">9</a></th>
   <th title="LTS Until 2019-12"><a href="doc/changelogs/CHANGELOG_V8.md">8</a><sup>LTS</sup></th>
   <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">6</a><sup>LTS</sup></th>
-  <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">4</a><sup>LTS</sup></th>
+  <th title="End-of-life since 2018-05-01"><a href="doc/changelogs/CHANGELOG_V4.md">4</a><sup>EOL</sup></th>
 </tr>
 <tr>
     <td valign="top">
