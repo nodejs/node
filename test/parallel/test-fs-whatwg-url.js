@@ -27,6 +27,12 @@ fs.readFile(url, common.mustCall((err, data) => {
   assert(Buffer.isBuffer(data));
 }));
 
+// Check that we can pass in a URL string successfully
+fs.readFile(url.href, common.mustCall((err, data) => {
+  assert.ifError(err);
+  assert(Buffer.isBuffer(data));
+}));
+
 // Check that using a non file:// URL reports an error
 const httpUrl = new URL('http://example.org');
 
@@ -38,6 +44,16 @@ common.expectsError(
     code: 'ERR_INVALID_URL_SCHEME',
     type: TypeError,
     message: 'The URL must be of scheme file'
+  });
+
+common.expectsError(
+  () => {
+    fs.readFileSync(httpUrl.href);
+  },
+  {
+    code: 'ENOENT',
+    type: Error,
+    message: 'ENOENT: no such file or directory, open \'http://example.org/\''
   });
 
 // pct-encoded characters in the path will be decoded and checked
@@ -54,10 +70,32 @@ if (common.isWindows) {
         message: 'File URL path must not include encoded \\ or / characters'
       }
     );
+
+    common.expectsError(
+      () => {
+        fs.readFile(new URL(`file:///c:/tmp/${i}`).href, common.mustNotCall());
+      },
+      {
+        code: 'ERR_INVALID_FILE_URL_PATH',
+        type: TypeError,
+        message: 'File URL path must not include encoded \\ or / characters'
+      }
+    );
   });
   common.expectsError(
     () => {
       fs.readFile(new URL('file:///c:/tmp/%00test'), common.mustNotCall());
+    },
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      type: TypeError,
+      message: 'The argument \'path\' must be a string or Uint8Array without ' +
+               'null bytes. Received \'c:/tmp/\\u0000test\''
+    }
+  );
+  common.expectsError(
+    () => {
+      fs.readFile(new URL('file:///c:/tmp/%00test').href, common.mustNotCall());
     },
     {
       code: 'ERR_INVALID_ARG_VALUE',
@@ -78,6 +116,15 @@ if (common.isWindows) {
         type: TypeError,
         message: 'File URL path must not include encoded / characters'
       });
+    common.expectsError(
+      () => {
+        fs.readFile(new URL(`file:///c:/tmp/${i}`).href, common.mustNotCall());
+      },
+      {
+        code: 'ERR_INVALID_FILE_URL_PATH',
+        type: TypeError,
+        message: 'File URL path must not include encoded / characters'
+      });
   });
   common.expectsError(
     () => {
@@ -91,7 +138,28 @@ if (common.isWindows) {
   );
   common.expectsError(
     () => {
+      fs.readFile(new URL('file://hostname/a/b/c').href, common.mustNotCall());
+    },
+    {
+      code: 'ERR_INVALID_FILE_URL_HOST',
+      type: TypeError,
+      message: `File URL host must be "localhost" or empty on ${os.platform()}`
+    }
+  );
+  common.expectsError(
+    () => {
       fs.readFile(new URL('file:///tmp/%00test'), common.mustNotCall());
+    },
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      type: TypeError,
+      message: 'The argument \'path\' must be a string or Uint8Array without ' +
+               'null bytes. Received \'/tmp/\\u0000test\''
+    }
+  );
+  common.expectsError(
+    () => {
+      fs.readFile(new URL('file:///tmp/%00test').href, common.mustNotCall());
     },
     {
       code: 'ERR_INVALID_ARG_VALUE',
