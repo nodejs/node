@@ -1,7 +1,16 @@
 #ifndef SRC_CALLBACK_SCOPE_H_
 #define SRC_CALLBACK_SCOPE_H_
 
-#include "core.h"
+#ifdef _WIN32
+# ifndef BUILDING_NODE_EXTENSION
+#   define NODE_EXTERN __declspec(dllexport)
+# else
+#   define NODE_EXTERN __declspec(dllimport)
+# endif
+#else
+# define NODE_EXTERN /* nothing */
+#endif
+
 #include "v8.h"
 
 namespace node {
