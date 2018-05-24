@@ -3611,7 +3611,6 @@ async function doTruncate() {
 }
 
 doTruncate().catch(console.error);
-
 ```
 
 The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
