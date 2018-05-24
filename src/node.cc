@@ -3358,7 +3358,6 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--experimental-modules",
     "--experimental-repl-await",
     "--experimental-vm-modules",
-    "--expose-http2",   // keep as a non-op through v9.x
     "--force-fips",
     "--icu-data-dir",
     "--inspect",
@@ -3608,9 +3607,6 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       config_expose_internals = true;
-    } else if (strcmp(arg, "--expose-http2") == 0 ||
-               strcmp(arg, "--expose_http2") == 0) {
-      // Keep as a non-op through v9.x
     } else if (strcmp(arg, "-") == 0) {
       break;
     } else if (strcmp(arg, "--") == 0) {
