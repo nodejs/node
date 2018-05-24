@@ -145,6 +145,69 @@ check(null, fs.watch, fileUrl2, assert.fail);
 check(null, fs.watchFile, fileUrl2, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl2, 'abc');
 
+const fileUrlString = new URL('file:///C:/foo\u0000bar').href;
+const fileUrl2String = new URL('file:///C:/foo%00bar').href;
+
+check(fs.access, fs.accessSync, fileUrlString);
+check(fs.access, fs.accessSync, fileUrlString, fs.F_OK);
+check(fs.appendFile, fs.appendFileSync, fileUrlString, 'abc');
+check(fs.chmod, fs.chmodSync, fileUrlString, '0644');
+check(fs.chown, fs.chownSync, fileUrlString, 12, 34);
+check(fs.copyFile, fs.copyFileSync, fileUrlString, 'abc');
+check(fs.copyFile, fs.copyFileSync, 'abc', fileUrlString);
+check(fs.link, fs.linkSync, fileUrlString, 'foobar');
+check(fs.link, fs.linkSync, 'foobar', fileUrlString);
+check(fs.lstat, fs.lstatSync, fileUrlString);
+check(fs.mkdir, fs.mkdirSync, fileUrlString, '0755');
+check(fs.open, fs.openSync, fileUrlString, 'r');
+check(fs.readFile, fs.readFileSync, fileUrlString);
+check(fs.readdir, fs.readdirSync, fileUrlString);
+check(fs.readlink, fs.readlinkSync, fileUrlString);
+check(fs.realpath, fs.realpathSync, fileUrlString);
+check(fs.rename, fs.renameSync, fileUrlString, 'foobar');
+check(fs.rename, fs.renameSync, 'foobar', fileUrlString);
+check(fs.rmdir, fs.rmdirSync, fileUrlString);
+check(fs.stat, fs.statSync, fileUrlString);
+check(fs.symlink, fs.symlinkSync, fileUrlString, 'foobar');
+check(fs.symlink, fs.symlinkSync, 'foobar', fileUrlString);
+check(fs.truncate, fs.truncateSync, fileUrlString);
+check(fs.unlink, fs.unlinkSync, fileUrlString);
+check(null, fs.unwatchFile, fileUrlString, assert.fail);
+check(fs.utimes, fs.utimesSync, fileUrlString, 0, 0);
+check(null, fs.watch, fileUrlString, assert.fail);
+check(null, fs.watchFile, fileUrlString, assert.fail);
+check(fs.writeFile, fs.writeFileSync, fileUrlString, 'abc');
+
+check(fs.access, fs.accessSync, fileUrl2String);
+check(fs.access, fs.accessSync, fileUrl2String, fs.F_OK);
+check(fs.appendFile, fs.appendFileSync, fileUrl2String, 'abc');
+check(fs.chmod, fs.chmodSync, fileUrl2String, '0644');
+check(fs.chown, fs.chownSync, fileUrl2String, 12, 34);
+check(fs.copyFile, fs.copyFileSync, fileUrl2String, 'abc');
+check(fs.copyFile, fs.copyFileSync, 'abc', fileUrl2String);
+check(fs.link, fs.linkSync, fileUrl2String, 'foobar');
+check(fs.link, fs.linkSync, 'foobar', fileUrl2String);
+check(fs.lstat, fs.lstatSync, fileUrl2String);
+check(fs.mkdir, fs.mkdirSync, fileUrl2String, '0755');
+check(fs.open, fs.openSync, fileUrl2String, 'r');
+check(fs.readFile, fs.readFileSync, fileUrl2String);
+check(fs.readdir, fs.readdirSync, fileUrl2String);
+check(fs.readlink, fs.readlinkSync, fileUrl2String);
+check(fs.realpath, fs.realpathSync, fileUrl2String);
+check(fs.rename, fs.renameSync, fileUrl2String, 'foobar');
+check(fs.rename, fs.renameSync, 'foobar', fileUrl2String);
+check(fs.rmdir, fs.rmdirSync, fileUrl2String);
+check(fs.stat, fs.statSync, fileUrl2String);
+check(fs.symlink, fs.symlinkSync, fileUrl2String, 'foobar');
+check(fs.symlink, fs.symlinkSync, 'foobar', fileUrl2String);
+check(fs.truncate, fs.truncateSync, fileUrl2String);
+check(fs.unlink, fs.unlinkSync, fileUrl2String);
+check(null, fs.unwatchFile, fileUrl2String, assert.fail);
+check(fs.utimes, fs.utimesSync, fileUrl2String, 0, 0);
+check(null, fs.watch, fileUrl2String, assert.fail);
+check(null, fs.watchFile, fileUrl2String, assert.fail);
+check(fs.writeFile, fs.writeFileSync, fileUrl2String, 'abc');
+
 // an 'error' for exists means that it doesn't exist.
 // one of many reasons why this file is the absolute worst.
 fs.exists('foo\u0000bar', common.mustCall((exists) => {
