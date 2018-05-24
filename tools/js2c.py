@@ -278,6 +278,7 @@ def JS2C(source, target):
   initializers = []
 
   for name in modules:
+    is_js = name.endswith('.js')
     lines = ReadFile(str(name))
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
@@ -309,6 +310,14 @@ def JS2C(source, target):
     definitions.append(Render(key, name))
     definitions.append(Render(value, lines))
     initializers.append(INITIALIZER.format(key=key, value=value))
+
+    if (is_js == True and not name.startswith('_') and
+       not name.startswith('internal')):
+      print(name)
+      key = 'nodejs_%s' % key
+      name = '@nodejs/%s' % name
+      definitions.append(Render(key, name))
+      initializers.append(INITIALIZER.format(key=key, value=value))
 
     if deprecated_deps is not None:
       name = '/'.join(deprecated_deps)
