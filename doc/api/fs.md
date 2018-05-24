@@ -2491,7 +2491,7 @@ changes:
 Asynchronously computes the canonical pathname by resolving `.`, `..` and
 symbolic links.
 
-Note that "canonical" does not mean "unique": hard links and bind mounts can
+A canonical pathname is not necessarily unique. Hard links and bind mounts can
 expose a file system entity through many pathnames.
 
 This function behaves like realpath(3), with some exceptions:
@@ -2566,26 +2566,7 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {string|Buffer}
 
-Synchronously computes the canonical pathname by resolving `.`, `..` and
-symbolic links.
-
-Note that "canonical" does not mean "unique": hard links and bind mounts can
-expose a file system entity through many pathnames.
-
-This function behaves like realpath(3), with some exceptions:
-
-1. No case conversion is performed on case-insensitive file systems.
-
-2. The maximum number of symbolic links is platform-independent and generally
-   (much) higher than what the native realpath(3) implementation supports.
-
-The optional `options` argument can be a string specifying an encoding, or an
-object with an `encoding` property specifying the character encoding to use for
-the returned value. If the `encoding` is set to `'buffer'`, the path returned
-will be passed as a `Buffer` object.
-
-If `path` resolves to a socket or a pipe, the function will return a system
-dependent name for that object.
+Synchronous version of [`fs.realpath()`][]. Returns the resolved pathname.
 
 ## fs.realpathSync.native(path[, options])
 <!-- YAML
@@ -4516,6 +4497,7 @@ the file contents.
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readFile()`]: #fs_fs_readfile_path_options_callback
 [`fs.readFileSync()`]: #fs_fs_readfilesync_path_options
+[`fs.realpath()`]: #fs_fs_realpath_path_options_callback
 [`fs.rmdir()`]: #fs_fs_rmdir_path_callback
 [`fs.stat()`]: #fs_fs_stat_path_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
