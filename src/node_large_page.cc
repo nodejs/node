@@ -46,19 +46,18 @@ extern char __etext;
 extern char __nodetext;
 
 namespace node {
-  namespace largepages {
-#define ALIGN(x, a)     (((x) + (a) - 1) & ~((a) - 1))
-#define PAGE_ALIGN_UP(x,a)   ALIGN(x,a)
-#define PAGE_ALIGN_DOWN(x,a) ((x) & ~((a) - 1))
+namespace largepages {
+#define ALIGN(x, a)           (((x) + (a) - 1) & ~((a) - 1))
+#define PAGE_ALIGN_UP(x, a)   ALIGN(x, a)
+#define PAGE_ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 
-    struct TextRegion {
-      void * from;
-      void * to;
-      int    totalHugePages;
-      long   offset;
-      bool   found_text_region;
-      char   name[PATH_MAX];
-    };
+struct TextRegion {
+  void * from;
+  void * to;
+  int    totalHugePages;
+  int64  offset;
+  bool   found_text_region;
+};
 
     static void printSystemError(int error) {
       fprintf(stderr, "Hugepages WARNING: %s\n", strerror(error));
@@ -67,7 +66,7 @@ namespace node {
 
     static struct TextRegion find_node_text_region() {
       FILE *f;
-      long unsigned int  start, end, offset, inode;
+      unsigned int64  start, end, offset, inode;
       char perm[5], dev[6], name[256];
       int ret;
       const size_t hugePageSize = 2L * 1024 * 1024;
@@ -82,11 +81,10 @@ namespace node {
 
       if (ret == 7 &&
           perm[0] == 'r' && perm[1] == '-' && perm[2] == 'x') {
-
         // Checking if the region is from node binary and executable
-        start = (unsigned int long) &__nodetext;
-        char *from = (char *)PAGE_ALIGN_UP(start, hugePageSize);
-        char *to = (char *)PAGE_ALIGN_DOWN(end, hugePageSize);
+        start = (unsigned int64) &__nodetext;
+        char *from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hugePageSize);
+        char *to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hugePageSize);
 
         if (from < to) {
           size_t size = (intptr_t)to - (intptr_t)from;
@@ -95,7 +93,6 @@ namespace node {
           nregion.to = to;
           nregion.offset = offset;
           nregion.totalHugePages = size/hugePageSize;
-          strcpy(nregion.name,name);
           return nregion;
         }
       }
@@ -108,13 +105,13 @@ namespace node {
 
        ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
        if (!ifs) {
-         fprintf(stderr, "Hugepages WARNING: Couldn't check hugepages support\n");
+         fprintf(stderr, "WARNING: Couldn't check hugepages support\n");
          return false;
        }
 
        std::string always, madvise, never;
        if (ifs.is_open()) {
-          while(ifs >> always >> madvise >> never) ;
+          while (ifs >> always >> madvise >> never) {}
        }
 
        int ret_status = false;
@@ -123,6 +120,8 @@ namespace node {
          ret_status = true;
        else if (madvise.compare("[madvise]") == 0)
          ret_status = true;
+       else if (never.compare("[never]") == 0)
+         ret_status = false;
 
        ifs.close();
        return ret_status;
@@ -132,9 +131,9 @@ namespace node {
      int ret_status = false;
      std::string kw;
      std::ifstream file("/proc/meminfo");
-     while(file >> kw) {
-        if(kw == "HugePages_Total:") {
-          unsigned long hp_tot;
+     while (file >> kw) {
+        if (kw == "HugePages_Total:") {
+          unsigned int64 hp_tot;
           file >> hp_tot;
           if (hp_tot > 0)
             ret_status = true;
@@ -162,14 +161,14 @@ namespace node {
       __attribute__((__noinline__))
       __attribute__((__optimize__("2")))
       move_text_region_to_large_pages(struct TextRegion r) {
-        void *nmem = NULL, *tmem = NULL;
-        int ret=0;
+        void *nmem = nullptr, *tmem = nullptr;
+        int ret = 0;
 
         size_t size = (intptr_t)r.to - (intptr_t)r.from;
         void *start = r.from;
 
         // Allocate temporary region preparing for copy
-        nmem = mmap(NULL, size,
+        nmem = mmap(nullptr, size,
                     PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (nmem == MAP_FAILED) {
           printSystemError(errno);
@@ -237,7 +236,7 @@ namespace node {
         return -1;
       }
 
-      if (n.to <= (void *) & move_text_region_to_large_pages)
+      if (n.to <= reinterpret_cast<void *> & move_text_region_to_large_pages)
         return move_text_region_to_large_pages(n);
 
       return -1;
@@ -246,5 +245,6 @@ namespace node {
     bool isLargePagesEnabled() {
       return isExplicitHugePagesEnabled() || isTransparentHugePagesEnabled();
     }
-  }
-}
+
+}  // namespace largepages
+}  // namespace node

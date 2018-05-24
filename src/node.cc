@@ -4424,7 +4424,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   return exit_code;
 }
-  
+
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
@@ -4435,7 +4435,7 @@ inline int Start(uv_loop_t* event_loop,
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
 
-  
+
   Isolate* const isolate = Isolate::New(params);
   if (isolate == nullptr)
     return 12;  // Signal internal error.
@@ -4487,8 +4487,8 @@ int Start(int argc, char** argv) {
 
 #ifdef NODE_ENABLE_LARGE_CODE_PAGES
   if (node::largepages::isLargePagesEnabled()) {
-    if ( (node::largepages::map_static_code_to_large_pages()) != 0) {
-      fprintf(stderr, "Warning: Mapping of static code to large pages failed.\n");
+    if ((node::largepages::map_static_code_to_large_pages()) != 0) {
+      fprintf(stderr, "Mapping of static code to large pages failed.\n");
     }
   }
 #endif
