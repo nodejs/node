@@ -3381,6 +3381,9 @@ The `fs.promises` API provides an alternative set of asynchronous file system
 methods that return `Promise` objects rather than using callbacks. The
 API is accessible via `require('fs').promises`.
 
+In addition to returning a promise, `file:///` URL strings are also permitted
+as paths in this API.
+
 ### class: FileHandle
 <!-- YAML
 added: v10.0.0
