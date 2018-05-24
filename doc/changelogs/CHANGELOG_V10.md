@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#10.2.1">10.2.1</a><br/>
 <a href="#10.2.0">10.2.0</a><br/>
 <a href="#10.1.0">10.1.0</a><br/>
 <a href="#10.0.0">10.0.0</a><br/>
@@ -27,6 +28,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.2.1"></a>
+## 2018-05-24, Version 10.2.1 (Current), @MylesBorins
+
+### Notable Changes
+
+This is a follow up release to fix two regressions that were introduced in v10.2.0.
+
+### Commits
+
+* [[`2a9c83321b`](https://github.com/nodejs/node/commit/2a9c83321b)] - **http**: fix res emit close before user finish (Robert Nagy) [#20941](https://github.com/nodejs/node/pull/20941)
+* [[`0b1ba20fc0`](https://github.com/nodejs/node/commit/0b1ba20fc0)] - **src**: re-integrate headers into node.h (Anna Henningsen) [#20939](https://github.com/nodejs/node/pull/20939)
+* [[`52f21fbfbc`](https://github.com/nodejs/node/commit/52f21fbfbc)] - **test**: mark test-zlib.zlib-binding.deflate as flaky (Matheus Marchini) [#20935](https://github.com/nodejs/node/pull/20935)
 
 <a id="10.2.0"></a>
 ## 2018-05-23, Version 10.2.0 (Current), @MylesBorins
