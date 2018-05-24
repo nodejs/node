@@ -4,26 +4,18 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  direction: ['start', 'end']
 });
 
-function main({ direction, n }) {
+function main({ n }) {
   const timersList = [];
 
-  var i;
   bench.start();
-  if (direction === 'start') {
-    for (i = 1; i <= n; i++) {
-      timersList.push(setTimeout(cb, i));
-    }
-  } else {
-    for (i = n; i > 0; i--) {
-      timersList.push(setTimeout(cb, i));
-    }
+  for (var i = 0; i < n; i++) {
+    timersList.push(setTimeout(cb, i + 1));
   }
   bench.end(n);
 
-  for (var j = 0; j < n; j++) {
+  for (var j = 0; j < n + 1; j++) {
     clearTimeout(timersList[j]);
   }
 }
