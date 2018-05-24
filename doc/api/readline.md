@@ -536,96 +536,96 @@ rl.on('line', (line) => {
     <th>Description</th>
   </tr>
   <tr>
-    <td><code>ctrl+shift+backspace</code></td>
-    <td>delete line left</td>
+    <td><code>ctrl</code> + <code>shift</code> + <code>backspace</code></td>
+    <td>Delete line left</td>
   </tr>
   <tr>
-    <td><code>ctrl+shift+delete</code></td>
-    <td>delete line right</td>
+    <td><code>ctrl</code> + <code>shift</code> + <code>delete</code></td>
+    <td>Delete line right</td>
   </tr>
   <tr>
-    <td><code>ctrl+c</code></td>
-    <td>emit SIGINT</td>
+    <td><code>ctrl</code> + <code>c</code></td>
+    <td>Emit SIGINT</td>
   </tr>
   <tr>
-    <td><code>ctrl+h</code></td>
-    <td>delete left</td>
+    <td><code>ctrl</code> + <code>h</code></td>
+    <td>Delete left</td>
   </tr>
   <tr>
-    <td><code>ctrl+d</code></td>
-    <td>delete right or EOF</td>
+    <td><code>ctrl</code> + <code>d</code></td>
+    <td>Delete right or EOF</td>
   </tr>
   <tr>
-    <td><code>ctrl+u</code></td>
-    <td>delete from current to line start</td>
+    <td><code>ctrl</code> + <code>u</code></td>
+    <td>Delete from current to line start</td>
   </tr>
   <tr>
-    <td><code>ctrl+k</code></td>
-    <td>delete from current to end of line</td>
+    <td><code>ctrl</code> + <code>k</code></td>
+    <td>Delete from current to end of line</td>
   </tr>
   <tr>
-    <td><code>ctrl+a</code></td>
-    <td>go to start of line</td>
+    <td><code>ctrl</code> + <code>a</code></td>
+    <td>Go to start of line</td>
   </tr>
   <tr>
-    <td><code>ctrl+e</code></td>
-    <td>go to to end of line</td>
+    <td><code>ctrl</code> + <code>e</code></td>
+    <td>Go to to end of line</td>
   </tr>
   <tr>
-    <td><code>ctrl+b</code></td>
-    <td>back one character</td>
+    <td><code>ctrl</code> + <code>b</code></td>
+    <td>Back one character</td>
   </tr>
   <tr>
-    <td><code>ctrl+f</code></td>
-    <td>forward one character</td>
+    <td><code>ctrl</code> + <code>f</code></td>
+    <td>Forward one character</td>
   </tr>
   <tr>
-    <td><code>ctrl+l</code></td>
-    <td>clear screen </td>
+    <td><code>ctrl</code> + <code>l</code></td>
+    <td>Clear screen </td>
   </tr>
   <tr>
-    <td><code>ctrl+n</code></td>
-    <td>next history item</td>
+    <td><code>ctrl</code> + <code>n</code></td>
+    <td>Next history item</td>
   </tr>
   <tr>
-    <td><code>ctrl+p</code></td>
-    <td>previous history item </td>
+    <td><code>ctrl</code> + <code>p</code></td>
+    <td>Previous history item </td>
   </tr>
   <tr>
-    <td><code>ctrl+z</code></td>
+    <td><code>ctrl</code> + <code>z</code></td>
     <td>(need clarification)</td>
   </tr>
   <tr>
-    <td><code>ctrl+w</code> or <code>ctrl+backspace</code></td>
-    <td>delete backwards to a word boundary</td>
+    <td><code>ctrl</code> + <code>w</code> &nbsp; or &nbsp; <code>ctrl</code> + <code>backspace</code></td>
+    <td>Delete backwards to a word boundary</td>
   </tr>
   <tr>
-    <td><code>ctrl+delete</code></td>
-    <td>delete forward to a word boundary</td>
+    <td><code>ctrl</code> + <code>delete</code></td>
+    <td>Delete forward to a word boundary</td>
   </tr>
   <tr>
-    <td><code>ctrl+left</code></td>
-    <td>word left </td>
+    <td><code>ctrl</code> + <code>left</code></td>
+    <td>Word left </td>
   </tr>
   <tr>
-    <td><code>ctrl+right</code></td>
-    <td>word right</td>
+    <td><code>ctrl</code> + <code>right</code></td>
+    <td>Word right</td>
   </tr>
   <tr>
-    <td><code>meta+b</code></td>
-    <td>word left</td>
+    <td><code>meta</code> + <code>b</code></td>
+    <td>Word left</td>
   </tr>
   <tr>
-    <td><code>meta+f</code></td>
-    <td>word right</td>
+    <td><code>meta</code> + <code>f</code></td>
+    <td>Word right</td>
   </tr>
   <tr>
-    <td><code>meta+d</code> or <code>meta+delete</code></td>
-    <td>delete word right</td>
+    <td><code>meta</code> + <code>d</code> &nbsp; or &nbsp; <code>meta</code> + <code>delete</code></td>
+    <td>Delete word right</td>
   </tr>
   <tr>
-    <td><code>meta+backspace</code></td>
-    <td>delete word left </td>
+    <td><code>meta</code> + <code>backspace</code></td>
+    <td>Delete word left </td>
   </tr>
 </table>
 
