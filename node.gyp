@@ -309,7 +309,6 @@
 
       'sources': [
         'src/async_wrap.cc',
-        'src/callback_scope.cc',
         'src/cares_wrap.cc',
         'src/connection_wrap.cc',
         'src/connect_wrap.cc',
@@ -371,7 +370,6 @@
         'src/async_wrap-inl.h',
         'src/base_object.h',
         'src/base_object-inl.h',
-        'src/callback_scope.h',
         'src/connection_wrap.h',
         'src/connect_wrap.h',
         'src/env.h',
