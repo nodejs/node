@@ -67,7 +67,7 @@ The following key combinations in the REPL have these special effects:
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
-For a full list of special keys, refer [`TTY keybindings`][].
+For a full list of special keys, refer to [TTY keybindings][].
 
 ### Default Evaluation
 
@@ -634,6 +634,7 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [`readline.Interface`]: readline.html#readline_class_interface
 [`util.inspect()`]: util.html#util_util_inspect_object_options
+[TTY keybindings]: readline.html#readline_tty_keybindings 
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
 [stream]: stream.html
-[`TTY keybindings`]: readline.html#readline_tty_keybindings 
+

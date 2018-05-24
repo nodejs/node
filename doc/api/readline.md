@@ -545,7 +545,7 @@ rl.on('line', (line) => {
   </tr>
   <tr>
     <td><code>ctrl+c</code></td>
-    <td>emits SIGINT</td>
+    <td>emit SIGINT</td>
   </tr>
   <tr>
     <td><code>ctrl+h</code></td>
@@ -565,11 +565,11 @@ rl.on('line', (line) => {
   </tr>
   <tr>
     <td><code>ctrl+a</code></td>
-    <td>goto start of line</td>
+    <td>go to start of line</td>
   </tr>
   <tr>
     <td><code>ctrl+e</code></td>
-    <td>goto to end of line</td>
+    <td>go to to end of line</td>
   </tr>
   <tr>
     <td><code>ctrl+b</code></td>
@@ -589,7 +589,7 @@ rl.on('line', (line) => {
   </tr>
   <tr>
     <td><code>ctrl+p</code></td>
-    <td>prev history item </td>
+    <td>previous history item </td>
   </tr>
   <tr>
     <td><code>ctrl+z</code></td>
@@ -635,6 +635,6 @@ rl.on('line', (line) => {
 [`process.stdout`]: process.html#process_process_stdout
 [Readable]: stream.html#stream_readable_streams
 [TTY]: tty.html
+[TTY keybindings]: #readline_tty_keybindings
 [Writable]: stream.html#stream_writable_streams
 [reading files]: #readline_example_read_file_stream_line_by_line
-[`TTY keybindings`]: #readline_tty_keybindings
