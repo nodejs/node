@@ -287,7 +287,7 @@ added: v0.1.98
 
 The `rl.write()` method will write either `data` or a key sequence identified
 by `key` to the `output`. The `key` argument is supported only if `output` is
-a [TTY][] text terminal. See [`TTY keybindings`][] for a list of key 
+a [TTY][] text terminal. See [TTY keybindings][] for a list of key 
 combinations.
 
 If `key` is specified, `data` is ignored.
