@@ -849,6 +849,81 @@ napi_status ConcludeDeferred(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+static napi_status
+DefineSingleProperty(napi_env env,
+                     v8::Isolate* isolate,
+                     v8::Local<v8::Context> context,
+                     v8::Local<v8::Object> obj,
+                     const napi_property_descriptor* p,
+                     v8::Local<v8::FunctionTemplate> tpl =
+                        v8::Local<v8::FunctionTemplate>()) {
+  v8::Local<v8::Name> property_name;
+  napi_status status =
+      v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
+
+  if (status != napi_ok) {
+    return napi_set_last_error(env, status);
+  }
+
+  v8::PropertyAttribute attributes =
+      v8impl::V8PropertyAttributesFromDescriptor(p);
+
+  if (p->getter != nullptr || p->setter != nullptr) {
+    v8::Local<v8::Object> cbdata = v8impl::CreateAccessorCallbackData(
+      env,
+      p->getter,
+      p->setter,
+      p->data);
+
+    auto set_maybe = obj->SetAccessor(
+      context,
+      property_name,
+      p->getter ? v8impl::GetterCallbackWrapper::Invoke : nullptr,
+      p->setter ? v8impl::SetterCallbackWrapper::Invoke : nullptr,
+      cbdata,
+      v8::AccessControl::DEFAULT,
+      attributes);
+
+    if (!set_maybe.FromMaybe(false)) {
+      return napi_set_last_error(env, napi_invalid_arg);
+    }
+  } else if (p->method != nullptr) {
+    v8::Local<v8::Object> cbdata =
+        v8impl::CreateFunctionCallbackData(env, p->method, p->data);
+
+    RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
+
+    v8::Local<v8::FunctionTemplate> t;
+    if (tpl.IsEmpty()) {
+      t = v8::FunctionTemplate::New(isolate,
+          v8impl::FunctionCallbackWrapper::Invoke, cbdata);
+    } else {
+      t = v8::FunctionTemplate::New(isolate,
+          v8impl::FunctionCallbackWrapper::Invoke, cbdata,
+          v8::Signature::New(isolate, tpl));
+    }
+
+    auto define_maybe = obj->DefineOwnProperty(
+      context, property_name, t->GetFunction(), attributes);
+
+    if (!define_maybe.FromMaybe(false)) {
+      return napi_set_last_error(env, napi_generic_failure);
+    }
+  } else {
+    v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(p->value);
+
+    auto define_maybe =
+        obj->DefineOwnProperty(context, property_name, value, attributes);
+
+    if (!define_maybe.FromMaybe(false)) {
+      return napi_set_last_error(env, napi_invalid_arg);
+    }
+  }
+
+  // Not setting last error if everything is OK. Let the top-level API do that.
+  return napi_ok;
+}
+
 }  // end of namespace v8impl
 
 // Intercepts the Node-V8 module registration callback. Converts parameters
@@ -1091,77 +1166,23 @@ napi_status napi_define_class(napi_env env,
   CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);
   tpl->SetClassName(name_string);
 
-  size_t static_property_count = 0;
+  auto context = isolate->GetCurrentContext();
+  auto v8_result_value = tpl->GetFunction();
+  auto v8_result_object = v8_result_value.As<v8::Object>();
+  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(v8_result_value));
+
+  napi_value proto;
+  napi_status status =
+      napi_get_named_property(env, *result, "prototype", &proto);
+  if (status != napi_ok) return status;
+
+  auto v8_proto = v8impl::V8LocalValueFromJsValue(proto).As<v8::Object>();
+
   for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = properties + i;
-
-    if ((p->attributes & napi_static) != 0) {
-      // Static properties are handled separately below.
-      static_property_count++;
-      continue;
-    }
-
-    v8::Local<v8::Name> property_name;
-    napi_status status =
-        v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
-
-    if (status != napi_ok) {
-      return napi_set_last_error(env, status);
-    }
-
-    v8::PropertyAttribute attributes =
-        v8impl::V8PropertyAttributesFromDescriptor(p);
-
-    // This code is similar to that in napi_define_properties(); the
-    // difference is it applies to a template instead of an object.
-    if (p->getter != nullptr || p->setter != nullptr) {
-      v8::Local<v8::Object> cbdata = v8impl::CreateAccessorCallbackData(
-        env, p->getter, p->setter, p->data);
-
-      tpl->PrototypeTemplate()->SetAccessor(
-        property_name,
-        p->getter ? v8impl::GetterCallbackWrapper::Invoke : nullptr,
-        p->setter ? v8impl::SetterCallbackWrapper::Invoke : nullptr,
-        cbdata,
-        v8::AccessControl::DEFAULT,
-        attributes);
-    } else if (p->method != nullptr) {
-      v8::Local<v8::Object> cbdata =
-          v8impl::CreateFunctionCallbackData(env, p->method, p->data);
-
-      RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
-
-      v8::Local<v8::FunctionTemplate> t =
-        v8::FunctionTemplate::New(isolate,
-          v8impl::FunctionCallbackWrapper::Invoke,
-          cbdata,
-          v8::Signature::New(isolate, tpl));
-
-      tpl->PrototypeTemplate()->Set(property_name, t, attributes);
-    } else {
-      v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(p->value);
-      tpl->PrototypeTemplate()->Set(property_name, value, attributes);
-    }
-  }
-
-  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(tpl->GetFunction()));
-
-  if (static_property_count > 0) {
-    std::vector<napi_property_descriptor> static_descriptors;
-    static_descriptors.reserve(static_property_count);
-
-    for (size_t i = 0; i < property_count; i++) {
-      const napi_property_descriptor* p = properties + i;
-      if ((p->attributes & napi_static) != 0) {
-        static_descriptors.push_back(*p);
-      }
-    }
-
-    napi_status status =
-        napi_define_properties(env,
-                               *result,
-                               static_descriptors.size(),
-                               static_descriptors.data());
+    status = v8impl::DefineSingleProperty(env, isolate, context,
+        ((p->attributes & napi_static) == 0) ? v8_proto : v8_result_object, p,
+        tpl);
     if (status != napi_ok) return status;
   }
 
@@ -1474,62 +1495,10 @@ napi_status napi_define_properties(napi_env env,
   CHECK_TO_OBJECT(env, context, obj, object);
 
   for (size_t i = 0; i < property_count; i++) {
-    const napi_property_descriptor* p = &properties[i];
-
-    v8::Local<v8::Name> property_name;
-    napi_status status =
-        v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
-
+    napi_status status = v8impl::DefineSingleProperty(env, isolate, context,
+        obj, properties + i);
     if (status != napi_ok) {
-      return napi_set_last_error(env, status);
-    }
-
-    v8::PropertyAttribute attributes =
-        v8impl::V8PropertyAttributesFromDescriptor(p);
-
-    if (p->getter != nullptr || p->setter != nullptr) {
-      v8::Local<v8::Object> cbdata = v8impl::CreateAccessorCallbackData(
-        env,
-        p->getter,
-        p->setter,
-        p->data);
-
-      auto set_maybe = obj->SetAccessor(
-        context,
-        property_name,
-        p->getter ? v8impl::GetterCallbackWrapper::Invoke : nullptr,
-        p->setter ? v8impl::SetterCallbackWrapper::Invoke : nullptr,
-        cbdata,
-        v8::AccessControl::DEFAULT,
-        attributes);
-
-      if (!set_maybe.FromMaybe(false)) {
-        return napi_set_last_error(env, napi_invalid_arg);
-      }
-    } else if (p->method != nullptr) {
-      v8::Local<v8::Object> cbdata =
-          v8impl::CreateFunctionCallbackData(env, p->method, p->data);
-
-      RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
-
-      v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(
-          isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
-
-      auto define_maybe = obj->DefineOwnProperty(
-        context, property_name, t->GetFunction(), attributes);
-
-      if (!define_maybe.FromMaybe(false)) {
-        return napi_set_last_error(env, napi_generic_failure);
-      }
-    } else {
-      v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(p->value);
-
-      auto define_maybe =
-          obj->DefineOwnProperty(context, property_name, value, attributes);
-
-      if (!define_maybe.FromMaybe(false)) {
-        return napi_set_last_error(env, napi_invalid_arg);
-      }
+      return status;
     }
   }
 
