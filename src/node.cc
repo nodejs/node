@@ -170,6 +170,8 @@ using v8::Undefined;
 using v8::V8;
 using v8::Value;
 
+using AsyncHooks = Environment::AsyncHooks;
+
 static Mutex process_mutex;
 static Mutex environ_mutex;
 
@@ -576,6 +578,129 @@ const char *signo_string(int signo) {
   }
 }
 
+
+Local<Value> ErrnoException(Isolate* isolate,
+                            int errorno,
+                            const char *syscall,
+                            const char *msg,
+                            const char *path) {
+  Environment* env = Environment::GetCurrent(isolate);
+
+  Local<Value> e;
+  Local<String> estring = OneByteString(env->isolate(), errno_string(errorno));
+  if (msg == nullptr || msg[0] == '\0') {
+    msg = strerror(errorno);
+  }
+  Local<String> message = OneByteString(env->isolate(), msg);
+
+  Local<String> cons =
+      String::Concat(estring, FIXED_ONE_BYTE_STRING(env->isolate(), ", "));
+  cons = String::Concat(cons, message);
+
+  Local<String> path_string;
+  if (path != nullptr) {
+    // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
+    path_string = String::NewFromUtf8(env->isolate(), path);
+  }
+
+  if (path_string.IsEmpty() == false) {
+    cons = String::Concat(cons, FIXED_ONE_BYTE_STRING(env->isolate(), " '"));
+    cons = String::Concat(cons, path_string);
+    cons = String::Concat(cons, FIXED_ONE_BYTE_STRING(env->isolate(), "'"));
+  }
+  e = Exception::Error(cons);
+
+  Local<Object> obj = e.As<Object>();
+  obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
+  obj->Set(env->code_string(), estring);
+
+  if (path_string.IsEmpty() == false) {
+    obj->Set(env->path_string(), path_string);
+  }
+
+  if (syscall != nullptr) {
+    obj->Set(env->syscall_string(), OneByteString(env->isolate(), syscall));
+  }
+
+  return e;
+}
+
+
+static Local<String> StringFromPath(Isolate* isolate, const char* path) {
+#ifdef _WIN32
+  if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
+    return String::Concat(FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
+                          String::NewFromUtf8(isolate, path + 8));
+  } else if (strncmp(path, "\\\\?\\", 4) == 0) {
+    return String::NewFromUtf8(isolate, path + 4);
+  }
+#endif
+
+  return String::NewFromUtf8(isolate, path);
+}
+
+
+Local<Value> UVException(Isolate* isolate,
+                         int errorno,
+                         const char* syscall,
+                         const char* msg,
+                         const char* path) {
+  return UVException(isolate, errorno, syscall, msg, path, nullptr);
+}
+
+
+Local<Value> UVException(Isolate* isolate,
+                         int errorno,
+                         const char* syscall,
+                         const char* msg,
+                         const char* path,
+                         const char* dest) {
+  Environment* env = Environment::GetCurrent(isolate);
+
+  if (!msg || !msg[0])
+    msg = uv_strerror(errorno);
+
+  Local<String> js_code = OneByteString(isolate, uv_err_name(errorno));
+  Local<String> js_syscall = OneByteString(isolate, syscall);
+  Local<String> js_path;
+  Local<String> js_dest;
+
+  Local<String> js_msg = js_code;
+  js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, ": "));
+  js_msg = String::Concat(js_msg, OneByteString(isolate, msg));
+  js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, ", "));
+  js_msg = String::Concat(js_msg, js_syscall);
+
+  if (path != nullptr) {
+    js_path = StringFromPath(isolate, path);
+
+    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, " '"));
+    js_msg = String::Concat(js_msg, js_path);
+    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
+  }
+
+  if (dest != nullptr) {
+    js_dest = StringFromPath(isolate, dest);
+
+    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, " -> '"));
+    js_msg = String::Concat(js_msg, js_dest);
+    js_msg = String::Concat(js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
+  }
+
+  Local<Object> e = Exception::Error(js_msg)->ToObject(isolate);
+
+  e->Set(env->errno_string(), Integer::New(isolate, errorno));
+  e->Set(env->code_string(), js_code);
+  e->Set(env->syscall_string(), js_syscall);
+  if (!js_path.IsEmpty())
+    e->Set(env->path_string(), js_path);
+  if (!js_dest.IsEmpty())
+    e->Set(env->dest_string(), js_dest);
+
+  return e;
+}
+
+
 // Look up environment variable unless running as setuid root.
 bool SafeGetenv(const char* key, std::string* text) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
@@ -595,6 +720,78 @@ fail:
   text->clear();
   return false;
 }
+
+
+#ifdef _WIN32
+// Does about the same as strerror(),
+// but supports all windows error messages
+static const char *winapi_strerror(const int errorno, bool* must_free) {
+  char *errmsg = nullptr;
+
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+      FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, errorno,
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, nullptr);
+
+  if (errmsg) {
+    *must_free = true;
+
+    // Remove trailing newlines
+    for (int i = strlen(errmsg) - 1;
+        i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r'); i--) {
+      errmsg[i] = '\0';
+    }
+
+    return errmsg;
+  } else {
+    // FormatMessage failed
+    *must_free = false;
+    return "Unknown error";
+  }
+}
+
+
+Local<Value> WinapiErrnoException(Isolate* isolate,
+                                  int errorno,
+                                  const char* syscall,
+                                  const char* msg,
+                                  const char* path) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Value> e;
+  bool must_free = false;
+  if (!msg || !msg[0]) {
+    msg = winapi_strerror(errorno, &must_free);
+  }
+  Local<String> message = OneByteString(env->isolate(), msg);
+
+  if (path) {
+    Local<String> cons1 =
+        String::Concat(message, FIXED_ONE_BYTE_STRING(isolate, " '"));
+    Local<String> cons2 =
+        String::Concat(cons1, String::NewFromUtf8(isolate, path));
+    Local<String> cons3 =
+        String::Concat(cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
+    e = Exception::Error(cons3);
+  } else {
+    e = Exception::Error(message);
+  }
+
+  Local<Object> obj = e.As<Object>();
+  obj->Set(env->errno_string(), Integer::New(isolate, errorno));
+
+  if (path != nullptr) {
+    obj->Set(env->path_string(), String::NewFromUtf8(isolate, path));
+  }
+
+  if (syscall != nullptr) {
+    obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
+  }
+
+  if (must_free)
+    LocalFree((HLOCAL)msg);
+
+  return e;
+}
+#endif
 
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
@@ -725,6 +922,115 @@ void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
                                   void* arg) {
   Environment* env = Environment::GetCurrent(isolate);
   env->RemoveCleanupHook(fun, arg);
+}
+
+
+CallbackScope::CallbackScope(Isolate* isolate,
+                             Local<Object> object,
+                             async_context asyncContext)
+  : private_(new InternalCallbackScope(Environment::GetCurrent(isolate),
+                                       object,
+                                       asyncContext)),
+    try_catch_(isolate) {
+  try_catch_.SetVerbose(true);
+}
+
+CallbackScope::~CallbackScope() {
+  if (try_catch_.HasCaught())
+    private_->MarkAsFailed();
+  delete private_;
+}
+
+InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap)
+    : InternalCallbackScope(async_wrap->env(),
+                            async_wrap->object(),
+                            { async_wrap->get_async_id(),
+                              async_wrap->get_trigger_async_id() }) {}
+
+InternalCallbackScope::InternalCallbackScope(Environment* env,
+                                             Local<Object> object,
+                                             const async_context& asyncContext,
+                                             ResourceExpectation expect)
+  : env_(env),
+    async_context_(asyncContext),
+    object_(object),
+    callback_scope_(env) {
+  if (expect == kRequireResource) {
+    CHECK(!object.IsEmpty());
+  }
+
+  if (!env->can_call_into_js()) {
+    failed_ = true;
+    return;
+  }
+
+  HandleScope handle_scope(env->isolate());
+  // If you hit this assertion, you forgot to enter the v8::Context first.
+  CHECK_EQ(Environment::GetCurrent(env->isolate()), env);
+
+  if (asyncContext.async_id != 0) {
+    // No need to check a return value because the application will exit if
+    // an exception occurs.
+    AsyncWrap::EmitBefore(env, asyncContext.async_id);
+  }
+
+  if (!IsInnerMakeCallback()) {
+    env->tick_info()->set_has_thrown(false);
+  }
+
+  env->async_hooks()->push_async_ids(async_context_.async_id,
+                               async_context_.trigger_async_id);
+  pushed_ids_ = true;
+}
+
+InternalCallbackScope::~InternalCallbackScope() {
+  Close();
+}
+
+void InternalCallbackScope::Close() {
+  if (closed_) return;
+  closed_ = true;
+  HandleScope handle_scope(env_->isolate());
+
+  if (pushed_ids_)
+    env_->async_hooks()->pop_async_id(async_context_.async_id);
+
+  if (failed_) return;
+
+  if (async_context_.async_id != 0) {
+    AsyncWrap::EmitAfter(env_, async_context_.async_id);
+  }
+
+  if (IsInnerMakeCallback()) {
+    return;
+  }
+
+  Environment::TickInfo* tick_info = env_->tick_info();
+
+  if (!env_->can_call_into_js()) return;
+  if (!tick_info->has_scheduled()) {
+    env_->isolate()->RunMicrotasks();
+  }
+
+  // Make sure the stack unwound properly. If there are nested MakeCallback's
+  // then it should return early and not reach this code.
+  if (env_->async_hooks()->fields()[AsyncHooks::kTotals]) {
+    CHECK_EQ(env_->execution_async_id(), 0);
+    CHECK_EQ(env_->trigger_async_id(), 0);
+  }
+
+  if (!tick_info->has_scheduled() && !tick_info->has_promise_rejections()) {
+    return;
+  }
+
+  Local<Object> process = env_->process_object();
+
+  if (!env_->can_call_into_js()) return;
+
+  if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
+    env_->tick_info()->set_has_thrown(true);
+    failed_ = true;
+  }
 }
 
 MaybeLocal<Value> InternalMakeCallback(Environment* env,
@@ -1868,8 +2174,7 @@ node_module* get_linked_module(const char* name) {
   return FindModule(modlist_linked, name, NM_F_LINKED);
 }
 
-class DLib {
- public:
+struct DLib {
 #ifdef __POSIX__
   static const int kDefaultFlags = RTLD_LAZY;
 #else
@@ -1890,7 +2195,7 @@ class DLib {
 #ifndef __POSIX__
   uv_lib_t lib_;
 #endif
- private:
+
   DISALLOW_COPY_AND_ASSIGN(DLib);
 };
 

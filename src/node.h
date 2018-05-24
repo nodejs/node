@@ -22,6 +22,16 @@
 #ifndef SRC_NODE_H_
 #define SRC_NODE_H_
 
+#ifdef _WIN32
+# ifndef BUILDING_NODE_EXTENSION
+#   define NODE_EXTERN __declspec(dllexport)
+# else
+#   define NODE_EXTERN __declspec(dllimport)
+# endif
+#else
+# define NODE_EXTERN /* nothing */
+#endif
+
 #ifdef BUILDING_NODE_EXTENSION
 # undef BUILDING_V8_SHARED
 # undef BUILDING_UV_SHARED
@@ -50,12 +60,39 @@
 # define SIGKILL         9
 #endif
 
-#include "core.h"  // NOLINT(build/include_order)
 #include "v8.h"  // NOLINT(build/include_order)
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
-#include "callback_scope.h"
-#include "exceptions.h"
+
+#define NODE_MAKE_VERSION(major, minor, patch)                                \
+  ((major) * 0x1000 + (minor) * 0x100 + (patch))
+
+#ifdef __clang__
+# define NODE_CLANG_AT_LEAST(major, minor, patch)                             \
+  (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
+      NODE_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
+#else
+# define NODE_CLANG_AT_LEAST(major, minor, patch) (0)
+#endif
+
+#ifdef __GNUC__
+# define NODE_GNUC_AT_LEAST(major, minor, patch)                              \
+  (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
+      NODE_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
+#else
+# define NODE_GNUC_AT_LEAST(major, minor, patch) (0)
+#endif
+
+#if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
+# define NODE_DEPRECATED(message, declarator)                                 \
+    __attribute__((deprecated(message))) declarator
+#elif defined(_MSC_VER)
+# define NODE_DEPRECATED(message, declarator)                                 \
+    __declspec(deprecated) declarator
+#else
+# define NODE_DEPRECATED(message, declarator)                                 \
+    declarator
+#endif
 
 // Forward-declare libuv loop
 struct uv_loop_s;
@@ -68,6 +105,47 @@ class TracingController;
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
+
+NODE_EXTERN v8::Local<v8::Value> ErrnoException(v8::Isolate* isolate,
+                                                int errorno,
+                                                const char* syscall = nullptr,
+                                                const char* message = nullptr,
+                                                const char* path = nullptr);
+NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
+                                             int errorno,
+                                             const char* syscall = nullptr,
+                                             const char* message = nullptr,
+                                             const char* path = nullptr);
+NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
+                                             int errorno,
+                                             const char* syscall,
+                                             const char* message,
+                                             const char* path,
+                                             const char* dest);
+
+NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
+                inline v8::Local<v8::Value> ErrnoException(
+      int errorno,
+      const char* syscall = nullptr,
+      const char* message = nullptr,
+      const char* path = nullptr) {
+  return ErrnoException(v8::Isolate::GetCurrent(),
+                        errorno,
+                        syscall,
+                        message,
+                        path);
+})
+
+inline v8::Local<v8::Value> UVException(int errorno,
+                                        const char* syscall = nullptr,
+                                        const char* message = nullptr,
+                                        const char* path = nullptr) {
+  return UVException(v8::Isolate::GetCurrent(),
+                     errorno,
+                     syscall,
+                     message,
+                     path);
+}
 
 /*
  * These methods need to be called in a HandleScope.
@@ -373,6 +451,26 @@ NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
   return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
 })
 
+#ifdef _WIN32
+NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
+    v8::Isolate* isolate,
+    int errorno,
+    const char *syscall = nullptr,
+    const char *msg = "",
+    const char *path = nullptr);
+
+NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
+                inline v8::Local<v8::Value> WinapiErrnoException(int errorno,
+    const char *syscall = nullptr,  const char *msg = "",
+    const char *path = nullptr) {
+  return WinapiErrnoException(v8::Isolate::GetCurrent(),
+                              errorno,
+                              syscall,
+                              msg,
+                              path);
+})
+#endif
+
 const char *signo_string(int errorno);
 
 
@@ -495,6 +593,12 @@ typedef void (*promise_hook_func) (v8::PromiseHookType type,
                                    v8::Local<v8::Value> parent,
                                    void* arg);
 
+typedef double async_id;
+struct async_context {
+  ::node::async_id async_id;
+  ::node::async_id trigger_async_id;
+};
+
 /* Registers an additional v8::PromiseHook wrapper. This API exists because V8
  * itself supports only a single PromiseHook. */
 NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
@@ -542,6 +646,36 @@ NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
 /* Emit the destroy() callback. */
 NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate,
                                   async_context asyncContext);
+
+class InternalCallbackScope;
+
+/* This class works like `MakeCallback()` in that it sets up a specific
+ * asyncContext as the current one and informs the async_hooks and domains
+ * modules that this context is currently active.
+ *
+ * `MakeCallback()` is a wrapper around this class as well as
+ * `Function::Call()`. Either one of these mechanisms needs to be used for
+ * top-level calls into JavaScript (i.e. without any existing JS stack).
+ *
+ * This object should be stack-allocated to ensure that it is contained in a
+ * valid HandleScope.
+ */
+class NODE_EXTERN CallbackScope {
+ public:
+  CallbackScope(v8::Isolate* isolate,
+                v8::Local<v8::Object> resource,
+                async_context asyncContext);
+  ~CallbackScope();
+
+ private:
+  InternalCallbackScope* private_;
+  v8::TryCatch try_catch_;
+
+  void operator=(const CallbackScope&) = delete;
+  void operator=(CallbackScope&&) = delete;
+  CallbackScope(const CallbackScope&) = delete;
+  CallbackScope(CallbackScope&&) = delete;
+};
 
 /* An API specific to emit before/after callbacks is unnecessary because
  * MakeCallback will automatically call them for you.
