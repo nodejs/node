@@ -3572,12 +3572,13 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  let filehandle;
+  let filehandle = null;
   try {
     filehandle = await fsPromises.open('temp.txt', 'r+');
     await filehandle.truncate(4);
   } finally {
-    if (filehandle !== null) {
+    if (filehandle) {
+      // close the file if it is opened.
       await filehandle.close();
     }
   }
@@ -3598,12 +3599,13 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  let filehandle;
+  let filehandle = null;
   try {
     filehandle = await fsPromises.open('temp.txt', 'r+');
     await filehandle.truncate(10);
   } finally {
-    if (filehandle !== null) {
+    if (filehandle) {
+      // close the file if it is opened.
       await filehandle.close();
     }
   }
