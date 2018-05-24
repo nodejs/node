@@ -107,10 +107,10 @@ transitive dependency of a non-optional dependency of the top level.
 All optional dependencies should be included even if they're uninstallable
 on the current platform.
 
-#### from *(deprecated)*
+#### from
 
 This is a record of what specifier was used to originally install this
-package.  This should not be included in new `package-lock.json` files.
+package.  This should be used only for git dependencies.
 
 #### requires
 

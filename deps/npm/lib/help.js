@@ -10,7 +10,7 @@ var path = require('path')
 var spawn = require('./utils/spawn')
 var npm = require('./npm.js')
 var log = require('npmlog')
-var opener = require('opener')
+var openUrl = require('./utils/open-url')
 var glob = require('glob')
 var didYouMean = require('./utils/did-you-mean')
 var cmdList = require('./config/cmd-list').cmdList
@@ -97,8 +97,8 @@ function pickMan (mans, pref_) {
     var an = a.match(nre)[1]
     var bn = b.match(nre)[1]
     return an === bn ? (a > b ? -1 : 1)
-         : pref[an] < pref[bn] ? -1
-         : 1
+      : pref[an] < pref[bn] ? -1
+        : 1
   })
   return mans[0]
 }
@@ -127,7 +127,7 @@ function viewMan (man, cb) {
       break
 
     case 'browser':
-      opener(htmlMan(man), { command: npm.config.get('browser') }, cb)
+      openUrl(htmlMan(man), 'help available at the following URL', cb)
       break
 
     default:
@@ -168,7 +168,7 @@ function npmUsage (valid, cb) {
     '',
     'where <command> is one of:',
     npm.config.get('long') ? usages()
-        : '    ' + wrap(commands),
+      : '    ' + wrap(commands),
     '',
     'npm <command> -h     quick help on <command>',
     'npm -l           display full usage info',

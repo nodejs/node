@@ -29,7 +29,7 @@ function shortname (url) {
   }
 }
 
-function print_commit (c) {
+function printCommit (c) {
   console.log(`* [\`${c.shortid}\`](https://github.com/npm/npm/commit/${c.fullid})`)
   if (c.fixes) {
     let label = shortname(c.fixes)
@@ -51,10 +51,10 @@ function print_commit (c) {
     .replace(/^[-a-z]+: /, '')
     .replace(/^/mg, '  ')
     .replace(/\n$/, '')
-  // backtickify package@version
+    // backtickify package@version
     .replace(/^(\s*[^@\s]+@\d+[.]\d+[.]\d+)(\s*\S)/g, '$1:$2')
     .replace(/\b([^@\s]+@\d+[.]\d+[.]\d+)\b/g, '`$1`')
-  // linkify commitids
+    // linkify commitids
     .replace(/\b([a-f0-9]{7,8})\b/g, '[`$1`](https://github.com/npm/npm/commit/$1)')
     .replace(/\b#(\d+)\b/g, '[#$1](https://github.com/npm/npm/issues/$1)')
   console.log(msg)
@@ -71,9 +71,9 @@ function main () {
   let commit
   log.forEach(function (line) {
     let m
-    /*eslint no-cond-assign:0*/
+    /* eslint no-cond-assign:0 */
     if (/^---$/.test(line)) {
-      print_commit(commit)
+      printCommit(commit)
     } else if (m = line.match(/^([a-f0-9]{7,9}) ([a-f0-9]+) (?:[(]([^)]+)[)] )?(.*?) [(](.*?)[)]/)) {
       commit = {
         shortid: m[1],

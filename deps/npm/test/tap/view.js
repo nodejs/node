@@ -111,8 +111,7 @@ test('npm view .', function (t) {
   ], { cwd: t2dir }, function (err, code, stdout) {
     t.ifError(err, 'view command finished successfully')
     t.equal(code, 0, 'exit ok')
-    var re = new RegExp("name: 'test-repo-url-https'")
-    t.similar(stdout, re)
+    t.matches(stdout, /test-repo-url-https/, 'has the right package')
     t.end()
   })
 })
@@ -217,8 +216,7 @@ test('npm view <package name>', function (t) {
   ], { cwd: t2dir }, function (err, code, stdout) {
     t.ifError(err, 'view command finished successfully')
     t.equal(code, 0, 'exit ok')
-    var re = new RegExp("name: 'underscore'")
-    t.similar(stdout, re, 'should have name `underscore`')
+    t.matches(stdout, /underscore/, 'should have name `underscore`')
     t.end()
   })
 })
@@ -232,8 +230,7 @@ test('npm view <package name> --global', function (t) {
   ], { cwd: t2dir }, function (err, code, stdout) {
     t.ifError(err, 'view command finished successfully')
     t.equal(code, 0, 'exit ok')
-    var re = new RegExp("name: 'underscore'")
-    t.similar(stdout, re, 'should have name `underscore`')
+    t.matches(stdout, /underscore/, 'should have name `underscore`')
     t.end()
   })
 })
@@ -370,7 +367,7 @@ test('npm view with valid but non existent package name', function (t) {
     t.equal(code, 1, 'exit not ok')
 
     t.similar(stderr,
-      new RegExp("'valid-but-non-existent-package' is not in the npm registry\."),
+      new RegExp("'valid-but-non-existent-package' is not in the npm registry\\."),
       'Package should NOT be found')
 
     t.similar(stderr, new RegExp('use the name yourself!'),

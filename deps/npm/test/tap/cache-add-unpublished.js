@@ -29,7 +29,7 @@ test('cache add', function (t) {
 function setup (cb) {
   var s = require('http').createServer(function (req, res) {
     res.statusCode = 404
-    res.end('{\"error\":\"not_found\"}\n')
+    res.end('{"error":"not_found"}\n')
   })
   s.listen(1337, function () {
     cb(null, s)

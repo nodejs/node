@@ -1,3 +1,4 @@
+/* eslint-disable standard/no-callback-literal */
 
 module.exports = unpublish
 
@@ -100,10 +101,10 @@ function gotProject (project, version, publishConfig, cb_) {
 
   // remove from the cache first
   // npm.commands.cache(['clean', project, version], function (er) {
-    // if (er) {
-    //   log.error('unpublish', 'Failed to clean cache')
-    //   return cb(er)
-    // }
+  // if (er) {
+  //   log.error('unpublish', 'Failed to clean cache')
+  //   return cb(er)
+  // }
 
   mapToRegistry(project, config, function (er, uri, auth) {
     if (er) return cb(er)
