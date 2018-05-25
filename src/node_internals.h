@@ -875,6 +875,24 @@ static inline const char *errno_string(int errorno) {
     TRACING_CATEGORY_NODE "." #one ","                                        \
     TRACING_CATEGORY_NODE "." #one "." #two
 
+// Functions defined in node.cc that are exposed via the bootstrapper object
+
+void Chdir(const v8::FunctionCallbackInfo<v8::Value>& args);
+void CPUUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Hrtime(const v8::FunctionCallbackInfo<v8::Value>& args);
+void MemoryUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
+void RawDebug(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Umask(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
+void SetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void SetEGid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void SetUid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void SetEUid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void SetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
+void InitGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
+
 }  // namespace node
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,

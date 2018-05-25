@@ -29,7 +29,6 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   args.GetIsolate()->RunMicrotasks();
 }
 
-
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -97,7 +96,7 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 
 #define BOOTSTRAP_METHOD(name, fn) env->SetMethod(bootstrapper, #name, fn)
 
-// The Bootstrapper object is an emphemeral object that is used only during
+// The Bootstrapper object is an ephemeral object that is used only during
 // the bootstrap process of the Node.js environment. A reference to the
 // bootstrap object must not be kept around after the bootstrap process
 // completes so that it can be gc'd as soon as possible.
