@@ -16,7 +16,6 @@ const {
   mkdir,
   mkdtemp,
   open,
-  read,
   readFile,
   readdir,
   readlink,
@@ -26,7 +25,6 @@ const {
   stat,
   symlink,
   truncate,
-  write,
   unlink,
   utimes
 } = fsPromises;
@@ -102,6 +100,8 @@ function verifyStatObject(stat) {
     const ret2 = await handle.read(Buffer.alloc(buf2Len), 0, buf2Len, 0);
     assert.strictEqual(ret2.bytesRead, buf2Len);
     assert.deepStrictEqual(ret2.buffer, buf2);
+    await truncate(dest, 5);
+    assert.deepStrictEqual((await readFile(dest)).toString(), 'hello');
 
     await chmod(dest, 0o666);
     await handle.chmod(0o666);
@@ -124,9 +124,6 @@ function verifyStatObject(stat) {
     }
 
     await handle.close();
-
-    await truncate(dest, 5);
-    assert.deepStrictEqual((await readFile(dest)).toString(), 'hello');
 
     const newPath = path.resolve(tmpDir, 'baz2.js');
     await rename(dest, newPath);
