@@ -447,13 +447,15 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 {
   const map = new Map();
   map.set(1, 2);
-  const [ vals ] = previewEntries(map.entries());
-  const valsOutput = [];
-  for (const o of vals) {
-    valsOutput.push(o);
-  }
+  // Passing only a single argument to indicate a set iterator.
+  const valsSetIterator = previewEntries(map.entries());
+  // Passing through true to indicate a map iterator.
+  const valsMapIterEntries = previewEntries(map.entries(), true);
+  const valsMapIterKeys = previewEntries(map.keys(), true);
 
-  assert.strictEqual(util.inspect(valsOutput), '[ 1, 2 ]');
+  assert.strictEqual(util.inspect(valsSetIterator), '[ 1, 2 ]');
+  assert.strictEqual(util.inspect(valsMapIterEntries), '[ [ 1, 2 ], true ]');
+  assert.strictEqual(util.inspect(valsMapIterKeys), '[ [ 1 ], false ]');
 }
 
 // Test for other constructors in different context.
@@ -965,18 +967,19 @@ if (typeof Symbol !== 'undefined') {
 // Test Map iterators.
 {
   const map = new Map([['foo', 'bar']]);
-  assert.strictEqual(util.inspect(map.keys()), "[Map Iterator] { 'foo' }");
-  assert.strictEqual(util.inspect(map.values()), "[Map Iterator] { 'bar' }");
-  assert.strictEqual(util.inspect(map.entries()),
-                     "[Map Iterator] { [ 'foo', 'bar' ] }");
+  assert.strictEqual(util.inspect(map.keys()), '[Map Iterator] { \'foo\' }');
+  assert.strictEqual(util.inspect(map.values()), '[Map Iterator] { \'bar\' }');
+  map.set('A', 'B!');
+  assert.strictEqual(util.inspect(map.entries(), { maxArrayLength: 1 }),
+                     "[Map Iterator] { [ 'foo', 'bar' ], ... 1 more item }");
   // Make sure the iterator doesn't get consumed.
   const keys = map.keys();
-  assert.strictEqual(util.inspect(keys), "[Map Iterator] { 'foo' }");
-  assert.strictEqual(util.inspect(keys), "[Map Iterator] { 'foo' }");
+  assert.strictEqual(util.inspect(keys), "[Map Iterator] { 'foo', 'A' }");
+  assert.strictEqual(util.inspect(keys), "[Map Iterator] { 'foo', 'A' }");
   keys.extra = true;
   assert.strictEqual(
     util.inspect(keys, { maxArrayLength: 0 }),
-    '[Map Iterator] { ... more items, extra: true }');
+    '[Map Iterator] { ... 2 more items, extra: true }');
 }
 
 // Test Set iterators.
@@ -992,7 +995,7 @@ if (typeof Symbol !== 'undefined') {
   keys.extra = true;
   assert.strictEqual(
     util.inspect(keys, { maxArrayLength: 1 }),
-    '[Set Iterator] { 1, ... more items, extra: true }');
+    '[Set Iterator] { 1, ... 1 more item, extra: true }');
 }
 
 // Test alignment of items in container.
@@ -1413,17 +1416,17 @@ util.inspect(process);
   assert.strictEqual(out, expect);
 
   out = util.inspect(weakMap, { maxArrayLength: 0, showHidden: true });
-  expect = 'WeakMap { ... more items }';
+  expect = 'WeakMap { ... 2 more items }';
   assert.strictEqual(out, expect);
 
   weakMap.extra = true;
   out = util.inspect(weakMap, { maxArrayLength: 1, showHidden: true });
   // It is not possible to determine the output reliable.
-  expect = 'WeakMap { [ [length]: 0 ] => {}, ... more items, extra: true }';
-  const expectAlt = 'WeakMap { {} => [ [length]: 0 ], ... more items, ' +
+  expect = 'WeakMap { [ [length]: 0 ] => {}, ... 1 more item, extra: true }';
+  const expectAlt = 'WeakMap { {} => [ [length]: 0 ], ... 1 more item, ' +
                     'extra: true }';
   assert(out === expect || out === expectAlt,
-         `Found "${out}" rather than "${expect}" or "${expectAlt}"`);
+         `Found: "${out}"\nrather than: "${expect}"\nor: "${expectAlt}"`);
 }
 
 { // Test WeakSet
@@ -1437,17 +1440,17 @@ util.inspect(process);
   assert.strictEqual(out, expect);
 
   out = util.inspect(weakSet, { maxArrayLength: -2, showHidden: true });
-  expect = 'WeakSet { ... more items }';
+  expect = 'WeakSet { ... 2 more items }';
   assert.strictEqual(out, expect);
 
   weakSet.extra = true;
   out = util.inspect(weakSet, { maxArrayLength: 1, showHidden: true });
   // It is not possible to determine the output reliable.
-  expect = 'WeakSet { {}, ... more items, extra: true }';
-  const expectAlt = 'WeakSet { [ 1, [length]: 1 ], ... more items, ' +
+  expect = 'WeakSet { {}, ... 1 more item, extra: true }';
+  const expectAlt = 'WeakSet { [ 1, [length]: 1 ], ... 1 more item, ' +
                     'extra: true }';
   assert(out === expect || out === expectAlt,
-         `Found "${out}" rather than "${expect}" or "${expectAlt}"`);
+         `Found: "${out}"\nrather than: "${expect}"\nor: "${expectAlt}"`);
 }
 
 { // Test argument objects.
