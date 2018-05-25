@@ -71,9 +71,6 @@ static const size_t kHeapSpaceStatisticsPropertiesCount =
     HEAP_SPACE_STATISTICS_PROPERTIES(V);
 #undef V
 
-// Will be populated in InitializeV8Bindings.
-static size_t number_of_heap_spaces = 0;
-
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -100,6 +97,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   HeapSpaceStatistics s;
   Isolate* const isolate = env->isolate();
   double* buffer = env->heap_space_statistics_buffer();
+  size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
   for (size_t i = 0; i < number_of_heap_spaces; i++) {
     isolate->GetHeapSpaceStatistics(&s, i);
@@ -153,7 +151,7 @@ void Initialize(Local<Object> target,
               Uint32::NewFromUnsigned(env->isolate(),
                                       kHeapSpaceStatisticsPropertiesCount));
 
-  number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
+  size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
   // Heap space names are extracted once and exposed to JavaScript to
   // avoid excessive creation of heap space name Strings.
