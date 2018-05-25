@@ -75,15 +75,6 @@ struct MarkPopErrorOnReturn {
   ~MarkPopErrorOnReturn() { ERR_pop_to_mark(); }
 };
 
-template <typename T, void (*function)(T*)>
-struct FunctionDeleter {
-  void operator()(T* pointer) const { function(pointer); }
-  typedef std::unique_ptr<T, FunctionDeleter> Pointer;
-};
-
-template <typename T, void (*function)(T*)>
-using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
-
 // Define smart pointers for the most commonly used OpenSSL types:
 using X509Pointer = DeleteFnPtr<X509, X509_free>;
 using BIOPointer = DeleteFnPtr<BIO, BIO_free_all>;
