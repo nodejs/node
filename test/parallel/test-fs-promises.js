@@ -141,7 +141,8 @@ function verifyStatObject(stat) {
         // lchmod is only available on macOS
         const newMode = 0o666;
         await lchmod(newLink, newMode);
-        assert.strictEqual(await lstat(newLink).mode & 0o777, newMode);
+        stats = await lstat(newLink);
+        assert.strictEqual(stats.mode & 0o777, newMode);
       }
 
 
