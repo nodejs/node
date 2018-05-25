@@ -17,7 +17,10 @@ function test(data, only, expected) {
     only = undefined;
   }
   console.table(data, only);
-  assert.strictEqual(queue.shift(), expected.trimLeft());
+  assert.deepStrictEqual(
+    queue.shift().split('\n'),
+    expected.trimLeft().split('\n')
+  );
 }
 
 common.expectsError(() => console.table([], false), {
