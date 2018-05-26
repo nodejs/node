@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests that mask > 0o777 will be masked off with 0o777 in
+// This tests that the lower bits of mode > 0o777 still works in
 // process.umask()
 
 const common = require('../common');
