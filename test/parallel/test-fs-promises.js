@@ -107,9 +107,8 @@ function verifyStatObject(stat) {
     await chmod(dest, 0o666);
     await handle.chmod(0o666);
 
-    // Mode larger than 0o777 should be masked off.
-    await chmod(dest, (0o777 + 1));
-    await handle.chmod(0o777 + 1);
+    await chmod(dest, (0o10777));
+    await handle.chmod(0o10777);
 
     await utimes(dest, new Date(), new Date());
 
