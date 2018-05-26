@@ -97,8 +97,9 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   HeapSpaceStatistics s;
   Isolate* const isolate = env->isolate();
   double* buffer = env->heap_space_statistics_buffer();
+  size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
-  for (size_t i = 0; i < isolate->NumberOfHeapSpaces(); i++) {
+  for (size_t i = 0; i < number_of_heap_spaces; i++) {
     isolate->GetHeapSpaceStatistics(&s, i);
     size_t const property_offset = i * kHeapSpaceStatisticsPropertiesCount;
 #define V(index, name, _) buffer[property_offset + index] = \
