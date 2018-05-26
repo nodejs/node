@@ -581,7 +581,7 @@ rl.on('line', (line) => {
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>l</code></td>
-    <td>Clear screen </td>
+    <td>Clear screen</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>n</code></td>
@@ -589,11 +589,11 @@ rl.on('line', (line) => {
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>p</code></td>
-    <td>Previous history item </td>
+    <td>Previous history item</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>z</code></td>
-    <td>(need clarification)</td>
+    <td>Moves running process into background. Type <code>fg</code> and press <code>enter</code> to return.</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>w</code> &nbsp; or &nbsp; <code>ctrl</code> + <code>backspace</code></td>
