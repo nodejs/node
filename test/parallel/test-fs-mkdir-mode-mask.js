@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests that mode > 0o777 will be masked off with 0o777 in fs.mkdir().
+// This tests that the lower bits of mode > 0o777 still works in fs.mkdir().
 
 const common = require('../common');
 const assert = require('assert');
