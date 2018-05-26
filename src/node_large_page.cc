@@ -188,7 +188,14 @@ struct TextRegion {
             return -1;
           }
 
-          ret = madvise(start, size, MADV_HUGEPAGE);
+          if (tmem != start) {
+            fprintf(stderr, "Unable to allocate hugepages.n");
+            munmap(nmem, size);
+            munmap(tmem, size);
+            return -1;
+          }
+
+          ret = madvise(tmem, size, MADV_HUGEPAGE);
           if (ret == -1) {
             printSystemError(errno);
             ret = munmap(tmem, size);

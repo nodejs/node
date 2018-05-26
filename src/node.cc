@@ -4489,6 +4489,7 @@ int Start(int argc, char** argv) {
   if (node::largepages::isLargePagesEnabled()) {
     if ((node::largepages::map_static_code_to_large_pages()) != 0) {
       fprintf(stderr, "Mapping of static code to large pages failed.\n");
+      fprintf(stderr, "Reverting to default page size\n");
     }
   }
 #endif
