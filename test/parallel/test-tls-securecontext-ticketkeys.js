@@ -14,9 +14,11 @@ const otherKeys = crypto.randomBytes(48);
 const context = tls.createSecureContext({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
-  ticketKeys: keys
+  ticketKeys: keys,
+  sessionTimeout: 1,
 });
 
-assert.strictEqual(context.getTicketKeys(), keys);
+assert.deepStrictEqual(context.getTicketKeys(), keys);
 context.setTicketKeys(otherKeys);
-assert.strictEqual(context.getTicketKeys(), otherKeys);
+assert.deepStrictEqual(context.getTicketKeys(), otherKeys);
+setTimeout(() => assert.deepStrictEqual(context.getTicketKeys(), otherKeys), 5000);
