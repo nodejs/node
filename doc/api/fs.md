@@ -1089,6 +1089,12 @@ For example, the octal value `0o765` means:
 * The group may read and write the file.
 * Others may read and execute the file.
 
+Note: When using raw numbers where file modes are expected,
+any value larger than `0o777` may result in platform-specific
+behaviors that are not supported to work consistently.
+Therefore constants like `S_ISVTX`, `S_ISGID` or `S_ISUID` are
+not exposed in `fs.constants`.
+
 Caveats: on Windows only the write permission can be changed, and the
 distinction among the permissions of group, owner or others is not
 implemented.
