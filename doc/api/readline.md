@@ -593,10 +593,13 @@ rl.on('line', (line) => {
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>z</code></td>
-    <td>Moves running process into background. Type <code>fg</code> and press <code>enter</code> to return.</td>
+    <td>Moves running process into background. Type
+    <code>fg</code> and press <code>enter</code>
+    to return.</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>w</code> &nbsp; or &nbsp; <code>ctrl</code> + <code>backspace</code></td>
+    <td><code>ctrl</code> + <code>w</code> or <code>ctrl</code>
+    + <code>backspace</code></td>
     <td>Delete backwards to a word boundary</td>
   </tr>
   <tr>
@@ -620,7 +623,8 @@ rl.on('line', (line) => {
     <td>Word right</td>
   </tr>
   <tr>
-    <td><code>meta</code> + <code>d</code> &nbsp; or &nbsp; <code>meta</code> + <code>delete</code></td>
+    <td><code>meta</code> + <code>d</code> or <code>meta</code>
+    + <code>delete</code></td>
     <td>Delete word right</td>
   </tr>
   <tr>
