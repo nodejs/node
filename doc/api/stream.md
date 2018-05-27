@@ -540,16 +540,18 @@ possible to respect backpressure and avoid memory issues using the
 [`'drain'`][] event:
 
 ```js
-function write(data, cb) {
-  if (!stream.write(data)) {
-    stream.once('drain', cb);
-  } else {
-    process.nextTick(cb);
+async function waitForDrain(stream) {
+  return await new Promise(resolve => stream.once('drain', resolve));
+}
+async function write(stream, data) {
+  const drainRequired = !stream.write(data);
+  if (drainRequired) {
+    await waitForDrain(stream);
   }
 }
 
 // Wait for cb to be called before doing any other write.
-write('hello', () => {
+write(someStream, 'hello').then(() => {
   console.log('write completed, do more writes now');
 });
 ```
