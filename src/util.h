@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <string>
 #include <functional>  // std::function
 
 namespace node {
@@ -250,6 +251,7 @@ inline void SwapBytes64(char* data, size_t nbytes);
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
+inline std::string ToLower(const std::string& in);
 
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
 inline bool StringEqualNoCase(const char* a, const char* b);

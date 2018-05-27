@@ -398,6 +398,19 @@ struct ContextInfo {
   bool is_default = false;
 };
 
+// Listing the AsyncWrap provider types first enables us to cast directly
+// from a provider type to a debug category. Currently no other debug
+// categories are available.
+#define DEBUG_CATEGORY_NAMES(V) \
+    NODE_ASYNC_PROVIDER_TYPES(V)
+
+enum class DebugCategory {
+#define V(name) name,
+  DEBUG_CATEGORY_NAMES(V)
+#undef V
+  CATEGORY_COUNT
+};
+
 class Environment {
  public:
   class AsyncHooks {
@@ -654,6 +667,10 @@ class Environment {
   inline http2::Http2State* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::Http2State> state);
 
+  inline bool debug_enabled(DebugCategory category) const;
+  inline void set_debug_enabled(DebugCategory category, bool enabled);
+  void set_debug_categories(const std::string& cats, bool enabled);
+
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
 
   // stat fields contains twice the number of entries because `fs.StatWatcher`
@@ -852,6 +869,8 @@ class Environment {
   char* http_parser_buffer_;
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
+
+  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
 
   AliasedBuffer<double, v8::Float64Array> fs_stats_field_array_;
 

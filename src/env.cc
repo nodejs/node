@@ -130,6 +130,10 @@ Environment::Environment(IsolateData* isolate_data,
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
+
+  std::string debug_cats;
+  SafeGetenv("NODE_DEBUG_NATIVE", &debug_cats);
+  set_debug_categories(debug_cats, true);
 }
 
 Environment::~Environment() {
@@ -495,6 +499,28 @@ Local<Value> Environment::GetNow() {
     return Number::New(isolate(), static_cast<double>(now));
 }
 
+
+void Environment::set_debug_categories(const std::string& cats, bool enabled) {
+  std::string debug_categories = cats;
+  while (!debug_categories.empty()) {
+    std::string::size_type comma_pos = debug_categories.find(',');
+    std::string wanted = ToLower(debug_categories.substr(0, comma_pos));
+
+#define V(name)                                                          \
+    {                                                                    \
+      static const std::string available_category = ToLower(#name);      \
+      if (available_category.find(wanted) != std::string::npos)          \
+        set_debug_enabled(DebugCategory::name, enabled);                 \
+    }
+
+    DEBUG_CATEGORY_NAMES(V)
+
+    if (comma_pos == std::string::npos)
+      break;
+    // Use everything after the `,` as the list for the next iteration.
+    debug_categories = debug_categories.substr(comma_pos);
+  }
+}
 
 void CollectExceptionInfo(Environment* env,
                           v8::Local<v8::Object> obj,
