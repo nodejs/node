@@ -223,6 +223,37 @@ countdown.dec();
 countdown.dec(); // The countdown callback will be invoked now.
 ```
 
+#### Testing promises
+
+When writing tests involving promises, either make sure that the
+`onFulfilled` or the `onRejected` handler is wrapped in
+`common.mustCall()` or `common.mustNotCall()` accordingly, or
+call `common.crashOnUnhandledRejection()` in the top level of the
+test to make sure that unhandled rejections would result in a test
+failure. For example:
+
+```javascript
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs').promises;
+
+// Use `common.crashOnUnhandledRejection()` to make sure unhandled rejections
+// will fail the test.
+common.crashOnUnhandledRejection();
+
+// Or, wrap the `onRejected` handler in `common.mustNotCall()`.
+fs.writeFile('test-file', 'test').catch(common.mustNotCall());
+
+// Or, wrap the `onFulfilled` handler in `common.mustCall()`.
+// If there are assertions in the `onFulfilled` handler, wrap
+// the next `onRejected` handler in `common.mustNotCall()`
+// to handle potential failures.
+fs.readFile('test-file').then(
+  common.mustCall(
+    (content) => assert.strictEqual(content.toString(), 'test2')
+  ))
+  .catch(common.mustNotCall());
+```
 
 ### Flags
 
