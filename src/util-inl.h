@@ -293,6 +293,13 @@ char ToLower(char c) {
   return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
 }
 
+std::string ToLower(const std::string& in) {
+  std::string out(in.size(), 0);
+  for (size_t i = 0; i < in.size(); ++i)
+    out[i] = ToLower(in[i]);
+  return out;
+}
+
 bool StringEqualNoCase(const char* a, const char* b) {
   do {
     if (*a == '\0')

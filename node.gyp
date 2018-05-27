@@ -367,6 +367,7 @@
         'src/base_object-inl.h',
         'src/connection_wrap.h',
         'src/connect_wrap.h',
+        'src/debug_utils.h',
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',
