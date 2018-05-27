@@ -7,6 +7,8 @@ const fixtures = require('../common/fixtures');
 
 const fn = fixtures.path('empty.txt');
 
+common.crashOnUnhandledRejection();
+
 fs.readFile(fn)
   .then(assert.ok);
 
