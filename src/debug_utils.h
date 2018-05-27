@@ -12,7 +12,7 @@
 // performance for the common case (no debugging used).
 #ifdef __GNUC__
 #define FORCE_INLINE __attribute__((always_inline))
-#define COLD_NOINLINE __attribute__((cold,noinline))
+#define COLD_NOINLINE __attribute__((cold, noinline))
 #else
 #define FORCE_INLINE
 #define COLD_NOINLINE
