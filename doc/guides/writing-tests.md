@@ -245,10 +245,14 @@ common.crashOnUnhandledRejection();
 fs.writeFile('test-file', 'test').catch(common.mustNotCall());
 
 // Or, wrap the `onFulfilled` handler in `common.mustCall()`.
+// If there are assertions in the `onFulfilled` handler, wrap
+// the next `onRejected` handler in `common.mustNotCall()`
+// to handle potential failures.
 fs.readFile('test-file').then(
   common.mustCall(
-    (content) => assert.strictEqual(content.toString(), 'test')
-  ));
+    (content) => assert.strictEqual(content.toString(), 'test2')
+  ))
+  .catch(common.mustNotCall());
 ```
 
 ### Flags
