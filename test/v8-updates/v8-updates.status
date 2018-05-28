@@ -1,4 +1,4 @@
-prefix parallel
+prefix v8-updates
 
 # To mark a test as flaky, list the test name in the appropriate section
 # below, without ".js", followed by ": PASS,FLAKY". Example:
@@ -7,7 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-child-process-fork-net-socket: PASS,FLAKY
 
 [$system==linux]
 
@@ -18,7 +17,5 @@ test-child-process-fork-net-socket: PASS,FLAKY
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
-# https://github.com/nodejs/node/issues/21038
-test-trace-events-fs-sync: PASS,FLAKY
 
 [$system==aix]

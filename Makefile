@@ -560,6 +560,7 @@ test-with-async-hooks:
 .PHONY: test-v8-all
 .PHONY: test-v8-benchmarks
 .PHONY: test-v8-intl
+.PHONY: test-v8-updates
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 # Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
@@ -580,7 +581,10 @@ test-v8-benchmarks: v8
         benchmarks \
 	      $(TAP_V8_BENCHMARKS)
 
-test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
+test-v8-updates:
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates
+
+test-v8-all: test-v8 test-v8-intl test-v8-benchmarks test-v8-updates
 # runs all v8 tests
 else
 test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
