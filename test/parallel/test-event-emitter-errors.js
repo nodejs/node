@@ -21,3 +21,13 @@ common.expectsError(
     message: 'Unhandled error. ([object Object])'
   }
 );
+
+// Verify that the event type cannot be undefined.
+common.expectsError(() => {
+  EE.emit(undefined, new Error());
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "eventName" argument must be one of type string or symbol. ' +
+           'Received type undefined'
+});
