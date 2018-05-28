@@ -25,7 +25,6 @@
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
-#include "req_wrap-inl.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
