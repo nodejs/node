@@ -1751,14 +1751,14 @@ properties to query.
 - `[out] type`: Scalar datatype of the elements within the `TypedArray`.
 - `[out] length`: The number of elements in the `TypedArray`.
 - `[out] data`: The data buffer underlying the `TypedArray` adjusted by
-the byte_offset value so that it points to the first element in the
+the `byte_offset` value so that it points to the first element in the
 `TypedArray`.
 - `[out] arraybuffer`: The `ArrayBuffer` underlying the `TypedArray`.
 - `[out] byte_offset`: The byte offset within the underlying native array
 at which the first element of the arrays is located. The value for the data
 parameter has already been adjusted so that data points to the first element
 in the array. Therefore, the first byte of the native array would be at
-data - byte_offset.
+data - `byte_offset`.
 
 Returns `napi_ok` if the API succeeded.
 
