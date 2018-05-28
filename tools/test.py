@@ -1553,7 +1553,8 @@ IGNORED_SUITES = [
   'pummel',
   'test-known-issues',
   'tick-processor',
-  'timers'
+  'timers',
+  'v8-updates'
 ]
 
 
