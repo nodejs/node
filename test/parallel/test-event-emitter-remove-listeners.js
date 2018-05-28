@@ -154,6 +154,17 @@ common.expectsError(() => {
            'Received type object'
 });
 
+// Verify that the event type cannot be undefined.
+common.expectsError(() => {
+  const ee = new EventEmitter();
+  ee.removeListener(undefined, () => {});
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "eventName" argument must be one of type string or symbol. ' +
+           'Received type undefined'
+});
+
 {
   const ee = new EventEmitter();
   const listener = () => {};
