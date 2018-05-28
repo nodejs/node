@@ -1902,7 +1902,8 @@ added: v0.11.14
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
-    `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
+    `crypto.constants.RSA_PKCS1_PADDING`, or
+    `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
 - Returns: {Buffer} A new `Buffer` with the decrypted content.
 
@@ -1920,7 +1921,7 @@ added: v1.1.0
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
-    `RSA_PKCS1_PADDING`.
+    `crypto.constants.RSA_PKCS1_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
 - Returns: {Buffer} A new `Buffer` with the encrypted content.
 
@@ -1938,7 +1939,7 @@ added: v1.1.0
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
-    `RSA_PKCS1_PADDING`.
+    `crypto.constants.RSA_PKCS1_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
 - Returns: {Buffer} A new `Buffer` with the decrypted content.
 
@@ -1959,7 +1960,8 @@ added: v0.11.14
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
-    `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
+    `crypto.constants.RSA_PKCS1_PADDING`, or
+    `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
 - Returns: {Buffer} A new `Buffer` with the encrypted content.
 
