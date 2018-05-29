@@ -128,7 +128,7 @@ const assert = require('assert');
   });
 
   // Test 1 to 6 bytes.
-  for (let i = 1; i < 6; i++) {
+  for (let i = 1; i <= 6; i++) {
     ['readUIntBE', 'readUIntLE'].forEach((fn) => {
       ['', '0', null, {}, [], () => {}, true, false, undefined].forEach((o) => {
         assert.throws(
