@@ -162,6 +162,21 @@ const errorOutOfBounds = common.expectsError({
   });
 }
 
+// Test 48 bit
+{
+  const value = 0x1234567890ab;
+  const buffer = Buffer.allocUnsafe(6);
+  buffer.writeIntBE(value, 0, 6);
+  assert.ok(buffer.equals(new Uint8Array([
+    0x12, 0x34, 0x56, 0x78, 0x90, 0xab
+  ])));
+
+  buffer.writeIntLE(value, 0, 6);
+  assert.ok(buffer.equals(new Uint8Array([
+    0xab, 0x90, 0x78, 0x56, 0x34, 0x12
+  ])));
+}
+
 // Test Int
 {
   const data = Buffer.alloc(8);
