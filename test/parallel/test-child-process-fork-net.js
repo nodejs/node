@@ -158,6 +158,11 @@ if (process.argv[2] === 'child') {
       console.log('PARENT: server closed');
       callback();
     });
+    server.on('error', (err) => {
+      if (err && err.code !== 'EPIPE') {
+        throw err;
+      }
+    });
     // Don't listen on the same port, because SmartOS sometimes says
     // that the server's fd is closed, but it still cannot listen
     // on the same port again.
@@ -176,8 +181,9 @@ if (process.argv[2] === 'child') {
         console.log('CLIENT: closed');
         assert.strictEqual(store, 'echo');
         server.close((err) => {
-          if (err && err.code !== 'EPIPE')
+          if (err && err.code !== 'EPIPE') {
             throw err;
+          }
         });
       });
     });
