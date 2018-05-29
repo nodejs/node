@@ -110,6 +110,17 @@ const assert = require('assert');
   assert.ok(data.equals(new Uint8Array([0x6d, 0x6d, 0x6d, 0x0a, 0xf9, 0xe7])));
 }
 
+// Test 48 bit
+{
+  const value = 0x1234567890ab;
+  const data = Buffer.allocUnsafe(6);
+  data.writeUIntBE(value, 0, 6);
+  assert.ok(data.equals(new Uint8Array([0x12, 0x34, 0x56, 0x78, 0x90, 0xab])));
+
+  data.writeUIntLE(value, 0, 6);
+  assert.ok(data.equals(new Uint8Array([0xab, 0x90, 0x78, 0x56, 0x34, 0x12])));
+}
+
 // Test UInt
 {
   const data = Buffer.alloc(8);
