@@ -28,7 +28,6 @@ const timeoutd = domain.create();
 
 timeoutd.on('error', common.mustCall(function(e) {
   assert.strictEqual(e.message, 'Timeout UNREFd');
-  clearTimeout(timeout);
 }, 2));
 
 let t;
@@ -38,6 +37,7 @@ timeoutd.run(function() {
   }, 0).unref();
 
   t = setTimeout(function() {
+    clearTimeout(timeout);
     throw new Error('Timeout UNREFd');
   }, 0);
 });
