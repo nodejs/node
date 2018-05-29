@@ -29,6 +29,65 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
+<a id="10.3.0"></a>
+## 2018-05-29, Version 10.3.0 (Current), @MylesBorins
+
+### Notable Changes
+
+* **deps**:
+  - upgrade npm to 6.1.0 (Rebecca Turner) [#20190](https://github.com/nodejs/node/pull/20190)
+* **fs**:
+  - fix reads with pos \> 4GB (Mathias Buus) [#21003](https://github.com/nodejs/node/pull/21003)
+* **net**:
+  - new option to allow IPC servers to be readable and writable by all users (Bartosz Sosnowski) [#19472](https://github.com/nodejs/node/pull/19472)
+* **stream**:
+  - fix removeAllListeners() for Stream.Readable to work as expected when no arguments are passed (Kael Zhang) [#20924](https://github.com/nodejs/node/pull/20924)
+* **Added new collaborators**
+  - [jdlaton](https://github.com/jdalton) John-David Dalton
+
+### Commits
+
+* [[`ea702e2812`](https://github.com/nodejs/node/commit/ea702e2812)] - **assert**: handle undefined filename in getErrMessage (Tim Seckinger) [#20848](https://github.com/nodejs/node/pull/20848)
+* [[`d7fed22511`](https://github.com/nodejs/node/commit/d7fed22511)] - **build,win**: disable DLL-interface warnings (Bert Belder) [#20958](https://github.com/nodejs/node/pull/20958)
+* [[`efc7f91354`](https://github.com/nodejs/node/commit/efc7f91354)] - **deps**: cherry-pick 6989b3f6d7 from V8 upstream (Timothy Gu) [#20826](https://github.com/nodejs/node/pull/20826)
+* [[`d0cdcb61fe`](https://github.com/nodejs/node/commit/d0cdcb61fe)] - **(SEMVER-MINOR)** **deps**: upgrade npm to 6.1.0 (Rebecca Turner) [#20190](https://github.com/nodejs/node/pull/20190)
+* [[`ce13797dca`](https://github.com/nodejs/node/commit/ce13797dca)] - **doc**: fix doc for napi\_get\_typedarray\_info (Michael Dawson) [#20747](https://github.com/nodejs/node/pull/20747)
+* [[`babc9da6f9`](https://github.com/nodejs/node/commit/babc9da6f9)] - **doc**: add jdalton to collaborators (John-David Dalton) [#20968](https://github.com/nodejs/node/pull/20968)
+* [[`f0704f2407`](https://github.com/nodejs/node/commit/f0704f2407)] - **doc**: mark Node 4 as EOL in changelog (Teddy Katz) [#20926](https://github.com/nodejs/node/pull/20926)
+* [[`87ad9318bb`](https://github.com/nodejs/node/commit/87ad9318bb)] - **doc**: update the notable changes (Ruben Bridgewater) [#20316](https://github.com/nodejs/node/pull/20316)
+* [[`c036cda1f5`](https://github.com/nodejs/node/commit/c036cda1f5)] - **doc**: fix outdated link FSEvents (amitbend) [#20949](https://github.com/nodejs/node/pull/20949)
+* [[`1f3eb1cc1e`](https://github.com/nodejs/node/commit/1f3eb1cc1e)] - **doc**: fix filehandle.truncate() sample codes (Masashi Hirano) [#20913](https://github.com/nodejs/node/pull/20913)
+* [[`819bba6d2b`](https://github.com/nodejs/node/commit/819bba6d2b)] - **doc**: removed LTS label from v4 in doc version picker (Chris Young) [#20904](https://github.com/nodejs/node/pull/20904)
+* [[`be2a467395`](https://github.com/nodejs/node/commit/be2a467395)] - **doc**: fix incorrect fs.readFileSync example output (Teddy Katz) [#20902](https://github.com/nodejs/node/pull/20902)
+* [[`bfe6dc369d`](https://github.com/nodejs/node/commit/bfe6dc369d)] - **fs**: fix reads with pos \> 4GB (Mathias Buus) [#21003](https://github.com/nodejs/node/pull/21003)
+* [[`c2c3b6f434`](https://github.com/nodejs/node/commit/c2c3b6f434)] - **lib**: use object destructuring for ContextifyScript (Daniel Bevenius) [#20934](https://github.com/nodejs/node/pull/20934)
+* [[`d2bcd55fb5`](https://github.com/nodejs/node/commit/d2bcd55fb5)] - **lib**: remove unnecessary string interpolation (Daniel Bevenius) [#20890](https://github.com/nodejs/node/pull/20890)
+* [[`099c6b6c5d`](https://github.com/nodejs/node/commit/099c6b6c5d)] - **meta**: add link to unofficial discord (Gus Caplan) [#20508](https://github.com/nodejs/node/pull/20508)
+* [[`45adec2616`](https://github.com/nodejs/node/commit/45adec2616)] - **module**: name anonymous function for debugging (Nicholas Dangles) [#20811](https://github.com/nodejs/node/pull/20811)
+* [[`ba30d149ea`](https://github.com/nodejs/node/commit/ba30d149ea)] - **n-api**: throw when entry point is null (Gabriel Schulhof) [#20779](https://github.com/nodejs/node/pull/20779)
+* [[`b242248188`](https://github.com/nodejs/node/commit/b242248188)] - **(SEMVER-MINOR)** **net**: allow IPC servers be accessible by all (Bartosz Sosnowski) [#19472](https://github.com/nodejs/node/pull/19472)
+* [[`ed9e964357`](https://github.com/nodejs/node/commit/ed9e964357)] - **net**: remove unnecessary variables (chainhelen) [#20864](https://github.com/nodejs/node/pull/20864)
+* [[`5f9c01b646`](https://github.com/nodejs/node/commit/5f9c01b646)] - ***Revert*** "**repl**: add friendly tips about how to exit repl" (cjihrig) [#20972](https://github.com/nodejs/node/pull/20972)
+* [[`902120a927`](https://github.com/nodejs/node/commit/902120a927)] - **src**: add CHECK\_NULL/CHECK\_NOT\_NULL macros (Tobias Nießen) [#20914](https://github.com/nodejs/node/pull/20914)
+* [[`5e69e1a51e`](https://github.com/nodejs/node/commit/5e69e1a51e)] - **src**: add CHECK\_IMPLIES macro (Tobias Nießen) [#20914](https://github.com/nodejs/node/pull/20914)
+* [[`418739c021`](https://github.com/nodejs/node/commit/418739c021)] - **src**: fix MallocedBuffer move assignment operator (Anna Henningsen) [#20883](https://github.com/nodejs/node/pull/20883)
+* [[`b4519cac20`](https://github.com/nodejs/node/commit/b4519cac20)] - **src**: move DeleteFnPtr into util.h (Anna Henningsen) [#20885](https://github.com/nodejs/node/pull/20885)
+* [[`b0023d7bc9`](https://github.com/nodejs/node/commit/b0023d7bc9)] - **src,doc**: add doc of --prof flag to help command (ohbarye) [#20845](https://github.com/nodejs/node/pull/20845)
+* [[`8f52c3fb6b`](https://github.com/nodejs/node/commit/8f52c3fb6b)] - **stream**: fix removeAllListeners() for Stream.Readable (Kael Zhang) [#20924](https://github.com/nodejs/node/pull/20924)
+* [[`011235768c`](https://github.com/nodejs/node/commit/011235768c)] - **test**: improve assert test hygiene (Rich Trott) [#20861](https://github.com/nodejs/node/pull/20861)
+* [[`88f9a399d6`](https://github.com/nodejs/node/commit/88f9a399d6)] - **test**: isolate unusual assert test in its own file (Rich Trott) [#20861](https://github.com/nodejs/node/pull/20861)
+* [[`460a5025d0`](https://github.com/nodejs/node/commit/460a5025d0)] - **test**: fix test failure on aix (Ruben Bridgewater) [#20940](https://github.com/nodejs/node/pull/20940)
+* [[`d09bec8a04`](https://github.com/nodejs/node/commit/d09bec8a04)] - **test**: improve error message in async-wrap test (Rich Trott) [#20948](https://github.com/nodejs/node/pull/20948)
+* [[`460add98fb`](https://github.com/nodejs/node/commit/460add98fb)] - **test**: reduce runtime (Ruben Bridgewater) [#20688](https://github.com/nodejs/node/pull/20688)
+* [[`82afb4cf7d`](https://github.com/nodejs/node/commit/82afb4cf7d)] - **test**: remove message argument from strictEqual() (sagirk) [#20912](https://github.com/nodejs/node/pull/20912)
+* [[`40e57885d4`](https://github.com/nodejs/node/commit/40e57885d4)] - **test**: remove string literal from strictEqual (AbhimanyuVashisht) [#20920](https://github.com/nodejs/node/pull/20920)
+* [[`9bbab91479`](https://github.com/nodejs/node/commit/9bbab91479)] - **test**: include port in assertion message (nam) [#20889](https://github.com/nodejs/node/pull/20889)
+* [[`554ad478d4`](https://github.com/nodejs/node/commit/554ad478d4)] - **test**: improve coverage for readline.Interface (Masashi Hirano) [#20704](https://github.com/nodejs/node/pull/20704)
+* [[`443d60afcc`](https://github.com/nodejs/node/commit/443d60afcc)] - **test**: use log only in test-child-process-fork-net (Rich Trott) [#20873](https://github.com/nodejs/node/pull/20873)
+* [[`ed84b7d42f`](https://github.com/nodejs/node/commit/ed84b7d42f)] - **test**: changed assert message from string literal to template literal (CoreyGMartin) [#20870](https://github.com/nodejs/node/pull/20870)
+* [[`b62cbe106c`](https://github.com/nodejs/node/commit/b62cbe106c)] - **tools**: update tools/doc/package-lock.json (Rich Trott) [#20970](https://github.com/nodejs/node/pull/20970)
+* [[`46e7cec7a5`](https://github.com/nodejs/node/commit/46e7cec7a5)] - **tools**: fix sorting in doc/type-parser.js (Vse Mozhet Byt) [#20976](https://github.com/nodejs/node/pull/20976)
+
 <a id="10.2.1"></a>
 ## 2018-05-24, Version 10.2.1 (Current), @MylesBorins
 
