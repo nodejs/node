@@ -9,6 +9,7 @@
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 
+#include <algorithm>
 #include <queue>
 
 namespace node {
@@ -801,6 +802,12 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // Schedule an RstStream for after the current write finishes.
   inline void AddPendingRstStream(int32_t stream_id) {
     pending_rst_streams_.emplace_back(stream_id);
+  }
+
+  inline bool HasPendingRstStream(int32_t stream_id) {
+    return pending_rst_streams_.end() != std::find(pending_rst_streams_.begin(),
+                                                   pending_rst_streams_.end(),
+                                                   stream_id);
   }
 
   // Handle reads/writes from the underlying network transport.
