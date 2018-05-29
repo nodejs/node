@@ -590,7 +590,7 @@ class Environment {
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
                                     HandleCleanupCb cb,
-                                    void *arg);
+                                    void* arg);
 
   template <typename T, typename OnCloseCallback>
   inline void CloseHandle(T* handle, OnCloseCallback callback);

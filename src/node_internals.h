@@ -537,7 +537,7 @@ int ThreadPoolWork::CancelWork() {
   return uv_cancel(reinterpret_cast<uv_req_t*>(&work_req_));
 }
 
-static inline const char *errno_string(int errorno) {
+static inline const char* errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
   switch (errorno) {
 #ifdef EACCES

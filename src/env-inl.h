@@ -345,7 +345,7 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
 
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
                                                HandleCleanupCb cb,
-                                               void *arg) {
+                                               void* arg) {
   handle_cleanup_queue_.push_back(HandleCleanup{handle, cb, arg});
 }
 

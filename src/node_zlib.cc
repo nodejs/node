@@ -164,8 +164,8 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
       CHECK(0 && "Invalid flush value");
     }
 
-    Bytef *in;
-    Bytef *out;
+    Bytef* in;
+    Bytef* out;
     size_t in_off, in_len, out_off, out_len;
     Environment* env = ctx->env();
 
@@ -500,7 +500,7 @@ class ZCtx : public AsyncWrap, public ThreadPoolWork {
     SetDictionary(ctx);
   }
 
-  static bool Init(ZCtx *ctx, int level, int windowBits, int memLevel,
+  static bool Init(ZCtx* ctx, int level, int windowBits, int memLevel,
                    int strategy, uint32_t* write_result,
                    Local<Function> write_js_callback, char* dictionary,
                    size_t dictionary_len) {
