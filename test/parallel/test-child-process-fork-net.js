@@ -175,7 +175,10 @@ if (process.argv[2] === 'child') {
       connect.on('close', function() {
         console.log('CLIENT: closed');
         assert.strictEqual(store, 'echo');
-        server.close();
+        server.close((err) => {
+          if (err && err.code !== 'EPIPE')
+            throw err;
+        });
       });
     });
   }
