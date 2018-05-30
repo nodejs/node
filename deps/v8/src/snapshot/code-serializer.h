@@ -45,9 +45,8 @@ class ScriptData {
 
 class CodeSerializer : public Serializer<> {
  public:
-  static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info,
-                                               Handle<String> source);
-
+  static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info);
+  static ScriptData* SerializeSharedFunctionInfo(Handle<SharedFunctionInfo> info);
   ScriptData* Serialize(Handle<HeapObject> obj);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(

@@ -636,7 +636,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         ShellOptions::CodeCacheOptions::kProduceCache) {
       // Serialize and store it in memory for the next execution.
       ScriptCompiler::CachedData* cached_data =
-          ScriptCompiler::CreateCodeCache(script->GetUnboundScript(), source);
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
     }
@@ -645,7 +645,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
       // Serialize and store it in memory for the next execution.
       ScriptCompiler::CachedData* cached_data =
-          ScriptCompiler::CreateCodeCache(script->GetUnboundScript(), source);
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
     }
