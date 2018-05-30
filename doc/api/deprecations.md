@@ -4,8 +4,8 @@
 <!-- type=misc -->
 
 Node.js may deprecate APIs when either: (a) use of the API is considered to be
-unsafe, (b) an improved alternative API has been made available, or (c)
-breaking changes to the API are expected in a future major release.
+unsafe, (b) an improved alternative API is available, or (c) breaking changes to
+the API are expected in a future major release.
 
 Node.js utilizes three kinds of Deprecations:
 
@@ -27,8 +27,8 @@ be printed to `stderr` the first time the deprecated API is used. When the
 `--throw-deprecation` command-line flag is used, a Runtime deprecation will
 cause an error to be thrown.
 
-An End-of-Life deprecation is used to identify code that either has been
-removed or will soon be removed from Node.js.
+An End-of-Life deprecation is used when functionality is or will soon be removed
+from Node.js.
 
 ## Revoking deprecations
 
@@ -123,7 +123,7 @@ precisely describe the actual semantics and was unnecessarily emotion-laden.
 
 Type: Documentation-only
 
-The `constants` module has been deprecated. When requiring access to constants
+The `constants` module is deprecated. When requiring access to constants
 relevant to specific Node.js builtin modules, developers should instead refer
 to the `constants` property exposed by the relevant module. For instance,
 `require('fs').constants` and `require('os').constants`.
@@ -303,7 +303,7 @@ instead.
 
 Type: Documentation-only
 
-The [`SlowBuffer`][] class has been deprecated. Please use
+The [`SlowBuffer`][] class is deprecated. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
 <a id="DEP0031"></a>
@@ -326,7 +326,7 @@ The [`domain`][] module is deprecated and should not be used.
 
 Type: Documentation-only
 
-The [`EventEmitter.listenerCount(emitter, eventName)`][] API has been
+The [`EventEmitter.listenerCount(emitter, eventName)`][] API is
 deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
 
 <a id="DEP0034"></a>
@@ -334,7 +334,7 @@ deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
 
 Type: Documentation-only
 
-The [`fs.exists(path, callback)`][] API has been deprecated. Please use
+The [`fs.exists(path, callback)`][] API is deprecated. Please use
 [`fs.stat()`][] or [`fs.access()`][] instead.
 
 <a id="DEP0035"></a>
@@ -342,42 +342,42 @@ The [`fs.exists(path, callback)`][] API has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`fs.lchmod(path, mode, callback)`][] API has been deprecated.
+The [`fs.lchmod(path, mode, callback)`][] API is deprecated.
 
 <a id="DEP0036"></a>
 ### DEP0036: fs.lchmodSync(path, mode)
 
 Type: Documentation-only
 
-The [`fs.lchmodSync(path, mode)`][] API has been deprecated.
+The [`fs.lchmodSync(path, mode)`][] API is deprecated.
 
 <a id="DEP0037"></a>
 ### DEP0037: fs.lchown(path, uid, gid, callback)
 
 Type: Documentation-only
 
-The [`fs.lchown(path, uid, gid, callback)`][] API has been deprecated.
+The [`fs.lchown(path, uid, gid, callback)`][] API is deprecated.
 
 <a id="DEP0038"></a>
 ### DEP0038: fs.lchownSync(path, uid, gid)
 
 Type: Documentation-only
 
-The [`fs.lchownSync(path, uid, gid)`][] API has been deprecated.
+The [`fs.lchownSync(path, uid, gid)`][] API is deprecated.
 
 <a id="DEP0039"></a>
 ### DEP0039: require.extensions
 
 Type: Documentation-only
 
-The [`require.extensions`][] property has been deprecated.
+The [`require.extensions`][] property is deprecated.
 
 <a id="DEP0040"></a>
 ### DEP0040: punycode module
 
 Type: Documentation-only
 
-The [`punycode`][] module has been deprecated. Please use a userland alternative
+The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
 
 <a id="DEP0041"></a>
@@ -393,7 +393,7 @@ The `NODE_REPL_HISTORY_FILE` environment variable was removed. Please use
 
 Type: Documentation-only
 
-The [`tls.CryptoStream`][] class has been deprecated. Please use
+The [`tls.CryptoStream`][] class is deprecated. Please use
 [`tls.TLSSocket`][] instead.
 
 <a id="DEP0043"></a>
@@ -401,7 +401,7 @@ The [`tls.CryptoStream`][] class has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`tls.SecurePair`][] class has been deprecated. Please use
+The [`tls.SecurePair`][] class is deprecated. Please use
 [`tls.TLSSocket`][] instead.
 
 <a id="DEP0044"></a>
@@ -409,7 +409,7 @@ The [`tls.SecurePair`][] class has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`util.isArray()`][] API has been deprecated. Please use `Array.isArray()`
+The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
 
 <a id="DEP0045"></a>
@@ -417,14 +417,14 @@ instead.
 
 Type: Documentation-only
 
-The [`util.isBoolean()`][] API has been deprecated.
+The [`util.isBoolean()`][] API is deprecated.
 
 <a id="DEP0046"></a>
 ### DEP0046: util.isBuffer()
 
 Type: Documentation-only
 
-The [`util.isBuffer()`][] API has been deprecated. Please use
+The [`util.isBuffer()`][] API is deprecated. Please use
 [`Buffer.isBuffer()`][] instead.
 
 <a id="DEP0047"></a>
@@ -432,98 +432,98 @@ The [`util.isBuffer()`][] API has been deprecated. Please use
 
 Type: Documentation-only
 
-The [`util.isDate()`][] API has been deprecated.
+The [`util.isDate()`][] API is deprecated.
 
 <a id="DEP0048"></a>
 ### DEP0048: util.isError()
 
 Type: Documentation-only
 
-The [`util.isError()`][] API has been deprecated.
+The [`util.isError()`][] API is deprecated.
 
 <a id="DEP0049"></a>
 ### DEP0049: util.isFunction()
 
 Type: Documentation-only
 
-The [`util.isFunction()`][] API has been deprecated.
+The [`util.isFunction()`][] API is deprecated.
 
 <a id="DEP0050"></a>
 ### DEP0050: util.isNull()
 
 Type: Documentation-only
 
-The [`util.isNull()`][] API has been deprecated.
+The [`util.isNull()`][] API is deprecated.
 
 <a id="DEP0051"></a>
 ### DEP0051: util.isNullOrUndefined()
 
 Type: Documentation-only
 
-The [`util.isNullOrUndefined()`][] API has been deprecated.
+The [`util.isNullOrUndefined()`][] API is deprecated.
 
 <a id="DEP0052"></a>
 ### DEP0052: util.isNumber()
 
 Type: Documentation-only
 
-The [`util.isNumber()`][] API has been deprecated.
+The [`util.isNumber()`][] API is deprecated.
 
 <a id="DEP0053"></a>
 ### DEP0053 util.isObject()
 
 Type: Documentation-only
 
-The [`util.isObject()`][] API has been deprecated.
+The [`util.isObject()`][] API is deprecated.
 
 <a id="DEP0054"></a>
 ### DEP0054: util.isPrimitive()
 
 Type: Documentation-only
 
-The [`util.isPrimitive()`][] API has been deprecated.
+The [`util.isPrimitive()`][] API is deprecated.
 
 <a id="DEP0055"></a>
 ### DEP0055: util.isRegExp()
 
 Type: Documentation-only
 
-The [`util.isRegExp()`][] API has been deprecated.
+The [`util.isRegExp()`][] API is deprecated.
 
 <a id="DEP0056"></a>
 ### DEP0056: util.isString()
 
 Type: Documentation-only
 
-The [`util.isString()`][] API has been deprecated.
+The [`util.isString()`][] API is deprecated.
 
 <a id="DEP0057"></a>
 ### DEP0057: util.isSymbol()
 
 Type: Documentation-only
 
-The [`util.isSymbol()`][] API has been deprecated.
+The [`util.isSymbol()`][] API is deprecated.
 
 <a id="DEP0058"></a>
 ### DEP0058: util.isUndefined()
 
 Type: Documentation-only
 
-The [`util.isUndefined()`][] API has been deprecated.
+The [`util.isUndefined()`][] API is deprecated.
 
 <a id="DEP0059"></a>
 ### DEP0059: util.log()
 
 Type: Documentation-only
 
-The [`util.log()`][] API has been deprecated.
+The [`util.log()`][] API is deprecated.
 
 <a id="DEP0060"></a>
 ### DEP0060: util.\_extend()
 
 Type: Documentation-only
 
-The [`util._extend()`][] API has been deprecated.
+The [`util._extend()`][] API is deprecated.
 
 <a id="DEP0061"></a>
 ### DEP0061: fs.SyncWriteStream
@@ -538,7 +538,7 @@ API. No alternative API is available. Please use a userland alternative.
 
 Type: Runtime
 
-`--debug` activates the legacy V8 debugger interface, which has been removed as
+`--debug` activates the legacy V8 debugger interface, which was removed as
 of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
 instead.
 
@@ -547,7 +547,7 @@ instead.
 
 Type: Documentation-only
 
-The `http` module `ServerResponse.prototype.writeHeader()` API has been
+The `http` module `ServerResponse.prototype.writeHeader()` API is
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
 The `ServerResponse.prototype.writeHeader()` method was never documented as an
@@ -595,7 +595,7 @@ were never documented as officially supported properties.
 
 Type: Documentation-only
 
-The `http` module `OutgoingMessage.prototype._renderHeaders()` API has been
+The `http` module `OutgoingMessage.prototype._renderHeaders()` API is
 deprecated.
 
 The `OutgoingMessage.prototype._renderHeaders` property was never documented as
@@ -654,7 +654,7 @@ This change was made while `async_hooks` was an experimental API.
 Type: End-of-Life
 
 Accessing several internal, undocumented properties of `net.Server` instances
-with inappropriate names has been deprecated.
+with inappropriate names is deprecated.
 
 As the original API was undocumented and not generally useful for non-internal
 code, no replacement API is provided.
@@ -702,7 +702,7 @@ difference is that `querystring.parse()` does url decoding:
 
 Type: Runtime
 
-`Module._debug()` has been deprecated.
+`Module._debug()` is deprecated.
 
 The `Module._debug()` function was never documented as an officially
 supported API.
