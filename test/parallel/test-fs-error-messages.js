@@ -22,13 +22,17 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
+
+tmpdir.refresh();
+
 const nonexistentFile = fixtures.path('non-existent');
 const nonexistentDir = fixtures.path('non-existent', 'foo', 'bar');
 const existingFile = fixtures.path('exit.js');
 const existingFile2 = fixtures.path('create-file.js');
-const existingDir = fixtures.path('empty');
+const existingDir = tmpdir.path;
 const existingDir2 = fixtures.path('keys');
 const { COPYFILE_EXCL } = fs.constants;
 const uv = process.binding('uv');
