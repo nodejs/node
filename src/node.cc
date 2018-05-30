@@ -4092,6 +4092,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   env.set_can_call_into_js(false);
   env.stop_sub_worker_contexts();
+  uv_tty_reset_mode();
   env.RunCleanup();
   RunAtExit(&env);
 
