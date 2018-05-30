@@ -127,27 +127,6 @@ struct TextRegion {
        return ret_status;
     }
 
-    static bool isExplicitHugePagesEnabled() {
-     int ret_status = false;
-     std::string kw;
-     std::ifstream file("/proc/meminfo");
-     while (file >> kw) {
-        if (kw == "HugePages_Total:") {
-          int64_t hp_tot;
-          file >> hp_tot;
-          if (hp_tot > 0)
-            ret_status = true;
-          else
-            ret_status = false;
-
-          break;
-        }
-     }
-
-     file.close();
-     return ret_status;
-    }
-
     //  Moving the text region to large pages. We need to be very careful.
     //  a) This function itself should not be moved.
     //     We use a gcc option to put it outside the ".text" section
@@ -177,38 +156,35 @@ struct TextRegion {
 
         memcpy(nmem, r.from, size);
 
-        // use for transparent huge pages if enabled
-        if (isTransparentHugePagesEnabled()) {
-          tmem = mmap(start, size,
-                      PROT_READ | PROT_WRITE | PROT_EXEC,
-                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
-          if (tmem == MAP_FAILED) {
-            printSystemError(errno);
-            munmap(nmem, size);
-            return -1;
-          }
+        tmem = mmap(start, size,
+                    PROT_READ | PROT_WRITE | PROT_EXEC,
+                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
+        if (tmem == MAP_FAILED) {
+          printSystemError(errno);
+          munmap(nmem, size);
+          return -1;
+        }
 
-          if (tmem != start) {
-            fprintf(stderr, "Unable to allocate hugepages.n");
-            munmap(nmem, size);
-            munmap(tmem, size);
-            return -1;
-          }
+        if (tmem != start) {
+          fprintf(stderr, "Unable to allocate hugepages.n");
+          munmap(nmem, size);
+          munmap(tmem, size);
+          return -1;
+        }
 
-          ret = madvise(tmem, size, MADV_HUGEPAGE);
+        ret = madvise(tmem, size, MADV_HUGEPAGE);
+        if (ret == -1) {
+          printSystemError(errno);
+          ret = munmap(tmem, size);
           if (ret == -1) {
             printSystemError(errno);
-            ret = munmap(tmem, size);
-            if (ret == -1) {
-              printSystemError(errno);
-            }
-            ret = munmap(nmem, size);
-            if (ret == -1) {
-              printSystemError(errno);
-            }
-
-            return -1;
           }
+          ret = munmap(nmem, size);
+          if (ret == -1) {
+            printSystemError(errno);
+          }
+
+          return -1;
         }
 
         memcpy(start, nmem, size);
@@ -250,7 +226,7 @@ struct TextRegion {
     }
 
     bool isLargePagesEnabled() {
-      return isExplicitHugePagesEnabled() || isTransparentHugePagesEnabled();
+      return isTransparentHugePagesEnabled();
     }
 
 }  // namespace largepages
