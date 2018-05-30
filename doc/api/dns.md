@@ -508,7 +508,7 @@ will be present on the object:
 | `'PTR'` | `value` |
 | `'SOA'` | Refer to [`dns.resolveSoa()`][] |
 | `'SRV'` | Refer to [`dns.resolveSrv()`][] |
-| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
+| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the `ret` object passed to the callback:
 
