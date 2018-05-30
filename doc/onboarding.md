@@ -208,7 +208,7 @@ needs to be pointed out separately during the onboarding.
     -1`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
-* Label your pull request with the `doc` subsystem label.
+* Label your pull request with the `doc` and `notable-change` labels.
 * Run CI on the PR. Because the PR does not affect any code, use the
   `node-test-pull-request-lite` CI task. Alternatively, use the usual
   `node-test-pull-request` CI task and cancel it after the linter and one other
