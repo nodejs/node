@@ -93,7 +93,3 @@ to update from nodejs/node:
 * `git checkout master`
 * `git remote update -p` OR `git fetch --all`
 * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
-
-## Best practices
-
-* When making PRs, spend time writing a thorough description.
