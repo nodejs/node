@@ -41,14 +41,14 @@ platforms in production.
 |--------------|--------------|----------------------------------|----------------------|------------------|
 | GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x64, arm             |                  |
 | GNU/Linux    | Tier 1       | kernel >= 3.10, glibc >= 2.17    | arm64                |                  |
-| macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
+| macOS/OS X   | Tier 1       | >= 10.10                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2     | x86, x64             | vs2017           |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
 | AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be >=power7     |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
-| macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
+| OS X         | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
 | GNU/Linux    | Experimental | kernel >= 2.6.32, glibc >= 2.12  | x86                  | limited CI       |
 | Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
 
@@ -408,7 +408,7 @@ This version of Node.js does not support FIPS.
 It is possible to specify one or more JavaScript text files to be bundled in
 the binary as builtin modules when building Node.js.
 
-### Unix / macOS
+### Unix/macOS
 
 This command will make `/root/myModule.js` available via
 `require('/root/myModule')` and `./myModule2.js` available via
