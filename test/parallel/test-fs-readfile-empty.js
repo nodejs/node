@@ -38,5 +38,9 @@ fs.readFile(fn, 'utf8', function(err, data) {
   assert.strictEqual('', data);
 });
 
+fs.readFile(fn, { encoding: 'utf8' }, function(err, data) {
+  assert.strictEqual('', data);
+});
+
 assert.ok(fs.readFileSync(fn));
 assert.strictEqual('', fs.readFileSync(fn, 'utf8'));
