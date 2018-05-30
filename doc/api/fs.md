@@ -2152,7 +2152,7 @@ by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
 a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
 
-Functions based on `fs.open()` exhibit this behavior as well. eg.
+Functions based on `fs.open()` exhibit this behavior as well:
 `fs.writeFile()`, `fs.readFile()`, etc.
 
 ## fs.openSync(path, flags[, mode])
