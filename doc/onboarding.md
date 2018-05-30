@@ -180,9 +180,7 @@ onboarding session.
       request containing the code you wish to test. For example, if the URL for
       the pull request is `https://github.com/nodejs/node/issues/7006`, then put
       `7006` in the `PR_ID`.
-    * The remaining elements on the form are typically unchanged with the
-      exception of `POST_STATUS_TO_PR`. Check that if you want a CI status
-      indicator to be automatically inserted into the PR.
+    * The remaining elements on the form are typically unchanged.
   * If you need help with something CI-related:
     * Use #node-dev (IRC) to talk to other Collaborators.
     * Use #node-build (IRC) to talk to the Build WG members who maintain the CI
