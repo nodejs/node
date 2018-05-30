@@ -14,6 +14,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ len, n, method }) {
+  if (!method)
+    method = 'deepEqual';
   const data = Buffer.allocUnsafe(len + 1);
   const actual = Buffer.alloc(len);
   const expected = Buffer.alloc(len);
@@ -22,8 +24,7 @@ function main({ len, n, method }) {
   data.copy(expected);
   data.copy(expectedWrong);
 
-  // eslint-disable-next-line no-restricted-properties
-  const fn = method !== '' ? assert[method] : assert.deepEqual;
+  const fn = assert[method];
   const value2 = method.includes('not') ? expectedWrong : expected;
 
   bench.start();
