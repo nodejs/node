@@ -71,7 +71,7 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError [ERR_OUT_OF_RANGE]',
     message: 'The value of "iterations" is out of range. ' +
-             'It must be a non-negative number. Received -1'
+             'It must be >= 0 && <= 2147483647. Received -1'
   }
 );
 
@@ -87,7 +87,20 @@ assert.throws(
     });
 });
 
-[Infinity, -Infinity, NaN, -1, 4073741824, INT_MAX + 1].forEach((input) => {
+[Infinity, -Infinity, NaN].forEach((input) => {
+  assert.throws(
+    () => {
+      crypto.pbkdf2('password', 'salt', 1, input, 'sha256',
+                    common.mustNotCall());
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      name: 'RangeError [ERR_OUT_OF_RANGE]',
+      message: 'The value of "keylen" is out of range. It ' +
+               `must be an integer. Received ${input}`
+    });
+});
+
+[-1, 4073741824, INT_MAX + 1].forEach((input) => {
   assert.throws(
     () => {
       crypto.pbkdf2('password', 'salt', 1, input, 'sha256',
