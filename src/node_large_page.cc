@@ -55,7 +55,7 @@ struct TextRegion {
   void * from;
   void * to;
   int    totalHugePages;
-  int64  offset;
+  int64_t  offset;
   bool   found_text_region;
 };
 
@@ -66,7 +66,7 @@ struct TextRegion {
 
     static struct TextRegion find_node_text_region() {
       FILE *f;
-      unsigned int64  start, end, offset, inode;
+      int64_t  start, end, offset, inode;
       char perm[5], dev[6], name[256];
       int ret;
       const size_t hugePageSize = 2L * 1024 * 1024;
@@ -82,7 +82,7 @@ struct TextRegion {
       if (ret == 7 &&
           perm[0] == 'r' && perm[1] == '-' && perm[2] == 'x') {
         // Checking if the region is from node binary and executable
-        start = (unsigned int64) &__nodetext;
+        start = (unsigned int64_t) &__nodetext;
         char *from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hugePageSize);
         char *to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hugePageSize);
 
@@ -133,7 +133,7 @@ struct TextRegion {
      std::ifstream file("/proc/meminfo");
      while (file >> kw) {
         if (kw == "HugePages_Total:") {
-          unsigned int64 hp_tot;
+          int64_t hp_tot;
           file >> hp_tot;
           if (hp_tot > 0)
             ret_status = true;
@@ -243,7 +243,7 @@ struct TextRegion {
         return -1;
       }
 
-      if (n.to <= reinterpret_cast<void *> & move_text_region_to_large_pages)
+      if (n.to <= reinterpret_cast<void *> (&move_text_region_to_large_pages))
         return move_text_region_to_large_pages(n);
 
       return -1;
