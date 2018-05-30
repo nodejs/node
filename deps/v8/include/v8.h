@@ -1578,6 +1578,9 @@ class V8_EXPORT ScriptCompiler {
    * This will return nullptr if the script cannot be serialized. The
    * CachedData returned by this function should be owned by the caller.
    */
+  static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script);
+
+  // Deprecated.
   static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script,
                                      Local<String> source);
 
@@ -1587,6 +1590,9 @@ class V8_EXPORT ScriptCompiler {
    * This will return nullptr if the script cannot be serialized. The
    * CachedData returned by this function should be owned by the caller.
    */
+  static CachedData* CreateCodeCacheForFunction(Local<Function> function);
+
+  // Deprecated.
   static CachedData* CreateCodeCacheForFunction(Local<Function> function,
                                                 Local<String> source);
 
