@@ -2626,21 +2626,29 @@ uint32_t ScriptCompiler::CachedDataVersionTag() {
 
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
     Local<UnboundScript> unbound_script, Local<String> source) {
+  return CreateCodeCache(unbound_script);
+}
+
+ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
+    Local<UnboundScript> unbound_script) {
   i::Handle<i::SharedFunctionInfo> shared =
       i::Handle<i::SharedFunctionInfo>::cast(
           Utils::OpenHandle(*unbound_script));
-  i::Handle<i::String> source_str = Utils::OpenHandle(*source);
   DCHECK(shared->is_toplevel());
-  return i::CodeSerializer::Serialize(shared, source_str);
+  return i::CodeSerializer::Serialize(shared);
 }
 
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
     Local<Function> function, Local<String> source) {
+  return CreateCodeCacheForFunction(function);
+}
+
+ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
+    Local<Function> function) {
   i::Handle<i::SharedFunctionInfo> shared(
       i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function))->shared());
-  i::Handle<i::String> source_str = Utils::OpenHandle(*source);
   CHECK(shared->is_wrapped());
-  return i::CodeSerializer::Serialize(shared, source_str);
+  return i::CodeSerializer::Serialize(shared);
 }
 
 MaybeLocal<Script> Script::Compile(Local<Context> context, Local<String> source,

@@ -25485,8 +25485,7 @@ TEST(CodeCache) {
         v8::ScriptCompiler::kNoCompileOptions;
     v8::Local<v8::Script> script =
         v8::ScriptCompiler::Compile(context, &source, option).ToLocalChecked();
-    cache = v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript(),
-                                                source_string);
+    cache = v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
   }
   isolate1->Dispose();
 

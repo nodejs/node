@@ -1240,8 +1240,7 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
           NOT_NATIVES_CODE)
           .ToHandleChecked();
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
-      ScriptCompiler::CreateCodeCache(ToApiHandle<UnboundScript>(sfi),
-                                      Utils::ToLocal(source)));
+      ScriptCompiler::CreateCodeCache(ToApiHandle<UnboundScript>(sfi)));
   uint8_t* buffer = NewArray<uint8_t>(cached_data->length);
   MemCopy(buffer, cached_data->data, cached_data->length);
   *script_data = new i::ScriptData(buffer, cached_data->length);
@@ -1895,7 +1894,7 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
             .ToLocalChecked();
 
     if (cacheType != CodeCacheType::kAfterExecute) {
-      cache = ScriptCompiler::CreateCodeCache(script, source_str);
+      cache = ScriptCompiler::CreateCodeCache(script);
     }
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()
@@ -1907,7 +1906,7 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
               .FromJust());
 
     if (cacheType == CodeCacheType::kAfterExecute) {
-      cache = ScriptCompiler::CreateCodeCache(script, source_str);
+      cache = ScriptCompiler::CreateCodeCache(script);
     }
     CHECK(cache);
   }
@@ -2153,7 +2152,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
         v8::ScriptCompiler::CompileUnboundScript(
             isolate1, &source, v8::ScriptCompiler::kNoCompileOptions)
             .ToLocalChecked();
-    cache = v8::ScriptCompiler::CreateCodeCache(script, source_str);
+    cache = v8::ScriptCompiler::CreateCodeCache(script);
     CHECK(cache);
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()
@@ -2218,7 +2217,7 @@ TEST(Regress503552) {
   heap::SimulateIncrementalMarking(isolate->heap());
 
   v8::ScriptCompiler::CachedData* cache_data =
-      CodeSerializer::Serialize(shared, source);
+      CodeSerializer::Serialize(shared);
   delete cache_data;
 }
 

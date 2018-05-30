@@ -32,7 +32,7 @@ ScriptData::ScriptData(const byte* data, int length)
 
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
-    Handle<SharedFunctionInfo> info, Handle<String> source) {
+    Handle<SharedFunctionInfo> info) {
   Isolate* isolate = info->GetIsolate();
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   HistogramTimerScope histogram_timer(isolate->counters()->compile_serialize());
@@ -45,8 +45,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   Handle<Script> script(Script::cast(info->script()), isolate);
   if (FLAG_trace_serializer) {
     PrintF("[Serializing from");
-    Object* script = info->script();
-    Script::cast(script)->name()->ShortPrint();
+    script->name()->ShortPrint();
     PrintF("]\n");
   }
   // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
@@ -55,10 +54,11 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   if (isolate->debug()->is_loaded()) return nullptr;
 
   // Serialize code object.
+  Handle<String> source(String::cast(script->source()), isolate);
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(source));
   DisallowHeapAllocation no_gc;
   cs.reference_map()->AddAttachedReference(*source);
-  ScriptData* script_data = cs.Serialize(info);
+  ScriptData* script_data = cs.SerializeSharedFunctionInfo(info);
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -75,11 +75,12 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   return result;
 }
 
-ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
+ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info) {
   DisallowHeapAllocation no_gc;
 
   VisitRootPointer(Root::kHandleScope, nullptr,
-                   Handle<Object>::cast(obj).location());
+                   Handle<Object>::cast(info).location());
   SerializeDeferredObjects();
   Pad();
 
