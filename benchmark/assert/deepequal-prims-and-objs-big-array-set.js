@@ -1,7 +1,8 @@
 'use strict';
 
 const common = require('../common.js');
-const assert = require('assert');
+const { deepEqual, deepStrictEqual, notDeepEqual, notDeepStrictEqual } =
+  require('assert');
 
 const primValues = {
   'null': null,
@@ -61,32 +62,28 @@ function main({ n, len, primitive, method }) {
     // Empty string falls through to next line as default, mostly for tests.
     case '':
     case 'deepEqual_Array':
-      // eslint-disable-next-line no-restricted-properties
-      run(assert.deepEqual, n, actual, expected);
+      run(deepEqual, n, actual, expected);
       break;
     case 'deepStrictEqual_Array':
-      run(assert.deepStrictEqual, n, actual, expected);
+      run(deepStrictEqual, n, actual, expected);
       break;
     case 'notDeepEqual_Array':
-      // eslint-disable-next-line no-restricted-properties
-      run(assert.notDeepEqual, n, actual, expectedWrong);
+      run(notDeepEqual, n, actual, expectedWrong);
       break;
     case 'notDeepStrictEqual_Array':
-      run(assert.notDeepStrictEqual, n, actual, expectedWrong);
+      run(notDeepStrictEqual, n, actual, expectedWrong);
       break;
     case 'deepEqual_Set':
-      // eslint-disable-next-line no-restricted-properties
-      run(assert.deepEqual, n, actualSet, expectedSet);
+      run(deepEqual, n, actualSet, expectedSet);
       break;
     case 'deepStrictEqual_Set':
-      run(assert.deepStrictEqual, n, actualSet, expectedSet);
+      run(deepStrictEqual, n, actualSet, expectedSet);
       break;
     case 'notDeepEqual_Set':
-      // eslint-disable-next-line no-restricted-properties
-      run(assert.notDeepEqual, n, actualSet, expectedWrongSet);
+      run(notDeepEqual, n, actualSet, expectedWrongSet);
       break;
     case 'notDeepStrictEqual_Set':
-      run(assert.notDeepStrictEqual, n, actualSet, expectedWrongSet);
+      run(notDeepStrictEqual, n, actualSet, expectedWrongSet);
       break;
     default:
       throw new Error(`Unsupported method "${method}"`);
