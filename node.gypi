@@ -188,7 +188,15 @@
             },
           },
           'conditions': [
-            ['OS!="aix" and node_shared=="false"', {
+            ['OS!="aix" and node_shared=="false" and node_use_large_pages=="true"', {
+              'ldflags': [
+                 '-Wl,-T <(PRODUCT_DIR)/../../ld.script',
+                 '-Wl,--whole-archive,<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)'
+                    'uv<(STATIC_LIB_SUFFIX)',
+                '-Wl,--no-whole-archive',
+             ]
+            }],
+            ['OS!="aix" and node_shared=="false" and node_use_large_pages=="false"', {
               'ldflags': [
                 '-Wl,--whole-archive,<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)'
                     'uv<(STATIC_LIB_SUFFIX)',
@@ -348,6 +356,5 @@
     }, {
       'defines': [ 'HAVE_OPENSSL=0' ]
     }],
-
-  ],
+  ]
 }

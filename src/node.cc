@@ -70,6 +70,7 @@
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
 #endif
+#include "node_large_page.h"
 
 #include <errno.h>
 #include <fcntl.h>  // _O_RDWR
@@ -4377,6 +4378,16 @@ int Start(int argc, char** argv) {
 
   CHECK_GT(argc, 0);
 
+#ifdef NODE_ENABLE_LARGE_CODE_PAGES
+  if (node::largepages::isLargePagesEnabled()) {
+    if ((node::largepages::map_static_code_to_large_pages()) != 0) {
+      fprintf(stderr, "Mapping of static code to large pages failed.\n");
+      fprintf(stderr, "Reverting to default page size\n");
+    }
+  }
+#endif
+
+
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
@@ -4419,6 +4430,7 @@ int Start(int argc, char** argv) {
   // Since uv_run cannot be called, uv_async handles held by the platform
   // will never be fully cleaned up.
   v8_platform.Dispose();
+
 
   delete[] exec_argv;
   exec_argv = nullptr;
