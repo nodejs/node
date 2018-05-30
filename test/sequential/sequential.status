@@ -15,6 +15,9 @@ test-inspector-async-hook-setup-at-signal:  PASS, FLAKY
 [$system==linux]
 
 [$system==macos]
+# This test will be flaky until https://github.com/libuv/libuv/pull/1742 lands
+# on Node.js.
+test-fs-readfile-tostring-fail: PASS, FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
