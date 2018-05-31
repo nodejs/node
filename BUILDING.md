@@ -41,7 +41,7 @@ platforms in production.
 |--------------|--------------|----------------------------------|----------------------|------------------|
 | GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x64, arm             |                  |
 | GNU/Linux    | Tier 1       | kernel >= 3.10, glibc >= 2.17    | arm64                |                  |
-| macOS/OS X | Tier 1       | >= 10.10                         | x64                  |                  |
+| macOS/OS X   | Tier 1       | >= 10.10                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2     | x86, x64             | vs2017           |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
