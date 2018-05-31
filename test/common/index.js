@@ -589,7 +589,7 @@ exports.isAlive = function isAlive(pid) {
   }
 };
 
-exports.noWarnCode = 'no_expected_warning_code';
+exports.noWarnCode = undefined;
 
 function expectWarning(name, expected) {
   const map = new Map(expected);
@@ -598,14 +598,7 @@ function expectWarning(name, expected) {
     assert.ok(map.has(warning.message),
               `unexpected error message: "${warning.message}"`);
     const code = map.get(warning.message);
-    if (code === undefined) {
-      throw new Error('An error code must be specified or use ' +
-      'common.noWarnCode if there is no error code. The error  ' +
-      `code for this warning was ${warning.code}`);
-    }
-    if (code !== exports.noWarnCode) {
-      assert.strictEqual(warning.code, code);
-    }
+    assert.strictEqual(warning.code, code);
     // Remove a warning message after it is seen so that we guarantee that we
     // get each message only once.
     map.delete(expected);
