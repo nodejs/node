@@ -68,7 +68,10 @@ assert(existing.length > 0);
     ' ',
     '\n',
     '\0',
-    '1'.repeat(3 * 4)
+    '1'.repeat(3 * 4),
+    ':'.repeat(100000),
+    '['.repeat(100000),
+    '['.repeat(100000) + ']'.repeat(100000) + 'a'
   ];
   invalidServers.forEach((serv) => {
     assert.throws(() => dns.setServers([serv]), /TypeError.*ERR_INVALID_IP_ADDRESS/, `Unexpected error thrown for ${serv}`);
