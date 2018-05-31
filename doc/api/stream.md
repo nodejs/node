@@ -1294,12 +1294,21 @@ implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 The default implementation of `_destroy()` for `Transform` also emit `'close'`.
 
-### stream.finished(stream, callback)
+### stream.finished(stream[, options], callback)
 <!-- YAML
 added: v10.0.0
 -->
 
 * `stream` {Stream} A readable and/or writable stream.
+* `options` {Object}
+  * `error` {boolean} If set to `false`, then a call to `emit('error', err)` is
+    not treated as finished. **Default**: `true`.
+  * `readable` {boolean} When set to `false`, the callback will be called when
+    the stream ends even though the stream might still be readable.
+    **Default**: `true`.
+  * `writable` {boolean} When set to `false`, the callback will be called when
+    the stream ends even though the stream might still be writable.
+    **Default**: `true`.
 * `callback` {Function} A callback function that takes an optional error
   argument.
 
@@ -2438,7 +2447,7 @@ contain multi-byte characters.
 [zlib]: zlib.html
 [hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
 [pipeline]: #stream_stream_pipeline_streams_callback
-[finished]: #stream_stream_finished_stream_callback
+[finished]: #stream_stream_finished_stream_options_callback
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback

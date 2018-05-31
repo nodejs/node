@@ -91,8 +91,8 @@ const { promisify } = require('util');
 {
   const rs = fs.createReadStream('file-does-not-exist');
 
-  finished(rs, common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ENOENT');
+  finished(rs, common.expectsError({
+    code: 'ENOENT'
   }));
 }
 
@@ -116,6 +116,40 @@ const { promisify } = require('util');
   }));
 
   rs.emit('close'); // should trigger error
+  rs.push(null);
+  rs.resume();
+}
+
+// Test faulty input values and options.
+{
+  const rs = new Readable({
+    read() {}
+  });
+
+  assert.throws(
+    () => finished(rs, 'foo'),
+    {
+      name: /ERR_INVALID_ARG_TYPE/,
+      message: /callback/
+    }
+  );
+  assert.throws(
+    () => finished(rs, 'foo', () => {}),
+    {
+      name: /ERR_INVALID_ARG_TYPE/,
+      message: /opts/
+    }
+  );
+  assert.throws(
+    () => finished(rs, {}, 'foo'),
+    {
+      name: /ERR_INVALID_ARG_TYPE/,
+      message: /callback/
+    }
+  );
+
+  finished(rs, null, common.mustCall());
+
   rs.push(null);
   rs.resume();
 }
