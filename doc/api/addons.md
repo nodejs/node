@@ -72,11 +72,11 @@ void Method(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
 }
 
-void init(Local<Object> exports) {
+void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "hello", Method);
 }
 
-NODE_MODULE(NODE_GYP_MODULE_NAME, init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
 
 }  // namespace demo
 ```
@@ -95,8 +95,8 @@ There is no semi-colon after `NODE_MODULE` as it's not a function (see
 The `module_name` must match the filename of the final binary (excluding
 the `.node` suffix).
 
-In the `hello.cc` example, then, the initialization function is `init` and the
-Addon module name is `addon`.
+In the `hello.cc` example, then, the initialization function is `Initialize`
+and the addon module name is `addon`.
 
 ### Building
 
