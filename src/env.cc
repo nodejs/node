@@ -493,6 +493,9 @@ void Environment::ToggleTimerRef(bool ref) {
 void Environment::RunTimers(uv_timer_t* handle) {
   Environment* env = Environment::from_timer_handle(handle);
 
+  if (!env->can_call_into_js())
+    return;
+
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
@@ -509,7 +512,10 @@ void Environment::RunTimers(uv_timer_t* handle) {
     TryCatch try_catch(env->isolate());
     try_catch.SetVerbose(true);
     ret = cb->Call(env->context(), process, 1, &arg);
-  } while (ret.IsEmpty());
+  } while (ret.IsEmpty() && env->can_call_into_js());
+
+  if (!env->can_call_into_js())
+    return;
 
   // To allow for less JS-C++ boundary crossing, the value returned from JS
   // serves a few purposes:
