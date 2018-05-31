@@ -35,7 +35,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 pre, tt, code, .pre, span.type, a.type {
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
+  font-family: SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: .9em;
 }
 
