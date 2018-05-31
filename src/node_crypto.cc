@@ -2806,9 +2806,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
       return false;
     }
 
-    // When decrypting in CCM mode, this field will be set in setAuthTag().
-    if (kind_ == kCipher)
-      auth_tag_len_ = auth_tag_len;
+    auth_tag_len_ = auth_tag_len;
 
     // The message length is restricted to 2 ^ (8 * (15 - iv_len)) - 1 bytes.
     CHECK(iv_len >= 7 && iv_len <= 13);
@@ -2824,7 +2822,7 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
       if (!IsValidGCMTagLength(auth_tag_len)) {
         char msg[50];
         snprintf(msg, sizeof(msg),
-            "Invalid GCM authentication tag length: %u", auth_tag_len);
+            "Invalid authentication tag length: %u", auth_tag_len);
         env()->ThrowError(msg);
         return false;
       }
@@ -2891,21 +2889,26 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   // Restrict GCM tag lengths according to NIST 800-38d, page 9.
   unsigned int tag_len = Buffer::Length(args[0]);
   const int mode = EVP_CIPHER_CTX_mode(cipher->ctx_.get());
+  bool is_valid;
   if (mode == EVP_CIPH_GCM_MODE) {
-    if ((cipher->auth_tag_len_ != kNoAuthTagLength &&
-        cipher->auth_tag_len_ != tag_len) ||
-        !IsValidGCMTagLength(tag_len)) {
-      char msg[50];
-      snprintf(msg, sizeof(msg),
-          "Invalid GCM authentication tag length: %u", tag_len);
-      return cipher->env()->ThrowError(msg);
-    }
+    is_valid = (cipher->auth_tag_len_ == kNoAuthTagLength ||
+                cipher->auth_tag_len_ == tag_len) &&
+               IsValidGCMTagLength(tag_len);
+  } else {
+    CHECK_EQ(mode, EVP_CIPH_CCM_MODE);
+    CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
+    is_valid = cipher->auth_tag_len_ == tag_len;
   }
 
-  // Note: we don't use std::min() here to work around a header conflict.
+  if (!is_valid) {
+    char msg[50];
+    snprintf(msg, sizeof(msg),
+        "Invalid authentication tag length: %u", tag_len);
+    return cipher->env()->ThrowError(msg);
+  }
+
   cipher->auth_tag_len_ = tag_len;
-  if (cipher->auth_tag_len_ > sizeof(cipher->auth_tag_))
-    cipher->auth_tag_len_ = sizeof(cipher->auth_tag_);
+  CHECK_LE(cipher->auth_tag_len_, sizeof(cipher->auth_tag_));
 
   memset(cipher->auth_tag_, 0, sizeof(cipher->auth_tag_));
   memcpy(cipher->auth_tag_, Buffer::Data(args[0]), cipher->auth_tag_len_);
