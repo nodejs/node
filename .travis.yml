@@ -6,16 +6,10 @@ cache: ccache
 matrix:
   include:
     - os: linux
-      node_js: "8"
+      node_js: "latest"
       script:
         - NODE=$(which node) make lint-ci
     - os: linux
-      install:
-        - ./configure
-        - make -j2 V=
-      script:
-        - make -j2 test-ci
-    - os: osx
       install:
         - ./configure
         - make -j2 V=
