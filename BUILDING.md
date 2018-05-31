@@ -41,7 +41,7 @@ platforms in production.
 |--------------|--------------|----------------------------------|----------------------|------------------|
 | GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x64, arm             |                  |
 | GNU/Linux    | Tier 1       | kernel >= 3.10, glibc >= 2.17    | arm64                |                  |
-| macOS / OS X | Tier 1       | >= 10.10                         | x64                  |                  |
+| macOS/OS X | Tier 1       | >= 10.10                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7/2008 R2/2012 R2     | x86, x64             | vs2017           |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
@@ -115,7 +115,7 @@ using the `--openssl-no-asm` flag.
 *Note:* All prerequisites can be easily installed by following
 [this bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md).
 
-### Unix / macOS
+### Unix/macOS
 
 #### Prerequisites
 
@@ -330,7 +330,7 @@ With the `--download=all`, this may download ICU if you don't have an
 ICU in `deps/icu`. (The embedded `small-icu` included in the default
 Node.js source does not include all locales.)
 
-##### Unix / macOS:
+##### Unix/macOS:
 
 ```console
 $ ./configure --with-intl=full-icu --download=all
@@ -347,7 +347,7 @@ $ ./configure --with-intl=full-icu --download=all
 The `Intl` object will not be available, nor some other APIs such as
 `String.normalize`.
 
-##### Unix / macOS:
+##### Unix/macOS:
 
 ```console
 $ ./configure --without-intl
@@ -359,7 +359,7 @@ $ ./configure --without-intl
 > .\vcbuild without-intl
 ```
 
-#### Use existing installed ICU (Unix / macOS only):
+#### Use existing installed ICU (Unix/macOS only):
 
 ```console
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
@@ -375,7 +375,7 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
-##### Unix / macOS
+##### Unix/macOS
 
 From an already-unpacked ICU:
 ```console
@@ -411,7 +411,7 @@ This version of Node.js does not support FIPS.
 It is possible to specify one or more JavaScript text files to be bundled in
 the binary as builtin modules when building Node.js.
 
-### Unix / macOS
+### Unix/macOS
 
 This command will make `/root/myModule.js` available via
 `require('/root/myModule')` and `./myModule2.js` available via
