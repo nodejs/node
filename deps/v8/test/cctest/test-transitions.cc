@@ -9,9 +9,9 @@
 
 #include "src/compilation-cache.h"
 #include "src/execution.h"
-#include "src/factory.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/transitions.h"
 #include "test/cctest/cctest.h"
@@ -50,7 +50,7 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   }
   {
     TestTransitionsAccessor transitions(map0);
-    CHECK(transitions.IsWeakCellEncoding());
+    CHECK(transitions.IsWeakRefEncoding());
     CHECK_EQ(*map1, transitions.SearchTransition(*name1, kData, attributes));
     CHECK_EQ(1, transitions.NumberOfTransitions());
     CHECK_EQ(*name1, transitions.GetKey(0));

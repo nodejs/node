@@ -258,7 +258,8 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
          op->opcode() == IrOpcode::kJSInstanceOf ||
-         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
+         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         op->opcode() == IrOpcode::kJSStoreInArrayLiteral);
   return OpParameter<FeedbackParameter>(op);
 }
 
@@ -411,10 +412,61 @@ std::ostream& operator<<(std::ostream& os, CreateArrayParameters const& p) {
   return os;
 }
 
-
 const CreateArrayParameters& CreateArrayParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, op->opcode());
   return OpParameter<CreateArrayParameters>(op);
+}
+
+bool operator==(CreateArrayIteratorParameters const& lhs,
+                CreateArrayIteratorParameters const& rhs) {
+  return lhs.kind() == rhs.kind();
+}
+
+bool operator!=(CreateArrayIteratorParameters const& lhs,
+                CreateArrayIteratorParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CreateArrayIteratorParameters const& p) {
+  return static_cast<size_t>(p.kind());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateArrayIteratorParameters const& p) {
+  return os << p.kind();
+}
+
+const CreateArrayIteratorParameters& CreateArrayIteratorParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateArrayIterator, op->opcode());
+  return OpParameter<CreateArrayIteratorParameters>(op);
+}
+
+bool operator==(CreateCollectionIteratorParameters const& lhs,
+                CreateCollectionIteratorParameters const& rhs) {
+  return lhs.collection_kind() == rhs.collection_kind() &&
+         lhs.iteration_kind() == rhs.iteration_kind();
+}
+
+bool operator!=(CreateCollectionIteratorParameters const& lhs,
+                CreateCollectionIteratorParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CreateCollectionIteratorParameters const& p) {
+  return base::hash_combine(static_cast<size_t>(p.collection_kind()),
+                            static_cast<size_t>(p.iteration_kind()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateCollectionIteratorParameters const& p) {
+  return os << p.collection_kind() << " " << p.iteration_kind();
+}
+
+const CreateCollectionIteratorParameters& CreateCollectionIteratorParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateCollectionIterator, op->opcode());
+  return OpParameter<CreateCollectionIteratorParameters>(op);
 }
 
 bool operator==(CreateBoundFunctionParameters const& lhs,
@@ -573,6 +625,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(CreateStringIterator, Operator::kEliminatable, 1, 1)               \
   V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)                \
   V(CreatePromise, Operator::kEliminatable, 0, 1)                      \
+  V(CreateTypedArray, Operator::kNoProperties, 5, 1)                   \
   V(HasProperty, Operator::kNoProperties, 2, 1)                        \
   V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                \
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                \
@@ -745,6 +798,17 @@ const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
       parameters);                     // parameter
 }
 
+const Operator* JSOperatorBuilder::StoreInArrayLiteral(
+    const VectorSlotPair& feedback) {
+  FeedbackParameter parameters(feedback);
+  return new (zone()) Operator1<FeedbackParameter>(  // --
+      IrOpcode::kJSStoreInArrayLiteral,
+      Operator::kNoThrow,       // opcode
+      "JSStoreInArrayLiteral",  // name
+      3, 1, 1, 0, 1, 0,         // counts
+      parameters);              // parameter
+}
+
 const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,
                                                       uint32_t start_index) {
   CallForwardVarargsParameters parameters(arity, start_index);
@@ -911,12 +975,22 @@ const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
       register_count);                                  // parameter
 }
 
+int GeneratorStoreRegisterCountOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorStore, op->opcode());
+  return OpParameter<int>(op);
+}
+
 const Operator* JSOperatorBuilder::GeneratorRestoreRegister(int index) {
   return new (zone()) Operator1<int>(                             // --
       IrOpcode::kJSGeneratorRestoreRegister, Operator::kNoThrow,  // opcode
       "JSGeneratorRestoreRegister",                               // name
       1, 1, 1, 1, 1, 0,                                           // counts
       index);                                                     // parameter
+}
+
+int RestoreRegisterIndexOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreRegister, op->opcode());
+  return OpParameter<int>(op);
 }
 
 const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
@@ -1049,6 +1123,24 @@ const Operator* JSOperatorBuilder::CreateArray(size_t arity,
       parameters);                                        // parameter
 }
 
+const Operator* JSOperatorBuilder::CreateArrayIterator(IterationKind kind) {
+  CreateArrayIteratorParameters parameters(kind);
+  return new (zone()) Operator1<CreateArrayIteratorParameters>(   // --
+      IrOpcode::kJSCreateArrayIterator, Operator::kEliminatable,  // opcode
+      "JSCreateArrayIterator",                                    // name
+      1, 1, 1, 1, 1, 0,                                           // counts
+      parameters);                                                // parameter
+}
+
+const Operator* JSOperatorBuilder::CreateCollectionIterator(
+    CollectionKind collection_kind, IterationKind iteration_kind) {
+  CreateCollectionIteratorParameters parameters(collection_kind,
+                                                iteration_kind);
+  return new (zone()) Operator1<CreateCollectionIteratorParameters>(
+      IrOpcode::kJSCreateCollectionIterator, Operator::kEliminatable,
+      "JSCreateCollectionIterator", 1, 1, 1, 1, 1, 0, parameters);
+}
+
 const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
                                                        Handle<Map> map) {
   // bound_target_function, bound_this, arg1, ..., argN
@@ -1168,6 +1260,12 @@ const Operator* JSOperatorBuilder::CreateBlockContext(
       "JSCreateBlockContext",                                    // name
       1, 1, 1, 1, 1, 2,                                          // counts
       scope_info);                                               // parameter
+}
+
+Handle<ScopeInfo> ScopeInfoOf(const Operator* op) {
+  DCHECK(IrOpcode::kJSCreateBlockContext == op->opcode() ||
+         IrOpcode::kJSCreateWithContext == op->opcode());
+  return OpParameter<Handle<ScopeInfo>>(op);
 }
 
 #undef BINARY_OP_LIST

@@ -491,6 +491,13 @@ int OS::GetCurrentThreadId() {
 #endif
 }
 
+void OS::ExitProcess(int exit_code) {
+  // Use _exit instead of exit to avoid races between isolate
+  // threads and static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
+}
 
 // ----------------------------------------------------------------------------
 // POSIX date/time support.

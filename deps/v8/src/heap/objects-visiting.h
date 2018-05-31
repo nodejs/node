@@ -40,7 +40,6 @@ class JSWeakCollection;
   V(JSArrayBuffer)               \
   V(JSFunction)                  \
   V(JSObject)                    \
-  V(JSRegExp)                    \
   V(JSWeakCollection)            \
   V(Map)                         \
   V(Oddball)                     \
@@ -55,7 +54,9 @@ class JSWeakCollection;
   V(Symbol)                      \
   V(ThinString)                  \
   V(TransitionArray)             \
-  V(WeakCell)
+  V(WasmInstanceObject)          \
+  V(WeakCell)                    \
+  V(WeakFixedArray)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using
@@ -83,6 +84,9 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE bool ShouldVisitMapPointer() { return true; }
   // A callback for visiting the map pointer in the object header.
   V8_INLINE void VisitMapPointer(HeapObject* host, HeapObject** map);
+  // If this predicate returns false, then the heap visitor will fail
+  // in default Visit implemention for subclasses of JSObject.
+  V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
 
 #define VISIT(type) V8_INLINE ResultType Visit##type(Map* map, type* object);
   TYPED_VISITOR_ID_LIST(VISIT)

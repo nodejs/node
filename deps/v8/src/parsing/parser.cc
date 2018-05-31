@@ -448,6 +448,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_bigint(FLAG_harmony_bigint);
+  set_allow_harmony_numeric_separator(FLAG_harmony_numeric_separator);
   set_allow_harmony_optional_catch_binding(FLAG_harmony_optional_catch_binding);
   set_allow_harmony_private_fields(FLAG_harmony_private_fields);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
@@ -693,7 +694,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_EQ(factory()->zone(), info->zone());
 
   // Initialize parser state.
-  Handle<String> name(shared_info->name());
+  Handle<String> name(shared_info->Name());
   info->set_function_name(ast_value_factory()->GetString(name));
   scanner_.Initialize(info->character_stream(), info->is_module());
 
@@ -3491,35 +3492,10 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
   DCHECK_EQ(cooked_strings->length(), expressions->length() + 1);
 
   if (!tag) {
-    Expression* first_string =
-        factory()->NewStringLiteral(cooked_strings->at(0), kNoSourcePosition);
-    if (expressions->length() == 0) return first_string;
-
-    // Build N-ary addition op to simplify code-generation.
-    // TODO(leszeks): Could we just store this expression in the
-    // TemplateLiteralState and build it as we go?
-    NaryOperation* expr = factory()->NewNaryOperation(
-        Token::ADD, first_string, 2 * expressions->length());
-
-    int i = 0;
-    while (i < expressions->length()) {
-      Expression* sub = expressions->at(i++);
-      const AstRawString* cooked_str = cooked_strings->at(i);
-      DCHECK_NOT_NULL(cooked_str);
-
-      // Let middle be ToString(sub).
-      ZoneList<Expression*>* args =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      args->Add(sub, zone());
-      Expression* sub_to_string = factory()->NewCallRuntime(
-          Runtime::kInlineToString, args, sub->position());
-
-      expr->AddSubsequent(sub_to_string, sub->position());
-      expr->AddSubsequent(
-          factory()->NewStringLiteral(cooked_str, kNoSourcePosition),
-          sub->position());
+    if (cooked_strings->length() == 1) {
+      return factory()->NewStringLiteral(cooked_strings->first(), pos);
     }
-    return expr;
+    return factory()->NewTemplateLiteral(cooked_strings, expressions, pos);
   } else {
     // GetTemplateObject
     Expression* template_object =
@@ -3547,96 +3523,52 @@ bool OnlyLastArgIsSpread(ZoneList<Expression*>* args) {
 
 }  // namespace
 
-ZoneList<Expression*>* Parser::PrepareSpreadArguments(
+ArrayLiteral* Parser::ArrayLiteralFromListWithSpread(
     ZoneList<Expression*>* list) {
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
-  if (list->length() == 1) {
-    // Spread-call with single spread argument produces an InternalArray
-    // containing the values from the array.
-    //
-    // Function is called or constructed with the produced array of arguments
-    //
-    // EG: Apply(Func, Spread(spread0))
-    ZoneList<Expression*>* spread_list =
-        new (zone()) ZoneList<Expression*>(0, zone());
-    spread_list->Add(list->at(0)->AsSpread()->expression(), zone());
-    args->Add(factory()->NewCallRuntime(Runtime::kSpreadIterablePrepare,
-                                        spread_list, kNoSourcePosition),
-              zone());
-    return args;
-  } else {
-    // Spread-call with multiple arguments produces array literals for each
-    // sequences of unspread arguments, and converts each spread iterable to
-    // an Internal array. Finally, all of these produced arrays are flattened
-    // into a single InternalArray, containing the arguments for the call.
-    //
-    // EG: Apply(Func, Flatten([unspread0, unspread1], Spread(spread0),
-    //                         Spread(spread1), [unspread2, unspread3]))
-    int i = 0;
-    int n = list->length();
-    while (i < n) {
-      if (!list->at(i)->IsSpread()) {
-        ZoneList<Expression*>* unspread =
-            new (zone()) ZoneList<Expression*>(1, zone());
+  // If there's only a single spread argument, a fast path using CallWithSpread
+  // is taken.
+  DCHECK_LT(1, list->length());
 
-        // Push array of unspread parameters
-        while (i < n && !list->at(i)->IsSpread()) {
-          unspread->Add(list->at(i++), zone());
-        }
-        args->Add(factory()->NewArrayLiteral(unspread, kNoSourcePosition),
-                  zone());
-
-        if (i == n) break;
-      }
-
-      // Push eagerly spread argument
-      ZoneList<Expression*>* spread_list =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      spread_list->Add(list->at(i++)->AsSpread()->expression(), zone());
-      args->Add(factory()->NewCallRuntime(Context::SPREAD_ITERABLE_INDEX,
-                                          spread_list, kNoSourcePosition),
-                zone());
-    }
-
-    list = new (zone()) ZoneList<Expression*>(1, zone());
-    list->Add(factory()->NewCallRuntime(Context::SPREAD_ARGUMENTS_INDEX, args,
-                                        kNoSourcePosition),
-              zone());
-    return list;
+  // The arguments of the spread call become a single ArrayLiteral.
+  int first_spread = 0;
+  for (; first_spread < list->length() && !list->at(first_spread)->IsSpread();
+       ++first_spread) {
   }
-  UNREACHABLE();
+
+  DCHECK_LT(first_spread, list->length());
+  return factory()->NewArrayLiteral(list, first_spread, kNoSourcePosition);
 }
 
 Expression* Parser::SpreadCall(Expression* function,
-                               ZoneList<Expression*>* args, int pos,
+                               ZoneList<Expression*>* args_list, int pos,
                                Call::PossiblyEval is_possibly_eval) {
   // Handle this case in BytecodeGenerator.
-  if (OnlyLastArgIsSpread(args)) {
-    return factory()->NewCall(function, args, pos);
+  if (OnlyLastArgIsSpread(args_list)) {
+    return factory()->NewCall(function, args_list, pos);
   }
 
   if (function->IsSuperCallReference()) {
     // Super calls
     // $super_constructor = %_GetSuperConstructor(<this-function>)
     // %reflect_construct($super_constructor, args, new.target)
-
-    args = PrepareSpreadArguments(args);
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
-    Expression* super_constructor = factory()->NewCallRuntime(
-        Runtime::kInlineGetSuperConstructor, tmp, pos);
-    args->InsertAt(0, super_constructor, zone());
+    args->Add(factory()->NewCallRuntime(Runtime::kInlineGetSuperConstructor,
+                                        tmp, pos),
+              zone());
+    args->Add(ArrayLiteralFromListWithSpread(args_list), zone());
     args->Add(function->AsSuperCallReference()->new_target_var(), zone());
     return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args,
                                      pos);
   } else {
-    args = PrepareSpreadArguments(args);
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
     if (function->IsProperty()) {
       // Method calls
       if (function->AsProperty()->IsSuperAccess()) {
         Expression* home = ThisExpression(kNoSourcePosition);
-        args->InsertAt(0, function, zone());
-        args->InsertAt(1, home, zone());
+        args->Add(function, zone());
+        args->Add(home, zone());
       } else {
         Variable* temp = NewTemporary(ast_value_factory()->empty_string());
         VariableProxy* obj = factory()->NewVariableProxy(temp);
@@ -3645,28 +3577,29 @@ Expression* Parser::SpreadCall(Expression* function,
             kNoSourcePosition);
         function = factory()->NewProperty(
             assign_obj, function->AsProperty()->key(), kNoSourcePosition);
-        args->InsertAt(0, function, zone());
+        args->Add(function, zone());
         obj = factory()->NewVariableProxy(temp);
-        args->InsertAt(1, obj, zone());
+        args->Add(obj, zone());
       }
     } else {
       // Non-method calls
-      args->InsertAt(0, function, zone());
-      args->InsertAt(1, factory()->NewUndefinedLiteral(kNoSourcePosition),
-                     zone());
+      args->Add(function, zone());
+      args->Add(factory()->NewUndefinedLiteral(kNoSourcePosition), zone());
     }
+    args->Add(ArrayLiteralFromListWithSpread(args_list), zone());
     return factory()->NewCallRuntime(Context::REFLECT_APPLY_INDEX, args, pos);
   }
 }
 
 Expression* Parser::SpreadCallNew(Expression* function,
-                                  ZoneList<Expression*>* args, int pos) {
-  if (OnlyLastArgIsSpread(args)) {
+                                  ZoneList<Expression*>* args_list, int pos) {
+  if (OnlyLastArgIsSpread(args_list)) {
     // Handle in BytecodeGenerator.
-    return factory()->NewCallNew(function, args, pos);
+    return factory()->NewCallNew(function, args_list, pos);
   }
-  args = PrepareSpreadArguments(args);
-  args->InsertAt(0, function, zone());
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(function, zone());
+  args->Add(ArrayLiteralFromListWithSpread(args_list), zone());
 
   return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args, pos);
 }

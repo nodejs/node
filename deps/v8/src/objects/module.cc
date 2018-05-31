@@ -900,5 +900,28 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Handle<String> name) {
   return value;
 }
 
+Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
+    LookupIterator* it) {
+  Handle<JSModuleNamespace> object = it->GetHolder<JSModuleNamespace>();
+  Handle<String> name = Handle<String>::cast(it->GetName());
+  DCHECK_EQ(it->state(), LookupIterator::ACCESSOR);
+
+  Isolate* isolate = name->GetIsolate();
+
+  Handle<Object> lookup(object->module()->exports()->Lookup(name), isolate);
+  if (lookup->IsTheHole(isolate)) {
+    return Just(ABSENT);
+  }
+
+  Handle<Object> value(Handle<Cell>::cast(lookup)->value(), isolate);
+  if (value->IsTheHole(isolate)) {
+    isolate->Throw(*isolate->factory()->NewReferenceError(
+        MessageTemplate::kNotDefined, name));
+    return Nothing<PropertyAttributes>();
+  }
+
+  return Just(it->property_attributes());
+}
+
 }  // namespace internal
 }  // namespace v8

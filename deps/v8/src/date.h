@@ -75,13 +75,9 @@ class DateCache {
     return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
   }
 
-
-  // ECMA 262 - 15.9.1.7.
-  int LocalOffsetInMs() {
-    if (local_offset_ms_ == kInvalidLocalOffsetInMs)  {
-      local_offset_ms_ = GetLocalOffsetFromOS();
-    }
-    return local_offset_ms_;
+  // ECMA 262 - ES#sec-local-time-zone-adjustment
+  int LocalOffsetInMs(int64_t time, bool is_utc) {
+    return GetLocalOffsetFromOS(time, is_utc);
   }
 
 
@@ -103,53 +99,16 @@ class DateCache {
     return static_cast<int>((time_ms - local_ms) / kMsPerMin);
   }
 
-  // ECMA 262 - 15.9.1.9
-  // LocalTime(t) = t + LocalTZA + DaylightSavingTA(t)
+  // ECMA 262 - ES#sec-localtime-t
+  // LocalTime(t) = t + LocalTZA(t, true)
   int64_t ToLocal(int64_t time_ms) {
-    return time_ms + LocalOffsetInMs() + DaylightSavingsOffsetInMs(time_ms);
+    return time_ms + LocalOffsetInMs(time_ms, true);
   }
 
-  // ECMA 262 - 15.9.1.9
-  // UTC(t) = t - LocalTZA - DaylightSavingTA(t - LocalTZA)
+  // ECMA 262 - ES#sec-utc-t
+  // UTC(t) = t - LocalTZA(t, false)
   int64_t ToUTC(int64_t time_ms) {
-    // We need to compute UTC time that corresponds to the given local time.
-    // Literally following spec here leads to incorrect time computation at
-    // the points were we transition to and from DST.
-    //
-    // The following shows that using DST for (t - LocalTZA - hour) produces
-    // correct conversion.
-    //
-    // Consider transition to DST at local time L1.
-    // Let L0 = L1 - hour, L2 = L1 + hour,
-    //     U1 = UTC time that corresponds to L1,
-    //     U0 = U1 - hour.
-    // Transitioning to DST moves local clock one hour forward L1 => L2, so
-    // U0 = UTC time that corresponds to L0 = L0 - LocalTZA,
-    // U1 = UTC time that corresponds to L1 = L1 - LocalTZA,
-    // U1 = UTC time that corresponds to L2 = L2 - LocalTZA - hour.
-    // Note that DST(U0 - hour) = 0, DST(U0) = 0, DST(U1) = 1.
-    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour),
-    // U1 = L1 - LocalTZA - DST(L1 - LocalTZA - hour),
-    // U1 = L2 - LocalTZA - DST(L2 - LocalTZA - hour).
-    //
-    // Consider transition from DST at local time L1.
-    // Let L0 = L1 - hour,
-    //     U1 = UTC time that corresponds to L1,
-    //     U0 = U1 - hour, U2 = U1 + hour.
-    // Transitioning from DST moves local clock one hour back L1 => L0, so
-    // U0 = UTC time that corresponds to L0 (before transition)
-    //    = L0 - LocalTZA - hour.
-    // U1 = UTC time that corresponds to L0 (after transition)
-    //    = L0 - LocalTZA = L1 - LocalTZA - hour
-    // U2 = UTC time that corresponds to L1 = L1 - LocalTZA.
-    // Note that DST(U0) = 1, DST(U1) = 0, DST(U2) = 0.
-    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour) = L0 - LocalTZA - DST(U0).
-    // U2 = L1 - LocalTZA - DST(L1 - LocalTZA - hour) = L1 - LocalTZA - DST(U1).
-    // It is impossible to get U1 from local time.
-
-    const int kMsPerHour = 3600 * 1000;
-    time_ms -= LocalOffsetInMs();
-    return time_ms - DaylightSavingsOffsetInMs(time_ms - kMsPerHour);
+    return time_ms - LocalOffsetInMs(time_ms, false);
   }
 
 
@@ -208,11 +167,7 @@ class DateCache {
     return static_cast<int>(tz_cache_->DaylightSavingsOffset(time_ms));
   }
 
-  virtual int GetLocalOffsetFromOS() {
-    double offset = tz_cache_->LocalTimeOffset();
-    DCHECK_LT(offset, kInvalidLocalOffsetInMs);
-    return static_cast<int>(offset);
-  }
+  virtual int GetLocalOffsetFromOS(int64_t time_ms, bool is_utc);
 
  private:
   // The implementation relies on the fact that no time zones have

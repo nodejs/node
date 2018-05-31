@@ -313,12 +313,6 @@ typedef ZoneVector<Node*> NodeVector;
 typedef ZoneVector<NodeVector> NodeVectorVector;
 
 
-// Helper to extract parameters from Operator1<*> nodes.
-template <typename T>
-static inline const T& OpParameter(const Node* node) {
-  return OpParameter<T>(node->op());
-}
-
 class Node::InputEdges final {
  public:
   typedef Edge value_type;

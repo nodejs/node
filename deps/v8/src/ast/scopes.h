@@ -590,8 +590,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Variable* LookupRecursive(ParseInfo* info, VariableProxy* proxy,
                             Scope* outer_scope_end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
-  MUST_USE_RESULT bool ResolveVariable(ParseInfo* info, VariableProxy* proxy);
-  MUST_USE_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
+  V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
+                                             VariableProxy* proxy);
+  V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
@@ -854,7 +855,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Returns false if private fields can not be resolved and
   // ParseInfo's pending_error_handler will be populated with an
   // error. Otherwise, returns true.
-  MUST_USE_RESULT
+  V8_WARN_UNUSED_RESULT
   static bool Analyze(ParseInfo* info);
 
   // To be called during parsing. Do just enough scope analysis that we can
@@ -899,6 +900,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool is_skipped_function() const { return is_skipped_function_; }
   void set_is_skipped_function(bool is_skipped_function) {
     is_skipped_function_ = is_skipped_function;
+  }
+
+  bool has_inferred_function_name() const {
+    return has_inferred_function_name_;
+  }
+  void set_has_inferred_function_name(bool value) {
+    DCHECK(is_function_scope());
+    has_inferred_function_name_ = value;
   }
 
   // Save data describing the context allocation of the variables in this scope
@@ -952,6 +961,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool is_being_lazily_parsed_ : 1;
 #endif
   bool is_skipped_function_ : 1;
+  bool has_inferred_function_name_ : 1;
 
   // Parameter list in source order.
   ZoneList<Variable*> params_;

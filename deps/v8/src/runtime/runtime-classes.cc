@@ -32,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
-  Handle<String> name(constructor->shared()->name(), isolate);
+  Handle<String> name(constructor->shared()->Name(), isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
@@ -65,7 +65,7 @@ Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
                                  Handle<JSFunction> function) {
   Handle<String> super_name;
   if (constructor->IsJSFunction()) {
-    super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->name(),
+    super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->Name(),
                         isolate);
   } else if (constructor->IsOddball()) {
     DCHECK(constructor->IsNull(isolate));
@@ -77,7 +77,7 @@ Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
   if (super_name->length() == 0) {
     super_name = isolate->factory()->null_string();
   }
-  Handle<String> function_name(function->shared()->name(), isolate);
+  Handle<String> function_name(function->shared()->Name(), isolate);
   // anonymous class
   if (function_name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -158,7 +158,7 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
 
   SetHomeObject(isolate, *method, *home_object);
 
-  if (!method->shared()->has_shared_name()) {
+  if (!method->shared()->HasSharedName()) {
     // TODO(ishell): method does not have a shared name at this point only if
     // the key is a computed property name. However, the bytecode generator
     // explicitly generates ToName bytecodes to ensure that the computed
@@ -195,7 +195,7 @@ Object* GetMethodWithSharedNameAndSetHomeObject(Isolate* isolate,
 
   SetHomeObject(isolate, *method, home_object);
 
-  DCHECK(method->shared()->has_shared_name());
+  DCHECK(method->shared()->HasSharedName());
   return *method;
 }
 

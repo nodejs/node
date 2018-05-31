@@ -29,13 +29,13 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
       : AsyncBuiltinsAssembler(state) {}
 
   inline Node* TaggedIsAsyncGenerator(Node* tagged_object) {
-    Node* if_notsmi = TaggedIsNotSmi(tagged_object);
-    return Select(if_notsmi,
-                  [=]() {
-                    return HasInstanceType(tagged_object,
-                                           JS_ASYNC_GENERATOR_OBJECT_TYPE);
-                  },
-                  [=]() { return if_notsmi; }, MachineRepresentation::kBit);
+    TNode<BoolT> if_notsmi = TaggedIsNotSmi(tagged_object);
+    return Select<BoolT>(if_notsmi,
+                         [=] {
+                           return HasInstanceType(
+                               tagged_object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+                         },
+                         [=] { return if_notsmi; });
   }
   inline Node* LoadGeneratorState(Node* const generator) {
     return LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
@@ -518,11 +518,34 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
                                    done);
   }
 
-  // Perform Call(promiseCapability.[[Resolve]], undefined, «iteratorResult»).
-  CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
+  // We know that {iter_result} itself doesn't have any "then" property and
+  // we also know that the [[Prototype]] of {iter_result} is the intrinsic
+  // %ObjectPrototype%. So we can skip the [[Resolve]] logic here completely
+  // and directly call into the FulfillPromise operation if we can prove
+  // that the %ObjectPrototype% also doesn't have any "then" property. This
+  // is guarded by the Promise#then protector.
+  Label if_fast(this), if_slow(this, Label::kDeferred), return_promise(this);
+  GotoIfForceSlowPath(&if_slow);
+  Branch(IsPromiseThenProtectorCellInvalid(), &if_slow, &if_fast);
+
+  BIND(&if_fast);
+  {
+    // Skip the "then" on {iter_result} and directly fulfill the {promise}
+    // with the {iter_result}.
+    CallBuiltin(Builtins::kFulfillPromise, context, promise, iter_result);
+    Goto(&return_promise);
+  }
+
+  BIND(&if_slow);
+  {
+    // Perform Call(promiseCapability.[[Resolve]], undefined, «iteratorResult»).
+    CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
+    Goto(&return_promise);
+  }
 
   // Per spec, AsyncGeneratorResolve() returns undefined. However, for the
   // benefit of %TraceExit(), return the Promise.
+  BIND(&return_promise);
   Return(promise);
 }
 
@@ -548,11 +571,42 @@ TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
   Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
   Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(request);
 
+  // Mark the generator as "awaiting".
   SetGeneratorAwaiting(generator);
-  Await(context, generator, value, outer_promise,
-        Builtins::kAsyncGeneratorYieldFulfill,
-        Builtins::kAsyncGeneratorAwaitReject, is_caught);
-  Return(UndefinedConstant());
+
+  // We can skip the creation of a temporary promise and the whole
+  // [[Resolve]] logic if we already know that the {value} that's
+  // being yielded is a primitive, as in that case we would immediately
+  // fulfill the temporary promise anyways and schedule a fulfill
+  // reaction job. This gives a nice performance boost for async
+  // generators that yield only primitives, e.g. numbers or strings.
+  Label if_primitive(this), if_generic(this);
+  GotoIfForceSlowPath(&if_generic);
+  GotoIf(IsPromiseHookEnabledOrDebugIsActive(), &if_generic);
+  GotoIf(TaggedIsSmi(value), &if_primitive);
+  Branch(IsJSReceiver(value), &if_generic, &if_primitive);
+
+  BIND(&if_generic);
+  {
+    Await(context, generator, value, outer_promise,
+          Builtins::kAsyncGeneratorYieldFulfill,
+          Builtins::kAsyncGeneratorAwaitReject, is_caught);
+    Return(UndefinedConstant());
+  }
+
+  BIND(&if_primitive);
+  {
+    // For primitive {value}s we can skip the allocation of the temporary
+    // promise and the resolution of that, and directly allocate the fulfill
+    // reaction job.
+    Node* const microtask = AllocatePromiseReactionJobTask(
+        Heap::kPromiseFulfillReactionJobTaskMapRootIndex, context, value,
+        HeapConstant(Builtins::CallableFor(
+                         isolate(), Builtins::kAsyncGeneratorYieldFulfill)
+                         .code()),
+        generator);
+    TailCallBuiltin(Builtins::kEnqueueMicrotask, context, microtask);
+  }
 }
 
 TF_BUILTIN(AsyncGeneratorYieldFulfill, AsyncGeneratorBuiltinsAssembler) {

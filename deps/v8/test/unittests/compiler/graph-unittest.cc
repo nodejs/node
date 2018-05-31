@@ -5,7 +5,7 @@
 #include "test/unittests/compiler/graph-unittest.h"
 
 #include "src/compiler/node-properties.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
 #include "test/unittests/compiler/node-test-utils.h"
 

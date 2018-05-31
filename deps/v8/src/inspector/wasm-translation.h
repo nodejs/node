@@ -56,6 +56,13 @@ class WasmTranslation {
                                                      int* line_number,
                                                      int* column_number);
 
+  const String16& GetSource(const String16& script_id, int func_index);
+  int GetStartLine(const String16& script_id, int func_index) { return 0; }
+  int GetStartColumn(const String16& script_id, int func_index) { return 0; }
+  int GetEndLine(const String16& script_id, int func_index);
+  int GetEndColumn(const String16& script_id, int func_index);
+  String16 GetHash(const String16& script_id, int func_index);
+
  private:
   class TranslatorImpl;
   friend class TranslatorImpl;

@@ -493,22 +493,39 @@ void String16Builder::append(const char* characters, size_t length) {
 }
 
 void String16Builder::appendNumber(int number) {
-  const int kBufferSize = 11;
+  constexpr int kBufferSize = 11;
   char buffer[kBufferSize];
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
-  DCHECK_GT(kBufferSize, chars);
+  DCHECK_LE(0, chars);
   m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 
 void String16Builder::appendNumber(size_t number) {
-  const int kBufferSize = 20;
+  constexpr int kBufferSize = 20;
   char buffer[kBufferSize];
 #if !defined(_WIN32) && !defined(_WIN64)
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
 #else
   int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
 #endif
-  DCHECK_GT(kBufferSize, chars);
+  DCHECK_LE(0, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
+void String16Builder::appendUnsignedAsHex(uint64_t number) {
+  constexpr int kBufferSize = 17;
+  char buffer[kBufferSize];
+  int chars =
+      v8::base::OS::SNPrintF(buffer, kBufferSize, "%016" PRIx64, number);
+  DCHECK_LE(0, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
+void String16Builder::appendUnsignedAsHex(uint32_t number) {
+  constexpr int kBufferSize = 9;
+  char buffer[kBufferSize];
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%08" PRIx32, number);
+  DCHECK_LE(0, chars);
   m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 

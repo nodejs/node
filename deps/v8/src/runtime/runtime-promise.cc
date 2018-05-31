@@ -74,6 +74,7 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   MicrotaskCallback callback = ToCData<MicrotaskCallback>(microtask_callback);
   void* data = ToCData<void*>(microtask_data);
   callback(data);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return isolate->heap()->undefined_value();
 }
 

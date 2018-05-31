@@ -20,7 +20,7 @@ Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
-CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_trusty_blink_rel;master.tryserver.chromium.linux:linux_optional_gpu_tests_rel;master.tryserver.chromium.mac:mac_optional_gpu_tests_rel;master.tryserver.chromium.win:win_optional_gpu_tests_rel;master.tryserver.chromium.android:android_optional_gpu_tests_rel""")
+CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_trusty_blink_rel;luci.chromium.try:linux_optional_gpu_tests_rel;luci.chromium.try:mac_optional_gpu_tests_rel;master.tryserver.chromium.win:win_optional_gpu_tests_rel;luci.chromium.try:android_optional_gpu_tests_rel""")
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -40,7 +40,7 @@ class DetectLastRoll(Step):
     self["last_roll"] = self._options.last_roll
     if not self["last_roll"]:
       # Interpret the DEPS file to retrieve the v8 revision.
-      # TODO(machenbach): This should be part or the roll-deps api of
+      # TODO(machenbach): This should be part or the setdep api of
       # depot_tools.
       Var = lambda var: '%s'
       exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
@@ -140,7 +140,7 @@ class UploadCL(Step):
     self['json_output']['monitoring_state'] = 'upload'
     cwd = self._options.chromium
     # Patch DEPS file.
-    if self.Command("roll-dep-svn", "v8 %s" %
+    if self.Command("gclient", "setdep -r src/v8@%s" %
                     self["roll"], cwd=cwd) is None:
       self.Die("Failed to create deps for %s" % self["roll"])
 

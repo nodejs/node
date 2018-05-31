@@ -1,0 +1,4 @@
+RuntimeError: unreachable
+    at test-module.main (wasm-function[0]:1)
+    at pair (*%(basename)s:17:27)
+    at promise.then.result (test/mjsunit/mjsunit.js:576:15)

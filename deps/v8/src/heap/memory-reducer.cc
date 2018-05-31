@@ -201,8 +201,8 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
 
 
 void MemoryReducer::ScheduleTimer(double time_ms, double delay_ms) {
-  if (!heap()->use_tasks()) return;
   DCHECK_LT(0, delay_ms);
+  if (heap()->IsTearingDown()) return;
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap()->isolate());

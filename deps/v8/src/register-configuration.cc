@@ -132,22 +132,10 @@ class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
             get_num_allocatable_double_registers(),
             InitializeGeneralRegisterCodes(), get_allocatable_double_codes(),
             kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
-            InitializeGeneralRegisterNames(), kFloatRegisterNames,
-            kDoubleRegisterNames, kSimd128RegisterNames) {}
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames) {}
 
  private:
-  static char const* const* InitializeGeneralRegisterNames() {
-    int filtered_index = 0;
-    for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
-      if (kAllocatableGeneralCodes[i] != kSpeculationPoisonRegister.code()) {
-        general_register_names_[filtered_index] = kGeneralRegisterNames[i];
-        filtered_index++;
-      }
-    }
-    DCHECK_EQ(filtered_index, kMaxAllocatableGeneralRegisterCount - 1);
-    return general_register_names_;
-  }
-
   static const int* InitializeGeneralRegisterCodes() {
     int filtered_index = 0;
     for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
@@ -161,14 +149,10 @@ class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
     return allocatable_general_codes_;
   }
 
-  static const char*
-      general_register_names_[kMaxAllocatableGeneralRegisterCount - 1];
   static int
       allocatable_general_codes_[kMaxAllocatableGeneralRegisterCount - 1];
 };
 
-const char* ArchDefaultPoisoningRegisterConfiguration::general_register_names_
-    [kMaxAllocatableGeneralRegisterCount - 1];
 int ArchDefaultPoisoningRegisterConfiguration::allocatable_general_codes_
     [kMaxAllocatableGeneralRegisterCount - 1];
 

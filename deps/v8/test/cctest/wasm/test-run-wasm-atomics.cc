@@ -2,55 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-atomics-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-typedef uint32_t (*Uint32BinOp)(uint32_t, uint32_t);
-typedef uint16_t (*Uint16BinOp)(uint16_t, uint16_t);
-typedef uint8_t (*Uint8BinOp)(uint8_t, uint8_t);
-
-template <typename T>
-T Add(T a, T b) {
-  return a + b;
-}
-
-template <typename T>
-T Sub(T a, T b) {
-  return a - b;
-}
-
-template <typename T>
-T And(T a, T b) {
-  return a & b;
-}
-
-template <typename T>
-T Or(T a, T b) {
-  return a | b;
-}
-
-template <typename T>
-T Xor(T a, T b) {
-  return a ^ b;
-}
-
-template <typename T>
-T Exchange(T a, T b) {
-  return b;
-}
-
-template <typename T>
-T CompareExchange(T initial, T a, T b) {
-  if (initial == a) return b;
-  return a;
-}
+namespace test_run_wasm_atomics {
 
 void RunU32BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
@@ -337,6 +295,7 @@ WASM_EXEC_TEST(I32AtomicStoreLoad8U) {
   }
 }
 
+}  // namespace test_run_wasm_atomics
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

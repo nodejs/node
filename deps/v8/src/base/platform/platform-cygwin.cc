@@ -66,7 +66,7 @@ uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
 class CygwinTimezoneCache : public PosixTimezoneCache {
   const char* LocalTimezone(double time) override;
 
-  double LocalTimeOffset() override;
+  double LocalTimeOffset(double time_ms, bool is_utc) override;
 
   ~CygwinTimezoneCache() override {}
 };
@@ -80,7 +80,7 @@ const char* CygwinTimezoneCache::LocalTimezone(double time) {
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
-double CygwinTimezoneCache::LocalTimeOffset() {
+double LocalTimeOffset(double time_ms, bool is_utc) {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(nullptr);
   DCHECK_NE(utc, -1);

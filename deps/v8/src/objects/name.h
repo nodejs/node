@@ -54,8 +54,9 @@ class Name : public HeapObject {
 
   // Return a string version of this name that is converted according to the
   // rules described in ES6 section 9.2.11.
-  MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(Handle<Name> name);
-  MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
+      Handle<Name> name);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
       Handle<Name> name, Handle<String> prefix);
 
   DECL_CAST(Name)

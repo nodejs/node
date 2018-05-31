@@ -9,8 +9,8 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
-#include "src/factory.h"
 #include "src/frame-constants.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/trap-handler/trap-handler.h"
@@ -31,18 +31,13 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
   Address pc =
       Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
-  WasmInstanceObject* owning_instance = nullptr;
-  if (FLAG_wasm_jit_to_native) {
-    owning_instance = WasmInstanceObject::GetOwningInstance(
-        isolate->wasm_engine()->code_manager()->LookupCode(pc));
-  } else {
-    owning_instance = WasmInstanceObject::GetOwningInstanceGC(
-        isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code);
-  }
+  WasmInstanceObject* owning_instance = WasmInstanceObject::GetOwningInstance(
+      isolate->wasm_engine()->code_manager()->LookupCode(pc));
   CHECK_NOT_NULL(owning_instance);
   return owning_instance;
 }
 
+// TODO(titzer): rename to GetNativeContextFromWasmInstanceOnStackTop()
 Context* GetWasmContextOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate)
       ->compiled_module()
@@ -82,8 +77,8 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   DCHECK_NULL(isolate->context());
   isolate->set_context(instance->compiled_module()->native_context());
 
-  return *isolate->factory()->NewNumberFromInt(
-      WasmInstanceObject::GrowMemory(isolate, instance, delta_pages));
+  return *isolate->factory()->NewNumberFromInt(WasmMemoryObject::Grow(
+      isolate, handle(instance->memory_object(), isolate), delta_pages));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
@@ -223,7 +218,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
         CHECK_LT(index, Smi::ToInt(values->length()));
         CONVERT_SMI_ARG_CHECKED(value, 1);
         auto* vals =
-            reinterpret_cast<uint16_t*>(values->GetBuffer()->allocation_base());
+            reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
         vals[index] = static_cast<uint16_t>(value);
       }
     }
@@ -292,19 +287,17 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
-  DCHECK_EQ(0, args.length());
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_WasmCompileLazy) {
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance_on_stack, 0);
+  // TODO(titzer): The location on the stack is not visited by the
+  // roots visitor because the type of the frame is a special
+  // WASM builtin. Reopen the handle in a handle scope as a workaround.
   HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance(*instance_on_stack, isolate);
 
-  if (FLAG_wasm_jit_to_native) {
-    Address new_func = wasm::CompileLazy(isolate);
-    // The alternative to this is having 2 lazy compile builtins. The builtins
-    // are part of the snapshot, so the flag has no impact on the codegen there.
-    return reinterpret_cast<Object*>(new_func - Code::kHeaderSize +
-                                     kHeapObjectTag);
-  } else {
-    return *wasm::CompileLazyOnGCHeap(isolate);
-  }
+  Address entrypoint = wasm::CompileLazy(isolate, instance);
+  return MakePair(reinterpret_cast<Object*>(entrypoint), *instance);
 }
 
 }  // namespace internal

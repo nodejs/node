@@ -31,7 +31,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/objects-inl.h"
@@ -56,7 +56,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   DoubleToIStub stub(isolate, destination_reg);
 
-  byte* start = stub.GetCode()->instruction_start();
+  byte* start = stub.GetCode()->raw_instruction_start();
 
   // Save callee save registers.
   __ MultiPush(kCalleeSaved | ra.bit());

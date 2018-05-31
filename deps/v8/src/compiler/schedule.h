@@ -274,6 +274,10 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Ensure properties of the CFG assumed by further stages.
   void EnsureCFGWellFormedness();
+  // Eliminates no-op phi nodes added for blocks that only have a single
+  // predecessor. This ensures the property required for SSA deconstruction that
+  // the target block of a control flow split has no phis.
+  void EliminateNoopPhiNodes(BasicBlock* block);
   // Ensure split-edge form for a hand-assembled schedule.
   void EnsureSplitEdgeForm(BasicBlock* block);
   // Ensure entry into a deferred block happens from a single hot block.

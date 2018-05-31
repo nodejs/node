@@ -35,6 +35,7 @@ class BoilerplateDescription : public FixedArray {
   void set_backing_store_size(Isolate* isolate, int backing_store_size);
 
   DECL_CAST(BoilerplateDescription)
+  DECL_PRINTER(BoilerplateDescription)
 
  private:
   bool has_number_of_properties() const;

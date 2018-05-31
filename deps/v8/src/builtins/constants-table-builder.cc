@@ -32,6 +32,8 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // Not yet finalized.
   DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
+
+  DCHECK(isolate_->serializer_enabled());
 #endif
 
   uint32_t* maybe_key = map_.Find(object);
@@ -49,6 +51,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
 
   DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
+  DCHECK(isolate_->serializer_enabled());
 
   DCHECK_LT(0, map_.size());
   Handle<FixedArray> table =

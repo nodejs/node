@@ -371,6 +371,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->constant_pool_size = 0;
   desc->origin = this;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
@@ -2130,7 +2131,7 @@ void Assembler::GrowBuffer(int needed) {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if (desc.buffer_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.

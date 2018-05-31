@@ -4,8 +4,9 @@
 
 Debug = debug.Debug
 
-listenerComplete = false;
-breakPointCount = 0;
+let listenerComplete = false;
+let breakPointCount = 0;
+let exceptionThrown = false;
 
 async function f() {
   await (async function() { var a = "a"; await 1; debugger; })();
@@ -13,7 +14,7 @@ async function f() {
   var b = "b";
 
   assertTrue(listenerDone);
-  assertFalse(exception);
+  assertFalse(exceptionThrown);
   assertEquals(1, breakpointCount);
 }
 
@@ -27,7 +28,7 @@ function listener(event, exec_state, event_data, data) {
     assertEquals("b", exec_state.frame(1).evaluate("b"));
     assertEquals("c", exec_state.frame(2).evaluate("c"));
   } catch (e) {
-    exception = e;
+    exceptionThrown = true;
   };
 };
 

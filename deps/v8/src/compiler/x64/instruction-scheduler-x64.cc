@@ -267,6 +267,46 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kLFence:
       return kHasSideEffect;
 
+    case kX64Word64AtomicLoadUint8:
+    case kX64Word64AtomicLoadUint16:
+    case kX64Word64AtomicLoadUint32:
+    case kX64Word64AtomicLoadUint64:
+      return kIsLoadOperation;
+
+    case kX64Word64AtomicStoreWord8:
+    case kX64Word64AtomicStoreWord16:
+    case kX64Word64AtomicStoreWord32:
+    case kX64Word64AtomicStoreWord64:
+    case kX64Word64AtomicAddUint8:
+    case kX64Word64AtomicAddUint16:
+    case kX64Word64AtomicAddUint32:
+    case kX64Word64AtomicAddUint64:
+    case kX64Word64AtomicSubUint8:
+    case kX64Word64AtomicSubUint16:
+    case kX64Word64AtomicSubUint32:
+    case kX64Word64AtomicSubUint64:
+    case kX64Word64AtomicAndUint8:
+    case kX64Word64AtomicAndUint16:
+    case kX64Word64AtomicAndUint32:
+    case kX64Word64AtomicAndUint64:
+    case kX64Word64AtomicOrUint8:
+    case kX64Word64AtomicOrUint16:
+    case kX64Word64AtomicOrUint32:
+    case kX64Word64AtomicOrUint64:
+    case kX64Word64AtomicXorUint8:
+    case kX64Word64AtomicXorUint16:
+    case kX64Word64AtomicXorUint32:
+    case kX64Word64AtomicXorUint64:
+    case kX64Word64AtomicExchangeUint8:
+    case kX64Word64AtomicExchangeUint16:
+    case kX64Word64AtomicExchangeUint32:
+    case kX64Word64AtomicExchangeUint64:
+    case kX64Word64AtomicCompareExchangeUint8:
+    case kX64Word64AtomicCompareExchangeUint16:
+    case kX64Word64AtomicCompareExchangeUint32:
+    case kX64Word64AtomicCompareExchangeUint64:
+      return kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)
 #undef CASE

@@ -4,7 +4,7 @@
 
 #include <set>
 
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/identity-map.h"
 #include "src/isolate.h"
 #include "src/objects.h"

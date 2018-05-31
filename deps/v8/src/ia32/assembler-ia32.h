@@ -103,8 +103,8 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
   explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
-                  sizeof(Register) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(Register);
+static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
@@ -422,10 +422,9 @@ class Operand {
   // TODO(clemensh): Get rid of this friendship, or make Operand immutable.
   friend class Assembler;
 };
+ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kPointerSize,
               "Operand must be small enough to pass it by value");
-static_assert(IS_TRIVIALLY_COPYABLE(Operand),
-              "Operand must be trivially copyable to pass it by value");
 
 // -----------------------------------------------------------------------------
 // A Displacement describes the 32bit immediate field of an instruction which
@@ -677,6 +676,7 @@ class Assembler : public AssemblerBase {
 
   // Arithmetics
   void adc(Register dst, int32_t imm32);
+  void adc(Register dst, Register src) { adc(dst, Operand(src)); }
   void adc(Register dst, Operand src);
 
   void add(Register dst, Register src) { add(dst, Operand(src)); }
@@ -767,6 +767,7 @@ class Assembler : public AssemblerBase {
   void sar_cl(Register dst) { sar_cl(Operand(dst)); }
   void sar_cl(Operand dst);
 
+  void sbb(Register dst, Register src) { sbb(dst, Operand(src)); }
   void sbb(Register dst, Operand src);
 
   void shl(Register dst, uint8_t imm8) { shl(Operand(dst), imm8); }
@@ -1064,8 +1065,10 @@ class Assembler : public AssemblerBase {
   void sqrtsd(XMMRegister dst, XMMRegister src) { sqrtsd(dst, Operand(src)); }
   void sqrtsd(XMMRegister dst, Operand src);
 
-  void andpd(XMMRegister dst, XMMRegister src);
-  void orpd(XMMRegister dst, XMMRegister src);
+  void andpd(XMMRegister dst, XMMRegister src) { andpd(dst, Operand(src)); }
+  void andpd(XMMRegister dst, Operand src);
+  void orpd(XMMRegister dst, XMMRegister src) { orpd(dst, Operand(src)); }
+  void orpd(XMMRegister dst, Operand src);
 
   void ucomisd(XMMRegister dst, XMMRegister src) { ucomisd(dst, Operand(src)); }
   void ucomisd(XMMRegister dst, Operand src);
@@ -1129,6 +1132,11 @@ class Assembler : public AssemblerBase {
     pshufd(dst, Operand(src), shuffle);
   }
   void pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
+
+  void pblendw(XMMRegister dst, XMMRegister src, uint8_t mask) {
+    pblendw(dst, Operand(src), mask);
+  }
+  void pblendw(XMMRegister dst, Operand src, uint8_t mask);
 
   void pextrb(Register dst, XMMRegister src, int8_t offset) {
     pextrb(Operand(dst), src, offset);
@@ -1346,6 +1354,12 @@ class Assembler : public AssemblerBase {
   void vminsd(XMMRegister dst, XMMRegister src1, Operand src2) {
     vsd(0x5d, dst, src1, src2);
   }
+  void vsqrtsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsqrtsd(dst, src1, Operand(src2));
+  }
+  void vsqrtsd(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vsd(0x51, dst, src1, src2);
+  }
   void vsd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
   void vaddss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -1384,6 +1398,12 @@ class Assembler : public AssemblerBase {
   void vminss(XMMRegister dst, XMMRegister src1, Operand src2) {
     vss(0x5d, dst, src1, src2);
   }
+  void vsqrtss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsqrtss(dst, src1, Operand(src2));
+  }
+  void vsqrtss(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vss(0x51, dst, src1, src2);
+  }
   void vss(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
   void vrcpps(XMMRegister dst, XMMRegister src) { vrcpps(dst, Operand(src)); }
@@ -1395,6 +1415,12 @@ class Assembler : public AssemblerBase {
   }
   void vrsqrtps(XMMRegister dst, Operand src) {
     vinstr(0x52, dst, xmm0, src, kNone, k0F, kWIG);
+  }
+  void vhaddps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vhaddps(dst, src1, Operand(src2));
+  }
+  void vhaddps(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr(0x7C, dst, src1, src2, kF2, k0F, kWIG);
   }
   void vmovaps(XMMRegister dst, XMMRegister src) {
     vps(0x28, dst, xmm0, Operand(src));
@@ -1419,6 +1445,12 @@ class Assembler : public AssemblerBase {
     vpshufd(dst, Operand(src), shuffle);
   }
   void vpshufd(XMMRegister dst, Operand src, uint8_t shuffle);
+
+  void vpblendw(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                uint8_t mask) {
+    vpblendw(dst, src1, Operand(src2), mask);
+  }
+  void vpblendw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
 
   void vpextrb(Register dst, XMMRegister src, int8_t offset) {
     vpextrb(Operand(dst), src, offset);

@@ -23,6 +23,7 @@ namespace compiler {
 // Forward declarations.
 class CallFrequency;
 class CommonOperatorBuilder;
+struct FieldAccess;
 class JSGraph;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
@@ -83,10 +84,19 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayFind(Node* node, ArrayFindVariant variant,
                             Handle<SharedFunctionInfo> shared);
   Reduction ReduceArrayEvery(Node* node, Handle<SharedFunctionInfo> shared);
+  enum class SearchVariant { kIncludes, kIndexOf };
+  Reduction ReduceArrayIndexOfIncludes(SearchVariant search_variant,
+                                       Node* node);
   Reduction ReduceArraySome(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
+  enum class ArrayIteratorKind { kArray, kTypedArray };
+  Reduction ReduceArrayIterator(Node* node, IterationKind kind);
+  Reduction ReduceArrayIteratorPrototypeNext(Node* node);
+  Reduction ReduceFastArrayIteratorNext(InstanceType type, Node* node,
+                                        IterationKind kind);
+
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
       Node* node, int arity, CallFrequency const& frequency,
       VectorSlotPair const& feedback);
@@ -101,8 +111,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringPrototypeIndexOf(Node* node);
   Reduction ReduceStringPrototypeSubstring(Node* node);
   Reduction ReduceStringPrototypeSlice(Node* node);
+  Reduction ReduceStringPrototypeSubstr(Node* node);
   Reduction ReduceStringPrototypeStringAt(
       const Operator* string_access_operator, Node* node);
+  Reduction ReduceStringPrototypeCharAt(Node* node);
 
 #ifdef V8_INTL_SUPPORT
   Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
@@ -110,8 +122,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 #endif  // V8_INTL_SUPPORT
 
   Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceStringFromCodePoint(Node* node);
   Reduction ReduceStringPrototypeIterator(Node* node);
   Reduction ReduceStringIteratorPrototypeNext(Node* node);
+  Reduction ReduceStringPrototypeConcat(Node* node,
+                                        Handle<SharedFunctionInfo> shared);
 
   Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
   Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
@@ -126,6 +141,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReducePromisePrototypeThen(Node* node);
   Reduction ReducePromiseResolveTrampoline(Node* node);
 
+  Reduction ReduceTypedArrayConstructor(Node* node,
+                                        Handle<SharedFunctionInfo> shared);
+  Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
+
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
   Reduction ReduceMathUnary(Node* node, const Operator* op);
@@ -133,6 +152,28 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceMathImul(Node* node);
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathMinMax(Node* node, const Operator* op, Node* empty_value);
+
+  Reduction ReduceNumberIsFinite(Node* node);
+  Reduction ReduceNumberIsInteger(Node* node);
+  Reduction ReduceNumberIsSafeInteger(Node* node);
+  Reduction ReduceNumberIsNaN(Node* node);
+
+  Reduction ReduceMapPrototypeHas(Node* node);
+  Reduction ReduceMapPrototypeGet(Node* node);
+  Reduction ReduceCollectionIteration(Node* node,
+                                      CollectionKind collection_kind,
+                                      IterationKind iteration_kind);
+  Reduction ReduceCollectionPrototypeSize(Node* node,
+                                          CollectionKind collection_kind);
+  Reduction ReduceCollectionIteratorPrototypeNext(
+      Node* node, int entry_size, Handle<HeapObject> empty_collection,
+      InstanceType collection_iterator_instance_type_first,
+      InstanceType collection_iterator_instance_type_last);
+
+  Reduction ReduceArrayBufferIsView(Node* node);
+  Reduction ReduceArrayBufferViewAccessor(Node* node,
+                                          InstanceType instance_type,
+                                          FieldAccess const& access);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.

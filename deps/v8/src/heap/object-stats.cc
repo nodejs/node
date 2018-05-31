@@ -277,7 +277,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
 
 bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject* obj,
                                                   CowMode check_cow_array) {
-  if (obj->IsFixedArray()) {
+  if (obj->IsFixedArrayExact()) {
     FixedArray* fixed_array = FixedArray::cast(obj);
     bool cow_check = check_cow_array == kIgnoreCow || !IsCowArray(fixed_array);
     return CanRecordFixedArray(fixed_array) && cow_check;
@@ -480,7 +480,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
         Object* raw_object = vector->get(slot.ToInt() + i);
         if (!raw_object->IsHeapObject()) continue;
         HeapObject* object = HeapObject::cast(raw_object);
-        if (object->IsCell() || object->IsFixedArray()) {
+        if (object->IsCell() || object->IsFixedArrayExact()) {
           RecordSimpleVirtualObjectStats(
               vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
         }
@@ -531,7 +531,7 @@ void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj, Phase phase) {
         RecordVirtualContext(Context::cast(obj));
       } else if (obj->IsScript()) {
         RecordVirtualScriptDetails(Script::cast(obj));
-      } else if (obj->IsFixedArray()) {
+      } else if (obj->IsFixedArrayExact()) {
         // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));
       }
@@ -552,9 +552,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   }
 
   // FixedArray.
-  RecordSimpleVirtualObjectStats(
-      nullptr, heap_->weak_new_space_object_to_code_list(),
-      ObjectStats::WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE);
   RecordSimpleVirtualObjectStats(nullptr, heap_->serialized_objects(),
                                  ObjectStats::SERIALIZED_OBJECTS_TYPE);
   RecordSimpleVirtualObjectStats(nullptr, heap_->number_string_cache(),
@@ -569,23 +566,20 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   RecordSimpleVirtualObjectStats(nullptr, heap_->retained_maps(),
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
-  // WeakFixedArray.
+  // FixedArrayOfWeakCells.
   RecordSimpleVirtualObjectStats(
-      nullptr, WeakFixedArray::cast(heap_->noscript_shared_function_infos()),
+      nullptr,
+      FixedArrayOfWeakCells::cast(heap_->noscript_shared_function_infos()),
       ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-  RecordSimpleVirtualObjectStats(nullptr,
-                                 WeakFixedArray::cast(heap_->script_list()),
-                                 ObjectStats::SCRIPT_LIST_TYPE);
+  RecordSimpleVirtualObjectStats(
+      nullptr, FixedArrayOfWeakCells::cast(heap_->script_list()),
+      ObjectStats::SCRIPT_LIST_TYPE);
 
   // HashTable.
   RecordHashTableVirtualObjectStats(nullptr, heap_->string_table(),
                                     ObjectStats::STRING_TABLE_TYPE);
   RecordHashTableVirtualObjectStats(nullptr, heap_->code_stubs(),
                                     ObjectStats::CODE_STUBS_TABLE_TYPE);
-
-  // WeakHashTable.
-  RecordHashTableVirtualObjectStats(nullptr, heap_->weak_object_to_code_table(),
-                                    ObjectStats::OBJECT_TO_CODE_TYPE);
 }
 
 void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,
@@ -630,8 +624,8 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
     if (map->prototype_info()->IsPrototypeInfo()) {
       PrototypeInfo* info = PrototypeInfo::cast(map->prototype_info());
       Object* users = info->prototype_users();
-      if (users->IsWeakFixedArray()) {
-        RecordSimpleVirtualObjectStats(map, WeakFixedArray::cast(users),
+      if (users->IsFixedArrayOfWeakCells()) {
+        RecordSimpleVirtualObjectStats(map, FixedArrayOfWeakCells::cast(users),
                                        ObjectStats::PROTOTYPE_USERS_TYPE);
       }
     }
@@ -639,18 +633,9 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
-  FixedArray* infos = script->shared_function_infos();
   RecordSimpleVirtualObjectStats(
       script, script->shared_function_infos(),
       ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-  // Split off weak cells from the regular weak cell type.
-  for (int i = 0; i < infos->length(); i++) {
-    if (infos->get(i)->IsWeakCell()) {
-      RecordSimpleVirtualObjectStats(
-          infos, WeakCell::cast(infos->get(i)),
-          ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-    }
-  }
 
   // Log the size of external source code.
   Object* source = script->source();
@@ -681,11 +666,6 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
     RecordSimpleVirtualObjectStats(
         nullptr, info, ObjectStats::UNCOMPILED_SHARED_FUNCTION_INFO_TYPE);
   }
-  // SharedFunctonInfo::feedback_metadata() is a COW array.
-  FeedbackMetadata* fm = FeedbackMetadata::cast(info->feedback_metadata());
-  RecordVirtualObjectStats(info, fm, ObjectStats::FEEDBACK_METADATA_TYPE,
-                           fm->Size(), ObjectStats::kNoOverAllocation,
-                           kIgnoreCow);
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(
@@ -702,7 +682,7 @@ namespace {
 bool MatchesConstantElementsPair(Object* object) {
   if (!object->IsTuple2()) return false;
   Tuple2* tuple = Tuple2::cast(object);
-  return tuple->value1()->IsSmi() && tuple->value2()->IsFixedArray();
+  return tuple->value1()->IsSmi() && tuple->value2()->IsFixedArrayExact();
 }
 
 }  // namespace
@@ -711,20 +691,19 @@ void ObjectStatsCollectorImpl::
     RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
         HeapObject* parent, HeapObject* object,
         ObjectStats::VirtualInstanceType type) {
-  if (RecordSimpleVirtualObjectStats(parent, object, type)) {
-    if (object->IsFixedArray()) {
-      FixedArray* array = FixedArray::cast(object);
-      for (int i = 0; i < array->length(); i++) {
-        Object* entry = array->get(i);
-        if (!entry->IsHeapObject()) continue;
-        RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-            array, HeapObject::cast(entry), type);
-      }
-    } else if (MatchesConstantElementsPair(object)) {
-      Tuple2* tuple = Tuple2::cast(object);
+  if (!RecordSimpleVirtualObjectStats(parent, object, type)) return;
+  if (object->IsFixedArrayExact()) {
+    FixedArray* array = FixedArray::cast(object);
+    for (int i = 0; i < array->length(); i++) {
+      Object* entry = array->get(i);
+      if (!entry->IsHeapObject()) continue;
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-          tuple, HeapObject::cast(tuple->value2()), type);
+          array, HeapObject::cast(entry), type);
     }
+  } else if (MatchesConstantElementsPair(object)) {
+    Tuple2* tuple = Tuple2::cast(object);
+    RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
+        tuple, HeapObject::cast(tuple->value2()), type);
   }
 }
 
@@ -738,7 +717,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   FixedArray* constant_pool = FixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
     Object* entry = constant_pool->get(i);
-    if (entry->IsFixedArray() || MatchesConstantElementsPair(entry)) {
+    if (entry->IsFixedArrayExact() || MatchesConstantElementsPair(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
           ObjectStats::EMBEDDED_OBJECT_TYPE);
@@ -786,7 +765,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Object* target = it.rinfo()->target_object();
-      if (target->IsFixedArray() || MatchesConstantElementsPair(target)) {
+      if (target->IsFixedArrayExact() || MatchesConstantElementsPair(target)) {
         RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
             code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
       }
@@ -796,11 +775,9 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
 
 void ObjectStatsCollectorImpl::RecordVirtualContext(Context* context) {
   if (context->IsNativeContext()) {
-    RecordSimpleVirtualObjectStats(nullptr, context,
-                                   ObjectStats::NATIVE_CONTEXT_TYPE);
+    RecordObjectStats(context, NATIVE_CONTEXT_TYPE, context->Size());
   } else if (context->IsFunctionContext()) {
-    RecordSimpleVirtualObjectStats(nullptr, context,
-                                   ObjectStats::FUNCTION_CONTEXT_TYPE);
+    RecordObjectStats(context, FUNCTION_CONTEXT_TYPE, context->Size());
   } else {
     RecordSimpleVirtualObjectStats(nullptr, context,
                                    ObjectStats::OTHER_CONTEXT_TYPE);

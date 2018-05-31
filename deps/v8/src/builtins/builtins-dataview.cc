@@ -6,7 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/counters.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 
@@ -14,97 +14,94 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// ES6 section 24.2 DataView Objects
+// ES #sec-dataview-objects
 
-// ES6 section 24.2.2 The DataView Constructor for the [[Call]] case.
+// ES #sec-dataview-constructor
 BUILTIN(DataViewConstructor) {
   HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError(MessageTemplate::kConstructorNotFunction,
-                   isolate->factory()->NewStringFromAsciiChecked("DataView")));
-}
-
-// ES6 section 24.2.2 The DataView Constructor for the [[Construct]] case.
-BUILTIN(DataViewConstructor_ConstructStub) {
-  HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-  Handle<Object> buffer = args.atOrUndefined(isolate, 1);
-  Handle<Object> byte_offset = args.atOrUndefined(isolate, 2);
-  Handle<Object> byte_length = args.atOrUndefined(isolate, 3);
-
-  // 2. If Type(buffer) is not Object, throw a TypeError exception.
-  // 3. If buffer does not have an [[ArrayBufferData]] internal slot, throw a
-  //    TypeError exception.
-  if (!buffer->IsJSArrayBuffer()) {
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kDataViewNotArrayBuffer));
-  }
-  Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(buffer);
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "DataView")));
+  } else {  // [[Construct]]
+    Handle<JSFunction> target = args.target();
+    Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+    Handle<Object> buffer = args.atOrUndefined(isolate, 1);
+    Handle<Object> byte_offset = args.atOrUndefined(isolate, 2);
+    Handle<Object> byte_length = args.atOrUndefined(isolate, 3);
 
-  // 4. Let offset be ToIndex(byteOffset).
-  Handle<Object> offset;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, offset,
-      Object::ToIndex(isolate, byte_offset, MessageTemplate::kInvalidOffset));
-
-  // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  // We currently violate the specification at this point.
-
-  // 6. Let bufferByteLength be the value of buffer's [[ArrayBufferByteLength]]
-  // internal slot.
-  double const buffer_byte_length = array_buffer->byte_length()->Number();
-
-  // 7. If offset > bufferByteLength, throw a RangeError exception
-  if (offset->Number() > buffer_byte_length) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidOffset, offset));
-  }
-
-  Handle<Object> view_byte_length;
-  if (byte_length->IsUndefined(isolate)) {
-    // 8. If byteLength is undefined, then
-    //       a. Let viewByteLength be bufferByteLength - offset.
-    view_byte_length =
-        isolate->factory()->NewNumber(buffer_byte_length - offset->Number());
-  } else {
-    // 9. Else,
-    //       a. Let viewByteLength be ? ToIndex(byteLength).
-    //       b. If offset+viewByteLength > bufferByteLength, throw a RangeError
-    //          exception
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, view_byte_length,
-        Object::ToIndex(isolate, byte_length,
-                        MessageTemplate::kInvalidDataViewLength));
-    if (offset->Number() + view_byte_length->Number() > buffer_byte_length) {
+    // 2. If Type(buffer) is not Object, throw a TypeError exception.
+    // 3. If buffer does not have an [[ArrayBufferData]] internal slot, throw a
+    //    TypeError exception.
+    if (!buffer->IsJSArrayBuffer()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
+          isolate, NewTypeError(MessageTemplate::kDataViewNotArrayBuffer));
     }
+    Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(buffer);
+
+    // 4. Let offset be ? ToIndex(byteOffset).
+    Handle<Object> offset;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, offset,
+        Object::ToIndex(isolate, byte_offset, MessageTemplate::kInvalidOffset));
+
+    // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+    //    We currently violate the specification at this point. TODO: Fix that.
+
+    // 6. Let bufferByteLength be the value of buffer's
+    // [[ArrayBufferByteLength]] internal slot.
+    double const buffer_byte_length = array_buffer->byte_length()->Number();
+
+    // 7. If offset > bufferByteLength, throw a RangeError exception.
+    if (offset->Number() > buffer_byte_length) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kInvalidOffset, offset));
+    }
+
+    Handle<Object> view_byte_length;
+    if (byte_length->IsUndefined(isolate)) {
+      // 8. If byteLength is either not present or undefined, then
+      //       a. Let viewByteLength be bufferByteLength - offset.
+      view_byte_length =
+          isolate->factory()->NewNumber(buffer_byte_length - offset->Number());
+    } else {
+      // 9. Else,
+      //       a. Let viewByteLength be ? ToIndex(byteLength).
+      //       b. If offset+viewByteLength > bufferByteLength, throw a
+      //          RangeError exception.
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, view_byte_length,
+          Object::ToIndex(isolate, byte_length,
+                          MessageTemplate::kInvalidDataViewLength));
+      if (offset->Number() + view_byte_length->Number() > buffer_byte_length) {
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
+      }
+    }
+
+    // 10. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
+    //     "%DataViewPrototype%", «[[DataView]], [[ViewedArrayBuffer]],
+    //     [[ByteLength]], [[ByteOffset]]»).
+    Handle<JSObject> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       JSObject::New(target, new_target));
+    for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
+      Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::kZero);
+    }
+
+    // 11. Set O's [[ViewedArrayBuffer]] internal slot to buffer.
+    Handle<JSDataView>::cast(result)->set_buffer(*array_buffer);
+
+    // 12. Set O's [[ByteLength]] internal slot to viewByteLength.
+    Handle<JSDataView>::cast(result)->set_byte_length(*view_byte_length);
+
+    // 13. Set O's [[ByteOffset]] internal slot to offset.
+    Handle<JSDataView>::cast(result)->set_byte_offset(*offset);
+
+    // 14. Return O.
+    return *result;
   }
-
-  // 10. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
-  //     "%DataViewPrototype%", «[[DataView]], [[ViewedArrayBuffer]],
-  //     [[ByteLength]], [[ByteOffset]]»).
-  // 11. Set O's [[DataView]] internal slot to true.
-  Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
-  for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
-    Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::kZero);
-  }
-
-  // 12. Set O's [[ViewedArrayBuffer]] internal slot to buffer.
-  Handle<JSDataView>::cast(result)->set_buffer(*array_buffer);
-
-  // 13. Set O's [[ByteLength]] internal slot to viewByteLength.
-  Handle<JSDataView>::cast(result)->set_byte_length(*view_byte_length);
-
-  // 14. Set O's [[ByteOffset]] internal slot to offset.
-  Handle<JSDataView>::cast(result)->set_byte_offset(*offset);
-
-  // 15. Return O.
-  return *result;
 }
 
 // ES6 section 24.2.4.1 get DataView.prototype.buffer
@@ -176,7 +173,7 @@ MaybeHandle<Object> AllocateResult(Isolate* isolate, uint64_t value) {
 template <typename T>
 MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
                                  Handle<Object> request_index,
-                                 bool is_little_endian) {
+                                 bool is_little_endian, const char* method) {
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, request_index,
       Object::ToIndex(isolate, request_index,
@@ -190,6 +187,13 @@ MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
   }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()),
                                isolate);
+  if (buffer->was_neutered()) {
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method);
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation, operation),
+        Object);
+  }
   size_t const data_view_byte_offset = NumberToSize(data_view->byte_offset());
   size_t const data_view_byte_length = NumberToSize(data_view->byte_length());
   if (get_index + sizeof(T) > data_view_byte_length ||
@@ -290,7 +294,8 @@ uint64_t DataViewConvertValue<uint64_t>(Handle<Object> value) {
 template <typename T>
 MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
                                  Handle<Object> request_index,
-                                 bool is_little_endian, Handle<Object> value) {
+                                 bool is_little_endian, Handle<Object> value,
+                                 const char* method) {
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, request_index,
       Object::ToIndex(isolate, request_index,
@@ -306,6 +311,13 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
   }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()),
                                isolate);
+  if (buffer->was_neutered()) {
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method);
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation, operation),
+        Object);
+  }
   size_t const data_view_byte_offset = NumberToSize(data_view->byte_offset());
   size_t const data_view_byte_length = NumberToSize(data_view->byte_length());
   if (get_index + sizeof(T) > data_view_byte_length ||
@@ -343,7 +355,8 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                    \
         isolate, result,                                                   \
         GetViewValue<type>(isolate, data_view, byte_offset,                \
-                           is_little_endian->BooleanValue()));             \
+                           is_little_endian->BooleanValue(),               \
+                           "DataView.prototype.get" #Type));               \
     return *result;                                                        \
   }
 DATA_VIEW_PROTOTYPE_GET(Int8, int8_t)
@@ -369,7 +382,8 @@ DATA_VIEW_PROTOTYPE_GET(BigUint64, uint64_t)
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                    \
         isolate, result,                                                   \
         SetViewValue<type>(isolate, data_view, byte_offset,                \
-                           is_little_endian->BooleanValue(), value));      \
+                           is_little_endian->BooleanValue(), value,        \
+                           "DataView.prototype.get" #Type));               \
     return *result;                                                        \
   }
 DATA_VIEW_PROTOTYPE_SET(Int8, int8_t)

@@ -86,6 +86,15 @@ class HeapTester {
 
   // test-api.cc
   static void ResetWeakHandle(bool global_gc);
+
+  // test-heap.cc
+  static AllocationResult AllocateByteArrayForTest(Heap* heap, int length,
+                                                   PretenureFlag pretenure);
+
+  // test-mark-compact.cc
+  static AllocationResult AllocateMapForTest(v8::internal::Isolate* isolate);
+  static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
+                                                    PretenureFlag pretenure);
 };
 
 }  // namespace heap

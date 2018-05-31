@@ -29,7 +29,7 @@
 Debug = debug.Debug
 
 var listenerComplete = false;
-var exception = false;
+var exceptionThrown = false;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -43,7 +43,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     print(e);
-    exception = e
+    exceptionThrown = true;
   };
 };
 
@@ -60,5 +60,5 @@ callDebugger();
 
 
 // Make sure that the debug event listener vas invoked.
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener")
 assertTrue(listenerComplete, "listener did not run to completion");

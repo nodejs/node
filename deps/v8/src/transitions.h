@@ -27,15 +27,14 @@ namespace internal {
 // operations in a row (provided no GC happens between them), it must be
 // discarded and recreated after "Insert" and "UpdateHandler" operations.
 //
-// Internal details: a Map's field either holds a WeakCell to a transition
-// target, or a StoreIC handler for a transitioning store (which in turn points
-// to its target map), or a TransitionArray for several target maps and/or
-// handlers as well as prototype and ElementsKind transitions.
-// Property details (and in case of inline target storage, the key) are
-// retrieved from the target map's descriptor array.
-// Stored transitions are weak in the GC sense: both single transitions stored
-// inline and TransitionArray fields are cleared when the map they refer to
-// is not otherwise reachable.
+// Internal details: a Map's field either holds an in-place weak reference to a
+// transition target, or a StoreIC handler for a transitioning store (which in
+// turn points to its target map), or a TransitionArray for several target maps
+// and/or handlers as well as prototype and ElementsKind transitions.  Property
+// details (and in case of inline target storage, the key) are retrieved from
+// the target map's descriptor array.  Stored transitions are weak in the GC
+// sense: both single transitions stored inline and TransitionArray fields are
+// cleared when the map they refer to is not otherwise reachable.
 class TransitionsAccessor {
  public:
   TransitionsAccessor(Map* map, DisallowHeapAllocation* no_gc) : map_(map) {
@@ -55,19 +54,18 @@ class TransitionsAccessor {
   Map* SearchTransition(Name* name, PropertyKind kind,
                         PropertyAttributes attributes);
 
-  // This TransitionsAccessor instance is unusable after this operation.
-  void UpdateHandler(Name* name, Object* handler);
-
-  // If a valid handler is found, returns the transition target in
-  // |out_transition|.
-  Object* SearchHandler(Name* name, Handle<Map>* out_transition);
-
   Map* SearchSpecial(Symbol* name);
   // Returns true for non-property transitions like elements kind, or
   // or frozen/sealed transitions.
   static bool IsSpecialTransition(Name* name);
 
-  Handle<Map> FindTransitionToField(Handle<Name> name);
+  enum RequestedLocation { kAnyLocation, kFieldOnly };
+  MaybeHandle<Map> FindTransitionToDataProperty(
+      Handle<Name> name, RequestedLocation requested_location = kAnyLocation);
+
+  MaybeHandle<Map> FindTransitionToField(Handle<Name> name) {
+    return FindTransitionToDataProperty(name, kFieldOnly);
+  }
 
   Handle<String> ExpectedTransitionKey();
   Handle<Map> ExpectedTransitionTarget();
@@ -82,8 +80,8 @@ class TransitionsAccessor {
   inline Map* GetTarget(int transition_number);
   static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
 
-  static bool IsMatchingMap(WeakCell* target_cell, Name* name,
-                            PropertyKind kind, PropertyAttributes attributes);
+  static bool IsMatchingMap(Map* target, Name* name, PropertyKind kind,
+                            PropertyAttributes attributes);
 
   // ===== ITERATION =====
   typedef void (*TraverseCallback)(Map* map, void* data);
@@ -126,7 +124,9 @@ class TransitionsAccessor {
   enum Encoding {
     kPrototypeInfo,
     kUninitialized,
-    kWeakCell,
+    kWeakRef,
+    // TODO(ishell): drop support for kHandler encoding since we use maps
+    // as transition handlers.
     kHandler,
     kFullTransitionArray,
   };
@@ -166,12 +166,13 @@ class TransitionsAccessor {
   void Initialize();
 
   inline Map* GetSimpleTransition();
-  bool HasSimpleTransitionTo(WeakCell* cell);
+  bool HasSimpleTransitionTo(Map* map);
 
-  void ReplaceTransitions(Object* new_transitions);
+  void ReplaceTransitions(MaybeObject* new_transitions);
 
-  template <Encoding enc>
   inline WeakCell* GetTargetCell();
+
+  inline Map* GetTargetMapFromWeakRef();
 
   void EnsureHasFullTransitionArray();
   void SetPrototypeTransitions(Handle<FixedArray> proto_transitions);
@@ -184,7 +185,7 @@ class TransitionsAccessor {
 
   Handle<Map> map_handle_;
   Map* map_;
-  Object* raw_transitions_;
+  MaybeObject* raw_transitions_;
   Encoding encoding_;
   WeakCell* target_cell_;
 #if DEBUG
@@ -223,6 +224,8 @@ class TransitionArray : public FixedArray {
   inline void SetTarget(int transition_number, Object* target);
   inline Object* GetRawTarget(int transition_number);
   inline Object** GetTargetSlot(int transition_number);
+  inline bool GetTargetIfExists(int transition_number, Isolate* isolate,
+                                Map** target);
 
   // Required for templatized Search interface.
   static const int kNotFound = -1;
@@ -246,11 +249,33 @@ class TransitionArray : public FixedArray {
   DECL_PRINTER(TransitionArray)
   DECL_VERIFIER(TransitionArray)
 
+  // Layout for full transition arrays.
+  static const int kPrototypeTransitionsIndex = 0;
+  static const int kTransitionLengthIndex = 1;
+  static const int kFirstIndex = 2;
+
+  // Layout of map transition entries in full transition arrays.
+  static const int kEntryKeyIndex = 0;
+  static const int kEntryTargetIndex = 1;
+  static const int kEntrySize = 2;
+
+  // Conversion from transition number to array indices.
+  static int ToKeyIndex(int transition_number) {
+    return kFirstIndex + (transition_number * kEntrySize) + kEntryKeyIndex;
+  }
+
+  static int ToTargetIndex(int transition_number) {
+    return kFirstIndex + (transition_number * kEntrySize) + kEntryTargetIndex;
+  }
+
+  inline int SearchNameForTesting(Name* name,
+                                  int* out_insertion_index = nullptr) {
+    return SearchName(name, out_insertion_index);
+  }
+
  private:
   friend class MarkCompactCollector;
   friend class TransitionsAccessor;
-
-  static const int kTransitionSize = 2;
 
   inline void SetNumberOfTransitions(int number_of_transitions);
 
@@ -273,31 +298,8 @@ class TransitionArray : public FixedArray {
   static void SetNumberOfPrototypeTransitions(FixedArray* proto_transitions,
                                               int value);
 
-  // Layout for full transition arrays.
-  static const int kPrototypeTransitionsIndex = 0;
-  static const int kTransitionLengthIndex = 1;
-  static const int kFirstIndex = 2;
-
-  // Layout of map transition entries in full transition arrays.
-  static const int kTransitionKey = 0;
-  static const int kTransitionTarget = 1;
-  STATIC_ASSERT(kTransitionSize == 2);
-
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
   STATIC_ASSERT(kProtoTransitionHeaderSize == 1);
-
-  // Conversion from transition number to array indices.
-  static int ToKeyIndex(int transition_number) {
-    return kFirstIndex +
-           (transition_number * kTransitionSize) +
-           kTransitionKey;
-  }
-
-  static int ToTargetIndex(int transition_number) {
-    return kFirstIndex +
-           (transition_number * kTransitionSize) +
-           kTransitionTarget;
-  }
 
   // Returns the fixed array length required to hold number_of_transitions
   // transitions.

@@ -37,6 +37,9 @@ declare_args() {
   # https://803591
   v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")
 
+  # Enable several snapshots side-by-side (e.g. default and for trusted code).
+  v8_use_multi_snapshots = ""
+
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
@@ -56,6 +59,11 @@ if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
   # a snapshot is used and if we're not on ios.
   v8_use_external_startup_data = v8_use_snapshot && !is_ios
+}
+
+if (v8_use_multi_snapshots == "") {
+  v8_use_multi_snapshots =
+      v8_use_external_startup_data && !build_with_chromium && !use_jumbo_build
 }
 
 if (v8_enable_backtrace == "") {
@@ -111,6 +119,10 @@ if (is_posix && (v8_enable_backtrace || v8_monolithic)) {
 if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
     target_cpu == "mips" || target_cpu == "mips64") {
   v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+}
+
+if (!build_with_chromium && is_clang) {
+  v8_remove_configs += [ "//build/config/clang:find_bad_constructs" ]
 }
 
 # All templates should be kept in sync.
@@ -192,6 +204,7 @@ template("v8_static_library") {
     forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
     configs -= v8_remove_configs
+    configs -= [ "//build/config/compiler:thin_archive" ]
     configs += v8_add_configs
   }
 }

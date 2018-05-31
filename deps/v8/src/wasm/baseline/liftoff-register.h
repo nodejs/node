@@ -28,9 +28,13 @@ enum RegClass : uint8_t {
 
 enum RegPairHalf : uint8_t { kLowWord, kHighWord };
 
+static inline constexpr bool needs_reg_pair(ValueType type) {
+  return kNeedI64RegPair && type == kWasmI64;
+}
+
 // TODO(clemensh): Use a switch once we require C++14 support.
 static inline constexpr RegClass reg_class_for(ValueType type) {
-  return kNeedI64RegPair && type == kWasmI64  // i64 on 32 bit
+  return needs_reg_pair(type)  // i64 on 32 bit
              ? kGpRegPair
              : type == kWasmI32 || type == kWasmI64  // int types
                    ? kGpReg
@@ -99,11 +103,10 @@ class LiftoffRegister {
     }
   }
 
-  static LiftoffRegister ForPair(LiftoffRegister low, LiftoffRegister high) {
+  static LiftoffRegister ForPair(Register low, Register high) {
     DCHECK(kNeedI64RegPair);
     DCHECK_NE(low, high);
-    storage_t combined_code = low.gp().code() |
-                              high.gp().code() << kBitsPerGpRegCode |
+    storage_t combined_code = low.code() | high.code() << kBitsPerGpRegCode |
                               1 << (2 * kBitsPerGpRegCode);
     return LiftoffRegister(combined_code);
   }
@@ -171,8 +174,7 @@ class LiftoffRegister {
 
   explicit constexpr LiftoffRegister(storage_t code) : code_(code) {}
 };
-static_assert(IS_TRIVIALLY_COPYABLE(LiftoffRegister),
-              "LiftoffRegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(LiftoffRegister);
 
 inline std::ostream& operator<<(std::ostream& os, LiftoffRegister reg) {
   if (reg.is_pair()) {
@@ -231,6 +233,8 @@ class LiftoffRegList {
     }
     return (regs_ & (storage_t{1} << reg.liftoff_code())) != 0;
   }
+  bool has(Register reg) const { return has(LiftoffRegister(reg)); }
+  bool has(DoubleRegister reg) const { return has(LiftoffRegister(reg)); }
 
   constexpr bool is_empty() const { return regs_ == 0; }
 
@@ -298,8 +302,7 @@ class LiftoffRegList {
   // Unchecked constructor. Only use for valid bits.
   explicit constexpr LiftoffRegList(storage_t bits) : regs_(bits) {}
 };
-static_assert(IS_TRIVIALLY_COPYABLE(LiftoffRegList),
-              "LiftoffRegList can be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(LiftoffRegList);
 
 static constexpr LiftoffRegList kGpCacheRegList =
     LiftoffRegList::FromBits<LiftoffRegList::kGpMask>();

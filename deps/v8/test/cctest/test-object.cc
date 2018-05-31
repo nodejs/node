@@ -3,12 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/api.h"
-#include "src/factory.h"
 #include "src/handles-inl.h"
-#include "src/handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

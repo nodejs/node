@@ -599,6 +599,10 @@ class BaseTestRunner(object):
       self.build_config.mips_arch_variant == "r6" and
       self.build_config.mips_use_msa)
 
+    mips_arch_variant = (
+      self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
+      self.build_config.mips_arch_variant)
+
     # TODO(all): Combine "simulator" and "simulator_run".
     # TODO(machenbach): In GN we can derive simulator run from
     # target_arch != v8_target_arch in the dumped build config.
@@ -613,6 +617,7 @@ class BaseTestRunner(object):
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
+      "mips_arch_variant": mips_arch_variant,
       "mode": self.mode_options.status_mode,
       "msan": self.build_config.msan,
       "no_harness": options.no_harness,

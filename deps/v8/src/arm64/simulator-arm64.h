@@ -2196,6 +2196,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     Byte = 1,
     HalfWord = 2,
     Word = 4,
+    DoubleWord = 8,
   };
 
   TransactionSize get_transaction_size(unsigned size);

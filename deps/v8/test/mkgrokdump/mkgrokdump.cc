@@ -27,7 +27,11 @@ static const char* kHeader =
 
 // Non-snapshot builds allocate objects to different places.
 // Debug builds emit debug code, affecting code object sizes.
-#if defined(V8_USE_SNAPSHOT) && !defined(DEBUG)
+// Embedded builtins cause objects to be allocated in different locations.
+// TODO(jgruber,v8:6666): Change the V8_EMBEDDED_BUILTINS condition when it
+// becomes the default.
+#if !defined(V8_EMBEDDED_BUILTINS) && defined(V8_USE_SNAPSHOT) && \
+    !defined(DEBUG)
 static const char* kBuild = "shipping";
 #else
 static const char* kBuild = "non-shipping";
@@ -39,6 +43,29 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   void* AllocateUninitialized(size_t length) override { return nullptr; }
   void Free(void* p, size_t) override {}
 };
+
+#define ROOT_LIST_CASE(type, name, camel_name) \
+  if (n == NULL && o == space->heap()->name()) n = #camel_name;
+#define STRUCT_LIST_CASE(upper_name, camel_name, name) \
+  if (n == NULL && o == space->heap()->name##_map()) n = #camel_name "Map";
+static void DumpMaps(i::PagedSpace* space) {
+  i::HeapObjectIterator it(space);
+  for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
+    if (!o->IsMap()) continue;
+    i::Map* m = i::Map::cast(o);
+    const char* n = NULL;
+    intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7FFFF;
+    int t = m->instance_type();
+    ROOT_LIST(ROOT_LIST_CASE)
+    STRUCT_LIST(STRUCT_LIST_CASE)
+    if (n == NULL) continue;
+    const char* sname = AllocationSpaceName(space->identity());
+    i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", sname, p, t,
+              n);
+  }
+}
+#undef STRUCT_LIST_CASE
+#undef ROOT_LIST_CASE
 
 static int DumpHeapConstants(const char* argv0) {
   // Start up V8.
@@ -62,25 +89,10 @@ static int DumpHeapConstants(const char* argv0) {
 
     // Dump the KNOWN_MAP table to the console.
     i::PrintF("\n# List of known V8 maps.\n");
-#define ROOT_LIST_CASE(type, name, camel_name) \
-  if (n == NULL && o == heap->name()) n = #camel_name;
-#define STRUCT_LIST_CASE(upper_name, camel_name, name) \
-  if (n == NULL && o == heap->name##_map()) n = #camel_name "Map";
-    i::HeapObjectIterator it(heap->map_space());
     i::PrintF("KNOWN_MAPS = {\n");
-    for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
-      i::Map* m = i::Map::cast(o);
-      const char* n = NULL;
-      intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7FFFF;
-      int t = m->instance_type();
-      ROOT_LIST(ROOT_LIST_CASE)
-      STRUCT_LIST(STRUCT_LIST_CASE)
-      if (n == NULL) continue;
-      i::PrintF("  0x%05" V8PRIxPTR ": (%d, \"%s\"),\n", p, t, n);
-    }
+    DumpMaps(heap->read_only_space());
+    DumpMaps(heap->map_space());
     i::PrintF("}\n");
-#undef STRUCT_LIST_CASE
-#undef ROOT_LIST_CASE
 
     // Dump the KNOWN_OBJECTS table to the console.
     i::PrintF("\n# List of known V8 objects.\n");
@@ -89,7 +101,7 @@ static int DumpHeapConstants(const char* argv0) {
     n = #camel_name;                           \
     i = i::Heap::k##camel_name##RootIndex;     \
   }
-    i::PagedSpaces spit(heap);
+    i::PagedSpaces spit(heap, i::PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
     i::PrintF("KNOWN_OBJECTS = {\n");
     for (i::PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
       i::HeapObjectIterator it(s);
@@ -98,6 +110,8 @@ static int DumpHeapConstants(const char* argv0) {
         continue;
       const char* sname = AllocationSpaceName(s->identity());
       for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
+        // Skip maps in RO_SPACE since they will be reported elsewhere.
+        if (o->IsMap()) continue;
         const char* n = NULL;
         i::Heap::RootListIndex i = i::Heap::kStrongRootListLength;
         intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
@@ -116,7 +130,7 @@ static int DumpHeapConstants(const char* argv0) {
     i::PrintF("FRAME_MARKERS = (\n");
     STACK_FRAME_TYPE_LIST(DUMP_MARKER)
     i::PrintF(")\n");
-#undef DUMP_TYPE
+#undef DUMP_MARKER
   }
 
   i::PrintF("\n# This set of constants is generated from a %s build.\n",

@@ -729,7 +729,7 @@ FieldAccess AccessBuilder::ForJSGlobalProxyNativeContext() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSArrayIteratorObject() {
+FieldAccess AccessBuilder::ForJSArrayIteratorIteratedObject() {
   FieldAccess access = {kTaggedBase,
                         JSArrayIterator::kIteratedObjectOffset,
                         Handle<Name>(),
@@ -741,8 +741,7 @@ FieldAccess AccessBuilder::ForJSArrayIteratorObject() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSArrayIteratorIndex(InstanceType instance_type,
-                                                   ElementsKind elements_kind) {
+FieldAccess AccessBuilder::ForJSArrayIteratorNextIndex() {
   // In generic case, cap to 2^53-1 (per ToLength() in spec) via
   // kPositiveSafeInteger
   FieldAccess access = {kTaggedBase,
@@ -752,33 +751,18 @@ FieldAccess AccessBuilder::ForJSArrayIteratorIndex(InstanceType instance_type,
                         TypeCache::Get().kPositiveSafeInteger,
                         MachineType::AnyTagged(),
                         kFullWriteBarrier};
-  if (instance_type == JS_ARRAY_TYPE) {
-    if (IsDoubleElementsKind(elements_kind)) {
-      access.type = TypeCache::Get().kFixedDoubleArrayLengthType;
-      access.machine_type = MachineType::TaggedSigned();
-      access.write_barrier_kind = kNoWriteBarrier;
-    } else if (IsFastElementsKind(elements_kind)) {
-      access.type = TypeCache::Get().kFixedArrayLengthType;
-      access.machine_type = MachineType::TaggedSigned();
-      access.write_barrier_kind = kNoWriteBarrier;
-    } else {
-      access.type = TypeCache::Get().kJSArrayLengthType;
-    }
-  } else if (instance_type == JS_TYPED_ARRAY_TYPE) {
-    access.type = TypeCache::Get().kJSTypedArrayLengthType;
-    access.machine_type = MachineType::TaggedSigned();
-    access.write_barrier_kind = kNoWriteBarrier;
-  }
   return access;
 }
 
 // static
-FieldAccess AccessBuilder::ForJSArrayIteratorObjectMap() {
-  FieldAccess access = {
-      kTaggedBase,           JSArrayIterator::kIteratedObjectMapOffset,
-      Handle<Name>(),        MaybeHandle<Map>(),
-      Type::OtherInternal(), MachineType::TaggedPointer(),
-      kPointerWriteBarrier};
+FieldAccess AccessBuilder::ForJSArrayIteratorKind() {
+  FieldAccess access = {kTaggedBase,
+                        JSArrayIterator::kKindOffset,
+                        Handle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get().kJSArrayIteratorKindType,
+                        MachineType::TaggedSigned(),
+                        kNoWriteBarrier};
   return access;
 }
 

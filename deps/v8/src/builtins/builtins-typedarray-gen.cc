@@ -36,9 +36,7 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
   DispatchTypedArrayByElementsKind(
       elements_kind,
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
-        ExternalArrayType type =
-            isolate()->factory()->GetArrayTypeFromElementsKind(kind);
-        Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(type));
+        Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(kind));
         var_typed_map = HeapConstant(map);
       });
 
@@ -630,40 +628,33 @@ void TypedArrayBuiltinsAssembler::ConstructByIterable(
                        element_size);
 }
 
-TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-
-  // If NewTarget is undefined, throw a TypeError exception.
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
-  Node* shared = LoadObjectField(target, JSFunction::kSharedFunctionInfoOffset);
-  Node* name = LoadObjectField(shared, SharedFunctionInfo::kNameOffset);
-  ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, name);
+TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  ThrowTypeError(context, MessageTemplate::kConstructAbstractClass,
+                 "TypedArray");
 }
 
-TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
+// ES #sec-typedarray-constructors
+TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<JSReceiver> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> arg1 = CAST(Parameter(Descriptor::kArg1));
+  TNode<Object> arg2 = CAST(Parameter(Descriptor::kArg2));
+  TNode<Object> arg3 = CAST(Parameter(Descriptor::kArg3));
+
+  CSA_ASSERT(this, IsConstructor(target));
+  CSA_ASSERT(this, IsJSReceiver(new_target));
+
   Label if_arg1isbuffer(this), if_arg1istypedarray(this),
-      if_arg1isreceiver(this), if_arg1isnumber(this), done(this);
+      if_arg1isreceiver(this), if_arg1isnumber(this), return_result(this);
 
-  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
-  CSA_ASSERT(this, IsNotUndefined(new_target));
-
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  TNode<Object> arg1 = args.GetOptionalArgumentValue(0);
-  TNode<Object> arg2 = args.GetOptionalArgumentValue(1);
-  TNode<Object> arg3 = args.GetOptionalArgumentValue(2);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
   ConstructorBuiltinsAssembler constructor_assembler(this->state());
-  TNode<JSTypedArray> holder = CAST(
+  TNode<JSTypedArray> result = CAST(
       constructor_assembler.EmitFastNewObject(context, target, new_target));
 
   TNode<Smi> element_size =
-      SmiTag(GetTypedArrayElementSize(LoadElementsKind(holder)));
+      SmiTag(GetTypedArrayElementSize(LoadElementsKind(result)));
 
   GotoIf(TaggedIsSmi(arg1), &if_arg1isnumber);
   GotoIf(IsJSArrayBuffer(arg1), &if_arg1isbuffer);
@@ -671,15 +662,23 @@ TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
   GotoIf(IsJSReceiver(arg1), &if_arg1isreceiver);
   Goto(&if_arg1isnumber);
 
+  // https://tc39.github.io/ecma262/#sec-typedarray-buffer-byteoffset-length
   BIND(&if_arg1isbuffer);
-  ConstructByArrayBuffer(context, holder, CAST(arg1), arg2, arg3, element_size);
-  Goto(&done);
+  {
+    ConstructByArrayBuffer(context, result, CAST(arg1), arg2, arg3,
+                           element_size);
+    Goto(&return_result);
+  }
 
+  // https://tc39.github.io/ecma262/#sec-typedarray-typedarray
   BIND(&if_arg1istypedarray);
-  TNode<JSTypedArray> typed_array = CAST(arg1);
-  ConstructByTypedArray(context, holder, typed_array, element_size);
-  Goto(&done);
+  {
+    TNode<JSTypedArray> typed_array = CAST(arg1);
+    ConstructByTypedArray(context, result, typed_array, element_size);
+    Goto(&return_result);
+  }
 
+  // https://tc39.github.io/ecma262/#sec-typedarray-object
   BIND(&if_arg1isreceiver);
   {
     Label if_iteratorundefined(this), if_iteratornotcallable(this);
@@ -690,8 +689,8 @@ TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
     GotoIf(TaggedIsSmi(iteratorFn), &if_iteratornotcallable);
     GotoIfNot(IsCallable(iteratorFn), &if_iteratornotcallable);
 
-    ConstructByIterable(context, holder, CAST(arg1), iteratorFn, element_size);
-    Goto(&done);
+    ConstructByIterable(context, result, CAST(arg1), iteratorFn, element_size);
+    Goto(&return_result);
 
     BIND(&if_iteratorundefined);
     {
@@ -699,22 +698,61 @@ TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
       TNode<Object> initial_length =
           GetProperty(context, arg1, LengthStringConstant());
 
-      ConstructByArrayLike(context, holder, array_like, initial_length,
+      ConstructByArrayLike(context, result, array_like, initial_length,
                            element_size);
-      Goto(&done);
+      Goto(&return_result);
     }
 
     BIND(&if_iteratornotcallable);
     { ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable); }
   }
 
-  // First arg was a number or fell through and will be treated as a number.
+  // The first argument was a number or fell through and is treated as
+  // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
   BIND(&if_arg1isnumber);
-  ConstructByLength(context, holder, arg1, element_size);
-  Goto(&done);
+  {
+    ConstructByLength(context, result, arg1, element_size);
+    Goto(&return_result);
+  }
 
-  BIND(&done);
-  args.PopAndReturn(holder);
+  BIND(&return_result);
+  Return(result);
+}
+
+TF_BUILTIN(TypedArrayConstructorLazyDeoptContinuation,
+           TypedArrayBuiltinsAssembler) {
+  Node* result = Parameter(Descriptor::kResult);
+  Return(result);
+}
+
+// ES #sec-typedarray-constructors
+TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                               MachineType::TaggedPointer());
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* arg1 = args.GetOptionalArgumentValue(0);
+  Node* arg2 = args.GetOptionalArgumentValue(1);
+  Node* arg3 = args.GetOptionalArgumentValue(2);
+
+  // If NewTarget is undefined, throw a TypeError exception.
+  // All the TypedArray constructors have this as the first step:
+  // https://tc39.github.io/ecma262/#sec-typedarray-constructors
+  Label throwtypeerror(this, Label::kDeferred);
+  GotoIf(IsUndefined(new_target), &throwtypeerror);
+
+  Node* result = CallBuiltin(Builtins::kCreateTypedArray, context, target,
+                             new_target, arg1, arg2, arg3);
+  args.PopAndReturn(result);
+
+  BIND(&throwtypeerror);
+  {
+    Node* name = CallRuntime(Runtime::kGetFunctionName, context, target);
+    ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, name);
+  }
 }
 
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
@@ -829,11 +867,10 @@ TNode<Object> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
   var_constructor = default_constructor;
   Node* map = LoadMap(exemplar);
   GotoIfNot(IsPrototypeTypedArrayPrototype(context, map), &slow);
-  Branch(IsSpeciesProtectorCellInvalid(), &slow, &done);
+  Branch(IsTypedArraySpeciesProtectorCellInvalid(), &slow, &done);
 
   BIND(&slow);
-  var_constructor =
-      CAST(SpeciesConstructor(context, exemplar, default_constructor));
+  var_constructor = SpeciesConstructor(context, exemplar, default_constructor);
   Goto(&done);
 
   BIND(&done);
@@ -1260,8 +1297,7 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
                   [=] {
                     return SmiTag(ConvertToRelativeIndex(
                         context, end, SmiUntag(source_length)));
-                  },
-                  MachineRepresentation::kTagged);
+                  });
 
   // Create a result array by invoking TypedArraySpeciesCreate.
   TNode<Smi> count = SmiMax(SmiSub(end_index, start_index), SmiConstant(0));
@@ -1460,15 +1496,11 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
 
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
     Node* context, Node* receiver, const char* method_name,
-    IterationKind iteration_kind) {
+    IterationKind kind) {
   Label throw_bad_receiver(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &throw_bad_receiver);
-
-  Node* map = LoadMap(receiver);
-  Node* instance_type = LoadMapInstanceType(map);
-  GotoIfNot(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE),
-            &throw_bad_receiver);
+  GotoIfNot(IsJSTypedArray(receiver), &throw_bad_receiver);
 
   // Check if the {receiver}'s JSArrayBuffer was neutered.
   Node* receiver_buffer =
@@ -1476,8 +1508,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   Label if_receiverisneutered(this, Label::kDeferred);
   GotoIf(IsDetachedBuffer(receiver_buffer), &if_receiverisneutered);
 
-  Return(CreateArrayIterator(receiver, map, instance_type, context,
-                             iteration_kind));
+  Return(CreateArrayIterator(context, receiver, kind));
 
   BIND(&throw_bad_receiver);
   ThrowTypeError(context, MessageTemplate::kNotTypedArray, method_name);
@@ -1486,7 +1517,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
 }
 
-// ES6 #sec-%typedarray%.prototype.values
+// ES #sec-%typedarray%.prototype.values
 TF_BUILTIN(TypedArrayPrototypeValues, TypedArrayBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -1495,7 +1526,7 @@ TF_BUILTIN(TypedArrayPrototypeValues, TypedArrayBuiltinsAssembler) {
                                              IterationKind::kValues);
 }
 
-// ES6 #sec-%typedarray%.prototype.entries
+// ES #sec-%typedarray%.prototype.entries
 TF_BUILTIN(TypedArrayPrototypeEntries, TypedArrayBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -1504,7 +1535,7 @@ TF_BUILTIN(TypedArrayPrototypeEntries, TypedArrayBuiltinsAssembler) {
                                              IterationKind::kEntries);
 }
 
-// ES6 #sec-%typedarray%.prototype.keys
+// ES #sec-%typedarray%.prototype.keys
 TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);

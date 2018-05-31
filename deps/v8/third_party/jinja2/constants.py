@@ -5,7 +5,7 @@
 
     Various constants.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 

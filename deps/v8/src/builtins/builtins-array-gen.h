@@ -73,8 +73,8 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<Object> receiver() { return receiver_; }
   Node* new_target() { return new_target_; }
   TNode<IntPtrT> argc() { return argc_; }
-  Node* o() { return o_; }
-  Node* len() { return len_; }
+  TNode<JSReceiver> o() { return o_; }
+  TNode<Number> len() { return len_; }
   Node* callbackfn() { return callbackfn_; }
   Node* this_arg() { return this_arg_; }
   Node* k() { return k_.value(); }
@@ -95,7 +95,8 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       ForEachDirection direction = ForEachDirection::kForward);
   void InitIteratingArrayBuiltinLoopContinuation(
       TNode<Context> context, TNode<Object> receiver, Node* callbackfn,
-      Node* this_arg, Node* a, Node* o, Node* initial_k, Node* len, Node* to);
+      Node* this_arg, Node* a, TNode<JSReceiver> o, Node* initial_k,
+      TNode<Number> len, Node* to);
 
   void GenerateIteratingTypedArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
@@ -112,13 +113,15 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void VisitAllTypedArrayElements(Node* array_buffer,
                                   const CallResultProcessor& processor,
-                                  Label* detached, ForEachDirection direction);
+                                  Label* detached, ForEachDirection direction,
+                                  TNode<JSTypedArray> typed_array);
 
   void VisitAllFastElementsOneKind(ElementsKind kind,
                                    const CallResultProcessor& processor,
                                    Label* array_changed, ParameterMode mode,
                                    ForEachDirection direction,
-                                   MissingPropertyMode missing_property_mode);
+                                   MissingPropertyMode missing_property_mode,
+                                   TNode<Smi> length);
 
   void HandleFastElements(const CallResultProcessor& processor,
                           const PostLoopAction& action, Label* slow,
@@ -131,12 +134,12 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   void GenerateArraySpeciesCreate();
 
   // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
-  void GenerateArraySpeciesCreate(SloppyTNode<Smi> len);
+  void GenerateArraySpeciesCreate(TNode<Number> len);
 
   Node* callbackfn_ = nullptr;
-  Node* o_ = nullptr;
+  TNode<JSReceiver> o_;
   Node* this_arg_ = nullptr;
-  Node* len_ = nullptr;
+  TNode<Number> len_;
   TNode<Context> context_;
   TNode<Object> receiver_;
   Node* new_target_ = nullptr;

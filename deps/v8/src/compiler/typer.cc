@@ -325,8 +325,8 @@ class Typer::Visitor : public Reducer {
   static Type* NumberLessThanOrEqualTyper(Type*, Type*, Typer*);
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
   static Type* SameValueTyper(Type*, Type*, Typer*);
-  static Type* StringFromCharCodeTyper(Type*, Typer*);
-  static Type* StringFromCodePointTyper(Type*, Typer*);
+  static Type* StringFromSingleCharCodeTyper(Type*, Typer*);
+  static Type* StringFromSingleCodePointTyper(Type*, Typer*);
 
   Reduction UpdateType(Node* node, Type* current) {
     if (NodeProperties::IsTyped(node)) {
@@ -734,12 +734,12 @@ Type* Typer::Visitor::TypeFloat64Constant(Node* node) {
 }
 
 Type* Typer::Visitor::TypeNumberConstant(Node* node) {
-  double number = OpParameter<double>(node);
+  double number = OpParameter<double>(node->op());
   return Type::NewConstant(number, zone());
 }
 
 Type* Typer::Visitor::TypeHeapConstant(Node* node) {
-  return TypeConstant(OpParameter<Handle<HeapObject>>(node));
+  return TypeConstant(HeapConstantOf(node->op()));
 }
 
 Type* Typer::Visitor::TypeExternalConstant(Node* node) {
@@ -1208,6 +1208,14 @@ Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
 
 Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }
 
+Type* Typer::Visitor::TypeJSCreateArrayIterator(Node* node) {
+  return Type::OtherObject();
+}
+
+Type* Typer::Visitor::TypeJSCreateCollectionIterator(Node* node) {
+  return Type::OtherObject();
+}
+
 Type* Typer::Visitor::TypeJSCreateBoundFunction(Node* node) {
   return Type::BoundFunction();
 }
@@ -1234,6 +1242,10 @@ Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
 }
 
 Type* Typer::Visitor::TypeJSCreatePromise(Node* node) {
+  return Type::OtherObject();
+}
+
+Type* Typer::Visitor::TypeJSCreateTypedArray(Node* node) {
   return Type::OtherObject();
 }
 
@@ -1373,6 +1385,8 @@ Type* Typer::Visitor::TypeJSStoreNamedOwn(Node* node) {
 Type* Typer::Visitor::TypeJSStoreDataPropertyInLiteral(Node* node) {
   UNREACHABLE();
 }
+
+Type* Typer::Visitor::TypeJSStoreInArrayLiteral(Node* node) { UNREACHABLE(); }
 
 Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
   return Type::Boolean();
@@ -1952,15 +1966,13 @@ Type* Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
-Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
+Type* Typer::Visitor::StringFromSingleCharCodeTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
-Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
+Type* Typer::Visitor::StringFromSingleCodePointTyper(Type* type, Typer* t) {
   return Type::String();
 }
-
-Type* Typer::Visitor::TypeStringCharAt(Node* node) { return Type::String(); }
 
 Type* Typer::Visitor::TypeStringToLowerCaseIntl(Node* node) {
   return Type::String();
@@ -1974,24 +1986,16 @@ Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
   return typer_->cache_.kUint16;
 }
 
-Type* Typer::Visitor::TypeSeqStringCharCodeAt(Node* node) {
-  return typer_->cache_.kUint16;
-}
-
 Type* Typer::Visitor::TypeStringCodePointAt(Node* node) {
   return Type::Range(0.0, String::kMaxCodePoint, zone());
 }
 
-Type* Typer::Visitor::TypeSeqStringCodePointAt(Node* node) {
-  return Type::Range(0.0, String::kMaxCodePoint, zone());
+Type* Typer::Visitor::TypeStringFromSingleCharCode(Node* node) {
+  return TypeUnaryOp(node, StringFromSingleCharCodeTyper);
 }
 
-Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
-  return TypeUnaryOp(node, StringFromCharCodeTyper);
-}
-
-Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {
-  return TypeUnaryOp(node, StringFromCodePointTyper);
+Type* Typer::Visitor::TypeStringFromSingleCodePoint(Node* node) {
+  return TypeUnaryOp(node, StringFromSingleCodePointTyper);
 }
 
 Type* Typer::Visitor::TypeStringIndexOf(Node* node) {
@@ -2060,11 +2064,6 @@ Type* Typer::Visitor::TypeCheckSmi(Node* node) {
 Type* Typer::Visitor::TypeCheckString(Node* node) {
   Type* arg = Operand(node, 0);
   return Type::Intersect(arg, Type::String(), zone());
-}
-
-Type* Typer::Visitor::TypeCheckSeqString(Node* node) {
-  Type* arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::SeqString(), zone());
 }
 
 Type* Typer::Visitor::TypeCheckSymbol(Node* node) {
@@ -2181,6 +2180,24 @@ Type* Typer::Visitor::TypeNumberIsFloat64Hole(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeNumberIsFinite(Node* node) { UNREACHABLE(); }
+
+Type* Typer::Visitor::TypeObjectIsFiniteNumber(Node* node) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::TypeNumberIsInteger(Node* node) { UNREACHABLE(); }
+
+Type* Typer::Visitor::TypeObjectIsSafeInteger(Node* node) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::TypeNumberIsSafeInteger(Node* node) { UNREACHABLE(); }
+
+Type* Typer::Visitor::TypeObjectIsInteger(Node* node) {
+  return Type::Boolean();
+}
+
 Type* Typer::Visitor::TypeObjectIsNaN(Node* node) {
   return TypeUnaryOp(node, ObjectIsNaN);
 }
@@ -2235,9 +2252,7 @@ Type* Typer::Visitor::TypeNewArgumentsElements(Node* node) {
   return Type::OtherInternal();
 }
 
-Type* Typer::Visitor::TypeNewConsString(Node* node) {
-  return Type::OtherNonSeqString();
-}
+Type* Typer::Visitor::TypeNewConsString(Node* node) { return Type::String(); }
 
 Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
   return Type::Boolean();

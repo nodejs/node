@@ -7,9 +7,11 @@
     tags work.  By default two example extensions exist: an i18n and a cache
     extension.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD.
 """
+import re
+
 from jinja2 import nodes
 from jinja2.defaults import BLOCK_START_STRING, \
      BLOCK_END_STRING, VARIABLE_START_STRING, VARIABLE_END_STRING, \
@@ -87,7 +89,7 @@ class Extension(with_metaclass(ExtensionRegistry, object)):
     def filter_stream(self, stream):
         """It's passed a :class:`~jinja2.lexer.TokenStream` that can be used
         to filter tokens returned.  This method has to return an iterable of
-        :class:`~jinja2.lexer.Token`\s, but it doesn't have to return a
+        :class:`~jinja2.lexer.Token`\\s, but it doesn't have to return a
         :class:`~jinja2.lexer.TokenStream`.
 
         In the `ext` folder of the Jinja2 source distribution there is a file
@@ -223,6 +225,7 @@ class InternationalizationExtension(Extension):
         plural_expr = None
         plural_expr_assignment = None
         variables = {}
+        trimmed = None
         while parser.stream.current.type != 'block_end':
             if variables:
                 parser.stream.expect('comma')
@@ -241,6 +244,9 @@ class InternationalizationExtension(Extension):
             if parser.stream.current.type == 'assign':
                 next(parser.stream)
                 variables[name.value] = var = parser.parse_expression()
+            elif trimmed is None and name.value in ('trimmed', 'notrimmed'):
+                trimmed = name.value == 'trimmed'
+                continue
             else:
                 variables[name.value] = var = nodes.Name(name.value, 'load')
 
@@ -256,7 +262,7 @@ class InternationalizationExtension(Extension):
 
         parser.stream.expect('block_end')
 
-        plural = plural_names = None
+        plural = None
         have_plural = False
         referenced = set()
 
@@ -297,6 +303,13 @@ class InternationalizationExtension(Extension):
         elif plural_expr is None:
             parser.fail('pluralize without variables', lineno)
 
+        if trimmed is None:
+            trimmed = self.environment.policies['ext.i18n.trimmed']
+        if trimmed:
+            singular = self._trim_whitespace(singular)
+            if plural:
+                plural = self._trim_whitespace(plural)
+
         node = self._make_node(singular, plural, variables, plural_expr,
                                bool(referenced),
                                num_called_num and have_plural)
@@ -305,6 +318,9 @@ class InternationalizationExtension(Extension):
             return [plural_expr_assignment, node]
         else:
             return node
+
+    def _trim_whitespace(self, string, _ws_re=re.compile(r'\s*\n\s*')):
+        return _ws_re.sub(' ', string.strip())
 
     def _parse_block(self, parser, allow_pluralize):
         """Parse until the next block tag with a given name."""
@@ -411,38 +427,11 @@ class LoopControlExtension(Extension):
 
 
 class WithExtension(Extension):
-    """Adds support for a django-like with block."""
-    tags = set(['with'])
-
-    def parse(self, parser):
-        node = nodes.Scope(lineno=next(parser.stream).lineno)
-        assignments = []
-        while parser.stream.current.type != 'block_end':
-            lineno = parser.stream.current.lineno
-            if assignments:
-                parser.stream.expect('comma')
-            target = parser.parse_assign_target()
-            parser.stream.expect('assign')
-            expr = parser.parse_expression()
-            assignments.append(nodes.Assign(target, expr, lineno=lineno))
-        node.body = assignments + \
-            list(parser.parse_statements(('name:endwith',),
-                                         drop_needle=True))
-        return node
+    pass
 
 
 class AutoEscapeExtension(Extension):
-    """Changes auto escape rules for a scope."""
-    tags = set(['autoescape'])
-
-    def parse(self, parser):
-        node = nodes.ScopedEvalContextModifier(lineno=next(parser.stream).lineno)
-        node.options = [
-            nodes.Keyword('autoescape', parser.parse_expression())
-        ]
-        node.body = parser.parse_statements(('name:endautoescape',),
-                                            drop_needle=True)
-        return nodes.Scope([node])
+    pass
 
 
 def extract_from_ast(node, gettext_functions=GETTEXT_FUNCTIONS,
@@ -610,6 +599,8 @@ def babel_extract(fileobj, keywords, comment_tags, options):
         auto_reload=False
     )
 
+    if getbool(options, 'trimmed'):
+        environment.policies['ext.i18n.trimmed'] = True
     if getbool(options, 'newstyle_gettext'):
         environment.newstyle_gettext = True
 

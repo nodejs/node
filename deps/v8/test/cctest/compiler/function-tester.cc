@@ -5,13 +5,13 @@
 #include "test/cctest/compiler/function-tester.h"
 
 #include "src/api.h"
-#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 
@@ -24,7 +24,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
       function((FLAG_allow_natives_syntax = true, NewFunction(source))),
       flags_(flags) {
   Compile(function);
-  const uint32_t supported_flags = CompilationInfo::kInliningEnabled;
+  const uint32_t supported_flags = OptimizedCompilationInfo::kInliningEnabled;
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
@@ -138,11 +138,11 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), function->GetIsolate(), shared,
-                       function);
+  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
+                                function);
 
-  if (flags_ & CompilationInfo::kInliningEnabled) {
+  if (flags_ & OptimizedCompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }
 
@@ -164,9 +164,9 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), function->GetIsolate(), shared,
-                       function);
+  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
+  OptimizedCompilationInfo info(&zone, function->GetIsolate(), shared,
+                                function);
 
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, function->GetIsolate(), graph);

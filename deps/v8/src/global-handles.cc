@@ -270,10 +270,8 @@ class GlobalHandles::Node {
     // Zap with something dangerous.
     *location() = reinterpret_cast<Object*>(0x6057CA11);
 
-    typedef v8::WeakCallbackInfo<void> Data;
-    auto callback = reinterpret_cast<Data::Callback>(weak_callback_);
-    pending_phantom_callbacks->push_back(
-        PendingPhantomCallback(this, callback, parameter(), embedder_fields));
+    pending_phantom_callbacks->push_back(PendingPhantomCallback(
+        this, weak_callback_, parameter(), embedder_fields));
     DCHECK(IsInUse());
     set_state(NEAR_DEATH);
   }
@@ -877,8 +875,12 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
   callback_ = nullptr;
   callback(data);
   if (node_ != nullptr) {
-    // Transition to second pass state.
-    DCHECK(node_->state() == Node::FREE);
+    // Transition to second pass. It is required that the first pass callback
+    // resets the handle using |v8::PersistentBase::Reset|. Also see comments on
+    // |v8::WeakCallbackInfo|.
+    CHECK_WITH_MSG(Node::FREE == node_->state(),
+                   "Handle not reset in first callback. See comments on "
+                   "|v8::WeakCallbackInfo|.");
     node_ = nullptr;
   }
 }

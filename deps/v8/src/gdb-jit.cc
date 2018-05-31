@@ -979,11 +979,11 @@ class CodeDescription BASE_EMBEDDED {
   }
 
   uintptr_t CodeStart() const {
-    return reinterpret_cast<uintptr_t>(code_->instruction_start());
+    return reinterpret_cast<uintptr_t>(code_->InstructionStart());
   }
 
   uintptr_t CodeEnd() const {
-    return reinterpret_cast<uintptr_t>(code_->instruction_end());
+    return reinterpret_cast<uintptr_t>(code_->InstructionEnd());
   }
 
   uintptr_t CodeSize() const {
@@ -996,11 +996,7 @@ class CodeDescription BASE_EMBEDDED {
 
   Script* script() { return Script::cast(shared_info_->script()); }
 
-  bool IsLineInfoAvailable() {
-    return has_script() && script()->source()->IsString() &&
-           script()->HasValidSource() && script()->name()->IsString() &&
-           lineinfo_ != nullptr;
-  }
+  bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
 #if V8_TARGET_ARCH_X64
   uintptr_t GetStackStateStartAddress(StackState state) const {
@@ -1015,11 +1011,22 @@ class CodeDescription BASE_EMBEDDED {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
-    return String::cast(script()->name())->ToCString();
+    if (shared_info_ != nullptr) {
+      return String::cast(script()->name())->ToCString();
+    } else {
+      std::unique_ptr<char[]> result(new char[1]);
+      result[0] = 0;
+      return result;
+    }
   }
 
-  int GetScriptLineNumber(int pos) { return script()->GetLineNumber(pos) + 1; }
-
+  int GetScriptLineNumber(int pos) {
+    if (shared_info_ != nullptr) {
+      return script()->GetLineNumber(pos) + 1;
+    } else {
+      return 0;
+    }
+  }
 
  private:
   const char* name_;
@@ -2167,6 +2174,7 @@ static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
 
 void EventHandler(const v8::JitCodeEvent* event) {
   if (!FLAG_gdbjit) return;
+  if (event->code_type != v8::JitCodeEvent::JIT_CODE) return;
   base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {

@@ -438,8 +438,8 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
     for (size_t i = 0; i < projection_count - 1; i++) {
       Node* if_value = projections[i];
       DCHECK_EQ(IrOpcode::kIfValue, if_value->opcode());
-      int32_t value_index = OpParameter<int32_t>(if_value->op());
-      if (value_index == mswitched.Value()) {
+      const IfValueParameters& p = IfValueParametersOf(if_value->op());
+      if (p.value() == mswitched.Value()) {
         matched = true;
         Replace(if_value, control);
         break;

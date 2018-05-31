@@ -13,7 +13,7 @@
 
 namespace {
 
-#if V8_OS_POSIX
+#if V8_TRAP_HANDLER_SUPPORTED
 
 void CrashOnPurpose() { *reinterpret_cast<volatile int*>(42); }
 
@@ -52,7 +52,8 @@ sigjmp_buf SignalHandlerFallbackTest::continuation_;
 TEST_F(SignalHandlerFallbackTest, DoTest) {
   const int save_sigs = 1;
   if (!sigsetjmp(continuation_, save_sigs)) {
-    v8::V8::RegisterDefaultSignalHandler();
+    constexpr bool use_default_signal_handler = true;
+    CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
     CrashOnPurpose();
     FAIL();
   } else {

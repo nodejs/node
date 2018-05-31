@@ -192,9 +192,6 @@ class StoreHandler final : public DataHandler {
     kElement,
     kField,
     kConstField,
-    // TODO(ishell): remove once constant field tracking is done.
-    kTransitionToConstant = kConstField,
-    kTransitionToField,
     kAccessor,
     kNativeDataProperty,
     kApiSetter,
@@ -236,8 +233,7 @@ class StoreHandler final : public DataHandler {
   //
   // Encoding when KindBits contains kField or kTransitionToField.
   //
-  class ExtendStorageBits : public BitField<bool, DescriptorBits::kNext, 1> {};
-  class IsInobjectBits : public BitField<bool, ExtendStorageBits::kNext, 1> {};
+  class IsInobjectBits : public BitField<bool, DescriptorBits::kNext, 1> {};
   class FieldRepresentationBits
       : public BitField<FieldRepresentation, IsInobjectBits::kNext, 2> {};
   // +1 here is to cover all possible JSObject header sizes.
@@ -257,8 +253,8 @@ class StoreHandler final : public DataHandler {
                                        PropertyConstness constness,
                                        Representation representation);
 
-  static Handle<Smi> StoreTransition(Isolate* isolate,
-                                     Handle<Map> transition_map);
+  static Handle<Object> StoreTransition(Isolate* isolate,
+                                        Handle<Map> transition_map);
 
   // Creates a Smi-handler for storing a native data property on a fast object.
   static inline Handle<Smi> StoreNativeDataProperty(Isolate* isolate,
@@ -303,19 +299,7 @@ class StoreHandler final : public DataHandler {
  private:
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
                                        int descriptor, FieldIndex field_index,
-                                       Representation representation,
-                                       bool extend_storage);
-
-  // Creates a Smi-handler for transitioning store to a field.
-  static inline Handle<Smi> TransitionToField(Isolate* isolate, int descriptor,
-                                              FieldIndex field_index,
-                                              Representation representation,
-                                              bool extend_storage);
-
-  // Creates a Smi-handler for transitioning store to a constant field (in this
-  // case the only thing that needs to be done is an update of a map).
-  static inline Handle<Smi> TransitionToConstant(Isolate* isolate,
-                                                 int descriptor);
+                                       Representation representation);
 };
 
 }  // namespace internal

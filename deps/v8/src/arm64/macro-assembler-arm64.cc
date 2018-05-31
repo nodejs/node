@@ -1625,6 +1625,21 @@ void MacroAssembler::AssertFixedArray(Register object) {
   }
 }
 
+void MacroAssembler::AssertConstructor(Register object) {
+  if (emit_debug_code()) {
+    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAConstructor);
+
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+
+    Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
+    Ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
+    Tst(temp, Operand(Map::IsConstructorBit::kMask));
+
+    Check(ne, AbortReason::kOperandIsNotAConstructor);
+  }
+}
+
 void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {
     AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
@@ -1759,9 +1774,9 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
-  uint64_t bytes_address = reinterpret_cast<uint64_t>(stream->bytes());
-  Mov(kOffHeapTrampolineRegister, bytes_address);
+void MacroAssembler::JumpToInstructionStream(Address entry) {
+  Mov(kOffHeapTrampolineRegister,
+      Operand(reinterpret_cast<uint64_t>(entry), RelocInfo::OFF_HEAP_TARGET));
   Br(kOffHeapTrampolineRegister);
 }
 
@@ -2144,28 +2159,14 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook, call_hook;
-
-  ExternalReference debug_is_active =
-      ExternalReference::debug_is_active_address(isolate());
-  Mov(x4, Operand(debug_is_active));
-  Ldrsb(x4, MemOperand(x4));
-  Cbz(x4, &skip_hook);
+  Label skip_hook;
 
   ExternalReference debug_hook_active =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   Mov(x4, Operand(debug_hook_active));
   Ldrsb(x4, MemOperand(x4));
-  Cbnz(x4, &call_hook);
+  Cbz(x4, &skip_hook);
 
-  Ldr(x4, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
-  Ldr(x4, FieldMemOperand(x4, SharedFunctionInfo::kDebugInfoOffset));
-  JumpIfSmi(x4, &skip_hook);
-  Ldr(x4, FieldMemOperand(x4, DebugInfo::kFlagsOffset));
-  Tst(x4, Operand(Smi::FromInt(DebugInfo::kBreakAtEntry)));
-  B(eq, &skip_hook);
-
-  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -2503,6 +2504,12 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   Pop(fp, lr);
 }
 
+void MacroAssembler::LoadWeakValue(Register out, Register in,
+                                   Label* target_if_cleared) {
+  CompareAndBranch(in, Operand(kClearedWeakHeapObject), eq, target_if_cleared);
+
+  and_(out, in, Operand(~kWeakHeapObjectMask));
+}
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {

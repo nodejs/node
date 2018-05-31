@@ -231,14 +231,14 @@ TEST(TickEvents) {
   profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
-  EnqueueTickSampleEvent(processor, frame1_code->instruction_start());
+  EnqueueTickSampleEvent(processor, frame1_code->raw_instruction_start());
   EnqueueTickSampleEvent(
       processor,
-      frame2_code->instruction_start() + frame2_code->ExecutableSize() / 2,
-      frame1_code->instruction_start() + frame1_code->ExecutableSize() / 2);
-  EnqueueTickSampleEvent(processor, frame3_code->instruction_end() - 1,
-                         frame2_code->instruction_end() - 1,
-                         frame1_code->instruction_end() - 1);
+      frame2_code->raw_instruction_start() + frame2_code->ExecutableSize() / 2,
+      frame1_code->raw_instruction_start() + frame1_code->ExecutableSize() / 2);
+  EnqueueTickSampleEvent(processor, frame3_code->raw_instruction_end() - 1,
+                         frame2_code->raw_instruction_end() - 1,
+                         frame1_code->raw_instruction_end() - 1);
 
   profiler_listener.RemoveObserver(&profiler);
   isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
@@ -1072,7 +1072,7 @@ static void TickLines(bool optimize) {
         !CcTest::i_isolate()->use_optimizer());
   i::AbstractCode* code = func->abstract_code();
   CHECK(code);
-  i::Address code_address = code->instruction_start();
+  i::Address code_address = code->raw_instruction_start();
   CHECK(code_address);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -1651,11 +1651,11 @@ TEST(IdleTime) {
       reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->processor();
 
   processor->AddCurrentStack(isolate, true);
-  cpu_profiler->SetIdle(true);
+  isolate->SetIdle(true);
   for (int i = 0; i < 3; i++) {
     processor->AddCurrentStack(isolate, true);
   }
-  cpu_profiler->SetIdle(false);
+  isolate->SetIdle(false);
   processor->AddCurrentStack(isolate, true);
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);

@@ -2287,7 +2287,7 @@ ScriptMirror.prototype.value = function() {
 
 
 ScriptMirror.prototype.name = function() {
-  return this.script_.name || this.script_.nameOrSourceURL();
+  return this.script_.name || this.script_.source_url;
 };
 
 
@@ -2339,7 +2339,7 @@ ScriptMirror.prototype.lineCount = function() {
 
 ScriptMirror.prototype.locationFromPosition = function(
     position, include_resource_offset) {
-  return this.script_.locationFromPosition(position, include_resource_offset);
+  return %ScriptPositionInfo(this.script_, position, !!include_resource_offset);
 };
 
 
