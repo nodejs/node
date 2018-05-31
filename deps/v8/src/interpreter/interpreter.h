@@ -21,8 +21,7 @@ namespace internal {
 class Isolate;
 class BuiltinDeserializerAllocator;
 class Callable;
-class CompilationInfo;
-class CompilationJob;
+class UnoptimizedCompilationJob;
 class FunctionLiteral;
 class ParseInfo;
 class RootVisitor;
@@ -45,7 +44,7 @@ class Interpreter {
   // Creates a compilation job which will generate bytecode for |literal|.
   // Additionally, if |eager_inner_literals| is not null, adds any eagerly
   // compilable inner FunctionLiterals to this list.
-  static CompilationJob* NewCompilationJob(
+  static UnoptimizedCompilationJob* NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
       ZoneVector<FunctionLiteral*>* eager_inner_literals);

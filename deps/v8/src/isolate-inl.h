@@ -93,7 +93,9 @@ void Isolate::FireBeforeCallEnteredCallback() {
 }
 
 void Isolate::FireMicrotasksCompletedCallback() {
-  for (auto& callback : microtasks_completed_callbacks_) {
+  std::vector<MicrotasksCompletedCallback> callbacks(
+      microtasks_completed_callbacks_);
+  for (auto& callback : callbacks) {
     callback(reinterpret_cast<v8::Isolate*>(this));
   }
 }
@@ -131,7 +133,7 @@ bool Isolate::IsArrayConstructorIntact() {
   return array_constructor_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsSpeciesLookupChainIntact() {
+bool Isolate::IsArraySpeciesLookupChainIntact() {
   // Note: It would be nice to have debug checks to make sure that the
   // species protector is accurate, but this would be hard to do for most of
   // what the protector stands for:
@@ -144,7 +146,19 @@ bool Isolate::IsSpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  PropertyCell* species_cell = heap()->species_protector();
+  PropertyCell* species_cell = heap()->array_species_protector();
+  return species_cell->value()->IsSmi() &&
+         Smi::ToInt(species_cell->value()) == kProtectorValid;
+}
+
+bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
+  PropertyCell* species_cell = heap()->typed_array_species_protector();
+  return species_cell->value()->IsSmi() &&
+         Smi::ToInt(species_cell->value()) == kProtectorValid;
+}
+
+bool Isolate::IsPromiseSpeciesLookupChainIntact() {
+  PropertyCell* species_cell = heap()->promise_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
@@ -152,11 +166,6 @@ bool Isolate::IsSpeciesLookupChainIntact() {
 bool Isolate::IsStringLengthOverflowIntact() {
   Cell* string_length_cell = heap()->string_length_protector();
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
-}
-
-bool Isolate::IsFastArrayIterationIntact() {
-  Cell* fast_iteration_cell = heap()->fast_array_iteration_protector();
-  return fast_iteration_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayBufferNeuteringIntact() {

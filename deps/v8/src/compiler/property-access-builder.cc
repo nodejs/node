@@ -47,32 +47,17 @@ bool HasOnlyNumberMaps(MapHandles const& maps) {
   return true;
 }
 
-bool HasOnlySequentialStringMaps(MapHandles const& maps) {
-  for (auto map : maps) {
-    if (!map->IsStringMap()) return false;
-    if (!StringShape(map->instance_type()).IsSequential()) {
-      return false;
-    }
-  }
-  return true;
-}
-
 }  // namespace
 
 bool PropertyAccessBuilder::TryBuildStringCheck(MapHandles const& maps,
                                                 Node** receiver, Node** effect,
                                                 Node* control) {
   if (HasOnlyStringMaps(maps)) {
-    if (HasOnlySequentialStringMaps(maps)) {
-      *receiver = *effect = graph()->NewNode(simplified()->CheckSeqString(),
-                                             *receiver, *effect, control);
-    } else {
-      // Monormorphic string access (ignoring the fact that there are multiple
-      // String maps).
-      *receiver = *effect =
-          graph()->NewNode(simplified()->CheckString(VectorSlotPair()),
-                           *receiver, *effect, control);
-    }
+    // Monormorphic string access (ignoring the fact that there are multiple
+    // String maps).
+    *receiver = *effect =
+        graph()->NewNode(simplified()->CheckString(VectorSlotPair()), *receiver,
+                         *effect, control);
     return true;
   }
   return false;

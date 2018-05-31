@@ -134,7 +134,7 @@ class HashTable : public HashTableBase {
   typedef typename Shape::Key Key;
 
   // Returns a new HashTable object.
-  MUST_USE_RESULT static Handle<Derived> New(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> New(
       Isolate* isolate, int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
@@ -181,6 +181,9 @@ class HashTable : public HashTableBase {
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize;
 
+  // Don't shrink a HashTable below this capacity.
+  static const int kMinShrinkCapacity = 16;
+
   // Maximum length to create a regular HashTable (aka. non large object).
   static const int kMaxRegularCapacity = 16384;
 
@@ -190,7 +193,7 @@ class HashTable : public HashTableBase {
   }
 
   // Ensure enough space for n additional elements.
-  MUST_USE_RESULT static Handle<Derived> EnsureCapacity(
+  V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
       Handle<Derived> table, int n, PretenureFlag pretenure = NOT_TENURED);
 
   // Returns true if this table has sufficient capacity for adding n elements.
@@ -199,16 +202,16 @@ class HashTable : public HashTableBase {
  protected:
   friend class ObjectHashTable;
 
-  MUST_USE_RESULT static Handle<Derived> NewInternal(Isolate* isolate,
-                                                     int capacity,
-                                                     PretenureFlag pretenure);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
+      Isolate* isolate, int capacity, PretenureFlag pretenure);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
   uint32_t FindInsertionEntry(uint32_t hash);
 
   // Attempt to shrink hash table after removal of key.
-  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Shrink(
+      Handle<Derived> table, int additionalCapacity = 0);
 
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
@@ -285,7 +288,7 @@ class ObjectHashTable
   DECL_CAST(ObjectHashTable)
 
   // Attempt to shrink hash table after removal of key.
-  MUST_USE_RESULT static inline Handle<ObjectHashTable> Shrink(
+  V8_WARN_UNUSED_RESULT static inline Handle<ObjectHashTable> Shrink(
       Handle<ObjectHashTable> table);
 
   // Looks up the value associated with the given key. The hole value is
@@ -572,48 +575,6 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   static inline int GetMapRootIndex();
 
   static const int kValueOffset = 1;
-};
-
-class WeakHashTableShape : public BaseShape<Handle<Object>> {
- public:
-  static inline bool IsMatch(Handle<Object> key, Object* other);
-  static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
-  static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
-  static inline int GetMapRootIndex();
-  static const int kPrefixSize = 0;
-  static const int kEntrySize = 2;
-  static const bool kNeedsHoleCheck = false;
-};
-
-// WeakHashTable maps keys that are arbitrary heap objects to heap object
-// values. The table wraps the keys in weak cells and store values directly.
-// Thus it references keys weakly and values strongly.
-class WeakHashTable : public HashTable<WeakHashTable, WeakHashTableShape> {
-  typedef HashTable<WeakHashTable, WeakHashTableShape> DerivedHashTable;
-
- public:
-  DECL_CAST(WeakHashTable)
-
-  // Looks up the value associated with the given key. The hole value is
-  // returned in case the key is not present.
-  Object* Lookup(Handle<HeapObject> key);
-
-  // Adds (or overwrites) the value associated with the given key. Mapping a
-  // key to the hole value causes removal of the whole entry.
-  MUST_USE_RESULT static Handle<WeakHashTable> Put(Handle<WeakHashTable> table,
-                                                   Handle<HeapObject> key,
-                                                   Handle<HeapObject> value);
-
- private:
-  friend class MarkCompactCollector;
-
-  void AddEntry(int entry, Handle<WeakCell> key, Handle<HeapObject> value);
-
-  // Returns the index to the value of an entry.
-  static inline int EntryToValueIndex(int entry) {
-    return EntryToIndex(entry) + 1;
-  }
 };
 
 // This is similar to the OrderedHashTable, except for the memory

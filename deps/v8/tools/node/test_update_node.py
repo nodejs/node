@@ -18,12 +18,16 @@ TEST_DATA = os.path.join(BASE_DIR, 'testdata')
 
 # Expectations.
 EXPECTED_GITIGNORE = """
-/testing/gtest/*
-!/testing/gtest/include
-/testing/gtest/include/*
-!/testing/gtest/include/gtest
-/testing/gtest/include/gtest/*
-!/testing/gtest/include/gtest/gtest_prod.h
+/third_party/googletest/*
+!/third_party/googletest/src
+/third_party/googletest/src/*
+!/third_party/googletest/src/googletest
+/third_party/googletest/src/googletest/*
+!/third_party/googletest/src/googletest/include
+/third_party/googletest/src/googletest/include/*
+!/third_party/googletest/src/googletest/include/gtest
+/third_party/googletest/src/googletest/include/gtest/*
+!/third_party/googletest/src/googletest/include/gtest/gtest_prod.h
 !/third_party/jinja2
 !/third_party/markupsafe
 /unrelated
@@ -34,6 +38,7 @@ EXPECTED_GIT_DIFF = """
  rename deps/v8/baz/{delete_me => v8_new} (100%)
  delete mode 100644 deps/v8/include/v8-version.h
  rename deps/v8/{delete_me => new/v8_new} (100%)
+ create mode 100644 deps/v8/third_party/googletest/src/googletest/include/gtest/gtest_prod.h
  create mode 100644 deps/v8/third_party/jinja2/jinja2
  create mode 100644 deps/v8/third_party/markupsafe/markupsafe
  create mode 100644 deps/v8/v8_new
@@ -43,9 +48,9 @@ ADDED_FILES = [
   'v8_new',
   'new/v8_new',
   'baz/v8_new',
-  'testing/gtest/gtest_new',
-  'testing/gtest/new/gtest_new',
-  'testing/gtest/baz/gtest_new',
+  '/third_party/googletest/src/googletest/include/gtest/gtest_new',
+  '/third_party/googletest/src/googletest/include/gtest/new/gtest_new',
+  '/third_party/googletest/src/googletest/include/gtest/baz/gtest_new',
   'third_party/jinja2/jinja2',
   'third_party/markupsafe/markupsafe'
 ]

@@ -122,35 +122,28 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   Label done;
 
   // Unpack the inputs.
-  if (exponent_type() == TAGGED) {
-    __ JumpIfSmi(exponent_tagged, &exponent_is_smi);
-    __ Ldr(exponent_double,
-           FieldMemOperand(exponent_tagged, HeapNumber::kValueOffset));
-  }
 
   // Handle double (heap number) exponents.
-  if (exponent_type() != INTEGER) {
-    // Detect integer exponents stored as doubles and handle those in the
-    // integer fast-path.
-    __ TryRepresentDoubleAsInt64(exponent_integer, exponent_double,
-                                 scratch0_double, &exponent_is_integer);
+  // Detect integer exponents stored as doubles and handle those in the
+  // integer fast-path.
+  __ TryRepresentDoubleAsInt64(exponent_integer, exponent_double,
+                               scratch0_double, &exponent_is_integer);
 
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ Mov(saved_lr, lr);
-      __ CallCFunction(
-          ExternalReference::power_double_double_function(isolate()), 0, 2);
-      __ Mov(lr, saved_lr);
-      __ B(&done);
-    }
-
-    // Handle SMI exponents.
-    __ Bind(&exponent_is_smi);
-    //  x10   base_tagged       The tagged base (input).
-    //  x11   exponent_tagged   The tagged exponent (input).
-    //  d1    base_double       The base as a double.
-    __ SmiUntag(exponent_integer, exponent_tagged);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ Mov(saved_lr, lr);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     0, 2);
+    __ Mov(lr, saved_lr);
+    __ B(&done);
   }
+
+  // Handle SMI exponents.
+  __ Bind(&exponent_is_smi);
+  //  x10   base_tagged       The tagged base (input).
+  //  x11   exponent_tagged   The tagged exponent (input).
+  //  d1    base_double       The base as a double.
+  __ SmiUntag(exponent_integer, exponent_tagged);
 
   __ Bind(&exponent_is_integer);
   //  x10   base_tagged       The tagged base (input).

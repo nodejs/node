@@ -31,27 +31,27 @@ class ValueHelper {
 
   void CheckFloat64Constant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node));
+    CHECK_EQ(expected, OpParameter<double>(node->op()));
   }
 
   void CheckNumberConstant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kNumberConstant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node));
+    CHECK_EQ(expected, OpParameter<double>(node->op()));
   }
 
   void CheckInt32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node));
+    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
   }
 
   void CheckUint32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node));
+    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
   }
 
   void CheckHeapConstant(HeapObject* expected, Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    CHECK_EQ(expected, *OpParameter<Handle<HeapObject>>(node));
+    CHECK_EQ(expected, *HeapConstantOf(node->op()));
   }
 
   void CheckTrue(Node* node) {

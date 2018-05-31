@@ -1,0 +1,6 @@
+*%(basename)s:5: TypeError: 1 is not iterable
+new Map(1);
+^
+TypeError: 1 is not iterable
+    at new Map (<anonymous>)
+    at *%(basename)s:5:1

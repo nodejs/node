@@ -199,7 +199,7 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
   Code* code = Code::cast(obj);
   RelocIterator it(code);
   int delta = 0;
-  const byte* prev_pc = code->instruction_start();
+  const byte* prev_pc = code->raw_instruction_start();
   while (!it.done()) {
     if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
       delta += static_cast<int>(it.rinfo()->pc() - prev_pc);
@@ -209,9 +209,9 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
     it.next();
   }
 
-  DCHECK(code->instruction_start() <= prev_pc &&
-         prev_pc <= code->instruction_end());
-  delta += static_cast<int>(code->instruction_end() - prev_pc);
+  DCHECK(code->raw_instruction_start() <= prev_pc &&
+         prev_pc <= code->raw_instruction_end());
+  delta += static_cast<int>(code->raw_instruction_end() - prev_pc);
   EnterComment(isolate, "NoComment", delta);
 }
 #endif

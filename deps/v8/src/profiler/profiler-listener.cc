@@ -37,7 +37,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->instruction_start());
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->InstructionStart());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -51,7 +51,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->instruction_start());
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->InstructionStart());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -68,7 +68,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       tag, GetFunctionName(shared->DebugName()), CodeEntry::kEmptyNamePrefix,
       GetName(InferScriptName(script_name, shared)),
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->instruction_start());
+      nullptr, code->InstructionStart());
   RecordInliningInfo(rec->entry, code);
   rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
@@ -104,7 +104,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(shared->DebugName()), CodeEntry::kEmptyNamePrefix,
       GetName(InferScriptName(script_name, shared)), line, column,
-      std::move(line_table), abstract_code->instruction_start());
+      std::move(line_table), abstract_code->InstructionStart());
   RecordInliningInfo(rec->entry, abstract_code);
   RecordDeoptInlinedFrames(rec->entry, abstract_code);
   rec->entry->FillFunctionInfo(shared);
@@ -113,7 +113,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       wasm::WasmCode* code,
+                                       const wasm::WasmCode* code,
                                        wasm::WasmName name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -179,22 +179,8 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
                             "RegExp: ", CodeEntry::kEmptyResourceName,
                             CpuProfileNode::kNoLineNumberInfo,
                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                            code->instruction_start());
+                            code->raw_instruction_start());
   rec->size = code->ExecutableSize();
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::InstructionStreamCreateEvent(
-    CodeEventListener::LogEventsAndTags tag, const InstructionStream* stream,
-    const char* description) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = stream->bytes();
-  rec->entry = NewCodeEntry(
-      tag, description, CodeEntry::kEmptyNamePrefix,
-      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr, stream->bytes());
-  rec->size = static_cast<unsigned>(stream->byte_length());
   DispatchCodeEvent(evt_rec);
 }
 
@@ -259,7 +245,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
                         CodeEntry::kEmptyNamePrefix, resource_name,
                         CpuProfileNode::kNoLineNumberInfo,
                         CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                        code->instruction_start());
+                        code->InstructionStart());
       inline_entry->FillFunctionInfo(shared_info);
       inline_stack.emplace_back(inline_entry);
     }

@@ -15,7 +15,6 @@
 #include "src/property-descriptor.h"
 #include "src/simulator.h"
 #include "src/snapshot/snapshot.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/v8.h"
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
@@ -39,94 +38,64 @@ constexpr const char* WasmException::kRuntimeIdStr;
 // static
 constexpr const char* WasmException::kRuntimeValuesStr;
 
-void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
-                                              Handle<FixedArray> code_table) {
-  DisallowHeapAllocation no_gc;
-  std::vector<trap_handler::ProtectedInstructionData> unpacked;
-
-  for (int i = 0; i < code_table->length(); ++i) {
-    Object* maybe_code = code_table->get(i);
-    // This is sometimes undefined when we're called from cctests.
-    if (maybe_code->IsUndefined(isolate)) continue;
-    Code* code = Code::cast(maybe_code);
-
-    if (code->kind() != Code::WASM_FUNCTION) {
-      continue;
-    }
-
-    if (code->trap_handler_index()->value() != trap_handler::kInvalidIndex) {
-      // This function has already been registered.
-      continue;
-    }
-
-    byte* base = code->entry();
-
-    FixedArray* protected_instructions = code->protected_instructions();
-    DCHECK(protected_instructions != nullptr);
-    for (int i = 0; i < protected_instructions->length();
-         i += Code::kTrapDataSize) {
-      trap_handler::ProtectedInstructionData data;
-      data.instr_offset =
-          protected_instructions
-              ->GetValueChecked<Smi>(isolate, i + Code::kTrapCodeOffset)
-              ->value();
-      data.landing_offset =
-          protected_instructions
-              ->GetValueChecked<Smi>(isolate, i + Code::kTrapLandingOffset)
-              ->value();
-      unpacked.emplace_back(data);
-    }
-
-    if (unpacked.empty()) continue;
-
-    const int index = RegisterHandlerData(base, code->instruction_size(),
-                                          unpacked.size(), &unpacked[0]);
-
-    unpacked.clear();
-
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
-    // TODO(eholk): if index is negative, fail.
-    DCHECK_LE(0, index);
-    code->set_trap_handler_index(Smi::FromInt(index));
+WireBytesRef WasmModule::LookupName(const ModuleWireBytes* wire_bytes,
+                                    uint32_t function_index) const {
+  if (!names_) {
+    names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
+    wasm::DecodeFunctionNames(wire_bytes->start(), wire_bytes->end(),
+                              names_.get());
   }
+  auto it = names_->find(function_index);
+  if (it == names_->end()) return WireBytesRef();
+  return it->second;
 }
 
-void UnpackAndRegisterProtectedInstructions(
-    Isolate* isolate, const wasm::NativeModule* native_module) {
+WireBytesRef WasmModule::LookupName(SeqOneByteString* wire_bytes,
+                                    uint32_t function_index) const {
   DisallowHeapAllocation no_gc;
+  uint8_t* chars = wire_bytes->GetChars();
+  ModuleWireBytes module_wire_bytes(chars, chars + wire_bytes->length());
+  return LookupName(&module_wire_bytes, function_index);
+}
 
-  for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->FunctionCount();
-       i < e; ++i) {
-    wasm::WasmCode* code = native_module->GetCode(i);
-
-    if (code == nullptr || code->kind() != wasm::WasmCode::kFunction) {
-      continue;
-    }
-
-    if (code->HasTrapHandlerIndex()) continue;
-
-    Address base = code->instructions().start();
-
-    size_t size = code->instructions().size();
-    const int index =
-        RegisterHandlerData(base, size, code->protected_instructions().size(),
-                            code->protected_instructions().data());
-
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
-    // TODO(eholk): if index is negative, fail.
-    CHECK_LE(0, index);
-    code->set_trap_handler_index(static_cast<size_t>(index));
+void WasmModule::AddNameForTesting(int function_index, WireBytesRef name) {
+  if (!names_) {
+    names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
   }
+  names_->insert(std::make_pair(function_index, name));
+}
+
+// Get a string stored in the module bytes representing a name.
+WasmName ModuleWireBytes::GetName(WireBytesRef ref) const {
+  if (ref.is_empty()) return {"<?>", 3};  // no name.
+  CHECK(BoundsCheck(ref.offset(), ref.length()));
+  return Vector<const char>::cast(
+      module_bytes_.SubVector(ref.offset(), ref.end_offset()));
+}
+
+// Get a string stored in the module bytes representing a function name.
+WasmName ModuleWireBytes::GetName(const WasmFunction* function,
+                                  const WasmModule* module) const {
+  return GetName(module->LookupName(this, function->func_index));
+}
+
+// Get a string stored in the module bytes representing a name.
+WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
+  if (!ref.is_set()) return {nullptr, 0};  // no name.
+  CHECK(BoundsCheck(ref.offset(), ref.length()));
+  return Vector<const char>::cast(
+      module_bytes_.SubVector(ref.offset(), ref.end_offset()));
+}
+
+// Get a string stored in the module bytes representing a function name.
+WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
+                                        const WasmModule* module) const {
+  return GetNameOrNull(module->LookupName(this, function->func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
-  if (name.function_->name.is_set()) {
+  if (!name.name_.is_empty()) {
     if (name.name_.start()) {
       os << ":";
       os.write(name.name_.start(), name.name_.length());
@@ -139,56 +108,6 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
 
 WasmModule::WasmModule(std::unique_ptr<Zone> owned)
     : signature_zone(std::move(owned)) {}
-
-WasmFunction* GetWasmFunctionForExport(Isolate* isolate,
-                                       Handle<Object> target) {
-  if (target->IsJSFunction()) {
-    Handle<JSFunction> func = Handle<JSFunction>::cast(target);
-    if (func->code()->kind() == Code::JS_TO_WASM_FUNCTION) {
-      auto exported = Handle<WasmExportedFunction>::cast(func);
-      Handle<WasmInstanceObject> other_instance(exported->instance(), isolate);
-      int func_index = exported->function_index();
-      return &other_instance->module()->functions[func_index];
-    }
-  }
-  return nullptr;
-}
-
-Handle<Object> GetOrCreateIndirectCallWrapper(
-    Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
-    WasmCodeWrapper wasm_code, uint32_t func_index, FunctionSig* sig) {
-  Address new_context_address =
-      reinterpret_cast<Address>(owning_instance->wasm_context()->get());
-  if (!wasm_code.IsCodeObject()) {
-    DCHECK_NE(wasm_code.GetWasmCode()->kind(),
-              wasm::WasmCode::kWasmToWasmWrapper);
-    wasm::NativeModule* native_module = wasm_code.GetWasmCode()->owner();
-    // The only reason we pass owning_instance is for the GC case. Check
-    // that the values match.
-    DCHECK_EQ(owning_instance->compiled_module()->GetNativeModule(),
-              native_module);
-    // We create the wrapper on the module exporting the function. This
-    // wrapper will only be called as indirect call.
-    wasm::WasmCode* exported_wrapper =
-        native_module->GetExportedWrapper(wasm_code.GetWasmCode()->index());
-    if (exported_wrapper == nullptr) {
-      wasm::NativeModuleModificationScope native_modification_scope(
-          native_module);
-      Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
-          isolate, wasm_code, sig, new_context_address);
-      exported_wrapper = native_module->AddExportedWrapper(
-          new_wrapper, wasm_code.GetWasmCode()->index());
-    }
-    Address target = exported_wrapper->instructions().start();
-    return isolate->factory()->NewForeign(target, TENURED);
-  }
-  CodeSpaceMemoryModificationScope gc_modification_scope(isolate->heap());
-  Handle<Code> code = compiler::CompileWasmToWasmWrapper(
-      isolate, wasm_code, sig, new_context_address);
-  AttachWasmFunctionInfo(isolate, code, owning_instance,
-                         static_cast<int>(func_index));
-  return code;
-}
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
@@ -378,8 +297,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
     }
     Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
     constexpr bool is_external = false;
-    JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size, memory,
-                         size);
+    JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
     DisallowHeapAllocation no_gc;  // for raw access to string bytes.
     Handle<SeqOneByteString> module_bytes(shared->module_bytes(), isolate);
     const byte* start =

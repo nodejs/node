@@ -52,8 +52,14 @@ void DateCache::ResetDateCache() {
   dst_usage_counter_ = 0;
   before_ = &dst_[0];
   after_ = &dst_[1];
-  local_offset_ms_ = kInvalidLocalOffsetInMs;
   ymd_valid_ = false;
+#ifdef V8_INTL_SUPPORT
+  if (!FLAG_icu_timezone_data) {
+#endif
+    local_offset_ms_ = kInvalidLocalOffsetInMs;
+#ifdef V8_INTL_SUPPORT
+  }
+#endif
   tz_cache_->Clear();
   tz_name_ = nullptr;
   dst_tz_name_ = nullptr;
@@ -206,6 +212,70 @@ void DateCache::BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
   *ms = time_in_day_ms % 1000;
 }
 
+// Implements LocalTimeZonedjustment(t, isUTC)
+// ECMA 262 - ES#sec-local-time-zone-adjustment
+int DateCache::GetLocalOffsetFromOS(int64_t time_ms, bool is_utc) {
+  double offset;
+#ifdef V8_INTL_SUPPORT
+  if (FLAG_icu_timezone_data) {
+    offset = tz_cache_->LocalTimeOffset(static_cast<double>(time_ms), is_utc);
+  } else {
+#endif
+    // When ICU timezone data is not used, we need to compute the timezone
+    // offset for a given local time.
+    //
+    // The following shows that using DST for (t - LocalTZA - hour) produces
+    // correct conversion where LocalTZA is the timezone offset in winter (no
+    // DST) and the timezone offset is assumed to have no historical change.
+    // Note that it does not work for the past and the future if LocalTZA (no
+    // DST) is different from the current LocalTZA (no DST). For instance,
+    // this will break for Europe/Moscow in 2012 ~ 2013 because LocalTZA was
+    // 4h instead of the current 3h (as of 2018).
+    //
+    // Consider transition to DST at local time L1.
+    // Let L0 = L1 - hour, L2 = L1 + hour,
+    //     U1 = UTC time that corresponds to L1,
+    //     U0 = U1 - hour.
+    // Transitioning to DST moves local clock one hour forward L1 => L2, so
+    // U0 = UTC time that corresponds to L0 = L0 - LocalTZA,
+    // U1 = UTC time that corresponds to L1 = L1 - LocalTZA,
+    // U1 = UTC time that corresponds to L2 = L2 - LocalTZA - hour.
+    // Note that DST(U0 - hour) = 0, DST(U0) = 0, DST(U1) = 1.
+    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour),
+    // U1 = L1 - LocalTZA - DST(L1 - LocalTZA - hour),
+    // U1 = L2 - LocalTZA - DST(L2 - LocalTZA - hour).
+    //
+    // Consider transition from DST at local time L1.
+    // Let L0 = L1 - hour,
+    //     U1 = UTC time that corresponds to L1,
+    //     U0 = U1 - hour, U2 = U1 + hour.
+    // Transitioning from DST moves local clock one hour back L1 => L0, so
+    // U0 = UTC time that corresponds to L0 (before transition)
+    //    = L0 - LocalTZA - hour.
+    // U1 = UTC time that corresponds to L0 (after transition)
+    //    = L0 - LocalTZA = L1 - LocalTZA - hour
+    // U2 = UTC time that corresponds to L1 = L1 - LocalTZA.
+    // Note that DST(U0) = 1, DST(U1) = 0, DST(U2) = 0.
+    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour) = L0 - LocalTZA - DST(U0).
+    // U2 = L1 - LocalTZA - DST(L1 - LocalTZA - hour) = L1 - LocalTZA - DST(U1).
+    // It is impossible to get U1 from local time.
+    if (local_offset_ms_ == kInvalidLocalOffsetInMs) {
+      // This gets the constant LocalTZA (arguments are ignored).
+      local_offset_ms_ =
+          tz_cache_->LocalTimeOffset(static_cast<double>(time_ms), is_utc);
+    }
+    offset = local_offset_ms_;
+    if (!is_utc) {
+      const int kMsPerHour = 3600 * 1000;
+      time_ms -= (offset + kMsPerHour);
+    }
+    offset += DaylightSavingsOffsetInMs(time_ms);
+#ifdef V8_INTL_SUPPORT
+  }
+#endif
+  DCHECK_LT(offset, kInvalidLocalOffsetInMs);
+  return static_cast<int>(offset);
+}
 
 void DateCache::ExtendTheAfterSegment(int time_sec, int offset_ms) {
   if (after_->offset_ms == offset_ms &&

@@ -300,6 +300,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void NotifyIncrementalMarkingStart();
 
+  // Returns average mutator utilization with respect to mark-compact
+  // garbage collections. This ignores scavenger.
+  double AverageMarkCompactMutatorUtilization() const;
+  double CurrentMarkCompactMutatorUtilization() const;
+
   V8_INLINE void AddScopeSample(Scope::ScopeId scope, double duration) {
     DCHECK(scope < Scope::NUMBER_OF_SCOPES);
     if (scope >= Scope::FIRST_INCREMENTAL_SCOPE &&
@@ -328,6 +333,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
+  FRIEND_TEST(GCTracerTest, MutatorUtilization);
 
   struct BackgroundCounter {
     double total_duration_ms;
@@ -344,6 +350,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   void ResetForTesting();
   void ResetIncrementalMarkingCounters();
   void RecordIncrementalMarkingSpeed(size_t bytes, double duration);
+  void RecordMutatorUtilization(double mark_compactor_end_time,
+                                double mark_compactor_duration);
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -414,6 +422,12 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Counts how many tracers were started without stopping.
   int start_counter_;
+
+  // Used for computing average mutator utilization.
+  double average_mutator_duration_;
+  double average_mark_compact_duration_;
+  double current_mark_compact_mutator_utilization_;
+  double previous_mark_compact_end_time_;
 
   base::RingBuffer<BytesAndDuration> recorded_minor_gcs_total_;
   base::RingBuffer<BytesAndDuration> recorded_minor_gcs_survived_;

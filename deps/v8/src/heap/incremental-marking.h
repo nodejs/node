@@ -87,7 +87,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 #endif
 
   IncrementalMarking(Heap* heap,
-                     MarkCompactCollector::MarkingWorklist* marking_worklist);
+                     MarkCompactCollector::MarkingWorklist* marking_worklist,
+                     WeakObjects* weak_objects);
 
   MarkingState* marking_state() { return &marking_state_; }
 
@@ -165,6 +166,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinalizeIncrementally();
 
   void UpdateMarkingWorklistAfterScavenge();
+  void UpdateWeakReferencesAfterScavenge();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   void Hurry();
@@ -205,11 +207,14 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // the incremental cycle (stays white).
   V8_INLINE bool BaseRecordWrite(HeapObject* obj, Object* value);
   V8_INLINE void RecordWrite(HeapObject* obj, Object** slot, Object* value);
+  V8_INLINE void RecordMaybeWeakWrite(HeapObject* obj, MaybeObject** slot,
+                                      MaybeObject* value);
   V8_INLINE void RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
                                      Object* value);
   V8_INLINE void RecordWrites(HeapObject* obj);
 
-  void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
+  void RecordWriteSlow(HeapObject* obj, HeapObjectReference** slot,
+                       Object* value);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
 
   // Returns true if the function succeeds in transitioning the object
@@ -324,6 +329,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   Heap* const heap_;
   MarkCompactCollector::MarkingWorklist* const marking_worklist_;
+  WeakObjects* weak_objects_;
 
   double start_time_ms_;
   size_t initial_old_generation_size_;

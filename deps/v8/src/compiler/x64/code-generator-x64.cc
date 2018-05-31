@@ -6,12 +6,12 @@
 
 #include <limits>
 
-#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
 
@@ -257,40 +257,81 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
-class WasmOutOfLineTrap final : public OutOfLineCode {
+class WasmOutOfLineTrap : public OutOfLineCode {
  public:
-  WasmOutOfLineTrap(CodeGenerator* gen, int pc, bool frame_elided,
-                    Instruction* instr)
+  WasmOutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
       : OutOfLineCode(gen),
         gen_(gen),
-        pc_(pc),
         frame_elided_(frame_elided),
         instr_(instr) {}
 
-  // TODO(eholk): Refactor this method to take the code generator as a
-  // parameter.
-  void Generate() final {
-    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
+  void Generate() override {
+    X64OperandConverter i(gen_, instr_);
 
+    Builtins::Name trap_id =
+        static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
+    GenerateWithTrapId(trap_id);
+  }
+
+ protected:
+  CodeGenerator* gen_;
+
+  void GenerateWithTrapId(Builtins::Name trap_id) {
+    bool old_has_frame = __ has_frame();
     if (frame_elided_) {
+      __ set_has_frame(true);
       __ EnterFrame(StackFrame::WASM_COMPILED);
     }
-
-    gen_->AssembleSourcePosition(instr_);
-    __ Call(__ isolate()->builtins()->builtin_handle(
-                Builtins::kThrowWasmTrapMemOutOfBounds),
-            RelocInfo::CODE_TARGET);
-    ReferenceMap* reference_map = new (gen_->zone()) ReferenceMap(gen_->zone());
-    gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                          Safepoint::kNoLazyDeopt);
-    __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+    GenerateCallToTrap(trap_id);
+    if (frame_elided_) {
+      __ set_has_frame(old_has_frame);
+    }
   }
 
  private:
-  CodeGenerator* gen_;
-  int pc_;
+  void GenerateCallToTrap(Builtins::Name trap_id) {
+    if (!gen_->wasm_runtime_exception_support()) {
+      // We cannot test calls to the runtime in cctest/test-run-wasm.
+      // Therefore we emit a call to C here instead of a call to the runtime.
+      __ PrepareCallCFunction(0);
+      __ CallCFunction(
+          ExternalReference::wasm_call_trap_callback_for_testing(__ isolate()),
+          0);
+      __ LeaveFrame(StackFrame::WASM_COMPILED);
+      auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+      size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
+      // Use rcx as a scratch register, we return anyways immediately.
+      __ Ret(static_cast<int>(pop_size), rcx);
+    } else {
+      gen_->AssembleSourcePosition(instr_);
+      __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
+              RelocInfo::CODE_TARGET);
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+    }
+  }
+
   bool frame_elided_;
   Instruction* instr_;
+};
+
+class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
+ public:
+  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, bool frame_elided,
+                               Instruction* instr)
+      : WasmOutOfLineTrap(gen, frame_elided, instr), pc_(pc) {}
+
+  void Generate() final {
+    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
+
+    GenerateWithTrapId(Builtins::kThrowWasmTrapMemOutOfBounds);
+  }
+
+ private:
+  int pc_;
 };
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
@@ -300,7 +341,7 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessProtected) {
     const bool frame_elided = !codegen->frame_access_state()->has_frame();
-    new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, instr);
+    new (zone) WasmProtectedInstructionTrap(codegen, pc, frame_elided, instr);
   }
 }
 
@@ -482,6 +523,18 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ j(not_equal, &binop);                                    \
   } while (false)
 
+#define ASSEMBLE_ATOMIC64_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
+  do {                                                            \
+    Label binop;                                                  \
+    __ bind(&binop);                                              \
+    __ mov_inst(rax, i.MemoryOperand(1));                         \
+    __ movq(i.TempRegister(0), rax);                              \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));           \
+    __ lock();                                                    \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));       \
+    __ j(not_equal, &binop);                                      \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
   __ movq(rsp, rbp);
@@ -606,11 +659,11 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ j(not_zero, code, RelocInfo::CODE_TARGET);
 }
 
-void CodeGenerator::GenerateSpeculationPoison() {
+void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   // Set a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
   __ ComputeCodeStartAddress(rbx);
-  __ movp(kSpeculationPoisonRegister, Immediate(0));
+  __ xorq(kSpeculationPoisonRegister, kSpeculationPoisonRegister);
   __ cmpp(kJavaScriptCallCodeStartRegister, rbx);
   __ movp(rbx, Immediate(-1));
   __ cmovq(equal, kSpeculationPoisonRegister, rbx);
@@ -811,6 +864,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
         frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
       }
+      // TODO(tebbi): Do we need an lfence here?
       break;
     }
     case kArchJmp:
@@ -872,6 +926,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movq(i.OutputRegister(), rbp);
       }
       break;
+    case kArchRootsPointer:
+      __ movq(i.OutputRegister(), kRootRegister);
+      break;
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
@@ -904,6 +961,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchPoisonOnSpeculationWord:
+      DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
+      __ andq(i.InputRegister(0), kSpeculationPoisonRegister);
+      break;
     case kLFence:
       __ lfence();
       break;
@@ -965,8 +1026,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Pow: {
       // TODO(bmeurer): Improve integration of the stub.
       __ Movsd(xmm2, xmm0);
-      __ CallStubDelayed(new (zone())
-                             MathPowStub(nullptr, MathPowStub::DOUBLE));
+      __ CallStubDelayed(new (zone()) MathPowStub());
       __ Movsd(xmm0, xmm3);
       break;
     }
@@ -1895,16 +1955,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
-    case kX64Movsd:
+    case kX64Movsd: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
-        __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+        const MemoryAccessMode access_mode =
+            static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+        if (access_mode == kMemoryAccessPoisoned) {
+          // If we have to poison the loaded value, we load into a general
+          // purpose register first, mask it with the poison, and move the
+          // value from the general purpose register into the double register.
+          __ movq(kScratchRegister, i.MemoryOperand());
+          __ andq(kScratchRegister, kSpeculationPoisonRegister);
+          __ Movq(i.OutputDoubleRegister(), kScratchRegister);
+        } else {
+          __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+        }
       } else {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ Movsd(operand, i.InputDoubleRegister(index));
       }
       break;
+    }
     case kX64Movdqu: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
@@ -2169,6 +2241,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F32x4AddHoriz: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE3);
       __ haddps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
@@ -2723,6 +2796,67 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, orl)
       ATOMIC_BINOP_CASE(Xor, xorl)
 #undef ATOMIC_BINOP_CASE
+    case kX64Word64AtomicExchangeUint8: {
+      __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
+      __ movzxbq(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kX64Word64AtomicExchangeUint16: {
+      __ xchgw(i.InputRegister(0), i.MemoryOperand(1));
+      __ movzxwq(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kX64Word64AtomicExchangeUint32: {
+      __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
+      break;
+    }
+    case kX64Word64AtomicExchangeUint64: {
+      __ xchgq(i.InputRegister(0), i.MemoryOperand(1));
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint8: {
+      __ lock();
+      __ cmpxchgb(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzxbq(rax, rax);
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint16: {
+      __ lock();
+      __ cmpxchgw(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzxwq(rax, rax);
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint32: {
+      __ lock();
+      __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint64: {
+      __ lock();
+      __ cmpxchgq(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
+#define ATOMIC64_BINOP_CASE(op, inst)              \
+  case kX64Word64Atomic##op##Uint8:                \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movb, cmpxchgb); \
+    __ movzxbq(rax, rax);                          \
+    break;                                         \
+  case kX64Word64Atomic##op##Uint16:               \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movw, cmpxchgw); \
+    __ movzxwq(rax, rax);                          \
+    break;                                         \
+  case kX64Word64Atomic##op##Uint32:               \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movl, cmpxchgl); \
+    break;                                         \
+  case kX64Word64Atomic##op##Uint64:               \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movq, cmpxchgq); \
+    break;
+      ATOMIC64_BINOP_CASE(Add, addq)
+      ATOMIC64_BINOP_CASE(Sub, subq)
+      ATOMIC64_BINOP_CASE(And, andq)
+      ATOMIC64_BINOP_CASE(Or, orq)
+      ATOMIC64_BINOP_CASE(Xor, xorq)
+#undef ATOMIC64_BINOP_CASE
     case kWord32AtomicLoadInt8:
     case kWord32AtomicLoadUint8:
     case kWord32AtomicLoadInt16:
@@ -2731,11 +2865,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicStoreWord8:
     case kWord32AtomicStoreWord16:
     case kWord32AtomicStoreWord32:
+    case kX64Word64AtomicLoadUint8:
+    case kX64Word64AtomicLoadUint16:
+    case kX64Word64AtomicLoadUint32:
+    case kX64Word64AtomicLoadUint64:
+    case kX64Word64AtomicStoreWord8:
+    case kX64Word64AtomicStoreWord16:
+    case kX64Word64AtomicStoreWord32:
+    case kX64Word64AtomicStoreWord64:
       UNREACHABLE();  // Won't be generated by instruction selector.
       break;
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}  // NOLadability/fn_size)
+
+#undef ASSEMBLE_UNOP
+#undef ASSEMBLE_BINOP
+#undef ASSEMBLE_COMPARE
+#undef ASSEMBLE_MULT
+#undef ASSEMBLE_SHIFT
+#undef ASSEMBLE_MOVX
+#undef ASSEMBLE_SSE_BINOP
+#undef ASSEMBLE_SSE_UNOP
+#undef ASSEMBLE_AVX_BINOP
+#undef ASSEMBLE_IEEE754_BINOP
+#undef ASSEMBLE_IEEE754_UNOP
+#undef ASSEMBLE_ATOMIC_BINOP
+#undef ASSEMBLE_ATOMIC64_BINOP
 
 namespace {
 
@@ -2772,19 +2928,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   }
   UNREACHABLE();
 }
-
-#undef ASSEMBLE_UNOP
-#undef ASSEMBLE_BINOP
-#undef ASSEMBLE_COMPARE
-#undef ASSEMBLE_MULT
-#undef ASSEMBLE_SHIFT
-#undef ASSEMBLE_MOVX
-#undef ASSEMBLE_SSE_BINOP
-#undef ASSEMBLE_SSE_UNOP
-#undef ASSEMBLE_AVX_BINOP
-#undef ASSEMBLE_IEEE754_BINOP
-#undef ASSEMBLE_IEEE754_UNOP
-#undef ASSEMBLE_ATOMIC_BINOP
 
 }  // namespace
 
@@ -2864,62 +3007,8 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
 
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  class OutOfLineTrap final : public OutOfLineCode {
-   public:
-    OutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
-        : OutOfLineCode(gen),
-          frame_elided_(frame_elided),
-          instr_(instr),
-          gen_(gen) {}
-
-    void Generate() final {
-      X64OperandConverter i(gen_, instr_);
-
-      Builtins::Name trap_id =
-          static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
-      bool old_has_frame = __ has_frame();
-      if (frame_elided_) {
-        __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM_COMPILED);
-      }
-      GenerateCallToTrap(trap_id);
-      if (frame_elided_) {
-        __ set_has_frame(old_has_frame);
-      }
-    }
-
-   private:
-    void GenerateCallToTrap(Builtins::Name trap_id) {
-      if (trap_id == Builtins::builtin_count) {
-        // We cannot test calls to the runtime in cctest/test-run-wasm.
-        // Therefore we emit a call to C here instead of a call to the runtime.
-        __ PrepareCallCFunction(0);
-        __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(
-                             __ isolate()),
-                         0);
-        __ LeaveFrame(StackFrame::WASM_COMPILED);
-        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
-        size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
-        // Use rcx as a scratch register, we return anyways immediately.
-        __ Ret(static_cast<int>(pop_size), rcx);
-      } else {
-        gen_->AssembleSourcePosition(instr_);
-        __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
-                RelocInfo::CODE_TARGET);
-        ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                              Safepoint::kNoLazyDeopt);
-        __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
-      }
-    }
-
-    bool frame_elided_;
-    Instruction* instr_;
-    CodeGenerator* gen_;
-  };
   bool frame_elided = !frame_access_state()->has_frame();
-  auto ool = new (zone()) OutOfLineTrap(this, frame_elided, instr);
+  auto ool = new (zone()) WasmOutOfLineTrap(this, frame_elided, instr);
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
@@ -3046,7 +3135,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
-    InitializePoisonForLoadsIfNeeded();
+    ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
@@ -3204,9 +3293,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ movq(dst, src.ToInt64(), src.rmode());
         } else {
           int32_t value = src.ToInt32();
-          if (RelocInfo::IsWasmSizeReference(src.rmode())) {
-            __ movl(dst, Immediate(value, src.rmode()));
-          } else if (value == 0) {
+          if (value == 0) {
             __ xorl(dst, dst);
           } else {
             __ movl(dst, Immediate(value));
@@ -3218,7 +3305,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         if (RelocInfo::IsWasmPtrReference(src.rmode())) {
           __ movq(dst, src.ToInt64(), src.rmode());
         } else {
-          DCHECK(!RelocInfo::IsWasmSizeReference(src.rmode()));
           __ Set(dst, src.ToInt64());
         }
         break;

@@ -30,7 +30,7 @@ bytecodes: [
   /*  106 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -60,7 +60,7 @@ bytecodes: [
   /*  111 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -90,7 +90,7 @@ bytecodes: [
   /*  106 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -120,7 +120,7 @@ bytecodes: [
   /*  111 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -149,7 +149,7 @@ bytecodes: [
   /*  107 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -178,7 +178,7 @@ bytecodes: [
   /*  112 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -207,7 +207,7 @@ bytecodes: [
   /*  107 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -236,7 +236,7 @@ bytecodes: [
   /*  112 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]

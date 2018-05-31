@@ -583,6 +583,15 @@ function assertAsyncDone(iteration) {
 })();
 
 (function() {
+  Promise.all({[symbolIterator](){ return null; }}).then(
+    assertUnreachable,
+    function(r) {
+      assertAsync(r instanceof TypeError, 'all/non iterable');
+    });
+  assertAsyncRan();
+})();
+
+(function() {
   var deferred = defer(Promise);
   var p = deferred.promise;
   function* f() {

@@ -20,7 +20,7 @@ class PhaseScope;
 
 class PipelineStatistics : public Malloced {
  public:
-  PipelineStatistics(CompilationInfo* info, Isolate* isolate,
+  PipelineStatistics(OptimizedCompilationInfo* info, Isolate* isolate,
                      ZoneStats* zone_stats);
   ~PipelineStatistics();
 

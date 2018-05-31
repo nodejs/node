@@ -5,7 +5,6 @@
 #ifndef V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 #define V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 
-#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -13,6 +12,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/optimized-compilation-info.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 
@@ -249,7 +249,8 @@ class GraphBuilderTester : public HandleAndZoneScope,
       Zone* zone = graph()->zone();
       auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
-      CompilationInfo info(ArrayVector("testing"), main_zone(), Code::STUB);
+      OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(),
+                                    Code::STUB);
       code_ = Pipeline::GenerateCodeForTesting(&info, main_isolate(),
                                                call_descriptor, graph());
 #ifdef ENABLE_DISASSEMBLER

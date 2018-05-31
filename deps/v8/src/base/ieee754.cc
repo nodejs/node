@@ -159,11 +159,11 @@ typedef union {
 
 #define STRICT_ASSIGN(type, lval, rval) ((lval) = (rval))
 
-int32_t __ieee754_rem_pio2(double x, double *y) WARN_UNUSED_RESULT;
-double __kernel_cos(double x, double y) WARN_UNUSED_RESULT;
-int __kernel_rem_pio2(double *x, double *y, int e0, int nx, int prec,
-                      const int32_t *ipio2) WARN_UNUSED_RESULT;
-double __kernel_sin(double x, double y, int iy) WARN_UNUSED_RESULT;
+int32_t __ieee754_rem_pio2(double x, double* y) V8_WARN_UNUSED_RESULT;
+double __kernel_cos(double x, double y) V8_WARN_UNUSED_RESULT;
+int __kernel_rem_pio2(double* x, double* y, int e0, int nx, int prec,
+                      const int32_t* ipio2) V8_WARN_UNUSED_RESULT;
+double __kernel_sin(double x, double y, int iy) V8_WARN_UNUSED_RESULT;
 
 /* __ieee754_rem_pio2(x,y)
  *

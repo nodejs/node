@@ -5,9 +5,9 @@
 #ifndef V8_MANAGED_H_
 #define V8_MANAGED_H_
 
-#include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 
 namespace v8 {

@@ -57,6 +57,20 @@ class BuiltinDeserializerAllocator final {
   void MoveToNextChunk(AllocationSpace space) { UNREACHABLE(); }
   void SetAlignment(AllocationAlignment alignment) { UNREACHABLE(); }
 
+  void set_next_reference_is_weak(bool next_reference_is_weak) {
+    next_reference_is_weak_ = next_reference_is_weak;
+  }
+
+  bool GetAndClearNextReferenceIsWeak() {
+    bool saved = next_reference_is_weak_;
+    next_reference_is_weak_ = false;
+    return saved;
+  }
+
+#ifdef DEBUG
+  bool next_reference_is_weak() const { return next_reference_is_weak_; }
+#endif
+
   HeapObject* GetMap(uint32_t index) { UNREACHABLE(); }
   HeapObject* GetLargeObject(uint32_t index) { UNREACHABLE(); }
   HeapObject* GetObject(AllocationSpace space, uint32_t chunk_index,
@@ -122,6 +136,8 @@ class BuiltinDeserializerAllocator final {
   // Stores the allocated space for a single handler during lazy
   // deserialization.
   Address handler_allocation_ = nullptr;
+
+  bool next_reference_is_weak_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(BuiltinDeserializerAllocator)
 };

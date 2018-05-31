@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
 
@@ -141,14 +141,15 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
 
 Node* ObjectBuiltinsAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
+  TNode<BoolT> is_special =
+      IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
   uint32_t mask =
       Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
   USE(mask);
   // Interceptors or access checks imply special receiver.
   CSA_ASSERT(this,
-             SelectConstant(IsSetWord32(LoadMapBitField(map), mask), is_special,
-                            Int32Constant(1), MachineRepresentation::kWord32));
+             SelectConstant<BoolT>(IsSetWord32(LoadMapBitField(map), mask),
+                                   is_special, Int32TrueConstant()));
   return is_special;
 }
 
@@ -313,7 +314,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       CSA_ASSERT(this, WordEqual(map, LoadMap(object)));
       TNode<Uint32T> descriptor_index = TNode<Uint32T>::UncheckedCast(
           TruncateIntPtrToInt32(var_descriptor_number.value()));
-      Node* next_key = DescriptorArrayGetKey(descriptors, descriptor_index);
+      Node* next_key = GetKey(descriptors, descriptor_index);
 
       // Skip Symbols.
       GotoIf(IsSymbol(next_key), &next_descriptor);
@@ -332,8 +333,8 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
       VARIABLE(var_property_value, MachineRepresentation::kTagged,
                UndefinedConstant());
-      Node* descriptor_name_index = DescriptorArrayToKeyIndex(
-          TruncateIntPtrToInt32(var_descriptor_number.value()));
+      TNode<IntPtrT> descriptor_name_index = ToKeyIndex<DescriptorArray>(
+          Unsigned(TruncateIntPtrToInt32(var_descriptor_number.value())));
 
       // Let value be ? Get(O, key).
       LoadPropertyFromFastObject(object, map, descriptors,
@@ -771,11 +772,15 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     // as the exception is observable.
     Node* receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver);
-    Node* builtin_tag = SelectTaggedConstant<Object>(
-        IsTrue(receiver_is_array), LoadRoot(Heap::kArray_stringRootIndex),
-        SelectTaggedConstant<Object>(IsCallableMap(receiver_map),
-                                     LoadRoot(Heap::kFunction_stringRootIndex),
-                                     LoadRoot(Heap::kObject_stringRootIndex)));
+    TNode<String> builtin_tag = Select<String>(
+        IsTrue(receiver_is_array),
+        [=] { return CAST(LoadRoot(Heap::kArray_stringRootIndex)); },
+        [=] {
+          return Select<String>(
+              IsCallableMap(receiver_map),
+              [=] { return CAST(LoadRoot(Heap::kFunction_stringRootIndex)); },
+              [=] { return CAST(LoadRoot(Heap::kObject_stringRootIndex)); });
+        });
 
     // Lookup the @@toStringTag property on the {receiver}.
     VARIABLE(var_tag, MachineRepresentation::kTagged,
@@ -1053,7 +1058,7 @@ TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kObject);
   Node* context = Parameter(Descriptor::kContext);
 
-  Return(GetSuperConstructor(object, context));
+  Return(GetSuperConstructor(context, object));
 }
 
 TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
@@ -1071,8 +1076,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
   Node* shared =
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* bytecode_array =
-      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+  Node* bytecode_array = LoadSharedFunctionInfoBytecodeArray(shared);
+
   Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
   Node* size = WordSar(frame_size, IntPtrConstant(kPointerSizeLog2));
@@ -1130,9 +1135,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
   Node* map = LoadMap(object);
   Node* instance_type = LoadMapInstanceType(map);
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-         &call_runtime);
+  GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
   {
     VARIABLE(var_index, MachineType::PointerRepresentation(),
              IntPtrConstant(0));

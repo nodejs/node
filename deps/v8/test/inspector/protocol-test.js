@@ -309,6 +309,8 @@ InspectorTest.Session = class {
   }
 
   _sendCommandPromise(method, params) {
+    if (typeof params !== 'object')
+      utils.print(`WARNING: non-object params passed to invocation of method ${method}`);
     if (InspectorTest._commandsForLogging.has(method))
       utils.print(method + ' called');
     var requestId = ++this._requestId;

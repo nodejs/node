@@ -694,6 +694,8 @@ class RuntimeCallTimer final {
   V(Array_New)                                             \
   V(BigInt64Array_New)                                     \
   V(BigUint64Array_New)                                    \
+  V(BigIntObject_New)                                      \
+  V(BigIntObject_BigIntValue)                              \
   V(BooleanObject_BooleanValue)                            \
   V(BooleanObject_New)                                     \
   V(Context_New)                                           \
@@ -767,6 +769,7 @@ class RuntimeCallTimer final {
   V(ObjectTemplate_New)                                    \
   V(ObjectTemplate_NewInstance)                            \
   V(Object_ToArrayIndex)                                   \
+  V(Object_ToBigInt)                                       \
   V(Object_ToDetailString)                                 \
   V(Object_ToInt32)                                        \
   V(Object_ToInteger)                                      \
@@ -930,6 +933,7 @@ class RuntimeCallTimer final {
   V(KeyedStoreIC_SlowStub)                        \
   V(KeyedStoreIC_StoreFastElementStub)            \
   V(KeyedStoreIC_StoreElementStub)                \
+  V(StoreInArrayLiteralIC_SlowStub)               \
   V(LoadGlobalIC_LoadScriptContextField)          \
   V(LoadGlobalIC_SlowStub)                        \
   V(LoadIC_FunctionPrototypeStub)                 \
@@ -1144,10 +1148,20 @@ class RuntimeCallTimerScope {
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
   HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
+  HT(gc_compactor_background, V8.GCCompactorBackground, 10000, MILLISECOND)    \
+  HT(gc_compactor_foreground, V8.GCCompactorForeground, 10000, MILLISECOND)    \
   HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
+  HT(gc_finalize_background, V8.GCFinalizeMCBackground, 10000, MILLISECOND)    \
+  HT(gc_finalize_foreground, V8.GCFinalizeMCForeground, 10000, MILLISECOND)    \
   HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
      MILLISECOND)                                                              \
+  HT(gc_finalize_reduce_memory_background,                                     \
+     V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
+  HT(gc_finalize_reduce_memory_foreground,                                     \
+     V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
+  HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
+  HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(gc_context, V8.GCContext, 10000,                                          \
      MILLISECOND) /* GC context cleanup time */                                \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \

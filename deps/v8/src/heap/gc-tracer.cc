@@ -152,7 +152,11 @@ GCTracer::GCTracer(Heap* heap)
       new_space_allocation_in_bytes_since_gc_(0),
       old_generation_allocation_in_bytes_since_gc_(0),
       combined_mark_compact_speed_cache_(0.0),
-      start_counter_(0) {
+      start_counter_(0),
+      average_mutator_duration_(0),
+      average_mark_compact_duration_(0),
+      current_mark_compact_mutator_utilization_(1.0),
+      previous_mark_compact_end_time_(0) {
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
   STATIC_ASSERT(0 == Scope::FIRST_INCREMENTAL_SCOPE);
@@ -188,6 +192,10 @@ void GCTracer::ResetForTesting() {
   recorded_context_disposal_times_.Reset();
   recorded_survival_ratios_.Reset();
   start_counter_ = 0;
+  average_mutator_duration_ = 0;
+  average_mark_compact_duration_ = 0;
+  current_mark_compact_mutator_utilization_ = 1.0;
+  previous_mark_compact_end_time_ = 0;
   base::LockGuard<base::Mutex> guard(&background_counter_mutex_);
   for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
@@ -322,6 +330,9 @@ void GCTracer::Stop(GarbageCollector collector) {
         current_.incremental_marking_scopes[i] = incremental_marking_scopes_[i];
         current_.scopes[i] = incremental_marking_scopes_[i].duration;
       }
+
+      RecordMutatorUtilization(
+          current_.end_time, duration + current_.incremental_marking_duration);
       RecordIncrementalMarkingSpeed(current_.incremental_marking_bytes,
                                     current_.incremental_marking_duration);
       recorded_incremental_mark_compacts_.Push(
@@ -333,6 +344,8 @@ void GCTracer::Stop(GarbageCollector collector) {
     case Event::MARK_COMPACTOR:
       DCHECK_EQ(0u, current_.incremental_marking_bytes);
       DCHECK_EQ(0, current_.incremental_marking_duration);
+      RecordMutatorUtilization(
+          current_.end_time, duration + current_.incremental_marking_duration);
       recorded_mark_compacts_.Push(
           MakeBytesAndDuration(current_.start_object_size, duration));
       ResetIncrementalMarkingCounters();
@@ -469,7 +482,7 @@ void GCTracer::Print() const {
       "[%d:%p] "
       "%8.0f ms: "
       "%s %.1f (%.1f) -> %.1f (%.1f) MB, "
-      "%.1f / %.1f ms %s %s %s\n",
+      "%.1f / %.1f ms %s (average mu = %.3f, current mu = %.3f) %s %s\n",
       base::OS::GetCurrentProcessId(),
       reinterpret_cast<void*>(heap_->isolate()),
       heap_->isolate()->time_millis_since_init(), current_.TypeName(false),
@@ -478,6 +491,8 @@ void GCTracer::Print() const {
       static_cast<double>(current_.end_object_size) / MB,
       static_cast<double>(current_.end_memory_size) / MB, duration,
       TotalExternalTime(), incremental_buffer,
+      AverageMarkCompactMutatorUtilization(),
+      CurrentMarkCompactMutatorUtilization(),
       Heap::GarbageCollectionReasonToString(current_.gc_reason),
       current_.collector_reason != nullptr ? current_.collector_reason : "");
 }
@@ -662,6 +677,7 @@ void GCTracer::PrintNVP() const {
           "clear.weak_cells=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
+          "clear.weak_references=%.1f "
           "epilogue=%.1f "
           "evacuate=%.1f "
           "evacuate.candidates=%.1f "
@@ -756,6 +772,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_WEAK_CELLS],
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
+          current_.scopes[Scope::MC_CLEAR_WEAK_REFERENCES],
           current_.scopes[Scope::MC_EPILOGUE],
           current_.scopes[Scope::MC_EVACUATE],
           current_.scopes[Scope::MC_EVACUATE_CANDIDATES],
@@ -867,6 +884,43 @@ void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes, double duration) {
     recorded_incremental_marking_speed_ =
         (recorded_incremental_marking_speed_ + current_speed) / 2;
   }
+}
+
+void GCTracer::RecordMutatorUtilization(double mark_compact_end_time,
+                                        double mark_compact_duration) {
+  if (previous_mark_compact_end_time_ == 0) {
+    // The first event only contributes to previous_mark_compact_end_time_,
+    // because we cannot compute the mutator duration.
+    previous_mark_compact_end_time_ = mark_compact_end_time;
+  } else {
+    double total_duration =
+        mark_compact_end_time - previous_mark_compact_end_time_;
+    double mutator_duration = total_duration - mark_compact_duration;
+    if (average_mark_compact_duration_ == 0 && average_mutator_duration_ == 0) {
+      // This is the first event with mutator and mark-compact durations.
+      average_mark_compact_duration_ = mark_compact_duration;
+      average_mutator_duration_ = mutator_duration;
+    } else {
+      average_mark_compact_duration_ =
+          (average_mark_compact_duration_ + mark_compact_duration) / 2;
+      average_mutator_duration_ =
+          (average_mutator_duration_ + mutator_duration) / 2;
+    }
+    current_mark_compact_mutator_utilization_ =
+        total_duration ? mutator_duration / total_duration : 0;
+    previous_mark_compact_end_time_ = mark_compact_end_time;
+  }
+}
+
+double GCTracer::AverageMarkCompactMutatorUtilization() const {
+  double average_total_duration =
+      average_mark_compact_duration_ + average_mutator_duration_;
+  if (average_total_duration == 0) return 1.0;
+  return average_mutator_duration_ / average_total_duration;
+}
+
+double GCTracer::CurrentMarkCompactMutatorUtilization() const {
+  return current_mark_compact_mutator_utilization_;
 }
 
 double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {

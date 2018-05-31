@@ -33,7 +33,7 @@
 
 Debug = debug.Debug;
 
-var exception = false;
+var exceptionThrown = false;
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -44,7 +44,7 @@ function listener(event, exec_state, event_data, data) {
     // Assert correct value.
     assertEquals(3, breakpoint.evaluate('x').value());
   } catch (e) {
-    exception = e;
+    exceptionThrown = true;
   }
 }
 
@@ -67,4 +67,4 @@ function h() {
 
 h();
 
-assertFalse(exception);
+assertFalse(exceptionThrown);

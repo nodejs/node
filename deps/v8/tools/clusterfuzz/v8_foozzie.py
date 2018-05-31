@@ -56,6 +56,10 @@ CONFIGS = dict(
     '--no-lazy-inner-functions',
     '--suppress-asm-messages',
   ],
+  liftoff=[
+    '--liftoff',
+    '--suppress-asm-messages',
+  ],
   slow_path=[
     '--force-slow-path',
     '--suppress-asm-messages',
@@ -83,6 +87,7 @@ ADDITIONAL_FLAGS = [
   (0.1, '--stress-scavenge=100'),
   (0.1, '--stress-compaction-random'),
   (0.1, '--random-gc-interval=2000'),
+  (0.2, '--noanalyze-environment-liveness'),
 ]
 
 # Timeout in seconds for one d8 run.
@@ -101,7 +106,7 @@ ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 
 FLAGS = ['--abort_on_stack_or_string_length_overflow', '--expose-gc',
          '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
-         '--es-staging']
+         '--es-staging', '--wasm-num-compilation-tasks=0']
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 

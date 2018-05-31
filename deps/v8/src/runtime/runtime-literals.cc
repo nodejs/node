@@ -41,10 +41,11 @@ class JSObjectWalkVisitor {
   JSObjectWalkVisitor(ContextObject* site_context, DeepCopyHints hints)
       : site_context_(site_context), hints_(hints) {}
 
-  MUST_USE_RESULT MaybeHandle<JSObject> StructureWalk(Handle<JSObject> object);
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> StructureWalk(
+      Handle<JSObject> object);
 
  protected:
-  MUST_USE_RESULT inline MaybeHandle<JSObject> VisitElementOrProperty(
+  V8_WARN_UNUSED_RESULT inline MaybeHandle<JSObject> VisitElementOrProperty(
       Handle<JSObject> object, Handle<JSObject> value) {
     Handle<AllocationSite> current_site = site_context()->EnterNewScope();
     MaybeHandle<JSObject> copy_of_value = StructureWalk(value);

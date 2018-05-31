@@ -28,7 +28,7 @@
 
 Debug = debug.Debug;
 
-var exception = false;
+var exceptionThrown = false;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -44,7 +44,7 @@ function listener(event, exec_state, event_data, data) {
       assertThrows(() => lookup("b"), ReferenceError);
     }
   } catch (e) {
-    exception = e.toString() + e.stack;
+    exceptionThrown = true;
   }
 }
 
@@ -63,4 +63,4 @@ function f(a, b) {
 
 f(1, 2)(3, 4);
 
-assertFalse(exception);
+assertFalse(exceptionThrown);

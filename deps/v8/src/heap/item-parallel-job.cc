@@ -90,10 +90,11 @@ void ItemParallelJob::Run(std::shared_ptr<Counters> async_counters) {
                                     : 0;
   CancelableTaskManager::Id* task_ids =
       new CancelableTaskManager::Id[num_tasks];
-  Task* main_task = nullptr;
+  std::unique_ptr<Task> main_task;
   for (size_t i = 0, start_index = 0; i < num_tasks;
        i++, start_index += items_per_task + (i < items_remainder ? 1 : 0)) {
-    Task* task = tasks_[i];
+    auto task = std::move(tasks_[i]);
+    DCHECK(task);
 
     // By definition there are less |items_remainder| to distribute then
     // there are tasks processing items so this cannot overflow while we are
@@ -105,16 +106,15 @@ void ItemParallelJob::Run(std::shared_ptr<Counters> async_counters) {
                               : base::Optional<AsyncTimedHistogram>());
     task_ids[i] = task->id();
     if (i > 0) {
-      V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          task, v8::Platform::kShortRunningTask);
+      V8::GetCurrentPlatform()->CallBlockingTaskOnWorkerThread(std::move(task));
     } else {
-      main_task = task;
+      main_task = std::move(task);
     }
   }
 
   // Contribute on main thread.
+  DCHECK(main_task);
   main_task->Run();
-  delete main_task;
 
   // Wait for background tasks.
   for (size_t i = 0; i < num_tasks; i++) {

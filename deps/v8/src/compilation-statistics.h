@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class OptimizedCompilationInfo;
 class CompilationStatistics;
 
 struct AsPrintableStatistics {

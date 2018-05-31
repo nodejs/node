@@ -122,69 +122,57 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movp(scratch, Immediate(1));
   __ Cvtlsi2sd(double_result, scratch);
 
-  if (exponent_type() == TAGGED) {
-    __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
-    __ SmiToInteger32(exponent, exponent);
-    __ jmp(&int_exponent);
+  Label fast_power, try_arithmetic_simplification;
+  // Detect integer exponents stored as double.
+  __ DoubleToI(exponent, double_exponent, double_scratch,
+               &try_arithmetic_simplification, &try_arithmetic_simplification);
+  __ jmp(&int_exponent);
 
-    __ bind(&exponent_not_smi);
-    __ Movsd(double_exponent, FieldOperand(exponent, HeapNumber::kValueOffset));
-  }
+  __ bind(&try_arithmetic_simplification);
+  __ Cvttsd2si(exponent, double_exponent);
+  // Skip to runtime if possibly NaN (indicated by the indefinite integer).
+  __ cmpl(exponent, Immediate(0x1));
+  __ j(overflow, &call_runtime);
 
-  if (exponent_type() != INTEGER) {
-    Label fast_power, try_arithmetic_simplification;
-    // Detect integer exponents stored as double.
-    __ DoubleToI(exponent, double_exponent, double_scratch,
-                 &try_arithmetic_simplification,
-                 &try_arithmetic_simplification);
-    __ jmp(&int_exponent);
+  // Using FPU instructions to calculate power.
+  Label fast_power_failed;
+  __ bind(&fast_power);
+  __ fnclex();  // Clear flags to catch exceptions later.
+  // Transfer (B)ase and (E)xponent onto the FPU register stack.
+  __ subp(rsp, Immediate(kDoubleSize));
+  __ Movsd(Operand(rsp, 0), double_exponent);
+  __ fld_d(Operand(rsp, 0));  // E
+  __ Movsd(Operand(rsp, 0), double_base);
+  __ fld_d(Operand(rsp, 0));  // B, E
 
-    __ bind(&try_arithmetic_simplification);
-    __ Cvttsd2si(exponent, double_exponent);
-    // Skip to runtime if possibly NaN (indicated by the indefinite integer).
-    __ cmpl(exponent, Immediate(0x1));
-    __ j(overflow, &call_runtime);
+  // Exponent is in st(1) and base is in st(0)
+  // B ^ E = (2^(E * log2(B)) - 1) + 1 = (2^X - 1) + 1 for X = E * log2(B)
+  // FYL2X calculates st(1) * log2(st(0))
+  __ fyl2x();    // X
+  __ fld(0);     // X, X
+  __ frndint();  // rnd(X), X
+  __ fsub(1);    // rnd(X), X-rnd(X)
+  __ fxch(1);    // X - rnd(X), rnd(X)
+  // F2XM1 calculates 2^st(0) - 1 for -1 < st(0) < 1
+  __ f2xm1();   // 2^(X-rnd(X)) - 1, rnd(X)
+  __ fld1();    // 1, 2^(X-rnd(X)) - 1, rnd(X)
+  __ faddp(1);  // 2^(X-rnd(X)), rnd(X)
+  // FSCALE calculates st(0) * 2^st(1)
+  __ fscale();  // 2^X, rnd(X)
+  __ fstp(1);
+  // Bail out to runtime in case of exceptions in the status word.
+  __ fnstsw_ax();
+  __ testb(rax, Immediate(0x5F));  // Check for all but precision exception.
+  __ j(not_zero, &fast_power_failed, Label::kNear);
+  __ fstp_d(Operand(rsp, 0));
+  __ Movsd(double_result, Operand(rsp, 0));
+  __ addp(rsp, Immediate(kDoubleSize));
+  __ jmp(&done);
 
-    // Using FPU instructions to calculate power.
-    Label fast_power_failed;
-    __ bind(&fast_power);
-    __ fnclex();  // Clear flags to catch exceptions later.
-    // Transfer (B)ase and (E)xponent onto the FPU register stack.
-    __ subp(rsp, Immediate(kDoubleSize));
-    __ Movsd(Operand(rsp, 0), double_exponent);
-    __ fld_d(Operand(rsp, 0));  // E
-    __ Movsd(Operand(rsp, 0), double_base);
-    __ fld_d(Operand(rsp, 0));  // B, E
-
-    // Exponent is in st(1) and base is in st(0)
-    // B ^ E = (2^(E * log2(B)) - 1) + 1 = (2^X - 1) + 1 for X = E * log2(B)
-    // FYL2X calculates st(1) * log2(st(0))
-    __ fyl2x();    // X
-    __ fld(0);     // X, X
-    __ frndint();  // rnd(X), X
-    __ fsub(1);    // rnd(X), X-rnd(X)
-    __ fxch(1);    // X - rnd(X), rnd(X)
-    // F2XM1 calculates 2^st(0) - 1 for -1 < st(0) < 1
-    __ f2xm1();    // 2^(X-rnd(X)) - 1, rnd(X)
-    __ fld1();     // 1, 2^(X-rnd(X)) - 1, rnd(X)
-    __ faddp(1);   // 2^(X-rnd(X)), rnd(X)
-    // FSCALE calculates st(0) * 2^st(1)
-    __ fscale();   // 2^X, rnd(X)
-    __ fstp(1);
-    // Bail out to runtime in case of exceptions in the status word.
-    __ fnstsw_ax();
-    __ testb(rax, Immediate(0x5F));  // Check for all but precision exception.
-    __ j(not_zero, &fast_power_failed, Label::kNear);
-    __ fstp_d(Operand(rsp, 0));
-    __ Movsd(double_result, Operand(rsp, 0));
-    __ addp(rsp, Immediate(kDoubleSize));
-    __ jmp(&done);
-
-    __ bind(&fast_power_failed);
-    __ fninit();
-    __ addp(rsp, Immediate(kDoubleSize));
-    __ jmp(&call_runtime);
-  }
+  __ bind(&fast_power_failed);
+  __ fninit();
+  __ addp(rsp, Immediate(kDoubleSize));
+  __ jmp(&call_runtime);
 
   // Calculate power with integer exponent.
   __ bind(&int_exponent);

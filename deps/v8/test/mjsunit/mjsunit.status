@@ -105,6 +105,7 @@
   'migrations': [SKIP],
   'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
   'compiler/regress-808472': [PASS, ['mode == debug', SKIP]],
+  'es6/promise-all-overflow-*': [PASS, SLOW, ['mode == debug or arch != x64', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -151,6 +152,8 @@
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
   # Slow tests.
+  'compiler/osr-one': [PASS, SLOW],
+  'compiler/osr-two': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
@@ -161,6 +164,7 @@
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
+  'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
@@ -180,6 +184,11 @@
   # noi18n cannot turn on ICU backend for Date
   'icu-date-to-string': [PASS, ['no_i18n == True', SKIP]],
   'icu-date-lord-howe': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-apia': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-lord-howe': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-moscow': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-transition-new-york': [PASS, ['no_i18n == True', SKIP]],
+  'tzoffset-seoul': [PASS, ['no_i18n == True', SKIP]],
 
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -418,11 +427,6 @@
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
 
-  # Slow tests with --noopt.
-  'compiler/osr-one': [PASS, SLOW],
-  'compiler/osr-two': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
@@ -541,6 +545,7 @@
   # Requires too much memory on MIPS.
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
+  'harmony/bigint/regressions': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -607,6 +612,13 @@
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
   'regress/regress-6288': [SKIP],
+  'tzoffset-transition-apia': [SKIP],
+  'tzoffset-transition-lord-howe': [SKIP],
+  'tzoffset-transition-moscow': [SKIP],
+  'tzoffset-transition-new-york': [SKIP],
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+  'tzoffset-seoul': [SKIP],
+  'tzoffset-seoul-noi18n': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -638,10 +650,7 @@
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times
-  'es6/array-iterator-turbo': [SKIP],
-
-  # BUG(v8:7466).
-  'compiler/promise-constructor': [SKIP],
+  'es6/array-iterator-turbo': [SKIP]
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
@@ -714,7 +723,6 @@
   'regress/regress-91008': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
 }],  # 'arch == ppc and simulator_run'
 
 ##############################################################################
@@ -734,6 +742,7 @@
   # TODO(ppc/s390): fix constant pool issue and implement tagging for reloc
   'wasm/compiled-module-serialization': [SKIP],
   'regress/wasm/regress-808980': [SKIP],
+  'regress/wasm/regress-808848': [SKIP],
 }],  # 'arch == ppc64 or arch == ppc or arch == s390 or arch == s390x'
 
 ##############################################################################
@@ -781,12 +790,6 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 }],  # variant == wasm_traps
-
-['variant == wasm_traps and gc_stress == True', {
-  # TODO(eholk): these tests are disabled due to address space exhaustion.
-  # Re-enable them once Wasm address space limits are in place.
-  '*': [SKIP],
-}],  # variant == wasm_traps and gc_stress == True
 
 ##############################################################################
 ['no_harness', {

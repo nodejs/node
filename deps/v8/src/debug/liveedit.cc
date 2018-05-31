@@ -824,15 +824,14 @@ void LiveEdit::ReplaceFunctionCode(
       compile_info_wrapper.GetSharedFunctionInfo();
 
   if (shared_info->is_compiled()) {
-    // Take whatever code we can get from the new shared function info. We
-    // expect activations of neither the old bytecode nor old FCG code, since
-    // the lowest activation is going to be restarted.
-    Handle<Code> old_code(shared_info->code());
-    Handle<Code> new_code(new_shared_info->code());
     // Clear old bytecode. This will trigger self-healing if we do not install
     // new bytecode.
-    shared_info->ClearBytecodeArray();
-    shared_info->set_bytecode_array(new_shared_info->bytecode_array());
+    shared_info->FlushCompiled();
+    if (new_shared_info->HasInterpreterData()) {
+      shared_info->set_interpreter_data(new_shared_info->interpreter_data());
+    } else {
+      shared_info->set_bytecode_array(new_shared_info->GetBytecodeArray());
+    }
 
     if (shared_info->HasBreakInfo()) {
       // Existing break points will be re-applied. Reset the debug info here.
@@ -840,21 +839,22 @@ void LiveEdit::ReplaceFunctionCode(
           handle(shared_info->GetDebugInfo()));
     }
     shared_info->set_scope_info(new_shared_info->scope_info());
-    shared_info->set_outer_scope_info(new_shared_info->outer_scope_info());
+    shared_info->set_feedback_metadata(new_shared_info->feedback_metadata());
     shared_info->DisableOptimization(BailoutReason::kLiveEdit);
-    // Update the type feedback vector, if needed.
-    Handle<FeedbackMetadata> new_feedback_metadata(
-        new_shared_info->feedback_metadata());
-    shared_info->set_feedback_metadata(*new_feedback_metadata);
   } else {
-    shared_info->set_feedback_metadata(
-        FeedbackMetadata::cast(isolate->heap()->empty_fixed_array()));
+    // There should not be any feedback metadata. Keep the outer scope info the
+    // same.
+    DCHECK(!shared_info->HasFeedbackMetadata());
   }
 
   int start_position = compile_info_wrapper.GetStartPosition();
   int end_position = compile_info_wrapper.GetEndPosition();
-  shared_info->set_start_position(start_position);
-  shared_info->set_end_position(end_position);
+  // TODO(cbruni): only store position information on the SFI.
+  shared_info->set_raw_start_position(start_position);
+  shared_info->set_raw_end_position(end_position);
+  if (shared_info->scope_info()->HasPositionInfo()) {
+    shared_info->scope_info()->SetPositionInfo(start_position, end_position);
+  }
 
   FeedbackVectorFixer::PatchFeedbackVector(&compile_info_wrapper, shared_info,
                                            isolate);
@@ -873,9 +873,9 @@ void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
 
 void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
   Isolate* isolate = script->GetIsolate();
-  Handle<FixedArray> old_infos(script->shared_function_infos(), isolate);
-  Handle<FixedArray> new_infos(
-      isolate->factory()->NewFixedArray(max_function_literal_id + 1));
+  Handle<WeakFixedArray> old_infos(script->shared_function_infos(), isolate);
+  Handle<WeakFixedArray> new_infos(
+      isolate->factory()->NewWeakFixedArray(max_function_literal_id + 1));
   script->set_shared_function_infos(*new_infos);
   SharedFunctionInfo::ScriptIterator iterator(isolate, old_infos);
   while (SharedFunctionInfo* shared = iterator.Next()) {
@@ -883,7 +883,7 @@ void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
     // as we severed the link from the Script to the SharedFunctionInfo above.
     Handle<SharedFunctionInfo> info(shared, isolate);
     info->set_script(isolate->heap()->undefined_value());
-    Handle<Object> new_noscript_list = WeakFixedArray::Add(
+    Handle<Object> new_noscript_list = FixedArrayOfWeakCells::Add(
         isolate->factory()->noscript_shared_function_infos(), info);
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*new_noscript_list);
 
@@ -975,20 +975,25 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
-  int old_function_start = info->start_position();
+  int old_function_start = info->StartPosition();
   int new_function_start = TranslatePosition(old_function_start,
                                              position_change_array);
-  int new_function_end = TranslatePosition(info->end_position(),
-                                           position_change_array);
+  int new_function_end =
+      TranslatePosition(info->EndPosition(), position_change_array);
   int new_function_token_pos =
       TranslatePosition(info->function_token_position(), position_change_array);
 
-  info->set_start_position(new_function_start);
-  info->set_end_position(new_function_end);
+  info->set_raw_start_position(new_function_start);
+  info->set_raw_end_position(new_function_end);
+  // TODO(cbruni): Allocate helper ScopeInfo once the position fields are gone
+  // on the SFI.
+  if (info->scope_info()->HasPositionInfo()) {
+    info->scope_info()->SetPositionInfo(new_function_start, new_function_end);
+  }
   info->set_function_token_position(new_function_token_pos);
 
   if (info->HasBytecodeArray()) {
-    TranslateSourcePositionTable(handle(info->bytecode_array()),
+    TranslateSourcePositionTable(handle(info->GetBytecodeArray()),
                                  position_change_array);
   }
   if (info->HasBreakInfo()) {
@@ -1014,7 +1019,7 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
       original->eval_from_shared_or_wrapped_arguments());
   copy->set_eval_from_position(original->eval_from_position());
 
-  Handle<FixedArray> infos(isolate->factory()->NewFixedArray(
+  Handle<WeakFixedArray> infos(isolate->factory()->NewWeakFixedArray(
       original->shared_function_infos()->length()));
   copy->set_shared_function_infos(*infos);
 
@@ -1061,7 +1066,7 @@ void LiveEdit::ReplaceRefToNestedFunction(
   Handle<SharedFunctionInfo> subst_shared =
       UnwrapSharedFunctionInfoFromJSValue(subst_function_wrapper);
 
-  for (RelocIterator it(parent_shared->code()); !it.done(); it.next()) {
+  for (RelocIterator it(parent_shared->GetCode()); !it.done(); it.next()) {
     if (it.rinfo()->rmode() == RelocInfo::EMBEDDED_OBJECT) {
       if (it.rinfo()->target_object() == *orig_shared) {
         it.rinfo()->set_target_object(*subst_shared);

@@ -256,7 +256,7 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
   switch (node->op()->opcode()) {
     case IrOpcode::kStoreField: {
       Node* stored_to = node->InputAt(0);
-      FieldAccess access = OpParameter<FieldAccess>(node->op());
+      const FieldAccess& access = FieldAccessOf(node->op());
       StoreOffset offset = ToOffset(access);
 
       UnobservableStore observation = {stored_to->id(), offset};
@@ -297,7 +297,7 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
     }
     case IrOpcode::kLoadField: {
       Node* loaded_from = node->InputAt(0);
-      FieldAccess access = OpParameter<FieldAccess>(node->op());
+      const FieldAccess& access = FieldAccessOf(node->op());
       StoreOffset offset = ToOffset(access);
 
       TRACE(

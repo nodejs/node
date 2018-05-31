@@ -13,27 +13,26 @@ namespace internal {
 
 BUILTIN(BigIntConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    Handle<Object> value = args.atOrUndefined(isolate, 1);
 
-  if (value->IsJSReceiver()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value,
-        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(value),
-                                ToPrimitiveHint::kNumber));
+    if (value->IsJSReceiver()) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, value,
+          JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(value),
+                                  ToPrimitiveHint::kNumber));
+    }
+
+    if (value->IsNumber()) {
+      RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, value));
+    } else {
+      RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, value));
+    }
+  } else {  // [[Construct]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotConstructor,
+                              isolate->factory()->BigInt_string()));
   }
-
-  if (value->IsNumber()) {
-    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, value));
-  } else {
-    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, value));
-  }
-}
-
-BUILTIN(BigIntConstructor_ConstructStub) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNotConstructor,
-                            isolate->factory()->BigInt_string()));
 }
 
 BUILTIN(BigIntAsUintN) {

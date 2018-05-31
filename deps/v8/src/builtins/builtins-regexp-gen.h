@@ -19,6 +19,19 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                           Node* const map, Label* const if_isunmodified,
                           Label* const if_ismodified);
 
+  // Create and initialize a RegExp object.
+  TNode<Object> RegExpCreate(TNode<Context> context,
+                             TNode<Context> native_context,
+                             TNode<Object> regexp_string, TNode<String> flags);
+
+  TNode<Object> RegExpCreate(TNode<Context> context, TNode<Map> initial_map,
+                             TNode<Object> regexp_string, TNode<String> flags);
+
+  TNode<Object> MatchAllIterator(TNode<Context> context,
+                                 TNode<Context> native_context,
+                                 TNode<Object> regexp, TNode<Object> string,
+                                 char const* method_name);
+
  protected:
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),

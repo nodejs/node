@@ -60,7 +60,9 @@ LINT_RULES = """
 -build/header_guard
 -build/include_what_you_use
 -readability/fn_size
+-readability/multiline_comment
 -runtime/references
+-whitespace/comments
 """.split()
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')

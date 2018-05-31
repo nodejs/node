@@ -49,7 +49,7 @@ class ScopeIterator {
   ScopeIterator(Isolate* isolate, Handle<JSFunction> function);
   ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
 
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
 
   // More scopes?
   bool Done() { return context_.is_null(); }
@@ -126,9 +126,9 @@ class ScopeIterator {
 
   void UnwrapEvaluationContext();
 
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScriptScope();
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeLocalScope();
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeModuleScope();
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> MaterializeScriptScope();
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> MaterializeLocalScope();
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> MaterializeModuleScope();
   Handle<JSObject> MaterializeClosure();
   Handle<JSObject> MaterializeCatchScope();
   Handle<JSObject> MaterializeInnerScope();

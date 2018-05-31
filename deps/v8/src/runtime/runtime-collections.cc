@@ -6,7 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/conversions-inl.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 
 namespace v8 {
 namespace internal {

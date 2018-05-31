@@ -277,13 +277,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S1x8AllTrue:
     case kArm64S1x16AnyTrue:
     case kArm64S1x16AllTrue:
-      return kNoOpcodeFlags;
-
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:
     case kArm64CompareAndBranch32:
     case kArm64CompareAndBranch:
-      return kIsBlockTerminator;
+      return kNoOpcodeFlags;
 
     case kArm64LdrS:
     case kArm64LdrD:
@@ -309,6 +307,28 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64StrW:
     case kArm64Str:
     case kArm64DsbIsb:
+      return kHasSideEffect;
+
+    case kArm64Word64AtomicAddUint8:
+    case kArm64Word64AtomicAddUint16:
+    case kArm64Word64AtomicAddUint32:
+    case kArm64Word64AtomicAddUint64:
+    case kArm64Word64AtomicSubUint8:
+    case kArm64Word64AtomicSubUint16:
+    case kArm64Word64AtomicSubUint32:
+    case kArm64Word64AtomicSubUint64:
+    case kArm64Word64AtomicAndUint8:
+    case kArm64Word64AtomicAndUint16:
+    case kArm64Word64AtomicAndUint32:
+    case kArm64Word64AtomicAndUint64:
+    case kArm64Word64AtomicOrUint8:
+    case kArm64Word64AtomicOrUint16:
+    case kArm64Word64AtomicOrUint32:
+    case kArm64Word64AtomicOrUint64:
+    case kArm64Word64AtomicXorUint8:
+    case kArm64Word64AtomicXorUint16:
+    case kArm64Word64AtomicXorUint32:
+    case kArm64Word64AtomicXorUint64:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

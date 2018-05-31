@@ -153,7 +153,7 @@ TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
 
 enum ModuleStyle : int { Fixed = 0, Growable = 1 };
 
-class WasmCodeManagerTest : public TestWithIsolate,
+class WasmCodeManagerTest : public TestWithContext,
                             public ::testing::WithParamInterface<ModuleStyle> {
  public:
   using NativeModulePtr = std::unique_ptr<NativeModule>;
@@ -186,7 +186,9 @@ class WasmCodeManagerTest : public TestWithIsolate,
     std::unique_ptr<byte[]> exec_buff(new byte[size]);
     desc.buffer = exec_buff.get();
     desc.instr_size = static_cast<int>(size);
-    return native_module->AddCode(desc, 0, index, 0, 0, {}, false);
+    Handle<ByteArray> source_pos = i_isolate()->factory()->empty_byte_array();
+    return native_module->AddCode(desc, 0, index, 0, 0, {}, source_pos,
+                                  WasmCode::kOther);
   }
 
   size_t page() const { return AllocatePageSize(); }
@@ -290,11 +292,11 @@ TEST_P(WasmCodeManagerTest, Lookup) {
   NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), GetParam());
   NativeModulePtr nm2 = AllocModule(&manager, 1 * page(), GetParam());
   WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
-  CHECK_EQ(nm1.get(), code1_0->owner());
+  CHECK_EQ(nm1.get(), code1_0->native_module());
   WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
   WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
   WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
-  CHECK_EQ(nm2.get(), code2_1->owner());
+  CHECK_EQ(nm2.get(), code2_1->native_module());
 
   CHECK_EQ(0, code1_0->index());
   CHECK_EQ(1, code1_1->index());
@@ -331,11 +333,11 @@ TEST_P(WasmCodeManagerTest, MultiManagerLookup) {
   NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), GetParam());
 
   WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
-  CHECK_EQ(nm1.get(), code1_0->owner());
+  CHECK_EQ(nm1.get(), code1_0->native_module());
   WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
   WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
   WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
-  CHECK_EQ(nm2.get(), code2_1->owner());
+  CHECK_EQ(nm2.get(), code2_1->native_module());
 
   CHECK_EQ(0, code1_0->index());
   CHECK_EQ(1, code1_1->index());

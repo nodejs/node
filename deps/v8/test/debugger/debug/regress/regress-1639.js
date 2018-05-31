@@ -27,7 +27,7 @@
 
 Debug = debug.Debug
 var breaks = 0;
-var exception = false;
+var exceptionThrown = false;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -43,7 +43,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     print(e);
-    exception = true;
+    exceptionThrown = true;
   }
 }
 
@@ -72,4 +72,4 @@ Debug.setBreakPoint(b, 0, 0);
 a(b);
 a(); // BREAK 3
 
-assertFalse(exception);
+assertFalse(exceptionThrown);

@@ -29,7 +29,7 @@ namespace {
 // Retrieves the frame state holding actual argument values.
 Node* GetArgumentsFrameState(Node* frame_state) {
   Node* const outer_state = NodeProperties::GetFrameStateInput(frame_state);
-  FrameStateInfo outer_state_info = OpParameter<FrameStateInfo>(outer_state);
+  FrameStateInfo outer_state_info = FrameStateInfoOf(outer_state->op());
   return outer_state_info.type() == FrameStateType::kArgumentsAdaptor
              ? outer_state
              : frame_state;
@@ -137,10 +137,14 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
+    case IrOpcode::kJSCreateArrayIterator:
+      return ReduceJSCreateArrayIterator(node);
     case IrOpcode::kJSCreateBoundFunction:
       return ReduceJSCreateBoundFunction(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
+    case IrOpcode::kJSCreateCollectionIterator:
+      return ReduceJSCreateCollectionIterator(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
     case IrOpcode::kJSCreateStringIterator:
@@ -232,7 +236,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   Node* const frame_state = NodeProperties::GetFrameStateInput(node);
   Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   Node* const control = graph()->start();
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   Handle<SharedFunctionInfo> shared =
       state_info.shared_info().ToHandleChecked();
 
@@ -357,7 +361,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         // pruned anyway.
         return NoChange();
       }
-      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by arguments object.
       bool has_aliased_arguments = false;
       Node* const elements = AllocateAliasedArguments(
@@ -397,7 +401,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         // pruned anyway.
         return NoChange();
       }
-      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by arguments object.
       Node* const elements = AllocateArguments(effect, control, args_state);
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
@@ -433,7 +437,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         // pruned anyway.
         return NoChange();
       }
-      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by the rest array.
       Node* const elements =
           AllocateRestArguments(effect, control, args_state, start_index);
@@ -491,9 +495,14 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     // Allocate a register file.
     DCHECK(js_function->shared()->HasBytecodeArray());
-    int size = js_function->shared()->bytecode_array()->register_count();
-    Node* register_file = effect =
-        AllocateElements(effect, control, HOLEY_ELEMENTS, size, NOT_TENURED);
+    int size = js_function->shared()->GetBytecodeArray()->register_count();
+    AllocationBuilder ab(jsgraph(), effect, control);
+    ab.AllocateArray(size, factory()->fixed_array_map());
+    for (int i = 0; i < size; ++i) {
+      ab.Store(AccessBuilder::ForFixedArraySlot(i),
+               jsgraph()->UndefinedConstant());
+    }
+    Node* register_file = effect = ab.Finish();
 
     // Emit code to allocate the JS[Async]GeneratorObject instance.
     AllocationBuilder a(jsgraph(), effect, control);
@@ -877,6 +886,96 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   return ReduceNewArrayToStubCall(node, site);
 }
 
+Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateArrayIterator, node->opcode());
+  CreateArrayIteratorParameters const& p =
+      CreateArrayIteratorParametersOf(node->op());
+  Node* iterated_object = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Create the JSArrayIterator result.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSArrayIterator::kSize, NOT_TENURED, Type::OtherObject());
+  a.Store(AccessBuilder::ForMap(),
+          handle(native_context()->initial_array_iterator_map(), isolate()));
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSArrayIteratorIteratedObject(), iterated_object);
+  a.Store(AccessBuilder::ForJSArrayIteratorNextIndex(),
+          jsgraph()->ZeroConstant());
+  a.Store(AccessBuilder::ForJSArrayIteratorKind(),
+          jsgraph()->Constant(static_cast<int>(p.kind())));
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
+namespace {
+
+Context::Field ContextFieldForCollectionIterationKind(
+    CollectionKind collection_kind, IterationKind iteration_kind) {
+  switch (collection_kind) {
+    case CollectionKind::kSet:
+      switch (iteration_kind) {
+        case IterationKind::kKeys:
+          UNREACHABLE();
+        case IterationKind::kValues:
+          return Context::SET_VALUE_ITERATOR_MAP_INDEX;
+        case IterationKind::kEntries:
+          return Context::SET_KEY_VALUE_ITERATOR_MAP_INDEX;
+      }
+      break;
+    case CollectionKind::kMap:
+      switch (iteration_kind) {
+        case IterationKind::kKeys:
+          return Context::MAP_KEY_ITERATOR_MAP_INDEX;
+        case IterationKind::kValues:
+          return Context::MAP_VALUE_ITERATOR_MAP_INDEX;
+        case IterationKind::kEntries:
+          return Context::MAP_KEY_VALUE_ITERATOR_MAP_INDEX;
+      }
+      break;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
+Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateCollectionIterator, node->opcode());
+  CreateCollectionIteratorParameters const& p =
+      CreateCollectionIteratorParametersOf(node->op());
+  Node* iterated_object = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Load the OrderedHashTable from the {receiver}.
+  Node* table = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
+      iterated_object, effect, control);
+
+  // Create the JSArrayIterator result.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSCollectionIterator::kSize, NOT_TENURED, Type::OtherObject());
+  a.Store(AccessBuilder::ForMap(),
+          handle(native_context()->get(ContextFieldForCollectionIterationKind(
+                     p.collection_kind(), p.iteration_kind())),
+                 isolate()));
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSCollectionIteratorTable(), table);
+  a.Store(AccessBuilder::ForJSCollectionIteratorIndex(),
+          jsgraph()->ZeroConstant());
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
 Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBoundFunction, node->opcode());
   CreateBoundFunctionParameters const& p =
@@ -1207,7 +1306,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
       default:
         UNREACHABLE();
     }
-    a.AllocateArray(context_length, map);
+    a.AllocateContext(context_length, map);
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1226,7 +1325,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
-  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1242,7 +1341,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 
   AllocationBuilder a(jsgraph(), extension, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-  a.AllocateArray(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
+  a.AllocateContext(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1274,8 +1373,8 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 
   AllocationBuilder a(jsgraph(), extension, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-  a.AllocateArray(Context::MIN_CONTEXT_SLOTS + 1,
-                  factory()->catch_context_map());
+  a.AllocateContext(Context::MIN_CONTEXT_SLOTS + 1,
+                    factory()->catch_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1290,7 +1389,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
-  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
   int const context_length = scope_info->ContextLength();
   Node* const closure = NodeProperties::GetValueInput(node, 0);
 
@@ -1304,7 +1403,7 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 
     AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-    a.AllocateArray(context_length, factory()->block_context_map());
+    a.AllocateContext(context_length, factory()->block_context_map());
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1325,7 +1424,7 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 // given {frame_state}. Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
                                           Node* frame_state) {
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 
@@ -1349,7 +1448,7 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
 Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
                                               Node* frame_state,
                                               int start_index) {
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   int num_elements = std::max(0, argument_count - start_index);
   if (num_elements == 0) return jsgraph()->EmptyFixedArrayConstant();
@@ -1380,7 +1479,7 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
 Node* JSCreateLowering::AllocateAliasedArguments(
     Node* effect, Node* control, Node* frame_state, Node* context,
     Handle<SharedFunctionInfo> shared, bool* has_aliased_arguments) {
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 

@@ -69,6 +69,9 @@
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
+  # TODO(ulan): Renable after fixing the test's brittleness.
+  'test-heap/OutOfMemory': [SKIP],
+
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
@@ -124,6 +127,15 @@
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
+  # Temporary for https://crrev.com/c/947969 until https://crrev.com/c/950775
+  # lands. Tests build a new snapshot, in which the constants list doesn't
+  # match what's expected by embedded builtins. This will become irrelevant
+  # once the serialization process changes to pack trampolines into the
+  # snapshot iff explicitly requested.
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -180,6 +192,9 @@
 
   # BUG(v8:5193): Flaky.
   'test-cpu-profiler/TickEvents': [SKIP],
+
+  # BUG(v8:7587): Strange breakage on Mac.
+  'test-log-stack-tracer/PureJSStackTrace': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -231,10 +246,6 @@
 
 ##############################################################################
 ['system == windows', {
-
-  # BUG(3331). Fails on windows.
-  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
-
   # BUG(v8:4573).
   'test-api/MultipleIsolatesOnIndividualThreads': [PASS, NO_VARIANTS],
 
@@ -289,6 +300,11 @@
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
+['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64)', {
+  # Instruction scheduler not supported on MIPS.
+  'test-instruction-scheduler/DeoptInMiddleOfBasicBlock': [SKIP]
+}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
+
 ##############################################################################
 ['arch == mips', {
   # Too slow with TF.
@@ -299,6 +315,13 @@
   'test-api/Threading5': [SKIP],
   'test-api/Threading6': [SKIP],
 }],  # 'arch == mips'
+
+##############################################################################
+['arch == mips or arch == mips64', {
+   # TODO(mips-team): Implement LiftOff on big-endian
+   'test-run-wasm/RunWasmLiftoff*': [SKIP],
+   'test-run-wasm-64/RunWasmLiftoff*': [SKIP],
+}],  # 'arch == mips or arch == mips64'
 
 ##############################################################################
 ['arch == mips64el or arch == mips64', {
@@ -319,55 +342,25 @@
 ['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips', {
   # Skip tests that fail on MIPS architectures which don't support SIMD,
   # because lowering mechanism doesn't work properly
-  'test-run-wasm-simd/RunWasm_F32x4RecipApprox_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_F32x4RecipSqrtApprox_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_I32x4ConvertI16x8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_I16x8ConvertI8x16_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_I16x8ConvertI32x4_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_I8x16ConvertI16x8_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4Select_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8Select_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Select_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4NonCanonicalSelect_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8NonCanonicalSelect_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16NonCanonicalSelect_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I16x8AddHoriz_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_F32x4AddHoriz_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4Dup_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4ZipLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4ZipRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4UnzipLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4UnzipRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4TransposeLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4TransposeRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x2Reverse_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S32x4Irregular_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8Dup_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8ZipLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8ZipRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8UnzipLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8UnzipRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8TransposeLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8TransposeRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x4Reverse_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x2Reverse_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S16x8Irregular_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Dup_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16ZipLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16ZipRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16UnzipLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16UnzipRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16TransposeLeft_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16TransposeRight_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x8Reverse_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x4Reverse_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x2Reverse_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Irregular_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_S8x16Concat_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest4_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest16_compiled': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
+
+##############################################################################
+['mips_arch_variant == r6', {
+  # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
+  # will cause failures on several tests that expect exact floating-point
+  # results.
+  'test-run-machops/RunFloat64MulAndFloat64Add1': [SKIP],
+  'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
+  'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
+  'test-run-machops/RunFloat64MulAndFloat64Sub2': [SKIP],
+}],  # 'mips_arch_variant == r6'
 
 ##############################################################################
 ['arch == android_arm or arch == android_ia32', {

@@ -11,7 +11,7 @@
 #include "src/compilation-cache.h"
 #include "src/elements.h"
 #include "src/execution.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/ostreams.h"
@@ -59,7 +59,7 @@
 namespace v8 {
 namespace internal {
 
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 static inline MaybeHandle<Object> ThrowRegExpException(
     Handle<JSRegExp> re, Handle<String> pattern, Handle<String> error_text) {
   Isolate* isolate = re->GetIsolate();

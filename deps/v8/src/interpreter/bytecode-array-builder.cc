@@ -864,6 +864,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreInArrayLiteral(
+    Register array, Register index, int feedback_slot) {
+  OutputStaInArrayLiteral(array, index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreHomeObjectProperty(
     Register object, int feedback_slot, LanguageMode language_mode) {
   size_t name_index = HomeObjectSymbolConstantPoolEntry();
@@ -995,6 +1001,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToObject(Register out) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ToName(Register out) {
   OutputToName(out);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToString() {
+  OutputToString();
   return *this;
 }
 

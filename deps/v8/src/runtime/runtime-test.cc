@@ -211,11 +211,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
   // If the function has optimized code, ensure that we check for it and return.
   if (function->HasOptimizedCode()) {
-    if (!function->IsInterpreted()) {
-      // For non I+TF path, install a shim which checks the optimization marker.
-      function->set_code(
-          isolate->builtins()->builtin(Builtins::kCheckOptimizationMarker));
-    }
     DCHECK(function->ChecksOptimizationMarker());
     return isolate->heap()->undefined_value();
   }
@@ -236,8 +231,14 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
                                                             : "non-concurrent");
   }
 
-  JSFunction::EnsureFeedbackVector(function);
+  // This function may not have been lazily compiled yet, even though its shared
+  // function has.
+  if (!function->is_compiled()) {
+    DCHECK(function->shared()->IsInterpreted());
+    function->set_code(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+  }
 
+  JSFunction::EnsureFeedbackVector(function);
   function->MarkForOptimization(concurrency_mode);
 
   return isolate->heap()->undefined_value();
@@ -753,8 +754,8 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
     // Doesn't have wasm data.
     return isolate->heap()->false_value();
   }
-  if (function->shared()->code() !=
-      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
+  if (function->shared()->HasBuiltinId() &&
+      function->shared()->builtin_id() == Builtins::kInstantiateAsmJs) {
     // Hasn't been compiled yet.
     return isolate->heap()->false_value();
   }
@@ -839,11 +840,24 @@ TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 
 #undef FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
 
-
-RUNTIME_FUNCTION(Runtime_SpeciesProtector) {
+RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsSpeciesLookupChainIntact());
+  return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
+}
+
+RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      isolate->IsTypedArraySpeciesLookupChainIntact());
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      isolate->IsPromiseSpeciesLookupChainIntact());
 }
 
 // Take a compiled wasm module, serialize it and copy the buffer into an array
@@ -977,16 +991,14 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   DCHECK(it.is_wasm());
   WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
 
-  uint8_t* mem_start = reinterpret_cast<uint8_t*>(frame->wasm_instance()
-                                                      ->memory_object()
-                                                      ->array_buffer()
-                                                      ->allocation_base());
+  uint8_t* mem_start = reinterpret_cast<uint8_t*>(
+      frame->wasm_instance()->memory_object()->array_buffer()->backing_store());
   int func_index = frame->function_index();
   int pos = frame->position();
   // TODO(titzer): eliminate dependency on WasmModule definition here.
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
-  wasm::ExecutionEngine eng = frame->wasm_code().is_liftoff()
+  wasm::ExecutionEngine eng = frame->wasm_code()->is_liftoff()
                                   ? wasm::ExecutionEngine::kLiftoff
                                   : wasm::ExecutionEngine::kTurbofan;
   wasm::TraceMemoryOperation(eng, info, func_index, pos - func_start,
@@ -999,15 +1011,9 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
-  WasmCodeWrapper wrapper =
+  wasm::WasmCode* wasm_code =
       WasmExportedFunction::cast(*function)->GetWasmCode();
-  if (!wrapper.IsCodeObject()) {
-    const wasm::WasmCode* wasm_code = wrapper.GetWasmCode();
-    return isolate->heap()->ToBoolean(wasm_code->is_liftoff());
-  } else {
-    Handle<Code> wasm_code = wrapper.GetCode();
-    return isolate->heap()->ToBoolean(!wasm_code->is_turbofanned());
-  }
+  return isolate->heap()->ToBoolean(wasm_code->is_liftoff());
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
@@ -1025,12 +1031,7 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   DisallowHeapAllocation no_gc;
   CONVERT_ARG_CHECKED(WasmInstanceObject, instance, 0);
 
-  WasmSharedModuleData* shared = instance->compiled_module()->shared();
-  CHECK(shared->has_lazy_compilation_orchestrator());
-  auto* orchestrator = Managed<wasm::LazyCompilationOrchestrator>::cast(
-                           shared->lazy_compilation_orchestrator())
-                           ->get();
-  orchestrator->FreezeLazyCompilationForTesting();
+  instance->compiled_module()->GetNativeModule()->set_lazy_compile_frozen(true);
   return isolate->heap()->undefined_value();
 }
 

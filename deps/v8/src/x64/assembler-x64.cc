@@ -542,7 +542,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if (desc.buffer_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.
@@ -3949,6 +3949,7 @@ void Assembler::sqrtsd(XMMRegister dst, Operand src) {
 }
 
 void Assembler::haddps(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);
@@ -3958,6 +3959,7 @@ void Assembler::haddps(XMMRegister dst, XMMRegister src) {
 }
 
 void Assembler::haddps(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);

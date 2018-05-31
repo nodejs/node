@@ -10,6 +10,7 @@
 #include "src/base/file-utils.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/flags.h"
 #include "src/utils.h"
 
 
@@ -86,9 +87,15 @@ void InitializeExternalStartupData(const char* directory_path) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   char* natives;
   char* snapshot;
+  const char* snapshot_name = "snapshot_blob.bin";
+#ifdef V8_MULTI_SNAPSHOTS
+  if (!FLAG_untrusted_code_mitigations) {
+    snapshot_name = "snapshot_blob_trusted.bin";
+  }
+#endif
   LoadFromFiles(
       base::RelativePath(&natives, directory_path, "natives_blob.bin"),
-      base::RelativePath(&snapshot, directory_path, "snapshot_blob.bin"));
+      base::RelativePath(&snapshot, directory_path, snapshot_name));
   free(natives);
   free(snapshot);
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA

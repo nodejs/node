@@ -51,7 +51,7 @@ class V8_BASE_EXPORT Mutex final {
 
   // Tries to lock the given mutex. Returns whether the mutex was
   // successfully locked.
-  bool TryLock() WARN_UNUSED_RESULT;
+  bool TryLock() V8_WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
@@ -150,7 +150,7 @@ class V8_BASE_EXPORT RecursiveMutex final {
 
   // Tries to lock the given mutex. Returns whether the mutex was
   // successfully locked.
-  bool TryLock() WARN_UNUSED_RESULT;
+  bool TryLock() V8_WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX

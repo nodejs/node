@@ -8,7 +8,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/property.h"
 #include "test/cctest/cctest.h"
@@ -70,7 +70,7 @@ void ContextSpecializationTester::CheckChangesToValue(
 void ContextSpecializationTester::CheckContextInputAndDepthChanges(
     Node* node, Handle<Context> expected_new_context_object,
     size_t expected_new_depth) {
-  ContextAccess access = OpParameter<ContextAccess>(node);
+  ContextAccess access = ContextAccessOf(node->op());
   Reduction r = spec()->Reduce(node);
   CHECK(r.Changed());
 
@@ -79,7 +79,7 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
   HeapObjectMatcher match(new_context);
   CHECK_EQ(*match.Value(), *expected_new_context_object);
 
-  ContextAccess new_access = OpParameter<ContextAccess>(r.replacement());
+  ContextAccess new_access = ContextAccessOf(r.replacement()->op());
   CHECK_EQ(new_access.depth(), expected_new_depth);
   CHECK_EQ(new_access.index(), access.index());
   CHECK_EQ(new_access.immutable(), access.immutable());
@@ -87,14 +87,14 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
 
 void ContextSpecializationTester::CheckContextInputAndDepthChanges(
     Node* node, Node* expected_new_context, size_t expected_new_depth) {
-  ContextAccess access = OpParameter<ContextAccess>(node);
+  ContextAccess access = ContextAccessOf(node->op());
   Reduction r = spec()->Reduce(node);
   CHECK(r.Changed());
 
   Node* new_context = NodeProperties::GetContextInput(r.replacement());
   CHECK_EQ(new_context, expected_new_context);
 
-  ContextAccess new_access = OpParameter<ContextAccess>(r.replacement());
+  ContextAccess new_access = ContextAccessOf(r.replacement()->op());
   CHECK_EQ(new_access.depth(), expected_new_depth);
   CHECK_EQ(new_access.index(), access.index());
   CHECK_EQ(new_access.immutable(), access.immutable());
@@ -149,7 +149,7 @@ TEST(ReduceJSLoadContext0) {
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
     CHECK_EQ(*native, *match.Value());
-    ContextAccess access = OpParameter<ContextAccess>(r.replacement());
+    ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
     CHECK_EQ(false, access.immutable());
@@ -453,7 +453,7 @@ TEST(ReduceJSStoreContext0) {
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
     CHECK_EQ(*native, *match.Value());
-    ContextAccess access = OpParameter<ContextAccess>(r.replacement());
+    ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
     CHECK_EQ(false, access.immutable());

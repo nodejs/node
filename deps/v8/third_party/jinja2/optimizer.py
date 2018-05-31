@@ -13,7 +13,7 @@
 
     The solution would be a second syntax tree that has the scoping rules stored.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD.
 """
 from jinja2 import nodes
@@ -32,30 +32,11 @@ class Optimizer(NodeTransformer):
     def __init__(self, environment):
         self.environment = environment
 
-    def visit_If(self, node):
-        """Eliminate dead code."""
-        # do not optimize ifs that have a block inside so that it doesn't
-        # break super().
-        if node.find(nodes.Block) is not None:
-            return self.generic_visit(node)
-        try:
-            val = self.visit(node.test).as_const()
-        except nodes.Impossible:
-            return self.generic_visit(node)
-        if val:
-            body = node.body
-        else:
-            body = node.else_
-        result = []
-        for node in body:
-            result.extend(self.visit_list(node))
-        return result
-
-    def fold(self, node):
+    def fold(self, node, eval_ctx=None):
         """Do constant folding."""
         node = self.generic_visit(node)
         try:
-            return nodes.Const.from_untrusted(node.as_const(),
+            return nodes.Const.from_untrusted(node.as_const(eval_ctx),
                                               lineno=node.lineno,
                                               environment=self.environment)
         except nodes.Impossible:

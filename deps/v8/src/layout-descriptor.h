@@ -130,10 +130,10 @@ class LayoutDescriptor : public ByteArray {
   V8_INLINE bool GetIndexes(int field_index, int* layout_word_index,
                             int* layout_bit_index);
 
-  V8_INLINE MUST_USE_RESULT LayoutDescriptor* SetRawData(int field_index);
+  V8_INLINE V8_WARN_UNUSED_RESULT LayoutDescriptor* SetRawData(int field_index);
 
-  V8_INLINE MUST_USE_RESULT LayoutDescriptor* SetTagged(int field_index,
-                                                        bool tagged);
+  V8_INLINE V8_WARN_UNUSED_RESULT LayoutDescriptor* SetTagged(int field_index,
+                                                              bool tagged);
 };
 
 

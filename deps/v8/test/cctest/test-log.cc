@@ -53,10 +53,6 @@ using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
 using v8::internal::StrLength;
 
-namespace internal {
-class InstructionStream;
-}
-
 namespace {
 
 
@@ -703,9 +699,7 @@ TEST(Issue539892) {
    private:
     void LogRecordedBuffer(i::AbstractCode* code, i::SharedFunctionInfo* shared,
                            const char* name, int length) override {}
-    void LogRecordedBuffer(const i::InstructionStream* stream, const char* name,
-                           int length) override {}
-    void LogRecordedBuffer(i::wasm::WasmCode* code, const char* name,
+    void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
   } code_event_logger;
   SETUP_FLAGS();
@@ -780,6 +774,29 @@ TEST(LogAll) {
       CHECK(logger.FindLine("timer-event-start", "V8.DeoptimizeCode"));
       CHECK(logger.FindLine("timer-event-end", "V8.DeoptimizeCode"));
     }
+  }
+  isolate->Dispose();
+}
+
+TEST(LogInterpretedFramesNativeStack) {
+  SETUP_FLAGS();
+  i::FLAG_interpreted_frames_native_stack = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+    const char* source_text =
+        "function testLogInterpretedFramesNativeStack(a,b) { return a + b };"
+        "testLogInterpretedFramesNativeStack('1', 1);";
+    CompileRun(source_text);
+
+    logger.StopLogging();
+
+    CHECK(logger.FindLine("InterpretedFunction",
+                          "testLogInterpretedFramesNativeStack"));
   }
   isolate->Dispose();
 }

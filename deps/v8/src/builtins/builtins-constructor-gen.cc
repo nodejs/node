@@ -99,13 +99,12 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // The calculation of |function_map_index| must be in sync with
   // SharedFunctionInfo::function_map_index().
-  Node* const compiler_hints = LoadObjectField(
-      shared_function_info, SharedFunctionInfo::kCompilerHintsOffset,
-      MachineType::Uint32());
-  Node* const function_map_index =
-      IntPtrAdd(DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(
-                    compiler_hints),
-                IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
+  Node* const flags =
+      LoadObjectField(shared_function_info, SharedFunctionInfo::kFlagsOffset,
+                      MachineType::Uint32());
+  Node* const function_map_index = IntPtrAdd(
+      DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
+      IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
   CSA_ASSERT(this, UintPtrLessThanOrEqual(
                        function_map_index,
                        IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));
@@ -636,166 +635,163 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
   return result;
 }
 
+// ES #sec-object-constructor
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   int const kValueArg = 0;
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* value = args.GetOptionalArgumentValue(kValueArg);
   Node* context = Parameter(BuiltinDescriptor::kContext);
-
-  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
-
-  Label return_to_object(this);
-
-  GotoIf(Word32And(IsNotUndefined(value), IsNotNull(value)), &return_to_object);
-
-  args.PopAndReturn(EmitCreateEmptyObjectLiteral(context));
-
-  BIND(&return_to_object);
-  args.PopAndReturn(ToObject(context, value));
-}
-
-TF_BUILTIN(ObjectConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
-  int const kValueArg = 0;
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* value = args.GetOptionalArgumentValue(kValueArg);
-
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
 
-  CSA_ASSERT(this, IsNotUndefined(new_target));
-
-  Label return_to_object(this);
-
-  GotoIf(Word32And(WordEqual(target, new_target),
-                   Word32And(IsNotUndefined(value), IsNotNull(value))),
-         &return_to_object);
-  args.PopAndReturn(EmitFastNewObject(context, target, new_target));
-
-  BIND(&return_to_object);
-  args.PopAndReturn(ToObject(context, value));
-}
-
-TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  Label return_zero(this);
-
-  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &return_zero);
-
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  args.PopAndReturn(
-      ToNumber(context, args.AtIndex(0), BigIntHandling::kConvertToNumber));
-
-  BIND(&return_zero);
-  args.PopAndReturn(SmiConstant(0));
-}
-
-TF_BUILTIN(NumberConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  Label wrap(this);
-
-  VARIABLE(var_result, MachineRepresentation::kTagged, SmiConstant(0));
-
-  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &wrap);
-  var_result.Bind(
-      ToNumber(context, args.AtIndex(0), BigIntHandling::kConvertToNumber));
-  Goto(&wrap);
-
-  BIND(&wrap);
-  Node* result = EmitFastNewObject(context, target, new_target);
-  StoreObjectField(result, JSValue::kValueOffset, var_result.value());
-  args.PopAndReturn(result);
-}
-
-Node* ConstructorBuiltinsAssembler::EmitConstructString(Node* argc,
-                                                        CodeStubArguments& args,
-                                                        Node* context,
-                                                        bool convert_symbol) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
+  Label if_subclass(this, Label::kDeferred), if_notsubclass(this),
+      return_result(this);
+  GotoIf(IsUndefined(new_target), &if_notsubclass);
+  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                               MachineType::TaggedPointer());
+  Branch(WordEqual(new_target, target), &if_notsubclass, &if_subclass);
 
-  Label return_empty_string(this), to_string(this),
-      check_symbol(this, Label::kDeferred), done(this);
-
-  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &return_empty_string);
-
-  Node* argument = args.AtIndex(0);
-
-  GotoIf(TaggedIsSmi(argument), &to_string);
-
-  Node* instance_type = LoadInstanceType(argument);
-
-  Label* non_string = convert_symbol ? &check_symbol : &to_string;
-  GotoIfNot(IsStringInstanceType(instance_type), non_string);
+  BIND(&if_subclass);
   {
-    var_result.Bind(argument);
-    Goto(&done);
+    Node* result =
+        CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
+    var_result.Bind(result);
+    Goto(&return_result);
   }
 
-  if (convert_symbol) {
-    BIND(&check_symbol);
-    GotoIfNot(IsSymbolInstanceType(instance_type), &to_string);
+  BIND(&if_notsubclass);
+  {
+    Label if_newobject(this, Label::kDeferred), if_toobject(this);
+
+    Node* value_index = IntPtrConstant(kValueArg);
+    GotoIf(UintPtrGreaterThanOrEqual(value_index, argc), &if_newobject);
+    Node* value = args.AtIndex(value_index);
+    GotoIf(IsNull(value), &if_newobject);
+    Branch(IsUndefined(value), &if_newobject, &if_toobject);
+
+    BIND(&if_newobject);
     {
-      var_result.Bind(
-          CallRuntime(Runtime::kSymbolDescriptiveString, context, argument));
-      Goto(&done);
+      Node* result = EmitCreateEmptyObjectLiteral(context);
+      var_result.Bind(result);
+      Goto(&return_result);
+    }
+
+    BIND(&if_toobject);
+    {
+      Node* result = CallBuiltin(Builtins::kToObject, context, value);
+      var_result.Bind(result);
+      Goto(&return_result);
     }
   }
 
-  BIND(&to_string);
-  {
-    var_result.Bind(ToString(context, argument));
-    Goto(&done);
-  }
-
-  BIND(&return_empty_string);
-  {
-    var_result.Bind(EmptyStringConstant());
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return var_result.value();
+  BIND(&return_result);
+  args.PopAndReturn(var_result.value());
 }
 
+// ES #sec-number-constructor
+TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  // 1. If no arguments were passed to this function invocation, let n be +0.
+  VARIABLE(var_n, MachineRepresentation::kTagged, SmiConstant(0));
+  Label if_nloaded(this, &var_n);
+  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_nloaded);
+
+  // 2. Else,
+  //    a. Let prim be ? ToNumeric(value).
+  //    b. If Type(prim) is BigInt, let n be the Number value for prim.
+  //    c. Otherwise, let n be prim.
+  Node* value = args.AtIndex(0);
+  var_n.Bind(ToNumber(context, value, BigIntHandling::kConvertToNumber));
+  Goto(&if_nloaded);
+
+  BIND(&if_nloaded);
+  {
+    // 3. If NewTarget is undefined, return n.
+    Node* n_value = var_n.value();
+    Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+    Label return_n(this), constructnumber(this, Label::kDeferred);
+    Branch(IsUndefined(new_target), &return_n, &constructnumber);
+
+    BIND(&return_n);
+    { args.PopAndReturn(n_value); }
+
+    BIND(&constructnumber);
+    {
+      // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
+      //    "%NumberPrototype%", « [[NumberData]] »).
+      // 5. Set O.[[NumberData]] to n.
+      // 6. Return O.
+      Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                                   MachineType::TaggedPointer());
+      Node* result =
+          CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
+      StoreObjectField(result, JSValue::kValueOffset, n_value);
+      args.PopAndReturn(result);
+    }
+  }
+}
+
+// https://tc39.github.io/ecma262/#sec-string-constructor
 TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  args.PopAndReturn(EmitConstructString(argc, args, context, true));
-}
-
-TF_BUILTIN(StringConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
 
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
+  // 1. If no arguments were passed to this function invocation, let s be "".
+  VARIABLE(var_s, MachineRepresentation::kTagged, EmptyStringConstant());
+  Label if_sloaded(this, &var_s);
+  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_sloaded);
 
-  Node* string = EmitConstructString(argc, args, context, false);
-  Node* result = EmitFastNewObject(context, target, new_target);
-  StoreObjectField(result, JSValue::kValueOffset, string);
-  args.PopAndReturn(result);
+  // 2. Else,
+  //    a. If NewTarget is undefined [...]
+  Node* value = args.AtIndex(0);
+  Label if_tostring(this, &var_s);
+  GotoIfNot(IsUndefined(new_target), &if_tostring);
+
+  // 2a. [...] and Type(value) is Symbol, return SymbolDescriptiveString(value).
+  GotoIf(TaggedIsSmi(value), &if_tostring);
+  GotoIfNot(IsSymbol(value), &if_tostring);
+  {
+    Node* result =
+        CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
+    args.PopAndReturn(result);
+  }
+
+  // 2b. Let s be ? ToString(value).
+  BIND(&if_tostring);
+  {
+    var_s.Bind(CallBuiltin(Builtins::kToString, context, value));
+    Goto(&if_sloaded);
+  }
+
+  // 3. If NewTarget is undefined, return s.
+  BIND(&if_sloaded);
+  {
+    Node* s_value = var_s.value();
+    Label return_s(this), constructstring(this, Label::kDeferred);
+    Branch(IsUndefined(new_target), &return_s, &constructstring);
+
+    BIND(&return_s);
+    { args.PopAndReturn(s_value); }
+
+    BIND(&constructstring);
+    {
+      Node* result =
+          CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
+      StoreObjectField(result, JSValue::kValueOffset, s_value);
+      args.PopAndReturn(result);
+    }
+  }
 }
 
 }  // namespace internal

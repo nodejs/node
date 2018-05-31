@@ -20,7 +20,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
   if (!DefaultDeserializerAllocator::ReserveSpace(this,
                                                   &builtin_deserializer)) {
-    V8::FatalProcessOutOfMemory("StartupDeserializer");
+    V8::FatalProcessOutOfMemory(isolate, "StartupDeserializer");
   }
 
   // No active threads.

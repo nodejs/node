@@ -17,9 +17,9 @@ class JsonStringifier BASE_EMBEDDED {
 
   ~JsonStringifier() { DeleteArray(gap_); }
 
-  MUST_USE_RESULT MaybeHandle<Object> Stringify(Handle<Object> object,
-                                                Handle<Object> replacer,
-                                                Handle<Object> gap);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Stringify(Handle<Object> object,
+                                                      Handle<Object> replacer,
+                                                      Handle<Object> gap);
 
  private:
   enum Result { UNCHANGED, SUCCESS, EXCEPTION };
@@ -27,10 +27,9 @@ class JsonStringifier BASE_EMBEDDED {
   bool InitializeReplacer(Handle<Object> replacer);
   bool InitializeGap(Handle<Object> gap);
 
-  MUST_USE_RESULT MaybeHandle<Object> ApplyToJsonFunction(
-      Handle<Object> object,
-      Handle<Object> key);
-  MUST_USE_RESULT MaybeHandle<Object> ApplyReplacerFunction(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> ApplyToJsonFunction(
+      Handle<Object> object, Handle<Object> key);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> ApplyReplacerFunction(
       Handle<Object> value, Handle<Object> key, Handle<Object> initial_holder);
 
   // Entry point to serialize the object.

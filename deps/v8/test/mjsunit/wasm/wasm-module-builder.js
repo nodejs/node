@@ -683,6 +683,11 @@ class WasmModuleBuilder {
     return instance;
   }
 
+  asyncInstantiate(ffi) {
+    return WebAssembly.instantiate(this.toBuffer(), ffi)
+        .then(({module, instance}) => instance);
+  }
+
   toModule(debug = false) {
     return new WebAssembly.Module(this.toBuffer(debug));
   }

@@ -194,8 +194,8 @@ Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
 
   Handle<SharedFunctionInfo> shared(script->eval_from_shared());
   // Find the name of the function calling eval.
-  if (shared->name()->BooleanValue()) {
-    return shared->name();
+  if (shared->Name()->BooleanValue()) {
+    return shared->Name();
   }
 
   return shared->inferred_name();
@@ -385,7 +385,7 @@ Handle<Object> JSStackFrame::GetMethodName() {
     return isolate_->factory()->null_value();
   }
 
-  Handle<String> name(function_->shared()->name(), isolate_);
+  Handle<String> name(function_->shared()->Name(), isolate_);
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
   if (name->IsUtf8EqualTo(CStrVector("get "), true) ||
@@ -648,18 +648,10 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
   if (array->IsWasmInterpretedFrame(frame_ix)) {
-    code_ = {};
+    code_ = nullptr;
   } else {
-    code_ =
-        FLAG_wasm_jit_to_native
-            ? WasmCodeWrapper(
-                  wasm_instance_->compiled_module()->GetNativeModule()->GetCode(
-                      wasm_func_index_))
-            : WasmCodeWrapper(handle(
-                  Code::cast(
-                      wasm_instance_->compiled_module()->code_table()->get(
-                          wasm_func_index_)),
-                  isolate));
+    code_ = wasm_instance_->compiled_module()->GetNativeModule()->GetCode(
+        wasm_func_index_);
   }
   offset_ = array->Offset(frame_ix)->value();
 }
@@ -723,11 +715,8 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 int WasmStackFrame::GetPosition() const {
   return IsInterpreted()
              ? offset_
-             : (code_.IsCodeObject()
-                    ? Handle<AbstractCode>::cast(code_.GetCode())
-                          ->SourcePosition(offset_)
-                    : FrameSummary::WasmCompiledFrameSummary::
-                          GetWasmSourcePosition(code_.GetWasmCode(), offset_));
+             : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+                   code_, offset_);
 }
 
 Handle<Object> WasmStackFrame::Null() const {
@@ -778,10 +767,8 @@ Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
   int byte_offset =
-      code_.IsCodeObject()
-          ? Handle<AbstractCode>::cast(code_.GetCode())->SourcePosition(offset_)
-          : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-                code_.GetWasmCode(), offset_);
+      FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code_,
+                                                                    offset_);
   Handle<WasmSharedModuleData> shared(
       wasm_instance_->compiled_module()->shared(), isolate_);
   DCHECK_LE(0, byte_offset);

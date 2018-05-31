@@ -386,15 +386,21 @@ TEST(TimeTicks, IsMonotonic) {
 TEST(ThreadTicks, MAYBE_ThreadNow) {
   if (ThreadTicks::IsSupported()) {
     ThreadTicks::WaitUntilInitialized();
-    TimeTicks begin = TimeTicks::Now();
-    ThreadTicks begin_thread = ThreadTicks::Now();
+    TimeTicks end, begin = TimeTicks::Now();
+    ThreadTicks end_thread, begin_thread = ThreadTicks::Now();
+    TimeDelta delta;
     // Make sure that ThreadNow value is non-zero.
     EXPECT_GT(begin_thread, ThreadTicks());
-    // Sleep for 10 milliseconds to get the thread de-scheduled.
-    OS::Sleep(base::TimeDelta::FromMilliseconds(10));
-    ThreadTicks end_thread = ThreadTicks::Now();
-    TimeTicks end = TimeTicks::Now();
-    TimeDelta delta = end - begin;
+    int iterations_count = 0;
+    do {
+      // Sleep for 10 milliseconds to get the thread de-scheduled.
+      OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+      end_thread = ThreadTicks::Now();
+      end = TimeTicks::Now();
+      delta = end - begin;
+      EXPECT_LE(++iterations_count, 2);  // fail after 2 attempts.
+    } while (delta.InMicroseconds() <
+             10000);  // Make sure that the OS did sleep for at least 10 ms.
     TimeDelta delta_thread = end_thread - begin_thread;
     // Make sure that some thread time have elapsed.
     EXPECT_GT(delta_thread.InMicroseconds(), 0);

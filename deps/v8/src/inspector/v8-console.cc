@@ -484,23 +484,15 @@ void V8Console::valuesCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 static void setFunctionBreakpoint(ConsoleHelper& helper, int sessionId,
                                   v8::Local<v8::Function> function,
                                   V8DebuggerAgentImpl::BreakpointSource source,
-                                  const String16& condition, bool enable) {
-  String16 scriptId = String16::fromInteger(function->ScriptId());
-  int lineNumber = function->GetScriptLineNumber();
-  int columnNumber = function->GetScriptColumnNumber();
-  if (lineNumber == v8::Function::kLineOffsetNotFound ||
-      columnNumber == v8::Function::kLineOffsetNotFound)
-    return;
-
-  if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
-    if (!session->debuggerAgent()->enabled()) return;
-    if (enable) {
-      session->debuggerAgent()->setBreakpointAt(
-          scriptId, lineNumber, columnNumber, source, condition);
-    } else {
-      session->debuggerAgent()->removeBreakpointAt(scriptId, lineNumber,
-                                                   columnNumber, source);
-    }
+                                  v8::Local<v8::String> condition,
+                                  bool enable) {
+  V8InspectorSessionImpl* session = helper.session(sessionId);
+  if (session == nullptr) return;
+  if (!session->debuggerAgent()->enabled()) return;
+  if (enable) {
+    session->debuggerAgent()->setBreakpointFor(function, condition, source);
+  } else {
+    session->debuggerAgent()->removeBreakpointFor(function, source);
   }
 }
 
@@ -509,10 +501,14 @@ void V8Console::debugFunctionCallback(
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, v8::debug::ConsoleContext(), m_inspector);
   v8::Local<v8::Function> function;
+  v8::Local<v8::String> condition;
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
+  if (args.Length() > 1 && args[1]->IsString()) {
+    condition = args[1].As<v8::String>();
+  }
   setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::DebugCommandBreakpointSource,
-                        String16(), true);
+                        condition, true);
 }
 
 void V8Console::undebugFunctionCallback(
@@ -523,7 +519,7 @@ void V8Console::undebugFunctionCallback(
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
   setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::DebugCommandBreakpointSource,
-                        String16(), false);
+                        v8::Local<v8::String>(), false);
 }
 
 void V8Console::monitorFunctionCallback(
@@ -547,7 +543,8 @@ void V8Console::monitorFunctionCallback(
       "Array.prototype.join.call(arguments, \", \") : \"\")) && false");
   setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::MonitorCommandBreakpointSource,
-                        builder.toString(), true);
+                        toV8String(info.GetIsolate(), builder.toString()),
+                        true);
 }
 
 void V8Console::unmonitorFunctionCallback(
@@ -558,7 +555,7 @@ void V8Console::unmonitorFunctionCallback(
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
   setFunctionBreakpoint(helper, sessionId, function,
                         V8DebuggerAgentImpl::MonitorCommandBreakpointSource,
-                        String16(), false);
+                        v8::Local<v8::String>(), false);
 }
 
 void V8Console::lastEvaluationResultCallback(
@@ -711,7 +708,7 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   createBoundFunctionProperty(
       context, commandLineAPI, data, "debug",
       &V8Console::call<&V8Console::debugFunctionCallback>,
-      "function debug(function) { [Command Line API] }");
+      "function debug(function, condition) { [Command Line API] }");
   createBoundFunctionProperty(
       context, commandLineAPI, data, "undebug",
       &V8Console::call<&V8Console::undebugFunctionCallback>,
