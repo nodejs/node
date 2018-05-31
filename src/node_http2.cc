@@ -548,6 +548,8 @@ Http2Session::~Http2Session() {
     ClearWrap(object());
   persistent().Reset();
   CHECK(persistent().IsEmpty());
+  for (const auto& iter : streams_)
+    iter.second->session_ = nullptr;
   Unconsume();
   DEBUG_HTTP2SESSION(this, "freeing nghttp2 session");
   nghttp2_session_del(session_);
@@ -693,6 +695,8 @@ inline void Http2Session::AddStream(Http2Stream* stream) {
 
 
 inline void Http2Session::RemoveStream(Http2Stream* stream) {
+  if (streams_.empty() || stream == nullptr)
+    return;  // Nothing to remove, item was never added?
   streams_.erase(stream->id());
   DecrementCurrentSessionMemory(stream->self_size());
 }
@@ -1778,8 +1782,8 @@ Http2Stream::Http2Stream(
 
 
 Http2Stream::~Http2Stream() {
-  DEBUG_HTTP2STREAM(this, "tearing down stream");
   if (session_ != nullptr) {
+    DEBUG_HTTP2STREAM(this, "tearing down stream");
     session_->RemoveStream(this);
     session_ = nullptr;
   }
