@@ -457,13 +457,16 @@ void Environment::RunAndClearNativeImmediates() {
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
 
-  if (env->immediate_info()->count() == 0 || !env->can_call_into_js())
+  if (env->immediate_info()->count() == 0)
     return;
 
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
   env->RunAndClearNativeImmediates();
+
+  if (!env->can_call_into_js())
+    return;
 
   do {
     MakeCallback(env->isolate(),
