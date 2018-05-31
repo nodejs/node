@@ -134,7 +134,6 @@ class InspectorIo {
   // and receive a connection if wait_for_connect was requested.
   uv_sem_t thread_start_sem_;
 
-  InspectorIoDelegate* delegate_;
   State state_;
   node::Environment* parent_env_;
 
@@ -161,6 +160,8 @@ class InspectorIo {
   const bool wait_for_connect_;
   int port_;
   std::unordered_map<int, std::unique_ptr<InspectorSession>> sessions_;
+  // May be accessed from any thread
+  const std::string id_;
 
   friend class DispatchMessagesTask;
   friend class IoSessionDelegate;

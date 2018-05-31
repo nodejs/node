@@ -109,8 +109,12 @@ class IoSessionDelegate : public InspectorSessionDelegate {
 // mostly session start, message received, and session end.
 class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
  public:
-  InspectorIoDelegate(InspectorIo* io, const std::string& script_path,
+  InspectorIoDelegate(InspectorIo* io, const std::string& target_id,
+                      const std::string& script_path,
                       const std::string& script_name, bool wait);
+  ~InspectorIoDelegate() {
+    io_->ServerDone();
+  }
   // Calls PostIncomingMessage() with appropriate InspectorAction:
   //   kStartSession
   void StartSession(int session_id, const std::string& target_id) override;
@@ -122,11 +126,8 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
   std::vector<std::string> GetTargetIds() override;
   std::string GetTargetTitle(const std::string& id) override;
   std::string GetTargetUrl(const std::string& id) override;
-  void ServerDone() override {
-    io_->ServerDone();
-  }
 
-  void AssignTransport(InspectorSocketServer* server) {
+  void AssignServer(InspectorSocketServer* server) override {
     server_ = server;
   }
 
@@ -163,11 +164,11 @@ class DispatchMessagesTask : public v8::Task {
 InspectorIo::InspectorIo(Environment* env, v8::Platform* platform,
                          const std::string& path, const DebugOptions& options,
                          bool wait_for_connect)
-                         : options_(options), thread_(), delegate_(nullptr),
-                           state_(State::kNew), parent_env_(env),
-                           thread_req_(), platform_(platform),
+                         : options_(options), thread_(), state_(State::kNew),
+                           parent_env_(env), thread_req_(), platform_(platform),
                            dispatching_messages_(false), script_name_(path),
-                           wait_for_connect_(wait_for_connect), port_(-1) {
+                           wait_for_connect_(wait_for_connect), port_(-1),
+                           id_(GenerateID()) {
   main_thread_req_ = new AsyncAndAgent({uv_async_t(), env->inspector_agent()});
   CHECK_EQ(0, uv_async_init(env->event_loop(), &main_thread_req_->first,
                             InspectorIo::MainThreadReqAsyncCb));
@@ -244,7 +245,7 @@ void InspectorIo::IoThreadAsyncCb(uv_async_t* async) {
       transport->TerminateConnections();
       // Fallthrough
     case TransportAction::kStop:
-      transport->Stop(nullptr);
+      transport->Stop();
       break;
     case TransportAction::kSendMessage:
       transport->Send(session_id,
@@ -271,11 +272,11 @@ void InspectorIo::ThreadMain() {
   err = uv_async_init(&loop, &thread_req_, IoThreadAsyncCb<Transport>);
   CHECK_EQ(err, 0);
   std::string script_path = ScriptPath(&loop, script_name_);
-  InspectorIoDelegate delegate(this, script_path, script_name_,
-                               wait_for_connect_);
-  delegate_ = &delegate;
-  Transport server(&delegate, &loop, options_.host_name(), options_.port());
-  delegate.AssignTransport(&server);
+  auto delegate = std::unique_ptr<InspectorIoDelegate>(
+      new InspectorIoDelegate(this, id_, script_path, script_name_,
+                              wait_for_connect_));
+  Transport server(std::move(delegate), &loop, options_.host_name(),
+                   options_.port());
   TransportAndIo<Transport> queue_transport(&server, this);
   thread_req_.data = &queue_transport;
   if (!server.Start()) {
@@ -291,8 +292,6 @@ void InspectorIo::ThreadMain() {
   uv_run(&loop, UV_RUN_DEFAULT);
   thread_req_.data = nullptr;
   CHECK_EQ(uv_loop_close(&loop), 0);
-  delegate.AssignTransport(nullptr);
-  delegate_ = nullptr;
 }
 
 template <typename ActionType>
@@ -328,7 +327,7 @@ void InspectorIo::PostIncomingMessage(InspectorAction action, int session_id,
 }
 
 std::vector<std::string> InspectorIo::GetTargetIds() const {
-  return delegate_ ? delegate_->GetTargetIds() : std::vector<std::string>();
+  return { id_ };
 }
 
 TransportAction InspectorIo::Attach(int session_id) {
@@ -416,6 +415,7 @@ bool InspectorIo::WaitForFrontendEvent() {
 }
 
 InspectorIoDelegate::InspectorIoDelegate(InspectorIo* io,
+                                         const std::string& target_id,
                                          const std::string& script_path,
                                          const std::string& script_name,
                                          bool wait)
@@ -423,7 +423,7 @@ InspectorIoDelegate::InspectorIoDelegate(InspectorIo* io,
                                            session_id_(0),
                                            script_name_(script_name),
                                            script_path_(script_path),
-                                           target_id_(GenerateID()),
+                                           target_id_(target_id),
                                            waiting_(wait),
                                            server_(nullptr) { }
 
