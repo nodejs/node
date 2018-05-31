@@ -100,6 +100,7 @@ typedef int mode_t;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
+#include <termios.h>  // tcgetattr, tcsetattr
 #include <unistd.h>  // setuid, getuid
 #endif
 
@@ -172,6 +173,9 @@ using v8::Value;
 
 static Mutex process_mutex;
 static Mutex environ_mutex;
+
+// Safe to call more than once and from signal handlers.
+inline void PlatformExit();
 
 static bool print_eval = false;
 static bool force_repl = false;
@@ -1092,7 +1096,7 @@ void AppendExceptionLine(Environment* env,
     Mutex::ScopedLock lock(process_mutex);
     env->set_printed_error(true);
 
-    uv_tty_reset_mode();
+    PlatformExit();
     PrintErrorString("\n%s", arrow);
     return;
   }
@@ -3011,7 +3015,7 @@ void SetupProcessObject(Environment* env,
 
 
 void SignalExit(int signo) {
-  uv_tty_reset_mode();
+  PlatformExit();
   v8_platform.StopTracingAgent();
 #ifdef __FreeBSD__
   // FreeBSD has a nasty bug, see RegisterSignalHandler for details
@@ -3828,6 +3832,27 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+#ifdef __POSIX__
+static struct {
+  int flags;
+  bool isatty;
+  struct stat stat;
+  struct termios termios;
+} stdio[1 + STDERR_FILENO];
+
+
+inline int GetFileDescriptorFlags(int fd) {
+  int flags;
+
+  do {
+    flags = fcntl(fd, F_GETFL);
+  } while (flags == -1 && errno == EINTR);
+
+  return flags;
+}
+#endif  // __POSIX__
+
+
 inline void PlatformInit() {
 #ifdef __POSIX__
 #if HAVE_INSPECTOR
@@ -3838,15 +3863,17 @@ inline void PlatformInit() {
 #endif  // HAVE_INSPECTOR
 
   // Make sure file descriptors 0-2 are valid before we start logging anything.
-  for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
-    struct stat ignored;
-    if (fstat(fd, &ignored) == 0)
+  for (auto& s : stdio) {
+    const int fd = &s - stdio;
+    if (fstat(fd, &s.stat) == 0)
       continue;
     // Anything but EBADF means something is seriously wrong.  We don't
     // have to special-case EINTR, fstat() is not interruptible.
     if (errno != EBADF)
       ABORT();
     if (fd != open("/dev/null", O_RDWR))
+      ABORT();
+    if (fstat(fd, &s.stat) != 0)
       ABORT();
   }
 
@@ -3869,6 +3896,24 @@ inline void PlatformInit() {
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
 #endif  // !NODE_SHARED_MODE
+
+  // Record the state of the stdio file descriptors so we can restore it
+  // on exit.  Needs to happen before installing signal handlers because
+  // they make use of that information.
+  for (auto& s : stdio) {
+    const int fd = &s - stdio;
+    int err;
+
+    s.flags = GetFileDescriptorFlags(fd);
+    CHECK_NE(s.flags, -1);
+
+    if ( !isatty(fd) ) continue;
+    s.isatty = true;
+    do {
+      err = tcgetattr(fd, &s.termios);
+    } while (err == -1 && errno == EINTR);
+    CHECK_EQ(err, 0);
+  }
 
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
@@ -3907,6 +3952,49 @@ inline void PlatformInit() {
     }
   }
 #endif  // _WIN32
+}
+
+
+// This function must be safe to call more than once and from signal handlers.
+inline void PlatformExit() {
+#ifdef __POSIX__
+  for (auto& s : stdio) {
+    const int fd = &s - stdio;
+
+    struct stat tmp;
+    if (-1 == fstat(fd, &tmp)) {
+      CHECK_EQ(errno, EBADF);  // Program closed file descriptor.
+      continue;
+    }
+
+    bool is_same_file =
+        (s.stat.st_dev == tmp.st_dev && s.stat.st_ino == tmp.st_ino);
+    if (!is_same_file) continue;  // Program reopened file descriptor.
+
+    int flags = GetFileDescriptorFlags(fd);
+    CHECK_NE(flags, -1);
+
+    // Restore the O_NONBLOCK flag if it changed.
+    if (O_NONBLOCK & (flags ^ s.flags)) {
+      flags &= ~O_NONBLOCK;
+      flags |= s.flags & O_NONBLOCK;
+
+      int err;
+      do {
+        err = fcntl(fd, F_SETFL, flags);
+      } while (err == -1 && errno == EINTR);
+      CHECK_NE(err, -1);
+    }
+
+    if (s.isatty) {
+      int err;
+      do {
+        err = tcsetattr(fd, TCSANOW, &s.termios);
+      } while (err == -1 && errno == EINTR);
+      CHECK_NE(err, -1);
+    }
+  }
+#endif  // __POSIX__
 }
 
 
@@ -4374,7 +4462,7 @@ inline int Start(uv_loop_t* event_loop,
 }
 
 int Start(int argc, char** argv) {
-  atexit([] () { uv_tty_reset_mode(); });
+  atexit([] () { PlatformExit(); });
   PlatformInit();
   performance::performance_node_start = PERFORMANCE_NOW();
 
