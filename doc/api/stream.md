@@ -1340,14 +1340,14 @@ run().catch(console.error);
 rs.resume(); // drain the stream
 ```
 
-### stream.pipeline(...streams[, callback])
+### stream.pipeline(...streams, callback)
 <!-- YAML
 added: v10.0.0
 -->
 
 * `...streams` {Stream} Two or more streams to pipe between.
-* `callback` {Function} A callback function that takes an optional error
-  argument.
+* `callback` {Function} Called when the pipeline is fully done.
+  * `err` {Error}
 
 A module method to pipe between streams forwarding errors and properly cleaning
 up and provide a callback when the pipeline is complete.
