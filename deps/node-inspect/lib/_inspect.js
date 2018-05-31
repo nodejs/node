@@ -42,6 +42,13 @@ const [ InspectClient, createRepl ] =
 
 const debuglog = util.debuglog('inspect');
 
+class StartupError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StartupError';
+  }
+}
+
 function portIsFree(host, port, timeout = 2000) {
   if (port === 0) return Promise.resolve();  // Binding to a random port.
 
@@ -51,7 +58,7 @@ function portIsFree(host, port, timeout = 2000) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       didTimeOut = true;
-      reject(new Error(
+      reject(new StartupError(
         `Timeout (${timeout}) waiting for ${host}:${port} to be free`));
     }, timeout);
 
@@ -346,10 +353,14 @@ function startInspect(argv = process.argv.slice(2),
   stdin.resume();
 
   function handleUnexpectedError(e) {
-    console.error('There was an internal error in node-inspect. ' +
-                  'Please report this bug.');
-    console.error(e.message);
-    console.error(e.stack);
+    if (!(e instanceof StartupError)) {
+      console.error('There was an internal error in node-inspect. ' +
+                    'Please report this bug.');
+      console.error(e.message);
+      console.error(e.stack);
+    } else {
+      console.error(e.message);
+    }
     if (inspector.child) inspector.child.kill();
     process.exit(1);
   }
