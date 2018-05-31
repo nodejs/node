@@ -457,7 +457,7 @@ void Environment::RunAndClearNativeImmediates() {
 void Environment::CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
 
-  if (env->immediate_info()->count() == 0)
+  if (env->immediate_info()->count() == 0 || !env->can_call_into_js())
     return;
 
   HandleScope scope(env->isolate());
@@ -472,7 +472,7 @@ void Environment::CheckImmediate(uv_check_t* handle) {
                  0,
                  nullptr,
                  {0, 0}).ToLocalChecked();
-  } while (env->immediate_info()->has_outstanding());
+  } while (env->immediate_info()->has_outstanding() && env->can_call_into_js());
 
   if (env->immediate_info()->ref_count() == 0)
     env->ToggleImmediateRef(false);
