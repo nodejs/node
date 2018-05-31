@@ -4,7 +4,7 @@
 
 const common = require('../common');
 
-const { strictEqual, notStrictEqual } = require('assert');
+const { strictEqual } = require('assert');
 const { setUnrefTimeout } = require('internal/timers');
 
 // ERR_INVALID_CALLBACK
