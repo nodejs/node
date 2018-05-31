@@ -443,11 +443,6 @@ parser.add_option('--debug-lib',
     dest='node_debug_lib',
     help='build lib with DCHECK macros')
 
-http2_optgroup.add_option('--debug-http2',
-    action='store_true',
-    dest='debug_http2',
-    help='build with http2 debug statements on (default is false)')
-
 http2_optgroup.add_option('--debug-nghttp2',
     action='store_true',
     dest='debug_nghttp2',
@@ -969,11 +964,6 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'static_library'
 
   o['variables']['node_debug_lib'] = b(options.node_debug_lib)
-
-  if options.debug_http2:
-    o['variables']['debug_http2'] = 1
-  else:
-    o['variables']['debug_http2'] = 'false'
 
   if options.debug_nghttp2:
     o['variables']['debug_nghttp2'] = 1

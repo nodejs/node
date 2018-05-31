@@ -167,6 +167,7 @@ class AsyncWrap : public BaseObject {
                                                 v8::Local<v8::Value>* argv);
 
   virtual size_t self_size() const = 0;
+  virtual std::string diagnostic_name() const;
 
   static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 

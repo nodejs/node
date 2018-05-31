@@ -519,6 +519,24 @@ inline void Environment::set_http2_state(
   http2_state_ = std::move(buffer);
 }
 
+bool Environment::debug_enabled(DebugCategory category) const {
+#ifdef DEBUG
+  CHECK_GE(static_cast<int>(category), 0);
+  CHECK_LT(static_cast<int>(category),
+           static_cast<int>(DebugCategory::CATEGORY_COUNT));
+#endif
+  return debug_enabled_[static_cast<int>(category)];
+}
+
+void Environment::set_debug_enabled(DebugCategory category, bool enabled) {
+#ifdef DEBUG
+  CHECK_GE(static_cast<int>(category), 0);
+  CHECK_LT(static_cast<int>(category),
+           static_cast<int>(DebugCategory::CATEGORY_COUNT));
+#endif
+  debug_enabled_[static_cast<int>(category)] = enabled;
+}
+
 inline AliasedBuffer<double, v8::Float64Array>*
 Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;

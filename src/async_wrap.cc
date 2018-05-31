@@ -769,6 +769,11 @@ void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
       Environment::GetCurrent(isolate), asyncContext.async_id);
 }
 
+std::string AsyncWrap::diagnostic_name() const {
+  return std::string(provider_names[provider_type()]) +
+      " (" + std::to_string(static_cast<int64_t>(async_id_)) + ")";
+}
+
 }  // namespace node
 
 NODE_BUILTIN_MODULE_CONTEXT_AWARE(async_wrap, node::AsyncWrap::Initialize)

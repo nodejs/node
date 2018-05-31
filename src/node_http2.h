@@ -21,61 +21,6 @@ using v8::MaybeLocal;
 
 using performance::PerformanceEntry;
 
-#ifdef NODE_DEBUG_HTTP2
-
-// Adapted from nghttp2 own debug printer
-static inline void _debug_vfprintf(const char* fmt, va_list args) {
-  vfprintf(stderr, fmt, args);
-}
-
-void inline debug_vfprintf(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  _debug_vfprintf(format, args);
-  va_end(args);
-}
-
-#define DEBUG_HTTP2(...) debug_vfprintf(__VA_ARGS__);
-#define DEBUG_HTTP2SESSION(session, message)                                  \
-  do {                                                                        \
-    if (session != nullptr) {                                                 \
-      DEBUG_HTTP2("Http2Session %s (%.0lf) " message "\n",                    \
-                  session->TypeName(),                                        \
-                  session->get_async_id());                                   \
-     }                                                                        \
-  } while (0)
-#define DEBUG_HTTP2SESSION2(session, message, ...)                            \
-  do {                                                                        \
-    if (session != nullptr) {                                                 \
-      DEBUG_HTTP2("Http2Session %s (%.0lf) " message "\n",                    \
-                  session->TypeName(),                                        \
-                  session->get_async_id(),                                    \
-                  __VA_ARGS__);                                               \
-    }                                                                         \
-  } while (0)
-#define DEBUG_HTTP2STREAM(stream, message)                                    \
-  do {                                                                        \
-    DEBUG_HTTP2("Http2Stream %d (%.0lf) [Http2Session %s (%.0lf)] " message   \
-                "\n", stream->id(), stream->get_async_id(),                   \
-                stream->session()->TypeName(),                                \
-                stream->session()->get_async_id());                           \
-  } while (0)
-#define DEBUG_HTTP2STREAM2(stream, message, ...)                              \
-  do {                                                                        \
-    DEBUG_HTTP2("Http2Stream %d (%.0lf) [Http2Session %s (%.0lf)] " message   \
-                "\n", stream->id(), stream->get_async_id(),                   \
-                stream->session()->TypeName(),                                \
-                stream->session()->get_async_id(),                            \
-                __VA_ARGS__);                                                 \
-  } while (0)
-#else
-#define DEBUG_HTTP2(...) do {} while (0)
-#define DEBUG_HTTP2SESSION(...) do {} while (0)
-#define DEBUG_HTTP2SESSION2(...) do {} while (0)
-#define DEBUG_HTTP2STREAM(...) do {} while (0)
-#define DEBUG_HTTP2STREAM2(...) do {} while (0)
-#endif
-
 // We strictly limit the number of outstanding unacknowledged PINGS a user
 // may send in order to prevent abuse. The current default cap is 10. The
 // user may set a different limit using a per Http2Session configuration
@@ -557,6 +502,7 @@ class Http2Stream : public AsyncWrap,
   nghttp2_stream* operator*();
 
   Http2Session* session() { return session_; }
+  const Http2Session* session() const { return session_; }
 
   void EmitStatistics();
 
@@ -675,6 +621,7 @@ class Http2Stream : public AsyncWrap,
               uv_stream_t* send_handle) override;
 
   size_t self_size() const override { return sizeof(*this); }
+  std::string diagnostic_name() const override;
 
   // JavaScript API
   static void GetID(const FunctionCallbackInfo<Value>& args);
@@ -819,7 +766,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   inline uint32_t GetMaxHeaderPairs() const { return max_header_pairs_; }
 
-  inline const char* TypeName();
+  inline const char* TypeName() const;
 
   inline bool IsDestroyed() {
     return (flags_ & SESSION_STATE_CLOSED) || session_ == nullptr;
@@ -849,6 +796,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
   ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
 
   size_t self_size() const override { return sizeof(*this); }
+  std::string diagnostic_name() const override;
 
   // Schedule an RstStream for after the current write finishes.
   inline void AddPendingRstStream(int32_t stream_id) {
