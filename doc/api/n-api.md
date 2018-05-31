@@ -580,7 +580,7 @@ held live for the lifespan of the native method call.
 
 In many cases, however, it is necessary that the handles remain valid for
 either a shorter or longer lifespan than that of the native method.
-The sections which follow describe the N-API functions than can be used
+The sections which follow describe the N-API functions that can be used
 to change the handle lifespan from the default.
 
 ### Making handle lifespan shorter than that of the native method
