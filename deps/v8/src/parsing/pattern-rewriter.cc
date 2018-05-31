@@ -578,13 +578,15 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // RecurseIntoSubpattern above.
 
     // let array = [];
+    // let index = 0;
     // while (!done) {
     //   done = true;  // If .next, .done or .value throws, don't close.
     //   result = IteratorNext(iterator);
     //   if (!result.done) {
-    //     %AppendElement(array, result.value);
+    //     StoreInArrayLiteral(array, index, result.value);
     //     done = false;
     //   }
+    //   index++;
     // }
 
     // let array = [];
@@ -594,6 +596,10 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
       array = CreateTempVar(
           factory()->NewArrayLiteral(empty_exprs, kNoSourcePosition));
     }
+
+    // let index = 0;
+    Variable* index =
+        CreateTempVar(factory()->NewSmiLiteral(0, kNoSourcePosition));
 
     // done = true;
     Statement* set_done = factory()->NewExpressionStatement(
@@ -609,19 +615,18 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                                          result, IteratorType::kNormal, nopos),
         nopos);
 
-    // %AppendElement(array, result.value);
-    Statement* append_element;
+    // StoreInArrayLiteral(array, index, result.value);
+    Statement* store;
     {
-      auto args = new (zone()) ZoneList<Expression*>(2, zone());
-      args->Add(factory()->NewVariableProxy(array), zone());
-      args->Add(factory()->NewProperty(
-                    factory()->NewVariableProxy(result),
-                    factory()->NewStringLiteral(
-                        ast_value_factory()->value_string(), nopos),
-                    nopos),
-                zone());
-      append_element = factory()->NewExpressionStatement(
-          factory()->NewCallRuntime(Runtime::kAppendElement, args, nopos),
+      auto value = factory()->NewProperty(
+          factory()->NewVariableProxy(result),
+          factory()->NewStringLiteral(ast_value_factory()->value_string(),
+                                      nopos),
+          nopos);
+      store = factory()->NewExpressionStatement(
+          factory()->NewStoreInArrayLiteral(factory()->NewVariableProxy(array),
+                                            factory()->NewVariableProxy(index),
+                                            value, nopos),
           nopos);
     }
 
@@ -632,8 +637,8 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
             factory()->NewBooleanLiteral(false, nopos), nopos),
         nopos);
 
-    // if (!result.done) { #append_element; #unset_done }
-    Statement* maybe_append_and_unset_done;
+    // if (!result.done) { #store; #unset_done }
+    Statement* maybe_store_and_unset_done;
     {
       Expression* result_done =
           factory()->NewProperty(factory()->NewVariableProxy(result),
@@ -642,27 +647,38 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                                  nopos);
 
       Block* then = factory()->NewBlock(2, true);
-      then->statements()->Add(append_element, zone());
+      then->statements()->Add(store, zone());
       then->statements()->Add(unset_done, zone());
 
-      maybe_append_and_unset_done = factory()->NewIfStatement(
+      maybe_store_and_unset_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(Token::NOT, result_done, nopos), then,
           factory()->NewEmptyStatement(nopos), nopos);
+    }
+
+    // index++;
+    Statement* increment_index;
+    {
+      increment_index = factory()->NewExpressionStatement(
+          factory()->NewCountOperation(
+              Token::INC, false, factory()->NewVariableProxy(index), nopos),
+          nopos);
     }
 
     // while (!done) {
     //   #set_done;
     //   #get_next;
-    //   #maybe_append_and_unset_done;
+    //   #maybe_store_and_unset_done;
+    //   #increment_index;
     // }
     WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
     {
       Expression* condition = factory()->NewUnaryOperation(
           Token::NOT, factory()->NewVariableProxy(done), nopos);
-      Block* body = factory()->NewBlock(3, true);
+      Block* body = factory()->NewBlock(4, true);
       body->statements()->Add(set_done, zone());
       body->statements()->Add(get_next, zone());
-      body->statements()->Add(maybe_append_and_unset_done, zone());
+      body->statements()->Add(maybe_store_and_unset_done, zone());
+      body->statements()->Add(increment_index, zone());
       loop->Initialize(condition, body);
     }
 
@@ -767,9 +783,11 @@ NOT_A_PATTERN(ResolvedProperty)
 NOT_A_PATTERN(ReturnStatement)
 NOT_A_PATTERN(SloppyBlockFunctionStatement)
 NOT_A_PATTERN(Spread)
+NOT_A_PATTERN(StoreInArrayLiteral)
 NOT_A_PATTERN(SuperPropertyReference)
 NOT_A_PATTERN(SuperCallReference)
 NOT_A_PATTERN(SwitchStatement)
+NOT_A_PATTERN(TemplateLiteral)
 NOT_A_PATTERN(ThisFunction)
 NOT_A_PATTERN(Throw)
 NOT_A_PATTERN(TryCatchStatement)

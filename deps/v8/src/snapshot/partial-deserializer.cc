@@ -31,7 +31,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
   if (!allocator()->ReserveSpace()) {
-    V8::FatalProcessOutOfMemory("PartialDeserializer");
+    V8::FatalProcessOutOfMemory(isolate, "PartialDeserializer");
   }
 
   AddAttachedObject(global_proxy);

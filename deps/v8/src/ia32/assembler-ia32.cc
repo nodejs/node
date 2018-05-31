@@ -2364,6 +2364,7 @@ void Assembler::sqrtsd(XMMRegister dst, Operand src) {
 }
 
 void Assembler::haddps(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
   EMIT(0x0F);
@@ -2371,7 +2372,7 @@ void Assembler::haddps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::andpd(XMMRegister dst, XMMRegister src) {
+void Assembler::andpd(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2379,8 +2380,7 @@ void Assembler::andpd(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
-
-void Assembler::orpd(XMMRegister dst, XMMRegister src) {
+void Assembler::orpd(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2725,6 +2725,17 @@ void Assembler::pshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
   EMIT(shuffle);
 }
 
+void Assembler::pblendw(XMMRegister dst, Operand src, uint8_t mask) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x0E);
+  emit_sse_operand(dst, src);
+  EMIT(mask);
+}
+
 void Assembler::pextrb(Operand dst, XMMRegister src, int8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
@@ -2959,6 +2970,12 @@ void Assembler::vpshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
   EMIT(shuffle);
 }
 
+void Assembler::vpblendw(XMMRegister dst, XMMRegister src1, Operand src2,
+                         uint8_t mask) {
+  vinstr(0x0E, dst, src1, src2, k66, k0F3A, kWIG);
+  EMIT(mask);
+}
+
 void Assembler::vpextrb(Operand dst, XMMRegister src, int8_t offset) {
   vinstr(0x14, src, xmm0, dst, k66, k0F3A, kWIG);
   EMIT(offset);
@@ -3146,7 +3163,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if (desc.buffer_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.

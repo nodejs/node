@@ -1122,6 +1122,7 @@ enum ParserFlag {
   kAllowHarmonyImportMeta,
   kAllowHarmonyDoExpressions,
   kAllowHarmonyOptionalCatchBinding,
+  kAllowHarmonyNumericSeparator
 };
 
 enum ParserSyncTestResult {
@@ -1140,6 +1141,8 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_do_expressions = flags.Contains(kAllowHarmonyDoExpressions);
   i::FLAG_harmony_optional_catch_binding =
       flags.Contains(kAllowHarmonyOptionalCatchBinding);
+  i::FLAG_harmony_numeric_separator =
+      flags.Contains(kAllowHarmonyNumericSeparator);
 }
 
 void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
@@ -1158,6 +1161,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyDoExpressions));
   parser->set_allow_harmony_optional_catch_binding(
       flags.Contains(kAllowHarmonyOptionalCatchBinding));
+  parser->set_allow_harmony_numeric_separator(
+      flags.Contains(kAllowHarmonyNumericSeparator));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -1480,6 +1485,77 @@ void RunModuleParserSyncTest(
                     always_false_len, true, test_preparser, ignore_error_msg);
 }
 
+TEST(NumericSeparator) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {
+      "1_0_0_0", "1_0e+1",  "1_0e+1_0", "0xF_F_FF", "0o7_7_7", "0b0_1_0_1_0",
+      ".3_2_1",  "0.0_2_1", "1_0.0_1",  ".0_1_2",   nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
+                    1);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {
+      "1_0_0_0_", "1e_1",    "1e+_1", "1_e+1",  "1__0",    "0x_1",
+      "0x1__1",   "0x1_",    "0_x1",  "0_x_1",  "0b_0101", "0b11_",
+      "0b1__1",   "0_b1",    "0_b_1", "0o777_", "0o_777",  "0o7__77",
+      "0.0_2_1_", "0.0__21", "0_.01", "0._01",  nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
+                    nullptr, 0, false, true, true);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorImplicitOctalsErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"00_122",  "0_012",  "07_7_7",
+                                  "0_7_7_7", "0_777",  "07_7_7_",
+                                  "07__77",  "0__777", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
+                    nullptr, 0, false, true, true);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorUnicodeEscapeSequencesErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict'", ""}, {nullptr, nullptr}};
+  // https://github.com/tc39/proposal-numeric-separator/issues/25
+  const char* statement_data[] = {"\\u{10_FFFF}", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
 
 TEST(ErrorsEvalAndArguments) {
   // Tests that both preparsing and parsing produce the right kind of errors for

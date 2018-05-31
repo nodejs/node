@@ -141,42 +141,30 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register scratch2 = r4;
 
   Label call_runtime, done, int_exponent;
-  if (exponent_type() == TAGGED) {
-    // Base is already in double_base.
-    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
-    __ vldr(double_exponent,
-            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  // Detect integer exponents stored as double.
+  __ TryDoubleToInt32Exact(scratch, double_exponent, double_scratch);
+  __ b(eq, &int_exponent);
+
+  __ push(lr);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     0, 2);
   }
-
-  if (exponent_type() != INTEGER) {
-    // Detect integer exponents stored as double.
-    __ TryDoubleToInt32Exact(scratch, double_exponent, double_scratch);
-    __ b(eq, &int_exponent);
-
-    __ push(lr);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(0, 2);
-      __ MovToFloatParameters(double_base, double_exponent);
-      __ CallCFunction(
-          ExternalReference::power_double_double_function(isolate()), 0, 2);
-    }
-    __ pop(lr);
-    __ MovFromFloatResult(double_result);
-    __ b(&done);
-  }
+  __ pop(lr);
+  __ MovFromFloatResult(double_result);
+  __ b(&done);
 
   // Calculate power with integer exponent.
   __ bind(&int_exponent);
 
   // Get two copies of exponent in the registers scratch and exponent.
-  if (exponent_type() == INTEGER) {
-    __ mov(scratch, exponent);
-  } else {
-    // Exponent has previously been stored into scratch as untagged integer.
-    __ mov(exponent, scratch);
-  }
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ mov(exponent, scratch);
+
   __ vmov(double_scratch, double_base);  // Back up base.
   __ vmov(double_result, Double(1.0), scratch2);
 

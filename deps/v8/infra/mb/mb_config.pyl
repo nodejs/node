@@ -68,6 +68,11 @@
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
       'V8 Linux64 - verify csa': 'release_x64_verify_csa',
+      # Jumbo.
+      'V8 Linux64 Jumbo': 'release_x64_jumbo',
+      'V8 Linux64 Jumbo - debug': 'debug_x64_jumbo',
+      'V8 Linux64 Jumbo - limited': 'release_x64_jumbo_limited',
+      'V8 Linux64 Jumbo - limited - debug': 'debug_x64_jumbo_limited',
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
@@ -79,11 +84,9 @@
       'V8 Win64 - debug': 'debug_x64_minimal_symbols',
       'V8 Win64 - msvc': 'release_x64_msvc',
       # Mac.
-      'V8 Mac': 'release_x86',
-      'V8 Mac - debug': 'debug_x86',
       'V8 Mac64': 'release_x64',
       'V8 Mac64 - debug': 'debug_x64',
-      'V8 Mac GC Stress': 'debug_x86',
+      'V8 Mac64 GC Stress': 'debug_x64',
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
@@ -97,7 +100,6 @@
       # FYI.
       'V8 Fuchsia': 'release_x64_fuchsia',
       'V8 Fuchsia - debug': 'debug_x64_fuchsia',
-      'V8 Linux - swarming staging': 'release_x64',
       'V8 Linux64 - cfi': 'release_x64_cfi',
       'V8 Linux64 UBSanVptr': 'release_x64_ubsan_vptr',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
@@ -210,9 +212,12 @@
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
+      'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
       'v8_linux64_msan_rel': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
           'release_x64_asan_minimal_symbols_coverage',
+      'v8_linux64_jumbo_compile_rel': 'release_x64_jumbo_trybot',
+      'v8_linux64_jumbo_limited_compile_rel': 'release_x64_jumbo_limited_trybot',
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_concurrent_marking_rel_ng':
           'release_x64_tsan_concurrent_marking_minimal_symbols',
@@ -226,12 +231,12 @@
       'v8_win64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
       'v8_win64_dbg': 'debug_x64_minimal_symbols',
+      'v8_win64_msvc_rel_ng': 'release_x64_msvc',
       'v8_win64_rel_ng': 'release_x64_trybot',
-      'v8_mac_rel_ng': 'release_x86_trybot',
-      'v8_mac_dbg': 'debug_x86_trybot',
-      'v8_mac_gc_stress_dbg': 'debug_x86_trybot',
-      'v8_mac64_rel': 'release_x64_trybot',
-      'v8_mac64_dbg': 'debug_x64_minimal_symbols',
+      'v8_mac64_gc_stress_dbg': 'debug_x64_trybot',
+      'v8_mac64_rel_ng': 'release_x64_trybot',
+      'v8_mac64_dbg': 'debug_x64',
+      'v8_mac64_dbg_ng': 'debug_x64',
       'v8_mac64_asan_rel': 'release_x64_asan_no_lsan',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
       'v8_linux_arm_dbg': 'debug_simulate_arm',
@@ -321,160 +326,174 @@
 
     # Debug configs for simulators.
     'debug_simulate_arm': [
-      'debug_bot', 'simulate_arm', 'swarming'],
+      'debug_bot', 'simulate_arm'],
     'debug_simulate_arm_asan_edge': [
       'debug_bot', 'simulate_arm', 'asan', 'edge'],
     'debug_simulate_arm64': [
-      'debug_bot', 'simulate_arm64', 'swarming'],
+      'debug_bot', 'simulate_arm64'],
     'debug_simulate_arm64_asan_edge': [
       'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
     'debug_simulate_arm64_no_snap': [
       'debug', 'simulate_arm64', 'shared', 'goma', 'v8_optimized_debug',
-      'swarming', 'v8_snapshot_none'],
+      'v8_snapshot_none'],
     'debug_simulate_mipsel_asan_edge': [
       'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
 
     # Release configs for simulators.
     'release_simulate_arm': [
-      'release_bot', 'simulate_arm', 'swarming'],
+      'release_bot', 'simulate_arm'],
     'release_simulate_arm_trybot': [
-      'release_trybot', 'simulate_arm', 'swarming'],
+      'release_trybot', 'simulate_arm'],
     'release_simulate_arm64': [
-      'release_bot', 'simulate_arm64', 'swarming'],
+      'release_bot', 'simulate_arm64'],
     'release_simulate_arm64_msan': [
-      'release_bot', 'simulate_arm64', 'msan', 'swarming'],
+      'release_bot', 'simulate_arm64', 'msan'],
     'release_simulate_arm64_msan_minimal_symbols': [
-      'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols', 'swarming'],
+      'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols'],
     'release_simulate_arm64_msan_edge': [
       'release_bot', 'simulate_arm64', 'edge', 'msan'],
     'release_simulate_arm64_msan_no_origins_edge': [
       'release_bot', 'simulate_arm64', 'edge', 'msan_no_origins'],
     'release_simulate_arm64_trybot': [
-      'release_trybot', 'simulate_arm64', 'swarming'],
+      'release_trybot', 'simulate_arm64'],
     'release_simulate_mipsel': [
-      'release_bot', 'simulate_mipsel', 'swarming'],
+      'release_bot', 'simulate_mipsel'],
     'release_simulate_mips64el': [
-      'release_bot', 'simulate_mips64el', 'swarming'],
+      'release_bot', 'simulate_mips64el'],
     'release_simulate_ppc': [
-      'release_bot', 'simulate_ppc', 'swarming'],
+      'release_bot', 'simulate_ppc'],
     'release_simulate_ppc64': [
-      'release_bot', 'simulate_ppc64', 'swarming'],
+      'release_bot', 'simulate_ppc64'],
     'release_simulate_s390': [
-      'release_bot', 'simulate_s390', 'swarming'],
+      'release_bot', 'simulate_s390'],
     'release_simulate_s390x': [
-      'release_bot', 'simulate_s390x', 'swarming'],
+      'release_bot', 'simulate_s390x'],
 
     # Debug configs for arm.
     'debug_arm': [
-      'debug_bot', 'arm', 'hard_float', 'swarming'],
+      'debug_bot', 'arm', 'hard_float'],
 
     # Release configs for arm.
     'release_arm': [
-      'release_bot', 'arm', 'hard_float', 'swarming'],
+      'release_bot', 'arm', 'hard_float'],
     'release_android_arm': [
-      'release_bot', 'arm', 'android', 'minimal_symbols', 'swarming'],
+      'release_bot', 'arm', 'android', 'minimal_symbols'],
     'release_android_arm64': [
-      'release_bot', 'arm64', 'android', 'minimal_symbols', 'swarming'],
+      'release_bot', 'arm64', 'android', 'minimal_symbols'],
 
     # Release configs for x64.
     'release_x64': [
-      'release_bot', 'x64', 'swarming'],
+      'release_bot', 'x64'],
     'release_x64_asan': [
-      'release_bot', 'x64', 'asan', 'lsan', 'swarming'],
+      'release_bot', 'x64', 'asan', 'lsan'],
     'release_x64_asan_minimal_symbols': [
-      'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols', 'swarming'],
+      'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols'],
     'release_x64_asan_minimal_symbols_coverage': [
-      'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan', 'minimal_symbols',
-      'swarming'],
+      'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan', 'minimal_symbols'],
     'release_x64_asan_no_lsan': [
-      'release_bot', 'x64', 'asan', 'swarming'],
+      'release_bot', 'x64', 'asan'],
     'release_x64_asan_no_lsan_edge_verify_heap': [
-      'release_bot', 'x64', 'asan', 'edge', 'swarming', 'v8_verify_heap'],
+      'release_bot', 'x64', 'asan', 'edge', 'v8_verify_heap'],
     'release_x64_asan_no_lsan_verify_heap': [
-      'release_bot', 'x64', 'asan', 'swarming', 'v8_verify_heap'],
+      'release_bot', 'x64', 'asan', 'v8_verify_heap'],
     'release_x64_asan_no_lsan_verify_heap_dchecks': [
-      'release_bot', 'x64', 'asan', 'swarming', 'dcheck_always_on',
+      'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap'],
     'release_x64_asan_symbolized_edge_verify_heap': [
       'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
       'v8_verify_heap'],
     'release_x64_cfi': [
-      'release_bot', 'x64', 'cfi', 'swarming'],
+      'release_bot', 'x64', 'cfi'],
     'release_x64_cfi_clusterfuzz': [
       'release_bot', 'x64', 'cfi_clusterfuzz'],
     'release_x64_msvc': [
-      'release_bot', 'x64', 'msvc', 'swarming'],
+      'release_bot', 'x64', 'msvc'],
     'release_x64_concurrent_marking': [
-      'release_bot', 'x64', 'v8_enable_concurrent_marking', 'swarming'],
+      'release_bot', 'x64', 'v8_enable_concurrent_marking'],
     'release_x64_correctness_fuzzer' : [
-      'release_bot', 'x64', 'v8_correctness_fuzzer', 'swarming'],
+      'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'release_x64_fuchsia': [
-      'release_bot', 'x64', 'fuchsia', 'swarming'],
+      'release_bot', 'x64', 'fuchsia'],
     'release_x64_fuchsia_trybot': [
-      'release_trybot', 'x64', 'fuchsia', 'swarming'],
+      'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
       'release_bot', 'x64', 'coverage', 'gcc'],
     'release_x64_internal': [
-      'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
+      'release_bot', 'x64', 'v8_enable_embedded_builtins',
+      'v8_snapshot_internal'],
+    'release_x64_jumbo': [
+      'release_bot', 'x64', 'jumbo'],
+    'release_x64_jumbo_trybot': [
+      'release_trybot', 'x64', 'jumbo'],
+    'release_x64_jumbo_limited': [
+      'release_bot', 'x64', 'jumbo_limited'],
+    'release_x64_jumbo_limited_trybot': [
+      'release_trybot', 'x64', 'jumbo_limited'],
     'release_x64_minimal_symbols': [
-      'release_bot', 'x64', 'minimal_symbols', 'swarming'],
+      'release_bot', 'x64', 'minimal_symbols'],
     'release_x64_no_snap': [
-      'release_bot', 'x64', 'swarming', 'v8_snapshot_none'],
+      'release_bot', 'x64', 'v8_snapshot_none'],
     'release_x64_trybot': [
-      'release_trybot', 'x64', 'swarming'],
+      'release_trybot', 'x64'],
     'release_x64_test_features_trybot': [
-      'release_trybot', 'x64', 'swarming', 'v8_enable_test_features'],
+      'release_trybot', 'x64', 'v8_enable_test_features'],
     'release_x64_tsan': [
-      'release_bot', 'x64', 'tsan', 'swarming'],
+      'release_bot', 'x64', 'tsan'],
     'release_x64_tsan_concurrent_marking': [
-      'release_bot', 'x64', 'v8_enable_concurrent_marking', 'tsan', 'swarming'],
+      'release_bot', 'x64', 'v8_enable_concurrent_marking', 'tsan'],
     'release_x64_tsan_concurrent_marking_minimal_symbols': [
       'release_bot', 'x64', 'v8_enable_concurrent_marking', 'tsan',
-      'minimal_symbols', 'swarming'],
+      'minimal_symbols'],
     'release_x64_tsan_minimal_symbols': [
-      'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
+      'release_bot', 'x64', 'tsan', 'minimal_symbols'],
     'release_x64_ubsan_vptr': [
-      'release_bot', 'x64', 'ubsan_vptr', 'swarming'],
+      'release_bot', 'x64', 'ubsan_vptr'],
     'release_x64_ubsan_vptr_recover_edge': [
-      'release_bot', 'x64', 'edge', 'ubsan_vptr_recover', 'swarming'],
+      'release_bot', 'x64', 'edge', 'ubsan_vptr_recover'],
     'release_x64_ubsan_vptr_minimal_symbols': [
-      'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols', 'swarming'],
+      'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
     'release_x64_verify_csa': [
-      'release_bot', 'x64', 'swarming', 'dcheck_always_on',
-      'v8_enable_slow_dchecks', 'v8_verify_csa'],
+      'release_bot', 'x64', 'dcheck_always_on',
+      'v8_enable_slow_dchecks', 'v8_enable_embedded_builtins', 'v8_verify_csa'],
 
     # Debug configs for x64.
     'debug_x64': [
-      'debug_bot', 'x64', 'swarming'],
+      'debug_bot', 'x64'],
     'debug_x64_asan_edge': [
       'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
     'debug_x64_asan_no_lsan_static_edge': [
       'debug', 'static', 'goma', 'v8_enable_slow_dchecks', 'v8_optimized_debug',
-      'x64', 'asan', 'edge', 'swarming'],
+      'x64', 'asan', 'edge'],
     'debug_x64_custom': [
-      'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
+      'debug_bot', 'x64', 'v8_snapshot_custom'],
     'debug_x64_fuchsia': [
-      'debug_bot', 'x64', 'fuchsia', 'swarming'],
+      'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
       'debug_bot', 'x64', 'gcc'],
+    'debug_x64_jumbo': [
+      'debug_bot', 'x64', 'jumbo'],
+    'debug_x64_jumbo_limited': [
+      'debug_bot', 'x64', 'jumbo_limited'],
     'debug_x64_minimal_symbols': [
-      'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
+      'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_no_snap': [
-      'debug_bot', 'x64', 'swarming', 'v8_snapshot_none'],
+      'debug_bot', 'x64', 'v8_snapshot_none'],
+    'debug_x64_trybot': [
+      'debug_trybot', 'x64'],
 
     # Debug configs for x86.
     'debug_x86': [
-      'debug_bot', 'x86', 'swarming'],
+      'debug_bot', 'x86'],
     'debug_x86_minimal_symbols': [
-      'debug_bot', 'x86', 'minimal_symbols', 'swarming'],
+      'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_no_i18n': [
-      'debug_bot', 'x86', 'swarming', 'v8_no_i18n'],
+      'debug_bot', 'x86', 'v8_no_i18n'],
     'debug_x86_no_snap': [
-      'debug_bot', 'x86', 'swarming', 'v8_snapshot_none'],
+      'debug_bot', 'x86', 'v8_snapshot_none'],
     'debug_x86_no_snap_trybot': [
-      'debug_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
+      'debug_trybot', 'x86', 'v8_snapshot_none'],
     'debug_x86_trybot': [
-      'debug_trybot', 'x86', 'swarming'],
+      'debug_trybot', 'x86'],
     'debug_x86_vtunejit': [
       'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'full_debug_x86': [
@@ -483,7 +502,7 @@
 
     # Release configs for x86.
     'release_x86': [
-      'release_bot', 'x86', 'swarming'],
+      'release_bot', 'x86'],
     'release_x86_disassembler': [
       'release_bot', 'x86', 'v8_enable_disassembler'],
     'release_x86_gcc': [
@@ -491,30 +510,30 @@
     'release_x86_gcc_minimal_symbols': [
       'release_bot', 'x86', 'gcc', 'minimal_symbols'],
     'release_x86_gcmole': [
-      'release_bot', 'x86', 'gcmole', 'swarming'],
+      'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
-      'release_trybot', 'x86', 'gcmole', 'swarming'],
+      'release_trybot', 'x86', 'gcmole'],
     'release_x86_interpreted_regexp': [
       'release_bot', 'x86', 'v8_interpreted_regexp'],
     'release_x86_minimal_symbols': [
-      'release_bot', 'x86', 'minimal_symbols', 'swarming'],
+      'release_bot', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
-      'release_trybot', 'x86', 'swarming', 'v8_no_i18n'],
+      'release_trybot', 'x86', 'v8_no_i18n'],
     'release_x86_no_snap': [
-      'release_bot', 'x86', 'swarming', 'v8_snapshot_none'],
+      'release_bot', 'x86', 'v8_snapshot_none'],
     'release_x86_no_snap_shared_minimal_symbols': [
-      'release', 'x86', 'goma', 'minimal_symbols', 'shared', 'swarming',
+      'release', 'x86', 'goma', 'minimal_symbols', 'shared',
       'v8_snapshot_none'],
     'release_x86_no_snap_trybot': [
-      'release_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
+      'release_trybot', 'x86', 'v8_snapshot_none'],
     'release_x86_predictable': [
       'release_bot', 'x86', 'v8_enable_verify_predictable'],
     'release_x86_shared_verify_heap': [
-      'release', 'x86', 'goma', 'shared', 'swarming', 'v8_verify_heap'],
+      'release', 'x86', 'goma', 'shared', 'v8_verify_heap'],
     'release_x86_trybot': [
-      'release_trybot', 'x86', 'swarming'],
+      'release_trybot', 'x86'],
     'release_x86_verify_csa': [
-      'release_bot', 'x86', 'swarming', 'dcheck_always_on',
+      'release_bot', 'x86', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
 
     # Release configs for mips.
@@ -608,6 +627,14 @@
       'gn_args': 'arm_float_abi="hard"',
     },
 
+    'jumbo': {
+      'gn_args': 'use_jumbo_build=true',
+    },
+
+    'jumbo_limited': {
+      'gn_args': 'use_jumbo_build=true jumbo_file_merge_limit=50',
+    },
+
     'lsan': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_lsan=true',
@@ -699,10 +726,6 @@
       'gn_args': 'is_component_build=false',
     },
 
-    'swarming': {
-      'gn_args': 'v8_test_isolation_mode="prepare"',
-    },
-
     # TODO(machenbach): Remove the symbolized config after the bots are gone.
     'symbolized': {
       'gn_args': 'v8_no_inline=true',
@@ -742,6 +765,10 @@
 
     'v8_enable_disassembler': {
       'gn_args': 'v8_enable_disassembler=true',
+    },
+
+    'v8_enable_embedded_builtins': {
+      'gn_args': 'v8_enable_embedded_builtins=true',
     },
 
     'v8_enable_slow_dchecks': {

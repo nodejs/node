@@ -328,6 +328,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 40), \
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 48), \
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
+
+#define WASM_REF_NULL kExprRefNull
+
 #define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
 #define WASM_SET_LOCAL(index, val) val, kExprSetLocal, static_cast<byte>(index)
 #define WASM_TEE_LOCAL(index, val) val, kExprTeeLocal, static_cast<byte>(index)

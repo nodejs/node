@@ -257,7 +257,8 @@ void V8InjectedScriptHost::getInternalPropertiesCallback(
 
   std::unordered_set<String16> allowedProperties;
   if (info[0]->IsBooleanObject() || info[0]->IsNumberObject() ||
-      info[0]->IsStringObject() || info[0]->IsSymbolObject()) {
+      info[0]->IsStringObject() || info[0]->IsSymbolObject() ||
+      info[0]->IsBigIntObject()) {
     allowedProperties.insert(String16("[[PrimitiveValue]]"));
   } else if (info[0]->IsPromise()) {
     allowedProperties.insert(String16("[[PromiseStatus]]"));

@@ -11,7 +11,7 @@
             },
             {
                 "domain": "Runtime",
-                "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript"],
+                "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript", "terminateExecution"],
                 "exported": ["StackTrace", "StackTraceId", "RemoteObject", "ExecutionContextId"]
             },
             {

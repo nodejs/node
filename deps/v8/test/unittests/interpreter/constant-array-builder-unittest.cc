@@ -5,8 +5,8 @@
 #include "src/v8.h"
 
 #include "src/ast/ast-value-factory.h"
-#include "src/factory.h"
 #include "src/handles-inl.h"
+#include "src/heap/factory.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

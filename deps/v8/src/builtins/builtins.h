@@ -72,7 +72,7 @@ class Builtins {
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> JSConstructStubGeneric();
 
-  // Used by BuiltinDeserializer.
+  // Used by BuiltinDeserializer and CreateOffHeapTrampolines in isolate.cc.
   void set_builtin(int index, HeapObject* builtin);
 
   Code* builtin(int index) {
@@ -111,10 +111,10 @@ class Builtins {
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is Code::BUILTIN.
-  static bool IsBuiltin(Code* code);
+  static bool IsBuiltin(const Code* code);
 
-  // True, iff the given code object is a builtin with off-heap code.
-  static bool IsOffHeapBuiltin(Code* code);
+  // True, iff the given code object is a builtin with off-heap embedded code.
+  static bool IsEmbeddedBuiltin(const Code* code);
 
   // Returns true iff the given builtin can be lazy-loaded from the snapshot.
   // This is true in general for most builtins with the exception of a few
@@ -125,17 +125,6 @@ class Builtins {
   // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
   static bool IsIsolateIndependent(int index);
 
-  // This is the condition we currently use to determine whether a builtin is
-  // copied off-heap when --stress-off-heap-code is passed. Such builtins do not
-  // need to be isolate-independent, e.g. they can contain external references
-  // that point to one specific isolate. A further restrictions is that there
-  // must be enough space for the trampoline.
-  static bool IsOffHeapSafe(int index);
-
-  // The off-heap trampoline is short but requires a certain minimal instruction
-  // size. This function states whether a given builtin is too short.
-  static bool IsTooShortForOffHeapTrampoline(int index);
-
   bool is_initialized() const { return initialized_; }
 
   // Used by SetupIsolateDelegate and Deserializer.
@@ -144,7 +133,7 @@ class Builtins {
     initialized_ = true;
   }
 
-  MUST_USE_RESULT static MaybeHandle<Object> InvokeApiFunction(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> InvokeApiFunction(
       Isolate* isolate, bool is_construct, Handle<HeapObject> function,
       Handle<Object> receiver, int argc, Handle<Object> args[],
       Handle<HeapObject> new_target);
@@ -159,6 +148,14 @@ class Builtins {
 
  private:
   Builtins();
+
+#ifdef V8_EMBEDDED_BUILTINS
+  // Creates a trampoline code object that jumps to the given off-heap entry.
+  // The result should not be used directly, but only from the related Factory
+  // function.
+  static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
+                                                   Address off_heap_entry);
+#endif
 
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
@@ -198,6 +195,7 @@ class Builtins {
   Object* builtins_[builtin_count];
   bool initialized_;
 
+  friend class Factory;  // For GenerateOffHeapTrampolineFor.
   friend class Isolate;
   friend class SetupIsolateDelegate;
 

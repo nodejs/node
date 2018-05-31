@@ -261,8 +261,8 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
   explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
-                  sizeof(Register) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(Register);
+static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
@@ -303,8 +303,8 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
   explicit constexpr DoubleRegister(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(DoubleRegister) &&
-                  sizeof(DoubleRegister) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
+static_assert(sizeof(DoubleRegister) == sizeof(int),
               "DoubleRegister can efficiently be passed by value");
 
 typedef DoubleRegister FloatRegister;

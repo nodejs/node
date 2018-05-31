@@ -41,7 +41,7 @@
 #include "src/arm64/utils-arm64.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
@@ -182,12 +182,12 @@ static void InitializeVM() {
                       v8::internal::CodeObjectRequired::kYes);   \
   RegisterDump core;
 
-#define RESET()                                                                \
-  __ Reset();                                                                  \
-  /* Reset the machine state (like simulator.ResetState()). */                 \
-  __ Msr(NZCV, xzr);                                                           \
+#define RESET()                                                \
+  MakeAssemblerBufferWritable(buf, allocated);                 \
+  __ Reset();                                                  \
+  /* Reset the machine state (like simulator.ResetState()). */ \
+  __ Msr(NZCV, xzr);                                           \
   __ Msr(FPCR, xzr);
-
 
 #define START_AFTER_RESET()                                                    \
   __ PushCalleeSavedRegisters();

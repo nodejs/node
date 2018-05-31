@@ -36,9 +36,6 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target,
                           Label* call_runtime);
 
-  Node* EmitConstructString(Node* argc, CodeStubArguments& args, Node* context,
-                            bool convert_symbol);
-
  private:
   Node* NotHasBoilerplate(Node* literal_site);
   Node* LoadAllocationSiteBoilerplate(Node* allocation_site);

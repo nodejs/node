@@ -14,8 +14,8 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
-#include "src/libplatform/default-background-task-runner.h"
 #include "src/libplatform/default-foreground-task-runner.h"
+#include "src/libplatform/default-worker-threads-task-runner.h"
 
 namespace v8 {
 namespace platform {
@@ -96,7 +96,7 @@ DefaultPlatform::DefaultPlatform(
 
 DefaultPlatform::~DefaultPlatform() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  if (background_task_runner_) background_task_runner_->Terminate();
+  if (worker_threads_task_runner_) worker_threads_task_runner_->Terminate();
   for (auto it : foreground_task_runner_map_) {
     it.second->Terminate();
   }
@@ -114,9 +114,9 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
 
 void DefaultPlatform::EnsureBackgroundTaskRunnerInitialized() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  if (!background_task_runner_) {
-    background_task_runner_ =
-        std::make_shared<DefaultBackgroundTaskRunner>(thread_pool_size_);
+  if (!worker_threads_task_runner_) {
+    worker_threads_task_runner_ =
+        std::make_shared<DefaultWorkerThreadsTaskRunner>(thread_pool_size_);
   }
 }
 
@@ -138,8 +138,8 @@ void DefaultPlatform::SetTimeFunctionForTesting(
 }
 
 bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
-                                      MessageLoopBehavior behavior) {
-  bool failed_result = behavior == MessageLoopBehavior::kWaitForWork;
+                                      MessageLoopBehavior wait_for_work) {
+  bool failed_result = wait_for_work == MessageLoopBehavior::kWaitForWork;
   std::shared_ptr<DefaultForegroundTaskRunner> task_runner;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
@@ -149,11 +149,8 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
     }
     task_runner = foreground_task_runner_map_[isolate];
   }
-  if (behavior == MessageLoopBehavior::kWaitForWork) {
-    task_runner->WaitForTask();
-  }
 
-  std::unique_ptr<Task> task = task_runner->PopTaskFromQueue();
+  std::unique_ptr<Task> task = task_runner->PopTaskFromQueue(wait_for_work);
   if (!task) return failed_result;
 
   task->Run();
@@ -196,15 +193,14 @@ std::shared_ptr<TaskRunner> DefaultPlatform::GetForegroundTaskRunner(
   return foreground_task_runner_map_[isolate];
 }
 
-std::shared_ptr<TaskRunner> DefaultPlatform::GetBackgroundTaskRunner(
+std::shared_ptr<TaskRunner> DefaultPlatform::GetWorkerThreadsTaskRunner(
     v8::Isolate*) {
   EnsureBackgroundTaskRunnerInitialized();
-  return background_task_runner_;
+  return worker_threads_task_runner_;
 }
 
-void DefaultPlatform::CallOnBackgroundThread(Task* task,
-                                             ExpectedRuntime expected_runtime) {
-  GetBackgroundTaskRunner(nullptr)->PostTask(std::unique_ptr<Task>(task));
+void DefaultPlatform::CallOnWorkerThread(std::unique_ptr<Task> task) {
+  GetWorkerThreadsTaskRunner(nullptr)->PostTask(std::move(task));
 }
 
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
@@ -248,9 +244,7 @@ void DefaultPlatform::SetTracingController(
   tracing_controller_ = std::move(tracing_controller);
 }
 
-size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
-  return static_cast<size_t>(thread_pool_size_);
-}
+int DefaultPlatform::NumberOfWorkerThreads() { return thread_pool_size_; }
 
 Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
   return PrintStackTrace;

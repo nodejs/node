@@ -21,7 +21,7 @@ bytecodes: [
   /*   74 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
@@ -43,7 +43,7 @@ bytecodes: [
   /*   88 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
@@ -65,7 +65,7 @@ bytecodes: [
   /*   75 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -114,7 +114,7 @@ bytecodes: [
   /*  112 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  BOILERPLATE_DESCRIPTION_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [

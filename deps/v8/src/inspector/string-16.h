@@ -112,6 +112,8 @@ class String16Builder {
   void append(const char*, size_t);
   void appendNumber(int);
   void appendNumber(size_t);
+  void appendUnsignedAsHex(uint64_t);
+  void appendUnsignedAsHex(uint32_t);
   String16 toString();
   void reserveCapacity(size_t);
 

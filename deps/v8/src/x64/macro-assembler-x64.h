@@ -20,9 +20,9 @@ constexpr Register kReturnRegister2 = r8;
 constexpr Register kJSFunctionRegister = rdi;
 constexpr Register kContextRegister = rsi;
 constexpr Register kAllocateSizeRegister = rdx;
-constexpr Register kSpeculationPoisonRegister = r9;
+constexpr Register kSpeculationPoisonRegister = r12;
 constexpr Register kInterpreterAccumulatorRegister = rax;
-constexpr Register kInterpreterBytecodeOffsetRegister = r12;
+constexpr Register kInterpreterBytecodeOffsetRegister = r9;
 constexpr Register kInterpreterBytecodeArrayRegister = r14;
 constexpr Register kInterpreterDispatchTableRegister = r15;
 constexpr Register kJavaScriptCallArgCountRegister = rax;
@@ -187,7 +187,9 @@ class TurboAssembler : public Assembler {
   AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
   AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP(Pslld, pslld)
   AVX_OP(Psllq, psllq)
+  AVX_OP(Psrld, psrld)
   AVX_OP(Psrlq, psrlq)
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
@@ -208,6 +210,7 @@ class TurboAssembler : public Assembler {
   AVX_OP(Cmpnlepd, cmpnlepd)
   AVX_OP(Roundss, roundss)
   AVX_OP(Roundsd, roundsd)
+  AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
@@ -354,6 +357,15 @@ class TurboAssembler : public Assembler {
   // Loads the address of the external reference into the destination
   // register.
   void LoadAddress(Register destination, ExternalReference source);
+
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  Operand ExternalOperand(ExternalReference reference,
+                          Register scratch = kScratchRegister);
 
   void Call(Operand op);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
@@ -541,14 +553,6 @@ class MacroAssembler : public TurboAssembler {
     bool old_value_;
   };
 
-  // Operand pointing to an external reference.
-  // May emit code to set up the scratch register. The operand is
-  // only guaranteed to be correct as long as the scratch register
-  // isn't changed.
-  // If the operand is used more than once, use a scratch register
-  // that is guaranteed not to be clobbered.
-  Operand ExternalOperand(ExternalReference reference,
-                          Register scratch = kScratchRegister);
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
   // load_rax/store_rax if possible/necessary.
@@ -766,7 +770,7 @@ class MacroAssembler : public TurboAssembler {
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(const InstructionStream* stream);
+  void JumpToInstructionStream(Address entry);
 
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
@@ -808,6 +812,9 @@ class MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a FixedArray, enabled via --debug-code.
   void AssertFixedArray(Register object);
+
+  // Abort execution if argument is not a Constructor, enabled via --debug-code.
+  void AssertConstructor(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
@@ -885,6 +892,9 @@ class MacroAssembler : public TurboAssembler {
   void IncrementCounter(StatsCounter* counter, int value);
   void DecrementCounter(StatsCounter* counter, int value);
 
+  // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register in_out, Label* target_if_cleared);
 
   // ---------------------------------------------------------------------------
   // Debugging

@@ -13,12 +13,6 @@
 namespace v8 {
 namespace internal {
 
-// ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Call]] case.
-TF_BUILTIN(ProxyConstructor, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, "Proxy");
-}
-
 void ProxiesCodeStubAssembler::GotoIfRevokedProxy(Node* object,
                                                   Label* if_proxy_revoked) {
   Label proxy_not_revoked(this);
@@ -127,40 +121,6 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
   return array;
 }
 
-// ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Construct]] case.
-TF_BUILTIN(ProxyConstructor_ConstructStub, ProxiesCodeStubAssembler) {
-  int const kTargetArg = 0;
-  int const kHandlerArg = 1;
-
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  Node* target = args.GetOptionalArgumentValue(kTargetArg);
-  Node* handler = args.GetOptionalArgumentValue(kHandlerArg);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-
-  Label throw_proxy_non_object(this, Label::kDeferred),
-      throw_proxy_handler_or_target_revoked(this, Label::kDeferred),
-      return_create_proxy(this);
-
-  GotoIf(TaggedIsSmi(target), &throw_proxy_non_object);
-  GotoIfNot(IsJSReceiver(target), &throw_proxy_non_object);
-  GotoIfRevokedProxy(target, &throw_proxy_handler_or_target_revoked);
-
-  GotoIf(TaggedIsSmi(handler), &throw_proxy_non_object);
-  GotoIfNot(IsJSReceiver(handler), &throw_proxy_non_object);
-  GotoIfRevokedProxy(handler, &throw_proxy_handler_or_target_revoked);
-
-  args.PopAndReturn(AllocateProxy(target, handler, context));
-
-  BIND(&throw_proxy_non_object);
-  ThrowTypeError(context, MessageTemplate::kProxyNonObject);
-
-  BIND(&throw_proxy_handler_or_target_revoked);
-  ThrowTypeError(context, MessageTemplate::kProxyHandlerOrTargetRevoked);
-}
-
 Node* ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
     Node* proxy, Node* native_context) {
   Node* const context = Allocate(FixedArray::SizeFor(kProxyContextLength));
@@ -183,6 +143,65 @@ Node* ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(Node* proxy,
 
   return AllocateFunctionWithMapAndContext(revoke_map, revoke_info,
                                            proxy_context);
+}
+
+// ES #sec-proxy-constructor
+TF_BUILTIN(ProxyConstructor, ProxiesCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  Node* new_target = Parameter(Descriptor::kNewTarget);
+  Label throwtypeerror(this, Label::kDeferred), createproxy(this);
+  Branch(IsUndefined(new_target), &throwtypeerror, &createproxy);
+
+  BIND(&throwtypeerror);
+  {
+    ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, "Proxy");
+  }
+
+  // 2. Return ? ProxyCreate(target, handler).
+  BIND(&createproxy);
+  {
+    // https://tc39.github.io/ecma262/#sec-proxycreate
+    Node* target = Parameter(Descriptor::kTarget);
+    Node* handler = Parameter(Descriptor::kHandler);
+
+    // 1. If Type(target) is not Object, throw a TypeError exception.
+    // 2. If target is a Proxy exotic object and target.[[ProxyHandler]] is
+    //    null, throw a TypeError exception.
+    // 3. If Type(handler) is not Object, throw a TypeError exception.
+    // 4. If handler is a Proxy exotic object and handler.[[ProxyHandler]]
+    //    is null, throw a TypeError exception.
+    Label throw_proxy_non_object(this, Label::kDeferred),
+        throw_proxy_handler_or_target_revoked(this, Label::kDeferred),
+        return_create_proxy(this);
+
+    GotoIf(TaggedIsSmi(target), &throw_proxy_non_object);
+    GotoIfNot(IsJSReceiver(target), &throw_proxy_non_object);
+    GotoIfRevokedProxy(target, &throw_proxy_handler_or_target_revoked);
+
+    GotoIf(TaggedIsSmi(handler), &throw_proxy_non_object);
+    GotoIfNot(IsJSReceiver(handler), &throw_proxy_non_object);
+    GotoIfRevokedProxy(handler, &throw_proxy_handler_or_target_revoked);
+
+    // 5. Let P be a newly created object.
+    // 6. Set P's essential internal methods (except for [[Call]] and
+    //    [[Construct]]) to the definitions specified in 9.5.
+    // 7. If IsCallable(target) is true, then
+    //    a. Set P.[[Call]] as specified in 9.5.12.
+    //    b. If IsConstructor(target) is true, then
+    //       1. Set P.[[Construct]] as specified in 9.5.13.
+    // 8. Set P.[[ProxyTarget]] to target.
+    // 9. Set P.[[ProxyHandler]] to handler.
+    // 10. Return P.
+    Return(AllocateProxy(target, handler, context));
+
+    BIND(&throw_proxy_non_object);
+    ThrowTypeError(context, MessageTemplate::kProxyNonObject);
+
+    BIND(&throw_proxy_handler_or_target_revoked);
+    ThrowTypeError(context, MessageTemplate::kProxyHandlerOrTargetRevoked);
+  }
 }
 
 TF_BUILTIN(ProxyRevocable, ProxiesCodeStubAssembler) {
@@ -439,8 +458,7 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
   BIND(&trap_undefined);
   {
     // 7.a. Return ? target.[[HasProperty]](P).
-    TailCallStub(Builtins::CallableFor(isolate(), Builtins::kHasProperty),
-                 context, name, target);
+    TailCallBuiltin(Builtins::kHasProperty, context, name, target);
   }
 
   BIND(&return_false);

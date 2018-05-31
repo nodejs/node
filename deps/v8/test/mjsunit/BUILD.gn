@@ -1,0 +1,30 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+group("v8_mjsunit") {
+  testonly = true
+
+  data_deps = [
+    "../../:d8",
+    "../../tools/:v8_testrunner",
+  ]
+
+  data = [
+    "./",
+    "../../tools/codemap.js",
+    "../../tools/consarray.js",
+    "../../tools/csvparser.js",
+    "../../tools/logreader.js",
+    "../../tools/arguments.js",
+    "../../tools/profile.js",
+    "../../tools/profile_view.js",
+    "../../tools/profviz/composer.js",
+    "../../tools/splaytree.js",
+    "../../tools/tickprocessor.js",
+    "../../tools/dumpcpp.js",
+    "../wasm-js/test/harness/wasm-constants.js",
+    "../wasm-js/test/harness/wasm-module-builder.js",
+    "../wasm-js/test/js-api/jsapi.js",
+  ]
+}

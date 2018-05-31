@@ -117,12 +117,8 @@ class CodeAddressMap : public CodeEventLogger {
                          const char* name, int length) override {
     address_to_name_map_.Insert(code->address(), name, length);
   }
-  void LogRecordedBuffer(const InstructionStream* stream, const char* name,
-                         int length) override {
-    address_to_name_map_.Insert(stream->bytes(), name, length);
-  }
 
-  void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+  void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override {
     UNREACHABLE();
   }
@@ -193,17 +189,10 @@ class Serializer : public SerializerDeserializer {
   bool SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
                               WhereToPoint where_to_point, int skip);
 
-  // Determines whether the interpreter trampoline is replaced by CompileLazy.
-  enum BuiltinReferenceSerializationMode {
-    kDefault,
-    kCanonicalizeCompileLazy,
-  };
-
   // Returns true if the object was successfully serialized as a builtin
   // reference.
-  bool SerializeBuiltinReference(
-      HeapObject* obj, HowToCode how_to_code, WhereToPoint where_to_point,
-      int skip, BuiltinReferenceSerializationMode mode = kDefault);
+  bool SerializeBuiltinReference(HeapObject* obj, HowToCode how_to_code,
+                                 WhereToPoint where_to_point, int skip);
 
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject* obj) const;
@@ -301,12 +290,15 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
   void SerializeObject();
   void SerializeDeferred();
   void VisitPointers(HeapObject* host, Object** start, Object** end) override;
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) override;
   void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
   void VisitExternalReference(Foreign* host, Address* p) override;
   void VisitExternalReference(Code* host, RelocInfo* rinfo) override;
   void VisitInternalReference(Code* host, RelocInfo* rinfo) override;
   void VisitCodeTarget(Code* host, RelocInfo* target) override;
   void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
+  void VisitOffHeapTarget(Code* host, RelocInfo* target) override;
 
  private:
   void SerializePrologue(AllocationSpace space, int size, Map* map);

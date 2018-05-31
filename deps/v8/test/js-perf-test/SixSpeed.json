@@ -93,7 +93,6 @@
     {
       "name": "Spread",
       "path": ["SixSpeed"],
-      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
         {
@@ -144,7 +143,6 @@
     {
       "name": "SuperSpread",
       "path": ["SixSpeed"],
-      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
         {
@@ -170,7 +168,6 @@
     {
       "name": "SpreadLiteral",
       "path": ["SixSpeed"],
-      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
         {

@@ -5,8 +5,8 @@
 #include "src/ast/compile-time-value.h"
 
 #include "src/ast/ast.h"
-#include "src/factory.h"
 #include "src/handles-inl.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 

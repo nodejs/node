@@ -86,7 +86,7 @@ class Script : public Struct {
 
   // [shared_function_infos]: weak fixed array containing all shared
   // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, FixedArray)
+  DECL_ACCESSORS(shared_function_infos, WeakFixedArray)
 
   // [flags]: Holds an exciting bitfield.
   DECL_INT_ACCESSORS(flags)
@@ -185,7 +185,7 @@ class Script : public Struct {
     Script* Next();
 
    private:
-    WeakFixedArray::Iterator iterator_;
+    FixedArrayOfWeakCells::Iterator iterator_;
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 

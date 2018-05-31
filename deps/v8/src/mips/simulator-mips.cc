@@ -6386,10 +6386,10 @@ void Simulator::DecodeTypeImmediate() {
           break;
         }
         case BC1EQZ:
-          BranchHelper(!(get_fpu_register(ft_reg) & 0x1));
+          BranchCompactHelper(!(get_fpu_register(ft_reg) & 0x1), 16);
           break;
         case BC1NEZ:
-          BranchHelper(get_fpu_register(ft_reg) & 0x1);
+          BranchCompactHelper(get_fpu_register(ft_reg) & 0x1, 16);
           break;
         case BZ_V: {
           msa_reg_t wt;

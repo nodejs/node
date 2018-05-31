@@ -16,16 +16,6 @@
 #define ALLOW_UNUSED_TYPE
 #endif
 
-
-// Annotate a function indicating the caller must examine the return value.
-// Use like:
-//   int foo() WARN_UNUSED_RESULT;
-#if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
-#define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#define WARN_UNUSED_RESULT /* NOT SUPPORTED */
-#endif
-
 // Tell the compiler a function is using a printf-style format string.
 // |format_param| is the one-based index of the format string parameter;
 // |dots_param| is the one-based index of the "..." parameter.

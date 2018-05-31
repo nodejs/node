@@ -134,8 +134,8 @@ void RuntimeProfiler::AttemptOnStackReplacement(JavaScriptFrame* frame,
 
   DCHECK_EQ(StackFrame::INTERPRETED, frame->type());
   DCHECK(shared->HasBytecodeArray());
-  int level = shared->bytecode_array()->osr_loop_nesting_level();
-  shared->bytecode_array()->set_osr_loop_nesting_level(
+  int level = shared->GetBytecodeArray()->osr_loop_nesting_level();
+  shared->GetBytecodeArray()->set_osr_loop_nesting_level(
       Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
 }
 
@@ -184,7 +184,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction* function, JavaScriptFrame* frame) {
     int64_t allowance =
         kOSRBytecodeSizeAllowanceBase +
         static_cast<int64_t>(ticks) * kOSRBytecodeSizeAllowancePerTick;
-    if (shared->bytecode_array()->length() <= allowance) {
+    if (shared->GetBytecodeArray()->length() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
     return true;
@@ -197,17 +197,17 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction* function,
   SharedFunctionInfo* shared = function->shared();
   int ticks = function->feedback_vector()->profiler_ticks();
 
-  if (shared->bytecode_array()->length() > kMaxBytecodeSizeForOpt) {
+  if (shared->GetBytecodeArray()->length() > kMaxBytecodeSizeForOpt) {
     return OptimizationReason::kDoNotOptimize;
   }
 
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
-      (shared->bytecode_array()->length() / kBytecodeSizeAllowancePerTick);
+      (shared->GetBytecodeArray()->length() / kBytecodeSizeAllowancePerTick);
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
-  } else if (!any_ic_changed_ &&
-             shared->bytecode_array()->length() < kMaxBytecodeSizeForEarlyOpt) {
+  } else if (!any_ic_changed_ && shared->GetBytecodeArray()->length() <
+                                     kMaxBytecodeSizeForEarlyOpt) {
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;
@@ -220,7 +220,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction* function,
       PrintF("ICs changed]\n");
     } else {
       PrintF(" too large for small function optimization: %d/%d]\n",
-             shared->bytecode_array()->length(), kMaxBytecodeSizeForEarlyOpt);
+             shared->GetBytecodeArray()->length(), kMaxBytecodeSizeForEarlyOpt);
     }
   }
   return OptimizationReason::kDoNotOptimize;

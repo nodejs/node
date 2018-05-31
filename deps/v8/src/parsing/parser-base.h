@@ -307,6 +307,12 @@ class ParserBase {
   void set_allow_harmony_bigint(bool allow) {
     scanner()->set_allow_harmony_bigint(allow);
   }
+  bool allow_harmony_numeric_separator() const {
+    return scanner()->allow_harmony_numeric_separator();
+  }
+  void set_allow_harmony_numeric_separator(bool allow) {
+    scanner()->set_allow_harmony_numeric_separator(allow);
+  }
 
   bool allow_harmony_private_fields() const {
     return scanner()->allow_harmony_private_fields();

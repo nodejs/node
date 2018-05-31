@@ -7,6 +7,7 @@
 
 #include "src/assembler.h"
 #include "src/frames.h"
+#include "src/heap/heap.h"
 
 // Helper types to make boolean flag easier to read at call-site.
 enum InvokeFlag {

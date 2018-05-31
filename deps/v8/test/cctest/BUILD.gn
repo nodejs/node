@@ -9,6 +9,17 @@ v8_executable("cctest") {
   deps = [
     ":cctest_sources",
   ]
+
+  data_deps = [
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "testcfg.py",
+    "cctest.status",
+    "interpreter/bytecode_expectations/",
+  ]
+
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
@@ -58,6 +69,7 @@ v8_source_set("cctest_sources") {
     "compiler/test-code-generator.cc",
     "compiler/test-gap-resolver.cc",
     "compiler/test-graph-visualizer.cc",
+    "compiler/test-instruction-scheduler.cc",
     "compiler/test-instruction.cc",
     "compiler/test-js-constant-cache.cc",
     "compiler/test-js-context-specialization.cc",
@@ -88,7 +100,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-tail-calls.cc",
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
-    "compiler/test-run-wasm-machops.cc",
     "compiler/value-helper.cc",
     "compiler/value-helper.h",
     "expression-type-collector-macros.h",
@@ -113,6 +124,7 @@ v8_source_set("cctest_sources") {
     "heap/test-mark-compact.cc",
     "heap/test-page-promotion.cc",
     "heap/test-spaces.cc",
+    "heap/test-weak-references.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
     "interpreter/interpreter-tester.cc",
@@ -227,7 +239,6 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-interpreter.cc",
     "wasm/test-run-wasm-js.cc",
     "wasm/test-run-wasm-module.cc",
-    "wasm/test-run-wasm-relocation.cc",
     "wasm/test-run-wasm-sign-extension.cc",
     "wasm/test-run-wasm-simd.cc",
     "wasm/test-run-wasm.cc",
@@ -237,6 +248,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-wasm-interpreter-entry.cc",
     "wasm/test-wasm-stack.cc",
     "wasm/test-wasm-trap-position.cc",
+    "wasm/wasm-atomics-utils.h",
     "wasm/wasm-run-utils.cc",
     "wasm/wasm-run-utils.h",
   ]
@@ -263,7 +275,6 @@ v8_source_set("cctest_sources") {
       "test-code-stubs.h",
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
-      "test-run-wasm-relocation-arm.cc",
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
@@ -276,10 +287,10 @@ v8_source_set("cctest_sources") {
       "test-fuzz-arm64.cc",
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
-      "test-run-wasm-relocation-arm64.cc",
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
+      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
@@ -289,7 +300,6 @@ v8_source_set("cctest_sources") {
       "test-code-stubs.h",
       "test-disasm-ia32.cc",
       "test-log-stack-tracer.cc",
-      "test-run-wasm-relocation-ia32.cc",
     ]
   } else if (v8_current_cpu == "mips") {
     sources += [  ### gcmole(arch:mips) ###
@@ -336,7 +346,7 @@ v8_source_set("cctest_sources") {
       "test-disasm-x64.cc",
       "test-log-stack-tracer.cc",
       "test-macro-assembler-x64.cc",
-      "test-run-wasm-relocation-x64.cc",
+      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###

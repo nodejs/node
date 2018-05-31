@@ -261,7 +261,7 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
       // Converting start offset into line and column may cause heap
       // allocations so we postpone them until snapshot serialization.
       unresolved_locations_.push_back(
-          new UnresolvedLocation(script, shared->start_position(), info));
+          new UnresolvedLocation(script, shared->StartPosition(), info));
     }
     entry->value = reinterpret_cast<void*>(function_info_list_.size());
     function_info_list_.push_back(info);

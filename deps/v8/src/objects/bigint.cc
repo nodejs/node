@@ -173,6 +173,10 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
     bitfield = LengthBits::update(static_cast<uint32_t>(bitfield), new_length);
     WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
   }
+  inline void initialize_bitfield(bool sign, int length) {
+    intptr_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
+    WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+  }
   inline void set_digit(int n, digit_t value) {
     SLOW_DCHECK(0 <= n && n < length());
     byte* address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
@@ -191,8 +195,7 @@ MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
   }
   Handle<MutableBigInt> result =
       Cast(isolate->factory()->NewBigInt(length, pretenure));
-  result->set_length(length);
-  result->set_sign(false);
+  result->initialize_bitfield(false, length);
 #if DEBUG
   result->InitializeDigits(length, 0xBF);
 #endif
@@ -202,12 +205,11 @@ MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
 Handle<BigInt> MutableBigInt::NewFromInt(Isolate* isolate, int value) {
   if (value == 0) return Zero(isolate);
   Handle<MutableBigInt> result = Cast(isolate->factory()->NewBigInt(1));
-  result->set_length(1);
-  if (value > 0) {
-    result->set_sign(false);
+  bool sign = value < 0;
+  result->initialize_bitfield(sign, 1);
+  if (!sign) {
     result->set_digit(0, value);
   } else {
-    result->set_sign(true);
     if (value == kMinInt) {
       STATIC_ASSERT(kMinInt == -kMaxInt - 1);
       result->set_digit(0, static_cast<BigInt::digit_t>(kMaxInt) + 1);
@@ -225,8 +227,8 @@ Handle<BigInt> MutableBigInt::NewFromSafeInteger(Isolate* isolate,
   uint64_t absolute = std::abs(value);
   int length = 64 / kDigitBits;
   Handle<MutableBigInt> result = Cast(isolate->factory()->NewBigInt(length));
-  result->set_length(length);
-  result->set_sign(value < 0);  // Treats -0 like 0.
+  bool sign = value < 0;  // Treats -0 like 0.
+  result->initialize_bitfield(sign, length);
   result->set_64_bits(absolute);
   return MakeImmutable(result);
 }
@@ -321,7 +323,14 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
   // 3. Return a BigInt representing the mathematical value of base raised
   //    to the power exponent.
   if (base->is_zero()) return base;
-  if (base->length() == 1 && base->digit(0) == 1) return base;
+  if (base->length() == 1 && base->digit(0) == 1) {
+    // (-1) ** even_number == 1.
+    if (base->sign() && (exponent->digit(0) & 1) == 0) {
+      return UnaryMinus(base);
+    }
+    // (-1) ** odd_number == -1; 1 ** anything == 1.
+    return base;
+  }
   // For all bases >= 2, very large exponents would lead to unrepresentable
   // results.
   STATIC_ASSERT(kMaxLengthBits < std::numeric_limits<digit_t>::max());
@@ -340,8 +349,10 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
   if (base->length() == 1 && base->digit(0) == 2) {
     // Fast path for 2^n.
     int needed_digits = 1 + (n / kDigitBits);
-    Handle<MutableBigInt> result =
-        MutableBigInt::New(isolate, needed_digits).ToHandleChecked();
+    Handle<MutableBigInt> result;
+    if (!MutableBigInt::New(isolate, needed_digits).ToHandle(&result)) {
+      return MaybeHandle<BigInt>();
+    }
     result->InitializeDigits(needed_digits);
     // All bits are zero. Now set the n-th bit.
     digit_t msd = static_cast<digit_t>(1) << (n % kDigitBits);
@@ -356,18 +367,14 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
   if (n & 1) result = base;
   n >>= 1;
   for (; n != 0; n >>= 1) {
-    if (!Multiply(running_square, running_square).ToHandle(&running_square)) {
-      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                      BigInt);
-    }
+    MaybeHandle<BigInt> maybe_result = Multiply(running_square, running_square);
+    if (!maybe_result.ToHandle(&running_square)) return maybe_result;
     if (n & 1) {
       if (result.is_null()) {
         result = running_square;
       } else {
-        if (!Multiply(result, running_square).ToHandle(&result)) {
-          THROW_NEW_ERROR(
-              isolate, NewRangeError(MessageTemplate::kBigIntTooBig), BigInt);
-        }
+        maybe_result = Multiply(result, running_square);
+        if (!maybe_result.ToHandle(&result)) return maybe_result;
       }
     }
   }
@@ -557,7 +564,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseAnd(Handle<BigInt> x,
     if (!AbsoluteSubOne(x, result_length).ToHandle(&result)) {
       return MaybeHandle<MutableBigInt>();
     }
-    result = AbsoluteOr(result, AbsoluteSubOne(y), *result);
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(y);
+    result = AbsoluteOr(result, y_1, *result);
     return AbsoluteAddOne(result, true, *result);
   } else {
     DCHECK(x->sign() != y->sign());
@@ -581,7 +589,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseXor(Handle<BigInt> x,
     // (-x) ^ (-y) == ~(x-1) ^ ~(y-1) == (x-1) ^ (y-1)
     Handle<MutableBigInt> result =
         AbsoluteSubOne(x, result_length).ToHandleChecked();
-    return AbsoluteXor(result, AbsoluteSubOne(y), *result);
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(y);
+    return AbsoluteXor(result, y_1, *result);
   } else {
     DCHECK(x->sign() != y->sign());
     int result_length = Max(x->length(), y->length()) + 1;
@@ -611,7 +620,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseOr(Handle<BigInt> x,
     // == -(((x-1) & (y-1)) + 1)
     Handle<MutableBigInt> result =
         AbsoluteSubOne(x, result_length).ToHandleChecked();
-    result = AbsoluteAnd(result, AbsoluteSubOne(y), *result);
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(y);
+    result = AbsoluteAnd(result, y_1, *result);
     return AbsoluteAddOne(result, true, *result);
   } else {
     DCHECK(x->sign() != y->sign());
@@ -978,7 +988,8 @@ MutableBigInt::Rounding MutableBigInt::DecideRounding(Handle<BigIntBase> x,
   // If any other remaining bit is set, round up.
   bitmask -= 1;
   if ((current_digit & bitmask) != 0) return kRoundUp;
-  for (; digit_index >= 0; digit_index--) {
+  while (digit_index > 0) {
+    digit_index--;
     if (x->digit(digit_index) != 0) return kRoundUp;
   }
   return kTie;
@@ -1742,6 +1753,84 @@ Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
   return MutableBigInt::MakeImmutable(bigint);
 }
 
+// The serialization format MUST NOT CHANGE without updating the format
+// version in value-serializer.cc!
+uint32_t BigInt::GetBitfieldForSerialization() const {
+  // In order to make the serialization format the same on 32/64 bit builds,
+  // we convert the length-in-digits to length-in-bytes for serialization.
+  // Being able to do this depends on having enough LengthBits:
+  STATIC_ASSERT(kMaxLength * kDigitSize <= LengthBits::kMax);
+  int bytelength = length() * kDigitSize;
+  return SignBits::encode(sign()) | LengthBits::encode(bytelength);
+}
+
+int BigInt::DigitsByteLengthForBitfield(uint32_t bitfield) {
+  return LengthBits::decode(bitfield);
+}
+
+// The serialization format MUST NOT CHANGE without updating the format
+// version in value-serializer.cc!
+void BigInt::SerializeDigits(uint8_t* storage) {
+  void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(this) +
+                                         kDigitsOffset - kHeapObjectTag);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  int bytelength = length() * kDigitSize;
+  memcpy(storage, digits, bytelength);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  digit_t* digit_storage = reinterpret_cast<digit_t*>(storage);
+  const digit_t* digit = reinterpret_cast<const digit_t*>(digits);
+  for (int i = 0; i < length(); i++) {
+    *digit_storage = ByteReverse(*digit);
+    digit_storage++;
+    digit++;
+  }
+#endif  // V8_TARGET_BIG_ENDIAN
+}
+
+// The serialization format MUST NOT CHANGE without updating the format
+// version in value-serializer.cc!
+MaybeHandle<BigInt> BigInt::FromSerializedDigits(
+    Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
+    PretenureFlag pretenure) {
+  int bytelength = LengthBits::decode(bitfield);
+  DCHECK(digits_storage.length() == bytelength);
+  bool sign = SignBits::decode(bitfield);
+  int length = (bytelength + kDigitSize - 1) / kDigitSize;  // Round up.
+  Handle<MutableBigInt> result =
+      MutableBigInt::Cast(isolate->factory()->NewBigInt(length, pretenure));
+  result->initialize_bitfield(sign, length);
+  void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(*result) +
+                                         kDigitsOffset - kHeapObjectTag);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  memcpy(digits, digits_storage.start(), bytelength);
+  void* padding_start =
+      reinterpret_cast<void*>(reinterpret_cast<Address>(digits) + bytelength);
+  memset(padding_start, 0, length * kDigitSize - bytelength);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  digit_t* digit = reinterpret_cast<digit_t*>(digits);
+  const digit_t* digit_storage =
+      reinterpret_cast<const digit_t*>(digits_storage.start());
+  for (int i = 0; i < bytelength / kDigitSize; i++) {
+    *digit = ByteReverse(*digit_storage);
+    digit_storage++;
+    digit++;
+  }
+  if (bytelength % kDigitSize) {
+    *digit = 0;
+    byte* digit_byte = reinterpret_cast<byte*>(digit);
+    digit_byte += sizeof(*digit) - 1;
+    const byte* digit_storage_byte =
+        reinterpret_cast<const byte*>(digit_storage);
+    for (int i = 0; i < bytelength % kDigitSize; i++) {
+      *digit_byte = *digit_storage_byte;
+      digit_byte--;
+      digit_storage_byte++;
+    }
+  }
+#endif  // V8_TARGET_BIG_ENDIAN
+  return MutableBigInt::MakeImmutable(result);
+}
+
 static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(Handle<BigIntBase> x,
@@ -2089,13 +2178,12 @@ Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
   int length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
       MutableBigInt::Cast(isolate->factory()->NewBigInt(length));
-  result->set_length(length);
+  bool sign = n < 0;
+  result->initialize_bitfield(sign, length);
   uint64_t absolute;
-  if (n > 0) {
-    result->set_sign(false);
+  if (!sign) {
     absolute = static_cast<uint64_t>(n);
   } else {
-    result->set_sign(true);
     if (n == std::numeric_limits<int64_t>::min()) {
       absolute = static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1;
     } else {
@@ -2112,8 +2200,7 @@ Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n) {
   int length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
       MutableBigInt::Cast(isolate->factory()->NewBigInt(length));
-  result->set_length(length);
-  result->set_sign(false);
+  result->initialize_bitfield(false, length);
   result->set_64_bits(n);
   return MutableBigInt::MakeImmutable(result);
 }

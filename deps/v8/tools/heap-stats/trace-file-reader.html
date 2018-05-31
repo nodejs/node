@@ -11,6 +11,16 @@ found in the LICENSE file. -->
   border: solid 1px #000000;
   border-radius: 5px;
   cursor: pointer;
+  transition: all 0.5s ease-in-out;
+}
+
+#fileReader.done {
+    height: 20px;
+    line-height: 20px;
+}
+
+#fileReader:hover {
+  background-color: #e0edfe ;
 }
 
 .loading #fileReader {
@@ -21,11 +31,12 @@ found in the LICENSE file. -->
   display: none;
 }
 
+
 #loader {
   display: none;
 }
 
-.loading #loader{
+.loading #loader {
   display: block;
   position: fixed;
   top: 0px;
@@ -51,7 +62,7 @@ found in the LICENSE file. -->
 @keyframes spin {
   0% {
     transform: rotate(0deg);
-  };
+ };
   100% {
     transform: rotate(360deg);
   };
@@ -59,7 +70,7 @@ found in the LICENSE file. -->
 </style>
 
 <section id="fileReaderSection">
-  <div id="fileReader">
+  <div id="fileReader" tabindex=1 >
     <span id="label">
       Drag and drop a trace file into this area, or click to choose from disk.
      </span>

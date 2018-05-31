@@ -151,9 +151,9 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
   Handle<String> type =
       isolate->factory()->NewStringFromAsciiChecked(ElementsKindToType(kind));
 
-  ExternalArrayType external_type =
-      isolate->factory()->GetArrayTypeFromElementsKind(kind);
-  size_t size = isolate->factory()->GetExternalArrayElementSize(external_type);
+  ExternalArrayType external_type;
+  size_t size;
+  Factory::TypeAndSizeForElementsKind(kind, &external_type, &size);
   Handle<Object> element_size =
       handle(Smi::FromInt(static_cast<int>(size)), isolate);
 
@@ -458,27 +458,22 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   DCHECK(FLAG_lazy_deserialization);
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  int builtin_id = shared->lazy_deserialization_builtin_id();
 
+#ifdef DEBUG
+  int builtin_id = shared->builtin_id();
   // At this point, the builtins table should definitely have DeserializeLazy
-  // set at the position of the target builtin. Also, we should never lazily
-  // deserialize DeserializeLazy.
-
-  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
-  DCHECK_EQ(Builtins::kDeserializeLazy,
-            isolate->builtins()->builtin(builtin_id)->builtin_index());
-
+  // set at the position of the target builtin.
+  CHECK_EQ(Builtins::kDeserializeLazy,
+           isolate->builtins()->builtin(builtin_id)->builtin_index());
   // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
   // works with JS-linkage.
-  DCHECK(Builtins::IsLazy(builtin_id));
-  DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+  CHECK(Builtins::IsLazy(builtin_id));
+  CHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+#endif  // DEBUG
 
-  Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
-  DCHECK_EQ(builtin_id, code->builtin_index());
-  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
-  shared->set_code(code);
+  Code* code = Snapshot::EnsureBuiltinIsDeserialized(isolate, shared);
+
   function->set_code(code);
-
   return code;
 }
 

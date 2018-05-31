@@ -255,7 +255,8 @@ class Int32Signature : public MachineSignature {
 Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
                           Graph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfo info(ArrayVector("testing"), graph->zone(), Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), graph->zone(),
+                                Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
       &info, isolate, call_descriptor, graph, schedule);
   CHECK(!code.is_null());

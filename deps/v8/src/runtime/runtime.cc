@@ -98,6 +98,39 @@ void InitializeIntrinsicFunctionNames() {
 
 }  // namespace
 
+bool Runtime::IsNonReturning(FunctionId id) {
+  switch (id) {
+    case Runtime::kThrowUnsupportedSuperError:
+    case Runtime::kThrowConstructorNonCallableError:
+    case Runtime::kThrowStaticPrototypeError:
+    case Runtime::kThrowSuperAlreadyCalledError:
+    case Runtime::kThrowSuperNotCalled:
+    case Runtime::kReThrow:
+    case Runtime::kThrow:
+    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowCalledNonCallable:
+    case Runtime::kThrowConstructedNonConstructable:
+    case Runtime::kThrowConstructorReturnedNonObject:
+    case Runtime::kThrowInvalidStringLength:
+    case Runtime::kThrowInvalidTypedArrayAlignment:
+    case Runtime::kThrowIteratorResultNotAnObject:
+    case Runtime::kThrowThrowMethodMissing:
+    case Runtime::kThrowSymbolIteratorInvalid:
+    case Runtime::kThrowNotConstructor:
+    case Runtime::kThrowRangeError:
+    case Runtime::kThrowReferenceError:
+    case Runtime::kThrowStackOverflow:
+    case Runtime::kThrowSymbolAsyncIteratorInvalid:
+    case Runtime::kThrowTypeError:
+    case Runtime::kThrowConstAssignError:
+    case Runtime::kThrowWasmError:
+    case Runtime::kThrowWasmStackOverflow:
+      return true;
+    default:
+      return false;
+  }
+}
+
 const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,
                                                   int length) {
   base::CallOnce(&initialize_function_name_map_once,

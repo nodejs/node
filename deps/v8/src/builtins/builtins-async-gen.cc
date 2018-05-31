@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-async-gen.h"
 
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {
@@ -44,7 +44,7 @@ void AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
   // When debugging, we need to link from the {generator} to the
   // {outer_promise} of the async function/generator.
   Label done(this);
-  GotoIfNot(IsDebugActive(), &done);
+  GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &done);
   CallRuntime(Runtime::kSetProperty, native_context, generator,
               LoadRoot(Heap::kgenerator_outer_promise_symbolRootIndex),
               outer_promise, SmiConstant(LanguageMode::kStrict));

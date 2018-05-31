@@ -12,8 +12,8 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 
 namespace v8 {
 namespace internal {
@@ -44,7 +44,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
           MachineOperatorBuilder::Flag::kNoFlags,
       MachineOperatorBuilder::AlignmentRequirements alignment_requirements =
           MachineOperatorBuilder::AlignmentRequirements::
-              FullUnalignedAccessSupport());
+              FullUnalignedAccessSupport(),
+      PoisoningMitigationLevel poisoning_enabled =
+          PoisoningMitigationLevel::kOn);
   ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return isolate_; }
@@ -53,6 +55,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
+  PoisoningMitigationLevel poisoning_enabled() const {
+    return poisoning_enabled_;
+  }
 
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
@@ -116,11 +121,18 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Memory Operations.
-  Node* Load(MachineType rep, Node* base) {
-    return Load(rep, base, IntPtrConstant(0));
+  Node* Load(MachineType rep, Node* base,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return Load(rep, base, IntPtrConstant(0), needs_poisoning);
   }
-  Node* Load(MachineType rep, Node* base, Node* index) {
-    return AddNode(machine()->Load(rep), base, index);
+  Node* Load(MachineType rep, Node* base, Node* index,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    const Operator* op = machine()->Load(rep);
+    if (needs_poisoning == LoadSensitivity::kNeedsPoisoning &&
+        poisoning_enabled_ == PoisoningMitigationLevel::kOn) {
+      op = machine()->PoisonedLoad(rep);
+    }
+    return AddNode(op, base, index);
   }
   Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
@@ -723,6 +735,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->LoadParentFramePointer());
   }
 
+  // Root pointer operations.
+  Node* LoadRootsPointer() { return AddNode(machine()->LoadRootsPointer()); }
+
   // Parameters.
   Node* Parameter(size_t index);
 
@@ -744,8 +759,17 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
-  Node* SpeculationPoison() {
-    return AddNode(machine()->SpeculationPoison(), graph()->start());
+
+  Node* PoisonOnSpeculationTagged(Node* value) {
+    if (poisoning_enabled_ == PoisoningMitigationLevel::kOn)
+      return AddNode(machine()->PoisonOnSpeculationTagged(), value);
+    return value;
+  }
+
+  Node* PoisonOnSpeculationWord(Node* value) {
+    if (poisoning_enabled_ == PoisoningMitigationLevel::kOn)
+      return AddNode(machine()->PoisonOnSpeculationWord(), value);
+    return value;
   }
 
   // Call a given call descriptor and the given arguments.
@@ -908,8 +932,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   CommonOperatorBuilder common_;
   CallDescriptor* call_descriptor_;
   NodeVector parameters_;
-  Node* speculation_poison_;
   BasicBlock* current_block_;
+  PoisoningMitigationLevel poisoning_enabled_;
 
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
 };

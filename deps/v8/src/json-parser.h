@@ -5,8 +5,10 @@
 #ifndef V8_JSON_PARSER_H_
 #define V8_JSON_PARSER_H_
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
+#include "src/isolate.h"
 #include "src/objects.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -36,9 +38,8 @@ class JsonParseInternalizer BASE_EMBEDDED {
 template <bool seq_one_byte>
 class JsonParser BASE_EMBEDDED {
  public:
-  MUST_USE_RESULT static MaybeHandle<Object> Parse(Isolate* isolate,
-                                                   Handle<String> source,
-                                                   Handle<Object> reviver) {
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
+      Isolate* isolate, Handle<String> source, Handle<Object> reviver) {
     PostponeInterruptsScope no_debug_breaks(isolate, StackGuard::DEBUGBREAK);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,

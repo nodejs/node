@@ -63,7 +63,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                 Maybe<bool> includeCommandLineAPI, Maybe<bool> silent,
                 Maybe<int> executionContextId, Maybe<bool> returnByValue,
                 Maybe<bool> generatePreview, Maybe<bool> userGesture,
-                Maybe<bool> awaitPromise,
+                Maybe<bool> awaitPromise, Maybe<bool> throwOnSideEffect,
                 std::unique_ptr<EvaluateCallback>) override;
   void awaitPromise(const String16& promiseObjectId, Maybe<bool> returnByValue,
                     Maybe<bool> generatePreview,
@@ -99,11 +99,15 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                  Maybe<bool> generatePreview, Maybe<bool> awaitPromise,
                  std::unique_ptr<RunScriptCallback>) override;
   Response queryObjects(
-      const String16& prototypeObjectId,
+      const String16& prototypeObjectId, Maybe<String16> objectGroup,
       std::unique_ptr<protocol::Runtime::RemoteObject>* objects) override;
   Response globalLexicalScopeNames(
       Maybe<int> executionContextId,
       std::unique_ptr<protocol::Array<String16>>* outNames) override;
+  Response getIsolateId(String16* outIsolateId) override;
+  Response getHeapUsage(double* out_usedSize, double* out_totalSize) override;
+  void terminateExecution(
+      std::unique_ptr<TerminateExecutionCallback> callback) override;
 
   void reset();
   void reportExecutionContextCreated(InspectedContext*);

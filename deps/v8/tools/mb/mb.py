@@ -233,10 +233,6 @@ class MetaBuildWrapper(object):
 
     self.args = parser.parse_args(argv)
 
-    # TODO(machenbach): This prepares passing swarming targets to isolate on the
-    # infra side.
-    self.args.swarming_targets_file = None
-
   def DumpInputFiles(self):
 
     def DumpContentsOfFilePassedTo(arg_name, path):
@@ -393,7 +389,7 @@ class MetaBuildWrapper(object):
     elif self.platform.startswith('linux'):
       os_dim = ('os', 'Ubuntu-14.04')
     elif self.platform == 'win32':
-      os_dim = ('os', 'Windows-10-14393')
+      os_dim = ('os', 'Windows-10')
     else:
       raise MBErr('unrecognized platform string "%s"' % self.platform)
 

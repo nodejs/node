@@ -120,11 +120,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   bool enabled() const { return m_enabled; }
 
-  void setBreakpointAt(const String16& scriptId, int lineNumber,
-                       int columnNumber, BreakpointSource,
-                       const String16& condition = String16());
-  void removeBreakpointAt(const String16& scriptId, int lineNumber,
-                          int columnNumber, BreakpointSource);
+  void setBreakpointFor(v8::Local<v8::Function> function,
+                        v8::Local<v8::String> condition,
+                        BreakpointSource source);
+  void removeBreakpointFor(v8::Local<v8::Function> function,
+                           BreakpointSource source);
   void schedulePauseOnNextStatement(
       const String16& breakReason,
       std::unique_ptr<protocol::DictionaryValue> data);
@@ -164,6 +164,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unique_ptr<protocol::Debugger::Location> setBreakpointImpl(
       const String16& breakpointId, const String16& scriptId,
       const String16& condition, int lineNumber, int columnNumber);
+  void setBreakpointImpl(const String16& breakpointId,
+                         v8::Local<v8::Function> function,
+                         v8::Local<v8::String> condition);
   void removeBreakpointImpl(const String16& breakpointId);
   void clearBreakDetails();
 

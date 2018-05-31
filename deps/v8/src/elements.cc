@@ -6,8 +6,8 @@
 
 #include "src/arguments.h"
 #include "src/conversions.h"
-#include "src/factory.h"
 #include "src/frames.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
@@ -111,8 +111,7 @@ template<ElementsKind Kind> class ElementsKindTraits {
 ELEMENTS_LIST(ELEMENTS_TRAITS)
 #undef ELEMENTS_TRAITS
 
-
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
   THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidArrayLength),
                   Object);

@@ -5,11 +5,11 @@
 #ifndef V8_FEEDBACK_VECTOR_INL_H_
 #define V8_FEEDBACK_VECTOR_INL_H_
 
-#include "src/factory-inl.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
+#include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,21 +18,35 @@
 namespace v8 {
 namespace internal {
 
+INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
+
+int32_t FeedbackMetadata::synchronized_slot_count() const {
+  return base::Acquire_Load(reinterpret_cast<const base::Atomic32*>(
+          FIELD_ADDR_CONST(this, kSlotCountOffset)));
+}
+
 // static
 FeedbackMetadata* FeedbackMetadata::cast(Object* obj) {
   DCHECK(obj->IsFeedbackMetadata());
   return reinterpret_cast<FeedbackMetadata*>(obj);
 }
 
-bool FeedbackMetadata::is_empty() const {
-  if (length() == 0) return true;
-  return false;
+int32_t FeedbackMetadata::get(int index) const {
+  DCHECK(index >= 0 && index < length());
+  int offset = kHeaderSize + index * kInt32Size;
+  return READ_INT32_FIELD(this, offset);
 }
 
-int FeedbackMetadata::slot_count() const {
-  if (length() == 0) return 0;
-  DCHECK_GT(length(), kReservedIndexCount);
-  return Smi::ToInt(get(kSlotsCountIndex));
+void FeedbackMetadata::set(int index, int32_t value) {
+  DCHECK(index >= 0 && index < length());
+  int offset = kHeaderSize + index * kInt32Size;
+  WRITE_INT32_FIELD(this, offset, value);
+}
+
+bool FeedbackMetadata::is_empty() const { return slot_count() == 0; }
+
+int FeedbackMetadata::length() const {
+  return FeedbackMetadata::length(slot_count());
 }
 
 // static
@@ -64,6 +78,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       return 2;
 
@@ -77,7 +92,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
 
 ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
           kSharedFunctionInfoOffset)
-ACCESSORS(FeedbackVector, optimized_code_cell, Object, kOptimizedCodeOffset)
+WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi, kOptimizedCodeOffset)
 INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
 INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
 INT32_ACCESSORS(FeedbackVector, profiler_ticks, kProfilerTicksOffset)
@@ -99,16 +114,18 @@ void FeedbackVector::increment_deopt_count() {
 }
 
 Code* FeedbackVector::optimized_code() const {
-  Object* slot = optimized_code_cell();
-  if (slot->IsSmi()) return nullptr;
-  WeakCell* cell = WeakCell::cast(slot);
-  return cell->cleared() ? nullptr : Code::cast(cell->value());
+  MaybeObject* slot = optimized_code_weak_or_smi();
+  DCHECK(slot->IsSmi() || slot->IsClearedWeakHeapObject() ||
+         slot->IsWeakHeapObject());
+  HeapObject* heap_object;
+  return slot->ToStrongOrWeakHeapObject(&heap_object) ? Code::cast(heap_object)
+                                                      : nullptr;
 }
 
 OptimizationMarker FeedbackVector::optimization_marker() const {
-  Object* slot = optimized_code_cell();
-  if (!slot->IsSmi()) return OptimizationMarker::kNone;
-  Smi* value = Smi::cast(slot);
+  MaybeObject* slot = optimized_code_weak_or_smi();
+  Smi* value;
+  if (!slot->ToSmi(&value)) return OptimizationMarker::kNone;
   return static_cast<OptimizationMarker>(value->value());
 }
 
@@ -247,6 +264,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       case FeedbackSlotKind::kStoreGlobalStrict:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kStoreInArrayLiteral:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile: {
         if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {

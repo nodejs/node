@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
   ~ItemParallelJob();
 
   // Adds a task to the job. Transfers ownership to the job.
-  void AddTask(Task* task) { tasks_.push_back(task); }
+  void AddTask(Task* task) { tasks_.push_back(std::unique_ptr<Task>(task)); }
 
   // Adds an item to the job. Transfers ownership to the job.
   void AddItem(Item* item) { items_.push_back(item); }
@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
 
  private:
   std::vector<Item*> items_;
-  std::vector<Task*> tasks_;
+  std::vector<std::unique_ptr<Task>> tasks_;
   CancelableTaskManager* cancelable_task_manager_;
   base::Semaphore* pending_tasks_;
   DISALLOW_COPY_AND_ASSIGN(ItemParallelJob);

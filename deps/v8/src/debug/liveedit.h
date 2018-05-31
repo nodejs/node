@@ -76,9 +76,8 @@ class LiveEdit : AllStatic {
  public:
   static void InitializeThreadLocal(Debug* debug);
 
-  MUST_USE_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
-      Handle<Script> script,
-      Handle<String> source);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
+      Handle<Script> script, Handle<String> source);
 
   static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
                                   Handle<JSArray> shared_info_array);

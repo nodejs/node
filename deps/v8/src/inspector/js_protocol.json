@@ -1781,14 +1781,8 @@
                 },
                 {
                     "id": "UnserializableValue",
-                    "description": "Primitive value which cannot be JSON-stringified.",
-                    "type": "string",
-                    "enum": [
-                        "Infinity",
-                        "NaN",
-                        "-Infinity",
-                        "-0"
-                    ]
+                    "description": "Primitive value which cannot be JSON-stringified. Includes values `-0`, `NaN`, `Infinity`,\n`-Infinity`, and bigint literals.",
+                    "type": "string"
                 },
                 {
                     "id": "RemoteObject",
@@ -1806,7 +1800,8 @@
                                 "string",
                                 "number",
                                 "boolean",
-                                "symbol"
+                                "symbol",
+                                "bigint"
                             ]
                         },
                         {
@@ -1922,7 +1917,8 @@
                                 "string",
                                 "number",
                                 "boolean",
-                                "symbol"
+                                "symbol",
+                                "bigint"
                             ]
                         },
                         {
@@ -1997,7 +1993,8 @@
                                 "number",
                                 "boolean",
                                 "symbol",
-                                "accessor"
+                                "accessor",
+                                "bigint"
                             ]
                         },
                         {
@@ -2573,6 +2570,13 @@
                             "description": "Whether execution should `await` for resulting value and return once awaited promise is\nresolved.",
                             "optional": true,
                             "type": "boolean"
+                        },
+                        {
+                            "name": "throwOnSideEffect",
+                            "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation.",
+                            "experimental": true,
+                            "optional": true,
+                            "type": "boolean"
                         }
                     ],
                     "returns": [
@@ -2586,6 +2590,35 @@
                             "description": "Exception details.",
                             "optional": true,
                             "$ref": "ExceptionDetails"
+                        }
+                    ]
+                },
+                {
+                    "name": "getIsolateId",
+                    "description": "Returns the isolate id.",
+                    "experimental": true,
+                    "returns": [
+                        {
+                            "name": "id",
+                            "description": "The isolate id.",
+                            "type": "string"
+                        }
+                    ]
+                },
+                {
+                    "name": "getHeapUsage",
+                    "description": "Returns the JavaScript heap usage.\nIt is the total usage of the corresponding isolate not scoped to a particular Runtime.",
+                    "experimental": true,
+                    "returns": [
+                        {
+                            "name": "usedSize",
+                            "description": "Used heap size in bytes.",
+                            "type": "number"
+                        },
+                        {
+                            "name": "totalSize",
+                            "description": "Allocated heap size in bytes.",
+                            "type": "number"
                         }
                     ]
                 },
@@ -2673,6 +2706,12 @@
                             "name": "prototypeObjectId",
                             "description": "Identifier of the prototype to return objects for.",
                             "$ref": "RemoteObjectId"
+                        },
+                        {
+                            "name": "objectGroup",
+                            "description": "Symbolic group name that can be used to release the results.",
+                            "optional": true,
+                            "type": "string"
                         }
                     ],
                     "returns": [
@@ -2784,6 +2823,11 @@
                             "type": "boolean"
                         }
                     ]
+                },
+                {
+                    "name": "terminateExecution",
+                    "description": "Terminate current or next JavaScript execution.\nWill cancel the termination when the outer-most script execution ends.",
+                    "experimental": true
                 }
             ],
             "events": [

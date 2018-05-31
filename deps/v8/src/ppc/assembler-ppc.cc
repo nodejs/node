@@ -427,10 +427,10 @@ const int kEndOfChain = -4;
 enum {
   kUnboundMovLabelOffsetOpcode = 0 << 26,
   kUnboundAddLabelOffsetOpcode = 1 << 26,
-  kUnboundMovLabelAddrOpcode = 2 << 26,
-  kUnboundJumpTableEntryOpcode = 3 << 26
+  kUnboundAddLabelLongOffsetOpcode = 2 << 26,
+  kUnboundMovLabelAddrOpcode = 3 << 26,
+  kUnboundJumpTableEntryOpcode = 4 << 26
 };
-
 
 int Assembler::target_at(int pos) {
   Instr instr = instr_at(pos);
@@ -448,6 +448,7 @@ int Assembler::target_at(int pos) {
       break;
     case kUnboundMovLabelOffsetOpcode:
     case kUnboundAddLabelOffsetOpcode:
+    case kUnboundAddLabelLongOffsetOpcode:
     case kUnboundMovLabelAddrOpcode:
     case kUnboundJumpTableEntryOpcode:
       link = SIGN_EXT_IMM26(instr & kImm26Mask);
@@ -508,15 +509,21 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       patcher.bitwise_mov32(dst, offset);
       break;
     }
+    case kUnboundAddLabelLongOffsetOpcode:
     case kUnboundAddLabelOffsetOpcode: {
       // dst = base + position + immediate
       Instr operands = instr_at(pos + kInstrSize);
-      Register dst = Register::from_code((operands >> 21) & 0x1F);
-      Register base = Register::from_code((operands >> 16) & 0x1F);
-      int32_t offset = target_pos + SIGN_EXT_IMM16(operands & kImm16Mask);
-      PatchingAssembler patcher(isolate_data(),
-                                reinterpret_cast<byte*>(buffer_ + pos), 2);
+      Register dst = Register::from_code((operands >> 27) & 0x1F);
+      Register base = Register::from_code((operands >> 22) & 0x1F);
+      int32_t delta = (opcode == kUnboundAddLabelLongOffsetOpcode)
+                          ? static_cast<int32_t>(instr_at(pos + 2 * kInstrSize))
+                          : (SIGN_EXT_IMM22(operands & kImm22Mask));
+      int32_t offset = target_pos + delta;
+      PatchingAssembler patcher(
+          isolate_data(), reinterpret_cast<byte*>(buffer_ + pos),
+          2 + static_cast<int32_t>(opcode == kUnboundAddLabelLongOffsetOpcode));
       patcher.bitwise_add32(dst, base, offset);
+      if (opcode == kUnboundAddLabelLongOffsetOpcode) patcher.nop();
       break;
     }
     case kUnboundMovLabelAddrOpcode: {
@@ -1483,11 +1490,16 @@ void Assembler::add_label_offset(Register dst, Register base, Label* label,
     DCHECK_EQ(0, link & 3);
     link >>= 2;
     DCHECK(is_int26(link));
-    DCHECK(is_int16(delta));
-
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    emit(kUnboundAddLabelOffsetOpcode | (link & kImm26Mask));
-    emit(dst.code() * B21 | base.code() * B16 | (delta & kImm16Mask));
+
+    emit((is_int22(delta) ? kUnboundAddLabelOffsetOpcode
+                          : kUnboundAddLabelLongOffsetOpcode) |
+         (link & kImm26Mask));
+    emit(dst.code() * B27 | base.code() * B22 | (delta & kImm22Mask));
+
+    if (!is_int22(delta)) {
+      emit(delta);
+    }
   }
 }
 
@@ -2002,7 +2014,7 @@ void Assembler::GrowBuffer(int needed) {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if (desc.buffer_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.

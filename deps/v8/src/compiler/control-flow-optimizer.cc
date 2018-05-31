@@ -83,6 +83,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
 
   Node* if_false;
   Node* if_true;
+  int32_t order = 1;
   while (true) {
     BranchMatcher matcher(branch);
     DCHECK(matcher.Matched());
@@ -109,7 +110,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
       branch->NullAllInputs();
       if_true->ReplaceInput(0, node);
     }
-    NodeProperties::ChangeOp(if_true, common()->IfValue(value));
+    NodeProperties::ChangeOp(if_true, common()->IfValue(value, order++));
     if_false->NullAllInputs();
     Enqueue(if_true);
 
@@ -128,7 +129,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   node->ReplaceInput(0, index);
   NodeProperties::ChangeOp(node, common()->Switch(values.size() + 1));
   if_true->ReplaceInput(0, node);
-  NodeProperties::ChangeOp(if_true, common()->IfValue(value));
+  NodeProperties::ChangeOp(if_true, common()->IfValue(value, order++));
   Enqueue(if_true);
   if_false->ReplaceInput(0, node);
   NodeProperties::ChangeOp(if_false, common()->IfDefault());

@@ -49,6 +49,24 @@ struct FieldAccess {
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
+  FieldAccess()
+      : base_is_tagged(kTaggedBase),
+        offset(0),
+        type(Type::None()),
+        machine_type(MachineType::None()),
+        write_barrier_kind(kFullWriteBarrier) {}
+
+  FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
+              MaybeHandle<Map> map, Type* type, MachineType machine_type,
+              WriteBarrierKind write_barrier_kind)
+      : base_is_tagged(base_is_tagged),
+        offset(offset),
+        name(name),
+        map(map),
+        type(type),
+        machine_type(machine_type),
+        write_barrier_kind(write_barrier_kind) {}
+
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
@@ -58,7 +76,8 @@ size_t hash_value(FieldAccess const&);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
-FieldAccess const& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE FieldAccess const& FieldAccessOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
 
 template <>
 void Operator1<FieldAccess>::PrintParameter(std::ostream& os,
@@ -75,6 +94,21 @@ struct ElementAccess {
   MachineType machine_type;       // machine type of the element.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
+  ElementAccess()
+      : base_is_tagged(kTaggedBase),
+        header_size(0),
+        type(Type::None()),
+        machine_type(MachineType::None()),
+        write_barrier_kind(kFullWriteBarrier) {}
+
+  ElementAccess(BaseTaggedness base_is_tagged, int header_size, Type* type,
+                MachineType machine_type, WriteBarrierKind write_barrier_kind)
+      : base_is_tagged(base_is_tagged),
+        header_size(header_size),
+        type(type),
+        machine_type(machine_type),
+        write_barrier_kind(write_barrier_kind) {}
+
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
@@ -85,12 +119,13 @@ size_t hash_value(ElementAccess const&);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
 V8_EXPORT_PRIVATE ElementAccess const& ElementAccessOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
-ExternalArrayType ExternalArrayTypeOf(const Operator* op) WARN_UNUSED_RESULT;
+ExternalArrayType ExternalArrayTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // The ConvertReceiverMode is used as parameter by ConvertReceiver operators.
-ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
+ConvertReceiverMode ConvertReceiverModeOf(Operator const* op)
+    V8_WARN_UNUSED_RESULT;
 
 // A the parameters for several Check nodes. The {feedback} parameter is
 // optional. If {feedback} references a valid CallIC slot and this MapCheck
@@ -112,7 +147,7 @@ size_t hash_value(CheckParameters const&);
 
 std::ostream& operator<<(std::ostream&, CheckParameters const&);
 
-CheckParameters const& CheckParametersOf(Operator const*) WARN_UNUSED_RESULT;
+CheckParameters const& CheckParametersOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 enum class CheckFloat64HoleMode : uint8_t {
   kNeverReturnHole,  // Never return the hole (deoptimize instead).
@@ -123,7 +158,8 @@ size_t hash_value(CheckFloat64HoleMode);
 
 std::ostream& operator<<(std::ostream&, CheckFloat64HoleMode);
 
-CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator*) WARN_UNUSED_RESULT;
+CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator*)
+    V8_WARN_UNUSED_RESULT;
 
 enum class CheckTaggedInputMode : uint8_t {
   kNumber,
@@ -149,7 +185,7 @@ class CheckTaggedInputParameters {
 };
 
 const CheckTaggedInputParameters& CheckTaggedInputParametersOf(const Operator*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 std::ostream& operator<<(std::ostream&,
                          const CheckTaggedInputParameters& params);
@@ -169,7 +205,8 @@ size_t hash_value(CheckForMinusZeroMode);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            CheckForMinusZeroMode);
 
-CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
+CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*)
+    V8_WARN_UNUSED_RESULT;
 
 class CheckMinusZeroParameters {
  public:
@@ -186,7 +223,7 @@ class CheckMinusZeroParameters {
 };
 
 const CheckMinusZeroParameters& CheckMinusZeroParametersOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 std::ostream& operator<<(std::ostream&, const CheckMinusZeroParameters& params);
 
@@ -252,13 +289,13 @@ size_t hash_value(CheckMapsParameters const&);
 std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
-MapsParameterInfo const& MapGuardMapsOf(Operator const*) WARN_UNUSED_RESULT;
+MapsParameterInfo const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Parameters for CompareMaps operator.
 MapsParameterInfo const& CompareMapsParametersOf(Operator const*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // A descriptor for growing elements backing stores.
 enum class GrowFastElementsMode : uint8_t {
@@ -294,7 +331,7 @@ inline size_t hash_value(const GrowFastElementsParameters&);
 std::ostream& operator<<(std::ostream&, const GrowFastElementsParameters&);
 
 const GrowFastElementsParameters& GrowFastElementsParametersOf(const Operator*)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // A descriptor for elements kind transitions.
 class ElementsTransition final {
@@ -324,16 +361,16 @@ size_t hash_value(ElementsTransition);
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 
 ElementsTransition const& ElementsTransitionOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreElement, or
 // TransitionAndStoreNonNumberElement, or
 // TransitionAndStoreNumberElement.
-Handle<Map> DoubleMapParameterOf(const Operator* op);
-Handle<Map> FastMapParameterOf(const Operator* op);
+Handle<Map> DoubleMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+Handle<Map> FastMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreNonNumberElement.
-Type* ValueTypeParameterOf(const Operator* op);
+Type* ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -348,8 +385,8 @@ size_t hash_value(NumberOperationHint);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 
-NumberOperationHint NumberOperationHintOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE NumberOperationHint NumberOperationHintOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
 
 class NumberOperationParameters {
  public:
@@ -371,10 +408,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 bool operator==(NumberOperationParameters const&,
                 NumberOperationParameters const&);
 const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
-    WARN_UNUSED_RESULT;
+    V8_WARN_UNUSED_RESULT;
 
-int FormalParameterCountOf(const Operator* op) WARN_UNUSED_RESULT;
-bool IsRestLengthOf(const Operator* op) WARN_UNUSED_RESULT;
+int FormalParameterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+bool IsRestLengthOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
  public:
@@ -397,15 +434,17 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AllocateParameters);
 
 bool operator==(AllocateParameters const&, AllocateParameters const&);
 
-PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
+PretenureFlag PretenureFlagOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-Type* AllocateTypeOf(const Operator* op) WARN_UNUSED_RESULT;
+Type* AllocateTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
+UnicodeEncoding UnicodeEncodingOf(const Operator*) V8_WARN_UNUSED_RESULT;
 
-AbortReason AbortReasonOf(const Operator* op) WARN_UNUSED_RESULT;
+AbortReason AbortReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-DeoptimizeReason DeoptimizeReasonOf(const Operator* op) WARN_UNUSED_RESULT;
+DeoptimizeReason DeoptimizeReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+
+int NewArgumentsElementsMappedCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
@@ -520,13 +559,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
-  const Operator* StringCharAt();
   const Operator* StringCharCodeAt();
-  const Operator* SeqStringCharCodeAt();
   const Operator* StringCodePointAt(UnicodeEncoding encoding);
-  const Operator* SeqStringCodePointAt(UnicodeEncoding encoding);
-  const Operator* StringFromCharCode();
-  const Operator* StringFromCodePoint(UnicodeEncoding encoding);
+  const Operator* StringFromSingleCharCode();
+  const Operator* StringFromSingleCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
   const Operator* StringLength();
   const Operator* StringToLowerCaseIntl();
@@ -577,7 +613,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const VectorSlotPair& feedback);
   const Operator* CheckReceiver();
-  const Operator* CheckSeqString();
   const Operator* CheckSmi(const VectorSlotPair& feedback);
   const Operator* CheckString(const VectorSlotPair& feedback);
   const Operator* CheckSymbol();
@@ -624,6 +659,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsUndetectable();
 
   const Operator* NumberIsFloat64Hole();
+  const Operator* NumberIsFinite();
+  const Operator* ObjectIsFiniteNumber();
+  const Operator* NumberIsInteger();
+  const Operator* ObjectIsSafeInteger();
+  const Operator* NumberIsSafeInteger();
+  const Operator* ObjectIsInteger();
 
   const Operator* ArgumentsFrame();
   const Operator* ArgumentsLength(int formal_parameter_count,

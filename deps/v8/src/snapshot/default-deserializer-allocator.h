@@ -36,6 +36,20 @@ class DefaultDeserializerAllocator final {
     next_alignment_ = static_cast<AllocationAlignment>(alignment);
   }
 
+  void set_next_reference_is_weak(bool next_reference_is_weak) {
+    next_reference_is_weak_ = next_reference_is_weak;
+  }
+
+  bool GetAndClearNextReferenceIsWeak() {
+    bool saved = next_reference_is_weak_;
+    next_reference_is_weak_ = false;
+    return saved;
+  }
+
+#ifdef DEBUG
+  bool next_reference_is_weak() const { return next_reference_is_weak_; }
+#endif
+
   HeapObject* GetMap(uint32_t index);
   HeapObject* GetLargeObject(uint32_t index);
   HeapObject* GetObject(AllocationSpace space, uint32_t chunk_index,
@@ -80,6 +94,7 @@ class DefaultDeserializerAllocator final {
 
   // The alignment of the next allocation.
   AllocationAlignment next_alignment_ = kWordAligned;
+  bool next_reference_is_weak_ = false;
 
   // All required maps are pre-allocated during reservation. {next_map_index_}
   // stores the index of the next map to return from allocation.

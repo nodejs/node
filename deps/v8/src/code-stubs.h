@@ -7,8 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -37,8 +37,9 @@ class Node;
   V(JSEntry)                                \
   V(MathPow)                                \
   V(ProfileEntryHook)                       \
-  V(StoreSlowElement)                       \
   /* --- TurboFanCodeStubs --- */           \
+  V(StoreSlowElement)                       \
+  V(StoreInArrayLiteralSlow)                \
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
   V(ArrayNArgumentsConstructor)             \
@@ -525,32 +526,14 @@ class InternalArrayConstructorStub: public PlatformCodeStub {
 
 class MathPowStub: public PlatformCodeStub {
  public:
-  enum ExponentType { INTEGER, DOUBLE, TAGGED };
-
-  MathPowStub(Isolate* isolate, ExponentType exponent_type)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = ExponentTypeBits::encode(exponent_type);
-  }
+  MathPowStub() : PlatformCodeStub(nullptr) {}
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    if (exponent_type() == TAGGED) {
-      return MathPowTaggedDescriptor(isolate());
-    } else if (exponent_type() == INTEGER) {
-      return MathPowIntegerDescriptor(isolate());
-    } else {
-      // A CallInterfaceDescriptor doesn't specify double registers (yet).
-      DCHECK_EQ(DOUBLE, exponent_type());
-      return ContextOnlyDescriptor(isolate());
-    }
+    // A CallInterfaceDescriptor doesn't specify double registers (yet).
+    return ContextOnlyDescriptor(isolate());
   }
 
  private:
-  ExponentType exponent_type() const {
-    return ExponentTypeBits::decode(minor_key_);
-  }
-
-  class ExponentTypeBits : public BitField<ExponentType, 0, 2> {};
-
   DEFINE_PLATFORM_CODE_STUB(MathPow, PlatformCodeStub);
 };
 
@@ -927,6 +910,18 @@ class StoreSlowElementStub : public TurboFanCodeStub {
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreSlowElement, TurboFanCodeStub);
+};
+
+class StoreInArrayLiteralSlowStub : public TurboFanCodeStub {
+ public:
+  StoreInArrayLiteralSlowStub(Isolate* isolate, KeyedAccessStoreMode mode)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = CommonStoreModeBits::encode(mode);
+  }
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
+  DEFINE_TURBOFAN_CODE_STUB(StoreInArrayLiteralSlow, TurboFanCodeStub);
 };
 
 class ElementsTransitionAndStoreStub : public TurboFanCodeStub {

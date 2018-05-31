@@ -30,7 +30,7 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/name-inl.h"

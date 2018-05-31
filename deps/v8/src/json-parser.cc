@@ -7,7 +7,6 @@
 #include "src/char-predicates-inl.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
-#include "src/factory.h"
 #include "src/field-type.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
@@ -15,7 +14,6 @@
 #include "src/string-hasher.h"
 #include "src/transitions.h"
 #include "src/unicode-cache.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -419,9 +417,10 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         key = ParseJsonString();
         if (key.is_null()) return ReportUnexpectedCharacter();
 
-        target = TransitionsAccessor(map).FindTransitionToField(key);
         // If a transition was found, follow it and continue.
-        transitioning = !target.is_null();
+        transitioning =
+            TransitionsAccessor(map).FindTransitionToField(key).ToHandle(
+                &target);
       }
       if (c0_ != ':') return ReportUnexpectedCharacter();
 

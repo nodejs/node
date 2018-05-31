@@ -3,8 +3,14 @@
 # found in the LICENSE file.
 
 [
-['system == windows', {
-  # BUG(7492).
-  'ThreadTicks.ThreadNow': [SKIP],
-}],  # 'system == windows'
+['system == macos and asan', {
+  # BUG(820416).
+  'BitsDeathTest*': [SKIP],
+  'LiveRangeUnitTest*': [SKIP],
+  'LoggingDeathTest*': [SKIP],
+  'LoggingTest.CompareClassTypes': [SKIP],
+  'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
+}],  # 'system == macos and asan'
 ]

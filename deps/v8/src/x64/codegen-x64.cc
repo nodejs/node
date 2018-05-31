@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/codegen.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/x64/assembler-x64-inl.h"
 

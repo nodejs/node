@@ -39,28 +39,24 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-AllocationResult HeapTester::AllocateAfterFailures() {
+Handle<Object> HeapTester::TestAllocateAfterFailures() {
+  // Similar to what the factory's retrying logic does in the last-resort case,
+  // we wrap the allocator function in an AlwaysAllocateScope.  Test that
+  // all allocations succeed immediately without any retry.
+  CcTest::CollectAllAvailableGarbage();
+  AlwaysAllocateScope scope(CcTest::i_isolate());
   Heap* heap = CcTest::heap();
-
+  int size = FixedArray::SizeFor(100);
   // New space.
-  heap->AllocateByteArray(100).ToObjectChecked();
-  heap->AllocateFixedArray(100, NOT_TENURED).ToObjectChecked();
+  HeapObject* obj = heap->AllocateRaw(size, NEW_SPACE).ToObjectChecked();
+  // In order to pass heap verification on Isolate teardown, mark the
+  // allocated area as a filler.
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
 
-  // Make sure we can allocate through optimized allocation functions
-  // for specific kinds.
-  heap->AllocateFixedArray(100).ToObjectChecked();
-  heap->AllocateHeapNumber().ToObjectChecked();
-  Object* object = heap->AllocateJSObject(
-      *CcTest::i_isolate()->object_function()).ToObjectChecked();
-  heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
-
-  // Old data space.
+  // Old space.
   heap::SimulateFullSpace(heap->old_space());
-  heap->AllocateByteArray(100, TENURED).ToObjectChecked();
-
-  // Old pointer space.
-  heap::SimulateFullSpace(heap->old_space());
-  heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
+  obj = heap->AllocateRaw(size, OLD_SPACE).ToObjectChecked();
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
 
   // Large object space.
   static const size_t kLargeObjectSpaceFillerLength =
@@ -70,34 +66,26 @@ AllocationResult HeapTester::AllocateAfterFailures() {
   CHECK_GT(kLargeObjectSpaceFillerSize,
            static_cast<size_t>(heap->old_space()->AreaSize()));
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
-    heap->AllocateFixedArray(
-        kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
+    obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, OLD_SPACE)
+              .ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   }
-  heap->AllocateFixedArray(
-      kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
+  obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, OLD_SPACE)
+            .ToObjectChecked();
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
 
   // Map space.
   heap::SimulateFullSpace(heap->map_space());
-  int instance_size = JSObject::kHeaderSize;
-  heap->AllocateMap(JS_OBJECT_TYPE, instance_size).ToObjectChecked();
+  obj = heap->AllocateRaw(Map::kSize, MAP_SPACE).ToObjectChecked();
+  heap->CreateFillerObjectAt(obj->address(), Map::kSize,
+                             ClearRecordedSlots::kNo);
 
-  // Test that we can allocate in old pointer space and code space.
+  // Code space.
   heap::SimulateFullSpace(heap->code_space());
-  heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
-  Code* illegal = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal);
-  heap->CopyCode(illegal, illegal->code_data_container()).ToObjectChecked();
-
-  // Return success.
-  return heap->true_value();
-}
-
-Handle<Object> HeapTester::TestAllocateAfterFailures() {
-  // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
-  // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
-  // all allocations succeed immediately without any retry.
-  CcTest::CollectAllAvailableGarbage();
-  AlwaysAllocateScope scope(CcTest::i_isolate());
-  return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
+  size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal)->Size();
+  obj = heap->AllocateRaw(size, CODE_SPACE).ToObjectChecked();
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  return CcTest::i_isolate()->factory()->true_value();
 }
 
 
@@ -139,13 +127,16 @@ TEST(StressJS) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->function_string());
-  // Force the creation of an initial map and set the code to
-  // something empty.
+
+  NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
+      factory->function_string(), isolate->sloppy_function_map(),
+      Builtins::kEmptyFunction);
+  Handle<JSFunction> function = factory->NewFunction(args);
+  CHECK(!function->shared()->construct_as_builtin());
+
+  // Force the creation of an initial map.
   factory->NewJSObject(function);
-  function->set_code(
-      CcTest::i_isolate()->builtins()->builtin(Builtins::kEmptyFunction));
+
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());

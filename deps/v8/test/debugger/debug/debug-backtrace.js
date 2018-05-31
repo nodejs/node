@@ -42,8 +42,8 @@ function g() {
 
 Debug = debug.Debug
 
-listenerCalled = false;
-exception = false;
+let listenerCalled = false;
+let exceptionThrown = false;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -82,7 +82,7 @@ function listener(event, exec_state, event_data, data) {
       listenerCalled = true;
     }
   } catch (e) {
-    exception = e;
+    exceptionThrown = true;
   };
 };
 
@@ -94,5 +94,5 @@ Debug.setBreakPoint(f, 0, 0);
 g();
 
 // Make sure that the debug event listener vas invoked.
-assertFalse(exception, "exception in listener");
+assertFalse(exceptionThrown, "exception in listener");
 assertTrue(listenerCalled);

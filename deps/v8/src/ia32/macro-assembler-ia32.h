@@ -179,7 +179,7 @@ class TurboAssembler : public Assembler {
   void ShlPair(Register high, Register low, uint8_t imm8);
   void ShlPair_cl(Register high, Register low);
   void ShrPair(Register high, Register low, uint8_t imm8);
-  void ShrPair_cl(Register high, Register src);
+  void ShrPair_cl(Register high, Register low);
   void SarPair(Register high, Register low, uint8_t imm8);
   void SarPair_cl(Register high, Register low);
 
@@ -222,12 +222,15 @@ class TurboAssembler : public Assembler {
     }                                                           \
   }
 
+  AVX_OP2_WITH_TYPE(Rcpps, rcpps, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Rsqrtps, rsqrtps, XMMRegister, const Operand&)
   AVX_OP2_WITH_TYPE(Movdqu, movdqu, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Movdqu, movdqu, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Register)
   AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
 
 #undef AVX_OP2_WITH_TYPE
 
@@ -251,8 +254,12 @@ class TurboAssembler : public Assembler {
   AVX_OP3_XO(Psubw, psubw)
   AVX_OP3_XO(Psubd, psubd)
   AVX_OP3_XO(Pxor, pxor)
+  AVX_OP3_XO(Andps, andps)
+  AVX_OP3_XO(Andpd, andpd)
   AVX_OP3_XO(Xorps, xorps)
   AVX_OP3_XO(Xorpd, xorpd)
+  AVX_OP3_XO(Sqrtss, sqrtss)
+  AVX_OP3_XO(Sqrtsd, sqrtsd)
 
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
@@ -532,6 +539,9 @@ class MacroAssembler : public TurboAssembler {
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
+  // Abort execution if argument is not a Constructor, enabled via --debug-code.
+  void AssertConstructor(Register object);
+
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
@@ -587,7 +597,7 @@ class MacroAssembler : public TurboAssembler {
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(const InstructionStream* stream);
+  void JumpToInstructionStream(Address entry);
 
   // ---------------------------------------------------------------------------
   // Utilities
@@ -601,6 +611,10 @@ class MacroAssembler : public TurboAssembler {
   void Pop(Operand dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
+
+  // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register in_out, Label* target_if_cleared);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

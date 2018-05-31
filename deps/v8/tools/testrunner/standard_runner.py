@@ -44,7 +44,7 @@ VARIANT_ALIASES = {
   # Shortcut for the two above ("more" first - it has the longer running tests).
   "exhaustive": MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": ["future", "liftoff", "trusted", "wasm_no_native"],
+  "extra": ["future", "liftoff", "trusted"],
 }
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",

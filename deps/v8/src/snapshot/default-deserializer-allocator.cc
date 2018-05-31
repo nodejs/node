@@ -122,9 +122,8 @@ HeapObject* DefaultDeserializerAllocator::GetObject(AllocationSpace space,
 
 void DefaultDeserializerAllocator::DecodeReservation(
     std::vector<SerializedData::Reservation> res) {
-  DCHECK_EQ(0, reservations_[NEW_SPACE].size());
-  STATIC_ASSERT(NEW_SPACE == 0);
-  int current_space = NEW_SPACE;
+  DCHECK_EQ(0, reservations_[FIRST_SPACE].size());
+  int current_space = FIRST_SPACE;
   for (auto& r : res) {
     reservations_[current_space].push_back({r.chunk_size(), NULL, NULL});
     if (r.is_last()) current_space++;
@@ -135,7 +134,7 @@ void DefaultDeserializerAllocator::DecodeReservation(
 
 bool DefaultDeserializerAllocator::ReserveSpace() {
 #ifdef DEBUG
-  for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
+  for (int i = FIRST_SPACE; i < kNumberOfSpaces; ++i) {
     DCHECK_GT(reservations_[i].size(), 0);
   }
 #endif  // DEBUG
@@ -153,8 +152,6 @@ bool DefaultDeserializerAllocator::ReserveSpace() {
 bool DefaultDeserializerAllocator::ReserveSpace(
     StartupDeserializer* startup_deserializer,
     BuiltinDeserializer* builtin_deserializer) {
-  const int first_space = NEW_SPACE;
-  const int last_space = SerializerDeserializer::kNumberOfSpaces;
   Isolate* isolate = startup_deserializer->isolate();
 
   // Create a set of merged reservations to reserve space in one go.
@@ -163,7 +160,7 @@ bool DefaultDeserializerAllocator::ReserveSpace(
   // Instead, we manually determine the required code-space.
 
   Heap::Reservation merged_reservations[kNumberOfSpaces];
-  for (int i = first_space; i < last_space; i++) {
+  for (int i = FIRST_SPACE; i < kNumberOfSpaces; i++) {
     merged_reservations[i] =
         startup_deserializer->allocator()->reservations_[i];
   }
@@ -206,12 +203,12 @@ bool DefaultDeserializerAllocator::ReserveSpace(
 
   // Write back startup reservations.
 
-  for (int i = first_space; i < last_space; i++) {
+  for (int i = FIRST_SPACE; i < kNumberOfSpaces; i++) {
     startup_deserializer->allocator()->reservations_[i].swap(
         merged_reservations[i]);
   }
 
-  for (int i = first_space; i < kNumberOfPreallocatedSpaces; i++) {
+  for (int i = FIRST_SPACE; i < kNumberOfPreallocatedSpaces; i++) {
     startup_deserializer->allocator()->high_water_[i] =
         startup_deserializer->allocator()->reservations_[i][0].start;
   }

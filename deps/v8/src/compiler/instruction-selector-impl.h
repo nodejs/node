@@ -15,15 +15,52 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+struct CaseInfo {
+  int32_t value;  // The case value.
+  int32_t order;  // The order for lowering to comparisons (less means earlier).
+  BasicBlock* branch;  // The basic blocks corresponding to the case value.
+};
+
+inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
+  return l.order < r.order;
+}
+
 // Helper struct containing data about a table or lookup switch.
-struct SwitchInfo {
-  int32_t min_value;           // minimum value of {case_values}
-  int32_t max_value;           // maximum value of {case_values}
-  size_t value_range;          // |max_value - min_value| + 1
-  size_t case_count;           // number of cases
-  int32_t* case_values;        // actual case values, unsorted
-  BasicBlock** case_branches;  // basic blocks corresponding to case values
-  BasicBlock* default_branch;  // default branch target
+class SwitchInfo {
+ public:
+  SwitchInfo(ZoneVector<CaseInfo>& cases, int32_t min_value, int32_t max_value,
+             BasicBlock* default_branch)
+      : cases_(cases),
+        min_value_(min_value),
+        max_value_(min_value),
+        default_branch_(default_branch) {
+    if (cases.size() != 0) {
+      DCHECK_LE(min_value, max_value);
+      // Note that {value_range} can be 0 if {min_value} is -2^31 and
+      // {max_value} is 2^31-1, so don't assume that it's non-zero below.
+      value_range_ =
+          1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
+    } else {
+      value_range_ = 0;
+    }
+  }
+
+  int32_t min_value() const { return min_value_; }
+  int32_t max_value() const { return max_value_; }
+  size_t value_range() const { return value_range_; }
+  size_t case_count() const { return cases_.size(); }
+  const CaseInfo& GetCase(size_t i) const {
+    DCHECK_LT(i, cases_.size());
+    return cases_[i];
+  }
+  BasicBlock* default_branch() const { return default_branch_; }
+
+ private:
+  const ZoneVector<CaseInfo>& cases_;
+  int32_t min_value_;   // minimum value of {cases_}
+  int32_t max_value_;   // maximum value of {cases_}
+  size_t value_range_;  // |max_value - min_value| + 1
+  BasicBlock* default_branch_;
 };
 
 // A helper class for the instruction selector that simplifies construction of
@@ -91,15 +128,21 @@ class OperandGenerator {
   }
 
   InstructionOperand UseAnyAtEnd(Node* node) {
-    return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
+    return Use(node, UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT,
                                         UnallocatedOperand::USED_AT_END,
                                         GetVReg(node)));
   }
 
   InstructionOperand UseAny(Node* node) {
-    return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
+    return Use(node, UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT,
                                         UnallocatedOperand::USED_AT_START,
                                         GetVReg(node)));
+  }
+
+  InstructionOperand UseRegisterOrSlotOrConstant(Node* node) {
+    return Use(node, UnallocatedOperand(
+                         UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
+                         UnallocatedOperand::USED_AT_START, GetVReg(node)));
   }
 
   InstructionOperand UseRegister(Node* node) {
@@ -244,22 +287,22 @@ class OperandGenerator {
   static Constant ToConstant(const Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
-        return Constant(OpParameter<int32_t>(node));
+        return Constant(OpParameter<int32_t>(node->op()));
       case IrOpcode::kInt64Constant:
-        return Constant(OpParameter<int64_t>(node));
+        return Constant(OpParameter<int64_t>(node->op()));
       case IrOpcode::kFloat32Constant:
-        return Constant(OpParameter<float>(node));
+        return Constant(OpParameter<float>(node->op()));
       case IrOpcode::kRelocatableInt32Constant:
       case IrOpcode::kRelocatableInt64Constant:
-        return Constant(OpParameter<RelocatablePtrConstantInfo>(node));
+        return Constant(OpParameter<RelocatablePtrConstantInfo>(node->op()));
       case IrOpcode::kFloat64Constant:
       case IrOpcode::kNumberConstant:
-        return Constant(OpParameter<double>(node));
+        return Constant(OpParameter<double>(node->op()));
       case IrOpcode::kExternalConstant:
       case IrOpcode::kComment:
-        return Constant(OpParameter<ExternalReference>(node));
+        return Constant(OpParameter<ExternalReference>(node->op()));
       case IrOpcode::kHeapConstant:
-        return Constant(OpParameter<Handle<HeapObject>>(node));
+        return Constant(HeapConstantOf(node->op()));
       case IrOpcode::kDeadValue: {
         switch (DeadValueRepresentationOf(node->op())) {
           case MachineRepresentation::kBit:
@@ -286,9 +329,9 @@ class OperandGenerator {
   static Constant ToNegatedConstant(const Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
-        return Constant(-OpParameter<int32_t>(node));
+        return Constant(-OpParameter<int32_t>(node->op()));
       case IrOpcode::kInt64Constant:
-        return Constant(-OpParameter<int64_t>(node));
+        return Constant(-OpParameter<int64_t>(node->op()));
       default:
         break;
     }
@@ -348,210 +391,6 @@ class OperandGenerator {
   }
 
   InstructionSelector* selector_;
-};
-
-
-// The flags continuation is a way to combine a branch or a materialization
-// of a boolean value with an instruction that sets the flags register.
-// The whole instruction is treated as a unit by the register allocator, and
-// thus no spills or moves can be introduced between the flags-setting
-// instruction and the branch or set it should be combined with.
-class FlagsContinuation final {
- public:
-  FlagsContinuation() : mode_(kFlags_none) {}
-
-  // Creates a new flags continuation from the given condition and true/false
-  // blocks.
-  static FlagsContinuation ForBranch(FlagsCondition condition,
-                                     BasicBlock* true_block,
-                                     BasicBlock* false_block,
-                                     LoadPoisoning masking) {
-    FlagsMode mode = masking == LoadPoisoning::kDoPoison
-                         ? kFlags_branch_and_poison
-                         : kFlags_branch;
-    return FlagsContinuation(mode, condition, true_block, false_block);
-  }
-
-  static FlagsContinuation ForBranchAndPoison(FlagsCondition condition,
-                                              BasicBlock* true_block,
-                                              BasicBlock* false_block) {
-    return FlagsContinuation(kFlags_branch_and_poison, condition, true_block,
-                             false_block);
-  }
-
-  // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuation ForDeoptimize(FlagsCondition condition,
-                                         DeoptimizeKind kind,
-                                         DeoptimizeReason reason,
-                                         VectorSlotPair const& feedback,
-                                         Node* frame_state,
-                                         LoadPoisoning masking) {
-    FlagsMode mode = masking == LoadPoisoning::kDoPoison
-                         ? kFlags_deoptimize_and_poison
-                         : kFlags_deoptimize;
-    return FlagsContinuation(mode, condition, kind, reason, feedback,
-                             frame_state);
-  }
-
-  // Creates a new flags continuation for a boolean value.
-  static FlagsContinuation ForSet(FlagsCondition condition, Node* result) {
-    return FlagsContinuation(condition, result);
-  }
-
-  // Creates a new flags continuation for a wasm trap.
-  static FlagsContinuation ForTrap(FlagsCondition condition,
-                                   Runtime::FunctionId trap_id, Node* result) {
-    return FlagsContinuation(condition, trap_id, result);
-  }
-
-  bool IsNone() const { return mode_ == kFlags_none; }
-  bool IsBranch() const {
-    return mode_ == kFlags_branch || mode_ == kFlags_branch_and_poison;
-  }
-  bool IsDeoptimize() const {
-    return mode_ == kFlags_deoptimize || mode_ == kFlags_deoptimize_and_poison;
-  }
-  bool IsPoisoned() const {
-    return mode_ == kFlags_branch_and_poison ||
-           mode_ == kFlags_deoptimize_and_poison;
-  }
-  bool IsSet() const { return mode_ == kFlags_set; }
-  bool IsTrap() const { return mode_ == kFlags_trap; }
-  FlagsCondition condition() const {
-    DCHECK(!IsNone());
-    return condition_;
-  }
-  DeoptimizeKind kind() const {
-    DCHECK(IsDeoptimize());
-    return kind_;
-  }
-  DeoptimizeReason reason() const {
-    DCHECK(IsDeoptimize());
-    return reason_;
-  }
-  VectorSlotPair const& feedback() const {
-    DCHECK(IsDeoptimize());
-    return feedback_;
-  }
-  Node* frame_state() const {
-    DCHECK(IsDeoptimize());
-    return frame_state_or_result_;
-  }
-  Node* result() const {
-    DCHECK(IsSet());
-    return frame_state_or_result_;
-  }
-  Runtime::FunctionId trap_id() const {
-    DCHECK(IsTrap());
-    return trap_id_;
-  }
-  BasicBlock* true_block() const {
-    DCHECK(IsBranch());
-    return true_block_;
-  }
-  BasicBlock* false_block() const {
-    DCHECK(IsBranch());
-    return false_block_;
-  }
-
-  void Negate() {
-    DCHECK(!IsNone());
-    condition_ = NegateFlagsCondition(condition_);
-  }
-
-  void Commute() {
-    DCHECK(!IsNone());
-    condition_ = CommuteFlagsCondition(condition_);
-  }
-
-  void Overwrite(FlagsCondition condition) { condition_ = condition; }
-
-  void OverwriteAndNegateIfEqual(FlagsCondition condition) {
-    DCHECK(condition_ == kEqual || condition_ == kNotEqual);
-    bool negate = condition_ == kEqual;
-    condition_ = condition;
-    if (negate) Negate();
-  }
-
-  void OverwriteUnsignedIfSigned() {
-    switch (condition_) {
-      case kSignedLessThan:
-        condition_ = kUnsignedLessThan;
-        break;
-      case kSignedLessThanOrEqual:
-        condition_ = kUnsignedLessThanOrEqual;
-        break;
-      case kSignedGreaterThan:
-        condition_ = kUnsignedGreaterThan;
-        break;
-      case kSignedGreaterThanOrEqual:
-        condition_ = kUnsignedGreaterThanOrEqual;
-        break;
-      default:
-        break;
-    }
-  }
-
-  // Encodes this flags continuation into the given opcode.
-  InstructionCode Encode(InstructionCode opcode) {
-    opcode |= FlagsModeField::encode(mode_);
-    if (mode_ != kFlags_none) {
-      opcode |= FlagsConditionField::encode(condition_);
-    }
-    return opcode;
-  }
-
- private:
-  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
-                    BasicBlock* true_block, BasicBlock* false_block)
-      : mode_(mode),
-        condition_(condition),
-        true_block_(true_block),
-        false_block_(false_block) {
-    DCHECK(mode == kFlags_branch || mode == kFlags_branch_and_poison);
-    DCHECK_NOT_NULL(true_block);
-    DCHECK_NOT_NULL(false_block);
-  }
-
-  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
-                    DeoptimizeKind kind, DeoptimizeReason reason,
-                    VectorSlotPair const& feedback, Node* frame_state)
-      : mode_(mode),
-        condition_(condition),
-        kind_(kind),
-        reason_(reason),
-        feedback_(feedback),
-        frame_state_or_result_(frame_state) {
-    DCHECK(mode == kFlags_deoptimize || mode == kFlags_deoptimize_and_poison);
-    DCHECK_NOT_NULL(frame_state);
-  }
-
-  FlagsContinuation(FlagsCondition condition, Node* result)
-      : mode_(kFlags_set),
-        condition_(condition),
-        frame_state_or_result_(result) {
-    DCHECK_NOT_NULL(result);
-  }
-
-  FlagsContinuation(FlagsCondition condition, Runtime::FunctionId trap_id,
-                    Node* result)
-      : mode_(kFlags_trap),
-        condition_(condition),
-        frame_state_or_result_(result),
-        trap_id_(trap_id) {
-    DCHECK_NOT_NULL(result);
-  }
-
-  FlagsMode const mode_;
-  FlagsCondition condition_;
-  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize*
-  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize*
-  VectorSlotPair feedback_;      // Only valid if mode_ == kFlags_deoptimize*
-  Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize*
-                                 // or mode_ == kFlags_set.
-  BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
-  BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch*.
-  Runtime::FunctionId trap_id_;  // Only valid if mode_ == kFlags_trap.
 };
 
 }  // namespace compiler

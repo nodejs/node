@@ -18,6 +18,7 @@
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
 #include "src/objects/data-handler.h"
+#include "src/objects/map.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-containers.h"
 
@@ -28,6 +29,7 @@ class Callable;
 class CallInterfaceDescriptor;
 class Isolate;
 class JSCollection;
+class JSRegExpStringIterator;
 class JSWeakCollection;
 class JSWeakMap;
 class JSWeakSet;
@@ -36,6 +38,7 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
+class InterpreterData;
 class Factory;
 class Zone;
 
@@ -201,6 +204,7 @@ enum class ObjectType {
 #undef ENUM_STRUCT_ELEMENT
 
 class AccessCheckNeeded;
+class BigIntWrapper;
 class ClassBoilerplate;
 class BooleanWrapper;
 class CompilationCacheTable;
@@ -221,6 +225,7 @@ class StringWrapper;
 class SymbolWrapper;
 class Undetectable;
 class UniqueName;
+class WasmGlobalObject;
 class WasmMemoryObject;
 class WasmModuleObject;
 class WasmTableObject;
@@ -652,6 +657,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   TNode<HeapObject> LookupConstant(Handle<HeapObject> object);
+  TNode<ExternalReference> LookupExternalReference(ExternalReference reference);
 #endif
 
   // Constants.
@@ -731,21 +737,27 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* LoadFramePointer();
   Node* LoadParentFramePointer();
 
+  // Access to the roots pointer.
+  TNode<IntPtrT> LoadRootsPointer();
+
   // Access to the stack pointer
   Node* LoadStackPointer();
 
-  // Poison mask for speculation.
-  Node* SpeculationPoison();
+  // Poison |value| on speculative paths.
+  TNode<Object> PoisonOnSpeculationTagged(SloppyTNode<Object> value);
+  TNode<WordT> PoisonOnSpeculationWord(SloppyTNode<WordT> value);
 
   // Load raw memory location.
-  Node* Load(MachineType rep, Node* base);
+  Node* Load(MachineType rep, Node* base,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   template <class Type>
   TNode<Type> Load(MachineType rep, TNode<RawPtr<Type>> base) {
     DCHECK(
         IsSubtype(rep.representation(), MachineRepresentationOf<Type>::value));
     return UncheckedCast<Type>(Load(rep, static_cast<Node*>(base)));
   }
-  Node* Load(MachineType rep, Node* base, Node* offset);
+  Node* Load(MachineType rep, Node* base, Node* offset,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
 
   // Load a value from the root array.
@@ -853,6 +865,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
   TNode<WordT> WordShr(SloppyTNode<WordT> value, int shift);
+  TNode<WordT> WordSar(SloppyTNode<WordT> value, int shift);
   TNode<IntPtrT> WordShr(TNode<IntPtrT> value, int shift) {
     return UncheckedCast<IntPtrT>(WordShr(static_cast<Node*>(value), shift));
   }
@@ -1100,6 +1113,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void UnregisterCallGenerationCallbacks();
 
   bool Word32ShiftIsSafe() const;
+  PoisoningMitigationLevel poisoning_enabled() const;
 
  private:
   // These two don't have definitions and are here only for catching use cases
@@ -1244,13 +1258,15 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, Code::Kind kind,
-                     const char* name, size_t result_size = 1,
-                     uint32_t stub_key = 0,
+                     const char* name,
+                     PoisoningMitigationLevel poisoning_enabled,
+                     size_t result_size = 1, uint32_t stub_key = 0,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
                      Code::Kind kind, const char* name,
+                     PoisoningMitigationLevel poisoning_enabled,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   ~CodeAssemblerState();
@@ -1272,8 +1288,9 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
-                     const char* name, uint32_t stub_key,
-                     int32_t builtin_index);
+                     const char* name,
+                     PoisoningMitigationLevel poisoning_enabled,
+                     uint32_t stub_key, int32_t builtin_index);
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
   Code::Kind kind_;

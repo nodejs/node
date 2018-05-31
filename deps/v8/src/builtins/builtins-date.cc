@@ -193,95 +193,94 @@ Object* SetLocalDateValue(Handle<JSDate> date, double time_val) {
 
 }  // namespace
 
-// ES6 section 20.3.2 The Date Constructor for the [[Call]] case.
+// ES #sec-date-constructor
 BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
-  double const time_val = JSDate::CurrentTimeValue(isolate);
-  char buffer[128];
-  ToDateString(time_val, ArrayVector(buffer), isolate->date_cache());
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
-}
-
-// ES6 section 20.3.2 The Date Constructor for the [[Construct]] case.
-BUILTIN(DateConstructor_ConstructStub) {
-  HandleScope scope(isolate);
-  int const argc = args.length() - 1;
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-  double time_val;
-  if (argc == 0) {
-    time_val = JSDate::CurrentTimeValue(isolate);
-  } else if (argc == 1) {
-    Handle<Object> value = args.at(1);
-    if (value->IsJSDate()) {
-      time_val = Handle<JSDate>::cast(value)->value()->Number();
-    } else {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                         Object::ToPrimitive(value));
-      if (value->IsString()) {
-        time_val = ParseDateTimeString(Handle<String>::cast(value));
+  if (args.new_target()->IsUndefined(isolate)) {
+    double const time_val = JSDate::CurrentTimeValue(isolate);
+    char buffer[128];
+    ToDateString(time_val, ArrayVector(buffer), isolate->date_cache());
+    RETURN_RESULT_OR_FAILURE(
+        isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  } else {
+    int const argc = args.length() - 1;
+    Handle<JSFunction> target = args.target();
+    Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+    double time_val;
+    if (argc == 0) {
+      time_val = JSDate::CurrentTimeValue(isolate);
+    } else if (argc == 1) {
+      Handle<Object> value = args.at(1);
+      if (value->IsJSDate()) {
+        time_val = Handle<JSDate>::cast(value)->value()->Number();
       } else {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                           Object::ToNumber(value));
-        time_val = value->Number();
+                                           Object::ToPrimitive(value));
+        if (value->IsString()) {
+          time_val = ParseDateTimeString(Handle<String>::cast(value));
+        } else {
+          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                             Object::ToNumber(value));
+          time_val = value->Number();
+        }
       }
-    }
-  } else {
-    Handle<Object> year_object;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year_object,
-                                       Object::ToNumber(args.at(1)));
-    Handle<Object> month_object;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month_object,
-                                       Object::ToNumber(args.at(2)));
-    double year = year_object->Number();
-    double month = month_object->Number();
-    double date = 1.0, hours = 0.0, minutes = 0.0, seconds = 0.0, ms = 0.0;
-    if (argc >= 3) {
-      Handle<Object> date_object;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date_object,
-                                         Object::ToNumber(args.at(3)));
-      date = date_object->Number();
-      if (argc >= 4) {
-        Handle<Object> hours_object;
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hours_object,
-                                           Object::ToNumber(args.at(4)));
-        hours = hours_object->Number();
-        if (argc >= 5) {
-          Handle<Object> minutes_object;
-          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, minutes_object,
-                                             Object::ToNumber(args.at(5)));
-          minutes = minutes_object->Number();
-          if (argc >= 6) {
-            Handle<Object> seconds_object;
-            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, seconds_object,
-                                               Object::ToNumber(args.at(6)));
-            seconds = seconds_object->Number();
-            if (argc >= 7) {
-              Handle<Object> ms_object;
-              ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms_object,
-                                                 Object::ToNumber(args.at(7)));
-              ms = ms_object->Number();
+    } else {
+      Handle<Object> year_object;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year_object,
+                                         Object::ToNumber(args.at(1)));
+      Handle<Object> month_object;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month_object,
+                                         Object::ToNumber(args.at(2)));
+      double year = year_object->Number();
+      double month = month_object->Number();
+      double date = 1.0, hours = 0.0, minutes = 0.0, seconds = 0.0, ms = 0.0;
+      if (argc >= 3) {
+        Handle<Object> date_object;
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date_object,
+                                           Object::ToNumber(args.at(3)));
+        date = date_object->Number();
+        if (argc >= 4) {
+          Handle<Object> hours_object;
+          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hours_object,
+                                             Object::ToNumber(args.at(4)));
+          hours = hours_object->Number();
+          if (argc >= 5) {
+            Handle<Object> minutes_object;
+            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, minutes_object,
+                                               Object::ToNumber(args.at(5)));
+            minutes = minutes_object->Number();
+            if (argc >= 6) {
+              Handle<Object> seconds_object;
+              ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, seconds_object,
+                                                 Object::ToNumber(args.at(6)));
+              seconds = seconds_object->Number();
+              if (argc >= 7) {
+                Handle<Object> ms_object;
+                ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+                    isolate, ms_object, Object::ToNumber(args.at(7)));
+                ms = ms_object->Number();
+              }
             }
           }
         }
       }
+      if (!std::isnan(year)) {
+        double const y = DoubleToInteger(year);
+        if (0.0 <= y && y <= 99) year = 1900 + y;
+      }
+      double const day = MakeDay(year, month, date);
+      double const time = MakeTime(hours, minutes, seconds, ms);
+      time_val = MakeDate(day, time);
+      if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
+          time_val <= DateCache::kMaxTimeBeforeUTCInMs) {
+        time_val = isolate->date_cache()->ToUTC(static_cast<int64_t>(time_val));
+      } else {
+        time_val = std::numeric_limits<double>::quiet_NaN();
+      }
     }
-    if (!std::isnan(year)) {
-      double const y = DoubleToInteger(year);
-      if (0.0 <= y && y <= 99) year = 1900 + y;
-    }
-    double const day = MakeDay(year, month, date);
-    double const time = MakeTime(hours, minutes, seconds, ms);
-    time_val = MakeDate(day, time);
-    if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
-        time_val <= DateCache::kMaxTimeBeforeUTCInMs) {
-      time_val = isolate->date_cache()->ToUTC(static_cast<int64_t>(time_val));
-    } else {
-      time_val = std::numeric_limits<double>::quiet_NaN();
-    }
+    RETURN_RESULT_OR_FAILURE(isolate,
+                             JSDate::New(target, new_target, time_val));
   }
-  RETURN_RESULT_OR_FAILURE(isolate, JSDate::New(target, new_target, time_val));
 }
 
 // ES6 section 20.3.3.1 Date.now ( )

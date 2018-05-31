@@ -4,7 +4,7 @@
 
 #include "src/objects/template-objects.h"
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/property-descriptor.h"

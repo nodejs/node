@@ -17,6 +17,16 @@ void Bitmap::Clear() {
   base::SeqCst_MemoryFence();
 }
 
+void Bitmap::MarkAllBits() {
+  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
+  for (int i = 0; i < CellsCount(); i++) {
+    base::Relaxed_Store(cell_base + i, 0xffffffff);
+  }
+  // This fence prevents re-ordering of publishing stores with the mark-bit
+  // clearing stores.
+  base::SeqCst_MemoryFence();
+}
+
 void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
   unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
   MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);

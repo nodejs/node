@@ -93,7 +93,6 @@ class StackHandler BASE_EMBEDDED {
   V(OPTIMIZED, OptimizedFrame)                                            \
   V(WASM_COMPILED, WasmCompiledFrame)                                     \
   V(WASM_TO_JS, WasmToJsFrame)                                            \
-  V(WASM_TO_WASM, WasmToWasmFrame)                                        \
   V(JS_TO_WASM, JsToWasmFrame)                                            \
   V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)                    \
   V(C_WASM_ENTRY, CWasmEntryFrame)                                        \
@@ -101,6 +100,8 @@ class StackHandler BASE_EMBEDDED {
   V(STUB, StubFrame)                                                      \
   V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION, JavaScriptBuiltinContinuationFrame) \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH,                          \
+    JavaScriptBuiltinContinuationWithCatchFrame)                          \
   V(INTERNAL, InternalFrame)                                              \
   V(CONSTRUCT, ConstructFrame)                                            \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)                             \
@@ -214,6 +215,9 @@ class StackFrame BASE_EMBEDDED {
   bool is_java_script_builtin_continuation() const {
     return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION;
   }
+  bool is_java_script_builtin_with_catch_continuation() const {
+    return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+  }
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
   virtual bool is_standard() const { return false; }
@@ -221,7 +225,8 @@ class StackFrame BASE_EMBEDDED {
   bool is_java_script() const {
     Type type = this->type();
     return (type == OPTIMIZED) || (type == INTERPRETED) || (type == BUILTIN) ||
-           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION);
+           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION) ||
+           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH);
   }
   bool is_wasm() const {
     Type type = this->type();
@@ -549,16 +554,16 @@ class FrameSummary BASE_EMBEDDED {
   class WasmCompiledFrameSummary : public WasmFrameSummary {
    public:
     WasmCompiledFrameSummary(Isolate*, Handle<WasmInstanceObject>,
-                             WasmCodeWrapper, int code_offset,
+                             wasm::WasmCode*, int code_offset,
                              bool at_to_number_conversion);
     uint32_t function_index() const;
-    WasmCodeWrapper code() const { return code_; }
+    wasm::WasmCode* code() const { return code_; }
     int code_offset() const { return code_offset_; }
     int byte_offset() const;
     static int GetWasmSourcePosition(const wasm::WasmCode* code, int offset);
 
    private:
-    WasmCodeWrapper const code_;
+    wasm::WasmCode* const code_;
     int code_offset_;
   };
 
@@ -848,6 +853,8 @@ class OptimizedFrame : public JavaScriptFrame {
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 
+  int GetNumberOfIncomingArguments() const override;
+
  private:
   friend class StackFrameIteratorBase;
 
@@ -973,7 +980,7 @@ class WasmCompiledFrame final : public StandardFrame {
 
   // Accessors.
   WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
-  WasmCodeWrapper wasm_code() const;
+  wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;
@@ -1059,17 +1066,6 @@ class JsToWasmFrame : public StubFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmToWasmFrame : public StubFrame {
- public:
-  Type type() const override { return WASM_TO_WASM; }
-
- protected:
-  inline explicit WasmToWasmFrame(StackFrameIteratorBase* iterator);
-
- private:
-  friend class StackFrameIteratorBase;
-};
-
 class CWasmEntryFrame : public StubFrame {
  public:
   Type type() const override { return C_WASM_ENTRY; }
@@ -1150,9 +1146,36 @@ class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
   }
 
   int ComputeParametersCount() const override;
+  intptr_t GetSPToFPDelta() const;
+
+  Object* context() const override;
 
  protected:
   inline explicit JavaScriptBuiltinContinuationFrame(
+      StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class JavaScriptBuiltinContinuationWithCatchFrame
+    : public JavaScriptBuiltinContinuationFrame {
+ public:
+  Type type() const override {
+    return JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+  }
+
+  static JavaScriptBuiltinContinuationWithCatchFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_java_script_builtin_with_catch_continuation());
+    return static_cast<JavaScriptBuiltinContinuationWithCatchFrame*>(frame);
+  }
+
+  // Patch in the exception object at the appropriate location into the stack
+  // frame.
+  void SetException(Object* exception);
+
+ protected:
+  inline explicit JavaScriptBuiltinContinuationWithCatchFrame(
       StackFrameIteratorBase* iterator);
 
  private:

@@ -634,43 +634,6 @@ const char* OpcodeName(uint32_t val) {
   return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
 }
 
-// Unwrap a wasm to js wrapper, return the callable heap object.
-// If the wrapper would throw a TypeError, return a null handle.
-Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
-                                         WasmCodeWrapper wrapper) {
-  Handle<FixedArray> js_imports_table;
-  int index = 0;
-  if (wrapper.IsCodeObject()) {
-    Handle<Code> js_wrapper = wrapper.GetCode();
-    DCHECK(Code::WASM_TO_JS_FUNCTION == js_wrapper->kind());
-    Handle<FixedArray> deopt_data(js_wrapper->deoptimization_data(), isolate);
-    DCHECK_EQ(2, deopt_data->length());
-    intptr_t js_imports_table_loc = static_cast<intptr_t>(
-        HeapNumber::cast(deopt_data->get(0))->value_as_bits());
-    js_imports_table = Handle<FixedArray>(
-        reinterpret_cast<FixedArray**>(js_imports_table_loc));
-    CHECK(deopt_data->get(1)->ToInt32(&index));
-    DCHECK_GT(js_imports_table->length(), index);
-  } else {
-    const wasm::WasmCode* wasm_code = wrapper.GetWasmCode();
-    DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_code->kind());
-    js_imports_table = Handle<FixedArray>(wasm_code->owner()
-                                              ->compiled_module()
-                                              ->owning_instance()
-                                              ->js_imports_table());
-    index = 1 + 3 * static_cast<int>(wasm_code->index());
-  }
-  Handle<Object> obj(js_imports_table->get(index), isolate);
-  if (obj->IsCallable()) {
-    return Handle<HeapObject>::cast(obj);
-  } else {
-    // If we did not find a callable object, this is an illegal JS import and
-    // obj must be undefined.
-    DCHECK(obj->IsUndefined(isolate));
-    return Handle<HeapObject>::null();
-  }
-}
-
 class SideTable;
 
 // Code and metadata needed to execute a function.
@@ -965,9 +928,6 @@ class CodeMap {
   Zone* zone_;
   const WasmModule* module_;
   ZoneVector<InterpreterCode> interpreter_code_;
-  // This handle is set and reset by the SetInstanceObject() /
-  // ClearInstanceObject() method, which is used by the HeapObjectsScope.
-  Handle<WasmInstanceObject> instance_;
   // TODO(wasm): Remove this testing wart. It is needed because interpreter
   // entry stubs are not generated in testing the interpreter in cctests.
   bool call_indirect_through_module_ = false;
@@ -995,38 +955,7 @@ class CodeMap {
     call_indirect_through_module_ = val;
   }
 
-  void SetInstanceObject(Handle<WasmInstanceObject> instance) {
-    DCHECK(instance_.is_null());
-    instance_ = instance;
-  }
-
-  void ClearInstanceObject() { instance_ = Handle<WasmInstanceObject>::null(); }
-
   const WasmModule* module() const { return module_; }
-  bool has_instance() const { return !instance_.is_null(); }
-  WasmInstanceObject* instance() const {
-    DCHECK(has_instance());
-    return *instance_;
-  }
-  MaybeHandle<WasmInstanceObject> maybe_instance() const {
-    return has_instance() ? handle(instance())
-                          : MaybeHandle<WasmInstanceObject>();
-  }
-
-  const wasm::WasmCode* GetImportedFunction(uint32_t function_index) {
-    DCHECK(has_instance());
-    DCHECK_GT(module_->num_imported_functions, function_index);
-    const wasm::NativeModule* native_module =
-        instance()->compiled_module()->GetNativeModule();
-    return native_module->GetCode(function_index);
-  }
-
-  Code* GetImportedFunctionGC(uint32_t function_index) {
-    DCHECK(has_instance());
-    DCHECK_GT(module_->num_imported_functions, function_index);
-    FixedArray* code_table = instance()->compiled_module()->code_table();
-    return Code::cast(code_table->get(static_cast<int>(function_index)));
-  }
 
   InterpreterCode* GetCode(const WasmFunction* function) {
     InterpreterCode* code = GetCode(function->func_index);
@@ -1105,60 +1034,6 @@ class CodeMap {
   }
 };
 
-Handle<Object> WasmValueToNumber(Factory* factory, WasmValue val,
-                                 wasm::ValueType type) {
-  switch (type) {
-    case kWasmI32:
-      return factory->NewNumberFromInt(val.to<int32_t>());
-    case kWasmI64:
-      // wasm->js and js->wasm is illegal for i64 type.
-      UNREACHABLE();
-    case kWasmF32:
-      return factory->NewNumber(val.to<float>());
-    case kWasmF64:
-      return factory->NewNumber(val.to<double>());
-    default:
-      // TODO(wasm): Implement simd.
-      UNIMPLEMENTED();
-      return Handle<Object>::null();
-  }
-}
-
-// Convert JS value to WebAssembly, spec here:
-// https://github.com/WebAssembly/design/blob/master/JS.md#towebassemblyvalue
-// Return WasmValue() (i.e. of type kWasmStmt) on failure. In that case, an
-// exception will be pending on the isolate.
-WasmValue ToWebAssemblyValue(Isolate* isolate, Handle<Object> value,
-                             wasm::ValueType type) {
-  switch (type) {
-    case kWasmI32: {
-      MaybeHandle<Object> maybe_i32 = Object::ToInt32(isolate, value);
-      if (maybe_i32.is_null()) return {};
-      int32_t value;
-      CHECK(maybe_i32.ToHandleChecked()->ToInt32(&value));
-      return WasmValue(value);
-    }
-    case kWasmI64:
-      // If the signature contains i64, a type error was thrown before.
-      UNREACHABLE();
-    case kWasmF32: {
-      MaybeHandle<Object> maybe_number = Object::ToNumber(value);
-      if (maybe_number.is_null()) return {};
-      return WasmValue(
-          static_cast<float>(maybe_number.ToHandleChecked()->Number()));
-    }
-    case kWasmF64: {
-      MaybeHandle<Object> maybe_number = Object::ToNumber(value);
-      if (maybe_number.is_null()) return {};
-      return WasmValue(maybe_number.ToHandleChecked()->Number());
-    }
-    default:
-      // TODO(wasm): Handle simd.
-      UNIMPLEMENTED();
-      return WasmValue();
-  }
-}
-
 // Like a static_cast from src to dst, but specialized for boxed floats.
 template <typename dst, typename src>
 struct converter {
@@ -1204,9 +1079,10 @@ class ThreadImpl {
   };
 
  public:
-  ThreadImpl(Zone* zone, CodeMap* codemap, WasmContext* wasm_context)
+  ThreadImpl(Zone* zone, CodeMap* codemap,
+             Handle<WasmInstanceObject> instance_object)
       : codemap_(codemap),
-        wasm_context_(wasm_context),
+        instance_object_(instance_object),
         zone_(zone),
         frames_(zone),
         activations_(zone) {}
@@ -1366,7 +1242,7 @@ class ThreadImpl {
   friend class InterpretedFrameImpl;
 
   CodeMap* codemap_;
-  WasmContext* wasm_context_;
+  Handle<WasmInstanceObject> instance_object_;
   Zone* zone_;
   WasmValue* stack_start_ = nullptr;  // Start of allocated stack space.
   WasmValue* stack_limit_ = nullptr;  // End of allocated stack space.
@@ -1497,7 +1373,7 @@ class ThreadImpl {
   // Returns true if the call was successful, false if the stack check failed
   // and the current activation was fully unwound.
   bool DoCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
-              pc_t* limit) WARN_UNUSED_RESULT {
+              pc_t* limit) V8_WARN_UNUSED_RESULT {
     frames_.back().pc = *pc;
     PushFrame(target);
     if (!DoStackCheck()) return false;
@@ -1523,14 +1399,14 @@ class ThreadImpl {
 
   template <typename mtype>
   inline byte* BoundsCheckMem(uint32_t offset, uint32_t index) {
-    uint32_t mem_size = wasm_context_->mem_size;
+    size_t mem_size = instance_object_->memory_size();
     if (sizeof(mtype) > mem_size) return nullptr;
     if (offset > (mem_size - sizeof(mtype))) return nullptr;
     if (index > (mem_size - sizeof(mtype) - offset)) return nullptr;
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
-    return wasm_context_->mem_start + offset +
-           (index & wasm_context_->mem_mask);
+    return instance_object_->memory_start() + offset +
+           (index & instance_object_->memory_mask());
   }
 
   template <typename ctype, typename mtype>
@@ -1554,7 +1430,7 @@ class ThreadImpl {
       wasm::MemoryTracingInfo info(operand.offset + index, false, rep);
       TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
-                           wasm_context_->mem_start);
+                           instance_object_->memory_start());
     }
 
     return true;
@@ -1580,7 +1456,7 @@ class ThreadImpl {
       wasm::MemoryTracingInfo info(operand.offset + index, true, rep);
       TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
-                           wasm_context_->mem_start);
+                           instance_object_->memory_start());
     }
 
     return true;
@@ -1723,7 +1599,7 @@ class ThreadImpl {
   // fully unwound.
   // Do call this function immediately *after* pushing a new frame. The pc of
   // the top frame will be reset to 0 if the stack check fails.
-  bool DoStackCheck() WARN_UNUSED_RESULT {
+  bool DoStackCheck() V8_WARN_UNUSED_RESULT {
     // The goal of this stack check is not to prevent actual stack overflows,
     // but to simulate stack overflows during the execution of compiled code.
     // That is why this function uses FLAG_stack_size, even though the value
@@ -1735,14 +1611,10 @@ class ThreadImpl {
     if (V8_LIKELY(current_stack_size <= stack_size_limit)) {
       return true;
     }
-    if (!codemap()->has_instance()) {
-      // In test mode: Just abort.
-      FATAL("wasm interpreter: stack overflow");
-    }
     // The pc of the top frame is initialized to the first instruction. We reset
     // it to 0 here such that we report the same position as in compiled code.
     frames_.back().pc = 0;
-    Isolate* isolate = codemap()->instance()->GetIsolate();
+    Isolate* isolate = instance_object_->GetIsolate();
     HandleScope handle_scope(isolate);
     isolate->StackOverflow();
     return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
@@ -2024,7 +1896,7 @@ class ThreadImpl {
           GlobalIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
-          byte* ptr = wasm_context_->globals_start + global->offset;
+          byte* ptr = instance_object_->globals_start() + global->offset;
           WasmValue val;
           switch (global->type) {
 #define CASE_TYPE(wasm, ctype)                       \
@@ -2044,7 +1916,7 @@ class ThreadImpl {
           GlobalIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
-          byte* ptr = wasm_context_->globals_start + global->offset;
+          byte* ptr = instance_object_->globals_start() + global->offset;
           WasmValue val = Pop();
           switch (global->type) {
 #define CASE_TYPE(wasm, ctype)                        \
@@ -2150,12 +2022,9 @@ class ThreadImpl {
           MemoryIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
-          Handle<WasmInstanceObject> instance =
-              codemap()->maybe_instance().ToHandleChecked();
-          DCHECK_EQ(wasm_context_, instance->wasm_context()->get());
-          Isolate* isolate = instance->GetIsolate();
-          int32_t result =
-              WasmInstanceObject::GrowMemory(isolate, instance, delta_pages);
+          Handle<WasmMemoryObject> memory(instance_object_->memory_object());
+          Isolate* isolate = memory->GetIsolate();
+          int32_t result = WasmMemoryObject::Grow(isolate, memory, delta_pages);
           Push(WasmValue(result));
           len = 1 + operand.length;
           // Treat one grow_memory instruction like 1000 other instructions,
@@ -2166,8 +2035,8 @@ class ThreadImpl {
         case kExprMemorySize: {
           MemoryIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
-          Push(WasmValue(
-              static_cast<uint32_t>(wasm_context_->mem_size / kWasmPageSize)));
+          Push(WasmValue(static_cast<uint32_t>(instance_object_->memory_size() /
+                                               kWasmPageSize)));
           len = 1 + operand.length;
           break;
         }
@@ -2366,66 +2235,17 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  ExternalCallResult CallExternalJSFunction(Isolate* isolate,
-                                            WasmCodeWrapper code,
-                                            FunctionSig* signature) {
-    Handle<HeapObject> target = UnwrapWasmToJSWrapper(isolate, code);
-
-    if (target.is_null()) {
+  ExternalCallResult CallExternalWasmFunction(
+      Isolate* isolate, Handle<WasmInstanceObject> instance,
+      const wasm::WasmCode* code, FunctionSig* sig) {
+    if (code->kind() == wasm::WasmCode::kWasmToJsWrapper &&
+        !IsJSCompatibleSignature(sig)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));
       return TryHandleException(isolate);
     }
 
-#if DEBUG
-    std::ostringstream oss;
-    target->HeapObjectShortPrint(oss);
-    TRACE("  => Calling imported function %s\n", oss.str().c_str());
-#endif
-
-    int num_args = static_cast<int>(signature->parameter_count());
-
-    // Get all arguments as JS values.
-    std::vector<Handle<Object>> args;
-    args.reserve(num_args);
-    WasmValue* wasm_args = sp_ - num_args;
-    for (int i = 0; i < num_args; ++i) {
-      args.push_back(WasmValueToNumber(isolate->factory(), wasm_args[i],
-                                       signature->GetParam(i)));
-    }
-
-    // The receiver is the global proxy if in sloppy mode (default), undefined
-    // if in strict mode.
-    Handle<Object> receiver = isolate->global_proxy();
-    if (target->IsJSFunction() &&
-        is_strict(JSFunction::cast(*target)->shared()->language_mode())) {
-      receiver = isolate->factory()->undefined_value();
-    }
-
-    MaybeHandle<Object> maybe_retval =
-        Execution::Call(isolate, target, receiver, num_args, args.data());
-    if (maybe_retval.is_null()) return TryHandleException(isolate);
-
-    Handle<Object> retval = maybe_retval.ToHandleChecked();
-    // Pop arguments off the stack.
-    sp_ -= num_args;
-    // Push return values.
-    if (signature->return_count() > 0) {
-      // TODO(wasm): Handle multiple returns.
-      DCHECK_EQ(1, signature->return_count());
-      WasmValue value =
-          ToWebAssemblyValue(isolate, retval, signature->GetReturn());
-      if (value.type() == kWasmStmt) return TryHandleException(isolate);
-      Push(value);
-    }
-    return {ExternalCallResult::EXTERNAL_RETURNED};
-  }
-
-  ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
-                                              WasmCodeWrapper code,
-                                              FunctionSig* sig) {
-    Handle<WasmDebugInfo> debug_info(codemap()->instance()->debug_info(),
-                                     isolate);
+    Handle<WasmDebugInfo> debug_info(instance_object_->debug_info(), isolate);
     Handle<JSFunction> wasm_entry =
         WasmDebugInfo::GetCWasmEntry(debug_info, sig);
 
@@ -2476,7 +2296,7 @@ class ThreadImpl {
       arg_buffer.resize(return_size);
     }
 
-    // Wrap the arg_buffer data pointer and the WasmContext* in a handle. As
+    // Wrap the arg_buffer data pointer in a handle. As
     // this is an aligned pointer, to the GC it will look like a Smi.
     Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
                                   isolate);
@@ -2485,15 +2305,9 @@ class ThreadImpl {
     static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
-    WasmContext* context = code.wasm_context();
-    Handle<Object> context_obj(reinterpret_cast<Object*>(context), isolate);
-    DCHECK(!context_obj->IsHeapObject());
-    args[compiler::CWasmEntryParameters::kCodeObject] =
-        code.IsCodeObject()
-            ? Handle<Object>::cast(code.GetCode())
-            : Handle<Object>::cast(isolate->factory()->NewForeign(
-                  code.GetWasmCode()->instructions().start(), TENURED));
-    args[compiler::CWasmEntryParameters::kWasmContext] = context_obj;
+    args[compiler::CWasmEntryParameters::kCodeObject] = Handle<Object>::cast(
+        isolate->factory()->NewForeign(code->instructions().start(), TENURED));
+    args[compiler::CWasmEntryParameters::kWasmInstance] = instance;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -2536,68 +2350,23 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  ExternalCallResult CallCodeObject(Isolate* isolate, Handle<Code> code,
-                                    FunctionSig* signature) {
-    DCHECK(AllowHandleAllocation::IsAllowed());
-    DCHECK(AllowHeapAllocation::IsAllowed());
-
-    if (code->kind() == Code::WASM_FUNCTION ||
-        code->kind() == Code::WASM_TO_WASM_FUNCTION) {
-      auto func_info = GetWasmFunctionInfo(isolate, code);
-      if (*func_info.instance.ToHandleChecked() != codemap()->instance()) {
-        return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                        signature);
-      }
-      DCHECK_LE(0, func_info.func_index);
-      return {ExternalCallResult::INTERNAL,
-              codemap()->GetCode(func_info.func_index)};
-    }
-
-    return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-  }
-
-  ExternalCallResult CallWasmCode(Isolate* isolate, const wasm::WasmCode* code,
-                                  FunctionSig* signature) {
-    DCHECK(AllowHandleAllocation::IsAllowed());
-    DCHECK(AllowHeapAllocation::IsAllowed());
-
-    if (code->kind() == wasm::WasmCode::kFunction) {
-      if (code->owner()->compiled_module()->owning_instance() !=
-          codemap()->instance()) {
-        return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                        signature);
-      }
-      return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
-    }
-
-    if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
-      return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-    }
-    if (code->kind() == wasm::WasmCode::kWasmToWasmWrapper ||
-        code->kind() == wasm::WasmCode::kInterpreterStub) {
-      return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                      signature);
-    }
-    return {ExternalCallResult::INVALID_FUNC};
-  }
-
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
     // Use a new HandleScope to avoid leaking / accumulating handles in the
     // outer scope.
-    Isolate* isolate = codemap()->instance()->GetIsolate();
+    Isolate* isolate = instance_object_->GetIsolate();
     HandleScope handle_scope(isolate);
 
-    if (FLAG_wasm_jit_to_native) {
-      const wasm::WasmCode* target =
-          codemap()->GetImportedFunction(function_index);
-      return CallWasmCode(isolate, target,
-                          codemap()->module()->functions[function_index].sig);
-    } else {
-      Handle<Code> target(codemap()->GetImportedFunctionGC(function_index),
-                          isolate);
-      return CallCodeObject(isolate, target,
-                            codemap()->module()->functions[function_index].sig);
+    DCHECK_GT(module()->num_imported_functions, function_index);
+    Handle<WasmInstanceObject> instance;
+    WasmCode* code;
+    {
+      ImportedFunctionEntry entry(*instance_object_, function_index);
+      instance = handle(entry.instance(), isolate);
+      code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
+          entry.target());
     }
+    FunctionSig* sig = codemap()->module()->functions[function_index].sig;
+    return CallExternalWasmFunction(isolate, instance, code, sig);
   }
 
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
@@ -2622,81 +2391,51 @@ class ThreadImpl {
       return {ExternalCallResult::INTERNAL, code};
     }
 
-    WasmCompiledModule* compiled_module =
-        codemap()->instance()->compiled_module();
-    Isolate* isolate = compiled_module->GetIsolate();
+    Isolate* isolate = instance_object_->GetIsolate();
+    uint32_t expected_sig_id = module()->signature_ids[sig_index];
+    DCHECK_EQ(expected_sig_id,
+              module()->signature_map.Find(module()->signatures[sig_index]));
 
-    const wasm::WasmCode* target = nullptr;
-    Code* target_gc = nullptr;
+    // The function table is stored in the instance.
+    // TODO(wasm): the wasm interpreter currently supports only one table.
+    CHECK_EQ(0, table_index);
+    // Bounds check against table size.
+    if (entry_index >= instance_object_->indirect_function_table_size()) {
+      return {ExternalCallResult::INVALID_FUNC};
+    }
+
+    WasmCode* code;
+    Handle<WasmInstanceObject> instance;
     {
-      DisallowHeapAllocation no_gc;
-      // Get function to be called directly from the live instance to see latest
-      // changes to the tables.
-
-      // Canonicalize signature index.
-      uint32_t canonical_sig_index = module()->signature_ids[sig_index];
-      DCHECK_EQ(canonical_sig_index,
-                module()->signature_map.Find(module()->signatures[sig_index]));
-
-      if (!WASM_CONTEXT_TABLES) {
-        // Check signature.
-        FixedArray* fun_tables = compiled_module->function_tables();
-        if (table_index >= static_cast<uint32_t>(fun_tables->length())) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        // Reconstitute the global handle to the function table, from the
-        // address stored in the respective table of tables.
-        int table_index_as_int = static_cast<int>(table_index);
-        FixedArray* fun_table = *reinterpret_cast<FixedArray**>(
-            WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int));
-        // Function tables store <smi, code> pairs.
-        int num_funcs_in_table =
-            fun_table->length() / compiler::kFunctionTableEntrySize;
-        if (entry_index >= static_cast<uint32_t>(num_funcs_in_table)) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        int found_sig = Smi::ToInt(fun_table->get(
-            compiler::FunctionTableSigOffset(static_cast<int>(entry_index))));
-        if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
-          return {ExternalCallResult::SIGNATURE_MISMATCH};
-        }
-
-        // Get code object.
-        target_gc = Code::cast(fun_table->get(
-            compiler::FunctionTableCodeOffset(static_cast<int>(entry_index))));
-      } else {
-        // The function table is stored in the wasm context.
-        // TODO(wasm): the wasm interpreter currently supports only one table.
-        CHECK_EQ(0, table_index);
-        // Bounds check against table size.
-        if (entry_index >= wasm_context_->table_size) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        // Signature check.
-        int32_t entry_sig = wasm_context_->table[entry_index].sig_id;
-        if (entry_sig != static_cast<int32_t>(canonical_sig_index)) {
-          return {ExternalCallResult::SIGNATURE_MISMATCH};
-        }
-        // Load the target address (first instruction of code).
-        Address first_instr = wasm_context_->table[entry_index].target;
-        // TODO(titzer): load the wasm context instead of relying on the
-        // target code being specialized to the target instance.
-        // Get code object.
-        target =
-            isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
-                first_instr);
+      IndirectFunctionTableEntry entry(*instance_object_, entry_index);
+      // Signature check.
+      if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
+        return {ExternalCallResult::SIGNATURE_MISMATCH};
       }
+
+      instance = handle(entry.instance(), isolate);
+      code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
+          entry.target());
     }
 
-    // Call the code object. Use a new HandleScope to avoid leaking /
-    // accumulating handles in the outer scope.
-    HandleScope handle_scope(isolate);
+    // Call either an internal or external WASM function.
+    HandleScope scope(isolate);
     FunctionSig* signature = module()->signatures[sig_index];
-    if (FLAG_wasm_jit_to_native) {
-      return CallWasmCode(isolate, target, signature);
-    } else {
-      return CallCodeObject(isolate, handle(target_gc, isolate), signature);
+
+    if (code->kind() == wasm::WasmCode::kFunction) {
+      if (!instance_object_.is_identical_to(instance)) {
+        // Cross instance call.
+        return CallExternalWasmFunction(isolate, instance, code, signature);
+      }
+      return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
     }
+
+    // Call to external function.
+    if (code->kind() == wasm::WasmCode::kInterpreterStub ||
+        code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
+      return CallExternalWasmFunction(isolate, instance, code, signature);
+    }
+    return {ExternalCallResult::INVALID_FUNC};
   }
 
   inline Activation current_activation() {
@@ -2785,37 +2524,6 @@ const InterpretedFrameImpl* ToImpl(const InterpretedFrame* frame) {
   return reinterpret_cast<const InterpretedFrameImpl*>(frame);
 }
 
-//============================================================================
-// Implementation details of the heap objects scope.
-//============================================================================
-class HeapObjectsScopeImpl {
- public:
-  HeapObjectsScopeImpl(CodeMap* codemap, Handle<WasmInstanceObject> instance)
-      : codemap_(codemap), needs_reset(!codemap_->has_instance()) {
-    if (needs_reset) {
-      instance_ = handle(*instance);
-      codemap_->SetInstanceObject(instance_);
-    } else {
-      DCHECK_EQ(*instance, codemap_->instance());
-      return;
-    }
-  }
-
-  ~HeapObjectsScopeImpl() {
-    if (!needs_reset) return;
-    DCHECK_EQ(*instance_, codemap_->instance());
-    codemap_->ClearInstanceObject();
-    // Clear the handle, such that anyone who accidentally copied them will
-    // notice.
-    *instance_.location() = nullptr;
-  }
-
- private:
-  CodeMap* codemap_;
-  Handle<WasmInstanceObject> instance_;
-  bool needs_reset;
-};
-
 }  // namespace
 
 //============================================================================
@@ -2896,23 +2604,42 @@ class WasmInterpreterInternals : public ZoneObject {
   WasmInterpreterInternals(Isolate* isolate, Zone* zone,
                            const WasmModule* module,
                            const ModuleWireBytes& wire_bytes,
-                           WasmContext* wasm_context)
+                           Handle<WasmInstanceObject> instance_object)
       : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
         codemap_(isolate, module, module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.emplace_back(zone, &codemap_, wasm_context);
+    threads_.emplace_back(zone, &codemap_, instance_object);
   }
 };
+
+namespace {
+// TODO(wasm): a finalizer is only required to delete the global handle.
+void GlobalHandleDeleter(const v8::WeakCallbackInfo<void>& data) {
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(
+      reinterpret_cast<JSObject**>(data.GetParameter())));
+}
+
+Handle<WasmInstanceObject> MakeWeak(
+    Isolate* isolate, Handle<WasmInstanceObject> instance_object) {
+  Handle<Object> handle = isolate->global_handles()->Create(*instance_object);
+  // TODO(wasm): use a phantom handle in the WasmInterpreter.
+  GlobalHandles::MakeWeak(handle.location(), handle.location(),
+                          &GlobalHandleDeleter,
+                          v8::WeakCallbackType::kFinalizer);
+  return Handle<WasmInstanceObject>::cast(handle);
+}
+}  // namespace
 
 //============================================================================
 // Implementation of the public interface of the interpreter.
 //============================================================================
 WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
                                  const ModuleWireBytes& wire_bytes,
-                                 WasmContext* wasm_context)
+                                 Handle<WasmInstanceObject> instance_object)
     : zone_(isolate->allocator(), ZONE_NAME),
       internals_(new (&zone_) WasmInterpreterInternals(
-          isolate, &zone_, module, wire_bytes, wasm_context)) {}
+          isolate, &zone_, module, wire_bytes,
+          MakeWeak(isolate, instance_object))) {}
 
 WasmInterpreter::~WasmInterpreter() { internals_->~WasmInterpreterInternals(); }
 
@@ -2983,7 +2710,7 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   // Create some dummy structures, to avoid special-casing the implementation
   // just for testing.
   FunctionSig sig(0, 0, nullptr);
-  WasmFunction function{&sig, 0, 0, {0, 0}, {0, 0}, false, false};
+  WasmFunction function{&sig, 0, 0, {0, 0}, false, false};
   InterpreterCode code{
       &function, BodyLocalDecls(zone), start, end, nullptr, nullptr, nullptr};
 
@@ -3016,19 +2743,6 @@ WasmValue InterpretedFrame::GetStackValue(int index) const {
 }
 void InterpretedFrame::Deleter::operator()(InterpretedFrame* ptr) {
   delete ToImpl(ptr);
-}
-
-//============================================================================
-// Public API of the heap objects scope.
-//============================================================================
-WasmInterpreter::HeapObjectsScope::HeapObjectsScope(
-    WasmInterpreter* interpreter, Handle<WasmInstanceObject> instance) {
-  static_assert(sizeof(data) == sizeof(HeapObjectsScopeImpl), "Size mismatch");
-  new (data) HeapObjectsScopeImpl(&interpreter->internals_->codemap_, instance);
-}
-
-WasmInterpreter::HeapObjectsScope::~HeapObjectsScope() {
-  reinterpret_cast<HeapObjectsScopeImpl*>(data)->~HeapObjectsScopeImpl();
 }
 
 #undef TRACE

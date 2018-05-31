@@ -153,43 +153,30 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register scratch2 = r9;
 
   Label call_runtime, done, int_exponent;
-  if (exponent_type() == TAGGED) {
-    // Base is already in double_base.
-    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
-    __ LoadDouble(double_exponent,
-                  FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  // Detect integer exponents stored as double.
+  __ TryDoubleToInt32Exact(scratch, double_exponent, scratch2, double_scratch);
+  __ beq(&int_exponent, Label::kNear);
+
+  __ push(r14);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     0, 2);
   }
-
-  if (exponent_type() != INTEGER) {
-    // Detect integer exponents stored as double.
-    __ TryDoubleToInt32Exact(scratch, double_exponent, scratch2,
-                             double_scratch);
-    __ beq(&int_exponent, Label::kNear);
-
-    __ push(r14);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(0, 2, scratch);
-      __ MovToFloatParameters(double_base, double_exponent);
-      __ CallCFunction(
-          ExternalReference::power_double_double_function(isolate()), 0, 2);
-    }
-    __ pop(r14);
-    __ MovFromFloatResult(double_result);
-    __ b(&done);
-  }
+  __ pop(r14);
+  __ MovFromFloatResult(double_result);
+  __ b(&done);
 
   // Calculate power with integer exponent.
   __ bind(&int_exponent);
 
   // Get two copies of exponent in the registers scratch and exponent.
-  if (exponent_type() == INTEGER) {
-    __ LoadRR(scratch, exponent);
-  } else {
-    // Exponent has previously been stored into scratch as untagged integer.
-    __ LoadRR(exponent, scratch);
-  }
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ LoadRR(exponent, scratch);
+
   __ ldr(double_scratch, double_base);  // Back up base.
   __ LoadImmP(scratch2, Operand(1));
   __ ConvertIntToDouble(double_result, scratch2);

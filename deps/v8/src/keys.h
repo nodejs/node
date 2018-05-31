@@ -55,8 +55,11 @@ class KeyAccumulator final BASE_EMBEDDED {
 
   // Might return directly the object's enum_cache, copy the result before using
   // as an elements backing store for a JSObject.
+  // Does not throw for uninitialized exports in module namespace objects, so
+  // this has to be checked separately.
   static Handle<FixedArray> GetOwnEnumPropertyKeys(Isolate* isolate,
                                                    Handle<JSObject> object);
+
   void AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);

@@ -6,7 +6,7 @@
 
 #include "src/api-arguments-inl.h"
 #include "src/elements.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/identity-map.h"
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"
@@ -659,6 +659,16 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
     } else {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object, object->property_dictionary());
+    }
+    if (object->IsJSModuleNamespace()) {
+      // Simulate [[GetOwnProperty]] for establishing enumerability, which
+      // throws for uninitialized exports.
+      for (int i = 0, n = enum_keys->length(); i < n; ++i) {
+        Handle<String> key(String::cast(enum_keys->get(i)), isolate_);
+        if (Handle<JSModuleNamespace>::cast(object)->GetExport(key).is_null()) {
+          return Nothing<bool>();
+        }
+      }
     }
     AddKeys(enum_keys, DO_NOT_CONVERT);
   } else {

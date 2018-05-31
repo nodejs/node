@@ -7,8 +7,8 @@
 # Download page:
 # https://pypi.python.org/pypi/Jinja2
 PACKAGE='Jinja2'
-VERSION='2.8'
-SRC_URL='https://pypi.python.org/packages/f2/2f/0b98b06a345a761bec91a079ccae392d282690c2d8272e708f4d10829e22/Jinja2-2.8.tar.gz'
+VERSION='2.10'
+SRC_URL='https://pypi.python.org/packages/56/e6/332789f295cf22308386cf5bbd1f4e00ed11484299c5d7383378cf48ba47/Jinja2-2.10.tar.gz'
 PACKAGE_DIR='jinja2'
 
 CHROMIUM_FILES="README.chromium OWNERS get_jinja2.sh"
@@ -120,3 +120,17 @@ mv "$INSTALL_DIR" "$OLD_DIR"
 mv "$PACKAGE_DIR" "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 rm -fr "$OLD_DIR"
+
+# Generating jinja2.gni
+cat > jinja2.gni <<EOF
+# DO NOT EDIT
+# This is generated from get_jinja2.sh.
+jinja2_sources = [
+EOF
+
+for i in $(LC_COLLATE=C ls *.py)
+do
+  echo "  \"//third_party/jinja2/${i}\"," >> jinja2.gni
+done
+
+echo "]" >> jinja2.gni

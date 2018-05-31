@@ -589,7 +589,6 @@ bool NodeProperties::CanBeNullOrUndefined(Node* receiver, Node* effect) {
     switch (receiver->opcode()) {
       case IrOpcode::kCheckInternalizedString:
       case IrOpcode::kCheckNumber:
-      case IrOpcode::kCheckSeqString:
       case IrOpcode::kCheckSmi:
       case IrOpcode::kCheckString:
       case IrOpcode::kCheckSymbol:

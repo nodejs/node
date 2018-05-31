@@ -31,31 +31,33 @@ namespace internal {
 //
 class EntryFrameConstants : public AllStatic {
  public:
-  static const int kCallerFPOffset = -3 * kPointerSize;
-  static const int kFixedFrameSize = 6 * kPointerSize;
+  static constexpr int kCallerFPOffset = -3 * kPointerSize;
+  static constexpr int kFixedFrameSize = 6 * kPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {
  public:
-  static const int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  static const int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static const int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static constexpr int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   DEFINE_TYPED_FRAME_SIZES(3);
-  static const int kLastExitFrameField = kPaddingOffset;
+  static constexpr int kLastExitFrameField = kPaddingOffset;
 
-  static const int kConstantPoolOffset = 0;  // Not used
+  static constexpr int kConstantPoolOffset = 0;  // Not used
 };
 
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
-  static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
+  static constexpr int kLocal0Offset =
+      StandardFrameConstants::kExpressionsOffset;
 
   // There are two words on the stack (saved fp and saved lr) between fp and
   // the arguments.
-  static const int kLastParameterOffset = 2 * kPointerSize;
+  static constexpr int kLastParameterOffset = 2 * kPointerSize;
 
-  static const int kFunctionOffset = StandardFrameConstants::kFunctionOffset;
+  static constexpr int kFunctionOffset =
+      StandardFrameConstants::kFunctionOffset;
 };
 
 }  // namespace internal

@@ -33,8 +33,6 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
     v8::HandleScope handle_scope(isolate_);
     context_.Reset(isolate_, v8::Context::New(isolate_));
   }
-
-  v8::platform::EnsureEventLoopInitialized(platform_.get(), isolate_);
 }
 
 FuzzerSupport::~FuzzerSupport() {

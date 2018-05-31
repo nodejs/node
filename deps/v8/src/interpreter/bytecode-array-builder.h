@@ -21,6 +21,7 @@
 namespace v8 {
 namespace internal {
 
+class FeedbackVectorSpec;
 class Isolate;
 
 namespace interpreter {
@@ -160,6 +161,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
                                            int feedback_slot,
                                            LanguageMode language_mode);
+  // Store an own element in an array literal. The value to be stored should be
+  // in the accumulator.
+  BytecodeArrayBuilder& StoreInArrayLiteral(Register array, Register index,
+                                            int feedback_slot);
   // Store the home object property. The value to be stored should be in the
   // accumulator.
   BytecodeArrayBuilder& StoreHomeObjectProperty(Register object,
@@ -371,6 +376,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Converts accumulator and stores result in register |out|.
   BytecodeArrayBuilder& ToObject(Register out);
   BytecodeArrayBuilder& ToName(Register out);
+  BytecodeArrayBuilder& ToString();
 
   // Converts accumulator and stores result back in accumulator.
   BytecodeArrayBuilder& ToNumber(int feedback_slot);

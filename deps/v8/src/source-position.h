@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 class Code;
-class CompilationInfo;
+class OptimizedCompilationInfo;
 class Script;
 class SharedFunctionInfo;
 struct SourcePositionInfo;
@@ -26,7 +26,7 @@ struct SourcePositionInfo;
 // - inlining_id (16 bit non-negative int or kNotInlined).
 //
 // A defined inlining_id refers to positions in
-// CompilationInfo::inlined_functions or
+// OptimizedCompilationInfo::inlined_functions or
 // DeoptimizationData::InliningPositions, depending on the compilation stage.
 class SourcePosition final {
  public:
@@ -44,7 +44,8 @@ class SourcePosition final {
 
   // Assumes that the code object is optimized
   std::vector<SourcePositionInfo> InliningStack(Handle<Code> code) const;
-  std::vector<SourcePositionInfo> InliningStack(CompilationInfo* cinfo) const;
+  std::vector<SourcePositionInfo> InliningStack(
+      OptimizedCompilationInfo* cinfo) const;
 
   void Print(std::ostream& out, Code* code) const;
 

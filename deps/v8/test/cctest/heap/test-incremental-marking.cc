@@ -40,10 +40,18 @@ class MockPlatform : public TestPlatform {
   virtual ~MockPlatform() {
     delete task_;
     i::V8::SetPlatformForTesting(old_platform_);
+    for (auto& task : worker_tasks_) {
+      old_platform_->CallOnWorkerThread(std::move(task));
+    }
+    worker_tasks_.clear();
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     task_ = task;
+  }
+
+  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
+    worker_tasks_.push_back(std::move(task));
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
@@ -59,6 +67,7 @@ class MockPlatform : public TestPlatform {
 
  private:
   Task* task_;
+  std::vector<std::unique_ptr<Task>> worker_tasks_;
   v8::Platform* old_platform_;
 };
 

@@ -29,4 +29,4 @@
 
 var dtf = Intl.DateTimeFormat(['xx']);
 
-assertLanguageTag(%GetDefaultICULocale(), dtf.resolvedOptions().locale);
+assertEquals(dtf.resolvedOptions().locale, %GetDefaultICULocale());

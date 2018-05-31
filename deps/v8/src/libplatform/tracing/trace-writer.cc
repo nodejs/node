@@ -119,12 +119,8 @@ void JSONTraceWriter::AppendArgValue(ConvertableToTraceFormat* value) {
   stream_ << arg_stringified;
 }
 
-JSONTraceWriter::JSONTraceWriter(std::ostream& stream)
-    : JSONTraceWriter(stream, "traceEvents") {}
-
-JSONTraceWriter::JSONTraceWriter(std::ostream& stream, const std::string& tag)
-    : stream_(stream) {
-  stream_ << "{\"" << tag << "\":[";
+JSONTraceWriter::JSONTraceWriter(std::ostream& stream) : stream_(stream) {
+  stream_ << "{\"traceEvents\":[";
 }
 
 JSONTraceWriter::~JSONTraceWriter() { stream_ << "]}"; }
@@ -173,11 +169,6 @@ void JSONTraceWriter::Flush() {}
 
 TraceWriter* TraceWriter::CreateJSONTraceWriter(std::ostream& stream) {
   return new JSONTraceWriter(stream);
-}
-
-TraceWriter* TraceWriter::CreateJSONTraceWriter(std::ostream& stream,
-                                                const std::string& tag) {
-  return new JSONTraceWriter(stream, tag);
 }
 
 }  // namespace tracing

@@ -23,34 +23,53 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   inline void VisitPointers(HeapObject* host, Object** start,
                             Object** end) final {
-    for (Address slot_address = reinterpret_cast<Address>(start);
-         slot_address < reinterpret_cast<Address>(end);
-         slot_address += kPointerSize) {
-      Object** slot = reinterpret_cast<Object**>(slot_address);
+    for (Object** slot = start; slot < end; ++slot) {
       Object* target = *slot;
-      scavenger_->PageMemoryFence(target);
-
+      DCHECK(!HasWeakHeapObjectTag(target));
       if (target->IsHeapObject()) {
-        if (heap_->InFromSpace(target)) {
-          scavenger_->ScavengeObject(reinterpret_cast<HeapObject**>(slot),
-                                     HeapObject::cast(target));
-          target = *slot;
-          scavenger_->PageMemoryFence(target);
-
-          if (heap_->InNewSpace(target)) {
-            SLOW_DCHECK(target->IsHeapObject());
-            SLOW_DCHECK(heap_->InToSpace(target));
-            RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot_address),
-                                              slot_address);
-          }
-          SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
-              HeapObject::cast(target)));
-        } else if (record_slots_ &&
-                   MarkCompactCollector::IsOnEvacuationCandidate(
-                       HeapObject::cast(target))) {
-          heap_->mark_compact_collector()->RecordSlot(host, slot, target);
-        }
+        HandleSlot(host, reinterpret_cast<Address>(slot),
+                   HeapObject::cast(target));
       }
+    }
+  }
+
+  inline void VisitPointers(HeapObject* host, MaybeObject** start,
+                            MaybeObject** end) final {
+    // Treat weak references as strong. TODO(marja): Proper weakness handling in
+    // the young generation.
+    for (MaybeObject** slot = start; slot < end; ++slot) {
+      MaybeObject* target = *slot;
+      HeapObject* heap_object;
+      if (target->ToStrongOrWeakHeapObject(&heap_object)) {
+        HandleSlot(host, reinterpret_cast<Address>(slot), heap_object);
+      }
+    }
+  }
+
+  inline void HandleSlot(HeapObject* host, Address slot_address,
+                         HeapObject* target) {
+    HeapObjectReference** slot =
+        reinterpret_cast<HeapObjectReference**>(slot_address);
+    scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
+
+    if (heap_->InFromSpace(target)) {
+      scavenger_->ScavengeObject(slot, target);
+      bool success = (*slot)->ToStrongOrWeakHeapObject(&target);
+      USE(success);
+      DCHECK(success);
+      scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
+
+      if (heap_->InNewSpace(target)) {
+        SLOW_DCHECK(target->IsHeapObject());
+        SLOW_DCHECK(heap_->InToSpace(target));
+        RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot_address),
+                                          slot_address);
+      }
+      SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
+          HeapObject::cast(target)));
+    } else if (record_slots_ && MarkCompactCollector::IsOnEvacuationCandidate(
+                                    HeapObject::cast(target))) {
+      heap_->mark_compact_collector()->RecordSlot(host, slot, target);
     }
   }
 
@@ -84,7 +103,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
       is_compacting_ &&
       heap()->incremental_marking()->atomic_marking_state()->IsBlack(target);
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
-  target->IterateBody(target->map()->instance_type(), size, &visitor);
+  target->IterateBodyFast(target->map(), size, &visitor);
 }
 
 void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
@@ -106,7 +125,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [this](SlotType type, Address host_addr, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
-            heap_->isolate(), type, addr, [this](Object** addr) {
+            heap_->isolate(), type, addr, [this](MaybeObject** addr) {
               return CheckAndScavengeObject(heap(),
                                             reinterpret_cast<Address>(addr));
             });
@@ -164,6 +183,7 @@ void Scavenger::Finalize() {
 
 void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,
                                            Object** p) {
+  DCHECK(!HasWeakHeapObjectTag(*p));
   ScavengePointer(p);
 }
 
@@ -175,9 +195,10 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 
 void RootScavengeVisitor::ScavengePointer(Object** p) {
   Object* object = *p;
+  DCHECK(!HasWeakHeapObjectTag(object));
   if (!heap_->InNewSpace(object)) return;
 
-  scavenger_->ScavengeObject(reinterpret_cast<HeapObject**>(p),
+  scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),
                              reinterpret_cast<HeapObject*>(object));
 }
 
