@@ -1797,6 +1797,36 @@ THREADED_TEST(NumberObject) {
   CHECK_EQ(43.0, the_number);
 }
 
+THREADED_TEST(BigIntObject) {
+  v8::internal::FLAG_harmony_bigint = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context(env.local());
+  v8::Local<Value> boxed_bigint = CompileRun("new Object(42n)");
+  CHECK(!boxed_bigint->IsBigInt());
+  CHECK(boxed_bigint->IsBigIntObject());
+  v8::Local<Value> unboxed_bigint = CompileRun("42n");
+  CHECK(unboxed_bigint->IsBigInt());
+  CHECK(!unboxed_bigint->IsBigIntObject());
+  v8::Local<v8::BigIntObject> as_boxed = boxed_bigint.As<v8::BigIntObject>();
+  CHECK(!as_boxed.IsEmpty());
+  v8::Local<v8::BigInt> unpacked = as_boxed->ValueOf();
+  CHECK(!unpacked.IsEmpty());
+  v8::Local<v8::Value> new_boxed_bigint = v8::BigIntObject::New(isolate, 43);
+  CHECK(new_boxed_bigint->IsBigIntObject());
+  v8::Local<v8::Value> new_unboxed_bigint = v8::BigInt::New(isolate, 44);
+  CHECK(new_unboxed_bigint->IsBigInt());
+
+  // Test functionality inherited from v8::Value.
+  CHECK(unboxed_bigint->BooleanValue(context).ToChecked());
+  v8::Local<v8::String> string =
+      unboxed_bigint->ToString(context).ToLocalChecked();
+  CHECK_EQ(0, strcmp("42", *v8::String::Utf8Value(isolate, string)));
+
+  // IntegerValue throws.
+  CHECK(unboxed_bigint->IntegerValue(context).IsNothing());
+}
 
 THREADED_TEST(BooleanObject) {
   LocalContext env;
@@ -2963,16 +2993,20 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   v8::HandleScope scope(env->GetIsolate());
 
   CheckAlignedPointerInEmbedderData(&env, 0, nullptr);
+  CHECK_EQ(1, (*env)->GetNumberOfEmbedderDataFields());
 
   int* heap_allocated = new int[100];
   CheckAlignedPointerInEmbedderData(&env, 1, heap_allocated);
+  CHECK_EQ(2, (*env)->GetNumberOfEmbedderDataFields());
   delete[] heap_allocated;
 
   int stack_allocated[100];
   CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
+  CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
 
   void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
   CheckAlignedPointerInEmbedderData(&env, 3, huge);
+  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
 
   // Test growing of the embedder data's backing store.
   for (int i = 0; i < 100; i++) {
@@ -2996,10 +3030,17 @@ THREADED_TEST(EmbedderData) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
+  CHECK_EQ(0, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 3, v8_str("The quick brown fox jumps"));
+  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 2, v8_str("over the lazy dog."));
+  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 1, v8::Number::New(isolate, 1.2345));
+  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 0, v8::Boolean::New(isolate, true));
+  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CheckEmbedderData(&env, 211, v8::Boolean::New(isolate, true));
+  CHECK_EQ(212, (*env)->GetNumberOfEmbedderDataFields());
 }
 
 
@@ -3925,6 +3966,28 @@ THREADED_TEST(ArrayBuffer_AllocationInformation) {
   const uintptr_t data = reinterpret_cast<uintptr_t>(contents.Data());
   CHECK_LE(alloc, data);
   CHECK_LE(data + contents.ByteLength(), alloc + contents.AllocationLength());
+}
+
+THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
+  CheckInternalFieldsAreZero(ab);
+  CHECK_EQ(0, static_cast<int>(ab->ByteLength()));
+  CHECK(!ab->IsExternal());
+
+  // Externalize the buffer (taking ownership of the backing store memory).
+  ScopedArrayBufferContents ab_contents(ab->Externalize());
+
+  Local<v8::Uint8Array> u8a = v8::Uint8Array::New(ab, 0, 0);
+  // Calling Buffer() will materialize the ArrayBuffer (transitioning it from
+  // on-heap to off-heap if need be). This should not affect whether it is
+  // marked as is_external or not.
+  USE(u8a->Buffer());
+
+  CHECK(ab->IsExternal());
 }
 
 class ScopedSharedArrayBufferContents {
@@ -12950,6 +13013,137 @@ THREADED_TEST(InterceptorShouldThrowOnError) {
   CHECK(value->IsFalse());
 }
 
+static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+
+TEST(CallHandlerHasNoSideEffect) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  // Function template with call handler.
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->SetCallHandler(EmptyHandler);
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f"),
+                  templ->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+
+  // Side-effect-free version.
+  Local<v8::FunctionTemplate> templ2 = v8::FunctionTemplate::New(isolate);
+  templ2->SetCallHandler(EmptyHandler, v8::Local<Value>(),
+                         v8::SideEffectType::kHasNoSideEffect);
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f2"),
+                  templ2->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+}
+
+TEST(FunctionTemplateNewHasNoSideEffect) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  // Function template with call handler.
+  Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(isolate, EmptyHandler);
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f"),
+                  templ->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+
+  // Side-effect-free version.
+  Local<v8::FunctionTemplate> templ2 = v8::FunctionTemplate::New(
+      isolate, EmptyHandler, v8::Local<Value>(), v8::Local<v8::Signature>(), 0,
+      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasNoSideEffect);
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f2"),
+                  templ2->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+}
+
+TEST(FunctionTemplateNewWithCacheHasNoSideEffect) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+  v8::Local<v8::Private> priv =
+      v8::Private::ForApi(isolate, v8_str("Foo#draft"));
+
+  // Function template with call handler.
+  Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::NewWithCache(isolate, EmptyHandler, priv);
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f"),
+                  templ->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+
+  // Side-effect-free version.
+  Local<v8::FunctionTemplate> templ2 = v8::FunctionTemplate::NewWithCache(
+      isolate, EmptyHandler, priv, v8::Local<Value>(),
+      v8::Local<v8::Signature>(), 0, v8::SideEffectType::kHasNoSideEffect);
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f2"),
+                  templ2->GetFunction(context.local()).ToLocalChecked())
+            .FromJust());
+  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+}
+
+TEST(FunctionNewHasNoSideEffect) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  // Function with side-effect.
+  Local<Function> func =
+      Function::New(context.local(), EmptyHandler).ToLocalChecked();
+  CHECK(context->Global()->Set(context.local(), v8_str("f"), func).FromJust());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+
+  // Side-effect-free version.
+  Local<Function> func2 =
+      Function::New(context.local(), EmptyHandler, Local<Value>(), 0,
+                    v8::ConstructorBehavior::kAllow,
+                    v8::SideEffectType::kHasNoSideEffect)
+          .ToLocalChecked();
+  CHECK(
+      context->Global()->Set(context.local(), v8_str("f2"), func2).FromJust());
+  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+}
+
+TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext context;
+
+  // Object template with call as function handler.
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetCallAsFunctionHandler(EmptyHandler);
+  Local<v8::Object> obj = templ->NewInstance(context.local()).ToLocalChecked();
+  CHECK(context->Global()->Set(context.local(), v8_str("obj"), obj).FromJust());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
+
+  // Side-effect-free version is not supported.
+  i::FunctionTemplateInfo* cons = i::FunctionTemplateInfo::cast(
+      v8::Utils::OpenHandle(*templ)->constructor());
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+  i::CallHandlerInfo* handler_info =
+      i::CallHandlerInfo::cast(cons->instance_call_handler());
+  CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo());
+  handler_info->set_map(heap->side_effect_free_call_handler_info_map());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
+}
 
 static void IsConstructHandler(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -14089,14 +14283,14 @@ void SetFunctionEntryHookTest::OnEntryHook(
   if (!bar_func_.is_null() && function_code == bar_func_->code()) {
     // Check that we have a symbol for the "bar" function at the right location.
     SymbolLocationMap::iterator it(
-        symbol_locations_.find(function_code->instruction_start()));
+        symbol_locations_.find(function_code->raw_instruction_start()));
     CHECK(it != symbol_locations_.end());
   }
 
   if (!foo_func_.is_null() && function_code == foo_func_->code()) {
     // Check that we have a symbol for "foo" at the right location.
     SymbolLocationMap::iterator it(
-        symbol_locations_.find(function_code->instruction_start()));
+        symbol_locations_.find(function_code->raw_instruction_start()));
     CHECK(it != symbol_locations_.end());
   }
 }
@@ -21740,6 +21934,31 @@ TEST(RunMicrotasksIgnoresThrownExceptions) {
            CompileRun("exception2Calls")->Int32Value(env.local()).FromJust());
 }
 
+static void ThrowExceptionMicrotask(void* data) {
+  CcTest::isolate()->ThrowException(v8_str("exception"));
+}
+
+int microtask_callback_count = 0;
+
+static void IncrementCounterMicrotask(void* data) {
+  microtask_callback_count++;
+}
+
+TEST(RunMicrotasksIgnoresThrownExceptionsFromApi) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  v8::HandleScope scope(isolate);
+  v8::TryCatch try_catch(isolate);
+  {
+    CHECK(!isolate->IsExecutionTerminating());
+    isolate->EnqueueMicrotask(ThrowExceptionMicrotask);
+    isolate->EnqueueMicrotask(IncrementCounterMicrotask);
+    isolate->RunMicrotasks();
+    CHECK_EQ(1, microtask_callback_count);
+    CHECK(!try_catch.HasCaught());
+  }
+}
 
 uint8_t microtasks_completed_callback_count = 0;
 
@@ -26871,27 +27090,6 @@ THREADED_TEST(GlobalAccessorInfo) {
   LocalContext env(nullptr, global_template);
   CompileRun("for (var i = 0; i < 10; i++) this.prop");
   CompileRun("for (var i = 0; i < 10; i++) prop");
-}
-
-UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
-  v8::Isolate::CreateParams create_params;
-  create_params.constraints.set_max_old_space_size(16);
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  {
-    size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(16 * i::MB, limit_before);
-    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
-    isolate->IncreaseHeapLimitForDebugging();
-    CHECK(isolate->IsHeapLimitIncreasedForDebugging());
-    size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(4 * 16 * i::MB, limit_after);
-    isolate->RestoreOriginalHeapLimit();
-    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
-    CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
-  }
-  isolate->Dispose();
 }
 
 TEST(DeterministicRandomNumberGeneration) {

@@ -268,91 +268,88 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     Node* target, Node* new_target, Node* spread, Node* args_count,
     Node* context) {
-  Label if_done(this), if_holey(this), if_runtime(this, Label::kDeferred);
+  Label if_smiorobject(this), if_double(this),
+      if_generic(this, Label::kDeferred);
 
-  VARIABLE(spread_result, MachineRepresentation::kTagged, spread);
+  VARIABLE(var_length, MachineRepresentation::kWord32);
+  VARIABLE(var_elements, MachineRepresentation::kTagged);
+  VARIABLE(var_elements_kind, MachineRepresentation::kWord32);
 
-  GotoIf(TaggedIsSmi(spread), &if_runtime);
+  GotoIf(TaggedIsSmi(spread), &if_generic);
   Node* spread_map = LoadMap(spread);
-  GotoIfNot(IsJSArrayMap(spread_map), &if_runtime);
+  GotoIfNot(IsJSArrayMap(spread_map), &if_generic);
 
-  // Check that we have the original ArrayPrototype.
-  GotoIfNot(IsPrototypeInitialArrayPrototype(context, spread_map), &if_runtime);
+  // Check that we have the original Array.prototype.
+  GotoIfNot(IsPrototypeInitialArrayPrototype(context, spread_map), &if_generic);
 
-  // Check that the ArrayPrototype hasn't been modified in a way that would
+  // Check that there are no elements on the Array.prototype chain.
+  GotoIf(IsNoElementsProtectorCellInvalid(), &if_generic);
+
+  // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
   Node* protector_cell = LoadRoot(Heap::kArrayIteratorProtectorRootIndex);
   DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
-  GotoIfNot(
-      WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                SmiConstant(Isolate::kProtectorValid)),
-      &if_runtime);
+  GotoIf(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                   SmiConstant(Isolate::kProtectorInvalid)),
+         &if_generic);
 
-  // Check that the map of the initial array iterator hasn't changed.
-  TNode<Context> native_context = LoadNativeContext(context);
-  GotoIfNot(HasInitialArrayIteratorPrototypeMap(native_context), &if_runtime);
+  // The fast-path accesses the {spread} elements directly.
+  Node* spread_kind = LoadMapElementsKind(spread_map);
+  var_elements_kind.Bind(spread_kind);
+  var_length.Bind(
+      LoadAndUntagToWord32ObjectField(spread, JSArray::kLengthOffset));
+  var_elements.Bind(LoadObjectField(spread, JSArray::kElementsOffset));
 
-  Node* kind = LoadMapElementsKind(spread_map);
+  // Check elements kind of {spread}.
+  GotoIf(Int32LessThan(spread_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+         &if_smiorobject);
+  Branch(Int32GreaterThan(spread_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+         &if_generic, &if_double);
 
-  STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(PACKED_ELEMENTS == 2);
-  STATIC_ASSERT(HOLEY_ELEMENTS == 3);
-  STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
-  STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
-  STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND == HOLEY_DOUBLE_ELEMENTS);
-
-  GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-         &if_runtime);
-  Branch(Word32And(kind, Int32Constant(1)), &if_holey, &if_done);
-
-  // Check the NoElementsProtector cell for holey arrays.
-  BIND(&if_holey);
-  { Branch(IsNoElementsProtectorCellInvalid(), &if_runtime, &if_done); }
-
-  BIND(&if_runtime);
+  BIND(&if_generic);
   {
-    Node* spread_iterable = LoadContextElement(LoadNativeContext(context),
-                                               Context::SPREAD_ITERABLE_INDEX);
-    spread_result.Bind(CallJS(CodeFactory::Call(isolate()), context,
-                              spread_iterable, UndefinedConstant(), spread));
-    CSA_ASSERT(this, IsJSArray(spread_result.value()));
-    Goto(&if_done);
+    Label if_iterator_fn_not_callable(this, Label::kDeferred);
+    Node* iterator_fn = GetProperty(context, spread, IteratorSymbolConstant());
+    GotoIf(TaggedIsSmi(iterator_fn), &if_iterator_fn_not_callable);
+    GotoIfNot(IsCallable(iterator_fn), &if_iterator_fn_not_callable);
+    Node* list =
+        CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn);
+    CSA_ASSERT(this, IsJSArray(list));
+    Node* list_kind = LoadMapElementsKind(LoadMap(list));
+    var_length.Bind(
+        LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset));
+    var_elements.Bind(LoadObjectField(list, JSArray::kElementsOffset));
+    var_elements_kind.Bind(list_kind);
+    Branch(Int32LessThan(list_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+           &if_smiorobject, &if_double);
+
+    BIND(&if_iterator_fn_not_callable);
+    ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
   }
 
-  BIND(&if_done);
+  BIND(&if_smiorobject);
   {
-    // The result from if_runtime can be an array of doubles.
-    Label if_not_double(this), if_double(this);
-    Node* elements =
-        LoadObjectField(spread_result.value(), JSArray::kElementsOffset);
-    Node* length = LoadAndUntagToWord32ObjectField(spread_result.value(),
-                                                   JSArray::kLengthOffset);
+    Node* const elements = var_elements.value();
+    Node* const length = var_length.value();
 
-    Node* kind = LoadMapElementsKind(LoadMap(elements));
-    CSA_ASSERT(this, Int32LessThanOrEqual(
-                         kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)));
-
-    Branch(Int32GreaterThan(kind, Int32Constant(HOLEY_ELEMENTS)), &if_double,
-           &if_not_double);
-
-    BIND(&if_not_double);
-    {
-      if (new_target == nullptr) {
-        Callable callable = CodeFactory::CallVarargs(isolate());
-        TailCallStub(callable, context, target, args_count, elements, length);
-      } else {
-        Callable callable = CodeFactory::ConstructVarargs(isolate());
-        TailCallStub(callable, context, target, new_target, args_count,
-                     elements, length);
-      }
+    if (new_target == nullptr) {
+      Callable callable = CodeFactory::CallVarargs(isolate());
+      TailCallStub(callable, context, target, args_count, elements, length);
+    } else {
+      Callable callable = CodeFactory::ConstructVarargs(isolate());
+      TailCallStub(callable, context, target, new_target, args_count, elements,
+                   length);
     }
+  }
 
-    BIND(&if_double);
-    {
-      CallOrConstructDoubleVarargs(target, new_target, elements, length,
-                                   args_count, context, kind);
-    }
+  BIND(&if_double);
+  {
+    Node* const elements_kind = var_elements_kind.value();
+    Node* const elements = var_elements.value();
+    Node* const length = var_length.value();
+
+    CallOrConstructDoubleVarargs(target, new_target, elements, length,
+                                 args_count, context, elements_kind);
   }
 }
 

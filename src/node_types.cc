@@ -13,6 +13,7 @@ namespace {
   V(External)                                                                 \
   V(Date)                                                                     \
   V(ArgumentsObject)                                                          \
+  V(BigIntObject)                                                             \
   V(BooleanObject)                                                            \
   V(NumberObject)                                                             \
   V(StringObject)                                                             \

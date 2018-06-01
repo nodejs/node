@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/codegen.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/s390/simulator-s390.h"
 

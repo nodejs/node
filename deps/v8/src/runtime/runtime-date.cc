@@ -7,7 +7,7 @@
 #include "src/arguments.h"
 #include "src/conversions-inl.h"
 #include "src/date.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 

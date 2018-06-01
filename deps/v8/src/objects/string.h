@@ -229,8 +229,8 @@ class String : public Name {
   // for strings containing supplementary characters, lexicographic ordering on
   // sequences of UTF-16 code unit values differs from that on sequences of code
   // point values.
-  MUST_USE_RESULT static ComparisonResult Compare(Handle<String> x,
-                                                  Handle<String> y);
+  V8_WARN_UNUSED_RESULT static ComparisonResult Compare(Handle<String> x,
+                                                        Handle<String> y);
 
   // Perform ES6 21.1.3.8, including checking arguments.
   static Object* IndexOf(Isolate* isolate, Handle<Object> receiver,
@@ -271,7 +271,7 @@ class String : public Name {
   // the result.
   // A {start_index} can be passed to specify where to start scanning the
   // replacement string.
-  MUST_USE_RESULT static MaybeHandle<String> GetSubstitution(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> GetSubstitution(
       Isolate* isolate, Match* match, Handle<String> replacement,
       int start_index = 0);
 
@@ -471,8 +471,8 @@ class SeqString : public String {
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
   // truncating the original string.
-  MUST_USE_RESULT static Handle<String> Truncate(Handle<SeqString> string,
-                                                 int new_length);
+  V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Handle<SeqString> string,
+                                                       int new_length);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);

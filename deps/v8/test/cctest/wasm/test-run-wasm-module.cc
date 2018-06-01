@@ -258,7 +258,7 @@ class WasmSerializationTest {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
         const_cast<uint8_t*>(serialized_bytes_.first) +
         SerializedCodeData::kPayloadLengthOffset);
-    *slot = FLAG_wasm_jit_to_native ? 0u : 0xFEFEFEFEu;
+    *slot = 0u;
   }
 
   v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {
@@ -1005,25 +1005,23 @@ struct ManuallyExternalizedBuffer {
   Handle<JSArrayBuffer> buffer_;
   void* allocation_base_;
   size_t allocation_length_;
+  bool const should_free_;
 
   ManuallyExternalizedBuffer(JSArrayBuffer* buffer, Isolate* isolate)
       : isolate_(isolate),
         buffer_(buffer, isolate),
         allocation_base_(buffer->allocation_base()),
-        allocation_length_(buffer->allocation_length()) {
-    if (!buffer->has_guard_region()) {
+        allocation_length_(buffer->allocation_length()),
+        should_free_(!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
+            buffer->backing_store())) {
+    if (!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
+            buffer->backing_store())) {
       v8::Utils::ToLocal(buffer_)->Externalize();
     }
   }
   ~ManuallyExternalizedBuffer() {
-    if (!buffer_->has_guard_region()) {
-      if (buffer_->allocation_mode() ==
-          ArrayBuffer::Allocator::AllocationMode::kReservation) {
-        CHECK(v8::internal::FreePages(allocation_base_, allocation_length_));
-      } else {
-        isolate_->array_buffer_allocator()->Free(allocation_base_,
-                                                 allocation_length_);
-      }
+    if (should_free_) {
+      buffer_->FreeBackingStoreFromMainThread();
     }
   }
 };
@@ -1081,18 +1079,25 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    void* backing_store =
-        isolate->array_buffer_allocator()->Allocate(16 * kWasmPageSize);
-    Handle<JSArrayBuffer> buffer =
-        wasm::SetupArrayBuffer(isolate, backing_store, 16 * kWasmPageSize,
-                               backing_store, 16 * kWasmPageSize, false, false);
+#if V8_TARGET_ARCH_64_BIT
+    constexpr bool require_guard_regions = true;
+#else
+    constexpr bool require_guard_regions = false;
+#endif
+    Handle<JSArrayBuffer> buffer;
+    CHECK(
+        wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
+            .ToHandle(&buffer));
     Handle<WasmMemoryObject> mem_obj =
         WasmMemoryObject::New(isolate, buffer, 100);
-    v8::Utils::ToLocal(buffer)->Externalize();
+    auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     int32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 0);
     CHECK_EQ(16, result);
-
-    isolate->array_buffer_allocator()->Free(backing_store, 16 * kWasmPageSize);
+    constexpr bool is_wasm_memory = true;
+    const JSArrayBuffer::Allocation allocation{
+        contents.AllocationBase(), contents.AllocationLength(), contents.Data(),
+        contents.AllocationMode(), is_wasm_memory};
+    JSArrayBuffer::FreeBackingStore(isolate, allocation);
   }
   Cleanup();
 }
@@ -1103,14 +1108,22 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     // https://bugs.chromium.org/p/chromium/issues/detail?id=731046
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    void* backing_store =
-        isolate->array_buffer_allocator()->Allocate(16 * kWasmPageSize);
-    Handle<JSArrayBuffer> buffer =
-        wasm::SetupArrayBuffer(isolate, backing_store, 16 * kWasmPageSize,
-                               backing_store, 16 * kWasmPageSize, false, false);
-    v8::Utils::ToLocal(buffer)->Externalize();
+#if V8_TARGET_ARCH_64_BIT
+    constexpr bool require_guard_regions = true;
+#else
+    constexpr bool require_guard_regions = false;
+#endif
+    Handle<JSArrayBuffer> buffer;
+    CHECK(
+        wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
+            .ToHandle(&buffer));
+    auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     wasm::DetachMemoryBuffer(isolate, buffer, true);
-    isolate->array_buffer_allocator()->Free(backing_store, 16 * kWasmPageSize);
+    constexpr bool is_wasm_memory = true;
+    const JSArrayBuffer::Allocation allocation{
+        contents.AllocationBase(), contents.AllocationLength(), contents.Data(),
+        contents.AllocationMode(), is_wasm_memory};
+    JSArrayBuffer::FreeBackingStore(isolate, allocation);
   }
   Cleanup();
 }
@@ -1124,18 +1137,37 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
 #else
   constexpr bool require_guard_regions = false;
 #endif
-  Handle<JSArrayBuffer> buffer =
-      wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions);
-  CHECK(!buffer.is_null());
+  Handle<JSArrayBuffer> buffer;
+  CHECK(wasm::NewArrayBuffer(isolate, 16 * kWasmPageSize, require_guard_regions)
+            .ToHandle(&buffer));
   Handle<WasmMemoryObject> mem = WasmMemoryObject::New(isolate, buffer, 128);
   auto contents = v8::Utils::ToLocal(buffer)->Externalize();
   WasmMemoryObject::Grow(isolate, mem, 0);
-  CHECK(FreePages(contents.AllocationBase(), contents.AllocationLength()));
+  constexpr bool is_wasm_memory = true;
+  JSArrayBuffer::FreeBackingStore(
+      isolate, JSArrayBuffer::Allocation(
+                   contents.AllocationBase(), contents.AllocationLength(),
+                   contents.Data(), contents.AllocationMode(), is_wasm_memory));
   // Make sure we can write to the buffer without crashing
   uint32_t* int_buffer =
       reinterpret_cast<uint32_t*>(mem->array_buffer()->backing_store());
   int_buffer[0] = 0;
 }
+
+#if V8_TARGET_ARCH_64_BIT
+TEST(Run_WasmModule_Reclaim_Memory) {
+  // Make sure we can allocate memories without running out of address space.
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  Handle<JSArrayBuffer> buffer;
+  for (int i = 0; i < 256; ++i) {
+    HandleScope scope(isolate);
+    constexpr bool require_guard_regions = true;
+    CHECK(NewArrayBuffer(isolate, kWasmPageSize, require_guard_regions,
+                         SharedFlag::kNotShared)
+              .ToHandle(&buffer));
+  }
+}
+#endif
 
 TEST(AtomicOpDisassembly) {
   {

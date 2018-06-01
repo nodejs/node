@@ -35,10 +35,9 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
 #include "src/unicode-decoder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -1191,9 +1190,11 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 };
 
 TEST(InternalizeExternal) {
+#ifdef ENABLE_MINOR_MC
   // TODO(mlippautz): Remove once we add support for forwarding ThinStrings in
-  // minor MC.
+  // minor MC
   if (FLAG_minor_mc) return;
+#endif  // ENABLE_MINOR_MC
   FLAG_stress_incremental_marking = false;
   FLAG_thin_strings = true;
   CcTest::InitializeVM();

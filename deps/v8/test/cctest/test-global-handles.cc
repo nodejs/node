@@ -26,11 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/api.h"
-#include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

@@ -360,8 +360,6 @@ class UnitTest(unittest.TestCase):
     mbw.Call = lambda cmd, env=None, buffer_output=True: (1, '', '')
     self.check(['gen', '-c', 'debug_goma', '//out/Default'], mbw=mbw, ret=1)
 
-  # TODO(machenbach): Comment back in after swarming file parameter is used.
-  """
   def test_gen_swarming(self):
     files = {
       '/tmp/swarming_targets': 'base_unittests\n',
@@ -549,7 +547,6 @@ class UnitTest(unittest.TestCase):
                 'base_unittests'], mbw=mbw, ret=0)
     self.check(['run', '-s', '-c', 'debug_goma', '-d', 'os', 'Win7',
                 '//out/Default', 'base_unittests'], mbw=mbw, ret=0)
-  """  # pylint: disable=pointless-string-statement
 
   def test_lookup(self):
     self.check(['lookup', '-c', 'debug_goma'], ret=0)

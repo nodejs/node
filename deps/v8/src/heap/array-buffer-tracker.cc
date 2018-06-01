@@ -29,7 +29,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   size_t moved_size = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
-    old_buffer = reinterpret_cast<JSArrayBuffer*>(*it);
+    old_buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
     const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
       new_retained_size += NumberToSize(old_buffer->byte_length());
@@ -51,13 +51,12 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       }
       it = array_buffers_.erase(it);
     } else if (result == kRemoveEntry) {
-      // Size of freed memory is computed to avoid looking at dead objects.
-      void* allocation_base = old_buffer->allocation_base();
-      DCHECK_NOT_NULL(allocation_base);
-
-      backing_stores_to_free->emplace_back(allocation_base,
-                                           old_buffer->allocation_length(),
-                                           old_buffer->allocation_mode());
+      // We pass backing_store() and stored length to the collector for freeing
+      // the backing store. Wasm allocations will go through their own tracker
+      // based on the backing store.
+      backing_stores_to_free->emplace_back(
+          old_buffer->backing_store(), it->second, old_buffer->backing_store(),
+          old_buffer->allocation_mode(), old_buffer->is_wasm_memory());
       it = array_buffers_.erase(it);
     } else {
       UNREACHABLE();
@@ -133,6 +132,26 @@ bool ArrayBufferTracker::IsTracked(JSArrayBuffer* buffer) {
     if (tracker == nullptr) return false;
     return tracker->IsTracked(buffer);
   }
+}
+
+void ArrayBufferTracker::TearDown(Heap* heap) {
+  // ArrayBuffers can only be found in NEW_SPACE and OLD_SPACE.
+  for (Page* p : *heap->old_space()) {
+    FreeAll(p);
+  }
+  NewSpace* new_space = heap->new_space();
+  if (new_space->to_space().is_committed()) {
+    for (Page* p : new_space->to_space()) {
+      FreeAll(p);
+    }
+  }
+#ifdef DEBUG
+  if (new_space->from_space().is_committed()) {
+    for (Page* p : new_space->from_space()) {
+      DCHECK(!p->contains_array_buffers());
+    }
+  }
+#endif  // DEBUG
 }
 
 }  // namespace internal

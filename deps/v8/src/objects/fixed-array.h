@@ -243,14 +243,63 @@ class FixedDoubleArray : public FixedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
 };
 
-class WeakFixedArray : public FixedArray {
+// WeakFixedArray describes fixed-sized arrays with element type
+// MaybeObject*.
+class WeakFixedArray : public HeapObject {
  public:
-  // If |maybe_array| is not a WeakFixedArray, a fresh one will be allocated.
-  // This function does not check if the value exists already, callers must
-  // ensure this themselves if necessary.
-  static Handle<WeakFixedArray> Add(Handle<Object> maybe_array,
-                                    Handle<HeapObject> value,
-                                    int* assigned_index = nullptr);
+  DECL_CAST(WeakFixedArray)
+
+  inline MaybeObject* Get(int index) const;
+
+  // Setter that uses write barrier.
+  inline void Set(int index, MaybeObject* value);
+
+  static constexpr int SizeFor(int length) {
+    return kHeaderSize + length * kPointerSize;
+  }
+
+  DECL_INT_ACCESSORS(length)
+
+  // Get and set the length using acquire loads and release stores.
+  inline int synchronized_length() const;
+  inline void synchronized_set_length(int value);
+
+  // Gives access to raw memory which stores the array's data.
+  inline MaybeObject** data_start();
+
+  DECL_PRINTER(WeakFixedArray)
+  DECL_VERIFIER(WeakFixedArray)
+
+  class BodyDescriptor;
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
+
+  static const int kMaxLength =
+      (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
+
+ private:
+  static int OffsetOfElementAt(int index) {
+    return kHeaderSize + index * kPointerSize;
+  }
+
+  friend class Heap;
+
+  static const int kFirstIndex = 1;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
+};
+
+// Deprecated. Use WeakFixedArray instead.
+class FixedArrayOfWeakCells : public FixedArray {
+ public:
+  // If |maybe_array| is not a FixedArrayOfWeakCells, a fresh one will be
+  // allocated. This function does not check if the value exists already,
+  // callers must ensure this themselves if necessary.
+  static Handle<FixedArrayOfWeakCells> Add(Handle<Object> maybe_array,
+                                           Handle<HeapObject> value,
+                                           int* assigned_index = nullptr);
 
   // Returns true if an entry was found and removed.
   bool Remove(Handle<HeapObject> value);
@@ -282,7 +331,7 @@ class WeakFixedArray : public FixedArray {
 
    private:
     int index_;
-    WeakFixedArray* list_;
+    FixedArrayOfWeakCells* list_;
 #ifdef DEBUG
     int last_used_index_;
     DisallowHeapAllocation no_gc_;
@@ -290,16 +339,17 @@ class WeakFixedArray : public FixedArray {
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
-  DECL_CAST(WeakFixedArray)
+  DECL_CAST(FixedArrayOfWeakCells)
 
  private:
   static const int kLastUsedIndexIndex = 0;
   static const int kFirstIndex = 1;
 
-  static Handle<WeakFixedArray> Allocate(
-      Isolate* isolate, int size, Handle<WeakFixedArray> initialize_from);
+  static Handle<FixedArrayOfWeakCells> Allocate(
+      Isolate* isolate, int size,
+      Handle<FixedArrayOfWeakCells> initialize_from);
 
-  static void Set(Handle<WeakFixedArray> array, int index,
+  static void Set(Handle<FixedArrayOfWeakCells> array, int index,
                   Handle<HeapObject> value);
   inline void clear(int index);
 
@@ -310,7 +360,7 @@ class WeakFixedArray : public FixedArray {
   void set(int index, Smi* value);
   void set(int index, Object* value);
   void set(int index, Object* value, WriteBarrierMode mode);
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArrayOfWeakCells);
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.
@@ -322,15 +372,9 @@ class WeakFixedArray : public FixedArray {
 // underlying FixedArray starting at kFirstIndex.
 class ArrayList : public FixedArray {
  public:
-  enum AddMode {
-    kNone,
-    // Use this if GC can delete elements from the array.
-    kReloadLengthAfterAllocation,
-  };
-  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj,
-                               AddMode mode = kNone);
+  static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj);
   static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
-                               Handle<Object> obj2, AddMode = kNone);
+                               Handle<Object> obj2);
   static Handle<ArrayList> New(Isolate* isolate, int size);
 
   // Returns the number of elements in the list, not the allocated size, which

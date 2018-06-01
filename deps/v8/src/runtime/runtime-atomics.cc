@@ -8,7 +8,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/conversions-inl.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here

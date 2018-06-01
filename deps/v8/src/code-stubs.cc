@@ -14,7 +14,6 @@
 #include "src/code-stub-assembler.h"
 #include "src/code-stubs-utils.h"
 #include "src/counters.h"
-#include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic-stats.h"
@@ -88,7 +87,7 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
           CodeCreateEvent(CodeEventListener::STUB_TAG,
                           AbstractCode::cast(*code), os.str().c_str()));
   Counters* counters = isolate()->counters();
-  counters->total_stubs_code_size()->Increment(code->instruction_size());
+  counters->total_stubs_code_size()->Increment(code->raw_instruction_size());
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
 #endif
@@ -300,7 +299,8 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeAssemblerState state(isolate(), &zone, descriptor, Code::STUB,
-                                     name, 1, GetKey());
+                                     name, PoisoningMitigationLevel::kOff, 1,
+                                     GetKey());
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }
@@ -504,6 +504,15 @@ TF_STUB(StoreSlowElementStub, CodeStubAssembler) {
 
   TailCallRuntime(Runtime::kKeyedStoreIC_Slow, context, value, slot, vector,
                   receiver, name);
+}
+
+TF_STUB(StoreInArrayLiteralSlowStub, CodeStubAssembler) {
+  Node* array = Parameter(Descriptor::kReceiver);
+  Node* index = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
+  TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, context, value, array,
+                  index);
 }
 
 TF_STUB(StoreFastElementStub, CodeStubAssembler) {

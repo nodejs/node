@@ -106,9 +106,23 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 
 // Define PrintCheckOperand<T> for each T which defines operator<< for ostream.
 template <typename T>
-typename std::enable_if<has_output_operator<T>::value>::type PrintCheckOperand(
-    std::ostream& os, T val) {
+typename std::enable_if<
+    !std::is_function<typename std::remove_pointer<T>::type>::value &&
+    has_output_operator<T>::value>::type
+PrintCheckOperand(std::ostream& os, T val) {
   os << std::forward<T>(val);
+}
+
+// Provide an overload for functions and function pointers. Function pointers
+// don't implicitly convert to void* but do implicitly convert to bool, so
+// without this function pointers are always printed as 1 or 0. (MSVC isn't
+// standards-conforming here and converts function pointers to regular
+// pointers, so this is a no-op for MSVC.)
+template <typename T>
+typename std::enable_if<
+    std::is_function<typename std::remove_pointer<T>::type>::value>::type
+PrintCheckOperand(std::ostream& os, T val) {
+  os << reinterpret_cast<const void*>(val);
 }
 
 // Define PrintCheckOperand<T> for enums which have no operator<<.

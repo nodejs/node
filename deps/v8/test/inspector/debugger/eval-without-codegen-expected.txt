@@ -30,3 +30,23 @@ Running test: testEvaluatePaused
         }
     }
 }
+
+Running test: testCallFunctionOn
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 3
+            type : number
+            value : 3
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

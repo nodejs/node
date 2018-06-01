@@ -650,7 +650,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
       // Table is 256 entries, so all Latin1 characters can be tested.
       CompareAndBranchOrBacktrack(current_character(), 'z', hi, on_no_match);
     }
-    ExternalReference map = ExternalReference::re_word_character_map();
+    ExternalReference map = ExternalReference::re_word_character_map(isolate());
     __ Mov(x10, map);
     __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
     CompareAndBranchOrBacktrack(w10, 0, eq, on_no_match);
@@ -663,7 +663,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
       __ Cmp(current_character(), 'z');
       __ B(hi, &done);
     }
-    ExternalReference map = ExternalReference::re_word_character_map();
+    ExternalReference map = ExternalReference::re_word_character_map(isolate());
     __ Mov(x10, map);
     __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
     CompareAndBranchOrBacktrack(w10, 0, ne, on_no_match);

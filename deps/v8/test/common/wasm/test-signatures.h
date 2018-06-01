@@ -26,6 +26,8 @@ class TestSignatures {
         sig_i_ff(1, 2, kIntFloatTypes4),
         sig_i_d(1, 1, kIntDoubleTypes4),
         sig_i_dd(1, 2, kIntDoubleTypes4),
+        sig_i_r(1, 1, kIntRefTypes4),
+        sig_i_rr(1, 2, kIntRefTypes4),
         sig_l_v(1, 0, kLongTypes4),
         sig_l_l(1, 1, kLongTypes4),
         sig_l_ll(1, 2, kLongTypes4),
@@ -34,6 +36,7 @@ class TestSignatures {
         sig_f_ff(1, 2, kFloatTypes4),
         sig_d_d(1, 1, kDoubleTypes4),
         sig_d_dd(1, 2, kDoubleTypes4),
+        sig_r_v(1, 0, kRefTypes4),
         sig_v_v(0, 0, kIntTypes4),
         sig_v_i(0, 1, kIntTypes4),
         sig_v_ii(0, 2, kIntTypes4),
@@ -46,13 +49,16 @@ class TestSignatures {
     for (int i = 0; i < 4; i++) kLongTypes4[i] = kWasmI64;
     for (int i = 0; i < 4; i++) kFloatTypes4[i] = kWasmF32;
     for (int i = 0; i < 4; i++) kDoubleTypes4[i] = kWasmF64;
+    for (int i = 0; i < 4; i++) kRefTypes4[i] = kWasmAnyRef;
     for (int i = 0; i < 4; i++) kIntLongTypes4[i] = kWasmI64;
     for (int i = 0; i < 4; i++) kIntFloatTypes4[i] = kWasmF32;
     for (int i = 0; i < 4; i++) kIntDoubleTypes4[i] = kWasmF64;
+    for (int i = 0; i < 4; i++) kIntRefTypes4[i] = kWasmAnyRef;
     for (int i = 0; i < 4; i++) kSimd128IntTypes4[i] = kWasmS128;
     kIntLongTypes4[0] = kWasmI32;
     kIntFloatTypes4[0] = kWasmI32;
     kIntDoubleTypes4[0] = kWasmI32;
+    kIntRefTypes4[0] = kWasmI32;
     kSimd128IntTypes4[1] = kWasmI32;
   }
 
@@ -70,11 +76,15 @@ class TestSignatures {
   FunctionSig* l_l() { return &sig_l_l; }
   FunctionSig* l_ll() { return &sig_l_ll; }
   FunctionSig* i_ll() { return &sig_i_ll; }
+  FunctionSig* i_r() { return &sig_i_r; }
+  FunctionSig* i_rr() { return &sig_i_rr; }
 
   FunctionSig* f_f() { return &sig_f_f; }
   FunctionSig* f_ff() { return &sig_f_ff; }
   FunctionSig* d_d() { return &sig_d_d; }
   FunctionSig* d_dd() { return &sig_d_dd; }
+
+  FunctionSig* r_v() { return &sig_r_v; }
 
   FunctionSig* v_v() { return &sig_v_v; }
   FunctionSig* v_i() { return &sig_v_i; }
@@ -99,9 +109,11 @@ class TestSignatures {
   ValueType kLongTypes4[4];
   ValueType kFloatTypes4[4];
   ValueType kDoubleTypes4[4];
+  ValueType kRefTypes4[4];
   ValueType kIntLongTypes4[4];
   ValueType kIntFloatTypes4[4];
   ValueType kIntDoubleTypes4[4];
+  ValueType kIntRefTypes4[4];
   ValueType kSimd128IntTypes4[4];
 
   FunctionSig sig_i_v;
@@ -113,6 +125,8 @@ class TestSignatures {
   FunctionSig sig_i_ff;
   FunctionSig sig_i_d;
   FunctionSig sig_i_dd;
+  FunctionSig sig_i_r;
+  FunctionSig sig_i_rr;
 
   FunctionSig sig_l_v;
   FunctionSig sig_l_l;
@@ -123,6 +137,8 @@ class TestSignatures {
   FunctionSig sig_f_ff;
   FunctionSig sig_d_d;
   FunctionSig sig_d_dd;
+
+  FunctionSig sig_r_v;
 
   FunctionSig sig_v_v;
   FunctionSig sig_v_i;

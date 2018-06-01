@@ -835,3 +835,105 @@ function js_div(a, b) { return (a / b) | 0; }
     assertThrows(() => {instance.exports.main(j, i+2)});
   }
 })();
+
+(function ExportedFunctionsImportedOrder() {
+  print(arguments.callee.name);
+
+  let i1 = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addFunction("f1", kSig_i_v)
+      .addBody(
+        [kExprI32Const, 1])
+      .exportFunc();
+    builder.addFunction("f2", kSig_i_v)
+      .addBody(
+        [kExprI32Const, 2])
+      .exportFunc();
+    return builder.instantiate();
+  })();
+
+  let i2 = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addImport("q", "f2", kSig_i_v);
+    builder.addImport("q", "f1", kSig_i_v);
+    builder.addFunction("main", kSig_i_i)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprCallIndirect, 0, kTableZero
+      ])
+      .exportFunc();
+    builder.addFunctionTableInit(0, false, [0, 1, 1, 0]);
+
+    return builder.instantiate({q: {f2: i1.exports.f2, f1: i1.exports.f1}});
+  })();
+
+  assertEquals(2, i2.exports.main(0));
+  assertEquals(1, i2.exports.main(1));
+  assertEquals(1, i2.exports.main(2));
+  assertEquals(2, i2.exports.main(3));
+})();
+
+(function IndirectCallsToImportedFunctions() {
+  print(arguments.callee.name);
+
+  let module = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addMemory(1, 1, false);
+    builder.addFunction("f", kSig_i_v)
+      .addBody([
+        kExprI32Const, 0,
+        kExprI32LoadMem, 0, 4,
+      ])
+      .exportFunc();
+    builder.exportMemoryAs("memory");
+    return new WebAssembly.Module(builder.toBuffer());
+  })();
+
+  function setMemI32(instance, offset, val) {
+    var array = new Int32Array(instance.exports.memory.buffer);
+    array[offset/4] = val;
+  }
+
+  function makeFun(val) {
+    let instance = new WebAssembly.Instance(module);
+    setMemI32(instance, 0, 2000000);
+    setMemI32(instance, 4, val);
+    setMemI32(instance, 8, 3000000);
+    return instance.exports.f;
+  }
+
+  let f300 = makeFun(300);
+  let f100 = makeFun(100);
+  let f200 = makeFun(200);
+
+  let main = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addMemory(1, 1, false);
+    builder.addImport("q", "f1", kSig_i_v);
+    builder.addImport("q", "f2", kSig_i_v);
+    builder.addImport("q", "f3", kSig_i_v);
+    builder.addFunction("f", kSig_i_v)
+      .addBody([
+        kExprI32Const, 8,
+        kExprI32LoadMem, 0, 0,
+      ]);
+    builder.addFunction("main", kSig_i_i)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprCallIndirect, 0, kTableZero
+      ])
+      .exportFunc();
+    builder.exportMemoryAs("memory");
+    builder.addFunctionTableInit(0, false, [0, 1, 2, 3]);
+    var instance = builder.instantiate({q: {f1: f100, f2: f200, f3: f300}});
+    setMemI32(instance, 0, 5000000);
+    setMemI32(instance, 4, 6000000);
+    setMemI32(instance, 8, 400);
+    return instance.exports.main;
+  })();
+
+  assertEquals(100, main(0));
+  assertEquals(200, main(1));
+  assertEquals(300, main(2));
+  assertEquals(400, main(3));
+})();

@@ -27,13 +27,22 @@ var instance4;
     ]).exportFunc();
 
   module = new WebAssembly.Module(builder.toBuffer());
+  print("Initial module");
   %ValidateWasmModuleState(module);
+
+  print("Initial instances=0");
   %ValidateWasmInstancesChain(module, 0);
   instance1 = new WebAssembly.Instance(module, {"": {getValue: () => 1}});
+
+  print("Initial instances=1");
   %ValidateWasmInstancesChain(module, 1);
   instance2 = new WebAssembly.Instance(module, {"": {getValue: () => 2}});
+
+  print("Initial instances=2");
   %ValidateWasmInstancesChain(module, 2);
   instance3 = new WebAssembly.Instance(module, {"": {getValue: () => 3}});
+
+  print("Initial instances=3");
   %ValidateWasmInstancesChain(module, 3);
 })();
 
@@ -43,6 +52,7 @@ var instance4;
 })();
 
 gc();
+print("After gc instances=2");
 %ValidateWasmInstancesChain(module, 2);
 
 (function CompiledModuleInstancesClear3() {
@@ -51,6 +61,7 @@ gc();
 })();
 
 gc();
+print("After gc instances=1");
 %ValidateWasmInstancesChain(module, 1);
 
 (function CompiledModuleInstancesClear2() {
@@ -58,7 +69,11 @@ gc();
   instance2 = null;
 })();
 
+// Note that two GC's are required because weak cells are not cleared
+// in the same cycle that the instance finalizer is run.
 gc();
+gc();
+print("After gc module state");
 %ValidateWasmModuleState(module);
 
 (function CompiledModuleInstancesInitialize4AndClearModule() {

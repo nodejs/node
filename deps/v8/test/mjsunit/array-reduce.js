@@ -665,6 +665,16 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   assertEquals(total, g());
 })();
 
+(function TriggerReduceRightPreLoopDeopt() {
+  function f(a) {
+    a.reduceRight((x) => { return x + 1 });
+  }
+  f([1,2,]);
+  f([1,2,]);
+  %OptimizeFunctionOnNextCall(f);
+  assertThrows(() => f([]), TypeError);
+})();
+
 (function OptimizedReduceRightEagerDeoptMiddleOfIterationHoley() {
   let deopt = false;
   let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];

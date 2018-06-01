@@ -13,11 +13,8 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/version.h"
 #include "src/visitors.h"
-#include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -33,31 +30,49 @@ ScriptData::ScriptData(const byte* data, int length)
   }
 }
 
-ScriptData* CodeSerializer::Serialize(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> info,
-                                      Handle<String> source) {
+// static
+ScriptCompiler::CachedData* CodeSerializer::Serialize(
+    Handle<SharedFunctionInfo> info, Handle<String> source) {
+  Isolate* isolate = info->GetIsolate();
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  HistogramTimerScope histogram_timer(isolate->counters()->compile_serialize());
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     RuntimeCallCounterId::kCompileSerialize);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
+
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
+  Handle<Script> script(Script::cast(info->script()), isolate);
   if (FLAG_trace_serializer) {
     PrintF("[Serializing from");
     Object* script = info->script();
-    if (script->IsScript()) Script::cast(script)->name()->ShortPrint();
+    Script::cast(script)->name()->ShortPrint();
     PrintF("]\n");
   }
+  // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
+  // context independent.
+  if (script->ContainsAsmModule()) return nullptr;
+  if (isolate->debug()->is_loaded()) return nullptr;
 
   // Serialize code object.
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(source));
   DisallowHeapAllocation no_gc;
   cs.reference_map()->AddAttachedReference(*source);
-  ScriptData* ret = cs.Serialize(info);
+  ScriptData* script_data = cs.Serialize(info);
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
-    int length = ret->length();
+    int length = script_data->length();
     PrintF("[Serializing to %d bytes took %0.3f ms]\n", length, ms);
   }
 
-  return ret;
+  ScriptCompiler::CachedData* result =
+      new ScriptCompiler::CachedData(script_data->data(), script_data->length(),
+                                     ScriptCompiler::CachedData::BufferOwned);
+  script_data->ReleaseDataOwnership();
+  delete script_data;
+
+  return result;
 }
 
 ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
@@ -73,6 +88,31 @@ ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
   return data.GetScriptData();
 }
 
+bool CodeSerializer::SerializeReadOnlyObject(HeapObject* obj,
+                                             HowToCode how_to_code,
+                                             WhereToPoint where_to_point,
+                                             int skip) {
+  PagedSpace* read_only_space = isolate()->heap()->read_only_space();
+  if (!read_only_space->Contains(obj)) return false;
+
+  // For objects in RO_SPACE, never serialize the object, but instead create a
+  // back reference that encodes the page number as the chunk_index and the
+  // offset within the page as the chunk_offset.
+  Address address = obj->address();
+  Page* page = Page::FromAddress(address);
+  uint32_t chunk_index = 0;
+  for (Page* p : *read_only_space) {
+    if (p == page) break;
+    ++chunk_index;
+  }
+  uint32_t chunk_offset = static_cast<uint32_t>(page->Offset(address));
+  SerializerReference back_reference =
+      SerializerReference::BackReference(RO_SPACE, chunk_index, chunk_offset);
+  reference_map()->Add(obj, back_reference);
+  CHECK(SerializeBackReference(obj, how_to_code, where_to_point, skip));
+  return true;
+}
+
 void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
@@ -84,6 +124,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
+
+  if (SerializeReadOnlyObject(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
 
@@ -250,95 +292,12 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
                                      result->abstract_code(), *result, name));
   }
+
+  if (isolate->NeedsSourcePositionsForProfiling()) {
+    Handle<Script> script(Script::cast(result->script()), isolate);
+    Script::InitLineEnds(script);
+  }
   return scope.CloseAndEscape(result);
-}
-
-WasmCompiledModuleSerializer::WasmCompiledModuleSerializer(
-    Isolate* isolate, uint32_t source_hash, Handle<Context> native_context,
-    Handle<SeqOneByteString> module_bytes)
-    : CodeSerializer(isolate, source_hash) {
-  reference_map()->AddAttachedReference(*isolate->native_context());
-  reference_map()->AddAttachedReference(*module_bytes);
-}
-
-std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
-    Isolate* isolate, Handle<FixedArray> input) {
-  Handle<WasmCompiledModule> compiled_module =
-      Handle<WasmCompiledModule>::cast(input);
-  WasmCompiledModuleSerializer wasm_cs(
-      isolate, 0, isolate->native_context(),
-      handle(compiled_module->shared()->module_bytes()));
-  ScriptData* data = wasm_cs.Serialize(compiled_module);
-  return std::unique_ptr<ScriptData>(data);
-}
-
-MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
-    Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes) {
-  MaybeHandle<FixedArray> nothing;
-  if (!wasm::IsWasmCodegenAllowed(isolate, isolate->native_context())) {
-    return nothing;
-  }
-  SerializedCodeData::SanityCheckResult sanity_check_result =
-      SerializedCodeData::CHECK_SUCCESS;
-
-  const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      isolate, data, 0, &sanity_check_result);
-
-  if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
-    return nothing;
-  }
-
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  MaybeHandle<WasmCompiledModule> maybe_result =
-      ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
-                                                        wire_bytes);
-
-  Handle<WasmCompiledModule> result;
-  if (!maybe_result.ToHandle(&result)) return nothing;
-
-  WasmCompiledModule::ReinitializeAfterDeserialization(isolate, result);
-  DCHECK(WasmCompiledModule::IsWasmCompiledModule(*result));
-  return result;
-}
-
-void WasmCompiledModuleSerializer::SerializeCodeObject(
-    Code* code_object, HowToCode how_to_code, WhereToPoint where_to_point) {
-  Code::Kind kind = code_object->kind();
-  switch (kind) {
-    case Code::WASM_FUNCTION:
-    case Code::JS_TO_WASM_FUNCTION: {
-      // TODO(6792): No longer needed once WebAssembly code is off heap.
-      CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
-      // Because the trap handler index is not meaningful across copies and
-      // serializations, we need to serialize it as kInvalidIndex. We do this by
-      // saving the old value, setting the index to kInvalidIndex and then
-      // restoring the old value.
-      const int old_trap_handler_index =
-          code_object->trap_handler_index()->value();
-      code_object->set_trap_handler_index(
-          Smi::FromInt(trap_handler::kInvalidIndex));
-
-      // Just serialize the code_object.
-      SerializeGeneric(code_object, how_to_code, where_to_point);
-      code_object->set_trap_handler_index(Smi::FromInt(old_trap_handler_index));
-      break;
-    }
-    case Code::WASM_INTERPRETER_ENTRY:
-    case Code::WASM_TO_JS_FUNCTION:
-    case Code::WASM_TO_WASM_FUNCTION:
-      // Serialize the illegal builtin instead. On instantiation of a
-      // deserialized module, these will be replaced again.
-      SerializeBuiltinReference(*BUILTIN_CODE(isolate(), Illegal), how_to_code,
-                                where_to_point, 0);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-bool WasmCompiledModuleSerializer::ElideObject(Object* obj) {
-  return obj->IsWeakCell() || obj->IsForeign() || obj->IsBreakPointInfo();
 }
 
 class Checksum {

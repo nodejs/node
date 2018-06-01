@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "src/compilation-info.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -13,11 +12,17 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/machine-type.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/optimized-compilation-info.h"
 #include "src/simulator.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/fuzzer/fuzzer-support.h"
@@ -91,48 +96,7 @@ int num_registers(MachineType type) {
   }
 }
 
-int size(MachineType type) {
-  return 1 << ElementSizeLog2Of(type.representation());
-}
-
 int index(MachineType type) { return static_cast<int>(type.representation()); }
-
-const int* codes(MachineType type) {
-  const RegisterConfiguration* config = RegisterConfiguration::Default();
-  switch (type.representation()) {
-    case MachineRepresentation::kWord32:
-    case MachineRepresentation::kWord64:
-      return config->allocatable_general_codes();
-    case MachineRepresentation::kFloat32:
-      return config->allocatable_float_codes();
-    case MachineRepresentation::kFloat64:
-      return config->allocatable_double_codes();
-    default:
-      UNREACHABLE();
-  }
-}
-
-LinkageLocation AllocateLocation(MachineType type, int* int_count,
-                                 int* float_count, int* stack_slots) {
-  int* count = IsFloatingPoint(type.representation()) ? float_count : int_count;
-  int reg_code = *count;
-#if V8_TARGET_ARCH_ARM
-  // Allocate floats using a double register, but modify the code to
-  // reflect how ARM FP registers alias.
-  if (type == MachineType::Float32()) {
-    reg_code *= 2;
-  }
-#endif
-  LinkageLocation location = LinkageLocation::ForAnyRegister();  // Dummy.
-  if (reg_code < num_registers(type)) {
-    location = LinkageLocation::ForRegister(codes(type)[reg_code], type);
-  } else {
-    location = LinkageLocation::ForCallerFrameSlot(-*stack_slots - 1, type);
-    *stack_slots += std::max(1, size(type) / kPointerSize);
-  }
-  ++*count;
-  return location;
-}
 
 Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
   switch (type.representation()) {
@@ -167,51 +131,31 @@ Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
 CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
                                            size_t param_count,
                                            InputProvider* input) {
-  LocationSignature::Builder locations(zone, return_count, param_count);
-
-  int stack_slots = 0;
-  int int_params = 0;
-  int float_params = 0;
+  wasm::FunctionSig::Builder builder(zone, return_count, param_count);
   for (size_t i = 0; i < param_count; i++) {
     MachineType type = RandomType(input);
-    LinkageLocation location =
-        AllocateLocation(type, &int_params, &float_params, &stack_slots);
-    locations.AddParam(location);
+    builder.AddParam(type.representation());
   }
   // Read the end byte of the parameters.
   input->NextInt8(1);
 
-  int stack_params = stack_slots;
-#if V8_TARGET_ARCH_ARM64
-  // Align the stack slots.
-  stack_slots = stack_slots + (stack_slots % 2);
-#endif
-  int aligned_stack_params = stack_slots;
-  int int_returns = 0;
-  int float_returns = 0;
   for (size_t i = 0; i < return_count; i++) {
     MachineType type = RandomType(input);
-    LinkageLocation location =
-        AllocateLocation(type, &int_returns, &float_returns, &stack_slots);
-    locations.AddReturn(location);
+    builder.AddReturn(type.representation());
   }
-  int stack_returns = stack_slots - aligned_stack_params;
 
-  MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  return new (zone) CallDescriptor(       // --
-      CallDescriptor::kCallCodeObject,    // kind
-      target_type,                        // target MachineType
-      target_loc,                         // target location
-      locations.Build(),                  // location_sig
-      stack_params,                       // on-stack parameter count
-      compiler::Operator::kNoProperties,  // properties
-      0,                                  // callee-saved registers
-      0,                                  // callee-saved fp regs
-      CallDescriptor::kNoFlags,           // flags
-      "c-call",                           // debug name
-      0,                                  // allocatable registers
-      stack_returns);                     // on-stack return count
+  return compiler::GetWasmCallDescriptor(zone, builder.Build());
+}
+
+std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
+                                                         size_t code_size) {
+  // We have to add the code object to a NativeModule, because the
+  // WasmCallDescriptor assumes that code is on the native heap and not
+  // within a code object.
+  std::unique_ptr<wasm::NativeModule> module =
+      isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
+                                                              false);
+  return module;
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -239,9 +183,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (FLAG_wasm_fuzzer_gen_test) {
     // Print some debugging output which describes the produced signature.
     printf("[");
-    for (size_t j = 0; j < desc->ParameterCount(); ++j) {
-      printf(" %s",
-             MachineReprToString(desc->GetParameterType(j).representation()));
+    for (size_t j = 0; j < param_count; ++j) {
+      // Parameter 0 is the WasmContext.
+      printf(" %s", MachineReprToString(
+                        desc->GetParameterType(j + 1).representation()));
     }
     printf(" ] -> [");
     for (size_t j = 0; j < desc->ReturnCount(); ++j) {
@@ -258,14 +203,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Trivial hash table for the number of occurrences of parameter types. The
   // MachineRepresentation of the parameter types is used as hash code.
   int counts[kNumMachineRepresentations] = {0};
-  for (size_t i = 0; i < desc->ParameterCount(); ++i) {
-    ++counts[index(desc->GetParameterType(i))];
+  for (size_t i = 0; i < param_count; ++i) {
+    // Parameter 0 is the WasmContext.
+    ++counts[index(desc->GetParameterType(i + 1))];
   }
 
   // Generate random inputs.
-  std::unique_ptr<int[]> inputs(new int[desc->ParameterCount()]);
+  std::unique_ptr<int[]> inputs(new int[param_count]);
   std::unique_ptr<int[]> outputs(new int[desc->ReturnCount()]);
-  for (size_t i = 0; i < desc->ParameterCount(); ++i) {
+  for (size_t i = 0; i < param_count; ++i) {
     inputs[i] = input.NextInt32(10000);
   }
 
@@ -275,11 +221,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       InstructionSelector::SupportedMachineOperatorFlags());
 
   // Generate callee, returning random picks of its parameters.
-  std::unique_ptr<Node* []> params(new Node*[desc->ParameterCount() + 1]);
-  std::unique_ptr<Node* []> returns(new Node*[desc->ReturnCount()]);
-  for (size_t i = 0; i < desc->ParameterCount(); ++i) {
-    params[i] = callee.Parameter(i);
+  std::unique_ptr<Node* []> params(new Node*[desc->ParameterCount() + 2]);
+  // The first input of a return is the number of stack slots that should be
+  // popped before returning.
+  std::unique_ptr<Node* []> returns(new Node*[desc->ReturnCount() + 1]);
+  for (size_t i = 0; i < param_count; ++i) {
+    // Parameter(0) is the WasmContext.
+    params[i] = callee.Parameter(i + 1);
   }
+
   for (size_t i = 0; i < desc->ReturnCount(); ++i) {
     MachineType type = desc->GetReturnType(i);
     // Find a random same-type parameter to return. Use a constant if none.
@@ -289,7 +239,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     } else {
       int n = input.NextInt32(counts[index(type)]);
       int k = 0;
-      while (desc->GetParameterType(k) != desc->GetReturnType(i) || --n > 0) {
+      while (desc->GetParameterType(k + 1) != desc->GetReturnType(i) ||
+             --n > 0) {
         ++k;
       }
       returns[i] = params[k];
@@ -298,10 +249,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  CompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
       &info, i_isolate, desc, callee.graph(), callee.Export());
 
+  std::unique_ptr<wasm::NativeModule> module =
+      AllocateNativeModule(i_isolate, code->raw_instruction_size());
+  byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
+                         ->instructions()
+                         .start();
   // Generate wrapper.
   int expect = 0;
 
@@ -315,13 +271,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
 
-  params[0] = caller.HeapConstant(code);
-  for (size_t i = 0; i < desc->ParameterCount(); ++i) {
-    params[i + 1] = Constant(caller, desc->GetParameterType(i), inputs[i]);
+  params[0] = caller.PointerConstant(code_start);
+  // WasmContext dummy.
+  params[1] = caller.PointerConstant(nullptr);
+  for (size_t i = 0; i < param_count; ++i) {
+    params[i + 2] = Constant(caller, desc->GetParameterType(i + 1), inputs[i]);
   }
   Node* call = caller.AddNode(caller.common()->Call(desc),
-                              static_cast<int>(desc->ParameterCount() + 1),
-                              params.get());
+                              static_cast<int>(param_count + 2), params.get());
   Node* ret = Constant(caller, MachineType::Int32(), 0);
   for (size_t i = 0; i < desc->ReturnCount(); ++i) {
     // Skip roughly one third of the outputs.
@@ -335,7 +292,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   caller.Return(ret);
 
   // Call the wrapper.
-  CompilationInfo wrapper_info(ArrayVector("wrapper"), &zone, Code::STUB);
+  OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
+                                        Code::STUB);
   Handle<Code> wrapper_code = Pipeline::GenerateCodeForTesting(
       &wrapper_info, i_isolate, wrapper_desc, caller.graph(), caller.Export());
   auto fn = GeneratedCode<int32_t>::FromCode(*wrapper_code);

@@ -8,7 +8,7 @@
 #include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -79,8 +79,8 @@ class BuiltinArguments : public Arguments {
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
 #define BUILTIN(name)                                                         \
-  MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,   \
-                                                     Isolate* isolate);       \
+  V8_WARN_UNUSED_RESULT static Object* Builtin_Impl_##name(                   \
+      BuiltinArguments args, Isolate* isolate);                               \
                                                                               \
   V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                       \
       int args_length, Object** args_object, Isolate* isolate) {              \
@@ -92,7 +92,7 @@ class BuiltinArguments : public Arguments {
     return Builtin_Impl_##name(args, isolate);                                \
   }                                                                           \
                                                                               \
-  MUST_USE_RESULT Object* Builtin_##name(                                     \
+  V8_WARN_UNUSED_RESULT Object* Builtin_##name(                               \
       int args_length, Object** args_object, Isolate* isolate) {              \
     DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
     if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
@@ -102,8 +102,8 @@ class BuiltinArguments : public Arguments {
     return Builtin_Impl_##name(args, isolate);                                \
   }                                                                           \
                                                                               \
-  MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,   \
-                                                     Isolate* isolate)
+  V8_WARN_UNUSED_RESULT static Object* Builtin_Impl_##name(                   \
+      BuiltinArguments args, Isolate* isolate)
 
 // ----------------------------------------------------------------------------
 

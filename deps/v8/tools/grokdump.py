@@ -1732,6 +1732,8 @@ class V8Heap(object):
     "ODDBALL_TYPE": Oddball,
     "FIXED_ARRAY_TYPE": FixedArray,
     "HASH_TABLE_TYPE": FixedArray,
+    "BOILERPLATE_DESCRIPTION_TYPE": FixedArray,
+    "SCOPE_INFO_TYPE": FixedArray,
     "JS_FUNCTION_TYPE": JSFunction,
     "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
     "SCRIPT_TYPE": Script,
@@ -2061,7 +2063,8 @@ class InspectionPadawan(object):
   def SenseMap(self, tagged_address):
     if self.IsInKnownMapSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
-      known_map_info = KNOWN_MAPS.get(offset)
+      lookup_key = ("MAP_SPACE", offset)
+      known_map_info = KNOWN_MAPS.get(lookup_key)
       if known_map_info:
         known_map_type, known_map_name = known_map_info
         return KnownMap(self, known_map_name, known_map_type)
@@ -2161,6 +2164,7 @@ class InspectionPadawan(object):
     return None
 
   def TryExtractErrorMessage(self, slot, start, end, print_message):
+    ptr_size = self.reader.PointerSize()
     end_marker = ERROR_MESSAGE_MARKER + 1;
     header_size = 1
     end_search = start + 1024 + (header_size * ptr_size);

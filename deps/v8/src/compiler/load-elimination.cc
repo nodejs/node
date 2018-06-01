@@ -8,7 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -329,6 +329,7 @@ void LoadElimination::AbstractElements::Print() const {
 
 Node* LoadElimination::AbstractField::Lookup(Node* object) const {
   for (auto pair : info_for_node_) {
+    if (pair.first->IsDead()) continue;
     if (MustAlias(object, pair.first)) return pair.second.value;
   }
   return nullptr;
@@ -364,6 +365,7 @@ LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
     const AliasStateInfo& alias_info, MaybeHandle<Name> name,
     Zone* zone) const {
   for (auto pair : this->info_for_node_) {
+    if (pair.first->IsDead()) continue;
     if (alias_info.MayAlias(pair.first)) {
       AbstractField* that = new (zone) AbstractField(zone);
       for (auto pair : this->info_for_node_) {

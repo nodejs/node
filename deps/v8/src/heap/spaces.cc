@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
+#include "src/base/template-utils.h"
 #include "src/counters.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/concurrent-marking.h"
@@ -46,7 +47,8 @@ HeapObjectIterator::HeapObjectIterator(Page* page)
   Space* owner = page->owner();
   DCHECK(owner == page->heap()->old_space() ||
          owner == page->heap()->map_space() ||
-         owner == page->heap()->code_space());
+         owner == page->heap()->code_space() ||
+         owner == page->heap()->read_only_space());
 #endif  // DEBUG
 }
 
@@ -59,10 +61,14 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   Heap* heap = space_->heap();
 
   heap->mark_compact_collector()->sweeper()->EnsurePageIsIterable(cur_page);
+#ifdef ENABLE_MINOR_MC
   if (cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE))
     heap->minor_mark_compact_collector()->MakeIterable(
         cur_page, MarkingTreatmentMode::CLEAR,
         FreeSpaceTreatmentMode::IGNORE_FREE_SPACE);
+#else
+  DCHECK(!cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE));
+#endif  // ENABLE_MINOR_MC
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();
   DCHECK(cur_page->SweepingDone());
@@ -338,7 +344,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
-  if (heap_->use_tasks() && FLAG_concurrent_sweeping) {
+  if (!heap_->IsTearingDown() && FLAG_concurrent_sweeping) {
     if (!MakeRoomForNewTasks()) {
       // kMaxUnmapperTasks are already running. Avoid creating any more.
       if (FLAG_trace_unmapper) {
@@ -348,7 +354,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
       }
       return;
     }
-    UnmapFreeMemoryTask* task = new UnmapFreeMemoryTask(heap_->isolate(), this);
+    auto task = base::make_unique<UnmapFreeMemoryTask>(heap_->isolate(), this);
     if (FLAG_trace_unmapper) {
       PrintIsolate(heap_->isolate(),
                    "Unmapper::FreeQueuedChunks: new task id=%" PRIu64 "\n",
@@ -359,8 +365,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
     DCHECK_GE(active_unmapping_tasks_.Value(), 0);
     active_unmapping_tasks_.Increment(1);
     task_ids_[pending_unmapping_tasks_++] = task->id();
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
     PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
   }
@@ -631,7 +636,15 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
     chunk->categories_[i] = nullptr;
   }
 
-  heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(chunk);
+  if (owner->identity() == RO_SPACE) {
+    heap->incremental_marking()
+        ->non_atomic_marking_state()
+        ->bitmap(chunk)
+        ->MarkAllBits();
+  } else {
+    heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(
+        chunk);
+  }
 
   DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
 
@@ -678,6 +691,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   Page* page = static_cast<Page*>(chunk);
   heap()->incremental_marking()->SetNewSpacePageFlags(page);
   page->AllocateLocalTracker();
+#ifdef ENABLE_MINOR_MC
   if (FLAG_minor_mc) {
     page->AllocateYoungGenerationBitmap();
     heap()
@@ -685,6 +699,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
         ->non_atomic_marking_state()
         ->ClearLiveness(page);
   }
+#endif  // ENABLE_MINOR_MC
   page->InitializationMemoryFence();
   return page;
 }
@@ -1402,15 +1417,6 @@ void MemoryChunk::ReleaseYoungGenerationBitmap() {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::NEW_SPACE) ==
-              ObjectSpace::kObjectSpaceNewSpace);
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::OLD_SPACE) ==
-              ObjectSpace::kObjectSpaceOldSpace);
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
-              ObjectSpace::kObjectSpaceCodeSpace);
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
-              ObjectSpace::kObjectSpaceMapSpace);
-
 void Space::AddAllocationObserver(AllocationObserver* observer) {
   allocation_observers_.push_back(observer);
   StartNextInlineAllocationStep();
@@ -1472,7 +1478,6 @@ bool PagedSpace::HasBeenSetUp() { return true; }
 void PagedSpace::TearDown() {
   for (auto it = begin(); it != end();) {
     Page* page = *(it++);  // Will be erased.
-    ArrayBufferTracker::FreeAll(page);
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
   anchor_.set_next_page(&anchor_);
@@ -1484,7 +1489,7 @@ void PagedSpace::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList. We filter all but our old
   // generation spaces out.
   if (identity() != OLD_SPACE && identity() != CODE_SPACE &&
-      identity() != MAP_SPACE) {
+      identity() != MAP_SPACE && identity() != RO_SPACE) {
     return;
   }
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -1784,6 +1789,13 @@ void PagedSpace::FreeLinearAllocationArea() {
   InlineAllocationStep(current_top, nullptr, nullptr, 0);
   SetTopAndLimit(nullptr, nullptr);
   DCHECK_GE(current_limit, current_top);
+
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  if (identity() == CODE_SPACE) {
+    heap_->UnprotectAndRegisterMemoryChunk(
+        MemoryChunk::FromAddress(current_top));
+  }
   Free(current_top, current_limit - current_top,
        SpaceAccountingMode::kSpaceAccounted);
 }
@@ -1850,7 +1862,8 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
 
   if (!is_local()) {
     heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-        Heap::kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
+        heap()->GCFlagsForIncrementalMarking(),
+        kGCCallbackScheduleIdleGarbageCollection);
   }
 
   size_t new_node_size = 0;
@@ -1859,13 +1872,6 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
 
   DCHECK_GE(new_node_size, size_in_bytes);
 
-#ifdef DEBUG
-  for (size_t i = 0; i < size_in_bytes / kPointerSize; i++) {
-    reinterpret_cast<Object**>(new_node->address())[i] =
-        Smi::FromInt(kCodeZapValue);
-  }
-#endif
-
   // The old-space-step might have finished sweeping and restarted marking.
   // Verify that it did not turn the page of the new node into an evacuation
   // candidate.
@@ -1873,7 +1879,8 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
-  IncreaseAllocatedBytes(new_node_size, Page::FromAddress(new_node->address()));
+  Page* page = Page::FromAddress(new_node->address());
+  IncreaseAllocatedBytes(new_node_size, page);
 
   Address start = new_node->address();
   Address end = new_node->address() + new_node_size;
@@ -1881,6 +1888,9 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
+    if (identity() == CODE_SPACE) {
+      heap_->UnprotectAndRegisterMemoryChunk(page);
+    }
     Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
   SetLinearAllocationArea(start, limit);
@@ -1927,7 +1937,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
-      object->IterateBody(map->instance_type(), size, visitor);
+      object->IterateBody(map, size, visitor);
       CHECK(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
@@ -2379,7 +2389,7 @@ void NewSpace::Verify() {
       // All the interior pointers should be contained in the heap.
       VerifyPointersVisitor visitor;
       int size = object->Size();
-      object->IterateBody(map->instance_type(), size, &visitor);
+      object->IterateBody(map, size, &visitor);
 
       current += size;
     } else {
@@ -2414,9 +2424,6 @@ void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
 void SemiSpace::TearDown() {
   // Properly uncommit memory to keep the allocator counters in sync.
   if (is_committed()) {
-    for (Page* p : *this) {
-      ArrayBufferTracker::FreeAll(p);
-    }
     Uncommit();
   }
   current_capacity_ = maximum_capacity_ = 0;
@@ -2714,25 +2721,17 @@ void FreeListCategory::Reset() {
   available_ = 0;
 }
 
-FreeSpace* FreeListCategory::PickNodeFromList(size_t* node_size) {
+FreeSpace* FreeListCategory::PickNodeFromList(size_t minimum_size,
+                                              size_t* node_size) {
   DCHECK(page()->CanAllocate());
   FreeSpace* node = top();
-  if (node == nullptr) return nullptr;
-  set_top(node->next());
-  *node_size = node->Size();
-  available_ -= *node_size;
-  return node;
-}
-
-FreeSpace* FreeListCategory::TryPickNodeFromList(size_t minimum_size,
-                                                 size_t* node_size) {
-  DCHECK(page()->CanAllocate());
-  FreeSpace* node = PickNodeFromList(node_size);
-  if ((node != nullptr) && (*node_size < minimum_size)) {
-    Free(node->address(), *node_size, kLinkCategory);
+  if (node == nullptr || static_cast<size_t>(node->Size()) < minimum_size) {
     *node_size = 0;
     return nullptr;
   }
+  set_top(node->next());
+  *node_size = node->Size();
+  available_ -= *node_size;
   return node;
 }
 
@@ -2750,6 +2749,11 @@ FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
         set_top(cur_node->next());
       }
       if (prev_non_evac_node != nullptr) {
+        MemoryChunk* chunk =
+            MemoryChunk::FromAddress(prev_non_evac_node->address());
+        if (chunk->owner()->identity() == CODE_SPACE) {
+          chunk->heap()->UnprotectAndRegisterMemoryChunk(chunk);
+        }
         prev_non_evac_node->set_next(cur_node->next());
       }
       *node_size = size;
@@ -2829,12 +2833,13 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   return 0;
 }
 
-FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t* node_size) {
+FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                                size_t* node_size) {
   FreeListCategoryIterator it(this, type);
   FreeSpace* node = nullptr;
   while (it.HasNext()) {
     FreeListCategory* current = it.Next();
-    node = current->PickNodeFromList(node_size);
+    node = current->PickNodeFromList(minimum_size, node_size);
     if (node != nullptr) {
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
@@ -2844,11 +2849,11 @@ FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t* node_size) {
   return node;
 }
 
-FreeSpace* FreeList::TryFindNodeIn(FreeListCategoryType type, size_t* node_size,
-                                   size_t minimum_size) {
+FreeSpace* FreeList::TryFindNodeIn(FreeListCategoryType type,
+                                   size_t minimum_size, size_t* node_size) {
   if (categories_[type] == nullptr) return nullptr;
   FreeSpace* node =
-      categories_[type]->TryPickNodeFromList(minimum_size, node_size);
+      categories_[type]->PickNodeFromList(minimum_size, node_size);
   if (node != nullptr) {
     DCHECK(IsVeryLong() || Available() == SumFreeLists());
   }
@@ -2882,7 +2887,8 @@ FreeSpace* FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
   FreeListCategoryType type =
       SelectFastAllocationFreeListCategoryType(size_in_bytes);
   for (int i = type; i < kHuge && node == nullptr; i++) {
-    node = FindNodeIn(static_cast<FreeListCategoryType>(i), node_size);
+    node = FindNodeIn(static_cast<FreeListCategoryType>(i), size_in_bytes,
+                      node_size);
   }
 
   if (node == nullptr) {
@@ -2895,7 +2901,7 @@ FreeSpace* FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
     // We didn't find anything in the huge list. Now search the best fitting
     // free list for a node that has at least the requested size.
     type = SelectFreeListCategoryType(size_in_bytes);
-    node = TryFindNodeIn(type, node_size, size_in_bytes);
+    node = TryFindNodeIn(type, size_in_bytes, node_size);
   }
 
   if (node != nullptr) {
@@ -3276,7 +3282,8 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   }
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-      Heap::kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
+      heap()->GCFlagsForIncrementalMarking(),
+      kGCCallbackScheduleIdleGarbageCollection);
   heap()->CreateFillerObjectAt(object->address(), object_size,
                                ClearRecordedSlots::kNo);
   if (heap()->incremental_marking()->black_allocation()) {
@@ -3471,7 +3478,7 @@ void LargeObjectSpace::Verify() {
     // Byte arrays and strings don't have interior pointers.
     if (object->IsAbstractCode()) {
       VerifyPointersVisitor code_visitor;
-      object->IterateBody(map->instance_type(), object->Size(), &code_visitor);
+      object->IterateBody(map, object->Size(), &code_visitor);
     } else if (object->IsFixedArray()) {
       FixedArray* array = FixedArray::cast(object);
       for (int j = 0; j < array->length(); j++) {

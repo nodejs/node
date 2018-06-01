@@ -15,10 +15,10 @@
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
 #include "src/execution.h"
-#include "src/factory.h"
 #include "src/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
@@ -225,8 +225,8 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
 
-  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
-                                           Handle<Object> data);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
+                                                 Handle<Object> data);
   Handle<Context> GetDebugContext();
   void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
 
@@ -242,22 +242,21 @@ class Debug {
   // Break point handling.
   bool SetBreakPoint(Handle<JSFunction> function,
                      Handle<BreakPoint> break_point, int* source_position);
-  bool SetBreakPointForScript(Handle<Script> script,
-                              Handle<BreakPoint> break_point,
-                              int* source_position);
   void ClearBreakPoint(Handle<BreakPoint> break_point);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
-  bool SetBreakpoint(Handle<Script> script, Handle<String> condition,
-                     int* offset, int* id);
+  bool SetBreakPointForScript(Handle<Script> script, Handle<String> condition,
+                              int* source_position, int* id);
+  bool SetBreakpointForFunction(Handle<JSFunction> function,
+                                Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
 
-  // The parameter is either a BreakPoint object, or a FixedArray of
-  // BreakPoint objects.
-  // Returns an empty handle if no breakpoint is hit, or a FixedArray with all
+  // Find breakpoints from the debug info and the break location and check
+  // whether they are hit. Return an empty handle if not, or a FixedArray with
   // hit BreakPoint objects.
-  MaybeHandle<FixedArray> GetHitBreakPoints(Handle<Object> break_points);
+  MaybeHandle<FixedArray> GetHitBreakPoints(Handle<DebugInfo> debug_info,
+                                            int position);
 
   // Stepping handling.
   void PrepareStep(StepAction step_action);
@@ -268,7 +267,8 @@ class Debug {
   void ClearStepOut();
 
   void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
-  void PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
+  void PrepareFunctionForDebugExecution(Handle<SharedFunctionInfo> shared);
+  void InstallDebugBreakTrampoline();
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
@@ -336,8 +336,18 @@ class Debug {
     return is_active() && !debug_context().is_null() && break_id() != 0;
   }
 
+  // Apply proper instrumentation depends on debug_execution_mode.
+  void ApplyInstrumentation(Handle<SharedFunctionInfo> shared);
+
+  void StartSideEffectCheckMode();
+  void StopSideEffectCheckMode();
+
+  void ApplySideEffectChecks(Handle<DebugInfo> debug_info);
+  void ClearSideEffectChecks(Handle<DebugInfo> debug_info);
+
   bool PerformSideEffectCheck(Handle<JSFunction> function);
-  bool PerformSideEffectCheckForCallback(Address function);
+  bool PerformSideEffectCheckForCallback(Handle<Object> callback_info);
+  bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
 
   // Flags and states.
   DebugScope* debugger_entry() {
@@ -403,7 +413,7 @@ class Debug {
 
  private:
   explicit Debug(Isolate* isolate);
-  ~Debug() { DCHECK_NULL(debug_delegate_); }
+  ~Debug();
 
   void UpdateState();
   void UpdateHookOnFunctionCall();
@@ -417,7 +427,8 @@ class Debug {
   int CurrentFrameCount();
 
   inline bool ignore_events() const {
-    return is_suppressed_ || !is_active_ || isolate_->needs_side_effect_check();
+    return is_suppressed_ || !is_active_ ||
+           isolate_->debug_execution_mode() == DebugInfo::kSideEffects;
   }
   inline bool break_disabled() const { return break_disabled_; }
 
@@ -434,14 +445,12 @@ class Debug {
   void OnException(Handle<Object> exception, Handle<Object> promise);
 
   // Constructors for debug event objects.
-  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
-  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
-      Handle<Object> exception,
-      bool uncaught,
-      Handle<Object> promise);
-  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeExecutionState();
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeExceptionEvent(
+      Handle<Object> exception, bool uncaught, Handle<Object> promise);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
       v8::debug::PromiseDebugActionType type, int id);
 
   void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);
@@ -468,7 +477,9 @@ class Debug {
                                            BreakLocation* location,
                                            bool* has_break_points = nullptr);
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
-  bool CheckBreakPoint(Handle<BreakPoint> break_point);
+  // Check whether a BreakPoint object is hit. Evaluate condition depending
+  // on whether this is a regular break location or a break at function entry.
+  bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
                                    Handle<Object> args[],
                                    bool catch_exceptions = true);
@@ -519,6 +530,10 @@ class Debug {
 
   // List of active debug info objects.
   DebugInfoListNode* debug_info_list_;
+
+  // Used for side effect check to mark temporary objects.
+  class TemporaryObjectsTracker;
+  std::unique_ptr<TemporaryObjectsTracker> temporary_objects_;
 
   // Used to collect histogram data on debugger feature usage.
   DebugFeatureTracker feature_tracker_;
@@ -698,9 +713,9 @@ class ReturnValueScope {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  explicit DisableBreak(Debug* debug)
+  explicit DisableBreak(Debug* debug, bool disable = true)
       : debug_(debug), previous_break_disabled_(debug->break_disabled_) {
-    debug_->break_disabled_ = true;
+    debug_->break_disabled_ = disable;
   }
   ~DisableBreak() {
     debug_->break_disabled_ = previous_break_disabled_;
@@ -727,24 +742,6 @@ class SuppressDebug BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SuppressDebug);
 };
 
-class NoSideEffectScope {
- public:
-  NoSideEffectScope(Isolate* isolate, bool disallow_side_effects)
-      : isolate_(isolate),
-        old_needs_side_effect_check_(isolate->needs_side_effect_check()) {
-    isolate->set_needs_side_effect_check(old_needs_side_effect_check_ ||
-                                         disallow_side_effects);
-    isolate->debug()->UpdateHookOnFunctionCall();
-    isolate->debug()->side_effect_check_failed_ = false;
-  }
-  ~NoSideEffectScope();
-
- private:
-  Isolate* isolate_;
-  bool old_needs_side_effect_check_;
-  DISALLOW_COPY_AND_ASSIGN(NoSideEffectScope);
-};
-
 // Code generator routines.
 class DebugCodegen : public AllStatic {
  public:
@@ -759,6 +756,9 @@ class DebugCodegen : public AllStatic {
   // Builtin to atomically (wrt deopts) handle debugger statement and
   // drop frames to restart function if necessary.
   static void GenerateHandleDebuggerStatement(MacroAssembler* masm);
+
+  // Builtin to trigger a debug break before entering the function.
+  static void GenerateDebugBreakTrampoline(MacroAssembler* masm);
 };
 
 

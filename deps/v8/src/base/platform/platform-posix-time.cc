@@ -18,7 +18,9 @@ const char* PosixDefaultTimezoneCache::LocalTimezone(double time) {
   return t->tm_zone;
 }
 
-double PosixDefaultTimezoneCache::LocalTimeOffset() {
+double PosixDefaultTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
+  // Preserve the old behavior for non-ICU implementation by ignoring both
+  // time_ms and is_utc.
   time_t tv = time(nullptr);
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);

@@ -7,6 +7,8 @@
 #include <stack>
 #include <unordered_map>
 
+#include "include/v8config.h"
+#include "src/base/template-utils.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -90,12 +92,61 @@ class ConcurrentMarkingVisitor final
     return marking_state_.GreyToBlack(object);
   }
 
+  bool AllowDefaultJSObjectVisit() { return false; }
+
+  void ProcessStrongHeapObject(HeapObject* host, Object** slot,
+                               HeapObject* heap_object) {
+    MarkObject(heap_object);
+    MarkCompactCollector::RecordSlot(host, slot, heap_object);
+  }
+
+  void ProcessWeakHeapObject(HeapObject* host, HeapObjectReference** slot,
+                             HeapObject* heap_object) {
+#ifdef THREAD_SANITIZER
+    // Perform a dummy acquire load to tell TSAN that there is no data race
+    // in mark-bit initialization. See MemoryChunk::Initialize for the
+    // corresponding release store.
+    MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object->address());
+    CHECK_NOT_NULL(chunk->synchronized_heap());
+#endif
+    if (marking_state_.IsBlackOrGrey(heap_object)) {
+      // Weak references with live values are directly processed here to
+      // reduce the processing time of weak cells during the main GC
+      // pause.
+      MarkCompactCollector::RecordSlot(host, slot, heap_object);
+    } else {
+      // If we do not know about liveness of the value, we have to process
+      // the reference when we know the liveness of the whole transitive
+      // closure.
+      weak_objects_->weak_references.Push(task_id_, std::make_pair(host, slot));
+    }
+  }
+
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** slot = start; slot < end; slot++) {
       Object* object = base::AsAtomicPointer::Relaxed_Load(slot);
-      if (!object->IsHeapObject()) continue;
-      MarkObject(HeapObject::cast(object));
-      MarkCompactCollector::RecordSlot(host, slot, object);
+      DCHECK(!HasWeakHeapObjectTag(object));
+      if (object->IsHeapObject()) {
+        ProcessStrongHeapObject(host, slot, HeapObject::cast(object));
+      }
+    }
+  }
+
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) override {
+    for (MaybeObject** slot = start; slot < end; slot++) {
+      MaybeObject* object = base::AsAtomicPointer::Relaxed_Load(slot);
+      HeapObject* heap_object;
+      if (object->ToStrongHeapObject(&heap_object)) {
+        // If the reference changes concurrently from strong to weak, the write
+        // barrier will treat the weak reference as strong, so we won't miss the
+        // weak reference.
+        ProcessStrongHeapObject(host, reinterpret_cast<Object**>(slot),
+                                heap_object);
+      } else if (object->ToWeakHeapObject(&heap_object)) {
+        ProcessWeakHeapObject(
+            host, reinterpret_cast<HeapObjectReference**>(slot), heap_object);
+      }
     }
   }
 
@@ -103,6 +154,7 @@ class ConcurrentMarkingVisitor final
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
       Object** slot = snapshot.slot(i);
       Object* object = snapshot.value(i);
+      DCHECK(!HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(object));
       MarkCompactCollector::RecordSlot(host, slot, object);
@@ -114,18 +166,19 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitJSObject(Map* map, JSObject* object) {
-    int size = JSObject::BodyDescriptor::SizeOf(map, object);
-    int used_size = map->UsedInstanceSize();
-    DCHECK_LE(used_size, size);
-    DCHECK_GE(used_size, JSObject::kHeaderSize);
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
-    if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(object, snapshot);
-    return size;
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSObjectFast(Map* map, JSObject* object) {
-    return VisitJSObject(map, object);
+    return VisitJSObjectSubclass(map, object);
+  }
+
+  int VisitJSArrayBuffer(Map* map, JSArrayBuffer* object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
+  int VisitWasmInstanceObject(Map* map, WasmInstanceObject* object) {
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSApiObject(Map* map, JSObject* object) {
@@ -134,6 +187,17 @@ class ConcurrentMarkingVisitor final
       bailout_.Push(object);
     }
     return 0;
+  }
+
+  int VisitJSFunction(Map* map, JSFunction* object) {
+    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
+    int used_size = map->UsedInstanceSize();
+    DCHECK_LE(used_size, size);
+    DCHECK_GE(used_size, JSObject::kHeaderSize);
+    const SlotSnapshot& snapshot = MakeSlotSnapshotWeak(map, object, used_size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
   }
 
   // ===========================================================================
@@ -187,17 +251,11 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitFixedArray(Map* map, FixedArray* object) {
-    // The synchronized_length() function checks that the length is a Smi.
-    // This is not necessarily the case if the array is being left-trimmed.
-    Object* length = object->unchecked_synchronized_length();
-    if (!ShouldVisit(object)) return 0;
-    // The cached length must be the actual length as the array is not black.
-    // Left trimming marks the array black before over-writing the length.
-    DCHECK(length->IsSmi());
-    int size = FixedArray::SizeFor(Smi::ToInt(length));
-    VisitMapPointer(object, object->map_slot());
-    FixedArray::BodyDescriptor::IterateBody(object, size, this);
-    return size;
+    return VisitLeftTrimmableArray(map, object);
+  }
+
+  int VisitFixedDoubleArray(Map* map, FixedDoubleArray* object) {
+    return VisitLeftTrimmableArray(map, object);
   }
 
   // ===========================================================================
@@ -217,7 +275,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
+    BytecodeArray::BodyDescriptorWeak::IterateBody(map, object, size, this);
     object->MakeOlder();
     return size;
   }
@@ -226,7 +284,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = AllocationSite::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    AllocationSite::BodyDescriptorWeak::IterateBody(object, size, this);
+    AllocationSite::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -234,15 +292,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = CodeDataContainer::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    CodeDataContainer::BodyDescriptorWeak::IterateBody(object, size, this);
-    return size;
-  }
-
-  int VisitJSFunction(Map* map, JSFunction* object) {
-    if (!ShouldVisit(object)) return 0;
-    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    JSFunction::BodyDescriptorWeak::IterateBody(object, size, this);
+    CodeDataContainer::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -255,7 +305,7 @@ class ConcurrentMarkingVisitor final
       VisitPointer(map, HeapObject::RawField(map, Map::kPrototypeOffset));
       VisitPointer(
           map, HeapObject::RawField(map, Map::kConstructorOrBackPointerOffset));
-      VisitPointer(map, HeapObject::RawField(
+      VisitPointer(map, HeapObject::RawMaybeWeakField(
                             map, Map::kTransitionsOrPrototypeInfoOffset));
       VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
       VisitPointer(map, HeapObject::RawField(map, Map::kWeakCellCacheOffset));
@@ -268,7 +318,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = Context::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    Context::BodyDescriptorWeak::IterateBody(object, size, this);
+    Context::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -276,7 +326,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(array)) return 0;
     VisitMapPointer(array, array->map_slot());
     int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
-    TransitionArray::BodyDescriptor::IterateBody(array, size, this);
+    TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
     weak_objects_->transition_arrays.Push(task_id_, array);
     return size;
   }
@@ -338,18 +388,59 @@ class ConcurrentMarkingVisitor final
       }
     }
 
+    void VisitPointers(HeapObject* host, MaybeObject** start,
+                       MaybeObject** end) override {
+      // This should never happen, because we don't use snapshotting for objects
+      // which contain weak references.
+      UNREACHABLE();
+    }
+
    private:
     SlotSnapshot* slot_snapshot_;
   };
 
   template <typename T>
+  int VisitJSObjectSubclass(Map* map, T* object) {
+    int size = T::BodyDescriptor::SizeOf(map, object);
+    int used_size = map->UsedInstanceSize();
+    DCHECK_LE(used_size, size);
+    DCHECK_GE(used_size, T::kHeaderSize);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  template <typename T>
+  int VisitLeftTrimmableArray(Map* map, T* object) {
+    // The synchronized_length() function checks that the length is a Smi.
+    // This is not necessarily the case if the array is being left-trimmed.
+    Object* length = object->unchecked_synchronized_length();
+    if (!ShouldVisit(object)) return 0;
+    // The cached length must be the actual length as the array is not black.
+    // Left trimming marks the array black before over-writing the length.
+    DCHECK(length->IsSmi());
+    int size = T::SizeFor(Smi::ToInt(length));
+    VisitMapPointer(object, object->map_slot());
+    T::BodyDescriptor::IterateBody(map, object, size, this);
+    return size;
+  }
+
+  template <typename T>
   const SlotSnapshot& MakeSlotSnapshot(Map* map, T* object, int size) {
-    // TODO(ulan): Iterate only the existing fields and skip slack at the end
-    // of the object.
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object,
                          reinterpret_cast<Object**>(object->map_slot()));
-    T::BodyDescriptor::IterateBody(object, size, &visitor);
+    T::BodyDescriptor::IterateBody(map, object, size, &visitor);
+    return slot_snapshot_;
+  }
+
+  template <typename T>
+  const SlotSnapshot& MakeSlotSnapshotWeak(Map* map, T* object, int size) {
+    SlotSnapshottingVisitor visitor(&slot_snapshot_);
+    visitor.VisitPointer(object,
+                         reinterpret_cast<Object**>(object->map_slot()));
+    T::BodyDescriptorWeak::IterateBody(map, object, size, &visitor);
     return slot_snapshot_;
   }
   ConcurrentMarking::MarkingWorklist::View shared_;
@@ -484,6 +575,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
+    weak_objects_->weak_references.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_.Increment(marked_bytes);
     {
@@ -501,15 +593,24 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 }
 
 void ConcurrentMarking::ScheduleTasks() {
-  DCHECK(heap_->use_tasks());
+  DCHECK(!heap_->IsTearingDown());
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
   DCHECK_EQ(0, pending_task_count_);
   if (task_count_ == 0) {
-    task_count_ = Max(
-        1, Min(kMaxTasks,
-               static_cast<int>(V8::GetCurrentPlatform()
-                                    ->NumberOfAvailableBackgroundThreads())));
+    static const int num_cores =
+        V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
+#if defined(V8_OS_MACOSX)
+    // Mac OSX 10.11 and prior seems to have trouble when doing concurrent
+    // marking on competing hyper-threads (regresses Octane/Splay). As such,
+    // only use num_cores/2, leaving one of those for the main thread.
+    // TODO(ulan): Use all cores on Mac 10.12+.
+    task_count_ = Max(1, Min(kMaxTasks, (num_cores / 2) - 1));
+#else   // defined(OS_MACOSX)
+    // On other platforms use all logical cores, leaving one for the main
+    // thread.
+    task_count_ = Max(1, Min(kMaxTasks, num_cores - 1));
+#endif  // defined(OS_MACOSX)
   }
   // Task id 0 is for the main thread.
   for (int i = 1; i <= task_count_; i++) {
@@ -521,17 +622,17 @@ void ConcurrentMarking::ScheduleTasks() {
       task_state_[i].preemption_request.SetValue(false);
       is_pending_[i] = true;
       ++pending_task_count_;
-      Task* task = new Task(heap_->isolate(), this, &task_state_[i], i);
+      auto task =
+          base::make_unique<Task>(heap_->isolate(), this, &task_state_[i], i);
       cancelable_id_[i] = task->id();
-      V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          task, v8::Platform::kShortRunningTask);
+      V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
     }
   }
   DCHECK_EQ(task_count_, pending_task_count_);
 }
 
 void ConcurrentMarking::RescheduleTasksIfNeeded() {
-  if (!FLAG_concurrent_marking || !heap_->use_tasks()) return;
+  if (!FLAG_concurrent_marking || heap_->IsTearingDown()) return;
   {
     base::LockGuard<base::Mutex> guard(&pending_lock_);
     if (pending_task_count_ > 0) return;

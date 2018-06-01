@@ -5,8 +5,8 @@
 #include "src/compilation-cache.h"
 
 #include "src/counters.h"
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/visitors.h"

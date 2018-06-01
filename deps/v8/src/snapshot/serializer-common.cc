@@ -22,7 +22,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = new AddressToIndexHashMap();
   isolate->set_external_reference_map(map_);
   // Add V8's external references.
-  ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
+  ExternalReferenceTable* table = isolate->heap()->external_reference_table();
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     // Ignore duplicate references.
@@ -86,7 +86,7 @@ const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) return "<unknown>";
-  return ExternalReferenceTable::instance(isolate)->name(
+  return isolate->heap()->external_reference_table()->name(
       maybe_index.FromJust());
 }
 
@@ -96,6 +96,11 @@ void SerializedData::AllocateData(uint32_t size) {
   size_ = size;
   owns_data_ = true;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(data_), kPointerAlignment));
+}
+
+// static
+uint32_t SerializedData::ComputeMagicNumber(Isolate* isolate) {
+  return ComputeMagicNumber(isolate->heap()->external_reference_table());
 }
 
 // The partial snapshot cache is terminated by undefined. We visit the

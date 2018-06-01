@@ -30,3 +30,16 @@ wheel: <
   name: "infra/python/wheels/psutil/${vpython_platform}"
   version: "version:5.2.2"
 >
+
+# Used by:
+#   build/toolchain/win
+wheel: <
+  name: "infra/python/wheels/pypiwin32/${vpython_platform}"
+  version: "version:219"
+  match_tag: <
+    platform: "win32"
+  >
+  match_tag: <
+    platform: "win_amd64"
+  >
+>

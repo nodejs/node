@@ -16,41 +16,52 @@ class Isolate {
     this.samples = {zone: {}};
     this.data_sets = new Set();
     this.peakMemory = 0;
+    // Maps instance_types to their max memory consumption over all gcs.
+    this.instanceTypePeakMemory = Object.create(null);
+    // Peak memory consumed by any single instance type.
+    this.singleInstanceTypePeakMemory = 0;
   }
 
   finalize() {
     Object.values(this.gcs).forEach(gc => this.finalizeGC(gc));
+    this.sortInstanceTypePeakMemory();
   }
 
   getLabel() {
     let label = `${this.address}: gc=#${Object.keys(this.gcs).length}`;
-    const peakSizeMB = Math.round(this.peakMemory / 1024 / 1024 * 100) / 100;
-    label += ` max=${peakSizeMB}MB`
+    label += ` peak=${formatBytes(this.peakMemory)}`
     return label;
   }
 
   finalizeGC(gc_data) {
     this.data_sets.forEach(key => this.finalizeDataSet(gc_data[key]));
-    if ('live' in gc_data) {
-      this.peakMemory = Math.max(this.peakMemory, gc_data['live'].overall);
+    if (!('live' in gc_data)) return;
+    let liveData = gc_data.live;
+    this.peakMemory = Math.max(this.peakMemory, liveData.overall);
+    let data = liveData.instance_type_data;
+    for (let name in data) {
+      let prev = this.instanceTypePeakMemory[name] || 0;
+      this.instanceTypePeakMemory[name] = Math.max(prev, data[name].overall);
     }
   }
 
   finalizeDataSet(data_set) {
     // Create a ranked instance type array that sorts instance types by
     // memory size (overall).
-    data_set.ranked_instance_types =
-        [...data_set.non_empty_instance_types].sort(function(a, b) {
-          if (data_set.instance_type_data[a].overall >
-              data_set.instance_type_data[b].overall) {
-            return 1;
-          } else if (
-              data_set.instance_type_data[a].overall <
-              data_set.instance_type_data[b].overall) {
-            return -1;
-          }
-          return 0;
+    let data = data_set.instance_type_data;
+    let ranked_instance_types =
+        [...data_set.non_empty_instance_types].sort((a, b) => {
+          return data[a].overall - data[b].overall;
         });
+    // Reassemble the instance_type list sorted by size.
+    let sorted_data = Object.create(null);
+    let max = 0;
+    ranked_instance_types.forEach((name) => {
+      let entry = sorted_data[name] = data[name];
+      max = Math.max(max, entry.overall);
+    });
+    data_set.instance_type_data = data;
+    data_set.singleInstancePeakMemory = max;
 
     Object.entries(data_set.instance_type_data).forEach(([name, entry]) => {
       this.checkHistogram(
@@ -73,5 +84,22 @@ class Isolate {
       console.error(
           `${type}: sum('${histogram}') > overall (${sum} > ${overall})`);
     }
+  }
+
+  sortInstanceTypePeakMemory() {
+    let entries = Object.entries(this.instanceTypePeakMemory);
+    entries.sort((a, b) => {return b[1] - a[1]});
+    this.instanceTypePeakMemory = Object.create(null);
+    let max = 0;
+    for (let [key, value] of entries) {
+      this.instanceTypePeakMemory[key] = value;
+      max = Math.max(max, value);
+    }
+    this.singleInstanceTypePeakMemory = max;
+  }
+
+  getInstanceTypePeakMemory(type) {
+    if (!(type in this.instanceTypePeakMemory)) return 0;
+    return this.instanceTypePeakMemory[type];
   }
 }

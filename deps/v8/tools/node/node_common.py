@@ -15,9 +15,8 @@ def EnsureDepotTools(v8_path, fetch_if_not_exist):
   def _Get(v8_path):
     depot_tools = os.path.join(v8_path, "_depot_tools")
     try:
-      gclient_path = os.path.join(depot_tools, "gclient")
-      gclient_check = subprocess.check_output([gclient_path, "--version"])
-      if "gclient.py" in gclient_check:
+      gclient_path = os.path.join(depot_tools, "gclient.py")
+      if os.path.isfile(gclient_path):
         return depot_tools
     except:
       pass

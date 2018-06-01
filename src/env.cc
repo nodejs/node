@@ -1,5 +1,6 @@
 #include "node_internals.h"
 #include "async_wrap.h"
+#include "v8-profiler.h"
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
@@ -73,15 +74,6 @@ IsolateData::IsolateData(Isolate* isolate,
 IsolateData::~IsolateData() {
   if (platform_ != nullptr)
     platform_->UnregisterIsolate(this);
-  if (cpu_profiler_ != nullptr)
-    cpu_profiler_->Dispose();
-}
-
-v8::CpuProfiler* IsolateData::GetCpuProfiler() {
-  if (cpu_profiler_ != nullptr) return cpu_profiler_;
-  cpu_profiler_ = v8::CpuProfiler::New(isolate());
-  CHECK_NOT_NULL(cpu_profiler_);
-  return cpu_profiler_;
 }
 
 
@@ -260,12 +252,12 @@ void Environment::CleanupHandles() {
 void Environment::StartProfilerIdleNotifier() {
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
-    env->isolate_data()->GetCpuProfiler()->SetIdle(true);
+    env->isolate()->SetIdle(true);
   });
 
   uv_check_start(&idle_check_handle_, [](uv_check_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_check_handle_, handle);
-    env->isolate_data()->GetCpuProfiler()->SetIdle(false);
+    env->isolate()->SetIdle(false);
   });
 }
 

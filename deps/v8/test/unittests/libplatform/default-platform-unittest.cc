@@ -264,7 +264,7 @@ TEST(DefaultPlatformTest, RunBackgroundTask) {
   DefaultPlatform platform;
   platform.SetThreadPoolSize(1);
   std::shared_ptr<TaskRunner> taskrunner =
-      platform.GetBackgroundTaskRunner(isolate);
+      platform.GetWorkerThreadsTaskRunner(isolate);
 
   base::Semaphore sem(0);
   bool task_executed = false;
@@ -282,7 +282,7 @@ TEST(DefaultPlatformTest, NoIdleTasksInBackground) {
   DefaultPlatform platform;
   platform.SetThreadPoolSize(1);
   std::shared_ptr<TaskRunner> taskrunner =
-      platform.GetBackgroundTaskRunner(isolate);
+      platform.GetWorkerThreadsTaskRunner(isolate);
   EXPECT_FALSE(taskrunner->IdleTasksEnabled());
 }
 
@@ -296,7 +296,7 @@ TEST(DefaultPlatformTest, PostTaskAfterPlatformTermination) {
     DefaultPlatformWithMockTime platform;
     platform.SetThreadPoolSize(1);
     foreground_taskrunner = platform.GetForegroundTaskRunner(isolate);
-    background_taskrunner = platform.GetBackgroundTaskRunner(isolate);
+    background_taskrunner = platform.GetWorkerThreadsTaskRunner(isolate);
   }
   // It should still be possible to post tasks, even when the platform does not
   // exist anymore.

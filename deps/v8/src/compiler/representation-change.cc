@@ -10,7 +10,7 @@
 #include "src/code-factory.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -483,7 +483,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kNumberConstant:
       return jsgraph()->Float32Constant(
-          DoubleToFloat32(OpParameter<double>(node)));
+          DoubleToFloat32(OpParameter<double>(node->op())));
     case IrOpcode::kInt32Constant:
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kFloat32Constant:
@@ -543,7 +543,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     // TODO(jarin) Handle checked constant conversions.
     switch (node->opcode()) {
       case IrOpcode::kNumberConstant:
-        return jsgraph()->Float64Constant(OpParameter<double>(node));
+        return jsgraph()->Float64Constant(OpParameter<double>(node->op()));
       case IrOpcode::kInt32Constant:
       case IrOpcode::kFloat64Constant:
       case IrOpcode::kFloat32Constant:
@@ -608,6 +608,16 @@ Node* RepresentationChanger::MakeTruncatedInt32Constant(double value) {
   return jsgraph()->Int32Constant(DoubleToInt32(value));
 }
 
+void RepresentationChanger::InsertUnconditionalDeopt(Node* node,
+                                                     DeoptimizeReason reason) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* deopt =
+      jsgraph()->graph()->NewNode(simplified()->CheckIf(reason),
+                                  jsgraph()->Int32Constant(0), effect, control);
+  NodeProperties::ReplaceEffectInput(node, deopt);
+}
+
 Node* RepresentationChanger::GetWord32RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
     Node* use_node, UseInfo use_info) {
@@ -619,7 +629,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       UNREACHABLE();
       break;
     case IrOpcode::kNumberConstant: {
-      double const fv = OpParameter<double>(node);
+      double const fv = OpParameter<double>(node->op());
       if (use_info.type_check() == TypeCheckKind::kNone ||
           ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
             use_info.type_check() == TypeCheckKind::kSigned32) &&
@@ -639,7 +649,17 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     return jsgraph()->graph()->NewNode(
         jsgraph()->common()->DeadValue(MachineRepresentation::kWord32), node);
   } else if (output_rep == MachineRepresentation::kBit) {
-    return node;  // Sloppy comparison -> word32
+    CHECK(output_type->Is(Type::Boolean()));
+    if (use_info.truncation().IsUsedAsWord32()) {
+      return node;
+    } else {
+      CHECK(Truncation::Any(kIdentifyZeros)
+                .IsLessGeneralThan(use_info.truncation()));
+      CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
+      InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotASmi);
+      return jsgraph()->graph()->NewNode(
+          jsgraph()->common()->DeadValue(MachineRepresentation::kWord32), node);
+    }
   } else if (output_rep == MachineRepresentation::kFloat64) {
     if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();

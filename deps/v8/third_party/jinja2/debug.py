@@ -7,7 +7,7 @@
     ugly stuff with the Python traceback system in order to achieve tracebacks
     with correct line numbers, locals and contents.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 import sys
@@ -195,21 +195,43 @@ def translate_exception(exc_info, initial_skip=0):
     return ProcessedTraceback(exc_info[0], exc_info[1], frames)
 
 
+def get_jinja_locals(real_locals):
+    ctx = real_locals.get('context')
+    if ctx:
+        locals = ctx.get_all().copy()
+    else:
+        locals = {}
+
+    local_overrides = {}
+
+    for name, value in iteritems(real_locals):
+        if not name.startswith('l_') or value is missing:
+            continue
+        try:
+            _, depth, name = name.split('_', 2)
+            depth = int(depth)
+        except ValueError:
+            continue
+        cur_depth = local_overrides.get(name, (-1,))[0]
+        if cur_depth < depth:
+            local_overrides[name] = (depth, value)
+
+    for name, (_, value) in iteritems(local_overrides):
+        if value is missing:
+            locals.pop(name, None)
+        else:
+            locals[name] = value
+
+    return locals
+
+
 def fake_exc_info(exc_info, filename, lineno):
     """Helper for `translate_exception`."""
     exc_type, exc_value, tb = exc_info
 
     # figure the real context out
     if tb is not None:
-        real_locals = tb.tb_frame.f_locals.copy()
-        ctx = real_locals.get('context')
-        if ctx:
-            locals = ctx.get_all()
-        else:
-            locals = {}
-        for name, value in iteritems(real_locals):
-            if name.startswith('l_') and value is not missing:
-                locals[name[2:]] = value
+        locals = get_jinja_locals(tb.tb_frame.f_locals)
 
         # if there is a local called __jinja_exception__, we get
         # rid of it to not break the debug functionality.

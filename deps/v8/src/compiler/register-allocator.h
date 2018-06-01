@@ -229,9 +229,12 @@ class UseInterval final : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(UseInterval);
 };
 
-
-enum class UsePositionType : uint8_t { kAny, kRequiresRegister, kRequiresSlot };
-
+enum class UsePositionType : uint8_t {
+  kRegisterOrSlot,
+  kRegisterOrSlotOrConstant,
+  kRequiresRegister,
+  kRequiresSlot
+};
 
 enum class UsePositionHintType : uint8_t {
   kNone,

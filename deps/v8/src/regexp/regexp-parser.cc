@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "src/char-predicates-inl.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"

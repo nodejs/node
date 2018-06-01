@@ -9,6 +9,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
+#include "src/base/template-utils.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler-dispatcher/unoptimized-compile-job.h"
@@ -226,10 +227,9 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
   ASSERT_FALSE(job->IsFailed());
 
   base::Semaphore semaphore(0);
-  CompileTask* background_task = new CompileTask(job.get(), &semaphore);
+  auto background_task = base::make_unique<CompileTask>(job.get(), &semaphore);
   ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kPrepared, job);
-  V8::GetCurrentPlatform()->CallOnBackgroundThread(background_task,
-                                                   Platform::kShortRunningTask);
+  V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(background_task));
   semaphore.Wait();
   job->FinalizeOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());

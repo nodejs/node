@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/codegen.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/simulator-mips64.h"
 

@@ -9,6 +9,7 @@
 
 #include "src/assembler.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -80,7 +81,6 @@ class PlatformInterfaceDescriptor;
   V(FrameDropperTrampoline)           \
   V(WasmRuntimeCall)                  \
   V(RunMicrotasks)                    \
-  V(PromiseReactionHandler)           \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -656,7 +656,9 @@ class ConstructStubDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-
+// This descriptor is also used by DebugBreakTrampoline because it handles both
+// regular function calls and construct calls, and we need to pass new.target
+// for the latter.
 class ConstructTrampolineDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFunction, kNewTarget, kActualArgumentsCount)
@@ -884,13 +886,6 @@ class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
   DEFINE_EMPTY_PARAMETERS()
   DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor,
                              0)
-};
-
-class PromiseReactionHandlerDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kArgument, kGenerator)
-  DECLARE_DEFAULT_DESCRIPTOR(PromiseReactionHandlerDescriptor,
-                             CallInterfaceDescriptor, 2)
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                          \

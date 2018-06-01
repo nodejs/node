@@ -33,6 +33,7 @@ class JavaScriptFrame;
   V(function_name, FunctionName)                                    \
   V(function_length, FunctionLength)                                \
   V(function_prototype, FunctionPrototype)                          \
+  V(reconfigure_to_data_property, ReconfigureToDataProperty)        \
   V(script_column_offset, ScriptColumnOffset)                       \
   V(script_compilation_type, ScriptCompilationType)                 \
   V(script_context_data, ScriptContextData)                         \
@@ -47,6 +48,15 @@ class JavaScriptFrame;
   V(script_source_url, ScriptSourceUrl)                             \
   V(script_source_mapping_url, ScriptSourceMappingUrl)              \
   V(string_length, StringLength)
+
+#define SIDE_EFFECT_FREE_ACCESSOR_INFO_LIST(V) \
+  V(ArrayLength)                               \
+  V(BoundFunctionLength)                       \
+  V(BoundFunctionName)                         \
+  V(FunctionName)                              \
+  V(FunctionLength)                            \
+  V(FunctionPrototype)                         \
+  V(StringLength)
 
 #define ACCESSOR_SETTER_LIST(V) \
   V(ArrayLengthSetter)          \
@@ -72,6 +82,16 @@ class Accessors : public AllStatic {
       const v8::PropertyCallbackInfo<v8::Boolean>& info);
   ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_SETTER_DECLARATION
+
+  static constexpr int kAccessorInfoCount =
+#define COUNT_ACCESSOR(...) +1
+      ACCESSOR_INFO_LIST(COUNT_ACCESSOR);
+#undef COUNT_ACCESSOR
+
+  static constexpr int kAccessorSetterCount =
+#define COUNT_ACCESSOR(...) +1
+      ACCESSOR_SETTER_LIST(COUNT_ACCESSOR);
+#undef COUNT_ACCESSOR
 
   static void ModuleNamespaceEntryGetter(
       v8::Local<v8::Name> name,

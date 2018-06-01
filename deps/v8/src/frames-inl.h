@@ -206,9 +206,6 @@ inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
-inline WasmToWasmFrame::WasmToWasmFrame(StackFrameIteratorBase* iterator)
-    : StubFrame(iterator) {}
-
 inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
@@ -227,6 +224,11 @@ inline BuiltinContinuationFrame::BuiltinContinuationFrame(
 inline JavaScriptBuiltinContinuationFrame::JavaScriptBuiltinContinuationFrame(
     StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {}
+
+inline JavaScriptBuiltinContinuationWithCatchFrame::
+    JavaScriptBuiltinContinuationWithCatchFrame(
+        StackFrameIteratorBase* iterator)
+    : JavaScriptBuiltinContinuationFrame(iterator) {}
 
 inline JavaScriptFrameIterator::JavaScriptFrameIterator(
     Isolate* isolate)
@@ -270,7 +272,7 @@ JavaScriptFrame* StackTraceFrameIterator::javascript_frame() const {
 inline StackFrame* SafeStackFrameIterator::frame() const {
   DCHECK(!done());
   DCHECK(frame_->is_java_script() || frame_->is_exit() ||
-         frame_->is_builtin_exit());
+         frame_->is_builtin_exit() || frame_->is_wasm());
   return frame_;
 }
 

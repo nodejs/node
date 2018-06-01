@@ -33,10 +33,11 @@
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/double.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
+#include "src/simulator.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -52,12 +53,12 @@ namespace internal {
 // with GCC.  A different convention is used on 64-bit windows,
 // where the first four integer arguments are passed in RCX, RDX, R8 and R9.
 
-typedef int (*F0)();
-typedef int (*F1)(int64_t x);
-typedef int (*F2)(int64_t x, int64_t y);
-typedef unsigned (*F3)(double x);
-typedef uint64_t (*F4)(uint64_t* x, uint64_t* y);
-typedef uint64_t (*F5)(uint64_t x);
+typedef int(F0)();
+typedef int(F1)(int64_t x);
+typedef int(F2)(int64_t x, int64_t y);
+typedef unsigned(F3)(double x);
+typedef uint64_t(F4)(uint64_t* x, uint64_t* y);
+typedef uint64_t(F5)(uint64_t x);
 
 #ifdef _WIN64
 static const Register arg1 = rcx;
@@ -84,7 +85,8 @@ TEST(AssemblerX64ReturnOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(3, 2);
   CHECK_EQ(2, result);
 }
 
@@ -114,7 +116,8 @@ TEST(AssemblerX64StackOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(3, 2);
   CHECK_EQ(2, result);
 }
 
@@ -134,7 +137,8 @@ TEST(AssemblerX64ArithmeticOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(3, 2);
   CHECK_EQ(5, result);
 }
 
@@ -161,25 +165,11 @@ TEST(AssemblerX64CmpbOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2002);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(0x1002, 0x2002);
   CHECK_EQ(1, result);
-  result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2003);
+  result = f.Call(0x1002, 0x2003);
   CHECK_EQ(0, result);
-}
-
-TEST(Regression684407) {
-  CcTest::InitializeVM();
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
-
-  Address before = masm.pc();
-  __ cmpl(Operand(arg1, 0),
-          Immediate(0, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE));
-  Address after = masm.pc();
-  size_t instruction_size = static_cast<size_t>(after - before);
-  // Check that the immediate is not encoded as uint8.
-  CHECK_LT(sizeof(uint32_t), instruction_size);
 }
 
 TEST(AssemblerX64ImulOperation) {
@@ -199,11 +189,12 @@ TEST(AssemblerX64ImulOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(3, 2);
   CHECK_EQ(0, result);
-  result =  FUNCTION_CAST<F2>(buffer)(0x100000000l, 0x100000000l);
+  result = f.Call(0x100000000l, 0x100000000l);
   CHECK_EQ(1, result);
-  result =  FUNCTION_CAST<F2>(buffer)(-0x100000000l, 0x100000000l);
+  result = f.Call(-0x100000000l, 0x100000000l);
   CHECK_EQ(-1, result);
 }
 
@@ -369,7 +360,8 @@ TEST(AssemblerX64testbwqOperation) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result = FUNCTION_CAST<F2>(buffer)(0, 0);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(0, 0);
   CHECK_EQ(1, result);
 }
 
@@ -392,7 +384,8 @@ TEST(AssemblerX64XchglOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
-  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 40000000), left);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 20000000), right);
   USE(result);
@@ -415,7 +408,8 @@ TEST(AssemblerX64OrlOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
-  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 60000000), left);
   USE(result);
 }
@@ -436,7 +430,8 @@ TEST(AssemblerX64RollOperations) {
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t src = V8_2PART_UINT64_C(0x10000000, C0000000);
-  uint64_t result = FUNCTION_CAST<F5>(buffer)(src);
+  auto f = GeneratedCode<F5>::FromAddress(CcTest::i_isolate(), buffer);
+  uint64_t result = f.Call(src);
   CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 80000001), result);
 }
 
@@ -457,7 +452,8 @@ TEST(AssemblerX64SublOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
-  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, E0000000), left);
   USE(result);
 }
@@ -485,12 +481,13 @@ TEST(AssemblerX64TestlOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 00000000);
-  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  uint64_t result = f.Call(&left, &right);
   CHECK_EQ(1u, result);
 }
 
 TEST(AssemblerX64TestwOperations) {
-  typedef uint16_t (*F)(uint16_t * x);
+  typedef uint16_t(F)(uint16_t * x);
   CcTest::InitializeVM();
   size_t allocated;
   byte* buffer = AllocateAssemblerBuffer(&allocated);
@@ -510,7 +507,8 @@ TEST(AssemblerX64TestwOperations) {
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint16_t operand = 0x8000;
-  uint16_t result = FUNCTION_CAST<F>(buffer)(&operand);
+  auto f = GeneratedCode<F>::FromAddress(CcTest::i_isolate(), buffer);
+  uint16_t result = f.Call(&operand);
   CHECK_EQ(1u, result);
 }
 
@@ -530,7 +528,8 @@ TEST(AssemblerX64XorlOperations) {
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 60000000);
-  uint64_t result = FUNCTION_CAST<F4>(buffer)(&left, &right);
+  auto f = GeneratedCode<F4>::FromAddress(CcTest::i_isolate(), buffer);
+  uint64_t result = f.Call(&left, &right);
   CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 40000000), left);
   USE(result);
 }
@@ -563,7 +562,8 @@ TEST(AssemblerX64MemoryOperands) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(3, 2);
   CHECK_EQ(3, result);
 }
 
@@ -590,7 +590,8 @@ TEST(AssemblerX64ControlFlow) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  auto f = GeneratedCode<F2>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call(3, 2);
   CHECK_EQ(3, result);
 }
 
@@ -639,7 +640,8 @@ TEST(AssemblerX64LoopImmediates) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
-  int result =  FUNCTION_CAST<F0>(buffer)();
+  auto f = GeneratedCode<F0>::FromAddress(CcTest::i_isolate(), buffer);
+  int result = f.Call();
   CHECK_EQ(1, result);
 }
 
@@ -758,8 +760,8 @@ TEST(AssemblerMultiByteNop) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
-  F0 f = FUNCTION_CAST<F0>(code->entry());
-  int res = f();
+  auto f = GeneratedCode<F0>::FromCode(*code);
+  int res = f.Call();
   CHECK_EQ(42, res);
 }
 
@@ -814,8 +816,8 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
-  F0 f = FUNCTION_CAST<F0>(code->entry());
-  int res = f();
+  auto f = GeneratedCode<F0>::FromCode(*code);
+  int res = f.Call();
   args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
 
@@ -882,15 +884,14 @@ TEST(AssemblerX64Extractps) {
   code->Print(os);
 #endif
 
-  F3 f = FUNCTION_CAST<F3>(code->entry());
+  auto f = GeneratedCode<F3>::FromCode(*code);
   uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
-  CHECK_EQ(0x12345678u, f(uint64_to_double(value1)));
+  CHECK_EQ(0x12345678u, f.Call(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
-  CHECK_EQ(0x87654321u, f(uint64_to_double(value2)));
+  CHECK_EQ(0x87654321u, f.Call(uint64_to_double(value2)));
 }
 
-
-typedef int (*F6)(float x, float y);
+typedef int(F6)(float x, float y);
 TEST(AssemblerX64SSE) {
   CcTest::InitializeVM();
 
@@ -908,7 +909,6 @@ TEST(AssemblerX64SSE) {
     __ subps(xmm2, xmm0);
     __ divps(xmm2, xmm1);
     __ cvttss2si(rax, xmm2);
-    __ haddps(xmm1, xmm0);
     __ ret(0);
   }
 
@@ -921,12 +921,42 @@ TEST(AssemblerX64SSE) {
   code->Print(os);
 #endif
 
-  F6 f = FUNCTION_CAST<F6>(code->entry());
-  CHECK_EQ(2, f(1.0, 2.0));
+  auto f = GeneratedCode<F6>::FromCode(*code);
+  CHECK_EQ(2, f.Call(1.0, 2.0));
 }
 
+TEST(AssemblerX64SSE3) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE3)) return;
 
-typedef int (*F7)(double x, double y, double z);
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
+  {
+    CpuFeatureScope fscope(&masm, SSE3);
+    __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
+    __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
+    __ haddps(xmm1, xmm0);
+    __ cvttss2si(rax, xmm1);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  auto f = GeneratedCode<F6>::FromCode(*code);
+  CHECK_EQ(4, f.Call(1.0, 2.0));
+}
+
+typedef int(F7)(double x, double y, double z);
 TEST(AssemblerX64FMA_sd) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;
@@ -1147,12 +1177,12 @@ TEST(AssemblerX64FMA_sd) {
   code->Print(os);
 #endif
 
-  F7 f = FUNCTION_CAST<F7>(code->entry());
-  CHECK_EQ(0, f(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
+  auto f = GeneratedCode<F7>::FromCode(*code);
+  CHECK_EQ(
+      0, f.Call(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
 }
 
-
-typedef int (*F8)(float x, float y, float z);
+typedef int(F8)(float x, float y, float z);
 TEST(AssemblerX64FMA_ss) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;
@@ -1373,8 +1403,8 @@ TEST(AssemblerX64FMA_ss) {
   code->Print(os);
 #endif
 
-  F8 f = FUNCTION_CAST<F8>(code->entry());
-  CHECK_EQ(0, f(9.26621069e-05f, -2.4607749f, -1.09587872f));
+  auto f = GeneratedCode<F8>::FromCode(*code);
+  CHECK_EQ(0, f.Call(9.26621069e-05f, -2.4607749f, -1.09587872f));
 }
 
 
@@ -1448,8 +1478,8 @@ TEST(AssemblerX64SSE_ss) {
   code->Print(os);
 #endif
 
-  F8 f = FUNCTION_CAST<F8>(code->entry());
-  int res = f(1.0f, 2.0f, 3.0f);
+  auto f = GeneratedCode<F8>::FromCode(*code);
+  int res = f.Call(1.0f, 2.0f, 3.0f);
   PrintF("f(1,2,3) = %d\n", res);
   CHECK_EQ(6, res);
 }
@@ -1533,8 +1563,8 @@ TEST(AssemblerX64AVX_ss) {
   code->Print(os);
 #endif
 
-  F8 f = FUNCTION_CAST<F8>(code->entry());
-  int res = f(1.0f, 2.0f, 3.0f);
+  auto f = GeneratedCode<F8>::FromCode(*code);
+  int res = f.Call(1.0f, 2.0f, 3.0f);
   PrintF("f(1,2,3) = %d\n", res);
   CHECK_EQ(6, res);
 }
@@ -1772,8 +1802,8 @@ TEST(AssemblerX64AVX_sd) {
   code->Print(os);
 #endif
 
-  F7 f = FUNCTION_CAST<F7>(code->entry());
-  int res = f(1.0, 2.0, 3.0);
+  auto f = GeneratedCode<F7>::FromCode(*code);
+  int res = f.Call(1.0, 2.0, 3.0);
   PrintF("f(1,2,3) = %d\n", res);
   CHECK_EQ(6, res);
 }
@@ -1964,8 +1994,8 @@ TEST(AssemblerX64BMI1) {
   code->Print(os);
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(code->entry());
-  CHECK_EQ(0, f());
+  auto f = GeneratedCode<F0>::FromCode(*code);
+  CHECK_EQ(0, f.Call());
 }
 
 
@@ -2024,8 +2054,8 @@ TEST(AssemblerX64LZCNT) {
   code->Print(os);
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(code->entry());
-  CHECK_EQ(0, f());
+  auto f = GeneratedCode<F0>::FromCode(*code);
+  CHECK_EQ(0, f.Call());
 }
 
 
@@ -2084,8 +2114,8 @@ TEST(AssemblerX64POPCNT) {
   code->Print(os);
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(code->entry());
-  CHECK_EQ(0, f());
+  auto f = GeneratedCode<F0>::FromCode(*code);
+  CHECK_EQ(0, f.Call());
 }
 
 
@@ -2347,8 +2377,8 @@ TEST(AssemblerX64BMI2) {
   code->Print(os);
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(code->entry());
-  CHECK_EQ(0, f());
+  auto f = GeneratedCode<F0>::FromCode(*code);
+  CHECK_EQ(0, f.Call());
 }
 
 
@@ -2391,9 +2421,9 @@ TEST(AssemblerX64JumpTables1) {
   code->Print(std::cout);
 #endif
 
-  F1 f = FUNCTION_CAST<F1>(code->entry());
+  auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
-    int res = f(i);
+    int res = f.Call(i);
     PrintF("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
@@ -2440,9 +2470,9 @@ TEST(AssemblerX64JumpTables2) {
   code->Print(std::cout);
 #endif
 
-  F1 f = FUNCTION_CAST<F1>(code->entry());
+  auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
-    int res = f(i);
+    int res = f.Call(i);
     PrintF("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
@@ -2462,11 +2492,12 @@ TEST(AssemblerX64PslldWithXmm15) {
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
   MakeAssemblerBufferExecutable(buffer, allocated);
-  uint64_t result = FUNCTION_CAST<F5>(buffer)(uint64_t{0x1122334455667788});
+  auto f = GeneratedCode<F5>::FromAddress(CcTest::i_isolate(), buffer);
+  uint64_t result = f.Call(uint64_t{0x1122334455667788});
   CHECK_EQ(uint64_t{0x22446688AACCEF10}, result);
 }
 
-typedef float (*F9)(float x, float y);
+typedef float(F9)(float x, float y);
 TEST(AssemblerX64vmovups) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(AVX)) return;
@@ -2498,8 +2529,8 @@ TEST(AssemblerX64vmovups) {
   code->Print(os);
 #endif
 
-  F9 f = FUNCTION_CAST<F9>(code->entry());
-  CHECK_EQ(-1.5, f(1.5, -1.5));
+  auto f = GeneratedCode<F9>::FromCode(*code);
+  CHECK_EQ(-1.5, f.Call(1.5, -1.5));
 }
 
 #undef __

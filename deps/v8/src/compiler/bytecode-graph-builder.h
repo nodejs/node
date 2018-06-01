@@ -35,7 +35,7 @@ class BytecodeGraphBuilder {
       SourcePositionTable* source_positions, Handle<Context> native_context,
       int inlining_id = SourcePosition::kNotInlined,
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags,
-      bool stack_check = true);
+      bool stack_check = true, bool analyze_environment_liveness = true);
 
   // Creates a graph by visiting bytecodes.
   void CreateGraph();
@@ -349,6 +349,10 @@ class BytecodeGraphBuilder {
 
   void set_stack_check(bool stack_check) { stack_check_ = stack_check; }
 
+  bool analyze_environment_liveness() const {
+    return analyze_environment_liveness_;
+  }
+
   int current_exception_handler() { return current_exception_handler_; }
 
   void set_current_exception_handler(int index) {
@@ -379,6 +383,7 @@ class BytecodeGraphBuilder {
   BailoutId osr_offset_;
   int currently_peeled_loop_offset_;
   bool stack_check_;
+  bool analyze_environment_liveness_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all

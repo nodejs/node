@@ -7,7 +7,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 
 #include "src/objects-inl.h"

@@ -10,7 +10,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "test/cctest/cctest.h"
@@ -162,12 +162,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   void CheckNumberConstant(double expected, Node* result) {
     CHECK_EQ(IrOpcode::kNumberConstant, result->opcode());
-    CHECK_EQ(expected, OpParameter<double>(result));
+    CHECK_EQ(expected, OpParameter<double>(result->op()));
   }
 
   void CheckNaN(Node* result) {
     CHECK_EQ(IrOpcode::kNumberConstant, result->opcode());
-    double value = OpParameter<double>(result);
+    double value = OpParameter<double>(result->op());
     CHECK(std::isnan(value));
   }
 
@@ -181,14 +181,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   void CheckHandle(Handle<HeapObject> expected, Node* result) {
     CHECK_EQ(IrOpcode::kHeapConstant, result->opcode());
-    Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(result);
+    Handle<HeapObject> value = HeapConstantOf(result->op());
     CHECK_EQ(*expected, *value);
   }
 };
 
-static Type* kStringTypes[] = {Type::InternalizedString(), Type::OtherString(),
-                               Type::String()};
-
+static Type* kStringTypes[] = {Type::InternalizedString(), Type::String()};
 
 static Type* kInt32Types[] = {Type::UnsignedSmall(), Type::Negative32(),
                               Type::Unsigned31(),    Type::SignedSmall(),
@@ -286,7 +284,7 @@ static void CheckToI32(Node* old_input, Node* new_input, bool is_signed) {
   if (old_type->Is(expected_type)) {
     CHECK_EQ(old_input, new_input);
   } else if (new_input->opcode() == IrOpcode::kNumberConstant) {
-    double v = OpParameter<double>(new_input);
+    double v = OpParameter<double>(new_input->op());
     double e = static_cast<double>(is_signed ? FastD2I(v) : FastD2UI(v));
     CHECK_EQ(e, v);
   }

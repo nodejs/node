@@ -43,7 +43,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);
   Register scratch2 = GetRegisterThatIsNotOneOf(result_reg, scratch);
   Register scratch3 = GetRegisterThatIsNotOneOf(result_reg, scratch, scratch2);
-  DoubleRegister double_scratch = kLithiumScratchDouble;
+  DoubleRegister double_scratch = kScratchDoubleReg;
 
   // Account for saved regs.
   const int kArgumentOffset = 3 * kPointerSize;
@@ -179,53 +179,34 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register scratch2 = t3;
 
   Label call_runtime, done, int_exponent;
-  if (exponent_type() == TAGGED) {
-    // Base is already in double_base.
-    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
-    __ Ldc1(double_exponent,
-            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  Label int_exponent_convert;
+  // Detect integer exponents stored as double.
+  __ EmitFPUTruncate(kRoundToMinusInf, scratch, double_exponent, at,
+                     double_scratch, scratch2, kCheckForInexactConversion);
+  // scratch2 == 0 means there was no conversion error.
+  __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
+
+  __ push(ra);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch2);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     0, 2);
   }
+  __ pop(ra);
+  __ MovFromFloatResult(double_result);
+  __ jmp(&done);
 
-  if (exponent_type() != INTEGER) {
-    Label int_exponent_convert;
-    // Detect integer exponents stored as double.
-    __ EmitFPUTruncate(kRoundToMinusInf,
-                       scratch,
-                       double_exponent,
-                       at,
-                       double_scratch,
-                       scratch2,
-                       kCheckForInexactConversion);
-    // scratch2 == 0 means there was no conversion error.
-    __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
-
-    __ push(ra);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(0, 2, scratch2);
-      __ MovToFloatParameters(double_base, double_exponent);
-      __ CallCFunction(
-          ExternalReference::power_double_double_function(isolate()),
-          0, 2);
-    }
-    __ pop(ra);
-    __ MovFromFloatResult(double_result);
-    __ jmp(&done);
-
-    __ bind(&int_exponent_convert);
-  }
+  __ bind(&int_exponent_convert);
 
   // Calculate power with integer exponent.
   __ bind(&int_exponent);
 
   // Get two copies of exponent in the registers scratch and exponent.
-  if (exponent_type() == INTEGER) {
-    __ mov(scratch, exponent);
-  } else {
-    // Exponent has previously been stored into scratch as untagged integer.
-    __ mov(exponent, scratch);
-  }
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ mov(exponent, scratch);
 
   __ mov_d(double_scratch, double_base);  // Back up base.
   __ Move(double_result, 1.0);
@@ -264,7 +245,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ div_d(double_result, double_scratch, double_result);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
-  __ BranchF(&done, nullptr, ne, double_result, kDoubleRegZero);
+  __ CompareF64(EQ, double_result, kDoubleRegZero);
+  __ BranchFalseShortF(&done);
 
   // double_exponent may not contain the exponent value if the input was a
   // smi.  We set it with exponent value before bailing out.
@@ -465,6 +447,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Branch(&zero, eq, cp, Operand(zero_reg));
   __ sw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&zero);
+
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
 
   // Compute the handler entry address and jump to it.
   __ li(t9, Operand(pending_handler_entrypoint_address));

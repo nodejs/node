@@ -11,8 +11,8 @@
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
 #include "src/bailout-reason.h"
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/label.h"
 #include "src/objects/literal-objects.h"
@@ -97,8 +97,10 @@ namespace internal {
   V(ResolvedProperty)           \
   V(RewritableExpression)       \
   V(Spread)                     \
+  V(StoreInArrayLiteral)        \
   V(SuperCallReference)         \
   V(SuperPropertyReference)     \
+  V(TemplateLiteral)            \
   V(ThisFunction)               \
   V(Throw)                      \
   V(UnaryOperation)             \
@@ -1946,6 +1948,29 @@ class Spread final : public Expression {
   Expression* expression_;
 };
 
+// The StoreInArrayLiteral node corresponds to the StaInArrayLiteral bytecode.
+// It is used in the rewriting of destructuring assignments that contain an
+// array rest pattern.
+class StoreInArrayLiteral final : public Expression {
+ public:
+  Expression* array() const { return array_; }
+  Expression* index() const { return index_; }
+  Expression* value() const { return value_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  StoreInArrayLiteral(Expression* array, Expression* index, Expression* value,
+                      int position)
+      : Expression(position, kStoreInArrayLiteral),
+        array_(array),
+        index_(index),
+        value_(value) {}
+
+  Expression* array_;
+  Expression* index_;
+  Expression* value_;
+};
 
 class Conditional final : public Expression {
  public:
@@ -2221,23 +2246,11 @@ class FunctionLiteral final : public Expression {
     }
     UNREACHABLE();
   }
-
-  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
-  void set_inferred_name(Handle<String> inferred_name) {
-    DCHECK(!inferred_name.is_null());
-    inferred_name_ = inferred_name;
-    DCHECK(raw_inferred_name_ == nullptr || raw_inferred_name_->IsEmpty());
-    raw_inferred_name_ = nullptr;
-  }
-
   const AstConsString* raw_inferred_name() { return raw_inferred_name_; }
 
-  void set_raw_inferred_name(const AstConsString* raw_inferred_name) {
-    DCHECK_NOT_NULL(raw_inferred_name);
-    raw_inferred_name_ = raw_inferred_name;
-    DCHECK(inferred_name_.is_null());
-    inferred_name_ = Handle<String>();
-  }
+  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
+  void set_inferred_name(Handle<String> inferred_name);
+  void set_raw_inferred_name(const AstConsString* raw_inferred_name);
 
   bool pretenure() const { return Pretenure::decode(bit_field_); }
   void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
@@ -2279,7 +2292,9 @@ class FunctionLiteral final : public Expression {
   void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
 
   int return_position() {
-    return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
+    return std::max(
+        start_position(),
+        end_position() - (HasBracesField::decode(bit_field_) ? 1 : 0));
   }
 
   int function_literal_id() const { return function_literal_id_; }
@@ -2315,19 +2330,19 @@ class FunctionLiteral final : public Expression {
         function_length_(function_length),
         function_token_position_(kNoSourcePosition),
         suspend_count_(0),
-        has_braces_(has_braces),
+        function_literal_id_(function_literal_id),
         raw_name_(name ? ast_value_factory->NewConsString(name) : nullptr),
         scope_(scope),
         body_(body),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
-        function_literal_id_(function_literal_id),
         produced_preparsed_scope_data_(produced_preparsed_scope_data) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
                   DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
-                  RequiresInstanceFieldsInitializer::encode(false);
+                  RequiresInstanceFieldsInitializer::encode(false) |
+                  HasBracesField::encode(has_braces);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     DCHECK_EQ(body == nullptr, expected_property_count < 0);
   }
@@ -2340,20 +2355,21 @@ class FunctionLiteral final : public Expression {
       : public BitField<BailoutReason, HasDuplicateParameters::kNext, 8> {};
   class RequiresInstanceFieldsInitializer
       : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
+  class HasBracesField
+      : public BitField<bool, RequiresInstanceFieldsInitializer::kNext, 1> {};
 
   int expected_property_count_;
   int parameter_count_;
   int function_length_;
   int function_token_position_;
   int suspend_count_;
-  bool has_braces_;
+  int function_literal_id_;
 
   const AstConsString* raw_name_;
   DeclarationScope* scope_;
   ZoneList<Statement*>* body_;
   const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
-  int function_literal_id_;
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 };
 
@@ -2648,6 +2664,26 @@ class GetTemplateObject final : public Expression {
 
   const ZoneList<const AstRawString*>* cooked_strings_;
   const ZoneList<const AstRawString*>* raw_strings_;
+};
+
+class TemplateLiteral final : public Expression {
+ public:
+  using StringList = ZoneList<const AstRawString*>;
+  using ExpressionList = ZoneList<Expression*>;
+
+  const StringList* string_parts() const { return string_parts_; }
+  const ExpressionList* substitutions() const { return substitutions_; }
+
+ private:
+  friend class AstNodeFactory;
+  TemplateLiteral(const StringList* parts, const ExpressionList* substitutions,
+                  int pos)
+      : Expression(pos, kTemplateLiteral),
+        string_parts_(parts),
+        substitutions_(substitutions) {}
+
+  const StringList* string_parts_;
+  const ExpressionList* substitutions_;
 };
 
 // ----------------------------------------------------------------------------
@@ -3067,6 +3103,12 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) Spread(expression, pos, expr_pos);
   }
 
+  StoreInArrayLiteral* NewStoreInArrayLiteral(Expression* array,
+                                              Expression* index,
+                                              Expression* value, int pos) {
+    return new (zone_) StoreInArrayLiteral(array, index, value, pos);
+  }
+
   Conditional* NewConditional(Expression* condition,
                               Expression* then_expression,
                               Expression* else_expression,
@@ -3224,6 +3266,12 @@ class AstNodeFactory final BASE_EMBEDDED {
       const ZoneList<const AstRawString*>* cooked_strings,
       const ZoneList<const AstRawString*>* raw_strings, int pos) {
     return new (zone_) GetTemplateObject(cooked_strings, raw_strings, pos);
+  }
+
+  TemplateLiteral* NewTemplateLiteral(
+      const ZoneList<const AstRawString*>* string_parts,
+      const ZoneList<Expression*>* substitutions, int pos) {
+    return new (zone_) TemplateLiteral(string_parts, substitutions, pos);
   }
 
   ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {

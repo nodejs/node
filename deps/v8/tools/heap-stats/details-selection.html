@@ -13,6 +13,7 @@ found in the LICENSE file. -->
   border-bottom: dashed 1px #666666;
   padding: 10px;
   overflow: hidden;
+  position: relative;
 }
 
 .box:nth-of-type(1) {
@@ -41,13 +42,40 @@ found in the LICENSE file. -->
   font-weight: bold;
 }
 
-.boxDiv {
-  padding: 3px;
+.instanceTypeSelectBox {
+  position: relative;
+  overflow: hidden;
   float: left;
+  padding: 0px 5px 2px 0px;
+  margin: 3px;
+  border-radius: 3px;
 }
 
-.boxDiv > label {
+.instanceTypeSelectBox > label {
   font-size: xx-small;
+}
+
+.instanceTypeSelectBox > input {
+  vertical-align: middle;
+}
+
+.percentBackground {
+  position: absolute;
+  width: 200%;
+  height: 100%;
+  left: 0%;
+  top: 0px;
+  margin-left: -100%;
+  transition: all 1s ease-in-out;
+}
+
+.instanceTypeSelectBox > .percentBackground  {
+  background: linear-gradient(90deg, #68b0f7 50%, #b3d9ff 50%);
+  z-index: -1;
+}
+.box > .percentBackground  {
+  background: linear-gradient(90deg, #e0edfe 50%, #fff 50%);
+  z-index: -2;
 }
 
 #categories {
@@ -95,7 +123,12 @@ found in the LICENSE file. -->
     </li>
     <li>
       <input id="category-filter" type="text" value="0" disabled="disabled" />KB
-      <button id="category-filter-btn" disabled="disabled">Filter categories with less memory</button>
+      <button id="category-filter-btn" disabled="disabled">
+        Filter categories with less memory
+      </button>
+      <button id="category-auto-filter-btn" disabled="disabled">
+        Show top 20 categories only
+      </button>
     </li>
     <li>
       <button id="csv-export-btn" disabled="disabled">Export selection as CSV</button>

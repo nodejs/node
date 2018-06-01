@@ -427,7 +427,7 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
   if (prototype->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(prototype);
-    if (!function->shared()->has_shared_name()) {
+    if (!function->shared()->HasSharedName()) {
       Handle<Map> function_map(function->map(), isolate);
       if (!JSFunction::SetName(function, isolate->factory()->proto_string(),
                                isolate->factory()->empty_string())) {
@@ -585,24 +585,6 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
 
   RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnElementIgnoreAttributes(
                                         object, index, value, NONE));
-}
-
-
-RUNTIME_FUNCTION(Runtime_AppendElement) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CHECK(!value->IsTheHole(isolate));
-
-  uint32_t index;
-  CHECK(array->length()->ToArrayIndex(&index));
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::AddDataElement(array, index, value, NONE));
-  JSObject::ValidateElements(*array);
-  return *array;
 }
 
 
@@ -839,7 +821,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   if (flags & DataPropertyInLiteralFlag::kSetFunctionName) {
     DCHECK(value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(value);
-    DCHECK(!function->shared()->has_shared_name());
+    DCHECK(!function->shared()->HasSharedName());
     Handle<Map> function_map(function->map(), isolate);
     if (!JSFunction::SetName(function, name,
                              isolate->factory()->empty_string())) {
@@ -918,6 +900,12 @@ RUNTIME_FUNCTION(Runtime_ClassOf) {
   return JSReceiver::cast(obj)->class_name();
 }
 
+RUNTIME_FUNCTION(Runtime_GetFunctionName) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return *JSFunction::GetName(isolate, function);
+}
 
 RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   HandleScope scope(isolate);
@@ -927,7 +915,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  if (String::cast(getter->shared()->name())->length() == 0) {
+  if (String::cast(getter->shared()->Name())->length() == 0) {
     Handle<Map> getter_map(getter->map(), isolate);
     if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
       return isolate->heap()->exception();
@@ -1059,7 +1047,7 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  if (String::cast(setter->shared()->name())->length() == 0) {
+  if (String::cast(setter->shared()->Name())->length() == 0) {
     Handle<Map> setter_map(setter->map(), isolate);
     if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
       return isolate->heap()->exception();

@@ -300,7 +300,27 @@ namespace compiler {
   V(Arm64S1x8AnyTrue)              \
   V(Arm64S1x8AllTrue)              \
   V(Arm64S1x16AnyTrue)             \
-  V(Arm64S1x16AllTrue)
+  V(Arm64S1x16AllTrue)             \
+  V(Arm64Word64AtomicAddUint8)     \
+  V(Arm64Word64AtomicAddUint16)    \
+  V(Arm64Word64AtomicAddUint32)    \
+  V(Arm64Word64AtomicAddUint64)    \
+  V(Arm64Word64AtomicSubUint8)     \
+  V(Arm64Word64AtomicSubUint16)    \
+  V(Arm64Word64AtomicSubUint32)    \
+  V(Arm64Word64AtomicSubUint64)    \
+  V(Arm64Word64AtomicAndUint8)     \
+  V(Arm64Word64AtomicAndUint16)    \
+  V(Arm64Word64AtomicAndUint32)    \
+  V(Arm64Word64AtomicAndUint64)    \
+  V(Arm64Word64AtomicOrUint8)      \
+  V(Arm64Word64AtomicOrUint16)     \
+  V(Arm64Word64AtomicOrUint32)     \
+  V(Arm64Word64AtomicOrUint64)     \
+  V(Arm64Word64AtomicXorUint8)     \
+  V(Arm64Word64AtomicXorUint16)    \
+  V(Arm64Word64AtomicXorUint32)    \
+  V(Arm64Word64AtomicXorUint64)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

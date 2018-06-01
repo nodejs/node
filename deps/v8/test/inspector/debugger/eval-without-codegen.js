@@ -34,5 +34,15 @@ InspectorTest.runAsyncTestSuite([
     InspectorTest.logMessage(await Protocol.Debugger.evaluateOnCallFrame(
         {callFrameId, expression: 'local'}));
     await Protocol.Debugger.resume();
+  },
+
+  async function testCallFunctionOn() {
+    await contextGroup.addScript(`inspector.setAllowCodeGenerationFromStrings(false);`);
+    const globalObject = await Protocol.Runtime.evaluate({expression: 'this'});
+    const objectId = globalObject.result.result.objectId;
+    InspectorTest.logMessage(await Protocol.Runtime.callFunctionOn({objectId, functionDeclaration: 'function() { return eval("1 + 2"); }'}));
+
+    await contextGroup.addScript(`this.value = eval("1 + 2");`);
+    InspectorTest.logMessage(await Protocol.Runtime.evaluate({expression: 'this.value'}));
   }
 ]);

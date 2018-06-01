@@ -79,20 +79,13 @@ struct pass_value_or_ref {
                                          decay_t, const decay_t&>::type;
 };
 
+// Uses expression SFINAE to detect whether using operator<< would work.
+template <typename T, typename = void>
+struct has_output_operator : std::false_type {};
 template <typename T>
-struct has_output_operator {
-  // This template is only instantiable if U provides operator<< with ostream.
-  // Its return type is uint8_t.
-  template <typename U>
-  static auto __check_operator(U u)
-      -> decltype(*(std::ostream*)nullptr << *u, uint8_t{0});
-  // This is a fallback implementation, returning uint16_t. If the template
-  // above is instantiable, is has precedence over this varargs function.
-  static uint16_t __check_operator(...);
-
-  using ptr_t = typename std::add_pointer<T>::type;
-  static constexpr bool value = sizeof(__check_operator(ptr_t{nullptr})) == 1;
-};
+struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
+                                            << std::declval<T>()))>
+    : std::true_type {};
 
 namespace detail {
 

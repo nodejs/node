@@ -61,7 +61,7 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
     // we can return true here.
     return true;
   }
-  return invalidated_object_->IsValidSlot(offset);
+  return invalidated_object_->IsValidSlot(invalidated_object_->map(), offset);
 }
 
 }  // namespace internal

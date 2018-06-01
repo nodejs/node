@@ -39,7 +39,7 @@ bool DebugInfo::HasDebugBytecodeArray() {
 
 BytecodeArray* DebugInfo::OriginalBytecodeArray() {
   DCHECK(HasDebugBytecodeArray());
-  return shared()->bytecode_array();
+  return shared()->GetBytecodeArray();
 }
 
 BytecodeArray* DebugInfo::DebugBytecodeArray() {

@@ -137,8 +137,8 @@ class ElementsAccessor {
   virtual uint32_t Push(Handle<JSArray> receiver, Arguments* args,
                         uint32_t push_size) = 0;
 
-  virtual uint32_t Unshift(Handle<JSArray> receiver,
-                           Arguments* args, uint32_t unshift_size) = 0;
+  virtual uint32_t Unshift(Handle<JSArray> receiver, Arguments* args,
+                           uint32_t unshift_size) = 0;
 
   virtual Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
                                  uint32_t end) = 0;
@@ -239,9 +239,8 @@ class ElementsAccessor {
 void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
                      bool allow_appending = false);
 
-MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
-    Handle<JSArray> array,
-    Arguments* args);
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
+    Handle<JSArray> array, Arguments* args);
 
 // Called directly from CSA.
 void CopyFastNumberJSArrayElementsToTypedArray(Context* context,

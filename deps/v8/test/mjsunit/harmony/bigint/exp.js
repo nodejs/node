@@ -4,6 +4,15 @@
 
 // Flags: --allow-natives-syntax --harmony-bigint
 
+assertEquals(1n, (-1n) ** 0n);
+assertEquals(-1n, (-1n) ** 1n);
+assertEquals(1n, (-1n) ** 2n);
+assertEquals(-1n, (-1n) ** 3n);
+assertEquals(1n, (-1n) ** 4n);
+// Multi-digit exponents.
+assertEquals(1n, (-1n) ** (2n ** 80n));
+assertEquals(-1n, (-1n) ** ((2n ** 80n) + 1n));
+
 assertEquals(1n, 0n ** 0n);
 assertEquals(0n, 0n ** 1n);
 assertEquals(0n, 0n ** 23n);

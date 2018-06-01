@@ -10,10 +10,11 @@
 
 #include <memory>
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/string-case.h"
+#include "unicode/basictz.h"
 #include "unicode/calendar.h"
 #include "unicode/gregocal.h"
 #include "unicode/timezone.h"
@@ -154,8 +155,10 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
   }
 }
 
-MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
-                                          bool is_to_upper, const char* lang) {
+V8_WARN_UNUSED_RESULT Object* LocaleConvertCase(Handle<String> s,
+                                                Isolate* isolate,
+                                                bool is_to_upper,
+                                                const char* lang) {
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;
   int32_t src_length = s->length();
   int32_t dest_length = src_length;
@@ -203,8 +206,8 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
 // strings and does not allocate. Note that {src} could still be, e.g., a
 // one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
-MUST_USE_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
-                                              Isolate* isolate) {
+V8_WARN_UNUSED_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
+                                                    Isolate* isolate) {
   DCHECK_EQ(src->length(), dst->length());
   DCHECK(src->HasOnlyOneByteChars());
   DCHECK(src->IsFlat());
@@ -249,7 +252,8 @@ MUST_USE_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
   return dst;
 }
 
-MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate) {
+V8_WARN_UNUSED_RESULT Object* ConvertToLower(Handle<String> s,
+                                             Isolate* isolate) {
   if (!s->HasOnlyOneByteChars()) {
     // Use a slower implementation for strings with characters beyond U+00FF.
     return LocaleConvertCase(s, isolate, false, "");
@@ -280,7 +284,8 @@ MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate) {
   return ConvertOneByteToLower(*s, *result, isolate);
 }
 
-MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate) {
+V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
+                                             Isolate* isolate) {
   int32_t length = s->length();
   if (s->HasOnlyOneByteChars() && length > 0) {
     Handle<SeqOneByteString> result =
@@ -342,8 +347,8 @@ MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate) {
   return LocaleConvertCase(s, isolate, true, "");
 }
 
-MUST_USE_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
-                                    Isolate* isolate) {
+V8_WARN_UNUSED_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
+                                          Isolate* isolate) {
   return is_upper ? ConvertToUpper(s, isolate) : ConvertToLower(s, isolate);
 }
 
@@ -373,23 +378,41 @@ icu::TimeZone* ICUTimezoneCache::GetTimeZone() {
   return timezone_;
 }
 
-bool ICUTimezoneCache::GetOffsets(double time_ms, int32_t* raw_offset,
-                                  int32_t* dst_offset) {
+bool ICUTimezoneCache::GetOffsets(double time_ms, bool is_utc,
+                                  int32_t* raw_offset, int32_t* dst_offset) {
   UErrorCode status = U_ZERO_ERROR;
-  GetTimeZone()->getOffset(time_ms, false, *raw_offset, *dst_offset, status);
+  // TODO(jshin): ICU TimeZone class handles skipped time differently from
+  // Ecma 262 (https://github.com/tc39/ecma262/pull/778) and icu::TimeZone
+  // class does not expose the necessary API. Fixing
+  // http://bugs.icu-project.org/trac/ticket/13268 would make it easy to
+  // implement the proposed spec change. A proposed fix for ICU is
+  //    https://chromium-review.googlesource.com/851265 .
+  // In the meantime, use an internal (still public) API of icu::BasicTimeZone.
+  // Once it's accepted by the upstream, get rid of cast. Note that casting
+  // TimeZone to BasicTimeZone is safe because we know that icu::TimeZone used
+  // here is a BasicTimeZone.
+  if (is_utc) {
+    GetTimeZone()->getOffset(time_ms, false, *raw_offset, *dst_offset, status);
+  } else {
+    static_cast<const icu::BasicTimeZone*>(GetTimeZone())
+        ->getOffsetFromLocal(time_ms, icu::BasicTimeZone::kFormer,
+                             icu::BasicTimeZone::kFormer, *raw_offset,
+                             *dst_offset, status);
+  }
+
   return U_SUCCESS(status);
 }
 
 double ICUTimezoneCache::DaylightSavingsOffset(double time_ms) {
   int32_t raw_offset, dst_offset;
-  if (!GetOffsets(time_ms, &raw_offset, &dst_offset)) return 0;
+  if (!GetOffsets(time_ms, true, &raw_offset, &dst_offset)) return 0;
   return dst_offset;
 }
 
-double ICUTimezoneCache::LocalTimeOffset() {
+double ICUTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
   int32_t raw_offset, dst_offset;
-  if (!GetOffsets(icu::Calendar::getNow(), &raw_offset, &dst_offset)) return 0;
-  return raw_offset;
+  if (!GetOffsets(time_ms, is_utc, &raw_offset, &dst_offset)) return 0;
+  return raw_offset + dst_offset;
 }
 
 void ICUTimezoneCache::Clear() {

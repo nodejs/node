@@ -26,6 +26,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// This is needed for gc_mole which will compile this file without the full set
+// of GN defined macros.
+#ifndef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
+#define V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP 64
+#endif
+
 namespace {
 
 bool HasNumberMaps(MapHandles const& maps) {
@@ -98,6 +104,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSStoreNamedOwn(node);
     case IrOpcode::kJSStoreDataPropertyInLiteral:
       return ReduceJSStoreDataPropertyInLiteral(node);
+    case IrOpcode::kJSStoreInArrayLiteral:
+      return ReduceJSStoreInArrayLiteral(node);
     default:
       break;
   }
@@ -1126,7 +1134,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     AccessMode access_mode, KeyedAccessLoadMode load_mode,
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty);
+         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSStoreInArrayLiteral);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1644,7 +1653,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     Node** control, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info) {
   Node* target = jsgraph()->Constant(access_info.constant());
-  FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
   Handle<SharedFunctionInfo> shared_info =
       frame_info.shared_info().ToHandleChecked();
   // Introduce the call to the getter function.
@@ -1683,7 +1692,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
     Node** effect, Node** control, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info) {
   Node* target = jsgraph()->Constant(access_info.constant());
-  FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
   Handle<SharedFunctionInfo> shared_info =
       frame_info.shared_info().ToHandleChecked();
   // Introduce the call to the setter function.
@@ -2091,6 +2100,45 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   return Replace(value);
 }
 
+Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
+    Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreInArrayLiteral, node->opcode());
+  FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  Node* const receiver = NodeProperties::GetValueInput(node, 0);
+  Node* const index = NodeProperties::GetValueInput(node, 1);
+  Node* const value = NodeProperties::GetValueInput(node, 2);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+
+  // Extract receiver maps from the keyed store IC using the FeedbackNexus.
+  if (!p.feedback().IsValid()) return NoChange();
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+
+  // Extract the keyed access store mode from the keyed store IC.
+  KeyedAccessStoreMode store_mode = nexus.GetKeyedAccessStoreMode();
+
+  // Extract receiver maps from the {nexus}.
+  MapHandles receiver_maps;
+  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
+    return NoChange();
+  } else if (receiver_maps.empty()) {
+    if (flags() & kBailoutOnUninitialized) {
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+    }
+    return NoChange();
+  }
+  DCHECK(!nexus.IsUninitialized());
+  DCHECK_EQ(ELEMENT, nexus.GetKeyType());
+
+  if (nexus.ic_state() == MEGAMORPHIC) return NoChange();
+
+  // Try to lower the element access based on the {receiver_maps}.
+  return ReduceElementAccess(node, index, value, receiver_maps,
+                             AccessMode::kStoreInLiteral, STANDARD_LOAD,
+                             store_mode);
+}
+
 namespace {
 
 ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
@@ -2113,7 +2161,6 @@ JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
     ElementAccessInfo const& access_info, AccessMode access_mode,
     KeyedAccessLoadMode load_mode, KeyedAccessStoreMode store_mode) {
-  DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
 
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
@@ -2161,11 +2208,21 @@ JSNativeContextSpecialization::BuildElementAccess(
           simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
           receiver, effect, control);
 
-      // Load the base and external pointer for the {receiver}s {elements}.
-      base_pointer = effect = graph()->NewNode(
-          simplified()->LoadField(
-              AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
-          elements, effect, control);
+      // Load the base pointer for the {receiver}. This will always be Smi
+      // zero unless we allow on-heap TypedArrays, which is only the case
+      // for Chrome. Node and Electron both set this limit to 0. Setting
+      // the base to Smi zero here allows the EffectControlLinearizer to
+      // optimize away the tricky part of the access later.
+      if (V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP == 0) {
+        base_pointer = jsgraph()->ZeroConstant();
+      } else {
+        base_pointer = effect = graph()->NewNode(
+            simplified()->LoadField(
+                AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
+            elements, effect, control);
+      }
+
+      // Load the external pointer for the {receiver}s {elements}.
       external_pointer = effect = graph()->NewNode(
           simplified()->LoadField(
               AccessBuilder::ForFixedTypedArrayBaseExternalPointer()),
@@ -2189,13 +2246,11 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS ||
         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-      // Only check that the {index} is in Signed32 range. We do the actual
+      // Only check that the {index} is in SignedSmall range. We do the actual
       // bounds check below and just skip the property access if it's out of
       // bounds for the {receiver}.
       index = effect = graph()->NewNode(
-          simplified()->SpeculativeToNumber(NumberOperationHint::kSigned32,
-                                            VectorSlotPair()),
-          index, effect, control);
+          simplified()->CheckSmi(VectorSlotPair()), index, effect, control);
 
       // Cast the {index} to Unsigned32 range, so that the bounds checks
       // below are performed on unsigned values, which means that all the
@@ -2346,7 +2401,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     // Check if we might need to grow the {elements} backing store.
     if (IsGrowStoreMode(store_mode)) {
       // For growing stores we validate the {index} below.
-      DCHECK_EQ(AccessMode::kStore, access_mode);
+      DCHECK(access_mode == AccessMode::kStore ||
+             access_mode == AccessMode::kStoreInLiteral);
     } else if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
                CanTreatHoleAsUndefined(receiver_maps)) {
       // Check that the {index} is a valid array index, we do the actual
@@ -2478,7 +2534,8 @@ JSNativeContextSpecialization::BuildElementAccess(
         }
       }
     } else {
-      DCHECK_EQ(AccessMode::kStore, access_mode);
+      DCHECK(access_mode == AccessMode::kStore ||
+             access_mode == AccessMode::kStoreInLiteral);
       if (IsSmiElementsKind(elements_kind)) {
         value = effect = graph()->NewNode(
             simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
@@ -2606,8 +2663,10 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* etrue;
-    Node* vtrue = etrue = graph()->NewNode(
-        simplified()->StringCharAt(), receiver, masked_index, *effect, if_true);
+    Node* vtrue = etrue =
+        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                         masked_index, *effect, if_true);
+    vtrue = graph()->NewNode(simplified()->StringFromSingleCharCode(), vtrue);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* vfalse = jsgraph()->UndefinedConstant();
@@ -2628,8 +2687,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
 
     // Return the character from the {receiver} as single character string.
     Node* value = *effect =
-        graph()->NewNode(simplified()->StringCharAt(), receiver, masked_index,
-                         *effect, *control);
+        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                         masked_index, *effect, *control);
+    value = graph()->NewNode(simplified()->StringFromSingleCharCode(), value);
     return value;
   }
 }
@@ -2685,6 +2745,10 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   }
   Node* new_length_and_hash = graph()->NewNode(
       simplified()->NumberBitwiseOr(), jsgraph()->Constant(new_length), hash);
+  // TDOO(jarin): Fix the typer to infer tighter bound for NumberBitwiseOr.
+  new_length_and_hash = effect =
+      graph()->NewNode(common()->TypeGuard(Type::SignedSmall()),
+                       new_length_and_hash, effect, control);
 
   // Allocate and initialize the new properties.
   AllocationBuilder a(jsgraph(), effect, control);
@@ -2739,11 +2803,20 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     MapHandles* receiver_maps) {
   DCHECK_EQ(0, receiver_maps->size());
   if (nexus.IsUninitialized()) return true;
-  // See if we can infer a concrete type for the {receiver}.
-  if (InferReceiverMaps(receiver, effect, receiver_maps)) {
-    // We can assume that the {receiver} still has the inferred {receiver_maps}.
-    return true;
+
+  // See if we can infer a concrete type for the {receiver}. Solely relying on
+  // the inference is not safe for keyed stores, because we would potentially
+  // miss out on transitions that need to be performed.
+  {
+    FeedbackSlotKind kind = nexus.kind();
+    bool use_inference =
+        !IsKeyedStoreICKind(kind) && !IsStoreInArrayLiteralICKind(kind);
+    if (use_inference && InferReceiverMaps(receiver, effect, receiver_maps)) {
+      // We can assume that {receiver} still has the inferred {receiver_maps}.
+      return true;
+    }
   }
+
   // Try to extract some maps from the {nexus}.
   if (nexus.ExtractMaps(receiver_maps) != 0) {
     // Try to filter impossible candidates based on inferred root map.
@@ -2760,6 +2833,7 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     }
     return true;
   }
+
   return false;
 }
 
@@ -2851,6 +2925,8 @@ JSOperatorBuilder* JSNativeContextSpecialization::javascript() const {
 SimplifiedOperatorBuilder* JSNativeContextSpecialization::simplified() const {
   return jsgraph()->simplified();
 }
+
+#undef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
 
 }  // namespace compiler
 }  // namespace internal

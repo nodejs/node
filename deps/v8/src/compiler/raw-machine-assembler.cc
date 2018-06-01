@@ -7,7 +7,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +16,8 @@ namespace compiler {
 RawMachineAssembler::RawMachineAssembler(
     Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
     MachineRepresentation word, MachineOperatorBuilder::Flags flags,
-    MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
+    MachineOperatorBuilder::AlignmentRequirements alignment_requirements,
+    PoisoningMitigationLevel poisoning_enabled)
     : isolate_(isolate),
       graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
@@ -24,7 +25,8 @@ RawMachineAssembler::RawMachineAssembler(
       common_(zone()),
       call_descriptor_(call_descriptor),
       parameters_(parameter_count(), zone()),
-      current_block_(schedule()->start()) {
+      current_block_(schedule()->start()),
+      poisoning_enabled_(poisoning_enabled) {
   int param_count = static_cast<int>(parameter_count());
   // Add an extra input for the JSFunction parameter to the start node.
   graph->SetStart(graph->NewNode(common_.Start(param_count + 1)));
@@ -88,7 +90,9 @@ void RawMachineAssembler::Goto(RawMachineLabel* label) {
 void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
                                  RawMachineLabel* false_val) {
   DCHECK(current_block_ != schedule()->end());
-  Node* branch = MakeNode(common()->Branch(), 1, &condition);
+  Node* branch = MakeNode(
+      common()->Branch(BranchHint::kNone, IsSafetyCheck::kNoSafetyCheck), 1,
+      &condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
   current_block_ = nullptr;
 }

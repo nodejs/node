@@ -119,6 +119,24 @@ void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
       promise);
 }
 
+void WasmEngine::Register(CancelableTaskManager* task_manager) {
+  task_managers_.emplace_back(task_manager);
+}
+
+void WasmEngine::Unregister(CancelableTaskManager* task_manager) {
+  task_managers_.remove(task_manager);
+}
+
+void WasmEngine::TearDown() {
+  // Cancel all registered task managers.
+  for (auto task_manager : task_managers_) {
+    task_manager->CancelAndWait();
+  }
+
+  // Cancel all AsyncCompileJobs.
+  compilation_manager_.TearDown();
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

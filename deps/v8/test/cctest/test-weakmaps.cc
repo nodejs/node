@@ -27,8 +27,8 @@
 
 #include <utility>
 
-#include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"

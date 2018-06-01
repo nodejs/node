@@ -161,7 +161,7 @@ void TurboAssembler::Call(Register target) {
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
-  DCHECK(target == ip);
+  DCHECK(target == r4);
   Call(target);
 }
 
@@ -1216,29 +1216,14 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook, call_hook;
-
-  ExternalReference debug_is_active =
-      ExternalReference::debug_is_active_address(isolate());
-  mov(r6, Operand(debug_is_active));
-  tm(MemOperand(r6), Operand::Zero());
-  bne(&skip_hook);
+  Label skip_hook;
 
   ExternalReference debug_hook_avtive =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   mov(r6, Operand(debug_hook_avtive));
   tm(MemOperand(r6), Operand::Zero());
-  beq(&call_hook);
+  bne(&skip_hook);
 
-  LoadP(r6, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
-  LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kDebugInfoOffset));
-  JumpIfSmi(r6, &skip_hook);
-  LoadP(r6, FieldMemOperand(r6, DebugInfo::kFlagsOffset));
-  SmiUntag(r0, r6);
-  tmll(r0, Operand(DebugInfo::kBreakAtEntry));
-  beq(&skip_hook);
-
-  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -1538,10 +1523,18 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
-  intptr_t bytes_address = reinterpret_cast<intptr_t>(stream->bytes());
-  mov(kOffHeapTrampolineRegister, Operand(bytes_address));
+void MacroAssembler::JumpToInstructionStream(Address entry) {
+  mov(kOffHeapTrampolineRegister,
+      Operand(reinterpret_cast<intptr_t>(entry), RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
+}
+
+void MacroAssembler::LoadWeakValue(Register out, Register in,
+                                   Label* target_if_cleared) {
+  CmpP(in, Operand(kClearedWeakHeapObject));
+  beq(target_if_cleared);
+
+  AndP(out, in, Operand(~kWeakHeapObjectMask));
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
@@ -1658,6 +1651,18 @@ void MacroAssembler::AssertFixedArray(Register object) {
     CompareObjectType(object, object, object, FIXED_ARRAY_TYPE);
     pop(object);
     Check(eq, AbortReason::kOperandIsNotAFixedArray);
+  }
+}
+
+void MacroAssembler::AssertConstructor(Register object, Register scratch) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    TestIfSmi(object);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
+    LoadP(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+    tm(FieldMemOperand(scratch, Map::kBitFieldOffset),
+       Operand(Map::IsConstructorBit::kMask));
+    Check(ne, AbortReason::kOperandIsNotAConstructor);
   }
 }
 
@@ -4286,6 +4291,10 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2, DoubleRegister reg3,
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {
   mov(kSpeculationPoisonRegister, Operand(-1));
+}
+
+void TurboAssembler::ComputeCodeStartAddress(Register dst) {
+  larl(dst, Operand(-pc_offset() / 2));
 }
 
 }  // namespace internal

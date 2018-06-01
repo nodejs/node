@@ -196,19 +196,6 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, feedback_vector, 2);
-
-  return DeclareGlobals(isolate, declarations, flags, feedback_vector);
-}
-
-// TODO(ishell): merge this with Runtime::kDeclareGlobals once interpreter
-// is able to pass feedback vector.
-RUNTIME_FUNCTION(Runtime_DeclareGlobalsForInterpreter) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
-  CONVERT_SMI_ARG_CHECKED(flags, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 2);
 
   Handle<FeedbackVector> feedback_vector(closure->feedback_vector(), isolate);

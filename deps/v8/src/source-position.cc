@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/source-position.h"
-#include "src/compilation-info.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -50,7 +50,7 @@ std::ostream& operator<<(std::ostream& out, const SourcePosition& pos) {
 }
 
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
-    CompilationInfo* cinfo) const {
+    OptimizedCompilationInfo* cinfo) const {
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {

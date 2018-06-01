@@ -147,7 +147,7 @@ Address Zone::NewExpand(size_t size) {
   const size_t min_new_size = kSegmentOverhead + size;
   // Guard against integer overflow.
   if (new_size_no_overhead < size || new_size < kSegmentOverhead) {
-    V8::FatalProcessOutOfMemory("Zone");
+    V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return nullptr;
   }
   if (segment_size_ == SegmentSize::kLarge) {
@@ -163,12 +163,12 @@ Address Zone::NewExpand(size_t size) {
     new_size = Max(min_new_size, kMaximumSegmentSize);
   }
   if (new_size > INT_MAX) {
-    V8::FatalProcessOutOfMemory("Zone");
+    V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return nullptr;
   }
   Segment* segment = NewSegment(new_size);
   if (segment == nullptr) {
-    V8::FatalProcessOutOfMemory("Zone");
+    V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return nullptr;
   }
 

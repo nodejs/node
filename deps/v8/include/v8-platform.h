@@ -5,9 +5,9 @@
 #ifndef V8_V8_PLATFORM_H_
 #define V8_V8_PLATFORM_H_
 
-#include <cstdlib>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>  // For abort.
 #include <memory>
 #include <string>
 
@@ -288,16 +288,21 @@ class Platform {
    */
   virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
+  /**
+   * Gets the number of worker threads used by GetWorkerThreadsTaskRunner() and
+   * CallOnWorkerThread(). This can be used to estimate the number of tasks a
+   * work package should be split into. A return value of 0 means that there are
+   * no worker threads available. Note that a value of 0 won't prohibit V8 from
+   * posting tasks using |CallOnWorkerThread|.
+   */
   virtual int NumberOfWorkerThreads() {
     return static_cast<int>(NumberOfAvailableBackgroundThreads());
   }
 
   /**
-   * Gets the number of threads that are used to execute background tasks. Is
-   * used to estimate the number of tasks a work package should be split into.
-   * A return value of 0 means that there are no background threads available.
-   * Note that a value of 0 won't prohibit V8 from posting tasks using
-   * |CallOnBackgroundThread|.
+   * Deprecated. Use NumberOfWorkerThreads() instead.
+   * TODO(gab): Remove this when all embedders override
+   * NumberOfWorkerThreads() instead.
    */
   V8_DEPRECATE_SOON(
       "NumberOfAvailableBackgroundThreads() is deprecated, use "
@@ -340,8 +345,14 @@ class Platform {
     abort();
   }
 
+  /**
+   * Returns a TaskRunner which can be used to post async tasks on a worker.
+   * This function should only be called from a foreground thread.
+   */
   virtual std::shared_ptr<v8::TaskRunner> GetWorkerThreadsTaskRunner(
       Isolate* isolate) {
+    // TODO(gab): Make this function abstract after it got implemented on all
+    // platforms.
     return GetBackgroundTaskRunner(isolate);
   }
 
@@ -365,10 +376,19 @@ class Platform {
     abort();
   }
 
+  /**
+   * Schedules a task to be invoked on a worker thread.
+   * TODO(gab): Make pure virtual when all embedders override this instead of
+   * CallOnBackgroundThread().
+   */
   virtual void CallOnWorkerThread(std::unique_ptr<Task> task) {
     CallOnBackgroundThread(task.release(), kShortRunningTask);
   }
 
+  /**
+   * Schedules a task that blocks the main thread to be invoked with
+   * high-priority on a worker thread.
+   */
   virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
     // Embedders may optionally override this to process these tasks in a high
     // priority pool.

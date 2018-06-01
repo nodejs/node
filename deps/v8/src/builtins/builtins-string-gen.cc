@@ -8,7 +8,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/factory-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -525,7 +525,7 @@ TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
   TNode<Int32T> code = StringCharCodeAt(receiver, position);
 
   // And return the single character string with only that {code}
-  TNode<String> result = StringFromCharCode(code);
+  TNode<String> result = StringFromSingleCharCode(code);
   Return(result);
 }
 
@@ -586,7 +586,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     Node* code32 = TruncateTaggedToWord32(context, code);
     TNode<Int32T> code16 =
         Signed(Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit)));
-    Node* result = StringFromCharCode(code16);
+    Node* result = StringFromSingleCharCode(code16);
     arguments.PopAndReturn(result);
   }
 
@@ -682,7 +682,7 @@ TF_BUILTIN(StringPrototypeCharAt, StringBuiltinsAssembler) {
                    [this](TNode<String> string, TNode<IntPtrT> length,
                           TNode<IntPtrT> index) {
                      TNode<Int32T> code = StringCharCodeAt(string, index);
-                     return StringFromCharCode(code);
+                     return StringFromSingleCharCode(code);
                    });
 }
 
@@ -1024,7 +1024,7 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Node* const context, Node* const object, Node* const maybe_string,
     Handle<Symbol> symbol, const NodeFunction0& regexp_call,
-    const NodeFunction1& generic_call, CodeStubArguments* args) {
+    const NodeFunction1& generic_call) {
   Label out(this);
 
   // Smis definitely don't have an attached symbol.
@@ -1069,12 +1069,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
 
     BIND(&stub_call);
     // TODO(jgruber): Add a no-JS scope once it exists.
-    Node* const result = regexp_call();
-    if (args == nullptr) {
-      Return(result);
-    } else {
-      args->PopAndReturn(result);
-    }
+    regexp_call();
 
     BIND(&slow_lookup);
   }
@@ -1094,12 +1089,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   GotoIf(IsNull(maybe_func), &out);
 
   // Attempt to call the function.
-  Node* const result = generic_call(maybe_func);
-  if (args == nullptr) {
-    Return(result);
-  } else {
-    args->PopAndReturn(result);
-  }
+  generic_call(maybe_func);
 
   BIND(&out);
 }
@@ -1294,12 +1284,12 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   MaybeCallFunctionAtSymbol(
       context, search, receiver, isolate()->factory()->replace_symbol(),
       [=]() {
-        return CallBuiltin(Builtins::kRegExpReplace, context, search, receiver,
-                           replace);
+        Return(CallBuiltin(Builtins::kRegExpReplace, context, search, receiver,
+                           replace));
       },
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
-        return CallJS(call_callable, context, fn, search, receiver, replace);
+        Return(CallJS(call_callable, context, fn, search, receiver, replace));
       });
 
   // Convert {receiver} and {search} to strings.
@@ -1439,8 +1429,9 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
  protected:
   enum Variant { kMatch, kSearch };
 
-  void Generate(Variant variant, const char* method_name, Node* const receiver,
-                Node* maybe_regexp, Node* const context) {
+  void Generate(Variant variant, const char* method_name,
+                TNode<Object> receiver, TNode<Object> maybe_regexp,
+                TNode<Context> context) {
     Label call_regexp_match_search(this);
 
     Builtins::Name builtin;
@@ -1457,33 +1448,24 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
 
     MaybeCallFunctionAtSymbol(
         context, maybe_regexp, receiver, symbol,
-        [=] { return CallBuiltin(builtin, context, maybe_regexp, receiver); },
+        [=] { Return(CallBuiltin(builtin, context, maybe_regexp, receiver)); },
         [=](Node* fn) {
           Callable call_callable = CodeFactory::Call(isolate());
-          return CallJS(call_callable, context, fn, maybe_regexp, receiver);
+          Return(CallJS(call_callable, context, fn, maybe_regexp, receiver));
         });
 
     // maybe_regexp is not a RegExp nor has [@@match / @@search] property.
     {
       RegExpBuiltinsAssembler regexp_asm(state());
 
-      Node* const receiver_string = ToString_Inline(context, receiver);
-      Node* const pattern = Select(
-          IsUndefined(maybe_regexp), [=] { return EmptyStringConstant(); },
-          [=] { return ToString_Inline(context, maybe_regexp); },
-          MachineRepresentation::kTagged);
-
-      // Create RegExp
-      // TODO(pwong): This could be factored out as a helper (RegExpCreate) that
-      // also does the "is fast" checks.
-      Node* const native_context = LoadNativeContext(context);
-      Node* const regexp_function =
-          LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
-      Node* const initial_map = LoadObjectField(
-          regexp_function, JSFunction::kPrototypeOrInitialMapOffset);
-      Node* const regexp = CallRuntime(
-          Runtime::kRegExpInitializeAndCompile, context,
-          AllocateJSObjectFromMap(initial_map), pattern, EmptyStringConstant());
+      TNode<String> receiver_string = ToString_Inline(context, receiver);
+      TNode<Context> native_context = LoadNativeContext(context);
+      TNode<HeapObject> regexp_function = CAST(
+          LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
+      TNode<Map> initial_map = CAST(LoadObjectField(
+          regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
+      TNode<Object> regexp = regexp_asm.RegExpCreate(
+          context, initial_map, maybe_regexp, EmptyStringConstant());
 
       Label fast_path(this), slow_path(this);
       regexp_asm.BranchIfFastRegExp(context, regexp, initial_map, &fast_path,
@@ -1494,7 +1476,7 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
 
       BIND(&slow_path);
       {
-        Node* const maybe_func = GetProperty(context, regexp, symbol);
+        TNode<Object> maybe_func = GetProperty(context, regexp, symbol);
         Callable call_callable = CodeFactory::Call(isolate());
         Return(CallJS(call_callable, context, maybe_func, regexp,
                       receiver_string));
@@ -1505,11 +1487,50 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
 
 // ES6 #sec-string.prototype.match
 TF_BUILTIN(StringPrototypeMatch, StringMatchSearchAssembler) {
-  Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const maybe_regexp = Parameter(Descriptor::kRegexp);
-  Node* const context = Parameter(Descriptor::kContext);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> maybe_regexp = CAST(Parameter(Descriptor::kRegexp));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(kMatch, "String.prototype.match", receiver, maybe_regexp, context);
+}
+
+// ES #sec-string.prototype.matchAll
+TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
+  char const* method_name = "String.prototype.matchAll";
+
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> maybe_regexp = CAST(Parameter(Descriptor::kRegexp));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Context> native_context = LoadNativeContext(context);
+
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  RequireObjectCoercible(context, receiver, method_name);
+
+  // 2. If regexp is neither undefined nor null, then
+  Label return_match_all_iterator(this);
+  GotoIf(IsNullOrUndefined(maybe_regexp), &return_match_all_iterator);
+  {
+    // a. Let matcher be ? GetMethod(regexp, @@matchAll).
+    // b. If matcher is not undefined, then
+    //   i. Return ? Call(matcher, regexp, « O »).
+    auto if_regexp_call = [&] { Goto(&return_match_all_iterator); };
+    auto if_generic_call = [=](Node* fn) {
+      Callable call_callable = CodeFactory::Call(isolate());
+      Return(CallJS(call_callable, context, fn, maybe_regexp, receiver));
+    };
+    MaybeCallFunctionAtSymbol(context, maybe_regexp, receiver,
+                              isolate()->factory()->match_all_symbol(),
+                              if_regexp_call, if_generic_call);
+    Goto(&return_match_all_iterator);
+  }
+  BIND(&return_match_all_iterator);
+  {
+    // 3. Return ? MatchAllIterator(regexp, O).
+    RegExpBuiltinsAssembler regexp_asm(state());
+    TNode<Object> iterator = regexp_asm.MatchAllIterator(
+        context, native_context, maybe_regexp, receiver, method_name);
+    Return(iterator);
+  }
 }
 
 class StringPadAssembler : public StringBuiltinsAssembler {
@@ -1640,9 +1661,9 @@ TF_BUILTIN(StringPrototypePadStart, StringPadAssembler) {
 
 // ES6 #sec-string.prototype.search
 TF_BUILTIN(StringPrototypeSearch, StringMatchSearchAssembler) {
-  Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const maybe_regexp = Parameter(Descriptor::kRegexp);
-  Node* const context = Parameter(Descriptor::kContext);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> maybe_regexp = CAST(Parameter(Descriptor::kRegexp));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Generate(kSearch, "String.prototype.search", receiver, maybe_regexp, context);
 }
 
@@ -1719,23 +1740,22 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   MaybeCallFunctionAtSymbol(
       context, separator, receiver, isolate()->factory()->split_symbol(),
-      [=]() {
-        return CallBuiltin(Builtins::kRegExpSplit, context, separator, receiver,
-                           limit);
+      [&]() {
+        args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context,
+                                      separator, receiver, limit));
       },
-      [=](Node* fn) {
+      [&](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
-        return CallJS(call_callable, context, fn, separator, receiver, limit);
-      },
-      &args);
+        args.PopAndReturn(
+            CallJS(call_callable, context, fn, separator, receiver, limit));
+      });
 
   // String and integer conversions.
 
   Node* const subject_string = ToString_Inline(context, receiver);
-  Node* const limit_number =
-      Select(IsUndefined(limit), [=]() { return NumberConstant(kMaxUInt32); },
-             [=]() { return ToUint32(context, limit); },
-             MachineRepresentation::kTagged);
+  TNode<Number> const limit_number = Select<Number>(
+      IsUndefined(limit), [=] { return NumberConstant(kMaxUInt32); },
+      [=] { return ToUint32(context, limit); });
   Node* const separator_string = ToString_Inline(context, separator);
 
   // Shortcut for {limit} == 0.
@@ -1923,7 +1943,7 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
     {
       TNode<Smi> const zero = SmiConstant(0);
       var_result =
-          SelectTaggedConstant(SmiLessThan(value_smi, zero), zero, limit);
+          SelectConstant<Smi>(SmiLessThan(value_smi, zero), zero, limit);
       Goto(&out);
     }
   }
@@ -1936,8 +1956,8 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
     TNode<Float64T> const float_zero = Float64Constant(0.);
     TNode<Smi> const smi_zero = SmiConstant(0);
     TNode<Float64T> const value_float = LoadHeapNumberValue(value_int_hn);
-    var_result = SelectTaggedConstant(Float64LessThan(value_float, float_zero),
-                                      smi_zero, limit);
+    var_result = SelectConstant<Smi>(Float64LessThan(value_float, float_zero),
+                                     smi_zero, limit);
     Goto(&out);
   }
 
@@ -2305,7 +2325,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   {
     UnicodeEncoding encoding = UnicodeEncoding::UTF16;
     TNode<Int32T> ch = LoadSurrogatePairAt(string, length, position, encoding);
-    TNode<String> value = StringFromCodePoint(ch, encoding);
+    TNode<String> value = StringFromSingleCodePoint(ch, encoding);
     var_value.Bind(value);
     TNode<IntPtrT> length = LoadStringLengthAsWord(value);
     StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,

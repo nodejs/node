@@ -9,7 +9,6 @@
 #include <string>
 
 #include "src/code-stubs.h"
-#include "src/compilation-info.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
@@ -23,13 +22,14 @@
 #include "src/compiler/scheduler.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
+std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* phase,
                                                  const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
@@ -255,7 +255,7 @@ class GraphC1Visualizer {
  public:
   GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
 
-  void PrintCompilation(const CompilationInfo* info);
+  void PrintCompilation(const OptimizedCompilationInfo* info);
   void PrintSchedule(const char* phase, const Schedule* schedule,
                      const SourcePositionTable* positions,
                      const InstructionSequence* instructions);
@@ -343,8 +343,7 @@ void GraphC1Visualizer::PrintIntProperty(const char* name, int value) {
   os_ << name << " " << value << "\n";
 }
 
-
-void GraphC1Visualizer::PrintCompilation(const CompilationInfo* info) {
+void GraphC1Visualizer::PrintCompilation(const OptimizedCompilationInfo* info) {
   Tag tag(this, "compilation");
   std::unique_ptr<char[]> name = info->GetDebugName();
   if (info->IsOptimizing()) {

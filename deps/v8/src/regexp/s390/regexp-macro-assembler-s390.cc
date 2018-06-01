@@ -562,7 +562,8 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(uc16 type,
         __ CmpP(current_character(), Operand('z'));
         BranchOrBacktrack(gt, on_no_match);
       }
-      ExternalReference map = ExternalReference::re_word_character_map();
+      ExternalReference map =
+          ExternalReference::re_word_character_map(isolate());
       __ mov(r2, Operand(map));
       __ LoadlB(r2, MemOperand(r2, current_character()));
       __ CmpLogicalP(r2, Operand::Zero());
@@ -576,7 +577,8 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(uc16 type,
         __ CmpLogicalP(current_character(), Operand('z'));
         __ bgt(&done);
       }
-      ExternalReference map = ExternalReference::re_word_character_map();
+      ExternalReference map =
+          ExternalReference::re_word_character_map(isolate());
       __ mov(r2, Operand(map));
       __ LoadlB(r2, MemOperand(r2, current_character()));
       __ CmpLogicalP(r2, Operand::Zero());

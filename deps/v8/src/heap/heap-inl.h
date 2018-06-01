@@ -23,6 +23,8 @@
 #include "src/log.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
+#include "src/objects/descriptor-array.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/script-inl.h"
 #include "src/profiler/heap-profiler.h"
@@ -126,125 +128,6 @@ size_t Heap::NewSpaceAllocationCounter() {
   return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
 }
 
-template <>
-bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
-  // TODO(dcarney): incorporate Latin-1 check when Latin-1 is supported?
-  return chars == str.length();
-}
-
-
-template <>
-bool inline Heap::IsOneByte(String* str, int chars) {
-  return str->IsOneByteRepresentation();
-}
-
-
-AllocationResult Heap::AllocateInternalizedStringFromUtf8(
-    Vector<const char> str, int chars, uint32_t hash_field) {
-  if (IsOneByte(str, chars)) {
-    return AllocateOneByteInternalizedString(Vector<const uint8_t>::cast(str),
-                                             hash_field);
-  }
-  return AllocateInternalizedStringImpl<false>(str, chars, hash_field);
-}
-
-
-template <typename T>
-AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
-                                                      uint32_t hash_field) {
-  if (IsOneByte(t, chars)) {
-    return AllocateInternalizedStringImpl<true>(t, chars, hash_field);
-  }
-  return AllocateInternalizedStringImpl<false>(t, chars, hash_field);
-}
-
-
-AllocationResult Heap::AllocateOneByteInternalizedString(
-    Vector<const uint8_t> str, uint32_t hash_field) {
-  CHECK_GE(String::kMaxLength, str.length());
-  // The canonical empty_string is the only zero-length string we allow.
-  DCHECK_IMPLIES(str.length() == 0, roots_[kempty_stringRootIndex] == nullptr);
-  // Compute map and object size.
-  Map* map = one_byte_internalized_string_map();
-  int size = SeqOneByteString::SizeFor(str.length());
-
-  // Allocate string.
-  HeapObject* result = nullptr;
-  {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
-    if (!allocation.To(&result)) return allocation;
-  }
-
-  // String maps are all immortal immovable objects.
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-  // Set length and hash fields of the allocated string.
-  String* answer = String::cast(result);
-  answer->set_length(str.length());
-  answer->set_hash_field(hash_field);
-
-  DCHECK_EQ(size, answer->Size());
-
-  // Fill in the characters.
-  MemCopy(answer->address() + SeqOneByteString::kHeaderSize, str.start(),
-          str.length());
-
-  return answer;
-}
-
-
-AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
-                                                         uint32_t hash_field) {
-  CHECK_GE(String::kMaxLength, str.length());
-  DCHECK_NE(0, str.length());  // Use Heap::empty_string() instead.
-  // Compute map and object size.
-  Map* map = internalized_string_map();
-  int size = SeqTwoByteString::SizeFor(str.length());
-
-  // Allocate string.
-  HeapObject* result = nullptr;
-  {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
-    if (!allocation.To(&result)) return allocation;
-  }
-
-  result->set_map_after_allocation(map);
-  // Set length and hash fields of the allocated string.
-  String* answer = String::cast(result);
-  answer->set_length(str.length());
-  answer->set_hash_field(hash_field);
-
-  DCHECK_EQ(size, answer->Size());
-
-  // Fill in the characters.
-  MemCopy(answer->address() + SeqTwoByteString::kHeaderSize, str.start(),
-          str.length() * kUC16Size);
-
-  return answer;
-}
-
-AllocationResult Heap::CopyFixedArray(FixedArray* src) {
-  if (src->length() == 0) return src;
-  return CopyFixedArrayWithMap(src, src->map());
-}
-
-
-AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
-  if (src->length() == 0) return src;
-  return CopyFixedDoubleArrayWithMap(src, src->map());
-}
-
-AllocationResult Heap::AllocateFixedArrayWithMap(RootListIndex map_root_index,
-                                                 int length,
-                                                 PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(map_root_index, length, pretenure,
-                                      undefined_value());
-}
-
-AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(Heap::kFixedArrayMapRootIndex, length,
-                                      pretenure, undefined_value());
-}
-
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
@@ -295,22 +178,33 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
   } else if (MAP_SPACE == space) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
+  } else if (RO_SPACE == space) {
+#ifdef V8_USE_SNAPSHOT
+    DCHECK(isolate_->serializer_enabled());
+#endif
+    DCHECK(!large_object);
+    allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
   } else {
     // NEW_SPACE is not allowed here.
     UNREACHABLE();
   }
+
   if (allocation.To(&object)) {
+    if (space == CODE_SPACE) {
+      // Unprotect the memory chunk of the object if it was not unprotected
+      // already.
+      UnprotectAndRegisterMemoryChunk(object);
+      ZapCodeObject(object->address(), size_in_bytes);
+    }
     OnAllocationEvent(object, size_in_bytes);
   }
 
   return allocation;
 }
 
-
 void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
-  HeapProfiler* profiler = isolate_->heap_profiler();
-  if (profiler->is_tracking_allocations()) {
-    profiler->AllocationEvent(object->address(), size_in_bytes);
+  for (auto& tracker : allocation_trackers_) {
+    tracker->AllocationEvent(object->address(), size_in_bytes);
   }
 
   if (FLAG_verify_predictable) {
@@ -341,6 +235,9 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
   if (heap_profiler->is_tracking_object_moves()) {
     heap_profiler->ObjectMoveEvent(source->address(), target->address(),
                                    size_in_bytes);
+  }
+  for (auto& tracker : allocation_trackers_) {
+    tracker->MoveEvent(source->address(), target->address(), size_in_bytes);
   }
   if (target->IsSharedFunctionInfo()) {
     LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source->address(),
@@ -410,27 +307,55 @@ void Heap::FinalizeExternalString(String* string) {
 Address Heap::NewSpaceTop() { return new_space_->top(); }
 
 bool Heap::InNewSpace(Object* object) {
+  DCHECK(!HasWeakHeapObjectTag(object));
+  return object->IsHeapObject() && InNewSpace(HeapObject::cast(object));
+}
+
+bool Heap::InNewSpace(MaybeObject* object) {
+  HeapObject* heap_object;
+  return object->ToStrongOrWeakHeapObject(&heap_object) &&
+         InNewSpace(heap_object);
+}
+
+bool Heap::InNewSpace(HeapObject* heap_object) {
   // Inlined check from NewSpace::Contains.
-  bool result =
-      object->IsHeapObject() &&
-      Page::FromAddress(HeapObject::cast(object)->address())->InNewSpace();
+  bool result = Page::FromAddress(heap_object->address())->InNewSpace();
   DCHECK(!result ||                 // Either not in new space
          gc_state_ != NOT_IN_GC ||  // ... or in the middle of GC
-         InToSpace(object));        // ... or in to-space (where we allocate).
+         InToSpace(heap_object));   // ... or in to-space (where we allocate).
   return result;
 }
 
 bool Heap::InFromSpace(Object* object) {
-  return object->IsHeapObject() &&
-         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
-             ->IsFlagSet(Page::IN_FROM_SPACE);
+  DCHECK(!HasWeakHeapObjectTag(object));
+  return object->IsHeapObject() && InFromSpace(HeapObject::cast(object));
 }
 
+bool Heap::InFromSpace(MaybeObject* object) {
+  HeapObject* heap_object;
+  return object->ToStrongOrWeakHeapObject(&heap_object) &&
+         InFromSpace(heap_object);
+}
+
+bool Heap::InFromSpace(HeapObject* heap_object) {
+  return MemoryChunk::FromAddress(heap_object->address())
+      ->IsFlagSet(Page::IN_FROM_SPACE);
+}
 
 bool Heap::InToSpace(Object* object) {
-  return object->IsHeapObject() &&
-         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
-             ->IsFlagSet(Page::IN_TO_SPACE);
+  DCHECK(!HasWeakHeapObjectTag(object));
+  return object->IsHeapObject() && InToSpace(HeapObject::cast(object));
+}
+
+bool Heap::InToSpace(MaybeObject* object) {
+  HeapObject* heap_object;
+  return object->ToStrongOrWeakHeapObject(&heap_object) &&
+         InToSpace(heap_object);
+}
+
+bool Heap::InToSpace(HeapObject* heap_object) {
+  return MemoryChunk::FromAddress(heap_object->address())
+      ->IsFlagSet(Page::IN_TO_SPACE);
 }
 
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
@@ -451,6 +376,15 @@ bool Heap::ShouldBePromoted(Address old_address) {
 }
 
 void Heap::RecordWrite(Object* object, Object** slot, Object* value) {
+  DCHECK(!HasWeakHeapObjectTag(*slot));
+  DCHECK(!HasWeakHeapObjectTag(value));
+  if (!InNewSpace(value) || !object->IsHeapObject() || InNewSpace(object)) {
+    return;
+  }
+  store_buffer()->InsertEntry(reinterpret_cast<Address>(slot));
+}
+
+void Heap::RecordWrite(Object* object, MaybeObject** slot, MaybeObject* value) {
   if (!InNewSpace(value) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
@@ -594,12 +528,19 @@ uint32_t Heap::HashSeed() {
 
 int Heap::NextScriptId() {
   int last_id = last_script_id()->value();
-  if (last_id == Smi::kMaxValue) {
-    last_id = 1;
-  } else {
-    last_id++;
-  }
+  if (last_id == Smi::kMaxValue) last_id = v8::UnboundScript::kNoScriptId;
+  last_id++;
   set_last_script_id(Smi::FromInt(last_id));
+  return last_id;
+}
+
+int Heap::NextDebuggingId() {
+  int last_id = last_debugging_id()->value();
+  if (last_id == SharedFunctionInfo::DebuggingIdBits::kMax) {
+    last_id = SharedFunctionInfo::kNoDebuggingId;
+  }
+  last_id++;
+  set_last_debugging_id(Smi::FromInt(last_id));
   return last_id;
 }
 
@@ -646,6 +587,24 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
       }
       page = page->next_page();
     }
+  }
+}
+
+CodePageCollectionMemoryModificationScope::
+    CodePageCollectionMemoryModificationScope(Heap* heap)
+    : heap_(heap) {
+  if (heap_->write_protect_code_memory() &&
+      !heap_->code_space_memory_modification_scope_depth()) {
+    heap_->EnableUnprotectedMemoryChunksRegistry();
+  }
+}
+
+CodePageCollectionMemoryModificationScope::
+    ~CodePageCollectionMemoryModificationScope() {
+  if (heap_->write_protect_code_memory() &&
+      !heap_->code_space_memory_modification_scope_depth()) {
+    heap_->ProtectUnprotectedMemoryChunks();
+    heap_->DisableUnprotectedMemoryChunksRegistry();
   }
 }
 

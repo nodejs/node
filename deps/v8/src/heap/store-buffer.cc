@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/base/macros.h"
+#include "src/base/template-utils.h"
 #include "src/counters.h"
 #include "src/heap/incremental-marking.h"
 #include "src/isolate.h"
@@ -35,7 +36,7 @@ void StoreBuffer::SetUp() {
   VirtualMemory reservation;
   if (!AllocVirtualMemory(kStoreBufferSize * 3, heap_->GetRandomMmapAddr(),
                           &reservation)) {
-    V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
+    heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   uintptr_t start_as_int = reinterpret_cast<uintptr_t>(reservation.address());
   start_[0] =
@@ -59,7 +60,7 @@ void StoreBuffer::SetUp() {
   if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
                                   kStoreBufferSize * kStoreBuffers,
                                   PageAllocator::kReadWrite)) {
-    V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
+    heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;
   top_ = start_[current_];
@@ -94,9 +95,8 @@ void StoreBuffer::FlipStoreBuffers() {
 
   if (!task_running_ && FLAG_concurrent_store_buffer) {
     task_running_ = true;
-    Task* task = new Task(heap_->isolate(), this);
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(
+        base::make_unique<Task>(heap_->isolate(), this));
   }
 }
 

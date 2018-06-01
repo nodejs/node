@@ -34,8 +34,8 @@
 #include "include/v8-platform.h"
 #include "src/assembler.h"
 #include "src/debug/debug-interface.h"
-#include "src/factory.h"
 #include "src/flags.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/utils.h"
@@ -568,6 +568,13 @@ static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
   CHECK(result);
 }
 
+static inline void MakeAssemblerBufferWritable(uint8_t* buffer,
+                                               size_t allocated) {
+  bool result = v8::internal::SetPermissions(buffer, allocated,
+                                             v8::PageAllocator::kReadWrite);
+  CHECK(result);
+}
+
 static v8::debug::DebugDelegate dummy_delegate;
 
 static inline void EnableDebugger(v8::Isolate* isolate) {
@@ -678,14 +685,13 @@ class TestPlatform : public v8::Platform {
     return old_platform_->GetForegroundTaskRunner(isolate);
   }
 
-  std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+  std::shared_ptr<v8::TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override {
-    return old_platform_->GetBackgroundTaskRunner(isolate);
+    return old_platform_->GetWorkerThreadsTaskRunner(isolate);
   }
 
-  void CallOnBackgroundThread(v8::Task* task,
-                              ExpectedRuntime expected_runtime) override {
-    old_platform_->CallOnBackgroundThread(task, expected_runtime);
+  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
+    old_platform_->CallOnWorkerThread(std::move(task));
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
