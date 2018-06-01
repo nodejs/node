@@ -69,12 +69,22 @@ assert(existing.length > 0);
     '\n',
     '\0',
     '1'.repeat(3 * 4),
+    // Check for REDOS issues.
     ':'.repeat(100000),
     '['.repeat(100000),
     '['.repeat(100000) + ']'.repeat(100000) + 'a'
   ];
   invalidServers.forEach((serv) => {
-    assert.throws(() => dns.setServers([serv]), /TypeError.*ERR_INVALID_IP_ADDRESS/, `Unexpected error thrown for ${serv}`);
+    assert.throws(
+      () => {
+        dns.setServers([serv])
+      },
+      {
+        name: 'TypeError [ERR_INVALID_IP_ADDRESS]',
+        code: 'ERR_INVALID_IP_ADDRESS'
+      },
+      `Unexpected error thrown for serv '${serv}'`
+    );
   });
 }
 
