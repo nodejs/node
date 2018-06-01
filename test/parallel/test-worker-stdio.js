@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const util = require('util');
 const { Writable } = require('stream');
-const { Worker, isMainThread } = require('worker');
+const { Worker, isMainThread } = require('worker_threads');
 
 class BufferingWritable extends Writable {
   constructor() {

@@ -5,7 +5,7 @@ if (typeof require === 'undefined') {
 }
 
 const path = require('path');
-const { Worker } = require('worker');
+const { Worker } = require('worker_threads');
 
 new Worker(path.resolve(process.cwd(), process.argv[2]))
   .on('exit', (code) => process.exitCode = code);

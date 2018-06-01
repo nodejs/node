@@ -2,7 +2,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { Worker, isMainThread, parentPort } = require('worker');
+const { Worker, isMainThread, parentPort } = require('worker_threads');
 const { Server } = require('net');
 const fs = require('fs');
 

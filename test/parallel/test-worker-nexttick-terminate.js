@@ -1,13 +1,13 @@
 // Flags: --experimental-worker
 'use strict';
 const common = require('../common');
-const { Worker } = require('worker');
+const { Worker } = require('worker_threads');
 
 // Checks that terminating in the middle of `process.nextTick()` does not
 // Crash the process.
 
 const w = new Worker(`
-require('worker').parentPort.postMessage('0');
+require('worker_threads').parentPort.postMessage('0');
 process.nextTick(() => {
   while(1);
 });

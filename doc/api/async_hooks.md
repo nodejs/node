@@ -728,4 +728,4 @@ never be called.
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk
 [promise execution tracking]: #async_hooks_promise_execution_tracking
-[`Worker`]: worker.html#worker_worker
+[`Worker`]: worker_threads.html#worker_threads_class_worker

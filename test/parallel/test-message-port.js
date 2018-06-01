@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const { MessageChannel, MessagePort } = require('worker');
+const { MessageChannel, MessagePort } = require('worker_threads');
 
 {
   const { port1, port2 } = new MessageChannel();
