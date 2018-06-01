@@ -5,9 +5,9 @@
  * Copyright (c) 2011-2013, Christopher Jeffrey (MIT License)
  */
 
-var fs = require('fs')
-  , util = require('util')
-  , marked = require('../');
+var fs = require('fs'),
+    path = require('path'),
+    marked = require('../');
 
 /**
  * Man Page
@@ -20,12 +20,16 @@ function help() {
     cwd: process.cwd(),
     env: process.env,
     setsid: false,
-    customFds: [0, 1, 2]
+    stdio: 'inherit'
   };
 
-  spawn('man',
-    [__dirname + '/../man/marked.1'],
-    options);
+  spawn('man', [path.resolve(__dirname, '/../man/marked.1')], options)
+    .on('error', function() {
+      fs.readFile(path.resolve(__dirname, '/../man/marked.1.txt'), 'utf8', function(err, data) {
+        if (err) throw err;
+        console.log(data);
+      });
+    });
 }
 
 /**
@@ -33,13 +37,14 @@ function help() {
  */
 
 function main(argv, callback) {
-  var files = []
-    , options = {}
-    , input
-    , output
-    , arg
-    , tokens
-    , opt;
+  var files = [],
+      options = {},
+      input,
+      output,
+      string,
+      arg,
+      tokens,
+      opt;
 
   function getarg() {
     var arg = argv.shift();
@@ -82,6 +87,10 @@ function main(argv, callback) {
       case '--input':
         input = argv.shift();
         break;
+      case '-s':
+      case '--string':
+        string = argv.shift();
+        break;
       case '-t':
       case '--tokens':
         tokens = true;
@@ -114,6 +123,9 @@ function main(argv, callback) {
   function getData(callback) {
     if (!input) {
       if (files.length <= 2) {
+        if (string) {
+          return callback(null, string);
+        }
         return getStdin(callback);
       }
       input = files.pop();
@@ -142,8 +154,8 @@ function main(argv, callback) {
  */
 
 function getStdin(callback) {
-  var stdin = process.stdin
-    , buff = '';
+  var stdin = process.stdin,
+      buff = '';
 
   stdin.setEncoding('utf8');
 
