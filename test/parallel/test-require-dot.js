@@ -8,7 +8,8 @@ const a = require(fixtures.path('module-require', 'relative', 'dot.js'));
 const b = require(fixtures.path('module-require', 'relative', 'dot-slash.js'));
 
 assert.strictEqual(a.value, 42);
-assert.strictEqual(a, b, 'require(".") should resolve like require("./")');
+// require(".") should resolve like require("./")
+assert.strictEqual(a, b);
 
 process.env.NODE_PATH = fixtures.path('module-require', 'relative');
 m._initPaths();
