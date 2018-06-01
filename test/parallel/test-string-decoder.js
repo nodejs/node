@@ -90,7 +90,8 @@ test('utf16le', Buffer.from('3DD84DDC', 'hex'), '\ud83d\udc4d'); // thumbs up
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E1', 'hex')), '');
 
-// A quick test for lastNeed & lastTotal which are undocumented.
+// A quick test for lastChar, lastNeed & lastTotal which are undocumented.
+assert(decoder.lastChar.equals(new Uint8Array([0xe1, 0, 0, 0])));
 assert.strictEqual(decoder.lastNeed, 2);
 assert.strictEqual(decoder.lastTotal, 3);
 
