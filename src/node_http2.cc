@@ -1762,6 +1762,8 @@ void Http2Stream::Destroy() {
   // Do nothing if this stream instance is already destroyed
   if (IsDestroyed())
     return;
+  if (session_->HasPendingRstStream(id_))
+    FlushRstStream();
   flags_ |= NGHTTP2_STREAM_FLAG_DESTROYED;
 
   Debug(this, "destroying stream");
