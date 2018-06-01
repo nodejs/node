@@ -26,8 +26,7 @@
     fragment of a clause.
 * Place end-of-sentence punctuation inside wrapping elements — periods go
   inside parentheses and quotes, not after.
-* Documents must start with a level-one heading. An example document will be
-  linked here eventually.
+* Documents must start with a level-one heading.
 * Prefer affixing links to inlining links — prefer `[a link][]` to
   `[a link](http://example.com)`.
 * When documenting APIs, note the version the API was introduced in at
