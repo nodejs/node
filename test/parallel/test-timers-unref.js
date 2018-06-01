@@ -23,6 +23,8 @@
 
 const common = require('../common');
 
+const assert = require('assert');
+
 let unref_interval = false;
 let unref_timer = false;
 let checks = 0;
@@ -30,8 +32,12 @@ let checks = 0;
 const LONG_TIME = 10 * 1000;
 const SHORT_TIME = 100;
 
+const timer = setTimeout(() => {}, 10);
+assert.strictEqual(timer.hasRef(), true);
 // Should not throw.
-setTimeout(() => {}, 10).unref().ref().unref();
+timer.unref().ref().unref();
+assert.strictEqual(timer.hasRef(), false);
+
 setInterval(() => {}, 10).unref().ref().unref();
 
 setInterval(common.mustNotCall('Interval should not fire'), LONG_TIME).unref();
