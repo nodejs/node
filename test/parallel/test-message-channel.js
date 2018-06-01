@@ -2,7 +2,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { MessageChannel, MessagePort, Worker } = require('worker');
+const { MessageChannel, MessagePort, Worker } = require('worker_threads');
 
 {
   const channel = new MessageChannel();
@@ -29,9 +29,9 @@ const { MessageChannel, MessagePort, Worker } = require('worker');
   const channel = new MessageChannel();
 
   const w = new Worker(`
-    const { MessagePort } = require('worker');
+    const { MessagePort } = require('worker_threads');
     const assert = require('assert');
-    require('worker').parentPort.on('message', ({ port }) => {
+    require('worker_threads').parentPort.on('message', ({ port }) => {
       assert(port instanceof MessagePort);
       port.postMessage('works');
     });

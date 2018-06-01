@@ -78,7 +78,7 @@
       'lib/util.js',
       'lib/v8.js',
       'lib/vm.js',
-      'lib/worker.js',
+      'lib/worker_threads.js',
       'lib/zlib.js',
       'lib/internal/assert.js',
       'lib/internal/async_hooks.js',
