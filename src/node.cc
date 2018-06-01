@@ -2458,39 +2458,39 @@ static void GetParentProcessId(Local<Name> property,
 static Local<Object> GetFeatures(Environment* env) {
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
-  Local<Boolean> trueValue = True(isolate);
-  Local<Boolean> falseValue = False(isolate);
+  Local<Boolean> true_value = True(isolate);
+  Local<Boolean> false_value = False(isolate);
 
   Local<Object> obj = Object::New(isolate);
 #if defined(DEBUG) && DEBUG
-  Local<Boolean> debug = trueValue;
+  Local<Boolean> debug = true_value;
 #else
-  Local<Boolean> debug = falseValue;
+  Local<Boolean> debug = false_value;
 #endif  // defined(DEBUG) && DEBUG
   obj->Set(FIXED_ONE_BYTE_STRING(isolate, "debug"), debug);
 
-  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "uv"), trueValue);
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "uv"), true_value);
   // TODO(bnoordhuis) ping libuv
-  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "ipv6"), trueValue);
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "ipv6"), true_value);
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-  Local<Boolean> tls_alpn = trueValue;
+  Local<Boolean> tls_alpn = true_value;
 #else
-  Local<Boolean> tls_alpn = falseValue;
+  Local<Boolean> tls_alpn = false_value;
 #endif
   obj->Set(FIXED_ONE_BYTE_STRING(isolate, "tls_alpn"), tls_alpn);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  Local<Boolean> tls_sni = trueValue;
+  Local<Boolean> tls_sni = true_value;
 #else
-  Local<Boolean> tls_sni = falseValue;
+  Local<Boolean> tls_sni = false_value;
 #endif
   obj->Set(FIXED_ONE_BYTE_STRING(isolate, "tls_sni"), tls_sni);
 
 #if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-  Local<Boolean> tls_ocsp = trueValue;
+  Local<Boolean> tls_ocsp = true_value;
 #else
-  Local<Boolean> tls_ocsp = falseValue;
+  Local<Boolean> tls_ocsp = false_value;
 #endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
   obj->Set(FIXED_ONE_BYTE_STRING(isolate, "tls_ocsp"), tls_ocsp);
 
