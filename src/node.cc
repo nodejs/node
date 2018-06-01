@@ -4379,9 +4379,8 @@ int Start(int argc, char** argv) {
   CHECK_GT(argc, 0);
 
 #ifdef NODE_ENABLE_LARGE_CODE_PAGES
-  if (node::largepages::isLargePagesEnabled()) {
-    if ((node::largepages::map_static_code_to_large_pages()) != 0) {
-      fprintf(stderr, "Mapping of static code to large pages failed.\n");
+  if (node::isLargePagesEnabled()) {
+    if ((node::map_static_code_to_large_pages()) != 0) {
       fprintf(stderr, "Reverting to default page size\n");
     }
   }
@@ -4430,7 +4429,6 @@ int Start(int argc, char** argv) {
   // Since uv_run cannot be called, uv_async handles held by the platform
   // will never be fully cleaned up.
   v8_platform.Dispose();
-
 
   delete[] exec_argv;
   exec_argv = nullptr;
