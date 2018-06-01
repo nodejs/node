@@ -38,7 +38,12 @@ onboarding session.
     apply.whitespace fix`
   * Always continue to PR from your own GitHub fork
     * Branches in the `nodejs/node` repository are only for release lines
-  * See [Updating Node.js from Upstream][]
+  * Add the canonical nodejs repository as `upstream` remote:
+    * `git remote add upstream git://github.com/nodejs/node.git`
+  * To update from `upstream`:
+    * `git checkout master`
+    * `git remote update -p` OR `git fetch --all`
+    * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
   * Make a new branch for each PR you submit.
   * Membership: Consider making your membership in the Node.js GitHub
     organization public. This makes it easier to identify Collaborators.
@@ -251,6 +256,5 @@ needs to be pointed out separately during the onboarding.
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
-[Updating Node.js from Upstream]: ./onboarding-extras.md#updating-nodejs-from-upstream
 [using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
 [who-to-cc]: ../COLLABORATOR_GUIDE.md#who-to-cc-in-the-issue-tracker
