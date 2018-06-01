@@ -1,14 +1,14 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 process.on('exit', () => {
-  assert.strictEqual(process._exiting, true, 'process._exiting was not set!');
+  assert.strictEqual(process._exiting, true);
 
-  process.nextTick(() => {
-    assert.fail('process is exiting, should not be called.');
-  });
+  process.nextTick(
+    common.mustNotCall('process is exiting, should not be called')
+  );
 });
 
 process.exit();
