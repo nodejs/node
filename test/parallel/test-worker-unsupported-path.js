@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Worker } = require('worker');
+const { Worker } = require('worker_threads');
 
 {
   const expectedErr = common.expectsError({

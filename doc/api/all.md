@@ -46,5 +46,5 @@
 @include util
 @include v8
 @include vm
-@include worker
+@include worker_threads
 @include zlib

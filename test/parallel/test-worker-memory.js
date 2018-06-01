@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const util = require('util');
-const { Worker } = require('worker');
+const { Worker } = require('worker_threads');
 
 const numWorkers = +process.env.JOBS || require('os').cpus().length;
 
@@ -13,7 +13,7 @@ function run(n, done) {
   if (n <= 0)
     return done();
   const worker = new Worker(
-    'require(\'worker\').parentPort.postMessage(2 + 2)',
+    'require(\'worker_threads\').parentPort.postMessage(2 + 2)',
     { eval: true });
   worker.on('message', common.mustCall((value) => {
     assert.strictEqual(value, 4);
