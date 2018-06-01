@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
 const workerPath = path.resolve(__dirname, '..', 'fixtures', 'echo.worker.js');
 
 function main(conf) {
-  const { Worker } = require('worker');
+  const { Worker } = require('worker_threads');
 
   const n = +conf.n;
   const workers = +conf.workers;

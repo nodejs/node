@@ -1,4 +1,4 @@
-# Worker
+# Worker Threads
 
 <!--introduced_in=REPLACEME-->
 
@@ -9,7 +9,7 @@ on independent threads, and to create message channels between them. It
 can be accessed using:
 
 ```js
-const worker = require('worker');
+const worker = require('worker_threads');
 ```
 
 Workers are useful for performing CPU-intensive JavaScript operations; do not
@@ -23,7 +23,9 @@ share memory efficiently by transferring `ArrayBuffer` instances or sharing
 ## Example
 
 ```js
-const { Worker, isMainThread, parentPort, workerData } = require('worker');
+const {
+  Worker, isMainThread, parentPort, workerData
+} = require('worker_threads');
 
 if (isMainThread) {
   module.exports = async function parseJSAsync(script) {
@@ -104,7 +106,7 @@ yields an object with `port1` and `port2` properties, which refer to linked
 [`MessagePort`][] instances.
 
 ```js
-const { MessageChannel } = require('worker');
+const { MessageChannel } = require('worker_threads');
 
 const { port1, port2 } = new MessageChannel();
 port1.on('message', (message) => console.log('received', message));
@@ -241,8 +243,8 @@ Notable differences inside a Worker environment are:
 
 - The [`process.stdin`][], [`process.stdout`][] and [`process.stderr`][]
   may be redirected by the parent thread.
-- The [`require('worker').isMainThread`][] property is set to `false`.
-- The [`require('worker').parentPort`][] message port is available,
+- The [`require('worker_threads').isMainThread`][] property is set to `false`.
+- The [`require('worker_threads').parentPort`][] message port is available,
 - [`process.exit()`][] does not stop the whole program, just the single thread,
   and [`process.abort()`][] is not available.
 - [`process.chdir()`][] and `process` methods that set group or user ids
@@ -283,7 +285,9 @@ For example:
 
 ```js
 const assert = require('assert');
-const { Worker, MessageChannel, MessagePort, isMainThread } = require('worker');
+const {
+  Worker, MessageChannel, MessagePort, isMainThread
+} = require('worker_threads');
 if (isMainThread) {
   const worker = new Worker(__filename);
   const subChannel = new MessageChannel();
@@ -292,7 +296,7 @@ if (isMainThread) {
     console.log('received:', value);
   });
 } else {
-  require('worker').once('workerMessage', (value) => {
+  require('worker_threads').once('workerMessage', (value) => {
     assert(value.hereIsYourPort instanceof MessagePort);
     value.hereIsYourPort.postMessage('the worker is sending this');
     value.hereIsYourPort.close();
@@ -309,9 +313,9 @@ if (isMainThread) {
   * `eval` {boolean} If true, interpret the first argument to the constructor
     as a script that is executed once the worker is online.
   * `data` {any} Any JavaScript value that will be cloned and made
-    available as [`require('worker').workerData`][]. The cloning will occur as
-    described in the [HTML structured clone algorithm][], and an error will be
-    thrown if the object cannot be cloned (e.g. because it contains
+    available as [`require('worker_threads').workerData`][]. The cloning will
+    occur as described in the [HTML structured clone algorithm][], and an error
+    will be thrown if the object cannot be cloned (e.g. because it contains
     `function`s).
   * stdin {boolean} If this is set to `true`, then `worker.stdin` will
     provide a writable stream whose contents will appear as `process.stdin`
@@ -351,8 +355,8 @@ added: REPLACEME
 * `value` {any} The transmitted value
 
 The `'message'` event is emitted when the worker thread has invoked
-[`require('worker').postMessage()`][]. See the [`port.on('message')`][] event
-for more details.
+[`require('worker_threads').postMessage()`][]. See the [`port.on('message')`][]
+event for more details.
 
 ### Event: 'online'
 <!-- YAML
@@ -371,8 +375,8 @@ added: REPLACEME
 * `transferList` {Object[]}
 
 Send a message to the worker that will be received via
-[`require('worker').on('workerMessage')`][]. See [`port.postMessage()`][] for
-more details.
+[`require('worker_threads').on('workerMessage')`][].
+See [`port.postMessage()`][] for more details.
 
 ### worker.ref()
 <!-- YAML
@@ -444,7 +448,7 @@ added: REPLACEME
 * {integer}
 
 An integer identifier for the referenced thread. Inside the worker thread,
-it is available as [`require('worker').threadId`][].
+it is available as [`require('worker_threads').threadId`][].
 
 ### worker.unref()
 <!-- YAML
@@ -457,14 +461,14 @@ active handle in the event system. If the worker is already `unref()`ed calling
 
 [`Buffer`]: buffer.html
 [`EventEmitter`]: events.html
-[`MessagePort`]: #worker_class_messageport
-[`port.postMessage()`]: #worker_port_postmessage_value_transferlist
-[`Worker`]: #worker_class_worker
-[`worker.terminate()`]: #worker_worker_terminate_callback
-[`worker.postMessage()`]: #worker_worker_postmessage_value_transferlist_1
-[`worker.on('message')`]: #worker_event_message_1
-[`worker.threadId`]: #worker_worker_threadid_1
-[`port.on('message')`]: #worker_event_message
+[`MessagePort`]: #worker_threads_class_messageport
+[`port.postMessage()`]: #worker_threads_port_postmessage_value_transferlist
+[`Worker`]: #worker_threads_class_worker
+[`worker.terminate()`]: #worker_threads_worker_terminate_callback
+[`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist_1
+[`worker.on('message')`]: #worker_threads_event_message_1
+[`worker.threadId`]: #worker_threads_worker_threadid_1
+[`port.on('message')`]: #worker_threads_event_message
 [`process.exit()`]: process.html#process_process_exit_code
 [`process.abort()`]: process.html#process_process_abort
 [`process.chdir()`]: process.html#process_process_chdir_directory
@@ -473,11 +477,11 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdout`]: process.html#process_process_stdout
 [`process.title`]: process.html#process_process_title
-[`require('worker').workerData`]: #worker_worker_workerdata
-[`require('worker').on('workerMessage')`]: #worker_event_workermessage
-[`require('worker').postMessage()`]: #worker_worker_postmessage_value_transferlist
-[`require('worker').isMainThread`]: #worker_worker_ismainthread
-[`require('worker').threadId`]: #worker_worker_threadid
+[`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
+[`require('worker_threads').on('workerMessage')`]: #worker_threads_event_workermessage
+[`require('worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
+[`require('worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
+[`require('worker_threads').threadId`]: #worker_threads_worker_threadid
 [`cluster` module]: cluster.html
 [`inspector`]: inspector.html
 [v8.serdes]: v8.html#v8_serialization_api

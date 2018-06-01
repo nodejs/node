@@ -48,7 +48,7 @@ Object.defineProperty(exports, 'PORT', {
 
 exports.isMainThread = (() => {
   try {
-    return require('worker').isMainThread;
+    return require('worker_threads').isMainThread;
   } catch {
     // Worker module not enabled → only a single main thread exists.
     return true;
