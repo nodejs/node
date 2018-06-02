@@ -398,6 +398,7 @@ static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
 class DestroyParam {
  public:
   double asyncId;
+  Environment* env;
   Persistent<Object> target;
   Persistent<Object> propBag;
 };
@@ -406,13 +407,12 @@ class DestroyParam {
 void AsyncWrap::WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info) {
   HandleScope scope(info.GetIsolate());
 
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
   std::unique_ptr<DestroyParam> p{info.GetParameter()};
   Local<Object> prop_bag = PersistentToLocal(info.GetIsolate(), p->propBag);
 
-  Local<Value> val = prop_bag->Get(env->destroyed_string());
+  Local<Value> val = prop_bag->Get(p->env->destroyed_string());
   if (val->IsFalse()) {
-    AsyncWrap::EmitDestroy(env, p->asyncId);
+    AsyncWrap::EmitDestroy(p->env, p->asyncId);
   }
   // unique_ptr goes out of scope here and pointer is deleted.
 }
@@ -426,6 +426,7 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   DestroyParam* p = new DestroyParam();
   p->asyncId = args[1].As<Number>()->Value();
+  p->env = Environment::GetCurrent(isolate);
   p->target.Reset(isolate, args[0].As<Object>());
   p->propBag.Reset(isolate, args[2].As<Object>());
   p->target.SetWeak(
