@@ -15,7 +15,7 @@ newPRWelcomeComment: >
 
   Please make sure to update documentation and tests when appropriate, and follow the [commit guidelines](https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#commit-message-guidelines)
 
-  We get a lot of issues on this repo, so please be patient and we will review this as soon as we can.
+  We get a lot of pull requests on this repo, so please be patient and we will review this as soon as we can.
 
 # Comment when a first-time contributor's PR is merged
 # https://github.com/behaviorbot/first-pr-merge
