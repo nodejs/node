@@ -15,6 +15,10 @@ newPRWelcomeComment: >
 
   Please make sure to update documentation and tests when appropriate, and follow the [commit guidelines](https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#commit-message-guidelines)
 
+  For non-trivial changes, pull requests must be left open for *at least* 48 hours during the week, and 72 hours on a weekend.
+
+  If this pull request changes includes code changes, the CI must be started by a collaborator.
+
   We get a lot of pull requests on this repo, so please be patient and we will review this as soon as we can.
 
 # Comment when a first-time contributor's PR is merged
