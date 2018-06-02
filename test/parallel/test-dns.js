@@ -77,7 +77,7 @@ assert(existing.length > 0);
   invalidServers.forEach((serv) => {
     assert.throws(
       () => {
-        dns.setServers([serv])
+        dns.setServers([serv]);
       },
       {
         name: 'TypeError [ERR_INVALID_IP_ADDRESS]',
