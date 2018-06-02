@@ -23,6 +23,7 @@ using v8::Private;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
+using v8::Symbol;
 using v8::Value;
 
 IsolateData::IsolateData(Isolate* isolate,
@@ -58,6 +59,18 @@ IsolateData::IsolateData(Isolate* isolate,
                 v8::NewStringType::kInternalized,                           \
                 sizeof(StringValue) - 1).ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, StringValue)                                        \
+    PropertyName ## _.Set(                                                  \
+        isolate,                                                            \
+        Symbol::New(                                                        \
+            isolate,                                                        \
+            String::NewFromOneByte(                                         \
+                isolate,                                                    \
+                reinterpret_cast<const uint8_t*>(StringValue),              \
+                v8::NewStringType::kInternalized,                           \
+                sizeof(StringValue) - 1).ToLocalChecked()));
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 #define V(PropertyName, StringValue)                                        \
     PropertyName ## _.Set(                                                  \

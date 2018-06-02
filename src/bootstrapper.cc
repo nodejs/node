@@ -17,6 +17,7 @@ using v8::Object;
 using v8::Promise;
 using v8::PromiseRejectEvent;
 using v8::PromiseRejectMessage;
+using v8::String;
 using v8::Value;
 
 void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
@@ -121,7 +122,7 @@ void SetupBootstrapObject(Environment* env,
   BOOTSTRAP_METHOD(_setgroups, SetGroups);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
-  auto should_abort_on_uncaught_toggle =
+  Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_shouldAbortOnUncaughtToggle");
   CHECK(bootstrapper->Set(env->context(),
                        should_abort_on_uncaught_toggle,
@@ -130,4 +131,21 @@ void SetupBootstrapObject(Environment* env,
 }
 #undef BOOTSTRAP_METHOD
 
+namespace symbols {
+
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
+  Environment* env = Environment::GetCurrent(context);
+#define V(PropertyName, StringValue)                                        \
+    target->Set(env->context(),                                             \
+               env->PropertyName()->Name(),                                 \
+               env->PropertyName()).FromJust();
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+}
+
+}  // namespace symbols
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(symbols, node::symbols::Initialize)
