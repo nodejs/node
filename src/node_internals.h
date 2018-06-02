@@ -125,6 +125,7 @@ struct sockaddr;
     V(stream_pipe)                                                            \
     V(stream_wrap)                                                            \
     V(string_decoder)                                                         \
+    V(symbols)                                                                \
     V(tcp_wrap)                                                               \
     V(timer_wrap)                                                             \
     V(trace_events)                                                           \

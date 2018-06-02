@@ -65,6 +65,22 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     const v8::Local<v8::String> symbol,
     int argc,
     v8::Local<v8::Value>* argv) {
+  return MakeCallback(symbol.As<v8::Name>(), argc, argv);
+}
+
+
+inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
+    const v8::Local<v8::Symbol> symbol,
+    int argc,
+    v8::Local<v8::Value>* argv) {
+  return MakeCallback(symbol.As<v8::Name>(), argc, argv);
+}
+
+
+inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
+    const v8::Local<v8::Name> symbol,
+    int argc,
+    v8::Local<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(symbol);
   CHECK(cb_v->IsFunction());
   return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
