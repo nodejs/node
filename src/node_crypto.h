@@ -53,10 +53,6 @@
 #include <openssl/rand.h>
 #include <openssl/pkcs12.h>
 
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-# define NODE__HAVE_TLSEXT_STATUS_CB
-#endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-
 namespace node {
 namespace crypto {
 
@@ -331,13 +327,8 @@ class SSLWrap {
 
   ClientHelloParser hello_parser_;
 
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
   Persistent<v8::Object> ocsp_response_;
-#endif  // NODE__HAVE_TLSEXT_STATUS_CB
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   Persistent<v8::Value> sni_context_;
-#endif
 
   friend class SecureContext;
 };
