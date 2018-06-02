@@ -22,9 +22,6 @@
 'use strict';
 const common = require('../common');
 
-if (!process.features.tls_ocsp)
-  common.skip('node compiled without OpenSSL or with old OpenSSL version.');
-
 if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 

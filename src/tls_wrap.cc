@@ -131,12 +131,10 @@ void TLSWrap::InitSSL() {
   SSL_set_app_data(ssl_.get(), this);
   SSL_set_info_callback(ssl_.get(), SSLInfoCallback);
 
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server()) {
     SSL_CTX_set_tlsext_servername_callback(sc_->ctx_.get(),
                                            SelectSNIContextCallback);
   }
-#endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
   ConfigureSecureContext(sc_);
 
@@ -777,7 +775,6 @@ void TLSWrap::OnClientHelloParseEnd(void* arg) {
 }
 
 
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -809,10 +806,8 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_NOT_NULL(wrap->ssl_);
 
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   node::Utf8Value servername(env->isolate(), args[0].As<String>());
   SSL_set_tlsext_host_name(wrap->ssl_.get(), *servername);
-#endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 }
 
 
@@ -851,7 +846,6 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->SetSNIContext(sc);
   return SSL_TLSEXT_ERR_OK;
 }
-#endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
 
 void TLSWrap::GetWriteQueueSize(const FunctionCallbackInfo<Value>& info) {
@@ -902,10 +896,8 @@ void TLSWrap::Initialize(Local<Object> target,
   StreamBase::AddMethods<TLSWrap>(env, t, StreamBase::kFlagHasWritev);
   SSLWrap<TLSWrap>::AddMethods(env, t);
 
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   env->SetProtoMethod(t, "getServername", GetServername);
   env->SetProtoMethod(t, "setServername", SetServername);
-#endif  // SSL_CRT_SET_TLSEXT_SERVERNAME_CB
 
   env->set_tls_wrap_constructor_function(t->GetFunction());
 
