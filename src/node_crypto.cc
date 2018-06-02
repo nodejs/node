@@ -133,16 +133,10 @@ template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
 template void SSLWrap<TLSWrap>::OnClientHello(
     void* arg,
     const ClientHelloParser::ClientHello& hello);
-
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
 template int SSLWrap<TLSWrap>::TLSExtStatusCallback(SSL* s, void* arg);
-#endif
-
 template void SSLWrap<TLSWrap>::DestroySSL();
 template int SSLWrap<TLSWrap>::SSLCertCallback(SSL* s, void* arg);
 template void SSLWrap<TLSWrap>::WaitForCertCb(CertCb cb, void* arg);
-
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 template int SSLWrap<TLSWrap>::SelectALPNCallback(
     SSL* s,
     const unsigned char** out,
@@ -150,7 +144,6 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
     const unsigned char* in,
     unsigned int inlen,
     void* arg);
-#endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 
 
 static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
@@ -1387,11 +1380,9 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
 template <class Base>
 void SSLWrap<Base>::ConfigureSecureContext(SecureContext* sc) {
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
   // OCSP stapling
   SSL_CTX_set_tlsext_status_cb(sc->ctx_.get(), TLSExtStatusCallback);
   SSL_CTX_set_tlsext_status_arg(sc->ctx_.get(), nullptr);
-#endif  // NODE__HAVE_TLSEXT_STATUS_CB
 }
 
 
@@ -2019,7 +2010,6 @@ void SSLWrap<Base>::NewSessionDone(const FunctionCallbackInfo<Value>& args) {
 
 template <class Base>
 void SSLWrap<Base>::SetOCSPResponse(const FunctionCallbackInfo<Value>& args) {
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->env();
@@ -2030,18 +2020,15 @@ void SSLWrap<Base>::SetOCSPResponse(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "OCSP response");
 
   w->ocsp_response_.Reset(args.GetIsolate(), args[0].As<Object>());
-#endif  // NODE__HAVE_TLSEXT_STATUS_CB
 }
 
 
 template <class Base>
 void SSLWrap<Base>::RequestOCSP(const FunctionCallbackInfo<Value>& args) {
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
   SSL_set_tlsext_status_type(w->ssl_.get(), TLSEXT_STATUSTYPE_ocsp);
-#endif  // NODE__HAVE_TLSEXT_STATUS_CB
 }
 
 
@@ -2226,7 +2213,6 @@ void SSLWrap<Base>::GetProtocol(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
 template <class Base>
 int SSLWrap<Base>::SelectALPNCallback(SSL* s,
                                       const unsigned char** out,
@@ -2256,13 +2242,11 @@ int SSLWrap<Base>::SelectALPNCallback(SSL* s,
   return status == OPENSSL_NPN_NEGOTIATED ? SSL_TLSEXT_ERR_OK
                                           : SSL_TLSEXT_ERR_NOACK;
 }
-#endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 
 
 template <class Base>
 void SSLWrap<Base>::GetALPNNegotiatedProto(
     const FunctionCallbackInfo<Value>& args) {
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
@@ -2276,13 +2260,11 @@ void SSLWrap<Base>::GetALPNNegotiatedProto(
 
   args.GetReturnValue().Set(
       OneByteString(args.GetIsolate(), alpn_proto, alpn_proto_len));
-#endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 }
 
 
 template <class Base>
 void SSLWrap<Base>::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->env();
@@ -2306,11 +2288,9 @@ void SSLWrap<Base>::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
                                SelectALPNCallback,
                                nullptr);
   }
-#endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 }
 
 
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
 template <class Base>
 int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
   Base* w = static_cast<Base*>(SSL_get_app_data(s));
@@ -2354,7 +2334,6 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     return SSL_TLSEXT_ERR_OK;
   }
 }
-#endif  // NODE__HAVE_TLSEXT_STATUS_CB
 
 
 template <class Base>
@@ -2396,11 +2375,7 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
     info->Set(context, env->servername_string(), str).FromJust();
   }
 
-  bool ocsp = false;
-#ifdef NODE__HAVE_TLSEXT_STATUS_CB
-  ocsp = SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp;
-#endif
-
+  const bool ocsp = (SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
   info->Set(context, env->ocsp_request_string(),
             Boolean::New(env->isolate(), ocsp)).FromJust();
 

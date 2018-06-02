@@ -2383,30 +2383,16 @@ static Local<Object> GetFeatures(Environment* env) {
   // TODO(bnoordhuis) ping libuv
   obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"), True(env->isolate()));
 
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-  Local<Boolean> tls_alpn = True(env->isolate());
+#ifdef HAVE_OPENSSL
+  Local<Boolean> have_openssl = True(env->isolate());
 #else
-  Local<Boolean> tls_alpn = False(env->isolate());
+  Local<Boolean> have_openssl = False(env->isolate());
 #endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"), tls_alpn);
 
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  Local<Boolean> tls_sni = True(env->isolate());
-#else
-  Local<Boolean> tls_sni = False(env->isolate());
-#endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"), tls_sni);
-
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-  Local<Boolean> tls_ocsp = True(env->isolate());
-#else
-  Local<Boolean> tls_ocsp = False(env->isolate());
-#endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"), tls_ocsp);
-
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls"),
-           Boolean::New(env->isolate(),
-                        get_builtin_module("crypto") != nullptr));
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"), have_openssl);
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"), have_openssl);
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"), have_openssl);
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls"), have_openssl);
 
   return scope.Escape(obj);
 }
