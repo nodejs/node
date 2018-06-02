@@ -2456,44 +2456,46 @@ static void GetParentProcessId(Local<Name> property,
 
 
 static Local<Object> GetFeatures(Environment* env) {
-  EscapableHandleScope scope(env->isolate());
+  Isolate* isolate = env->isolate();
+  EscapableHandleScope scope(isolate);
+  Local<Boolean> true_value = True(isolate);
+  Local<Boolean> false_value = False(isolate);
 
-  Local<Object> obj = Object::New(env->isolate());
+  Local<Object> obj = Object::New(isolate);
 #if defined(DEBUG) && DEBUG
-  Local<Value> debug = True(env->isolate());
+  Local<Boolean> debug = true_value;
 #else
-  Local<Value> debug = False(env->isolate());
+  Local<Boolean> debug = false_value;
 #endif  // defined(DEBUG) && DEBUG
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "debug"), debug);
 
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "debug"), debug);
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "uv"), True(env->isolate()));
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "uv"), true_value);
   // TODO(bnoordhuis) ping libuv
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"), True(env->isolate()));
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "ipv6"), true_value);
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-  Local<Boolean> tls_alpn = True(env->isolate());
+  Local<Boolean> tls_alpn = true_value;
 #else
-  Local<Boolean> tls_alpn = False(env->isolate());
+  Local<Boolean> tls_alpn = false_value;
 #endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"), tls_alpn);
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "tls_alpn"), tls_alpn);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  Local<Boolean> tls_sni = True(env->isolate());
+  Local<Boolean> tls_sni = true_value;
 #else
-  Local<Boolean> tls_sni = False(env->isolate());
+  Local<Boolean> tls_sni = false_value;
 #endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"), tls_sni);
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "tls_sni"), tls_sni);
 
 #if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-  Local<Boolean> tls_ocsp = True(env->isolate());
+  Local<Boolean> tls_ocsp = true_value;
 #else
-  Local<Boolean> tls_ocsp = False(env->isolate());
+  Local<Boolean> tls_ocsp = false_value;
 #endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"), tls_ocsp);
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "tls_ocsp"), tls_ocsp);
 
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls"),
-           Boolean::New(env->isolate(),
-                        get_builtin_module("crypto") != nullptr));
+  obj->Set(FIXED_ONE_BYTE_STRING(isolate, "tls"),
+           Boolean::New(isolate, get_builtin_module("crypto") != nullptr));
 
   return scope.Escape(obj);
 }

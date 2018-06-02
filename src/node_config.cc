@@ -4,6 +4,10 @@
 #include "util-inl.h"
 #include "node_debug_options.h"
 
+#if HAVE_OPENSSL
+#include "node_crypto.h"
+#endif
+
 namespace node {
 
 using v8::Boolean;
@@ -46,6 +50,14 @@ static void Initialize(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("fipsMode");
   if (force_fips_crypto)
     READONLY_BOOLEAN_PROPERTY("fipsForced");
+#endif
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+  READONLY_BOOLEAN_PROPERTY("tlsALPN");
+#endif
+
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+  READONLY_BOOLEAN_PROPERTY("tlsSNI");
 #endif
 
 #ifdef NODE_HAVE_I18N_SUPPORT
