@@ -9,7 +9,7 @@ prefix parallel
 test-postmortem-metadata: PASS,FLAKY
 
 [$system==win32]
-test-child-process-fork-net: PASS,FLAKY
+test-child-process-fork-net-socket: PASS,FLAKY
 
 [$system==linux]
 
