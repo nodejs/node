@@ -1005,6 +1005,15 @@ accepted by the legacy `url.parse()` API. The mentioned APIs now use the WHATWG
 URL parser that requires strictly valid URLs. Passing an invalid URL is
 deprecated and support will be removed in the future.
 
+<a id="DEP0110"></a>
+### DEP0110: _getActiveHandles and _getActiveRequests
+
+Type: Runtime
+
+As `process.getActiveHandles()` and `process.getActiveRequests()` are
+officially supported and documented, their previous names are now deprecated,
+and will be removed in the future.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
