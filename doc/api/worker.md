@@ -242,8 +242,7 @@ Notable differences inside a Worker environment are:
 - The [`process.stdin`][], [`process.stdout`][] and [`process.stderr`][]
   properties are set to `null`.
 - The [`require('worker').isMainThread`][] property is set to `false`.
-- The [`require('worker').postMessage()`][] method is available and the
-  [`require('worker').on('workerMessage')`][] event will be emitted.
+- The [`require('worker').parentPort`][] message port is available,
 - [`process.exit()`][] does not stop the whole program, just the single thread,
   and [`process.abort()`][] is not available.
 - [`process.chdir()`][] and `process` methods that set group or user ids
@@ -265,12 +264,10 @@ Creating `Worker` instances inside of other `Worker`s is possible.
 Like [Web Workers][] and the [`cluster` module][], two-way communication can be
 achieved through inter-thread message passing. Internally, a `Worker` has a
 built-in pair of [`MessagePort`][]s that are already associated with each other
-when the `Worker` is created. While the `MessagePort` objects are not directly
-exposed, their functionalities are exposed through [`worker.postMessage()`][]
-and the [`worker.on('message')`][] event on the `Worker` object for the parent
-thread, and [`require('worker').postMessage()`][] and the
-[`require('worker').on('workerMessage')`][] on `require('worker')` for the
-child thread.
+when the `Worker` is created. While the `MessagePort` object on the parent side
+is not directly exposed, its functionalities are exposed through
+[`worker.postMessage()`][] and the [`worker.on('message')`][] event
+on the `Worker` object for the parent thread.
 
 To create custom messaging channels (which is encouraged over using the default
 global channel because it facilitates separation of concerns), users can create
