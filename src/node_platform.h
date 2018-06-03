@@ -141,8 +141,8 @@ class NodePlatform : public MultiIsolatePlatform {
   v8::TracingController* GetTracingController() override;
   bool FlushForegroundTasks(v8::Isolate* isolate) override;
 
-  void RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) override;
-  void UnregisterIsolate(IsolateData* isolate_data) override;
+  void RegisterIsolate(v8::Isolate* isolate, uv_loop_t* loop) override;
+  void UnregisterIsolate(v8::Isolate* isolate) override;
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;
