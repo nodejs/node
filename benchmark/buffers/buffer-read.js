@@ -2,6 +2,10 @@
 const common = require('../common.js');
 
 const types = [
+  'BigUInt64LE',
+  'BigUInt64BE',
+  'BigInt64LE',
+  'BigInt64BE',
   'UInt8',
   'UInt16LE',
   'UInt16BE',
