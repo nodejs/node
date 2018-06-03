@@ -9,7 +9,6 @@ prefix async-hooks
 [$system==win32]
 
 [$system==linux]
-test-zlib.zlib-binding.deflate: PASS,FLAKY
 
 [$system==macos]
 
