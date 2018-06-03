@@ -7,7 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-child-process-fork-net-socket: PASS,FLAKY
 
 [$system==linux]
 
