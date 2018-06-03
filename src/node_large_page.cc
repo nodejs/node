@@ -63,8 +63,8 @@ namespace node {
 #define PAGE_ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 
 struct TextRegion {
-  void  * from;
-  void  * to;
+  char  * from;
+  char  * to;
   int     total_hugepages;
   bool    found_text_region;
 };
@@ -90,6 +90,10 @@ struct TextRegion {
       nregion.found_text_region = false;
 
       ifs.open("/proc/self/maps");
+      if (!ifs) {
+        fprintf(stderr, "Could not open /proc/self/maps\n");
+         return nregion;
+      }
       std::getline(ifs, map_line);
       std::istringstream iss(map_line);
       ifs.close();
@@ -100,7 +104,7 @@ struct TextRegion {
       iss >> permission;
 
       if (permission.compare("r-xp") == 0) {
-        start = (unsigned int64_t) &__nodetext;
+        start = reinterpret_cast<unsigned int64_t>(&__nodetext);
         char *from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hps);
         char *to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hps);
 
@@ -162,7 +166,7 @@ struct TextRegion {
         void *nmem = nullptr, *tmem = nullptr;
         int ret = 0;
 
-        size_t size = (intptr_t)r.to - (intptr_t)r.from;
+        size_t size = r.to - r.from;
         void *start = r.from;
 
         // Allocate temporary region preparing for copy
