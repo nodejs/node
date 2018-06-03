@@ -67,9 +67,9 @@ Worker::Worker(Environment* env, Local<Object> wrap)
 
   array_buffer_allocator_.reset(CreateArrayBufferAllocator());
 
-  isolate_ = NewIsolate(array_buffer_allocator_.get());
-  CHECK_NE(isolate_, nullptr);
   CHECK_EQ(uv_loop_init(&loop_), 0);
+  isolate_ = NewIsolate(array_buffer_allocator_.get(), &loop_);
+  CHECK_NE(isolate_, nullptr);
 
   thread_exit_async_.reset(new uv_async_t);
   thread_exit_async_->data = this;
@@ -265,6 +265,7 @@ void Worker::DisposeIsolate() {
   platform->CancelPendingDelayedTasks(isolate_);
 
   isolate_data_.reset();
+  platform->UnregisterIsolate(isolate_);
 
   isolate_->Dispose();
   isolate_ = nullptr;
