@@ -897,12 +897,21 @@ static inline const char* errno_string(int errorno) {
 
 // Functions defined in node.cc that are exposed via the bootstrapper object
 
+extern double prog_start_time;
+void PrintErrorString(const char* format, ...);
+
+void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Chdir(const v8::FunctionCallbackInfo<v8::Value>& args);
 void CPUUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Cwd(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Hrtime(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Kill(const v8::FunctionCallbackInfo<v8::Value>& args);
 void MemoryUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
 void RawDebug(const v8::FunctionCallbackInfo<v8::Value>& args);
+void StartProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
+void StopProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Umask(const v8::FunctionCallbackInfo<v8::Value>& args);
+void Uptime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 void SetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -911,6 +920,11 @@ void SetUid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetEUid(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 void InitGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetUid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetEUid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetEGid(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 }  // namespace node

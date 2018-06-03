@@ -345,6 +345,7 @@
         'src/node_platform.cc',
         'src/node_perf.cc',
         'src/node_postmortem_metadata.cc',
+        'src/node_process.cc',
         'src/node_serdes.cc',
         'src/node_trace_events.cc',
         'src/node_types.cc',
