@@ -4077,8 +4077,9 @@ void EmitBeforeExit(Environment* env) {
   Local<Object> process_object = env->process_object();
   Local<String> exit_code = env->exit_code_string();
   Local<Value> args[] = {
-    env->before_exit_string(),
-    process_object->Get(exit_code)->ToInteger(env->context()).ToLocalChecked()
+    FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
+    process_object->Get(env->context(), exit_code).ToLocalChecked()
+        ->ToInteger(env->context()).ToLocalChecked()
   };
   MakeCallback(env->isolate(),
                process_object, "emit", arraysize(args), args,
@@ -4091,13 +4092,15 @@ int EmitExit(Environment* env) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Object> process_object = env->process_object();
-  process_object->Set(env->exiting_string(), True(env->isolate()));
+  process_object->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "_exiting"),
+                      True(env->isolate()));
 
   Local<String> exit_code = env->exit_code_string();
-  int code = process_object->Get(exit_code)->Int32Value();
+  int code = process_object->Get(env->context(), exit_code).ToLocalChecked()
+      ->Int32Value(env->context()).ToChecked();
 
   Local<Value> args[] = {
-    env->exit_string(),
+    FIXED_ONE_BYTE_STRING(env->isolate(), "exit"),
     Integer::New(env->isolate(), code)
   };
 
@@ -4106,7 +4109,8 @@ int EmitExit(Environment* env) {
                {0, 0}).ToLocalChecked();
 
   // Reload exit code, it may be changed by `emit('exit')`
-  return process_object->Get(exit_code)->Int32Value();
+  return process_object->Get(env->context(), exit_code).ToLocalChecked()
+      ->Int32Value(env->context()).ToChecked();
 }
 
 

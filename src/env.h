@@ -114,7 +114,6 @@ struct PackageConfig {
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
   V(async_ids_stack_string, "async_ids_stack")                                \
-  V(before_exit_string, "beforeExit")                                         \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
@@ -152,9 +151,7 @@ struct PackageConfig {
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
-  V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
-  V(exit_string, "exit")                                                      \
   V(expire_string, "expire")                                                  \
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \
