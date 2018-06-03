@@ -426,7 +426,7 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   DestroyParam* p = new DestroyParam();
   p->asyncId = args[1].As<Number>()->Value();
-  p->env = Environment::GetCurrent(isolate);
+  p->env = Environment::GetCurrent(args);
   p->target.Reset(isolate, args[0].As<Object>());
   p->propBag.Reset(isolate, args[2].As<Object>());
   p->target.SetWeak(
