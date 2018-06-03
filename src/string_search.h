@@ -559,7 +559,7 @@ size_t StringSearch<Char>::InitialSearch(
   return subject.length();
 }
 
-// Perform a a single stand-alone search.
+// Perform a single stand-alone search.
 // If searching multiple times for the same pattern, a search
 // object should be constructed once and the Search function then called
 // for each search.
