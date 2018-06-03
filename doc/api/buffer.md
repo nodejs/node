@@ -1885,7 +1885,7 @@ console.log(buf.slice(-5, -2).toString());
 added: v5.10.0
 -->
 
-* Returns: {Buffer} A reference to `buf`.
+* Returns: {Buffer} A reference to `buf`, which is a big endian.
 
 Interprets `buf` as an array of unsigned 16-bit integers and swaps the
 byte order *in-place*. Throws [`ERR_INVALID_BUFFER_SIZE`] if [`buf.length`] is
