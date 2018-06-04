@@ -3393,13 +3393,19 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
 
     CallbackScope callback_scope(this);
 
-    NAPI_CALL_INTO_MODULE(_env,
+    // We have to back up the env here because the `NAPI_CALL_INTO_MODULE` macro
+    // makes use of it after the call into the module completes, but the module
+    // may have deallocated **this**, and along with it the place where _env is
+    // stored.
+    napi_env env = _env;
+
+    NAPI_CALL_INTO_MODULE(env,
         _complete(_env, ConvertUVErrorCode(status), _data),
-        [this] (v8::Local<v8::Value> local_err) {
+        [env] (v8::Local<v8::Value> local_err) {
           // If there was an unhandled exception in the complete callback,
           // report it as a fatal exception. (There is no JavaScript on the
           // callstack that can possibly handle it.)
-          v8impl::trigger_fatal_exception(_env, local_err);
+          v8impl::trigger_fatal_exception(env, local_err);
         });
 
     // Note: Don't access `work` after this point because it was

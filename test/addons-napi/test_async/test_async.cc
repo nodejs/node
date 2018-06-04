@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <node_api.h>
 #include "../common.h"
 
@@ -173,10 +174,52 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   return nullptr;
 }
 
+struct {
+  napi_ref ref;
+  napi_async_work work;
+} repeated_work_info = { nullptr, nullptr };
+
+static void RepeatedWorkerThread(napi_env env, void* data) {}
+
+static void RepeatedWorkComplete(napi_env env, napi_status status, void* data) {
+  napi_value cb, js_status;
+  NAPI_CALL_RETURN_VOID(env,
+      napi_get_reference_value(env, repeated_work_info.ref, &cb));
+  NAPI_CALL_RETURN_VOID(env,
+      napi_delete_async_work(env, repeated_work_info.work));
+  NAPI_CALL_RETURN_VOID(env,
+      napi_delete_reference(env, repeated_work_info.ref));
+  repeated_work_info.work = nullptr;
+  repeated_work_info.ref = nullptr;
+  NAPI_CALL_RETURN_VOID(env,
+      napi_create_uint32(env, (uint32_t)status, &js_status));
+  NAPI_CALL_RETURN_VOID(env,
+      napi_call_function(env, cb, cb, 1, &js_status, nullptr));
+}
+
+static napi_value DoRepeatedWork(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value cb, name;
+  NAPI_ASSERT(env, repeated_work_info.ref == nullptr,
+      "Reference left over from previous work");
+  NAPI_ASSERT(env, repeated_work_info.work == nullptr,
+      "Work pointer left over from previous work");
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &cb, nullptr, nullptr));
+  NAPI_CALL(env, napi_create_reference(env, cb, 1, &repeated_work_info.ref));
+  NAPI_CALL(env,
+      napi_create_string_utf8(env, "Repeated Work", NAPI_AUTO_LENGTH, &name));
+  NAPI_CALL(env,
+      napi_create_async_work(env, nullptr, name, RepeatedWorkerThread,
+          RepeatedWorkComplete, &repeated_work_info, &repeated_work_info.work));
+  NAPI_CALL(env, napi_queue_async_work(env, repeated_work_info.work));
+  return nullptr;
+}
+
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("Test", Test),
     DECLARE_NAPI_PROPERTY("TestCancel", TestCancel),
+    DECLARE_NAPI_PROPERTY("DoRepeatedWork", DoRepeatedWork),
   };
 
   NAPI_CALL(env, napi_define_properties(
