@@ -62,91 +62,91 @@ namespace node {
 #define PAGE_ALIGN_UP(x, a)   ALIGN(x, a)
 #define PAGE_ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 
-struct TextRegion {
+struct text_region {
   char* from;
   char* to;
-  int     total_hugepages;
-  bool    found_text_region;
+  int   total_hugepages;
+  bool  found_text_region;
 };
 
-    static void printSystemError(int error) {
-      fprintf(stderr, "Hugepages WARNING: %s\n", strerror(error));
-      return;
-    }
+static void PrintSystemError(int error) {
+  fprintf(stderr, "Hugepages WARNING: %s\n", strerror(error));
+  return;
+}
 
 //  The format of the maps file is the following
 //  address           perms offset  dev   inode       pathname
 //  00400000-00452000 r-xp 00000000 08:02 173521      /usr/bin/dbus-daemon
 
-    static struct TextRegion find_node_text_region() {
-      std::ifstream ifs;
-      std::string map_line;
-      std::string permission;
-      char dash;
-      int64_t  start, end;
-      const size_t hps = 2L * 1024 * 1024;
-      struct TextRegion nregion;
+static struct text_region FindNodeTextRegion() {
+  std::ifstream ifs;
+  std::string map_line;
+  std::string permission;
+  char dash;
+  int64_t  start, end;
+  const size_t hps = 2L * 1024 * 1024;
+  struct text_region nregion;
 
-      nregion.found_text_region = false;
+  nregion.found_text_region = false;
 
-      ifs.open("/proc/self/maps");
-      if (!ifs) {
-        fprintf(stderr, "Could not open /proc/self/maps\n");
-         return nregion;
-      }
-      std::getline(ifs, map_line);
-      std::istringstream iss(map_line);
-      ifs.close();
+  ifs.open("/proc/self/maps");
+  if (!ifs) {
+    fprintf(stderr, "Could not open /proc/self/maps\n");
+    return nregion;
+  }
+  std::getline(ifs, map_line);
+  std::istringstream iss(map_line);
+  ifs.close();
 
-      iss >> std::hex >> start;
-      iss >> dash;
-      iss >> std::hex >> end;
-      iss >> permission;
+  iss >> std::hex >> start;
+  iss >> dash;
+  iss >> std::hex >> end;
+  iss >> permission;
 
-      if (permission.compare("r-xp") == 0) {
-        start = reinterpret_cast<unsigned int64_t>(&__nodetext);
-        char* from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hps);
-        char* to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hps);
+  if (permission.compare("r-xp") == 0) {
+    start = reinterpret_cast<unsigned int64_t>(&__nodetext);
+    char* from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hps);
+    char* to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hps);
 
-        if (from < to) {
-          size_t size = to - from;
-          nregion.found_text_region = true;
-          nregion.from = from;
-          nregion.to = to;
-          nregion.total_hugepages = size / hps;
-        }
-      }
-
-      return nregion;
+    if (from < to) {
+      size_t size = to - from;
+      nregion.found_text_region = true;
+      nregion.from = from;
+      nregion.to = to;
+      nregion.total_hugepages = size / hps;
     }
+  }
 
-    static bool IsTransparentHugePagesEnabled() {
-       std::ifstream ifs;
+  return nregion;
+}
 
-       ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
-       if (!ifs) {
-         fprintf(stderr, "Could not open file: " \
-           "/sys/kernel/mm/transparent_hugepage/enabled\n");
-         return false;
-       }
+static bool IsTransparentHugePagesEnabled() {
+  std::ifstream ifs;
 
-       std::string always, madvise, never;
-       if (ifs.is_open()) {
-          while (ifs >> always >> madvise >> never) {}
-       }
+  ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
+  if (!ifs) {
+    fprintf(stderr, "Could not open file: " \
+                     "/sys/kernel/mm/transparent_hugepage/enabled\n");
+    return false;
+  }
 
-       int ret_status = false;
+  std::string always, madvise, never;
+  if (ifs.is_open()) {
+    while (ifs >> always >> madvise >> never) {}
+  }
 
-       if (always.compare("[always]") == 0)
-         ret_status = true;
-       else if (madvise.compare("[madvise]") == 0)
-         ret_status = true;
-       else if (never.compare("[never]") == 0)
-         ret_status = false;
+  int ret_status = false;
 
-       ifs.close();
-       return ret_status;
-    }
+  if (always.compare("[always]") == 0)
+    ret_status = true;
+  else if (madvise.compare("[madvise]") == 0)
+    ret_status = true;
+  else if (never.compare("[never]") == 0)
+    ret_status = false;
+
+  ifs.close();
+  return ret_status;
+}
 
 //  Moving the text region to large pages. We need to be very careful.
 //  a) This function itself should not be moved.
@@ -157,97 +157,97 @@ struct TextRegion {
 //       the same virtual address
 //    3. madvise with MADV_HUGE_PAGE
 //    3. If successful copy the code there and unmap the original region
-    int
-      __attribute__((__section__(".eh_frame")))
-      __attribute__((__aligned__(2 * 1024 * 1024)))
-      __attribute__((__noinline__))
-      __attribute__((__optimize__("2")))
-      move_text_region_to_large_pages(struct TextRegion r) {
-        void* nmem = nullptr;
-        void* tmem = nullptr;
-        int ret = 0;
+int
+__attribute__((__section__(".eh_frame")))
+__attribute__((__aligned__(2 * 1024 * 1024)))
+__attribute__((__noinline__))
+__attribute__((__optimize__("2")))
+MoveTextRegionToLargePages(struct text_region r) {
+  void* nmem = nullptr;
+  void* tmem = nullptr;
+  int ret = 0;
 
-        size_t size = r.to - r.from;
-        void* start = r.from;
+  size_t size = r.to - r.from;
+  void* start = r.from;
 
-        // Allocate temporary region preparing for copy
-        nmem = mmap(nullptr, size,
-                    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (nmem == MAP_FAILED) {
-          printSystemError(errno);
-          return -1;
-        }
+  // Allocate temporary region preparing for copy
+  nmem = mmap(nullptr, size,
+              PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (nmem == MAP_FAILED) {
+    PrintSystemError(errno);
+    return -1;
+  }
 
-        memcpy(nmem, r.from, size);
+  memcpy(nmem, r.from, size);
 
 // We already know the original page is r-xp
 // (PROT_READ, PROT_EXEC, MAP_PRIVATE)
 // We want PROT_WRITE because we are writing into it.
 // We want it at the fixed address and we use MAP_FIXED.
-        tmem = mmap(start, size,
-                    PROT_READ | PROT_WRITE | PROT_EXEC,
-                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
-        if (tmem == MAP_FAILED) {
-          printSystemError(errno);
-          munmap(nmem, size);
-          return -1;
-        }
+  tmem = mmap(start, size,
+              PROT_READ | PROT_WRITE | PROT_EXEC,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
+  if (tmem == MAP_FAILED) {
+    PrintSystemError(errno);
+    munmap(nmem, size);
+    return -1;
+  }
 
-        ret = madvise(tmem, size, MADV_HUGEPAGE);
-        if (ret == -1) {
-          printSystemError(errno);
-          ret = munmap(tmem, size);
-          if (ret == -1) {
-            printSystemError(errno);
-          }
-          ret = munmap(nmem, size);
-          if (ret == -1) {
-            printSystemError(errno);
-          }
-
-          return -1;
-        }
-
-        memcpy(start, nmem, size);
-        ret = mprotect(start, size, PROT_READ | PROT_EXEC);
-        if (ret == -1) {
-          printSystemError(errno);
-          ret = munmap(tmem, size);
-          if (ret == -1) {
-            printSystemError(errno);
-          }
-          ret = munmap(nmem, size);
-          if (ret == -1) {
-            printSystemError(errno);
-          }
-          return -1;
-        }
-
-        // Release the old/temporary mapped region
-        ret = munmap(nmem, size);
-        if (ret == -1) {
-          printSystemError(errno);
-        }
-
-        return ret;
+  ret = madvise(tmem, size, MADV_HUGEPAGE);
+  if (ret == -1) {
+    PrintSystemError(errno);
+    ret = munmap(tmem, size);
+    if (ret == -1) {
+      PrintSystemError(errno);
+    }
+    ret = munmap(nmem, size);
+    if (ret == -1) {
+      PrintSystemError(errno);
     }
 
-    // This is the primary API called from main
-    int map_static_code_to_large_pages() {
-      struct TextRegion r = find_node_text_region();
-      if (r.found_text_region == false) {
-        fprintf(stderr, "Hugepages WARNING: failed to find text region \n");
-        return -1;
-      }
+    return -1;
+  }
 
-      if (r.to <= reinterpret_cast<void *> (&move_text_region_to_large_pages))
-        return move_text_region_to_large_pages(r);
-
-      return -1;
+  memcpy(start, nmem, size);
+  ret = mprotect(start, size, PROT_READ | PROT_EXEC);
+  if (ret == -1) {
+    PrintSystemError(errno);
+    ret = munmap(tmem, size);
+    if (ret == -1) {
+      PrintSystemError(errno);
     }
-
-    bool  IsLargePagesEnabled() {
-      return IsTransparentHugePagesEnabled();
+    ret = munmap(nmem, size);
+    if (ret == -1) {
+      PrintSystemError(errno);
     }
+    return -1;
+  }
+
+  // Release the old/temporary mapped region
+  ret = munmap(nmem, size);
+  if (ret == -1) {
+    PrintSystemError(errno);
+  }
+
+  return ret;
+}
+
+// This is the primary API called from main
+int MapStaticCodeToLargePages() {
+  struct text_region r = FindNodeTextRegion();
+  if (r.found_text_region == false) {
+    fprintf(stderr, "Hugepages WARNING: failed to find text region \n");
+    return -1;
+  }
+
+  if (r.to <= reinterpret_cast<void *> (&MoveTextRegionToLargePages))
+    return MoveTextRegionToLargePages(r);
+
+  return -1;
+}
+
+bool  IsLargePagesEnabled() {
+  return IsTransparentHugePagesEnabled();
+}
 
 }  // namespace node
