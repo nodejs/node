@@ -281,12 +281,6 @@ common.crashOnUnhandledRejection();
     });
 
     pipeline(rs, req, common.mustCall((err) => {
-      // TODO: this is working around an http2 bug
-      // where the client keeps the event loop going
-      // (replacing the rs.destroy() with req.end()
-      // exits it so seems to be a destroy bug there
-      client.unref();
-
       server.close();
       client.close();
     }));
