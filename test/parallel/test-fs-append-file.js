@@ -100,23 +100,37 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appendFile accepts buffers
-const filename3 = join(tmpdir.path, 'append3.txt');
-fs.writeFileSync(filename3, currentFileData);
+// test that appendFile accepts buffers (callback API)
+{
+  const filename = join(tmpdir.path, 'append-buffer.txt');
+  fs.writeFileSync(filename, currentFileData);
 
-const buf = Buffer.from(s, 'utf8');
+  const buf = Buffer.from(s, 'utf8');
 
-fs.appendFile(filename3, buf, function(e) {
-  assert.ifError(e);
-
-  ncallbacks++;
-
-  fs.readFile(filename3, function(e, buffer) {
+  fs.appendFile(filename, buf, common.mustCall((e) => {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(buf.length + currentFileData.length, buffer.length);
-  });
-});
+
+    fs.readFile(filename, common.mustCall((e, buffer) => {
+      assert.ifError(e);
+      assert.strictEqual(buf.length + currentFileData.length, buffer.length);
+    }));
+  }));
+}
+
+// test that appendFile accepts buffers (promises API)
+{
+  const filename = join(tmpdir.path, 'append-buffer-promises.txt');
+  fs.writeFileSync(filename, currentFileData);
+
+  const buf = Buffer.from(s, 'utf8');
+
+  fs.promises.appendFile(filename, buf)
+    .then(common.mustCall(() => fs.promises.readFile(filename)))
+    .then((buffer) => {
+      assert.strictEqual(buf.length + currentFileData.length, buffer.length);
+    })
+    .catch(throwNextTick);
+}
 
 // test that appendFile accepts numbers.
 const filename4 = join(tmpdir.path, 'append4.txt');
@@ -177,9 +191,8 @@ assert.throws(
   { code: 'ERR_INVALID_CALLBACK' });
 
 process.on('exit', function() {
-  assert.strictEqual(ncallbacks, 8);
+  assert.strictEqual(ncallbacks, 6);
 
-  fs.unlinkSync(filename3);
   fs.unlinkSync(filename4);
   fs.unlinkSync(filename5);
 });
