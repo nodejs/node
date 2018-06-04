@@ -192,7 +192,7 @@ The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
 
 Type: Runtime
 
-The `GLOBAL` and `root` aliases for the `global` property have been deprecated
+The `GLOBAL` and `root` aliases for the `global` property are deprecated
 and should no longer be used.
 
 <a id="DEP0017"></a>
@@ -581,7 +581,7 @@ removed. Please use `sloppy` instead.
 Type: Documentation-only
 
 The `http` module `outgoingMessage._headers` and `outgoingMessage._headerNames`
-properties have been deprecated. Please instead use one of the public methods
+properties are deprecated. Use one of the public methods
 (e.g. `outgoingMessage.getHeader()`, `outgoingMessage.getHeaders()`,
 `outgoingMessage.getHeaderNames()`, `outgoingMessage.hasHeader()`,
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
@@ -730,7 +730,7 @@ may be specified.
 Type: Documentation-only
 
 The internal `path._makeLong()` was not intended for public use. However,
-userland modules have found it useful. The internal API has been deprecated
+userland modules have found it useful. The internal API is deprecated
 and replaced with an identical, public `path.toNamespacedPath()` method.
 
 <a id="DEP0081"></a>
@@ -738,7 +738,7 @@ and replaced with an identical, public `path.toNamespacedPath()` method.
 
 Type: Runtime
 
-`fs.truncate()` `fs.truncateSync()` usage with a file descriptor has been
+`fs.truncate()` `fs.truncateSync()` usage with a file descriptor is
 deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
 file descriptors.
 
