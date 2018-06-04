@@ -213,7 +213,7 @@ called. Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 One of the most common errors raised when listening is `EADDRINUSE`.
 This happens when another server is already listening on the requested
-`port` / `path` / `handle`. One way to handle this would be to retry
+`port`/`path`/`handle`. One way to handle this would be to retry
 after a certain amount of time:
 
 ```js

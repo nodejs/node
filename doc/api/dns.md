@@ -499,8 +499,8 @@ will be present on the object:
 
 | Type | Properties |
 |------|------------|
-| `'A'` | `address` / `ttl` |
-| `'AAAA'` | `address` / `ttl` |
+| `'A'` | `address`/`ttl` |
+| `'AAAA'` | `address`/`ttl` |
 | `'CNAME'` | `value` |
 | `'MX'` | Refer to [`dns.resolveMx()`][] |
 | `'NAPTR'` | Refer to [`dns.resolveNaptr()`][] |
