@@ -1967,6 +1967,13 @@ An invalid HTTP token was supplied.
 
 An IP address is not valid.
 
+<a id="ERR_INVALID_MIME_SYNTAX"></a>
+
+### `ERR_INVALID_MIME_SYNTAX`
+
+The syntax of a MIME is not valid. See [WHATWG MIME parsing][] for details on
+how MIME syntax is parsed.
+
 <a id="ERR_INVALID_MODULE"></a>
 
 ### `ERR_INVALID_MODULE`
@@ -3519,6 +3526,7 @@ The native call from `process.cpuUsage` could not be processed.
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [V8's stack trace API]: https://v8.dev/docs/stack-trace-api
+[WHATWG MIME parsing]: url.md#url_the_whatwg_url_api
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
 [WHATWG URL API]: url.md#the-whatwg-url-api
 [`"exports"`]: packages.md#exports
