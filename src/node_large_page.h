@@ -24,7 +24,7 @@
 #define SRC_NODE_LARGE_PAGE_H_
 
 namespace node {
-  bool isLargePagesEnabled();
+  bool IsLargePagesEnabled();
   int map_static_code_to_large_pages();
 }  // namespace node
 

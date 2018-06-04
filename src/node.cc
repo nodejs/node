@@ -4379,7 +4379,7 @@ int Start(int argc, char** argv) {
   CHECK_GT(argc, 0);
 
 #ifdef NODE_ENABLE_LARGE_CODE_PAGES
-  if (node::isLargePagesEnabled()) {
+  if (node::IsLargePagesEnabled()) {
     if ((node::map_static_code_to_large_pages()) != 0) {
       fprintf(stderr, "Reverting to default page size\n");
     }

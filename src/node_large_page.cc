@@ -63,8 +63,8 @@ namespace node {
 #define PAGE_ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 
 struct TextRegion {
-  char  * from;
-  char  * to;
+  char* from;
+  char* to;
   int     total_hugepages;
   bool    found_text_region;
 };
@@ -105,8 +105,8 @@ struct TextRegion {
 
       if (permission.compare("r-xp") == 0) {
         start = reinterpret_cast<unsigned int64_t>(&__nodetext);
-        char *from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hps);
-        char *to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hps);
+        char* from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hps);
+        char* to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hps);
 
         if (from < to) {
           size_t size = to - from;
@@ -120,7 +120,7 @@ struct TextRegion {
       return nregion;
     }
 
-    static bool isTransparentHugePagesEnabled() {
+    static bool IsTransparentHugePagesEnabled() {
        std::ifstream ifs;
 
        ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
@@ -163,11 +163,12 @@ struct TextRegion {
       __attribute__((__noinline__))
       __attribute__((__optimize__("2")))
       move_text_region_to_large_pages(struct TextRegion r) {
-        void *nmem = nullptr, *tmem = nullptr;
+        void* nmem = nullptr;
+        void* tmem = nullptr;
         int ret = 0;
 
         size_t size = r.to - r.from;
-        void *start = r.from;
+        void* start = r.from;
 
         // Allocate temporary region preparing for copy
         nmem = mmap(nullptr, size,
@@ -189,13 +190,6 @@ struct TextRegion {
         if (tmem == MAP_FAILED) {
           printSystemError(errno);
           munmap(nmem, size);
-          return -1;
-        }
-
-        if (tmem != start) {
-          fprintf(stderr, "Unable to allocate hugepages\n");
-          munmap(nmem, size);
-          munmap(tmem, size);
           return -1;
         }
 
@@ -252,8 +246,8 @@ struct TextRegion {
       return -1;
     }
 
-    bool isLargePagesEnabled() {
-      return isTransparentHugePagesEnabled();
+    bool  IsLargePagesEnabled() {
+      return IsTransparentHugePagesEnabled();
     }
 
 }  // namespace node
