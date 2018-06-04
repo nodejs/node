@@ -38,8 +38,6 @@ const s = '南越国是前203年至前111年存在于岭南地区的一个国家
           '历经五代君主。南越国是岭南地区的第一个有记载的政权国家，采用封建制和郡县制并存的制度，' +
           '它的建立保证了秦末乱世岭南地区社会秩序的稳定，有效的改善了岭南地区落后的政治、##济现状。\n';
 
-let ncallbacks = 0;
-
 tmpdir.refresh();
 
 const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
@@ -178,42 +176,50 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appendFile accepts file descriptors
-const filename5 = join(tmpdir.path, 'append5.txt');
-fs.writeFileSync(filename5, currentFileData);
+// test that appendFile accepts file descriptors (callback API)
+{
+  const filename = join(tmpdir.path, 'append-descriptors.txt');
+  fs.writeFileSync(filename, currentFileData);
 
-fs.open(filename5, 'a+', function(e, fd) {
-  assert.ifError(e);
-
-  ncallbacks++;
-
-  fs.appendFile(fd, s, function(e) {
+  fs.open(filename, 'a+', common.mustCall((e, fd) => {
     assert.ifError(e);
 
-    ncallbacks++;
-
-    fs.close(fd, function(e) {
+    fs.appendFile(fd, s, common.mustCall((e) => {
       assert.ifError(e);
 
-      ncallbacks++;
-
-      fs.readFile(filename5, function(e, buffer) {
+      fs.close(fd, common.mustCall((e) => {
         assert.ifError(e);
 
-        ncallbacks++;
-        assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
-                           buffer.length);
-      });
-    });
-  });
-});
+        fs.readFile(filename, common.mustCall((e, buffer) => {
+          assert.ifError(e);
+          assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
+                             buffer.length);
+        }));
+      }));
+    }));
+  }));
+}
+
+// test that appendFile accepts file descriptors (promises API)
+{
+  const filename = join(tmpdir.path, 'append-descriptors-promises.txt');
+  fs.writeFileSync(filename, currentFileData);
+
+  let fd;
+  fs.promises.open(filename, 'a+')
+    .then(common.mustCall((fileDescriptor) => {
+      fd = fileDescriptor;
+      return fs.promises.appendFile(fd, s);
+    }))
+    .then(common.mustCall(() => fd.close()))
+    .then(common.mustCall(() => fs.promises.readFile(filename)))
+    .then(common.mustCall((buffer) => {
+      assert.strictEqual(Buffer.byteLength(s) + currentFileData.length,
+                         buffer.length);
+    }))
+    .catch(throwNextTick);
+}
 
 assert.throws(
   () => fs.appendFile(join(tmpdir.path, 'append6.txt'), console.log),
   { code: 'ERR_INVALID_CALLBACK' });
-
-process.on('exit', function() {
-  assert.strictEqual(ncallbacks, 4);
-
-  fs.unlinkSync(filename5);
-});
