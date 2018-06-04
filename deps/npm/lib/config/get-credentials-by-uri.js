@@ -40,14 +40,14 @@ function getCredentialsByURI (uri) {
   var userDef = this.get('username')
   var passDef = this.get('_password')
   if (authDef && !(userDef && passDef)) {
-    authDef = new Buffer(authDef, 'base64').toString()
+    authDef = Buffer.from(authDef, 'base64').toString()
     authDef = authDef.split(':')
     userDef = authDef.shift()
     passDef = authDef.join(':')
   }
 
   if (this.get(nerfed + ':_password')) {
-    c.password = new Buffer(this.get(nerfed + ':_password'), 'base64').toString('utf8')
+    c.password = Buffer.from(this.get(nerfed + ':_password'), 'base64').toString('utf8')
   } else if (nerfed === defnerf && passDef) {
     c.password = passDef
   }
@@ -65,7 +65,7 @@ function getCredentialsByURI (uri) {
   }
 
   if (c.username && c.password) {
-    c.auth = new Buffer(c.username + ':' + c.password).toString('base64')
+    c.auth = Buffer.from(c.username + ':' + c.password).toString('base64')
   }
 
   return c

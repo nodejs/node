@@ -51,17 +51,17 @@ inline StreamListener::~StreamListener() {
 }
 
 inline void StreamListener::PassReadErrorToPreviousListener(ssize_t nread) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   previous_listener_->OnStreamRead(nread, uv_buf_init(nullptr, 0));
 }
 
 inline void StreamListener::OnStreamAfterShutdown(ShutdownWrap* w, int status) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   previous_listener_->OnStreamAfterShutdown(w, status);
 }
 
 inline void StreamListener::OnStreamAfterWrite(WriteWrap* w, int status) {
-  CHECK_NE(previous_listener_, nullptr);
+  CHECK_NOT_NULL(previous_listener_);
   previous_listener_->OnStreamAfterWrite(w, status);
 }
 
@@ -70,7 +70,7 @@ inline StreamResource::~StreamResource() {
     StreamListener* listener = listener_;
     listener->OnStreamDestroy();
     // Remove the listener if it didn’t remove itself. This makes the logic
-    // logic in `OnStreamDestroy()` implementations easier, because they
+    // in `OnStreamDestroy()` implementations easier, because they
     // may call generic cleanup functions which can just remove the
     // listener unconditionally.
     if (listener == listener_)
@@ -79,8 +79,8 @@ inline StreamResource::~StreamResource() {
 }
 
 inline void StreamResource::PushStreamListener(StreamListener* listener) {
-  CHECK_NE(listener, nullptr);
-  CHECK_EQ(listener->stream_, nullptr);
+  CHECK_NOT_NULL(listener);
+  CHECK_NULL(listener->stream_);
 
   listener->previous_listener_ = listener_;
   listener->stream_ = this;
@@ -89,7 +89,7 @@ inline void StreamResource::PushStreamListener(StreamListener* listener) {
 }
 
 inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
-  CHECK_NE(listener, nullptr);
+  CHECK_NOT_NULL(listener);
 
   StreamListener* previous;
   StreamListener* current;
@@ -98,7 +98,7 @@ inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
   for (current = listener_, previous = nullptr;
        /* No loop condition because we want a crash if listener is not found */
        ; previous = current, current = current->previous_listener_) {
-    CHECK_NE(current, nullptr);
+    CHECK_NOT_NULL(current);
     if (current == listener) {
       if (previous != nullptr)
         previous->previous_listener_ = current->previous_listener_;
@@ -243,12 +243,6 @@ SimpleShutdownWrap<OtherBase>::SimpleShutdownWrap(
     OtherBase(stream->stream_env(),
               req_wrap_obj,
               AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
-  Wrap(req_wrap_obj, static_cast<AsyncWrap*>(this));
-}
-
-template <typename OtherBase>
-SimpleShutdownWrap<OtherBase>::~SimpleShutdownWrap() {
-  ClearWrap(static_cast<AsyncWrap*>(this)->object());
 }
 
 inline ShutdownWrap* StreamBase::CreateShutdownWrap(
@@ -264,12 +258,6 @@ SimpleWriteWrap<OtherBase>::SimpleWriteWrap(
     OtherBase(stream->stream_env(),
               req_wrap_obj,
               AsyncWrap::PROVIDER_WRITEWRAP) {
-  Wrap(req_wrap_obj, static_cast<AsyncWrap*>(this));
-}
-
-template <typename OtherBase>
-SimpleWriteWrap<OtherBase>::~SimpleWriteWrap() {
-  ClearWrap(static_cast<AsyncWrap*>(this)->object());
 }
 
 inline WriteWrap* StreamBase::CreateWriteWrap(
@@ -335,8 +323,7 @@ void StreamBase::AddMethods(Environment* env,
 
   env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStartJS>);
   env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStopJS>);
-  if ((flags & kFlagNoShutdown) == 0)
-    env->SetProtoMethod(t, "shutdown", JSMethod<Base, &StreamBase::Shutdown>);
+  env->SetProtoMethod(t, "shutdown", JSMethod<Base, &StreamBase::Shutdown>);
   if ((flags & kFlagHasWritev) != 0)
     env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
   env->SetProtoMethod(t,
@@ -428,7 +415,7 @@ inline void ShutdownWrap::OnDone(int status) {
 }
 
 inline void WriteWrap::SetAllocatedStorage(char* data, size_t size) {
-  CHECK_EQ(storage_, nullptr);
+  CHECK_NULL(storage_);
   storage_ = data;
   storage_size_ = size;
 }
@@ -461,7 +448,7 @@ inline void StreamReq::ResetObject(v8::Local<v8::Object> obj) {
 #ifdef DEBUG
   CHECK_GT(obj->InternalFieldCount(), StreamReq::kStreamReqField);
 #endif
-  ClearWrap(obj);
+  obj->SetAlignedPointerInInternalField(0, nullptr);  // BaseObject field.
   obj->SetAlignedPointerInInternalField(StreamReq::kStreamReqField, nullptr);
 }
 

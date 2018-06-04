@@ -95,7 +95,7 @@ function runTest(test) {
   req.resume();
   req.end();
 
-  req.on('close', common.mustCall(() => {
+  req.on('end', common.mustCall(() => {
     client.close();
 
     if (!tests.length) {

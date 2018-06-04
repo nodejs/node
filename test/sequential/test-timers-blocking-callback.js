@@ -3,7 +3,7 @@
 /*
  * This is a regression test for
  * https://github.com/nodejs/node-v0.x-archive/issues/15447 and
- * and https://github.com/nodejs/node-v0.x-archive/issues/9333.
+ * https://github.com/nodejs/node-v0.x-archive/issues/9333.
  *
  * When a timer is added in another timer's callback, its underlying timer
  * handle was started with a timeout that was actually incorrect.

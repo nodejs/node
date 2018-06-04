@@ -40,14 +40,12 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/v8.h"
+#include "src/wasm/wasm-engine.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
 #include <windows.h>  // NOLINT
-#if defined(_MSC_VER)
-#include <crtdbg.h>  // NOLINT
-#endif               // defined(_MSC_VER)
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
 #ifndef DCHECK
@@ -183,19 +181,17 @@ class PredictablePlatform : public Platform {
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override {
     // Return the foreground task runner here, so that all tasks get executed
     // sequentially in a predictable order.
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
+  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     // It's not defined when background tasks are being executed, so we can just
     // execute them right away.
     task->Run();
-    delete task;
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
@@ -573,8 +569,9 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
 
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
-                          Local<Value> name, bool print_result,
-                          bool report_exceptions) {
+                          Local<Value> name, PrintResult print_result,
+                          ReportExceptions report_exceptions,
+                          ProcessMessageQueue process_message_queue) {
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
@@ -652,7 +649,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
     }
-    if (!EmptyMessageQueues(isolate)) success = false;
+    if (process_message_queue && !EmptyMessageQueues(isolate)) success = false;
     data->realm_current_ = data->realm_switch_;
   }
   Local<Value> result;
@@ -1278,7 +1275,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
     if (n != str.length()) {
       printf("Error in fwrite\n");
-      Shell::Exit(1);
+      base::OS::ExitProcess(1);
     }
   }
 }
@@ -1374,11 +1371,14 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Throw(args.GetIsolate(), "Error loading file");
       return;
     }
-    if (!ExecuteString(args.GetIsolate(), source,
-                       String::NewFromUtf8(args.GetIsolate(), *file,
-                                           NewStringType::kNormal)
-                           .ToLocalChecked(),
-                       false, !options.quiet_load)) {
+    if (!ExecuteString(
+            args.GetIsolate(), source,
+            String::NewFromUtf8(args.GetIsolate(), *file,
+                                NewStringType::kNormal)
+                .ToLocalChecked(),
+            kNoPrintResult,
+            options.quiet_load ? kNoReportExceptions : kReportExceptions,
+            kNoProcessMessageQueue)) {
       Throw(args.GetIsolate(), "Error executing file");
       return;
     }
@@ -1497,7 +1497,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   CleanupWorkers();
   args->GetIsolate()->Exit();
   OnExit(args->GetIsolate());
-  Exit(exit_code);
+  base::OS::ExitProcess(exit_code);
 }
 
 
@@ -1621,7 +1621,7 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
       (counters_file_ == nullptr) ? nullptr : counters_file_->memory();
   if (memory == nullptr) {
     printf("Could not map counters file %s\n", name);
-    Exit(1);
+    base::OS::ExitProcess(1);
   }
   counters_ = static_cast<CounterCollection*>(memory);
   isolate->SetCounterFunction(LookupCounter);
@@ -2270,7 +2270,8 @@ void Shell::RunShell(Isolate* isolate) {
     printf("d8> ");
     Local<String> input = Shell::ReadFromStdin(isolate);
     if (input.IsEmpty()) break;
-    ExecuteString(isolate, input, name, true, true);
+    ExecuteString(isolate, input, name, kPrintResult, kReportExceptions,
+                  kProcessMessageQueue);
   }
   printf("\n");
   // We need to explicitly clean up the module embedder data for
@@ -2432,7 +2433,9 @@ void SourceGroup::Execute(Isolate* isolate) {
           String::NewFromUtf8(isolate, argv_[i + 1], NewStringType::kNormal)
               .ToLocalChecked();
       Shell::options.script_executed = true;
-      if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
+      if (!Shell::ExecuteString(isolate, source, file_name,
+                                Shell::kNoPrintResult, Shell::kReportExceptions,
+                                Shell::kNoProcessMessageQueue)) {
         exception_was_thrown = true;
         break;
       }
@@ -2460,16 +2463,18 @@ void SourceGroup::Execute(Isolate* isolate) {
     Local<String> source = ReadFile(isolate, arg);
     if (source.IsEmpty()) {
       printf("Error reading '%s'\n", arg);
-      Shell::Exit(1);
+      base::OS::ExitProcess(1);
     }
     Shell::options.script_executed = true;
-    if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
+    if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
+                              Shell::kReportExceptions,
+                              Shell::kProcessMessageQueue)) {
       exception_was_thrown = true;
       break;
     }
   }
   if (exception_was_thrown != Shell::options.expected_to_throw) {
-    Shell::Exit(1);
+    base::OS::ExitProcess(1);
   }
 }
 
@@ -2488,8 +2493,7 @@ void SourceGroup::ExecuteInThread() {
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
       Shell::HostInitializeImportMetaObject);
-
-  Shell::EnsureEventLoopInitialized(isolate);
+  Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
   debug::SetConsoleDelegate(isolate, &console);
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
@@ -2672,7 +2676,9 @@ void Worker::ExecuteInThread() {
         Local<String> source =
             String::NewFromUtf8(isolate, script_, NewStringType::kNormal)
                 .ToLocalChecked();
-        if (Shell::ExecuteString(isolate, source, file_name, false, true)) {
+        if (Shell::ExecuteString(
+                isolate, source, file_name, Shell::kNoPrintResult,
+                Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
           // Get the message handler
           Local<Value> onmessage =
               global->Get(context, String::NewFromUtf8(isolate, "onmessage",
@@ -2794,6 +2800,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--omit-quit") == 0) {
       options.omit_quit = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-wait-for-wasm") == 0) {
+      // TODO(herhut) Remove this flag once wasm compilation is fully
+      // isolate-independent.
+      options.wait_for_wasm = false;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
@@ -2905,13 +2916,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
-
 int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
-    EnsureEventLoopInitialized(isolate);
+    SetWaitUntilDone(isolate, false);
     if (options.lcov_file) {
       debug::Coverage::SelectMode(isolate, debug::Coverage::kBlockCount);
     }
@@ -2962,11 +2972,6 @@ void Shell::CollectGarbage(Isolate* isolate) {
   }
 }
 
-void Shell::EnsureEventLoopInitialized(Isolate* isolate) {
-  v8::platform::EnsureEventLoopInitialized(GetDefaultPlatform(), isolate);
-  SetWaitUntilDone(isolate, false);
-}
-
 void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
   base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
   if (isolate_status_.count(isolate) == 0) {
@@ -3007,13 +3012,19 @@ bool ProcessMessages(Isolate* isolate,
 }  // anonymous namespace
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  ProcessMessages(isolate, [isolate]() {
+  auto get_waiting_behaviour = [isolate]() {
     base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
-    return isolate_status_[isolate]
-               ? platform::MessageLoopBehavior::kWaitForWork
-               : platform::MessageLoopBehavior::kDoNotWait;
-  });
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::wasm::CompilationManager* wasm_compilation_manager =
+        i_isolate->wasm_engine()->compilation_manager();
+    bool should_wait = (options.wait_for_wasm &&
+                        wasm_compilation_manager->HasRunningCompileJob()) ||
+                       isolate_status_[isolate];
+    return should_wait ? platform::MessageLoopBehavior::kWaitForWork
+                       : platform::MessageLoopBehavior::kDoNotWait;
+  };
+  ProcessMessages(isolate, get_waiting_behaviour);
 }
 
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
@@ -3261,21 +3272,7 @@ void Shell::CleanupWorkers() {
 
 int Shell::Main(int argc, char* argv[]) {
   std::ofstream trace_file;
-#if (defined(_WIN32) || defined(_WIN64))
-  UINT new_flags =
-      SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
-  UINT existing_flags = SetErrorMode(new_flags);
-  SetErrorMode(existing_flags | new_flags);
-#if defined(_MSC_VER)
-  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-  _set_error_mode(_OUT_TO_STDERR);
-#endif  // defined(_MSC_VER)
-#endif  // defined(_WIN32) || defined(_WIN64)
+  v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 
@@ -3338,8 +3335,9 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
-  if (i::trap_handler::IsTrapHandlerEnabled()) {
-    if (!v8::V8::RegisterDefaultSignalHandler()) {
+  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
+    constexpr bool use_default_signal_handler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler)) {
       fprintf(stderr, "Could not register signal handler");
       exit(1);
     }
@@ -3399,15 +3397,6 @@ int Shell::Main(int argc, char* argv[]) {
                ShellOptions::CodeCacheOptions::kNoProduceCache) {
       printf("============ Run: Produce code cache ============\n");
       // First run to produce the cache
-      result = RunMain(isolate, argc, argv, false);
-
-      // Change the options to consume cache
-      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
-             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
-      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-
-      printf("============ Run: Consume code cache ============\n");
-      // Second run to consume the cache in new isolate
       Isolate::CreateParams create_params;
       create_params.array_buffer_allocator = Shell::array_buffer_allocator;
       i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
@@ -3423,9 +3412,19 @@ int Shell::Main(int argc, char* argv[]) {
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
 
-        result = RunMain(isolate2, argc, argv, true);
+        result = RunMain(isolate2, argc, argv, false);
       }
       isolate2->Dispose();
+
+      // Change the options to consume cache
+      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
+             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
+      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
+
+      printf("============ Run: Consume code cache ============\n");
+      // Second run to consume the cache in current isolate
+      result = RunMain(isolate, argc, argv, true);
+      options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
     } else {
       bool last_run = true;
       result = RunMain(isolate, argc, argv, last_run);

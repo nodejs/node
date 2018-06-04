@@ -154,8 +154,8 @@ assert.deepEqual(/a/gi, new Date());
 <!-- YAML
 added: v0.5.9
 -->
-* `value` {any}
-* `message` {any}
+* `value` {any} The input that is checked for being truthy.
+* `message` {string|Error}
 
 An alias of [`assert.ok()`][].
 
@@ -165,10 +165,10 @@ added: v0.1.21
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -181,7 +181,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 **Strict mode**
 
@@ -208,7 +208,7 @@ the [`RegExp`][] object are not enumerable:
 assert.deepEqual(/a/gi, new Date());
 ```
 
-An exception is made for [`Map`][] and [`Set`][]. Maps and Sets have their
+An exception is made for [`Map`][] and [`Set`][]. `Map`s and `Set`s have their
 contained items compared too, as expected.
 
 "Deep" equality means that the enumerable "own" properties of child objects
@@ -235,18 +235,18 @@ const obj3 = {
 const obj4 = Object.create(obj1);
 
 assert.deepEqual(obj1, obj1);
-// OK, object is equal to itself
+// OK
 
+// Values of b are different:
 assert.deepEqual(obj1, obj2);
 // AssertionError: { a: { b: 1 } } deepEqual { a: { b: 2 } }
-// values of b are different
 
 assert.deepEqual(obj1, obj3);
-// OK, objects are equal
+// OK
 
+// Prototypes are ignored:
 assert.deepEqual(obj1, obj4);
 // AssertionError: { a: { b: 1 } } deepEqual {}
-// Prototypes are ignored
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -264,15 +264,15 @@ changes:
     description: Enumerable symbol properties are now compared.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the
+    description: The `NaN` is now compared using the
               [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
               comparison.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -285,7 +285,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 Tests for deep equality between the `actual` and `expected` parameters.
 "Deep" equality means that the enumerable "own" properties of child objects
@@ -303,8 +303,8 @@ are recursively evaluated also by the following rules.
   enumerable properties.
 * Enumerable own [`Symbol`][] properties are compared as well.
 * [Object wrappers][] are compared both as objects and unwrapped values.
-* Object properties are compared unordered.
-* Map keys and Set items are compared unordered.
+* `Object` properties are compared unordered.
+* `Map` keys and `Set` items are compared unordered.
 * Recursion stops when both sides differ or both sides encounter a circular
   reference.
 * [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values. See
@@ -406,17 +406,17 @@ added: v10.0.0
 -->
 * `block` {Function|Promise}
 * `error` {RegExp|Function}
-* `message` {any}
+* `message` {string|Error}
 
 Awaits the `block` promise or, if `block` is a function, immediately calls the
 function and awaits the returned promise to complete. It will then check that
 the promise is not rejected.
 
 If `block` is a function and it throws an error synchronously,
-`assert.doesNotReject()` will return a rejected Promise with that error. If the
-function does not return a promise, `assert.doesNotReject()` will return a
-rejected Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the
-error handler is skipped.
+`assert.doesNotReject()` will return a rejected `Promise` with that error. If
+the function does not return a promise, `assert.doesNotReject()` will return a
+rejected `Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases
+the error handler is skipped.
 
 Please note: Using `assert.doesNotReject()` is actually not useful because there
 is little benefit by catching a rejection and then rejecting it again. Instead,
@@ -460,7 +460,7 @@ changes:
 -->
 * `block` {Function}
 * `error` {RegExp|Function}
-* `message` {any}
+* `message` {string|Error}
 
 Asserts that the function `block` does not throw an error.
 
@@ -494,7 +494,7 @@ assert.doesNotThrow(
 ```
 
 However, the following will result in an `AssertionError` with the message
-'Got unwanted exception (TypeError)..':
+'Got unwanted exception...':
 
 <!-- eslint-disable no-restricted-syntax -->
 ```js
@@ -519,7 +519,7 @@ assert.doesNotThrow(
   /Wrong value/,
   'Whoops'
 );
-// Throws: AssertionError: Got unwanted exception (TypeError). Whoops
+// Throws: AssertionError: Got unwanted exception: Whoops
 ```
 
 ## assert.equal(actual, expected[, message])
@@ -528,7 +528,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 **Strict mode**
 
@@ -565,7 +565,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 -->
-* `message` {any} **Default:** `'Failed'`
+* `message` {string|Error} **Default:** `'Failed'`
 
 Throws an `AssertionError` with the provided error message or a default error
 message. If the `message` parameter is an instance of an [`Error`][] then it
@@ -598,7 +598,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 * `operator` {string} **Default:** `'!='`
 * `stackStartFunction` {Function} **Default:** `assert.fail`
 
@@ -656,11 +656,11 @@ changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18247
     description: Instead of throwing the original error it is now wrapped into
-                 a AssertionError that contains the full stack trace.
+                 an `AssertionError` that contains the full stack trace.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18247
-    description: Value may now only be `undefined` or `null`. Before any truthy
-                 input was accepted.
+    description: Value may now only be `undefined` or `null`. Before all falsy
+                 values were handled the same as `null` and did not throw.
 -->
 * `value` {any}
 
@@ -701,10 +701,10 @@ added: v0.1.21
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -717,7 +717,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 **Strict mode**
 
@@ -753,13 +753,13 @@ assert.notDeepEqual(obj1, obj1);
 // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
 assert.notDeepEqual(obj1, obj2);
-// OK: obj1 and obj2 are not deeply equal
+// OK
 
 assert.notDeepEqual(obj1, obj3);
 // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
 assert.notDeepEqual(obj1, obj4);
-// OK: obj1 and obj4 are not deeply equal
+// OK
 ```
 
 If the values are deeply equal, an `AssertionError` is thrown with a `message`
@@ -774,18 +774,18 @@ added: v1.2.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15398
-    description: -0 and +0 are not considered equal anymore.
+    description: The `-0` and `+0` are not considered equal anymore.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
-    description: NaN is now compared using the
+    description: The `NaN` is now compared using the
               [SameValueZero](https://tc39.github.io/ecma262/#sec-samevaluezero)
               comparison.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
-    description: Error names and messages are now properly compared
+    description: The `Error` names and messages are now properly compared
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Set and Map content is also compared
+    description: The `Set` and `Map` content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -798,7 +798,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
@@ -821,7 +821,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 **Strict mode**
 
@@ -863,7 +863,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 Tests strict inequality between the `actual` and `expected` parameters as
 determined by the [SameValue Comparison][].
@@ -893,10 +893,11 @@ added: v0.1.21
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18319
-    description: assert.ok() (no arguments) will now use a predefined error msg.
+    description: The `assert.ok()` (no arguments) will now use a predefined
+                 error message.
 -->
 * `value` {any}
-* `message` {any}
+* `message` {string|Error}
 
 Tests if `value` is truthy. It is equivalent to
 `assert.equal(!!value, true, message)`.
@@ -907,7 +908,7 @@ parameter is `undefined`, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 If no arguments are passed in at all `message` will be set to the string:
-"No value argument passed to assert.ok".
+``'No value argument passed to `assert.ok()`'``.
 
 Be aware that in the `repl` the error message will be different to the one
 thrown in a file! See below for further details.
@@ -959,16 +960,16 @@ added: v10.0.0
 -->
 * `block` {Function|Promise}
 * `error` {RegExp|Function|Object|Error}
-* `message` {any}
+* `message` {string|Error}
 
 Awaits the `block` promise or, if `block` is a function, immediately calls the
 function and awaits the returned promise to complete. It will then check that
 the promise is rejected.
 
 If `block` is a function and it throws an error synchronously,
-`assert.rejects()` will return a rejected Promise with that error. If the
+`assert.rejects()` will return a rejected `Promise` with that error. If the
 function does not return a promise, `assert.rejects()` will return a rejected
-Promise with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
+`Promise` with an [`ERR_INVALID_RETURN_VALUE`][] error. In both cases the error
 handler is skipped.
 
 Besides the async nature to await the completion behaves identically to
@@ -1021,7 +1022,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|Error}
 
 Tests strict equality between the `actual` and `expected` parameters as
 determined by the [SameValue Comparison][].
@@ -1055,6 +1056,10 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: v10.2.0
+    pr-url: https://github.com/nodejs/node/pull/20485
+    description: The `error` parameter can be an object containing regular
+                 expressions now.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17584
     description: The `error` parameter can now be an object as well.
@@ -1064,23 +1069,31 @@ changes:
 -->
 * `block` {Function}
 * `error` {RegExp|Function|Object|Error}
-* `message` {any}
+* `message` {string|Error}
 
 Expects the function `block` to throw an error.
 
 If specified, `error` can be a [`Class`][], [`RegExp`][], a validation function,
-an object where each property will be tested for, or an instance of error where
-each property will be tested for including the non-enumerable `message` and
-`name` properties.
+a validation object where each property will be tested for strict deep equality,
+or an instance of error where each property will be tested for strict deep
+equality including the non-enumerable `message` and `name` properties. When
+using an object, it is also possible to use a regular expression, when
+validating against a string property. See below for examples.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
 
-Custom error object / error instance:
+Custom validation object / error instance:
 
 ```js
 const err = new TypeError('Wrong value');
 err.code = 404;
+err.foo = 'bar';
+err.info = {
+  nested: true,
+  baz: 'text'
+};
+err.reg = /abc/i;
 
 assert.throws(
   () => {
@@ -1088,8 +1101,38 @@ assert.throws(
   },
   {
     name: 'TypeError',
-    message: 'Wrong value'
-    // Note that only properties on the error object will be tested!
+    message: 'Wrong value',
+    info: {
+      nested: true,
+      baz: 'text'
+    }
+    // Note that only properties on the validation object will be tested for.
+    // Using nested objects requires all properties to be present. Otherwise
+    // the validation is going to fail.
+  }
+);
+
+// Using regular expressions to validate error properties:
+assert.throws(
+  () => {
+    throw err;
+  },
+  {
+    // The `name` and `message` properties are strings and using regular
+    // expressions on those will match against the string. If they fail, an
+    // error is thrown.
+    name: /^TypeError$/,
+    message: /Wrong/,
+    foo: 'bar',
+    info: {
+      nested: true,
+      // It is not possible to use regular expressions for nested properties!
+      baz: 'text'
+    },
+    // The `reg` property contains a regular expression and only if the
+    // validation object contains an identical regular expression, it is going
+    // to pass.
+    reg: /abc/i
   }
 );
 

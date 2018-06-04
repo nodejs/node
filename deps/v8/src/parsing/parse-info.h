@@ -142,9 +142,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uint32_t hash_seed() const { return hash_seed_; }
   void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
 
-  int compiler_hints() const { return compiler_hints_; }
-  void set_compiler_hints(int compiler_hints) {
-    compiler_hints_ = compiler_hints;
+  int function_flags() const { return function_flags_; }
+  void set_function_flags(int function_flags) {
+    function_flags_ = function_flags;
   }
 
   int start_position() const { return start_position_; }
@@ -195,7 +195,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     return &pending_error_handler_;
   }
 
-  // Getters for individual compiler hints.
+  // Getters for individual function flags.
   bool is_declaration() const;
   FunctionKind function_kind() const;
   bool requires_instance_fields_initializer() const;
@@ -265,7 +265,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint32_t hash_seed_;
-  int compiler_hints_;
+  // TODO(leszeks): Move any remaining flags used here either to the flags_
+  // field or to other fields.
+  int function_flags_;
   int start_position_;
   int end_position_;
   int parameters_end_pos_;

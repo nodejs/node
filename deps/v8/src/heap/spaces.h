@@ -179,14 +179,10 @@ class FreeListCategory {
 
   void Free(Address address, size_t size_in_bytes, FreeMode mode);
 
-  // Picks a node from the list and stores its size in |node_size|. Returns
-  // nullptr if the category is empty.
-  FreeSpace* PickNodeFromList(size_t* node_size);
-
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
   // node is found.
-  FreeSpace* TryPickNodeFromList(size_t minimum_size, size_t* node_size);
+  FreeSpace* PickNodeFromList(size_t minimum_size, size_t* node_size);
 
   // Picks a node of at least |minimum_size| from the category. Stores the
   // actual size in |node_size|. Returns nullptr if no node is found.
@@ -1052,9 +1048,9 @@ class CodeRange {
   // Allocates a chunk of memory from the large-object portion of
   // the code range.  On platforms with no separate code range, should
   // not be called.
-  MUST_USE_RESULT Address AllocateRawMemory(const size_t requested_size,
-                                            const size_t commit_size,
-                                            size_t* allocated);
+  V8_WARN_UNUSED_RESULT Address AllocateRawMemory(const size_t requested_size,
+                                                  const size_t commit_size,
+                                                  size_t* allocated);
   bool CommitRawMemory(Address start, size_t length);
   bool UncommitRawMemory(Address start, size_t length);
   void FreeRawMemory(Address buf, size_t length);
@@ -1389,9 +1385,10 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // filling it up with a recognizable non-nullptr bit pattern.
   void ZapBlock(Address start, size_t size);
 
-  MUST_USE_RESULT bool CommitExecutableMemory(VirtualMemory* vm, Address start,
-                                              size_t commit_size,
-                                              size_t reserved_size);
+  V8_WARN_UNUSED_RESULT bool CommitExecutableMemory(VirtualMemory* vm,
+                                                    Address start,
+                                                    size_t commit_size,
+                                                    size_t reserved_size);
 
   CodeRange* code_range() { return code_range_; }
   Unmapper* unmapper() { return &unmapper_; }
@@ -1438,6 +1435,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   void UnregisterExecutableMemoryChunk(MemoryChunk* chunk) {
     DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.erase(chunk);
+    chunk->heap()->UnregisterUnprotectedMemoryChunk(chunk);
   }
 
   Isolate* isolate_;
@@ -1779,7 +1777,8 @@ class V8_EXPORT_PRIVATE FreeList {
   // bytes. Returns the actual node size in node_size which can be bigger than
   // size_in_bytes. This method returns null if the allocation request cannot be
   // handled by the free list.
-  MUST_USE_RESULT FreeSpace* Allocate(size_t size_in_bytes, size_t* node_size);
+  V8_WARN_UNUSED_RESULT FreeSpace* Allocate(size_t size_in_bytes,
+                                            size_t* node_size);
 
   // Clear the free list.
   void Reset();
@@ -1879,12 +1878,14 @@ class V8_EXPORT_PRIVATE FreeList {
 
   // Walks all available categories for a given |type| and tries to retrieve
   // a node. Returns nullptr if the category is empty.
-  FreeSpace* FindNodeIn(FreeListCategoryType type, size_t* node_size);
+  FreeSpace* FindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                        size_t* node_size);
 
   // Tries to retrieve a node from the first category in a given |type|.
-  // Returns nullptr if the category is empty.
-  FreeSpace* TryFindNodeIn(FreeListCategoryType type, size_t* node_size,
-                           size_t minimum_size);
+  // Returns nullptr if the category is empty or the top entry is smaller
+  // than minimum_size.
+  FreeSpace* TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                           size_t* node_size);
 
   // Searches a given |type| for a node of at least |minimum_size|.
   FreeSpace* SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
@@ -1948,7 +1949,7 @@ class LocalAllocationBuffer {
   LocalAllocationBuffer(const LocalAllocationBuffer& other);
   LocalAllocationBuffer& operator=(const LocalAllocationBuffer& other);
 
-  MUST_USE_RESULT inline AllocationResult AllocateRawAligned(
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
 
   inline bool IsValid() { return allocation_info_.top() != nullptr; }
@@ -2103,17 +2104,17 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not. Only use IGNORE_SKIP_LIST if the skip list is going
   // to be manually updated later.
-  MUST_USE_RESULT inline AllocationResult AllocateRawUnaligned(
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
       int size_in_bytes, UpdateSkipList update_skip_list = UPDATE_SKIP_LIST);
 
   // Allocate the requested number of bytes in the space double aligned if
   // possible, return a failure object if not.
-  MUST_USE_RESULT inline AllocationResult AllocateRawAligned(
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
 
   // Allocate the requested number of bytes in the space and consider allocation
   // alignment if needed.
-  MUST_USE_RESULT inline AllocationResult AllocateRaw(
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationAlignment alignment);
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
@@ -2293,24 +2294,25 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline HeapObject* TryAllocateLinearlyAligned(int* size_in_bytes,
                                                 AllocationAlignment alignment);
 
-  MUST_USE_RESULT bool RefillLinearAllocationAreaFromFreeList(
+  V8_WARN_UNUSED_RESULT bool RefillLinearAllocationAreaFromFreeList(
       size_t size_in_bytes);
 
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and retry free-list
   // allocation. Returns false if there is not enough space and the caller
   // has to retry after collecting garbage.
-  MUST_USE_RESULT virtual bool SweepAndRetryAllocation(int size_in_bytes);
+  V8_WARN_UNUSED_RESULT virtual bool SweepAndRetryAllocation(int size_in_bytes);
 
   // Slow path of AllocateRaw. This function is space-dependent. Returns false
   // if there is not enough space and the caller has to retry after
   // collecting garbage.
-  MUST_USE_RESULT virtual bool SlowRefillLinearAllocationArea(
+  V8_WARN_UNUSED_RESULT virtual bool SlowRefillLinearAllocationArea(
       int size_in_bytes);
 
   // Implementation of SlowAllocateRaw. Returns false if there is not enough
   // space and the caller has to retry after collecting garbage.
-  MUST_USE_RESULT bool RawSlowRefillLinearAllocationArea(int size_in_bytes);
+  V8_WARN_UNUSED_RESULT bool RawSlowRefillLinearAllocationArea(
+      int size_in_bytes);
 
   size_t area_size_;
 
@@ -2681,16 +2683,16 @@ class NewSpace : public SpaceWithLinearArea {
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
-  MUST_USE_RESULT INLINE(AllocationResult AllocateRawAligned(
+  V8_WARN_UNUSED_RESULT INLINE(AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment));
 
-  MUST_USE_RESULT INLINE(
+  V8_WARN_UNUSED_RESULT INLINE(
       AllocationResult AllocateRawUnaligned(int size_in_bytes));
 
-  MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(
+  V8_WARN_UNUSED_RESULT INLINE(AllocationResult AllocateRaw(
       int size_in_bytes, AllocationAlignment alignment));
 
-  MUST_USE_RESULT inline AllocationResult AllocateRawSynchronized(
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
       int size_in_bytes, AllocationAlignment alignment);
 
   // Reset the allocation pointer to the beginning of the active semispace.
@@ -2806,9 +2808,10 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
   // The space is temporary and not included in any snapshots.
   bool snapshotable() override { return false; }
 
-  MUST_USE_RESULT bool SweepAndRetryAllocation(int size_in_bytes) override;
+  V8_WARN_UNUSED_RESULT bool SweepAndRetryAllocation(
+      int size_in_bytes) override;
 
-  MUST_USE_RESULT bool SlowRefillLinearAllocationArea(
+  V8_WARN_UNUSED_RESULT bool SlowRefillLinearAllocationArea(
       int size_in_bytes) override;
 };
 
@@ -2880,6 +2883,14 @@ class MapSpace : public PagedSpace {
 #endif
 };
 
+// -----------------------------------------------------------------------------
+// Read Only space for all Immortal Immovable and Immutable objects
+
+class ReadOnlySpace : public PagedSpace {
+ public:
+  ReadOnlySpace(Heap* heap, AllocationSpace id, Executability executable)
+      : PagedSpace(heap, id, executable) {}
+};
 
 // -----------------------------------------------------------------------------
 // Large objects ( > kMaxRegularHeapObjectSize ) are allocated and
@@ -2908,8 +2919,8 @@ class LargeObjectSpace : public Space {
 
   // Shared implementation of AllocateRaw, AllocateRawCode and
   // AllocateRawFixedArray.
-  MUST_USE_RESULT AllocationResult
-      AllocateRaw(int object_size, Executability executable);
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
+                                                     Executability executable);
 
   // Available bytes for objects in this space.
   inline size_t Available() override;

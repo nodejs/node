@@ -1,0 +1,84 @@
+{
+  "_from": "agentkeepalive@^3.4.1",
+  "_id": "agentkeepalive@3.4.1",
+  "_inBundle": false,
+  "_integrity": "sha512-MPIwsZU9PP9kOrZpyu2042kYA8Fdt/AedQYkYXucHgF9QoD9dXVp0ypuGnHXSR0hTstBxdt85Xkh4JolYfK5wg==",
+  "_location": "/agentkeepalive",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "agentkeepalive@^3.4.1",
+    "name": "agentkeepalive",
+    "escapedName": "agentkeepalive",
+    "rawSpec": "^3.4.1",
+    "saveSpec": null,
+    "fetchSpec": "^3.4.1"
+  },
+  "_requiredBy": [
+    "/make-fetch-happen",
+    "/npm-profile/make-fetch-happen",
+    "/npm-registry-fetch/make-fetch-happen"
+  ],
+  "_resolved": "https://registry.npmjs.org/agentkeepalive/-/agentkeepalive-3.4.1.tgz",
+  "_shasum": "aa95aebc3a749bca5ed53e3880a09f5235b48f0c",
+  "_spec": "agentkeepalive@^3.4.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/make-fetch-happen",
+  "author": {
+    "name": "fengmk2",
+    "email": "fengmk2@gmail.com",
+    "url": "https://fengmk2.com"
+  },
+  "browser": "browser.js",
+  "bugs": {
+    "url": "https://github.com/node-modules/agentkeepalive/issues"
+  },
+  "bundleDependencies": false,
+  "ci": {
+    "version": "4.3.2, 4, 6, 8, 9"
+  },
+  "dependencies": {
+    "humanize-ms": "^1.2.1"
+  },
+  "deprecated": false,
+  "description": "Missing keepalive http.Agent",
+  "devDependencies": {
+    "autod": "^2.8.0",
+    "egg-bin": "^1.10.3",
+    "egg-ci": "^1.7.0",
+    "eslint": "^3.19.0",
+    "eslint-config-egg": "^4.2.0",
+    "pedding": "^1.1.0"
+  },
+  "engines": {
+    "node": ">= 4.0.0"
+  },
+  "files": [
+    "index.js",
+    "browser.js",
+    "lib"
+  ],
+  "homepage": "https://github.com/node-modules/agentkeepalive#readme",
+  "keywords": [
+    "http",
+    "https",
+    "agent",
+    "keepalive",
+    "agentkeepalive"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "agentkeepalive",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/node-modules/agentkeepalive.git"
+  },
+  "scripts": {
+    "autod": "autod",
+    "ci": "npm run lint && npm run cov",
+    "cov": "egg-bin cov",
+    "lint": "eslint lib test index.js",
+    "test": "egg-bin test"
+  },
+  "version": "3.4.1"
+}

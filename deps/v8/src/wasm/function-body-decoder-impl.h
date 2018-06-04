@@ -54,36 +54,72 @@ struct WasmException;
   (this->errorf(this->pc_, "%s: %s", WasmOpcodes::OpcodeName(opcode), \
                 (message)))
 
-#define ATOMIC_OP_LIST(V)              \
-  V(I32AtomicLoad, Uint32)             \
-  V(I32AtomicLoad8U, Uint8)            \
-  V(I32AtomicLoad16U, Uint16)          \
-  V(I32AtomicAdd, Uint32)              \
-  V(I32AtomicAdd8U, Uint8)             \
-  V(I32AtomicAdd16U, Uint16)           \
-  V(I32AtomicSub, Uint32)              \
-  V(I32AtomicSub8U, Uint8)             \
-  V(I32AtomicSub16U, Uint16)           \
-  V(I32AtomicAnd, Uint32)              \
-  V(I32AtomicAnd8U, Uint8)             \
-  V(I32AtomicAnd16U, Uint16)           \
-  V(I32AtomicOr, Uint32)               \
-  V(I32AtomicOr8U, Uint8)              \
-  V(I32AtomicOr16U, Uint16)            \
-  V(I32AtomicXor, Uint32)              \
-  V(I32AtomicXor8U, Uint8)             \
-  V(I32AtomicXor16U, Uint16)           \
-  V(I32AtomicExchange, Uint32)         \
-  V(I32AtomicExchange8U, Uint8)        \
-  V(I32AtomicExchange16U, Uint16)      \
-  V(I32AtomicCompareExchange, Uint32)  \
-  V(I32AtomicCompareExchange8U, Uint8) \
-  V(I32AtomicCompareExchange16U, Uint16)
+#define ATOMIC_OP_LIST(V)                \
+  V(I32AtomicLoad, Uint32)               \
+  V(I64AtomicLoad, Uint64)               \
+  V(I32AtomicLoad8U, Uint8)              \
+  V(I32AtomicLoad16U, Uint16)            \
+  V(I64AtomicLoad8U, Uint8)              \
+  V(I64AtomicLoad16U, Uint16)            \
+  V(I64AtomicLoad32U, Uint32)            \
+  V(I32AtomicAdd, Uint32)                \
+  V(I32AtomicAdd8U, Uint8)               \
+  V(I32AtomicAdd16U, Uint16)             \
+  V(I64AtomicAdd, Uint64)                \
+  V(I64AtomicAdd8U, Uint8)               \
+  V(I64AtomicAdd16U, Uint16)             \
+  V(I64AtomicAdd32U, Uint32)             \
+  V(I32AtomicSub, Uint32)                \
+  V(I64AtomicSub, Uint64)                \
+  V(I32AtomicSub8U, Uint8)               \
+  V(I32AtomicSub16U, Uint16)             \
+  V(I64AtomicSub8U, Uint8)               \
+  V(I64AtomicSub16U, Uint16)             \
+  V(I64AtomicSub32U, Uint32)             \
+  V(I32AtomicAnd, Uint32)                \
+  V(I64AtomicAnd, Uint64)                \
+  V(I32AtomicAnd8U, Uint8)               \
+  V(I32AtomicAnd16U, Uint16)             \
+  V(I64AtomicAnd8U, Uint8)               \
+  V(I64AtomicAnd16U, Uint16)             \
+  V(I64AtomicAnd32U, Uint32)             \
+  V(I32AtomicOr, Uint32)                 \
+  V(I64AtomicOr, Uint64)                 \
+  V(I32AtomicOr8U, Uint8)                \
+  V(I32AtomicOr16U, Uint16)              \
+  V(I64AtomicOr8U, Uint8)                \
+  V(I64AtomicOr16U, Uint16)              \
+  V(I64AtomicOr32U, Uint32)              \
+  V(I32AtomicXor, Uint32)                \
+  V(I64AtomicXor, Uint64)                \
+  V(I32AtomicXor8U, Uint8)               \
+  V(I32AtomicXor16U, Uint16)             \
+  V(I64AtomicXor8U, Uint8)               \
+  V(I64AtomicXor16U, Uint16)             \
+  V(I64AtomicXor32U, Uint32)             \
+  V(I32AtomicExchange, Uint32)           \
+  V(I64AtomicExchange, Uint64)           \
+  V(I32AtomicExchange8U, Uint8)          \
+  V(I32AtomicExchange16U, Uint16)        \
+  V(I64AtomicExchange8U, Uint8)          \
+  V(I64AtomicExchange16U, Uint16)        \
+  V(I64AtomicExchange32U, Uint32)        \
+  V(I32AtomicCompareExchange, Uint32)    \
+  V(I64AtomicCompareExchange, Uint64)    \
+  V(I32AtomicCompareExchange8U, Uint8)   \
+  V(I32AtomicCompareExchange16U, Uint16) \
+  V(I64AtomicCompareExchange8U, Uint8)   \
+  V(I64AtomicCompareExchange16U, Uint16) \
+  V(I64AtomicCompareExchange32U, Uint32)
 
 #define ATOMIC_STORE_OP_LIST(V) \
   V(I32AtomicStore, Uint32)     \
+  V(I64AtomicStore, Uint64)     \
   V(I32AtomicStore8U, Uint8)    \
-  V(I32AtomicStore16U, Uint16)
+  V(I32AtomicStore16U, Uint16)  \
+  V(I64AtomicStore8U, Uint8)    \
+  V(I64AtomicStore16U, Uint16)  \
+  V(I64AtomicStore32U, Uint32)
 
 template <typename T, typename Allocator>
 Vector<T> vec2vec(std::vector<T, Allocator>& vec) {
@@ -212,6 +248,9 @@ struct BlockTypeOperand {
         return true;
       case kLocalS128:
         *result = kWasmS128;
+        return true;
+      case kLocalAnyRef:
+        *result = kWasmAnyRef;
         return true;
       default:
         *result = kWasmVar;
@@ -574,6 +613,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(I64Const, Value* result, int64_t value)                                    \
   F(F32Const, Value* result, float value)                                      \
   F(F64Const, Value* result, double value)                                     \
+  F(RefNull, Value* result)                                                    \
   F(Drop, const Value& value)                                                  \
   F(DoReturn, Vector<Value> values, bool implicit)                             \
   F(GetLocal, Value* result, const LocalIndexOperand<validate>& operand)       \
@@ -676,6 +716,13 @@ class WasmDecoder : public Decoder {
         case kLocalF64:
           type = kWasmF64;
           break;
+        case kLocalAnyRef:
+          if (FLAG_experimental_wasm_anyref) {
+            type = kWasmAnyRef;
+            break;
+          }
+          decoder->error(decoder->pc() - 1, "invalid local type");
+          return false;
         case kLocalS128:
           if (FLAG_experimental_wasm_simd) {
             type = kWasmS128;
@@ -727,7 +774,7 @@ class WasmDecoder : public Decoder {
         case kExprGrowMemory:
         case kExprCallFunction:
         case kExprCallIndirect:
-          // Add context cache nodes to the assigned set.
+          // Add instance cache nodes to the assigned set.
           // TODO(titzer): make this more clear.
           assigned->Add(locals_count - 1);
           length = OpcodeLength(decoder, pc);
@@ -972,6 +1019,9 @@ class WasmDecoder : public Decoder {
         ImmI64Operand<validate> operand(decoder, pc);
         return 1 + operand.length;
       }
+      case kExprRefNull: {
+        return 1;
+      }
       case kExprGrowMemory:
       case kExprMemorySize: {
         MemoryIndexOperand<validate> operand(decoder, pc);
@@ -1064,6 +1114,7 @@ class WasmDecoder : public Decoder {
       case kExprI64Const:
       case kExprF32Const:
       case kExprF64Const:
+      case kExprRefNull:
       case kExprMemorySize:
         return {0, 1};
       case kExprCallFunction: {
@@ -1140,8 +1191,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   // All Value types should be trivially copyable for performance. We push, pop,
   // and store them in local variables.
-  static_assert(IS_TRIVIALLY_COPYABLE(Value),
-                "all Value<...> types should be trivially copyable");
+  ASSERT_TRIVIALLY_COPYABLE(Value);
 
  public:
   template <typename... InterfaceArgs>
@@ -1367,7 +1417,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!LookupBlockType(&operand)) break;
             PopArgs(operand.sig);
             auto* block = PushBlock();
-            SetBlockType(block, operand, args_);
+            SetBlockType(block, operand);
             CALL_INTERFACE_IF_REACHABLE(Block, block);
             PushMergeValues(block, &block->start_merge);
             len = 1 + operand.length;
@@ -1396,7 +1446,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!LookupBlockType(&operand)) break;
             PopArgs(operand.sig);
             auto* try_block = PushTry();
-            SetBlockType(try_block, operand, args_);
+            SetBlockType(try_block, operand);
             len = 1 + operand.length;
             CALL_INTERFACE_IF_REACHABLE(Try, try_block);
             PushMergeValues(try_block, &try_block->start_merge);
@@ -1450,7 +1500,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!LookupBlockType(&operand)) break;
             PopArgs(operand.sig);
             auto* block = PushLoop();
-            SetBlockType(&control_.back(), operand, args_);
+            SetBlockType(&control_.back(), operand);
             len = 1 + operand.length;
             CALL_INTERFACE_IF_REACHABLE(Loop, block);
             PushMergeValues(block, &block->start_merge);
@@ -1463,7 +1513,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             PopArgs(operand.sig);
             if (!this->ok()) break;
             auto* if_block = PushIf();
-            SetBlockType(if_block, operand, args_);
+            SetBlockType(if_block, operand);
             CALL_INTERFACE_IF_REACHABLE(If, cond, if_block);
             len = 1 + operand.length;
             PushMergeValues(if_block, &if_block->start_merge);
@@ -1648,6 +1698,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             auto* value = Push(kWasmF64);
             CALL_INTERFACE_IF_REACHABLE(F64Const, value, operand.value);
             len = 1 + operand.length;
+            break;
+          }
+          case kExprRefNull: {
+            CHECK_PROTOTYPE_OPCODE(anyref);
+            auto* value = Push(kWasmAnyRef);
+            CALL_INTERFACE_IF_REACHABLE(RefNull, value);
+            len = 1;
             break;
           }
           case kExprGetLocal: {
@@ -1973,13 +2030,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
-  void SetBlockType(Control* c, BlockTypeOperand<validate>& operand,
-                    ZoneVector<Value>& params) {
-    InitMerge(&c->end_merge, operand.out_arity(),
-              [&] (uint32_t i) {
-                  return Value::New(this->pc_, operand.out_type(i)); });
+  void SetBlockType(Control* c, BlockTypeOperand<validate>& operand) {
+    DCHECK_EQ(operand.in_arity(), this->args_.size());
+    const byte* pc = this->pc_;
+    Value* args = this->args_.data();
+    InitMerge(&c->end_merge, operand.out_arity(), [pc, &operand](uint32_t i) {
+      return Value::New(pc, operand.out_type(i));
+    });
     InitMerge(&c->start_merge, operand.in_arity(),
-              [&] (uint32_t i) { return params[i]; });
+              [args](uint32_t i) { return args[i]; });
   }
 
   // Pops arguments as required by signature into {args_}.
@@ -2370,6 +2429,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (WasmOpcodes::IsSignExtensionOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(se);
     }
+    if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
+      RET_ON_PROTOTYPE_OPCODE(anyref);
+    }
+
     switch (sig->parameter_count()) {
       case 1: {
         auto val = Pop(0, sig->GetParam(0));

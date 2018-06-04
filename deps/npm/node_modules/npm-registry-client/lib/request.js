@@ -298,6 +298,8 @@ function requestDone (method, where, cb) {
         )
       } else if (name && parsed.error === 'not_found') {
         er = makeError('404 Not Found: ' + name, name, response.statusCode)
+      } else if (name && parsed.error === 'User not found') {
+        er = makeError('User not found. Check `npm whoami` and make sure you have a NPM account.', name, response.statusCode)
       } else {
         er = makeError(
           parsed.error + ' ' + (parsed.reason || '') + ': ' + (name || w),

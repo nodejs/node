@@ -39,8 +39,8 @@ namespace internal {
 #define ALLOCATABLE_GENERAL_REGISTERS(R)                  \
   R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
   R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
-  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27) \
-  R(x28)
+  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x25) \
+  R(x27) R(x28)
 
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
@@ -60,6 +60,8 @@ namespace internal {
   V(q16) V(q17) V(q18) V(q19) V(q20) V(q21) V(q22) V(q23) \
   V(q24) V(q25) V(q26) V(q27) V(q28) V(q29) V(q30) V(q31)
 
+// Register d29 could be allocated, but we keep an even length list here, in
+// order to make stack alignment easier for save and restore.
 #define ALLOCATABLE_DOUBLE_REGISTERS(R)                   \
   R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
   R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d16) \
@@ -202,7 +204,6 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
 
   bool IsSameSizeAndType(const CPURegister& other) const;
 
-  // V8 compatibility.
   bool is(const CPURegister& other) const { return Is(other); }
   bool is_valid() const { return IsValid(); }
 
@@ -237,8 +238,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(CPURegister),
-              "CPURegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(CPURegister);
 
 class Register : public CPURegister {
  public:
@@ -256,25 +256,6 @@ class Register : public CPURegister {
   static Register XRegFromCode(unsigned code);
   static Register WRegFromCode(unsigned code);
 
-  // Start of V8 compatibility section ---------------------
-  // These memebers are necessary for compilation.
-  // A few of them may be unused for now.
-
-  // We allow crankshaft to use the following registers:
-  //   - x0 to x15
-  //   - x18 to x24
-  //   - x27 (also context)
-  //
-  // TODO(all): Register x25 is currently free and could be available for
-  // crankshaft, but we don't use it as we might use it as a per function
-  // literal pool pointer in the future.
-  //
-  // TODO(all): Consider storing cp in x25 to have only two ranges.
-  // We split allocatable registers in three ranges called
-  //   - "low range"
-  //   - "high range"
-  //   - "context"
-
   static Register from_code(int code) {
     // Always return an X register.
     return Register::Create(code, kXRegSizeInBits);
@@ -286,14 +267,11 @@ class Register : public CPURegister {
     return Register::Create<code, kXRegSizeInBits>();
   }
 
-  // End of V8 compatibility section -----------------------
-  //
  private:
   constexpr explicit Register(const CPURegister& r) : CPURegister(r) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register),
-              "Register can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(Register);
 
 constexpr bool kPadArguments = true;
 constexpr bool kSimpleFPAliasing = true;
@@ -405,19 +383,13 @@ class VRegister : public CPURegister {
 
   unsigned LaneSizeInBits() const { return LaneSizeInBytes() * 8; }
 
-  // Start of V8 compatibility section ---------------------
   static constexpr int kMaxNumRegisters = kNumberOfVRegisters;
   STATIC_ASSERT(kMaxNumRegisters == kDoubleAfterLast);
 
-  // Crankshaft can use all the V registers except:
-  //   - d15 which is used to keep the 0 double value
-  //   - d30 which is used in crankshaft as a double scratch register
-  //   - d31 which is used in the MacroAssembler as a double scratch register
   static VRegister from_code(int code) {
     // Always return a D register.
     return VRegister::Create(code, kDRegSizeInBits);
   }
-  // End of V8 compatibility section -----------------------
 
  private:
   int lane_count_;
@@ -430,8 +402,7 @@ class VRegister : public CPURegister {
   }
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(VRegister),
-              "VRegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(VRegister);
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
 // these all compare equal (using the Is() method). The Register and VRegister
@@ -439,8 +410,6 @@ static_assert(IS_TRIVIALLY_COPYABLE(VRegister),
 constexpr Register NoReg = Register::no_reg();
 constexpr VRegister NoVReg = VRegister::no_reg();
 constexpr CPURegister NoCPUReg = CPURegister::no_reg();
-
-// v8 compatibility.
 constexpr Register no_reg = NoReg;
 
 #define DEFINE_REGISTER(register_class, name, ...) \
@@ -491,11 +460,9 @@ ALIAS_REGISTER(Register, padreg, x31);
 // Keeps the 0 double value.
 ALIAS_REGISTER(VRegister, fp_zero, d15);
 // MacroAssembler fixed V Registers.
-ALIAS_REGISTER(VRegister, fp_fixed1, d27);
-ALIAS_REGISTER(VRegister, fp_fixed2, d28);
-ALIAS_REGISTER(VRegister, fp_fixed3, d29);  // same as Crankshaft scratch.
-// Crankshaft double scratch register.
-ALIAS_REGISTER(VRegister, crankshaft_fp_scratch, d29);
+ALIAS_REGISTER(VRegister, fp_fixed1, d28);
+ALIAS_REGISTER(VRegister, fp_fixed2, d29);
+
 // MacroAssembler scratch V registers.
 ALIAS_REGISTER(VRegister, fp_scratch, d30);
 ALIAS_REGISTER(VRegister, fp_scratch1, d30);

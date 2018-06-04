@@ -27,7 +27,7 @@
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
-var exception = false;
+var exceptionThrown = false;
 var state = 0;
 
 function listener(event, exec_state, event_data, data) {
@@ -57,7 +57,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     print(e);
-    exception = true;
+    exceptionThrown = true;
   }
 }
 
@@ -70,4 +70,4 @@ function a() {
 // Set a break point and call to invoke the debug event listener.
 Debug.setBreakPoint(a, 0, 0);
 a();
-assertFalse(exception);
+assertFalse(exceptionThrown);

@@ -6,7 +6,6 @@
 #define V8_WASM_WASM_CODE_SPECIALIZATION_H_
 
 #include "src/assembler.h"
-#include "src/identity-map.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -25,36 +24,27 @@ uint32_t ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc);
 // Patch* methods, then apply all changes in one step using the Apply* methods.
 class CodeSpecialization {
  public:
-  CodeSpecialization(Isolate*, Zone*);
+  CodeSpecialization();
   ~CodeSpecialization();
 
-  // Update WasmContext references.
-  void RelocateWasmContextReferences(Address new_context);
-  // Update function table size.
-  // TODO(wasm): Prepare this for more than one indirect function table.
-  void PatchTableSize(uint32_t old_size, uint32_t new_size);
+  // Update instance references in code. Instance references should only
+  // appear in export wrappers.
+  void UpdateInstanceReferences(Handle<WeakCell> old_weak_instance,
+                                Handle<WeakCell> new_weak_instance);
   // Update all direct call sites based on the code table in the given instance.
-  void RelocateDirectCalls(Handle<WasmInstanceObject> instance);
-  // Relocate an arbitrary object (e.g. function table).
-  void RelocatePointer(Address old_obj, Address new_obj);
-
+  void RelocateDirectCalls(NativeModule* module);
   // Apply all relocations and patching to all code in the instance (wasm code
   // and exported functions).
-  bool ApplyToWholeInstance(WasmInstanceObject*,
-                            ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
+  bool ApplyToWholeModule(NativeModule*,
+                          ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
   // Apply all relocations and patching to one wasm code object.
-  bool ApplyToWasmCode(WasmCodeWrapper,
+  bool ApplyToWasmCode(wasm::WasmCode*,
                        ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
 
  private:
-  Address new_wasm_context_address_ = 0;
-
-  uint32_t old_function_table_size_ = 0;
-  uint32_t new_function_table_size_ = 0;
-
-  Handle<WasmInstanceObject> relocate_direct_calls_instance_;
-
-  std::unordered_map<Address, Address> pointers_to_relocate_;
+  Handle<WeakCell> old_weak_instance_;
+  Handle<WeakCell> new_weak_instance_;
+  NativeModule* relocate_direct_calls_module_ = nullptr;
 };
 
 }  // namespace wasm

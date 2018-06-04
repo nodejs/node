@@ -988,7 +988,7 @@ void URLHost::ParseHost(const char* input,
 
 // Locates the longest sequence of 0 segments in an IPv6 address
 // in order to use the :: compression when serializing
-template<typename T>
+template <typename T>
 inline T* FindLongestZeroSequence(T* values, size_t len) {
   T* start = values;
   T* end = start + len;
@@ -1749,6 +1749,8 @@ void URL::Parse(const char* input,
             }
             // the port is valid
             url->port = NormalizePort(url->scheme, static_cast<int>(port));
+            if (url->port == -1)
+              url->flags |= URL_FLAGS_IS_DEFAULT_SCHEME_PORT;
             buffer.clear();
           } else if (has_state_override) {
             // TODO(TimothyGu): Similar case as above.

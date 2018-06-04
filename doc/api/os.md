@@ -254,7 +254,7 @@ The properties available on the assigned network address object include:
   is `IPv6`)
 * `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
   in CIDR notation. If the `netmask` is invalid, this property is set
-  to `null`
+  to `null`.
 
 <!-- eslint-skip -->
 ```js
@@ -1114,7 +1114,7 @@ The following error codes are specific to the Windows operating system:
   </tr>
   <tr>
     <td><code>WSAVERNOTSUPPORTED</code></td>
-    <td>Indicates that the winsock.dll version is out of range.</td>
+    <td>Indicates that the `winsock.dll` version is out of range.</td>
   </tr>
   <tr>
     <td><code>WSANOTINITIALISED</code></td>
@@ -1197,7 +1197,7 @@ information.
   </tr>
   <tr>
     <td><code>RTLD_LOCAL</code></td>
-    <td>The converse of RTLD_GLOBAL. This is the default behavior if neither
+    <td>The converse of `RTLD_GLOBAL`. This is the default behavior if neither
     flag is specified.</td>
   </tr>
   <tr>

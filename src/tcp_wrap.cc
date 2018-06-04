@@ -26,7 +26,6 @@
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_internals.h"
-#include "node_wrap.h"
 #include "connect_wrap.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
@@ -117,12 +116,8 @@ void TCPWrap::Initialize(Local<Object> target,
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
-  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    ClearWrap(args.This());
-  };
-  auto cwt = FunctionTemplate::New(env->isolate(), constructor);
-  cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  Local<FunctionTemplate> cwt =
+      BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, cwt);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
@@ -217,6 +212,7 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
                           args.GetReturnValue().Set(UV_EBADF));
   int fd = static_cast<int>(args[0]->IntegerValue());
   uv_tcp_open(&wrap->handle_, fd);
+  wrap->set_fd(fd);
 }
 
 
@@ -292,11 +288,10 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(req_wrap->req(),
-                         &wrap->handle_,
-                         reinterpret_cast<const sockaddr*>(&addr),
-                         AfterConnect);
-    req_wrap->Dispatched();
+    err = req_wrap->Dispatch(uv_tcp_connect,
+                             &wrap->handle_,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             AfterConnect);
     if (err)
       delete req_wrap;
   }
@@ -328,11 +323,10 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(req_wrap->req(),
-                         &wrap->handle_,
-                         reinterpret_cast<const sockaddr*>(&addr),
-                         AfterConnect);
-    req_wrap->Dispatched();
+    err = req_wrap->Dispatch(uv_tcp_connect,
+                             &wrap->handle_,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             AfterConnect);
     if (err)
       delete req_wrap;
   }

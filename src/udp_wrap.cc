@@ -53,7 +53,6 @@ using AsyncHooks = Environment::AsyncHooks;
 class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
-  ~SendWrap();
   inline bool have_callback() const;
   size_t msg_size;
   size_t self_size() const override { return sizeof(*this); }
@@ -67,23 +66,11 @@ SendWrap::SendWrap(Environment* env,
                    bool have_callback)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPSENDWRAP),
       have_callback_(have_callback) {
-  Wrap(req_wrap_obj, this);
-}
-
-
-SendWrap::~SendWrap() {
-  ClearWrap(object());
 }
 
 
 inline bool SendWrap::have_callback() const {
   return have_callback_;
-}
-
-
-static void NewSendWrap(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.IsConstructCall());
-  ClearWrap(args.This());
 }
 
 
@@ -153,8 +140,7 @@ void UDPWrap::Initialize(Local<Object> target,
 
   // Create FunctionTemplate for SendWrap
   Local<FunctionTemplate> swt =
-      FunctionTemplate::New(env->isolate(), NewSendWrap);
-  swt->InstanceTemplate()->SetInternalFieldCount(1);
+      BaseObject::MakeLazilyInitializedJSTemplate(env);
   AsyncWrap::AddWrapMethods(env, swt);
   Local<String> sendWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap");
@@ -394,15 +380,14 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   }
 
   if (err == 0) {
-    err = uv_udp_send(req_wrap->req(),
-                      &wrap->handle_,
-                      *bufs,
-                      count,
-                      reinterpret_cast<const sockaddr*>(&addr),
-                      OnSend);
+    err = req_wrap->Dispatch(uv_udp_send,
+                             &wrap->handle_,
+                             *bufs,
+                             count,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             OnSend);
   }
 
-  req_wrap->Dispatched();
   if (err)
     delete req_wrap;
 

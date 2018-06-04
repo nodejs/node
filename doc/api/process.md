@@ -84,7 +84,8 @@ process.on('exit', (code) => {
 added: v0.5.10
 -->
 
-* `message` {Object} a parsed JSON object or primitive value.
+* `message` { Object | boolean | number | string | null } a parsed JSON object
+  or a serializable primitive value.
 * `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
   object, or undefined.
 
@@ -204,10 +205,10 @@ added: v1.4.1
 changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/8217
-    description: Not handling Promise rejections has been deprecated.
+    description: Not handling `Promise` rejections has been deprecated.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8223
-    description: Unhandled Promise rejections will now emit
+    description: Unhandled `Promise` rejections will now emit
                  a process warning.
 -->
 
@@ -233,7 +234,7 @@ process.on('unhandledRejection', (reason, p) => {
 
 somePromise.then((res) => {
   return reportToUser(JSON.pasre(res)); // note the typo (`pasre`)
-}); // no `.catch` or `.then`
+}); // no `.catch()` or `.then()`
 ```
 
 The following will also trigger the `'unhandledRejection'` event to be
@@ -288,7 +289,7 @@ command-line option can be used to suppress the default console output but the
 `'warning'` event will still be emitted by the `process` object.
 
 The following example illustrates the warning that is printed to `stderr` when
-too many listeners have been added to an event
+too many listeners have been added to an event:
 
 ```txt
 $ node
@@ -523,7 +524,7 @@ added: v0.7.7
 
 * {Object}
 
-The `process.config` property returns an Object containing the JavaScript
+The `process.config` property returns an `Object` containing the JavaScript
 representation of the configure options used to compile the current Node.js
 executable. This is the same as the `config.gypi` file that was produced when
 running the `./configure` script.
@@ -698,10 +699,10 @@ added: v8.0.0
 
 * `warning` {string|Error} The warning to emit.
 * `options` {Object}
-  * `type` {string} When `warning` is a String, `type` is the name to use
+  * `type` {string} When `warning` is a `String`, `type` is the name to use
     for the *type* of warning being emitted. **Default:** `'Warning'`.
   * `code` {string} A unique identifier for the warning instance being emitted.
-  * `ctor` {Function} When `warning` is a String, `ctor` is an optional
+  * `ctor` {Function} When `warning` is a `String`, `ctor` is an optional
     function used to limit the generated stack trace. **Default:**
     `process.emitWarning`.
   * `detail` {string} Additional text to include with the error.
@@ -743,10 +744,10 @@ added: v6.0.0
 -->
 
 * `warning` {string|Error} The warning to emit.
-* `type` {string} When `warning` is a String, `type` is the name to use
+* `type` {string} When `warning` is a `String`, `type` is the name to use
   for the *type* of warning being emitted. **Default:** `'Warning'`.
 * `code` {string} A unique identifier for the warning instance being emitted.
-* `ctor` {Function} When `warning` is a String, `ctor` is an optional
+* `ctor` {Function} When `warning` is a `String`, `ctor` is an optional
   function used to limit the generated stack trace. **Default:**
   `process.emitWarning`.
 
@@ -1150,12 +1151,12 @@ added: v0.7.6
 * Returns: {integer[]}
 
 The `process.hrtime()` method returns the current high-resolution real time
-in a `[seconds, nanoseconds]` tuple Array, where `nanoseconds` is the
+in a `[seconds, nanoseconds]` tuple `Array`, where `nanoseconds` is the
 remaining part of the real time that can't be represented in second precision.
 
 `time` is an optional parameter that must be the result of a previous
 `process.hrtime()` call to diff with the current time. If the parameter
-passed in is not a tuple Array, a `TypeError` will be thrown. Passing in a
+passed in is not a tuple `Array`, a `TypeError` will be thrown. Passing in a
 user-defined array instead of the result of a previous call to
 `process.hrtime()` will lead to undefined behavior.
 
@@ -1400,7 +1401,7 @@ function definitelyAsync(arg, cb) {
 
 The next tick queue is completely drained on each pass of the event loop
 **before** additional I/O is processed. As a result, recursively setting
-nextTick callbacks will block any I/O from happening, just like a
+`nextTick()` callbacks will block any I/O from happening, just like a
 `while(true);` loop.
 
 ## process.noDeprecation
@@ -1481,8 +1482,8 @@ changes:
 
 * {Object}
 
-The `process.release` property returns an Object containing metadata related to
-the current release, including URLs for the source tarball and headers-only
+The `process.release` property returns an `Object` containing metadata related
+to the current release, including URLs for the source tarball and headers-only
 tarball.
 
 `process.release` contains the following properties:
@@ -1740,7 +1741,7 @@ The `process.stdout` property returns a stream connected to
 stream) unless fd `1` refers to a file, in which case it is
 a [Writable][] stream.
 
-For example, to copy process.stdin to process.stdout:
+For example, to copy `process.stdin` to `process.stdout`:
 
 ```js
 process.stdin.pipe(process.stdout);
@@ -1960,7 +1961,7 @@ cases:
 * `7` **Internal Exception Handler Run-Time Failure** - There was an
   uncaught exception, and the internal fatal exception handler
   function itself threw an error while attempting to handle it. This
-  can happen, for example, if a [`'uncaughtException'`][] or
+  can happen, for example, if an [`'uncaughtException'`][] or
   `domain.on('error')` handler throws an error.
 * `8` - Unused. In previous versions of Node.js, exit code 8 sometimes
   indicated an uncaught exception.

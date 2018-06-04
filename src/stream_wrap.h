@@ -76,6 +76,8 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   WriteWrap* CreateWriteWrap(v8::Local<v8::Object> object) override;
 
+  void Close(v8::Local<v8::Value> close_callback) override;
+
  protected:
   LibuvStreamWrap(Environment* env,
                   v8::Local<v8::Object> object,
@@ -87,6 +89,14 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   static void AddMethods(Environment* env,
                          v8::Local<v8::FunctionTemplate> target,
                          int flags = StreamBase::kFlagNone);
+
+ protected:
+  inline void set_fd(int fd) {
+#ifdef _WIN32
+    fd_ = fd;
+#endif
+  }
+
 
  private:
   static void GetWriteQueueSize(
@@ -101,6 +111,16 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   static void AfterUvShutdown(uv_shutdown_t* req, int status);
 
   uv_stream_t* const stream_;
+
+#ifdef _WIN32
+  // We don't always have an FD that we could look up on the stream_
+  // object itself on Windows. However, for some cases, we open handles
+  // using FDs; In that case, we can store and provide the value.
+  // This became necessary because it allows to detect situations
+  // where multiple handles refer to the same stdio FDs (in particular,
+  // a possible IPC channel and a regular process.std??? stream).
+  int fd_ = -1;
+#endif
 };
 
 

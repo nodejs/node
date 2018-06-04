@@ -49,6 +49,10 @@ class Memory {
     return *reinterpret_cast<uintptr_t*>(addr);
   }
 
+  static float& float_at(Address addr) {
+    return *reinterpret_cast<float*>(addr);
+  }
+
   static double& double_at(Address addr)  {
     return *reinterpret_cast<double*>(addr);
   }

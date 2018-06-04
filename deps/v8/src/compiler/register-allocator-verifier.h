@@ -185,8 +185,9 @@ class RegisterAllocatorVerifier final : public ZoneObject {
     kFixedFPRegister,
     kSlot,
     kFixedSlot,
-    kNone,
-    kNoneFP,
+    kRegisterOrSlot,
+    kRegisterOrSlotFP,
+    kRegisterOrSlotOrConstant,
     kExplicit,
     kSameAsFirst,
     kRegisterAndSlot

@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -24,7 +24,7 @@ class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
 
-std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
+std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* phase,
                                                  const char* suffix);
 
@@ -44,8 +44,9 @@ struct AsRPO {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const AsRPO& ad);
 
 struct AsC1VCompilation {
-  explicit AsC1VCompilation(const CompilationInfo* info) : info_(info) {}
-  const CompilationInfo* info_;
+  explicit AsC1VCompilation(const OptimizedCompilationInfo* info)
+      : info_(info) {}
+  const OptimizedCompilationInfo* info_;
 };
 
 struct AsScheduledGraph {

@@ -38,7 +38,12 @@ onboarding session.
     apply.whitespace fix`
   * Always continue to PR from your own GitHub fork
     * Branches in the `nodejs/node` repository are only for release lines
-  * See [Updating Node.js from Upstream][]
+  * Add the canonical nodejs repository as `upstream` remote:
+    * `git remote add upstream git://github.com/nodejs/node.git`
+  * To update from `upstream`:
+    * `git checkout master`
+    * `git remote update -p` OR `git fetch --all`
+    * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
   * Make a new branch for each PR you submit.
   * Membership: Consider making your membership in the Node.js GitHub
     organization public. This makes it easier to identify Collaborators.
@@ -180,9 +185,7 @@ onboarding session.
       request containing the code you wish to test. For example, if the URL for
       the pull request is `https://github.com/nodejs/node/issues/7006`, then put
       `7006` in the `PR_ID`.
-    * The remaining elements on the form are typically unchanged with the
-      exception of `POST_STATUS_TO_PR`. Check that if you want a CI status
-      indicator to be automatically inserted into the PR.
+    * The remaining elements on the form are typically unchanged.
   * If you need help with something CI-related:
     * Use #node-dev (IRC) to talk to other Collaborators.
     * Use #node-build (IRC) to talk to the Build WG members who maintain the CI
@@ -208,7 +211,7 @@ needs to be pointed out separately during the onboarding.
     -1`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
-* Label your pull request with the `doc` subsystem label.
+* Label your pull request with the `doc` and `notable-change` labels.
 * Run CI on the PR. Because the PR does not affect any code, use the
   `node-test-pull-request-lite` CI task. Alternatively, use the usual
   `node-test-pull-request` CI task and cancel it after the linter and one other
@@ -251,6 +254,5 @@ needs to be pointed out separately during the onboarding.
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
-[Updating Node.js from Upstream]: ./onboarding-extras.md#updating-nodejs-from-upstream
 [using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
 [who-to-cc]: ../COLLABORATOR_GUIDE.md#who-to-cc-in-the-issue-tracker

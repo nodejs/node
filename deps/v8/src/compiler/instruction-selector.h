@@ -23,11 +23,207 @@ namespace compiler {
 // Forward declarations.
 class BasicBlock;
 struct CallBuffer;  // TODO(bmeurer): Remove this.
-class FlagsContinuation;
 class Linkage;
 class OperandGenerator;
-struct SwitchInfo;
+class SwitchInfo;
 class StateObjectDeduplicator;
+
+// The flags continuation is a way to combine a branch or a materialization
+// of a boolean value with an instruction that sets the flags register.
+// The whole instruction is treated as a unit by the register allocator, and
+// thus no spills or moves can be introduced between the flags-setting
+// instruction and the branch or set it should be combined with.
+class FlagsContinuation final {
+ public:
+  FlagsContinuation() : mode_(kFlags_none) {}
+
+  // Creates a new flags continuation from the given condition and true/false
+  // blocks.
+  static FlagsContinuation ForBranch(FlagsCondition condition,
+                                     BasicBlock* true_block,
+                                     BasicBlock* false_block,
+                                     bool update_poison) {
+    FlagsMode mode = update_poison ? kFlags_branch_and_poison : kFlags_branch;
+    return FlagsContinuation(mode, condition, true_block, false_block);
+  }
+
+  static FlagsContinuation ForBranchAndPoison(FlagsCondition condition,
+                                              BasicBlock* true_block,
+                                              BasicBlock* false_block) {
+    return FlagsContinuation(kFlags_branch_and_poison, condition, true_block,
+                             false_block);
+  }
+
+  // Creates a new flags continuation for an eager deoptimization exit.
+  static FlagsContinuation ForDeoptimize(
+      FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
+      VectorSlotPair const& feedback, Node* frame_state, bool update_poison) {
+    FlagsMode mode =
+        update_poison ? kFlags_deoptimize_and_poison : kFlags_deoptimize;
+    return FlagsContinuation(mode, condition, kind, reason, feedback,
+                             frame_state);
+  }
+
+  // Creates a new flags continuation for a boolean value.
+  static FlagsContinuation ForSet(FlagsCondition condition, Node* result) {
+    return FlagsContinuation(condition, result);
+  }
+
+  // Creates a new flags continuation for a wasm trap.
+  static FlagsContinuation ForTrap(FlagsCondition condition,
+                                   Runtime::FunctionId trap_id, Node* result) {
+    return FlagsContinuation(condition, trap_id, result);
+  }
+
+  bool IsNone() const { return mode_ == kFlags_none; }
+  bool IsBranch() const {
+    return mode_ == kFlags_branch || mode_ == kFlags_branch_and_poison;
+  }
+  bool IsDeoptimize() const {
+    return mode_ == kFlags_deoptimize || mode_ == kFlags_deoptimize_and_poison;
+  }
+  bool IsPoisoned() const {
+    return mode_ == kFlags_branch_and_poison ||
+           mode_ == kFlags_deoptimize_and_poison;
+  }
+  bool IsSet() const { return mode_ == kFlags_set; }
+  bool IsTrap() const { return mode_ == kFlags_trap; }
+  FlagsCondition condition() const {
+    DCHECK(!IsNone());
+    return condition_;
+  }
+  DeoptimizeKind kind() const {
+    DCHECK(IsDeoptimize());
+    return kind_;
+  }
+  DeoptimizeReason reason() const {
+    DCHECK(IsDeoptimize());
+    return reason_;
+  }
+  VectorSlotPair const& feedback() const {
+    DCHECK(IsDeoptimize());
+    return feedback_;
+  }
+  Node* frame_state() const {
+    DCHECK(IsDeoptimize());
+    return frame_state_or_result_;
+  }
+  Node* result() const {
+    DCHECK(IsSet());
+    return frame_state_or_result_;
+  }
+  Runtime::FunctionId trap_id() const {
+    DCHECK(IsTrap());
+    return trap_id_;
+  }
+  BasicBlock* true_block() const {
+    DCHECK(IsBranch());
+    return true_block_;
+  }
+  BasicBlock* false_block() const {
+    DCHECK(IsBranch());
+    return false_block_;
+  }
+
+  void Negate() {
+    DCHECK(!IsNone());
+    condition_ = NegateFlagsCondition(condition_);
+  }
+
+  void Commute() {
+    DCHECK(!IsNone());
+    condition_ = CommuteFlagsCondition(condition_);
+  }
+
+  void Overwrite(FlagsCondition condition) { condition_ = condition; }
+
+  void OverwriteAndNegateIfEqual(FlagsCondition condition) {
+    DCHECK(condition_ == kEqual || condition_ == kNotEqual);
+    bool negate = condition_ == kEqual;
+    condition_ = condition;
+    if (negate) Negate();
+  }
+
+  void OverwriteUnsignedIfSigned() {
+    switch (condition_) {
+      case kSignedLessThan:
+        condition_ = kUnsignedLessThan;
+        break;
+      case kSignedLessThanOrEqual:
+        condition_ = kUnsignedLessThanOrEqual;
+        break;
+      case kSignedGreaterThan:
+        condition_ = kUnsignedGreaterThan;
+        break;
+      case kSignedGreaterThanOrEqual:
+        condition_ = kUnsignedGreaterThanOrEqual;
+        break;
+      default:
+        break;
+    }
+  }
+
+  // Encodes this flags continuation into the given opcode.
+  InstructionCode Encode(InstructionCode opcode) {
+    opcode |= FlagsModeField::encode(mode_);
+    if (mode_ != kFlags_none) {
+      opcode |= FlagsConditionField::encode(condition_);
+    }
+    return opcode;
+  }
+
+ private:
+  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
+                    BasicBlock* true_block, BasicBlock* false_block)
+      : mode_(mode),
+        condition_(condition),
+        true_block_(true_block),
+        false_block_(false_block) {
+    DCHECK(mode == kFlags_branch || mode == kFlags_branch_and_poison);
+    DCHECK_NOT_NULL(true_block);
+    DCHECK_NOT_NULL(false_block);
+  }
+
+  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
+                    DeoptimizeKind kind, DeoptimizeReason reason,
+                    VectorSlotPair const& feedback, Node* frame_state)
+      : mode_(mode),
+        condition_(condition),
+        kind_(kind),
+        reason_(reason),
+        feedback_(feedback),
+        frame_state_or_result_(frame_state) {
+    DCHECK(mode == kFlags_deoptimize || mode == kFlags_deoptimize_and_poison);
+    DCHECK_NOT_NULL(frame_state);
+  }
+
+  FlagsContinuation(FlagsCondition condition, Node* result)
+      : mode_(kFlags_set),
+        condition_(condition),
+        frame_state_or_result_(result) {
+    DCHECK_NOT_NULL(result);
+  }
+
+  FlagsContinuation(FlagsCondition condition, Runtime::FunctionId trap_id,
+                    Node* result)
+      : mode_(kFlags_trap),
+        condition_(condition),
+        frame_state_or_result_(result),
+        trap_id_(trap_id) {
+    DCHECK_NOT_NULL(result);
+  }
+
+  FlagsMode const mode_;
+  FlagsCondition condition_;
+  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize*
+  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize*
+  VectorSlotPair feedback_;      // Only valid if mode_ == kFlags_deoptimize*
+  Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize*
+                                 // or mode_ == kFlags_set.
+  BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
+  BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch*.
+  Runtime::FunctionId trap_id_;  // Only valid if mode_ == kFlags_trap.
+};
 
 // This struct connects nodes of parameters which are going to be pushed on the
 // call stack with their parameter index in the call descriptor of the callee.
@@ -55,24 +251,20 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kDisableSwitchJumpTable,
     kEnableSwitchJumpTable
   };
-  enum EnableSpeculationPoison {
-    kDisableSpeculationPoison,
-    kEnableSpeculationPoison
-  };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table,
-      EnableSpeculationPoison enable_speculation_poison,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
       EnableSerialization enable_serialization = kDisableSerialization,
-      LoadPoisoning poisoning = LoadPoisoning::kDontPoison);
+      PoisoningMitigationLevel poisoning_enabled =
+          PoisoningMitigationLevel::kOff);
 
   // Visit code for the entire graph with the included schedule.
   bool SelectInstructions();
@@ -80,6 +272,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
   void AddInstruction(Instruction* instr);
+  void AddTerminator(Instruction* instr);
 
   // ===========================================================================
   // ============= Architecture-independent code emission methods. =============
@@ -117,20 +310,29 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                     InstructionOperand* temps = nullptr);
   Instruction* Emit(Instruction* instr);
 
+  // [0-3] operand instructions with no output, uses labels for true and false
+  // blocks of the continuation.
+  Instruction* EmitWithContinuation(InstructionCode opcode,
+                                    FlagsContinuation* cont);
+  Instruction* EmitWithContinuation(InstructionCode opcode,
+                                    InstructionOperand a,
+                                    FlagsContinuation* cont);
+  Instruction* EmitWithContinuation(InstructionCode opcode,
+                                    InstructionOperand a, InstructionOperand b,
+                                    FlagsContinuation* cont);
+  Instruction* EmitWithContinuation(InstructionCode opcode,
+                                    InstructionOperand a, InstructionOperand b,
+                                    InstructionOperand c,
+                                    FlagsContinuation* cont);
+  Instruction* EmitWithContinuation(InstructionCode opcode, size_t output_count,
+                                    InstructionOperand* outputs,
+                                    size_t input_count,
+                                    InstructionOperand* inputs,
+                                    FlagsContinuation* cont);
+
   // ===========================================================================
   // ===== Architecture-independent deoptimization exit emission methods. ======
   // ===========================================================================
-
-  Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
-                              InstructionOperand a, DeoptimizeKind kind,
-                              DeoptimizeReason reason,
-                              VectorSlotPair const& feedback,
-                              Node* frame_state);
-  Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
-                              InstructionOperand a, InstructionOperand b,
-                              DeoptimizeKind kind, DeoptimizeReason reason,
-                              VectorSlotPair const& feedback,
-                              Node* frame_state);
   Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
                               InstructionOperand* outputs, size_t input_count,
                               InstructionOperand* inputs, DeoptimizeKind kind,
@@ -168,9 +370,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
 
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
-
-  // TODO(jarin) This is temporary until the poisoning is universally supported.
-  static bool SupportsSpeculationPoisoning();
 
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
@@ -240,6 +439,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     return (enable_scheduling_ == kEnableScheduling) &&
            InstructionScheduler::SchedulerSupported();
   }
+
+  void AppendDeoptimizeArguments(InstructionOperandVector* args,
+                                 DeoptimizeKind kind, DeoptimizeReason reason,
+                                 VectorSlotPair const& feedback,
+                                 Node* frame_state);
 
   void EmitTableSwitch(const SwitchInfo& sw, InstructionOperand& index_operand);
   void EmitLookupSwitch(const SwitchInfo& sw,
@@ -442,6 +646,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitAtomicBinaryOperation(Node* node, ArchOpcode int8_op,
                                   ArchOpcode uint8_op, ArchOpcode int16_op,
                                   ArchOpcode uint16_op, ArchOpcode word32_op);
+  void VisitWord64AtomicBinaryOperation(Node* node, ArchOpcode uint8_op,
+                                        ArchOpcode uint16_op,
+                                        ArchOpcode uint32_op,
+                                        ArchOpcode uint64_op);
 
   // ===========================================================================
 
@@ -454,6 +662,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   Schedule* const schedule_;
   BasicBlock* current_block_;
   ZoneVector<Instruction*> instructions_;
+  InstructionOperandVector continuation_inputs_;
+  InstructionOperandVector continuation_outputs_;
   BoolVector defined_;
   BoolVector used_;
   IntVector effect_level_;
@@ -463,8 +673,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   EnableScheduling enable_scheduling_;
   EnableSerialization enable_serialization_;
   EnableSwitchJumpTable enable_switch_jump_table_;
-  EnableSpeculationPoison enable_speculation_poison_;
-  LoadPoisoning load_poisoning_;
+
+  PoisoningMitigationLevel poisoning_enabled_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

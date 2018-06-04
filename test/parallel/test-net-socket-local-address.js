@@ -17,8 +17,8 @@ const server = net.createServer((socket) => {
 });
 
 server.on('close', common.mustCall(() => {
-  assert.deepStrictEqual(clientLocalPorts, serverRemotePorts,
-                         'client and server should agree on the ports used');
+  // client and server should agree on the ports used
+  assert.deepStrictEqual(clientLocalPorts, serverRemotePorts);
   assert.strictEqual(2, conns);
 }));
 

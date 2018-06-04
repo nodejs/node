@@ -13,56 +13,63 @@
 namespace v8 {
 namespace internal {
 
-#define FOR_EACH_CALLBACK(F)           \
-  F(Query, query, Object, v8::Integer) \
-  F(Deleter, deleter, Object, v8::Boolean)
+#define FOR_EACH_CALLBACK(F)                        \
+  F(Query, query, Object, v8::Integer, interceptor) \
+  F(Deleter, deleter, Object, v8::Boolean, Handle<Object>())
 
-#define PREPARE_CALLBACK_INFO(ISOLATE, F, RETURN_VALUE, API_RETURN_TYPE) \
-  if (ISOLATE->needs_side_effect_check() &&                              \
-      !PerformSideEffectCheck(ISOLATE, FUNCTION_ADDR(F))) {              \
-    return RETURN_VALUE();                                               \
-  }                                                                      \
-  VMState<EXTERNAL> state(ISOLATE);                                      \
-  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));           \
+#define DCHECK_NAME_COMPATIBLE(interceptor, name) \
+  DCHECK(interceptor->is_named());                \
+  DCHECK(!name->IsPrivate());                     \
+  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+
+#define PREPARE_CALLBACK_INFO(ISOLATE, F, RETURN_VALUE, API_RETURN_TYPE,     \
+                              CALLBACK_INFO)                                 \
+  if (ISOLATE->debug_execution_mode() == DebugInfo::kSideEffects &&          \
+      !ISOLATE->debug()->PerformSideEffectCheckForCallback(CALLBACK_INFO)) { \
+    return RETURN_VALUE();                                                   \
+  }                                                                          \
+  VMState<EXTERNAL> state(ISOLATE);                                          \
+  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));               \
   PropertyCallbackInfo<API_RETURN_TYPE> callback_info(begin());
 
-#define CREATE_NAMED_CALLBACK(Function, type, ReturnType, ApiReturnType)      \
-  Handle<ReturnType> PropertyCallbackArguments::CallNamed##Function(          \
+#define CREATE_NAMED_CALLBACK(FUNCTION, TYPE, RETURN_TYPE, API_RETURN_TYPE,   \
+                              INFO_FOR_SIDE_EFFECT)                           \
+  Handle<RETURN_TYPE> PropertyCallbackArguments::CallNamed##FUNCTION(         \
       Handle<InterceptorInfo> interceptor, Handle<Name> name) {               \
-    DCHECK(interceptor->is_named());                                          \
-    DCHECK(!name->IsPrivate());                                               \
-    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());   \
+    DCHECK_NAME_COMPATIBLE(interceptor, name);                                \
     Isolate* isolate = this->isolate();                                       \
     RuntimeCallTimerScope timer(                                              \
-        isolate, RuntimeCallCounterId::kNamed##Function##Callback);           \
-    DCHECK(!name->IsPrivate());                                               \
-    GenericNamedProperty##Function##Callback f =                              \
-        ToCData<GenericNamedProperty##Function##Callback>(                    \
-            interceptor->type());                                             \
-    PREPARE_CALLBACK_INFO(isolate, f, Handle<ReturnType>, ApiReturnType);     \
+        isolate, RuntimeCallCounterId::kNamed##FUNCTION##Callback);           \
+    GenericNamedProperty##FUNCTION##Callback f =                              \
+        ToCData<GenericNamedProperty##FUNCTION##Callback>(                    \
+            interceptor->TYPE());                                             \
+    PREPARE_CALLBACK_INFO(isolate, f, Handle<RETURN_TYPE>, API_RETURN_TYPE,   \
+                          INFO_FOR_SIDE_EFFECT);                              \
     LOG(isolate,                                                              \
-        ApiNamedPropertyAccess("interceptor-named-" #type, holder(), *name)); \
+        ApiNamedPropertyAccess("interceptor-named-" #TYPE, holder(), *name)); \
     f(v8::Utils::ToLocal(name), callback_info);                               \
-    return GetReturnValue<ReturnType>(isolate);                               \
+    return GetReturnValue<RETURN_TYPE>(isolate);                              \
   }
 
 FOR_EACH_CALLBACK(CREATE_NAMED_CALLBACK)
 #undef CREATE_NAMED_CALLBACK
 
-#define CREATE_INDEXED_CALLBACK(Function, type, ReturnType, ApiReturnType) \
-  Handle<ReturnType> PropertyCallbackArguments::CallIndexed##Function(     \
-      Handle<InterceptorInfo> interceptor, uint32_t index) {               \
-    DCHECK(!interceptor->is_named());                                      \
-    Isolate* isolate = this->isolate();                                    \
-    RuntimeCallTimerScope timer(                                           \
-        isolate, RuntimeCallCounterId::kIndexed##Function##Callback);      \
-    IndexedProperty##Function##Callback f =                                \
-        ToCData<IndexedProperty##Function##Callback>(interceptor->type()); \
-    PREPARE_CALLBACK_INFO(isolate, f, Handle<ReturnType>, ApiReturnType);  \
-    LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-" #type,    \
-                                          holder(), index));               \
-    f(index, callback_info);                                               \
-    return GetReturnValue<ReturnType>(isolate);                            \
+#define CREATE_INDEXED_CALLBACK(FUNCTION, TYPE, RETURN_TYPE, API_RETURN_TYPE, \
+                                INFO_FOR_SIDE_EFFECT)                         \
+  Handle<RETURN_TYPE> PropertyCallbackArguments::CallIndexed##FUNCTION(       \
+      Handle<InterceptorInfo> interceptor, uint32_t index) {                  \
+    DCHECK(!interceptor->is_named());                                         \
+    Isolate* isolate = this->isolate();                                       \
+    RuntimeCallTimerScope timer(                                              \
+        isolate, RuntimeCallCounterId::kIndexed##FUNCTION##Callback);         \
+    IndexedProperty##FUNCTION##Callback f =                                   \
+        ToCData<IndexedProperty##FUNCTION##Callback>(interceptor->TYPE());    \
+    PREPARE_CALLBACK_INFO(isolate, f, Handle<RETURN_TYPE>, API_RETURN_TYPE,   \
+                          INFO_FOR_SIDE_EFFECT);                              \
+    LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-" #TYPE,       \
+                                          holder(), index));                  \
+    f(index, callback_info);                                                  \
+    return GetReturnValue<RETURN_TYPE>(isolate);                              \
   }
 
 FOR_EACH_CALLBACK(CREATE_INDEXED_CALLBACK)
@@ -70,11 +77,44 @@ FOR_EACH_CALLBACK(CREATE_INDEXED_CALLBACK)
 #undef FOR_EACH_CALLBACK
 #undef CREATE_INDEXED_CALLBACK
 
+Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
+  Isolate* isolate = this->isolate();
+  LOG(isolate, ApiObjectAccess("call", holder()));
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
+  v8::FunctionCallback f =
+      v8::ToCData<v8::FunctionCallback>(handler->callback());
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
+      !isolate->debug()->PerformSideEffectCheckForCallback(handle(handler))) {
+    return Handle<Object>();
+  }
+  VMState<EXTERNAL> state(isolate);
+  ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
+  FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_);
+  f(info);
+  return GetReturnValue<Object>(isolate);
+}
+
+Handle<JSObject> PropertyCallbackArguments::CallNamedEnumerator(
+    Handle<InterceptorInfo> interceptor) {
+  DCHECK(interceptor->is_named());
+  LOG(isolate(), ApiObjectAccess("interceptor-named-enumerator", holder()));
+  RuntimeCallTimerScope timer(isolate(),
+                              RuntimeCallCounterId::kNamedEnumeratorCallback);
+  return CallPropertyEnumerator(interceptor);
+}
+
+Handle<JSObject> PropertyCallbackArguments::CallIndexedEnumerator(
+    Handle<InterceptorInfo> interceptor) {
+  DCHECK(!interceptor->is_named());
+  LOG(isolate(), ApiObjectAccess("interceptor-indexed-enumerator", holder()));
+  RuntimeCallTimerScope timer(isolate(),
+                              RuntimeCallCounterId::kIndexedEnumeratorCallback);
+  return CallPropertyEnumerator(interceptor);
+}
+
 Handle<Object> PropertyCallbackArguments::CallNamedGetter(
     Handle<InterceptorInfo> interceptor, Handle<Name> name) {
-  DCHECK(interceptor->is_named());
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
-  DCHECK(!name->IsPrivate());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedGetterCallback);
@@ -82,13 +122,12 @@ Handle<Object> PropertyCallbackArguments::CallNamedGetter(
       ApiNamedPropertyAccess("interceptor-named-getter", holder(), *name));
   GenericNamedPropertyGetterCallback f =
       ToCData<GenericNamedPropertyGetterCallback>(interceptor->getter());
-  return BasicCallNamedGetterCallback(f, name);
+  return BasicCallNamedGetterCallback(f, name, interceptor);
 }
 
 Handle<Object> PropertyCallbackArguments::CallNamedDescriptor(
     Handle<InterceptorInfo> interceptor, Handle<Name> name) {
-  DCHECK(interceptor->is_named());
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedDescriptorCallback);
@@ -97,14 +136,15 @@ Handle<Object> PropertyCallbackArguments::CallNamedDescriptor(
   GenericNamedPropertyDescriptorCallback f =
       ToCData<GenericNamedPropertyDescriptorCallback>(
           interceptor->descriptor());
-  return BasicCallNamedGetterCallback(f, name);
+  return BasicCallNamedGetterCallback(f, name, interceptor);
 }
 
 Handle<Object> PropertyCallbackArguments::BasicCallNamedGetterCallback(
-    GenericNamedPropertyGetterCallback f, Handle<Name> name) {
+    GenericNamedPropertyGetterCallback f, Handle<Name> name,
+    Handle<Object> info) {
   DCHECK(!name->IsPrivate());
   Isolate* isolate = this->isolate();
-  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value);
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value, info);
   f(v8::Utils::ToLocal(name), callback_info);
   return GetReturnValue<Object>(isolate);
 }
@@ -112,20 +152,15 @@ Handle<Object> PropertyCallbackArguments::BasicCallNamedGetterCallback(
 Handle<Object> PropertyCallbackArguments::CallNamedSetter(
     Handle<InterceptorInfo> interceptor, Handle<Name> name,
     Handle<Object> value) {
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   GenericNamedPropertySetterCallback f =
       ToCData<GenericNamedPropertySetterCallback>(interceptor->setter());
-  return CallNamedSetterCallback(f, name, value);
-}
-
-Handle<Object> PropertyCallbackArguments::CallNamedSetterCallback(
-    GenericNamedPropertySetterCallback f, Handle<Name> name,
-    Handle<Object> value) {
-  DCHECK(!name->IsPrivate());
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedSetterCallback);
-  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value);
+  Handle<Object> side_effect_check_not_supported;
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
+                        side_effect_check_not_supported);
   LOG(isolate,
       ApiNamedPropertyAccess("interceptor-named-set", holder(), *name));
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
@@ -135,15 +170,15 @@ Handle<Object> PropertyCallbackArguments::CallNamedSetterCallback(
 Handle<Object> PropertyCallbackArguments::CallNamedDefiner(
     Handle<InterceptorInfo> interceptor, Handle<Name> name,
     const v8::PropertyDescriptor& desc) {
-  DCHECK(interceptor->is_named());
-  DCHECK(!name->IsPrivate());
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedDefinerCallback);
   GenericNamedPropertyDefinerCallback f =
       ToCData<GenericNamedPropertyDefinerCallback>(interceptor->definer());
-  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value);
+  Handle<Object> side_effect_check_not_supported;
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
+                        side_effect_check_not_supported);
   LOG(isolate,
       ApiNamedPropertyAccess("interceptor-named-define", holder(), *name));
   f(v8::Utils::ToLocal(name), desc, callback_info);
@@ -158,7 +193,9 @@ Handle<Object> PropertyCallbackArguments::CallIndexedSetter(
                               RuntimeCallCounterId::kIndexedSetterCallback);
   IndexedPropertySetterCallback f =
       ToCData<IndexedPropertySetterCallback>(interceptor->setter());
-  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value);
+  Handle<Object> side_effect_check_not_supported;
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
+                        side_effect_check_not_supported);
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-set", holder(), index));
   f(index, v8::Utils::ToLocal(value), callback_info);
@@ -174,7 +211,9 @@ Handle<Object> PropertyCallbackArguments::CallIndexedDefiner(
                               RuntimeCallCounterId::kIndexedDefinerCallback);
   IndexedPropertyDefinerCallback f =
       ToCData<IndexedPropertyDefinerCallback>(interceptor->definer());
-  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value);
+  Handle<Object> side_effect_check_not_supported;
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value,
+                        side_effect_check_not_supported);
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-define", holder(), index));
   f(index, desc, callback_info);
@@ -191,7 +230,7 @@ Handle<Object> PropertyCallbackArguments::CallIndexedGetter(
       ApiIndexedPropertyAccess("interceptor-indexed-getter", holder(), index));
   IndexedPropertyGetterCallback f =
       ToCData<IndexedPropertyGetterCallback>(interceptor->getter());
-  return BasicCallIndexedGetterCallback(f, index);
+  return BasicCallIndexedGetterCallback(f, index, interceptor);
 }
 
 Handle<Object> PropertyCallbackArguments::CallIndexedDescriptor(
@@ -204,13 +243,13 @@ Handle<Object> PropertyCallbackArguments::CallIndexedDescriptor(
                                         holder(), index));
   IndexedPropertyDescriptorCallback f =
       ToCData<IndexedPropertyDescriptorCallback>(interceptor->descriptor());
-  return BasicCallIndexedGetterCallback(f, index);
+  return BasicCallIndexedGetterCallback(f, index, interceptor);
 }
 
 Handle<Object> PropertyCallbackArguments::BasicCallIndexedGetterCallback(
-    IndexedPropertyGetterCallback f, uint32_t index) {
+    IndexedPropertyGetterCallback f, uint32_t index, Handle<Object> info) {
   Isolate* isolate = this->isolate();
-  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value);
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, v8::Value, info);
   f(index, callback_info);
   return GetReturnValue<Object>(isolate);
 }
@@ -222,7 +261,7 @@ Handle<JSObject> PropertyCallbackArguments::CallPropertyEnumerator(
       v8::ToCData<IndexedPropertyEnumeratorCallback>(interceptor->enumerator());
   // TODO(cbruni): assert same type for indexed and named callback.
   Isolate* isolate = this->isolate();
-  PREPARE_CALLBACK_INFO(isolate, f, Handle<JSObject>, v8::Array);
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<JSObject>, v8::Array, interceptor);
   f(callback_info);
   return GetReturnValue<JSObject>(isolate);
 }
@@ -238,10 +277,10 @@ Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
   LOG(isolate, ApiNamedPropertyAccess("accessor-getter", holder(), *name));
   AccessorNameGetterCallback f =
       ToCData<AccessorNameGetterCallback>(info->getter());
-  return BasicCallNamedGetterCallback(f, name);
+  return BasicCallNamedGetterCallback(f, name, info);
 }
 
-void PropertyCallbackArguments::CallAccessorSetter(
+Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
     Handle<AccessorInfo> accessor_info, Handle<Name> name,
     Handle<Object> value) {
   Isolate* isolate = this->isolate();
@@ -249,9 +288,12 @@ void PropertyCallbackArguments::CallAccessorSetter(
                               RuntimeCallCounterId::kAccessorSetterCallback);
   AccessorNameSetterCallback f =
       ToCData<AccessorNameSetterCallback>(accessor_info->setter());
-  PREPARE_CALLBACK_INFO(isolate, f, void, void);
+  Handle<Object> side_effect_check_not_supported;
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, void,
+                        side_effect_check_not_supported);
   LOG(isolate, ApiNamedPropertyAccess("accessor-setter", holder(), *name));
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
+  return GetReturnValue<Object>(isolate);
 }
 
 #undef PREPARE_CALLBACK_INFO

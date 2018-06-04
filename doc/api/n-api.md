@@ -33,22 +33,6 @@ properties:
   using `napi_get_last_error_info`. More information can be found in the error
   handling section [Error Handling][].
 
-The documentation for N-API is structured as follows:
-
-* [Basic N-API Data Types][]
-* [Error Handling][]
-* [Object Lifetime Management][]
-* [Module Registration][]
-* [Working with JavaScript Values][]
-* [Working with JavaScript Values - Abstract Operations][]
-* [Working with JavaScript Properties][]
-* [Working with JavaScript Functions][]
-* [Object Wrap][]
-* [Simple Asynchronous Operations][]
-* [Custom Asynchronous Operations][]
-* [Promises][]
-* [Script Execution][]
-
 The N-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. However, we also understand that a C++
 API can be easier to use in many cases. To support these cases we expect
@@ -56,10 +40,10 @@ there to be one or more C++ wrapper modules that provide an inlineable C++
 API. Binaries built with these wrapper modules will depend on the symbols
 for the N-API C based functions exported by Node.js. These wrappers are not
 part of N-API, nor will they be maintained as part of Node.js. One such
-example is: [node-api](https://github.com/nodejs/node-api).
+example is: [node-addon-api](https://github.com/nodejs/node-addon-api).
 
 In order to use the N-API functions, include the file
-[node_api.h](https://github.com/nodejs/node/blob/master/src/node_api.h)
+[`node_api.h`](https://github.com/nodejs/node/blob/master/src/node_api.h)
 which is located in the src directory in the node development tree:
 
 ```C
@@ -89,7 +73,9 @@ typedef enum {
   napi_generic_failure,
   napi_pending_exception,
   napi_cancelled,
-  napi_status_last
+  napi_escape_called_twice,
+  napi_handle_scope_mismatch,
+  napi_callback_scope_mismatch
 } napi_status;
 ```
 If additional information is required upon an API returning a failed status,
@@ -357,21 +343,21 @@ TypeError [ERR_ERROR_1]
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw(napi_env env, napi_value error);
+NAPI_EXTERN napi_status napi_throw(napi_env env, napi_value error);
 ```
 - `[in] env`: The environment that the API is invoked under.
-- `[in] error`: The `napi_value` for the `Error` to be thrown.
+- `[in] error`: The JavaScript value to be thrown.
 
 Returns `napi_ok` if the API succeeded.
 
-This API throws the JavaScript `Error` provided.
+This API throws the JavaScript value provided.
 
 #### napi_throw_error
 <!-- YAML
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_error(napi_env env,
+NAPI_EXTERN napi_status napi_throw_error(napi_env env,
                                          const char* code,
                                          const char* msg);
 ```
@@ -389,7 +375,7 @@ This API throws a JavaScript `Error` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_type_error(napi_env env,
+NAPI_EXTERN napi_status napi_throw_type_error(napi_env env,
                                               const char* code,
                                               const char* msg);
 ```
@@ -407,7 +393,7 @@ This API throws a JavaScript `TypeError` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_throw_range_error(napi_env env,
+NAPI_EXTERN napi_status napi_throw_range_error(napi_env env,
                                                const char* code,
                                                const char* msg);
 ```
@@ -425,7 +411,7 @@ This API throws a JavaScript `RangeError` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_is_error(napi_env env,
+NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
 ```
@@ -443,14 +429,14 @@ This API queries a `napi_value` to check if it represents an error object.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_error(napi_env env,
+NAPI_EXTERN napi_status napi_create_error(napi_env env,
                                           napi_value code,
                                           napi_value msg,
                                           napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] code`: Optional `napi_value` with the string for the error code to
-               be associated with the error.
+be associated with the error.
 - `[in] msg`: `napi_value` that references a JavaScript `String` to be
 used as the message for the `Error`.
 - `[out] result`: `napi_value` representing the error created.
@@ -464,14 +450,14 @@ This API returns a JavaScript `Error` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_type_error(napi_env env,
+NAPI_EXTERN napi_status napi_create_type_error(napi_env env,
                                                napi_value code,
                                                napi_value msg,
                                                napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] code`: Optional `napi_value` with the string for the error code to
-               be associated with the error.
+be associated with the error.
 - `[in] msg`: `napi_value` that references a JavaScript `String` to be
 used as the message for the `Error`.
 - `[out] result`: `napi_value` representing the error created.
@@ -485,14 +471,14 @@ This API returns a JavaScript `TypeError` with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_range_error(napi_env env,
+NAPI_EXTERN napi_status napi_create_range_error(napi_env env,
                                                 napi_value code,
-                                                const char* msg,
+                                                napi_value msg,
                                                 napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] code`: Optional `napi_value` with the string for the error code to
-               be associated with the error.
+be associated with the error.
 - `[in] msg`: `napi_value` that references a JavaScript `String` to be
 used as the message for the `Error`.
 - `[out] result`: `napi_value` representing the error created.
@@ -594,7 +580,7 @@ held live for the lifespan of the native method call.
 
 In many cases, however, it is necessary that the handles remain valid for
 either a shorter or longer lifespan than that of the native method.
-The sections which follow describe the N-API functions than can be used
+The sections which follow describe the N-API functions that can be used
 to change the handle lifespan from the default.
 
 ### Making handle lifespan shorter than that of the native method
@@ -605,7 +591,7 @@ that has a loop which iterates through the elements in a large array:
 ```C
 for (int i = 0; i < 1000000; i++) {
   napi_value result;
-  napi_status status = napi_get_element(e, object, i, &result);
+  napi_status status = napi_get_element(env, object, i, &result);
   if (status != napi_ok) {
     break;
   }
@@ -642,7 +628,7 @@ for (int i = 0; i < 1000000; i++) {
     break;
   }
   napi_value result;
-  status = napi_get_element(e, object, i, &result);
+  status = napi_get_element(env, object, i, &result);
   if (status != napi_ok) {
     break;
   }
@@ -673,7 +659,7 @@ can only be called once.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_open_handle_scope(napi_env env,
+NAPI_EXTERN napi_status napi_open_handle_scope(napi_env env,
                                                napi_handle_scope* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
@@ -688,7 +674,7 @@ This API open a new scope.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_close_handle_scope(napi_env env,
+NAPI_EXTERN napi_status napi_close_handle_scope(napi_env env,
                                                 napi_handle_scope scope);
 ```
 - `[in] env`: The environment that the API is invoked under.
@@ -706,7 +692,7 @@ This API can be called even if there is a pending JavaScript exception.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status
+NAPI_EXTERN napi_status
     napi_open_escapable_handle_scope(napi_env env,
                                      napi_handle_scope* result);
 ```
@@ -723,7 +709,7 @@ to the outer scope.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status
+NAPI_EXTERN napi_status
     napi_close_escapable_handle_scope(napi_env env,
                                       napi_handle_scope scope);
 ```
@@ -807,7 +793,7 @@ individual count.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_reference(napi_env env,
+NAPI_EXTERN napi_status napi_create_reference(napi_env env,
                                               napi_value value,
                                               int initial_refcount,
                                               napi_ref* result);
@@ -829,7 +815,7 @@ to the `Object` passed in.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_delete_reference(napi_env env, napi_ref ref);
+NAPI_EXTERN napi_status napi_delete_reference(napi_env env, napi_ref ref);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
@@ -846,7 +832,7 @@ This API can be called even if there is a pending JavaScript exception.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_reference_ref(napi_env env,
+NAPI_EXTERN napi_status napi_reference_ref(napi_env env,
                                            napi_ref ref,
                                            int* result);
 ```
@@ -864,7 +850,7 @@ passed in and returns the resulting reference count.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_reference_unref(napi_env env,
+NAPI_EXTERN napi_status napi_reference_unref(napi_env env,
                                              napi_ref ref,
                                              int* result);
 ```
@@ -882,7 +868,7 @@ passed in and returns the resulting reference count.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_get_reference_value(napi_env env,
+NAPI_EXTERN napi_status napi_get_reference_value(napi_env env,
                                                  napi_ref ref,
                                                  napi_value* result);
 ```
@@ -899,6 +885,58 @@ Returns `napi_ok` if the API succeeded.
 If still valid, this API returns the `napi_value` representing the
 JavaScript `Object` associated with the `napi_ref`. Otherwise, result
 will be NULL.
+
+### Cleanup on exit of the current Node.js instance
+
+While a Node.js process typically releases all its resources when exiting,
+embedders of Node.js, or future Worker support, may require addons to register
+clean-up hooks that will be run once the current Node.js instance exits.
+
+N-API provides functions for registering and un-registering such callbacks.
+When those callbacks are run, all resources that are being held by the addon
+should be freed up.
+
+#### napi_add_env_cleanup_hook
+<!-- YAML
+added: v10.2.0
+-->
+```C
+NODE_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
+                                                  void (*fun)(void* arg),
+                                                  void* arg);
+```
+
+Registers `fun` as a function to be run with the `arg` parameter once the
+current Node.js environment exits.
+
+A function can safely be specified multiple times with different
+`arg` values. In that case, it will be called multiple times as well.
+Providing the same `fun` and `arg` values multiple times is not allowed
+and will lead the process to abort.
+
+The hooks will be called in reverse order, i.e. the most recently added one
+will be called first.
+
+Removing this hook can be done by using `napi_remove_env_cleanup_hook`.
+Typically, that happens when the resource for which this hook was added
+is being torn down anyway.
+
+#### napi_remove_env_cleanup_hook
+<!-- YAML
+added: v10.2.0
+-->
+```C
+NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
+                                                     void (*fun)(void* arg),
+                                                     void* arg);
+```
+
+Unregisters `fun` as a function to be run with the `arg` parameter once the
+current Node.js environment exits. Both the argument and the function value
+need to be exact matches.
+
+The function must have originally been registered
+with `napi_add_env_cleanup_hook`, otherwise the process will abort.
 
 ## Module registration
 N-API modules are registered in a manner similar to other modules
@@ -929,8 +967,7 @@ provided by the addon:
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor desc =
-    {"hello", Method, 0, 0, 0, napi_default, 0};
-  if (status != napi_ok) return NULL;
+    {"hello", NULL, Method, NULL, NULL, NULL, napi_default, NULL};
   status = napi_define_properties(env, exports, 1, &desc);
   if (status != napi_ok) return NULL;
   return exports;
@@ -957,7 +994,7 @@ To define a class so that new instances can be created (often used with
 napi_value Init(napi_env env, napi_value exports) {
   napi_status status;
   napi_property_descriptor properties[] = {
-    { "value", NULL, GetValue, SetValue, 0, napi_default, 0 },
+    { "value", NULL, NULL, GetValue, SetValue, NULL, napi_default, NULL },
     DECLARE_NAPI_METHOD("plusOne", PlusOne),
     DECLARE_NAPI_METHOD("multiply", Multiply),
   };
@@ -1291,7 +1328,7 @@ This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
 structure, in most cases using a `TypedArray` will suffice.
 
-For Node.js >=4 `Buffers` are Uint8Arrays.
+For Node.js >=4 `Buffers` are `Uint8Array`s.
 
 #### napi_create_function
 <!-- YAML
@@ -1309,7 +1346,7 @@ napi_status napi_create_function(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] utf8name`: A string representing the name of the function encoded as
 UTF8.
-- `[in] length`: The length of the utf8name in bytes, or
+- `[in] length`: The length of the `utf8name` in bytes, or
 `NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[in] cb`: A function pointer to the native function to be invoked when the
 created function is invoked from JavaScript.
@@ -1322,7 +1359,7 @@ Returns `napi_ok` if the API succeeded.
 This API returns an N-API value corresponding to a JavaScript `Function` object.
 It's used to wrap native functions so that they can be invoked from JavaScript.
 
-JavaScript Functions are described in
+JavaScript `Function`s are described in
 [Section 19.2](https://tc39.github.io/ecma262/#sec-function-objects)
 of the ECMAScript Language Specification.
 
@@ -1536,14 +1573,14 @@ napi_status napi_create_string_latin1(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] str`: Character buffer representing a ISO-8859-1-encoded string.
+- `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
 - `[in] length`: The length of the string in bytes, or
 `NAPI_AUTO_LENGTH` if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript `String`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `String` object from a ISO-8859-1-encoded C
+This API creates a JavaScript `String` object from an ISO-8859-1-encoded C
 string. The native string is copied.
 
 The JavaScript `String` type is described in
@@ -1712,10 +1749,16 @@ napi_status napi_get_typedarray_info(napi_env env,
 - `[in] typedarray`: `napi_value` representing the `TypedArray` whose
 properties to query.
 - `[out] type`: Scalar datatype of the elements within the `TypedArray`.
-- `[out] length`: `Number` of elements in the `TypedArray`.
-- `[out] data`: The data buffer underlying the typed array.
-- `[out] byte_offset`: The byte offset within the data buffer from which
-to start projecting the `TypedArray`.
+- `[out] length`: The number of elements in the `TypedArray`.
+- `[out] data`: The data buffer underlying the `TypedArray` adjusted by
+the `byte_offset` value so that it points to the first element in the
+`TypedArray`.
+- `[out] arraybuffer`: The `ArrayBuffer` underlying the `TypedArray`.
+- `[out] byte_offset`: The byte offset within the underlying native array
+at which the first element of the arrays is located. The value for the data
+parameter has already been adjusted so that data points to the first element
+in the array. Therefore, the first byte of the native array would be at
+data - `byte_offset`.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -1823,19 +1866,20 @@ napi_status napi_get_value_int32(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: `napi_value` representing JavaScript `Number`.
-- `[out] result`: C int32 primitive equivalent of the given JavaScript `Number`.
+- `[out] result`: C `int32` primitive equivalent of the given JavaScript
+  `Number`.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in `napi_number_expected`.
 
-This API returns the C int32 primitive equivalent
+This API returns the C `int32` primitive equivalent
 of the given JavaScript `Number`.
 
 If the number exceeds the range of the 32 bit integer, then the result is
 truncated to the equivalent of the bottom 32 bits. This can result in a large
 positive number becoming a negative number if the value is > 2^31 -1.
 
-Non-finite number values (NaN, positive infinity, or negative infinity) set the
+Non-finite number values (`NaN`, `+Infinity`, or `-Infinity`) set the
 result to zero.
 
 #### napi_get_value_int64
@@ -1850,12 +1894,13 @@ napi_status napi_get_value_int64(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] value`: `napi_value` representing JavaScript `Number`.
-- `[out] result`: C int64 primitive equivalent of the given JavaScript `Number`.
+- `[out] result`: C `int64` primitive equivalent of the given JavaScript
+  `Number`.
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
 is passed in it returns `napi_number_expected`.
 
-This API returns the C int64 primitive equivalent of the given JavaScript
+This API returns the C `int64` primitive equivalent of the given JavaScript
 `Number`.
 
 `Number` values outside the range of
@@ -1864,7 +1909,7 @@ This API returns the C int64 primitive equivalent of the given JavaScript
 [`Number.MAX_SAFE_INTEGER`](https://tc39.github.io/ecma262/#sec-number.max_safe_integer)
 (2^53 - 1) will lose precision.
 
-Non-finite number values (NaN, positive infinity, or negative infinity) set the
+Non-finite number values (`NaN`, `+Infinity`, or `-Infinity`) set the
 result to zero.
 
 #### napi_get_value_string_latin1
@@ -2417,8 +2462,8 @@ if (status != napi_ok) return status;
 
 // Set the properties
 napi_property_descriptor descriptors[] = {
-  { "foo", NULL, 0, 0, 0, fooValue, napi_default, 0 },
-  { "bar", NULL, 0, 0, 0, barValue, napi_default, 0 }
+  { "foo", NULL, NULL, NULL, NULL, fooValue, napi_default, NULL },
+  { "bar", NULL, NULL, NULL, NULL, barValue, napi_default, NULL }
 }
 status = napi_define_properties(env,
                                 obj,
@@ -2500,10 +2545,10 @@ performed using a N-API call).
 property to be a JavaScript function represented by `method`. If this is
 passed in, set `value`, `getter` and `setter` to `NULL` (since these members
 won't be used).
-- `data`: The callback data passed into `method`, `getter` and `setter` if
-this function is invoked.
 - `attributes`: The attributes associated with the particular property.
 See [`napi_property_attributes`](#n_api_napi_property_attributes).
+- `data`: The callback data passed into `method`, `getter` and `setter` if
+this function is invoked.
 
 ### Functions
 #### napi_get_property_names
@@ -2651,7 +2696,7 @@ napi_status napi_set_named_property(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This method is equivalent to calling [`napi_set_property`][] with a `napi_value`
-created from the string passed in as `utf8Name`
+created from the string passed in as `utf8Name`.
 
 #### napi_get_named_property
 <!-- YAML
@@ -2672,7 +2717,7 @@ napi_status napi_get_named_property(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This method is equivalent to calling [`napi_get_property`][] with a `napi_value`
-created from the string passed in as `utf8Name`
+created from the string passed in as `utf8Name`.
 
 #### napi_has_named_property
 <!-- YAML
@@ -2693,7 +2738,7 @@ napi_status napi_has_named_property(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This method is equivalent to calling [`napi_has_property`][] with a `napi_value`
-created from the string passed in as `utf8Name`
+created from the string passed in as `utf8Name`.
 
 #### napi_set_element
 <!-- YAML
@@ -3116,7 +3161,7 @@ napi_status napi_define_class(napi_env env,
  - `[in] utf8name`: Name of the JavaScript constructor function; this is
    not required to be the same as the C++ class name, though it is recommended
    for clarity.
- - `[in] length`: The length of the utf8name in bytes, or `NAPI_AUTO_LENGTH`
+ - `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
 if it is null-terminated.
  - `[in] constructor`: Callback function that handles constructing instances
    of the class. (This should be a static method on the class, not an actual
@@ -3795,17 +3840,11 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[out] loop`: The current libuv loop instance.
 
-[Promises]: #n_api_promises
-[Simple Asynchronous Operations]: #n_api_simple_asynchronous_operations
-[Custom Asynchronous Operations]: #n_api_custom_asynchronous_operations
-[Basic N-API Data Types]: #n_api_basic_n_api_data_types
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error Handling]: #n_api_error_handling
-[Module Registration]: #n_api_module_registration
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [Object Lifetime Management]: #n_api_object_lifetime_management
 [Object Wrap]: #n_api_object_wrap
-[Script Execution]: #n_api_script_execution
 [Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
 [Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
 [Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2

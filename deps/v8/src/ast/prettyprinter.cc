@@ -442,6 +442,11 @@ void CallPrinter::VisitSpread(Spread* node) {
   Print(")");
 }
 
+void CallPrinter::VisitStoreInArrayLiteral(StoreInArrayLiteral* node) {
+  Find(node->array());
+  Find(node->index());
+  Find(node->value());
+}
 
 void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   UNREACHABLE();
@@ -465,6 +470,12 @@ void CallPrinter::VisitGetIterator(GetIterator* node) {
 }
 
 void CallPrinter::VisitGetTemplateObject(GetTemplateObject* node) {}
+
+void CallPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
+  for (Expression* substitution : *node->substitutions()) {
+    Find(substitution, true);
+  }
+}
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("ImportCall(");
@@ -1318,6 +1329,12 @@ void AstPrinter::VisitSpread(Spread* node) {
   Visit(node->expression());
 }
 
+void AstPrinter::VisitStoreInArrayLiteral(StoreInArrayLiteral* node) {
+  IndentedScope indent(this, "STORE IN ARRAY LITERAL", node->position());
+  PrintIndentedVisit("ARRAY", node->array());
+  PrintIndentedVisit("INDEX", node->index());
+  PrintIndentedVisit("VALUE", node->value());
+}
 
 void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   IndentedScope indent(this, "()", node->position());
@@ -1330,6 +1347,19 @@ void AstPrinter::VisitGetIterator(GetIterator* node) {
 
 void AstPrinter::VisitGetTemplateObject(GetTemplateObject* node) {
   IndentedScope indent(this, "GET-TEMPLATE-OBJECT", node->position());
+}
+
+void AstPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
+  IndentedScope indent(this, "TEMPLATE-LITERAL", node->position());
+  const AstRawString* string = node->string_parts()->first();
+  if (!string->IsEmpty()) PrintLiteralIndented("SPAN", string, true);
+  for (int i = 0; i < node->substitutions()->length();) {
+    PrintIndentedVisit("EXPR", node->substitutions()->at(i++));
+    if (i < node->string_parts()->length()) {
+      string = node->string_parts()->at(i);
+      if (!string->IsEmpty()) PrintLiteralIndented("SPAN", string, true);
+    }
+  }
 }
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {

@@ -23,29 +23,50 @@
 const common = require('../common');
 const http = require('http');
 
-const server = http.createServer(common.mustCall(function(req, res) {
-  res.writeHead(200);
-  res.write('a');
+{
+  const server = http.createServer(
+    common.mustCall((req, res) => {
+      res.writeHead(200);
+      res.write('a');
+    })
+  );
+  server.listen(
+    0,
+    common.mustCall(() => {
+      http.get(
+        { port: server.address().port },
+        common.mustCall((res) => {
+          res.on('data', common.mustCall(() => {
+            res.destroy();
+          }));
+          res.on('close', common.mustCall(() => {
+            server.close();
+          }));
+        })
+      );
+    })
+  );
+}
 
-  req.on('close', common.mustCall(function() {
-    console.error('request aborted');
-  }));
-  res.on('close', common.mustCall(function() {
-    console.error('response aborted');
-  }));
-}));
-server.listen(0);
-
-server.on('listening', function() {
-  console.error('make req');
-  http.get({
-    port: this.address().port
-  }, function(res) {
-    console.error('got res');
-    res.on('data', function(data) {
-      console.error('destroy res');
-      res.destroy();
-      server.close();
-    });
-  });
-});
+{
+  const server = http.createServer(
+    common.mustCall((req, res) => {
+      res.writeHead(200);
+      res.end('a');
+    })
+  );
+  server.listen(
+    0,
+    common.mustCall(() => {
+      http.get(
+        { port: server.address().port },
+        common.mustCall((res) => {
+          res.on('close', common.mustCall(() => {
+            server.close();
+          }));
+          res.resume();
+        })
+      );
+    })
+  );
+}

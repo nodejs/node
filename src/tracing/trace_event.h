@@ -118,6 +118,15 @@ enum CategoryGroupEnabledFlags {
   node::tracing::TraceEventHelper::GetTracingController()       \
       ->UpdateTraceEventDuration
 
+// Adds a metadata event to the trace log. The |AppendValueAsTraceFormat| method
+// on the convertable value will be called at flush time.
+// TRACE_EVENT_API_ADD_METADATA_EVENT(
+//     const unsigned char* category_group_enabled,
+//     const char* event_name,
+//     const char* arg_name,
+//     std::unique_ptr<ConvertableToTraceFormat> arg_value)
+#define TRACE_EVENT_API_ADD_METADATA_EVENT node::tracing::AddMetadataEvent
+
 // Defines atomic operations used internally by the tracing system.
 #define TRACE_EVENT_API_ATOMIC_WORD intptr_t
 #define TRACE_EVENT_API_ATOMIC_LOAD(var) (var)
@@ -258,6 +267,16 @@ enum CategoryGroupEnabledFlags {
           node::tracing::kNoId, trace_event_flags, timestamp, ##__VA_ARGS__);\
     }                                                                        \
   } while (0)
+
+#define INTERNAL_TRACE_EVENT_METADATA_ADD(category_group, name, ...)  \
+  do { \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group); \
+    if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) { \
+      TRACE_EVENT_API_ADD_METADATA_EVENT( \
+          INTERNAL_TRACE_EVENT_UID(category_group_enabled), name, \
+          ##__VA_ARGS__); \
+    } \
+  } while(0)
 
 // Enter and leave a context based on the current scope.
 #define INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \
@@ -610,6 +629,26 @@ static V8_INLINE uint64_t AddTraceEventWithTimestamp(
   return TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_TIMESTAMP(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
       arg_names, arg_types, arg_values, flags, timestamp);
+}
+
+template <class ARG1_TYPE>
+static V8_INLINE uint64_t AddMetadataEvent(
+    const uint8_t* category_group_enabled, const char* name,
+    const char* arg1_name, ARG1_TYPE&& arg1_val) {
+  const int num_args = 1;
+  uint8_t arg_type;
+  uint64_t arg_value;
+  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_type, &arg_value);
+  // TODO(ofrobots): It would be good to add metadata events to a separate
+  // buffer so that they can be periodically reemitted. For now, we have a
+  // single buffer, so we just add them to the main buffer.
+  return TRACE_EVENT_API_ADD_TRACE_EVENT(
+      TRACE_EVENT_PHASE_METADATA,
+      category_group_enabled, name,
+      node::tracing::kGlobalScope,  // scope
+      node::tracing::kNoId,         // id
+      node::tracing::kNoId,         // bind_id
+      num_args, &arg1_name, &arg_type, &arg_value, TRACE_EVENT_FLAG_NONE);
 }
 
 // Used by TRACE_EVENTx macros. Do not use directly.

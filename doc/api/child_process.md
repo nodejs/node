@@ -211,7 +211,7 @@ Unlike the exec(3) POSIX system call, `child_process.exec()` does not replace
 the existing process and uses a shell to execute the command.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `stdout` and `stderr` properties. In case of an
+a `Promise` for an `Object` with `stdout` and `stderr` properties. In case of an
 error (including any error resulting in an exit code other than 0), a rejected
 promise is returned, with the same `error` object given in the callback, but
 with an additional two properties `stdout` and `stderr`.
@@ -290,7 +290,7 @@ stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `stdout` and `stderr` properties. In case of an
+a `Promise` for an `Object` with `stdout` and `stderr` properties. In case of an
 error (including any error resulting in an exit code other than 0), a rejected
 promise is returned, with the same `error` object given in the
 callback, but with an additional two properties `stdout` and `stderr`.
@@ -652,7 +652,7 @@ child registers an event handler for the [`'disconnect'`][] event
 or the [`'message'`][] event. This allows the child to exit
 normally without the process being held open by the open IPC channel.*
 
-See also: [`child_process.exec()`][] and [`child_process.fork()`][]
+See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
 ## Synchronous Process Creation
 
@@ -776,7 +776,7 @@ process has exited.*
 
 If the process times out or has a non-zero exit code, this method ***will***
 throw. The [`Error`][] object will contain the entire result from
-[`child_process.spawnSync()`][]
+[`child_process.spawnSync()`][].
 
 **Never pass unsanitized user input to this function. Any input containing shell
 metacharacters may be used to trigger arbitrary command execution.**
@@ -1056,7 +1056,7 @@ does not indicate that the child process has been terminated.
 added: v0.1.90
 -->
 
-* {number} Integer
+* {integer}
 
 Returns the process identifier (PID) of the child process.
 

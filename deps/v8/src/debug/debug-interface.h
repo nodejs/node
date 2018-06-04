@@ -5,6 +5,7 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
+#include "include/v8-inspector.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
 
@@ -28,6 +29,9 @@ namespace debug {
 
 void SetContextId(Local<Context> context, int id);
 int GetContextId(Local<Context> context);
+
+void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
+v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
 /**
  * Debugger is running in its own context which is entered while debugger
@@ -119,8 +123,11 @@ bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
  * \param data the parameter provided during callback installation.
  */
 typedef void (*OutOfMemoryCallback)(void* data);
-void SetOutOfMemoryCallback(Isolate* isolate, OutOfMemoryCallback callback,
-                            void* data);
+
+V8_DEPRECATED("Use v8::Isolate::AddNearHeapLimitCallback",
+              void SetOutOfMemoryCallback(Isolate* isolate,
+                                          OutOfMemoryCallback callback,
+                                          void* data));
 
 /**
  * Native wrapper around v8::internal::Script object.
@@ -166,6 +173,7 @@ class WasmScript : public Script {
   std::pair<int, int> GetFunctionRange(int function_index) const;
 
   debug::WasmDisassembly DisassembleFunction(int function_index) const;
+  uint32_t GetFunctionHash(int function_index);
 };
 
 void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
@@ -203,10 +211,6 @@ void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
-
-v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
-                                         v8::Local<v8::Value> value,
-                                         bool* is_key_value);
 
 enum Builtin {
   kObjectKeys,
@@ -498,7 +502,13 @@ int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
 v8::MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
-                                         v8::Local<v8::String> source);
+                                         v8::Local<v8::String> source,
+                                         bool throw_on_side_effect);
+
+int GetDebuggingId(v8::Local<v8::Function> function);
+
+bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                           v8::Local<v8::String> condition, BreakpointId* id);
 
 }  // namespace debug
 }  // namespace v8

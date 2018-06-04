@@ -72,6 +72,8 @@ static void Initialize(Local<Object> target,
 
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
+  if (config_preserve_symlinks_main)
+    READONLY_BOOLEAN_PROPERTY("preserveSymlinksMain");
 
   if (config_experimental_modules) {
     READONLY_BOOLEAN_PROPERTY("experimentalModules");

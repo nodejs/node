@@ -8,8 +8,7 @@
 
 Much of the Node.js core API is built around an idiomatic asynchronous
 event-driven architecture in which certain kinds of objects (called "emitters")
-periodically emit named events that cause Function objects ("listeners") to be
-called.
+emit named events that cause `Function` objects ("listeners") to be called.
 
 For instance: a [`net.Server`][] object emits an event each time a peer
 connects to it; a [`fs.ReadStream`][] emits an event when the file is opened;
@@ -44,21 +43,21 @@ myEmitter.emit('event');
 ## Passing arguments and `this` to listeners
 
 The `eventEmitter.emit()` method allows an arbitrary set of arguments to be
-passed to the listener functions. It is important to keep in mind that when an
-ordinary listener function is called by the `EventEmitter`, the standard `this`
-keyword is intentionally set to reference the `EventEmitter` to which the
+passed to the listener functions. It is important to keep in mind that when
+an ordinary listener function is called, the standard `this` keyword
+is intentionally set to reference the `EventEmitter` instance to which the
 listener is attached.
 
 ```js
 const myEmitter = new MyEmitter();
 myEmitter.on('event', function(a, b) {
-  console.log(a, b, this);
+  console.log(a, b, this, this === myEmitter);
   // Prints:
   //   a b MyEmitter {
   //     domain: null,
   //     _events: { event: [Function] },
   //     _eventsCount: 1,
-  //     _maxListeners: undefined }
+  //     _maxListeners: undefined } true
 });
 myEmitter.emit('event', 'a', 'b');
 ```
@@ -167,7 +166,7 @@ The `EventEmitter` class is defined and exposed by the `events` module:
 const EventEmitter = require('events');
 ```
 
-All EventEmitters emit the event `'newListener'` when new listeners are
+All `EventEmitter`s emit the event `'newListener'` when new listeners are
 added and `'removeListener'` when existing listeners are removed.
 
 ### Event: 'newListener'
@@ -314,7 +313,7 @@ added: v6.0.0
 - Returns: {Array}
 
 Returns an array listing the events for which the emitter has registered
-listeners. The values in the array will be strings or Symbols.
+listeners. The values in the array will be strings or `Symbol`s.
 
 ```js
 const EventEmitter = require('events');
@@ -589,7 +588,7 @@ added: v0.3.5
 - `n` {integer}
 - Returns: {EventEmitter}
 
-By default EventEmitters will print a warning if more than `10` listeners are
+By default `EventEmitter`s will print a warning if more than `10` listeners are
 added for a particular event. This is a useful default that helps finding
 memory leaks. Obviously, not all events should be limited to just 10 listeners.
 The `emitter.setMaxListeners()` method allows the limit to be modified for this

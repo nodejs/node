@@ -56,6 +56,9 @@ function IcProcessor() {
       'KeyedStoreIC': {
         parsers : propertyICParser,
         processor: this.processPropertyIC.bind(this, "KeyedStoreIC") },
+      'StoreInArrayLiteralIC': {
+        parsers : propertyICParser,
+        processor: this.processPropertyIC.bind(this, "StoreInArrayLiteralIC") },
       });
   this.deserializedEntriesNames_ = [];
   this.profile_ = new Profile();
@@ -64,6 +67,7 @@ function IcProcessor() {
   this.StoreIC = 0;
   this.KeyedLoadIC = 0;
   this.KeyedStoreIC = 0;
+  this.StoreInArrayLiteralIC = 0;
 }
 inherits(IcProcessor, LogReader);
 
@@ -104,6 +108,7 @@ IcProcessor.prototype.processLogFile = function(fileName) {
   print("Store: " + this.StoreIC);
   print("KeyedLoad: " + this.KeyedLoadIC);
   print("KeyedStore: " + this.KeyedStoreIC);
+  print("StoreInArrayLiteral: " + this.StoreInArrayLiteralIC);
 };
 
 IcProcessor.prototype.addEntry = function(entry) {

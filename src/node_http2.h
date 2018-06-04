@@ -9,6 +9,7 @@
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 
+#include <algorithm>
 #include <queue>
 
 namespace node {
@@ -16,66 +17,10 @@ namespace http2 {
 
 using v8::Array;
 using v8::Context;
-using v8::EscapableHandleScope;
 using v8::Isolate;
 using v8::MaybeLocal;
 
 using performance::PerformanceEntry;
-
-#ifdef NODE_DEBUG_HTTP2
-
-// Adapted from nghttp2 own debug printer
-static inline void _debug_vfprintf(const char* fmt, va_list args) {
-  vfprintf(stderr, fmt, args);
-}
-
-void inline debug_vfprintf(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  _debug_vfprintf(format, args);
-  va_end(args);
-}
-
-#define DEBUG_HTTP2(...) debug_vfprintf(__VA_ARGS__);
-#define DEBUG_HTTP2SESSION(session, message)                                  \
-  do {                                                                        \
-    if (session != nullptr) {                                                 \
-      DEBUG_HTTP2("Http2Session %s (%.0lf) " message "\n",                    \
-                  session->TypeName(),                                        \
-                  session->get_async_id());                                   \
-     }                                                                        \
-  } while (0)
-#define DEBUG_HTTP2SESSION2(session, message, ...)                            \
-  do {                                                                        \
-    if (session != nullptr) {                                                 \
-      DEBUG_HTTP2("Http2Session %s (%.0lf) " message "\n",                    \
-                  session->TypeName(),                                        \
-                  session->get_async_id(),                                    \
-                  __VA_ARGS__);                                               \
-    }                                                                         \
-  } while (0)
-#define DEBUG_HTTP2STREAM(stream, message)                                    \
-  do {                                                                        \
-    DEBUG_HTTP2("Http2Stream %d (%.0lf) [Http2Session %s (%.0lf)] " message   \
-                "\n", stream->id(), stream->get_async_id(),                   \
-                stream->session()->TypeName(),                                \
-                stream->session()->get_async_id());                           \
-  } while (0)
-#define DEBUG_HTTP2STREAM2(stream, message, ...)                              \
-  do {                                                                        \
-    DEBUG_HTTP2("Http2Stream %d (%.0lf) [Http2Session %s (%.0lf)] " message   \
-                "\n", stream->id(), stream->get_async_id(),                   \
-                stream->session()->TypeName(),                                \
-                stream->session()->get_async_id(),                            \
-                __VA_ARGS__);                                                 \
-  } while (0)
-#else
-#define DEBUG_HTTP2(...) do {} while (0)
-#define DEBUG_HTTP2SESSION(...) do {} while (0)
-#define DEBUG_HTTP2SESSION2(...) do {} while (0)
-#define DEBUG_HTTP2STREAM(...) do {} while (0)
-#define DEBUG_HTTP2STREAM2(...) do {} while (0)
-#endif
 
 // We strictly limit the number of outstanding unacknowledged PINGS a user
 // may send in order to prevent abuse. The current default cap is 10. The
@@ -434,7 +379,8 @@ enum session_state_flags {
   SESSION_STATE_HAS_SCOPE = 0x1,
   SESSION_STATE_WRITE_SCHEDULED = 0x2,
   SESSION_STATE_CLOSED = 0x4,
-  SESSION_STATE_SENDING = 0x8,
+  SESSION_STATE_CLOSING = 0x8,
+  SESSION_STATE_SENDING = 0x10,
 };
 
 // This allows for 4 default-sized frames with their frame headers
@@ -557,6 +503,7 @@ class Http2Stream : public AsyncWrap,
   nghttp2_stream* operator*();
 
   Http2Session* session() { return session_; }
+  const Http2Session* session() const { return session_; }
 
   void EmitStatistics();
 
@@ -620,7 +567,7 @@ class Http2Stream : public AsyncWrap,
 
   inline bool IsClosed() const {
     return flags_ & NGHTTP2_STREAM_FLAG_CLOSED;
-    }
+  }
 
   inline bool HasTrailers() const {
     return flags_ & NGHTTP2_STREAM_FLAG_TRAILERS;
@@ -675,6 +622,7 @@ class Http2Stream : public AsyncWrap,
               uv_stream_t* send_handle) override;
 
   size_t self_size() const override { return sizeof(*this); }
+  std::string diagnostic_name() const override;
 
   // JavaScript API
   static void GetID(const FunctionCallbackInfo<Value>& args);
@@ -819,7 +767,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   inline uint32_t GetMaxHeaderPairs() const { return max_header_pairs_; }
 
-  inline const char* TypeName();
+  inline const char* TypeName() const;
 
   inline bool IsDestroyed() {
     return (flags_ & SESSION_STATE_CLOSED) || session_ == nullptr;
@@ -827,6 +775,9 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   // Schedule a write if nghttp2 indicates it wants to write to the socket.
   void MaybeScheduleWrite();
+
+  // Stop reading if nghttp2 doesn't want to anymore.
+  void MaybeStopReading();
 
   // Returns pointer to the stream, or nullptr if stream does not exist
   inline Http2Stream* FindStream(int32_t id);
@@ -846,10 +797,17 @@ class Http2Session : public AsyncWrap, public StreamListener {
   ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
 
   size_t self_size() const override { return sizeof(*this); }
+  std::string diagnostic_name() const override;
 
   // Schedule an RstStream for after the current write finishes.
   inline void AddPendingRstStream(int32_t stream_id) {
     pending_rst_streams_.emplace_back(stream_id);
+  }
+
+  inline bool HasPendingRstStream(int32_t stream_id) {
+    return pending_rst_streams_.end() != std::find(pending_rst_streams_.begin(),
+                                                   pending_rst_streams_.end(),
+                                                   stream_id);
   }
 
   // Handle reads/writes from the underlying network transport.
@@ -1149,7 +1107,6 @@ class Http2StreamPerformanceEntry : public PerformanceEntry {
 class Http2Session::Http2Ping : public AsyncWrap {
  public:
   explicit Http2Ping(Http2Session* session);
-  ~Http2Ping();
 
   size_t self_size() const override { return sizeof(*this); }
 
@@ -1170,7 +1127,6 @@ class Http2Session::Http2Settings : public AsyncWrap {
  public:
   explicit Http2Settings(Environment* env);
   explicit Http2Settings(Http2Session* session);
-  ~Http2Settings();
 
   size_t self_size() const override { return sizeof(*this); }
 
@@ -1225,7 +1181,7 @@ class ExternalHeader :
                                   vec.len);
   }
 
-  template<bool may_internalize>
+  template <bool may_internalize>
   static MaybeLocal<String> New(Environment* env, nghttp2_rcbuf* buf) {
     if (nghttp2_rcbuf_is_static(buf)) {
       auto& static_str_map = env->isolate_data()->http2_static_strs;

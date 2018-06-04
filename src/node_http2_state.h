@@ -84,9 +84,9 @@ namespace http2 {
     IDX_SESSION_STATS_COUNT
   };
 
-class http2_state {
+class Http2State {
  public:
-  explicit http2_state(v8::Isolate* isolate) :
+  explicit Http2State(v8::Isolate* isolate) :
     root_buffer(
       isolate,
       sizeof(http2_state_internal)),

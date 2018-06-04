@@ -19,20 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose-internals
-
 'use strict';
 
 /* eslint-disable node-core/prefer-common-expectserror */
 
 const common = require('../common');
 const assert = require('assert');
-const { EOL } = require('os');
-const EventEmitter = require('events');
-const { errorCache } = require('internal/errors');
-const { writeFileSync, unlinkSync } = require('fs');
 const { inspect } = require('util');
 const a = assert;
+
+// Disable colored output to prevent color codes from breaking assertion
+// message comparisons. This should only be an issue when process.stdout
+// is a TTY.
+if (process.stdout.isTTY)
+  process.env.NODE_DISABLE_COLORS = '1';
 
 const start = 'Input A expected to strictly deep-equal input B:';
 const actExp = '+ expected - actual';
@@ -456,8 +456,8 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert.ok(typeof 123 === 'string')${EOL}`
+      message: 'The expression evaluated to a falsy value:\n\n  ' +
+               "assert.ok(typeof 123 === 'string')\n"
     }
   );
   Error.stackTraceLimit = tmpLimit;
@@ -619,8 +619,8 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     generatedMessage: true,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert.ok(null)${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(null)\n'
   }
 );
 common.expectsError(
@@ -629,8 +629,18 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     generatedMessage: true,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert(typeof 123 === 'string')${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             "assert(typeof 123 === 'string')\n"
+  }
+);
+
+common.expectsError(
+  () => assert(false, Symbol('foo')),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    generatedMessage: false,
+    message: 'Symbol(foo)'
   }
 );
 
@@ -650,8 +660,8 @@ common.expectsError(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert(Buffer.from('test') instanceof Error)${EOL}`
+      message: 'The expression evaluated to a falsy value:\n\n  ' +
+               "assert(Buffer.from('test') instanceof Error)\n"
     }
   );
   common.expectsError(
@@ -659,8 +669,8 @@ common.expectsError(
     {
       code: 'ERR_ASSERTION',
       type: assert.AssertionError,
-      message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-               `assert(Buffer.from('test') instanceof Error)${EOL}`
+      message: 'The expression evaluated to a falsy value:\n\n  ' +
+               "assert(Buffer.from('test') instanceof Error)\n"
     }
   );
   fs.close = tmp;
@@ -679,22 +689,63 @@ common.expectsError(
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert((() => 'string')()${EOL}` +
-             `      // eslint-disable-next-line${EOL}` +
-             `      ===${EOL}` +
-             `      123 instanceof${EOL}` +
-             `          Buffer)${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n' +
+             '  assert((() => \'string\')()\n' +
+             '    // eslint-disable-next-line\n' +
+             '    ===\n' +
+             '    123 instanceof\n' +
+             '        Buffer)\n'
   }
 );
+
+common.expectsError(
+  () => {
+    a(
+      (() => 'string')()
+      // eslint-disable-next-line
+      ===
+  123 instanceof
+          Buffer
+    );
+  },
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: 'The expression evaluated to a falsy value:\n\n' +
+             '  assert((() => \'string\')()\n' +
+             '    // eslint-disable-next-line\n' +
+             '    ===\n' +
+             '  123 instanceof\n' +
+             '        Buffer)\n'
+  }
+);
+
+/* eslint-disable indent */
+common.expectsError(() => {
+a((
+  () => 'string')() ===
+123 instanceof
+Buffer
+);
+}, {
+  code: 'ERR_ASSERTION',
+  type: assert.AssertionError,
+  message: 'The expression evaluated to a falsy value:\n\n' +
+           '  assert((\n' +
+           '    () => \'string\')() ===\n' +
+           '  123 instanceof\n' +
+           '  Buffer)\n'
+  }
+);
+/* eslint-enable indent */
 
 common.expectsError(
   () => assert(null, undefined),
   {
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
-    message: `The expression evaluated to a falsy value:${EOL}${EOL}  ` +
-             `assert(null, undefined)${EOL}`
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert(null, undefined)\n'
   }
 );
 
@@ -727,37 +778,15 @@ common.expectsError(
   }
 );
 
-// Do not try to check Node.js modules.
-{
-  const e = new EventEmitter();
-
-  e.on('hello', assert);
-
-  let threw = false;
-  try {
-    e.emit('hello', false);
-  } catch (err) {
-    const frames = err.stack.split('\n');
-    const [, filename, line, column] = frames[1].match(/\((.+):(\d+):(\d+)\)/);
-    // Reset the cache to check again
-    errorCache.delete(`${filename}${line - 1}${column - 1}`);
-    const data = `${'\n'.repeat(line - 1)}${' '.repeat(column - 1)}` +
-                 'ok(failed(badly));';
-    try {
-      writeFileSync(filename, data);
-      assert.throws(
-        () => e.emit('hello', false),
-        {
-          message: 'false == true'
-        }
-      );
-      threw = true;
-    } finally {
-      unlinkSync(filename);
-    }
+// works in eval
+common.expectsError(
+  () => new Function('assert', 'assert(1 === 2);')(assert),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: 'false == true'
   }
-  assert(threw);
-}
+);
 
 common.expectsError(
   // eslint-disable-next-line no-restricted-syntax
@@ -769,6 +798,21 @@ common.expectsError(
              'Function, or RegExp. Received type string'
   }
 );
+
+[
+  1,
+  false,
+  Symbol()
+].forEach((input) => {
+  assert.throws(
+    () => assert.throws(() => {}, input),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "error" argument must be one of type Object, Error, ' +
+               `Function, or RegExp. Received type ${typeof input}`
+    }
+  );
+});
 
 {
   const errFn = () => {
@@ -849,6 +893,7 @@ common.expectsError(
     {
       name: 'AssertionError [ERR_ASSERTION]',
       code: 'ERR_ASSERTION',
+      generatedMessage: true,
       message: `${start}\n${actExp}\n\n` +
                "  Comparison {\n    name: 'Error',\n-   message: 'foo'" +
                "\n+   message: ''\n  }"
@@ -867,6 +912,14 @@ common.expectsError(
     }
   );
 }
+
+assert.throws(
+  () => assert.throws(() => { throw new Error(); }, {}),
+  {
+    message: "The argument 'error' may not be an empty object. Received {}",
+    code: 'ERR_INVALID_ARG_VALUE'
+  }
+);
 
 assert.throws(
   () => a.throws(
@@ -911,6 +964,70 @@ assert.throws(
     {
       message: 'Input A expected to strictly equal input B:\n+ expected' +
                " - actual\n\n- [Arguments] {\n+ {\n    '0': 'a'\n  }"
+    }
+  );
+}
+
+assert.throws(
+  () => { throw new TypeError('foobar'); },
+  {
+    message: /foo/,
+    name: /^TypeError$/
+  }
+);
+
+assert.throws(
+  () => assert.throws(
+    () => { throw new TypeError('foobar'); },
+    {
+      message: /fooa/,
+      name: /^TypeError$/
+    }
+  ),
+  {
+    message: `${start}\n${actExp}\n\n` +
+             '  Comparison {\n' +
+             "-   message: 'foobar',\n" +
+             '+   message: /fooa/,\n' +
+             "    name: 'TypeError'\n" +
+             '  }'
+  }
+);
+
+{
+  let actual = null;
+  const expected = { message: 'foo' };
+  assert.throws(
+    () => assert.throws(
+      () => { throw actual; },
+      expected
+    ),
+    {
+      operator: 'throws',
+      actual,
+      expected,
+      generatedMessage: true,
+      message: `${start}\n${actExp}\n\n` +
+              '- null\n' +
+              '+ {\n' +
+              "+   message: 'foo'\n" +
+              '+ }'
+    }
+  );
+
+  actual = 'foobar';
+  const message = 'message';
+  assert.throws(
+    () => assert.throws(
+      () => { throw actual; },
+      { message: 'foobar' },
+      message
+    ),
+    {
+      actual,
+      message,
+      operator: 'throws',
+      generatedMessage: false
     }
   );
 }

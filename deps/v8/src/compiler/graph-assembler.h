@@ -196,6 +196,7 @@ class GraphAssembler {
   Node* Unreachable();
 
   Node* Float64RoundDown(Node* value);
+  Node* Float64RoundTruncate(Node* value);
 
   Node* ToNumber(Node* value);
   Node* BitcastWordToTagged(Node* value);

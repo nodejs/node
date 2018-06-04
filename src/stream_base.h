@@ -257,8 +257,7 @@ class StreamBase : public StreamResource {
  public:
   enum Flags {
     kFlagNone = 0x0,
-    kFlagHasWritev = 0x1,
-    kFlagNoShutdown = 0x2
+    kFlagHasWritev = 0x1
   };
 
   template <class Base>
@@ -351,7 +350,6 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
  public:
   SimpleShutdownWrap(StreamBase* stream,
                      v8::Local<v8::Object> req_wrap_obj);
-  ~SimpleShutdownWrap();
 
   AsyncWrap* GetAsyncWrap() override { return this; }
   size_t self_size() const override { return sizeof(*this); }
@@ -362,7 +360,6 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
  public:
   SimpleWriteWrap(StreamBase* stream,
                   v8::Local<v8::Object> req_wrap_obj);
-  ~SimpleWriteWrap();
 
   AsyncWrap* GetAsyncWrap() override { return this; }
   size_t self_size() const override { return sizeof(*this) + StorageSize(); }

@@ -8,8 +8,8 @@
 #include "src/contexts.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
-#include "src/factory.h"
 #include "src/frames-inl.h"
+#include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/property-details.h"
@@ -28,6 +28,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_is_special_data_property(true);
   info->set_is_sloppy(false);
   info->set_replace_on_access(false);
+  info->set_has_no_side_effect(false);
   name = factory->InternalizeName(name);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
@@ -78,7 +79,7 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
 
 namespace {
 
-MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
     Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
     Handle<Name> name, Handle<Object> value) {
   LookupIterator it(receiver, name, holder,
@@ -97,6 +98,9 @@ MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
 
 }  // namespace
 
+//
+// Accessors::ReconfigureToDataProperty
+//
 void Accessors::ReconfigureToDataProperty(
     v8::Local<v8::Name> key, v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
@@ -116,6 +120,18 @@ void Accessors::ReconfigureToDataProperty(
   } else {
     info.GetReturnValue().Set(true);
   }
+}
+
+void Accessors::ReconfigureToDataPropertyGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  UNREACHABLE();
+}
+
+Handle<AccessorInfo> Accessors::MakeReconfigureToDataPropertyInfo(
+    Isolate* isolate) {
+  Handle<Name> name = isolate->factory()->ReconfigureToDataProperty_string();
+  return MakeAccessor(isolate, name, &ReconfigureToDataPropertyGetter,
+                      &ReconfigureToDataProperty);
 }
 
 //
@@ -298,7 +314,6 @@ Handle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &StringLengthGetter, nullptr);
 }
-
 
 //
 // Accessors::ScriptColumnOffset
@@ -613,7 +628,7 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
   if (script->has_eval_from_shared()) {
     Handle<SharedFunctionInfo> shared(script->eval_from_shared());
     // Find the name of the function calling eval.
-    result = Handle<Object>(shared->name(), isolate);
+    result = Handle<Object>(shared->Name(), isolate);
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }

@@ -29,8 +29,8 @@ Debug = debug.Debug
 
 // Make sure that the backtrace command can be processed when the receiver is
 // undefined.
-listenerCalled = false;
-exception = false;
+let listenerCalled = false;
+let exceptionThrown = false;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -47,7 +47,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     print(e);
-    exception = e
+    exceptionThrown = true;
   };
 };
 
@@ -67,6 +67,6 @@ try {
   // Ignore the exception "Cannot call method 'x' of undefined"
 }
 
-assertFalse(exception, "exception in listener", exception)
+assertFalse(exceptionThrown, "exception in listener");
 // Make sure that the debug event listener vas invoked.
 assertTrue(listenerCalled, "listener not called");

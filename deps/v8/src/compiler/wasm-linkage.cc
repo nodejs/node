@@ -32,6 +32,8 @@ MachineType MachineTypeFor(ValueType type) {
       return MachineType::Float32();
     case wasm::kWasmS128:
       return MachineType::Simd128();
+    case wasm::kWasmAnyRef:
+      return MachineType::TaggedPointer();
     default:
       UNREACHABLE();
   }
@@ -223,16 +225,18 @@ static constexpr Allocator parameter_registers(kGPParamRegisters,
 }  // namespace
 
 // General code uses the above configuration data.
-CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
-  // The '+ 1' here is to accomodate the wasm_context as first parameter.
+CallDescriptor* GetWasmCallDescriptor(
+    Zone* zone, wasm::FunctionSig* fsig,
+    WasmGraphBuilder::UseRetpoline use_retpoline) {
+  // The '+ 1' here is to accomodate the instance object as first parameter.
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + 1);
 
   // Add register and/or stack parameter(s).
   Allocator params = parameter_registers;
 
-  // The wasm_context.
-  locations.AddParam(params.Next(MachineType::PointerRepresentation()));
+  // The instance object.
+  locations.AddParam(params.Next(MachineRepresentation::kTaggedPointer));
 
   const int parameter_count = static_cast<int>(fsig->parameter_count());
   for (int i = 0; i < parameter_count; i++) {
@@ -256,24 +260,22 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
   const RegList kCalleeSaveFPRegisters = 0;
 
   // The target for wasm calls is always a code object.
-  MachineType target_type = FLAG_wasm_jit_to_native ? MachineType::Pointer()
-                                                    : MachineType::AnyTagged();
+  MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
-  CallDescriptor::Kind kind = FLAG_wasm_jit_to_native
-                                  ? CallDescriptor::kCallWasmFunction
-                                  : CallDescriptor::kCallCodeObject;
+  CallDescriptor::Kind kind = CallDescriptor::kCallWasmFunction;
 
-  return new (zone) CallDescriptor(              // --
-      kind,                                      // kind
-      target_type,                               // target MachineType
-      target_loc,                                // target location
-      locations.Build(),                         // location_sig
-      params.stack_offset,                       // stack_parameter_count
-      compiler::Operator::kNoProperties,         // properties
-      kCalleeSaveRegisters,                      // callee-saved registers
-      kCalleeSaveFPRegisters,                    // callee-saved fp regs
-      CallDescriptor::kNoFlags,                  // flags
+  return new (zone) CallDescriptor(       // --
+      kind,                               // kind
+      target_type,                        // target MachineType
+      target_loc,                         // target location
+      locations.Build(),                  // location_sig
+      params.stack_offset,                // stack_parameter_count
+      compiler::Operator::kNoProperties,  // properties
+      kCalleeSaveRegisters,               // callee-saved registers
+      kCalleeSaveFPRegisters,             // callee-saved fp regs
+      use_retpoline ? CallDescriptor::kRetpoline
+                    : CallDescriptor::kNoFlags,  // flags
       "wasm-call",                               // debug name
       0,                                         // allocatable registers
       rets.stack_offset - params.stack_offset);  // stack_return_count

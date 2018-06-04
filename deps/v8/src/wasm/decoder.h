@@ -46,6 +46,8 @@ class Decoder {
 
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, start, end, buffer_offset) {}
+  explicit Decoder(const Vector<const byte> bytes, uint32_t buffer_offset = 0)
+      : Decoder(bytes.start(), bytes.start() + bytes.length(), buffer_offset) {}
   Decoder(const byte* start, const byte* pc, const byte* end,
           uint32_t buffer_offset = 0)
       : start_(start), pc_(pc), end_(end), buffer_offset_(buffer_offset) {
@@ -248,6 +250,7 @@ class Decoder {
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
+  uint32_t position() const { return static_cast<uint32_t>(pc_ - start_); }
   uint32_t pc_offset() const {
     return static_cast<uint32_t>(pc_ - start_) + buffer_offset_;
   }

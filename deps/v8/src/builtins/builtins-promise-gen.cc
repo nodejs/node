@@ -198,6 +198,50 @@ Node* PromiseBuiltinsAssembler::CreatePromiseContext(Node* native_context,
   return context;
 }
 
+Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
+    Node* promise_capability, Node* native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  // TODO(bmeurer): Manually fold this into a single allocation.
+  Node* const array_map = LoadContextElement(
+      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
+  Node* const values_array = AllocateJSArray(PACKED_ELEMENTS, array_map,
+                                             IntPtrConstant(0), SmiConstant(0));
+
+  Node* const context =
+      CreatePromiseContext(native_context, kPromiseAllResolveElementLength);
+  StoreContextElementNoWriteBarrier(
+      context, kPromiseAllResolveElementRemainingSlot, SmiConstant(1));
+  StoreContextElementNoWriteBarrier(
+      context, kPromiseAllResolveElementCapabilitySlot, promise_capability);
+  StoreContextElementNoWriteBarrier(
+      context, kPromiseAllResolveElementValuesArraySlot, values_array);
+
+  return context;
+}
+
+Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementFunction(
+    Node* context, Node* index, Node* native_context) {
+  CSA_ASSERT(this, TaggedIsSmi(index));
+  CSA_ASSERT(this, SmiGreaterThan(index, SmiConstant(0)));
+  CSA_ASSERT(this, SmiLessThanOrEqual(
+                       index, SmiConstant(PropertyArray::HashField::kMax)));
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  Node* const map = LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  Node* const resolve_info = LoadContextElement(
+      native_context, Context::PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN);
+  Node* const resolve =
+      AllocateFunctionWithMapAndContext(map, resolve_info, context);
+
+  STATIC_ASSERT(PropertyArray::kNoHashSentinel == 0);
+  StoreObjectFieldNoWriteBarrier(resolve, JSFunction::kPropertiesOrHashOffset,
+                                 index);
+
+  return resolve;
+}
+
 Node* PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
     Node* promise, Node* debug_event, Node* native_context) {
   Node* const context =
@@ -347,15 +391,15 @@ TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
   Return(result_promise);
 }
 
-Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(Node* next,
-                                                        Node* payload,
-                                                        Node* fulfill_handler,
-                                                        Node* reject_handler) {
+Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(
+    Node* next, Node* promise_or_capability, Node* fulfill_handler,
+    Node* reject_handler) {
   Node* const reaction = Allocate(PromiseReaction::kSize);
   StoreMapNoWriteBarrier(reaction, Heap::kPromiseReactionMapRootIndex);
   StoreObjectFieldNoWriteBarrier(reaction, PromiseReaction::kNextOffset, next);
-  StoreObjectFieldNoWriteBarrier(reaction, PromiseReaction::kPayloadOffset,
-                                 payload);
+  StoreObjectFieldNoWriteBarrier(reaction,
+                                 PromiseReaction::kPromiseOrCapabilityOffset,
+                                 promise_or_capability);
   StoreObjectFieldNoWriteBarrier(
       reaction, PromiseReaction::kFulfillHandlerOffset, fulfill_handler);
   StoreObjectFieldNoWriteBarrier(
@@ -364,7 +408,8 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(Node* next,
 }
 
 Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-    Node* map, Node* context, Node* argument, Node* handler, Node* payload) {
+    Node* map, Node* context, Node* argument, Node* handler,
+    Node* promise_or_capability) {
   Node* const microtask = Allocate(PromiseReactionJobTask::kSize);
   StoreMapNoWriteBarrier(microtask, map);
   StoreObjectFieldNoWriteBarrier(
@@ -374,18 +419,19 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
   StoreObjectFieldNoWriteBarrier(
       microtask, PromiseReactionJobTask::kHandlerOffset, handler);
   StoreObjectFieldNoWriteBarrier(
-      microtask, PromiseReactionJobTask::kPayloadOffset, payload);
+      microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset,
+      promise_or_capability);
   return microtask;
 }
 
 Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
     Heap::RootListIndex map_root_index, Node* context, Node* argument,
-    Node* handler, Node* payload) {
+    Node* handler, Node* promise_or_capability) {
   DCHECK(map_root_index == Heap::kPromiseFulfillReactionJobTaskMapRootIndex ||
          map_root_index == Heap::kPromiseRejectReactionJobTaskMapRootIndex);
   Node* const map = LoadRoot(map_root_index);
   return AllocatePromiseReactionJobTask(map, context, argument, handler,
-                                        payload);
+                                        promise_or_capability);
 }
 
 Node* PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
@@ -458,8 +504,8 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          context);
         STATIC_ASSERT(PromiseReaction::kFulfillHandlerOffset ==
                       PromiseReactionJobTask::kHandlerOffset);
-        STATIC_ASSERT(PromiseReaction::kPayloadOffset ==
-                      PromiseReactionJobTask::kPayloadOffset);
+        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
+                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
       } else {
         Node* handler =
             LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
@@ -471,8 +517,8 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          context);
         StoreObjectField(current, PromiseReactionJobTask::kHandlerOffset,
                          handler);
-        STATIC_ASSERT(PromiseReaction::kPayloadOffset ==
-                      PromiseReactionJobTask::kPayloadOffset);
+        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
+                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
       }
       CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), current);
       Goto(&loop);
@@ -526,6 +572,61 @@ Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
   return var_result.value();
 }
 
+Node* PromiseBuiltinsAssembler::InvokeResolve(Node* native_context,
+                                              Node* constructor, Node* value,
+                                              Label* if_exception,
+                                              Variable* var_exception) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  Label if_fast(this), if_slow(this, Label::kDeferred), done(this, &var_result);
+  // We can skip the "resolve" lookup on {constructor} if it's the
+  // Promise constructor and the Promise.resolve protector is intact,
+  // as that guards the lookup path for the "resolve" property on the
+  // Promise constructor.
+  BranchIfPromiseResolveLookupChainIntact(native_context, constructor, &if_fast,
+                                          &if_slow);
+
+  BIND(&if_fast);
+  {
+    Node* const result = CallBuiltin(Builtins::kPromiseResolve, native_context,
+                                     constructor, value);
+    GotoIfException(result, if_exception, var_exception);
+
+    var_result.Bind(result);
+    Goto(&done);
+  }
+
+  BIND(&if_slow);
+  {
+    Node* const resolve =
+        GetProperty(native_context, constructor, factory()->resolve_string());
+    GotoIfException(resolve, if_exception, var_exception);
+
+    Node* const result = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        native_context, resolve, constructor, value);
+    GotoIfException(result, if_exception, var_exception);
+
+    var_result.Bind(result);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
+void PromiseBuiltinsAssembler::BranchIfPromiseResolveLookupChainIntact(
+    Node* native_context, Node* constructor, Label* if_fast, Label* if_slow) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  GotoIfForceSlowPath(if_slow);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  GotoIfNot(WordEqual(promise_fun, constructor), if_slow);
+  Branch(IsPromiseResolveProtectorCellInvalid(), if_slow, if_fast);
+}
+
 void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
     Node* native_context, Node* promise_map, Label* if_fast, Label* if_slow) {
   CSA_ASSERT(this, IsNativeContext(native_context));
@@ -536,7 +637,7 @@ void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
   GotoIfForceSlowPath(if_slow);
   GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
             if_slow);
-  Branch(IsSpeciesProtectorCellInvalid(), if_slow, if_fast);
+  Branch(IsPromiseSpeciesProtectorCellInvalid(), if_slow, if_fast);
 }
 
 void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
@@ -668,6 +769,18 @@ TF_BUILTIN(PromiseCapabilityDefaultResolve, PromiseBuiltinsAssembler) {
 
 TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
   Node* promise = Parameter(Descriptor::kPromise);
+  Node* reject = Parameter(Descriptor::kReject);
+  Node* exception = Parameter(Descriptor::kException);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Label finally(this);
+
+  GotoIf(IsTheHole(exception), &finally);
+  CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+         context, reject, UndefinedConstant(), exception);
+  Goto(&finally);
+
+  BIND(&finally);
   Return(promise);
 }
 
@@ -999,7 +1112,7 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
       // We need to reject the {thenable}.
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-          native_context, UndefinedConstant(), var_exception.value());
+          native_context, reject, UndefinedConstant(), var_exception.value());
       Return(result);
     }
   }
@@ -1007,28 +1120,20 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
 
 // ES #sec-promisereactionjob
 void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
-                                                  Node* handler, Node* payload,
+                                                  Node* handler,
+                                                  Node* promise_or_capability,
                                                   PromiseReaction::Type type) {
   CSA_ASSERT(this, TaggedIsNotSmi(handler));
-  CSA_ASSERT(this, Word32Or(IsCallable(handler),
-                            Word32Or(IsCode(handler), IsUndefined(handler))));
-  CSA_ASSERT(this, TaggedIsNotSmi(payload));
+  CSA_ASSERT(this, Word32Or(IsUndefined(handler), IsCallable(handler)));
+  CSA_ASSERT(this, TaggedIsNotSmi(promise_or_capability));
+  CSA_ASSERT(this, Word32Or(IsJSPromise(promise_or_capability),
+                            IsPromiseCapability(promise_or_capability)));
 
   VARIABLE(var_handler_result, MachineRepresentation::kTagged, argument);
-  Label if_handler_callable(this), if_fulfill(this), if_reject(this),
-      if_code_handler(this);
-
-  GotoIf(IsUndefined(handler),
-         type == PromiseReaction::kFulfill ? &if_fulfill : &if_reject);
-  Branch(IsCode(handler), &if_code_handler, &if_handler_callable);
-
-  BIND(&if_code_handler);
-  {
-    // The {handler} is a Code object that knows how to deal with
-    // the {payload} and the {argument}.
-    PromiseReactionHandlerDescriptor descriptor(isolate());
-    TailCallStub(descriptor, handler, context, argument, payload);
-  }
+  Label if_handler_callable(this), if_fulfill(this), if_reject(this);
+  Branch(IsUndefined(handler),
+         type == PromiseReaction::kFulfill ? &if_fulfill : &if_reject,
+         &if_handler_callable);
 
   BIND(&if_handler_callable);
   {
@@ -1044,22 +1149,24 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
   {
     Label if_promise(this), if_promise_capability(this, Label::kDeferred);
     Node* const value = var_handler_result.value();
-    Branch(IsPromiseCapability(payload), &if_promise_capability, &if_promise);
+    Branch(IsPromiseCapability(promise_or_capability), &if_promise_capability,
+           &if_promise);
 
     BIND(&if_promise);
     {
       // For fast native promises we can skip the indirection
       // via the promiseCapability.[[Resolve]] function and
       // run the resolve logic directly from here.
-      TailCallBuiltin(Builtins::kResolvePromise, context, payload, value);
+      TailCallBuiltin(Builtins::kResolvePromise, context, promise_or_capability,
+                      value);
     }
 
     BIND(&if_promise_capability);
     {
       // In the general case we need to call the (user provided)
       // promiseCapability.[[Resolve]] function.
-      Node* const resolve =
-          LoadObjectField(payload, PromiseCapability::kResolveOffset);
+      Node* const resolve = LoadObjectField(promise_or_capability,
+                                            PromiseCapability::kResolveOffset);
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           context, resolve, UndefinedConstant(), value);
@@ -1072,15 +1179,16 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
   if (type == PromiseReaction::kReject) {
     Label if_promise(this), if_promise_capability(this, Label::kDeferred);
     Node* const reason = var_handler_result.value();
-    Branch(IsPromiseCapability(payload), &if_promise_capability, &if_promise);
+    Branch(IsPromiseCapability(promise_or_capability), &if_promise_capability,
+           &if_promise);
 
     BIND(&if_promise);
     {
       // For fast native promises we can skip the indirection
       // via the promiseCapability.[[Reject]] function and
       // run the resolve logic directly from here.
-      TailCallBuiltin(Builtins::kRejectPromise, context, payload, reason,
-                      FalseConstant());
+      TailCallBuiltin(Builtins::kRejectPromise, context, promise_or_capability,
+                      reason, FalseConstant());
     }
 
     BIND(&if_promise_capability);
@@ -1090,8 +1198,8 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
       Label if_exception(this, Label::kDeferred);
       VARIABLE(var_exception, MachineRepresentation::kTagged,
                TheHoleConstant());
-      Node* const reject =
-          LoadObjectField(payload, PromiseCapability::kRejectOffset);
+      Node* const reject = LoadObjectField(promise_or_capability,
+                                           PromiseCapability::kRejectOffset);
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           context, reject, UndefinedConstant(), reason);
@@ -1108,7 +1216,8 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
     // predictions in the debugger will be wrong, which just walks the stack
     // and checks for certain builtins.
     TailCallBuiltin(Builtins::kPromiseRejectReactionJob, context,
-                    var_handler_result.value(), UndefinedConstant(), payload);
+                    var_handler_result.value(), UndefinedConstant(),
+                    promise_or_capability);
   }
 }
 
@@ -1117,9 +1226,10 @@ TF_BUILTIN(PromiseFulfillReactionJob, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const value = Parameter(Descriptor::kValue);
   Node* const handler = Parameter(Descriptor::kHandler);
-  Node* const payload = Parameter(Descriptor::kPayload);
+  Node* const promise_or_capability =
+      Parameter(Descriptor::kPromiseOrCapability);
 
-  PromiseReactionJob(context, value, handler, payload,
+  PromiseReactionJob(context, value, handler, promise_or_capability,
                      PromiseReaction::kFulfill);
 }
 
@@ -1128,9 +1238,10 @@ TF_BUILTIN(PromiseRejectReactionJob, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const reason = Parameter(Descriptor::kReason);
   Node* const handler = Parameter(Descriptor::kHandler);
-  Node* const payload = Parameter(Descriptor::kPayload);
+  Node* const promise_or_capability =
+      Parameter(Descriptor::kPromiseOrCapability);
 
-  PromiseReactionJob(context, reason, handler, payload,
+  PromiseReactionJob(context, reason, handler, promise_or_capability,
                      PromiseReaction::kReject);
 }
 
@@ -1171,10 +1282,10 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   // intact, as that guards the lookup path for "constructor" on
   // JSPromise instances which have the (initial) Promise.prototype.
   Node* const promise_prototype =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   GotoIfNot(WordEqual(LoadMapPrototype(value_map), promise_prototype),
             &if_slow_constructor);
-  GotoIf(IsSpeciesProtectorCellInvalid(), &if_slow_constructor);
+  GotoIf(IsPromiseSpeciesProtectorCellInvalid(), &if_slow_constructor);
 
   // If the {constructor} is the Promise function, we just immediately
   // return the {value} here and don't bother wrapping it into a
@@ -1677,26 +1788,23 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     const IteratorRecord& iterator, Label* if_exception,
     Variable* var_exception) {
   IteratorBuiltinsAssembler iter_assembler(state());
-  Label close_iterator(this);
 
   Node* const instrumenting = IsDebugActive();
+  Node* const native_context = LoadNativeContext(context);
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
   SetForwardingHandlerIfTrue(
-      context, instrumenting,
+      native_context, instrumenting,
       LoadObjectField(capability, PromiseCapability::kRejectOffset));
 
-  Node* const native_context = LoadNativeContext(context);
-  Node* const array_map = LoadContextElement(
-      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
-  Node* const values_array = AllocateJSArray(PACKED_ELEMENTS, array_map,
-                                             IntPtrConstant(0), SmiConstant(0));
-  Node* const remaining_elements = AllocateSmiCell(1);
+  Node* const resolve_element_context =
+      CreatePromiseAllResolveElementContext(capability, native_context);
 
-  VARIABLE(var_index, MachineRepresentation::kTagged, SmiConstant(0));
-
-  Label loop(this, &var_index), break_loop(this);
+  VARIABLE(var_index, MachineRepresentation::kTagged, SmiConstant(1));
+  Label loop(this, &var_index), done_loop(this),
+      too_many_elements(this, Label::kDeferred),
+      close_iterator(this, Label::kDeferred);
   Goto(&loop);
   BIND(&loop);
   {
@@ -1706,119 +1814,147 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     Node* const fast_iterator_result_map =
         LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
     Node* const next = iter_assembler.IteratorStep(
-        context, iterator, &break_loop, fast_iterator_result_map, if_exception,
-        var_exception);
+        native_context, iterator, &done_loop, fast_iterator_result_map,
+        if_exception, var_exception);
 
     // Let nextValue be IteratorValue(next).
     // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to
     //     true.
     // ReturnIfAbrupt(nextValue).
     Node* const next_value = iter_assembler.IteratorValue(
-        context, next, fast_iterator_result_map, if_exception, var_exception);
+        native_context, next, fast_iterator_result_map, if_exception,
+        var_exception);
 
     // Let nextPromise be ? Invoke(constructor, "resolve", « nextValue »).
-    Node* const promise_resolve =
-        GetProperty(context, constructor, factory()->resolve_string());
-    GotoIfException(promise_resolve, &close_iterator, var_exception);
+    Node* const next_promise =
+        InvokeResolve(native_context, constructor, next_value, &close_iterator,
+                      var_exception);
 
-    Node* const next_promise = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        context, promise_resolve, constructor, next_value);
-    GotoIfException(next_promise, &close_iterator, var_exception);
-
-    // Let resolveElement be a new built-in function object as defined in
-    // Promise.all Resolve Element Functions.
-    Node* const resolve_context =
-        CreatePromiseContext(native_context, kPromiseAllResolveElementLength);
-    StoreContextElementNoWriteBarrier(
-        resolve_context, kPromiseAllResolveElementIndexSlot, var_index.value());
-    StoreContextElementNoWriteBarrier(
-        resolve_context, kPromiseAllResolveElementRemainingElementsSlot,
-        remaining_elements);
-    StoreContextElementNoWriteBarrier(
-        resolve_context, kPromiseAllResolveElementCapabilitySlot, capability);
-    StoreContextElementNoWriteBarrier(resolve_context,
-                                      kPromiseAllResolveElementValuesArraySlot,
-                                      values_array);
-
-    Node* const map = LoadContextElement(
-        native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-    Node* const resolve_info = LoadContextElement(
-        native_context, Context::PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN);
-    Node* const resolve =
-        AllocateFunctionWithMapAndContext(map, resolve_info, resolve_context);
+    // Check if we reached the limit.
+    Node* const index = var_index.value();
+    GotoIf(SmiEqual(index, SmiConstant(PropertyArray::HashField::kMax)),
+           &too_many_elements);
 
     // Set remainingElementsCount.[[Value]] to
     //     remainingElementsCount.[[Value]] + 1.
-    {
-      Label if_outofrange(this, Label::kDeferred), done(this);
-      IncrementSmiCell(remaining_elements, &if_outofrange);
-      Goto(&done);
+    Node* const remaining_elements_count = LoadContextElement(
+        resolve_element_context, kPromiseAllResolveElementRemainingSlot);
+    StoreContextElementNoWriteBarrier(
+        resolve_element_context, kPromiseAllResolveElementRemainingSlot,
+        SmiAdd(remaining_elements_count, SmiConstant(1)));
 
-      BIND(&if_outofrange);
-      {
-        // If the incremented value is out of Smi range, crash.
-        Abort(AbortReason::kOffsetOutOfRange);
-      }
-
-      BIND(&done);
-    }
+    // Let resolveElement be CreateBuiltinFunction(steps,
+    //                                             « [[AlreadyCalled]],
+    //                                               [[Index]],
+    //                                               [[Values]],
+    //                                               [[Capability]],
+    //                                               [[RemainingElements]] »).
+    // Set resolveElement.[[AlreadyCalled]] to a Record { [[Value]]: false }.
+    // Set resolveElement.[[Index]] to index.
+    // Set resolveElement.[[Values]] to values.
+    // Set resolveElement.[[Capability]] to resultCapability.
+    // Set resolveElement.[[RemainingElements]] to remainingElementsCount.
+    Node* const resolve_element_fun = CreatePromiseAllResolveElementFunction(
+        resolve_element_context, index, native_context);
 
     // Perform ? Invoke(nextPromise, "then", « resolveElement,
     //                  resultCapability.[[Reject]] »).
     Node* const then =
-        GetProperty(context, next_promise, factory()->then_string());
+        GetProperty(native_context, next_promise, factory()->then_string());
     GotoIfException(then, &close_iterator, var_exception);
 
     Node* const then_call = CallJS(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        context, then, next_promise, resolve,
+        native_context, then, next_promise, resolve_element_fun,
         LoadObjectField(capability, PromiseCapability::kRejectOffset));
     GotoIfException(then_call, &close_iterator, var_exception);
 
     // For catch prediction, mark that rejections here are semantically
     // handled by the combined Promise.
-    SetPromiseHandledByIfTrue(context, instrumenting, then_call, [=]() {
+    SetPromiseHandledByIfTrue(native_context, instrumenting, then_call, [=]() {
       // Load promiseCapability.[[Promise]]
       return LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     });
 
-    // Set index to index + 1
-    var_index.Bind(NumberInc(var_index.value()));
+    // Set index to index + 1.
+    var_index.Bind(SmiAdd(index, SmiConstant(1)));
     Goto(&loop);
+  }
+
+  BIND(&too_many_elements);
+  {
+    // If there are too many elements (currently more than 2**21-1), raise a
+    // RangeError here (which is caught directly and turned into a rejection)
+    // of the resulting promise. We could gracefully handle this case as well
+    // and support more than this number of elements by going to a separate
+    // function and pass the larger indices via a separate context, but it
+    // doesn't seem likely that we need this, and it's unclear how the rest
+    // of the system deals with 2**21 live Promises anyways.
+    Node* const result =
+        CallRuntime(Runtime::kThrowRangeError, native_context,
+                    SmiConstant(MessageTemplate::kTooManyElementsInPromiseAll));
+    GotoIfException(result, &close_iterator, var_exception);
+    Unreachable();
   }
 
   BIND(&close_iterator);
   {
     // Exception must be bound to a JS value.
     CSA_ASSERT(this, IsNotTheHole(var_exception->value()));
-    iter_assembler.IteratorCloseOnException(context, iterator, if_exception,
-                                            var_exception);
+    iter_assembler.IteratorCloseOnException(native_context, iterator,
+                                            if_exception, var_exception);
   }
 
-  BIND(&break_loop);
+  BIND(&done_loop);
   {
-    Label resolve_promise(this), return_promise(this);
+    Label resolve_promise(this, Label::kDeferred), return_promise(this);
     // Set iteratorRecord.[[Done]] to true.
     // Set remainingElementsCount.[[Value]] to
     //    remainingElementsCount.[[Value]] - 1.
-    Node* const remaining = DecrementSmiCell(remaining_elements);
-    Branch(SmiEqual(remaining, SmiConstant(0)), &resolve_promise,
-           &return_promise);
+    Node* remaining_elements_count = LoadContextElement(
+        resolve_element_context, kPromiseAllResolveElementRemainingSlot);
+    remaining_elements_count = SmiSub(remaining_elements_count, SmiConstant(1));
+    StoreContextElementNoWriteBarrier(resolve_element_context,
+                                      kPromiseAllResolveElementRemainingSlot,
+                                      remaining_elements_count);
+    GotoIf(SmiEqual(remaining_elements_count, SmiConstant(0)),
+           &resolve_promise);
+
+    // Pre-allocate the backing store for the {values_array} to the desired
+    // capacity here. We may already have elements here in case of some
+    // fancy Thenable that calls the resolve callback immediately, so we need
+    // to handle that correctly here.
+    Node* const values_array = LoadContextElement(
+        resolve_element_context, kPromiseAllResolveElementValuesArraySlot);
+    Node* const old_elements = LoadElements(values_array);
+    Node* const old_capacity = LoadFixedArrayBaseLength(old_elements);
+    Node* const new_capacity = var_index.value();
+    GotoIf(SmiGreaterThanOrEqual(old_capacity, new_capacity), &return_promise);
+    Node* const new_elements =
+        AllocateFixedArray(PACKED_ELEMENTS, new_capacity, SMI_PARAMETERS,
+                           AllocationFlag::kAllowLargeObjectAllocation);
+    CopyFixedArrayElements(PACKED_ELEMENTS, old_elements, PACKED_ELEMENTS,
+                           new_elements, SmiConstant(0), old_capacity,
+                           new_capacity, UPDATE_WRITE_BARRIER, SMI_PARAMETERS);
+    StoreObjectField(values_array, JSArray::kElementsOffset, new_elements);
+    Goto(&return_promise);
 
     // If remainingElementsCount.[[Value]] is 0, then
     //     Let valuesArray be CreateArrayFromList(values).
     //     Perform ? Call(resultCapability.[[Resolve]], undefined,
     //                    « valuesArray »).
     BIND(&resolve_promise);
-
-    Node* const resolve =
-        LoadObjectField(capability, PromiseCapability::kResolveOffset);
-    Node* const resolve_call = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-        context, resolve, UndefinedConstant(), values_array);
-    GotoIfException(resolve_call, if_exception, var_exception);
-    Goto(&return_promise);
+    {
+      Node* const resolve =
+          LoadObjectField(capability, PromiseCapability::kResolveOffset);
+      Node* const values_array = LoadContextElement(
+          resolve_element_context, kPromiseAllResolveElementValuesArraySlot);
+      Node* const resolve_call = CallJS(
+          CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+          native_context, resolve, UndefinedConstant(), values_array);
+      GotoIfException(resolve_call, if_exception, var_exception);
+      Goto(&return_promise);
+    }
 
     // Return resultCapability.[[Promise]].
     BIND(&return_promise);
@@ -1827,31 +1963,6 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
   Node* const promise =
       LoadObjectField(capability, PromiseCapability::kPromiseOffset);
   return promise;
-}
-
-Node* PromiseBuiltinsAssembler::IncrementSmiCell(Node* cell,
-                                                 Label* if_overflow) {
-  CSA_SLOW_ASSERT(this, HasInstanceType(cell, CELL_TYPE));
-  Node* value = LoadCellValue(cell);
-  CSA_SLOW_ASSERT(this, TaggedIsSmi(value));
-
-  if (if_overflow != nullptr) {
-    GotoIf(SmiEqual(value, SmiConstant(Smi::kMaxValue)), if_overflow);
-  }
-
-  Node* result = SmiAdd(value, SmiConstant(1));
-  StoreCellValue(cell, result, SKIP_WRITE_BARRIER);
-  return result;
-}
-
-Node* PromiseBuiltinsAssembler::DecrementSmiCell(Node* cell) {
-  CSA_SLOW_ASSERT(this, HasInstanceType(cell, CELL_TYPE));
-  Node* value = LoadCellValue(cell);
-  CSA_SLOW_ASSERT(this, TaggedIsSmi(value));
-
-  Node* result = SmiSub(value, SmiConstant(1));
-  StoreCellValue(cell, result, SKIP_WRITE_BARRIER);
-  return result;
 }
 
 // ES#sec-promise.all
@@ -1910,60 +2021,96 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, SmiEqual(LoadFixedArrayBaseLength(context),
-                            SmiConstant(kPromiseAllResolveElementLength)));
-
-  Node* const index =
-      LoadContextElement(context, kPromiseAllResolveElementIndexSlot);
-  Node* const values_array =
-      LoadContextElement(context, kPromiseAllResolveElementValuesArraySlot);
+  Node* const function = LoadFromFrame(StandardFrameConstants::kFunctionOffset);
 
   Label already_called(this, Label::kDeferred), resolve_promise(this);
-  GotoIf(SmiLessThan(index, SmiConstant(Smi::kZero)), &already_called);
-  StoreContextElementNoWriteBarrier(context, kPromiseAllResolveElementIndexSlot,
-                                    SmiConstant(-1));
 
-  // Set element in FixedArray
-  Label runtime_set_element(this), did_set_element(this);
-  GotoIfNot(TaggedIsPositiveSmi(index), &runtime_set_element);
+  // We use the {function}s context as the marker to remember whether this
+  // resolve element closure was already called. It points to the resolve
+  // element context (which is a FunctionContext) until it was called the
+  // first time, in which case we make it point to the native context here
+  // to mark this resolve element closure as done.
+  GotoIf(IsNativeContext(context), &already_called);
+  CSA_ASSERT(this, SmiEqual(LoadFixedArrayBaseLength(context),
+                            SmiConstant(kPromiseAllResolveElementLength)));
+  Node* const native_context = LoadNativeContext(context);
+  StoreObjectField(function, JSFunction::kContextOffset, native_context);
+
+  // Determine the index from the {function}.
+  Label unreachable(this, Label::kDeferred);
+  STATIC_ASSERT(PropertyArray::kNoHashSentinel == 0);
+  Node* const identity_hash =
+      LoadJSReceiverIdentityHash(function, &unreachable);
+  CSA_ASSERT(this, IntPtrGreaterThan(identity_hash, IntPtrConstant(0)));
+  Node* const index = IntPtrSub(identity_hash, IntPtrConstant(1));
+
+  // Check if we need to grow the [[ValuesArray]] to store {value} at {index}.
+  Node* const values_array =
+      LoadContextElement(context, kPromiseAllResolveElementValuesArraySlot);
+  Node* const elements = LoadElements(values_array);
+  Node* const values_length =
+      LoadAndUntagObjectField(values_array, JSArray::kLengthOffset);
+  Label if_inbounds(this), if_outofbounds(this), done(this);
+  Branch(IntPtrLessThan(index, values_length), &if_inbounds, &if_outofbounds);
+
+  BIND(&if_outofbounds);
   {
-    VARIABLE(var_elements, MachineRepresentation::kTagged,
-             LoadElements(values_array));
-    PossiblyGrowElementsCapacity(SMI_PARAMETERS, PACKED_ELEMENTS, values_array,
-                                 index, &var_elements, SmiConstant(1),
-                                 &runtime_set_element);
-    StoreFixedArrayElement(var_elements.value(), index, value,
-                           UPDATE_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    // Check if we need to grow the backing store.
+    Node* const new_length = IntPtrAdd(index, IntPtrConstant(1));
+    Node* const elements_length =
+        LoadAndUntagObjectField(elements, FixedArray::kLengthOffset);
+    Label if_grow(this, Label::kDeferred), if_nogrow(this);
+    Branch(IntPtrLessThan(index, elements_length), &if_nogrow, &if_grow);
 
-    // Update array length
-    Label did_set_length(this);
-    Node* const length = LoadJSArrayLength(values_array);
-    GotoIfNot(TaggedIsPositiveSmi(length), &did_set_length);
-    Node* const new_length = SmiAdd(index, SmiConstant(1));
-    GotoIfNot(SmiLessThan(length, new_length), &did_set_length);
-    StoreObjectFieldNoWriteBarrier(values_array, JSArray::kLengthOffset,
-                                   new_length);
-    // Assert that valuesArray.[[Length]] is less than or equal to the
-    // elements backing-store length.e
-    CSA_SLOW_ASSERT(
-        this, SmiAboveOrEqual(LoadFixedArrayBaseLength(var_elements.value()),
-                              new_length));
-    Goto(&did_set_length);
-    BIND(&did_set_length);
+    BIND(&if_grow);
+    {
+      // We need to grow the backing store to fit the {index} as well.
+      Node* const new_elements_length =
+          IntPtrMin(CalculateNewElementsCapacity(new_length),
+                    IntPtrConstant(PropertyArray::HashField::kMax + 1));
+      CSA_ASSERT(this, IntPtrLessThan(index, new_elements_length));
+      CSA_ASSERT(this, IntPtrLessThan(elements_length, new_elements_length));
+      Node* const new_elements = AllocateFixedArray(
+          PACKED_ELEMENTS, new_elements_length, INTPTR_PARAMETERS,
+          AllocationFlag::kAllowLargeObjectAllocation);
+      CopyFixedArrayElements(PACKED_ELEMENTS, elements, PACKED_ELEMENTS,
+                             new_elements, elements_length,
+                             new_elements_length);
+      StoreFixedArrayElement(new_elements, index, value);
+
+      // Update backing store and "length" on {values_array}.
+      StoreObjectField(values_array, JSArray::kElementsOffset, new_elements);
+      StoreObjectFieldNoWriteBarrier(values_array, JSArray::kLengthOffset,
+                                     SmiTag(new_length));
+      Goto(&done);
+    }
+
+    BIND(&if_nogrow);
+    {
+      // The {index} is within bounds of the {elements} backing store, so
+      // just store the {value} and update the "length" of the {values_array}.
+      StoreObjectFieldNoWriteBarrier(values_array, JSArray::kLengthOffset,
+                                     SmiTag(new_length));
+      StoreFixedArrayElement(elements, index, value);
+      Goto(&done);
+    }
   }
-  Goto(&did_set_element);
-  BIND(&runtime_set_element);
-  // New-space filled up or index too large, set element via runtime
-  CallRuntime(Runtime::kCreateDataProperty, context, values_array, index,
-              value);
-  Goto(&did_set_element);
-  BIND(&did_set_element);
 
-  Node* const remaining_elements = LoadContextElement(
-      context, kPromiseAllResolveElementRemainingElementsSlot);
-  Node* const result = DecrementSmiCell(remaining_elements);
-  GotoIf(SmiEqual(result, SmiConstant(0)), &resolve_promise);
+  BIND(&if_inbounds);
+  {
+    // The {index} is in bounds of the {values_array},
+    // just store the {value} and continue.
+    StoreFixedArrayElement(elements, index, value);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  Node* remaining_elements_count =
+      LoadContextElement(context, kPromiseAllResolveElementRemainingSlot);
+  remaining_elements_count = SmiSub(remaining_elements_count, SmiConstant(1));
+  StoreContextElement(context, kPromiseAllResolveElementRemainingSlot,
+                      remaining_elements_count);
+  GotoIf(SmiEqual(remaining_elements_count, SmiConstant(0)), &resolve_promise);
   Return(UndefinedConstant());
 
   BIND(&resolve_promise);
@@ -1977,6 +2124,9 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
 
   BIND(&already_called);
   Return(UndefinedConstant());
+
+  BIND(&unreachable);
+  Unreachable();
 }
 
 // ES#sec-promise.race
@@ -2043,15 +2193,9 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
                                        &reject_promise, &var_exception);
 
       // Let nextPromise be ? Invoke(constructor, "resolve", « nextValue »).
-      Node* const promise_resolve =
-          GetProperty(context, receiver, factory()->resolve_string());
-      GotoIfException(promise_resolve, &close_iterator, &var_exception);
-
       Node* const next_promise =
-          CallJS(CodeFactory::Call(isolate(),
-                                   ConvertReceiverMode::kNotNullOrUndefined),
-                 context, promise_resolve, receiver, next_value);
-      GotoIfException(next_promise, &close_iterator, &var_exception);
+          InvokeResolve(native_context, receiver, next_value, &close_iterator,
+                        &var_exception);
 
       // Perform ? Invoke(nextPromise, "then", « resolveElement,
       //                  resultCapability.[[Reject]] »).

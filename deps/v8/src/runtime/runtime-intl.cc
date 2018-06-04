@@ -14,8 +14,8 @@
 #include "src/api-natives.h"
 #include "src/api.h"
 #include "src/arguments.h"
-#include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/factory.h"
 #include "src/intl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -501,23 +501,16 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   Handle<JSFunction> constructor(
       isolate->native_context()->intl_collator_function());
 
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
+  Handle<JSObject> collator_holder;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_holder,
                                      JSObject::New(constructor, constructor));
 
-  // Set collator as embedder field of the resulting JS object.
-  icu::Collator* collator =
-      Collator::InitializeCollator(isolate, locale, options, resolved);
+  if (!Collator::InitializeCollator(isolate, collator_holder, locale, options,
+                                    resolved)) {
+    return isolate->ThrowIllegalOperation();
+  }
 
-  if (!collator) return isolate->ThrowIllegalOperation();
-
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(collator));
-
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          Collator::DeleteCollator,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
+  return *collator_holder;
 }
 
 RUNTIME_FUNCTION(Runtime_InternalCompare) {

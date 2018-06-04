@@ -638,8 +638,6 @@ TEST(TerminateRegExp) {
 #ifndef V8_INTERPRETED_REGEXP
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
-  ConsoleImpl console;
-  v8::debug::SetConsoleDelegate(isolate, &console);
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
       isolate, TerminateCurrentThread, DoLoopCancelTerminate);
@@ -656,4 +654,64 @@ TEST(TerminateRegExp) {
   CHECK(try_catch.HasCaught());
   CHECK(!isolate->IsExecutionTerminating());
 #endif  // V8_INTERPRETED_REGEXP
+}
+
+TEST(TerminateInMicrotask) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(isolate);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Local<v8::Context> context1 = v8::Context::New(isolate, nullptr, global);
+  v8::Local<v8::Context> context2 = v8::Context::New(isolate, nullptr, global);
+  v8::TryCatch try_catch(isolate);
+  {
+    v8::Context::Scope context_scope(context1);
+    CHECK(!isolate->IsExecutionTerminating());
+    CHECK(!CompileRun("Promise.resolve().then(function() {"
+                      "terminate(); loop(); fail();})")
+               .IsEmpty());
+    CHECK(!try_catch.HasCaught());
+  }
+  {
+    v8::Context::Scope context_scope(context2);
+    CHECK(context2 == isolate->GetCurrentContext());
+    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(!isolate->IsExecutionTerminating());
+    isolate->RunMicrotasks();
+    CHECK(context2 == isolate->GetCurrentContext());
+    CHECK(context2 == isolate->GetEnteredContext());
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.HasTerminated());
+  }
+  CHECK(!isolate->IsExecutionTerminating());
+}
+
+void TerminationMicrotask(void* data) {
+  CcTest::isolate()->TerminateExecution();
+  CompileRun("");
+}
+
+void UnreachableMicrotask(void* data) { UNREACHABLE(); }
+
+TEST(TerminateInApiMicrotask) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(isolate);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
+  v8::TryCatch try_catch(isolate);
+  {
+    v8::Context::Scope context_scope(context);
+    CHECK(!isolate->IsExecutionTerminating());
+    isolate->EnqueueMicrotask(TerminationMicrotask);
+    isolate->EnqueueMicrotask(UnreachableMicrotask);
+    isolate->RunMicrotasks();
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.HasTerminated());
+  }
+  CHECK(!isolate->IsExecutionTerminating());
 }

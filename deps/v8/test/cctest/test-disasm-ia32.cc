@@ -498,10 +498,10 @@ TEST(DisasmIa320) {
     __ minsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ maxsd(xmm1, xmm0);
     __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ sqrtsd(xmm1, xmm0);
+    __ sqrtsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
-    __ haddps(xmm1, xmm0);
-    __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
 
     __ andpd(xmm0, xmm1);
 
@@ -551,6 +551,14 @@ TEST(DisasmIa320) {
     __ cmov(greater, eax, Operand(edx, 3));
   }
 
+  {
+    if (CpuFeatures::IsSupported(SSE3)) {
+      CpuFeatureScope scope(&assm, SSE3);
+      __ haddps(xmm1, xmm0);
+      __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    }
+  }
+
 #define EMIT_SSE34_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
   __ instruction(xmm5, xmm1);                                                 \
   __ instruction(xmm5, Operand(edx, 4));
@@ -565,6 +573,8 @@ TEST(DisasmIa320) {
   {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
+      __ pblendw(xmm5, xmm1, 5);
+      __ pblendw(xmm5, Operand(edx, 4), 5);
       __ pextrb(eax, xmm0, 1);
       __ pextrb(Operand(edx, 4), xmm0, 1);
       __ pextrw(eax, xmm0, 1);
@@ -600,6 +610,8 @@ TEST(DisasmIa320) {
       __ vminsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmaxsd(xmm0, xmm1, xmm2);
       __ vmaxsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsqrtsd(xmm0, xmm1, xmm2);
+      __ vsqrtsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vaddss(xmm0, xmm1, xmm2);
       __ vaddss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -613,6 +625,8 @@ TEST(DisasmIa320) {
       __ vminss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmaxss(xmm0, xmm1, xmm2);
       __ vmaxss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsqrtss(xmm0, xmm1, xmm2);
+      __ vsqrtss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vandps(xmm0, xmm1, xmm2);
       __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -637,6 +651,8 @@ TEST(DisasmIa320) {
       __ vmovaps(xmm0, xmm1);
       __ vshufps(xmm0, xmm1, xmm2, 3);
       __ vshufps(xmm0, xmm1, Operand(edx, 4), 3);
+      __ vhaddps(xmm0, xmm1, xmm2);
+      __ vhaddps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vcmpeqps(xmm5, xmm4, xmm1);
       __ vcmpeqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
@@ -675,6 +691,8 @@ TEST(DisasmIa320) {
       __ vpshuflw(xmm5, Operand(edx, 4), 5);
       __ vpshufd(xmm5, xmm1, 5);
       __ vpshufd(xmm5, Operand(edx, 4), 5);
+      __ vpblendw(xmm5, xmm1, xmm0, 5);
+      __ vpblendw(xmm5, xmm1, Operand(edx, 4), 5);
       __ vpextrb(eax, xmm0, 1);
       __ vpextrb(Operand(edx, 4), xmm0, 1);
       __ vpextrw(eax, xmm0, 1);
@@ -882,8 +900,8 @@ TEST(DisasmIa320) {
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
   code->Print(os);
-  byte* begin = code->instruction_start();
-  byte* end = begin + code->instruction_size();
+  byte* begin = code->raw_instruction_start();
+  byte* end = begin + code->raw_instruction_size();
   Disassemble(stdout, begin, end);
 #endif
 }

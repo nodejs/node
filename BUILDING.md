@@ -133,7 +133,7 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 If the path to your build directory contains a space, the build will likely
 fail.
 
-After building, setting up [firewall rules](tools/macosx-firewall.sh) can avoid
+After building, setting up [firewall rules](tools/macos-firewall.sh) can avoid
 popups asking to accept incoming network connections when running tests.
 
 Running the following script on macOS will add the firewall rules for the
@@ -141,7 +141,7 @@ executable `node` in the `out` directory and the symbolic `node` link in the
 project's root directory.
 
 ```console
-$ sudo ./tools/macosx-firewall.sh
+$ sudo ./tools/macos-firewall.sh
 ```
 
 On FreeBSD and OpenBSD, you may also need:
@@ -423,8 +423,9 @@ $ ./configure --link-module '/root/myModule.js' --link-module './myModule2.js'
 
 ### Windows
 
-To make `./myCustomModule.js` available via `require('myCustomModule')`.
+To make `./myModule.js` available via `require('myModule')` and
+`./myModule2.js` available via `require('myModule2')`:
 
 ```console
-> .\vcbuild link-module './myCustomModule.js'
+> .\vcbuild link-module './myModule.js' link-module './myModule2.js'
 ```

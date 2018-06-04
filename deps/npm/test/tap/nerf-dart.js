@@ -20,13 +20,13 @@ validNerfDart('http://registry.npmjs.org/some-package#random-hash')
 
 validNerfDart(
   'http://relative.couchapp.npm/design/-/rewrite/',
-       '//relative.couchapp.npm/design/-/rewrite/'
+  '//relative.couchapp.npm/design/-/rewrite/'
 )
 validNerfDart(
   'http://relative.couchapp.npm:8080/design/-/rewrite/',
-       '//relative.couchapp.npm:8080/design/-/rewrite/'
+  '//relative.couchapp.npm:8080/design/-/rewrite/'
 )
 validNerfDart(
   'http://relative.couchapp.npm:8080/design/-/rewrite/some-package',
-       '//relative.couchapp.npm:8080/design/-/rewrite/'
+  '//relative.couchapp.npm:8080/design/-/rewrite/'
 )

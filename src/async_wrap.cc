@@ -123,8 +123,8 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
   Local<Object> object = wrapper.As<Object>();
   CHECK_GT(object->InternalFieldCount(), 0);
 
-  AsyncWrap* wrap = Unwrap<AsyncWrap>(object);
-  if (wrap == nullptr) return nullptr;  // ClearWrap() already called.
+  AsyncWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, object, nullptr);
 
   return new RetainedAsyncInfo(class_id, wrap);
 }
@@ -141,6 +141,7 @@ static void DestroyAsyncIdsCallback(Environment* env, void* data) {
   do {
     std::vector<double> destroy_async_id_list;
     destroy_async_id_list.swap(*env->destroy_async_id_list());
+    if (!env->can_call_into_js()) return;
     for (auto async_id : destroy_async_id_list) {
       // Want each callback to be cleaned up after itself, instead of cleaning
       // them all up after the while() loop completes.
@@ -166,7 +167,7 @@ void Emit(Environment* env, double async_id, AsyncHooks::Fields type,
           Local<Function> fn) {
   AsyncHooks* async_hooks = env->async_hooks();
 
-  if (async_hooks->fields()[type] == 0)
+  if (async_hooks->fields()[type] == 0 || !env->can_call_into_js())
     return;
 
   v8::HandleScope handle_scope(env->isolate());
@@ -231,7 +232,7 @@ class PromiseWrap : public AsyncWrap {
  public:
   PromiseWrap(Environment* env, Local<Object> object, bool silent)
       : AsyncWrap(env, object, PROVIDER_PROMISE, -1, silent) {
-    MakeWeak(this);
+    MakeWeak();
   }
   size_t self_size() const override { return sizeof(*this); }
 
@@ -309,7 +310,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     }
   }
 
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   if (type == PromiseHookType::kBefore) {
     env->async_hooks()->push_async_ids(
       wrap->get_async_id(), wrap->get_trigger_async_id());
@@ -625,8 +626,10 @@ void AsyncWrap::EmitTraceEventDestroy() {
 }
 
 void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
-  if (env->async_hooks()->fields()[AsyncHooks::kDestroy] == 0)
+  if (env->async_hooks()->fields()[AsyncHooks::kDestroy] == 0 ||
+      !env->can_call_into_js()) {
     return;
+  }
 
   if (env->destroy_async_id_list()->empty()) {
     env->SetUnrefImmediate(DestroyAsyncIdsCallback, nullptr);
@@ -764,6 +767,11 @@ async_context EmitAsyncInit(Isolate* isolate,
 void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
   AsyncWrap::EmitDestroy(
       Environment::GetCurrent(isolate), asyncContext.async_id);
+}
+
+std::string AsyncWrap::diagnostic_name() const {
+  return std::string(provider_names[provider_type()]) +
+      " (" + std::to_string(static_cast<int64_t>(async_id_)) + ")";
 }
 
 }  // namespace node

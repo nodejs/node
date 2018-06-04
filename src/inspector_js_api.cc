@@ -64,7 +64,6 @@ class JSBindingsConnection : public AsyncWrap {
                        Local<Function> callback)
                        : AsyncWrap(env, wrap, PROVIDER_INSPECTORJSBINDING),
                          callback_(env->isolate(), callback) {
-    Wrap(wrap, this);
     Agent* inspector = env->inspector_agent();
     session_ = inspector->Connect(std::unique_ptr<JSBindingsSessionDelegate>(
         new JSBindingsSessionDelegate(env, this)));
@@ -83,9 +82,6 @@ class JSBindingsConnection : public AsyncWrap {
 
   void Disconnect() {
     session_.reset();
-    if (!persistent().IsEmpty()) {
-      ClearWrap(object());
-    }
     delete this;
   }
 
@@ -198,7 +194,7 @@ static void* GetAsyncTask(int64_t asyncId) {
   return reinterpret_cast<void*>(asyncId << 1);
 }
 
-template<void (Agent::*asyncTaskFn)(void*)>
+template <void (Agent::*asyncTaskFn)(void*)>
 static void InvokeAsyncTaskFnWithId(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsNumber());

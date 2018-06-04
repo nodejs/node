@@ -19,28 +19,34 @@ namespace compiler {
 class CodeAssemblerTester {
  public:
   // Test generating code for a stub. Assumes VoidDescriptor call interface.
-  explicit CodeAssemblerTester(Isolate* isolate)
+  explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor(isolate), Code::STUB, "test") {}
+        state_(isolate, &zone_, VoidDescriptor(isolate), Code::STUB, name,
+               PoisoningMitigationLevel::kOff) {}
 
   // Test generating code for a JS function (e.g. builtins).
   CodeAssemblerTester(Isolate* isolate, int parameter_count,
-                      Code::Kind kind = Code::BUILTIN)
+                      Code::Kind kind = Code::BUILTIN,
+                      const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, parameter_count, kind, "test") {}
+        state_(isolate, &zone_, parameter_count, kind, name,
+               PoisoningMitigationLevel::kOff) {}
 
-  CodeAssemblerTester(Isolate* isolate, Code::Kind kind)
+  CodeAssemblerTester(Isolate* isolate, Code::Kind kind,
+                      const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, 0, kind, "test") {}
+        state_(isolate, &zone_, 0, kind, name, PoisoningMitigationLevel::kOff) {
+  }
 
   CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor,
                       const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, call_descriptor, Code::STUB, name, 0, -1) {}
+        state_(isolate, &zone_, call_descriptor, Code::STUB, name,
+               PoisoningMitigationLevel::kOff, 0, -1) {}
 
   CodeAssemblerState* state() { return &state_; }
 

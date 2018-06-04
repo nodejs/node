@@ -269,8 +269,9 @@ int main(int argc, char* argv[]) {
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
 
-  if (i::trap_handler::IsTrapHandlerEnabled()) {
-    v8::V8::RegisterDefaultSignalHandler();
+  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
+    constexpr bool use_default_signal_handler = true;
+    CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler));
   }
 
   CcTest::set_array_buffer_allocator(

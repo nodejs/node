@@ -103,33 +103,31 @@ namespace compiler {
   V(OtherUnsigned32, 1u << 2)  \
   V(OtherSigned32,   1u << 3)  \
   V(OtherNumber,     1u << 4)  \
+  V(OtherString,     1u << 5)  \
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     0u)        \
-  V(Negative31,               1u << 5)   \
-  V(Null,                     1u << 6)   \
-  V(Undefined,                1u << 7)   \
-  V(Boolean,                  1u << 8)   \
-  V(Unsigned30,               1u << 9)   \
-  V(MinusZero,                1u << 10)  \
-  V(NaN,                      1u << 11)  \
-  V(Symbol,                   1u << 12)  \
-  V(InternalizedNonSeqString, 1u << 13)  \
-  V(InternalizedSeqString,    1u << 14)  \
-  V(OtherNonSeqString,        1u << 15)  \
-  V(OtherSeqString,           1u << 16)  \
-  V(OtherCallable,            1u << 17)  \
-  V(OtherObject,              1u << 18)  \
-  V(OtherUndetectable,        1u << 19)  \
-  V(CallableProxy,            1u << 20)  \
-  V(OtherProxy,               1u << 21)  \
-  V(Function,                 1u << 22)  \
-  V(BoundFunction,            1u << 23)  \
-  V(Hole,                     1u << 24)  \
-  V(OtherInternal,            1u << 25)  \
-  V(ExternalPointer,          1u << 26)  \
-  V(Array,                    1u << 27)  \
-  V(BigInt,                   1u << 28)  \
+  V(Negative31,               1u << 6)   \
+  V(Null,                     1u << 7)   \
+  V(Undefined,                1u << 8)   \
+  V(Boolean,                  1u << 9)   \
+  V(Unsigned30,               1u << 10)   \
+  V(MinusZero,                1u << 11)  \
+  V(NaN,                      1u << 12)  \
+  V(Symbol,                   1u << 13)  \
+  V(InternalizedString,       1u << 14)  \
+  V(OtherCallable,            1u << 16)  \
+  V(OtherObject,              1u << 17)  \
+  V(OtherUndetectable,        1u << 18)  \
+  V(CallableProxy,            1u << 19)  \
+  V(OtherProxy,               1u << 20)  \
+  V(Function,                 1u << 21)  \
+  V(BoundFunction,            1u << 22)  \
+  V(Hole,                     1u << 23)  \
+  V(OtherInternal,            1u << 24)  \
+  V(ExternalPointer,          1u << 25)  \
+  V(Array,                    1u << 26)  \
+  V(BigInt,                   1u << 27)  \
   \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
@@ -150,12 +148,6 @@ namespace compiler {
   V(MinusZeroOrNaN,               kMinusZero | kNaN) \
   V(Number,                       kOrderedNumber | kNaN) \
   V(Numeric,                      kNumber | kBigInt) \
-  V(InternalizedString,           kInternalizedNonSeqString | \
-                                  kInternalizedSeqString) \
-  V(OtherString,                  kOtherNonSeqString | kOtherSeqString) \
-  V(SeqString,                    kInternalizedSeqString | kOtherSeqString) \
-  V(NonSeqString,                 kInternalizedNonSeqString | \
-                                  kOtherNonSeqString) \
   V(String,                       kInternalizedString | kOtherString) \
   V(UniqueName,                   kSymbol | kInternalizedString) \
   V(Name,                         kSymbol | kString) \

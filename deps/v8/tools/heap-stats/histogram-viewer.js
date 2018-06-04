@@ -93,6 +93,17 @@ class HistogramViewer extends HTMLElement {
         0);
   }
 
+  formatBytes(bytes) {
+    const units = ['B', 'KiB', 'MiB'];
+    const divisor = 1024;
+    let index = 0;
+    while (index < units.length && bytes >= divisor) {
+      index++;
+      bytes /= divisor;
+    }
+    return bytes + units[index];
+  }
+
   getCategoryData() {
     const labels = [
       'Bucket',
@@ -101,7 +112,7 @@ class HistogramViewer extends HTMLElement {
     ];
     const data = this.selectedData.bucket_sizes.map(
         (bucket_size, index) =>
-            [`<${bucket_size}`,
+            [`<${this.formatBytes(bucket_size)}`,
              ...Object.values(this.selection.categories)
                  .map(
                      instance_types =>
@@ -141,6 +152,10 @@ class HistogramViewer extends HTMLElement {
       legend: {position: 'top', maxLines: '1'},
       chartArea: {width: '85%', height: '85%'},
       bar: {groupWidth: '80%'},
+      hAxis: {
+        title: 'Count',
+        minValue: 0
+      },
       explorer: {},
     };
     const chart = new google.visualization.BarChart(this.$('#chart'));

@@ -1,7 +1,6 @@
 module.exports = docs
 
-var npm = require('./npm.js')
-var opener = require('opener')
+var openUrl = require('./utils/open-url')
 var log = require('npmlog')
 var fetchPackageMetadata = require('./fetch-package-metadata.js')
 var usage = require('./utils/usage')
@@ -37,6 +36,6 @@ function getDoc (project, cb) {
     if (er) return cb(er)
     var url = d.homepage
     if (!url) url = 'https://www.npmjs.org/package/' + d.name
-    return opener(url, {command: npm.config.get('browser')}, cb)
+    return openUrl(url, 'docs available at the following URL', cb)
   })
 }

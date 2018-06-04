@@ -20,6 +20,7 @@ runBenchmark('tls',
                'dur=0.1',
                'n=1',
                'size=2',
+               'securing=SecurePair',
                'type=asc'
              ],
              {

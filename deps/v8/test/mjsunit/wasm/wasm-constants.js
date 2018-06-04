@@ -93,6 +93,7 @@ let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128  = 0x7b;
+let kWasmAnyRef = 0x6f;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -133,6 +134,10 @@ let kSig_iii_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32, kWasmI32, kWasmI32]);
 let kSig_v_f = makeSig([kWasmF32], []);
 let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
+let kSig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
+let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
+let kSig_v_r = makeSig([kWasmAnyRef], []);
+let kSig_r_v = makeSig([], [kWasmAnyRef]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -186,6 +191,7 @@ let kExprI32Const = 0x41;
 let kExprI64Const = 0x42;
 let kExprF32Const = 0x43;
 let kExprF64Const = 0x44;
+let kExprRefNull = 0xd0;
 let kExprI32LoadMem = 0x28;
 let kExprI64LoadMem = 0x29;
 let kExprF32LoadMem = 0x2a;
@@ -245,6 +251,7 @@ let kExprF64Lt = 0x63;
 let kExprF64Gt = 0x64;
 let kExprF64Le = 0x65;
 let kExprF64Ge = 0x66;
+let kExprRefIsNull = 0xd1;
 let kExprI32Clz = 0x67;
 let kExprI32Ctz = 0x68;
 let kExprI32Popcnt = 0x69;

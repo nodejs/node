@@ -8,8 +8,10 @@
 #include <cstddef>
 #include <memory>
 #include <queue>
+#include <unordered_map>
 #include <vector>
 
+#include "include/v8-inspector.h"
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
@@ -25,6 +27,7 @@
 #include "src/heap/heap.h"
 #include "src/messages.h"
 #include "src/objects/code.h"
+#include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/unicode.h"
 
@@ -70,7 +73,6 @@ class DescriptorLookupCache;
 class EmptyStatement;
 class EternalHandles;
 class ExternalCallbackScope;
-class ExternalReferenceTable;
 class Factory;
 class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
@@ -247,6 +249,8 @@ class ThreadId {
     return *this;
   }
 
+  bool operator==(const ThreadId& other) const { return Equals(other); }
+
   // Returns ThreadId for current thread.
   static ThreadId Current() { return ThreadId(GetCurrentThreadId()); }
 
@@ -286,7 +290,6 @@ class ThreadId {
 
   friend class Isolate;
 };
-
 
 #define FIELD_ACCESSOR(type, name)                 \
   inline void set_##name(type v) { name##_ = v; }  \
@@ -421,7 +424,6 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
   V(Object*, string_stream_current_security_token, nullptr)                   \
-  V(ExternalReferenceTable*, external_reference_table, nullptr)               \
   V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
@@ -438,12 +440,13 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   /* true if a trace is being formatted through Error.prepareStackTrace. */   \
   V(bool, formatting_stack_trace, false)                                      \
   /* Perform side effect checks on function call and API callbacks. */        \
-  V(bool, needs_side_effect_check, false)                                     \
+  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
   /* Current code coverage mode */                                            \
   V(debug::Coverage::Mode, code_coverage_mode, debug::Coverage::kBestEffort)  \
   V(debug::TypeProfile::Mode, type_profile_mode, debug::TypeProfile::kNone)   \
   V(int, last_stack_frame_info_id, 0)                                         \
-  V(int, last_console_context_id, 0)
+  V(int, last_console_context_id, 0)                                          \
+  V(v8_inspector::V8Inspector*, inspector, nullptr)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
@@ -549,8 +552,6 @@ class Isolate {
   void TearDown();
 
   void ReleaseManagedObjects();
-
-  static void GlobalTearDown();
 
   void ClearSerializerData();
 
@@ -752,8 +753,8 @@ class Isolate {
   Object* ThrowIllegalOperation();
 
   template <typename T>
-  MUST_USE_RESULT MaybeHandle<T> Throw(Handle<Object> exception,
-                                       MessageLocation* location = nullptr) {
+  V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(
+      Handle<Object> exception, MessageLocation* location = nullptr) {
     Throw(*exception, location);
     return MaybeHandle<T>();
   }
@@ -1075,14 +1076,13 @@ class Isolate {
   bool IsNoElementsProtectorIntact(Context* context);
   bool IsNoElementsProtectorIntact();
 
-  inline bool IsSpeciesLookupChainIntact();
+  inline bool IsArraySpeciesLookupChainIntact();
+  inline bool IsTypedArraySpeciesLookupChainIntact();
+  inline bool IsPromiseSpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
-
-  // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
-  inline bool IsFastArrayIterationIntact();
 
   // Make sure we do check for neutered array buffers.
   inline bool IsArrayBufferNeuteringIntact();
@@ -1090,6 +1090,10 @@ class Isolate {
   // Disable promise optimizations if promise (debug) hooks have ever been
   // active.
   bool IsPromiseHookProtectorIntact();
+
+  // Make sure a lookup of "resolve" on the %Promise% intrinsic object
+  // yeidls the initial Promise.resolve method.
+  bool IsPromiseResolveLookupChainIntact();
 
   // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
   // initial %PromisePrototype% yields the initial method.
@@ -1111,12 +1115,15 @@ class Isolate {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void InvalidateArrayConstructorProtector();
-  void InvalidateSpeciesProtector();
+  void InvalidateArraySpeciesProtector();
+  void InvalidateTypedArraySpeciesProtector();
+  void InvalidatePromiseSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
+  void InvalidatePromiseResolveProtector();
   void InvalidatePromiseThenProtector();
 
   // Returns true if array is the initial array prototype in any native context.
@@ -1184,6 +1191,9 @@ class Isolate {
     return id;
   }
 
+  void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
+  void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
+                                   size_t heap_limit);
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback();
@@ -1231,6 +1241,10 @@ class Isolate {
     return reinterpret_cast<Address>(&handle_scope_implementer_);
   }
 
+  Address debug_execution_mode_address() {
+    return reinterpret_cast<Address>(&debug_execution_mode_);
+  }
+
   void DebugStateUpdated();
 
   void SetPromiseHook(PromiseHook hook);
@@ -1244,14 +1258,22 @@ class Isolate {
     return &partial_snapshot_cache_;
   }
 
-  void PushOffHeapCode(InstructionStream* stream) {
-    off_heap_code_.emplace_back(stream);
-  }
-
 #ifdef V8_EMBEDDED_BUILTINS
+  // Called only prior to serialization.
+  // This function copies off-heap-safe builtins off the heap, creates off-heap
+  // trampolines, and sets up this isolate's embedded blob.
+  void PrepareEmbeddedBlobForSerialization();
+
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
     return builtins_constants_table_builder_;
   }
+
+  static const uint8_t* CurrentEmbeddedBlob();
+  static uint32_t CurrentEmbeddedBlobSize();
+
+  // TODO(jgruber): Remove these in favor of the static methods above.
+  const uint8_t* embedded_blob() const;
+  uint32_t embedded_blob_size() const;
 #endif
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
@@ -1357,6 +1379,8 @@ class Isolate {
     top_backup_incumbent_scope_ = top_backup_incumbent_scope;
   }
 
+  void SetIdle(bool is_idle);
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectOrStringPrototype(Object* object);
@@ -1371,20 +1395,24 @@ class Isolate {
   void* embedder_data_[Internals::kNumIsolateDataSlots];
   Heap heap_;
 
-  // The per-process lock should be acquired before the ThreadDataTable is
-  // modified.
   class ThreadDataTable {
    public:
     ThreadDataTable();
     ~ThreadDataTable();
 
-    PerIsolateThreadData* Lookup(Isolate* isolate, ThreadId thread_id);
+    PerIsolateThreadData* Lookup(ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
     void Remove(PerIsolateThreadData* data);
-    void RemoveAllThreads(Isolate* isolate);
+    void RemoveAllThreads();
 
    private:
-    PerIsolateThreadData* list_;
+    struct Hasher {
+      std::size_t operator()(const ThreadId& t) const {
+        return std::hash<int>()(t.ToInteger());
+      }
+    };
+
+    std::unordered_map<ThreadId, PerIsolateThreadData*, Hasher> table_;
   };
 
   // These items form a stack synchronously with threads Enter'ing and Exit'ing
@@ -1412,12 +1440,15 @@ class Isolate {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
-  static base::LazyMutex thread_data_table_mutex_;
+  // TODO(kenton@cloudflare.com): This mutex can be removed if
+  // thread_data_table_ is always accessed under the isolate lock. I do not
+  // know if this is the case, so I'm preserving it for now.
+  base::Mutex thread_data_table_mutex_;
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
   static base::Thread::LocalStorageKey thread_id_key_;
-  static ThreadDataTable* thread_data_table_;
+  ThreadDataTable thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.
   static base::Atomic32 isolate_counter_;
@@ -1459,6 +1490,8 @@ class Isolate {
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
   bool PropagatePendingExceptionToExternalTryCatch();
+
+  void SetTerminationOnExternalTryCatch();
 
   const char* RAILModeName(RAILMode rail_mode) const {
     switch (rail_mode) {
@@ -1621,16 +1654,15 @@ class Isolate {
 
   std::vector<Object*> partial_snapshot_cache_;
 
-  // Stores off-heap instruction streams. Only used if --stress-off-heap-code
-  // is enabled.
-  // TODO(jgruber,v8:6666): Remove once isolate-independent builtins are
-  // implemented. Also remove friend class below.
-  std::vector<InstructionStream*> off_heap_code_;
-
 #ifdef V8_EMBEDDED_BUILTINS
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
+
+  void SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size);
+
+  const uint8_t* embedded_blob_ = nullptr;
+  uint32_t embedded_blob_size_ = 0;
 #endif
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
@@ -1661,7 +1693,6 @@ class Isolate {
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class heap::HeapTester;
-  friend class InstructionStream;
   friend class OptimizingCompileDispatcher;
   friend class Simulator;
   friend class StackGuard;

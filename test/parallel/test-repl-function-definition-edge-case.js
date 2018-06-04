@@ -1,11 +1,9 @@
 // Reference: https://github.com/nodejs/node/pull/7624
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const repl = require('repl');
 const stream = require('stream');
-
-common.globalCheck = false;
 
 const r = initRepl();
 

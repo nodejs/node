@@ -51,12 +51,15 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
   size_t new_retained_size = 0;
+  Isolate* isolate = heap_->isolate();
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
-    JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
-    const size_t length = buffer->allocation_length();
+    JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
+    const size_t length = it->second;
     if (should_free(buffer)) {
-      buffer->FreeBackingStore();
+      JSArrayBuffer::FreeBackingStore(
+          isolate, {buffer->backing_store(), length, buffer->backing_store(),
+                    buffer->allocation_mode(), buffer->is_wasm_memory()});
       it = array_buffers_.erase(it);
     } else {
       new_retained_size += length;
@@ -87,7 +90,7 @@ void ArrayBufferTracker::FreeDead(Page* page, MarkingState* marking_state) {
 void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
   DCHECK_GE(retained_size_ + length, retained_size_);
   retained_size_ += length;
-  auto ret = array_buffers_.insert(buffer);
+  auto ret = array_buffers_.insert({buffer, length});
   USE(ret);
   // Check that we indeed inserted a new value and did not overwrite an existing
   // one (which would be a bug).
@@ -100,6 +103,7 @@ void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer, size_t length) {
   TrackingData::iterator it = array_buffers_.find(buffer);
   // Check that we indeed find a key to remove.
   DCHECK(it != array_buffers_.end());
+  DCHECK_EQ(length, it->second);
   array_buffers_.erase(it);
 }
 

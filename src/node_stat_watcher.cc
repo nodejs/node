@@ -75,16 +75,10 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
 }
 
 
-static void Delete(uv_handle_t* handle) {
-  delete reinterpret_cast<uv_fs_poll_t*>(handle);
-}
-
-
 StatWatcher::StatWatcher(Environment* env, Local<Object> wrap)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_STATWATCHER),
       watcher_(new uv_fs_poll_t) {
-  MakeWeak<StatWatcher>(this);
-  Wrap(wrap, this);
+  MakeWeak();
   uv_fs_poll_init(env->event_loop(), watcher_);
   watcher_->data = static_cast<void*>(this);
 }
@@ -94,7 +88,7 @@ StatWatcher::~StatWatcher() {
   if (IsActive()) {
     Stop();
   }
-  uv_close(reinterpret_cast<uv_handle_t*>(watcher_), Delete);
+  env()->CloseHandle(watcher_, [](uv_fs_poll_t* handle) { delete handle; });
 }
 
 
@@ -131,7 +125,7 @@ bool StatWatcher::IsActive() {
 
 void StatWatcher::IsActive(const v8::FunctionCallbackInfo<v8::Value>& args) {
   StatWatcher* wrap = Unwrap<StatWatcher>(args.This());
-  CHECK(wrap != nullptr);
+  CHECK_NOT_NULL(wrap);
   args.GetReturnValue().Set(wrap->IsActive());
 }
 
@@ -140,7 +134,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 3);
 
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   if (wrap->IsActive()) {
     return;
   }
@@ -149,7 +143,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   node::Utf8Value path(args.GetIsolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   bool persistent = true;
   if (args[1]->IsFalse()) {
@@ -177,7 +171,7 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
   StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
-  CHECK_NE(wrap, nullptr);
+  CHECK_NOT_NULL(wrap);
   if (!wrap->IsActive()) {
     return;
   }
@@ -191,7 +185,7 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
 
 void StatWatcher::Stop() {
   uv_fs_poll_stop(watcher_);
-  MakeWeak<StatWatcher>(this);
+  MakeWeak();
 }
 
 

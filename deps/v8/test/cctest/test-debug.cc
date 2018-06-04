@@ -173,7 +173,7 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
                                               const char* condition = nullptr) {
   i::Handle<i::JSFunction> function =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-  position += function->shared()->start_position();
+  position += function->shared()->StartPosition();
   static int break_point_index = 0;
   i::Isolate* isolate = function->GetIsolate();
   i::Handle<i::String> condition_string =
@@ -1048,32 +1048,74 @@ TEST(BreakPointReturn) {
   CheckDebuggerUnloaded();
 }
 
-// Test that a break point can be set at a return store location.
 TEST(BreakPointBuiltin) {
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_block_concurrent_recompilation = true;
-  i::FLAG_experimental_inline_promise_constructor = true;
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
 
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
   // === Test simple builtin ===
   break_point_hit_count = 0;
-  v8::Local<v8::Function> builtin =
-      CompileRun("String.prototype.repeat").As<v8::Function>();
-  CompileRun("'a'.repeat(10)");
-  CHECK_EQ(0, break_point_hit_count);
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
 
   // Run with breakpoint.
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(builtin, 0);
-  CompileRun("'b'.repeat(10)");
+  bp = SetBreakPoint(builtin, 0);
+  ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
   CHECK_EQ(1, break_point_hit_count);
+
+  ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
+  CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
-  CompileRun("'b'.repeat(10)");
+  ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointJSBuiltin) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
+  // === Test JS builtin ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Array.prototype.sort").As<v8::Function>();
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("[1,2,3].sort()");
   CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("[1,2,3].sort()");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("[1,2,3].sort()");
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBoundBuiltin) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test bound function from a builtin ===
   break_point_hit_count = 0;
@@ -1081,34 +1123,93 @@ TEST(BreakPointBuiltin) {
                 "var boundrepeat = String.prototype.repeat.bind('a');"
                 "String.prototype.repeat")
                 .As<v8::Function>();
-  CompileRun("boundrepeat(10)");
+  ExpectString("boundrepeat(10)", "aaaaaaaaaa");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
   bp = SetBreakPoint(builtin, 0);
-  CompileRun("boundrepeat(10)");
+  ExpectString("boundrepeat(10)", "aaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
-  CompileRun("boundrepeat(10)");
+  ExpectString("boundrepeat(10)", "aaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
-  // === Test constructor builtin (for ones with normal construct stubs) ===
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointConstructorBuiltin) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
+  // === Test Promise constructor ===
   break_point_hit_count = 0;
   builtin = CompileRun("Promise").As<v8::Function>();
-  CompileRun("new Promise(()=>{})");
+  ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
   bp = SetBreakPoint(builtin, 0);
-  CompileRun("new Promise(()=>{})");
+  ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
   CHECK_EQ(1, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
-  CompileRun("new Promise(()=>{})");
+  ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
   CHECK_EQ(1, break_point_hit_count);
+
+  // === Test Object constructor ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Object").As<v8::Function>();
+  CompileRun("new Object()");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("new Object()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new Object()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test Number constructor ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Number").As<v8::Function>();
+  CompileRun("new Number()");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("new Number()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new Number()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlinedBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test inlined builtin ===
   break_point_hit_count = 0;
@@ -1128,7 +1229,7 @@ TEST(BreakPointBuiltin) {
 
   // Re-optimize.
   CompileRun("%OptimizeFunctionOnNextCall(test);");
-  CompileRun("test(0.3);");
+  ExpectBoolean("test(0.3) < 2", true);
   CHECK_EQ(3, break_point_hit_count);
 
   // Run without breakpoints.
@@ -1136,9 +1237,27 @@ TEST(BreakPointBuiltin) {
   CompileRun("test(0.3);");
   CHECK_EQ(3, break_point_hit_count);
 
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlineBoundBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
   // === Test inlined bound builtin ===
   break_point_hit_count = 0;
-  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+
+  builtin = CompileRun(
+                "var boundrepeat = String.prototype.repeat.bind('a');"
+                "String.prototype.repeat")
+                .As<v8::Function>();
   CompileRun("function test(x) { return 'a' + boundrepeat(x) }");
   CompileRun(
       "test(4); test(5);"
@@ -1162,6 +1281,21 @@ TEST(BreakPointBuiltin) {
   CompileRun("test(9);");
   CHECK_EQ(3, break_point_hit_count);
 
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlinedConstructorBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_experimental_inline_promise_constructor = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
   // === Test inlined constructor builtin (regular construct builtin) ===
   break_point_hit_count = 0;
   builtin = CompileRun("Promise").As<v8::Function>();
@@ -1173,7 +1307,7 @@ TEST(BreakPointBuiltin) {
 
   // Run with breakpoint.
   bp = SetBreakPoint(builtin, 0);
-  CompileRun("new Promise();");
+  CompileRun("new Promise(()=>{});");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(7);");
   CHECK_EQ(2, break_point_hit_count);
@@ -1187,6 +1321,21 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("test(9);");
   CHECK_EQ(3, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBuiltinConcurrentOpt) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_block_concurrent_recompilation = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test concurrent optimization ===
   break_point_hit_count = 0;
@@ -1211,6 +1360,20 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("test(0.3);");
   CHECK_EQ(1, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBuiltinTFOperator) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test builtin represented as operator ===
   break_point_hit_count = 0;
@@ -1237,6 +1400,447 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("test('f');");
   CHECK_EQ(3, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBuiltinNewContext) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
+// === Test builtin from a new context ===
+// This does not work with no-snapshot build.
+#ifdef V8_USE_SNAPSHOT
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("'a'.repeat(10)");
+  CHECK_EQ(0, break_point_hit_count);
+  // Set breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+
+  {
+    // Create and use new context after breakpoint has been set.
+    v8::HandleScope handle_scope(env->GetIsolate());
+    v8::Local<v8::Context> new_context = v8::Context::New(env->GetIsolate());
+    v8::Context::Scope context_scope(new_context);
+
+    // Run with breakpoint.
+    CompileRun("'b'.repeat(10)");
+    CHECK_EQ(1, break_point_hit_count);
+
+    CompileRun("'b'.repeat(10)");
+    CHECK_EQ(2, break_point_hit_count);
+
+    // Run without breakpoints.
+    ClearBreakPoint(bp);
+    CompileRun("'b'.repeat(10)");
+    CHECK_EQ(2, break_point_hit_count);
+  }
+#endif
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+void NoOpFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(v8_num(2));
+}
+
+TEST(BreakPointApiFunction) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+
+  // === Test simple builtin ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+  ExpectInt32("f()", 2);
+  CHECK_EQ(1, break_point_hit_count);
+
+  ExpectInt32("f()", 2);
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectInt32("f()", 2);
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+void GetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(
+      args[0]
+          .As<v8::Object>()
+          ->Get(args.GetIsolate()->GetCurrentContext(), args[1])
+          .ToLocalChecked());
+}
+
+TEST(BreakPointApiGetter) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  v8::Local<v8::FunctionTemplate> get_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), GetWrapperCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+  v8::Local<v8::Function> get =
+      get_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.context(), v8_str("get_wrapper"), get).ToChecked();
+  CompileRun(
+      "var o = {};"
+      "Object.defineProperty(o, 'f', { get: f, enumerable: true });");
+
+  // === Test API builtin as getter ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+  CompileRun("get_wrapper(o, 'f')");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("o.f");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("get_wrapper(o, 'f', 2)");
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+void SetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]
+            .As<v8::Object>()
+            ->Set(args.GetIsolate()->GetCurrentContext(), args[1], args[2])
+            .FromJust());
+}
+
+TEST(BreakPointApiSetter) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  v8::Local<v8::FunctionTemplate> set_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), SetWrapperCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+  v8::Local<v8::Function> set =
+      set_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  env->Global()->Set(env.context(), v8_str("set_wrapper"), set).ToChecked();
+
+  CompileRun(
+      "var o = {};"
+      "Object.defineProperty(o, 'f', { set: f, enumerable: true });");
+
+  // === Test API builtin as setter ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+
+  CompileRun("o.f = 3");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("set_wrapper(o, 'f', 2)");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("o.f = 3");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // === Test API builtin as setter, with condition ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0, "arguments[0] == 3");
+  CompileRun("set_wrapper(o, 'f', 2)");
+  CHECK_EQ(0, break_point_hit_count);
+
+  CompileRun("set_wrapper(o, 'f', 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("o.f = 3");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("set_wrapper(o, 'f', 2)");
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointApiAccessor) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  // Create 'foo' class, with a hidden property.
+  v8::Local<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(env->GetIsolate());
+  v8::Local<v8::FunctionTemplate> accessor_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+  obj_template->SetAccessorProperty(v8_str("f"), accessor_template,
+                                    accessor_template);
+  v8::Local<v8::Object> obj =
+      obj_template->NewInstance(env.context()).ToLocalChecked();
+  env->Global()->Set(env.context(), v8_str("o"), obj).ToChecked();
+
+  v8::Local<v8::Function> function =
+      CompileRun("Object.getOwnPropertyDescriptor(o, 'f').set")
+          .As<v8::Function>();
+
+  // === Test API accessor ===
+  break_point_hit_count = 0;
+
+  CompileRun("function get_loop() { for (var i = 0; i < 10; i++) o.f }");
+  CompileRun("function set_loop() { for (var i = 0; i < 10; i++) o.f = 2 }");
+
+  CompileRun("get_loop(); set_loop();");  // Initialize ICs.
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+
+  CompileRun("o.f = 3");
+  CHECK_EQ(1, break_point_hit_count);
+
+  CompileRun("o.f");
+  CHECK_EQ(2, break_point_hit_count);
+
+  CompileRun("for (var i = 0; i < 10; i++) o.f");
+  CHECK_EQ(12, break_point_hit_count);
+
+  CompileRun("get_loop();");
+  CHECK_EQ(22, break_point_hit_count);
+
+  CompileRun("for (var i = 0; i < 10; i++) o.f = 2");
+  CHECK_EQ(32, break_point_hit_count);
+
+  CompileRun("set_loop();");
+  CHECK_EQ(42, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("o.f = 3");
+  CompileRun("o.f");
+  CHECK_EQ(42, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlineApiFunction) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  CompileRun("function g() { return 1 +  f(); }");
+
+  // === Test simple builtin ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+  ExpectInt32("g()", 3);
+  CHECK_EQ(1, break_point_hit_count);
+
+  ExpectInt32("g()", 3);
+  CHECK_EQ(2, break_point_hit_count);
+
+  CompileRun("%OptimizeFunctionOnNextCall(g)");
+  ExpectInt32("g()", 3);
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectInt32("g()", 3);
+  CHECK_EQ(3, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+// Test that a break point can be set at a return store location.
+TEST(BreakPointConditionBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_block_concurrent_recompilation = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
+  // === Test global variable ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("var condition = false");
+  CompileRun("'a'.repeat(10)");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "condition == true");
+  CompileRun("'b'.repeat(10)");
+  CHECK_EQ(0, break_point_hit_count);
+
+  CompileRun("condition = true");
+  CompileRun("'b'.repeat(10)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("'b'.repeat(10)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test arguments ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("function f(x) { return 'a'.repeat(x * 2); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "arguments[0] == 20");
+  ExpectString("f(5)", "aaaaaaaaaa");
+  CHECK_EQ(0, break_point_hit_count);
+
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test adapted arguments ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("function f(x) { return 'a'.repeat(x * 2, x); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0,
+                     "arguments[1] == 10 && arguments[2] == undefined");
+  ExpectString("f(5)", "aaaaaaaaaa");
+  CHECK_EQ(0, break_point_hit_count);
+
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test var-arg builtins ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.fromCharCode").As<v8::Function>();
+  CompileRun("function f() { return String.fromCharCode(1, 2, 3); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "arguments.length == 3 && arguments[1] == 2");
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test rest arguments ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.fromCharCode").As<v8::Function>();
+  CompileRun("function f(...args) { return String.fromCharCode(...args); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "arguments.length == 3 && arguments[1] == 2");
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  ClearBreakPoint(bp);
+  CompileRun("f(1, 3, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test receiver ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("function f(x) { return x.repeat(10); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "this == 'a'");
+  ExpectString("f('b')", "bbbbbbbbbb");
+  CHECK_EQ(0, break_point_hit_count);
+
+  ExpectString("f('a')", "aaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectString("f('a')", "aaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -2851,12 +3455,12 @@ TEST(PauseInScript) {
           .ToLocalChecked();
 
   // Set breakpoint in the script.
-  i::Handle<i::BreakPoint> break_point =
-      isolate->factory()->NewBreakPoint(0, isolate->factory()->empty_string());
-  int position = 0;
   i::Handle<i::Script> i_script(
       i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()));
-  isolate->debug()->SetBreakPointForScript(i_script, break_point, &position);
+  i::Handle<i::String> condition = isolate->factory()->empty_string();
+  int position = 0;
+  int id;
+  isolate->debug()->SetBreakPointForScript(i_script, condition, &position, &id);
   break_point_hit_count = 0;
 
   v8::Local<v8::Value> r = script->Run(context).ToLocalChecked();
@@ -4497,8 +5101,8 @@ TEST(ContextData) {
   SetDebugEventListener(isolate, ContextCheckEventListener);
 
   // Default data value is undefined.
-  CHECK(context_1->GetEmbedderData(0)->IsUndefined());
-  CHECK(context_2->GetEmbedderData(0)->IsUndefined());
+  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(0, context_2->GetNumberOfEmbedderDataFields());
 
   // Set and check different data values.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
@@ -4667,8 +5271,8 @@ TEST(EvalContextData) {
 
   SetDebugEventListener(CcTest::isolate(), ContextCheckEventListener);
 
-  // Default data value is undefined.
-  CHECK(context_1->GetEmbedderData(0)->IsUndefined());
+  // Contexts initially do not have embedder data fields.
+  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
 
   // Set and check a data value.
   v8::Local<v8::String> data_1 = v8_str(CcTest::isolate(), "1");
@@ -5777,6 +6381,7 @@ TEST(BreakLocationIterator) {
 
   EnableDebugger(isolate);
   CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
+  i_isolate->debug()->PrepareFunctionForDebugExecution(shared);
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
 
@@ -5836,10 +6441,11 @@ TEST(DebugStepOverFunctionWithCaughtException) {
   CHECK_EQ(4, break_point_hit_count);
 }
 
-bool out_of_memory_callback_called = false;
-void OutOfMemoryCallback(void* data) {
-  out_of_memory_callback_called = true;
-  reinterpret_cast<v8::Isolate*>(data)->IncreaseHeapLimitForDebugging();
+bool near_heap_limit_callback_called = false;
+size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
+                             size_t initial_heap_limit) {
+  near_heap_limit_callback_called = true;
+  return initial_heap_limit + 10u * i::MB;
 }
 
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
@@ -5852,14 +6458,14 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope scope(isolate);
     LocalContext context(isolate);
-    v8::debug::SetOutOfMemoryCallback(isolate, OutOfMemoryCallback,
-                                      reinterpret_cast<void*>(isolate));
-    CHECK(!out_of_memory_callback_called);
+    isolate->AddNearHeapLimitCallback(NearHeapLimitCallback, nullptr);
+    CHECK(!near_heap_limit_callback_called);
     // The following allocation fails unless the out-of-memory callback
     // increases the heap limit.
     int length = 10 * i::MB / i::kPointerSize;
     i_isolate->factory()->NewFixedArray(length, i::TENURED);
-    CHECK(out_of_memory_callback_called);
+    CHECK(near_heap_limit_callback_called);
+    isolate->RemoveNearHeapLimitCallback(NearHeapLimitCallback, 0);
   }
   isolate->Dispose();
 }
@@ -6073,10 +6679,9 @@ TEST(DebugEvaluateNoSideEffect) {
   // itself contains additional sanity checks.
   for (i::Handle<i::JSFunction> fun : all_functions) {
     bool failed = false;
-    {
-      i::NoSideEffectScope scope(isolate, true);
-      failed = !isolate->debug()->PerformSideEffectCheck(fun);
-    }
+    isolate->debug()->StartSideEffectCheckMode();
+    failed = !isolate->debug()->PerformSideEffectCheck(fun);
+    isolate->debug()->StopSideEffectCheckMode();
     if (failed) isolate->clear_pending_exception();
   }
   DisableDebugger(env->GetIsolate());

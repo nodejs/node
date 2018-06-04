@@ -63,18 +63,16 @@ class CWasmEntryArgTester {
                               isolate_);
     CHECK(!buffer_obj->IsHeapObject());
     Handle<Object> call_args[]{
-        (FLAG_wasm_jit_to_native
-             ? Handle<Object>::cast(isolate_->factory()->NewForeign(
-                   wasm_code_.GetWasmCode()->instructions().start(), TENURED))
-             : Handle<Object>::cast(wasm_code_.GetCode())),
-        handle(reinterpret_cast<Object*>(wasm_code_.wasm_context()), isolate_),
+        Handle<Object>::cast(isolate_->factory()->NewForeign(
+            wasm_code_->instructions().start(), TENURED)),
+        handle(
+            wasm_code_->native_module()->compiled_module()->owning_instance(),
+            isolate_),
         buffer_obj};
     static_assert(
         arraysize(call_args) == compiler::CWasmEntryParameters::kNumParameters,
         "adapt this test");
-    if (FLAG_wasm_jit_to_native) {
-      wasm_code_.GetWasmCode()->owner()->SetExecutable(true);
-    }
+    wasm_code_->native_module()->SetExecutable(true);
     MaybeHandle<Object> return_obj = Execution::Call(
         isolate_, c_wasm_entry_fn_, receiver, arraysize(call_args), call_args);
     CHECK(!return_obj.is_null());
@@ -97,7 +95,7 @@ class CWasmEntryArgTester {
   std::function<ReturnType(Args...)> expected_fn_;
   FunctionSig* sig_;
   Handle<JSFunction> c_wasm_entry_fn_;
-  WasmCodeWrapper wasm_code_;
+  wasm::WasmCode* wasm_code_;
 };
 
 }  // namespace

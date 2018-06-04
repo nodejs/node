@@ -151,13 +151,7 @@ class Parser : public AsyncWrap, public StreamListener {
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
-    Wrap(object(), this);
     Init(type);
-  }
-
-
-  ~Parser() override {
-    ClearWrap(object());
   }
 
 
@@ -412,7 +406,7 @@ class Parser : public AsyncWrap, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     CHECK(parser->current_buffer_.IsEmpty());
     CHECK_EQ(parser->current_buffer_len_, 0);
-    CHECK_EQ(parser->current_buffer_data_, nullptr);
+    CHECK_NULL(parser->current_buffer_data_);
     CHECK_EQ(Buffer::HasInstance(args[0]), true);
 
     Local<Object> buffer_obj = args[0].As<Object>();
@@ -493,7 +487,7 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK(args[0]->IsExternal());
     Local<External> stream_obj = args[0].As<External>();
     StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
-    CHECK_NE(stream, nullptr);
+    CHECK_NOT_NULL(stream);
     stream->PushStreamListener(parser);
   }
 

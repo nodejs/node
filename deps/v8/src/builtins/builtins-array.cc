@@ -78,7 +78,7 @@ inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
 }
 
 // Returns |false| if not applicable.
-MUST_USE_RESULT
+V8_WARN_UNUSED_RESULT
 inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
                                                   Handle<Object> receiver,
                                                   BuiltinArguments* args,
@@ -128,9 +128,8 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   return true;
 }
 
-MUST_USE_RESULT static Object* CallJsIntrinsic(Isolate* isolate,
-                                               Handle<JSFunction> function,
-                                               BuiltinArguments args) {
+V8_WARN_UNUSED_RESULT static Object* CallJsIntrinsic(
+    Isolate* isolate, Handle<JSFunction> function, BuiltinArguments args) {
   HandleScope handleScope(isolate);
   int argc = args.length() - 1;
   ScopedVector<Handle<Object>> argv(argc);
@@ -240,75 +239,6 @@ BUILTIN(ArrayUnshift) {
   return Smi::FromInt(new_length);
 }
 
-BUILTIN(ArraySlice) {
-  HandleScope scope(isolate);
-  Handle<Object> receiver = args.receiver();
-  int len = -1;
-  int relative_start = 0;
-  int relative_end = 0;
-
-  if (receiver->IsJSArray()) {
-    DisallowHeapAllocation no_gc;
-    JSArray* array = JSArray::cast(*receiver);
-    if (V8_UNLIKELY(!array->HasFastElements() ||
-                    !IsJSArrayFastElementMovingAllowed(isolate, array) ||
-                    !isolate->IsSpeciesLookupChainIntact() ||
-                    // If this is a subclass of Array, then call out to JS
-                    !array->HasArrayPrototype(isolate))) {
-      AllowHeapAllocation allow_allocation;
-      return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-    }
-    len = Smi::ToInt(array->length());
-  } else if (receiver->IsJSObject() &&
-             JSSloppyArgumentsObject::GetSloppyArgumentsLength(
-                 isolate, Handle<JSObject>::cast(receiver), &len)) {
-    // Array.prototype.slice.call(arguments, ...) is quite a common idiom
-    // (notably more than 50% of invocations in Web apps).
-    // Treat it in C++ as well.
-    DCHECK(JSObject::cast(*receiver)->HasFastElements() ||
-           JSObject::cast(*receiver)->HasFastArgumentsElements());
-  } else {
-    AllowHeapAllocation allow_allocation;
-    return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-  }
-  DCHECK_LE(0, len);
-  int argument_count = args.length() - 1;
-  // Note carefully chosen defaults---if argument is missing,
-  // it's undefined which gets converted to 0 for relative_start
-  // and to len for relative_end.
-  relative_start = 0;
-  relative_end = len;
-  if (argument_count > 0) {
-    DisallowHeapAllocation no_gc;
-    if (!ClampedToInteger(isolate, args[1], &relative_start)) {
-      AllowHeapAllocation allow_allocation;
-      return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-    }
-    if (argument_count > 1) {
-      Object* end_arg = args[2];
-      // slice handles the end_arg specially
-      if (end_arg->IsUndefined(isolate)) {
-        relative_end = len;
-      } else if (!ClampedToInteger(isolate, end_arg, &relative_end)) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
-    }
-  }
-
-  // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 6.
-  uint32_t actual_start = (relative_start < 0) ? Max(len + relative_start, 0)
-                                               : Min(relative_start, len);
-
-  // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 8.
-  uint32_t actual_end =
-      (relative_end < 0) ? Max(len + relative_end, 0) : Min(relative_end, len);
-
-  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
-  ElementsAccessor* accessor = object->GetElementsAccessor();
-  return *accessor->Slice(object, actual_start, actual_end);
-}
-
 BUILTIN(ArraySplice) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
@@ -317,7 +247,7 @@ BUILTIN(ArraySplice) {
           // If this is a subclass of Array, then call out to JS.
           !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
           // If anything with @@species has been messed with, call out to JS.
-          !isolate->IsSpeciesLookupChainIntact())) {
+          !isolate->IsArraySpeciesLookupChainIntact())) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -403,7 +333,7 @@ class ArrayConcatVisitor {
 
   ~ArrayConcatVisitor() { clear_storage(); }
 
-  MUST_USE_RESULT bool visit(uint32_t i, Handle<Object> elm) {
+  V8_WARN_UNUSED_RESULT bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
     if (i >= JSObject::kMaxElementCount - index_offset_) {
@@ -481,7 +411,7 @@ class ArrayConcatVisitor {
     return array;
   }
 
-  MUST_USE_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
     DCHECK(!is_fixed_array());
     Handle<JSReceiver> result = Handle<JSReceiver>::cast(storage_);
     Handle<Object> length =
@@ -1187,7 +1117,7 @@ BUILTIN(ArrayConcat) {
   // Avoid a real species read to avoid extra lookups to the array constructor
   if (V8_LIKELY(receiver->IsJSArray() &&
                 Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
-                isolate->IsSpeciesLookupChainIntact())) {
+                isolate->IsArraySpeciesLookupChainIntact())) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }

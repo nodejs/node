@@ -4,9 +4,6 @@
 
 'use strict';
 
-const KB = 1024;
-const MB = KB * KB;
-
 const global_timeline_template =
     document.currentScript.ownerDocument.querySelector(
         '#global-timeline-template');
@@ -70,7 +67,7 @@ class GlobalTimeline extends HTMLElement {
       const gc_data = isolate_data.gcs[gc_key];
       const data_set = gc_data[this.selection.data_set].instance_type_data;
       const data = [];
-      data.push(gc_data.time);
+      data.push(gc_data.time * kMillis2Seconds);
       Object.values(this.selection.categories).forEach(instance_types => {
         data.push(
             instance_types
@@ -96,7 +93,7 @@ class GlobalTimeline extends HTMLElement {
       const gc_data = isolate_data.gcs[gc_key];
       const data_set = gc_data[this.selection.data_set].instance_type_data;
       const data = [];
-      data.push(gc_data.time);
+      data.push(gc_data.time * kMillis2Seconds);
       instance_types.forEach(instance_type => {
         data.push(data_set[instance_type].overall / KB);
       });
@@ -116,10 +113,14 @@ class GlobalTimeline extends HTMLElement {
     const options = {
       isStacked: true,
       hAxis: {
-        title: 'Time [ms]',
+        format: '###.##s',
+        title: 'Time [s]',
       },
-      vAxis: {title: 'Memory consumption [KBytes]'},
-      chartArea: {width: '85%', height: '70%'},
+      vAxis: {
+        format: '#,###KB',
+        title: 'Memory consumption [KBytes]'
+      },
+      chartArea: {left:100, width: '85%', height: '70%'},
       legend: {position: 'top', maxLines: '1'},
       pointsVisible: true,
       pointSize: 5,

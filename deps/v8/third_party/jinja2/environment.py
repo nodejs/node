@@ -5,32 +5,32 @@
 
     Provides a class that holds runtime and parsing time options.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 import os
 import sys
+import weakref
+from functools import reduce, partial
 from jinja2 import nodes
 from jinja2.defaults import BLOCK_START_STRING, \
      BLOCK_END_STRING, VARIABLE_START_STRING, VARIABLE_END_STRING, \
      COMMENT_START_STRING, COMMENT_END_STRING, LINE_STATEMENT_PREFIX, \
      LINE_COMMENT_PREFIX, TRIM_BLOCKS, NEWLINE_SEQUENCE, \
      DEFAULT_FILTERS, DEFAULT_TESTS, DEFAULT_NAMESPACE, \
-     KEEP_TRAILING_NEWLINE, LSTRIP_BLOCKS
+     DEFAULT_POLICIES, KEEP_TRAILING_NEWLINE, LSTRIP_BLOCKS
 from jinja2.lexer import get_lexer, TokenStream
 from jinja2.parser import Parser
 from jinja2.nodes import EvalContext
-from jinja2.optimizer import optimize
 from jinja2.compiler import generate, CodeGenerator
 from jinja2.runtime import Undefined, new_context, Context
 from jinja2.exceptions import TemplateSyntaxError, TemplateNotFound, \
      TemplatesNotFound, TemplateRuntimeError
 from jinja2.utils import import_string, LRUCache, Markup, missing, \
-     concat, consume, internalcode
+     concat, consume, internalcode, have_async_gen
 from jinja2._compat import imap, ifilter, string_types, iteritems, \
      text_type, reraise, implements_iterator, implements_to_string, \
-     get_next, encode_filename, PY2, PYPY
-from functools import reduce
+     encode_filename, PY2, PYPY
 
 
 # for direct template usage we have up to ten living environments
@@ -85,6 +85,16 @@ def load_extensions(environment, extensions):
             extension = import_string(extension)
         result[extension.identifier] = extension(environment)
     return result
+
+
+def fail_for_missing_callable(string, name):
+    msg = string % name
+    if isinstance(name, Undefined):
+        try:
+            name._fail_with_undefined_error()
+        except Exception as e:
+            msg = '%s (%s; did you forget to quote the callable name?)' % (msg, e)
+    raise TemplateRuntimeError(msg)
 
 
 def _environment_sanity_check(environment):
@@ -167,7 +177,7 @@ class Environment(object):
             look at :ref:`the extensions documentation <jinja-extensions>`.
 
         `optimized`
-            should the optimizer be enabled?  Default is `True`.
+            should the optimizer be enabled?  Default is ``True``.
 
         `undefined`
             :class:`Undefined` or a subclass of it that is used to represent
@@ -176,14 +186,14 @@ class Environment(object):
         `finalize`
             A callable that can be used to process the result of a variable
             expression before it is output.  For example one can convert
-            `None` implicitly into an empty string here.
+            ``None`` implicitly into an empty string here.
 
         `autoescape`
-            If set to true the XML/HTML autoescaping feature is enabled by
+            If set to ``True`` the XML/HTML autoescaping feature is enabled by
             default.  For more details about autoescaping see
             :class:`~jinja2.utils.Markup`.  As of Jinja 2.4 this can also
             be a callable that is passed the template name and has to
-            return `True` or `False` depending on autoescape should be
+            return ``True`` or ``False`` depending on autoescape should be
             enabled by default.
 
             .. versionchanged:: 2.4
@@ -205,7 +215,7 @@ class Environment(object):
         `auto_reload`
             Some loaders load templates from locations where the template
             sources may change (ie: file system or database).  If
-            `auto_reload` is set to `True` (default) every time a template is
+            ``auto_reload`` is set to ``True`` (default) every time a template is
             requested the loader checks if the source changed and if yes, it
             will reload the template.  For higher performance it's possible to
             disable that.
@@ -216,6 +226,11 @@ class Environment(object):
             have to be parsed if they were not changed.
 
             See :ref:`bytecode-cache` for more information.
+
+        `enable_async`
+            If set to true this enables async template execution which allows
+            you to take advantage of newer Python features.  This requires
+            Python 3.6 or later.
     """
 
     #: if this environment is sandboxed.  Modifying this variable won't make
@@ -267,7 +282,8 @@ class Environment(object):
                  loader=None,
                  cache_size=400,
                  auto_reload=True,
-                 bytecode_cache=None):
+                 bytecode_cache=None,
+                 enable_async=False):
         # !!Important notice!!
         #   The constructor accepts quite a few arguments that should be
         #   passed by keyword rather than position.  However it's important to
@@ -310,8 +326,14 @@ class Environment(object):
         self.bytecode_cache = bytecode_cache
         self.auto_reload = auto_reload
 
+        # configurable policies
+        self.policies = DEFAULT_POLICIES.copy()
+
         # load extensions
         self.extensions = load_extensions(self, extensions)
+
+        self.enable_async = enable_async
+        self.is_async = self.enable_async and have_async_gen
 
         _environment_sanity_check(self)
 
@@ -387,7 +409,7 @@ class Environment(object):
         """Get an item or attribute of an object but prefer the item."""
         try:
             return obj[argument]
-        except (TypeError, LookupError):
+        except (AttributeError, TypeError, LookupError):
             if isinstance(argument, string_types):
                 try:
                     attr = str(argument)
@@ -417,11 +439,16 @@ class Environment(object):
                     context=None, eval_ctx=None):
         """Invokes a filter on a value the same way the compiler does it.
 
+        Note that on Python 3 this might return a coroutine in case the
+        filter is running from an environment in async mode and the filter
+        supports async execution.  It's your responsibility to await this
+        if needed.
+
         .. versionadded:: 2.7
         """
         func = self.filters.get(name)
         if func is None:
-            raise TemplateRuntimeError('no filter named %r' % name)
+            fail_for_missing_callable('no filter named %r', name)
         args = [value] + list(args or ())
         if getattr(func, 'contextfilter', False):
             if context is None:
@@ -446,7 +473,7 @@ class Environment(object):
         """
         func = self.tests.get(name)
         if func is None:
-            raise TemplateRuntimeError('no test named %r' % name)
+            fail_for_missing_callable('no test named %r', name)
         return func(value, *(args or ()), **(kwargs or {}))
 
     @internalcode
@@ -512,7 +539,8 @@ class Environment(object):
 
         .. versionadded:: 2.5
         """
-        return generate(source, self, name, filename, defer_init=defer_init)
+        return generate(source, self, name, filename, defer_init=defer_init,
+                        optimized=self.optimized)
 
     def _compile(self, source, filename):
         """Internal hook that can be overridden to hook a different compile
@@ -549,8 +577,6 @@ class Environment(object):
             if isinstance(source, string_types):
                 source_hint = source
                 source = self._parse(source, name, filename)
-            if self.optimized:
-                source = optimize(source, self)
             source = self._generate(source, name, filename,
                                     defer_init=defer_init)
             if raw:
@@ -769,15 +795,7 @@ class Environment(object):
     def _load_template(self, name, globals):
         if self.loader is None:
             raise TypeError('no loader for this environment specified')
-        try:
-            # use abs path for cache key
-            cache_key = self.loader.get_source(self, name)[1]
-        except RuntimeError:
-            # if loader does not implement get_source()
-            cache_key = None
-        # if template is not file, use name for cache key
-        if cache_key is None:
-            cache_key = name
+        cache_key = (weakref.ref(self.loader), name)
         if self.cache is not None:
             template = self.cache.get(cache_key)
             if template is not None and (not self.auto_reload or
@@ -791,7 +809,7 @@ class Environment(object):
     @internalcode
     def get_template(self, name, parent=None, globals=None):
         """Load a template from the loader.  If a loader is configured this
-        method ask the loader for the template and returns a :class:`Template`.
+        method asks the loader for the template and returns a :class:`Template`.
         If the `parent` parameter is not `None`, :meth:`join_path` is called
         to get the real template name before loading.
 
@@ -915,14 +933,15 @@ class Template(object):
                 optimized=True,
                 undefined=Undefined,
                 finalize=None,
-                autoescape=False):
+                autoescape=False,
+                enable_async=False):
         env = get_spontaneous_environment(
             block_start_string, block_end_string, variable_start_string,
             variable_end_string, comment_start_string, comment_end_string,
             line_statement_prefix, line_comment_prefix, trim_blocks,
             lstrip_blocks, newline_sequence, keep_trailing_newline,
             frozenset(extensions), optimized, undefined, finalize, autoescape,
-            None, 0, False, None)
+            None, 0, False, None, enable_async)
         return env.from_string(source, template_class=cls)
 
     @classmethod
@@ -988,6 +1007,19 @@ class Template(object):
             exc_info = sys.exc_info()
         return self.environment.handle_exception(exc_info, True)
 
+    def render_async(self, *args, **kwargs):
+        """This works similar to :meth:`render` but returns a coroutine
+        that when awaited returns the entire rendered template string.  This
+        requires the async feature to be enabled.
+
+        Example usage::
+
+            await template.render_async(knights='that say nih; asynchronously')
+        """
+        # see asyncsupport for the actual implementation
+        raise NotImplementedError('This feature is not available for this '
+                                  'version of Python')
+
     def stream(self, *args, **kwargs):
         """Works exactly like :meth:`generate` but returns a
         :class:`TemplateStream`.
@@ -1012,6 +1044,14 @@ class Template(object):
             return
         yield self.environment.handle_exception(exc_info, True)
 
+    def generate_async(self, *args, **kwargs):
+        """An async version of :meth:`generate`.  Works very similarly but
+        returns an async iterator instead.
+        """
+        # see asyncsupport for the actual implementation
+        raise NotImplementedError('This feature is not available for this '
+                                  'version of Python')
+
     def new_context(self, vars=None, shared=False, locals=None):
         """Create a new :class:`Context` for this template.  The vars
         provided will be passed to the template.  Per default the globals
@@ -1032,6 +1072,23 @@ class Template(object):
         """
         return TemplateModule(self, self.new_context(vars, shared, locals))
 
+    def make_module_async(self, vars=None, shared=False, locals=None):
+        """As template module creation can invoke template code for
+        asynchronous exections this method must be used instead of the
+        normal :meth:`make_module` one.  Likewise the module attribute
+        becomes unavailable in async mode.
+        """
+        # see asyncsupport for the actual implementation
+        raise NotImplementedError('This feature is not available for this '
+                                  'version of Python')
+
+    @internalcode
+    def _get_default_module(self):
+        if self._module is not None:
+            return self._module
+        self._module = rv = self.make_module()
+        return rv
+
     @property
     def module(self):
         """The template as module.  This is used for imports in the
@@ -1043,11 +1100,10 @@ class Template(object):
         '23'
         >>> t.module.foo() == u'42'
         True
+
+        This attribute is not available if async mode is enabled.
         """
-        if self._module is not None:
-            return self._module
-        self._module = rv = self.make_module()
-        return rv
+        return self._get_default_module()
 
     def get_corresponding_lineno(self, lineno):
         """Return the source line number of a line number in the
@@ -1086,8 +1142,15 @@ class TemplateModule(object):
     converting it into an unicode- or bytestrings renders the contents.
     """
 
-    def __init__(self, template, context):
-        self._body_stream = list(template.root_render_func(context))
+    def __init__(self, template, context, body_stream=None):
+        if body_stream is None:
+            if context.environment.is_async:
+                raise RuntimeError('Async mode requires a body stream '
+                                   'to be passed to a template module.  Use '
+                                   'the async methods of the API you are '
+                                   'using.')
+            body_stream = list(template.root_render_func(context))
+        self._body_stream = body_stream
         self.__dict__.update(context.get_exported())
         self.__name__ = template.name
 
@@ -1171,35 +1234,35 @@ class TemplateStream(object):
 
     def disable_buffering(self):
         """Disable the output buffering."""
-        self._next = get_next(self._gen)
+        self._next = partial(next, self._gen)
         self.buffered = False
+
+    def _buffered_generator(self, size):
+        buf = []
+        c_size = 0
+        push = buf.append
+
+        while 1:
+            try:
+                while c_size < size:
+                    c = next(self._gen)
+                    push(c)
+                    if c:
+                        c_size += 1
+            except StopIteration:
+                if not c_size:
+                    return
+            yield concat(buf)
+            del buf[:]
+            c_size = 0
 
     def enable_buffering(self, size=5):
         """Enable buffering.  Buffer `size` items before yielding them."""
         if size <= 1:
             raise ValueError('buffer size too small')
 
-        def generator(next):
-            buf = []
-            c_size = 0
-            push = buf.append
-
-            while 1:
-                try:
-                    while c_size < size:
-                        c = next()
-                        push(c)
-                        if c:
-                            c_size += 1
-                except StopIteration:
-                    if not c_size:
-                        return
-                yield concat(buf)
-                del buf[:]
-                c_size = 0
-
         self.buffered = True
-        self._next = get_next(generator(get_next(self._gen)))
+        self._next = partial(next, self._buffered_generator(size))
 
     def __iter__(self):
         return self

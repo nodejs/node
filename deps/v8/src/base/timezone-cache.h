@@ -20,10 +20,8 @@ class TimezoneCache {
   // ES #sec-local-time-zone-adjustment
   // Local Time Zone Adjustment
   //
-  // TODO(littledan): Make more accurate with another parameter along the
-  // lines of this spec change:
   // https://github.com/tc39/ecma262/pull/778
-  virtual double LocalTimeOffset() = 0;
+  virtual double LocalTimeOffset(double time_ms, bool is_utc) = 0;
 
   // Called when the local timezone changes
   virtual void Clear() = 0;

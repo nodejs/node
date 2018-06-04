@@ -12,7 +12,6 @@
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
 #include "src/base/flags.h"
-#include "src/builtins/builtins-definitions.h"
 #include "src/checks.h"
 #include "src/elements-kind.h"
 #include "src/field-index.h"
@@ -73,6 +72,7 @@
 //           - JSDate
 //         - JSMessageObject
 //         - JSModuleNamespace
+//         - WasmGlobalObject
 //         - WasmInstanceObject
 //         - WasmMemoryObject
 //         - WasmModuleObject
@@ -100,7 +100,7 @@
 //         - ScopeInfo
 //         - ModuleInfo
 //         - ScriptContextTable
-//         - WeakFixedArray
+//         - FixedArrayOfWeakCells
 //         - WasmSharedModuleData
 //         - WasmCompiledModule
 //       - FixedDoubleArray
@@ -217,14 +217,26 @@ static inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
 }
 
 static inline KeyedAccessStoreMode GetNonTransitioningStoreMode(
-    KeyedAccessStoreMode store_mode) {
-  if (store_mode >= STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-    return store_mode;
+    KeyedAccessStoreMode store_mode, bool receiver_was_cow) {
+  switch (store_mode) {
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
+    case STORE_AND_GROW_TRANSITION_TO_OBJECT:
+    case STORE_AND_GROW_TRANSITION_TO_DOUBLE:
+      store_mode = STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
+      break;
+    case STANDARD_STORE:
+    case STORE_TRANSITION_TO_OBJECT:
+    case STORE_TRANSITION_TO_DOUBLE:
+      store_mode =
+          receiver_was_cow ? STORE_NO_TRANSITION_HANDLE_COW : STANDARD_STORE;
+      break;
+    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
+    case STORE_NO_TRANSITION_HANDLE_COW:
+      break;
   }
-  if (store_mode >= STORE_AND_GROW_NO_TRANSITION_HANDLE_COW) {
-    return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
-  }
-  return STANDARD_STORE;
+  DCHECK(!IsTransitionStoreMode(store_mode));
+  DCHECK_IMPLIES(receiver_was_cow, IsCOWHandlingStoreMode(store_mode));
+  return store_mode;
 }
 
 
@@ -360,6 +372,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_BIGUINT64_ARRAY_TYPE)                                 \
                                                                 \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
+  V(FEEDBACK_METADATA_TYPE)                                     \
   V(FILLER_TYPE)                                                \
                                                                 \
   V(ACCESS_CHECK_INFO_TYPE)                                     \
@@ -373,6 +386,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO_TYPE)                                            \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
   V(INTERCEPTOR_INFO_TYPE)                                      \
+  V(INTERPRETER_DATA_TYPE)                                      \
   V(MODULE_INFO_ENTRY_TYPE)                                     \
   V(MODULE_TYPE)                                                \
   V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
@@ -383,6 +397,9 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(STACK_FRAME_INFO_TYPE)                                      \
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
+  V(WASM_COMPILED_MODULE_TYPE)                                  \
+  V(WASM_DEBUG_INFO_TYPE)                                       \
+  V(WASM_SHARED_MODULE_DATA_TYPE)                               \
                                                                 \
   V(CALLABLE_TASK_TYPE)                                         \
   V(CALLBACK_TASK_TYPE)                                         \
@@ -391,11 +408,23 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                     \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
+  V(BOILERPLATE_DESCRIPTION_TYPE)                               \
   V(DESCRIPTOR_ARRAY_TYPE)                                      \
   V(HASH_TABLE_TYPE)                                            \
   V(SCOPE_INFO_TYPE)                                            \
   V(TRANSITION_ARRAY_TYPE)                                      \
                                                                 \
+  V(BLOCK_CONTEXT_TYPE)                                         \
+  V(CATCH_CONTEXT_TYPE)                                         \
+  V(DEBUG_EVALUATE_CONTEXT_TYPE)                                \
+  V(EVAL_CONTEXT_TYPE)                                          \
+  V(FUNCTION_CONTEXT_TYPE)                                      \
+  V(MODULE_CONTEXT_TYPE)                                        \
+  V(NATIVE_CONTEXT_TYPE)                                        \
+  V(SCRIPT_CONTEXT_TYPE)                                        \
+  V(WITH_CONTEXT_TYPE)                                          \
+                                                                \
+  V(CALL_HANDLER_INFO_TYPE)                                     \
   V(CELL_TYPE)                                                  \
   V(CODE_DATA_CONTAINER_TYPE)                                   \
   V(FEEDBACK_CELL_TYPE)                                         \
@@ -408,6 +437,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SMALL_ORDERED_HASH_SET_TYPE)                                \
   V(STORE_HANDLER_TYPE)                                         \
   V(WEAK_CELL_TYPE)                                             \
+  V(WEAK_FIXED_ARRAY_TYPE)                                      \
                                                                 \
   V(JS_PROXY_TYPE)                                              \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
@@ -420,6 +450,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
                                                                 \
   V(JS_ARGUMENTS_TYPE)                                          \
   V(JS_ARRAY_BUFFER_TYPE)                                       \
+  V(JS_ARRAY_ITERATOR_TYPE)                                     \
   V(JS_ARRAY_TYPE)                                              \
   V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
   V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
@@ -434,6 +465,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_MESSAGE_OBJECT_TYPE)                                     \
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
+  V(JS_REGEXP_STRING_ITERATOR_TYPE)                             \
   V(JS_SET_TYPE)                                                \
   V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                             \
   V(JS_SET_VALUE_ITERATOR_TYPE)                                 \
@@ -444,8 +476,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_TYPED_ARRAY_TYPE)                                        \
   V(JS_DATA_VIEW_TYPE)                                          \
                                                                 \
-  ARRAY_ITERATOR_TYPE_LIST(V)                                   \
-                                                                \
+  V(WASM_GLOBAL_TYPE)                                           \
   V(WASM_INSTANCE_TYPE)                                         \
   V(WASM_MEMORY_TYPE)                                           \
   V(WASM_MODULE_TYPE)                                           \
@@ -507,51 +538,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,       \
     ThinOneByteString)
 
-#define ARRAY_ITERATOR_TYPE_LIST(V)                     \
-  V(JS_TYPED_ARRAY_KEY_ITERATOR_TYPE)                   \
-  V(JS_FAST_ARRAY_KEY_ITERATOR_TYPE)                    \
-  V(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)                 \
-                                                        \
-  V(JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
-  V(JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE)              \
-  V(JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)            \
-  V(JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
-  V(JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)            \
-  V(JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)             \
-  V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
-  V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
-  V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)     \
-  V(JS_BIGUINT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)         \
-  V(JS_BIGINT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)          \
-                                                        \
-  V(JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)          \
-  V(JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)    \
-  V(JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)              \
-  V(JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE)        \
-  V(JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE)       \
-  V(JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE) \
-  V(JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
-                                                        \
-  V(JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE)                 \
-  V(JS_INT8_ARRAY_VALUE_ITERATOR_TYPE)                  \
-  V(JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE)                \
-  V(JS_INT16_ARRAY_VALUE_ITERATOR_TYPE)                 \
-  V(JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE)                \
-  V(JS_INT32_ARRAY_VALUE_ITERATOR_TYPE)                 \
-  V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)               \
-  V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)               \
-  V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)         \
-  V(JS_BIGUINT64_ARRAY_VALUE_ITERATOR_TYPE)             \
-  V(JS_BIGINT64_ARRAY_VALUE_ITERATOR_TYPE)              \
-                                                        \
-  V(JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE)              \
-  V(JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE)        \
-  V(JS_FAST_ARRAY_VALUE_ITERATOR_TYPE)                  \
-  V(JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE)            \
-  V(JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)           \
-  V(JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE)     \
-  V(JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE)
-
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
 // code for the class including allocation and garbage collection routines,
@@ -573,6 +559,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
+  V(INTERPRETER_DATA, InterpreterData, interpreter_data)                     \
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(MODULE, Module, module)                                                  \
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
@@ -583,6 +570,9 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(TUPLE2, Tuple2, tuple2)                                                  \
   V(TUPLE3, Tuple3, tuple3)                                                  \
+  V(WASM_COMPILED_MODULE, WasmCompiledModule, wasm_compiled_module)          \
+  V(WASM_DEBUG_INFO, WasmDebugInfo, wasm_debug_info)                         \
+  V(WASM_SHARED_MODULE_DATA, WasmSharedModuleData, wasm_shared_module_data)  \
   V(CALLABLE_TASK, CallableTask, callable_task)                              \
   V(CALLBACK_TASK, CallbackTask, callback_task)                              \
   V(PROMISE_FULFILL_REACTION_JOB_TASK, PromiseFulfillReactionJobTask,        \
@@ -749,6 +739,7 @@ enum InstanceType : uint16_t {
   FIXED_BIGINT64_ARRAY_TYPE,
   FIXED_BIGUINT64_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
   FIXED_DOUBLE_ARRAY_TYPE,
+  FEEDBACK_METADATA_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
@@ -763,6 +754,7 @@ enum InstanceType : uint16_t {
   DEBUG_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
+  INTERPRETER_DATA_TYPE,
   MODULE_INFO_ENTRY_TYPE,
   MODULE_TYPE,
   OBJECT_TEMPLATE_INFO_TYPE,
@@ -773,6 +765,9 @@ enum InstanceType : uint16_t {
   STACK_FRAME_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
+  WASM_COMPILED_MODULE_TYPE,
+  WASM_DEBUG_INFO_TYPE,
+  WASM_SHARED_MODULE_DATA_TYPE,
 
   CALLABLE_TASK_TYPE,  // FIRST_MICROTASK_TYPE
   CALLBACK_TASK_TYPE,
@@ -782,12 +777,23 @@ enum InstanceType : uint16_t {
 
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
+  BOILERPLATE_DESCRIPTION_TYPE,
   DESCRIPTOR_ARRAY_TYPE,
   HASH_TABLE_TYPE,
   SCOPE_INFO_TYPE,
-  TRANSITION_ARRAY_TYPE,  // LAST_FIXED_ARRAY_TYPE
+  TRANSITION_ARRAY_TYPE,
+  BLOCK_CONTEXT_TYPE,  // FIRST_CONTEXT_TYPE
+  CATCH_CONTEXT_TYPE,
+  DEBUG_EVALUATE_CONTEXT_TYPE,
+  EVAL_CONTEXT_TYPE,
+  FUNCTION_CONTEXT_TYPE,
+  MODULE_CONTEXT_TYPE,
+  NATIVE_CONTEXT_TYPE,
+  SCRIPT_CONTEXT_TYPE,
+  WITH_CONTEXT_TYPE,  // LAST_FIXED_ARRAY_TYPE, LAST_CONTEXT_TYPE
 
   // Misc.
+  CALL_HANDLER_INFO_TYPE,
   CELL_TYPE,
   CODE_DATA_CONTAINER_TYPE,
   FEEDBACK_CELL_TYPE,
@@ -800,6 +806,7 @@ enum InstanceType : uint16_t {
   SMALL_ORDERED_HASH_SET_TYPE,
   STORE_HANDLER_TYPE,
   WEAK_CELL_TYPE,
+  WEAK_FIXED_ARRAY_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -821,6 +828,7 @@ enum InstanceType : uint16_t {
   JS_OBJECT_TYPE,
   JS_ARGUMENTS_TYPE,
   JS_ARRAY_BUFFER_TYPE,
+  JS_ARRAY_ITERATOR_TYPE,
   JS_ARRAY_TYPE,
   JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
   JS_ASYNC_GENERATOR_OBJECT_TYPE,
@@ -835,6 +843,7 @@ enum InstanceType : uint16_t {
   JS_MESSAGE_OBJECT_TYPE,
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
+  JS_REGEXP_STRING_ITERATOR_TYPE,
   JS_SET_TYPE,
   JS_SET_KEY_VALUE_ITERATOR_TYPE,
   JS_SET_VALUE_ITERATOR_TYPE,
@@ -845,11 +854,8 @@ enum InstanceType : uint16_t {
   JS_TYPED_ARRAY_TYPE,
   JS_DATA_VIEW_TYPE,
 
-#define ARRAY_ITERATOR_TYPE(type) type,
-  ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_TYPE)
-#undef ARRAY_ITERATOR_TYPE
-
-      WASM_INSTANCE_TYPE,
+  WASM_GLOBAL_TYPE,
+  WASM_INSTANCE_TYPE,
   WASM_MEMORY_TYPE,
   WASM_MODULE_TYPE,
   WASM_TABLE_TYPE,
@@ -870,7 +876,10 @@ enum InstanceType : uint16_t {
   LAST_FUNCTION_TYPE = JS_FUNCTION_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of FixedArray.
   FIRST_FIXED_ARRAY_TYPE = FIXED_ARRAY_TYPE,
-  LAST_FIXED_ARRAY_TYPE = TRANSITION_ARRAY_TYPE,
+  LAST_FIXED_ARRAY_TYPE = WITH_CONTEXT_TYPE,
+  // Boundaries for testing if given HeapObject is a Context
+  FIRST_CONTEXT_TYPE = BLOCK_CONTEXT_TYPE,
+  LAST_CONTEXT_TYPE = WITH_CONTEXT_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of Microtask.
   FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
   LAST_MICROTASK_TYPE = PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
@@ -895,18 +904,6 @@ enum InstanceType : uint16_t {
   // an empty fixed array as elements backing store. This is true for string
   // wrappers.
   LAST_CUSTOM_ELEMENTS_RECEIVER = JS_VALUE_TYPE,
-
-  FIRST_ARRAY_KEY_ITERATOR_TYPE = JS_TYPED_ARRAY_KEY_ITERATOR_TYPE,
-  LAST_ARRAY_KEY_ITERATOR_TYPE = JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE,
-
-  FIRST_ARRAY_KEY_VALUE_ITERATOR_TYPE = JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-  LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE = JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-
-  FIRST_ARRAY_VALUE_ITERATOR_TYPE = JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE,
-  LAST_ARRAY_VALUE_ITERATOR_TYPE = JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE,
-
-  FIRST_ARRAY_ITERATOR_TYPE = FIRST_ARRAY_KEY_ITERATOR_TYPE,
-  LAST_ARRAY_ITERATOR_TYPE = LAST_ARRAY_VALUE_ITERATOR_TYPE,
 
   FIRST_SET_ITERATOR_TYPE = JS_SET_KEY_VALUE_ITERATOR_TYPE,
   LAST_SET_ITERATOR_TYPE = JS_SET_VALUE_ITERATOR_TYPE,
@@ -997,6 +994,7 @@ template <class C> inline bool Is(Object* obj);
   V(AccessCheckNeeded)                    \
   V(ArrayList)                            \
   V(BigInt)                               \
+  V(BigIntWrapper)                        \
   V(BoilerplateDescription)               \
   V(Boolean)                              \
   V(BooleanWrapper)                       \
@@ -1032,6 +1030,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedArray)                           \
   V(FixedArrayBase)                       \
   V(FixedArrayExact)                      \
+  V(FixedArrayOfWeakCells)                \
   V(FixedBigInt64Array)                   \
   V(FixedBigUint64Array)                  \
   V(FixedDoubleArray)                     \
@@ -1079,6 +1078,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSProxy)                              \
   V(JSReceiver)                           \
   V(JSRegExp)                             \
+  V(JSRegExpStringIterator)               \
   V(JSSet)                                \
   V(JSSetIterator)                        \
   V(JSSloppyArgumentsObject)              \
@@ -1139,13 +1139,13 @@ template <class C> inline bool Is(Object* obj);
   V(TransitionArray)                      \
   V(Undetectable)                         \
   V(UniqueName)                           \
+  V(WasmGlobalObject)                     \
   V(WasmInstanceObject)                   \
   V(WasmMemoryObject)                     \
   V(WasmModuleObject)                     \
   V(WasmTableObject)                      \
   V(WeakCell)                             \
-  V(WeakFixedArray)                       \
-  V(WeakHashTable)
+  V(WeakFixedArray)
 
 #define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
   V(Dictionary)                           \
@@ -1224,7 +1224,8 @@ class Object {
 #undef DECL_STRUCT_PREDICATE
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
-  INLINE(MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object));
+  INLINE(
+      V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object));
 
   INLINE(bool IsSmallOrderedHashTable() const);
 
@@ -1266,11 +1267,12 @@ class Object {
   bool BooleanValue();                                      // ECMA-262 9.2.
 
   // ES6 section 7.2.11 Abstract Relational Comparison
-  MUST_USE_RESULT static Maybe<ComparisonResult> Compare(Handle<Object> x,
-                                                         Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static Maybe<ComparisonResult> Compare(
+      Handle<Object> x, Handle<Object> y);
 
   // ES6 section 7.2.12 Abstract Equality Comparison
-  MUST_USE_RESULT static Maybe<bool> Equals(Handle<Object> x, Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> Equals(Handle<Object> x,
+                                                  Handle<Object> y);
 
   // ES6 section 7.2.13 Strict Equality Comparison
   bool StrictEquals(Object* that);
@@ -1282,104 +1284,104 @@ class Object {
   // Passing a non-null method_name allows us to give a more informative
   // error message for those cases where ToObject is being called on
   // the receiver of a built-in method.
-  MUST_USE_RESULT static inline MaybeHandle<JSReceiver> ToObject(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<JSReceiver> ToObject(
       Isolate* isolate, Handle<Object> object,
       const char* method_name = nullptr);
-  MUST_USE_RESULT static MaybeHandle<JSReceiver> ToObject(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> ToObject(
       Isolate* isolate, Handle<Object> object, Handle<Context> native_context,
       const char* method_name = nullptr);
 
   // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
-  MUST_USE_RESULT static MaybeHandle<JSReceiver> ConvertReceiver(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> ConvertReceiver(
       Isolate* isolate, Handle<Object> object);
 
   // ES6 section 7.1.14 ToPropertyKey
-  MUST_USE_RESULT static inline MaybeHandle<Name> ToName(Isolate* isolate,
-                                                         Handle<Object> input);
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Name> ToName(
+      Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.1 ToPrimitive
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToPrimitive(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToPrimitive(
       Handle<Object> input, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.3 ToNumber
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToNumber(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToNumber(
       Handle<Object> input);
 
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToNumeric(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToNumeric(
       Handle<Object> input);
 
   // ES6 section 7.1.4 ToInteger
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToInteger(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToInteger(
       Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.5 ToInt32
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToInt32(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToInt32(
       Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.6 ToUint32
-  MUST_USE_RESULT inline static MaybeHandle<Object> ToUint32(
+  V8_WARN_UNUSED_RESULT inline static MaybeHandle<Object> ToUint32(
       Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.12 ToString
-  MUST_USE_RESULT static inline MaybeHandle<String> ToString(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<String> ToString(
       Isolate* isolate, Handle<Object> input);
 
   static Handle<String> NoSideEffectsToString(Isolate* isolate,
                                               Handle<Object> input);
 
   // ES6 section 7.1.14 ToPropertyKey
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToPropertyKey(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToPropertyKey(
       Isolate* isolate, Handle<Object> value);
 
   // ES6 section 7.1.15 ToLength
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToLength(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToLength(
       Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.17 ToIndex
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToIndex(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToIndex(
       Isolate* isolate, Handle<Object> input,
       MessageTemplate::Template error_index);
 
   // ES6 section 7.3.9 GetMethod
-  MUST_USE_RESULT static MaybeHandle<Object> GetMethod(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetMethod(
       Handle<JSReceiver> receiver, Handle<Name> name);
 
   // ES6 section 7.3.17 CreateListFromArrayLike
-  MUST_USE_RESULT static MaybeHandle<FixedArray> CreateListFromArrayLike(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> CreateListFromArrayLike(
       Isolate* isolate, Handle<Object> object, ElementTypes element_types);
 
   // Get length property and apply ToLength.
-  MUST_USE_RESULT static MaybeHandle<Object> GetLengthFromArrayLike(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetLengthFromArrayLike(
       Isolate* isolate, Handle<Object> object);
 
   // ES6 section 12.5.6 The typeof Operator
   static Handle<String> TypeOf(Isolate* isolate, Handle<Object> object);
 
   // ES6 section 12.7 Additive Operators
-  MUST_USE_RESULT static MaybeHandle<Object> Add(Isolate* isolate,
-                                                 Handle<Object> lhs,
-                                                 Handle<Object> rhs);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Add(Isolate* isolate,
+                                                       Handle<Object> lhs,
+                                                       Handle<Object> rhs);
 
   // ES6 section 12.9 Relational Operators
-  MUST_USE_RESULT static inline Maybe<bool> GreaterThan(Handle<Object> x,
-                                                        Handle<Object> y);
-  MUST_USE_RESULT static inline Maybe<bool> GreaterThanOrEqual(
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> GreaterThan(Handle<Object> x,
+                                                              Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> GreaterThanOrEqual(
       Handle<Object> x, Handle<Object> y);
-  MUST_USE_RESULT static inline Maybe<bool> LessThan(Handle<Object> x,
-                                                     Handle<Object> y);
-  MUST_USE_RESULT static inline Maybe<bool> LessThanOrEqual(Handle<Object> x,
-                                                            Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> LessThan(Handle<Object> x,
+                                                           Handle<Object> y);
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> LessThanOrEqual(
+      Handle<Object> x, Handle<Object> y);
 
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O).
-  MUST_USE_RESULT static MaybeHandle<Object> OrdinaryHasInstance(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> OrdinaryHasInstance(
       Isolate* isolate, Handle<Object> callable, Handle<Object> object);
 
   // ES6 section 12.10.4 Runtime Semantics: InstanceofOperator(O, C)
-  MUST_USE_RESULT static MaybeHandle<Object> InstanceOf(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> InstanceOf(
       Isolate* isolate, Handle<Object> object, Handle<Object> callable);
 
-  V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
-      LookupIterator* it);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  GetProperty(LookupIterator* it);
 
   // ES6 [[Set]] (when passed kDontThrow)
   // Invariants for this and related functions (unless stated otherwise):
@@ -1388,62 +1390,60 @@ class Object {
   // In some cases, an exception is thrown regardless of the ShouldThrow
   // argument.  These cases are either in accordance with the spec or not
   // covered by it (eg., concerning API callbacks).
-  MUST_USE_RESULT static Maybe<bool> SetProperty(LookupIterator* it,
-                                                 Handle<Object> value,
-                                                 LanguageMode language_mode,
-                                                 StoreFromKeyed store_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
+      StoreFromKeyed store_mode);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetProperty(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
       LanguageMode language_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
-  MUST_USE_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
       LanguageMode language_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
-  MUST_USE_RESULT static Maybe<bool> SetSuperProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetSuperProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
       StoreFromKeyed store_mode);
 
-  MUST_USE_RESULT static Maybe<bool> CannotCreateProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
       Handle<Object> value, ShouldThrow should_throw);
-  MUST_USE_RESULT static Maybe<bool> WriteToReadOnlyProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
-  MUST_USE_RESULT static Maybe<bool> WriteToReadOnlyProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
       Handle<Object> value, ShouldThrow should_throw);
-  MUST_USE_RESULT static Maybe<bool> RedefineIncompatibleProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> RedefineIncompatibleProperty(
       Isolate* isolate, Handle<Object> name, Handle<Object> value,
       ShouldThrow should_throw);
-  MUST_USE_RESULT static Maybe<bool> SetDataProperty(LookupIterator* it,
-                                                     Handle<Object> value);
-  MUST_USE_RESULT static Maybe<bool> AddDataProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetDataProperty(
+      LookupIterator* it, Handle<Object> value);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ShouldThrow should_throw, StoreFromKeyed store_mode);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object, Handle<Name> name);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> receiver, Handle<Name> name, Handle<JSReceiver> holder);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Handle<Object> object, Handle<Name> name);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
       LookupIterator* it);
-  MUST_USE_RESULT static Maybe<bool> SetPropertyWithAccessor(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithAccessor(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
-      Handle<Object> receiver,
-      Handle<JSReceiver> getter);
-  MUST_USE_RESULT static Maybe<bool> SetPropertyWithDefinedSetter(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
+      Handle<Object> receiver, Handle<JSReceiver> getter);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithDefinedSetter(
       Handle<Object> receiver, Handle<JSReceiver> setter, Handle<Object> value,
       ShouldThrow should_throw);
 
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetElement(
       Isolate* isolate, Handle<Object> object, uint32_t index);
 
-  MUST_USE_RESULT static inline MaybeHandle<Object> SetElement(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetElement(
       Isolate* isolate, Handle<Object> object, uint32_t index,
       Handle<Object> value, LanguageMode language_mode);
 
@@ -1469,11 +1469,11 @@ class Object {
   bool SameValueZero(Object* other);
 
   // ES6 section 9.4.2.3 ArraySpeciesCreate (part of it)
-  MUST_USE_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
       Isolate* isolate, Handle<Object> original_array);
 
   // ES6 section 7.3.20 SpeciesConstructor ( O, defaultConstructor )
-  MUST_USE_RESULT static MaybeHandle<Object> SpeciesConstructor(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SpeciesConstructor(
       Isolate* isolate, Handle<JSReceiver> recv,
       Handle<JSFunction> default_ctor);
 
@@ -1532,27 +1532,27 @@ class Object {
 
   // Helper for SetProperty and SetSuperProperty.
   // Return value is only meaningful if [found] is set to true on return.
-  MUST_USE_RESULT static Maybe<bool> SetPropertyInternal(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyInternal(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
       StoreFromKeyed store_mode, bool* found);
 
-  MUST_USE_RESULT static MaybeHandle<Name> ConvertToName(Isolate* isolate,
-                                                         Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToPropertyKey(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Name> ConvertToName(
+      Isolate* isolate, Handle<Object> input);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToPropertyKey(
       Isolate* isolate, Handle<Object> value);
-  MUST_USE_RESULT static MaybeHandle<String> ConvertToString(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToString(
       Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToNumberOrNumeric(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToNumberOrNumeric(
       Isolate* isolate, Handle<Object> input, Conversion mode);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToInteger(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToInteger(
       Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToInt32(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToInt32(
       Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToUint32(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToUint32(
       Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToLength(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToLength(
       Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToIndex(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToIndex(
       Isolate* isolate, Handle<Object> input,
       MessageTemplate::Template error_index);
 
@@ -1572,7 +1572,14 @@ struct Brief {
   const Object* value;
 };
 
+struct MaybeObjectBrief {
+  explicit MaybeObjectBrief(const MaybeObject* const v) : value(v) {}
+  const MaybeObject* value;
+};
+
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const MaybeObjectBrief& v);
 
 // Smi represents integer Numbers that can be stored in 31 bits.
 // Smis are immediate which means they are NOT allocated in the heap.
@@ -1762,19 +1769,18 @@ class HeapObject: public Object {
   // If it's not performance critical iteration use the non-templatized
   // version.
   void IterateBody(ObjectVisitor* v);
-  void IterateBody(InstanceType type, int object_size, ObjectVisitor* v);
+  void IterateBody(Map* map, int object_size, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateBodyFast(ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateBodyFast(InstanceType type, int object_size,
-                              ObjectVisitor* v);
+  inline void IterateBodyFast(Map* map, int object_size, ObjectVisitor* v);
 
   // Returns true if the object contains a tagged value at given offset.
   // It is used for invalid slots filtering. If the offset points outside
   // of the object or to the map word, the result is UNDEFINED (!!!).
-  bool IsValidSlot(int offset);
+  bool IsValidSlot(Map* map, int offset);
 
   // Returns the heap object's size in bytes
   inline int Size() const;
@@ -1789,6 +1795,7 @@ class HeapObject: public Object {
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
   static inline Object** RawField(HeapObject* obj, int offset);
+  static inline MaybeObject** RawMaybeWeakField(HeapObject* obj, int offset);
 
   DECL_CAST(HeapObject)
 
@@ -2031,12 +2038,12 @@ class JSReceiver: public HeapObject {
   DECL_CAST(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
-  MUST_USE_RESULT static MaybeHandle<Object> ToPrimitive(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(
       Handle<JSReceiver> receiver,
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.1.1 OrdinaryToPrimitive
-  MUST_USE_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
       Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSReceiver> receiver);
@@ -2045,108 +2052,108 @@ class JSReceiver: public HeapObject {
   static inline MaybeHandle<Object> GetPrototype(Isolate* isolate,
                                                  Handle<JSReceiver> receiver);
 
-  MUST_USE_RESULT static Maybe<bool> HasInPrototypeChain(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> HasInPrototypeChain(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> proto);
 
   // Reads all enumerable own properties of source and adds them to
   // target, using either Set or CreateDataProperty depending on the
   // use_set argument. This only copies values not present in the
   // maybe_excluded_properties list.
-  MUST_USE_RESULT static Maybe<bool> SetOrCopyDataProperties(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetOrCopyDataProperties(
       Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
       const ScopedVector<Handle<Object>>* excluded_properties = nullptr,
       bool use_set = true);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
-  MUST_USE_RESULT static Maybe<bool> HasProperty(LookupIterator* it);
-  MUST_USE_RESULT static inline Maybe<bool> HasProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> HasProperty(LookupIterator* it);
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasProperty(
       Handle<JSReceiver> object, Handle<Name> name);
-  MUST_USE_RESULT static inline Maybe<bool> HasElement(
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasElement(
       Handle<JSReceiver> object, uint32_t index);
 
-  MUST_USE_RESULT static Maybe<bool> HasOwnProperty(Handle<JSReceiver> object,
-                                                    Handle<Name> name);
-  MUST_USE_RESULT static inline Maybe<bool> HasOwnProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> HasOwnProperty(
+      Handle<JSReceiver> object, Handle<Name> name);
+  V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasOwnProperty(
       Handle<JSReceiver> object, uint32_t index);
 
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSReceiver> receiver, const char* key);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Handle<JSReceiver> receiver, Handle<Name> name);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetElement(
       Isolate* isolate, Handle<JSReceiver> receiver, uint32_t index);
 
   // Implementation of ES6 [[Delete]]
-  MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSReceiver> object, Handle<Name> name,
       LanguageMode language_mode = LanguageMode::kSloppy);
-  MUST_USE_RESULT static Maybe<bool> DeleteProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DeleteProperty(
       Handle<JSReceiver> object, Handle<Name> name,
       LanguageMode language_mode = LanguageMode::kSloppy);
-  MUST_USE_RESULT static Maybe<bool> DeleteProperty(LookupIterator* it,
-                                                    LanguageMode language_mode);
-  MUST_USE_RESULT static Maybe<bool> DeleteElement(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DeleteProperty(
+      LookupIterator* it, LanguageMode language_mode);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DeleteElement(
       Handle<JSReceiver> object, uint32_t index,
       LanguageMode language_mode = LanguageMode::kSloppy);
 
-  MUST_USE_RESULT static Object* DefineProperty(Isolate* isolate,
-                                                Handle<Object> object,
-                                                Handle<Object> name,
-                                                Handle<Object> attributes);
-  MUST_USE_RESULT static MaybeHandle<Object> DefineProperties(
+  V8_WARN_UNUSED_RESULT static Object* DefineProperty(
+      Isolate* isolate, Handle<Object> object, Handle<Object> name,
+      Handle<Object> attributes);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> DefineProperties(
       Isolate* isolate, Handle<Object> object, Handle<Object> properties);
 
   // "virtual" dispatcher to the correct [[DefineOwnProperty]] implementation.
-  MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
   // ES6 7.3.4 (when passed kDontThrow)
-  MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
   // ES6 9.1.6.1
-  MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
-  MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       LookupIterator* it, PropertyDescriptor* desc, ShouldThrow should_throw);
   // ES6 9.1.6.2
-  MUST_USE_RESULT static Maybe<bool> IsCompatiblePropertyDescriptor(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> IsCompatiblePropertyDescriptor(
       Isolate* isolate, bool extensible, PropertyDescriptor* desc,
       PropertyDescriptor* current, Handle<Name> property_name,
       ShouldThrow should_throw);
   // ES6 9.1.6.3
   // |it| can be NULL in cases where the ES spec passes |undefined| as the
   // receiver. Exactly one of |it| and |property_name| must be provided.
-  MUST_USE_RESULT static Maybe<bool> ValidateAndApplyPropertyDescriptor(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> ValidateAndApplyPropertyDescriptor(
       Isolate* isolate, LookupIterator* it, bool extensible,
       PropertyDescriptor* desc, PropertyDescriptor* current,
       ShouldThrow should_throw, Handle<Name> property_name);
 
-  V8_EXPORT_PRIVATE MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
-      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
-      PropertyDescriptor* desc);
-  MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool>
+  GetOwnPropertyDescriptor(Isolate* isolate, Handle<JSReceiver> object,
+                           Handle<Object> key, PropertyDescriptor* desc);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
       LookupIterator* it, PropertyDescriptor* desc);
 
   typedef PropertyAttributes IntegrityLevel;
 
   // ES6 7.3.14 (when passed kDontThrow)
   // 'level' must be SEALED or FROZEN.
-  MUST_USE_RESULT static Maybe<bool> SetIntegrityLevel(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetIntegrityLevel(
       Handle<JSReceiver> object, IntegrityLevel lvl, ShouldThrow should_throw);
 
   // ES6 7.3.15
   // 'level' must be SEALED or FROZEN.
-  MUST_USE_RESULT static Maybe<bool> TestIntegrityLevel(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> TestIntegrityLevel(
       Handle<JSReceiver> object, IntegrityLevel lvl);
 
   // ES6 [[PreventExtensions]] (when passed kDontThrow)
-  MUST_USE_RESULT static Maybe<bool> PreventExtensions(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSReceiver> object, ShouldThrow should_throw);
 
-  MUST_USE_RESULT static Maybe<bool> IsExtensible(Handle<JSReceiver> object);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(
+      Handle<JSReceiver> object);
 
   // Returns the class name ([[Class]] property in the specification).
   V8_EXPORT_PRIVATE String* class_name();
@@ -2157,26 +2164,25 @@ class JSReceiver: public HeapObject {
 
   Handle<Context> GetCreationContext();
 
-  MUST_USE_RESULT static inline Maybe<PropertyAttributes> GetPropertyAttributes(
-      Handle<JSReceiver> object, Handle<Name> name);
-  MUST_USE_RESULT static inline Maybe<PropertyAttributes>
+  V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
+  GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
+  V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetOwnPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
-  MUST_USE_RESULT static inline Maybe<PropertyAttributes>
+  V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetOwnPropertyAttributes(Handle<JSReceiver> object, uint32_t index);
 
-  MUST_USE_RESULT static inline Maybe<PropertyAttributes> GetElementAttributes(
-      Handle<JSReceiver> object, uint32_t index);
-  MUST_USE_RESULT static inline Maybe<PropertyAttributes>
+  V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
+  GetElementAttributes(Handle<JSReceiver> object, uint32_t index);
+  V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetOwnElementAttributes(Handle<JSReceiver> object, uint32_t index);
 
-  MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
+  V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
-  MUST_USE_RESULT static Maybe<bool> SetPrototype(Handle<JSReceiver> object,
-                                                  Handle<Object> value,
-                                                  bool from_javascript,
-                                                  ShouldThrow should_throw);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
+      Handle<JSReceiver> object, Handle<Object> value, bool from_javascript,
+      ShouldThrow should_throw);
 
   inline static Handle<Object> GetDataProperty(Handle<JSReceiver> object,
                                                Handle<Name> name);
@@ -2197,14 +2203,14 @@ class JSReceiver: public HeapObject {
   void SetIdentityHash(int masked_hash);
 
   // ES6 [[OwnPropertyKeys]] (modulo return type)
-  MUST_USE_RESULT static inline MaybeHandle<FixedArray> OwnPropertyKeys(
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<FixedArray> OwnPropertyKeys(
       Handle<JSReceiver> object);
 
-  MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnValues(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetOwnValues(
       Handle<JSReceiver> object, PropertyFilter filter,
       bool try_fast_path = true);
 
-  MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnEntries(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetOwnEntries(
       Handle<JSReceiver> object, PropertyFilter filter,
       bool try_fast_path = true);
 
@@ -2231,7 +2237,7 @@ class JSObject: public JSReceiver {
  public:
   static bool IsUnmodifiedApiObject(Object** o);
 
-  static MUST_USE_RESULT MaybeHandle<JSObject> New(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site = Handle<AllocationSite>::null());
 
@@ -2308,7 +2314,7 @@ class JSObject: public JSReceiver {
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
 
-  MUST_USE_RESULT static Maybe<bool> SetPropertyWithInterceptor(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw, Handle<Object> value);
 
   // The API currently still wants DefineOwnPropertyIgnoreAttributes to convert
@@ -2316,26 +2322,29 @@ class JSObject: public JSReceiver {
   // to the default behavior that calls the setter.
   enum AccessorInfoHandling { FORCE_FIELD, DONT_FORCE_FIELD };
 
-  MUST_USE_RESULT static MaybeHandle<Object> DefineOwnPropertyIgnoreAttributes(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       AccessorInfoHandling handling = DONT_FORCE_FIELD);
 
-  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyIgnoreAttributes(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ShouldThrow should_throw,
       AccessorInfoHandling handling = DONT_FORCE_FIELD);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
-      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-      PropertyAttributes attributes);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  SetOwnPropertyIgnoreAttributes(Handle<JSObject> object, Handle<Name> name,
+                                 Handle<Object> value,
+                                 PropertyAttributes attributes);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetOwnElementIgnoreAttributes(
-      Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  SetOwnElementIgnoreAttributes(Handle<JSObject> object, uint32_t index,
+                                Handle<Object> value,
+                                PropertyAttributes attributes);
 
   // Equivalent to one of the above depending on whether |name| can be converted
   // to an array index.
-  MUST_USE_RESULT static MaybeHandle<Object>
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   DefinePropertyOrElementIgnoreAttributes(Handle<JSObject> object,
                                           Handle<Name> name,
                                           Handle<Object> value,
@@ -2343,17 +2352,17 @@ class JSObject: public JSReceiver {
 
   // Adds or reconfigures a property to attributes NONE. It will fail when it
   // cannot.
-  MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value,
       ShouldThrow should_throw = kDontThrow);
 
   static void AddProperty(Handle<JSObject> object, Handle<Name> name,
                           Handle<Object> value, PropertyAttributes attributes);
 
-  MUST_USE_RESULT static Maybe<bool> AddDataElement(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataElement(
       Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
       PropertyAttributes attributes, ShouldThrow should_throw);
-  MUST_USE_RESULT static MaybeHandle<Object> AddDataElement(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> AddDataElement(
       Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
       PropertyAttributes attributes);
 
@@ -2403,7 +2412,7 @@ class JSObject: public JSReceiver {
   // Utility used by many Array builtins and runtime functions
   static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object);
 
-  // Alternative implementation of WeakFixedArray::NullCallback.
+  // Alternative implementation of FixedArrayOfWeakCells::NullCallback.
   class PrototypeRegistryCompactionCallback {
    public:
     static void Callback(Object* value, int old_index, int new_index);
@@ -2414,10 +2423,10 @@ class JSObject: public JSReceiver {
   inline InterceptorInfo* GetIndexedInterceptor();
 
   // Used from JSReceiver.
-  MUST_USE_RESULT static Maybe<PropertyAttributes>
+  V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes>
   GetPropertyAttributesWithInterceptor(LookupIterator* it);
-  MUST_USE_RESULT static Maybe<PropertyAttributes>
-      GetPropertyAttributesWithFailedAccessCheck(LookupIterator* it);
+  V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes>
+  GetPropertyAttributesWithFailedAccessCheck(LookupIterator* it);
 
   // Defines an AccessorPair property on the given object.
   // TODO(mstarzinger): Rename to SetAccessor().
@@ -2432,14 +2441,14 @@ class JSObject: public JSReceiver {
                                             PropertyAttributes attributes);
 
   // Defines an AccessorInfo property on the given object.
-  MUST_USE_RESULT static MaybeHandle<Object> SetAccessor(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetAccessor(
       Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> info,
       PropertyAttributes attributes);
 
   // The result must be checked first for exceptions. If there's no exception,
   // the output parameter |done| indicates whether the interceptor has a result
   // or not.
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       LookupIterator* it, bool* done);
 
   static void ValidateElements(JSObject* object);
@@ -2489,11 +2498,11 @@ class JSObject: public JSReceiver {
   inline bool HasIndexedInterceptor();
 
   // Support functions for v8 api (needed for correct interceptor behavior).
-  MUST_USE_RESULT static Maybe<bool> HasRealNamedProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealNamedProperty(
       Handle<JSObject> object, Handle<Name> name);
-  MUST_USE_RESULT static Maybe<bool> HasRealElementProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealElementProperty(
       Handle<JSObject> object, uint32_t index);
-  MUST_USE_RESULT static Maybe<bool> HasRealNamedCallbackProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealNamedCallbackProperty(
       Handle<JSObject> object, Handle<Name> name);
 
   // Get the header size for a JSObject.  Used to compute the index of
@@ -2574,10 +2583,9 @@ class JSObject: public JSReceiver {
                                        = UPDATE_WRITE_BARRIER);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
-  MUST_USE_RESULT static Maybe<bool> SetPrototype(Handle<JSObject> object,
-                                                  Handle<Object> value,
-                                                  bool from_javascript,
-                                                  ShouldThrow should_throw);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
+      Handle<JSObject> object, Handle<Object> value, bool from_javascript,
+      ShouldThrow should_throw);
 
   // Makes the object prototype immutable
   // Never called from JavaScript
@@ -2594,10 +2602,10 @@ class JSObject: public JSReceiver {
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);
 
-  MUST_USE_RESULT static Maybe<bool> TestIntegrityLevel(Handle<JSObject> object,
-                                                        IntegrityLevel lvl);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> TestIntegrityLevel(
+      Handle<JSObject> object, IntegrityLevel lvl);
 
-  MUST_USE_RESULT static Maybe<bool> PreventExtensions(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSObject> object, ShouldThrow should_throw);
 
   static bool IsExtensible(Handle<JSObject> object);
@@ -2719,13 +2727,13 @@ class JSObject: public JSReceiver {
   friend class Object;
 
   // Used from Object::GetProperty().
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithFailedAccessCheck(
-      LookupIterator* it);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  GetPropertyWithFailedAccessCheck(LookupIterator* it);
 
-  MUST_USE_RESULT static Maybe<bool> SetPropertyWithFailedAccessCheck(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithFailedAccessCheck(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
-  MUST_USE_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw);
 
   bool ReferencesObjectFromElements(FixedArray* elements,
@@ -2735,7 +2743,7 @@ class JSObject: public JSReceiver {
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
   template <PropertyAttributes attrs>
-  MUST_USE_RESULT static Maybe<bool> PreventExtensionsWithTransition(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Handle<JSObject> object, ShouldThrow should_throw);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
@@ -2925,8 +2933,8 @@ class PrototypeInfo : public Struct {
   // [weak_cell]: A WeakCell containing this prototype. ICs cache the cell here.
   DECL_ACCESSORS(weak_cell, Object)
 
-  // [prototype_users]: WeakFixedArray containing maps using this prototype,
-  // or Smi(0) if uninitialized.
+  // [prototype_users]: FixedArrayOfWeakCells containing maps using this
+  // prototype, or Smi(0) if uninitialized.
   DECL_ACCESSORS(prototype_users, Object)
 
   // [object_create_map]: A field caching the map for Object.create(prototype).
@@ -2939,13 +2947,7 @@ class PrototypeInfo : public Struct {
   // is stored. Returns UNREGISTERED if this prototype has not been registered.
   inline int registry_slot() const;
   inline void set_registry_slot(int slot);
-  // [validity_cell]: Cell containing the validity bit for prototype chains
-  // going through this object, or Smi(0) if uninitialized.
-  // When a prototype object changes its map, then both its own validity cell
-  // and those of all "downstream" prototypes are invalidated; handlers for a
-  // given receiver embed the currently valid cell for that receiver's prototype
-  // during their compilation and check it on execution.
-  DECL_ACCESSORS(validity_cell, Object)
+
   // [bit_field]
   inline int bit_field() const;
   inline void set_bit_field(int bit_field);
@@ -3444,7 +3446,7 @@ class JSFunction: public JSObject {
   // Creates a map that matches the constructor's initial map, but with
   // [[prototype]] being new.target.prototype. Because new.target can be a
   // JSProxy, this can call back into JavaScript.
-  static MUST_USE_RESULT MaybeHandle<Map> GetDerivedMap(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
       Isolate* isolate, Handle<JSFunction> constructor,
       Handle<JSReceiver> new_target);
 
@@ -3461,6 +3463,11 @@ class JSFunction: public JSObject {
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
+
+  static int GetHeaderSize(bool function_has_prototype_slot) {
+    return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
+                                       : JSFunction::kSizeWithoutPrototype;
+  }
 
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);
@@ -3493,8 +3500,9 @@ class JSFunction: public JSObject {
   // Because of the way this abstract operation is used in the spec,
   // it should never fail, but in practice it will fail if the generated
   // function name's length exceeds String::kMaxLength.
-  static MUST_USE_RESULT bool SetName(Handle<JSFunction> function,
-                                      Handle<Name> name, Handle<String> prefix);
+  static V8_WARN_UNUSED_RESULT bool SetName(Handle<JSFunction> function,
+                                            Handle<Name> name,
+                                            Handle<String> prefix);
 
   // The function's displayName if it is set, otherwise name if it is
   // configured, otherwise shared function info
@@ -3624,9 +3632,8 @@ class DateCache;
 // Representation for JS date objects.
 class JSDate: public JSObject {
  public:
-  static MUST_USE_RESULT MaybeHandle<JSDate> New(Handle<JSFunction> constructor,
-                                                 Handle<JSReceiver> new_target,
-                                                 double tv);
+  static V8_WARN_UNUSED_RESULT MaybeHandle<JSDate> New(
+      Handle<JSFunction> constructor, Handle<JSReceiver> new_target, double tv);
 
   // If one component is NaN, all of them are, indicating a NaN time value.
   // [value]: the time value.
@@ -4000,7 +4007,8 @@ class Oddball: public HeapObject {
   inline void set_kind(byte kind);
 
   // ES6 section 7.1.3 ToNumber for Boolean, Null, Undefined.
-  MUST_USE_RESULT static inline Handle<Object> ToNumber(Handle<Oddball> input);
+  V8_WARN_UNUSED_RESULT static inline Handle<Object> ToNumber(
+      Handle<Oddball> input);
 
   DECL_CAST(Oddball)
 
@@ -4198,9 +4206,9 @@ class WeakCell : public HeapObject {
 // The JSProxy describes EcmaScript Harmony proxies
 class JSProxy: public JSReceiver {
  public:
-  MUST_USE_RESULT static MaybeHandle<JSProxy> New(Isolate* isolate,
-                                                  Handle<Object>,
-                                                  Handle<Object>);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSProxy> New(Isolate* isolate,
+                                                        Handle<Object>,
+                                                        Handle<Object>);
 
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
@@ -4218,43 +4226,41 @@ class JSProxy: public JSReceiver {
   static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
 
   // ES6 9.5.2
-  MUST_USE_RESULT static Maybe<bool> SetPrototype(Handle<JSProxy> proxy,
-                                                  Handle<Object> value,
-                                                  bool from_javascript,
-                                                  ShouldThrow should_throw);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
+      Handle<JSProxy> proxy, Handle<Object> value, bool from_javascript,
+      ShouldThrow should_throw);
   // ES6 9.5.3
-  MUST_USE_RESULT static Maybe<bool> IsExtensible(Handle<JSProxy> proxy);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(Handle<JSProxy> proxy);
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
-  MUST_USE_RESULT static Maybe<bool> IsArray(Handle<JSProxy> proxy);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<JSProxy> proxy);
 
   // ES6 9.5.4 (when passed kDontThrow)
-  MUST_USE_RESULT static Maybe<bool> PreventExtensions(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSProxy> proxy, ShouldThrow should_throw);
 
   // ES6 9.5.5
-  MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
       PropertyDescriptor* desc);
 
   // ES6 9.5.6
-  MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
   // ES6 9.5.7
-  MUST_USE_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
-                                                 Handle<JSProxy> proxy,
-                                                 Handle<Name> name);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
+                                                       Handle<JSProxy> proxy,
+                                                       Handle<Name> name);
 
   // This function never returns false.
   // It returns either true or throws.
-  MUST_USE_RESULT static Maybe<bool> CheckHasTrap(Isolate* isolate,
-                                                  Handle<Name> name,
-                                                  Handle<JSReceiver> target);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CheckHasTrap(
+      Isolate* isolate, Handle<Name> name, Handle<JSReceiver> target);
 
   // ES6 9.5.8
-  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
       Handle<Object> receiver, bool* was_found);
 
@@ -4267,22 +4273,20 @@ class JSProxy: public JSReceiver {
                                                    AccessKind access_kind);
 
   // ES6 9.5.9
-  MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,
-                                                 Handle<Name> name,
-                                                 Handle<Object> value,
-                                                 Handle<Object> receiver,
-                                                 LanguageMode language_mode);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
+      Handle<JSProxy> proxy, Handle<Name> name, Handle<Object> value,
+      Handle<Object> receiver, LanguageMode language_mode);
 
   // ES6 9.5.10 (when passed LanguageMode::kSloppy)
-  MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
 
   // ES6 9.5.12
-  MUST_USE_RESULT static Maybe<bool> OwnPropertyKeys(
+  V8_WARN_UNUSED_RESULT static Maybe<bool> OwnPropertyKeys(
       Isolate* isolate, Handle<JSReceiver> receiver, Handle<JSProxy> proxy,
       PropertyFilter filter, KeyAccumulator* accumulator);
 
-  MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
+  V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
 
   // Dispatched behavior.
@@ -4413,7 +4417,7 @@ class Foreign: public HeapObject {
   typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
-  friend class Heap;
+  friend class Factory;
   friend class SerializerDeserializer;
   friend class StartupSerializer;
 
@@ -4440,6 +4444,7 @@ class AccessorInfo: public Struct {
   DECL_ACCESSORS(getter, Object)
   inline bool has_getter();
   DECL_ACCESSORS(setter, Object)
+  inline bool has_setter();
   // This either points at the same as above, or a trampoline in case we are
   // running with the simulator. Use these entries from generated code.
   DECL_ACCESSORS(js_getter, Object)
@@ -4457,6 +4462,7 @@ class AccessorInfo: public Struct {
   DECL_BOOLEAN_ACCESSORS(is_special_data_property)
   DECL_BOOLEAN_ACCESSORS(replace_on_access)
   DECL_BOOLEAN_ACCESSORS(is_sloppy)
+  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
 
   // The property attributes used when an API object template is instantiated
   // for the first time. Changing of this value afterwards does not affect
@@ -4505,6 +4511,7 @@ class AccessorInfo: public Struct {
   V(IsSpecialDataPropertyBit, bool, 1, _)    \
   V(IsSloppyBit, bool, 1, _)                 \
   V(ReplaceOnAccessBit, bool, 1, _)          \
+  V(HasNoSideEffectBit, bool, 1, _)          \
   V(InitialAttributesBits, PropertyAttributes, 3, _)
 
   DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)
@@ -4604,6 +4611,7 @@ class InterceptorInfo: public Struct {
   DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(non_masking)
   DECL_BOOLEAN_ACCESSORS(is_named)
+  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
 
   inline int flags() const;
   inline void set_flags(int flags);
@@ -4629,6 +4637,7 @@ class InterceptorInfo: public Struct {
   static const int kAllCanReadBit = 1;
   static const int kNonMasking = 2;
   static const int kNamed = 3;
+  static const int kHasNoSideEffect = 4;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);
@@ -4641,6 +4650,12 @@ class CallHandlerInfo : public Tuple3 {
   DECL_ACCESSORS(data, Object)
 
   DECL_CAST(CallHandlerInfo)
+
+  inline bool IsSideEffectFreeCallHandlerInfo() const;
+
+  // Dispatched behavior.
+  DECL_PRINTER(CallHandlerInfo)
+  DECL_VERIFIER(CallHandlerInfo)
 
   Address redirected_callback() const;
 
@@ -4808,6 +4823,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   inline bool IsTemplateFor(JSObject* object);
   bool IsTemplateFor(Map* map);
   inline bool instantiated();
+
+  inline bool BreakAtEntry();
 
   // Helper function for cached accessors.
   static MaybeHandle<Name> TryGetCachedPropertyName(Isolate* isolate,

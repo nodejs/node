@@ -823,13 +823,9 @@ domain Runtime
   # Unique object identifier.
   type RemoteObjectId extends string
 
-  # Primitive value which cannot be JSON-stringified.
+  # Primitive value which cannot be JSON-stringified. Includes values `-0`, `NaN`, `Infinity`,
+  # `-Infinity`, and bigint literals.
   type UnserializableValue extends string
-    enum
-      Infinity
-      NaN
-      -Infinity
-      -0
 
   # Mirror object referencing original JavaScript object.
   type RemoteObject extends object
@@ -843,6 +839,7 @@ domain Runtime
         number
         boolean
         symbol
+        bigint
       # Object subtype hint. Specified for `object` type values only.
       optional enum subtype
         array
@@ -895,6 +892,7 @@ domain Runtime
         number
         boolean
         symbol
+        bigint
       # Object subtype hint. Specified for `object` type values only.
       optional enum subtype
         array
@@ -932,6 +930,7 @@ domain Runtime
         boolean
         symbol
         accessor
+        bigint
       # User-friendly property value string.
       optional string value
       # Nested value preview.
@@ -1188,11 +1187,28 @@ domain Runtime
       # Whether execution should `await` for resulting value and return once awaited promise is
       # resolved.
       optional boolean awaitPromise
+      # Whether to throw an exception if side effect cannot be ruled out during evaluation.
+      experimental optional boolean throwOnSideEffect
     returns
       # Evaluation result.
       RemoteObject result
       # Exception details.
       optional ExceptionDetails exceptionDetails
+
+  # Returns the isolate id.
+  experimental command getIsolateId
+    returns
+      # The isolate id.
+      string id
+
+  # Returns the JavaScript heap usage.
+  # It is the total usage of the corresponding isolate not scoped to a particular Runtime.
+  experimental command getHeapUsage
+    returns
+      # Used heap size in bytes.
+      number usedSize
+      # Allocated heap size in bytes.
+      number totalSize
 
   # Returns properties of a given object. Object group of the result is inherited from the target
   # object.
@@ -1228,6 +1244,8 @@ domain Runtime
     parameters
       # Identifier of the prototype to return objects for.
       RemoteObjectId prototypeObjectId
+      # Symbolic group name that can be used to release the results.
+      optional string objectGroup
     returns
       # Array with objects.
       RemoteObject objects
@@ -1278,6 +1296,10 @@ domain Runtime
   experimental command setCustomObjectFormatterEnabled
     parameters
       boolean enabled
+
+  # Terminate current or next JavaScript execution.
+  # Will cancel the termination when the outer-most script execution ends.
+  experimental command terminateExecution
 
   # Issued when console API was called.
   event consoleAPICalled

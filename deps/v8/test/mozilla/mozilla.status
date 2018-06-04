@@ -225,7 +225,22 @@
 
   # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
   'ecma/Array/15.4.4.5-3': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
-  'ecma/Date/15.9.5.22-2': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
+
+  # These 4 tests made an incorrect assumption that the timezone offset of any
+  # given timezone has not changed over time. With icu-timezone-data enabled
+  # and https://github.com/tc39/ecma262/pull/778 implemented, the historical
+  # timezone offset is handled properly and these tests are broken in i18n
+  # build. It's non-trivial to fix them because they strive to work in *any*
+  # timezone.
+  # TODO(jshin): Add equivalent tests with a specific timezone using TZ variable
+  # on Linux to mjsunit.
+
+  'ecma/Date/15.9.5.16': [PASS,  ['no_i18n == False', FAIL]],
+  'ecma/Date/15.9.5.18': [PASS,  ['no_i18n == False', FAIL]],
+  'ecma/Date/15.9.5.22-1': [PASS, ['no_i18n == False', FAIL]],
+
+  # 1050186: Arm/MIPS vm is broken;  probably unrelated to dates
+  'ecma/Date/15.9.5.22-2': [PASS, ['no_i18n == False or arch == arm or arch == mipsel or arch == mips', FAIL]],
 
   # Flaky test that fails due to what appears to be a bug in the test.
   # Occurs depending on current time
@@ -993,6 +1008,11 @@
   #BUG(3152): Avoid C stack overflow.
   'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run'
+
+['tsan', {
+  # https://crbug.com/v8/7632
+  'ecma_3/RegExp/regress-85721': [SKIP],
+}],  # tsan
 
 ['variant == wasm_traps', {
   '*': [SKIP],

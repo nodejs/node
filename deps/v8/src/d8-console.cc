@@ -26,7 +26,7 @@ void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
     if (n != str.length()) {
       printf("Error in fwrite\n");
-      Shell::Exit(1);
+      base::OS::ExitProcess(1);
     }
   }
   fprintf(file, "\n");

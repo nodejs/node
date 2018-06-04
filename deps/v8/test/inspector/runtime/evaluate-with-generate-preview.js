@@ -1,6 +1,8 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// TODO(luoe): remove flag when it is on by default.
+// Flags: --harmony-bigint
 
 let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.evaluate will generate correct previews.");
 
@@ -63,6 +65,8 @@ Object.defineProperty(parentObj, 'propNotNamedProto', {
 });
 var objInheritsGetterProperty = {__proto__: parentObj};
 inspector.allowAccessorFormatting(objInheritsGetterProperty);
+
+var arrayWithLongValues = ["a".repeat(101), 2n**401n];
 `);
 
 contextGroup.setupInjectedScriptEnvironment();
@@ -141,6 +145,13 @@ InspectorTest.runTestSuite([
   function testObjWithArrayAsProto(next)
   {
     Protocol.Runtime.evaluate({ "expression": "Object.create([1,2])", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testArrayWithLongValues(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "arrayWithLongValues", "generatePreview": true })
         .then(result => InspectorTest.logMessage(result.result.result.preview))
         .then(next);
   }

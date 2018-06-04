@@ -217,25 +217,6 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                     length).ToLocalChecked();
 }
 
-template <typename TypeName>
-void Wrap(v8::Local<v8::Object> object, TypeName* pointer) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
-  object->SetAlignedPointerInInternalField(0, pointer);
-}
-
-void ClearWrap(v8::Local<v8::Object> object) {
-  Wrap<void>(object, nullptr);
-}
-
-template <typename TypeName>
-TypeName* Unwrap(v8::Local<v8::Object> object) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
-  void* pointer = object->GetAlignedPointerFromInternalField(0);
-  return static_cast<TypeName*>(pointer);
-}
-
 void SwapBytes16(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
 
@@ -312,6 +293,13 @@ char ToLower(char c) {
   return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
 }
 
+std::string ToLower(const std::string& in) {
+  std::string out(in.size(), 0);
+  for (size_t i = 0; i < in.size(); ++i)
+    out[i] = ToLower(in[i]);
+  return out;
+}
+
 bool StringEqualNoCase(const char* a, const char* b) {
   do {
     if (*a == '\0')
@@ -384,21 +372,21 @@ inline T* UncheckedCalloc(size_t n) {
 template <typename T>
 inline T* Realloc(T* pointer, size_t n) {
   T* ret = UncheckedRealloc(pointer, n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 
 template <typename T>
 inline T* Malloc(size_t n) {
   T* ret = UncheckedMalloc<T>(n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 
 template <typename T>
 inline T* Calloc(size_t n) {
   T* ret = UncheckedCalloc<T>(n);
-  if (n > 0) CHECK_NE(ret, nullptr);
+  CHECK_IMPLIES(n > 0, ret != nullptr);
   return ret;
 }
 

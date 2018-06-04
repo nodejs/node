@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
   streams: [100, 200, 1000],
   clients: [1, 2],
   benchmarker: ['h2load']
-}, { flags: ['--no-warnings', '--expose-http2'] });
+}, { flags: ['--no-warnings'] });
 
 function main({ requests, streams, clients }) {
   const http2 = require('http2');

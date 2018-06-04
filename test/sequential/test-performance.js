@@ -60,7 +60,9 @@ function checkNodeTiming(props) {
       const delta = performance.nodeTiming[prop] - props[prop].around;
       assert(Math.abs(delta) < 1000);
     } else {
-      assert.strictEqual(performance.nodeTiming[prop], props[prop]);
+      assert.strictEqual(performance.nodeTiming[prop], props[prop],
+                         `mismatch for performance property ${prop}: ` +
+                         `${performance.nodeTiming[prop]} vs ${props[prop]}`);
     }
   }
 }
@@ -72,7 +74,7 @@ checkNodeTiming({
   duration: { around: performance.now() },
   nodeStart: { around: 0 },
   v8Start: { around: 0 },
-  bootstrapComplete: -1,
+  bootstrapComplete: { around: inited },
   environment: { around: 0 },
   loopStart: -1,
   loopExit: -1,

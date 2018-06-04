@@ -99,7 +99,7 @@ changes:
     Setting to `true` enables coloring while inspecting values, setting to
     `'auto'` will make color support depend on the value of the `isTTY` property
     and the value returned by `getColorDepth()` on the respective stream.
-    **Default:** `'auto'`
+    **Default:** `'auto'`.
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
@@ -164,7 +164,7 @@ operates similarly to the `clear` shell command. On Windows, `console.clear()`
 will clear only the output in the current terminal viewport for the Node.js
 binary.
 
-### console.count([label])
+### console.count([label='default'])
 <!-- YAML
 added: v8.3.0
 -->

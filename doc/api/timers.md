@@ -23,6 +23,15 @@ running as long as the immediate is active. The `Immediate` object returned by
 [`setImmediate()`][] exports both `immediate.ref()` and `immediate.unref()`
 functions that can be used to control this default behavior.
 
+### immediate.hasRef()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+If true, the `Immediate` object will keep the Node.js event loop active.
+
 ### immediate.ref()
 <!-- YAML
 added: v9.7.0
@@ -61,6 +70,15 @@ timer is active. Each of the `Timeout` objects returned by these functions
 export both `timeout.ref()` and `timeout.unref()` functions that can be used to
 control this default behavior.
 
+### timeout.hasRef()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+If true, the `Timeout` object will keep the Node.js event loop active.
+
 ### timeout.ref()
 <!-- YAML
 added: v0.9.1
@@ -73,6 +91,21 @@ When called, requests that the Node.js event loop *not* exit so long as the
 
 By default, all `Timeout` objects are "ref'ed", making it normally unnecessary
 to call `timeout.ref()` unless `timeout.unref()` had been called previously.
+
+### timeout.refresh()
+<!-- YAML
+added: v10.2.0
+-->
+
+* Returns: {Timeout} a reference to `timeout`
+
+Sets the timer's start time to the current time, and reschedules the timer to
+call its callback at the previously specified duration adjusted to the current
+time. This is useful for refreshing a timer without allocating a new
+JavaScript object.
+
+Using this on a timer that has already called its callback will reactivate the
+timer.
 
 ### timeout.unref()
 <!-- YAML

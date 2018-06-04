@@ -1,0 +1,5 @@
+*%(basename)s:8: ReferenceError: myfunc is not defined
+  func: myfunc(),
+        ^
+ReferenceError: myfunc is not defined
+    at *%(basename)s:8:9

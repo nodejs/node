@@ -49,6 +49,35 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
+  if (!args[0]->IsObject())
+    return;
+
+  bool is_key_value;
+  Local<Array> entries;
+  if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
+    return;
+  if (!is_key_value)
+    return args.GetReturnValue().Set(entries);
+
+  uint32_t length = entries->Length();
+  CHECK_EQ(length % 2, 0);
+
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  Local<Array> pairs = Array::New(env->isolate(), length / 2);
+  for (uint32_t i = 0; i < length / 2; i++) {
+    Local<Array> pair = Array::New(env->isolate(), 2);
+    pair->Set(context, 0, entries->Get(context, i * 2).ToLocalChecked())
+        .FromJust();
+    pair->Set(context, 1, entries->Get(context, i * 2 + 1).ToLocalChecked())
+        .FromJust();
+    pairs->Set(context, i, pair).FromJust();
+  }
+  args.GetReturnValue().Set(pairs);
+}
+
 // Side effect-free stringification that will never throw exceptions.
 static void SafeToString(const FunctionCallbackInfo<Value>& args) {
   auto context = args.GetIsolate()->GetCurrentContext();
@@ -188,6 +217,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getPromiseDetails", GetPromiseDetails);
   env->SetMethod(target, "getProxyDetails", GetProxyDetails);
   env->SetMethod(target, "safeToString", SafeToString);
+  env->SetMethod(target, "previewEntries", PreviewEntries);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);

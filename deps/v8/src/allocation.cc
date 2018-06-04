@@ -69,7 +69,7 @@ const int kAllocationTries = 2;
 void* Malloced::New(size_t size) {
   void* result = AllocWithRetry(size);
   if (result == nullptr) {
-    V8::FatalProcessOutOfMemory("Malloced operator new");
+    V8::FatalProcessOutOfMemory(nullptr, "Malloced operator new");
   }
   return result;
 }
@@ -115,7 +115,7 @@ void* AlignedAlloc(size_t size, size_t alignment) {
     if (!OnCriticalMemoryPressure(size + alignment)) break;
   }
   if (result == nullptr) {
-    V8::FatalProcessOutOfMemory("AlignedAlloc");
+    V8::FatalProcessOutOfMemory(nullptr, "AlignedAlloc");
   }
   return result;
 }

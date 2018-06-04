@@ -83,11 +83,11 @@ const customTypesMap = {
   'Http2Stream': 'http2.html#http2_class_http2stream',
   'ServerHttp2Stream': 'http2.html#http2_class_serverhttp2stream',
 
+  'module': 'modules.html#modules_the_module_object',
+
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
-
-  'module': 'modules.html#modules_the_module_object',
 
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 
@@ -130,7 +130,7 @@ function toLink(typeInput) {
   typeTexts.forEach((typeText) => {
     typeText = typeText.trim();
     if (typeText) {
-      let typeUrl = null;
+      let typeUrl;
 
       // To support type[], type[][] etc., we store the full string
       // and use the bracket-less version to lookup the type URL.
@@ -143,7 +143,7 @@ function toLink(typeInput) {
         typeUrl = `${jsDataStructuresUrl}#${primitive}_type`;
       } else if (jsGlobalTypes.includes(typeText)) {
         typeUrl = `${jsGlobalObjectsUrl}${typeText}`;
-      } else if (customTypesMap[typeText]) {
+      } else {
         typeUrl = customTypesMap[typeText];
       }
 

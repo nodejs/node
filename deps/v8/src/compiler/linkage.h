@@ -20,7 +20,7 @@ namespace v8 {
 namespace internal {
 
 class CallInterfaceDescriptor;
-class CompilationInfo;
+class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -364,7 +364,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
 
-  static CallDescriptor* ComputeIncoming(Zone* zone, CompilationInfo* info);
+  static CallDescriptor* ComputeIncoming(Zone* zone,
+                                         OptimizedCompilationInfo* info);
 
   // The call descriptor for this compilation unit describes the locations
   // of incoming parameters and the outgoing return value(s).

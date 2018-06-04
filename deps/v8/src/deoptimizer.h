@@ -12,7 +12,9 @@
 #include "src/base/macros.h"
 #include "src/boxed-float.h"
 #include "src/deoptimize-reason.h"
+#include "src/feedback-vector.h"
 #include "src/frame-constants.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"
@@ -150,6 +152,7 @@ class TranslatedFrame {
     kConstructStub,
     kBuiltinContinuation,
     kJavaScriptBuiltinContinuation,
+    kJavaScriptBuiltinContinuationWithCatch,
     kInvalid
   };
 
@@ -221,6 +224,8 @@ class TranslatedFrame {
   static TranslatedFrame BuiltinContinuationFrame(
       BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
+      BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
+  static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
       BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame InvalidFrame() {
     return TranslatedFrame(kInvalid, nullptr);
@@ -531,8 +536,23 @@ class Deoptimizer : public Malloced {
                                       int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
+
+  enum class BuiltinContinuationMode {
+    STUB,
+    JAVASCRIPT,
+    JAVASCRIPT_WITH_CATCH,
+    JAVASCRIPT_HANDLE_EXCEPTION
+  };
+  static bool BuiltinContinuationModeIsWithCatch(BuiltinContinuationMode mode);
+  static bool BuiltinContinuationModeIsJavaScript(BuiltinContinuationMode mode);
+  static StackFrame::Type BuiltinContinuationModeToFrameType(
+      BuiltinContinuationMode mode);
+  static Builtins::Name TrampolineForBuiltinContinuation(
+      BuiltinContinuationMode mode, bool must_handle_result);
+
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
-                                    int frame_index, bool java_script_frame);
+                                    int frame_index,
+                                    BuiltinContinuationMode mode);
 
   void WriteTranslatedValueToOutput(
       TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
@@ -866,30 +886,31 @@ class TranslationIterator BASE_EMBEDDED {
   int index_;
 };
 
-#define TRANSLATION_OPCODE_LIST(V)          \
-  V(BEGIN)                                  \
-  V(INTERPRETED_FRAME)                      \
-  V(BUILTIN_CONTINUATION_FRAME)             \
-  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) \
-  V(CONSTRUCT_STUB_FRAME)                   \
-  V(ARGUMENTS_ADAPTOR_FRAME)                \
-  V(DUPLICATED_OBJECT)                      \
-  V(ARGUMENTS_ELEMENTS)                     \
-  V(ARGUMENTS_LENGTH)                       \
-  V(CAPTURED_OBJECT)                        \
-  V(REGISTER)                               \
-  V(INT32_REGISTER)                         \
-  V(UINT32_REGISTER)                        \
-  V(BOOL_REGISTER)                          \
-  V(FLOAT_REGISTER)                         \
-  V(DOUBLE_REGISTER)                        \
-  V(STACK_SLOT)                             \
-  V(INT32_STACK_SLOT)                       \
-  V(UINT32_STACK_SLOT)                      \
-  V(BOOL_STACK_SLOT)                        \
-  V(FLOAT_STACK_SLOT)                       \
-  V(DOUBLE_STACK_SLOT)                      \
-  V(LITERAL)                                \
+#define TRANSLATION_OPCODE_LIST(V)                     \
+  V(BEGIN)                                             \
+  V(INTERPRETED_FRAME)                                 \
+  V(BUILTIN_CONTINUATION_FRAME)                        \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME)            \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME) \
+  V(CONSTRUCT_STUB_FRAME)                              \
+  V(ARGUMENTS_ADAPTOR_FRAME)                           \
+  V(DUPLICATED_OBJECT)                                 \
+  V(ARGUMENTS_ELEMENTS)                                \
+  V(ARGUMENTS_LENGTH)                                  \
+  V(CAPTURED_OBJECT)                                   \
+  V(REGISTER)                                          \
+  V(INT32_REGISTER)                                    \
+  V(UINT32_REGISTER)                                   \
+  V(BOOL_REGISTER)                                     \
+  V(FLOAT_REGISTER)                                    \
+  V(DOUBLE_REGISTER)                                   \
+  V(STACK_SLOT)                                        \
+  V(INT32_STACK_SLOT)                                  \
+  V(UINT32_STACK_SLOT)                                 \
+  V(BOOL_STACK_SLOT)                                   \
+  V(FLOAT_STACK_SLOT)                                  \
+  V(DOUBLE_STACK_SLOT)                                 \
+  V(LITERAL)                                           \
   V(UPDATE_FEEDBACK)
 
 class Translation BASE_EMBEDDED {
@@ -922,6 +943,9 @@ class Translation BASE_EMBEDDED {
                                      unsigned height);
   void BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
                                                int literal_id, unsigned height);
+  void BeginJavaScriptBuiltinContinuationWithCatchFrame(BailoutId bailout_id,
+                                                        int literal_id,
+                                                        unsigned height);
   void ArgumentsElements(CreateArgumentsType type);
   void ArgumentsLength(CreateArgumentsType type);
   void BeginCapturedObject(int length);

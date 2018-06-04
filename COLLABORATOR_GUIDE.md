@@ -411,19 +411,23 @@ recommended but not required.
 
 ### Deprecations
 
-**Deprecation** refers to the identification of Public APIs that should no
-longer be used.
+[_Deprecation_][] is "the discouragement of use of some … feature … or practice,
+typically because it has been superseded or is no longer considered efficient or
+safe, without completely removing it or prohibiting its use. It can also imply
+that a feature, design, or practice will be removed or discontinued entirely in
+the future."
 
 Node.js uses three Deprecation levels:
 
-* *Documentation-Only Deprecation* refers to elements of the Public API that are
-  being staged for deprecation in a future Node.js major release. An explicit
-  notice indicating the deprecated status is added to the API documentation
-  but no functional changes are implemented in the code. There will be no
-  runtime deprecation warnings emitted for such deprecations by default.
-  Documentation-only deprecations may trigger a runtime warning when Node.js
-  is started with the [`--pending-deprecation`][] flag or the
-  `NODE_PENDING_DEPRECATION=1` environment variable is set.
+* *Documentation-Only Deprecation* refers to elements of the Public API that
+  should be avoided by developers and that might be staged for a runtime
+  deprecation in a future Node.js major release. An explicit notice indicating
+  the deprecation status is added to the API documentation but no functional
+  changes are implemented in the code. By default there will be no deprecation
+  warnings emitted for such deprecations at runtime. Documentation-only
+  deprecations may trigger a runtime warning when Node.js is started with the
+  [`--pending-deprecation`][] flag or the `NODE_PENDING_DEPRECATION=1`
+  environment variable is set.
 
 * *Runtime Deprecation* refers to the use of process warnings emitted at
   runtime the first time that a deprecated API is used. A command-line
@@ -831,7 +835,6 @@ LTS working group and the Release team.
 | Subsystem                                | Maintainers                                                           |
 | ---                                      | ---                                                                   |
 | `benchmark/*`                            | @nodejs/benchmarking, @mscdex                                         |
-| `bootstrap_node.js`                      | @nodejs/process                                                       |
 | `doc/*`, `*.md`                          | @nodejs/documentation                                                 |
 | `lib/assert`                             | @nodejs/testing                                                       |
 | `lib/async_hooks`                        | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
@@ -843,7 +846,8 @@ LTS working group and the Release team.
 | `lib/domains`                            | @nodejs/domains                                                       |
 | `lib/fs`, `src/{fs,file}`                | @nodejs/fs                                                            |
 | `lib/{_}http{*}`                         | @nodejs/http                                                          |
-| `lib/inspector.js`, `src/inspector_*`    | @nodejs/V8-inspector                                                  |
+| `lib/inspector.js`, `src/inspector_*`    | @nodejs/v8-inspector                                                  |
+| `lib/internal/bootstrap/*`               | @nodejs/process                                                       |
 | `lib/internal/url`, `src/node_url`       | @nodejs/url                                                           |
 | `lib/net`                                | @bnoordhuis, @indutny, @nodejs/streams                                |
 | `lib/repl`                               | @nodejs/repl                                                          |
@@ -851,13 +855,13 @@ LTS working group and the Release team.
 | `lib/timers`                             | @nodejs/timers                                                        |
 | `lib/util`                               | @nodejs/util                                                          |
 | `lib/zlib`                               | @nodejs/zlib                                                          |
-| `src/async-wrap.*`                       | @nodejs/async\_hooks                                                  |
+| `src/async_wrap.*`                       | @nodejs/async\_hooks                                                  |
 | `src/node_api.*`                         | @nodejs/n-api                                                         |
 | `src/node_crypto.*`                      | @nodejs/crypto                                                        |
 | `test/*`                                 | @nodejs/testing                                                       |
 | `tools/node_modules/eslint`, `.eslintrc` | @nodejs/linting                                                       |
 | build                                    | @nodejs/build                                                         |
-| `src/module_wrap.*`, `lib/internal/loader/*`, `lib/internal/vm/Module.js` | @nodejs/modules                      |
+| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                     |
 | GYP                                      | @nodejs/gyp                                                           |
 | performance                              | @nodejs/performance                                                   |
 | platform specific                        | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
@@ -874,17 +878,18 @@ When things need extra attention, are controversial, or `semver-major`:
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
+["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+[Enhancement Proposal]: https://github.com/nodejs/node-eps
+[Stability Index]: doc/api/documentation.md#stability-index
+[TSC]: https://github.com/nodejs/TSC
+[_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
+[`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
+[`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [contributing]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
-[Stability Index]: doc/api/documentation.md#stability-index
-[Enhancement Proposal]: https://github.com/nodejs/node-eps
-[`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
+[flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22y
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils
-[TSC]: https://github.com/nodejs/TSC
-[node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
-["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
-[flaky tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
+[node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues

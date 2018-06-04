@@ -64,12 +64,12 @@ class NodeTestFixture : public ::testing::Test {
   v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
-    platform.reset(new node::NodePlatform(4, nullptr));
     tracing_controller.reset(new v8::TracingController());
-    allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
-    params.array_buffer_allocator = allocator.get();
     node::tracing::TraceEventHelper::SetTracingController(
         tracing_controller.get());
+    platform.reset(new node::NodePlatform(4, nullptr));
+    allocator.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+    params.array_buffer_allocator = allocator.get();
     CHECK_EQ(0, uv_loop_init(&current_loop));
     v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();

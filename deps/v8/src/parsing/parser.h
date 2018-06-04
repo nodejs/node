@@ -502,7 +502,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
 
-  ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
+  ArrayLiteral* ArrayLiteralFromListWithSpread(ZoneList<Expression*>* list);
   Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
                          int pos, Call::PossiblyEval is_possibly_eval);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
@@ -704,6 +704,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (expression->IsVariableProxy()) {
       expression->AsVariableProxy()->set_is_assigned();
     }
+  }
+
+  // A shortcut for performing a ToString operation
+  V8_INLINE Expression* ToString(Expression* expr) {
+    if (expr->IsStringLiteral()) return expr;
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+    args->Add(expr, zone());
+    return factory()->NewCallRuntime(Runtime::kInlineToString, args,
+                                     expr->position());
   }
 
   // Returns true if we have a binary expression between two numeric

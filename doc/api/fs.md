@@ -177,7 +177,7 @@ Using WHATWG [`URL`][] objects might introduce platform-specific behaviors.
 
 On Windows, `file:` URLs with a hostname convert to UNC paths, while `file:`
 URLs with drive letters convert to local absolute paths. `file:` URLs without a
-hostname nor a drive letter will result in a throw :
+hostname nor a drive letter will result in a throw:
 
 ```js
 // On Windows :
@@ -325,7 +325,8 @@ fs.watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
 added: v10.0.0
 -->
 
-Emitted when the watcher stops watching for changes.
+Emitted when the watcher stops watching for changes. The closed
+`fs.FSWatcher` object is no longer usable in the event handler.
 
 ### Event: 'error'
 <!-- YAML
@@ -334,7 +335,8 @@ added: v0.5.8
 
 * `error` {Error}
 
-Emitted when an error occurs while watching the file.
+Emitted when an error occurs while watching the file. The errored
+`fs.FSWatcher` object is no longer usable in the event handler.
 
 ### watcher.close()
 <!-- YAML
@@ -500,7 +502,7 @@ added: v0.1.10
 
 Returns `true` if the `fs.Stats` object describes a symbolic link.
 
-This method is only valid when using [`fs.lstat()`][]
+This method is only valid when using [`fs.lstat()`][].
 
 ### stats.dev
 
@@ -746,26 +748,41 @@ changes:
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. The following constants define the possible values of
-`mode`. It is possible to create a mask consisting of the bitwise OR of two or
-more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
-
-* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
-for determining if a file exists, but says nothing about `rwx` permissions.
-Default if no `mode` is specified.
-* `fs.constants.R_OK` - `path` can be read by the calling process.
-* `fs.constants.W_OK` - `path` can be written by the calling process.
-* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
-no effect on Windows (will behave like `fs.constants.F_OK`).
+checks to be performed. Check [File Access Constants][] for possible values
+of `mode`. It is possible to create a mask consisting of the bitwise OR of
+two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
-argument will be an `Error` object. The following example checks if the file
-`/etc/passwd` can be read and written by the current process.
+argument will be an `Error` object. The following examples check if
+`package.json` exists, and if it is readable or writable.
 
 ```js
-fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
-  console.log(err ? 'no access!' : 'can read/write');
+const file = 'package.json';
+
+// Check if the file exists in the current directory.
+fs.access(file, fs.constants.F_OK, (err) => {
+  console.log(`${file} ${err ? 'does not exist' : 'exists'}`);
+});
+
+// Check if the file is readable.
+fs.access(file, fs.constants.R_OK, (err) => {
+  console.log(`${file} ${err ? 'is not readable' : 'is readable'}`);
+});
+
+// Check if the file is writable.
+fs.access(file, fs.constants.W_OK, (err) => {
+  console.log(`${file} ${err ? 'is not writable' : 'is writable'}`);
+});
+
+// Check if the file exists in the current directory, and if it is writable.
+fs.access(file, fs.constants.F_OK | fs.constants.W_OK, (err) => {
+  if (err) {
+    console.error(
+      `${file} ${err.code === 'ENOENT' ? 'does not exist' : 'is read-only'}`);
+  } else {
+    console.log(`${file} exists, and it is writable`);
+  }
 });
 ```
 
@@ -866,19 +883,12 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `fs.constants.F_OK`
 
-Synchronously tests a user's permissions for the file or directory specified by
-`path`. The `mode` argument is an optional integer that specifies the
-accessibility checks to be performed. The following constants define the
-possible values of `mode`. It is possible to create a mask consisting of the
-bitwise OR of two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
-
-* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
-for determining if a file exists, but says nothing about `rwx` permissions.
-Default if no `mode` is specified.
-* `fs.constants.R_OK` - `path` can be read by the calling process.
-* `fs.constants.W_OK` - `path` can be written by the calling process.
-* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
-no effect on Windows (will behave like `fs.constants.F_OK`).
+Synchronously tests a user's permissions for the file or directory specified
+by `path`. The `mode` argument is an optional integer that specifies the
+accessibility checks to be performed. Check [File Access Constants][] for
+possible values of `mode`. It is possible to create a mask consisting of
+the bitwise OR of two or more values
+(e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
 If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
 the method will return `undefined`.
@@ -892,7 +902,7 @@ try {
 }
 ```
 
-## fs.appendFile(file, data[, options], callback)
+## fs.appendFile(path, data[, options], callback)
 <!-- YAML
 added: v0.6.7
 changes:
@@ -912,7 +922,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|URL|number} filename or file descriptor
+* `path` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -939,7 +949,7 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
 
-The `file` may be specified as a numeric file descriptor that has been opened
+The `path` may be specified as a numeric file descriptor that has been opened
 for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
@@ -955,7 +965,7 @@ fs.open('message.txt', 'a', (err, fd) => {
 });
 ```
 
-## fs.appendFileSync(file, data[, options])
+## fs.appendFileSync(path, data[, options])
 <!-- YAML
 added: v0.6.7
 changes:
@@ -967,7 +977,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|URL|number} filename or file descriptor
+* `path` {string|Buffer|URL|number} filename or file descriptor
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -994,7 +1004,7 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.appendFileSync('message.txt', 'data to append', 'utf8');
 ```
 
-The `file` may be specified as a numeric file descriptor that has been opened
+The `path` may be specified as a numeric file descriptor that has been opened
 for appending (using `fs.open()` or `fs.openSync()`). The file descriptor will
 not be closed automatically.
 
@@ -1038,7 +1048,7 @@ changes:
 Asynchronously changes the permissions of a file. No arguments other than a
 possible exception are given to the completion callback.
 
-See also: chmod(2)
+See also: chmod(2).
 
 ### File modes
 
@@ -1081,6 +1091,16 @@ For example, the octal value `0o765` means:
 * The group may read and write the file.
 * Others may read and execute the file.
 
+Note: When using raw numbers where file modes are expected,
+any value larger than `0o777` may result in platform-specific
+behaviors that are not supported to work consistently.
+Therefore constants like `S_ISVTX`, `S_ISGID` or `S_ISUID` are
+not exposed in `fs.constants`.
+
+Caveats: on Windows only the write permission can be changed, and the
+distinction among the permissions of group, owner or others is not
+implemented.
+
 ## fs.chmodSync(path, mode)
 <!-- YAML
 added: v0.6.7
@@ -1097,7 +1117,7 @@ changes:
 Synchronously changes the permissions of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chmod()`][].
 
-See also: chmod(2)
+See also: chmod(2).
 
 ## fs.chown(path, uid, gid, callback)
 <!-- YAML
@@ -1126,7 +1146,7 @@ changes:
 Asynchronously changes owner and group of a file. No arguments other than a
 possible exception are given to the completion callback.
 
-See also: chown(2)
+See also: chown(2).
 
 ## fs.chownSync(path, uid, gid)
 <!-- YAML
@@ -1145,7 +1165,7 @@ changes:
 Synchronously changes owner and group of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chown()`][].
 
-See also: chown(2)
+See also: chown(2).
 
 ## fs.close(fd, callback)
 <!-- YAML
@@ -1291,6 +1311,11 @@ fs.copyFileSync('source.txt', 'destination.txt', COPYFILE_EXCL);
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/19898
+    description: Impose new restrictions on `start` and `end`, throwing
+                 more appropriate errors in cases when we cannot reasonably
+                 handle the input values.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using
@@ -1316,9 +1341,8 @@ changes:
   * `highWaterMark` {integer} **Default:** `64 * 1024`
 * Returns: {fs.ReadStream} See [Readable Streams][].
 
-Be aware that, unlike the default value set for `highWaterMark` on a
-readable stream (16 kb), the stream returned by this method has a
-default value of 64 kb for the same parameter.
+Unlike the 16 kb default `highWaterMark` for a readable stream, the stream
+returned by this method has a default `highWaterMark` of 64 kb.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
@@ -1712,7 +1736,8 @@ given to the completion callback.
 If the file referred to by the file descriptor was larger than `len` bytes, only
 the first `len` bytes will be retained in the file.
 
-For example, the following program retains only the first four bytes of the file
+For example, the following program retains only the first four bytes of the
+file:
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf8'));
@@ -1730,7 +1755,7 @@ fs.ftruncate(fd, 4, (err) => {
 ```
 
 If the file previously was shorter than `len` bytes, it is extended, and the
-extended part is filled with null bytes ('\0'). For example,
+extended part is filled with null bytes (`'\0'`). For example,
 
 ```js
 console.log(fs.readFileSync('temp.txt', 'utf8'));
@@ -1748,7 +1773,7 @@ fs.ftruncate(fd, 10, (err) => {
 // ('Node.js\0\0\0' in UTF8)
 ```
 
-The last three bytes are null bytes ('\0'), to compensate the over-truncation.
+The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
 
 ## fs.ftruncateSync(fd[, len])
 <!-- YAML
@@ -1979,14 +2004,14 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `0o777`
+* `mode` {integer} Not supported on Windows. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
 
 Asynchronously creates a directory. No arguments other than a possible exception
 are given to the completion callback.
 
-See also: mkdir(2)
+See also: mkdir(2).
 
 ## fs.mkdirSync(path[, mode])
 <!-- YAML
@@ -1999,12 +2024,12 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `0o777`
+* `mode` {integer} Not supported on Windows. **Default:** `0o777`.
 
 Synchronously creates a directory. Returns `undefined`.
 This is the synchronous version of [`fs.mkdir()`][].
 
-See also: mkdir(2)
+See also: mkdir(2).
 
 ## fs.mkdtemp(prefix[, options], callback)
 <!-- YAML
@@ -2041,8 +2066,6 @@ parameter.
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
-Example:
-
 ```js
 fs.mkdtemp(path.join(os.tmpdir(), 'foo-'), (err, folder) => {
   if (err) throw err;
@@ -2054,7 +2077,7 @@ fs.mkdtemp(path.join(os.tmpdir(), 'foo-'), (err, folder) => {
 The `fs.mkdtemp()` method will append the six randomly selected characters
 directly to the `prefix` string. For instance, given a directory `/tmp`, if the
 intention is to create a temporary directory *within* `/tmp`, the `prefix`
-*must* end with a trailing platform-specific path separator
+must end with a trailing platform-specific path separator
 (`require('path').sep`).
 
 ```js
@@ -2121,7 +2144,8 @@ changes:
 Asynchronous file open. See open(2).
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created.
+created. Note that on Windows only the write permission can be manipulated,
+see [`fs.chmod()`][].
 
 The callback gets two arguments `(err, fd)`.
 
@@ -2130,7 +2154,7 @@ by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
 a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
 
-Functions based on `fs.open()` exhibit this behavior as well. eg.
+Functions based on `fs.open()` exhibit this behavior as well:
 `fs.writeFile()`, `fs.readFile()`, etc.
 
 ## fs.openSync(path, flags[, mode])
@@ -2189,7 +2213,7 @@ If `position` is an integer, the file position will remain unchanged.
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `bytesRead` and `buffer` properties.
+a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
 ## fs.readdir(path[, options], callback)
 <!-- YAML
@@ -2361,7 +2385,7 @@ fs.readFileSync('<directory>');
 // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 
 //  FreeBSD
-fs.readFileSync('<directory>'); // => null, <data>
+fs.readFileSync('<directory>'); // => <data>
 ```
 
 ## fs.readlink(path[, options], callback)
@@ -2475,7 +2499,7 @@ changes:
 Asynchronously computes the canonical pathname by resolving `.`, `..` and
 symbolic links.
 
-Note that "canonical" does not mean "unique": hard links and bind mounts can
+A canonical pathname is not necessarily unique. Hard links and bind mounts can
 expose a file system entity through many pathnames.
 
 This function behaves like realpath(3), with some exceptions:
@@ -2550,26 +2574,7 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {string|Buffer}
 
-Synchronously computes the canonical pathname by resolving `.`, `..` and
-symbolic links.
-
-Note that "canonical" does not mean "unique": hard links and bind mounts can
-expose a file system entity through many pathnames.
-
-This function behaves like realpath(3), with some exceptions:
-
-1. No case conversion is performed on case-insensitive file systems.
-
-2. The maximum number of symbolic links is platform-independent and generally
-   (much) higher than what the native realpath(3) implementation supports.
-
-The optional `options` argument can be a string specifying an encoding, or an
-object with an `encoding` property specifying the character encoding to use for
-the returned value. If the `encoding` is set to `'buffer'`, the path returned
-will be passed as a `Buffer` object.
-
-If `path` resolves to a socket or a pipe, the function will return a system
-dependent name for that object.
+Synchronous version of [`fs.realpath()`][]. Returns the resolved pathname.
 
 ## fs.realpathSync.native(path[, options])
 <!-- YAML
@@ -2869,7 +2874,7 @@ fs.unlink('path/file.txt', (err) => {
 `fs.unlink()` will not work on a directory, empty or otherwise. To remove a
 directory, use [`fs.rmdir()`][].
 
-See also: unlink(2)
+See also: unlink(2).
 
 ## fs.unlinkSync(path)
 <!-- YAML
@@ -2943,7 +2948,7 @@ The `atime` and `mtime` arguments follow these rules:
 - Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
 - If the value can not be converted to a number, or is `NaN`, `Infinity` or
-  `-Infinity`, a `Error` will be thrown.
+  `-Infinity`, an `Error` will be thrown.
 
 ## fs.utimesSync(path, atime, mtime)
 <!-- YAML
@@ -3030,9 +3035,9 @@ The recursive option is only supported on macOS and Windows.
 This feature depends on the underlying operating system providing a way
 to be notified of filesystem changes.
 
-* On Linux systems, this uses [`inotify`]
-* On BSD systems, this uses [`kqueue`]
-* On macOS, this uses [`kqueue`] for files and [`FSEvents`] for directories.
+* On Linux systems, this uses [`inotify(7)`].
+* On BSD systems, this uses [`kqueue(2)`].
+* On macOS, this uses [`kqueue(2)`] for files and [`FSEvents`] for directories.
 * On SunOS systems (including Solaris and SmartOS), this uses [`event ports`].
 * On Windows systems, this feature depends on [`ReadDirectoryChangesW`].
 * On Aix systems, this feature depends on [`AHAFS`], which must be enabled.
@@ -3067,7 +3072,7 @@ content, and one for truncation).
 Providing `filename` argument in the callback is only supported on Linux,
 macOS, Windows, and AIX. Even on supported platforms, `filename` is not always
 guaranteed to be provided. Therefore, don't assume that `filename` argument is
-always provided in the callback, and have some fallback logic if it is null.
+always provided in the callback, and have some fallback logic if it is `null`.
 
 ```js
 fs.watch('somedir', (eventType, filename) => {
@@ -3185,7 +3190,7 @@ The callback will be given three arguments `(err, bytesWritten, buffer)` where
 `bytesWritten` specifies how many _bytes_ were written from `buffer`.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `bytesWritten` and `buffer` properties.
+a `Promise` for an `Object` with `bytesWritten` and `buffer` properties.
 
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
@@ -3233,10 +3238,6 @@ the current position. See pwrite(2).
 The callback will receive the arguments `(err, written, string)` where `written`
 specifies how many _bytes_ the passed string required to be written. Note that
 bytes written is not the same as string characters. See [`Buffer.byteLength`][].
-
-Unlike when writing `buffer`, the entire string must be written. No substring
-may be specified. This is because the byte offset of the resulting data may not
-be the same as the string offset.
 
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
@@ -3365,9 +3366,9 @@ Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
 > Stability: 1 - Experimental
 
-The `fs/promises` API provides an alternative set of asynchronous file system
+The `fs.promises` API provides an alternative set of asynchronous file system
 methods that return `Promise` objects rather than using callbacks. The
-API is accessible via `require('fs/promises')`.
+API is accessible via `require('fs').promises`.
 
 ### class: FileHandle
 <!-- YAML
@@ -3383,11 +3384,11 @@ and will emit a process warning, thereby helping to prevent memory leaks.
 Instances of the `FileHandle` object are created internally by the
 `fsPromises.open()` method.
 
-Unlike callback-based such as `fs.fstat()`, `fs.fchown()`, `fs.fchmod()`,
-`fs.ftruncate()`, `fs.read()`, and `fs.write()`, operations — all of which
-use a simple numeric file descriptor, all `fsPromises.*` variations use the
-`FileHandle` class in order to help protect against accidental leaking of
-unclosed file descriptors after a `Promise` is resolved or rejected.
+Unlike the callback-based API (`fs.fstat()`, `fs.fchown()`, `fs.fchmod()`, and
+so on), a numeric file descriptor is not used by the promise-based API. Instead,
+the promise-based API uses the `FileHandle` class in order to help avoid
+accidental leaking of unclosed file descriptors after a `Promise` is resolved or
+rejected.
 
 #### filehandle.appendFile(data, options)
 <!-- YAML
@@ -3441,6 +3442,7 @@ added: v10.0.0
 Closes the file descriptor.
 
 ```js
+const fsPromises = require('fs').promises;
 async function openAndClose() {
   let filehandle;
   try {
@@ -3552,12 +3554,23 @@ For example, the following program retains only the first four bytes of the
 file:
 
 ```js
+const fs = require('fs');
+const fsPromises = fs.promises;
+
 console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  const fd = await fsPromises.open('temp.txt', 'r+');
-  await fsPromises.ftruncate(fd, 4);
+  let filehandle = null;
+  try {
+    filehandle = await fsPromises.open('temp.txt', 'r+');
+    await filehandle.truncate(4);
+  } finally {
+    if (filehandle) {
+      // close the file if it is opened.
+      await filehandle.close();
+    }
+  }
   console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints: Node
 }
 
@@ -3565,29 +3578,40 @@ doTruncate().catch(console.error);
 ```
 
 If the file previously was shorter than `len` bytes, it is extended, and the
-extended part is filled with null bytes ('\0'). For example,
+extended part is filled with null bytes (`'\0'`). For example,
 
 ```js
+const fs = require('fs');
+const fsPromises = fs.promises;
+
 console.log(fs.readFileSync('temp.txt', 'utf8'));
 // Prints: Node.js
 
 async function doTruncate() {
-  const fd = await fsPromises.open('temp.txt', 'r+');
-  await fsPromises.ftruncate(fd, 10);
+  let filehandle = null;
+  try {
+    filehandle = await fsPromises.open('temp.txt', 'r+');
+    await filehandle.truncate(10);
+  } finally {
+    if (filehandle) {
+      // close the file if it is opened.
+      await filehandle.close();
+    }
+  }
   console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints Node.js\0\0\0
 }
 
 doTruncate().catch(console.error);
 ```
 
-The last three bytes are null bytes ('\0'), to compensate the over-truncation.
+The last three bytes are null bytes (`'\0'`), to compensate the over-truncation.
 
 #### filehandle.utimes(atime, mtime)
 <!-- YAML
 added: v10.0.0
 -->
 * `atime` {number|string|Date}
-* `mtime` {number|string|Date}`
+* `mtime` {number|string|Date}
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the `FileHandle`
@@ -3662,17 +3686,9 @@ added: v10.0.0
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. The following constants define the possible values of
-`mode`. It is possible to create a mask consisting of the bitwise OR of two or
-more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
-
-* `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
-for determining if a file exists, but says nothing about `rwx` permissions.
-Default if no `mode` is specified.
-* `fs.constants.R_OK` - `path` can be read by the calling process.
-* `fs.constants.W_OK` - `path` can be written by the calling process.
-* `fs.constants.X_OK` - `path` can be executed by the calling process. This has
-no effect on Windows (will behave like `fs.constants.F_OK`).
+checks to be performed. Check [File Access Constants][] for possible values
+of `mode`. It is possible to create a mask consisting of the bitwise OR of
+two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
 If the accessibility check is successful, the `Promise` is resolved with no
 value. If any of the accessibility checks fail, the `Promise` is rejected
@@ -3680,6 +3696,9 @@ with an `Error` object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```js
+const fs = require('fs');
+const fsPromises = fs.promises;
+
 fsPromises.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK)
   .then(() => console.log('can access'))
   .catch(() => console.error('cannot access'));
@@ -3691,12 +3710,12 @@ condition, since other processes may change the file's state between the two
 calls. Instead, user code should open/read/write the file directly and handle
 the error raised if the file is not accessible.
 
-### fsPromises.appendFile(file, data[, options])
+### fsPromises.appendFile(path, data[, options])
 <!-- YAML
 added: v10.0.0
 -->
 
-* `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
+* `path` {string|Buffer|URL|FileHandle} filename or `FileHandle`
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
@@ -3710,7 +3729,7 @@ resolved with no arguments upon success.
 
 If `options` is a string, then it specifies the encoding.
 
-The `file` may be specified as a `FileHandle` that has been opened
+The `path` may be specified as a `FileHandle` that has been opened
 for appending (using `fsPromises.open()`).
 
 ### fsPromises.chmod(path, mode)
@@ -3772,7 +3791,7 @@ then the operation will fail.
 Example:
 
 ```js
-const fs = require('fs');
+const fsPromises = require('fs').promises;
 
 // destination.txt will be created or overwritten by default.
 fsPromises.copyFile('source.txt', 'destination.txt')
@@ -3785,6 +3804,7 @@ following example.
 
 ```js
 const fs = require('fs');
+const fsPromises = fs.promises;
 const { COPYFILE_EXCL } = fs.constants;
 
 // By using COPYFILE_EXCL, the operation will fail if destination.txt exists.
@@ -3792,128 +3812,6 @@ fsPromises.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL)
   .then(() => console.log('source.txt was copied to destination.txt'))
   .catch(() => console.log('The file could not be copied'));
 ```
-
-### fsPromises.fchmod(filehandle, mode)
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* `mode` {integer}
-* Returns: {Promise}
-
-Asynchronous fchmod(2). The `Promise` is resolved with no arguments upon
-success.
-
-### fsPromises.fchown(filehandle, uid, gid)
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* `uid` {integer}
-* `gid` {integer}
-* Returns: {Promise}
-
-Changes the ownership of the file represented by `filehandle` then resolves
-the `Promise` with no arguments upon success.
-
-### fsPromises.fdatasync(filehandle)
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* Returns: {Promise}
-
-Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
-success.
-
-### fsPromises.fstat(filehandle)
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* Returns: {Promise}
-
-Retrieves the [`fs.Stats`][] for the given `filehandle`.
-
-### fsPromises.fsync(filehandle)
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* Returns: {Promise}
-
-Asynchronous fsync(2). The `Promise` is resolved with no arguments upon
-success.
-
-### fsPromises.ftruncate(filehandle[, len])
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* `len` {integer} **Default:** `0`
-* Returns: {Promise}
-
-Truncates the file represented by `filehandle` then resolves the `Promise`
-with no arguments upon success.
-
-If the file referred to by the `FileHandle` was larger than `len` bytes, only
-the first `len` bytes will be retained in the file.
-
-For example, the following program retains only the first four bytes of the
-file:
-
-```js
-console.log(fs.readFileSync('temp.txt', 'utf8'));
-// Prints: Node.js
-
-async function doTruncate() {
-  const fd = await fsPromises.open('temp.txt', 'r+');
-  await fsPromises.ftruncate(fd, 4);
-  console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints: Node
-}
-
-doTruncate().catch(console.error);
-```
-
-If the file previously was shorter than `len` bytes, it is extended, and the
-extended part is filled with null bytes ('\0'). For example,
-
-```js
-console.log(fs.readFileSync('temp.txt', 'utf8'));
-// Prints: Node.js
-
-async function doTruncate() {
-  const fd = await fsPromises.open('temp.txt', 'r+');
-  await fsPromises.ftruncate(fd, 10);
-  console.log(fs.readFileSync('temp.txt', 'utf8'));  // Prints Node.js\0\0\0
-}
-
-doTruncate().catch(console.error);
-```
-
-The last three bytes are null bytes ('\0'), to compensate the over-truncation.
-
-### fsPromises.futimes(filehandle, atime, mtime)
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}`
-* Returns: {Promise}
-
-Change the file system timestamps of the object referenced by the supplied
-`FileHandle` then resolves the `Promise` with no arguments upon success.
-
-This function does not work on AIX versions before 7.1, it will resolve the
-`Promise` with an error using code `UV_ENOSYS`.
 
 ### fsPromises.lchmod(path, mode)
 <!-- YAML
@@ -3984,24 +3882,22 @@ added: v10.0.0
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {Promise}
 
-Creates a unique temporary directory then resolves the `Promise` with the
-created folder path. A unique directory name is generated by appending six
-random characters to the end of the provided `prefix`.
+Creates a unique temporary directory and resolves the `Promise` with the created
+folder path. A unique directory name is generated by appending six random
+characters to the end of the provided `prefix`.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
-
-Example:
 
 ```js
 fsPromises.mkdtemp(path.join(os.tmpdir(), 'foo-'))
   .catch(console.error);
 ```
 
-The `fs.mkdtemp()` method will append the six randomly selected characters
-directly to the `prefix` string. For instance, given a directory `/tmp`, if the
-intention is to create a temporary directory *within* `/tmp`, the `prefix`
-*must* end with a trailing platform-specific path separator
+The `fsPromises.mkdtemp()` method will append the six randomly selected
+characters directly to the `prefix` string. For instance, given a directory
+`/tmp`, if the intention is to create a temporary directory *within* `/tmp`, the
+`prefix` must end with a trailing platform-specific path separator
 (`require('path').sep`).
 
 ### fsPromises.open(path, flags[, mode])
@@ -4024,35 +3920,6 @@ Some characters (`< > : " / \ | ? *`) are reserved under Windows as documented
 by [Naming Files, Paths, and Namespaces][]. Under NTFS, if the filename contains
 a colon, Node.js will open a file system stream, as described by
 [this MSDN page][MSDN-Using-Streams].
-
-### fsPromises.read(filehandle, buffer, offset, length, position)
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* `buffer` {Buffer|Uint8Array}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
-* Returns: {Promise}
-
-Read data from the file specified by `filehandle`.
-
-`buffer` is the buffer that the data will be written to.
-
-`offset` is the offset in the buffer to start writing at.
-
-`length` is an integer specifying the number of bytes to read.
-
-`position` is an argument specifying where to begin reading from in the file.
-If `position` is `null`, data will be read from the current file position,
-and the file position will be updated.
-If `position` is an integer, the file position will remain unchanged.
-
-Following successful read, the `Promise` is resolved with an object with a
-`bytesRead` property specifying the number of bytes read, and a `buffer`
-property that is a reference to the passed in `buffer` argument.
 
 ### fsPromises.readdir(path[, options])
 <!-- YAML
@@ -4238,39 +4105,6 @@ The `atime` and `mtime` arguments follow these rules:
 - If the value can not be converted to a number, or is `NaN`, `Infinity` or
   `-Infinity`, an `Error` will be thrown.
 
-### fsPromises.write(filehandle, buffer[, offset[, length[, position]]])
-<!-- YAML
-added: v10.0.0
--->
-
-* `filehandle` {FileHandle}
-* `buffer` {Buffer|Uint8Array}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
-* Returns: {Promise}
-
-Write `buffer` to the file specified by `filehandle`.
-
-The `Promise` is resolved with an object containing a `bytesWritten` property
-identifying the number of bytes written, and a `buffer` property containing
-a reference to the `buffer` written.
-
-`offset` determines the part of the buffer to be written, and `length` is
-an integer specifying the number of bytes to write.
-
-`position` refers to the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'`, the data will be written
-at the current position. See pwrite(2).
-
-It is unsafe to use `fsPromises.write()` multiple times on the same file
-without waiting for the `Promise` to be resolved (or rejected). For this
-scenario, `fs.createWriteStream` is strongly recommended.
-
-On Linux, positional writes do not work when the file is opened in append mode.
-The kernel ignores the position argument and always appends the data to
-the end of the file.
-
 ### fsPromises.writeFile(file, data[, options])
 <!-- YAML
 added: v10.0.0
@@ -4314,7 +4148,9 @@ The following constants are meant for use with [`fs.access()`][].
   </tr>
   <tr>
     <td><code>F_OK</code></td>
-    <td>Flag indicating that the file is visible to the calling process.</td>
+    <td>Flag indicating that the file is visible to the calling process.
+     This is useful for determining if a file exists, but says nothing
+     about <code>rwx</code> permissions. Default if no mode is specified.</td>
   </tr>
   <tr>
     <td><code>R_OK</code></td>
@@ -4328,7 +4164,8 @@ The following constants are meant for use with [`fs.access()`][].
   <tr>
     <td><code>X_OK</code></td>
     <td>Flag indicating that the file can be executed by the calling
-    process.</td>
+    process. This has no effect on Windows
+    (will behave like <code>fs.constants.F_OK</code>).</td>
   </tr>
 </table>
 
@@ -4603,7 +4440,7 @@ The file is created (if it does not exist) or truncated (if it exists).
 `flag` can also be a number as documented by open(2); commonly used constants
 are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
-or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
+or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by `CreateFileW`.
 
 The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that path is newly
 created. On POSIX systems, path is considered to exist even if it is a symlink
@@ -4644,7 +4481,7 @@ the file contents.
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
 [`Buffer`]: buffer.html#buffer_buffer
-[`FSEvents`]: https://developer.apple.com/library/mac/documentation/Darwin/Conceptual/FSEvents_ProgGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005289-CH1-SW1
+[`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
 [`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
 [`ReadStream`]: #fs_class_fs_readstream
 [`URL`]: url.html#url_the_whatwg_url_api
@@ -4668,14 +4505,15 @@ the file contents.
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readFile()`]: #fs_fs_readfile_path_options_callback
 [`fs.readFileSync()`]: #fs_fs_readfilesync_path_options
+[`fs.realpath()`]: #fs_fs_realpath_path_options_callback
 [`fs.rmdir()`]: #fs_fs_rmdir_path_callback
 [`fs.stat()`]: #fs_fs_stat_path_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
 [`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
 [`fs.writeFile()`]: #fs_fs_writefile_file_data_options_callback
-[`inotify`]: http://man7.org/linux/man-pages/man7/inotify.7.html
-[`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
+[`inotify(7)`]: http://man7.org/linux/man-pages/man7/inotify.7.html
+[`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_callback
 [`util.promisify()`]: util.html#util_util_promisify_original
@@ -4691,3 +4529,4 @@ the file contents.
 [Naming Files, Paths, and Namespaces]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 [MSDN-Using-Streams]: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
 [support of file system `flags`]: #fs_file_system_flags
+[File Access Constants]: #fs_file_access_constants

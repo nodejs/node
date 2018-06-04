@@ -58,7 +58,7 @@ added: v6.0.0
 -->
 
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
-`./configure --openssl-fips`)
+`./configure --openssl-fips`.)
 
 ### `--experimental-modules`
 <!-- YAML
@@ -91,39 +91,39 @@ added: v6.0.0
 -->
 
 Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as `--enable-fips`)
+(Same requirements as `--enable-fips`.)
 
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
 -->
 
-Specify ICU data load path. (overrides `NODE_ICU_DATA`)
+Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 
 ### `--inspect-brk[=[host:]port]`
 <!-- YAML
 added: v7.6.0
 -->
 
-Activate inspector on host:port and break at start of user script.
-Default host:port is 127.0.0.1:9229.
+Activate inspector on `host:port` and break at start of user script.
+Default `host:port` is `127.0.0.1:9229`.
 
 ### `--inspect-port=[host:]port`
 <!-- YAML
 added: v7.6.0
 -->
 
-Set the host:port to be used when the inspector is activated.
+Set the `host:port` to be used when the inspector is activated.
 Useful when activating the inspector by sending the `SIGUSR1` signal.
 
-Default host is 127.0.0.1.
+Default host is `127.0.0.1`.
 
 ### `--inspect[=[host:]port]`
 <!-- YAML
 added: v6.3.0
 -->
 
-Activate inspector on host:port. Default is 127.0.0.1:9229.
+Activate inspector on `host:port`. Default is `127.0.0.1:9229`.
 
 V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
@@ -221,6 +221,36 @@ are linked from more than one location in the dependency tree (Node.js would
 see those as two separate modules and would attempt to load the module multiple
 times, causing an exception to be thrown).
 
+The `--preserve-symlinks` flag does not apply to the main module, which allows
+`node --preserve-symlinks node_module/.bin/<foo>` to work.  To apply the same
+behavior for the main module, also use `--preserve-symlinks-main`.
+
+### `--preserve-symlinks-main`
+<!-- YAML
+added: v10.2.0
+-->
+
+Instructs the module loader to preserve symbolic links when resolving and
+caching the main module (`require.main`).
+
+This flag exists so that the main module can be opted-in to the same behavior
+that `--preserve-symlinks` gives to all other imports; they are separate flags,
+however, for backward compatibility with older Node.js versions.
+
+Note that `--preserve-symlinks-main` does not imply `--preserve-symlinks`; it
+is expected that `--preserve-symlinks-main` will be used in addition to
+`--preserve-symlinks` when it is not desirable to follow symlinks before
+resolving relative paths.
+
+See `--preserve-symlinks` for more information.
+
+### `--prof`
+<!-- YAML
+added: v2.0.0
+-->
+
+Generate V8 profiler output.
+
 ### `--prof-process`
 <!-- YAML
 added: v5.2.0
@@ -250,8 +280,8 @@ Throw errors for deprecations.
 added: v4.0.0
 -->
 
-Specify an alternative default TLS cipher list. (Requires Node.js to be built
-with crypto support. (Default))
+Specify an alternative default TLS cipher list. Requires Node.js to be built
+with crypto support (default).
 
 ### `--trace-deprecation`
 <!-- YAML
@@ -465,7 +495,7 @@ options property is explicitly specified for a TLS or HTTPS client or server.
 added: v0.11.15
 -->
 
-Data path for ICU (Intl object) data. Will extend linked-in data when compiled
+Data path for ICU (`Intl` object) data. Will extend linked-in data when compiled
 with small-icu support.
 
 ### `NODE_NO_WARNINGS=1`

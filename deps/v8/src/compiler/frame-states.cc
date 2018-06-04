@@ -63,6 +63,9 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kJavaScriptBuiltinContinuation:
       os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
       break;
+    case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
+      os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME";
+      break;
   }
   return os;
 }
@@ -79,6 +82,24 @@ std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
 }
 
 namespace {
+
+// Lazy deopt points where the frame state is assocated with a call get an
+// additional parameter for the return result from the call. The return result
+// is added by the deoptimizer and not explicitly specified in the frame state.
+// Lazy deopt points which can catch exceptions further get an additional
+// parameter, namely the exception thrown. The exception is also added by the
+// deoptimizer.
+uint8_t DeoptimizerParameterCountFor(ContinuationFrameStateMode mode) {
+  switch (mode) {
+    case ContinuationFrameStateMode::EAGER:
+      return 0;
+    case ContinuationFrameStateMode::LAZY:
+      return 1;
+    case ContinuationFrameStateMode::LAZY_WITH_CATCH:
+      return 2;
+  }
+  UNREACHABLE();
+}
 
 Node* CreateBuiltinContinuationFrameStateCommon(
     JSGraph* jsgraph, FrameStateType frame_type, Builtins::Name name,
@@ -120,11 +141,10 @@ Node* CreateStubBuiltinContinuationFrameState(
   CallInterfaceDescriptor descriptor = callable.descriptor();
 
   std::vector<Node*> actual_parameters;
-  // Stack parameters first. If the deoptimization is LAZY, the final parameter
-  // is added by the deoptimizer and isn't explicitly passed in the frame state.
-  int stack_parameter_count =
-      descriptor.GetRegisterParameterCount() -
-      (mode == ContinuationFrameStateMode::LAZY ? 1 : 0);
+  // Stack parameters first. Depending on {mode}, final parameters are added
+  // by the deoptimizer and aren't explicitly passed in the frame state.
+  int stack_parameter_count = descriptor.GetRegisterParameterCount() -
+                              DeoptimizerParameterCountFor(mode);
   for (int i = 0; i < stack_parameter_count; ++i) {
     actual_parameters.push_back(
         parameters[descriptor.GetRegisterParameterCount() + i]);
@@ -149,18 +169,12 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
   Isolate* const isolate = jsgraph->isolate();
   Callable const callable = Builtins::CallableFor(isolate, name);
 
-  // Lazy deopt points where the frame state is assocated with a call get an
-  // additional parameter for the return result from the call that's added by
-  // the deoptimizer and not explicitly specified in the frame state. Check that
-  // there is not a mismatch between the number of frame state parameters and
-  // the stack parameters required by the builtin taking this into account.
+  // Depending on {mode}, final parameters are added by the deoptimizer
+  // and aren't explicitly passed in the frame state.
   DCHECK_EQ(Builtins::GetStackParameterCount(name) + 1,  // add receiver
-            stack_parameter_count +
-                (mode == ContinuationFrameStateMode::EAGER ? 0 : 1));
+            stack_parameter_count + DeoptimizerParameterCountFor(mode));
 
-  Node* argc =
-      jsgraph->Constant(stack_parameter_count -
-                        (mode == ContinuationFrameStateMode::EAGER ? 1 : 0));
+  Node* argc = jsgraph->Constant(Builtins::GetStackParameterCount(name));
 
   // Stack parameters first. They must be first because the receiver is expected
   // to be the second value in the translation when creating stack crawls
@@ -177,8 +191,11 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
   actual_parameters.push_back(argc);
 
   return CreateBuiltinContinuationFrameStateCommon(
-      jsgraph, FrameStateType::kJavaScriptBuiltinContinuation, name, target,
-      context, &actual_parameters[0],
+      jsgraph,
+      mode == ContinuationFrameStateMode::LAZY_WITH_CATCH
+          ? FrameStateType::kJavaScriptBuiltinContinuationWithCatch
+          : FrameStateType::kJavaScriptBuiltinContinuation,
+      name, target, context, &actual_parameters[0],
       static_cast<int>(actual_parameters.size()), outer_frame_state, shared);
 }
 

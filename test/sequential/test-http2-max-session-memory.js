@@ -13,6 +13,10 @@ const largeBuffer = Buffer.alloc(1e6);
 const server = http2.createServer({ maxSessionMemory: 1 });
 
 server.on('stream', common.mustCall((stream) => {
+  stream.on('error', (err) => {
+    if (err.code !== 'ECONNRESET')
+      throw err;
+  });
   stream.respond();
   stream.end(largeBuffer);
 }));

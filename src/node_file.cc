@@ -89,6 +89,11 @@ using v8::Value;
   TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall),   \
   ##__VA_ARGS__);
 
+// We sometimes need to convert a C++ lambda function to a raw C-style function.
+// This is helpful, because ReqWrap::Dispatch() does not recognize lambda
+// functions, and thus does not wrap them properly.
+typedef void(*uv_fs_callback_t)(uv_fs_t*);
+
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
 // emitted (or a fatal exception will occur if the fd cannot be closed.)
@@ -99,7 +104,7 @@ FileHandle::FileHandle(Environment* env, int fd, Local<Object> obj)
                 AsyncWrap::PROVIDER_FILEHANDLE),
       StreamBase(env),
       fd_(fd) {
-  MakeWeak<FileHandle>(this);
+  MakeWeak();
   v8::PropertyAttribute attr =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
   object()->DefineOwnProperty(env->context(),
@@ -216,9 +221,9 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
   if (!closed_ && !closing_) {
     closing_ = true;
     CloseReq* req = new CloseReq(env(), promise, object());
-    auto AfterClose = [](uv_fs_t* req) {
+    auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
       CloseReq* close = static_cast<CloseReq*>(req->data);
-      CHECK_NE(close, nullptr);
+      CHECK_NOT_NULL(close);
       close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
       if (req->result < 0) {
@@ -227,9 +232,8 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
         close->Resolve();
       }
       delete close;
-    };
-    req->Dispatched();
-    int ret = uv_fs_close(env()->event_loop(), req->req(), fd_, AfterClose);
+    }};
+    int ret = req->Dispatch(uv_fs_close, fd_, AfterClose);
     if (ret < 0) {
       req->Reject(UVException(isolate, ret, "close"));
       delete req;
@@ -309,17 +313,15 @@ int FileHandle::ReadStart() {
     recommended_read = read_length_;
 
   read_wrap->buffer_ = EmitAlloc(recommended_read);
-  read_wrap->Dispatched();
 
   current_read_ = std::move(read_wrap);
 
-  uv_fs_read(env()->event_loop(),
-             current_read_->req(),
-             fd_,
-             &current_read_->buffer_,
-             1,
-             read_offset_,
-             [](uv_fs_t* req) {
+  current_read_->Dispatch(uv_fs_read,
+                          fd_,
+                          &current_read_->buffer_,
+                          1,
+                          read_offset_,
+                          uv_fs_callback_t{[](uv_fs_t* req) {
     FileHandle* handle;
     {
       FileHandleReadWrap* req_wrap = FileHandleReadWrap::from_req(req);
@@ -342,8 +344,10 @@ int FileHandle::ReadStart() {
     // once we’re exiting the current scope.
     constexpr size_t wanted_freelist_fill = 100;
     auto& freelist = handle->env()->file_handle_read_wrap_freelist();
-    if (freelist.size() < wanted_freelist_fill)
+    if (freelist.size() < wanted_freelist_fill) {
+      read_wrap->Reset();
       freelist.emplace_back(std::move(read_wrap));
+    }
 
     if (result >= 0) {
       // Read at most as many bytes as we originally planned to.
@@ -370,7 +374,7 @@ int FileHandle::ReadStart() {
     // Start over, if EmitRead() didn’t tell us to stop.
     if (handle->reading_)
       handle->ReadStart();
-  });
+  }});
 
   return 0;
 }
@@ -389,8 +393,7 @@ ShutdownWrap* FileHandle::CreateShutdownWrap(Local<Object> object) {
 int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
   FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(req_wrap);
   closing_ = true;
-  wrap->Dispatched();
-  uv_fs_close(env()->event_loop(), wrap->req(), fd_, [](uv_fs_t* req) {
+  wrap->Dispatch(uv_fs_close, fd_, uv_fs_callback_t{[](uv_fs_t* req) {
     FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(
         FileHandleCloseWrap::from_req(req));
     FileHandle* handle = static_cast<FileHandle*>(wrap->stream());
@@ -399,7 +402,7 @@ int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
     int result = req->result;
     uv_fs_req_cleanup(req);
     wrap->Done(result);
-  });
+  }});
 
   return 0;
 }
@@ -418,7 +421,9 @@ void FSReqWrap::Resolve(Local<Value> value) {
     Null(env()->isolate()),
     value
   };
-  MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
+  MakeCallback(env()->oncomplete_string(),
+               value->IsUndefined() ? 1 : arraysize(argv),
+               argv);
 }
 
 void FSReqWrap::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
@@ -614,10 +619,9 @@ inline FSReqBase* AsyncDestCall(Environment* env,
     const FunctionCallbackInfo<Value>& args,
     const char* syscall, const char* dest, size_t len,
     enum encoding enc, uv_fs_cb after, Func fn, Args... fn_args) {
-  CHECK_NE(req_wrap, nullptr);
+  CHECK_NOT_NULL(req_wrap);
   req_wrap->Init(syscall, dest, len, enc);
-  int err = fn(env->event_loop(), req_wrap->req(), fn_args..., after);
-  req_wrap->Dispatched();
+  int err = req_wrap->Dispatch(fn, fn_args..., after);
   if (err < 0) {
     uv_fs_t* uv_req = req_wrap->req();
     uv_req->result = err;
@@ -686,7 +690,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   int mode = args[1].As<Int32>()->Value();
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // access(path, mode, req)
@@ -819,7 +823,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);
   if (req_wrap_async != nullptr) {  // stat(path, req)
@@ -848,7 +852,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);
   if (req_wrap_async != nullptr) {  // lstat(path, req)
@@ -907,9 +911,9 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 4);
 
   BufferValue target(env->isolate(), args[0]);
-  CHECK_NE(*target, nullptr);
+  CHECK_NOT_NULL(*target);
   BufferValue path(env->isolate(), args[1]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[2]->IsInt32());
   int flags = args[2].As<Int32>()->Value();
@@ -935,10 +939,10 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue src(env->isolate(), args[0]);
-  CHECK_NE(*src, nullptr);
+  CHECK_NOT_NULL(*src);
 
   BufferValue dest(env->isolate(), args[1]);
-  CHECK_NE(*dest, nullptr);
+  CHECK_NOT_NULL(*dest);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // link(src, dest, req)
@@ -961,7 +965,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -1003,9 +1007,9 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue old_path(env->isolate(), args[0]);
-  CHECK_NE(*old_path, nullptr);
+  CHECK_NOT_NULL(*old_path);
   BufferValue new_path(env->isolate(), args[1]);
-  CHECK_NE(*new_path, nullptr);
+  CHECK_NOT_NULL(*new_path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {
@@ -1099,7 +1103,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);
   if (req_wrap_async != nullptr) {
@@ -1121,7 +1125,7 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   FSReqBase* req_wrap_async = GetReqWrap(env, args[1]);  // rmdir(path, req)
   if (req_wrap_async != nullptr) {
@@ -1144,7 +1148,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
@@ -1170,7 +1174,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -1213,7 +1217,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
@@ -1295,7 +1299,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
@@ -1325,7 +1329,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
@@ -1360,10 +1364,10 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue src(env->isolate(), args[0]);
-  CHECK_NE(*src, nullptr);
+  CHECK_NOT_NULL(*src);
 
   BufferValue dest(env->isolate(), args[1]);
-  CHECK_NE(*dest, nullptr);
+  CHECK_NOT_NULL(*dest);
 
   CHECK(args[2]->IsInt32());
   const int flags = args[2].As<Int32>()->Value();
@@ -1532,7 +1536,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (is_async) {  // write(fd, string, pos, enc, req)
-    CHECK_NE(req_wrap_async, nullptr);
+    CHECK_NOT_NULL(req_wrap_async);
     len = StringBytes::StorageSize(env->isolate(), value, enc);
     FSReqBase::FSReqBuffer& stack_buffer =
         req_wrap_async->Init("write", len, enc);
@@ -1642,7 +1646,7 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
   int mode = args[1].As<Int32>()->Value();
@@ -1702,7 +1706,7 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsUint32());
   const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
@@ -1765,7 +1769,7 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 3);
 
   BufferValue path(env->isolate(), args[0]);
-  CHECK_NE(*path, nullptr);
+  CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsNumber());
   const double atime = args[1].As<Number>()->Value();
@@ -1823,7 +1827,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(env->isolate(), args[0]);
-  CHECK_NE(*tmpl, nullptr);
+  CHECK_NOT_NULL(*tmpl);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 

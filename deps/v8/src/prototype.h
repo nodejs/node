@@ -138,7 +138,7 @@ class PrototypeIterator {
 
   // Returns false iff a call to JSProxy::GetPrototype throws.
   // TODO(neis): This should probably replace Advance().
-  MUST_USE_RESULT bool AdvanceFollowingProxies() {
+  V8_WARN_UNUSED_RESULT bool AdvanceFollowingProxies() {
     DCHECK(!(handle_.is_null() && object_->IsJSProxy()));
     if (!HasAccess()) {
       // Abort the lookup if we do not have access to the current object.
@@ -149,7 +149,7 @@ class PrototypeIterator {
     return AdvanceFollowingProxiesIgnoringAccessChecks();
   }
 
-  MUST_USE_RESULT bool AdvanceFollowingProxiesIgnoringAccessChecks() {
+  V8_WARN_UNUSED_RESULT bool AdvanceFollowingProxiesIgnoringAccessChecks() {
     if (handle_.is_null() || !handle_->IsJSProxy()) {
       AdvanceIgnoringProxies();
       return true;

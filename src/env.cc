@@ -1,5 +1,6 @@
 #include "node_internals.h"
 #include "async_wrap.h"
+#include "v8-profiler.h"
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
@@ -73,15 +74,6 @@ IsolateData::IsolateData(Isolate* isolate,
 IsolateData::~IsolateData() {
   if (platform_ != nullptr)
     platform_->UnregisterIsolate(this);
-  if (cpu_profiler_ != nullptr)
-    cpu_profiler_->Dispose();
-}
-
-v8::CpuProfiler* IsolateData::GetCpuProfiler() {
-  if (cpu_profiler_ != nullptr) return cpu_profiler_;
-  cpu_profiler_ = v8::CpuProfiler::New(isolate());
-  CHECK_NE(cpu_profiler_, nullptr);
-  return cpu_profiler_;
 }
 
 
@@ -107,7 +99,6 @@ Environment::Environment(IsolateData* isolate_data,
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
 #endif
-      handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
       context_(context->GetIsolate(), context) {
@@ -131,9 +122,17 @@ Environment::Environment(IsolateData* isolate_data,
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
+
+  std::string debug_cats;
+  SafeGetenv("NODE_DEBUG_NATIVE", &debug_cats);
+  set_debug_categories(debug_cats, true);
 }
 
 Environment::~Environment() {
+  // Make sure there are no re-used libuv wrapper objects.
+  // CleanupHandles() should have removed all of them.
+  CHECK(file_handle_read_wrap_freelist_.empty());
+
   v8::HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
@@ -209,9 +208,7 @@ void Environment::RegisterHandleCleanups() {
                                         void* arg) {
     handle->data = env;
 
-    uv_close(handle, [](uv_handle_t* handle) {
-      static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-    });
+    env->CloseHandle(handle, [](uv_handle_t* handle) {});
   };
 
   RegisterHandleCleanup(
@@ -233,25 +230,34 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
-  for (HandleCleanup& hc : handle_cleanup_queue_) {
-    handle_cleanup_waiting_++;
+  for (ReqWrap<uv_req_t>* request : req_wrap_queue_)
+    request->Cancel();
+
+  for (HandleWrap* handle : handle_wrap_queue_)
+    handle->Close();
+
+  for (HandleCleanup& hc : handle_cleanup_queue_)
     hc.cb_(this, hc.handle_, hc.arg_);
-  }
   handle_cleanup_queue_.clear();
 
-  while (handle_cleanup_waiting_ != 0)
+  while (handle_cleanup_waiting_ != 0 ||
+         request_waiting_ != 0 ||
+         !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
+  }
+
+  file_handle_read_wrap_freelist_.clear();
 }
 
 void Environment::StartProfilerIdleNotifier() {
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
-    env->isolate_data()->GetCpuProfiler()->SetIdle(true);
+    env->isolate()->SetIdle(true);
   });
 
   uv_check_start(&idle_check_handle_, [](uv_check_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_check_handle_, handle);
-    env->isolate_data()->GetCpuProfiler()->SetIdle(false);
+    env->isolate()->SetIdle(false);
   });
 }
 
@@ -303,6 +309,37 @@ void Environment::PrintSyncTrace() const {
     }
   }
   fflush(stderr);
+}
+
+void Environment::RunCleanup() {
+  CleanupHandles();
+
+  while (!cleanup_hooks_.empty()) {
+    // Copy into a vector, since we can't sort an unordered_set in-place.
+    std::vector<CleanupHookCallback> callbacks(
+        cleanup_hooks_.begin(), cleanup_hooks_.end());
+    // We can't erase the copied elements from `cleanup_hooks_` yet, because we
+    // need to be able to check whether they were un-scheduled by another hook.
+
+    std::sort(callbacks.begin(), callbacks.end(),
+              [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
+      // Sort in descending order so that the most recently inserted callbacks
+      // are run first.
+      return a.insertion_order_counter_ > b.insertion_order_counter_;
+    });
+
+    for (const CleanupHookCallback& cb : callbacks) {
+      if (cleanup_hooks_.count(cb) == 0) {
+        // This hook was removed from the `cleanup_hooks_` set during another
+        // hook that was run earlier. Nothing to do here.
+        continue;
+      }
+
+      cb.fn_(cb.arg_);
+      cleanup_hooks_.erase(cb);
+    }
+    CleanupHandles();
+  }
 }
 
 void Environment::RunBeforeExitCallbacks() {
@@ -420,6 +457,9 @@ void Environment::CheckImmediate(uv_check_t* handle) {
 
   env->RunAndClearNativeImmediates();
 
+  if (!env->can_call_into_js())
+    return;
+
   do {
     MakeCallback(env->isolate(),
                  env->process_object(),
@@ -427,7 +467,7 @@ void Environment::CheckImmediate(uv_check_t* handle) {
                  0,
                  nullptr,
                  {0, 0}).ToLocalChecked();
-  } while (env->immediate_info()->has_outstanding());
+  } while (env->immediate_info()->has_outstanding() && env->can_call_into_js());
 
   if (env->immediate_info()->ref_count() == 0)
     env->ToggleImmediateRef(false);
@@ -454,6 +494,28 @@ Local<Value> Environment::GetNow() {
     return Number::New(isolate(), static_cast<double>(now));
 }
 
+
+void Environment::set_debug_categories(const std::string& cats, bool enabled) {
+  std::string debug_categories = cats;
+  while (!debug_categories.empty()) {
+    std::string::size_type comma_pos = debug_categories.find(',');
+    std::string wanted = ToLower(debug_categories.substr(0, comma_pos));
+
+#define V(name)                                                          \
+    {                                                                    \
+      static const std::string available_category = ToLower(#name);      \
+      if (available_category.find(wanted) != std::string::npos)          \
+        set_debug_enabled(DebugCategory::name, enabled);                 \
+    }
+
+    DEBUG_CATEGORY_NAMES(V)
+
+    if (comma_pos == std::string::npos)
+      break;
+    // Use everything after the `,` as the list for the next iteration.
+    debug_categories = debug_categories.substr(comma_pos);
+  }
+}
 
 void CollectExceptionInfo(Environment* env,
                           v8::Local<v8::Object> obj,

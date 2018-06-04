@@ -70,8 +70,6 @@ server.on('stream', (stream) => {
     client.destroy();
   }));
   stream.on('end', common.mustNotCall());
-  stream.respond();
-  stream.end('ok');
 });
 
 server.listen(0, () => {

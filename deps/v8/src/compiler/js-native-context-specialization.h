@@ -73,6 +73,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceJSStoreProperty(Node* node);
   Reduction ReduceJSStoreNamedOwn(Node* node);
   Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
+  Reduction ReduceJSStoreInArrayLiteral(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
                                 MapHandles const& receiver_maps,

@@ -228,8 +228,7 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 
 void EscapeAnalysisReducer::Finalize() {
   for (Node* node : arguments_elements_) {
-    DCHECK_EQ(IrOpcode::kNewArgumentsElements, node->opcode());
-    int mapped_count = OpParameter<int>(node);
+    int mapped_count = NewArgumentsElementsMappedCountOf(node->op());
 
     Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
     if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;

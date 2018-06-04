@@ -25,6 +25,7 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_F32(val) WASM_F32(val), kExprEnd
 #define WASM_INIT_EXPR_I64(val) WASM_I64(val), kExprEnd
 #define WASM_INIT_EXPR_F64(val) WASM_F64(val), kExprEnd
+#define WASM_INIT_EXPR_ANYREF WASM_REF_NULL, kExprEnd
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GET_GLOBAL(index), kExprEnd
 
 #define SIZEOF_EMPTY_FUNCTION ((size_t)5)
@@ -137,7 +138,8 @@ struct ValueTypePair {
 } kValueTypes[] = {{kLocalI32, kWasmI32},
                    {kLocalI64, kWasmI64},
                    {kLocalF32, kWasmF32},
-                   {kLocalF64, kWasmF64}};
+                   {kLocalF64, kWasmF64},
+                   {kLocalAnyRef, kWasmAnyRef}};
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
  public:
@@ -209,6 +211,67 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
   }
 
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
+}
+
+TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  static const byte data[] = {
+      SECTION(Global, 5),  // --
+      1,
+      kLocalAnyRef,          // local type
+      0,                     // immutable
+      WASM_INIT_EXPR_ANYREF  // init
+  };
+
+  {
+    // Should decode to exactly one global.
+    ModuleResult result = DecodeModule(data, data + sizeof(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(1u, result.val->globals.size());
+    EXPECT_EQ(0u, result.val->functions.size());
+    EXPECT_EQ(0u, result.val->data_segments.size());
+
+    const WasmGlobal* global = &result.val->globals.back();
+
+    EXPECT_EQ(kWasmAnyRef, global->type);
+    EXPECT_FALSE(global->mutability);
+    EXPECT_EQ(WasmInitExpr::kAnyRefConst, global->init.kind);
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, AnyRefGlobalWithGlobalInit) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  static const byte data[] = {
+      SECTION(Import, 8),  // section header
+      1,                   // number of imports
+      NAME_LENGTH(1),      // --
+      'm',                 // module name
+      NAME_LENGTH(1),      // --
+      'f',                 // global name
+      kExternalGlobal,     // import kind
+      kLocalAnyRef,        // type
+      0,                   // mutability
+      SECTION(Global, 6),  // --
+      1,
+      kLocalAnyRef,  // local type
+      0,             // immutable
+      WASM_INIT_EXPR_GLOBAL(0),
+  };
+
+  {
+    // Should decode to exactly one global.
+    ModuleResult result = DecodeModule(data, data + sizeof(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(2u, result.val->globals.size());
+    EXPECT_EQ(0u, result.val->functions.size());
+    EXPECT_EQ(0u, result.val->data_segments.size());
+
+    const WasmGlobal* global = &result.val->globals.back();
+
+    EXPECT_EQ(kWasmAnyRef, global->type);
+    EXPECT_FALSE(global->mutability);
+    EXPECT_EQ(WasmInitExpr::kGlobalIndex, global->init.kind);
+  }
 }
 
 TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
@@ -894,7 +957,17 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
   EXPECT_FAILURE(data);
 }
 
-class WasmSignatureDecodeTest : public TestWithZone {};
+class WasmSignatureDecodeTest : public TestWithZone {
+ public:
+  WasmSignatureDecodeTest()
+      // In the following tests we turn on support for AnyRef by default. There
+      // is a test (Fail_anyref_without_flag) which explicitly turns off support
+      // for AnyRef.
+      : flag_scope(&FLAG_experimental_wasm_anyref, true) {}
+
+ private:
+  FlagScope<bool> flag_scope;
+};
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const byte data[] = {SIG_ENTRY_v_v};
@@ -1010,6 +1083,19 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
   }
 }
 
+TEST_F(WasmSignatureDecodeTest, Fail_anyref_without_flag) {
+  // Disable AnyRef support and check that decoding fails.
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, false);
+  byte kInvalidType = kLocalAnyRef;
+  for (size_t i = 0; i < SIZEOF_SIG_ENTRY_x_xx; i++) {
+    byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
+    data[i] = kInvalidType;
+    FunctionSig* sig =
+        DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
+    EXPECT_EQ(nullptr, sig);
+  }
+}
+
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
   byte kInvalidType = 76;
   for (size_t i = 0; i < SIZEOF_SIG_ENTRY_x_xx; i++) {
@@ -1075,7 +1161,6 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     WasmFunction* function = result.val.get();
     EXPECT_EQ(0u, function->sig->parameter_count());
     EXPECT_EQ(0u, function->sig->return_count());
-    EXPECT_EQ(0u, function->name.offset());
     EXPECT_EQ(static_cast<uint32_t>(SIZEOF_SIG_ENTRY_v_v),
               function->code.offset());
     EXPECT_EQ(sizeof(data), function->code.end_offset());
@@ -1673,6 +1758,13 @@ TEST_F(WasmModuleVerifyTest, InitExpr_f64) {
   EXPECT_INIT_EXPR(F64, f64, 77999.1, WASM_F64(77999.1));
 }
 
+TEST_F(WasmModuleVerifyTest, InitExpr_AnyRef) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  static const byte data[] = {kExprRefNull, kExprEnd};
+  WasmInitExpr expr = DecodeWasmInitExprForTesting(data, data + sizeof(data));
+  EXPECT_EQ(WasmInitExpr::kAnyRefConst, expr.kind);
+}
+
 #undef EXPECT_INIT_EXPR
 
 #define EXPECT_INIT_EXPR_FAIL(...)                               \
@@ -1711,13 +1803,6 @@ class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
  public:
   void CheckSections(const byte* module_start, const byte* module_end,
                      const CustomSectionOffset* expected, size_t num_expected) {
-    // Add the WASM magic and version number automatically.
-    size_t size = static_cast<size_t>(module_end - module_start);
-    byte header[] = {WASM_MODULE_HEADER};
-    size_t total = sizeof(header) + size;
-    auto temp = new byte[total];
-    memcpy(temp, header, sizeof(header));
-    memcpy(temp + sizeof(header), module_start, size);
     std::vector<CustomSectionOffset> custom_sections =
         DecodeCustomSections(module_start, module_end);
 
@@ -1796,6 +1881,7 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
 #undef WASM_INIT_EXPR_F32
 #undef WASM_INIT_EXPR_I64
 #undef WASM_INIT_EXPR_F64
+#undef WASM_INIT_EXPR_ANYREF
 #undef WASM_INIT_EXPR_GLOBAL
 #undef SIZEOF_EMPTY_FUNCTION
 #undef EMPTY_BODY

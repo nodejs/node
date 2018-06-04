@@ -15,14 +15,10 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
-class CompilationJob;
+class OptimizedCompilationInfo;
+class OptimizedCompilationJob;
 class RegisterConfiguration;
 class JumpOptimizationInfo;
-
-namespace trap_handler {
-struct ProtectedInstructionData;
-}  // namespace trap_handler
 
 namespace wasm {
 enum ModuleOrigin : uint8_t;
@@ -36,19 +32,19 @@ class Graph;
 class InstructionSequence;
 class Schedule;
 class SourcePositionTable;
+class WasmCompilationData;
 
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given function.
-  static CompilationJob* NewCompilationJob(Handle<JSFunction> function,
-                                           bool has_script);
+  static OptimizedCompilationJob* NewCompilationJob(Handle<JSFunction> function,
+                                                    bool has_script);
 
   // Returns a new compilation job for the WebAssembly compilation info.
-  static CompilationJob* NewWasmCompilationJob(
-      CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
+  static OptimizedCompilationJob* NewWasmCompilationJob(
+      OptimizedCompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-      std::vector<trap_handler::ProtectedInstructionData>*
-          protected_instructions,
+      WasmCompilationData* wasm_compilation_data,
       wasm::ModuleOrigin wasm_origin);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
@@ -56,16 +52,17 @@ class Pipeline : public AllStatic {
   static Handle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule, Code::Kind kind, const char* debug_name,
-      uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt);
+      uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+      PoisoningMitigationLevel poisoning_enabled);
 
   // Run the entire pipeline and generate a handle to a code object suitable for
   // testing.
-  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
+  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
                                              Isolate* isolate);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
+  static Handle<Code> GenerateCodeForTesting(OptimizedCompilationInfo* info,
                                              Isolate* isolate, Graph* graph,
                                              Schedule* schedule = nullptr);
 
@@ -77,8 +74,9 @@ class Pipeline : public AllStatic {
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
   V8_EXPORT_PRIVATE static Handle<Code> GenerateCodeForTesting(
-      CompilationInfo* info, Isolate* isolate, CallDescriptor* call_descriptor,
-      Graph* graph, Schedule* schedule = nullptr,
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule = nullptr,
       SourcePositionTable* source_positions = nullptr);
 
  private:

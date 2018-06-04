@@ -6,6 +6,7 @@
 
 #include "src/base/adapters.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -114,17 +115,24 @@ void InstructionScheduler::EndBlock(RpoNumber rpo) {
   operands_map_.clear();
 }
 
+void InstructionScheduler::AddTerminator(Instruction* instr) {
+  ScheduleGraphNode* new_node = new (zone()) ScheduleGraphNode(zone(), instr);
+  // Make sure that basic block terminators are not moved by adding them
+  // as successor of every instruction.
+  for (ScheduleGraphNode* node : graph_) {
+    node->AddSuccessor(new_node);
+  }
+  graph_.push_back(new_node);
+}
 
 void InstructionScheduler::AddInstruction(Instruction* instr) {
   ScheduleGraphNode* new_node = new (zone()) ScheduleGraphNode(zone(), instr);
 
-  if (IsBlockTerminator(instr)) {
-    // Make sure that basic block terminators are not moved by adding them
-    // as successor of every instruction.
-    for (ScheduleGraphNode* node : graph_) {
-      node->AddSuccessor(new_node);
-    }
-  } else if (IsFixedRegisterParameter(instr)) {
+  // We should not have branches in the middle of a block.
+  DCHECK_NE(instr->flags_mode(), kFlags_branch);
+  DCHECK_NE(instr->flags_mode(), kFlags_branch_and_poison);
+
+  if (IsFixedRegisterParameter(instr)) {
     if (last_live_in_reg_marker_ != nullptr) {
       last_live_in_reg_marker_->AddSuccessor(new_node);
     }
@@ -240,10 +248,17 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchNop:
     case kArchFramePointer:
     case kArchParentFramePointer:
+    case kArchRootsPointer:
     case kArchStackSlot:  // Despite its name this opcode will produce a
                           // reference to a frame slot, so it is not affected
                           // by the arm64 dual stack issues mentioned below.
     case kArchComment:
+    case kArchDeoptimize:
+    case kArchJmp:
+    case kArchLookupSwitch:
+    case kArchRet:
+    case kArchTableSwitch:
+    case kArchThrowTerminator:
       return kNoOpcodeFlags;
 
     case kArchTruncateDoubleToI:
@@ -275,6 +290,11 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // must not be reordered with instruction with side effects.
       return kIsLoadOperation;
 
+    case kArchPoisonOnSpeculationWord:
+      // While poisoning operations have no side effect, they must not be
+      // reordered relative to branches.
+      return kHasSideEffect;
+
     case kArchPrepareCallCFunction:
     case kArchSaveCallerRegisters:
     case kArchRestoreCallerRegisters:
@@ -283,23 +303,13 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchCallCodeObject:
     case kArchCallJSFunction:
     case kArchCallWasmFunction:
-      return kHasSideEffect;
-
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
     case kArchTailCallAddress:
     case kArchTailCallWasm:
-      return kHasSideEffect | kIsBlockTerminator;
-
-    case kArchDeoptimize:
-    case kArchJmp:
-    case kArchLookupSwitch:
-    case kArchTableSwitch:
-    case kArchRet:
     case kArchDebugAbort:
     case kArchDebugBreak:
-    case kArchThrowTerminator:
-      return kIsBlockTerminator;
+      return kHasSideEffect;
 
     case kArchStoreWithWriteBarrier:
       return kHasSideEffect;
@@ -361,14 +371,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
   UNREACHABLE();
 }
-
-
-bool InstructionScheduler::IsBlockTerminator(const Instruction* instr) const {
-  return ((GetInstructionFlags(instr) & kIsBlockTerminator) ||
-          (instr->flags_mode() == kFlags_branch) ||
-          (instr->flags_mode() == kFlags_branch_and_poison));
-}
-
 
 void InstructionScheduler::ComputeTotalLatencies() {
   for (ScheduleGraphNode* node : base::Reversed(graph_)) {

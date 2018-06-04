@@ -5,8 +5,8 @@
 #ifndef V8_LOOKUP_H_
 #define V8_LOOKUP_H_
 
-#include "src/factory.h"
 #include "src/globals.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
@@ -135,12 +135,9 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
       Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
       bool* success, Configuration configuration = DEFAULT);
 
-  static LookupIterator ForTransitionHandler(Isolate* isolate,
-                                             Handle<Object> receiver,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             MaybeHandle<Object> handler,
-                                             Handle<Map> transition_map);
+  static LookupIterator ForTransitionHandler(
+      Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
+      Handle<Object> value, MaybeHandle<Map> maybe_transition_map);
 
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
@@ -219,7 +216,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
            (IsElement() || !name_->IsPrivate());
   }
   void PrepareForDataProperty(Handle<Object> value);
-  bool PrepareTransitionToDataProperty(Handle<JSReceiver> receiver,
+  void PrepareTransitionToDataProperty(Handle<JSReceiver> receiver,
                                        Handle<Object> value,
                                        PropertyAttributes attributes,
                                        Object::StoreFromKeyed store_mode);
@@ -278,9 +275,9 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     // CodeStubAssembler::CheckForAssociatedProtector!
     if (*name_ == heap()->is_concat_spreadable_symbol() ||
         *name_ == heap()->constructor_string() ||
-        *name_ == heap()->species_symbol() ||
+        *name_ == heap()->next_string() || *name_ == heap()->species_symbol() ||
         *name_ == heap()->iterator_symbol() ||
-        *name_ == heap()->then_string()) {
+        *name_ == heap()->resolve_string() || *name_ == heap()->then_string()) {
       InternalUpdateProtector();
     }
   }
@@ -306,7 +303,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
 
   Handle<Map> GetReceiverMap() const;
 
-  MUST_USE_RESULT inline JSReceiver* NextHolder(Map* map);
+  V8_WARN_UNUSED_RESULT inline JSReceiver* NextHolder(Map* map);
 
   template <bool is_element>
   V8_EXPORT_PRIVATE void Start();

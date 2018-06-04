@@ -25,9 +25,6 @@ const assert = require('assert');
 const util = require('util');
 const repl = require('repl');
 
-// This test adds global variables
-common.globalCheck = false;
-
 const putIn = new common.ArrayStream();
 repl.start('', putIn, null, true);
 
@@ -65,6 +62,7 @@ function test2() {
   };
   const val = {};
   global.url = val;
+  common.allowGlobals(val);
   assert(!gotWrite);
   putIn.run(['url']);
   assert(gotWrite);

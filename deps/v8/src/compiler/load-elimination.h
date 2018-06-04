@@ -159,6 +159,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
       for (auto this_it : this->info_for_node_) {
         Node* this_object = this_it.first;
         Field this_second = this_it.second;
+        if (this_object->IsDead()) continue;
         auto that_it = that->info_for_node_.find(this_object);
         if (that_it != that->info_for_node_.end() &&
             that_it->second == this_second) {

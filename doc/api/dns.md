@@ -66,7 +66,7 @@ An independent resolver for DNS requests.
 Note that creating a new resolver uses the default server settings. Setting
 the servers used for a resolver using
 [`resolver.setServers()`][`dns.setServers()`] does not affect
-other resolver:
+other resolvers:
 
 ```js
 const { Resolver } = require('dns');
@@ -194,7 +194,7 @@ dns.lookup('example.com', options, (err, addresses) =>
 ```
 
 If this method is invoked as its [`util.promisify()`][]ed version, and `all`
-is not set to `true`, it returns a Promise for an object with `address` and
+is not set to `true`, it returns a `Promise` for an `Object` with `address` and
 `family` properties.
 
 ### Supported getaddrinfo flags
@@ -238,7 +238,7 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 ```
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns a
-Promise for an object with `hostname` and `service` properties.
+`Promise` for an `Object` with `hostname` and `service` properties.
 
 ## dns.resolve(hostname[, rrtype], callback)
 <!-- YAML
@@ -508,7 +508,7 @@ will be present on the object:
 | `'PTR'` | `value` |
 | `'SOA'` | Refer to [`dns.resolveSoa()`][] |
 | `'SRV'` | Refer to [`dns.resolveSrv()`][] |
-| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
+| `'TXT'` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the `ret` object passed to the callback:
 
@@ -593,8 +593,8 @@ Each DNS query can return one of the following error codes:
 - `dns.NONAME`: Given hostname is not numeric.
 - `dns.BADHINTS`: Illegal hints flags specified.
 - `dns.NOTINITIALIZED`: c-ares library initialization not yet performed.
-- `dns.LOADIPHLPAPI`: Error loading iphlpapi.dll.
-- `dns.ADDRGETNETWORKPARAMS`: Could not find GetNetworkParams function.
+- `dns.LOADIPHLPAPI`: Error loading `iphlpapi.dll`.
+- `dns.ADDRGETNETWORKPARAMS`: Could not find `GetNetworkParams` function.
 - `dns.CANCELLED`: DNS query cancelled.
 
 ## Implementation considerations

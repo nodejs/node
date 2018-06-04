@@ -9,17 +9,10 @@
 
 #include "node_internals.h"
 #include <string.h>
+#include <algorithm>
 
 namespace node {
 namespace stringsearch {
-
-
-// Returns the maximum of the two parameters.
-template <typename T>
-T Max(T a, T b) {
-  return a < b ? b : a;
-}
-
 
 static const uint32_t kMaxOneByteCharCodeU = 0xff;
 
@@ -87,18 +80,20 @@ class StringSearchBase {
   static const int kBMMinPatternLength = 8;
 
   // Store for the BoyerMoore(Horspool) bad char shift table.
-  static int kBadCharShiftTable[kUC16AlphabetSize];
+  int bad_char_shift_table_[kUC16AlphabetSize];
   // Store for the BoyerMoore good suffix shift table.
-  static int kGoodSuffixShiftTable[kBMMaxShift + 1];
+  int good_suffix_shift_table_[kBMMaxShift + 1];
   // Table used temporarily while building the BoyerMoore good suffix
   // shift table.
-  static int kSuffixTable[kBMMaxShift + 1];
+  int suffix_table_[kBMMaxShift + 1];
 };
 
 template <typename Char>
 class StringSearch : private StringSearchBase {
  public:
-  explicit StringSearch(Vector<const Char> pattern)
+  typedef stringsearch::Vector<const Char> Vector;
+
+  explicit StringSearch(Vector pattern)
       : pattern_(pattern), start_(0) {
     if (pattern.length() >= kBMMaxShift) {
       start_ = pattern.length() - kBMMaxShift;
@@ -108,17 +103,17 @@ class StringSearch : private StringSearchBase {
     CHECK_GT(pattern_length, 0);
     if (pattern_length < kBMMinPatternLength) {
       if (pattern_length == 1) {
-        strategy_ = &SingleCharSearch;
+        strategy_ = &StringSearch::SingleCharSearch;
         return;
       }
-      strategy_ = &LinearSearch;
+      strategy_ = &StringSearch::LinearSearch;
       return;
     }
-    strategy_ = &InitialSearch;
+    strategy_ = &StringSearch::InitialSearch;
   }
 
-  size_t Search(Vector<const Char> subject, size_t index) {
-    return strategy_(this, subject, index);
+  size_t Search(Vector subject, size_t index) {
+    return (this->*strategy_)(subject, index);
   }
 
   static inline int AlphabetSize() {
@@ -136,31 +131,12 @@ class StringSearch : private StringSearchBase {
   }
 
  private:
-  typedef size_t (*SearchFunction)(
-      StringSearch<Char>*,
-      Vector<const Char>,
-      size_t);
-
-  static size_t SingleCharSearch(StringSearch<Char>* search,
-                                 Vector<const Char> subject,
-                                 size_t start_index);
-
-  static size_t LinearSearch(StringSearch<Char>* search,
-                             Vector<const Char> subject,
-                             size_t start_index);
-
-  static size_t InitialSearch(StringSearch<Char>* search,
-                              Vector<const Char> subject,
-                              size_t start_index);
-
-  static size_t BoyerMooreHorspoolSearch(
-      StringSearch<Char>* search,
-      Vector<const Char> subject,
-      size_t start_index);
-
-  static size_t BoyerMooreSearch(StringSearch<Char>* search,
-                                 Vector<const Char> subject,
-                                 size_t start_index);
+  typedef size_t (StringSearch::*SearchFunction)(Vector, size_t);
+  size_t SingleCharSearch(Vector subject, size_t start_index);
+  size_t LinearSearch(Vector subject, size_t start_index);
+  size_t InitialSearch(Vector subject, size_t start_index);
+  size_t BoyerMooreHorspoolSearch(Vector subject, size_t start_index);
+  size_t BoyerMooreSearch(Vector subject, size_t start_index);
 
   void PopulateBoyerMooreHorspoolTable();
 
@@ -176,28 +152,8 @@ class StringSearch : private StringSearchBase {
     return bad_char_occurrence[equiv_class];
   }
 
-  // Store for the BoyerMoore(Horspool) bad char shift table.
-  // Return a table covering the last kBMMaxShift+1 positions of
-  // pattern.
-  int* bad_char_table() { return kBadCharShiftTable; }
-
-  // Store for the BoyerMoore good suffix shift table.
-  int* good_suffix_shift_table() {
-    // Return biased pointer that maps the range  [start_..pattern_.length()
-    // to the kGoodSuffixShiftTable array.
-    return kGoodSuffixShiftTable - start_;
-  }
-
-  // Table used temporarily while building the BoyerMoore good suffix
-  // shift table.
-  int* suffix_table() {
-    // Return biased pointer that maps the range  [start_..pattern_.length()
-    // to the kSuffixTable array.
-    return kSuffixTable - start_;
-  }
-
   // The pattern to search for.
-  Vector<const Char> pattern_;
+  Vector pattern_;
   // Pointer to implementation of the search.
   SearchFunction strategy_;
   // Cache value of Max(0, pattern_length() - kBMMaxShift)
@@ -213,8 +169,8 @@ inline T AlignDown(T value, U alignment) {
 
 
 inline uint8_t GetHighestValueByte(uint16_t character) {
-  return Max(static_cast<uint8_t>(character & 0xFF),
-             static_cast<uint8_t>(character >> 8));
+  return std::max(static_cast<uint8_t>(character & 0xFF),
+                  static_cast<uint8_t>(character >> 8));
 }
 
 
@@ -319,11 +275,10 @@ inline size_t FindFirstCharacter(Vector<const uint8_t> pattern,
 
 template <typename Char>
 size_t StringSearch<Char>::SingleCharSearch(
-    StringSearch<Char>* search,
-    Vector<const Char> subject,
+    Vector subject,
     size_t index) {
-  CHECK_EQ(1, search->pattern_.length());
-  return FindFirstCharacter(search->pattern_, subject, index);
+  CHECK_EQ(1, pattern_.length());
+  return FindFirstCharacter(pattern_, subject, index);
 }
 
 //---------------------------------------------------------------------
@@ -333,22 +288,19 @@ size_t StringSearch<Char>::SingleCharSearch(
 // Simple linear search for short patterns. Never bails out.
 template <typename Char>
 size_t StringSearch<Char>::LinearSearch(
-    StringSearch<Char>* search,
-    Vector<const Char> subject,
+    Vector subject,
     size_t index) {
-  Vector<const Char> pattern = search->pattern_;
-  CHECK_GT(pattern.length(), 1);
-  const size_t pattern_length = pattern.length();
-  const size_t n = subject.length() - pattern_length;
+  CHECK_GT(pattern_.length(), 1);
+  const size_t n = subject.length() - pattern_.length();
   for (size_t i = index; i <= n; i++) {
-    i = FindFirstCharacter(pattern, subject, i);
+    i = FindFirstCharacter(pattern_, subject, i);
     if (i == subject.length())
       return subject.length();
     CHECK_LE(i, n);
 
     bool matches = true;
-    for (size_t j = 1; j < pattern_length; j++) {
-      if (pattern[j] != subject[i + j]) {
+    for (size_t j = 1; j < pattern_.length(); j++) {
+      if (pattern_[j] != subject[i + j]) {
         matches = false;
         break;
       }
@@ -366,19 +318,17 @@ size_t StringSearch<Char>::LinearSearch(
 
 template <typename Char>
 size_t StringSearch<Char>::BoyerMooreSearch(
-    StringSearch<Char>* search,
-    Vector<const Char> subject,
+    Vector subject,
     size_t start_index) {
-  Vector<const Char> pattern = search->pattern_;
   const size_t subject_length = subject.length();
-  const size_t pattern_length = pattern.length();
+  const size_t pattern_length = pattern_.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
-  size_t start = search->start_;
+  size_t start = start_;
 
-  int* bad_char_occurrence = search->bad_char_table();
-  int* good_suffix_shift = search->good_suffix_shift_table();
+  int* bad_char_occurrence = bad_char_shift_table_;
+  int* good_suffix_shift = good_suffix_shift_table_ - start_;
 
-  Char last_char = pattern[pattern_length - 1];
+  Char last_char = pattern_[pattern_length - 1];
   size_t index = start_index;
   // Continue search from i.
   while (index <= subject_length - pattern_length) {
@@ -391,7 +341,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
         return subject.length();
       }
     }
-    while (pattern[j] == (c = subject[index + j])) {
+    while (pattern_[j] == (c = subject[index + j])) {
       if (j == 0) {
         return index;
       }
@@ -420,7 +370,6 @@ size_t StringSearch<Char>::BoyerMooreSearch(
 template <typename Char>
 void StringSearch<Char>::PopulateBoyerMooreTable() {
   const size_t pattern_length = pattern_.length();
-  Vector<const Char> pattern = pattern_;
   // Only look at the last kBMMaxShift characters of pattern (from start_
   // to pattern_length).
   const size_t start = start_;
@@ -428,8 +377,8 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
 
   // Biased tables so that we can use pattern indices as table indices,
   // even if we only cover the part of the pattern from offset start.
-  int* shift_table = good_suffix_shift_table();
-  int* suffix_table = this->suffix_table();
+  int* shift_table = good_suffix_shift_table_ - start_;
+  int* suffix_table = suffix_table_ - start_;
 
   // Initialize table.
   for (size_t i = start; i < pattern_length; i++) {
@@ -448,8 +397,8 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
   {
     size_t i = pattern_length;
     while (i > start) {
-      Char c = pattern[i - 1];
-      while (suffix <= pattern_length && c != pattern[suffix - 1]) {
+      Char c = pattern_[i - 1];
+      while (suffix <= pattern_length && c != pattern_[suffix - 1]) {
         if (static_cast<size_t>(shift_table[suffix]) == length) {
           shift_table[suffix] = suffix - i;
         }
@@ -458,7 +407,7 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
       suffix_table[--i] = --suffix;
       if (suffix == pattern_length) {
         // No suffix to extend, so we check against last_char only.
-        while ((i > start) && (pattern[i - 1] != last_char)) {
+        while ((i > start) && (pattern_[i - 1] != last_char)) {
           if (static_cast<size_t>(shift_table[pattern_length]) == length) {
             shift_table[pattern_length] = pattern_length - i;
           }
@@ -489,17 +438,15 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
 
 template <typename Char>
 size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
-    StringSearch<Char>* search,
-    Vector<const Char> subject,
+    Vector subject,
     size_t start_index) {
-  Vector<const Char> pattern = search->pattern_;
   const size_t subject_length = subject.length();
-  const size_t pattern_length = pattern.length();
-  int* char_occurrences = search->bad_char_table();
+  const size_t pattern_length = pattern_.length();
+  int* char_occurrences = bad_char_shift_table_;
   int64_t badness = -pattern_length;
 
   // How bad we are doing without a good-suffix table.
-  Char last_char = pattern[pattern_length - 1];
+  Char last_char = pattern_[pattern_length - 1];
   int last_char_shift =
       pattern_length - 1 -
       CharOccurrence(char_occurrences, static_cast<Char>(last_char));
@@ -519,7 +466,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
       }
     }
     j--;
-    while (pattern[j] == (subject[index + j])) {
+    while (pattern_[j] == (subject[index + j])) {
       if (j == 0) {
         return index;
       }
@@ -532,9 +479,9 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
     // compared to reading each character exactly once.
     badness += (pattern_length - j) - last_char_shift;
     if (badness > 0) {
-      search->PopulateBoyerMooreTable();
-      search->strategy_ = &BoyerMooreSearch;
-      return BoyerMooreSearch(search, subject, index);
+      PopulateBoyerMooreTable();
+      strategy_ = &StringSearch::BoyerMooreSearch;
+      return BoyerMooreSearch(subject, index);
     }
   }
   return subject.length();
@@ -544,7 +491,7 @@ template <typename Char>
 void StringSearch<Char>::PopulateBoyerMooreHorspoolTable() {
   const size_t pattern_length = pattern_.length();
 
-  int* bad_char_occurrence = bad_char_table();
+  int* bad_char_occurrence = bad_char_shift_table_;
 
   // Only preprocess at most kBMMaxShift last characters of pattern.
   const size_t start = start_;
@@ -575,11 +522,9 @@ void StringSearch<Char>::PopulateBoyerMooreHorspoolTable() {
 // isn't found very early in the subject. Upgrades to BoyerMooreHorspool.
 template <typename Char>
 size_t StringSearch<Char>::InitialSearch(
-    StringSearch<Char>* search,
-    Vector<const Char> subject,
+    Vector subject,
     size_t index) {
-  Vector<const Char> pattern = search->pattern_;
-  const size_t pattern_length = pattern.length();
+  const size_t pattern_length = pattern_.length();
   // Badness is a count of how much work we have done.  When we have
   // done enough work we decide it's probably worth switching to a better
   // algorithm.
@@ -590,13 +535,13 @@ size_t StringSearch<Char>::InitialSearch(
   for (size_t i = index, n = subject.length() - pattern_length; i <= n; i++) {
     badness++;
     if (badness <= 0) {
-      i = FindFirstCharacter(pattern, subject, i);
+      i = FindFirstCharacter(pattern_, subject, i);
       if (i == subject.length())
         return subject.length();
       CHECK_LE(i, n);
       size_t j = 1;
       do {
-        if (pattern[j] != subject[i + j]) {
+        if (pattern_[j] != subject[i + j]) {
           break;
         }
         j++;
@@ -606,15 +551,15 @@ size_t StringSearch<Char>::InitialSearch(
       }
       badness += j;
     } else {
-      search->PopulateBoyerMooreHorspoolTable();
-      search->strategy_ = &BoyerMooreHorspoolSearch;
-      return BoyerMooreHorspoolSearch(search, subject, i);
+      PopulateBoyerMooreHorspoolTable();
+      strategy_ = &StringSearch::BoyerMooreHorspoolSearch;
+      return BoyerMooreHorspoolSearch(subject, i);
     }
   }
   return subject.length();
 }
 
-// Perform a a single stand-alone search.
+// Perform a single stand-alone search.
 // If searching multiple times for the same pattern, a search
 // object should be constructed once and the Search function then called
 // for each search.
@@ -629,7 +574,6 @@ size_t SearchString(Vector<const Char> subject,
 }  // namespace node
 
 namespace node {
-using node::stringsearch::Vector;
 
 template <typename Char>
 size_t SearchString(const Char* haystack,
@@ -643,9 +587,8 @@ size_t SearchString(const Char* haystack,
   // code, create two vectors that are reversed views into the input strings.
   // For example, v_needle[0] would return the *last* character of the needle.
   // So we're searching for the first instance of rev(needle) in rev(haystack)
-  Vector<const Char> v_needle = Vector<const Char>(
-      needle, needle_length, is_forward);
-  Vector<const Char> v_haystack = Vector<const Char>(
+  stringsearch::Vector<const Char> v_needle(needle, needle_length, is_forward);
+  stringsearch::Vector<const Char> v_haystack(
       haystack, haystack_length, is_forward);
   size_t diff = haystack_length - needle_length;
   size_t relative_start_index;

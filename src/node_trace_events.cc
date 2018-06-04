@@ -21,11 +21,6 @@ using v8::Value;
 
 class NodeCategorySet : public BaseObject {
  public:
-  ~NodeCategorySet() override {
-    // Verify that the thing was properly disabled before gc
-    CHECK_NE(enabled_, true);
-  }
-
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Enable(const FunctionCallbackInfo<Value>& args);
   static void Disable(const FunctionCallbackInfo<Value>& args);
@@ -37,7 +32,7 @@ class NodeCategorySet : public BaseObject {
                   Local<Object> wrap,
                   std::set<std::string> categories) :
         BaseObject(env, wrap), categories_(categories) {
-    MakeWeak<NodeCategorySet>(this);
+    MakeWeak();
   }
 
   bool enabled_ = false;
@@ -54,7 +49,7 @@ void NodeCategorySet::New(const FunctionCallbackInfo<Value>& args) {
     Utf8Value val(env->isolate(), category);
     categories.emplace(*val);
   }
-  CHECK_NE(env->tracing_agent(), nullptr);
+  CHECK_NOT_NULL(env->tracing_agent());
   new NodeCategorySet(env, args.This(), categories);
 }
 
@@ -62,7 +57,7 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   NodeCategorySet* category_set;
   ASSIGN_OR_RETURN_UNWRAP(&category_set, args.Holder());
-  CHECK_NE(category_set, nullptr);
+  CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (!category_set->enabled_ && !categories.empty()) {
     env->tracing_agent()->Enable(categories);
@@ -74,7 +69,7 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   NodeCategorySet* category_set;
   ASSIGN_OR_RETURN_UNWRAP(&category_set, args.Holder());
-  CHECK_NE(category_set, nullptr);
+  CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (category_set->enabled_ && !categories.empty()) {
     env->tracing_agent()->Disable(categories);

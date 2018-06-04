@@ -5,7 +5,7 @@
 
     Implements the template parser.
 
-    :copyright: (c) 2010 by the Jinja Team.
+    :copyright: (c) 2017 by the Jinja Team.
     :license: BSD, see LICENSE for more details.
 """
 from jinja2 import nodes
@@ -16,8 +16,17 @@ from jinja2._compat import imap
 
 _statement_keywords = frozenset(['for', 'if', 'block', 'extends', 'print',
                                  'macro', 'include', 'from', 'import',
-                                 'set'])
+                                 'set', 'with', 'autoescape'])
 _compare_operators = frozenset(['eq', 'ne', 'lt', 'lteq', 'gt', 'gteq'])
+
+_math_nodes = {
+    'add': nodes.Add,
+    'sub': nodes.Sub,
+    'mul': nodes.Mul,
+    'div': nodes.Div,
+    'floordiv': nodes.FloorDiv,
+    'mod': nodes.Mod,
+}
 
 
 class Parser(object):
@@ -167,13 +176,14 @@ class Parser(object):
     def parse_set(self):
         """Parse an assign statement."""
         lineno = next(self.stream).lineno
-        target = self.parse_assign_target()
+        target = self.parse_assign_target(with_namespace=True)
         if self.stream.skip_if('assign'):
             expr = self.parse_tuple()
             return nodes.Assign(target, expr, lineno=lineno)
+        filter_node = self.parse_filter(None)
         body = self.parse_statements(('name:endset',),
                                      drop_needle=True)
-        return nodes.AssignBlock(target, body, lineno=lineno)
+        return nodes.AssignBlock(target, filter_node, body, lineno=lineno)
 
     def parse_for(self):
         """Parse a for loop."""
@@ -201,19 +211,46 @@ class Parser(object):
             node.test = self.parse_tuple(with_condexpr=False)
             node.body = self.parse_statements(('name:elif', 'name:else',
                                                'name:endif'))
+            node.elif_ = []
+            node.else_ = []
             token = next(self.stream)
             if token.test('name:elif'):
-                new_node = nodes.If(lineno=self.stream.current.lineno)
-                node.else_ = [new_node]
-                node = new_node
+                node = nodes.If(lineno=self.stream.current.lineno)
+                result.elif_.append(node)
                 continue
             elif token.test('name:else'):
-                node.else_ = self.parse_statements(('name:endif',),
-                                                   drop_needle=True)
-            else:
-                node.else_ = []
+                result.else_ = self.parse_statements(('name:endif',),
+                                                     drop_needle=True)
             break
         return result
+
+    def parse_with(self):
+        node = nodes.With(lineno=next(self.stream).lineno)
+        targets = []
+        values = []
+        while self.stream.current.type != 'block_end':
+            lineno = self.stream.current.lineno
+            if targets:
+                self.stream.expect('comma')
+            target = self.parse_assign_target()
+            target.set_ctx('param')
+            targets.append(target)
+            self.stream.expect('assign')
+            values.append(self.parse_expression())
+        node.targets = targets
+        node.values = values
+        node.body = self.parse_statements(('name:endwith',),
+                                          drop_needle=True)
+        return node
+
+    def parse_autoescape(self):
+        node = nodes.ScopedEvalContextModifier(lineno=next(self.stream).lineno)
+        node.options = [
+            nodes.Keyword('autoescape', self.parse_expression())
+        ]
+        node.body = self.parse_statements(('name:endautoescape',),
+                                            drop_needle=True)
+        return nodes.Scope([node])
 
     def parse_block(self):
         node = nodes.Block(lineno=next(self.stream).lineno)
@@ -297,10 +334,9 @@ class Parser(object):
                 if parse_context() or self.stream.current.type != 'comma':
                     break
             else:
-                break
+                self.stream.expect('name')
         if not hasattr(node, 'with_context'):
             node.with_context = False
-            self.stream.skip_if('comma')
         return node
 
     def parse_signature(self, node):
@@ -358,15 +394,21 @@ class Parser(object):
         return node
 
     def parse_assign_target(self, with_tuple=True, name_only=False,
-                            extra_end_rules=None):
+                            extra_end_rules=None, with_namespace=False):
         """Parse an assignment target.  As Jinja2 allows assignments to
         tuples, this function can parse all allowed assignment targets.  Per
         default assignments to tuples are parsed, that can be disable however
         by setting `with_tuple` to `False`.  If only assignments to names are
         wanted `name_only` can be set to `True`.  The `extra_end_rules`
-        parameter is forwarded to the tuple parsing function.
+        parameter is forwarded to the tuple parsing function.  If
+        `with_namespace` is enabled, a namespace assignment may be parsed.
         """
-        if name_only:
+        if with_namespace and self.stream.look().type == 'dot':
+            token = self.stream.expect('name')
+            next(self.stream)  # dot
+            attr = self.stream.expect('name')
+            target = nodes.NSRef(token.value, attr.value, lineno=token.lineno)
+        elif name_only:
             token = self.stream.expect('name')
             target = nodes.Name(token.value, 'store', lineno=token.lineno)
         else:
@@ -429,19 +471,19 @@ class Parser(object):
 
     def parse_compare(self):
         lineno = self.stream.current.lineno
-        expr = self.parse_add()
+        expr = self.parse_math1()
         ops = []
         while 1:
             token_type = self.stream.current.type
             if token_type in _compare_operators:
                 next(self.stream)
-                ops.append(nodes.Operand(token_type, self.parse_add()))
+                ops.append(nodes.Operand(token_type, self.parse_math1()))
             elif self.stream.skip_if('name:in'):
-                ops.append(nodes.Operand('in', self.parse_add()))
+                ops.append(nodes.Operand('in', self.parse_math1()))
             elif (self.stream.current.test('name:not') and
                   self.stream.look().test('name:in')):
                 self.stream.skip(2)
-                ops.append(nodes.Operand('notin', self.parse_add()))
+                ops.append(nodes.Operand('notin', self.parse_math1()))
             else:
                 break
             lineno = self.stream.current.lineno
@@ -449,73 +491,35 @@ class Parser(object):
             return expr
         return nodes.Compare(expr, ops, lineno=lineno)
 
-    def parse_add(self):
-        lineno = self.stream.current.lineno
-        left = self.parse_sub()
-        while self.stream.current.type == 'add':
-            next(self.stream)
-            right = self.parse_sub()
-            left = nodes.Add(left, right, lineno=lineno)
-            lineno = self.stream.current.lineno
-        return left
-
-    def parse_sub(self):
+    def parse_math1(self):
         lineno = self.stream.current.lineno
         left = self.parse_concat()
-        while self.stream.current.type == 'sub':
+        while self.stream.current.type in ('add', 'sub'):
+            cls = _math_nodes[self.stream.current.type]
             next(self.stream)
             right = self.parse_concat()
-            left = nodes.Sub(left, right, lineno=lineno)
+            left = cls(left, right, lineno=lineno)
             lineno = self.stream.current.lineno
         return left
 
     def parse_concat(self):
         lineno = self.stream.current.lineno
-        args = [self.parse_mul()]
+        args = [self.parse_math2()]
         while self.stream.current.type == 'tilde':
             next(self.stream)
-            args.append(self.parse_mul())
+            args.append(self.parse_math2())
         if len(args) == 1:
             return args[0]
         return nodes.Concat(args, lineno=lineno)
 
-    def parse_mul(self):
-        lineno = self.stream.current.lineno
-        left = self.parse_div()
-        while self.stream.current.type == 'mul':
-            next(self.stream)
-            right = self.parse_div()
-            left = nodes.Mul(left, right, lineno=lineno)
-            lineno = self.stream.current.lineno
-        return left
-
-    def parse_div(self):
-        lineno = self.stream.current.lineno
-        left = self.parse_floordiv()
-        while self.stream.current.type == 'div':
-            next(self.stream)
-            right = self.parse_floordiv()
-            left = nodes.Div(left, right, lineno=lineno)
-            lineno = self.stream.current.lineno
-        return left
-
-    def parse_floordiv(self):
-        lineno = self.stream.current.lineno
-        left = self.parse_mod()
-        while self.stream.current.type == 'floordiv':
-            next(self.stream)
-            right = self.parse_mod()
-            left = nodes.FloorDiv(left, right, lineno=lineno)
-            lineno = self.stream.current.lineno
-        return left
-
-    def parse_mod(self):
+    def parse_math2(self):
         lineno = self.stream.current.lineno
         left = self.parse_pow()
-        while self.stream.current.type == 'mod':
+        while self.stream.current.type in ('mul', 'div', 'floordiv', 'mod'):
+            cls = _math_nodes[self.stream.current.type]
             next(self.stream)
             right = self.parse_pow()
-            left = nodes.Mod(left, right, lineno=lineno)
+            left = cls(left, right, lineno=lineno)
             lineno = self.stream.current.lineno
         return left
 
@@ -835,7 +839,7 @@ class Parser(object):
                                            'name:and')):
             if self.stream.current.test('name:is'):
                 self.fail('You cannot chain multiple tests with is')
-            args = [self.parse_expression()]
+            args = [self.parse_primary()]
         else:
             args = []
         node = nodes.Test(node, name, args, kwargs, dyn_args,

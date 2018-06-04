@@ -71,6 +71,25 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
+#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,      \
+                                set_condition)                            \
+  MaybeObject* holder::name() const {                                     \
+    MaybeObject* value = READ_WEAK_FIELD(this, offset);                   \
+    DCHECK(get_condition);                                                \
+    return value;                                                         \
+  }                                                                       \
+  void holder::set_##name(MaybeObject* value, WriteBarrierMode mode) {    \
+    DCHECK(set_condition);                                                \
+    WRITE_WEAK_FIELD(this, offset, value);                                \
+    CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode); \
+  }
+
+#define WEAK_ACCESSORS_CHECKED(holder, name, offset, condition) \
+  WEAK_ACCESSORS_CHECKED2(holder, name, offset, condition, condition)
+
+#define WEAK_ACCESSORS(holder, name, offset) \
+  WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
+
 // Getter that returns a Smi as an int and writes an int as a Smi.
 #define SMI_ACCESSORS_CHECKED(holder, name, offset, condition) \
   int holder::name() const {                                   \
@@ -135,6 +154,9 @@
 #define READ_FIELD(p, offset) \
   (*reinterpret_cast<Object* const*>(FIELD_ADDR_CONST(p, offset)))
 
+#define READ_WEAK_FIELD(p, offset) \
+  (*reinterpret_cast<MaybeObject* const*>(FIELD_ADDR_CONST(p, offset)))
+
 #define ACQUIRE_READ_FIELD(p, offset)           \
   reinterpret_cast<Object*>(base::Acquire_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
@@ -143,14 +165,24 @@
   reinterpret_cast<Object*>(base::Relaxed_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
+#define RELAXED_READ_WEAK_FIELD(p, offset)           \
+  reinterpret_cast<MaybeObject*>(base::Relaxed_Load( \
+      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
+
 #ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value)                             \
+  base::Relaxed_Store(                                            \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
+      reinterpret_cast<base::AtomicWord>(value));
+#define WRITE_WEAK_FIELD(p, offset, value)                        \
   base::Relaxed_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
       reinterpret_cast<base::AtomicWord>(value));
 #else
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
+#define WRITE_WEAK_FIELD(p, offset, value) \
+  (*reinterpret_cast<MaybeObject**>(FIELD_ADDR(p, offset)) = value)
 #endif
 
 #define RELEASE_WRITE_FIELD(p, offset, value)                     \
@@ -168,6 +200,12 @@
       object, HeapObject::RawField(object, offset), value); \
   heap->RecordWrite(object, HeapObject::RawField(object, offset), value);
 
+#define WEAK_WRITE_BARRIER(heap, object, offset, value)                    \
+  heap->incremental_marking()->RecordMaybeWeakWrite(                       \
+      object, HeapObject::RawMaybeWeakField(object, offset), value);       \
+  heap->RecordWrite(object, HeapObject::RawMaybeWeakField(object, offset), \
+                    value);
+
 #define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode)        \
   if (mode != SKIP_WRITE_BARRIER) {                                         \
     if (mode == UPDATE_WRITE_BARRIER) {                                     \
@@ -175,6 +213,16 @@
           object, HeapObject::RawField(object, offset), value);             \
     }                                                                       \
     heap->RecordWrite(object, HeapObject::RawField(object, offset), value); \
+  }
+
+#define CONDITIONAL_WEAK_WRITE_BARRIER(heap, object, offset, value, mode)    \
+  if (mode != SKIP_WRITE_BARRIER) {                                          \
+    if (mode == UPDATE_WRITE_BARRIER) {                                      \
+      heap->incremental_marking()->RecordMaybeWeakWrite(                     \
+          object, HeapObject::RawMaybeWeakField(object, offset), value);     \
+    }                                                                        \
+    heap->RecordWrite(object, HeapObject::RawMaybeWeakField(object, offset), \
+                      value);                                                \
   }
 
 #define READ_DOUBLE_FIELD(p, offset) \

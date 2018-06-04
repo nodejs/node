@@ -1,0 +1,46 @@
+{
+  "_from": "builtins@^1.0.3",
+  "_id": "builtins@1.0.3",
+  "_inBundle": false,
+  "_integrity": "sha1-y5T662HIaWRR2zZTThQi+U8K7og=",
+  "_location": "/builtins",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "builtins@^1.0.3",
+    "name": "builtins",
+    "escapedName": "builtins",
+    "rawSpec": "^1.0.3",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.3"
+  },
+  "_requiredBy": [
+    "/validate-npm-package-name"
+  ],
+  "_resolved": "https://registry.npmjs.org/builtins/-/builtins-1.0.3.tgz",
+  "_shasum": "cb94faeb61c8696451db36534e1422f94f0aee88",
+  "_spec": "builtins@^1.0.3",
+  "_where": "/Users/rebecca/code/npm/node_modules/validate-npm-package-name",
+  "bugs": {
+    "url": "https://github.com/juliangruber/builtins/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "List of node.js builtin modules",
+  "homepage": "https://github.com/juliangruber/builtins#readme",
+  "license": "MIT",
+  "main": "builtins.json",
+  "name": "builtins",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juliangruber/builtins.git"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "version": "1.0.3"
+}

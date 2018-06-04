@@ -29,11 +29,15 @@ release.
   <th><a href="doc/changelogs/CHANGELOG_V9.md">9</a></th>
   <th title="LTS Until 2019-12"><a href="doc/changelogs/CHANGELOG_V8.md">8</a><sup>LTS</sup></th>
   <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">6</a><sup>LTS</sup></th>
-  <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">4</a><sup>LTS</sup></th>
+  <th title="End-of-life since 2018-05-01"><a href="doc/changelogs/CHANGELOG_V4.md">4</a><sup>EOL</sup></th>
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V10.md#10.0.0">10.0.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V10.md#10.3.0">10.3.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.2.1">10.2.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.2.0">10.2.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.1.0">10.1.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.0.0">10.0.0</a><br/>
     </td>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V9.md#9.11.1">9.11.1</a></b><br/>
@@ -55,7 +59,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V9.md#9.0.0">9.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V8.md#8.11.1">8.11.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V8.md#8.11.2">8.11.2</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V8.md#8.11.1">8.11.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.11.0">8.11.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.10.0">8.10.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V8.md#8.9.4">8.9.4</a><br/>

@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 
-#include <unordered_set>
+#include <unordered_map>
 
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
@@ -57,6 +57,9 @@ class ArrayBufferTracker : public AllStatic {
 
   // Returns whether a buffer is currently tracked.
   static bool IsTracked(JSArrayBuffer* buffer);
+
+  // Tears down the tracker and frees up all registered array buffers.
+  static void TearDown(Heap* heap);
 };
 
 // LocalArrayBufferTracker tracks internalized array buffers.
@@ -108,7 +111,12 @@ class LocalArrayBufferTracker {
     }
   };
 
-  typedef std::unordered_set<JSArrayBuffer*, Hasher> TrackingData;
+  // Keep track of the backing store and the corresponding length at time of
+  // registering. The length is accessed from JavaScript and can be a
+  // HeapNumber. The reason for tracking the length is that in the case of
+  // length being a HeapNumber, the buffer and its length may be stored on
+  // different memory pages, making it impossible to guarantee order of freeing.
+  typedef std::unordered_map<JSArrayBuffer*, size_t, Hasher> TrackingData;
 
   Heap* heap_;
   // The set contains raw heap pointers which are removed by the GC upon

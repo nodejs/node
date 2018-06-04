@@ -136,6 +136,22 @@ expression: Object(Symbol(42))
         ]
     }
 }
+expression: Object(BigInt(2))
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[PrimitiveValue]]
+                value : {
+                    description : 2n
+                    type : bigint
+                    unserializableValue : 2n
+                }
+            }
+        ]
+    }
+}
 
 Running test: promise
 expression: Promise.resolve(42)

@@ -44,6 +44,8 @@
   V(pxor, 66, 0F, EF)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
+  V(phaddd, 66, 0F, 38, 02)       \
+  V(phaddw, 66, 0F, 38, 01)       \
   V(pshufb, 66, 0F, 38, 00)       \
   V(psignb, 66, 0F, 38, 08)       \
   V(psignw, 66, 0F, 38, 09)       \

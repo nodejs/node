@@ -280,7 +280,9 @@ class UpdateTypedSlotHelper {
                                             Callback callback) {
     Object* code = Code::GetObjectFromEntryAddress(entry_address);
     Object* old_code = code;
-    SlotCallbackResult result = callback(&code);
+    SlotCallbackResult result =
+        callback(reinterpret_cast<MaybeObject**>(&code));
+    DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
       Memory::Address_at(entry_address) =
           reinterpret_cast<Code*>(code)->entry();
@@ -296,9 +298,12 @@ class UpdateTypedSlotHelper {
     DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Object* new_target = old_target;
-    SlotCallbackResult result = callback(&new_target);
+    SlotCallbackResult result =
+        callback(reinterpret_cast<MaybeObject**>(&new_target));
+    DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
-      rinfo->set_target_address(Code::cast(new_target)->instruction_start());
+      rinfo->set_target_address(
+          Code::cast(new_target)->raw_instruction_start());
     }
     return result;
   }
@@ -311,7 +316,9 @@ class UpdateTypedSlotHelper {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     HeapObject* old_target = rinfo->target_object();
     Object* new_target = old_target;
-    SlotCallbackResult result = callback(&new_target);
+    SlotCallbackResult result =
+        callback(reinterpret_cast<MaybeObject**>(&new_target));
+    DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
       rinfo->set_target_object(HeapObject::cast(new_target));
     }
@@ -319,7 +326,7 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates a typed slot using an untyped slot callback.
-  // The callback accepts Object** and returns SlotCallbackResult.
+  // The callback accepts MaybeObject** and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateTypedSlot(Isolate* isolate,
                                             SlotType slot_type, Address addr,
@@ -337,7 +344,7 @@ class UpdateTypedSlotHelper {
         return UpdateEmbeddedPointer(&rinfo, callback);
       }
       case OBJECT_SLOT: {
-        return callback(reinterpret_cast<Object**>(addr));
+        return callback(reinterpret_cast<MaybeObject**>(addr));
       }
       case CLEARED_SLOT:
         break;
