@@ -79,14 +79,15 @@ Worker::Worker(Environment* env, Local<Object> wrap)
     Locker locker(isolate_);
     Isolate::Scope isolate_scope(isolate_);
     HandleScope handle_scope(isolate_);
-    Local<Context> context = NewContext(isolate_);
-    Context::Scope context_scope(context);
 
     isolate_data_.reset(CreateIsolateData(isolate_,
                                           &loop_,
                                           env->isolate_data()->platform(),
                                           array_buffer_allocator_.get()));
     CHECK(isolate_data_);
+
+    Local<Context> context = NewContext(isolate_);
+    Context::Scope context_scope(context);
 
     // TODO(addaleax): Use CreateEnvironment(), or generally another public API.
     env_.reset(new Environment(isolate_data_.get(),
