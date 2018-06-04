@@ -2634,7 +2634,6 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
   i::Handle<i::SharedFunctionInfo> shared =
       i::Handle<i::SharedFunctionInfo>::cast(
           Utils::OpenHandle(*unbound_script));
-  i::Handle<i::String> source_str = Utils::OpenHandle(*source);
   DCHECK(shared->is_toplevel());
   return i::CodeSerializer::Serialize(shared);
 }
@@ -2648,7 +2647,6 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
     Local<Function> function) {
   i::Handle<i::SharedFunctionInfo> shared(
       i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function))->shared());
-  i::Handle<i::String> source_str = Utils::OpenHandle(*source);
   CHECK(shared->is_wrapped());
   return i::CodeSerializer::Serialize(shared);
 }

@@ -30,7 +30,6 @@ ScriptData::ScriptData(const byte* data, int length)
   }
 }
 
-<<<<<<< HEAD
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
     Handle<SharedFunctionInfo> info) {
