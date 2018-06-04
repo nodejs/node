@@ -15,13 +15,10 @@ const jsPrimitives = {
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
-  'Array', 'ArrayBuffer', 'AsyncFunction', 'DataView', 'Date', 'Error',
-  'EvalError', 'Float32Array', 'Float64Array', 'Function', 'Generator',
-  'GeneratorFunction', 'Int16Array', 'Int32Array', 'Int8Array', 'Map', 'Object',
-  'Promise', 'Proxy', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
+  'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error', 'EvalError', 'Function',
+  'Object', 'Promise', 'RangeError', 'ReferenceError', 'RegExp',
   'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'TypedArray', 'URIError',
-  'Uint16Array', 'Uint32Array', 'Uint8Array', 'Uint8ClampedArray', 'WeakMap',
-  'WeakSet'
+  'Uint8Array',
 ];
 
 const customTypesMap = {
