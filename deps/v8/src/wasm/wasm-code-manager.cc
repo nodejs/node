@@ -190,7 +190,7 @@ bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
 void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 
 bool WasmCode::ShouldBeLogged(Isolate* isolate) {
-  return isolate->logger()->is_logging_code_events() ||
+  return isolate->logger()->is_listening_to_code_events() ||
          isolate->is_profiling() || FLAG_print_wasm_code || FLAG_print_code;
 }
 

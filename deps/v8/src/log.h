@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 
+#include "include/v8-profiler.h"
 #include "src/allocation.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/elapsed-timer.h"
@@ -87,11 +88,32 @@ class WasmCode;
     if (logger->is_logging()) logger->Call;             \
   } while (false)
 
-#define LOG_CODE_EVENT(isolate, Call)                   \
-  do {                                                  \
-    v8::internal::Logger* logger = (isolate)->logger(); \
-    if (logger->is_logging_code_events()) logger->Call; \
+#define LOG_CODE_EVENT(isolate, Call)                        \
+  do {                                                       \
+    v8::internal::Logger* logger = (isolate)->logger();      \
+    if (logger->is_listening_to_code_events()) logger->Call; \
   } while (false)
+
+class ExistingCodeLogger {
+ public:
+  explicit ExistingCodeLogger(Isolate* isolate,
+                              CodeEventListener* listener = nullptr)
+      : isolate_(isolate), listener_(listener) {}
+
+  void LogCodeObjects();
+  void LogBytecodeHandlers();
+
+  void LogCompiledFunctions();
+  void LogExistingFunction(Handle<SharedFunctionInfo> shared,
+                           Handle<AbstractCode> code);
+  void LogCodeObject(Object* object);
+  void LogBytecodeHandler(interpreter::Bytecode bytecode,
+                          interpreter::OperandScale operand_scale, Code* code);
+
+ private:
+  Isolate* isolate_;
+  CodeEventListener* listener_;
+};
 
 class Logger : public CodeEventListener {
  public:
@@ -233,7 +255,7 @@ class Logger : public CodeEventListener {
     return is_logging_;
   }
 
-  bool is_logging_code_events() {
+  bool is_listening_to_code_events() {
     return is_logging() || jit_logger_ != nullptr;
   }
 
@@ -332,6 +354,8 @@ class Logger : public CodeEventListener {
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
 
+  ExistingCodeLogger existing_code_logger_;
+
   base::ElapsedTimer timer_;
 
   friend class CpuProfiler;
@@ -412,6 +436,58 @@ class CodeEventLogger : public CodeEventListener {
   NameBuffer* name_buffer_;
 };
 
+struct CodeEvent {
+  uintptr_t code_start_address;
+  size_t code_size;
+  Handle<String> function_name;
+  Handle<String> script_name;
+  int script_line;
+  int script_column;
+  CodeEventType code_type;
+  const char* comment;
+};
+
+class ExternalCodeEventListener : public CodeEventListener {
+ public:
+  explicit ExternalCodeEventListener(Isolate* isolate);
+  ~ExternalCodeEventListener() override;
+
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       const char* comment) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       Name* name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, Name* name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, Name* source, int line,
+                       int column) override;
+  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
+                       wasm::WasmName name) override;
+
+  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void CallbackEvent(Name* name, Address entry_point) override {}
+  void GetterCallbackEvent(Name* name, Address entry_point) override {}
+  void SetterCallbackEvent(Name* name, Address entry_point) override {}
+  void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void CodeMoveEvent(AbstractCode* from, Address to) override {}
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override {}
+  void CodeMovingGCEvent() override {}
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta) override {}
+
+  void StartListening(CodeEventHandler* code_event_handler);
+  void StopListening();
+
+  bool is_listening_to_code_events() override { return true; }
+
+ private:
+  void LogExistingCode();
+
+  bool is_listening_;
+  Isolate* isolate_;
+  v8::CodeEventHandler* code_event_handler_;
+};
 
 }  // namespace internal
 }  // namespace v8

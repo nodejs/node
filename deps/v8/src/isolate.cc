@@ -2883,7 +2883,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     // thus collected by the GC.
     builtins->set_builtin(i, *trampoline);
 
-    if (isolate->logger()->is_logging_code_events() ||
+    if (isolate->logger()->is_listening_to_code_events() ||
         isolate->is_profiling()) {
       isolate->logger()->LogCodeObject(*trampoline);
     }

@@ -988,6 +988,76 @@ struct HeapStatsUpdate {
   uint32_t size;  // New value of size field for the interval with this index.
 };
 
+#define CODE_EVENTS_LIST(V) \
+  V(Builtin)                \
+  V(Callback)               \
+  V(Eval)                   \
+  V(Function)               \
+  V(InterpretedFunction)    \
+  V(Handler)                \
+  V(BytecodeHandler)        \
+  V(LazyCompile)            \
+  V(RegExp)                 \
+  V(Script)                 \
+  V(Stub)
+
+/**
+ * Note that this enum may be extended in the future. Please include a default
+ * case if this enum is used in a switch statement.
+ */
+enum CodeEventType {
+  kUnknownType = 0
+#define V(Name) , k##Name##Type
+  CODE_EVENTS_LIST(V)
+#undef V
+};
+
+/**
+ * Representation of a code creation event
+ */
+class V8_EXPORT CodeEvent {
+ public:
+  uintptr_t GetCodeStartAddress();
+  size_t GetCodeSize();
+  Local<String> GetFunctionName();
+  Local<String> GetScriptName();
+  int GetScriptLine();
+  int GetScriptColumn();
+  /**
+   * NOTE (mmarchini): We can't allocate objects in the heap when we collect
+   * existing code, and both the code type and the comment are not stored in the
+   * heap, so we return those as const char*.
+   */
+  CodeEventType GetCodeType();
+  const char* GetComment();
+
+  static const char* GetCodeEventTypeName(CodeEventType code_event_type);
+};
+
+/**
+ * Interface to listen to code creation events.
+ */
+class V8_EXPORT CodeEventHandler {
+ public:
+  /**
+   * Creates a new listener for the |isolate|. The isolate must be initialized.
+   * The listener object must be disposed after use by calling |Dispose| method.
+   * Multiple listeners can be created for the same isolate.
+   */
+  explicit CodeEventHandler(Isolate* isolate);
+  virtual ~CodeEventHandler();
+
+  virtual void Handle(CodeEvent* code_event) = 0;
+
+  void Enable();
+  void Disable();
+
+ private:
+  CodeEventHandler();
+  CodeEventHandler(const CodeEventHandler&);
+  CodeEventHandler& operator=(const CodeEventHandler&);
+  void* internal_listener_;
+};
 
 }  // namespace v8
 

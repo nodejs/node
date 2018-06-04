@@ -35,6 +35,7 @@
 #endif  // __linux__
 
 #include <unordered_set>
+#include <vector>
 #include "src/api.h"
 #include "src/log-utils.h"
 #include "src/log.h"
@@ -249,6 +250,38 @@ class ScopedLoggerInitializer {
   i::Vector<const char> log_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
+};
+
+class TestCodeEventHandler : public v8::CodeEventHandler {
+ public:
+  explicit TestCodeEventHandler(v8::Isolate* isolate)
+      : v8::CodeEventHandler(isolate) {}
+
+  const char* FindLine(const char* prefix, const char* suffix = nullptr,
+                       const char* start = nullptr) {
+    if (!log_.length()) return NULL;
+    const char* c_log = log_.c_str();
+    if (start == nullptr) start = c_log;
+    const char* end = c_log + log_.length();
+    return FindLogLine(start, end, prefix, suffix);
+  }
+
+  void Handle(v8::CodeEvent* code_event) override {
+    const char* code_type =
+        v8::CodeEvent::GetCodeEventTypeName(code_event->GetCodeType());
+    char function_name[1000];
+    strncpy(function_name, code_type, 1000);
+    function_name[strlen(code_type)] = ' ';
+    code_event->GetFunctionName()->WriteUtf8(
+        function_name + strlen(code_type) + 1, 1000);
+    function_name[strlen(function_name) + 1] = '\0';
+    function_name[strlen(function_name)] = '\n';
+
+    log_ += std::string(function_name);
+  }
+
+ private:
+  std::string log_;
 };
 
 }  // namespace
@@ -797,6 +830,48 @@ TEST(LogInterpretedFramesNativeStack) {
 
     CHECK(logger.FindLine("InterpretedFunction",
                           "testLogInterpretedFramesNativeStack"));
+  }
+  isolate->Dispose();
+}
+
+TEST(ExternalCodeEventListener) {
+  i::FLAG_log = false;
+  i::FLAG_prof = false;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    context->Enter();
+
+    TestCodeEventHandler code_event_handler(isolate);
+
+    const char* source_text_before_start =
+        "function testCodeEventListenerBeforeStart(a,b) { return a + b };"
+        "testCodeEventListenerBeforeStart('1', 1);";
+    CompileRun(source_text_before_start);
+
+    CHECK_NULL(code_event_handler.FindLine("LazyCompile",
+                                           "testCodeEventListenerBeforeStart"));
+
+    code_event_handler.Enable();
+
+    CHECK_NOT_NULL(code_event_handler.FindLine(
+        "LazyCompile", "testCodeEventListenerBeforeStart"));
+
+    const char* source_text_after_start =
+        "function testCodeEventListenerAfterStart(a,b) { return a + b };"
+        "testCodeEventListenerAfterStart('1', 1);";
+    CompileRun(source_text_after_start);
+
+    CHECK_NOT_NULL(code_event_handler.FindLine(
+        "LazyCompile", "testCodeEventListenerAfterStart"));
+
+    context->Exit();
   }
   isolate->Dispose();
 }

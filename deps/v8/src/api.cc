@@ -10211,6 +10211,70 @@ void CpuProfiler::SetIdle(bool is_idle) {
   isolate->SetIdle(is_idle);
 }
 
+uintptr_t CodeEvent::GetCodeStartAddress() {
+  return reinterpret_cast<i::CodeEvent*>(this)->code_start_address;
+}
+
+size_t CodeEvent::GetCodeSize() {
+  return reinterpret_cast<i::CodeEvent*>(this)->code_size;
+}
+
+Local<String> CodeEvent::GetFunctionName() {
+  return ToApiHandle<String>(
+      reinterpret_cast<i::CodeEvent*>(this)->function_name);
+}
+
+Local<String> CodeEvent::GetScriptName() {
+  return ToApiHandle<String>(
+      reinterpret_cast<i::CodeEvent*>(this)->script_name);
+}
+
+int CodeEvent::GetScriptLine() {
+  return reinterpret_cast<i::CodeEvent*>(this)->script_line;
+}
+
+int CodeEvent::GetScriptColumn() {
+  return reinterpret_cast<i::CodeEvent*>(this)->script_column;
+}
+
+CodeEventType CodeEvent::GetCodeType() {
+  return reinterpret_cast<i::CodeEvent*>(this)->code_type;
+}
+
+const char* CodeEvent::GetComment() {
+  return reinterpret_cast<i::CodeEvent*>(this)->comment;
+}
+
+const char* CodeEvent::GetCodeEventTypeName(CodeEventType code_event_type) {
+  switch (code_event_type) {
+    case kUnknownType:
+      return "Unknown";
+#define V(Name)       \
+  case k##Name##Type: \
+    return #Name;
+      CODE_EVENTS_LIST(V)
+#undef V
+  }
+}
+
+CodeEventHandler::CodeEventHandler(Isolate* isolate) {
+  internal_listener_ =
+      new i::ExternalCodeEventListener(reinterpret_cast<i::Isolate*>(isolate));
+}
+
+CodeEventHandler::~CodeEventHandler() {
+  delete reinterpret_cast<i::ExternalCodeEventListener*>(internal_listener_);
+}
+
+void CodeEventHandler::Enable() {
+  reinterpret_cast<i::ExternalCodeEventListener*>(internal_listener_)
+      ->StartListening(this);
+}
+
+void CodeEventHandler::Disable() {
+  reinterpret_cast<i::ExternalCodeEventListener*>(internal_listener_)
+      ->StopListening();
+}
 
 static i::HeapGraphEdge* ToInternal(const HeapGraphEdge* edge) {
   return const_cast<i::HeapGraphEdge*>(

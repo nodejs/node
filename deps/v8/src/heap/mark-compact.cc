@@ -2458,7 +2458,7 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
 
   const bool profiling =
       heap()->isolate()->is_profiling() ||
-      heap()->isolate()->logger()->is_logging_code_events() ||
+      heap()->isolate()->logger()->is_listening_to_code_events() ||
       heap()->isolate()->heap_profiler()->is_tracking_object_moves() ||
       heap()->has_heap_object_allocation_tracker();
   ProfilingMigrationObserver profiling_observer(heap());
