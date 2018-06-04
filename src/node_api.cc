@@ -23,7 +23,6 @@ struct napi_env__ {
         loop(_loop) {}
   v8::Isolate* isolate;
   node::Persistent<v8::Value> last_exception;
-  node::Persistent<v8::ObjectTemplate> wrap_template;
   node::Persistent<v8::ObjectTemplate> function_data_template;
   node::Persistent<v8::ObjectTemplate> accessor_data_template;
   napi_extended_error_info last_error;
