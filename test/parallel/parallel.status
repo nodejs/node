@@ -20,5 +20,7 @@ test-child-process-fork-net: PASS,FLAKY
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
+# https://github.com/nodejs/node/issues/21038
+test-trace-events-fs-sync: PASS,FLAKY
 
 [$system==aix]
