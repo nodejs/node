@@ -1880,7 +1880,7 @@ console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
 The `crypto.DEFAULT_ENCODING` property may be used to change the way the
-`derivedKey` is returned. This property, however, has been deprecated and use
+`derivedKey` is returned. This property, however, is deprecated and use
 should be avoided.
 
 ```js

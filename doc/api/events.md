@@ -142,7 +142,7 @@ myEmitter.emit('error', new Error('whoops!'));
 ```
 
 To guard against crashing the Node.js process the [`domain`][] module can be
-used. (Note, however, that the `domain` module has been deprecated.)
+used. (Note, however, that the `domain` module is deprecated.)
 
 As a best practice, listeners should always be added for the `'error'` events.
 
