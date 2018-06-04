@@ -56,6 +56,7 @@ class BuiltinsConstantsTableBuilder;
 class CallInterfaceDescriptorData;
 class CancelableTaskManager;
 class CodeEventDispatcher;
+class ExternalCodeEventListener;
 class CodeGenerator;
 class CodeRange;
 class CodeStubDescriptor;

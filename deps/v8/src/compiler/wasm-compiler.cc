@@ -4625,7 +4625,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 
 namespace {
 bool must_record_function_compilation(Isolate* isolate) {
-  return isolate->logger()->is_logging_code_events() || isolate->is_profiling();
+  return isolate->logger()->is_listening_to_code_events() ||
+         isolate->is_profiling();
 }
 
 PRINTF_FORMAT(4, 5)

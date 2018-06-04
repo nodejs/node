@@ -284,7 +284,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
 
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+  if (isolate->logger()->is_listening_to_code_events() ||
+      isolate->is_profiling()) {
     String* name = isolate->heap()->empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());
