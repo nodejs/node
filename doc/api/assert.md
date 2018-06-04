@@ -1083,7 +1083,7 @@ validating against a string property. See below for examples.
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
 
-Custom validation object / error instance:
+Custom validation object/error instance:
 
 ```js
 const err = new TypeError('Wrong value');

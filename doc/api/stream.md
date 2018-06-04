@@ -367,7 +367,7 @@ added: v8.0.0
 
 Destroy the stream, and emit the passed `'error'` and a `'close'` event.
 After this call, the writable stream has ended and subsequent calls
-to `write()` / `end()` will give an `ERR_STREAM_DESTROYED` error.
+to `write()` or `end()` will result in a `ERR_STREAM_DESTROYED` error.
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
 
