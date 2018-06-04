@@ -15,7 +15,7 @@ function main({ n, context, count, rest, method }) {
   for (let n = 0; n < count; n++)
     src[`p${n}`] = n;
 
-  let obj;  // eslint-disable-line
+  let obj;  // eslint-disable-line no-unused-vars
   let i;
 
   switch (method) {
