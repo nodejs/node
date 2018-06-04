@@ -132,29 +132,51 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appendFile accepts numbers.
-const filename4 = join(tmpdir.path, 'append4.txt');
-fs.writeFileSync(filename4, currentFileData);
+// test that appendFile accepts numbers (callback API)
+{
+  const filename = join(tmpdir.path, 'append-numbers.txt');
+  fs.writeFileSync(filename, currentFileData);
 
-const m = 0o600;
-fs.appendFile(filename4, n, { mode: m }, function(e) {
-  assert.ifError(e);
-
-  ncallbacks++;
-
-  // windows permissions aren't unix
-  if (!common.isWindows) {
-    const st = fs.statSync(filename4);
-    assert.strictEqual(st.mode & 0o700, m);
-  }
-
-  fs.readFile(filename4, function(e, buffer) {
+  const m = 0o600;
+  fs.appendFile(filename, n, { mode: m }, common.mustCall((e) => {
     assert.ifError(e);
-    ncallbacks++;
-    assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
-                       buffer.length);
-  });
-});
+
+    // windows permissions aren't unix
+    if (!common.isWindows) {
+      const st = fs.statSync(filename);
+      assert.strictEqual(st.mode & 0o700, m);
+    }
+
+    fs.readFile(filename, common.mustCall((e, buffer) => {
+      assert.ifError(e);
+      assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
+                         buffer.length);
+    }));
+  }));
+}
+
+// test that appendFile accepts numbers (promises API)
+{
+  const filename = join(tmpdir.path, 'append-numbers-promises.txt');
+  fs.writeFileSync(filename, currentFileData);
+
+  const m = 0o600;
+  fs.promises.appendFile(filename, n, { mode: m })
+    .then(common.mustCall(() => {
+      // windows permissions aren't unix
+      if (!common.isWindows) {
+        const st = fs.statSync(filename);
+        assert.strictEqual(st.mode & 0o700, m);
+      }
+
+      return fs.promises.readFile(filename);
+    }))
+    .then((buffer) => {
+      assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
+                         buffer.length);
+    })
+    .catch(throwNextTick);
+}
 
 // test that appendFile accepts file descriptors
 const filename5 = join(tmpdir.path, 'append5.txt');
@@ -191,8 +213,7 @@ assert.throws(
   { code: 'ERR_INVALID_CALLBACK' });
 
 process.on('exit', function() {
-  assert.strictEqual(ncallbacks, 6);
+  assert.strictEqual(ncallbacks, 4);
 
-  fs.unlinkSync(filename4);
   fs.unlinkSync(filename5);
 });
