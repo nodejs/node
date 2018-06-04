@@ -36,7 +36,7 @@ To control how ICU is used in Node.js, four `configure` options are available
 during compilation. Additional details on how to compile Node.js are documented
 in [BUILDING.md][].
 
-- `--with-intl=none` / `--without-intl`
+- `--with-intl=none`/`--without-intl`
 - `--with-intl=system-icu`
 - `--with-intl=small-icu` (default)
 - `--with-intl=full-icu`

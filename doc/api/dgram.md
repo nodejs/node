@@ -1,4 +1,4 @@
-# UDP / Datagram Sockets
+# UDP/Datagram Sockets
 
 <!--introduced_in=v0.10.0-->
 
