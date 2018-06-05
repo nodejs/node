@@ -358,17 +358,17 @@ ICUTimezoneCache::~ICUTimezoneCache() { Clear(); }
 
 const char* ICUTimezoneCache::LocalTimezone(double time_ms) {
   bool is_dst = DaylightSavingsOffset(time_ms) != 0;
-  char* name = is_dst ? dst_timezone_name_ : timezone_name_;
-  if (name[0] == '\0') {
+  std::string* name = is_dst ? &dst_timezone_name_ : &timezone_name_;
+  if (name->empty()) {
     icu::UnicodeString result;
     GetTimeZone()->getDisplayName(is_dst, icu::TimeZone::LONG, result);
     result += '\0';
 
-    icu::CheckedArrayByteSink byte_sink(name, kMaxTimezoneChars);
+    icu::StringByteSink<std::string> byte_sink(name);
     result.toUTF8(byte_sink);
-    CHECK(!byte_sink.Overflowed());
   }
-  return const_cast<const char*>(name);
+  DCHECK(!name->empty());
+  return name->c_str();
 }
 
 icu::TimeZone* ICUTimezoneCache::GetTimeZone() {
@@ -418,8 +418,8 @@ double ICUTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
 void ICUTimezoneCache::Clear() {
   delete timezone_;
   timezone_ = nullptr;
-  timezone_name_[0] = '\0';
-  dst_timezone_name_[0] = '\0';
+  timezone_name_.clear();
+  dst_timezone_name_.clear();
 }
 
 }  // namespace internal
