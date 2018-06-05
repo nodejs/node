@@ -166,11 +166,13 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
                kShortMonths[month], day, year);
       return;
     case kTimeOnly:
+      // TODO(842085): str may be silently truncated.
       SNPrintF(str, "%02d:%02d:%02d GMT%c%02d%02d (%s)", hour, min, sec,
                (timezone_offset < 0) ? '-' : '+', timezone_hour, timezone_min,
                local_timezone);
       return;
     case kDateAndTime:
+      // TODO(842085): str may be silently truncated.
       SNPrintF(str, "%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
                kShortWeekDays[weekday], kShortMonths[month], day, year, hour,
                min, sec, (timezone_offset < 0) ? '-' : '+', timezone_hour,

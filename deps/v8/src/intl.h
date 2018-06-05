@@ -9,6 +9,8 @@
 #ifndef V8_INTL_H_
 #define V8_INTL_H_
 
+#include <string>
+
 #include "src/base/timezone-cache.h"
 #include "src/objects.h"
 #include "src/objects/string.h"
@@ -64,9 +66,8 @@ class ICUTimezoneCache : public base::TimezoneCache {
 
   icu::TimeZone* timezone_;
 
-  static const int32_t kMaxTimezoneChars = 100;
-  char timezone_name_[kMaxTimezoneChars];
-  char dst_timezone_name_[kMaxTimezoneChars];
+  std::string timezone_name_;
+  std::string dst_timezone_name_;
 };
 
 }  // namespace internal
