@@ -234,13 +234,13 @@ void Worker::DisposeIsolate() {
   if (isolate_ == nullptr)
     return;
 
-  isolate_->Dispose();
-
   CHECK(isolate_data_);
   MultiIsolatePlatform* platform = isolate_data_->platform();
   platform->CancelPendingDelayedTasks(isolate_);
 
   isolate_data_.reset();
+
+  isolate_->Dispose();
   isolate_ = nullptr;
 }
 
