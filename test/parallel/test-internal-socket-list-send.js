@@ -16,7 +16,7 @@ const key = 'test-key';
 
   const list = new SocketListSend(child, 'test');
 
-  list._request('msg', 'cmd', common.mustCall((err) => {
+  list._request('msg', 'cmd', false, common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       type: Error,
@@ -39,7 +39,7 @@ const key = 'test-key';
 
   const list = new SocketListSend(child, key);
 
-  list._request('msg', 'cmd', common.mustCall((err, msg) => {
+  list._request('msg', 'cmd', false, common.mustCall((err, msg) => {
     assert.strictEqual(err, null);
     assert.strictEqual(msg.cmd, 'cmd');
     assert.strictEqual(msg.key, key);
@@ -58,7 +58,7 @@ const key = 'test-key';
 
   const list = new SocketListSend(child, key);
 
-  list._request('msg', 'cmd', common.mustCall((err) => {
+  list._request('msg', 'cmd', false, common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       type: Error,
