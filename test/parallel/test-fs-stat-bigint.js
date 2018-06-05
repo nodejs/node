@@ -15,8 +15,11 @@ tmpdir.refresh();
 const fn = path.join(tmpdir.path, 'test-file');
 fs.writeFileSync(fn, 'test');
 
-const link = path.join(tmpdir.path, 'symbolic-link');
-fs.symlinkSync(fn, link);
+let link;
+if (!common.isWindows) {
+  link = path.join(tmpdir.path, 'symbolic-link');
+  fs.symlinkSync(fn, link);
+}
 
 function verifyStats(bigintStats, numStats) {
   for (const key of Object.keys(numStats)) {
@@ -59,6 +62,9 @@ function verifyStats(bigintStats, numStats) {
         bigintStats.isSymbolicLink(),
         numStats.isSymbolicLink()
       );
+    } else if (common.isWindows && (key === 'blksize' || key === 'blocks')) {
+      assert.strictEqual(bigintStats[key], undefined);
+      assert.strictEqual(numStats[key], undefined);
     } else if (Number.isSafeInteger(val)) {
       // eslint-disable-next-line no-undef
       assert.strictEqual(bigintStats[key], BigInt(val));
@@ -77,7 +83,7 @@ function verifyStats(bigintStats, numStats) {
   verifyStats(bigintStats, numStats);
 }
 
-{
+if (!common.isWindows) {
   const bigintStats = fs.lstatSync(link, { bigint: true });
   const numStats = fs.lstatSync(link);
   verifyStats(bigintStats, numStats);
@@ -99,7 +105,7 @@ function verifyStats(bigintStats, numStats) {
   });
 }
 
-{
+if (!common.isWindows) {
   fs.lstat(link, { bigint: true }, (err, bigintStats) => {
     fs.lstat(link, (err, numStats) => {
       verifyStats(bigintStats, numStats);
@@ -123,11 +129,13 @@ function verifyStats(bigintStats, numStats) {
   verifyStats(bigintStats, numStats);
 })();
 
-(async function() {
-  const bigintStats = await promiseFs.lstat(link, { bigint: true });
-  const numStats = await promiseFs.lstat(link);
-  verifyStats(bigintStats, numStats);
-})();
+if (!common.isWindows) {
+  (async function() {
+    const bigintStats = await promiseFs.lstat(link, { bigint: true });
+    const numStats = await promiseFs.lstat(link);
+    verifyStats(bigintStats, numStats);
+  })();
+}
 
 (async function() {
   const handle = await promiseFs.open(fn, 'r');

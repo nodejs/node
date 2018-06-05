@@ -325,14 +325,14 @@ v8::Local<v8::Value> FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
 #if defined(__POSIX__)
   fields[offset + 6] = s->st_blksize;
 #else
-  fields[offset + 6] = -1;
+  fields[offset + 6] = 0;
 #endif
   fields[offset + 7] = s->st_ino;
   fields[offset + 8] = s->st_size;
 #if defined(__POSIX__)
   fields[offset + 9] = s->st_blocks;
 #else
-  fields[offset + 9] = -1;
+  fields[offset + 9] = 0;
 #endif
 // Dates.
 // NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
