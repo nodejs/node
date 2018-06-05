@@ -1257,8 +1257,12 @@ Example: Fill a `Buffer` with a two-byte character
 console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 ```
 
-If `value` contains invalid characters, it is truncated; if no valid
-fill data remains, no filling is performed:
+If `value` contains invalid characters, it is truncated.
+
+If no valid fill data remains, then the buffer is either zero-filled or no
+filling is performed, depending on the input type. That behavior is dictated by
+compatibility reasons and was changed to throwing an exception in Node.js v10,
+so it's not recommended to rely on that.
 
 ```js
 const buf = Buffer.allocUnsafe(5);
