@@ -147,6 +147,7 @@
       'lib/internal/http2/util.js',
       'lib/internal/v8_prof_polyfill.js',
       'lib/internal/v8_prof_processor.js',
+      'lib/internal/validators.js',
       'lib/internal/stream_base_commons.js',
       'lib/internal/vm/module.js',
       'lib/internal/streams/lazy_transform.js',
