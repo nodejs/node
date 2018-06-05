@@ -141,6 +141,7 @@ void NodePlatform::RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
   if (existing) {
+    CHECK_EQ(loop, existing->event_loop());
     existing->ref();
   } else {
     per_isolate_[isolate] =
