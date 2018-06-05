@@ -72,6 +72,8 @@ class PerIsolatePlatformData :
   bool FlushForegroundTasksInternal();
   void CancelPendingDelayedTasks();
 
+  uv_loop_t* event_loop() { return loop_; }
+
  private:
   void DeleteFromScheduledTasks(DelayedTask* task);
 
