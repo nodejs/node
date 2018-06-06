@@ -151,7 +151,8 @@ class ChannelWrap : public AsyncWrap {
 
   void Setup();
   void EnsureServers();
-  void CleanupTimer();
+  void StartTimer();
+  void CloseTimer();
 
   void ModifyActivityQueryCount(int count);
 
@@ -313,13 +314,7 @@ void ares_sockstate_cb(void* data,
   if (read || write) {
     if (!task) {
       /* New socket */
-
-      /* If this is the first socket then start the timer. */
-      uv_timer_t* timer_handle = channel->timer_handle();
-      if (!uv_is_active(reinterpret_cast<uv_handle_t*>(timer_handle))) {
-        CHECK(channel->task_list()->empty());
-        uv_timer_start(timer_handle, ChannelWrap::AresTimeout, 1000, 1000);
-      }
+      channel->StartTimer();
 
       task = ares_task_create(channel, sock);
       if (task == nullptr) {
@@ -349,7 +344,7 @@ void ares_sockstate_cb(void* data,
     channel->env()->CloseHandle(&task->poll_watcher, ares_poll_close_cb);
 
     if (channel->task_list()->empty()) {
-      uv_timer_stop(channel->timer_handle());
+      channel->CloseTimer();
     }
   }
 }
@@ -490,15 +485,26 @@ void ChannelWrap::Setup() {
   }
 
   library_inited_ = true;
-
-  /* Initialize the timeout timer. The timer won't be started until the */
-  /* first socket is opened. */
-  CleanupTimer();
-  timer_handle_ = new uv_timer_t();
-  timer_handle_->data = static_cast<void*>(this);
-  uv_timer_init(env()->event_loop(), timer_handle_);
 }
 
+void ChannelWrap::StartTimer() {
+  if (timer_handle_ == nullptr) {
+    timer_handle_ = new uv_timer_t();
+    timer_handle_->data = static_cast<void*>(this);
+    uv_timer_init(env()->event_loop(), timer_handle_);
+  } else if (uv_is_active(reinterpret_cast<uv_handle_t*>(timer_handle_))) {
+    return;
+  }
+  uv_timer_start(timer_handle_, AresTimeout, 1000, 1000);
+}
+
+void ChannelWrap::CloseTimer() {
+  if (timer_handle_ == nullptr)
+    return;
+
+  env()->CloseHandle(timer_handle_, [](uv_timer_t* handle) { delete handle; });
+  timer_handle_ = nullptr;
+}
 
 ChannelWrap::~ChannelWrap() {
   if (library_inited_) {
@@ -508,16 +514,9 @@ ChannelWrap::~ChannelWrap() {
   }
 
   ares_destroy(channel_);
-  CleanupTimer();
+  CloseTimer();
 }
 
-
-void ChannelWrap::CleanupTimer() {
-  if (timer_handle_ == nullptr) return;
-
-  env()->CloseHandle(timer_handle_, [](uv_timer_t* handle) { delete handle; });
-  timer_handle_ = nullptr;
-}
 
 void ChannelWrap::ModifyActivityQueryCount(int count) {
   active_query_count_ += count;
@@ -566,6 +565,7 @@ void ChannelWrap::EnsureServers() {
   /* destroy channel and reset channel */
   ares_destroy(channel_);
 
+  CloseTimer();
   Setup();
 }
 
