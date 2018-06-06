@@ -499,6 +499,8 @@ Http2Session::Http2Session(Environment* env,
 Http2Session::~Http2Session() {
   CHECK_EQ(flags_ & SESSION_STATE_HAS_SCOPE, 0);
   Debug(this, "freeing nghttp2 session");
+  for (auto stream : streams_)
+    stream.second->session_ = nullptr;
   nghttp2_session_del(session_);
 }
 
@@ -1706,11 +1708,11 @@ Http2Stream::Http2Stream(
 
 
 Http2Stream::~Http2Stream() {
+  if (session_ == nullptr)
+    return;
   Debug(this, "tearing down stream");
-  if (session_ != nullptr) {
-    session_->RemoveStream(this);
-    session_ = nullptr;
-  }
+  session_->RemoveStream(this);
+  session_ = nullptr;
 }
 
 std::string Http2Stream::diagnostic_name() const {
