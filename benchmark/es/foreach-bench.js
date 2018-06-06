@@ -49,14 +49,7 @@ function useForEach(millions, items) {
   bench.end(millions);
 }
 
-<<<<<<< HEAD
-function main(conf) {
-  const n = +conf.millions * 1e6;
-  const count = +conf.count;
-
-=======
 function main({ millions, count, method }) {
->>>>>>> 2072f343ad... benchmark: (es) refactor
   const items = new Array(count);
   var fn;
   for (var i = 0; i < count; i++)

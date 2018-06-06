@@ -21,16 +21,9 @@ function endAfterGC(n) {
   });
 }
 
-<<<<<<< HEAD
-function main(conf) {
-  const n = +conf.n;
-
-  switch (conf.method) {
-=======
 function main({ n, method }) {
   var i;
   switch (method) {
->>>>>>> 1b6cb94761... benchmark: refactor
     case 'trackingEnabled':
       bench.start();
       for (i = 0; i < n; i++) {

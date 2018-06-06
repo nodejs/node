@@ -48,16 +48,9 @@ function runUseArguments(millions) {
     useArguments(1, 2, 'a', 'b');
 }
 
-<<<<<<< HEAD
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
-=======
 function main({ millions, method }) {
   var fn;
   switch (method) {
->>>>>>> 2072f343ad... benchmark: (es) refactor
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'copy':

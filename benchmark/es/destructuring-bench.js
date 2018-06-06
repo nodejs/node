@@ -34,15 +34,8 @@ function runSwapDestructured(millions) {
   bench.end(millions);
 }
 
-<<<<<<< HEAD
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
-=======
 function main({ millions, method }) {
   switch (method) {
->>>>>>> 2072f343ad... benchmark: (es) refactor
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case 'swap':

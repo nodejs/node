@@ -16,14 +16,10 @@ const configs = {
 
 const bench = common.createBenchmark(main, configs);
 
-<<<<<<< HEAD
 
 function main(conf) {
   const n = +conf.n;
 
-=======
-function main({ n, mode }) {
->>>>>>> 2072f343ad... benchmark: (es) refactor
   const str = 'abc';
   const num = 123;
 

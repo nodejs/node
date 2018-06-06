@@ -23,18 +23,10 @@ function makeTest(count, rest) {
   }
 }
 
-<<<<<<< HEAD
-function main(conf) {
-  const n = +conf.millions * 1e6;
-  const ctx = conf.context === 'context' ? {} : null;
-  var fn = makeTest(conf.count, conf.rest);
-  const args = new Array(conf.count);
-=======
 function main({ millions, context, count, rest, method }) {
   const ctx = context === 'context' ? {} : null;
   var fn = makeTest(count, rest);
   const args = new Array(count);
->>>>>>> 2072f343ad... benchmark: (es) refactor
   var i;
   for (i = 0; i < conf.count; i++)
     args[i] = i;
