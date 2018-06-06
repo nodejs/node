@@ -521,7 +521,7 @@ void Http2Stream::EmitStatistics() {
   Http2StreamPerformanceEntry* entry =
     new Http2StreamPerformanceEntry(env(), id_, statistics_);
   env()->SetImmediate([](Environment* env, void* data) {
-    // This takes ownership, the entr is destroyed at the end of this scope.
+    // This takes ownership, the entry is destroyed at the end of this scope.
     std::unique_ptr<Http2StreamPerformanceEntry> entry {
         static_cast<Http2StreamPerformanceEntry*>(data) };
     if (!HasHttp2Observer(env))
@@ -998,7 +998,7 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
       // `buf.base == nullptr` is the default Http2StreamListener's way
       // of saying that it wants a pointer to the raw original.
       // Since it has access to the original socket buffer from which the data
-      // was read in the first place, it can use that to minizime ArrayBuffer
+      // was read in the first place, it can use that to minimize ArrayBuffer
       // allocations.
       if (LIKELY(buf.base == nullptr))
         buf.base = reinterpret_cast<char*>(const_cast<uint8_t*>(data));
@@ -1338,7 +1338,7 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
 }
 
 // If the underlying nghttp2_session struct has data pending in its outbound
-// queue, MaybeScheduleWrite will schedule a SendPendingData() call to occcur
+// queue, MaybeScheduleWrite will schedule a SendPendingData() call to occur
 // on the next iteration of the Node.js event loop (using the SetImmediate
 // queue), but only if a write has not already been scheduled.
 void Http2Session::MaybeScheduleWrite() {
@@ -2179,7 +2179,7 @@ void Http2Session::RefreshSettings(const FunctionCallbackInfo<Value>& args) {
 
 // A TypedArray instance is shared between C++ and JS land to contain state
 // information of the current Http2Session. This updates the values in the
-// TypedRray so those can be read in JS land.
+// TypedArray so those can be read in JS land.
 void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
@@ -2512,7 +2512,7 @@ void Http2Session::AltSvc(int32_t id,
                                  origin, origin_len, value, value_len), 0);
 }
 
-// Submits an AltSvc frame to the sent to the connected peer.
+// Submits an AltSvc frame to be sent to the connected peer.
 void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
