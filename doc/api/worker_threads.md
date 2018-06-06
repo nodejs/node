@@ -312,7 +312,7 @@ if (isMainThread) {
 * `options` {Object}
   * `eval` {boolean} If true, interpret the first argument to the constructor
     as a script that is executed once the worker is online.
-  * `data` {any} Any JavaScript value that will be cloned and made
+  * `workerData` {any} Any JavaScript value that will be cloned and made
     available as [`require('worker_threads').workerData`][]. The cloning will
     occur as described in the [HTML structured clone algorithm][], and an error
     will be thrown if the object cannot be cloned (e.g. because it contains
