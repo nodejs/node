@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-gc
 
 const common = require('../common');
 const assert = require('assert');
@@ -22,6 +23,11 @@ common.crashOnUnhandledRejection();
     },
   }).enable();
   process.on('beforeExit', common.mustCall(() => {
+    // This garbage collection call verifies that the wraps being garbage
+    // collected doesn't resurrect the process again due to weirdly timed
+    // uv_close calls and other similar instruments in destructors.
+    global.gc();
+
     process.removeAllListeners('uncaughtException');
     hooks.disable();
     delete providers.NONE;  // Should never be used.
