@@ -352,9 +352,9 @@ v8::Local<v8::Value> FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
 }
 
 inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
-                                          const uv_stat_t* s,
-                                          bool use_bigint = false,
-                                          int offset = 0) {
+                                                 const uv_stat_t* s,
+                                                 bool use_bigint = false,
+                                                 int offset = 0) {
   if (use_bigint) {
     return node::FillStatsArray(
         env->fs_stats_field_bigint_array(), s, offset);

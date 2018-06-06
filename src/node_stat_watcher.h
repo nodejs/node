@@ -57,7 +57,7 @@ class StatWatcher : public AsyncWrap {
   bool IsActive();
 
   uv_fs_poll_t* watcher_;
-  bool use_bigint_;
+  const bool use_bigint_;
 };
 
 }  // namespace node
