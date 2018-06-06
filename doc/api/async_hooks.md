@@ -615,14 +615,6 @@ asyncResource.asyncId();
 
 // Return the trigger ID for the AsyncResource instance.
 asyncResource.triggerAsyncId();
-
-// Call AsyncHooks before callbacks.
-// Deprecated: Use asyncResource.runInAsyncScope instead.
-asyncResource.emitBefore();
-
-// Call AsyncHooks after callbacks.
-// Deprecated: Use asyncResource.runInAsyncScope instead.
-asyncResource.emitAfter();
 ```
 
 #### new AsyncResource(type[, options])
