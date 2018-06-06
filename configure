@@ -572,8 +572,8 @@ def try_check_compiler(cc, lang):
 
   values = (proc.communicate()[0].split() + ['0'] * 7)[0:7]
   is_clang = values[0] == '1'
-  gcc_version = '%s.%s.%s' % tuple(values[1:1+3])
-  clang_version = '%s.%s.%s' % tuple(values[4:4+3])
+  gcc_version = tuple(values[1:1+3])
+  clang_version = tuple(values[4:4+3])
 
   return (True, is_clang, clang_version, gcc_version)
 
@@ -647,13 +647,13 @@ def check_compiler(o):
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
   if not ok:
     warn('failed to autodetect C++ compiler version (CXX=%s)' % CXX)
-  elif clang_version < '3.4.2' if is_clang else gcc_version < '4.8.0':
+  elif clang_version < (3, 4, 2) if is_clang else gcc_version < (4, 8, 0):
     warn('C++ compiler too old, need g++ 4.8 or clang++ 3.4.2 (CXX=%s)' % CXX)
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
   if not ok:
     warn('failed to autodetect C compiler version (CC=%s)' % CC)
-  elif not is_clang and gcc_version < '4.2.0':
+  elif not is_clang and gcc_version < (4, 2, 0):
     # clang 3.2 is a little white lie because any clang version will probably
     # do for the C bits.  However, we might as well encourage people to upgrade
     # to a version that is not completely ancient.
