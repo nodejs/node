@@ -114,6 +114,7 @@ struct sockaddr;
     V(http_parser)                                                            \
     V(inspector)                                                              \
     V(js_stream)                                                              \
+    V(messaging)                                                              \
     V(module_wrap)                                                            \
     V(os)                                                                     \
     V(performance)                                                            \
@@ -125,6 +126,7 @@ struct sockaddr;
     V(stream_pipe)                                                            \
     V(stream_wrap)                                                            \
     V(string_decoder)                                                         \
+    V(symbols)                                                                \
     V(tcp_wrap)                                                               \
     V(timer_wrap)                                                             \
     V(trace_events)                                                           \
@@ -135,6 +137,7 @@ struct sockaddr;
     V(util)                                                                   \
     V(uv)                                                                     \
     V(v8)                                                                     \
+    V(worker)                                                                 \
     V(zlib)
 
 #define NODE_BUILTIN_MODULES(V)                                               \
@@ -187,6 +190,11 @@ extern bool config_experimental_modules;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/vm.js
 extern bool config_experimental_vm_modules;
+
+// Set in node.cc by ParseArgs when --experimental-vm-modules is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/vm.js
+extern bool config_experimental_worker;
 
 // Set in node.cc by ParseArgs when --experimental-repl-await is used.
 // Used in node_config.cc to set a constant on process.binding('config')
@@ -306,6 +314,10 @@ class FatalTryCatch : public v8::TryCatch {
  private:
   Environment* env_;
 };
+
+void ReportException(Environment* env,
+                     v8::Local<v8::Value> er,
+                     v8::Local<v8::Message> message);
 
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,

@@ -30,7 +30,6 @@ try {
 } catch (e) {
   if (e instanceof RangeError && acceptableOOMErrors.includes(e.message))
     common.skip(`Unable to allocate ${size} bytes for ArrayBuffer`);
-
   throw e;
 }
 

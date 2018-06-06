@@ -322,6 +322,10 @@ inline Environment* Environment::GetThreadLocalEnv() {
   return static_cast<Environment*>(uv_key_get(&thread_local_env));
 }
 
+inline bool Environment::profiler_idle_notifier_started() const {
+  return profiler_idle_notifier_started_;
+}
+
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
@@ -578,11 +582,40 @@ void Environment::SetUnrefImmediate(native_immediate_callback cb,
 }
 
 inline bool Environment::can_call_into_js() const {
-  return can_call_into_js_;
+  return can_call_into_js_ && (is_main_thread() || !is_stopping_worker());
 }
 
 inline void Environment::set_can_call_into_js(bool can_call_into_js) {
   can_call_into_js_ = can_call_into_js;
+}
+
+inline bool Environment::is_main_thread() const {
+  return thread_id_ == 0;
+}
+
+inline double Environment::thread_id() const {
+  return thread_id_;
+}
+
+inline void Environment::set_thread_id(double id) {
+  thread_id_ = id;
+}
+
+inline worker::Worker* Environment::worker_context() const {
+  return worker_context_;
+}
+
+inline void Environment::set_worker_context(worker::Worker* context) {
+  CHECK_EQ(worker_context_, nullptr);  // Should be set only once.
+  worker_context_ = context;
+}
+
+inline void Environment::add_sub_worker_context(worker::Worker* context) {
+  sub_worker_contexts_.insert(context);
+}
+
+inline void Environment::remove_sub_worker_context(worker::Worker* context) {
+  sub_worker_contexts_.erase(context);
 }
 
 inline performance::performance_state* Environment::performance_state() {
@@ -706,6 +739,7 @@ bool Environment::CleanupHookCallback::Equal::operator()(
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   inline                                                                      \
@@ -714,21 +748,26 @@ bool Environment::CleanupHookCallback::Equal::operator()(
     return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate);    \
   }
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
 #undef VS
+#undef VY
 #undef VP
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
     return isolate_data()->PropertyName(isolate());                           \
   }
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
 #undef VS
+#undef VY
 #undef VP
 
 #define V(PropertyName, TypeName)                                             \

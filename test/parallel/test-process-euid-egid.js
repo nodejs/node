@@ -3,9 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (common.isWindows) {
-  assert.strictEqual(process.geteuid, undefined);
-  assert.strictEqual(process.getegid, undefined);
+if (common.isWindows || !common.isMainThread) {
+  if (common.isMainThread) {
+    assert.strictEqual(process.geteuid, undefined);
+    assert.strictEqual(process.getegid, undefined);
+  }
   assert.strictEqual(process.seteuid, undefined);
   assert.strictEqual(process.setegid, undefined);
   return;

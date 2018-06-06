@@ -436,8 +436,11 @@ struct MallocedBuffer {
     return ret;
   }
 
+  inline bool is_empty() const { return data == nullptr; }
+
   MallocedBuffer() : data(nullptr) {}
   explicit MallocedBuffer(size_t size) : data(Malloc<T>(size)), size(size) {}
+  MallocedBuffer(char* data, size_t size) : data(data), size(size) {}
   MallocedBuffer(MallocedBuffer&& other) : data(other.data), size(other.size) {
     other.data = nullptr;
   }

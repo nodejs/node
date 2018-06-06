@@ -55,6 +55,10 @@ namespace performance {
 class performance_state;
 }
 
+namespace worker {
+class Worker;
+}
+
 namespace loader {
 class ModuleWrap;
 
@@ -106,6 +110,12 @@ struct PackageConfig {
   V(decorated_private_symbol, "node:decorated")                               \
   V(napi_env, "node:napi:env")                                                \
   V(napi_wrapper, "node:napi:wrapper")                                        \
+  V(sab_lifetimepartner_symbol, "node:sharedArrayBufferLifetimePartner")      \
+
+// Symbols are per-isolate primitives but Environment proxies them
+// for the sake of convenience.
+#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
+  V(handle_onclose_symbol, "handle_onclose")                                  \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -127,7 +137,6 @@ struct PackageConfig {
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")          \
   V(constants_string, "constants")                                            \
   V(oncertcb_string, "oncertcb")                                              \
-  V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
   V(cwd_string, "cwd")                                                        \
   V(dest_string, "dest")                                                      \
@@ -188,7 +197,11 @@ struct PackageConfig {
   V(mac_string, "mac")                                                        \
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
+  V(max_semi_space_size_string, "maxSemiSpaceSize")                           \
+  V(max_old_space_size_string, "maxOldSpaceSize")                             \
   V(message_string, "message")                                                \
+  V(message_port_string, "messagePort")                                       \
+  V(message_port_constructor_string, "MessagePort")                           \
   V(minttl_string, "minttl")                                                  \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
@@ -208,6 +221,7 @@ struct PackageConfig {
   V(onhandshakedone_string, "onhandshakedone")                                \
   V(onhandshakestart_string, "onhandshakestart")                              \
   V(onheaders_string, "onheaders")                                            \
+  V(oninit_string, "oninit")                                                  \
   V(onmessage_string, "onmessage")                                            \
   V(onnewsession_string, "onnewsession")                                      \
   V(onocspresponse_string, "onocspresponse")                                  \
@@ -238,6 +252,8 @@ struct PackageConfig {
   V(pipe_target_string, "pipeTarget")                                         \
   V(pipe_source_string, "pipeSource")                                         \
   V(port_string, "port")                                                      \
+  V(port1_string, "port1")                                                    \
+  V(port2_string, "port2")                                                    \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(promise_string, "promise")                                                \
@@ -271,6 +287,7 @@ struct PackageConfig {
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
   V(syscall_string, "syscall")                                                \
+  V(thread_id_string, "threadId")                                             \
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
   V(tls_ticket_string, "tlsTicket")                                           \
@@ -319,6 +336,8 @@ struct PackageConfig {
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(immediate_callback_function, v8::Function)                                \
   V(inspector_console_api_object, v8::Object)                                 \
+  V(message_port, v8::Object)                                                 \
+  V(message_port_constructor_template, v8::FunctionTemplate)                  \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(performance_entry_callback, v8::Function)                                 \
@@ -329,6 +348,7 @@ struct PackageConfig {
   V(promise_wrap_template, v8::ObjectTemplate)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(randombytes_constructor_template, v8::ObjectTemplate)                     \
+  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)           \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \
@@ -356,10 +376,12 @@ class IsolateData {
   inline MultiIsolatePlatform* platform() const;
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   inline v8::Local<TypeName> PropertyName(v8::Isolate* isolate) const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
 #undef VS
@@ -370,10 +392,12 @@ class IsolateData {
 
  private:
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   v8::Eternal<TypeName> PropertyName ## _;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
 #undef VS
@@ -586,6 +610,7 @@ class Environment {
 
   void RegisterHandleCleanups();
   void CleanupHandles();
+  void Exit(int code);
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -600,6 +625,7 @@ class Environment {
 
   void StartProfilerIdleNotifier();
   void StopProfilerIdleNotifier();
+  inline bool profiler_idle_notifier_started() const;
 
   inline v8::Isolate* isolate() const;
   inline tracing::Agent* tracing_agent() const;
@@ -698,6 +724,18 @@ class Environment {
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
 
+  // TODO(addaleax): This should be inline.
+  bool is_stopping_worker() const;
+
+  inline bool is_main_thread() const;
+  inline double thread_id() const;
+  inline void set_thread_id(double id);
+  inline worker::Worker* worker_context() const;
+  inline void set_worker_context(worker::Worker* context);
+  inline void add_sub_worker_context(worker::Worker* context);
+  inline void remove_sub_worker_context(worker::Worker* context);
+  void stop_sub_worker_contexts();
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -737,13 +775,16 @@ class Environment {
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   inline v8::Local<TypeName> PropertyName() const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
 #undef VS
+#undef VY
 #undef VP
 
 #define V(PropertyName, TypeName)                                             \
@@ -822,6 +863,7 @@ class Environment {
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
+  bool profiler_idle_notifier_started_ = false;
 
   AsyncHooks async_hooks_;
   ImmediateInfo immediate_info_;
@@ -835,12 +877,15 @@ class Environment {
   std::vector<double> destroy_async_id_list_;
 
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
-
   int should_not_abort_scope_counter_ = 0;
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;
+
   bool can_call_into_js_ = true;
+  double thread_id_ = 0;
+  std::unordered_set<worker::Worker*> sub_worker_contexts_;
+
 
 #if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;
@@ -872,6 +917,8 @@ class Environment {
 
   std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
       file_handle_read_wrap_freelist_;
+
+  worker::Worker* worker_context_ = nullptr;
 
   struct ExitCallback {
     void (*cb_)(void* arg);

@@ -46,6 +46,14 @@ Object.defineProperty(exports, 'PORT', {
   enumerable: true
 });
 
+exports.isMainThread = (() => {
+  try {
+    return require('worker_threads').isMainThread;
+  } catch {
+    // Worker module not enabled → only a single main thread exists.
+    return true;
+  }
+})();
 
 exports.isWindows = process.platform === 'win32';
 exports.isWOW64 = exports.isWindows &&
@@ -745,6 +753,10 @@ exports.expectsError = function expectsError(fn, settings, exact) {
 exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {
   if (process.config.variables.v8_enable_inspector === 0) {
     exports.skip('V8 inspector is disabled');
+  }
+  if (!exports.isMainThread) {
+    // TODO(addaleax): Fix me.
+    exports.skip('V8 inspector is not available in Workers');
   }
 };
 

@@ -4,6 +4,7 @@
 #include "node_buffer.h"
 #include "node_platform.h"
 #include "node_file.h"
+#include "node_worker.h"
 #include "tracing/agent.h"
 
 #include <stdio.h>
@@ -23,7 +24,9 @@ using v8::Private;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
+using v8::Symbol;
 using v8::Value;
+using worker::Worker;
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
@@ -58,6 +61,18 @@ IsolateData::IsolateData(Isolate* isolate,
                 v8::NewStringType::kInternalized,                           \
                 sizeof(StringValue) - 1).ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, StringValue)                                        \
+    PropertyName ## _.Set(                                                  \
+        isolate,                                                            \
+        Symbol::New(                                                        \
+            isolate,                                                        \
+            String::NewFromOneByte(                                         \
+                isolate,                                                    \
+                reinterpret_cast<const uint8_t*>(StringValue),              \
+                v8::NewStringType::kInternalized,                           \
+                sizeof(StringValue) - 1).ToLocalChecked()));
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 #define V(PropertyName, StringValue)                                        \
     PropertyName ## _.Set(                                                  \
@@ -250,6 +265,11 @@ void Environment::CleanupHandles() {
 }
 
 void Environment::StartProfilerIdleNotifier() {
+  if (profiler_idle_notifier_started_)
+    return;
+
+  profiler_idle_notifier_started_ = true;
+
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
     env->isolate()->SetIdle(true);
@@ -262,6 +282,7 @@ void Environment::StartProfilerIdleNotifier() {
 }
 
 void Environment::StopProfilerIdleNotifier() {
+  profiler_idle_notifier_started_ = false;
   uv_prepare_stop(&idle_prepare_handle_);
   uv_check_stop(&idle_check_handle_);
 }
@@ -425,7 +446,9 @@ void Environment::RunAndClearNativeImmediates() {
         if (it->refed_)
           ref_count++;
         if (UNLIKELY(try_catch.HasCaught())) {
-          FatalException(isolate(), try_catch);
+          if (!try_catch.HasTerminated())
+            FatalException(isolate(), try_catch);
+
           // Bail out, remove the already executed callbacks from list
           // and set up a new TryCatch for the other pending callbacks.
           std::move_backward(it, list.end(), list.begin() + (list.end() - it));
@@ -612,5 +635,26 @@ void Environment::AsyncHooks::grow_async_ids_stack() {
 }
 
 uv_key_t Environment::thread_local_env = {};
+
+void Environment::Exit(int exit_code) {
+  if (is_main_thread())
+    exit(exit_code);
+  else
+    worker_context_->Exit(exit_code);
+}
+
+void Environment::stop_sub_worker_contexts() {
+  while (!sub_worker_contexts_.empty()) {
+    Worker* w = *sub_worker_contexts_.begin();
+    remove_sub_worker_context(w);
+    w->Exit(1);
+    w->JoinThread();
+  }
+}
+
+bool Environment::is_stopping_worker() const {
+  CHECK(!is_main_thread());
+  return worker_context_->is_stopped();
+}
 
 }  // namespace node

@@ -629,6 +629,12 @@ An operation outside the bounds of a `Buffer` was attempted.
 An attempt has been made to create a `Buffer` larger than the maximum allowed
 size.
 
+<a id="ERR_CANNOT_TRANSFER_OBJECT"></a>
+### ERR_CANNOT_TRANSFER_OBJECT
+
+The value passed to `postMessage()` contained an object that is not supported
+for transferring.
+
 <a id="ERR_CANNOT_WATCH_SIGINT"></a>
 ### ERR_CANNOT_WATCH_SIGINT
 
@@ -650,11 +656,22 @@ Used when a child process is being forked without specifying an IPC channel.
 Used when the main process is trying to read data from the child process's
 STDERR / STDOUT, and the data's length is longer than the `maxBuffer` option.
 
+<a id="ERR_CLOSED_MESSAGE_PORT"></a>
+### ERR_CLOSED_MESSAGE_PORT
+
+There was an attempt to use a `MessagePort` instance in a closed
+state, usually after `.close()` has been called.
+
 <a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
 ### ERR_CONSOLE_WRITABLE_STREAM
 
 `Console` was instantiated without `stdout` stream, or `Console` has a
 non-writable `stdout` or `stderr` stream.
+
+<a id="ERR_CONSTRUCT_CALL_REQUIRED"></a>
+### ERR_CONSTRUCT_CALL_REQUIRED
+
+A constructor for a class was called without `new`.
 
 <a id="ERR_CPU_USAGE"></a>
 ### ERR_CPU_USAGE
@@ -1203,6 +1220,11 @@ urlSearchParams.has.call(buf, 'foo');
 // Throws a TypeError with code 'ERR_INVALID_THIS'
 ```
 
+<a id="ERR_INVALID_TRANSFER_OBJECT"></a>
+### ERR_INVALID_TRANSFER_OBJECT
+
+An invalid transfer object was passed to `postMessage()`.
+
 <a id="ERR_INVALID_TUPLE"></a>
 ### ERR_INVALID_TUPLE
 
@@ -1278,12 +1300,25 @@ strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
+### ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST
+
+A `MessagePort` was found in the object passed to a `postMessage()` call,
+but not provided in the `transferList` for that call.
+
 <a id="ERR_MISSING_MODULE"></a>
 ### ERR_MISSING_MODULE
 
 > Stability: 1 - Experimental
 
 An [ES6 module][] could not be resolved.
+
+<a id="ERR_MISSING_PLATFORM_FOR_WORKER"></a>
+### ERR_MISSING_PLATFORM_FOR_WORKER
+
+The V8 platform used by this instance of Node.js does not support creating
+Workers. This is caused by lack of embedder support for Workers. In particular,
+this error will not occur with standard builds of Node.js.
 
 <a id="ERR_MODULE_RESOLUTION_LEGACY"></a>
 ### ERR_MODULE_RESOLUTION_LEGACY
@@ -1693,6 +1728,22 @@ The fulfilled value of a linking promise is not a `vm.Module` object.
 
 The current module's status does not allow for this operation. The specific
 meaning of the error depends on the specific function.
+
+<a id="ERR_WORKER_NEED_ABSOLUTE_PATH"></a>
+### ERR_WORKER_NEED_ABSOLUTE_PATH
+
+The path for the main script of a worker is not an absolute path.
+
+<a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
+### ERR_WORKER_UNSERIALIZABLE_ERROR
+
+All attempts at serializing an uncaught exception from a worker thread failed.
+
+<a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
+### ERR_WORKER_UNSUPPORTED_EXTENSION
+
+The pathname used for the main script of a worker has an
+unknown file extension.
 
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 ### ERR_ZLIB_INITIALIZATION_FAILED

@@ -43,6 +43,10 @@ class BaseObject {
   // persistent.IsEmpty() is true.
   inline v8::Local<v8::Object> object();
 
+  // Same as the above, except it additionally verifies that this object
+  // is associated with the passed Isolate in debug mode.
+  inline v8::Local<v8::Object> object(v8::Isolate* isolate);
+
   inline Persistent<v8::Object>& persistent();
 
   inline Environment* env() const;

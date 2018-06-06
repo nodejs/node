@@ -7,6 +7,9 @@ const spawnSync = require('child_process').spawnSync;
 const async_hooks = require('internal/async_hooks');
 const initHooks = require('./init-hooks');
 
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different async IDs');
+
 switch (process.argv[2]) {
   case 'test_invalid_async_id':
     async_hooks.emitBefore(-2, 1);

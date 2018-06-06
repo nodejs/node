@@ -27,9 +27,10 @@ const util = require('util');
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
-assert.strictEqual(typeof process.stdout.fd, 'number');
-assert.strictEqual(typeof process.stderr.fd, 'number');
-
+if (common.isMainThread) {
+  assert.strictEqual(typeof process.stdout.fd, 'number');
+  assert.strictEqual(typeof process.stderr.fd, 'number');
+}
 process.once('warning', common.mustCall((warning) => {
   assert(/no such label/.test(warning.message));
 }));

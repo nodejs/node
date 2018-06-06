@@ -4,6 +4,9 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
+
 const CODE = `
   process.binding("trace_events").emit(
     'b'.charCodeAt(0), 'custom',
