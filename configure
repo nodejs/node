@@ -425,6 +425,11 @@ intl_optgroup.add_option('--with-icu-source',
     dest='with_icu_source',
     help='Intl mode: optional local path to icu/ dir, or path/URL of icu source archive.')
 
+parser.add_option('--with-ltcg',
+    action='store_true',
+    dest='with_ltcg',
+    help='Use Link Time Code Generation. This feature is only available on Windows.')
+
 intl_optgroup.add_option('--download',
     action='store',
     dest='download_list',
@@ -952,6 +957,10 @@ def configure_node(o):
     raise Exception('Performance counter is only supported on Windows.')
   else:
     o['variables']['node_use_perfctr'] = 'false'
+
+  o['variables']['node_with_ltcg'] = b(options.with_ltcg)
+  if flavor != 'win' and options.with_ltcg:
+    raise Exception('Link Time Code Generation is only supported on Windows.')
 
   if options.tag:
     o['variables']['node_tag'] = '-' + options.tag
