@@ -548,8 +548,8 @@ Http2Session::~Http2Session() {
     ClearWrap(object());
   persistent().Reset();
   CHECK(persistent().IsEmpty());
-  for (const auto& iter : streams_)
-    iter.second->session_ = nullptr;
+  for (const auto& stream : streams_)
+    stream.second->session_ = nullptr;
   Unconsume();
   DEBUG_HTTP2SESSION(this, "freeing nghttp2 session");
   nghttp2_session_del(session_);
@@ -1782,11 +1782,11 @@ Http2Stream::Http2Stream(
 
 
 Http2Stream::~Http2Stream() {
-  if (session_ != nullptr) {
-    DEBUG_HTTP2STREAM(this, "tearing down stream");
-    session_->RemoveStream(this);
-    session_ = nullptr;
-  }
+  if (session_ == nullptr)
+    return;
+  DEBUG_HTTP2STREAM(this, "tearing down stream");
+  session_->RemoveStream(this);
+  session_ = nullptr;
 
   persistent().Reset();
   CHECK(persistent().IsEmpty());
@@ -1862,7 +1862,8 @@ inline void Http2Stream::Destroy() {
     // We can destroy the stream now if there are no writes for it
     // already on the socket. Otherwise, we'll wait for the garbage collector
     // to take care of cleaning up.
-    if (!stream->session()->HasWritesOnSocketForStream(stream))
+    if (stream->session() == nullptr ||
+        !stream->session()->HasWritesOnSocketForStream(stream))
       delete stream;
   }, this, this->object());
 
