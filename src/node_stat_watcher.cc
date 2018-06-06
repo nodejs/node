@@ -84,7 +84,8 @@ StatWatcher::StatWatcher(Environment* env, Local<Object> wrap, bool use_bigint)
 
 
 StatWatcher::~StatWatcher() {
-  CHECK_EQ(watcher_, nullptr);
+  if (IsActive())
+    Stop();
 }
 
 
