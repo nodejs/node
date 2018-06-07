@@ -1,4 +1,5 @@
 #include "node_worker.h"
+#include "debug_utils.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_buffer.h"
@@ -304,7 +305,7 @@ Worker::~Worker() {
   CHECK(stopped_);
   CHECK(thread_joined_);
   CHECK_EQ(child_port_, nullptr);
-  CHECK_EQ(uv_loop_close(&loop_), 0);
+  CheckedUvLoopClose(&loop_);
 
   // This has most likely already happened within the worker thread -- this
   // is just in case Worker creation failed early.

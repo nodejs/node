@@ -3,6 +3,7 @@
 #include "inspector_socket_server.h"
 #include "inspector/node_string.h"
 #include "env-inl.h"
+#include "debug_utils.h"
 #include "node.h"
 #include "node_crypto.h"
 #include "node_mutex.h"
@@ -67,14 +68,14 @@ void HandleSyncCloseCb(uv_handle_t* handle) {
   *static_cast<bool*>(handle->data) = true;
 }
 
-int CloseAsyncAndLoop(uv_async_t* async) {
+void CloseAsyncAndLoop(uv_async_t* async) {
   bool is_closed = false;
   async->data = &is_closed;
   uv_close(reinterpret_cast<uv_handle_t*>(async), HandleSyncCloseCb);
   while (!is_closed)
     uv_run(async->loop, UV_RUN_ONCE);
   async->data = nullptr;
-  return uv_loop_close(async->loop);
+  CheckedUvLoopClose(async->loop);
 }
 
 // Delete main_thread_req_ on async handle close
@@ -281,7 +282,7 @@ void InspectorIo::ThreadMain() {
   thread_req_.data = &queue_transport;
   if (!server.Start()) {
     state_ = State::kError;  // Safe, main thread is waiting on semaphore
-    CHECK_EQ(0, CloseAsyncAndLoop(&thread_req_));
+    CloseAsyncAndLoop(&thread_req_);
     uv_sem_post(&thread_start_sem_);
     return;
   }
@@ -291,7 +292,7 @@ void InspectorIo::ThreadMain() {
   }
   uv_run(&loop, UV_RUN_DEFAULT);
   thread_req_.data = nullptr;
-  CHECK_EQ(uv_loop_close(&loop), 0);
+  CheckedUvLoopClose(&loop);
 }
 
 template <typename ActionType>
