@@ -68,6 +68,23 @@ exports.isOpenBSD = process.platform === 'openbsd';
 exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
+let isGlibc;
+exports.isGlibc = () => {
+  if (isGlibc !== undefined)
+    return isGlibc;
+  try {
+    const lddOut = spawnSync('ldd', [process.execPath]).stdout;
+    const libcInfo = lddOut.toString().split('\n').map(
+      (line) => line.match(/libc\.so.+=>\s*(\S+)\s/)).filter((info) => info);
+    if (libcInfo.length === 0)
+      return isGlibc = false;
+    const nmOut = spawnSync('nm', ['-D', libcInfo[0][1]]).stdout;
+    if (/gnu_get_libc_version/.test(nmOut))
+      return isGlibc = true;
+  } catch {}
+  return isGlibc = false;
+};
+
 exports.enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
 const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&

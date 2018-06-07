@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "spawn_sync.h"
+#include "debug_utils.h"
 #include "env-inl.h"
 #include "string_bytes.h"
 #include "util.h"
@@ -528,7 +529,7 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     if (r < 0)
       ABORT();
 
-    CHECK_EQ(uv_loop_close(uv_loop_), 0);
+    CheckedUvLoopClose(uv_loop_);
     delete uv_loop_;
     uv_loop_ = nullptr;
 

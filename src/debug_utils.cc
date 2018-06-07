@@ -97,11 +97,11 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
  public:
   Win32SymbolDebuggingContext() {
     current_process_ = GetCurrentProcess();
-    USE(SymInitialize(process, nullptr, true));
+    USE(SymInitialize(current_process_, nullptr, true));
   }
 
   ~Win32SymbolDebuggingContext() {
-    USE(SymCleanup(process));
+    USE(SymCleanup(current_process_));
   }
 
   SymbolInfo LookupSymbol(void* address) override {
@@ -114,16 +114,16 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     info->SizeOfStruct = sizeof(SYMBOL_INFO);
 
     SymbolInfo ret;
-    const bool have_info = SymFromAddr(process,
+    const bool have_info = SymFromAddr(current_process_,
                                        reinterpret_cast<DWORD64>(address),
                                        nullptr,
                                        info);
     if (have_info && strlen(info->Name) == 0) {
       if (UnDecorateSymbolName(info->Name,
-                               demangled_,
-                               sizeof(demangled_),
+                               demangled,
+                               sizeof(demangled),
                                UNDNAME_COMPLETE)) {
-        ret.name = demangled_;
+        ret.name = demangled;
       } else {
         ret.name = info->Name;
       }
@@ -135,7 +135,7 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
   bool IsMapped(void* address) override {
     MEMORY_BASIC_INFORMATION info;
 
-    if (VirtualQuery(address, &info, sizeof(info)) != info)
+    if (VirtualQuery(address, &info, sizeof(info)) != sizeof(info))
       return false;
 
     return info.State == MEM_COMMIT && info.Protect != 0;
@@ -149,6 +149,7 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
   HANDLE current_process_;
 };
 
+std::unique_ptr<NativeSymbolDebuggingContext>
 NativeSymbolDebuggingContext::New() {
   return std::unique_ptr<NativeSymbolDebuggingContext>(
       new Win32SymbolDebuggingContext());
@@ -177,4 +178,48 @@ void DumpBacktrace(FILE* fp) {
   }
 }
 
+void CheckedUvLoopClose(uv_loop_t* loop) {
+  if (uv_loop_close(loop) == 0) return;
+
+  auto sym_ctx = NativeSymbolDebuggingContext::New();
+
+  fprintf(stderr, "uv loop at [%p] has active handles\n", loop);
+
+  uv_walk(loop, [](uv_handle_t* handle, void* arg) {
+    auto sym_ctx = static_cast<NativeSymbolDebuggingContext*>(arg);
+
+    fprintf(stderr, "[%p] %s\n", handle, uv_handle_type_name(handle->type));
+
+    void* close_cb = reinterpret_cast<void*>(handle->close_cb);
+    fprintf(stderr, "\tClose callback: %p %s\n",
+        close_cb, sym_ctx->LookupSymbol(close_cb).Display().c_str());
+
+    fprintf(stderr, "\tData: %p %s\n",
+        handle->data, sym_ctx->LookupSymbol(handle->data).Display().c_str());
+
+    // We are also interested in the first field of what `handle->data`
+    // points to, because for C++ code that is usually the virtual table pointer
+    // and gives us information about the exact kind of object we're looking at.
+    void* first_field = nullptr;
+    // `handle->data` might be any value, including `nullptr`, or something
+    // cast from a completely different type; therefore, check that it’s
+    // dereferencable first.
+    if (sym_ctx->IsMapped(handle->data))
+      first_field = *reinterpret_cast<void**>(handle->data);
+
+    if (first_field != nullptr) {
+      fprintf(stderr, "\t(First field): %p %s\n",
+          first_field, sym_ctx->LookupSymbol(first_field).Display().c_str());
+    }
+  }, sym_ctx.get());
+
+  fflush(stderr);
+  // Finally, abort.
+  CHECK(0 && "uv_loop_close() while having open handles");
+}
+
 }  // namespace node
+
+extern "C" void __DumpBacktrace(FILE* fp) {
+  node::DumpBacktrace(fp);
+}
