@@ -158,7 +158,7 @@ static bool IsTransparentHugePagesEnabled() {
 //    3. madvise with MADV_HUGE_PAGE
 //    3. If successful copy the code there and unmap the original region
 int
-__attribute__((__section__(".eh_frame")))
+__attribute__((__section__(".lpstub")))
 __attribute__((__aligned__(2 * 1024 * 1024)))
 __attribute__((__noinline__))
 __attribute__((__optimize__("2")))
@@ -240,7 +240,7 @@ int MapStaticCodeToLargePages() {
     return -1;
   }
 
-  if (r.to <= reinterpret_cast<void *> (&MoveTextRegionToLargePages))
+  if (r.from > reinterpret_cast<void *> (&MoveTextRegionToLargePages))
     return MoveTextRegionToLargePages(r);
 
   return -1;
