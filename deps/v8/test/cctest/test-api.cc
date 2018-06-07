@@ -7807,6 +7807,80 @@ struct FlagAndPersistent {
   v8::Global<v8::Object> handle;
 };
 
+static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->flag = true;
+  data.GetParameter()->handle.Reset();
+}
+
+static void IndependentWeakHandle(bool global_gc, bool interlinked) {
+  i::FLAG_stress_incremental_marking = false;
+  // Parallel scavenge introduces too much fragmentation.
+  i::FLAG_parallel_scavenge = false;
+  v8::Isolate* iso = CcTest::isolate();
+  v8::HandleScope scope(iso);
+  v8::Local<Context> context = Context::New(iso);
+  Context::Scope context_scope(context);
+
+  FlagAndPersistent object_a, object_b;
+
+  size_t big_heap_size = 0;
+  size_t big_array_size = 0;
+
+  {
+    v8::HandleScope handle_scope(iso);
+    Local<Object> a(v8::Object::New(iso));
+    Local<Object> b(v8::Object::New(iso));
+    object_a.handle.Reset(iso, a);
+    object_b.handle.Reset(iso, b);
+    if (interlinked) {
+      a->Set(context, v8_str("x"), b).FromJust();
+      b->Set(context, v8_str("x"), a).FromJust();
+    }
+    if (global_gc) {
+      CcTest::CollectAllGarbage();
+    } else {
+      CcTest::CollectGarbage(i::NEW_SPACE);
+    }
+    v8::Local<Value> big_array = v8::Array::New(CcTest::isolate(), 5000);
+    // Verify that we created an array where the space was reserved up front.
+    big_array_size =
+        v8::internal::JSArray::cast(*v8::Utils::OpenHandle(*big_array))
+            ->elements()
+            ->Size();
+    CHECK_LE(20000, big_array_size);
+    a->Set(context, v8_str("y"), big_array).FromJust();
+    big_heap_size = CcTest::heap()->SizeOfObjects();
+  }
+
+  object_a.flag = false;
+  object_b.flag = false;
+  object_a.handle.SetWeak(&object_a, &SetFlag,
+                          v8::WeakCallbackType::kParameter);
+  object_b.handle.SetWeak(&object_b, &SetFlag,
+                          v8::WeakCallbackType::kParameter);
+  CHECK(!object_b.handle.IsIndependent());
+  object_a.handle.MarkIndependent();
+  object_b.handle.MarkIndependent();
+  CHECK(object_b.handle.IsIndependent());
+  if (global_gc) {
+    CcTest::CollectAllGarbage();
+  } else {
+    CcTest::CollectGarbage(i::NEW_SPACE);
+  }
+  // A single GC should be enough to reclaim the memory, since we are using
+  // phantom handles.
+  CHECK_GT(big_heap_size - big_array_size, CcTest::heap()->SizeOfObjects());
+  CHECK(object_a.flag);
+  CHECK(object_b.flag);
+}
+
+TEST(IndependentWeakHandle) {
+  IndependentWeakHandle(false, false);
+  IndependentWeakHandle(false, true);
+  IndependentWeakHandle(true, false);
+  IndependentWeakHandle(true, true);
+}
+
 class Trivial {
  public:
   explicit Trivial(int x) : x_(x) {}
@@ -7897,6 +7971,125 @@ void InternalFieldCallback(bool global_gc) {
 THREADED_TEST(InternalFieldCallback) {
   InternalFieldCallback(false);
   InternalFieldCallback(true);
+}
+
+static void ResetUseValueAndSetFlag(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  // Blink will reset the handle, and then use the other handle, so they
+  // can't use the same backing slot.
+  data.GetParameter()->handle.Reset();
+  data.GetParameter()->flag = true;
+}
+
+void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
+  using v8::Context;
+  using v8::Local;
+  using v8::Object;
+
+  v8::Isolate* iso = CcTest::isolate();
+  v8::HandleScope scope(iso);
+  v8::Local<Context> context = Context::New(iso);
+  Context::Scope context_scope(context);
+
+  FlagAndPersistent object_a, object_b;
+
+  {
+    v8::HandleScope handle_scope(iso);
+    Local<Object> a(v8::Object::New(iso));
+    Local<Object> b(v8::Object::New(iso));
+    object_a.handle.Reset(iso, a);
+    object_b.handle.Reset(iso, b);
+    if (global_gc) {
+      CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    } else {
+      CcTest::CollectGarbage(i::NEW_SPACE);
+    }
+  }
+
+  object_a.flag = false;
+  object_b.flag = false;
+  object_a.handle.SetWeak(&object_a, &ResetUseValueAndSetFlag,
+                          v8::WeakCallbackType::kParameter);
+  object_b.handle.SetWeak(&object_b, &ResetUseValueAndSetFlag,
+                          v8::WeakCallbackType::kParameter);
+  if (!global_gc) {
+    object_a.handle.MarkIndependent();
+    object_b.handle.MarkIndependent();
+    CHECK(object_b.handle.IsIndependent());
+  }
+  if (global_gc) {
+    CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  } else {
+    CcTest::CollectGarbage(i::NEW_SPACE);
+  }
+  CHECK(object_a.flag);
+  CHECK(object_b.flag);
+}
+
+THREADED_HEAP_TEST(ResetWeakHandle) {
+  v8::internal::heap::HeapTester::ResetWeakHandle(false);
+  v8::internal::heap::HeapTester::ResetWeakHandle(true);
+}
+
+static void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
+
+static void InvokeMarkSweep() { CcTest::CollectAllGarbage(); }
+
+static void ForceScavenge2(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->flag = true;
+  InvokeScavenge();
+}
+
+static void ForceScavenge1(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(ForceScavenge2);
+}
+
+static void ForceMarkSweep2(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->flag = true;
+  InvokeMarkSweep();
+}
+
+static void ForceMarkSweep1(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(ForceMarkSweep2);
+}
+
+THREADED_TEST(GCFromWeakCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(CcTest::isolate());
+  v8::HandleScope scope(isolate);
+  v8::Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+
+  static const int kNumberOfGCTypes = 2;
+  typedef v8::WeakCallbackInfo<FlagAndPersistent>::Callback Callback;
+  Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
+                                                    &ForceMarkSweep1};
+
+  typedef void (*GCInvoker)();
+  GCInvoker invoke_gc[kNumberOfGCTypes] = {&InvokeScavenge, &InvokeMarkSweep};
+
+  for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {
+    for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
+      FlagAndPersistent object;
+      {
+        v8::HandleScope handle_scope(isolate);
+        object.handle.Reset(isolate, v8::Object::New(isolate));
+      }
+      object.flag = false;
+      object.handle.SetWeak(&object, gc_forcing_callback[inner_gc],
+                            v8::WeakCallbackType::kParameter);
+      object.handle.MarkIndependent();
+      invoke_gc[outer_gc]();
+      EmptyMessageQueues(isolate);
+      CHECK(object.flag);
+    }
+  }
 }
 
 v8::Local<Function> args_fun;
