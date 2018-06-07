@@ -160,9 +160,7 @@ struct PackageConfig {
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
-  V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
-  V(exit_string, "exit")                                                      \
   V(expire_string, "expire")                                                  \
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \
