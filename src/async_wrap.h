@@ -173,9 +173,6 @@ class AsyncWrap : public BaseObject {
       const v8::Local<v8::Name> symbol,
       int argc,
       v8::Local<v8::Value>* argv);
-  inline v8::MaybeLocal<v8::Value> MakeCallback(uint32_t index,
-                                                int argc,
-                                                v8::Local<v8::Value>* argv);
 
   virtual size_t self_size() const = 0;
   virtual std::string diagnostic_name() const;

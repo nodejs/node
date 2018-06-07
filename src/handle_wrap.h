@@ -83,6 +83,10 @@ class HandleWrap : public AsyncWrap {
   void MarkAsInitialized();
   void MarkAsUninitialized();
 
+  inline bool IsHandleClosing() const {
+    return state_ == kClosing || state_ == kClosed;
+  }
+
  private:
   friend class Environment;
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);

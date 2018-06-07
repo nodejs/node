@@ -154,6 +154,8 @@ class MessagePort : public HandleWrap {
   std::unique_ptr<MessagePortData> Detach();
 
   bool IsSiblingClosed() const;
+  void Close(
+      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>()) override;
 
   size_t self_size() const override;
 
