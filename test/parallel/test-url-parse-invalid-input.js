@@ -33,8 +33,5 @@ assert.throws(() => { url.parse('http://%E0%A4%A@fail'); },
 
                 // The error should be from the JS engine and not from Node.js.
                 // JS engine errors do not have the `code` property.
-                if (e.code !== undefined)
-                  return false;
-
-                return true;
+                return e.code === undefined;
               });
