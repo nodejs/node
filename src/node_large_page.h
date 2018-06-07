@@ -23,10 +23,14 @@
 #ifndef SRC_NODE_LARGE_PAGE_H_
 #define SRC_NODE_LARGE_PAGE_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+
 namespace node {
   bool IsLargePagesEnabled();
   int MapStaticCodeToLargePages();
 }  // namespace node
 
+#endif  // NODE_WANT_INTERNALS
 #endif  // SRC_NODE_LARGE_PAGE_H_
 
