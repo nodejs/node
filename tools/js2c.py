@@ -330,6 +330,10 @@ def JS2C(source, target):
 def main():
   natives = sys.argv[1]
   source_files = sys.argv[2:]
+  if source_files[-2] == '-t':
+    global TEMPLATE
+    TEMPLATE = source_files[-1]
+    source_files = source_files[:-2]
   JS2C(source_files, [natives])
 
 if __name__ == "__main__":
