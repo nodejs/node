@@ -1,0 +1,5 @@
+  PROVIDE (__nodetext = .);
+  PROVIDE (_nodetext = .);
+  PROVIDE (nodetext = .);
+  INSERT BEFORE .text;
+

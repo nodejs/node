@@ -192,7 +192,7 @@
               and target_arch=="x64" \
               and node_use_large_pages=="true"', {
               'ldflags': [
-                 '-Wl,-T <(PRODUCT_DIR)/../../ld.script',
+                 '-Wl,-T <(PRODUCT_DIR)/../../ld.implicit.script',
                  '-Wl,--whole-archive,<(obj_dir)/deps/uv/<(STATIC_LIB_PREFIX)'
                     'uv<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
