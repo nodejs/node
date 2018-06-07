@@ -33,6 +33,7 @@ namespace node {
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
   V(ERR_MISSING_ARGS, TypeError)                                             \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
+  V(ERR_MISSING_METHOD, TypeError)                                           \
   V(ERR_MISSING_MODULE, Error)                                               \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
@@ -52,8 +53,11 @@ namespace node {
            js_code).FromJust();                                               \
     return e;                                                                 \
   }                                                                           \
+  inline void THROW_ ## code(v8::Isolate* isolate, const char* message) {     \
+    isolate->ThrowException(code(isolate, message));                          \
+  }                                                                           \
   inline void THROW_ ## code(Environment* env, const char* message) {         \
-    env->isolate()->ThrowException(code(env->isolate(), message));            \
+    THROW_ ## code (env->isolate(), message);                                 \
   }
   ERRORS_WITH_CODE(V)
 #undef V
@@ -110,6 +114,14 @@ inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
       "Cannot create a string longer than 0x%x characters",
       v8::String::kMaxLength);
   return ERR_STRING_TOO_LONG(isolate, message);
+}
+
+inline void THROW_ERR_MISSING_METHOD(v8::Isolate* isolate,
+                                     v8::Local<v8::Name> name) {
+  Utf8Value name_str(isolate, name);
+  std::string message("Missing method: ");
+  message += *name_str;
+  THROW_ERR_MISSING_METHOD(isolate, message.c_str());
 }
 
 #define THROW_AND_RETURN_IF_NOT_BUFFER(env, val, prefix)                     \

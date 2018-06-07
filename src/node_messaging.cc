@@ -476,7 +476,6 @@ void MessagePort::OnMessage() {
       };
 
       if (args[0].IsEmpty() ||
-          !object()->Has(context, env()->onmessage_string()).FromMaybe(false) ||
           MakeCallback(env()->onmessage_string(), 1, args).IsEmpty()) {
         // Re-schedule OnMessage() execution in case of failure.
         if (data_)

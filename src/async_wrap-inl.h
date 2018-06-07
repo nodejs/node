@@ -27,6 +27,7 @@
 #include "async_wrap.h"
 #include "base_object-inl.h"
 #include "node_internals.h"
+#include "node_errors.h"
 
 namespace node {
 
@@ -81,18 +82,17 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     const v8::Local<v8::Name> symbol,
     int argc,
     v8::Local<v8::Value>* argv) {
-  v8::Local<v8::Value> cb_v = object()->Get(symbol);
-  CHECK(cb_v->IsFunction());
-  return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
-}
-
-
-inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
-    uint32_t index,
-    int argc,
-    v8::Local<v8::Value>* argv) {
-  v8::Local<v8::Value> cb_v = object()->Get(index);
-  CHECK(cb_v->IsFunction());
+  v8::Local<v8::Value> cb_v;
+  if (!object()->Get(env()->context(), symbol).ToLocal(&cb_v))
+    return v8::MaybeLocal<v8::Value>();
+  if (!cb_v->IsFunction()) {
+    // Due to V8’s error handling mechanisms, this will not show up as an error
+    // in the common case, which is that this is outside of any JS frame.
+    // So, the exception here is mostly just there to fulfill the
+    // `MaybeLocal<>` API contract.
+    THROW_ERR_MISSING_METHOD(env()->isolate(), symbol);
+    return v8::MaybeLocal<v8::Value>();
+  }
   return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
 }
 
