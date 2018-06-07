@@ -260,6 +260,7 @@ test-check-deopts: all
 	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
 
 benchmark/misc/function_call/build/Release/binding.node: all \
+		benchmark/misc/function_call/napi_binding.c \
 		benchmark/misc/function_call/binding.cc \
 		benchmark/misc/function_call/binding.gyp
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
