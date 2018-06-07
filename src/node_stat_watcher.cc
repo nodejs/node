@@ -152,10 +152,10 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());
   const uint32_t interval = args[2].As<Uint32>()->Value();
 
-  // Safe, uv_ref/uv_unref are idempotent.
   wrap->watcher_ = new uv_fs_poll_t();
-  uv_fs_poll_init(wrap->env()->event_loop(), wrap->watcher_);
+  CHECK_EQ(0, uv_fs_poll_init(wrap->env()->event_loop(), wrap->watcher_));
   wrap->watcher_->data = static_cast<void*>(wrap);
+  // Safe, uv_ref/uv_unref are idempotent.
   if (persistent)
     uv_ref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
   else
