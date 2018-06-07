@@ -103,6 +103,11 @@ class NativeSymbolDebuggingContext {
   virtual int GetStackTrace(void** frames, int count) { return 0; }
 };
 
+// Variant of `uv_loop_close` that tries to be as helpful as possible
+// about giving information on currently existing handles, if there are any,
+// but still aborts the process.
+void CheckedUvLoopClose(uv_loop_t* loop);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
