@@ -84,6 +84,24 @@ inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
   Debug(async_wrap, format.c_str(), std::forward<Args>(args)...);
 }
 
+// Debug helper for inspecting the currently running `node` executable.
+class NativeSymbolDebuggingContext {
+ public:
+  static std::unique_ptr<NativeSymbolDebuggingContext> New();
+
+  class SymbolInfo {
+   public:
+    std::string name;
+    std::string filename;
+
+    std::string Display() const;
+  };
+
+  virtual ~NativeSymbolDebuggingContext() {}
+  virtual SymbolInfo LookupSymbol(void* address) { return { "", "" }; }
+  virtual bool IsMapped(void* address) { return false; }
+  virtual int GetStackTrace(void** frames, int count) { return 0; }
+};
 
 }  // namespace node
 
