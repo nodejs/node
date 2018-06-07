@@ -82,8 +82,7 @@ assert(existing.length > 0);
       {
         name: 'TypeError [ERR_INVALID_IP_ADDRESS]',
         code: 'ERR_INVALID_IP_ADDRESS'
-      },
-      `Unexpected error thrown for serv '${serv}'`
+      }
     );
   });
 }
