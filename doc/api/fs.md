@@ -415,6 +415,8 @@ A `fs.Stats` object provides information about a file.
 
 Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
 their synchronous counterparts are of this type.
+If `bigint` in the `options` passed to those methods is true, the numeric values
+will be `bigint` instead of `number`.
 
 ```console
 Stats {
@@ -432,6 +434,30 @@ Stats {
   mtimeMs: 1318289051000.1,
   ctimeMs: 1318289051000.1,
   birthtimeMs: 1318289051000.1,
+  atime: Mon, 10 Oct 2011 23:24:11 GMT,
+  mtime: Mon, 10 Oct 2011 23:24:11 GMT,
+  ctime: Mon, 10 Oct 2011 23:24:11 GMT,
+  birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
+```
+
+`bigint` version:
+
+```console
+Stats {
+  dev: 2114n,
+  ino: 48064969n,
+  mode: 33188n,
+  nlink: 1n,
+  uid: 85n,
+  gid: 100n,
+  rdev: 0n,
+  size: 527n,
+  blksize: 4096n,
+  blocks: 8n,
+  atimeMs: 1318289051000n,
+  mtimeMs: 1318289051000n,
+  ctimeMs: 1318289051000n,
+  birthtimeMs: 1318289051000n,
   atime: Mon, 10 Oct 2011 23:24:11 GMT,
   mtime: Mon, 10 Oct 2011 23:24:11 GMT,
   ctime: Mon, 10 Oct 2011 23:24:11 GMT,
@@ -506,61 +532,61 @@ This method is only valid when using [`fs.lstat()`][].
 
 ### stats.dev
 
-* {number}
+* {number|bigint}
 
 The numeric identifier of the device containing the file.
 
 ### stats.ino
 
-* {number}
+* {number|bigint}
 
 The file system specific "Inode" number for the file.
 
 ### stats.mode
 
-* {number}
+* {number|bigint}
 
 A bit-field describing the file type and mode.
 
 ### stats.nlink
 
-* {number}
+* {number|bigint}
 
 The number of hard-links that exist for the file.
 
 ### stats.uid
 
-* {number}
+* {number|bigint}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 ### stats.gid
 
-* {number}
+* {number|bigint}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 ### stats.rdev
 
-* {number}
+* {number|bigint}
 
 A numeric device identifier if the file is considered "special".
 
 ### stats.size
 
-* {number}
+* {number|bigint}
 
 The size of the file in bytes.
 
 ### stats.blksize
 
-* {number}
+* {number|bigint}
 
 The file system block size for i/o operations.
 
 ### stats.blocks
 
-* {number}
+* {number|bigint}
 
 The number of blocks allocated for this file.
 
@@ -569,7 +595,7 @@ The number of blocks allocated for this file.
 added: v8.1.0
 -->
 
-* {number}
+* {number|bigint}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
@@ -579,7 +605,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number}
+* {number|bigint}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
@@ -589,7 +615,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number}
+* {number|bigint}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
@@ -599,7 +625,7 @@ in milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number}
+* {number|bigint}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
@@ -1648,7 +1674,7 @@ added: v0.1.96
 
 Synchronous fdatasync(2). Returns `undefined`.
 
-## fs.fstat(fd, callback)
+## fs.fstat(fd[, options], callback)
 <!-- YAML
 added: v0.1.95
 changes:
@@ -1660,9 +1686,16 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `fd` {integer}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -1671,12 +1704,20 @@ Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
 `stats` is an [`fs.Stats`][] object. `fstat()` is identical to [`stat()`][],
 except that the file to be stat-ed is specified by the file descriptor `fd`.
 
-## fs.fstatSync(fd)
+## fs.fstatSync(fd[, options])
 <!-- YAML
 added: v0.1.95
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `fd` {integer}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {fs.Stats}
 
 Synchronous fstat(2).
@@ -1942,7 +1983,7 @@ changes:
 
 Synchronous link(2). Returns `undefined`.
 
-## fs.lstat(path, callback)
+## fs.lstat(path[, options], callback)
 <!-- YAML
 added: v0.1.30
 changes:
@@ -1958,9 +1999,16 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -1970,7 +2018,7 @@ Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
 except that if `path` is a symbolic link, then the link itself is stat-ed,
 not the file that it refers to.
 
-## fs.lstatSync(path)
+## fs.lstatSync(path[, options])
 <!-- YAML
 added: v0.1.30
 changes:
@@ -1978,9 +2026,16 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {fs.Stats}
 
 Synchronous lstat(2).
@@ -2698,7 +2753,7 @@ Synchronous rmdir(2). Returns `undefined`.
 Using `fs.rmdirSync()` on a file (not a directory) results in an `ENOENT` error
 on Windows and an `ENOTDIR` error on POSIX.
 
-## fs.stat(path, callback)
+## fs.stat(path[, options], callback)
 <!-- YAML
 added: v0.0.2
 changes:
@@ -2714,9 +2769,16 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -2734,7 +2796,7 @@ error raised if the file is not available.
 To check if a file exists without manipulating it afterwards, [`fs.access()`]
 is recommended.
 
-## fs.statSync(path)
+## fs.statSync(path[, options])
 <!-- YAML
 added: v0.1.21
 changes:
@@ -2742,9 +2804,16 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol. Support is currently still *experimental*.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {fs.Stats}
 
 Synchronous stat(2).
@@ -3521,10 +3590,18 @@ returned.
 
 The `FileHandle` has to support reading.
 
-#### filehandle.stat()
+#### filehandle.stat([options])
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {Promise}
 
 Retrieves the [`fs.Stats`][] for the file.
@@ -3849,12 +3926,20 @@ added: v10.0.0
 
 Asynchronous link(2). The `Promise` is resolved with no arguments upon success.
 
-### fsPromises.lstat(path)
+### fsPromises.lstat(path[, options])
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {Promise}
 
 Asynchronous lstat(2). The `Promise` is resolved with the [`fs.Stats`][] object
@@ -4035,12 +4120,20 @@ Using `fsPromises.rmdir()` on a file (not a directory) results in the
 `Promise` being rejected with an `ENOENT` error on Windows and an `ENOTDIR`
 error on POSIX.
 
-### fsPromises.stat(path)
+### fsPromises.stat(path[, options])
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Accepts an additional `options` object to specify whether
+                 the numeric values returned should be bigint.
 -->
 
 * `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {Promise}
 
 The `Promise` is resolved with the [`fs.Stats`][] object for the given `path`.
@@ -4496,9 +4589,9 @@ the file contents.
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_flags_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
-[`fs.fstat()`]: #fs_fs_fstat_fd_callback
+[`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
-[`fs.lstat()`]: #fs_fs_lstat_path_callback
+[`fs.lstat()`]: #fs_fs_lstat_path_options_callback
 [`fs.mkdir()`]: #fs_fs_mkdir_path_mode_callback
 [`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
@@ -4507,7 +4600,7 @@ the file contents.
 [`fs.readFileSync()`]: #fs_fs_readfilesync_path_options
 [`fs.realpath()`]: #fs_fs_realpath_path_options_callback
 [`fs.rmdir()`]: #fs_fs_rmdir_path_callback
-[`fs.stat()`]: #fs_fs_stat_path_callback
+[`fs.stat()`]: #fs_fs_stat_path_options_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
 [`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
