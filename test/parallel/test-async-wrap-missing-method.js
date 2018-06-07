@@ -1,9 +1,8 @@
 // Flags: --experimental-worker
 'use strict';
-const common = require('../common');
-const assert = require('assert');
+require('../common');
 
-const { MessageChannel, MessagePort } = require('worker_threads');
+const { MessageChannel } = require('worker_threads');
 
 {
   const { port1, port2 } = new MessageChannel();
