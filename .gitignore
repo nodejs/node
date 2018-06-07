@@ -14,6 +14,7 @@
 !.mailmap
 !.nycrc
 !.remarkrc
+!.travis.yml
 
 core
 vgcore.*
