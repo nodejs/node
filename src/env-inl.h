@@ -37,41 +37,9 @@
 
 namespace node {
 
-inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                                uint32_t* zero_fill_field) :
-
-// Create string and private symbol properties as internalized one byte strings.
-//
-// Internalized because it makes property lookups a little faster and because
-// the string is created in the old space straight away.  It's going to end up
-// in the old space sooner or later anyway but now it doesn't go through
-// v8::Eternal's new space handling first.
-//
-// One byte because our strings are ASCII and we can safely skip V8's UTF-8
-// decoding step.  It's a one-time cost, but why pay it when you don't have to?
-#define V(PropertyName, StringValue)                                          \
-    PropertyName ## _(                                                        \
-        isolate,                                                              \
-        v8::Private::New(                                                     \
-            isolate,                                                          \
-            v8::String::NewFromOneByte(                                       \
-                isolate,                                                      \
-                reinterpret_cast<const uint8_t*>(StringValue),                \
-                v8::NewStringType::kInternalized,                             \
-                sizeof(StringValue) - 1).ToLocalChecked())),
-  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
-#undef V
-#define V(PropertyName, StringValue)                                          \
-    PropertyName ## _(                                                        \
-        isolate,                                                              \
-        v8::String::NewFromOneByte(                                           \
-            isolate,                                                          \
-            reinterpret_cast<const uint8_t*>(StringValue),                    \
-            v8::NewStringType::kInternalized,                                 \
-            sizeof(StringValue) - 1).ToLocalChecked()),
-    PER_ISOLATE_STRING_PROPERTIES(V)
-#undef V
-    event_loop_(event_loop), zero_fill_field_(zero_fill_field) {}
+inline v8::Isolate* IsolateData::isolate() const {
+  return isolate_;
+}
 
 inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
@@ -79,6 +47,10 @@ inline uv_loop_t* IsolateData::event_loop() const {
 
 inline uint32_t* IsolateData::zero_fill_field() const {
   return zero_fill_field_;
+}
+
+inline MultiIsolatePlatform* IsolateData::platform() const {
+  return platform_;
 }
 
 inline Environment::AsyncHooks::AsyncHooks()
@@ -92,10 +64,6 @@ inline Environment::AsyncHooks::AsyncHooks()
   // 0 is not used as the magic value, because that indicates a missing context
   // which is different from a default context.
   async_id_fields_[AsyncHooks::kDefaultTriggerAsyncId] = -1;
-
-  // kAsyncIdCounter should start at 1 because that'll be the id the execution
-  // context during bootstrap (code that runs before entering uv_run()).
-  async_id_fields_[AsyncHooks::kAsyncIdCounter] = 1;
 
   // Create all the provider strings that will be passed to JS. Place them in
   // an array so the array index matches the PROVIDER id offset. This way the

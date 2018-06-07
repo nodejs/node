@@ -347,10 +347,13 @@ class Environment;
 
 class IsolateData {
  public:
-  inline IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                     uint32_t* zero_fill_field = nullptr);
+  IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
+              MultiIsolatePlatform* platform = nullptr,
+              uint32_t* zero_fill_field = nullptr);
+  ~IsolateData();
   inline uv_loop_t* event_loop() const;
   inline uint32_t* zero_fill_field() const;
+  inline MultiIsolatePlatform* platform() const;
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -363,6 +366,7 @@ class IsolateData {
 #undef VP
 
   std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
+  inline v8::Isolate* isolate() const;
 
  private:
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
@@ -375,8 +379,10 @@ class IsolateData {
 #undef VS
 #undef VP
 
+  v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
   uint32_t* const zero_fill_field_;
+  MultiIsolatePlatform* platform_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
