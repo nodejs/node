@@ -3153,8 +3153,6 @@ static void PrintHelp() {
          "  --inspect-brk[=[host:]port]\n"
          "                             activate inspector on host:port\n"
          "                             and break at start of user script\n"
-         "  --inspect-brk-node         will break in node's bootstrap code\n"
-         "                             (default: false)\n"
          "  --inspect-port=[host:]port\n"
          "                             set host:port for inspector\n"
          "  --inspect[=[host:]port]    activate inspector on host:port\n"
