@@ -44,9 +44,18 @@ assert.strictEqual(util.format(symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('foo', symbol), 'foo Symbol(foo)');
 assert.strictEqual(util.format('%s', symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('%j', symbol), 'undefined');
-assert.throws(function() {
-  util.format('%d', symbol);
-}, /^TypeError: Cannot convert a Symbol value to a number$/);
+assert.throws(
+  () => { util.format('%d', symbol); },
+  (e) => {
+    // The error should be a TypeError.
+    if (!(e instanceof TypeError))
+      return false;
+
+    // The error should be from the JS engine and not from Node.js.
+    // JS engine errors do not have the `code` property.
+    return e.code === undefined;
+  }
+);
 
 // Number format specifier
 assert.strictEqual(util.format('%d'), '%d');
