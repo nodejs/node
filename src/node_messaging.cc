@@ -391,7 +391,19 @@ uv_async_t* MessagePort::async() {
 }
 
 void MessagePort::TriggerAsync() {
+  if (IsHandleClosing()) return;
   CHECK_EQ(uv_async_send(async()), 0);
+}
+
+void MessagePort::Close(v8::Local<v8::Value> close_callback) {
+  if (data_) {
+    // Wrap this call with accessing the mutex, so that TriggerAsync()
+    // can check IsHandleClosing() without race conditions.
+    Mutex::ScopedLock sibling_lock(data_->mutex_);
+    HandleWrap::Close(close_callback);
+  } else {
+    HandleWrap::Close(close_callback);
+  }
 }
 
 void MessagePort::New(const FunctionCallbackInfo<Value>& args) {
@@ -476,7 +488,6 @@ void MessagePort::OnMessage() {
       };
 
       if (args[0].IsEmpty() ||
-          !object()->Has(context, env()->onmessage_string()).FromMaybe(false) ||
           MakeCallback(env()->onmessage_string(), 1, args).IsEmpty()) {
         // Re-schedule OnMessage() execution in case of failure.
         if (data_)
