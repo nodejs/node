@@ -368,12 +368,12 @@ class CipherBase : public BaseObject {
               const char* iv,
               int iv_len,
               unsigned int auth_tag_len);
-  bool InitAuthenticated(const char *cipher_type, int iv_len,
+  bool InitAuthenticated(const char* cipher_type, int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
   UpdateResult Update(const char* data, int len, unsigned char** out,
                       int* out_len);
-  bool Final(unsigned char** out, int *out_len);
+  bool Final(unsigned char** out, int* out_len);
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
@@ -492,7 +492,7 @@ class Sign : public SignBase {
                   int key_pem_len,
                   const char* passphrase,
                   unsigned char* sig,
-                  unsigned int *sig_len,
+                  unsigned int* sig_len,
                   int padding,
                   int saltlen);
 
@@ -532,10 +532,10 @@ class Verify : public SignBase {
 
 class PublicKeyCipher {
  public:
-  typedef int (*EVP_PKEY_cipher_init_t)(EVP_PKEY_CTX *ctx);
-  typedef int (*EVP_PKEY_cipher_t)(EVP_PKEY_CTX *ctx,
-                                   unsigned char *out, size_t *outlen,
-                                   const unsigned char *in, size_t inlen);
+  typedef int (*EVP_PKEY_cipher_init_t)(EVP_PKEY_CTX* ctx);
+  typedef int (*EVP_PKEY_cipher_t)(EVP_PKEY_CTX* ctx,
+                                   unsigned char* out, size_t* outlen,
+                                   const unsigned char* in, size_t inlen);
 
   enum Operation {
     kPublic,
