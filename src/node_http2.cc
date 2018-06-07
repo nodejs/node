@@ -1787,7 +1787,8 @@ void Http2Stream::Destroy() {
     // We can destroy the stream now if there are no writes for it
     // already on the socket. Otherwise, we'll wait for the garbage collector
     // to take care of cleaning up.
-    if (!stream->session()->HasWritesOnSocketForStream(stream))
+    if (stream->session() == nullptr ||
+        !stream->session()->HasWritesOnSocketForStream(stream))
       delete stream;
   }, this, this->object());
 
