@@ -1,3 +1,5 @@
+// Flags: --experimental-modules
+
 import '../common';
 import assert from 'assert';
 
