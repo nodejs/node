@@ -51,6 +51,8 @@ valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
+with open ('tools/icu/icu_versions.json') as f:
+  icu_versions = json.load(f)
 
 # create option groups
 shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
@@ -425,7 +427,9 @@ intl_optgroup.add_option('--with-icu-locales',
 intl_optgroup.add_option('--with-icu-source',
     action='store',
     dest='with_icu_source',
-    help='Intl mode: optional local path to icu/ dir, or path/URL of icu source archive.')
+    help='Intl mode: optional local path to icu/ dir, or path/URL of '
+        'the icu4c source archive. '
+        'v%d.x or later recommended.' % icu_versions["minimum_icu"])
 
 parser.add_option('--with-ltcg',
     action='store_true',
@@ -1452,6 +1456,9 @@ def configure_intl(o):
       icu_ver_major = m.group(1)
   if not icu_ver_major:
     error('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
+  elif int(icu_ver_major) < icu_versions["minimum_icu"]:
+    error('icu4c v%d.x is too old, v%d.x or later is required.' % (int(icu_ver_major),
+                                                                  icu_versions["minimum_icu"]))
   icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
