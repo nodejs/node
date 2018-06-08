@@ -672,7 +672,10 @@ def get_xcode_version(cc):
 def get_gas_version(cc):
   try:
     custom_env = os.environ.copy()
-    custom_env["LC_ALL"] = "en_US"
+    # smartos (a.k.a. sunos5) does not have the en_US locale, and will give:
+    # `setlocale: LC_ALL: cannot change locale (en_US): Invalid argument`
+    if 'sunos' not in sys.platform:
+      custom_env["LC_ALL"] = "en_US"
     proc = subprocess.Popen(shlex.split(cc) + ['-Wa,-v', '-c', '-o',
                                                '/dev/null', '-x',
                                                'assembler',  '/dev/null'],
@@ -685,12 +688,13 @@ def get_gas_version(cc):
        consider adjusting the CC environment variable if you installed
        it in a non-standard prefix.''')
 
-  match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)",
-                   proc.communicate()[1])
+  gas_ret = proc.communicate()[1]
+  match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)", gas_ret)
 
   if match:
     return match.group(1)
   else:
+    warn('Could not recognize `gas`: ' + gas_ret)
     return '0'
 
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
