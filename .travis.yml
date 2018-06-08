@@ -7,6 +7,8 @@ matrix:
   include:
     - os: linux
       node_js: "latest"
+      install:
+        - NODE=$(which node) make lint-md-build
       script:
         - NODE=$(which node) make lint-ci
     - os: linux
