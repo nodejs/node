@@ -53,9 +53,8 @@ enum class TransportAction {
 
 class InspectorIo {
  public:
-  InspectorIo(node::Environment* env, v8::Platform* platform,
-              const std::string& path, const DebugOptions& options,
-              bool wait_for_connect);
+  InspectorIo(node::Environment* env, const std::string& path,
+              const DebugOptions& options, bool wait_for_connect);
 
   ~InspectorIo();
   // Start the inspector agent thread, waiting for it to initialize,
@@ -142,7 +141,8 @@ class InspectorIo {
   // Note that this will live while the async is being closed - likely, past
   // the parent object lifespan
   std::pair<uv_async_t, Agent*>* main_thread_req_;
-  v8::Platform* platform_;
+  // Will be used to post tasks from another thread
+  v8::Platform* const platform_;
 
   // Message queues
   ConditionVariable incoming_message_cond_;

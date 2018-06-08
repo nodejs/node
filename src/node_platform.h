@@ -133,11 +133,7 @@ class NodePlatform : public MultiIsolatePlatform {
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;
-
-  // Returns true if work was dispatched or executed. New tasks that are
-  // posted during flushing of the queue are postponed until the next
-  // flushing.
-  bool FlushForegroundTasks(v8::Isolate* isolate);
+  bool FlushForegroundTasks(v8::Isolate* isolate) override;
 
   void RegisterIsolate(IsolateData* isolate_data, uv_loop_t* loop) override;
   void UnregisterIsolate(IsolateData* isolate_data) override;

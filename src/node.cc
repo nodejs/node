@@ -320,7 +320,7 @@ static struct {
     // Inspector agent can't fail to start, but if it was configured to listen
     // right away on the websocket port and fails to bind/etc, this will return
     // false.
-    return env->inspector_agent()->Start(platform_, script_path, options);
+    return env->inspector_agent()->Start(script_path, options);
   }
 
   bool InspectorStarted(Environment* env) {
