@@ -672,7 +672,7 @@ def get_xcode_version(cc):
 def get_gas_version(cc):
   try:
     custom_env = os.environ.copy()
-    custom_env["LC_ALL"] = "en_US"
+    custom_env["LC_ALL"] = "en_US.UTF-8"
     proc = subprocess.Popen(shlex.split(cc) + ['-Wa,-v', '-c', '-o',
                                                '/dev/null', '-x',
                                                'assembler',  '/dev/null'],
