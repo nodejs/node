@@ -1459,6 +1459,26 @@ the specified file descriptor. This means that no `'open'` event will be
 emitted. `fd` should be blocking; non-blocking `fd`s should be passed to
 [`net.Socket`][].
 
+The blocking `fd`, if pointing to a character device (such as keyboard or
+sound card) can potentially block the main thread on stream close. This is
+because these devices do not produce EOF character as part of their data
+flow cycle, and thereby exemplify endless streams. As a result, they do not
+respond to `stream.close()`. A workaround is to close the stream first
+using `stream.close()` and then push a random character into the stream, and
+issue a single read. This unblocks the reader thread, leads to the completion
+of the data flow cycle, and the actual closing of the stream.
+
+```js
+const fs = require('fs');
+// Create a stream from some character  device.
+const stream = fs.createReadStream('/dev/input/event0');
+setTimeout(() => {
+  stream.close(); // This does not close the stream.
+  stream.push(null);
+  stream.read(0); // Pushing a null and reading leads to close.
+}, 100);
+```
+
 If `autoClose` is false, then the file descriptor won't be closed, even if
 there's an error. It is the application's responsibility to close it and make
 sure there's no file descriptor leak. If `autoClose` is set to true (default
