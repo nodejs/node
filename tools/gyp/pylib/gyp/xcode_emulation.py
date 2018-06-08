@@ -1403,7 +1403,7 @@ def XcodeVersion():
   except:
     version = CLTVersion()
     if version:
-      version = re.match(r'(\d\.\d\.?\d*)', version).groups()[0]
+      version = re.match(r'(\d+\.\d+\.?\d*)', version).groups()[0]
     else:
       raise GypError("No Xcode or CLT version detected!")
     # The CLT has no build information, so we return an empty string.
