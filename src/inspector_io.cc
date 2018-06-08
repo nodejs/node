@@ -162,11 +162,11 @@ class DispatchMessagesTask : public v8::Task {
   Agent* agent_;
 };
 
-InspectorIo::InspectorIo(Environment* env, v8::Platform* platform,
-                         const std::string& path, const DebugOptions& options,
-                         bool wait_for_connect)
+InspectorIo::InspectorIo(Environment* env, const std::string& path,
+                         const DebugOptions& options, bool wait_for_connect)
                          : options_(options), thread_(), state_(State::kNew),
-                           parent_env_(env), thread_req_(), platform_(platform),
+                           parent_env_(env), thread_req_(),
+                           platform_(parent_env_->isolate_data()->platform()),
                            dispatching_messages_(false), script_name_(path),
                            wait_for_connect_(wait_for_connect), port_(-1),
                            id_(GenerateID()) {

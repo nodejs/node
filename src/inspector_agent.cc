@@ -328,8 +328,7 @@ class InspectorTimerHandle {
 
 class NodeInspectorClient : public V8InspectorClient {
  public:
-  NodeInspectorClient(node::Environment* env, node::NodePlatform* platform)
-      : env_(env), platform_(platform) {
+  explicit NodeInspectorClient(node::Environment* env) : env_(env) {
     client_ = V8Inspector::create(env->isolate(), this);
     // TODO(bnoordhuis) Make name configurable from src/node.cc.
     ContextInfo info(GetHumanReadableProcessName());
@@ -346,8 +345,9 @@ class NodeInspectorClient : public V8InspectorClient {
       return;
     terminated_ = false;
     running_nested_loop_ = true;
+    MultiIsolatePlatform* platform = env_->isolate_data()->platform();
     while ((ignore_terminated || !terminated_) && waitForFrontendEvent()) {
-      while (platform_->FlushForegroundTasks(env_->isolate())) {}
+      while (platform->FlushForegroundTasks(env_->isolate())) {}
     }
     terminated_ = false;
     running_nested_loop_ = false;
@@ -514,7 +514,6 @@ class NodeInspectorClient : public V8InspectorClient {
 
  private:
   node::Environment* env_;
-  node::NodePlatform* platform_;
   bool terminated_ = false;
   bool running_nested_loop_ = false;
   std::unique_ptr<V8Inspector> client_;
@@ -524,25 +523,17 @@ class NodeInspectorClient : public V8InspectorClient {
   bool events_dispatched_ = false;
 };
 
-Agent::Agent(Environment* env) : parent_env_(env),
-                                 client_(nullptr),
-                                 platform_(nullptr),
-                                 pending_enable_async_hook_(false),
-                                 pending_disable_async_hook_(false) {}
+Agent::Agent(Environment* env) : parent_env_(env) {}
 
 // Destructor needs to be defined here in implementation file as the header
 // does not have full definition of some classes.
 Agent::~Agent() {
 }
 
-bool Agent::Start(node::NodePlatform* platform, const char* path,
-                  const DebugOptions& options) {
+bool Agent::Start(const char* path, const DebugOptions& options) {
   path_ = path == nullptr ? "" : path;
   debug_options_ = options;
-  client_ =
-      std::shared_ptr<NodeInspectorClient>(
-          new NodeInspectorClient(parent_env_, platform));
-  platform_ = platform;
+  client_ = std::make_shared<NodeInspectorClient>(parent_env_);
   CHECK_EQ(0, uv_async_init(uv_default_loop(),
                             &start_io_thread_async,
                             StartIoThreadAsyncCallback));
@@ -565,8 +556,7 @@ bool Agent::StartIoThread(bool wait_for_connect) {
   CHECK_NOT_NULL(client_);
 
   io_ = std::unique_ptr<InspectorIo>(
-      new InspectorIo(parent_env_, platform_, path_, debug_options_,
-                      wait_for_connect));
+      new InspectorIo(parent_env_, path_, debug_options_, wait_for_connect));
   if (!io_->Start()) {
     client_.reset();
     return false;
@@ -716,7 +706,8 @@ void Agent::RequestIoThreadStart() {
   // for IO events)
   uv_async_send(&start_io_thread_async);
   v8::Isolate* isolate = parent_env_->isolate();
-  platform_->CallOnForegroundThread(isolate, new StartIoTask(this));
+  v8::Platform* platform = parent_env_->isolate_data()->platform();
+  platform->CallOnForegroundThread(isolate, new StartIoTask(this));
   isolate->RequestInterrupt(StartIoInterrupt, this);
   uv_async_send(&start_io_thread_async);
 }

@@ -50,8 +50,7 @@ class Agent {
   ~Agent();
 
   // Create client_, may create io_ if option enabled
-  bool Start(node::NodePlatform* platform, const char* path,
-             const DebugOptions& options);
+  bool Start(const char* path, const DebugOptions& options);
   // Stop and destroy io_
   void Stop();
 
@@ -108,12 +107,11 @@ class Agent {
   node::Environment* parent_env_;
   std::shared_ptr<NodeInspectorClient> client_;
   std::unique_ptr<InspectorIo> io_;
-  v8::Platform* platform_;
   std::string path_;
   DebugOptions debug_options_;
 
-  bool pending_enable_async_hook_;
-  bool pending_disable_async_hook_;
+  bool pending_enable_async_hook_ = false;
+  bool pending_disable_async_hook_ = false;
   node::Persistent<v8::Function> enable_async_hook_function_;
   node::Persistent<v8::Function> disable_async_hook_function_;
 };
