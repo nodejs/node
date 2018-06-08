@@ -444,6 +444,10 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
+To check the minimum recommended ICU, run `./configure --help` and see
+the help for the `--with-icu-source` option. A warning will be printed
+during configuration if the ICU version is too old.
+
 ##### Unix/macOS
 
 From an already-unpacked ICU:
