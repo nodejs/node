@@ -37,6 +37,8 @@ async function runner(directoryQueue) {
                      env: { ...process.env, MAKEFLAGS: '-j1' }
                    });
 
+  // We buffer the output and print it out once the process is done in order
+  // to avoid interleaved output from multiple builds running at once.
   process.stdout.write(stdout);
   process.stderr.write(stderr);
 
