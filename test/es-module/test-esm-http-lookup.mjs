@@ -1,6 +1,8 @@
 import '../common';
 import assert from 'assert';
 
-import esm from 'https://raw.githubusercontent.com/kuroljov/esm-test/master/main.mjs';
+import { a } from 'https://raw.githubusercontent.com/kuroljov/esm-test/master/a.js';
+import { b } from 'https://raw.githubusercontent.com/kuroljov/esm-test/master/b.js';
 
-console.log(esm);
+assert.strictEqual(a, 'a');
+assert.strictEqual(b(), 'b');
