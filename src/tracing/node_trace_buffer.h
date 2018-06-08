@@ -19,7 +19,8 @@ class NodeTraceBuffer;
 
 class InternalTraceBuffer {
  public:
-  InternalTraceBuffer(size_t max_chunks, uint32_t id, Agent* agent);
+  InternalTraceBuffer(size_t max_chunks, uint32_t id,
+                      std::shared_ptr<AgentHandle> agent);
 
   TraceObject* AddTraceEvent(uint64_t* handle);
   TraceObject* GetEventByHandle(uint64_t handle);
@@ -41,7 +42,7 @@ class InternalTraceBuffer {
   Mutex mutex_;
   bool flushing_;
   size_t max_chunks_;
-  Agent* agent_;
+  std::shared_ptr<AgentHandle> agent_;
   std::vector<std::unique_ptr<TraceBufferChunk>> chunks_;
   size_t total_chunks_ = 0;
   uint32_t current_chunk_seq_ = 1;
@@ -50,7 +51,9 @@ class InternalTraceBuffer {
 
 class NodeTraceBuffer : public TraceBuffer {
  public:
-  NodeTraceBuffer(size_t max_chunks, Agent* agent, uv_loop_t* tracing_loop);
+  NodeTraceBuffer(size_t max_chunks,
+                  std::shared_ptr<AgentHandle> agent,
+                  uv_loop_t* tracing_loop);
   ~NodeTraceBuffer();
 
   TraceObject* AddTraceEvent(uint64_t* handle) override;

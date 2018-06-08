@@ -4,7 +4,7 @@ namespace node {
 namespace tracing {
 
 InternalTraceBuffer::InternalTraceBuffer(size_t max_chunks, uint32_t id,
-                                         Agent* agent)
+                                         std::shared_ptr<AgentHandle> agent)
     : flushing_(false), max_chunks_(max_chunks),
       agent_(agent), id_(id) {
   chunks_.resize(max_chunks);
@@ -87,7 +87,7 @@ void InternalTraceBuffer::ExtractHandle(
 }
 
 NodeTraceBuffer::NodeTraceBuffer(size_t max_chunks,
-    Agent* agent, uv_loop_t* tracing_loop)
+    std::shared_ptr<AgentHandle> agent, uv_loop_t* tracing_loop)
     : tracing_loop_(tracing_loop),
       buffer1_(max_chunks, 0, agent),
       buffer2_(max_chunks, 1, agent) {

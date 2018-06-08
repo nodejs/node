@@ -9,6 +9,7 @@ namespace node {
 class Environment;
 
 namespace tracing {
+class ClientHandle;
 class Agent;
 }  // namespace tracing
 
@@ -32,8 +33,7 @@ class TracingAgent : public NodeTracing::Backend {
   void DisconnectTraceClient();
 
   Environment* env_;
-  std::unique_ptr<std::pair<tracing::Agent*, int>,
-                  void (*)(std::pair<tracing::Agent*, int>*)> trace_writer_;
+  std::unique_ptr<tracing::ClientHandle> trace_writer_;
   std::unique_ptr<NodeTracing::Frontend> frontend_;
 };
 
