@@ -672,6 +672,8 @@ def get_xcode_version(cc):
 def get_gas_version(cc):
   try:
     custom_env = os.environ.copy()
+    # smartos (a.k.a. sunos5) does not have the en_US locale, and will give:
+    # `setlocale: LC_ALL: cannot change locale (en_US): Invalid argument`
     if 'sunos' not in sys.platform:
       custom_env["LC_ALL"] = "en_US"
     proc = subprocess.Popen(shlex.split(cc) + ['-Wa,-v', '-c', '-o',
