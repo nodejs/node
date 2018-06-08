@@ -395,7 +395,8 @@ parser.add_option('--with-etw',
 parser.add_option('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
-    help='build with Large Pages support (enabled only for Linux).')
+    help='build with Large Pages support (enabled only for Linux).' +
+         '(Needs Linux kernel >= 2.6.38 with Transparent Huge pages enabled)')
 
 intl_optgroup.add_option('--with-intl',
     action='store',
