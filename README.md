@@ -582,6 +582,8 @@ Node.js releases are signed with one of the following GPG keys:
 `71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
 * **Jeremiah Senkpiel** &lt;fishrock@keybase.io&gt;
 `FD3A5288F042B6850C66B31F09FE44734EB7990E`
+* **Michaël Zasso** &lt;targos@protonmail.com&gt;
+`8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
 * **Myles Borins** &lt;myles.borins@gmail.com&gt;
 `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
 * **Rod Vagg** &lt;rod@vagg.org&gt;
@@ -591,13 +593,14 @@ The full set of trusted release keys can be imported by running:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
-gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE44734EB7990E
-gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
-gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
-gpg --keyserver pool.sks-keyservers.net --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8
 gpg --keyserver pool.sks-keyservers.net --recv-keys B9AE9905FFD7803F25714661B63B535A4C206CA9
-gpg --keyserver pool.sks-keyservers.net --recv-keys 56730D5401028683275BD23C23EFEFE93C4CFFFE
 gpg --keyserver pool.sks-keyservers.net --recv-keys 77984A986EBC2AA786BC0F66B01FBB92821C587A
+gpg --keyserver pool.sks-keyservers.net --recv-keys 56730D5401028683275BD23C23EFEFE93C4CFFFE
+gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
+gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE44734EB7990E
+gpg --keyserver pool.sks-keyservers.net --recv-keys 8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600
+gpg --keyserver pool.sks-keyservers.net --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8
+gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 ```
 
 See the section above on [Verifying Binaries](#verifying-binaries) for details
