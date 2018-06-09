@@ -3165,6 +3165,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
 
   static const char* whitelist[] = {
     // Node options, sorted in `node --help` order for ease of comparison.
+    // Please, update NODE_OPTIONS section in cli.md if changed.
     "--enable-fips",
     "--experimental-modules",
     "--experimental-repl-await",

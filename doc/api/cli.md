@@ -513,22 +513,30 @@ that is not allowed in the environment is used, such as `-p` or a script file.
 
 Node options that are allowed are:
 - `--enable-fips`
+  `--experimental-modules`
+  `--experimental-repl-await`
+  `--experimental-vm-modules`
+  `--experimental-worker`
 - `--force-fips`
 - `--icu-data-dir`
+- `--inspect`
 - `--inspect-brk`
 - `--inspect-port`
-- `--inspect`
+  `--loader`
+  `--napi-modules`
 - `--no-deprecation`
+  `--no-force-async-hooks-checks`
 - `--no-warnings`
 - `--openssl-config`
+  `--pending-deprecation`
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
 - `--tls-cipher-list`
 - `--trace-deprecation`
-- `--trace-events-categories`
-- `--trace-events-enabled`
+- `--trace-event-categories`
 - `--trace-event-file-pattern`
+- `--trace-events-enabled`
 - `--trace-sync-io`
 - `--trace-warnings`
 - `--track-heap-objects`
