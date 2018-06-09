@@ -534,7 +534,7 @@ Node options that are allowed are:
 - `--throw-deprecation`
 - `--tls-cipher-list`
 - `--trace-deprecation`
-- `--trace-events-categories`
+- `--trace-event-categories`
 - `--trace-event-file-pattern`
 - `--trace-events-enabled`
 - `--trace-sync-io`
