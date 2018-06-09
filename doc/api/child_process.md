@@ -661,6 +661,12 @@ child registers an event handler for the [`'disconnect'`][] event
 or the [`'message'`][] event. This allows the child to exit
 normally without the process being held open by the open IPC channel.*
 
+On UNIX-like operating systems, the [`child_process.spawn()`][] method
+performs memory operations synchronously before decoupling the event loop
+from the child. Applications with a large memory footprint may find frequent
+[`child_process.spawn()`][] calls to be a bottleneck. For more information,
+see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
+
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
 ## Synchronous Process Creation
