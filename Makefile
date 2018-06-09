@@ -131,7 +131,6 @@ distclean:
 	$(RM) -r deps/icu
 	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
 	$(RM) $(BINARYTAR).* $(TARBALL).*
-	$(RM) -r deps/v8/testing/gmock
 
 .PHONY: check
 check: test
