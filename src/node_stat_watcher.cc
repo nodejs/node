@@ -77,19 +77,15 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
 
 StatWatcher::StatWatcher(Environment* env, Local<Object> wrap, bool use_bigint)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_STATWATCHER),
-      watcher_(new uv_fs_poll_t),
+      watcher_(nullptr),
       use_bigint_(use_bigint) {
   MakeWeak();
-  uv_fs_poll_init(env->event_loop(), watcher_);
-  watcher_->data = static_cast<void*>(this);
 }
 
 
 StatWatcher::~StatWatcher() {
-  if (IsActive()) {
+  if (IsActive())
     Stop();
-  }
-  env()->CloseHandle(watcher_, [](uv_fs_poll_t* handle) { delete handle; });
 }
 
 
@@ -123,7 +119,7 @@ void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 bool StatWatcher::IsActive() {
-  return uv_is_active(reinterpret_cast<uv_handle_t*>(watcher_)) != 0;
+  return watcher_ != nullptr;
 }
 
 void StatWatcher::IsActive(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -156,6 +152,9 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());
   const uint32_t interval = args[2].As<Uint32>()->Value();
 
+  wrap->watcher_ = new uv_fs_poll_t();
+  CHECK_EQ(0, uv_fs_poll_init(wrap->env()->event_loop(), wrap->watcher_));
+  wrap->watcher_->data = static_cast<void*>(wrap);
   // Safe, uv_ref/uv_unref are idempotent.
   if (persistent)
     uv_ref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
@@ -187,7 +186,8 @@ void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
 
 
 void StatWatcher::Stop() {
-  uv_fs_poll_stop(watcher_);
+  env()->CloseHandle(watcher_, [](uv_fs_poll_t* handle) { delete handle; });
+  watcher_ = nullptr;
   MakeWeak();
 }
 
