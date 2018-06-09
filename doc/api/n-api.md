@@ -113,10 +113,9 @@ typedef enum {
   napi_escape_called_twice,
   napi_handle_scope_mismatch,
   napi_callback_scope_mismatch,
-#ifdef NAPI_EXPERIMENTAL
   napi_queue_full,
   napi_closing,
-#endif  // NAPI_EXPERIMENTAL
+  napi_bigint_expected,
 } napi_status;
 ```
 If additional information is required upon an API returning a failed status,
@@ -1225,6 +1224,7 @@ typedef enum {
   napi_object,
   napi_function,
   napi_external,
+  napi_bigint,
 } napi_valuetype;
 ```
 
@@ -1250,6 +1250,8 @@ typedef enum {
   napi_uint32_array,
   napi_float32_array,
   napi_float64_array,
+  napi_bigint64_array,
+  napi_biguint64_array,
 } napi_typedarray_type;
 ```
 
@@ -1691,6 +1693,78 @@ This API is used to convert from the C `double` type to the JavaScript
 The JavaScript `Number` type is described in
 [Section 6.1.6][] of the ECMAScript Language Specification.
 
+#### napi_create_bigint_int64
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_create_bigint_int64(napi_env env,
+                                     int64_t value,
+                                     napi_value* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: Integer value to be represented in JavaScript.
+- `[out] result`: A `napi_value` representing a JavaScript `BigInt`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API converts the C `int64_t` type to the JavaScript `BigInt` type.
+
+#### napi_create_bigint_uint64
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_create_bigint_uint64(napi_env env,
+                                      uint64_t vaue,
+                                      napi_value* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: Unsigned integer value to be represented in JavaScript.
+- `[out] result`: A `napi_value` representing a JavaScript `BigInt`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API converts the C `uint64_t` type to the JavaScript `BigInt` type.
+
+#### napi_create_bigint_words
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_create_bigint_words(napi_env env,
+                                     int sign_bit,
+                                     size_t word_count,
+                                     const uint64_t* words,
+                                     napi_value* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] sign_bit`: Determines if the resulting `BigInt` will be positive or
+  negative.
+- `[in] word_count`: The length of the `words` array.
+- `[in] words`: An array of `uint64_t` little-endian 64-bit words.
+- `[out] result`: A `napi_value` representing a JavaScript `BigInt`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API converts an array of unsigned 64-bit words into a single `BigInt`
+value.
+
+The resulting `BigInt` is calculated as: (–1)<sup>`sign_bit`</sup> (`words[0]`
+× (2<sup>64</sup>)<sup>0</sup> + `words[1]` × (2<sup>64</sup>)<sup>1</sup> + …)
+
 #### napi_create_string_latin1
 <!-- YAML
 added: v8.0.0
@@ -1974,6 +2048,92 @@ in it returns `napi_number_expected`.
 
 This API returns the C double primitive equivalent of the given JavaScript
 `Number`.
+
+#### napi_get_value_bigint_int64
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_get_value_bigint_int64(napi_env env,
+                                        napi_value value,
+                                        int64_t* result,
+                                        bool* lossless);
+```
+
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript `BigInt`.
+- `[out] result`: C `int64_t` primitive equivalent of the given JavaScript
+  `BigInt`.
+- `[out] lossless`: Indicates whether the `BigInt` value was converted
+  losslessly.
+
+Returns `napi_ok` if the API succeeded. If a non-`BigInt` is passed in it
+returns `napi_bigint_expected`.
+
+This API returns the C `int64_t` primitive equivalent of the given JavaScript
+`BigInt`. If needed it will truncate the value, setting `lossless` to `false`.
+
+
+#### napi_get_value_bigint_uint64
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_get_value_bigint_uint64(napi_env env,
+                                        napi_value value,
+                                        uint64_t* result,
+                                        bool* lossless);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: `napi_value` representing JavaScript `BigInt`.
+- `[out] result`: C `uint64_t` primitive equivalent of the given JavaScript
+  `BigInt`.
+- `[out] lossless`: Indicates whether the `BigInt` value was converted
+  losslessly.
+
+Returns `napi_ok` if the API succeeded. If a non-`BigInt` is passed in it
+returns `napi_bigint_expected`.
+
+This API returns the C `uint64_t` primitive equivalent of the given JavaScript
+`BigInt`. If needed it will truncate the value, setting `lossless` to `false`.
+
+
+#### napi_get_value_bigint_words
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_get_value_bigint_words(napi_env env,
+                                        napi_value value,
+                                        size_t* word_count,
+                                        int* sign_bit,
+                                        uint64_t* words);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[in] value`: `napi_value` representing JavaScript `BigInt`.
+- `[out] sign_bit`: Integer representing if the JavaScript `BigInt` is positive
+   or negative.
+- `[in/out] word_count`: Must be initialized to the length of the `words`
+   array. Upon return, it will be set to the actual number of words that
+   would be needed to store this `BigInt`.
+- `[out] words`: Pointer to a pre-allocated 64-bit word array.
+
+Returns `napi_ok` if the API succeeded.
+
+This API converts a single `BigInt` value into a sign bit, 64-bit little-endian
+array, and the number of elements in the array. `sign_bit` and `words` may be
+both set to `NULL`, in order to get only `word_count`.
 
 #### napi_get_value_external
 <!-- YAML
