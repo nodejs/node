@@ -27,6 +27,11 @@ class NodeCategorySet : public BaseObject {
 
   const std::set<std::string>& GetCategories() { return categories_; }
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("categories", categories_);
+  }
+
  private:
   NodeCategorySet(Environment* env,
                   Local<Object> wrap,

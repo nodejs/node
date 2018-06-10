@@ -25,7 +25,14 @@ class Worker : public AsyncWrap {
   // Wait for the worker thread to stop (in a blocking manner).
   void JoinThread();
 
-  size_t self_size() const override;
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackFieldWithSize("isolate_data", sizeof(IsolateData));
+    tracker->TrackFieldWithSize("env", sizeof(Environment));
+    tracker->TrackFieldWithSize("thread_exit_async", sizeof(uv_async_t));
+    tracker->TrackField("parent_port", parent_port_);
+  }
+
   bool is_stopped() const;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

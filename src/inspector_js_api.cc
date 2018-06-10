@@ -103,7 +103,11 @@ class JSBindingsConnection : public AsyncWrap {
     }
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("callback", callback_);
+    tracker->TrackFieldWithSize("session", sizeof(*session_));
+  }
 
  private:
   std::unique_ptr<InspectorSession> session_;

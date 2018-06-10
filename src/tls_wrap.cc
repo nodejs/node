@@ -864,6 +864,15 @@ void TLSWrap::GetWriteQueueSize(const FunctionCallbackInfo<Value>& info) {
 }
 
 
+void TLSWrap::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  tracker->TrackField("error", error_);
+  tracker->TrackField("pending_cleartext_input", pending_cleartext_input_);
+  tracker->TrackField("enc_in", crypto::NodeBIO::FromBIO(enc_in_));
+  tracker->TrackField("enc_out", crypto::NodeBIO::FromBIO(enc_out_));
+}
+
+
 void TLSWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
                          Local<Context> context) {

@@ -49,6 +49,7 @@ class ContextifyContext {
         context()->GetEmbedderData(ContextEmbedderIndex::kSandboxObject));
   }
 
+
   template <typename T>
   static ContextifyContext* Get(const v8::PropertyCallbackInfo<T>& args);
 

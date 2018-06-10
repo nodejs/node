@@ -27,7 +27,9 @@ class JSStream : public AsyncWrap, public StreamBase {
               size_t count,
               uv_stream_t* send_handle) override;
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   JSStream(Environment* env, v8::Local<v8::Object> obj);

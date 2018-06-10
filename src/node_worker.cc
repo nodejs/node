@@ -403,10 +403,6 @@ void Worker::Exit(int code) {
   }
 }
 
-size_t Worker::self_size() const {
-  return sizeof(*this);
-}
-
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates

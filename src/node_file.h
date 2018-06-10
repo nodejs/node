@@ -66,7 +66,6 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   const char* data() const { return has_data_ ? *buffer_ : nullptr; }
   enum encoding encoding() const { return encoding_; }
 
-  size_t self_size() const override { return sizeof(*this); }
   bool use_bigint() const { return use_bigint_; }
 
  private:
@@ -91,6 +90,10 @@ class FSReqWrap : public FSReqBase {
   void Resolve(Local<Value> value) override;
   void ResolveStat(const uv_stat_t* stat) override;
   void SetReturnValue(const FunctionCallbackInfo<Value>& args) override;
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FSReqWrap);
@@ -150,6 +153,11 @@ class FSReqPromise : public FSReqBase {
     args.GetReturnValue().Set(resolver->GetPromise());
   }
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("stats_field_array", stats_field_array_);
+  }
+
  private:
   bool finished_ = false;
   AliasedBuffer<NativeT, V8T> stats_field_array_;
@@ -184,7 +192,10 @@ class FileHandleReadWrap : public ReqWrap<uv_fs_t> {
     return static_cast<FileHandleReadWrap*>(ReqWrap::from_req(req));
   }
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("buffer", buffer_);
+  }
 
  private:
   FileHandle* file_handle_;
@@ -205,7 +216,6 @@ class FileHandle : public AsyncWrap, public StreamBase {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   int fd() const { return fd_; }
-  size_t self_size() const override { return sizeof(*this); }
 
   // Will asynchronously close the FD and return a Promise that will
   // be resolved once closing is complete.
@@ -231,6 +241,11 @@ class FileHandle : public AsyncWrap, public StreamBase {
               size_t count,
               uv_stream_t* send_handle) override {
     return UV_ENOSYS;  // Not implemented (yet).
+  }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("current_read", current_read_);
   }
 
  private:
@@ -259,7 +274,11 @@ class FileHandle : public AsyncWrap, public StreamBase {
 
     FileHandle* file_handle();
 
-    size_t self_size() const override { return sizeof(*this); }
+    void MemoryInfo(MemoryTracker* tracker) const override {
+      tracker->TrackThis(this);
+      tracker->TrackField("promise", promise_);
+      tracker->TrackField("ref", ref_);
+    }
 
     void Resolve();
 

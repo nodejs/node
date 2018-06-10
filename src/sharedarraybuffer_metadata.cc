@@ -47,6 +47,10 @@ class SABLifetimePartner : public BaseObject {
     MakeWeak();
   }
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
   SharedArrayBufferMetadataReference reference;
 };
 

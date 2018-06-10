@@ -250,6 +250,10 @@ class ConverterObject : public BaseObject, Converter {
     }
   }
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
  protected:
   ConverterObject(Environment* env,
                   v8::Local<v8::Object> wrap,

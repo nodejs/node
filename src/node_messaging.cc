@@ -325,11 +325,25 @@ Maybe<bool> Message::Serialize(Environment* env,
   return Just(true);
 }
 
+void Message::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  tracker->TrackField("array_buffer_contents", array_buffer_contents_);
+  tracker->TrackFieldWithSize("shared_array_buffers",
+      shared_array_buffers_.size() * sizeof(shared_array_buffers_[0]));
+  tracker->TrackField("message_ports", message_ports_);
+}
+
 MessagePortData::MessagePortData(MessagePort* owner) : owner_(owner) { }
 
 MessagePortData::~MessagePortData() {
   CHECK_EQ(owner_, nullptr);
   Disentangle();
+}
+
+void MessagePortData::MemoryInfo(MemoryTracker* tracker) const {
+  Mutex::ScopedLock lock(mutex_);
+  tracker->TrackThis(this);
+  tracker->TrackField("incoming_messages", incoming_messages_);
 }
 
 void MessagePortData::AddToIncomingQueue(Message&& message) {
@@ -686,14 +700,6 @@ void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port;
   ASSIGN_OR_RETURN_UNWRAP(&port, args.This());
   port->OnMessage();
-}
-
-size_t MessagePort::self_size() const {
-  Mutex::ScopedLock lock(data_->mutex_);
-  size_t sz = sizeof(*this) + sizeof(*data_);
-  for (const Message& msg : data_->incoming_messages_)
-    sz += sizeof(msg) + msg.main_message_buf_.size;
-  return sz;
 }
 
 void MessagePort::Entangle(MessagePort* a, MessagePort* b) {

@@ -737,7 +737,7 @@ inline void Http2Session::AddStream(Http2Stream* stream) {
   size_t size = streams_.size();
   if (size > statistics_.max_concurrent_streams)
     statistics_.max_concurrent_streams = size;
-  IncrementCurrentSessionMemory(stream->self_size());
+  IncrementCurrentSessionMemory(sizeof(*stream));
 }
 
 
@@ -745,7 +745,7 @@ inline void Http2Session::RemoveStream(Http2Stream* stream) {
   if (streams_.empty() || stream == nullptr)
     return;  // Nothing to remove, item was never added?
   streams_.erase(stream->id());
-  DecrementCurrentSessionMemory(stream->self_size());
+  DecrementCurrentSessionMemory(sizeof(*stream));
 }
 
 // Used as one of the Padding Strategy functions. Will attempt to ensure
@@ -2694,7 +2694,7 @@ Http2Session::Http2Ping* Http2Session::PopPing() {
   if (!outstanding_pings_.empty()) {
     ping = outstanding_pings_.front();
     outstanding_pings_.pop();
-    DecrementCurrentSessionMemory(ping->self_size());
+    DecrementCurrentSessionMemory(sizeof(*ping));
   }
   return ping;
 }
@@ -2703,7 +2703,7 @@ bool Http2Session::AddPing(Http2Session::Http2Ping* ping) {
   if (outstanding_pings_.size() == max_outstanding_pings_)
     return false;
   outstanding_pings_.push(ping);
-  IncrementCurrentSessionMemory(ping->self_size());
+  IncrementCurrentSessionMemory(sizeof(*ping));
   return true;
 }
 
@@ -2712,7 +2712,7 @@ Http2Session::Http2Settings* Http2Session::PopSettings() {
   if (!outstanding_settings_.empty()) {
     settings = outstanding_settings_.front();
     outstanding_settings_.pop();
-    DecrementCurrentSessionMemory(settings->self_size());
+    DecrementCurrentSessionMemory(sizeof(*settings));
   }
   return settings;
 }
@@ -2721,7 +2721,7 @@ bool Http2Session::AddSettings(Http2Session::Http2Settings* settings) {
   if (outstanding_settings_.size() == max_outstanding_settings_)
     return false;
   outstanding_settings_.push(settings);
-  IncrementCurrentSessionMemory(settings->self_size());
+  IncrementCurrentSessionMemory(sizeof(*settings));
   return true;
 }
 
@@ -2763,6 +2763,21 @@ void Http2Session::Http2Ping::Done(bool ack, const uint8_t* payload) {
   };
   MakeCallback(env()->ondone_string(), arraysize(argv), argv);
   delete this;
+}
+
+
+void nghttp2_stream_write::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  if (req_wrap != nullptr)
+    tracker->TrackField("req_wrap", req_wrap->GetAsyncWrap());
+  tracker->TrackField("buf", buf);
+}
+
+
+void nghttp2_header::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackThis(this);
+  tracker->TrackFieldWithSize("name", nghttp2_rcbuf_get_buf(name).len);
+  tracker->TrackFieldWithSize("value", nghttp2_rcbuf_get_buf(value).len);
 }
 
 

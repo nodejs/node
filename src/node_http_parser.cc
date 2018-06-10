@@ -155,8 +155,9 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  size_t self_size() const override {
-    return sizeof(*this);
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("current_buffer", current_buffer_);
   }
 
 

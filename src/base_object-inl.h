@@ -61,11 +61,11 @@ Persistent<v8::Object>& BaseObject::persistent() {
 }
 
 
-v8::Local<v8::Object> BaseObject::object() {
+v8::Local<v8::Object> BaseObject::object() const {
   return PersistentToLocal(env_->isolate(), persistent_handle_);
 }
 
-v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) {
+v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
   v8::Local<v8::Object> handle = object();
 #ifdef DEBUG
   CHECK_EQ(handle->CreationContext()->GetIsolate(), isolate);
@@ -88,12 +88,6 @@ BaseObject* BaseObject::FromJSObject(v8::Local<v8::Object> obj) {
 template <typename T>
 T* BaseObject::FromJSObject(v8::Local<v8::Object> object) {
   return static_cast<T*>(FromJSObject(object));
-}
-
-
-void BaseObject::DeleteMe(void* data) {
-  BaseObject* self = static_cast<BaseObject*>(data);
-  delete self;
 }
 
 

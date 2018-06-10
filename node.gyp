@@ -423,6 +423,8 @@
         'src/node_revert.h',
         'src/node_i18n.h',
         'src/node_worker.h',
+        'src/memory_tracker.h',
+        'src/memory_tracker-inl.h',
         'src/pipe_wrap.h',
         'src/tty_wrap.h',
         'src/tcp_wrap.h',

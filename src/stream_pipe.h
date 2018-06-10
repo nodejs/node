@@ -18,7 +18,9 @@ class StreamPipe : public AsyncWrap {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unpipe(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  private:
   StreamBase* source();

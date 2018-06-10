@@ -15,7 +15,7 @@ class MessagePortData;
 class MessagePort;
 
 // Represents a single communication message.
-class Message {
+class Message : public MemoryRetainer {
  public:
   explicit Message(MallocedBuffer<char>&& payload = MallocedBuffer<char>());
 
@@ -55,6 +55,8 @@ class Message {
     return message_ports_;
   }
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
  private:
   MallocedBuffer<char> main_message_buf_;
   std::vector<MallocedBuffer<char>> array_buffer_contents_;
@@ -66,7 +68,7 @@ class Message {
 
 // This contains all data for a `MessagePort` instance that is not tied to
 // a specific Environment/Isolate/event loop, for easier transfer between those.
-class MessagePortData {
+class MessagePortData : public MemoryRetainer {
  public:
   explicit MessagePortData(MessagePort* owner);
   ~MessagePortData();
@@ -93,6 +95,8 @@ class MessagePortData {
   // the corresponding JS handle handle wants to close
   // which can happen on either side of a worker.
   void Disentangle();
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
   // After disentangling this message port, the owner handle (if any)
@@ -178,7 +182,10 @@ class MessagePort : public HandleWrap {
   // NULL pointer to the C++ MessagePort object is also detached.
   inline bool IsDetached() const;
 
-  size_t self_size() const override;
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("data", data_);
+  }
 
  private:
   void OnClose() override;

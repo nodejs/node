@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_persistent.h"
+#include "memory_tracker-inl.h"
 #include "v8.h"
 #include <type_traits>  // std::remove_reference
 
@@ -32,7 +33,7 @@ namespace node {
 
 class Environment;
 
-class BaseObject {
+class BaseObject : public MemoryRetainer {
  public:
   // Associates this object with `object`. It uses the 0th internal field for
   // that, and in particular aborts if there is no such field.
@@ -41,11 +42,11 @@ class BaseObject {
 
   // Returns the wrapped object.  Returns an empty handle when
   // persistent.IsEmpty() is true.
-  inline v8::Local<v8::Object> object();
+  inline v8::Local<v8::Object> object() const;
 
   // Same as the above, except it additionally verifies that this object
   // is associated with the passed Isolate in debug mode.
-  inline v8::Local<v8::Object> object(v8::Isolate* isolate);
+  inline v8::Local<v8::Object> object(v8::Isolate* isolate) const;
 
   inline Persistent<v8::Object>& persistent();
 
@@ -75,7 +76,9 @@ class BaseObject {
  private:
   BaseObject();
 
-  static inline void DeleteMe(void* data);
+  v8::Local<v8::Object> WrappedObject() const override;
+  bool IsRootNode() const override;
+  static void DeleteMe(void* data);
 
   // persistent_handle_ needs to be at a fixed offset from the start of the
   // class because it is used by src/node_postmortem_metadata.cc to calculate
@@ -83,6 +86,8 @@ class BaseObject {
   // position of members in memory are predictable. For more information please
   // refer to `doc/guides/node-postmortem-support.md`
   friend int GenDebugSymbols();
+  friend class Environment;
+
   Persistent<v8::Object> persistent_handle_;
   Environment* env_;
 };
