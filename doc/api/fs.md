@@ -1137,8 +1137,8 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 
-Synchronously changes the permissions of a file. Returns `undefined`.
-This is the synchronous version of [`fs.chmod()`][].
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.chmod()`][].
 
 See also: chmod(2).
 
@@ -1567,12 +1567,15 @@ changes:
 * `path` {string|Buffer|URL}
 * Returns: {boolean}
 
-Synchronous version of [`fs.exists()`][].
 Returns `true` if the path exists, `false` otherwise.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.exists()`][].
 
 `fs.exists()` is deprecated, but `fs.existsSync()` is not. The `callback`
 parameter to `fs.exists()` accepts parameters that are inconsistent with other
 Node.js callbacks. `fs.existsSync()` does not use a callback.
+
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
@@ -1820,7 +1823,10 @@ added: v0.8.6
 * `fd` {integer}
 * `len` {integer} **Default:** `0`
 
-Synchronous ftruncate(2). Returns `undefined`.
+Returns `undefined`.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.ftruncate()`][].
 
 ## fs.futimes(fd, atime, mtime, callback)
 <!-- YAML
@@ -2170,8 +2176,10 @@ added: v5.10.0
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {string}
 
-The synchronous version of [`fs.mkdtemp()`][]. Returns the created
-folder path.
+Returns the created folder path.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.mkdtemp()`][].
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
@@ -2227,8 +2235,10 @@ changes:
 * `mode` {integer} **Default:** `0o666`
 * Returns: {number}
 
-Synchronous version of [`fs.open()`][]. Returns an integer representing the file
-descriptor.
+Returns an integer representing the file descriptor.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.open()`][].
 
 ## fs.read(fd, buffer, offset, length, position, callback)
 <!-- YAML
@@ -2426,7 +2436,10 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
 * Returns: {string|Buffer}
 
-Synchronous version of [`fs.readFile()`][]. Returns the contents of the `path`.
+Returns the contents of the `path`.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.readFile()`][].
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
@@ -2514,7 +2527,10 @@ changes:
 * `position` {integer}
 * Returns: {number}
 
-Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
+Returns the number of `bytesRead`.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.read()`][].
 
 ## fs.realpath(path[, options], callback)
 <!-- YAML
@@ -2629,7 +2645,10 @@ changes:
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {string|Buffer}
 
-Synchronous version of [`fs.realpath()`][]. Returns the resolved pathname.
+Returns the resolved pathname.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.realpath()`][].
 
 ## fs.realpathSync.native(path[, options])
 <!-- YAML
@@ -2865,7 +2884,10 @@ changes:
 * `path` {string|Buffer|URL}
 * `type` {string} **Default:** `'file'`
 
-Synchronous symlink(2). Returns `undefined`.
+Returns `undefined`.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.symlink()`][].
 
 ## fs.truncate(path[, len], callback)
 <!-- YAML
@@ -3041,7 +3063,10 @@ changes:
 * `atime` {integer}
 * `mtime` {integer}
 
-Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
+Returns `undefined`.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.utimes()`][].
 
 ## fs.watch(filename[, options][, listener])
 <!-- YAML
@@ -3392,7 +3417,10 @@ changes:
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
 
-The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
+Returns `undefined`.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.writeFile()`][].
 
 ## fs.writeSync(fd, buffer[, offset[, length[, position]]])
 <!-- YAML
@@ -3428,7 +3456,10 @@ changes:
 * `encoding` {string}
 * Returns: {number}
 
-Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
+Returns the number of bytes written.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.write()`][].
 
 ## fs Promises API
 
@@ -4593,6 +4624,7 @@ the file contents.
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_flags_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
+[`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_options_callback
 [`fs.mkdir()`]: #fs_fs_mkdir_path_mode_callback
@@ -4604,6 +4636,7 @@ the file contents.
 [`fs.realpath()`]: #fs_fs_realpath_path_options_callback
 [`fs.rmdir()`]: #fs_fs_rmdir_path_callback
 [`fs.stat()`]: #fs_fs_stat_path_options_callback
+[`fs.symlink()`]: #fs_fs_symlink_target_path_type_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
 [`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
