@@ -105,6 +105,10 @@ class SecureContext : public BaseObject {
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
   SSLCtxPointer ctx_;
   X509Pointer cert_;
   X509Pointer issuer_;
@@ -337,6 +341,10 @@ class CipherBase : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
  protected:
   enum CipherKind {
     kCipher,
@@ -407,6 +415,10 @@ class Hmac : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
   bool HmacUpdate(const char* data, int len);
@@ -429,6 +441,10 @@ class Hmac : public BaseObject {
 class Hash : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
   bool HashInit(const char* hash_type);
   bool HashUpdate(const char* data, int len);
@@ -468,6 +484,10 @@ class SignBase : public BaseObject {
 
   Error Init(const char* sign_type);
   Error Update(const char* data, int len);
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   void CheckThrow(Error error);
@@ -581,6 +601,10 @@ class DiffieHellman : public BaseObject {
     MakeWeak();
   }
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
  private:
   static void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
                        const BIGNUM* (*get_field)(const DH*),
@@ -605,6 +629,10 @@ class ECDH : public BaseObject {
                                       const EC_GROUP* group,
                                       char* data,
                                       size_t len);
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  protected:
   ECDH(Environment* env, v8::Local<v8::Object> wrap, ECKeyPointer&& key)

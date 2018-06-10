@@ -76,14 +76,22 @@ class RetainedAsyncInfo: public RetainedObjectInfo {
  private:
   const char* label_;
   const AsyncWrap* wrap_;
-  const int length_;
+  const size_t length_;
 };
+
+
+static int OwnMemory(AsyncWrap* async_wrap) {
+  MemoryTracker tracker;
+  tracker.set_track_only_self(true);
+  tracker.Track(async_wrap);
+  return tracker.accumulated_size();
+}
 
 
 RetainedAsyncInfo::RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap)
     : label_(provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
       wrap_(wrap),
-      length_(wrap->self_size()) {
+      length_(OwnMemory(wrap)) {
 }
 
 
@@ -147,7 +155,9 @@ struct AsyncWrapObject : public AsyncWrap {
   inline AsyncWrapObject(Environment* env, Local<Object> object,
                          ProviderType type) : AsyncWrap(env, object, type) {}
 
-  inline size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 };
 
 
@@ -252,7 +262,10 @@ class PromiseWrap : public AsyncWrap {
       : AsyncWrap(env, object, PROVIDER_PROMISE, -1, silent) {
     MakeWeak();
   }
-  size_t self_size() const override { return sizeof(*this); }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
   static constexpr int kPromiseField = 1;
   static constexpr int kIsChainedPromiseField = 2;

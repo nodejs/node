@@ -38,7 +38,9 @@ class TTYWrap : public LibuvStreamWrap {
 
   uv_tty_t* UVHandle();
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
  private:
   TTYWrap(Environment* env,

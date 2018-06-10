@@ -4582,6 +4582,8 @@ bool ECDH::IsKeyPairValid() {
 }
 
 
+// TODO(addaleax): If there is an `AsyncWrap`, it currently has no access to
+// this object. This makes proper reporting of memory usage impossible.
 struct CryptoJob : public ThreadPoolWork {
   Environment* const env;
   std::unique_ptr<AsyncWrap> async_wrap;

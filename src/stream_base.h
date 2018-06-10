@@ -346,7 +346,10 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
                      v8::Local<v8::Object> req_wrap_obj);
 
   AsyncWrap* GetAsyncWrap() override { return this; }
-  size_t self_size() const override { return sizeof(*this); }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 };
 
 template <typename OtherBase>
@@ -356,7 +359,11 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
                   v8::Local<v8::Object> req_wrap_obj);
 
   AsyncWrap* GetAsyncWrap() override { return this; }
-  size_t self_size() const override { return sizeof(*this) + StorageSize(); }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackFieldWithSize("storage", StorageSize());
+  }
 };
 
 }  // namespace node
