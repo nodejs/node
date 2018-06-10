@@ -420,7 +420,7 @@ the future."
 Node.js uses three Deprecation levels:
 
 * *Documentation-Only Deprecation*: A deprecation notice is added to the API
-  API documentation but no functional changes are implemented in the code. By
+  documentation but no functional changes are implemented in the code. By
   default there will be no deprecation warnings emitted for such deprecations at
   runtime. Documentation-only deprecations may trigger a runtime warning when
   Node.js is started with the [`--pending-deprecation`][] flag or the
