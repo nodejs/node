@@ -15,7 +15,7 @@ hooks.enable();
 
 function onchange() {}
 // install first file watcher
-fs.watchFile(__filename, onchange);
+const w1 = fs.watchFile(__filename, { interval: 10 }, onchange);
 
 let as = hooks.activitiesOfTypes('STATWATCHER');
 assert.strictEqual(as.length, 1);
@@ -28,7 +28,7 @@ checkInvocations(statwatcher1, { init: 1 },
                  'watcher1: when started to watch file');
 
 // install second file watcher
-fs.watchFile(commonPath, onchange);
+const w2 = fs.watchFile(commonPath, { interval: 10 }, onchange);
 as = hooks.activitiesOfTypes('STATWATCHER');
 assert.strictEqual(as.length, 2);
 
@@ -41,19 +41,31 @@ checkInvocations(statwatcher1, { init: 1 },
 checkInvocations(statwatcher2, { init: 1 },
                  'watcher2: when started to watch second file');
 
-// remove first file watcher
-fs.unwatchFile(__filename);
-checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
-                 'watcher1: when unwatched first file');
-checkInvocations(statwatcher2, { init: 1 },
-                 'watcher2: when unwatched first file');
+// Touch the first file by modifying its access time.
+const origStat = fs.statSync(__filename);
+fs.utimesSync(__filename, Date.now() + 10, origStat.mtime);
+w1.once('change', common.mustCall(() => {
+  setImmediate(() => {
+    checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
+                     'watcher1: when unwatched first file');
+    checkInvocations(statwatcher2, { init: 1 },
+                     'watcher2: when unwatched first file');
 
-// remove second file watcher
-fs.unwatchFile(commonPath);
-checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
-                 'watcher1: when unwatched second file');
-checkInvocations(statwatcher2, { init: 1, before: 1, after: 1 },
-                 'watcher2: when unwatched second file');
+    // Touch the second file by modifying its access time.
+    const origStat = fs.statSync(commonPath);
+    fs.utimesSync(commonPath, Date.now() + 10, origStat.mtime);
+    w2.once('change', common.mustCall(() => {
+      setImmediate(() => {
+        checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
+                         'watcher1: when unwatched second file');
+        checkInvocations(statwatcher2, { init: 1, before: 1, after: 1 },
+                         'watcher2: when unwatched second file');
+        w1.stop();
+        w2.stop();
+      });
+    }));
+  });
+}));
 
 process.on('exit', onexit);
 
