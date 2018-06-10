@@ -24,4 +24,4 @@ async function validateSync() {
   assert.deepStrictEqual(ret.buffer, buf);
 }
 
-validateSync().then(common.mustCall());
+validateSync();
