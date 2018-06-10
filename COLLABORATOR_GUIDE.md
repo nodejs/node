@@ -427,10 +427,10 @@ Node.js uses three Deprecation levels:
   `NODE_PENDING_DEPRECATION=1` environment variable is set.
 
 * *Runtime Deprecation*: A warning is emitted at runtime the first time that a 
-  deprecated API is used. A command-line switch can be used to escalate such
-  warnings into runtime errors that will cause the Node.js process to exit. As
-  with Documentation-Only Deprecation, the documentation for the API must be
-  updated to clearly indicate the deprecated status.
+  deprecated API is used. The [`--throw-deprecation`][] flag can be used to
+  escalate such warnings into runtime errors that will cause the Node.js process
+  to exit. As with Documentation-Only Deprecation, the documentation for the API
+  must be updated to clearly indicate the deprecated status.
 
 * *End-of-life*: The API is no longer subject to the semantic versioning rules.
   Backward-incompatible changes including complete removal of such APIs may
@@ -879,6 +879,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 [TSC]: https://github.com/nodejs/TSC
 [_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
 [`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
+[`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [contributing]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
