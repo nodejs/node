@@ -1140,6 +1140,8 @@ changes:
 Synchronously changes the permissions of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chmod()`][].
 
+For detailed information, see the documentation of [`fs.chmod()`][].
+
 See also: chmod(2).
 
 ## fs.chown(path, uid, gid, callback)
@@ -1570,9 +1572,12 @@ changes:
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the path exists, `false` otherwise.
 
+For detailed information, see the documentation of [`fs.exists()`][].
+
 `fs.exists()` is deprecated, but `fs.existsSync()` is not. The `callback`
 parameter to `fs.exists()` accepts parameters that are inconsistent with other
 Node.js callbacks. `fs.existsSync()` does not use a callback.
+
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
@@ -1821,6 +1826,8 @@ added: v0.8.6
 * `len` {integer} **Default:** `0`
 
 Synchronous ftruncate(2). Returns `undefined`.
+
+For detailed information, see the documentation of [`fs.ftruncate()`][].
 
 ## fs.futimes(fd, atime, mtime, callback)
 <!-- YAML
@@ -2173,6 +2180,8 @@ added: v5.10.0
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
 
+For detailed information, see the documentation of [`fs.mkdtemp()`][].
+
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
@@ -2229,6 +2238,8 @@ changes:
 
 Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
+
+For detailed information, see the documentation of [`fs.open()`][].
 
 ## fs.read(fd, buffer, offset, length, position, callback)
 <!-- YAML
@@ -2428,6 +2439,8 @@ changes:
 
 Synchronous version of [`fs.readFile()`][]. Returns the contents of the `path`.
 
+For detailed information, see the documentation of [`fs.readFile()`][].
+
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
@@ -2515,6 +2528,8 @@ changes:
 * Returns: {number}
 
 Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
+
+For detailed information, see the documentation of [`fs.read()`][].
 
 ## fs.realpath(path[, options], callback)
 <!-- YAML
@@ -2630,6 +2645,8 @@ changes:
 * Returns: {string|Buffer}
 
 Synchronous version of [`fs.realpath()`][]. Returns the resolved pathname.
+
+For detailed information, see the documentation of [`fs.realpath()`][].
 
 ## fs.realpathSync.native(path[, options])
 <!-- YAML
@@ -2867,6 +2884,8 @@ changes:
 
 Synchronous symlink(2). Returns `undefined`.
 
+For detailed information, see the documentation of [`fs.symlink()`][].
+
 ## fs.truncate(path[, len], callback)
 <!-- YAML
 added: v0.8.6
@@ -3042,6 +3061,8 @@ changes:
 * `mtime` {integer}
 
 Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
+
+For detailed information, see the documentation of [`fs.utimes()`][].
 
 ## fs.watch(filename[, options][, listener])
 <!-- YAML
@@ -3394,6 +3415,8 @@ changes:
 
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 
+For detailed information, see the documentation of [`fs.writeFile()`][].
+
 ## fs.writeSync(fd, buffer[, offset[, length[, position]]])
 <!-- YAML
 added: v0.1.21
@@ -3429,6 +3452,8 @@ changes:
 * Returns: {number}
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
+
+For detailed information, see the documentation of [`fs.write()`][].
 
 ## fs Promises API
 
