@@ -419,25 +419,20 @@ the future."
 
 Node.js uses three Deprecation levels:
 
-* *Documentation-Only Deprecation* refers to elements of the Public API that
-  should be avoided by developers and that might be staged for a runtime
-  deprecation in a future Node.js major release. An explicit notice indicating
-  the deprecation status is added to the API documentation but no functional
-  changes are implemented in the code. By default there will be no deprecation
-  warnings emitted for such deprecations at runtime. Documentation-only
-  deprecations may trigger a runtime warning when Node.js is started with the
-  [`--pending-deprecation`][] flag or the `NODE_PENDING_DEPRECATION=1`
-  environment variable is set.
+* *Documentation-Only Deprecation*: A deprecation notice is added to the API
+  documentation but no functional changes are implemented in the code. By
+  default, there will be no warnings emitted for such deprecations at
+  runtime. Documentation-only deprecations may trigger a runtime warning when
+  Node.js is started with the [`--pending-deprecation`][] flag or the
+  `NODE_PENDING_DEPRECATION=1` environment variable is set.
 
-* *Runtime Deprecation* refers to the use of process warnings emitted at
-  runtime the first time that a deprecated API is used. A command-line
-  switch can be used to escalate such warnings into runtime errors that will
-  cause the Node.js process to exit. As with Documentation-Only Deprecation,
-  the documentation for the API must be updated to clearly indicate the
-  deprecated status.
+* *Runtime Deprecation*: A warning is emitted at runtime the first time that a
+  deprecated API is used. The [`--throw-deprecation`][] flag can be used to
+  escalate such warnings into runtime errors that will cause the Node.js process
+  to exit. As with Documentation-Only Deprecation, the documentation for the API
+  must be updated to clearly indicate the deprecated status.
 
-* *End-of-life* refers to APIs that have gone through Runtime Deprecation and
-  are no longer subject to the semantic versioning rules used by the project.
+* *End-of-life*: The API is no longer subject to the semantic versioning rules.
   Backward-incompatible changes including complete removal of such APIs may
   occur at any time.
 
@@ -884,6 +879,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 [TSC]: https://github.com/nodejs/TSC
 [_Deprecation_]: https://en.wikipedia.org/wiki/Deprecation
 [`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
+[`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [contributing]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
