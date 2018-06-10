@@ -23,7 +23,7 @@ doSomeLongRunningProcess(() => {
   performance.mark('B');
   performance.measure('A to B', 'A', 'B');
 });
-`````
+```
 
 ## Class: Performance
 <!-- YAML
