@@ -809,6 +809,22 @@ bool Environment::CleanupHookCallback::Equal::operator()(
   return a.fn_ == b.fn_ && a.arg_ == b.arg_;
 }
 
+BaseObject* Environment::CleanupHookCallback::GetBaseObject() const {
+  if (fn_ == BaseObject::DeleteMe)
+    return static_cast<BaseObject*>(arg_);
+  else
+    return nullptr;
+}
+
+template <typename T>
+void Environment::ForEachBaseObject(T&& iterator) {
+  for (const auto& hook : cleanup_hooks_) {
+    BaseObject* obj = hook.GetBaseObject();
+    if (obj != nullptr)
+      iterator(obj);
+  }
+}
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
