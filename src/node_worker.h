@@ -62,7 +62,7 @@ class Worker : public AsyncWrap {
 
   bool thread_joined_ = true;
   int exit_code_ = 0;
-  double thread_id_ = -1;
+  uint64_t thread_id_ = -1;
 
   std::unique_ptr<MessagePortData> child_port_data_;
 
