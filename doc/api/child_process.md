@@ -42,7 +42,8 @@ the event loop until the spawned process either exits or is terminated.
 *Note*: On some operating systems, the [`child_process.spawn()`][] method
 performs memory operations synchronously before decoupling the event loop
 from the child. Applications with a large memory footprint may find frequent
-[`child_process.spawn()`][] calls to be a bottleneck.
+[`child_process.spawn()`][] calls to be a bottleneck. For more information,
+see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
 
 For convenience, the `child_process` module provides a handful of synchronous
 and asynchronous alternatives to [`child_process.spawn()`][] and
