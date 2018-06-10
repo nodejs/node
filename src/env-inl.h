@@ -598,11 +598,11 @@ inline bool Environment::is_main_thread() const {
   return thread_id_ == 0;
 }
 
-inline double Environment::thread_id() const {
+inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }
 
-inline void Environment::set_thread_id(double id) {
+inline void Environment::set_thread_id(uint64_t id) {
   thread_id_ = id;
 }
 

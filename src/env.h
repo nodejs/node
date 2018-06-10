@@ -726,8 +726,8 @@ class Environment {
   bool is_stopping_worker() const;
 
   inline bool is_main_thread() const;
-  inline double thread_id() const;
-  inline void set_thread_id(double id);
+  inline uint64_t thread_id() const;
+  inline void set_thread_id(uint64_t id);
   inline worker::Worker* worker_context() const;
   inline void set_worker_context(worker::Worker* context);
   inline void add_sub_worker_context(worker::Worker* context);
@@ -881,7 +881,7 @@ class Environment {
   std::unordered_map<std::string, uint64_t> performance_marks_;
 
   bool can_call_into_js_ = true;
-  double thread_id_ = 0;
+  uint64_t thread_id_ = 0;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
 
 
