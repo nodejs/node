@@ -55,7 +55,11 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
   inline bool have_callback() const;
   size_t msg_size;
-  size_t self_size() const override { return sizeof(*this); }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
  private:
   const bool have_callback_;
 };

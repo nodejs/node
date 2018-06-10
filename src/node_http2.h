@@ -83,19 +83,23 @@ enum nghttp2_stream_options {
   STREAM_OPTION_GET_TRAILERS = 0x2,
 };
 
-struct nghttp2_stream_write {
+struct nghttp2_stream_write : public MemoryRetainer {
   WriteWrap* req_wrap = nullptr;
   uv_buf_t buf;
 
   inline explicit nghttp2_stream_write(uv_buf_t buf_) : buf(buf_) {}
   inline nghttp2_stream_write(WriteWrap* req, uv_buf_t buf_) :
       req_wrap(req), buf(buf_) {}
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
 };
 
-struct nghttp2_header {
+struct nghttp2_header : public MemoryRetainer {
   nghttp2_rcbuf* name = nullptr;
   nghttp2_rcbuf* value = nullptr;
   uint8_t flags = 0;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
 };
 
 
@@ -617,7 +621,12 @@ class Http2Stream : public AsyncWrap,
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("current_headers", current_headers_);
+    tracker->TrackField("queue", queue_);
+  }
+
   std::string diagnostic_name() const override;
 
   // JavaScript API
@@ -793,7 +802,17 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // Write data to the session
   ssize_t Write(const uv_buf_t* bufs, size_t nbufs);
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("streams", streams_);
+    tracker->TrackField("outstanding_pings", outstanding_pings_);
+    tracker->TrackField("outstanding_settings", outstanding_settings_);
+    tracker->TrackField("outgoing_buffers", outgoing_buffers_);
+    tracker->TrackFieldWithSize("outgoing_storage", outgoing_storage_.size());
+    tracker->TrackFieldWithSize("pending_rst_streams",
+                                pending_rst_streams_.size() * sizeof(int32_t));
+  }
+
   std::string diagnostic_name() const override;
 
   // Schedule an RstStream for after the current write finishes.
@@ -1109,7 +1128,10 @@ class Http2Session::Http2Ping : public AsyncWrap {
  public:
   explicit Http2Ping(Http2Session* session);
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("session", session_);
+  }
 
   void Send(uint8_t* payload);
   void Done(bool ack, const uint8_t* payload = nullptr);
@@ -1129,7 +1151,10 @@ class Http2Session::Http2Settings : public AsyncWrap {
   explicit Http2Settings(Environment* env);
   explicit Http2Settings(Http2Session* session);
 
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackField("session", session_);
+  }
 
   void Send();
   void Done(bool ack);

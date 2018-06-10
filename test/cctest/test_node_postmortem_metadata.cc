@@ -34,7 +34,9 @@ class DebugSymbolsTest : public EnvironmentTestFixture {};
 
 class TestHandleWrap : public node::HandleWrap {
  public:
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(node::MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
   TestHandleWrap(node::Environment* env,
                  v8::Local<v8::Object> object,
@@ -48,7 +50,9 @@ class TestHandleWrap : public node::HandleWrap {
 
 class TestReqWrap : public node::ReqWrap<uv_req_t> {
  public:
-  size_t self_size() const override { return sizeof(*this); }
+  void MemoryInfo(node::MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
 
   TestReqWrap(node::Environment* env, v8::Local<v8::Object> object)
       : node::ReqWrap<uv_req_t>(env,
@@ -67,6 +71,16 @@ TEST_F(DebugSymbolsTest, ExternalStringDataOffset) {
             NODE_OFF_EXTSTR_DATA);
 }
 
+class DummyBaseObject : public node::BaseObject {
+ public:
+  DummyBaseObject(node::Environment* env, v8::Local<v8::Object> obj) :
+    BaseObject(env, obj) {}
+
+  void MemoryInfo(node::MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+};
+
 TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -77,7 +91,7 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
 
   v8::Local<v8::Object> object =
       obj_templ->NewInstance(env.context()).ToLocalChecked();
-  node::BaseObject obj(*env, object);
+  DummyBaseObject obj(*env, object);
 
   auto expected = reinterpret_cast<uintptr_t>(&obj.persistent());
   auto calculated = reinterpret_cast<uintptr_t>(&obj) +
