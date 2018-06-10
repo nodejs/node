@@ -9,6 +9,8 @@
 #include "async_wrap.h"
 #include "async_wrap-inl.h"
 
+#include <string>
+
 using v8::ArrayBuffer;
 using v8::Context;
 using v8::Function;
@@ -30,7 +32,7 @@ namespace worker {
 
 namespace {
 
-double next_thread_id = 1;
+uint64_t next_thread_id = 1;
 Mutex next_thread_id_mutex;
 
 }  // anonymous namespace
@@ -44,7 +46,8 @@ Worker::Worker(Environment* env, Local<Object> wrap)
   }
   wrap->Set(env->context(),
             env->thread_id_string(),
-            Number::New(env->isolate(), thread_id_)).FromJust();
+            Number::New(env->isolate(),
+                        static_cast<double>(thread_id_))).FromJust();
 
   // Set up everything that needs to be set up in the parent environment.
   parent_port_ = MessagePort::New(env, env->context());
@@ -112,6 +115,11 @@ bool Worker::is_stopped() const {
 }
 
 void Worker::Run() {
+  std::string name = "WorkerThread ";
+  name += std::to_string(thread_id_);
+  TRACE_EVENT_METADATA1(
+      "__metadata", "thread_name", "name",
+      TRACE_STR_COPY(name.c_str()));
   MultiIsolatePlatform* platform = isolate_data_->platform();
   CHECK_NE(platform, nullptr);
 
@@ -418,7 +426,8 @@ void InitWorker(Local<Object> target,
   auto thread_id_string = FIXED_ONE_BYTE_STRING(env->isolate(), "threadId");
   target->Set(env->context(),
               thread_id_string,
-              Number::New(env->isolate(), env->thread_id())).FromJust();
+              Number::New(env->isolate(),
+                          static_cast<double>(env->thread_id()))).FromJust();
 }
 
 }  // anonymous namespace
