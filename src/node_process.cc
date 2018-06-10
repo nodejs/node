@@ -7,6 +7,7 @@
 #include "uv.h"
 #include "v8.h"
 
+#include <limits.h>  // PATH_MAX
 #include <stdio.h>
 
 #if defined(_MSC_VER)
