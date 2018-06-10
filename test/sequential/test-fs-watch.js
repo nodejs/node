@@ -126,19 +126,3 @@ tmpdir.refresh();
   });
   oldhandle.close(); // clean up
 }
-
-{
-  let oldhandle;
-  assert.throws(() => {
-    const w = fs.watchFile(__filename,
-                           { persistent: false },
-                           common.mustNotCall());
-    oldhandle = w._handle;
-    w._handle = { stop: w._handle.stop };
-    w.stop();
-  }, {
-    message: 'handle must be a StatWatcher',
-    code: 'ERR_ASSERTION'
-  });
-  oldhandle.stop(); // clean up
-}
