@@ -31,7 +31,6 @@ function verifyStats(bigintStats, numStats) {
         `difference of ${key}.getTime() should < 2.\n` +
         `Number version ${time}, BigInt version ${time2}n`);
     } else if (key === 'mode') {
-      // eslint-disable-next-line no-undef
       assert.strictEqual(bigintStats[key], BigInt(val));
       assert.strictEqual(
         bigintStats.isBlockDevice(),
@@ -65,7 +64,6 @@ function verifyStats(bigintStats, numStats) {
       assert.strictEqual(bigintStats[key], undefined);
       assert.strictEqual(numStats[key], undefined);
     } else if (Number.isSafeInteger(val)) {
-      // eslint-disable-next-line no-undef
       assert.strictEqual(bigintStats[key], BigInt(val));
     } else {
       assert(
