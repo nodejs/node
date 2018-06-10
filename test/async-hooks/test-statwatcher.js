@@ -49,7 +49,7 @@ checkInvocations(statwatcher1, { init: 1 },
 checkInvocations(statwatcher2, { init: 1 },
                  'watcher2: when started to watch second file');
 
-fs.writeFileSync(file1, 'foo++');
+setTimeout(() => fs.writeFileSync(file1, 'foo++'), 10);
 w1.once('change', common.mustCall(() => {
   setImmediate(() => {
     checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
@@ -57,8 +57,7 @@ w1.once('change', common.mustCall(() => {
     checkInvocations(statwatcher2, { init: 1 },
                      'watcher2: when unwatched first file');
 
-    // Touch the second file by modifying its access time.
-    fs.writeFileSync(file2, 'bar++');
+    setTimeout(() => fs.writeFileSync(file2, 'bar++'), 10);
     w2.once('change', common.mustCall(() => {
       setImmediate(() => {
         checkInvocations(statwatcher1, { init: 1, before: 1, after: 1 },
