@@ -345,6 +345,8 @@ For more information about the governance of the Node.js project, see
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
+* [davisjam](https://github.com/davisjam) -
+**Jamie Davis** &lt;davisjam@vt.edu&gt; (he/him)
 * [DavidCai1993](https://github.com/DavidCai1993) -
 **David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
 * [devsnek](https://github.com/devsnek) -
