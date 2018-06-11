@@ -1418,15 +1418,9 @@ util.inspect(process);
     util.inspect(list),
     '{ next: { next: { next: [Object] } } }'
   );
-  common.expectWarning({
-    Warning: [
-      'Inspection reached the maximum call stack size. ' +
-        'Incomplete inspected object returned.',
-      common.noWarnCode
-    ]
-  });
   const longList = util.inspect(list, { depth: Infinity });
   const match = longList.match(/next/g);
   assert(match.length > 1000 && match.length < 10000);
-  assert(longList.includes('[Object]'));
+  assert(longList.includes('[Object: Inspection interrupted ' +
+    'prematurely. Maximum call stack size exceeded.]'));
 }
