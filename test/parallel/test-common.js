@@ -52,6 +52,12 @@ common.expectsError(
     message: /^fhqwhgads$/
   });
 
+common.expectsError(
+  // eslint-disable-next-line no-throw-literal
+  () => { throw 5; },
+  5
+);
+
 const fnOnce = common.mustCall(() => {});
 fnOnce();
 const fnTwice = common.mustCall(() => {}, 2);
