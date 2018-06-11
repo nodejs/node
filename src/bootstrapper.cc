@@ -109,6 +109,7 @@ void SetupBootstrapObject(Environment* env,
   BOOTSTRAP_METHOD(_chdir, Chdir);
   BOOTSTRAP_METHOD(_cpuUsage, CPUUsage);
   BOOTSTRAP_METHOD(_hrtime, Hrtime);
+  BOOTSTRAP_METHOD(_hrtimeBigInt, HrtimeBigInt);
   BOOTSTRAP_METHOD(_memoryUsage, MemoryUsage);
   BOOTSTRAP_METHOD(_rawDebug, RawDebug);
   BOOTSTRAP_METHOD(_umask, Umask);
