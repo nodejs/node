@@ -876,6 +876,49 @@ TEST(ExternalCodeEventListener) {
   isolate->Dispose();
 }
 
+TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
+  i::FLAG_log = false;
+  i::FLAG_prof = false;
+  i::FLAG_interpreted_frames_native_stack = true;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    context->Enter();
+
+    TestCodeEventHandler code_event_handler(isolate);
+
+    const char* source_text_before_start =
+        "function testCodeEventListenerBeforeStart(a,b) { return a + b };"
+        "testCodeEventListenerBeforeStart('1', 1);";
+    CompileRun(source_text_before_start);
+
+    CHECK_NULL(code_event_handler.FindLine("InterpretedFunction",
+                                           "testCodeEventListenerBeforeStart"));
+
+    code_event_handler.Enable();
+
+    CHECK_NOT_NULL(code_event_handler.FindLine(
+        "InterpretedFunction", "testCodeEventListenerBeforeStart"));
+
+    const char* source_text_after_start =
+        "function testCodeEventListenerAfterStart(a,b) { return a + b };"
+        "testCodeEventListenerAfterStart('1', 1);";
+    CompileRun(source_text_after_start);
+
+    CHECK_NOT_NULL(code_event_handler.FindLine(
+        "InterpretedFunction", "testCodeEventListenerAfterStart"));
+
+    context->Exit();
+  }
+  isolate->Dispose();
+}
+
 TEST(TraceMaps) {
   SETUP_FLAGS();
   i::FLAG_trace_maps = true;

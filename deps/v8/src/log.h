@@ -105,7 +105,9 @@ class ExistingCodeLogger {
 
   void LogCompiledFunctions();
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
-                           Handle<AbstractCode> code);
+                           Handle<AbstractCode> code,
+                           CodeEventListener::LogEventsAndTags tag =
+                               CodeEventListener::LAZY_COMPILE_TAG);
   void LogCodeObject(Object* object);
   void LogBytecodeHandler(interpreter::Bytecode bytecode,
                           interpreter::OperandScale operand_scale, Code* code);
