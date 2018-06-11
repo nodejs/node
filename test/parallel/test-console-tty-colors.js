@@ -48,7 +48,7 @@ check(false, false, false);
 // check invalid colorMode type
 {
   const stream = new Writable({
-    write: common.mustNotCall
+    write: common.mustNotCall()
   });
 
   [0, 'true', null, {}, [], () => {}].forEach((colorMode) => {
