@@ -27,7 +27,6 @@
 #include "async_wrap.h"
 #include "base_object-inl.h"
 #include "node_internals.h"
-#include "node_errors.h"
 
 namespace node {
 
