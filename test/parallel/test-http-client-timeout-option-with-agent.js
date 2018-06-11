@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-// This test ensure http request with timeout and agent,
+// Test that when http request uses both timeout and agent,
 // timeout will work as expected.
 
 const assert = require('assert');
@@ -21,7 +21,7 @@ const options = {
 };
 
 const server = http.createServer(() => {
-  // never response
+  // Never respond.
 });
 
 server.listen(0, options.host, function() {
@@ -33,7 +33,7 @@ function doRequest() {
   const req = http.request(options);
   const start = Date.now();
   req.on('error', () => {
-    // this space is intentionally left blank
+    // This space is intentionally left blank.
   });
   req.on('close', common.mustCall(() => server.close()));
 
@@ -41,8 +41,8 @@ function doRequest() {
   req.on('timeout', common.mustCall(() => {
     timeout_events += 1;
     const duration = Date.now() - start;
-    // The timeout event can not be accurately fired, It will delay
-    // in some milliseconds, so test it in second units.
+    // The timeout event cannot be precisely timed. It will delay
+    // some number of milliseconds, so test it in second units.
     assert.strictEqual(duration / 1000 | 0, HTTP_CLIENT_TIMEOUT / 1000);
   }));
   req.end();
@@ -50,6 +50,6 @@ function doRequest() {
   setTimeout(function() {
     req.destroy();
     assert.strictEqual(timeout_events, 1);
-    // Ensure the `timeout` be event fired only once.
+    // Ensure the `timeout` event fired only once.
   }, common.platformTimeout(HTTP_CLIENT_TIMEOUT * 2));
 }
