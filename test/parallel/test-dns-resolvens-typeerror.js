@@ -27,7 +27,18 @@ const common = require('../common');
 // Issue https://github.com/nodejs/node-v0.x-archive/issues/7070
 
 const dns = require('dns');
+const dnsPromises = dns.promises;
 
+common.crashOnUnhandledRejection();
+
+common.expectsError(
+  () => dnsPromises.resolveNs([]), // bad name
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: /^The "name" argument must be of type string/
+  }
+);
 common.expectsError(
   () => dns.resolveNs([]), // bad name
   {

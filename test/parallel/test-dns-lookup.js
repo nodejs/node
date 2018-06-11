@@ -3,17 +3,23 @@ const common = require('../common');
 const assert = require('assert');
 const cares = process.binding('cares_wrap');
 const dns = require('dns');
+const dnsPromises = dns.promises;
+
+common.crashOnUnhandledRejection();
 
 // Stub `getaddrinfo` to *always* error.
 cares.getaddrinfo = () => process.binding('uv').UV_ENOENT;
 
-common.expectsError(() => {
-  dns.lookup(1, {});
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: /^The "hostname" argument must be one of type string or falsy/
-});
+{
+  const err = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: /^The "hostname" argument must be one of type string or falsy/
+  };
+
+  common.expectsError(() => dns.lookup(1, {}), err);
+  common.expectsError(() => dnsPromises.lookup(1, {}), err);
+}
 
 common.expectsError(() => {
   dns.lookup(false, 'cb');
@@ -29,29 +35,66 @@ common.expectsError(() => {
   type: TypeError
 });
 
-common.expectsError(() => {
-  dns.lookup(false, {
+{
+  const err = {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: TypeError,
+    message: 'The value "100" is invalid for option "hints"'
+  };
+  const options = {
     hints: 100,
     family: 0,
     all: false
-  }, common.mustNotCall());
-}, {
-  code: 'ERR_INVALID_OPT_VALUE',
-  type: TypeError,
-  message: 'The value "100" is invalid for option "hints"'
-});
+  };
 
-common.expectsError(() => {
-  dns.lookup(false, {
+  common.expectsError(() => { dnsPromises.lookup(false, options); }, err);
+  common.expectsError(() => {
+    dns.lookup(false, options, common.mustNotCall());
+  }, err);
+}
+
+{
+  const err = {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: TypeError,
+    message: 'The value "20" is invalid for option "family"'
+  };
+  const options = {
     hints: 0,
     family: 20,
     all: false
-  }, common.mustNotCall());
-}, {
-  code: 'ERR_INVALID_OPT_VALUE',
-  type: TypeError,
-  message: 'The value "20" is invalid for option "family"'
-});
+  };
+
+  common.expectsError(() => { dnsPromises.lookup(false, options); }, err);
+  common.expectsError(() => {
+    dns.lookup(false, options, common.mustNotCall());
+  }, err);
+}
+
+(async function() {
+  let res;
+
+  res = await dnsPromises.lookup(false, {
+    hints: 0,
+    family: 0,
+    all: true
+  });
+  assert.deepStrictEqual(res, []);
+
+  res = await dnsPromises.lookup('127.0.0.1', {
+    hints: 0,
+    family: 4,
+    all: true
+  });
+  assert.deepStrictEqual(res, [{ address: '127.0.0.1', family: 4 }]);
+
+  res = await dnsPromises.lookup('127.0.0.1', {
+    hints: 0,
+    family: 4,
+    all: false
+  });
+  assert.deepStrictEqual(res, { address: '127.0.0.1', family: 4 });
+})();
 
 dns.lookup(false, {
   hints: 0,
