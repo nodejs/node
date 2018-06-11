@@ -1,5 +1,9 @@
 'use strict';
 const common = require('../common');
+
+// The test ensure call `req.setTimeout` will not let
+// timeout fired twice.
+
 const assert = require('assert');
 const http = require('http');
 
@@ -39,5 +43,5 @@ function doRequest() {
   setTimeout(function() {
     req.destroy();
     assert.strictEqual(timeout_events, 1);
-  }, common.platformTimeout(HTTP_CLIENT_TIMEOUT + 50));
+  }, common.platformTimeout(HTTP_CLIENT_TIMEOUT));
 }
