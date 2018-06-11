@@ -2,7 +2,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 const v8 = require('v8');
 
 process.on('warning', common.mustNotCall());
