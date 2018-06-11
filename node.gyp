@@ -101,6 +101,8 @@
       'lib/internal/crypto/sig.js',
       'lib/internal/crypto/util.js',
       'lib/internal/constants.js',
+      'lib/internal/dns/promises.js',
+      'lib/internal/dns/utils.js',
       'lib/internal/encoding.js',
       'lib/internal/errors.js',
       'lib/internal/error-serdes.js',
