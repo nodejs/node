@@ -41,25 +41,15 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
   assert.strictEqual(err.code, 'TEST_ERROR_2');
 }
 
-// {
-//   assert.throws(() => new errors.codes.TEST_ERROR_1(){
-//      message: 'Code: TEST_ERROR_1; The provided arguments ' +
-//                'length (0) does not match the required ones (1).'
-//     }
-//   );
-// }
-
-assert.expectsError(() => {
-  const fs = require('fs');
-  const file = '/home/aditya/node/test/nodetest/testcodes';
-  const keyfile = fs.openSync(file, 'r');
-  const string = new Uint8Array();
-  const num = fs.readSync(keyfile, string, 0, 10, 0);
-  console.log(num);
-}, { code: 'ERR_OUT_OF_RANGE',
-     type: RangeError,
-     message: 'Just Testing'
-});
+{
+  assert.throws(
+    () => new errors.codes.TEST_ERROR_1(),
+    {
+      message: 'Code: TEST_ERROR_1; The provided arguments ' +
+               'length (0) does not match the required ones (1).'
+    }
+  );
+}
 
 // Tests for common.expectsError
 common.expectsError(() => {
