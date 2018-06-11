@@ -1187,6 +1187,33 @@ setTimeout(() => {
 }, 1000);
 ```
 
+## process.hrtime.bigint()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {bigint}
+
+The `bigint` version of the [`process.hrtime()`][] method returning the
+current high-resolution real time in a `bigint`.
+
+Unlike [`process.hrtime()`][], it does not support an additional `time`
+argument since the difference can just be computed directly
+by substraction of the two `bigint`s.
+
+```js
+const start = process.hrtime.bigint();
+// 191051479007711n
+
+setTimeout(() => {
+  const end = process.hrtime.bigint();
+  // 191052633396993n
+
+  console.log(`Benchmark took ${end - start} nanoseconds`);
+  // benchmark took 1154389282 nanoseconds
+}, 1000);
+```
+
 ## process.initgroups(user, extraGroup)
 <!-- YAML
 added: v0.9.4
@@ -2030,6 +2057,7 @@ cases:
 [`process.execPath`]: #process_process_execpath
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
+[`process.hrtime()`]: #process_process_hrtime_time
 [`process.kill()`]: #process_process_kill_pid_signal
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
