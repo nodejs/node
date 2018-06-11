@@ -244,6 +244,8 @@ module.exports = {
   },
   globals: {
     BigInt: false,
+    BigInt64Array: false,
+    BigUint64Array: false,
     COUNTER_HTTP_CLIENT_REQUEST: false,
     COUNTER_HTTP_CLIENT_RESPONSE: false,
     COUNTER_HTTP_SERVER_REQUEST: false,
