@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.11.3">8.11.3</a><br/>
 <a href="#8.11.2">8.11.2</a><br/>
 <a href="#8.11.1">8.11.1</a><br/>
 <a href="#8.11.0">8.11.0</a><br/>
@@ -56,6 +57,26 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.11.3"></a>
+## 2018-06-12, Version 8.11.3 'Carbon' (LTS), @evanlucas
+
+### Notable Changes
+
+* **buffer** (CVE-2018-7167): Fixes Denial of Service vulnerability where calling Buffer.fill() could hang
+* **http2**
+  * (CVE-2018-7161): Fixes Denial of Service vulnerability by updating the http2 implementation to not crash under certain circumstances during cleanup
+  * (CVE-2018-1000168): Fixes Denial of Service vulnerability by upgrading nghttp2 to 1.32.0
+
+### Commits
+
+* [[`e1ff7c3cbc`](https://github.com/nodejs/node/commit/e1ff7c3cbc)] - **deps**: update to nghttp2 1.32.0 (James M Snell) [nodejs-private/node-private#125](https://github.com/nodejs-private/node-private/pull/125)
+* [[`c5a2748d8f`](https://github.com/nodejs/node/commit/c5a2748d8f)] - **doc**: buffer.fill() can zero-fill on invalid input (Сковорода Никита Андреевич) [nodejs-private/node-private#119](https://github.com/nodejs-private/node-private/pull/119)
+* [[`354f2d97ff`](https://github.com/nodejs/node/commit/354f2d97ff)] - **http2**: fixup http2stream cleanup and other nits (James M Snell) [nodejs-private/node-private#123](https://github.com/nodejs-private/node-private/pull/123)
+* [[`25c5111ca4`](https://github.com/nodejs/node/commit/25c5111ca4)] - **src**: avoid hanging on Buffer#fill 0-length input (Сковорода Никита Андреевич) [nodejs-private/node-private#119](https://github.com/nodejs-private/node-private/pull/119)
+* [[`10c5adf19b`](https://github.com/nodejs/node/commit/10c5adf19b)] - **test**: add `Realloc()` shrink after reading stream data test (Anna Henningsen) [nodejs-private/node-private#132](https://github.com/nodejs-private/node-private/pull/132)
+* [[`bc91220ca2`](https://github.com/nodejs/node/commit/bc91220ca2)] - **test**: add tls write error regression test (Shigeki Ohtsu) [nodejs-private/node-private#131](https://github.com/nodejs-private/node-private/pull/131)
+* [[`acd11b01c4`](https://github.com/nodejs/node/commit/acd11b01c4)] - **test**: add regression test for nghttp2 CVE-2018-1000168 (James M Snell) [nodejs-private/node-private#125](https://github.com/nodejs-private/node-private/pull/125)
 
 <a id="8.11.2"></a>
 ## 2018-05-15, Version 8.11.2 'Carbon' (LTS), @MylesBorins
@@ -146,7 +167,7 @@ will be supported actively until April 2019 and maintained until December 2019.
 * [[`ac41aacb05`](https://github.com/nodejs/node/commit/ac41aacb05)] - **doc**: improve stream documentation (陈刚) [#18375](https://github.com/nodejs/node/pull/18375)
 * [[`7feeb1574e`](https://github.com/nodejs/node/commit/7feeb1574e)] - **doc**: add Gibson Fahnestock to TSC (Rich Trott) [#18481](https://github.com/nodejs/node/pull/18481)
 * [[`142ad8d450`](https://github.com/nodejs/node/commit/142ad8d450)] - **doc**: reorder section on updating PR branch (Ali Ijaz Sheikh) [#18355](https://github.com/nodejs/node/pull/18355)
-* [[`39ea4f12c5`](https://github.com/nodejs/node/commit/39ea4f12c5)] - **doc**: fix manpage warnings (Roman Reiss) 
+* [[`39ea4f12c5`](https://github.com/nodejs/node/commit/39ea4f12c5)] - **doc**: fix manpage warnings (Roman Reiss)
 * [[`5209f9e1e2`](https://github.com/nodejs/node/commit/5209f9e1e2)] - **doc**: warn about GCM authenticity (Tobias Nießen) [#18376](https://github.com/nodejs/node/pull/18376)
 * [[`e84e9db6fe`](https://github.com/nodejs/node/commit/e84e9db6fe)] - **doc**: capitalize non-primitive types (Vse Mozhet Byt) [#18111](https://github.com/nodejs/node/pull/18111)
 * [[`84fa6eb173`](https://github.com/nodejs/node/commit/84fa6eb173)] - **doc, http2**: add sections for server.close() (Chris Miller) [#19802](https://github.com/nodejs/node/pull/19802)
@@ -336,8 +357,8 @@ Fixes for the following CVEs are included in this release:
 * [[`987138e488`](https://github.com/nodejs/node/commit/987138e488)] - **deps**: upgrade openssl sources to 1.0.2o (Shigeki Ohtsu) [#19638](https://github.com/nodejs/node/pull/19638)
 * [[`1b7f6d9072`](https://github.com/nodejs/node/commit/1b7f6d9072)] - **deps**: reject interior blanks in Content-Length (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
 * [[`86c9ec6c5c`](https://github.com/nodejs/node/commit/86c9ec6c5c)] - **deps**: upgrade http-parser to v2.8.0 (Ben Noordhuis) [nodejs-private/http-parser-private#1](https://github.com/nodejs-private/http-parser-private/pull/1)
-* [[`de0c84889b`](https://github.com/nodejs/node/commit/de0c84889b)] - **inspector**: minor adjustments (Eugene Ostroukhov) 
-* [[`b7690655ef`](https://github.com/nodejs/node/commit/b7690655ef)] - **inspector**: check Host header (Ali Ijaz Sheikh) 
+* [[`de0c84889b`](https://github.com/nodejs/node/commit/de0c84889b)] - **inspector**: minor adjustments (Eugene Ostroukhov)
+* [[`b7690655ef`](https://github.com/nodejs/node/commit/b7690655ef)] - **inspector**: check Host header (Ali Ijaz Sheikh)
 * [[`0641f2dbf9`](https://github.com/nodejs/node/commit/0641f2dbf9)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`6ee4228c1d`](https://github.com/nodejs/node/commit/6ee4228c1d)] - **src**: drop CNNIC+StartCom certificate whitelisting (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
 * [[`633e23a618`](https://github.com/nodejs/node/commit/633e23a618)] - **tools**: update certdata.txt (Ben Noordhuis) [#19322](https://github.com/nodejs/node/pull/19322)
