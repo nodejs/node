@@ -273,7 +273,7 @@ being emitted.
 
 In case a rejected promise is garbage collected without ever having a
 [`.catch(() => { })`][`promise.catch()`] handler attached, it will trigger an
-`uncaughtException` just as any other uncaught JavaScript exception.
+`uncaughtException` like all other uncaught JavaScript exceptions.
 
 ### Event: 'warning'
 <!-- YAML

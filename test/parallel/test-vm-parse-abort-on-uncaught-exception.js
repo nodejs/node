@@ -1,4 +1,3 @@
-// Flags: --abort-on-uncaught-exception
 'use strict';
 require('../common');
 const vm = require('vm');
@@ -7,8 +6,5 @@ const vm = require('vm');
 
 try {
   new vm.Script({ toString() { throw new Error('foo'); } }, {});
-} catch (err) {}
-
-try {
   new vm.Script('[', {});
 } catch (err) {}

@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const assert = require('assert');
 
 process.env.NODE_UNHANDLED_REJECTION = 'SILENT';
 
@@ -18,5 +19,6 @@ global.gc();
 
 process.on('warning', common.mustNotCall('warning'));
 process.on('uncaughtException', common.mustNotCall('uncaughtException'));
+process.on('exit', assert.strictEqual.bind(null, 0));
 
 setTimeout(common.mustCall(), 2);

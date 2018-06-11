@@ -9,12 +9,12 @@ process.env.NODE_UNHANDLED_REJECTION = 'ERROR_ON_GC';
 // code 1 if they get garbage collected. Any promise that is handled later on
 // should not cause this.
 
-let p1 = new Promise((res, rej) => {
+let p1 = new Promise(() => {
   throw new Error('One');
 });
 
 // eslint-disable-next-line no-unused-vars
-let p2 = new Promise((res, rej) => {
+let p2 = new Promise(() => {
   throw new Error('Two');
 });
 
@@ -33,6 +33,8 @@ process.nextTick(() => {
     setTimeout(() => {
       // Should still trigger a warning.
       p3.catch(() => {});
+      // Keep a hard reference to p2.
+      console.log(p2);
     }, 1000);
     global.gc();
     setImmediate(() => {

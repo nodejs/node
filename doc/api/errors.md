@@ -1161,8 +1161,8 @@ specified column.
 <a id="ERR_INVALID_ENV_VALUE"></a>
 ### ERR_INVALID_ENV_VALUE
 
-A environment variable value is unknown. Please consultate the documentation and
-make sure to pass in valid values.
+An environment variable value which is unrecognized. Please consult the
+documentation and make sure to pass in valid values.
 
 <a id="ERR_INVALID_FD"></a>
 ### ERR_INVALID_FD

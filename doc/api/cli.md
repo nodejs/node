@@ -278,6 +278,33 @@ file will be created if it does not exist, and will be appended to if it does.
 If an error occurs while attempting to write the warning to the file, the
 warning will be written to stderr instead.
 
+### `--unhandled-rejections=mode`
+<!-- YAML
+added: REPLACEME
+-->
+
+See below ..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ### `--throw-deprecation`
 <!-- YAML
 added: v0.11.14
@@ -632,21 +659,28 @@ added: REPLACEME
 
 Setting this environment variable allows fine grained control over the behavior
 of unhandled rejections. This may be set to either one of `SILENT`, `WARN`,
-`ERROR_ON_GC` or `ERROR` while the default behavior without using the
+`ERROR_ON_GC`, `ERROR` or `STRICT` while the default behavior without using the
 environment variable is the same as `WARN`. `WARN` reflects the
-[`unhandledRejection hook`][].
+[`unhandledRejection hook`][]. The [`unhandledRejection hook`][] functionality
+is not influenced by any of these options.
 
 Setting the environment variable to `SILENT` prevents unhandled rejection
-warnings from being logged, even if no [`unhandledRejection hook`][] is set.
+warnings from being logged, even if no [`unhandledRejection hook`][] is
+attached.
 
-If set to `ERROR_ON_GC` unhandled rejections that are garbage collected are
-turned into exceptions.
+If set to `ERROR_ON_GC` unhandled rejections that are [garbage collected][] are
+raised as uncaught exceptions.
 
-If set to `ERROR` any unhandled rejection is going turn the rejection into an
-exception.
+If set to `ERROR` all rejections that are not handled after a single
+`nextTick()` has passed are raised as uncaught exception.
 
-Any rejection that is turned into an exception can be caught by the
-[`uncaughtException hook`][].
+If set to `STRICT` all rejections that are not handled synchronous are raised as
+uncaught exception.
+
+Any rejection that is raised as exception can be caught by the
+[`uncaughtException hook`][]. Handling promises can be done lazily by adding a
+catch handler to the promise chain after the promise was already potentially
+rejected.
 
 ### `OPENSSL_CONF=file`
 <!-- YAML
@@ -712,11 +746,12 @@ greater than `4` (its current default value). For more information, see the
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
-[`uncaughtExceotion hook`]: process.html#process_event_uncaughtexception
+[`uncaughtException hook`]: process.html#process_event_uncaughtexception
 [`unhandledRejection hook`]: process.html#process_event_unhandledrejection
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [experimental ECMAScript Module]: esm.html#esm_loader_hooks
+[garbage collected]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#Garbage_collection
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html

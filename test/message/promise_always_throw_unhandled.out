@@ -1,7 +1,3 @@
-*promises.js:*
-          throw err;
-          ^
-
 Error: One
     at Promise (*promise_always_throw_unhandled.js:*:*)
     at new Promise (<anonymous>)

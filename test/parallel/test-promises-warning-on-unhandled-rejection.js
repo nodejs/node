@@ -27,10 +27,14 @@ process.on('warning', common.mustCall((warning) => {
       );
       break;
     case 2:
+      // One time deprecation warning, first unhandled rejection
+      assert.strictEqual(warning.name, 'DeprecationWarning');
+      break;
+    case 3:
       // Number rejection error displayed. Note it's been stringified
       assert.strictEqual(warning.message, '42');
       break;
-    case 3:
+    case 4:
       // Unhandled rejection warning (won't be handled next tick)
       assert.strictEqual(warning.name, 'UnhandledPromiseRejectionWarning');
       assert(
@@ -39,13 +43,13 @@ process.on('warning', common.mustCall((warning) => {
         'but did not. Had "' + warning.message + '" instead.'
       );
       break;
-    case 4:
+    case 5:
       // Rejection handled asynchronously.
       assert.strictEqual(warning.name, 'PromiseRejectionHandledWarning');
       assert(/Promise rejection was handled asynchronously/
         .test(warning.message));
   }
-}, 5));
+}, 6));
 
 const p = Promise.reject('This was rejected'); // Reject with a string
 setImmediate(common.mustCall(() => p.catch(() => { })));

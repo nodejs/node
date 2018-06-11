@@ -205,11 +205,11 @@ See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 <a id="DEP0018"></a>
 ### DEP0018: Unhandled promise rejections
 
-Type: End-of-Life
+Type: Runtime
 
-Any rejected promise that is unhandled and garbage collected is going to exit
-the process similar to uncaught exceptions. Please make sure to always handle
-all possible rejections.
+Unhandled promise rejections are deprecated. In the future, promise rejections
+that are not handled will terminate the Node.js process with a non-zero exit
+code.
 
 <a id="DEP0019"></a>
 ### DEP0019: require('.') resolved outside directory
@@ -1057,16 +1057,16 @@ future release.
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Cipher`]: crypto.html#crypto_class_cipher
 [`Decipher`]: crypto.html#crypto_class_decipher
-[`assert`]: assert.html
-[`clearInterval()`]: timers.html#timers_clearinterval_timeout
-[`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
 [`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`assert`]: assert.html
 [`asyncResource.runInAsyncScope()`]: async_hooks.html#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`child_process`]: child_process.html
+[`clearInterval()`]: timers.html#timers_clearinterval_timeout
+[`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options

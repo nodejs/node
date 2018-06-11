@@ -9,9 +9,9 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
+using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Exception;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -26,9 +26,7 @@ using v8::Value;
 using v8::WeakCallbackInfo;
 using v8::WeakCallbackType;
 
-enum ExceptionOrigin {
-  kFromPromise = true
-};
+static constexpr bool kFromPromise = true;
 
 // The internal field 0 is used by PromiseHook() in async-wrap.cc.
 static constexpr int kUnhandledPromiseField = 1;

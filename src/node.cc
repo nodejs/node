@@ -175,9 +175,7 @@ static node_module* modlist_addon;
 // TODO(addaleax): This should not be global.
 static bool abort_on_uncaught_exception = false;
 
-enum ExceptionOrigin {
-  kFromError = false
-};
+static constexpr bool kFromError = false;
 
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
@@ -1530,15 +1528,19 @@ void InternalFatalException(Isolate* isolate,
     } else if (caught->IsFalse()) {
       ReportException(env, error, message);
 
-      // fatal_exception_function call before may have set a new exit code ->
-      // read it again, otherwise use default for uncaughtException 1
-      Local<String> exit_code = env->exit_code_string();
-      Local<Value> code;
-      if (!process_object->Get(env->context(), exit_code).ToLocal(&code) ||
-          !code->IsInt32()) {
-        exit(1);
+      if (abort_on_uncaught_exception) {
+        ABORT();
+      } else {
+        // Fatal_exception_function call before may have set a new exit code ->
+        // read it again, otherwise use default for uncaughtException 1
+        Local<String> exit_code = env->exit_code_string();
+        Local<Value> code;
+        if (!process_object->Get(env->context(), exit_code).ToLocal(&code) ||
+            !code->IsInt32()) {
+          exit(1);
+        }
+        exit(code.As<v8::Int32>()->Value());
       }
-      exit(code.As<v8::Int32>()->Value());
     }
   }
 }
