@@ -126,7 +126,7 @@ added: v0.3.4
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
-  * `timeout` {number} A number specifying the socket timeout in milliseconds.
+  * `timeout` {number} Socket timeout in milliseconds.
     This will set the timeout after the socket is connected.
 
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
