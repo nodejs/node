@@ -381,8 +381,6 @@ For more information about the governance of the Node.js project, see
 **Yuta Hiroto** &lt;hello@hiroppy.me&gt; (he/him)
 * [iarna](https://github.com/iarna) -
 **Rebecca Turner** &lt;me@re-becca.org&gt;
-* [imran-iq](https://github.com/imran-iq) -
-**Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [imyller](https://github.com/imyller) -
 **Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [indutny](https://github.com/indutny) -
@@ -433,8 +431,6 @@ For more information about the governance of the Node.js project, see
 **Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
 **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; (he/him)
-* [micnic](https://github.com/micnic) -
-**Nicu Micleușanu** &lt;micnic90@gmail.com&gt; (he/him)
 * [misterdjules](https://github.com/misterdjules) -
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mmarchini](https://github.com/mmarchini) -
@@ -465,12 +461,6 @@ For more information about the governance of the Node.js project, see
 **Refael Ackermann** &lt;refack@gmail.com&gt; (he/him)
 * [richardlau](https://github.com/richardlau) -
 **Richard Lau** &lt;riclau@uk.ibm.com&gt;
-* [rmg](https://github.com/rmg) -
-**Ryan Graham** &lt;r.m.graham@gmail.com&gt;
-* [robertkowalski](https://github.com/robertkowalski) -
-**Robert Kowalski** &lt;rok@kowalski.gd&gt;
-* [romankl](https://github.com/romankl) -
-**Roman Klauke** &lt;romaaan.git@gmail.com&gt;
 * [ronkorving](https://github.com/ronkorving) -
 **Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [RReverser](https://github.com/RReverser) -
@@ -540,12 +530,16 @@ For more information about the governance of the Node.js project, see
 
 ### Collaborator Emeriti
 
+* [imran-iq](https://github.com/imran-iq) -
+**Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [lxe](https://github.com/lxe) -
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
 **Matthew Loring** &lt;mattloring@google.com&gt;
+* [micnic](https://github.com/micnic) -
+**Nicu Micleușanu** &lt;micnic90@gmail.com&gt; (he/him)
 * [mikeal](https://github.com/mikeal) -
 **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) -
@@ -558,6 +552,12 @@ For more information about the governance of the Node.js project, see
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [rlidwka](https://github.com/rlidwka) -
 **Alex Kocharin** &lt;alex@kocharin.ru&gt;
+* [rmg](https://github.com/rmg) -
+**Ryan Graham** &lt;r.m.graham@gmail.com&gt;
+* [robertkowalski](https://github.com/robertkowalski) -
+**Robert Kowalski** &lt;rok@kowalski.gd&gt;
+* [romankl](https://github.com/romankl) -
+**Roman Klauke** &lt;romaaan.git@gmail.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [tunniclm](https://github.com/tunniclm) -
