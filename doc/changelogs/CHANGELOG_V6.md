@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.14.3">6.14.3</a><br/>
 <a href="#6.14.2">6.14.2</a><br/>
 <a href="#6.14.1">6.14.1</a><br/>
 <a href="#6.14.0">6.14.0</a><br/>
@@ -62,6 +63,18 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.14.3"></a>
+## 2018-06-12, Version 6.14.3 'Boron' (LTS), @evanlucas
+
+### Notable Changes
+
+* **buffer** (CVE-2018-7167): Fixes Denial of Service vulnerability where calling Buffer.fill() could hang
+
+### Commits
+
+* [[`7dbcfc6217`](https://github.com/nodejs/node/commit/7dbcfc6217)] - **src**: avoid hanging on Buffer#fill 0-length input (Сковорода Никита Андреевич) [nodejs-private/node-private#121](https://github.com/nodejs-private/node-private/pull/121)
+
 
 <a id="6.14.2"></a>
 ## 2018-04-30, Version 6.14.2 'Boron' (LTS), @MylesBorins
@@ -412,13 +425,13 @@ This LTS release comes with 112 commits, 17 of which are considered Semver-Minor
   - more robust stringification for unhandled rejections (Timothy Gu) [#13784](https://github.com/nodejs/node/pull/13784)
 * **repl**:
   - improve require() autocompletion (Alexey Orlenko) [#14409](https://github.com/nodejs/node/pull/14409)
-* **src**: 
+* **src**:
   - add openssl-system-ca-path configure option (Daniel Bevenius) [#16790](https://github.com/nodejs/node/pull/16790)
   - add --use-bundled-ca --use-openssl-ca check (Daniel Bevenius) [#12087](https://github.com/nodejs/node/pull/12087)
   - add process.ppid (cjihrig) [#16839](https://github.com/nodejs/node/pull/16839)
 * **tls**:
   - accept `lookup` option for `tls.connect()` (Fedor Indutny) [#12839](https://github.com/nodejs/node/pull/12839)
-* **tools, build**: 
+* **tools, build**:
   - a new macOS installer! (JP Wesselink) [#15179](https://github.com/nodejs/node/pull/15179)
 * **url**:
   - WHATWG URL api support (James M Snell) [#7448](https://github.com/nodejs/node/pull/7448)
@@ -892,7 +905,7 @@ This LTS release comes with 263 commits. This includes 173 which are test relate
 * [[`4c98e07702`](https://github.com/nodejs/node/commit/4c98e07702)] - **test**: fixtures in test-net-pipe-connect-errors (Eric Freiberg) [#15922](https://github.com/nodejs/node/pull/15922)
 * [[`244bfb398d`](https://github.com/nodejs/node/commit/244bfb398d)] - **test**: fixtures in test-process-redirect-warnings-env (Kat Rosario) [#15930](https://github.com/nodejs/node/pull/15930)
 * [[`18479d3cff`](https://github.com/nodejs/node/commit/18479d3cff)] - **test**: fix ordering of strictEqual actual/expected (Chad Zezula) [#16008](https://github.com/nodejs/node/pull/16008)
-* [[`66fd6a1409`](https://github.com/nodejs/node/commit/66fd6a1409)] - **test**: use fixtures.readSync (szhang351) 
+* [[`66fd6a1409`](https://github.com/nodejs/node/commit/66fd6a1409)] - **test**: use fixtures.readSync (szhang351)
 * [[`6d33564b1a`](https://github.com/nodejs/node/commit/6d33564b1a)] - **test**: replaced fixturesDir with common.fixtures (Dolapo Toki) [#15836](https://github.com/nodejs/node/pull/15836)
 * [[`a6f04bec9e`](https://github.com/nodejs/node/commit/a6f04bec9e)] - **test**: use fixtures.fixturesDir (Gene Wu) [#15822](https://github.com/nodejs/node/pull/15822)
 * [[`2103453977`](https://github.com/nodejs/node/commit/2103453977)] - **test**: replaces fixturesDir with fixtures methods (Christian Murphy) [#15817](https://github.com/nodejs/node/pull/15817)
@@ -1002,7 +1015,7 @@ This release includes a security update to openssl that has been deemed low seve
 * **process**:
   - add --redirect-warnings command line argument (James M Snell) [#10116](https://github.com/nodejs/node/pull/10116)
 * **src**:
-  - allow CLI args in env with NODE_OPTIONS (Sam Roberts) [#12028](https://github.com/nodejs/node/pull/12028) 
+  - allow CLI args in env with NODE_OPTIONS (Sam Roberts) [#12028](https://github.com/nodejs/node/pull/12028)
   - --abort-on-uncaught-exception in NODE_OPTIONS (Sam Roberts) [#13932](https://github.com/nodejs/node/pull/13932)
   - allow --tls-cipher-list in NODE_OPTIONS (Sam Roberts) [#13172](https://github.com/nodejs/node/pull/13172)
   - use SafeGetenv() for NODE_REDIRECT_WARNINGS (Sam Roberts) [#12677](https://github.com/nodejs/node/pull/12677)
@@ -1088,7 +1101,7 @@ This release includes a security update to openssl that has been deemed low seve
 * [[`b166837551`](https://github.com/nodejs/node/commit/b166837551)] - **src,etw**: fix event 9 on 64 bit Windows (João Reis) [#15563](https://github.com/nodejs/node/pull/15563)
 * [[`18987794bd`](https://github.com/nodejs/node/commit/18987794bd)] - **test**: move test-cluster-debug-port to sequential (Oleksandr Kushchak) [#16292](https://github.com/nodejs/node/pull/16292)
 * [[`1fdbaed2f2`](https://github.com/nodejs/node/commit/1fdbaed2f2)] - **test**: begin normalizing fixtures use (James M Snell) [#14332](https://github.com/nodejs/node/pull/14332)
-* [[`3ad6a9dfc4`](https://github.com/nodejs/node/commit/3ad6a9dfc4)] - **test**: remove assert message (Joe Henry) 
+* [[`3ad6a9dfc4`](https://github.com/nodejs/node/commit/3ad6a9dfc4)] - **test**: remove assert message (Joe Henry)
 * [[`58509ec471`](https://github.com/nodejs/node/commit/58509ec471)] - **test**: clarify assert messages in crypto tests (cpandrews8) [#16019](https://github.com/nodejs/node/pull/16019)
 * [[`ab7f43aa41`](https://github.com/nodejs/node/commit/ab7f43aa41)] - **test**: include expected result in error messages (Chowdhurian) [#16039](https://github.com/nodejs/node/pull/16039)
 * [[`342ac9f0c6`](https://github.com/nodejs/node/commit/342ac9f0c6)] - **test**: cleanup test-buffer-sharedarraybuffer (Rafal Leszczynski) [#15896](https://github.com/nodejs/node/pull/15896)
@@ -1161,7 +1174,7 @@ This LTS release comes with 91 commits. This includes 29 which are test related,
 
 ### Notable Changes
 
-* **net**: 
+* **net**:
   - support passing undefined to listen() to match behavior in v4.x and v8.x (Sam Roberts) [#14234](https://github.com/nodejs/node/pull/14234)
 
 ### Commits
@@ -1247,7 +1260,7 @@ This LTS release comes with 91 commits. This includes 29 which are test related,
 * [[`c88f99f1f3`](https://github.com/nodejs/node/commit/c88f99f1f3)] - **test**: improvements to various http tests (James M Snell) [#14315](https://github.com/nodejs/node/pull/14315)
 * [[`860c6198c0`](https://github.com/nodejs/node/commit/860c6198c0)] - **test**: use ciphers supported by shared OpenSSL (Jérémy Lal) [#14566](https://github.com/nodejs/node/pull/14566)
 * [[`8b9a05c04b`](https://github.com/nodejs/node/commit/8b9a05c04b)] - **test**: read proper inspector message size (Bartosz Sosnowski) [#14596](https://github.com/nodejs/node/pull/14596)
-* [[`86497f1acc`](https://github.com/nodejs/node/commit/86497f1acc)] - **test**: mark inspector-port-zero-cluster as flaky (Refael Ackermann) 
+* [[`86497f1acc`](https://github.com/nodejs/node/commit/86497f1acc)] - **test**: mark inspector-port-zero-cluster as flaky (Refael Ackermann)
 * [[`8dfc2838c8`](https://github.com/nodejs/node/commit/8dfc2838c8)] - **test**: fix test-readline-interface (Azard) [#14677](https://github.com/nodejs/node/pull/14677)
 * [[`3a6392b283`](https://github.com/nodejs/node/commit/3a6392b283)] - **tls**: fix empty issuer/subject/infoAccess parsing (Ben Noordhuis) [#14473](https://github.com/nodejs/node/pull/14473)
 * [[`37dd2adbac`](https://github.com/nodejs/node/commit/37dd2adbac)] - **tools**: fix linter error in html.js (Michaël Zasso) [#15063](https://github.com/nodejs/node/pull/15063)
