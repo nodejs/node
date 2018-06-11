@@ -1,8 +1,7 @@
 'use strict';
 const common = require('../common');
 
-// The test ensure call `req.setTimeout` will not let
-// timeout fired twice.
+// Test that `req.setTimeout` will fired exactly once.
 
 const assert = require('assert');
 const http = require('http');
