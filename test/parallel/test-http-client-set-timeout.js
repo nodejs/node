@@ -17,7 +17,7 @@ const options = {
 };
 
 const server = http.createServer(() => {
-  // never response
+  // Never respond.
 });
 
 server.listen(0, options.host, function() {
@@ -29,7 +29,7 @@ function doRequest() {
   const req = http.request(options);
   req.setTimeout(HTTP_CLIENT_TIMEOUT / 2);
   req.on('error', () => {
-    // this space is intentionally left blank
+    // This space is intentionally left blank.
   });
   req.on('close', common.mustCall(() => server.close()));
 
