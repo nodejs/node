@@ -23,7 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const os = require('os');
-const util = require('util');
 const spawn = require('child_process').spawn;
 
 // We're trying to reproduce:
@@ -108,7 +107,7 @@ let result = '';
 // print sed's output
 sed.stdout.on('data', function(data) {
   result += data.toString('utf8', 0, data.length);
-  util.print(data);
+  console.log(data);
 });
 
 sed.stdout.on('end', function(code) {
