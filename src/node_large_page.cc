@@ -58,9 +58,6 @@ extern char __etext;
 extern char __nodetext;
 
 namespace node {
-#define ALIGN(x, a)           (((x) + (a) - 1) & ~((a) - 1))
-#define PAGE_ALIGN_UP(x, a)   ALIGN(x, a)
-#define PAGE_ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 
 struct text_region {
   char* from;
@@ -74,6 +71,14 @@ static void PrintSystemError(int error) {
   return;
 }
 
+inline int64_t hugepage_align_up(int64_t addr) {
+    const size_t hps = 2L * 1024 * 1024;
+    return (((addr) + (hps) - 1) & ~((hps) - 1));
+}
+inline int64_t hugepage_align_down(int64_t addr) {
+    const size_t hps = 2L * 1024 * 1024;
+    return ((addr) & ~((hps) - 1));
+}
 //  The format of the maps file is the following
 //  address           perms offset  dev   inode       pathname
 //  00400000-00452000 r-xp 00000000 08:02 173521      /usr/bin/dbus-daemon
@@ -105,8 +110,8 @@ static struct text_region FindNodeTextRegion() {
 
   if (permission.compare("r-xp") == 0) {
     start = reinterpret_cast<unsigned int64_t>(&__nodetext);
-    char* from = reinterpret_cast<char *>PAGE_ALIGN_UP(start, hps);
-    char* to = reinterpret_cast<char *>PAGE_ALIGN_DOWN(end, hps);
+    char* from = reinterpret_cast<char* >(hugepage_align_up(start));
+    char* to = reinterpret_cast<char* >(hugepage_align_down(end));
 
     if (from < to) {
       size_t size = to - from;
@@ -240,13 +245,13 @@ int MapStaticCodeToLargePages() {
     return -1;
   }
 
-  if (r.from > reinterpret_cast<void *> (&MoveTextRegionToLargePages))
+  if (r.from > reinterpret_cast<void* > (&MoveTextRegionToLargePages))
     return MoveTextRegionToLargePages(r);
 
   return -1;
 }
 
-bool  IsLargePagesEnabled() {
+bool IsLargePagesEnabled() {
   return IsTransparentHugePagesEnabled();
 }
 
