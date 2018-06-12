@@ -1873,8 +1873,6 @@ There are a few special headers that should be noted.
 Example using a [`URL`][] as `options`:
 
 ```js
-const { URL } = require('url');
-
 const options = new URL('http://abc:xyz@example.com');
 
 const req = http.request(options, (res) => {
