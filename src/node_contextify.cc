@@ -924,7 +924,7 @@ bool ContextifyScript::EvalMachine(Environment* env,
 
   // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
-    if (!env->is_main_thread() && env->is_stopping_worker())
+    if (!env->is_main_thread() && env->is_stopping())
       return false;
     env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in

@@ -340,6 +340,14 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
+  GetAsyncRequest()->Install(
+    this, static_cast<void*>(this), [](uv_async_t* handle) {
+      Environment* env = static_cast<Environment*>(handle->data);
+      uv_stop(env->event_loop());
+    });
+  GetAsyncRequest()->SetStopped(false);
+  uv_unref(reinterpret_cast<uv_handle_t*>(GetAsyncRequest()->GetHandle()));
+
   // Register clean-up cb to be called to clean up the handles
   // when the environment is freed, note that they are not cleaned in
   // the one environment per process setup, but will be called in
@@ -353,6 +361,12 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
   uv_key_set(&thread_local_env, this);
+}
+
+void Environment::ExitEnv() {
+  set_can_call_into_js(false);
+  GetAsyncRequest()->Stop();
+  isolate_->TerminateExecution();
 }
 
 MaybeLocal<Object> Environment::ProcessCliArgs(
@@ -519,6 +533,7 @@ void Environment::RunCleanup() {
   started_cleanup_ = true;
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
+  GetAsyncRequest()->Uninstall();
   CleanupHandles();
 
   while (!cleanup_hooks_.empty()) {
@@ -930,6 +945,53 @@ char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
     memset(new_data + old_size, 0, size - old_size);
   Free(data, old_size);
   return new_data;
+}
+
+void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {
+  Mutex::ScopedLock lock(mutex_);
+  env_ = env;
+  async_ = new uv_async_t;
+  async_->data = data;
+  CHECK_EQ(uv_async_init(env_->event_loop(), async_, target), 0);
+}
+
+void AsyncRequest::Uninstall() {
+  Mutex::ScopedLock lock(mutex_);
+  if (async_ != nullptr) {
+    env_->CloseHandle(async_, [](uv_async_t* async) { delete async; });
+    async_ = nullptr;
+  }
+}
+
+void AsyncRequest::Stop() {
+  Mutex::ScopedLock lock(mutex_);
+  stop_ = true;
+  if (async_ != nullptr) uv_async_send(async_);
+}
+
+void AsyncRequest::SetStopped(bool flag) {
+  Mutex::ScopedLock lock(mutex_);
+  stop_ = flag;
+}
+
+bool AsyncRequest::IsStopped() const {
+  Mutex::ScopedLock lock(mutex_);
+  return stop_;
+}
+
+uv_async_t* AsyncRequest::GetHandle() {
+  Mutex::ScopedLock lock(mutex_);
+  return async_;
+}
+
+void AsyncRequest::MemoryInfo(MemoryTracker* tracker) const {
+  Mutex::ScopedLock lock(mutex_);
+  if (async_ != nullptr) tracker->TrackField("async_request", *async_);
+}
+
+AsyncRequest::~AsyncRequest() {
+  Mutex::ScopedLock lock(mutex_);
+  CHECK_NULL(async_);
 }
 
 // Not really any better place than env.cc at this moment.

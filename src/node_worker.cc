@@ -57,46 +57,6 @@ void WaitForWorkerInspectorToStop(Environment* child) {
 
 }  // anonymous namespace
 
-void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {
-  Mutex::ScopedLock lock(mutex_);
-  env_ = env;
-  async_ = new uv_async_t;
-  if (data != nullptr) async_->data = data;
-  CHECK_EQ(uv_async_init(env_->event_loop(), async_, target), 0);
-}
-
-void AsyncRequest::Uninstall() {
-  Mutex::ScopedLock lock(mutex_);
-  if (async_ != nullptr)
-    env_->CloseHandle(async_, [](uv_async_t* async) { delete async; });
-}
-
-void AsyncRequest::Stop() {
-  Mutex::ScopedLock lock(mutex_);
-  stop_ = true;
-  if (async_ != nullptr) uv_async_send(async_);
-}
-
-void AsyncRequest::SetStopped(bool flag) {
-  Mutex::ScopedLock lock(mutex_);
-  stop_ = flag;
-}
-
-bool AsyncRequest::IsStopped() const {
-  Mutex::ScopedLock lock(mutex_);
-  return stop_;
-}
-
-uv_async_t* AsyncRequest::GetHandle() {
-  Mutex::ScopedLock lock(mutex_);
-  return async_;
-}
-
-void AsyncRequest::MemoryInfo(MemoryTracker* tracker) const {
-  Mutex::ScopedLock lock(mutex_);
-  if (async_ != nullptr) tracker->TrackField("async_request", *async_);
-}
-
 Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
@@ -142,7 +102,10 @@ Worker::Worker(Environment* env,
 }
 
 bool Worker::is_stopped() const {
-  return thread_stopper_.IsStopped();
+  Mutex::ScopedLock lock(mutex_);
+  if (env_ != nullptr)
+    return env_->GetAsyncRequest()->IsStopped();
+  return stopped_;
 }
 
 // This class contains data that is only relevant to the child thread itself,
@@ -254,8 +217,12 @@ void Worker::Run() {
         Context::Scope context_scope(env_->context());
         if (child_port != nullptr)
           child_port->Close();
-        thread_stopper_.Uninstall();
-        thread_stopper_.SetStopped(true);
+        {
+          Mutex::ScopedLock lock(mutex_);
+          stopped_ = true;
+          this->env_ = nullptr;
+        }
+        env_->GetAsyncRequest()->SetStopped(true);
         env_->stop_sub_worker_contexts();
         env_->RunCleanup();
         RunAtExit(env_.get());
@@ -271,12 +238,12 @@ void Worker::Run() {
       }
     });
 
-    if (thread_stopper_.IsStopped()) return;
+    if (is_stopped()) return;
     {
       HandleScope handle_scope(isolate_);
       Local<Context> context = NewContext(isolate_);
 
-      if (thread_stopper_.IsStopped()) return;
+      if (is_stopped()) return;
       CHECK(!context.IsEmpty());
       Context::Scope context_scope(context);
       {
@@ -294,18 +261,13 @@ void Worker::Run() {
         env_->ProcessCliArgs(std::vector<std::string>{},
                              std::move(exec_argv_));
       }
-
+      {
+        Mutex::ScopedLock lock(mutex_);
+        if (stopped_) return;
+        this->env_ = env_.get();
+      }
       Debug(this, "Created Environment for worker with id %llu", thread_id_);
-
       if (is_stopped()) return;
-      thread_stopper_.Install(env_.get(), env_.get(), [](uv_async_t* handle) {
-        Environment* env_ = static_cast<Environment*>(handle->data);
-        uv_stop(env_->event_loop());
-      });
-      uv_unref(reinterpret_cast<uv_handle_t*>(thread_stopper_.GetHandle()));
-
-      Debug(this, "Created Environment for worker with id %llu", thread_id_);
-      if (thread_stopper_.IsStopped()) return;
       {
         HandleScope handle_scope(isolate_);
         Mutex::ScopedLock lock(mutex_);
@@ -321,7 +283,7 @@ void Worker::Run() {
         Debug(this, "Created message port for worker %llu", thread_id_);
       }
 
-      if (thread_stopper_.IsStopped()) return;
+      if (is_stopped()) return;
       {
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
         StartWorkerInspector(env_.get(),
@@ -342,28 +304,28 @@ void Worker::Run() {
         Debug(this, "Loaded environment for worker %llu", thread_id_);
       }
 
-      if (thread_stopper_.IsStopped()) return;
+      if (is_stopped()) return;
       {
         SealHandleScope seal(isolate_);
         bool more;
         env_->performance_state()->Mark(
             node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
         do {
-          if (thread_stopper_.IsStopped()) break;
+          if (is_stopped()) break;
           uv_run(&data.loop_, UV_RUN_DEFAULT);
-          if (thread_stopper_.IsStopped()) break;
+          if (is_stopped()) break;
 
           platform_->DrainTasks(isolate_);
 
           more = uv_loop_alive(&data.loop_);
-          if (more && !thread_stopper_.IsStopped()) continue;
+          if (more && !is_stopped()) continue;
 
           EmitBeforeExit(env_.get());
 
           // Emit `beforeExit` if the loop became alive either after emitting
           // event, or after running some callbacks.
           more = uv_loop_alive(&data.loop_);
-        } while (more == true);
+        } while (more == true && !is_stopped());
         env_->performance_state()->Mark(
             node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
       }
@@ -371,7 +333,7 @@ void Worker::Run() {
 
     {
       int exit_code;
-      bool stopped = thread_stopper_.IsStopped();
+      bool stopped = is_stopped();
       if (!stopped)
         exit_code = EmitExit(env_.get());
       Mutex::ScopedLock lock(mutex_);
@@ -419,7 +381,7 @@ void Worker::OnThreadStopped() {
 Worker::~Worker() {
   Mutex::ScopedLock lock(mutex_);
 
-  CHECK(thread_stopper_.IsStopped());
+  CHECK(stopped_ || env_ == nullptr || env_->GetAsyncRequest()->IsStopped());
   CHECK(thread_joined_);
 
   Debug(this, "Worker %llu destroyed", thread_id_);
@@ -516,12 +478,12 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   w->ClearWeak();
 
   w->env()->add_sub_worker_context(w);
+  w->stopped_ = false;
   w->thread_joined_ = false;
-  w->thread_stopper_.SetStopped(false);
 
   w->on_thread_finished_.Install(w->env(), w, [](uv_async_t* handle) {
     Worker* w_ = static_cast<Worker*>(handle->data);
-    CHECK(w_->thread_stopper_.IsStopped());
+    CHECK(w_->is_stopped());
     w_->parent_port_ = nullptr;
     w_->JoinThread();
     delete w_;
@@ -569,14 +531,12 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
 
 void Worker::Exit(int code) {
   Mutex::ScopedLock lock(mutex_);
-
   Debug(this, "Worker %llu called Exit(%d)", thread_id_, code);
-  if (!thread_stopper_.IsStopped()) {
+  if (env_ != nullptr) {
     exit_code_ = code;
-    Debug(this, "Received StopEventLoop request");
-    thread_stopper_.Stop();
-    if (isolate_ != nullptr)
-      isolate_->TerminateExecution();
+    Stop(env_);
+  } else {
+    stopped_ = true;
   }
 }
 

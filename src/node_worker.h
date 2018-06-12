@@ -12,26 +12,6 @@ namespace worker {
 
 class WorkerThreadData;
 
-class AsyncRequest : public MemoryRetainer {
- public:
-  AsyncRequest() {}
-  void Install(Environment* env, void* data, uv_async_cb target);
-  void Uninstall();
-  void Stop();
-  void SetStopped(bool flag);
-  bool IsStopped() const;
-  uv_async_t* GetHandle();
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(AsyncRequest)
-  SET_SELF_SIZE(AsyncRequest)
-
- private:
-  Environment* env_;
-  uv_async_t* async_ = nullptr;
-  mutable Mutex mutex_;
-  bool stop_ = true;
-};
-
 // A worker thread, as represented in its parent thread.
 class Worker : public AsyncWrap {
  public:
@@ -54,7 +34,6 @@ class Worker : public AsyncWrap {
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("parent_port", parent_port_);
-    tracker->TrackInlineField(&thread_stopper_, "thread_stopper_");
     tracker->TrackInlineField(&on_thread_finished_, "on_thread_finished_");
   }
 
@@ -107,8 +86,19 @@ class Worker : public AsyncWrap {
   // instance refers to it via its [kPort] property.
   MessagePort* parent_port_ = nullptr;
 
-  AsyncRequest thread_stopper_;
   AsyncRequest on_thread_finished_;
+
+  // A raw flag that is used by creator and worker threads to
+  // sync up on pre-mature termination of worker  - while in the
+  // warmup phase.  Once the worker is fully warmed up, use the
+  // async handle of the worker's Environment for the same purpose.
+  bool stopped_ = true;
+
+  // The real Environment of the worker object. It has a lesser
+  // lifespan than the worker object itself - comes to life
+  // when the worker thread creates a new Environment, and gets
+  // destroyed alongwith the worker thread.
+  Environment* env_ = nullptr;
 
   friend class WorkerThreadData;
 };

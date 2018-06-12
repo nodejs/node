@@ -32,7 +32,6 @@
 #include "v8.h"
 #include "node_perf_common.h"
 #include "node_context_data.h"
-#include "node_worker.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -661,7 +660,7 @@ void Environment::SetUnrefImmediate(native_immediate_callback cb,
 }
 
 inline bool Environment::can_call_into_js() const {
-  return can_call_into_js_ && (is_main_thread() || !is_stopping_worker());
+  return can_call_into_js_ && !is_stopping();
 }
 
 inline void Environment::set_can_call_into_js(bool can_call_into_js) {
@@ -709,9 +708,8 @@ inline void Environment::remove_sub_worker_context(worker::Worker* context) {
   sub_worker_contexts_.erase(context);
 }
 
-inline bool Environment::is_stopping_worker() const {
-  CHECK(!is_main_thread());
-  return worker_context_->is_stopped();
+inline bool Environment::is_stopping() const {
+  return thread_stopper_.IsStopped();
 }
 
 inline performance::performance_state* Environment::performance_state() {

@@ -511,6 +511,27 @@ struct AllocatedBuffer {
   friend class Environment;
 };
 
+class AsyncRequest : public MemoryRetainer {
+ public:
+  AsyncRequest() {}
+  ~AsyncRequest();
+  void Install(Environment* env, void* data, uv_async_cb target);
+  void Uninstall();
+  void Stop();
+  void SetStopped(bool flag);
+  bool IsStopped() const;
+  uv_async_t* GetHandle();
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(AsyncRequest)
+  SET_SELF_SIZE(AsyncRequest)
+
+ private:
+  Environment* env_;
+  uv_async_t* async_ = nullptr;
+  mutable Mutex mutex_;
+  bool stop_ = true;
+};
+
 class Environment {
  public:
   class AsyncHooks {
@@ -695,6 +716,7 @@ class Environment {
   void RegisterHandleCleanups();
   void CleanupHandles();
   void Exit(int code);
+  void ExitEnv();
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -844,7 +866,7 @@ class Environment {
   inline void add_sub_worker_context(worker::Worker* context);
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
-  inline bool is_stopping_worker() const;
+  inline bool is_stopping() const;
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -1018,6 +1040,7 @@ class Environment {
   inline ExecutionMode execution_mode() { return execution_mode_; }
 
   inline void set_execution_mode(ExecutionMode mode) { execution_mode_ = mode; }
+  inline AsyncRequest* GetAsyncRequest() { return &thread_stopper_; }
 
  private:
   inline void CreateImmediate(native_immediate_callback cb,
@@ -1173,6 +1196,10 @@ class Environment {
                      CleanupHookCallback::Equal> cleanup_hooks_;
   uint64_t cleanup_hook_counter_ = 0;
   bool started_cleanup_ = false;
+
+  // A custom async abstraction (a pair of async handle and a state variable)
+  // Used by embedders to shutdown running Node instance.
+  AsyncRequest thread_stopper_;
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,

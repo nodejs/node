@@ -302,7 +302,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 
   // Convert the termination exception into a regular exception.
   if (timed_out || received_signal) {
-    if (!env->is_main_thread() && env->is_stopping_worker())
+    if (!env->is_main_thread() && env->is_stopping())
       return;
     env->isolate()->CancelTerminateExecution();
     // It is possible that execution was terminated by another timeout in
