@@ -7,7 +7,7 @@ const stream = require('stream');
 const writable = new stream.Writable();
 
 writable._writev = common.mustCall((chunks, cb) => {
-  assert.strictEqual(chunks.length, 2, 'two chunks to write');
+  assert.strictEqual(chunks.length, 2);
   cb();
 }, 1);
 
