@@ -81,6 +81,19 @@ Notes:
 - Version strings are listed below as _"vx.y.z"_. Substitute for the release
   version.
 
+### 0. Pre-release steps
+
+Before preparing a Node.js release, you must notify the Build Working Group at
+least twenty-four hours in advance of the expected release. Coordinating with
+Build is essential to make sure that the CI works, release files are published,
+and the release blog post is available on the project website.
+
+When preparing a security release, contact Build at least forty-eight hours in
+advance of the expected release. To ensure that the security patch(es) can be
+properly tested, run a `node-test-pull-request` job against the `master` branch
+of the `nodejs-private/node-private` repository a day or so before the
+[CI lockdown procedure][] begins.
+
 ### 1. Cherry-picking from `master` and other branches
 
 Create a new branch named _"vx.y.z-proposal"_, or something similar. Using `git
@@ -517,4 +530,5 @@ Close your release proposal PR and remove the proposal branch.
 
 _In whatever form you do this..._
 
+[CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
