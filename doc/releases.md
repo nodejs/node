@@ -83,19 +83,20 @@ Notes:
 
 ### 0. Pre-release steps
 
-Before preparing a Node.js release, you must notify the Build Working Group at
-least twenty-four hours in advance of the expected release. Coordinating with
+Before preparing a Node.js release, the Build Working Group must be notified at
+least one business day in advance of the expected release. Coordinating with
 Build is essential to make sure that the CI works, release files are published,
 and the release blog post is available on the project website.
 
-Build can be contacted best by opening up an issue on the [issue tracker][],
+Build can be contacted best by opening up an issue on the [Build issue tracker][],
 and by posting in `#node-build` on [webchat.freenode.net][].
 
-When preparing a security release, contact Build at least forty-eight hours in
+When preparing a security release, contact Build at least two weekdays in
 advance of the expected release. To ensure that the security patch(es) can be
 properly tested, run a `node-test-pull-request` job against the `master` branch
 of the `nodejs-private/node-private` repository a day or so before the
-[CI lockdown procedure][] begins.
+[CI lockdown procedure][] begins. This is to confirm that Jenkins can properly
+access the private repository.
 
 ### 1. Cherry-picking from `master` and other branches
 
@@ -534,6 +535,6 @@ Close your release proposal PR and remove the proposal branch.
 _In whatever form you do this..._
 
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
-[issue tracker]: https://github.com/nodejs/build/issues/new
+[Build issue tracker]: https://github.com/nodejs/build/issues/new
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
 [webchat.freenode.net]: https://webchat.freenode.net/
