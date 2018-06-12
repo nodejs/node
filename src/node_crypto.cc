@@ -2611,10 +2611,14 @@ void CipherBase::Init(const char* cipher_type,
                                iv);
 
   ctx_.reset(EVP_CIPHER_CTX_new());
+
+  const int mode = EVP_CIPHER_mode(cipher);
+  if (mode == EVP_CIPH_WRAP_MODE)
+    EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+
   const bool encrypt = (kind_ == kCipher);
   EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, nullptr, nullptr, encrypt);
 
-  int mode = EVP_CIPHER_CTX_mode(ctx_.get());
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
       mode == EVP_CIPH_CCM_MODE)) {
     // Ignore the return value (i.e. possible exception) because we are
@@ -2623,9 +2627,6 @@ void CipherBase::Init(const char* cipher_type,
                        "Use Cipheriv for counter mode of %s",
                        cipher_type);
   }
-
-  if (mode == EVP_CIPH_WRAP_MODE)
-    EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
   if (IsAuthenticatedMode()) {
     if (!InitAuthenticated(cipher_type, EVP_CIPHER_iv_length(cipher),
