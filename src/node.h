@@ -199,9 +199,16 @@ typedef intptr_t ssize_t;
 
 namespace node {
 
+class IsolateData;
+class Environment;
+
 // TODO(addaleax): Officially deprecate this and replace it with something
 // better suited for a public embedder API.
 NODE_EXTERN int Start(int argc, char* argv[]);
+
+// Tear down Node.js while it is running (there are active handles
+// in the loop and / or actively executing JavaScript code).
+NODE_EXTERN int Stop(Environment* env);
 
 // TODO(addaleax): Officially deprecate this and replace it with something
 // better suited for a public embedder API.
@@ -214,9 +221,6 @@ class ArrayBufferAllocator;
 
 NODE_EXTERN ArrayBufferAllocator* CreateArrayBufferAllocator();
 NODE_EXTERN void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator);
-
-class IsolateData;
-class Environment;
 
 class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
  public:
