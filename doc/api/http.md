@@ -1277,6 +1277,13 @@ const server = http.createServer((req, res) => {
 });
 ```
 
+If [`response.writeHead()`][] method is called and this method has not been
+called, it will directly write the supplied header values onto the network
+channel without caching internally, and the [`response.getHeader()`][] on the
+header will not yield the expected result. If progressive population of headers
+is desired with potential future retrieval and modification, use
+[`response.setHeader()`][] instead of [`response.writeHead()`][].
+
 ### response.setTimeout(msecs[, callback])
 <!-- YAML
 added: v0.9.12
@@ -1443,6 +1450,13 @@ this, the implicit/mutable headers will be calculated and call this function.
 When headers have been set with [`response.setHeader()`][], they will be merged
 with any headers passed to [`response.writeHead()`][], with the headers passed
 to [`response.writeHead()`][] given precedence.
+
+If this method is called and [`response.setHeader()`][] has not been called,
+it will directly write the supplied header values onto the network channel
+without caching internally, and the [`response.getHeader()`][] on the header
+will not yield the expected result. If progressive population of headers is
+desired with potential future retrieval and modification, use
+[`response.setHeader()`][] instead.
 
 ```js
 // returns content-type = text/plain
