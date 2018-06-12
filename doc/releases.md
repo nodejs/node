@@ -88,6 +88,9 @@ least twenty-four hours in advance of the expected release. Coordinating with
 Build is essential to make sure that the CI works, release files are published,
 and the release blog post is available on the project website.
 
+Build can be contacted best by opening up an issue on the [issue tracker][],
+and by posting in `#node-build` on [webchat.freenode.net][].
+
 When preparing a security release, contact Build at least forty-eight hours in
 advance of the expected release. To ensure that the security patch(es) can be
 properly tested, run a `node-test-pull-request` job against the `master` branch
@@ -531,4 +534,6 @@ Close your release proposal PR and remove the proposal branch.
 _In whatever form you do this..._
 
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
+[issue tracker]: https://github.com/nodejs/build/issues/new
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
+[webchat.freenode.net]: https://webchat.freenode.net/
