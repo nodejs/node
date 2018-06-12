@@ -2118,7 +2118,7 @@ means that normal JavaScript object methods such as
 `Object.prototype.toString()` and `Object.prototype.hasOwnProperty()` will
 not work.
 
-There is following processing done in incoming headers:
+For incoming headers:
 * The `:status` header is converted to `number`.
 * Duplicates of `:status`, `:method`, `:authority`, `:scheme`, `:path`,
 `age`, `authorization`, `access-control-allow-credentials`,
