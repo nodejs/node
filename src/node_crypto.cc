@@ -2591,6 +2591,7 @@ void CipherBase::Init(const char* cipher_type,
                       int key_buf_len,
                       unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
 #ifdef NODE_FIPS_MODE
   if (FIPS_mode()) {
@@ -2615,6 +2616,7 @@ void CipherBase::Init(const char* cipher_type,
                                1,
                                key,
                                iv);
+  CHECK_NE(key_len, 0);
 
   ctx_.reset(EVP_CIPHER_CTX_new());
 
@@ -2623,7 +2625,11 @@ void CipherBase::Init(const char* cipher_type,
     EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, nullptr, nullptr, encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
+                             nullptr, nullptr, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
       mode == EVP_CIPH_CCM_MODE)) {
@@ -2642,12 +2648,15 @@ void CipherBase::Init(const char* cipher_type,
 
   CHECK_EQ(1, EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len));
 
-  EVP_CipherInit_ex(ctx_.get(),
-                    nullptr,
-                    nullptr,
-                    reinterpret_cast<unsigned char*>(key),
-                    reinterpret_cast<unsigned char*>(iv),
-                    encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(),
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<unsigned char*>(key),
+                             reinterpret_cast<unsigned char*>(iv),
+                             encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 }
 
 
@@ -2682,6 +2691,7 @@ void CipherBase::InitIv(const char* cipher_type,
                         int iv_len,
                         unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr) {
@@ -2712,7 +2722,11 @@ void CipherBase::InitIv(const char* cipher_type,
     EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, nullptr, nullptr, encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(), cipher, nullptr,
+                             nullptr, nullptr, encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 
   if (IsAuthenticatedMode()) {
     CHECK(has_iv);
@@ -2725,12 +2739,15 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Invalid key length");
   }
 
-  EVP_CipherInit_ex(ctx_.get(),
-                    nullptr,
-                    nullptr,
-                    reinterpret_cast<const unsigned char*>(key),
-                    reinterpret_cast<const unsigned char*>(iv),
-                    encrypt);
+  if (1 != EVP_CipherInit_ex(ctx_.get(),
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<const unsigned char*>(key),
+                             reinterpret_cast<const unsigned char*>(iv),
+                             encrypt)) {
+    return ThrowCryptoError(env(), ERR_get_error(),
+                            "Failed to initialize cipher");
+  }
 }
 
 
@@ -2775,6 +2792,7 @@ static bool IsValidGCMTagLength(unsigned int tag_len) {
 bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
                                    unsigned int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   if (!EVP_CIPHER_CTX_ctrl(ctx_.get(),
                            EVP_CTRL_AEAD_SET_IVLEN,
@@ -2917,6 +2935,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 bool CipherBase::SetAAD(const char* data, unsigned int len, int plaintext_len) {
   if (!ctx_ || !IsAuthenticatedMode())
     return false;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int outlen;
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
@@ -2976,6 +2995,7 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
                                             int* out_len) {
   if (!ctx_)
     return kErrorState;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
 
@@ -2987,10 +3007,10 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
   // on first update:
   if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0 &&
       auth_tag_len_ != kNoAuthTagLength && !auth_tag_set_) {
-    EVP_CIPHER_CTX_ctrl(ctx_.get(),
-                        EVP_CTRL_GCM_SET_TAG,
-                        auth_tag_len_,
-                        reinterpret_cast<unsigned char*>(auth_tag_));
+    CHECK(EVP_CIPHER_CTX_ctrl(ctx_.get(),
+                              EVP_CTRL_GCM_SET_TAG,
+                              auth_tag_len_,
+                              reinterpret_cast<unsigned char*>(auth_tag_)));
     auth_tag_set_ = true;
   }
 
@@ -3068,6 +3088,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 bool CipherBase::SetAutoPadding(bool auto_padding) {
   if (!ctx_)
     return false;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   return EVP_CIPHER_CTX_set_padding(ctx_.get(), auto_padding);
 }
 
