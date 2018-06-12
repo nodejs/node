@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#10.4.1">10.4.1</a><br/>
 <a href="#10.4.0">10.4.0</a><br/>
 <a href="#10.3.0">10.3.0</a><br/>
 <a href="#10.2.1">10.2.1</a><br/>
@@ -30,6 +31,36 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.4.1"></a>
+## 2018-06-12, Version 10.4.1 (Current), @evanlucas
+
+### Notable Changes
+
+* **Fixes memory exhaustion DoS** (CVE-2018-7164): Fixes a bug introduced in 9.7.0 that increases the memory consumed when reading from the network into JavaScript using the net.Socket object directly as a stream.
+* **http2**
+  * (CVE-2018-7161): Fixes Denial of Service vulnerability by updating the http2 implementation to not crash under certain circumstances during cleanup
+  * (CVE-2018-1000168): Fixes Denial of Service vulnerability by upgrading nghttp2 to 1.32.0
+* **tls** (CVE-2018-7162): Fixes Denial of Service vulnerability by updating the TLS implementation to not crash upon receiving
+* **n-api**: Prevent use-after-free in napi_delete_async_work
+
+### Commits
+
+* [[`1bbfe9a72b`](https://github.com/nodejs/node/commit/1bbfe9a72b)] - **build**: fix configure script for double-digits (Misty De Meo) [#21183](https://github.com/nodejs/node/pull/21183)
+* [[`4c90ee8fc6`](https://github.com/nodejs/node/commit/4c90ee8fc6)] - **deps**: update to nghttp2 1.32.0 (James M Snell) [nodejs-private/node-private#117](https://github.com/nodejs-private/node-private/pull/117)
+* [[`e5c2f575b1`](https://github.com/nodejs/node/commit/e5c2f575b1)] - **deps**: patch V8 to 6.7.288.45 (Michaël Zasso) [#21192](https://github.com/nodejs/node/pull/21192)
+* [[`03ded94ffe`](https://github.com/nodejs/node/commit/03ded94ffe)] - **deps**: patch V8 to 6.7.288.44 (Michaël Zasso) [#21146](https://github.com/nodejs/node/pull/21146)
+* [[`4de7e0c96c`](https://github.com/nodejs/node/commit/4de7e0c96c)] - **deps,npm**: float node-gyp patch on npm (Rich Trott) [#21239](https://github.com/nodejs/node/pull/21239)
+* [[`92d7b6c9a0`](https://github.com/nodejs/node/commit/92d7b6c9a0)] - **fs**: fix promises reads with pos \> 4GB (cjihrig) [#21148](https://github.com/nodejs/node/pull/21148)
+* [[`8681402228`](https://github.com/nodejs/node/commit/8681402228)] - **http2**: fixup http2stream cleanup and other nits (James M Snell) [nodejs-private/node-private#115](https://github.com/nodejs-private/node-private/pull/115)
+* [[`53f8563353`](https://github.com/nodejs/node/commit/53f8563353)] - **n-api**: back up env before async work finalize (Gabriel Schulhof) [#21129](https://github.com/nodejs/node/pull/21129)
+* [[`9ba8ed1371`](https://github.com/nodejs/node/commit/9ba8ed1371)] - **src**: re-add `Realloc()` shrink after reading stream data (Anna Henningsen) [nodejs-private/node-private#128](https://github.com/nodejs-private/node-private/pull/128)
+* [[`8e979482fa`](https://github.com/nodejs/node/commit/8e979482fa)] - ***Revert*** "**src**: restore stdio on program exit" (Evan Lucas) [#21257](https://github.com/nodejs/node/pull/21257)
+* [[`cb5ec64956`](https://github.com/nodejs/node/commit/cb5ec64956)] - **src**: reset TTY mode before cleaning up resources (Anna Henningsen) [#21257](https://github.com/nodejs/node/pull/21257)
+* [[`ae5567eaea`](https://github.com/nodejs/node/commit/ae5567eaea)] - **test**: add regression test for nghttp2 CVE-2018-1000168 (James M Snell) [nodejs-private/node-private#117](https://github.com/nodejs-private/node-private/pull/117)
+* [[`e87bf625dd`](https://github.com/nodejs/node/commit/e87bf625dd)] - **test**: add tls write error regression test (Shigeki Ohtsu) [nodejs-private/node-private#127](https://github.com/nodejs-private/node-private/pull/127)
+* [[`eea2bce58d`](https://github.com/nodejs/node/commit/eea2bce58d)] - **tls**: fix SSL write error handling (Anna Henningsen) [nodejs-private/node-private#127](https://github.com/nodejs-private/node-private/pull/127)
+* [[`1e49eadd68`](https://github.com/nodejs/node/commit/1e49eadd68)] - **tools,gyp**: fix regex for version matching (Rich Trott) [#21216](https://github.com/nodejs/node/pull/21216)
 
 <a id="10.4.0"></a>
 ## 2018-06-06, Version 10.4.0 (Current), @MylesBorins
