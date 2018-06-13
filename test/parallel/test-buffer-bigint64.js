@@ -12,7 +12,7 @@ const buf = Buffer.allocUnsafe(8);
   assert.strictEqual(val, rtn);
 
   // should allow INT64_MAX to be written and read
-  val = 9223372036854775807n;
+  val = 0x7fffffffffffffffn;
   buf['writeBigInt64' + endianness](val, 0);
   rtn = buf['readBigInt64' + endianness](0);
   assert.strictEqual(val, rtn);
@@ -29,13 +29,13 @@ const buf = Buffer.allocUnsafe(8);
 
   // should throw a RangeError upon INT64_MAX+1 being written
   assert.throws(function() {
-    const val = 9223372036854775808n;
+    const val = 0x8000000000000000n;
     buf['writeBigInt64' + endianness](val, 0);
   }, RangeError);
 
   // should throw a RangeError upon UINT64_MAX+1 being written
   assert.throws(function() {
-    const val = 18446744073709551616n;
+    const val = 0x10000000000000000n;
     buf['writeBigUInt64' + endianness](val, 0);
   }, RangeError);
 
