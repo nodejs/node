@@ -698,6 +698,9 @@ values are `'rr'` and `'none'`.
 <!-- YAML
 added: v0.7.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21316
+    description: The `windowsHide` option now defaults to `true`.
   - version: v9.5.0
     pr-url: https://github.com/nodejs/node/pull/18399
     description: The `cwd` option is supported now.
@@ -732,7 +735,7 @@ changes:
     number. By default each worker gets its own port, incremented from the
     master's `process.debugPort`.
   * `windowsHide` {boolean} Hide the forked processes console window that would
-    normally be created on Windows systems. **Default:** `false`.
+    normally be created on Windows systems. **Default:** `true`.
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.
