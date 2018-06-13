@@ -45,6 +45,9 @@ The `import.meta` metaproperty is an `Object` that contains the following
 property:
 
 * `url` {string} The absolute `file:` URL of the module.
+* `require` {Function} To require CommonJS modules. This function enables
+  interoperability between CJS and ESM. See [`require()`]. None of the properties
+  generally exposed on require are available via `import.meta.require`.
 
 ### Unsupported
 
@@ -256,3 +259,4 @@ in the import tree.
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [addons]: addons.html
 [dynamic instantiate hook]: #esm_dynamic_instantiate_hook
+[`require()`]: modules.html#modules_require
