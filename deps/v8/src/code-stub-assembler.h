@@ -252,6 +252,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                         TNode<Object> index,
                                         TNode<IntPtrT> length);
 
+  // Returns true iff the given value fits into smi range and is >= 0.
+  TNode<BoolT> IsValidPositiveSmi(TNode<IntPtrT> value);
+
   // Tag an IntPtr as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
   // Untag a Smi value as an IntPtr.

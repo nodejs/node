@@ -206,6 +206,49 @@ TEST(ToUint32) {
   ft.CheckThrows(factory->match_symbol());
 }
 
+namespace {
+void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value, bool expected) {
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+
+  CodeStubAssembler m(asm_tester.state());
+  m.Return(
+      m.SelectBooleanConstant(m.IsValidPositiveSmi(m.IntPtrConstant(value))));
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  MaybeHandle<Object> maybe_handle = ft.Call();
+
+  if (expected) {
+    CHECK(maybe_handle.ToHandleChecked()->IsTrue(isolate));
+  } else {
+    CHECK(maybe_handle.ToHandleChecked()->IsFalse(isolate));
+  }
+}
+}  // namespace
+
+TEST(IsValidPositiveSmi) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  IsValidPositiveSmiCase(isolate, -1, false);
+  IsValidPositiveSmiCase(isolate, 0, true);
+  IsValidPositiveSmiCase(isolate, 1, true);
+
+#ifdef V8_TARGET_ARCH_32_BIT
+  IsValidPositiveSmiCase(isolate, 0x3FFFFFFFU, true);
+  IsValidPositiveSmiCase(isolate, 0xC0000000U, false);
+  IsValidPositiveSmiCase(isolate, 0x40000000U, false);
+  IsValidPositiveSmiCase(isolate, 0xBFFFFFFFU, false);
+#else
+  typedef std::numeric_limits<int32_t> int32_limits;
+  IsValidPositiveSmiCase(isolate, int32_limits::max(), true);
+  IsValidPositiveSmiCase(isolate, int32_limits::min(), false);
+  IsValidPositiveSmiCase(isolate,
+                         static_cast<intptr_t>(int32_limits::max()) + 1, false);
+  IsValidPositiveSmiCase(isolate,
+                         static_cast<intptr_t>(int32_limits::min()) - 1, false);
+#endif
+}
+
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
