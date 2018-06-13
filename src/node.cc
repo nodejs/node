@@ -277,6 +277,11 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // that is used by lib/internal/bootstrap/node.js
 bool config_expose_internals = false;
 
+// Set in node.cc by ParseArgs when --windows-hide is used.
+// Used in node_config.cc to set a constant on process.binding('config') that
+// is used by lib/child_process.js
+bool config_windows_hide
+
 bool v8_initialized = false;
 
 bool linux_at_secure = false;
@@ -3184,6 +3189,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--v8-pool-size",
     "--zero-fill-buffers",
     "-r",
+    "--windows-hide",
 
     // V8 options (define with '_', which allows '-' or '_')
     "--abort_on_uncaught_exception",
@@ -3418,6 +3424,8 @@ static void ParseArgs(int* argc,
       // Also a V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
       new_v8_argc += 1;
+    } else if (strcmp(arg, "--windows-hide") == 0) {
+      config_windows_hide = true;
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
