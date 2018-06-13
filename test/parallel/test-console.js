@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const util = require('util');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
@@ -30,11 +31,17 @@ if (common.isMainThread) {
   assert.strictEqual(typeof process.stdout.fd, 'number');
   assert.strictEqual(typeof process.stderr.fd, 'number');
 }
-process.once('warning', common.mustCall((warning) => {
-  assert(/no such label/.test(warning.message));
-}));
 
-console.timeEnd('no such label');
+common.expectWarning(
+  'Warning',
+  [
+    ['No such label \'nolabel\' for console.timeEnd()', common.noWarnCode],
+    ['No such label \'nolabel\' for console.timeLog()', common.noWarnCode]
+  ]
+);
+
+console.timeEnd('nolabel');
+console.timeLog('nolabel');
 
 console.time('label');
 console.timeEnd('label');
@@ -47,8 +54,8 @@ assert.throws(() => console.timeEnd(Symbol('test')),
               TypeError);
 
 
-// an Object with a custom .inspect() function
-const custom_inspect = { foo: 'bar', inspect: () => 'inspect' };
+// An Object with a custom inspect function.
+const custom_inspect = { foo: 'bar', [util.inspect.custom]: () => 'inspect' };
 
 const strings = [];
 const errStrings = [];
@@ -139,6 +146,12 @@ console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
+console.time('log1');
+console.timeLog('log1');
+console.timeLog('log1', 'test');
+console.timeLog('log1', {}, [1, 2, 3]);
+console.timeEnd('log1');
+
 console.assert(false, '%s should', 'console.assert', 'not throw');
 assert.strictEqual(errStrings[errStrings.length - 1],
                    'Assertion failed: console.assert should not throw\n');
@@ -179,9 +192,11 @@ for (const expected of expectedStrings) {
 }
 
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
+                    '[Function: [util.inspect.custom]] }\n');
 assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+                   "{ foo: 'bar',\n  [Symbol(util.inspect.custom)]: " +
+                    '[Function: [util.inspect.custom]] }\n');
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
 assert.strictEqual(strings.shift(), 'inspect inspect\n');
@@ -202,6 +217,14 @@ assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^NaN: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
+assert.ok(/^log1: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms test$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms {} \[ 1, 2, 3 ]$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
+// Make sure that we checked all strings
+assert.strictEqual(strings.length, 0);
+
 assert.strictEqual(errStrings.shift().split('\n').shift(),
                    'Trace: This is a {"formatted":"trace"} 10 foo');
 
@@ -212,6 +235,6 @@ common.hijackStderr(common.mustCall(function(data) {
 
   // stderr.write will catch sync error, so use `process.nextTick` here
   process.nextTick(function() {
-    assert.strictEqual(data.includes('no such label'), true);
+    assert.strictEqual(data.includes('nolabel'), true);
   });
 }));
