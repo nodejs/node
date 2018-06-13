@@ -262,6 +262,7 @@ if not exist .used_configure_flags goto run-configure
 SETLOCAL EnableDelayedExpansion
 set /p prev_configure_flags=<.used_configure_flags
 if NOT !prev_configure_flags! == !configure_flags! ENDLOCAL && goto run-configure
+ENDLOCAL
 
 :skip-configure
 echo Reusing solution generated with %prev_configure_flags%
