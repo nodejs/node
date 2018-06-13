@@ -374,8 +374,9 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   }
 
   CHECK_LE(static_cast<size_t>(nread), buf.len);
+  char* base = Realloc(buf.base, nread);
 
-  Local<Object> obj = Buffer::New(env, buf.base, nread).ToLocalChecked();
+  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
   stream->CallJSOnreadMethod(nread, obj);
 }
 
@@ -387,6 +388,7 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
+  CHECK(!async_wrap->persistent().IsEmpty());
   Local<Object> req_wrap_obj = async_wrap->object();
 
   Local<Value> argv[] = {
