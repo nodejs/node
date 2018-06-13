@@ -256,7 +256,7 @@ goto build-doc
 :project-gen
 @rem Skip project generation if requested.
 if defined noprojgen goto skip-configure
-if defined forceprojgen goto run-configure
+if defined projgen goto run-configure
 if not exist node.sln goto run-configure
 if not exist .used_configure_flags goto run-configure
 SETLOCAL EnableDelayedExpansion
