@@ -164,7 +164,7 @@ operates similarly to the `clear` shell command. On Windows, `console.clear()`
 will clear only the output in the current terminal viewport for the Node.js
 binary.
 
-### console.count([label='default'])
+### console.count([label])
 <!-- YAML
 added: v8.3.0
 -->
@@ -197,7 +197,7 @@ undefined
 >
 ```
 
-### console.countReset([label='default'])
+### console.countReset([label])
 <!-- YAML
 added: v8.3.0
 -->
@@ -381,7 +381,7 @@ console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 // └─────────┴─────┘
 ```
 
-### console.time(label)
+### console.time([label])
 <!-- YAML
 added: v0.1.104
 -->
@@ -392,7 +392,7 @@ are identified by a unique `label`. Use the same `label` when calling
 [`console.timeEnd()`][] to stop the timer and output the elapsed time in
 milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
 
-### console.timeEnd(label)
+### console.timeEnd([label])
 <!-- YAML
 added: v0.1.104
 changes:
@@ -453,7 +453,7 @@ The following methods are exposed by the V8 engine in the general API but do
 not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
-### console.markTimeline(label)
+### console.markTimeline([label])
 <!-- YAML
 added: v8.0.0
 -->
@@ -476,11 +476,11 @@ the **Profile** panel of the inspector.
 ```js
 console.profile('MyLabel');
 // Some code
-console.profileEnd();
+console.profileEnd('MyLabel');
 // Adds the profile 'MyLabel' to the Profiles panel of the inspector.
 ```
 
-### console.profileEnd()
+### console.profileEnd([label])
 <!-- YAML
 added: v8.0.0
 -->
@@ -489,6 +489,9 @@ This method does not display anything unless used in the inspector. Stops the
 current JavaScript CPU profiling session if one has been started and prints
 the report to the **Profiles** panel of the inspector. See
 [`console.profile()`][] for an example.
+
+If this method is called without a label, the most recently started profile is
+stopped.
 
 ### console.timeStamp([label])
 <!-- YAML
@@ -523,7 +526,7 @@ This method does not display anything unless used in the inspector. The
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
 [`console.profile()`]: #console_console_profile_label
-[`console.profileEnd()`]: #console_console_profileend
+[`console.profileEnd()`]: #console_console_profileend_label
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
 [`console.timeStamp()`]: #console_console_timestamp_label
