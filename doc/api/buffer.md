@@ -2233,10 +2233,10 @@ endian).
 ```js
 const buf = Buffer.allocUnsafe(8);
 
-buf.writeBigUInt64LE(0xffffffffffffn, 0);
+buf.writeBigUInt64LE(0xdecafafecacefaden, 0);
 
 console.log(buf);
-// Prints: <Buffer ff ff ff ff ff ff 00 00>
+// Prints: <Buffer de fa ce ca fe fa ca de>
 ```
 
 ### buf.writeDoubleBE(value[, offset])
