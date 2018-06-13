@@ -17,7 +17,7 @@ set target=Build
 set target_arch=x64
 set target_env=
 set noprojgen=
-set forceprojgen=
+set projgen=
 set nobuild=
 set sign=
 set nosnapshot=
@@ -68,7 +68,7 @@ if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="vs2017"        set target_env=vs2017&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
-if /i "%1"=="forceprojgen"  set forceprojgen=1&goto arg-ok
+if /i "%1"=="projgen"       set projgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
@@ -149,6 +149,7 @@ if defined build_release (
   set licensertf=1
   set download_arg="--download=all"
   set i18n_arg=small-icu
+  set projgen=1
 )
 
 :: assign path to node_exe
@@ -254,24 +255,22 @@ goto build-doc
 
 :project-gen
 @rem Skip project generation if requested.
-SETLOCAL EnableDelayedExpansion
 if defined noprojgen goto skip-configure
 if defined forceprojgen goto run-configure
 if not exist node.sln goto run-configure
-if not exist used_configure_flags goto run-configure
-set /p prev_configure_flags=<used_configure_flags
-if NOT !prev_configure_flags! == !configure_flags! goto run-configure
+if not exist .used_configure_flags goto run-configure
+SETLOCAL EnableDelayedExpansion
+set /p prev_configure_flags=<.used_configure_flags
+if NOT !prev_configure_flags! == !configure_flags! ENDLOCAL && goto run-configure
 
 :skip-configure
-ENDLOCAL
 echo Reusing solution generated with %prev_configure_flags%
 goto msbuild
 
 :run-configure
-ENDLOCAL
 @rem Generate the VS project.
 echo configure %configure_flags%
-echo %configure_flags%> used_configure_flags
+echo %configure_flags%> .used_configure_flags
 python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
@@ -642,11 +641,11 @@ goto exit
 
 :create-msvs-files-failed
 echo Failed to create vc project files.
-del used_configure_flags
+del .used_configure_flags
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [forceprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

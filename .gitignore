@@ -67,8 +67,6 @@ ipch/
 /deps/v8/src/debug/obj
 /*.exe
 
-used_configure_flags
-
 /config.mk
 /config.gypi
 /config_fips.gypi
