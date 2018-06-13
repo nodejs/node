@@ -21,18 +21,18 @@
 
 'use strict';
 const common = require('../common');
-const fs = require('fs');
+const { createReadStream, createWriteStream } = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-test1(fs.createReadStream(__filename));
-test2(fs.createReadStream(__filename));
-test3(fs.createReadStream(__filename));
+test1(createReadStream(__filename));
+test2(createReadStream(__filename));
+test3(createReadStream(__filename));
 
-test1(fs.createWriteStream(`${tmpdir.path}/dummy1`));
-test2(fs.createWriteStream(`${tmpdir.path}/dummy2`));
-test3(fs.createWriteStream(`${tmpdir.path}/dummy3`));
+test1(createWriteStream(`${tmpdir.path}/dummy1`));
+test2(createWriteStream(`${tmpdir.path}/dummy2`));
+test3(createWriteStream(`${tmpdir.path}/dummy3`));
 
 function test1(stream) {
   stream.destroy();

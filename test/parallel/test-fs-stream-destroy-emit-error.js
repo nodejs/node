@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const fs = require('fs');
+const { createReadStream, createWriteStream } = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-test(fs.createReadStream(__filename));
-test(fs.createWriteStream(`${tmpdir.path}/dummy`));
+test(createReadStream(__filename));
+test(createWriteStream(`${tmpdir.path}/dummy`));
 
 function test(stream) {
   const err = new Error('DESTROYED');
