@@ -317,6 +317,7 @@
         'src/cares_wrap.cc',
         'src/connection_wrap.cc',
         'src/connect_wrap.cc',
+        'src/debug_utils.cc',
         'src/env.cc',
         'src/exceptions.cc',
         'src/fs_event_wrap.cc',
@@ -496,9 +497,6 @@
           'defines': [ 'HAVE_INSPECTOR=0' ]
         }],
         [ 'OS=="win"', {
-          'sources': [
-            'src/backtrace_win32.cc',
-          ],
           'conditions': [
             [ 'node_intermediate_lib_type!="static_library"', {
               'sources': [
@@ -507,8 +505,6 @@
             }],
           ],
           'libraries': [ '-lpsapi.lib' ]
-        }, { # POSIX
-          'sources': [ 'src/backtrace_posix.cc' ],
         }],
         [ 'node_use_etw=="true"', {
           'defines': [ 'HAVE_ETW=1' ],

@@ -84,6 +84,29 @@ inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
   Debug(async_wrap, format.c_str(), std::forward<Args>(args)...);
 }
 
+// Debug helper for inspecting the currently running `node` executable.
+class NativeSymbolDebuggingContext {
+ public:
+  static std::unique_ptr<NativeSymbolDebuggingContext> New();
+
+  class SymbolInfo {
+   public:
+    std::string name;
+    std::string filename;
+
+    std::string Display() const;
+  };
+
+  virtual ~NativeSymbolDebuggingContext() {}
+  virtual SymbolInfo LookupSymbol(void* address) { return { "", "" }; }
+  virtual bool IsMapped(void* address) { return false; }
+  virtual int GetStackTrace(void** frames, int count) { return 0; }
+};
+
+// Variant of `uv_loop_close` that tries to be as helpful as possible
+// about giving information on currently existing handles, if there are any,
+// but still aborts the process.
+void CheckedUvLoopClose(uv_loop_t* loop);
 
 }  // namespace node
 
