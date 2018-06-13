@@ -413,6 +413,25 @@ console.timeEnd('100-elements');
 // prints 100-elements: 225.438ms
 ```
 
+### console.timeLog([label][, ...data])
+<!-- YAML
+added: REPLACEME
+-->
+* `label` {string} **Default:** `'default'`
+* `...data` {any}
+
+For a timer that was previously started by calling [`console.time()`][], prints
+the elapsed time and other `data` arguments to `stdout`:
+
+```js
+console.time('process');
+const value = expensiveProcess1(); // Returns 42
+console.timeLog('process', value);
+// Prints "process: 365.227ms 42".
+doExpensiveProcess2(value);
+console.timeEnd('process');
+```
+
 ### console.trace([message][, ...args])
 <!-- YAML
 added: v0.1.104
