@@ -453,10 +453,10 @@ the documentation for the assigned deprecation identifier must remain in the
 Node.js API documentation.
 
 <a id="deprecation-cycle"></a>
-A _Deprecation cycle_ is one full Node.js major release during which an API
-has been in one of the three Deprecation levels. (Note that Documentation-Only
-Deprecations may land in a Node.js minor release but must not be upgraded to
-a Runtime Deprecation until the next major release.)
+A _Deprecation cycle_ is a major release during which an API has been in one of
+the three Deprecation levels. Documentation-Only Deprecations may land in a
+minor release but must not be upgraded to a Runtime Deprecation until the next
+major release.
 
 No API can be moved to End-of-life without first having gone through a
 Runtime Deprecation cycle. However, there is no requirement that deprecated
