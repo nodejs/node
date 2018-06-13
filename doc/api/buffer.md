@@ -2227,8 +2227,8 @@ added: REPLACEME
 * Returns: {integer} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` with specified endian
-format (`writeBigUInt64BE()` writes big endian, `writeBigUInt64LE()` writes little
-endian).
+format (`writeBigUInt64BE()` writes big endian, `writeBigUInt64LE()` writes
+little endian).
 
 ```js
 const buf = Buffer.allocUnsafe(8);
