@@ -2593,7 +2593,7 @@ void CipherBase::Init(const char* cipher_type,
 
   ctx_.reset(EVP_CIPHER_CTX_new());
 
-  int mode = EVP_CIPHER_mode(cipher);
+  const int mode = EVP_CIPHER_mode(cipher);
   if (mode == EVP_CIPH_WRAP_MODE)
     EVP_CIPHER_CTX_set_flags(ctx_.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
