@@ -345,8 +345,9 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
-inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
-  size_t ret = a * b;
+template <typename T>
+inline T MultiplyWithOverflowCheck(T a, T b) {
+  auto ret = a * b;
   if (a != 0)
     CHECK_EQ(b, ret / a);
 

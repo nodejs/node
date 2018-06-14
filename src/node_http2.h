@@ -797,6 +797,7 @@ class Http2Session : public AsyncWrap {
 
   class Http2Ping;
   class Http2Settings;
+  class MemoryAllocatorInfo;
 
   inline void EmitStatistics();
 
@@ -934,13 +935,15 @@ class Http2Session : public AsyncWrap {
     current_session_memory_ -= amount;
   }
 
-  // Returns the current session memory including the current size of both
-  // the inflate and deflate hpack headers, the current outbound storage
-  // queue, and pending writes.
+  // Tell our custom memory allocator that this rcbuf is independent of
+  // this session now, and may outlive it.
+  void StopTrackingRcbuf(nghttp2_rcbuf* buf);
+
+  // Returns the current session memory including memory allocated by nghttp2,
+  // the current outbound storage queue, and pending writes.
   uint64_t GetCurrentSessionMemory() {
     uint64_t total = current_session_memory_ + sizeof(Http2Session);
-    total += nghttp2_session_get_hd_deflate_dynamic_table_size(session_);
-    total += nghttp2_session_get_hd_inflate_dynamic_table_size(session_);
+    total += current_nghttp2_memory_;
     total += outgoing_storage_.size();
     return total;
   }
@@ -1072,6 +1075,8 @@ class Http2Session : public AsyncWrap {
   // The maximum amount of memory allocated for this session
   uint64_t max_session_memory_ = DEFAULT_MAX_SESSION_MEMORY;
   uint64_t current_session_memory_ = 0;
+  // The amount of memory allocated by nghttp2 internals
+  uint64_t current_nghttp2_memory_ = 0;
 
   // The collection of active Http2Streams associated with this session
   std::unordered_map<int32_t, Http2Stream*> streams_;
@@ -1274,7 +1279,8 @@ class ExternalHeader :
   }
 
   template<bool may_internalize>
-  static MaybeLocal<String> New(Environment* env, nghttp2_rcbuf* buf) {
+  static MaybeLocal<String> New(Http2Session* session, nghttp2_rcbuf* buf) {
+    Environment* env = session->env();
     if (nghttp2_rcbuf_is_static(buf)) {
       auto& static_str_map = env->isolate_data()->http2_static_strs;
       v8::Eternal<v8::String>& eternal = static_str_map[buf];
@@ -1301,6 +1307,7 @@ class ExternalHeader :
       return GetInternalizedString(env, vec);
     }
 
+    session->StopTrackingRcbuf(buf);
     ExternalHeader* h_str = new ExternalHeader(buf);
     MaybeLocal<String> str = String::NewExternalOneByte(env->isolate(), h_str);
     if (str.IsEmpty())
