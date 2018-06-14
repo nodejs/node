@@ -1048,7 +1048,7 @@ LINT_MD_DOC_FILES = $(shell ls doc/**/*.md)
 run-lint-doc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_DOC_FILES)
 # Lint all changed markdown files under doc/
 tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
-ifeq ("$(HAS_CRYPTO)", "true")
+ifeq ("$(NODE_USE_OPENSSL)", "true")
 	@echo "Running Markdown linter on docs..."
 	@$(call available-node,$(run-lint-doc-md))
 	@touch $@
@@ -1063,7 +1063,7 @@ LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
 run-lint-misc-md = tools/remark-cli/cli.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
 tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
-ifeq ("$(HAS_CRYPTO)", "true")
+ifeq ("$(NODE_USE_OPENSSL)", "true")
 	@echo "Running Markdown linter on misc docs..."
 	@$(call available-node,$(run-lint-misc-md))
 	@touch $@
