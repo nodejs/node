@@ -2132,7 +2132,7 @@ For incoming headers:
 discarded.
 * `set-cookie` is a string if present once or an array in case duplicates
 are present.
-* `cookie` the values are joined together with '; '.
+* `cookie`: the values are joined together with '; '.
 * For all other headers, the values are joined together with ', '.
 
 ```js
