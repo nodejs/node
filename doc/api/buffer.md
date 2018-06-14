@@ -1558,7 +1558,7 @@ added: REPLACEME
 
 Reads a signed 64-bit integer from `buf` at the specified `offset` with
 the specified endian format (`readBigInt64BE()` returns big endian,
-`readBigInt64LE()` return little endian).
+`readBigInt64LE()` returns little endian).
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
 
