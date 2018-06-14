@@ -486,6 +486,92 @@ Http2Session::Callbacks::~Callbacks() {
   nghttp2_session_callbacks_del(callbacks);
 }
 
+// Track memory allocated by nghttp2 using a custom allocator.
+class Http2Session::MemoryAllocatorInfo {
+ public:
+  explicit MemoryAllocatorInfo(Http2Session* session)
+      : info({ session, H2Malloc, H2Free, H2Calloc, H2Realloc }) {}
+
+  static void* H2Malloc(size_t size, void* user_data) {
+    return H2Realloc(nullptr, size, user_data);
+  }
+
+  static void* H2Calloc(size_t nmemb, size_t size, void* user_data) {
+    size_t real_size = MultiplyWithOverflowCheck(nmemb, size);
+    void* mem = H2Malloc(real_size, user_data);
+    if (mem != nullptr)
+      memset(mem, 0, real_size);
+    return mem;
+  }
+
+  static void H2Free(void* ptr, void* user_data) {
+    if (ptr == nullptr) return;  // free(null); happens quite often.
+    void* result = H2Realloc(ptr, 0, user_data);
+    CHECK_EQ(result, nullptr);
+  }
+
+  static void* H2Realloc(void* ptr, size_t size, void* user_data) {
+    Http2Session* session = static_cast<Http2Session*>(user_data);
+    size_t previous_size = 0;
+    char* original_ptr = nullptr;
+
+    // We prepend each allocated buffer with a size_t containing the full
+    // size of the allocation.
+    if (size > 0) size += sizeof(size_t);
+
+    if (ptr != nullptr) {
+      // We are free()ing or re-allocating.
+      original_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+      previous_size = *reinterpret_cast<size_t*>(original_ptr);
+      // This means we called StopTracking() on this pointer before.
+      if (previous_size == 0) {
+        // Fall back to the standard Realloc() function.
+        char* ret = UncheckedRealloc(original_ptr, size);
+        if (ret != nullptr)
+          ret += sizeof(size_t);
+        return ret;
+      }
+    }
+    CHECK_GE(session->current_nghttp2_memory_, previous_size);
+
+    // TODO(addaleax): Add the following, and handle NGHTTP2_ERR_NOMEM properly
+    // everywhere:
+    //
+    // if (size > previous_size &&
+    //     !session->IsAvailableSessionMemory(size - previous_size)) {
+    //  return nullptr;
+    //}
+
+    char* mem = UncheckedRealloc(original_ptr, size);
+
+    if (mem != nullptr) {
+      // Adjust the memory info counter.
+      session->current_nghttp2_memory_ += size - previous_size;
+      *reinterpret_cast<size_t*>(mem) = size;
+      mem += sizeof(size_t);
+    } else if (size == 0) {
+      session->current_nghttp2_memory_ -= previous_size;
+    }
+
+    return mem;
+  }
+
+  static void StopTracking(Http2Session* session, void* ptr) {
+    size_t* original_ptr = reinterpret_cast<size_t*>(
+        static_cast<char*>(ptr) - sizeof(size_t));
+    session->current_nghttp2_memory_ -= *original_ptr;
+    *original_ptr = 0;
+  }
+
+  inline nghttp2_mem* operator*() { return &info; }
+
+  nghttp2_mem info;
+};
+
+void Http2Session::StopTrackingRcbuf(nghttp2_rcbuf* buf) {
+  MemoryAllocatorInfo::StopTracking(this, buf);
+}
+
 Http2Session::Http2Session(Environment* env,
                            Local<Object> wrap,
                            nghttp2_session_type type)
@@ -517,15 +603,17 @@ Http2Session::Http2Session(Environment* env,
       = callback_struct_saved[hasGetPaddingCallback ? 1 : 0].callbacks;
 
   auto fn = type == NGHTTP2_SESSION_SERVER ?
-      nghttp2_session_server_new2 :
-      nghttp2_session_client_new2;
+      nghttp2_session_server_new3 :
+      nghttp2_session_client_new3;
+
+  MemoryAllocatorInfo allocator_info(this);
 
   // This should fail only if the system is out of memory, which
   // is going to cause lots of other problems anyway, or if any
   // of the options are out of acceptable range, which we should
   // be catching before it gets this far. Either way, crash if this
   // fails.
-  CHECK_EQ(fn(&session_, callbacks, this, *opts), 0);
+  CHECK_EQ(fn(&session_, callbacks, this, *opts, *allocator_info), 0);
 
   outgoing_storage_.reserve(4096);
   outgoing_buffers_.reserve(32);
@@ -553,6 +641,7 @@ Http2Session::~Http2Session() {
   Unconsume();
   DEBUG_HTTP2SESSION(this, "freeing nghttp2 session");
   nghttp2_session_del(session_);
+  CHECK_EQ(current_nghttp2_memory_, 0);
 }
 
 inline bool HasHttp2Observer(Environment* env) {
@@ -1160,9 +1249,9 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
       nghttp2_header item = headers[n++];
       // The header name and value are passed as external one-byte strings
       name_str =
-          ExternalHeader::New<true>(env(), item.name).ToLocalChecked();
+          ExternalHeader::New<true>(this, item.name).ToLocalChecked();
       value_str =
-          ExternalHeader::New<false>(env(), item.value).ToLocalChecked();
+          ExternalHeader::New<false>(this, item.value).ToLocalChecked();
       argv[j * 2] = name_str;
       argv[j * 2 + 1] = value_str;
       j++;
