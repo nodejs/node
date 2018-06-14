@@ -253,6 +253,7 @@ goto build-doc
 
 :msbuild-found
 
+set project_generated=
 :project-gen
 @rem Skip project generation if requested.
 if defined noprojgen goto skip-configure
@@ -275,6 +276,7 @@ echo %configure_flags%> .used_configure_flags
 python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
+set project_generated=1
 echo Project files generated.
 
 :msbuild
@@ -288,7 +290,10 @@ set "msbplatform=Win32"
 if "%target_arch%"=="x64" set "msbplatform=x64"
 if "%target%"=="Build" if defined no_cctest set target=node
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
-if errorlevel 1 goto exit
+if errorlevel 1 (
+  if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
+  goto exit
+)
 if "%target%" == "Clean" goto exit
 
 :sign
