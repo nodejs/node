@@ -2566,6 +2566,7 @@ void CipherBase::Init(const char* cipher_type,
                       int key_buf_len,
                       unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
 #ifdef NODE_FIPS_MODE
   if (FIPS_mode()) {
@@ -2658,6 +2659,7 @@ void CipherBase::InitIv(const char* cipher_type,
                         int iv_len,
                         unsigned int auth_tag_len) {
   HandleScope scope(env()->isolate());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr) {
@@ -2697,7 +2699,6 @@ void CipherBase::InitIv(const char* cipher_type,
       return;
   }
 
-  ClearErrorOnReturn clear_error_on_return;
   if (!EVP_CIPHER_CTX_set_key_length(ctx_.get(), key_len)) {
     ctx_.reset();
     return env()->ThrowError("Invalid key length");
@@ -2898,7 +2899,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 bool CipherBase::SetAAD(const char* data, unsigned int len, int plaintext_len) {
   if (!ctx_ || !IsAuthenticatedMode())
     return false;
-  ClearErrorOnReturn clear_error_on_return;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int outlen;
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
@@ -2958,7 +2959,7 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
                                             int* out_len) {
   if (!ctx_)
     return kErrorState;
-  ClearErrorOnReturn clear_error_on_return;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
 
@@ -3051,7 +3052,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 bool CipherBase::SetAutoPadding(bool auto_padding) {
   if (!ctx_)
     return false;
-  ClearErrorOnReturn clear_error_on_return;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   return EVP_CIPHER_CTX_set_padding(ctx_.get(), auto_padding);
 }
 
