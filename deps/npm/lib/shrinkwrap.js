@@ -271,4 +271,3 @@ function checkPackageFile (dir, name) {
     }
   }).catch({code: 'ENOENT'}, () => {})
 }
-
