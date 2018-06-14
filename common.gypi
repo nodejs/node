@@ -78,7 +78,7 @@
           ['GENERATOR == "ninja"', {
             'v8_base': '<(PRODUCT_DIR)/obj/deps/v8/gypfiles/v8_monolith.gen/gn/obj/libv8_monolith.a',
           }, {
-            'v8_base': '<(PRODUCT_DIR)/obji.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
+            'v8_base': '<(PRODUCT_DIR)/obj.target/v8_monolith/geni/gn/obj/libv8_monolith.a',
           }],
         ],
       }],
