@@ -15,6 +15,7 @@ GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
 PWD = $(CURDIR)
+NODE_USE_OPENSSL ?= true
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
