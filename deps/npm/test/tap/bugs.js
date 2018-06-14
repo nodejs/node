@@ -14,7 +14,7 @@ var opts = { cwd: __dirname }
 
 test('setup', function (t) {
   var s = '#!/usr/bin/env bash\n' +
-          'echo \"$@\" > ' + JSON.stringify(__dirname) + '/_output\n'
+          'echo "$@" > ' + JSON.stringify(__dirname) + '/_output\n'
   fs.writeFileSync(join(__dirname, '/_script.sh'), s, 'ascii')
   fs.chmodSync(join(__dirname, '/_script.sh'), '0755')
   t.pass('made script')

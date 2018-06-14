@@ -37,4 +37,3 @@ test('filter function', function (t) {
   stream.end()
 
 })
-

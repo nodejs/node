@@ -106,7 +106,7 @@ function rebuildBundles (pkg, folder, cb) {
   if (!npm.config.get('rebuild-bundle')) return cb()
 
   var deps = Object.keys(pkg.dependencies || {})
-             .concat(Object.keys(pkg.devDependencies || {}))
+    .concat(Object.keys(pkg.devDependencies || {}))
   var bundles = pkg.bundleDependencies || pkg.bundledDependencies || []
 
   fs.readdir(path.resolve(folder, 'node_modules'), function (er, files) {
@@ -119,7 +119,7 @@ function rebuildBundles (pkg, folder, cb) {
     chain(files.filter(function (file) {
       // rebuild if:
       // not a .folder, like .bin or .hooks
-      return !file.match(/^[\._-]/) &&
+      return !file.match(/^[._-]/) &&
           // not some old 0.x style bundle
           file.indexOf('@') === -1 &&
           // either not a dep, or explicitly bundled

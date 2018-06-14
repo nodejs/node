@@ -1,6 +1,6 @@
 # readable-stream
 
-***Node-core v8.1.3 streams for userland*** [![Build Status](https://travis-ci.org/nodejs/readable-stream.svg?branch=master)](https://travis-ci.org/nodejs/readable-stream)
+***Node-core v8.11.1 streams for userland*** [![Build Status](https://travis-ci.org/nodejs/readable-stream.svg?branch=master)](https://travis-ci.org/nodejs/readable-stream)
 
 
 [![NPM](https://nodei.co/npm/readable-stream.png?downloads=true&downloadRank=true)](https://nodei.co/npm/readable-stream/)
@@ -18,7 +18,7 @@ npm install --save readable-stream
 This package is a mirror of the Streams2 and Streams3 implementations in
 Node-core.
 
-Full documentation may be found on the [Node.js website](https://nodejs.org/dist/v8.1.3/docs/api/stream.html).
+Full documentation may be found on the [Node.js website](https://nodejs.org/dist/v8.11.1/docs/api/stream.html).
 
 If you want to guarantee a stable streams base, regardless of what version of
 Node you, or the users of your libraries are using, use **readable-stream** *only* and avoid the *"stream"* module in Node-core, for background see [this blogpost](http://r.va.gg/2014/06/why-i-dont-use-nodes-core-stream-module.html).
@@ -55,3 +55,4 @@ Node.js. The responsibilities of the Streams Working Group include:
 * **Domenic Denicola** ([@domenic](https://github.com/domenic)) &lt;d@domenic.me&gt;
 * **Matteo Collina** ([@mcollina](https://github.com/mcollina)) &lt;matteo.collina@gmail.com&gt;
   - Release GPG key: 3ABC01543F22DD2239285CDD818674489FBC127E
+* **Irina Shestak** ([@lrlna](https://github.com/lrlna)) &lt;shestak.irina@gmail.com&gt;

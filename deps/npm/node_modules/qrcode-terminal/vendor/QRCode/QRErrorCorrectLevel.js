@@ -4,4 +4,3 @@ module.exports = {
 	Q : 3,
 	H : 2
 };
-

@@ -22,6 +22,7 @@ const { createWriteStream, mkdirSync, rmdirSync } = require('fs');
 const path = require('path');
 
 const common = require('../test/common');
+const tmpDir = require('../test/common/tmpdir');
 
 const projectDir = path.resolve(__dirname, '..');
 const npmBin = path.join(projectDir, 'deps', 'npm', 'bin', 'npm-cli.js');
@@ -39,15 +40,14 @@ function spawnCopyDeepSync(source, destination) {
 function runNPMPackageTests({ srcDir, install, rebuild, testArgs, logfile }) {
   // Make sure we don't conflict with concurrent test runs
   const srcHash = createHash('md5').update(srcDir).digest('hex');
-  common.tmpDir = `${common.tmpDir}.npm.${srcHash}`;
-  common.refreshTmpDir();
+  tmpDir.path = `${tmpDir.path}.npm.${srcHash}`;
+  tmpDir.refresh();
 
-  const tmpDir = common.tmpDir;
-  const npmCache = path.join(tmpDir, 'npm-cache');
-  const npmPrefix = path.join(tmpDir, 'npm-prefix');
-  const npmTmp = path.join(tmpDir, 'npm-tmp');
-  const npmUserconfig = path.join(tmpDir, 'npm-userconfig');
-  const pkgDir = path.join(tmpDir, 'pkg');
+  const npmCache = path.join(tmpDir.path, 'npm-cache');
+  const npmPrefix = path.join(tmpDir.path, 'npm-prefix');
+  const npmTmp = path.join(tmpDir.path, 'npm-tmp');
+  const npmUserconfig = path.join(tmpDir.path, 'npm-userconfig');
+  const pkgDir = path.join(tmpDir.path, 'pkg');
 
   spawnCopyDeepSync(srcDir, pkgDir);
 
@@ -63,10 +63,10 @@ function runNPMPackageTests({ srcDir, install, rebuild, testArgs, logfile }) {
   };
 
   if (common.isWindows) {
-    npmOptions.env.home = tmpDir;
+    npmOptions.env.home = tmpDir.path;
     npmOptions.env.Path = `${nodePath};${process.env.Path}`;
   } else {
-    npmOptions.env.HOME = tmpDir;
+    npmOptions.env.HOME = tmpDir.path;
     npmOptions.env.PATH = `${nodePath}:${process.env.PATH}`;
   }
 
@@ -102,8 +102,8 @@ function runNPMPackageTests({ srcDir, install, rebuild, testArgs, logfile }) {
   }
 
   testChild.on('exit', () => {
-    common.refreshTmpDir();
-    rmdirSync(tmpDir);
+    tmpDir.refresh();
+    rmdirSync(tmpDir.path);
   });
 }
 

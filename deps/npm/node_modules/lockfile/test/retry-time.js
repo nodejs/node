@@ -46,7 +46,6 @@ pollPeriods.forEach(function (pp) {
     }, function (er) {
       if (ended) return
       var time = Date.now() - start
-      console.error('t=%d', time)
       t.ok(time >= EXPECTTIME, 'should take at least ' + EXPECTTIME)
       t.ok(time < TOOLONG, 'should take less than ' + TOOLONG)
       clearTimeout(timer)

@@ -29,7 +29,7 @@ var readJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'
@@ -41,7 +41,7 @@ var readScopedJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'
@@ -53,7 +53,7 @@ var installJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'
@@ -65,7 +65,7 @@ var insideInstallJSON = {
   description: '',
   main: 'index.js',
   scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
+    test: 'echo "Error: no test specified" && exit 1'
   },
   author: '',
   license: 'ISC'

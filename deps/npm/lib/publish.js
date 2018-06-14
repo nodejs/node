@@ -16,9 +16,9 @@ const pacote = require('pacote')
 const pacoteOpts = require('./config/pacote')
 const path = require('path')
 const readJson = BB.promisify(require('read-package-json'))
+const readUserInfo = require('./utils/read-user-info.js')
 const semver = require('semver')
 const statAsync = BB.promisify(require('graceful-fs').stat)
-const readUserInfo = require('./utils/read-user-info.js')
 
 publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
                 "\n\nPublishes '.' if no argument supplied" +
@@ -47,10 +47,16 @@ function publish (args, isRetry, cb) {
     return cb(new Error('Tag name must not be a valid SemVer range: ' + t))
   }
 
-  publish_(args[0]).then((pkg) => {
-    output(`+ ${pkg._id}`)
-    cb()
-  }, cb)
+  return publish_(args[0])
+    .then((tarball) => {
+      const silent = log.level === 'silent'
+      if (!silent && npm.config.get('json')) {
+        output(JSON.stringify(tarball, null, 2))
+      } else if (!silent) {
+        output(`+ ${tarball.id}`)
+      }
+    })
+    .nodeify(cb)
 }
 
 function publish_ (arg) {
@@ -76,6 +82,7 @@ function publish_ (arg) {
 function publishFromDirectory (arg) {
   // All this readJson is because any of the given scripts might modify the
   // package.json in question, so we need to refresh after every step.
+  let contents
   return pack.prepareDirectory(arg).then(() => {
     return readJson(path.join(arg, 'package.json'))
   }).then((pkg) => {
@@ -85,9 +92,10 @@ function publishFromDirectory (arg) {
   }).then((pkg) => {
     return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'fromDir'}, (tmpDir) => {
       const target = path.join(tmpDir, 'package.tgz')
-      return pack.packDirectory(pkg, arg, target).then(() => {
-        return upload(arg, pkg, false, target)
-      })
+      return pack.packDirectory(pkg, arg, target, null, true)
+        .tap((c) => { contents = c })
+        .then((c) => !npm.config.get('json') && pack.logContents(c))
+        .then(() => upload(arg, pkg, false, target))
     })
   }).then(() => {
     return readJson(path.join(arg, 'package.json'))
@@ -96,6 +104,7 @@ function publishFromDirectory (arg) {
   }).tap((pkg) => {
     return lifecycle(pkg, 'postpublish', arg)
   })
+    .then(() => contents)
 }
 
 function publishFromPackage (arg) {
@@ -104,9 +113,13 @@ function publishFromPackage (arg) {
     const target = path.join(tmp, 'package.json')
     const opts = pacoteOpts()
     return pacote.tarball.toFile(arg, target, opts)
-    .then(() => pacote.extract(arg, extracted, opts))
-    .then(() => readJson(path.join(extracted, 'package.json')))
-    .tap((pkg) => upload(arg, pkg, false, target))
+      .then(() => pacote.extract(arg, extracted, opts))
+      .then(() => readJson(path.join(extracted, 'package.json')))
+      .then((pkg) => {
+        return BB.resolve(pack.getContents(pkg, target))
+          .tap((c) => !npm.config.get('json') && pack.logContents(c))
+          .tap(() => upload(arg, pkg, false, target))
+      })
   })
 }
 
@@ -120,7 +133,6 @@ function upload (arg, pkg, isRetry, cached) {
       "Remove the 'private' field from the package.json to publish it."
     ))
   }
-
   const mappedConfig = getPublishConfig(
     pkg.publishConfig,
     npm.config,
@@ -151,7 +163,7 @@ function upload (arg, pkg, isRetry, cached) {
 
     const params = {
       metadata: pkg,
-      body: createReadStream(cached),
+      body: !npm.config.get('dry-run') && createReadStream(cached),
       auth: auth
     }
 
@@ -163,6 +175,11 @@ function upload (arg, pkg, isRetry, cached) {
       }
 
       params.access = config.get('access')
+    }
+
+    if (npm.config.get('dry-run')) {
+      log.verbose('publish', '--dry-run mode enabled. Skipping upload.')
+      return BB.resolve()
     }
 
     log.showProgress('publish:' + pkg._id)
@@ -192,7 +209,7 @@ function upload (arg, pkg, isRetry, cached) {
     if (err.code !== 'EOTP' && !(err.code === 'E401' && /one-time pass/.test(err.message))) throw err
     // we prompt on stdout and read answers from stdin, so they need to be ttys.
     if (!process.stdin.isTTY || !process.stdout.isTTY) throw err
-    return readUserInfo.otp('Enter OTP:  ').then((otp) => {
+    return readUserInfo.otp().then((otp) => {
       npm.config.set('otp', otp)
       return upload(arg, pkg, isRetry, cached)
     })

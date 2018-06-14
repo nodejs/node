@@ -2,7 +2,6 @@ module.exports = adduser
 
 var url = require('url')
 var assert = require('assert')
-var extend = Object.assign || require('util')._extend
 
 function adduser (uri, params, cb) {
   assert(typeof uri === 'string', 'must pass registry URI to adduser')
@@ -68,7 +67,7 @@ function adduser (uri, params, cb) {
   }
   this.request(
     uri,
-    extend({}, options),
+    Object.assign({}, options),
     function (error, data, json, response) {
       if (!error || !response || response.statusCode !== 409) {
         return cb(error, data, json, response)

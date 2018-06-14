@@ -76,7 +76,7 @@ Max display depth of the dependency tree.
 
 Display only the dependency tree for packages in `dependencies`.
 
-### dev
+### dev / development
 
 * Type: Boolean
 * Default: false

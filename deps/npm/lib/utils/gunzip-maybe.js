@@ -11,8 +11,8 @@ function gunzip () {
   var stream = duplex()
   var peeker = through(function (chunk, enc, cb) {
     var newStream = hasGzipHeader(chunk)
-    ? zlib.createGunzip()
-    : through()
+      ? zlib.createGunzip()
+      : through()
     stream.setReadable(newStream)
     stream.setWritable(newStream)
     stream.write(chunk)

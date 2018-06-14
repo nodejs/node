@@ -34,6 +34,9 @@ when operating on them, separated by a colon (`:`). That is, if you have a
   under that organization. If performed on a team, it will instead return a list
   of all users belonging to that particular team.
 
+* edit:
+  Edit a current team.
+
 ## DETAILS
 
 `npm team` always operates directly on the current registry, configurable from
