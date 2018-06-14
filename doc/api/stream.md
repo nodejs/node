@@ -37,10 +37,10 @@ the elements of the API that are required to *implement* new types of streams.
 
 There are four fundamental stream types within Node.js:
 
-* [`Readable`][] - streams from which data can be read (for example
-  [`fs.createReadStream()`][]).
 * [`Writable`][] - streams to which data can be written (for example
   [`fs.createWriteStream()`][]).
+* [`Readable`][] - streams from which data can be read (for example
+  [`fs.createReadStream()`][]).
 * [`Duplex`][] - streams that are both `Readable` and `Writable` (for example
   [`net.Socket`][]).
 * [`Transform`][] - `Duplex` streams that can modify or transform the data as it
