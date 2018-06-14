@@ -249,11 +249,11 @@ added: v1.0.0
   - `plaintextLength` {number}
 * Returns: {Cipher} for method chaining.
 
-When using an authenticated encryption mode (only `GCM` and `CCM` are currently
-supported), the `cipher.setAAD()` method sets the value used for the
+When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+currently supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
-The `options` argument is optional for `GCM`. When using `CCM`, the
+The `options` argument is optional for `GCM` and `OCB`. When using `CCM`, the
 `plaintextLength` option must be specified and its value must match the length
 of the plaintext in bytes. See [CCM mode][].
 
@@ -263,8 +263,8 @@ The `cipher.setAAD()` method must be called before [`cipher.update()`][].
 <!-- YAML
 added: v1.0.0
 -->
-* Returns: {Buffer} When using an authenticated encryption mode (only `GCM` and
-  `CCM` are currently supported), the `cipher.getAuthTag()` method returns a
+* Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`
+  and `OCB` are currently supported), the `cipher.getAuthTag()` method returns a
   [`Buffer`][] containing the _authentication tag_ that has been computed from
   the given data.
 
@@ -412,8 +412,8 @@ changes:
   - `plaintextLength` {number}
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (only `GCM` and `CCM` are currently
-supported), the `decipher.setAAD()` method sets the value used for the
+When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+currently supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
 The `options` argument is optional for `GCM`. When using `CCM`, the
@@ -436,8 +436,8 @@ changes:
 * `buffer` {Buffer | TypedArray | DataView}
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (only `GCM` and `CCM` are currently
-supported), the `decipher.setAuthTag()` method is used to pass in the
+When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+currently supported), the `decipher.setAuthTag()` method is used to pass in the
 received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] will throw, indicating that the
 cipher text should be discarded due to failed authentication. If the tag length
@@ -1321,6 +1321,9 @@ This property is deprecated. Please use `crypto.setFips()` and
 added: v0.1.94
 deprecated: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21447
+    description: Ciphers in OCB mode are now supported.
   - version: v10.2.0
     pr-url: https://github.com/nodejs/node/pull/20235
     description: The `authTagLength` option can now be used to produce shorter
@@ -1338,7 +1341,7 @@ Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`.
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to set the length of the authentication
@@ -1373,6 +1376,9 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21447
+    description: Ciphers in OCB mode are now supported.
   - version: v10.2.0
     pr-url: https://github.com/nodejs/node/pull/20235
     description: The `authTagLength` option can now be used to produce shorter
@@ -1392,7 +1398,7 @@ Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
 initialization vector (`iv`).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to set the length of the authentication
@@ -1419,6 +1425,10 @@ of time what a given IV will be.
 <!-- YAML
 added: v0.1.94
 deprecated: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21447
+    description: Ciphers in OCB mode are now supported.
 -->
 
 > Stability: 0 - Deprecated: Use [`crypto.createDecipheriv()`][] instead.
@@ -1432,7 +1442,7 @@ Creates and returns a `Decipher` object that uses the given `algorithm` and
 `password` (key).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][].
 
@@ -1452,6 +1462,9 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/21447
+    description: Ciphers in OCB mode are now supported.
   - version: v10.2.0
     pr-url: https://github.com/nodejs/node/pull/20039
     description: The `authTagLength` option can now be used to restrict accepted
@@ -1471,7 +1484,7 @@ Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to restrict accepted authentication tags
@@ -2321,7 +2334,7 @@ See the reference for other recommendations and details.
 
 ### CCM mode
 
-CCM is one of the two supported [AEAD algorithms][]. Applications which use this
+CCM is one of the supported [AEAD algorithms][]. Applications which use this
 mode must adhere to certain restrictions when using the cipher API:
 
 - The authentication tag length must be specified during cipher creation by
