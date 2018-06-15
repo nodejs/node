@@ -7,21 +7,21 @@ common.skipIfEslintMissing();
 const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/snake-case-filenames');
 
-const message = 'Filename is not in snake_case.';
+const message = (filename) => `Filename ${filename} is not in snake_case.`;
 const code = 'var foo = "bar"';
 
 new RuleTester().run('snake-case-filenames', rule, {
   valid: [
     {
       code,
-      filename: 'snake-case-filename.js'
+      filename: 'lib/snake_case_filename.js'
     }
   ],
   invalid: [
     {
       code,
-      filename: 'camelCaseFilename.js',
-      errors: [{ message }]
+      filename: 'lib/kebab-case-filename.js',
+      errors: [{ ...message('kebab-case-filename.js') }]
     }
   ]
 });

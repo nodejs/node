@@ -12,7 +12,7 @@ const path = require('path');
 
 module.exports = function(context) {
   const snakeCaseRegex = new RegExp('^[a-z_]+$');
-  const targetDirs = ['lib', 'deps', 'src'];
+  const targetDirs = ['lib'];
 
   function checkIfInTargetDir(dirName) {
     return targetDirs.filter((dir) => dirName.indexOf(dir) !== -1).length !== 0;
