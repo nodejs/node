@@ -7,7 +7,7 @@ const assert = require('assert');
 
 common.crashOnUnhandledRejection();
 
-const file = '../../fixtures/syntax/bad_syntax.js';
+const file = '../fixtures/syntax/bad_syntax.js';
 
 let error;
 (async () => {
