@@ -88,8 +88,8 @@ least one business day in advance of the expected release. Coordinating with
 Build is essential to make sure that the CI works, release files are published,
 and the release blog post is available on the project website.
 
-Build can be contacted best by opening up an issue on the [Build issue tracker][],
-and by posting in `#node-build` on [webchat.freenode.net][].
+Build can be contacted best by opening up an issue on the [Build issue
+tracker][], and by posting in `#node-build` on [webchat.freenode.net][].
 
 When preparing a security release, contact Build at least two weekdays in
 advance of the expected release. To ensure that the security patch(es) can be
@@ -524,7 +524,8 @@ To announce the build on Twitter through the official @nodejs account, email
 
 To ensure communication goes out with the timing of the blog post, please allow
 24 hour prior notice. If known, please include the date and time the release
-will be shared with the community in the email to coordinate these announcements.
+will be shared with the community in the email to coordinate these
+announcements.
 
 ### 16. Cleanup
 
