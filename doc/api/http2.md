@@ -2132,8 +2132,7 @@ For incoming headers:
 `proxy-authorization`, `range`, `referer`,`retry-after`, `tk`,
 `upgrade-insecure-requests`, `user-agent` or `x-content-type-options` are
 discarded.
-* `set-cookie` is a string if present once or an array in case duplicates
-are present.
+* `set-cookie` is always an array. Duplicates are added to the array.
 * `cookie`: the values are joined together with '; '.
 * For all other headers, the values are joined together with ', '.
 

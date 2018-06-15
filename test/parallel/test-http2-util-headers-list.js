@@ -1,14 +1,14 @@
 // Flags: --expose-internals
 'use strict';
 
-// Tests the internal utility function that is used to prepare headers
-// to pass to the internal binding layer.
+// Tests the internal utility functions that are used to prepare headers
+// to pass to the internal binding layer and to build a header object.
 
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
-const { mapToHeaders } = require('internal/http2/util');
+const { mapToHeaders, toHeaderObject } = require('internal/http2/util');
 
 const {
   HTTP2_HEADER_STATUS,
@@ -302,3 +302,41 @@ common.expectsError({
 
 assert(!(mapToHeaders({ te: 'trailers' }) instanceof Error));
 assert(!(mapToHeaders({ te: ['trailers'] }) instanceof Error));
+
+
+{
+  const rawHeaders = [
+    ':status', '200',
+    'cookie', 'foo',
+    'set-cookie', 'sc1',
+    'age', '10',
+    'x-multi', 'first'
+  ];
+  const headers = toHeaderObject(rawHeaders);
+  assert.strictEqual(headers[':status'], 200);
+  assert.strictEqual(headers.cookie, 'foo');
+  assert.deepStrictEqual(headers['set-cookie'], ['sc1']);
+  assert.strictEqual(headers.age, '10');
+  assert.strictEqual(headers['x-multi'], 'first');
+}
+
+{
+  const rawHeaders = [
+    ':status', '200',
+    ':status', '400',
+    'cookie', 'foo',
+    'cookie', 'bar',
+    'set-cookie', 'sc1',
+    'set-cookie', 'sc2',
+    'age', '10',
+    'age', '20',
+    'x-multi', 'first',
+    'x-multi', 'second'
+  ];
+  const headers = toHeaderObject(rawHeaders);
+  assert.strictEqual(headers[':status'], 200);
+  assert.strictEqual(headers.cookie, 'foo; bar');
+  assert.deepStrictEqual(headers['set-cookie'], ['sc1', 'sc2']);
+  assert.strictEqual(headers.age, '10');
+  assert.strictEqual(headers['x-multi'], 'first, second');
+}
