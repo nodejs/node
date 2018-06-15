@@ -39,7 +39,7 @@ without blocking the Node.js event loop. The [`child_process.spawnSync()`][]
 function provides equivalent functionality in a synchronous manner that blocks
 the event loop until the spawned process either exits or is terminated.
 
-*Note*: On some operating systems, the [`child_process.spawn()`][] method
+*Note*: On UNIX-like operating systems, the [`child_process.spawn()`][] method
 performs memory operations synchronously before decoupling the event loop
 from the child. Applications with a large memory footprint may find frequent
 [`child_process.spawn()`][] calls to be a bottleneck. For more information,
