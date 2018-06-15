@@ -1517,7 +1517,6 @@ config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'PYTHON': sys.executable,
   'NODE_TARGET_TYPE': variables['node_target_type'],
-  'NODE_USE_OPENSSL': variables['node_use_openssl'],
 }
 
 if options.prefix:
