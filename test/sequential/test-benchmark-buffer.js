@@ -4,6 +4,8 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
+process.exit(1);
+
 runBenchmark('buffers',
              [
                'aligned=true',
