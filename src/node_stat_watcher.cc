@@ -110,8 +110,6 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   CHECK(!uv_is_active(wrap->GetHandle()));
 
-  const int argc = args.Length();
-
   node::Utf8Value path(args.GetIsolate(), args[0]);
   CHECK_NOT_NULL(*path);
 
