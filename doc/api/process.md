@@ -1159,6 +1159,9 @@ added: v0.7.6
 * `time` {integer[]} The result of a previous call to `process.hrtime()`
 * Returns: {integer[]}
 
+This is the legacy version of [`process.hrtime.bigint()`][]
+before `bigint` was introduced in JavaScript.
+
 The `process.hrtime()` method returns the current high-resolution real time
 in a `[seconds, nanoseconds]` tuple `Array`, where `nanoseconds` is the
 remaining part of the real time that can't be represented in second precision.
@@ -1199,7 +1202,7 @@ current high-resolution real time in a `bigint`.
 
 Unlike [`process.hrtime()`][], it does not support an additional `time`
 argument since the difference can just be computed directly
-by substraction of the two `bigint`s.
+by subtraction of the two `bigint`s.
 
 ```js
 const start = process.hrtime.bigint();
@@ -1210,7 +1213,7 @@ setTimeout(() => {
   // 191052633396993n
 
   console.log(`Benchmark took ${end - start} nanoseconds`);
-  // benchmark took 1154389282 nanoseconds
+  // Benchmark took 1154389282 nanoseconds
 }, 1000);
 ```
 
@@ -2058,6 +2061,7 @@ cases:
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.hrtime()`]: #process_process_hrtime_time
+[`process.hrtime.bigint()`]: #process_process_hrtime_bigint
 [`process.kill()`]: #process_process_kill_pid_signal
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
