@@ -592,16 +592,12 @@ class Http2Stream : public AsyncWrap,
 
   bool AddHeader(nghttp2_rcbuf* name, nghttp2_rcbuf* value, uint8_t flags);
 
-  inline nghttp2_header* headers() {
-    return current_headers_.data();
+  inline std::vector<nghttp2_header> move_headers() {
+    return std::move(current_headers_);
   }
 
   inline nghttp2_headers_category headers_category() const {
     return current_headers_category_;
-  }
-
-  inline size_t headers_count() const {
-    return current_headers_.size();
   }
 
   void StartHeaders(nghttp2_headers_category category);
