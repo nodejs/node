@@ -38,6 +38,8 @@ import string
 # If not run from node/, cd to node/.
 os.chdir(os.path.dirname(__file__) or '.')
 
+original_argv = sys.argv[1:]
+
 # gcc and g++ as defaults matches what GYP's Makefile generator does,
 # except on OS X.
 CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'gcc')
@@ -1447,6 +1449,9 @@ def make_bin_override():
 
   return bin_override
 
+def shell_quote(arg):
+  return "'" + arg.replace("'", "'\\''") + "'"
+
 output = {
   'variables': {},
   'include_dirs': [],
@@ -1512,6 +1517,10 @@ pprint.pprint(output, indent=2)
 
 write('config.gypi', do_not_edit +
       pprint.pformat(output, indent=2) + '\n')
+
+write('config.status', '#!/bin/sh\nset -ex\n./configure ' +
+      ' '.join([shell_quote(arg) for arg in original_argv]) + '\n')
+os.chmod('config.status', 0775)
 
 config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
