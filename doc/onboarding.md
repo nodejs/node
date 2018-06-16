@@ -144,7 +144,7 @@ onboarding session.
     (especially if it just has nits left).
 * Approving a change
   * Collaborators indicate that they have reviewed and approve of the changes in
-    a pull request using Github’s approval interface
+    a pull request using GitHub’s approval interface
   * Some people like to comment `LGTM` (“Looks Good To Me”)
   * You have the authority to approve any other collaborator’s work.
   * You cannot approve your own pull requests.
@@ -206,7 +206,7 @@ needs to be pointed out separately during the onboarding.
 ## Exercise: Make a PR adding yourself to the README
 
 * Example:
-  [https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0][]
+  https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
   * For raw commit message: `git log ce986de829457c39257cd205067602e765768fb0
     -1`
 * Collaborators are in alphabetical order by GitHub username.
@@ -250,7 +250,6 @@ needs to be pointed out separately during the onboarding.
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [Landing Pull Requests]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests
-[https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0]: https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
