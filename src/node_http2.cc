@@ -1137,8 +1137,7 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   if (stream->IsDestroyed())
     return;
 
-  nghttp2_header* headers = stream->headers();
-  size_t count = stream->headers_count();
+  std::vector<nghttp2_header> headers(stream->move_headers());
 
   Local<String> name_str;
   Local<String> value_str;
@@ -1155,9 +1154,9 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   // this way for performance reasons (it's faster to generate and pass an
   // array than it is to generate and pass the object).
   size_t n = 0;
-  while (count > 0) {
+  while (n < headers.size()) {
     size_t j = 0;
-    while (count > 0 && j < arraysize(argv) / 2) {
+    while (n < headers.size() && j < arraysize(argv) / 2) {
       nghttp2_header item = headers[n++];
       // The header name and value are passed as external one-byte strings
       name_str =
@@ -1166,7 +1165,6 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
           ExternalHeader::New<false>(env(), item.value).ToLocalChecked();
       argv[j * 2] = name_str;
       argv[j * 2 + 1] = value_str;
-      count--;
       j++;
     }
     // For performance, we pass name and value pairs to array.protototype.push
@@ -1782,6 +1780,11 @@ Http2Stream::Http2Stream(
 
 
 Http2Stream::~Http2Stream() {
+  for (nghttp2_header& header : current_headers_) {
+    nghttp2_rcbuf_decref(header.name);
+    nghttp2_rcbuf_decref(header.value);
+  }
+
   if (session_ == nullptr)
     return;
   DEBUG_HTTP2STREAM(this, "tearing down stream");
