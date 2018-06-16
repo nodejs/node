@@ -114,7 +114,12 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
 	$(PYTHON) tools/gyp_node.py -f make
 
 config.gypi: configure
-	$(error Missing or stale $@, please run ./$<)
+	@if [ -x config.status ]; then \
+		./config.status; \
+	else \
+		echo Missing or stale $@, please run ./$<; \
+		exit 1; \
+	fi
 
 .PHONY: install
 install: all ## Installs node into $PREFIX (default=/usr/local).
