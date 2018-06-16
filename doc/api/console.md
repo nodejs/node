@@ -94,7 +94,7 @@ changes:
   * `stdout` {stream.Writable}
   * `stderr` {stream.Writable}
   * `ignoreErrors` {boolean} Ignore errors when writing to the underlying
-                             streams. **Default:** `true`.
+    streams. **Default:** `true`.
   * `colorMode` {boolean|string} Set color support for this `Console` instance.
     Setting to `true` enables coloring while inspecting values, setting to
     `'auto'` will make color support depend on the value of the `isTTY` property
