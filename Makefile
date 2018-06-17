@@ -165,7 +165,7 @@ coverage: coverage-test ## Run the tests and generate a coverage report.
 coverage-build: all
 	mkdir -p node_modules
 	if [ ! -d node_modules/nyc ]; then \
-		$(NODE) ./deps/npm install nyc --no-save --no-package-lock; fi
+		$(NODE) ./deps/npm install nyc --no-save --no-package-lock --production; fi
 	if [ ! -d gcovr ]; then git clone -b 3.4 --depth=1 \
 		--single-branch git://github.com/gcovr/gcovr.git; fi
 	if [ ! -d build ]; then git clone --depth=1 \
