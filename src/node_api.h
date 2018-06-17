@@ -614,6 +614,44 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
                                                struct uv_loop_s** loop);
 
+#ifdef NAPI_EXPERIMENTAL
+// Calling into JS from other threads
+NAPI_EXTERN napi_status
+napi_create_threadsafe_function(napi_env env,
+                                napi_value func,
+                                napi_value async_resource,
+                                napi_value async_resource_name,
+                                size_t max_queue_size,
+                                size_t initial_thread_count,
+                                void* thread_finalize_data,
+                                napi_finalize thread_finalize_cb,
+                                void* context,
+                                napi_threadsafe_function_call_js call_js_cb,
+                                napi_threadsafe_function* result);
+
+NAPI_EXTERN napi_status
+napi_get_threadsafe_function_context(napi_threadsafe_function func,
+                                     void** result);
+
+NAPI_EXTERN napi_status
+napi_call_threadsafe_function(napi_threadsafe_function func,
+                              void* data,
+                              napi_threadsafe_function_call_mode is_blocking);
+
+NAPI_EXTERN napi_status
+napi_acquire_threadsafe_function(napi_threadsafe_function func);
+
+NAPI_EXTERN napi_status
+napi_release_threadsafe_function(napi_threadsafe_function func,
+                                 napi_threadsafe_function_release_mode mode);
+
+NAPI_EXTERN napi_status
+napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);
+
+NAPI_EXTERN napi_status
+napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
+
+#endif  // NAPI_EXPERIMENTAL
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_
