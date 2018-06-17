@@ -31,6 +31,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BigUint64Array;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::HeapStatistics;
@@ -113,7 +114,11 @@ void Cwd(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(cwd);
 }
 
+
 // Hrtime exposes libuv's uv_hrtime() high-resolution timer.
+
+// This is the legacy version of hrtime before BigInt was introduced in
+// JavaScript.
 // The value returned by uv_hrtime() is a 64-bit int representing nanoseconds,
 // so this function instead fills in an Uint32Array with 3 entries,
 // to avoid any integer overflow possibility.
@@ -130,6 +135,12 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   fields[0] = (t / NANOS_PER_SEC) >> 32;
   fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
   fields[2] = t % NANOS_PER_SEC;
+}
+
+void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
+  Local<ArrayBuffer> ab = args[0].As<BigUint64Array>()->Buffer();
+  uint64_t* fields = static_cast<uint64_t*>(ab->GetContents().Data());
+  fields[0] = uv_hrtime();
 }
 
 void Kill(const FunctionCallbackInfo<Value>& args) {
