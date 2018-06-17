@@ -29,7 +29,8 @@ class Agent {
   ~Agent();
 
   // Start the inspector agent thread
-  bool Start(v8::Platform* platform, const char* path, int port, bool wait);
+  bool Start(v8::Platform* platform, const char* path,
+             const char* address, int port, bool wait);
   // Stop the inspector agent
   void Stop();
 
