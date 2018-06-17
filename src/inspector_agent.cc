@@ -37,20 +37,30 @@ static const uint8_t PROTOCOL_JSON[] = {
 #include "v8_inspector_protocol_json.h"  // NOLINT(build/include_order)
 };
 
-std::string GetWsUrl(int port, const std::string& id) {
+std::string GetWsUrl(const sockaddr_in& address, const std::string& id) {
   char buf[1024];
-  snprintf(buf, sizeof(buf), "127.0.0.1:%d/%s", port, id.c_str());
+  char name[64];
+
+  if (uv_ip4_name(&address, name, sizeof(name))) *name = '\0';
+  const int port = ntohs(address.sin_port);
+  snprintf(buf, sizeof(buf), "%s:%d/%s", name, port, id.c_str());
+
   return buf;
 }
 
-void PrintDebuggerReadyMessage(int port, const std::string& id) {
-  fprintf(stderr, "Debugger listening on port %d.\n"
+void PrintDebuggerReadyMessage(const sockaddr_in& address,
+                               const std::string& id) {
+  const std::string ws_url = GetWsUrl(address, id);
+  const size_t slash_pos = ws_url.find('/');
+  CHECK_NE(slash_pos, std::string::npos);
+
+  fprintf(stderr, "Debugger listening on %.*s.\n"
     "Warning: This is an experimental feature and could change at any time.\n"
     "To start debugging, open the following URL in Chrome:\n"
     "    chrome-devtools://devtools/remote/serve_file/"
     "@" V8_INSPECTOR_REVISION "/inspector.html?"
     "experiments=true&v8only=true&ws=%s\n",
-      port, GetWsUrl(port, id).c_str());
+    static_cast<int>(slash_pos), ws_url.c_str(), ws_url.c_str());
   fflush(stderr);
 }
 
@@ -187,7 +197,8 @@ class AgentImpl {
   ~AgentImpl();
 
   // Start the inspector agent thread
-  bool Start(v8::Platform* platform, const char* path, int port, bool wait);
+  bool Start(v8::Platform* platform, const char* path,
+             const char* host, int port, bool wait);
   // Stop the inspector agent
   void Stop();
 
@@ -234,7 +245,7 @@ class AgentImpl {
   uv_thread_t thread_;
   uv_loop_t child_loop_;
 
-  int port_;
+  struct sockaddr_in saddr_;
   bool wait_;
   bool shutting_down_;
   State state_;
@@ -380,7 +391,7 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
 };
 
-AgentImpl::AgentImpl(Environment* env) : port_(0),
+AgentImpl::AgentImpl(Environment* env) : saddr_(),
                                          wait_(false),
                                          shutting_down_(false),
                                          state_(State::kNew),
@@ -473,7 +484,10 @@ void InspectorWrapConsoleCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 bool AgentImpl::Start(v8::Platform* platform, const char* path,
-                      int port, bool wait) {
+                      const char* address, int port, bool wait) {
+  if (*address == '\0') address = "127.0.0.1";
+  if (uv_ip4_addr(address, port, &saddr_)) return false;
+
   auto env = parent_env_;
   inspector_ = new V8NodeInspector(this, env, platform);
   platform_ = platform;
@@ -485,7 +499,6 @@ bool AgentImpl::Start(v8::Platform* platform, const char* path,
   int err = uv_loop_init(&child_loop_);
   CHECK_EQ(err, 0);
 
-  port_ = port;
   wait_ = wait;
 
   err = uv_thread_create(&thread_, AgentImpl::ThreadCbIO, this);
@@ -661,7 +674,7 @@ void AgentImpl::SendListResponse(InspectorSocket* socket) {
   Escape(&response["url"]);
 
   if (!client_socket_) {
-    std::string address = GetWsUrl(port_, id_);
+    std::string address = GetWsUrl(saddr_, id_);
 
     std::ostringstream frontend_url;
     frontend_url << "https://chrome-devtools-frontend.appspot.com/serve_file/@";
@@ -715,7 +728,6 @@ void AgentImpl::WriteCbIO(uv_async_t* async) {
 }
 
 void AgentImpl::WorkerRunIO() {
-  sockaddr_in addr;
   uv_tcp_t server;
   int err = uv_loop_init(&child_loop_);
   CHECK_EQ(err, 0);
@@ -729,13 +741,17 @@ void AgentImpl::WorkerRunIO() {
     uv_fs_req_cleanup(&req);
   }
   uv_tcp_init(&child_loop_, &server);
-  uv_ip4_addr("0.0.0.0", port_, &addr);
   server.data = this;
   err = uv_tcp_bind(&server,
-                    reinterpret_cast<const struct sockaddr*>(&addr), 0);
+                    reinterpret_cast<const struct sockaddr*>(&saddr_), 0);
   if (err == 0) {
     err = uv_listen(reinterpret_cast<uv_stream_t*>(&server), 1,
                     OnSocketConnectionIO);
+  }
+  if (err == 0) {
+    int namelen = sizeof(saddr_);
+    err = uv_tcp_getsockname(&server, reinterpret_cast<sockaddr*>(&saddr_),
+                             &namelen);
   }
   if (err != 0) {
     fprintf(stderr, "Unable to open devtools socket: %s\n", uv_strerror(err));
@@ -746,7 +762,7 @@ void AgentImpl::WorkerRunIO() {
     uv_sem_post(&start_sem_);
     return;
   }
-  PrintDebuggerReadyMessage(port_, id_);
+  PrintDebuggerReadyMessage(saddr_, id_);
   if (!wait_) {
     uv_sem_post(&start_sem_);
   }
@@ -830,7 +846,7 @@ void AgentImpl::DispatchMessages() {
         if (shutting_down_) {
           state_ = State::kDone;
         } else {
-          PrintDebuggerReadyMessage(port_, id_);
+          PrintDebuggerReadyMessage(saddr_, id_);
           state_ = State::kAccepting;
         }
         inspector_->quitMessageLoopOnPause();
@@ -858,8 +874,8 @@ Agent::~Agent() {
 }
 
 bool Agent::Start(v8::Platform* platform, const char* path,
-                  int port, bool wait) {
-  return impl->Start(platform, path, port, wait);
+                  const char* host, int port, bool wait) {
+  return impl->Start(platform, path, host, port, wait);
 }
 
 void Agent::Stop() {
