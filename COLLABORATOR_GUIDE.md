@@ -463,11 +463,11 @@ Runtime Deprecation cycle. However, there is no requirement that deprecated
 code must progress ultimately to *End-of-Life*. Documentation-only and runtime
 deprecations may remain indefinitely.
 
-A best effort will be made to communicate pending deprecations and associated
-mitigations with the ecosystem as soon as possible (preferably before the pull
-request adding the deprecation lands on the master branch). All deprecations
-included in a Node.js release should be listed prominently in the "Notable
-Changes" section of the release notes.
+Communicate pending deprecations and associated mitigations with the ecosystem
+as soon as possible (preferably before the pull request adding the deprecation
+lands on the master branch). Use the `notable-change` label on all pull requests
+that add a new deprecation or move an existing deprecation to a new deprecation
+level.
 
 ### Involving the TSC
 
