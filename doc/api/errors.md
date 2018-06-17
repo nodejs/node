@@ -1204,6 +1204,17 @@ An invalid `options.protocol` was passed.
 Both `breakEvalOnSigint` and `eval` options were set in the REPL config, which
 is not supported.
 
+<a id="ERR_INVALID_RETURN_PROPERTY"></a>
+### ERR_INVALID_RETURN_PROPERTY
+
+Thrown in case a function option does not return an expected property type.
+
+<a id="ERR_INVALID_RETURN_PROPERTY_STRING"></a>
+### ERR_INVALID_RETURN_PROPERTY_STRING
+
+Thrown in case a function option does not return an expected string property
+type.
+
 <a id="ERR_INVALID_RETURN_VALUE"></a>
 ### ERR_INVALID_RETURN_VALUE
 
