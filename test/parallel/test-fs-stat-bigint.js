@@ -59,6 +59,26 @@ function verifyStats(bigintStats, numStats) {
         bigintStats.isSymbolicLink(),
         numStats.isSymbolicLink()
       );
+    } else if (key.endsWith('Ms')) {
+      const nsKey = key.replace('Ms', 'Ns');
+      const msFromBigInt = bigintStats[key];
+      const nsFromBigInt = bigintStats[nsKey];
+      const msFromBigIntNs = Number(nsFromBigInt / (10n ** 6n));
+      const msFromNum = numStats[key];
+      // The difference between the millisecond-precision values should be
+      // smaller than 2
+      assert(
+        Math.abs(msFromNum - Number(msFromBigInt)) < 2,
+        `Number version ${key} = ${msFromNum}, ` +
+        `BigInt version ${key} = ${msFromBigInt}n`);
+      // The difference between the millisecond-precision value and the
+      // nanosecond-precision value scaled down to milliseconds should be
+      // smaller than 2
+      assert(
+        Math.abs(msFromNum - Number(msFromBigIntNs)) < 2,
+        `Number version ${key} = ${msFromNum}, ` +
+        `BigInt version ${nsKey} = ${nsFromBigInt}n` +
+        ` = ${msFromBigIntNs}ms`);
     } else if (Number.isSafeInteger(val)) {
       assert.strictEqual(
         bigintStats[key], BigInt(val),
