@@ -8,7 +8,7 @@ const { isMainThread } = require('worker_threads');
 
 if (isMainThread) {
   const CODE = 'const { Worker } = require(\'worker_threads\'); ' +
-               `new Worker('${__filename.replace(/\\/g,'/')}')`;
+               `new Worker('${__filename.replace(/\\/g, '/')}')`;
   const FILE_NAME = 'node_trace.1.log';
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
