@@ -1207,18 +1207,20 @@ is not supported.
 <a id="ERR_INVALID_RETURN_PROPERTY"></a>
 ### ERR_INVALID_RETURN_PROPERTY
 
-Thrown in case a function option does not return an expected property type.
+Thrown in case a function option does not provide a valid value for one of its
+returned object properties on execution.
 
-<a id="ERR_INVALID_RETURN_PROPERTY_STRING"></a>
-### ERR_INVALID_RETURN_PROPERTY_STRING
+<a id="ERR_INVALID_RETURN_PROPERTY_VALUE"></a>
+### ERR_INVALID_RETURN_PROPERTY_VALUE
 
-Thrown in case a function option does not return an expected string property
-type.
+Thrown in case a function option does not provide an expected value
+type for one of its returned object properties on execution.
 
 <a id="ERR_INVALID_RETURN_VALUE"></a>
 ### ERR_INVALID_RETURN_VALUE
 
-Thrown in case a function option does not return an expected value on execution.
+Thrown in case a function option does not return an expected value
+type on execution.
 For example when a function is expected to return a promise.
 
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
