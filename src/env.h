@@ -105,10 +105,32 @@ struct PackageConfig {
 };
 }  // namespace loader
 
+enum class FsStatsOffset {
+  kDev = 0,
+  kMode,
+  kNlink,
+  kUid,
+  kGid,
+  kRdev,
+  kBlkSize,
+  kIno,
+  kSize,
+  kBlocks,
+  kATimeSec,
+  kATimeNsec,
+  kMTimeSec,
+  kMTimeNsec,
+  kCTimeSec,
+  kCTimeNsec,
+  kBirthTimeSec,
+  kBirthTimeNsec,
+  kFsStatsFieldsNumber
+};
+
 // Stat fields buffers contain twice the number of entries in an uv_stat_t
 // because `fs.StatWatcher` needs room to store 2 `fs.Stats` instances.
-constexpr size_t kFsStatsFieldsNumber = 14;
-constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
+constexpr size_t kFsStatsBufferLength =
+    static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
 
 // PER_ISOLATE_* macros: We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
