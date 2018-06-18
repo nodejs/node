@@ -334,14 +334,25 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
       detected_host = FormatHostPort(socket->GetHost(),
                                      session->server_port());
     }
-    std::ostringstream frontend_url;
-    frontend_url << "chrome-devtools://devtools/bundled";
-    frontend_url << "/inspector.html?experiments=true&v8only=true&ws=";
-    frontend_url << FormatAddress(detected_host, id, false);
-    target_map["devtoolsFrontendUrl"] += frontend_url.str();
+    std::string formatted_address = FormatAddress(detected_host, id, false);
+    target_map["devtoolsFrontendUrl"] = GetFrontendURL(false,
+                                                       formatted_address);
+    // The compat URL is for Chrome browsers older than 66.0.3345.0
+    target_map["devtoolsFrontendUrlCompat"] = GetFrontendURL(true,
+                                                             formatted_address);
     target_map["webSocketDebuggerUrl"] = FormatAddress(detected_host, id, true);
   }
   SendHttpResponse(socket, MapsToString(response));
+}
+
+std::string InspectorSocketServer::GetFrontendURL(bool is_compat,
+    const std::string &formatted_address) {
+  std::ostringstream frontend_url;
+  frontend_url << "chrome-devtools://devtools/bundled/";
+  frontend_url << (is_compat ? "inspector" : "js_app");
+  frontend_url << ".html?experiments=true&v8only=true&ws=";
+  frontend_url << formatted_address;
+  return frontend_url.str();
 }
 
 bool InspectorSocketServer::Start() {
