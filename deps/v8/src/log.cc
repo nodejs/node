@@ -2052,7 +2052,7 @@ void ExistingCodeLogger::LogCodeObject(Object* object) {
       break;
     case AbstractCode::BUILTIN:
       if (Code::cast(object)->is_interpreter_trampoline_builtin() &&
-          Code::cast(object) ==
+          Code::cast(object) !=
               *BUILTIN_CODE(isolate_, InterpreterEntryTrampoline)) {
         return;
       }
