@@ -6,6 +6,7 @@
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
     'node_no_browser_globals%': 'false',
+    'node_code_cache_path%': '',
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
@@ -396,6 +397,7 @@
         'src/module_wrap.h',
         'src/node.h',
         'src/node_buffer.h',
+        'src/node_code_cache.h',
         'src/node_constants.h',
         'src/node_contextify.h',
         'src/node_debug_options.h',
@@ -459,6 +461,11 @@
         'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
       ],
       'conditions': [
+        [ 'node_code_cache_path!=""', {
+          'sources': [ '<(node_code_cache_path)' ]
+        }, {
+          'sources': [ 'src/node_code_cache_stub.cc' ]
+        }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
           'xcode_settings': {
