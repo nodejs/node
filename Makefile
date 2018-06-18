@@ -91,6 +91,22 @@ $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
+CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
+CODE_CACHE_FILE ?= $(CODE_CACHE_DIR)/node_code_cache.cc
+
+.PHONY: with-code-cache
+with-code-cache:
+	$(PYTHON) ./configure
+	$(MAKE)
+	mkdir -p $(CODE_CACHE_DIR)
+	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
+	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE)
+	$(MAKE)
+
+.PHONY: test-code-cache
+test-code-cache: with-code-cache
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) code-cache
+
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
               deps/v8/gypfiles/features.gypi deps/v8/gypfiles/v8.gyp node.gyp \
