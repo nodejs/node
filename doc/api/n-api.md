@@ -536,7 +536,7 @@ napi_status napi_fatal_exception(napi_env env, napi_value err);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] err`: The error you want to pass to `'uncaughtException'`.
+- `[in] err`: The error that is passed to `'uncaughtException'`.
 
 Trigger an `'uncaughtException'` in JavaScript. Useful if an async
 callback throws an exception with no way to recover.
@@ -1019,9 +1019,8 @@ napi_value Init(napi_env env, napi_value exports) {
 }
 ```
 
-If you expect that your module will be loaded multiple times during the lifetime
-of the Node.js process, you can use the `NAPI_MODULE_INIT` macro to initialize
-your module:
+If the module will be loaded multiple times during the lifetime of the Node.js
+process, use the `NAPI_MODULE_INIT` macro to initialize the module:
 
 ```C
 NAPI_MODULE_INIT() {
