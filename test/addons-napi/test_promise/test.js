@@ -61,3 +61,16 @@ assert.strictEqual(test_promise.isPromise('I promise!'), false);
 assert.strictEqual(test_promise.isPromise(undefined), false);
 assert.strictEqual(test_promise.isPromise(null), false);
 assert.strictEqual(test_promise.isPromise({}), false);
+
+{
+  const p = Promise.resolve(5);
+  assert.strictEqual(test_promise.getPromiseState(p), 1);
+  assert.strictEqual(test_promise.getPromiseResult(p), 5);
+}
+
+{
+  const p = Promise.reject('error');
+  p.catch(() => {});
+  assert.strictEqual(test_promise.getPromiseState(p), 2);
+  assert.strictEqual(test_promise.getPromiseResult(p), 'error');
+}

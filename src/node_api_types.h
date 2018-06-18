@@ -75,6 +75,12 @@ typedef enum {
   napi_callback_scope_mismatch
 } napi_status;
 
+typedef enum {
+  napi_promise_pending,
+  napi_promise_fulfilled,
+  napi_promise_rejected,
+} napi_promise_state;
+
 typedef napi_value (*napi_callback)(napi_env env,
                                     napi_callback_info info);
 typedef void (*napi_finalize)(napi_env env,
