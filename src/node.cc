@@ -158,6 +158,8 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
+using v8::PromiseRejectEvent;
+using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
@@ -2867,8 +2869,53 @@ static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
 }
 
 
+void PromiseRejectCallback(PromiseRejectMessage message) {
+  Local<Promise> promise = message.GetPromise();
+  Isolate* isolate = promise->GetIsolate();
+  PromiseRejectEvent event = message.GetEvent();
+
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Function> callback;
+  Local<Value> value;
+
+  if (event == v8::kPromiseRejectWithNoHandler) {
+    callback = env->promise_reject_unhandled_function();
+    value = message.GetValue();
+
+    if (value.IsEmpty())
+      value = Undefined(isolate);
+  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
+    callback = env->promise_reject_handled_function();
+    value = Undefined(isolate);
+  } else {
+    UNREACHABLE();
+  }
+
+  Local<Value> args[] = { promise, value };
+  MaybeLocal<Value> ret = callback->Call(env->context(),
+                                         Undefined(isolate),
+                                         arraysize(args),
+                                         args);
+
+  if (!ret.IsEmpty() && ret.ToLocalChecked()->IsTrue())
+    env->tick_info()->promise_rejections_toggle_on();
+}
+
 void LoadEnvironment(Environment* env) {
+  LoadEnvironmentGeneric(env, true, true);
+}
+
+void LoadEnvironmentGeneric(Environment* env, bool standalone_mode,
+                            bool upstream_node_mode) {
   HandleScope handle_scope(env->isolate());
+
+  if (standalone_mode) {
+    env->isolate()->AddMessageListener(OnMessage);
+    env->isolate()->SetFatalErrorHandler(OnFatalError);
+  }
+  if (upstream_node_mode) {
+    env->isolate()->SetPromiseRejectCallback(PromiseRejectCallback);
+  }
 
   TryCatch try_catch(env->isolate());
   // Disable verbose mode to stop FatalException() handler from trying
@@ -3759,14 +3806,23 @@ void Init(int* argc,
           const char** argv,
           int* exec_argc,
           const char*** exec_argv) {
+  InitGeneric(argc, argv, exec_argc, exec_argv, true, true);
+}
+
+
+void InitGeneric(int* argc, const char** argv, int* exec_argc,
+                 const char*** exec_argv, bool standalone_mode,
+                bool upstream_node_mode) {
   // Initialize prog_start_time to get relative uptime.
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
   // Register built-in modules
   RegisterBuiltinModules();
 
-  // Make inherited handles noninheritable.
-  uv_disable_stdio_inheritance();
+  if (upstream_node_mode) {
+    // Make inherited handles noninheritable.
+    uv_disable_stdio_inheritance();
+  }
 
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
@@ -3830,7 +3886,8 @@ void Init(int* argc,
   }
 #endif
 
-  ProcessArgv(argc, argv, exec_argc, exec_argv);
+  if (upstream_node_mode) {
+    ProcessArgv(argc, argv, exec_argc, exec_argv);
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // If the parameter isn't given, use the env variable.
@@ -3846,6 +3903,7 @@ void Init(int* argc,
     exit(9);
   }
 #endif
+  }
 
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
@@ -4123,7 +4181,6 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator) {
   if (isolate == nullptr)
     return nullptr;
 
-  isolate->AddMessageListener(OnMessage);
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   isolate->SetFatalErrorHandler(OnFatalError);

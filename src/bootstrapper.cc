@@ -12,11 +12,8 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::Promise;
-using v8::PromiseRejectEvent;
-using v8::PromiseRejectMessage;
 using v8::String;
 using v8::Value;
 
@@ -51,46 +48,12 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-void PromiseRejectCallback(PromiseRejectMessage message) {
-  Local<Promise> promise = message.GetPromise();
-  Isolate* isolate = promise->GetIsolate();
-  PromiseRejectEvent event = message.GetEvent();
-
-  Environment* env = Environment::GetCurrent(isolate);
-  Local<Function> callback;
-  Local<Value> value;
-
-  if (event == v8::kPromiseRejectWithNoHandler) {
-    callback = env->promise_reject_unhandled_function();
-    value = message.GetValue();
-
-    if (value.IsEmpty())
-      value = Undefined(isolate);
-  } else if (event == v8::kPromiseHandlerAddedAfterReject) {
-    callback = env->promise_reject_handled_function();
-    value = Undefined(isolate);
-  } else {
-    UNREACHABLE();
-  }
-
-  Local<Value> args[] = { promise, value };
-  MaybeLocal<Value> ret = callback->Call(env->context(),
-                                         Undefined(isolate),
-                                         arraysize(args),
-                                         args);
-
-  if (!ret.IsEmpty() && ret.ToLocalChecked()->IsTrue())
-    env->tick_info()->promise_rejections_toggle_on();
-}
-
 void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
   CHECK(args[1]->IsFunction());
 
-  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   env->set_promise_reject_unhandled_function(args[0].As<Function>());
   env->set_promise_reject_handled_function(args[1].As<Function>());
 }

@@ -213,6 +213,9 @@ NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
                       const char*** exec_argv);
+NODE_EXTERN void InitGeneric(int* argc, const char** argv, int* exec_argc,
+                             const char*** exec_argv, bool standalone_mode,
+                             bool upstream_node_mode);
 
 class ArrayBufferAllocator;
 
@@ -271,6 +274,8 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            const char* const* exec_argv);
 
 NODE_EXTERN void LoadEnvironment(Environment* env);
+NODE_EXTERN void LoadEnvironmentGeneric(Environment* env, bool standalone_mode,
+                                 bool upstream_node_mode);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // This returns the MultiIsolatePlatform used in the main thread of Node.js.
