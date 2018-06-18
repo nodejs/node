@@ -35,14 +35,16 @@ if (common.isMainThread) {
 common.expectWarning(
   'Warning',
   [
-    ['No such label \'nolabel\' for console.timeEnd()', common.noWarnCode],
+    ['Count for \'noLabel\' does not exist', common.noWarnCode],
     ['No such label \'nolabel\' for console.timeLog()', common.noWarnCode],
+    ['No such label \'nolabel\' for console.timeEnd()', common.noWarnCode],
     ['Label \'test\' already exists for console.time()', common.noWarnCode]
   ]
 );
 
-console.timeEnd('nolabel');
+console.countReset('noLabel');
 console.timeLog('nolabel');
+console.timeEnd('nolabel');
 
 console.time('label');
 console.timeEnd('label');
