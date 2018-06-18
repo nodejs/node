@@ -305,6 +305,7 @@ void PerfBasicLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
                                         const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
       (code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
+       code->kind() != AbstractCode::BUILTIN &&
        code->kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
     return;
   }
