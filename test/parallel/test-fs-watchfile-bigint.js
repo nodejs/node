@@ -1,14 +1,18 @@
 'use strict';
+
+// Flags: --expose-internals
+
 const common = require('../common');
 
 const assert = require('assert');
+const { BigIntStats } = require('internal/fs/utils');
 const fs = require('fs');
 const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 
 const enoentFile = path.join(tmpdir.path, 'non-existent-file');
-const expectedStatObject = new fs.Stats(
+const expectedStatObject = new BigIntStats(
   0n,                                        // dev
   0n,                                        // mode
   0n,                                        // nlink
@@ -19,10 +23,14 @@ const expectedStatObject = new fs.Stats(
   0n,                                        // ino
   0n,                                        // size
   0n,                                        // blocks
-  0n,                                        // atim_msec
-  0n,                                        // mtim_msec
-  0n,                                        // ctim_msec
-  0n                                         // birthtim_msec
+  0n,                                        // atimeMs
+  0n,                                        // mtimeMs
+  0n,                                        // ctimeMs
+  0n,                                        // birthtimeMs
+  0n,                                        // atimeNs
+  0n,                                        // mtimeNs
+  0n,                                        // ctimeNs
+  0n                                         // birthtimeNs
 );
 
 tmpdir.refresh();
