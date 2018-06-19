@@ -80,7 +80,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 // Quit after it's done.
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
-  quitAfter: 5
+  quitAfter: binding.ARRAY_LENGTH
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -88,7 +88,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 // Quit after it's done.
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNonblocking',
-  quitAfter: 5
+  quitAfter: binding.ARRAY_LENGTH
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
