@@ -403,6 +403,16 @@ The test can be executed by running the `cctest` target:
 $ make cctest
 ```
 
+A filter can be applied to run single/multiple test cases:
+```console
+$ make cctest GTEST_FILTER=EnvironmentTest.AtExitWithArgument
+```
+
+`cctest` can also be run directly which can be useful when debugging:
+```console
+$ out/Release/cctest --gtest_filter=EnvironmentTest.AtExit*
+```
+
 ### Node.js test fixture
 There is a [test fixture][] named `node_test_fixture.h` which can be included by
 unit tests. The fixture takes care of setting up the Node.js environment
