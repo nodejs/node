@@ -113,7 +113,7 @@ static void data_source_thread(void* data) {
 
 // Getting the data into JS
 static void call_js(napi_env env, napi_value cb, void* hint, void* data) {
-  if (cb != NULL) {
+  if (!(env == NULL || cb == NULL)) {
     napi_value argv, undefined;
     NAPI_CALL_RETURN_VOID(env, napi_create_int32(env, *(int*)data, &argv));
     NAPI_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));

@@ -3798,7 +3798,7 @@ class TsFn: public node::AsyncResource {
   // Default way of calling into JavaScript. Used when TsFn is constructed
   // without a call_js_cb_.
   static void CallJs(napi_env env, napi_value cb, void* context, void* data) {
-    if (env && cb) {
+    if (!(env == nullptr || cb == nullptr)) {
       napi_value recv;
       napi_status status;
 
